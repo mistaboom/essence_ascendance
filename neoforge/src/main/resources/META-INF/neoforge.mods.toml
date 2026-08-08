@@ -1,15 +1,15 @@
 modLoader = "javafml"
 loaderVersion = "[4,)"
 #issueTrackerURL = ""
-license = "Insert License Here"
+license = "All Rights Reserved"
 
 [[mods]]
 modId = "essence_ascendance"
 version = "${version}"
 displayName = "Essence Ascendance"
-authors = "Me!"
+authors = "MistaBoom"
 description = '''
-This is an example description! Tell everyone what your mod is about!
+Consume vast quantities of items to ascend your character and permanently improve combat, mobility, defense, and other abilities.
 '''
 #logoFile = ""
 

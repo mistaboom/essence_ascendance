@@ -2,9 +2,9 @@ package com.mistaboom.essence_ascendance.fabric;
 
 import net.fabricmc.api.ModInitializer;
 
-import com.mistaboom.essence_ascendance.ExampleMod;
+import com.mistaboom.essence_ascendance.EssenceAscendance;
 
-public final class ExampleModFabric implements ModInitializer {
+public final class EssenceAscendanceFabric implements ModInitializer {
     @Override
     public void onInitialize() {
         // This code runs as soon as Minecraft is in a mod-load-ready state.
@@ -12,6 +12,6 @@ public final class ExampleModFabric implements ModInitializer {
         // Proceed with mild caution.
 
         // Run our common setup.
-        ExampleMod.init();
+        EssenceAscendance.init();
     }
 }
