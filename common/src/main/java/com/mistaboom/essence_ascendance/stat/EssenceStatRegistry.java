@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.stat;
 
+import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.Collection;
@@ -20,7 +21,8 @@ public final class EssenceStatRegistry {
             ResourceLocation id,
             String displayName,
             StatCategory category,
-            StatUnit unit
+            StatUnit unit,
+            EssenceDefinition essenceType
     ) {
         if (STATS.containsKey(id)) {
             throw new IllegalArgumentException(
@@ -29,7 +31,13 @@ public final class EssenceStatRegistry {
         }
 
         StatDefinition stat =
-                new StatDefinition(id, displayName, category, unit);
+                new StatDefinition(
+                        id,
+                        displayName,
+                        category,
+                        unit,
+                        essenceType
+                );
 
         STATS.put(id, stat);
 

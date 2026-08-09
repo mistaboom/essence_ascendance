@@ -1,6 +1,8 @@
 package com.mistaboom.essence_ascendance.stat;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
+import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
+import com.mistaboom.essence_ascendance.essence.EssenceTypes;
 import net.minecraft.resources.ResourceLocation;
 
 public final class EssenceStats {
@@ -248,6 +250,7 @@ public final class EssenceStats {
                     StatUnit.PERCENT
             );
 
+
     /*
      * ============================================================
      * GATHERING
@@ -351,6 +354,22 @@ public final class EssenceStats {
             StatCategory category,
             StatUnit unit
     ) {
+        return register(
+                path,
+                displayName,
+                category,
+                unit,
+                getDefaultEssenceType(category)
+        );
+    }
+
+    private static StatDefinition register(
+            String path,
+            String displayName,
+            StatCategory category,
+            StatUnit unit,
+            EssenceDefinition essenceType
+    ) {
         return EssenceStatRegistry.register(
                 ResourceLocation.fromNamespaceAndPath(
                         EssenceAscendance.MOD_ID,
@@ -358,8 +377,22 @@ public final class EssenceStats {
                 ),
                 displayName,
                 category,
-                unit
+                unit,
+                essenceType
         );
+    }
+
+    private static EssenceDefinition getDefaultEssenceType(
+            StatCategory category
+    ) {
+        return switch (category) {
+            case OFFENSE -> EssenceTypes.OFFENSE;
+            case DEFENSE -> EssenceTypes.DEFENSE;
+            case VITALITY -> EssenceTypes.VITALITY;
+            case MOBILITY -> EssenceTypes.MOBILITY;
+            case GATHERING -> EssenceTypes.GATHERING;
+            case UTILITY -> EssenceTypes.UTILITY;
+        };
     }
 
     public static void init() {
