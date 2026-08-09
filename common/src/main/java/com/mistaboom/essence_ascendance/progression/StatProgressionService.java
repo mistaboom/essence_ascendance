@@ -1,7 +1,6 @@
 package com.mistaboom.essence_ascendance.progression;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
-import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
@@ -21,14 +20,13 @@ public final class StatProgressionService {
      * NORMAL INVESTMENT TRANSACTION
      * ============================================================
      *
-     * This is the authoritative entry point for normal player stat
-     * investment.
+     * Authoritative entry point for normal stat investment.
      *
-     * Commands, GUI requests, and future gameplay systems should use
-     * this service rather than modifying PlayerEssenceData directly.
+     * Commands, GUI requests, networking, and future gameplay
+     * systems must use this service.
      *
-     * Administrative/debug commands such as /essence setstat are
-     * intentionally allowed to bypass this service.
+     * Administrative/debug mutation commands may deliberately
+     * bypass it.
      */
 
     public static StatInvestmentResult invest(
@@ -70,12 +68,6 @@ public final class StatProgressionService {
                 );
 
 
-        long investedBefore =
-                playerData.getInvested(
-                        stat
-                );
-
-
         /*
          * --------------------------------------------------------
          * AMOUNT VALIDATION
@@ -84,12 +76,18 @@ public final class StatProgressionService {
 
         if (amount <= 0) {
 
+            long invested =
+                    playerData.getInvested(
+                            stat
+                    );
+
+
             return result(
                     StatInvestmentResult.Status.INVALID_AMOUNT,
                     stat,
                     amount,
                     availableBefore,
-                    investedBefore,
+                    invested,
                     -1L
             );
         }
@@ -97,16 +95,16 @@ public final class StatProgressionService {
 
         /*
          * --------------------------------------------------------
-         * CAP RESOLUTION
+         * TIER INVESTMENT POLICY
          * --------------------------------------------------------
          */
 
-        final long investmentCap;
+        final StatInvestmentLimit limit;
 
         try {
 
-            investmentCap =
-                    getInvestmentCap(
+            limit =
+                    TierInvestmentPolicy.evaluate(
                             playerData,
                             stat
                     );
@@ -114,18 +112,21 @@ public final class StatProgressionService {
         } catch (RuntimeException exception) {
 
             EssenceAscendance.LOGGER.error(
-                    "Could not resolve investment cap for player {} and stat {}",
+                    "Could not resolve investment policy for player {} and stat {}",
                     player.getUUID(),
                     stat.id(),
                     exception
             );
+
 
             return result(
                     StatInvestmentResult.Status.CONFIGURATION_ERROR,
                     stat,
                     amount,
                     availableBefore,
-                    investedBefore,
+                    playerData.getInvested(
+                            stat
+                    ),
                     -1L
             );
         }
@@ -137,28 +138,30 @@ public final class StatProgressionService {
          * --------------------------------------------------------
          */
 
-        if (investedBefore > investmentCap) {
+        if (limit.state()
+                == StatInvestmentLimit.State.OVER_CAP) {
 
             return result(
                     StatInvestmentResult.Status.OVER_CAP,
                     stat,
                     amount,
                     availableBefore,
-                    investedBefore,
-                    investmentCap
+                    limit.storedInvestment(),
+                    limit.investmentCap()
             );
         }
 
 
-        if (investedBefore == investmentCap) {
+        if (limit.state()
+                == StatInvestmentLimit.State.AT_CAP) {
 
             return result(
                     StatInvestmentResult.Status.AT_CAP,
                     stat,
                     amount,
                     availableBefore,
-                    investedBefore,
-                    investmentCap
+                    limit.storedInvestment(),
+                    limit.investmentCap()
             );
         }
 
@@ -169,13 +172,13 @@ public final class StatProgressionService {
          * --------------------------------------------------------
          */
 
-        final long investedAfterRequested;
+        final long requestedTotal;
 
         try {
 
-            investedAfterRequested =
+            requestedTotal =
                     Math.addExact(
-                            investedBefore,
+                            limit.storedInvestment(),
                             amount
                     );
 
@@ -186,41 +189,32 @@ public final class StatProgressionService {
                     stat,
                     amount,
                     availableBefore,
-                    investedBefore,
-                    investmentCap
+                    limit.storedInvestment(),
+                    limit.investmentCap()
             );
         }
 
 
         /*
          * --------------------------------------------------------
-         * CAP VALIDATION
+         * TIER CAP ENFORCEMENT
          * --------------------------------------------------------
          *
-         * We reject the entire request rather than partially filling
-         * the remaining capacity.
+         * Transactions are atomic.
          *
-         * Example:
-         *
-         * Current = 9,000
-         * Cap     = 10,000
-         * Request = 2,000
-         *
-         * Result:
-         * REJECT
-         *
-         * The player must explicitly request 1,000 or less.
+         * We do NOT automatically partially invest up to the cap.
          */
 
-        if (investedAfterRequested > investmentCap) {
+        if (requestedTotal
+                > limit.investmentCap()) {
 
             return result(
                     StatInvestmentResult.Status.WOULD_EXCEED_CAP,
                     stat,
                     amount,
                     availableBefore,
-                    investedBefore,
-                    investmentCap
+                    limit.storedInvestment(),
+                    limit.investmentCap()
             );
         }
 
@@ -238,8 +232,8 @@ public final class StatProgressionService {
                     stat,
                     amount,
                     availableBefore,
-                    investedBefore,
-                    investmentCap
+                    limit.storedInvestment(),
+                    limit.investmentCap()
             );
         }
 
@@ -249,15 +243,7 @@ public final class StatProgressionService {
          * COMMIT
          * --------------------------------------------------------
          *
-         * All validation happens before mutation.
-         *
-         * PlayerEssenceData.invest() performs the actual paired
-         * mutation:
-         *
-         * available Essence decreases
-         * invested Essence increases
-         *
-         * EssenceSavedData then marks the save dirty.
+         * No mutation occurs before every validation above succeeds.
          */
 
         final boolean committed;
@@ -273,11 +259,6 @@ public final class StatProgressionService {
 
         } catch (ArithmeticException exception) {
 
-            /*
-             * This should already have been prevented by the
-             * addExact validation above.
-             */
-
             EssenceAscendance.LOGGER.error(
                     "Unexpected numeric overflow while committing stat investment for player {} and stat {}",
                     player.getUUID(),
@@ -285,13 +266,14 @@ public final class StatProgressionService {
                     exception
             );
 
+
             return result(
                     StatInvestmentResult.Status.TRANSACTION_FAILED,
                     stat,
                     amount,
                     availableBefore,
-                    investedBefore,
-                    investmentCap
+                    limit.storedInvestment(),
+                    limit.investmentCap()
             );
         }
 
@@ -304,19 +286,22 @@ public final class StatProgressionService {
                     stat.id()
             );
 
+
             return result(
                     StatInvestmentResult.Status.TRANSACTION_FAILED,
                     stat,
                     amount,
                     availableBefore,
-                    investedBefore,
-                    investmentCap
+                    limit.storedInvestment(),
+                    limit.investmentCap()
             );
         }
 
 
         /*
-         * Read authoritative post-transaction values.
+         * --------------------------------------------------------
+         * AUTHORITATIVE POST-TRANSACTION STATE
+         * --------------------------------------------------------
          */
 
         long availableAfter =
@@ -325,8 +310,9 @@ public final class StatProgressionService {
                 );
 
 
-        long investedAfter =
-                playerData.getInvested(
+        StatInvestmentLimit updatedLimit =
+                TierInvestmentPolicy.evaluate(
+                        playerData,
                         stat
                 );
 
@@ -337,16 +323,49 @@ public final class StatProgressionService {
                 amount,
                 availableBefore,
                 availableAfter,
-                investedBefore,
-                investedAfter,
-                investmentCap
+                limit.storedInvestment(),
+                updatedLimit.storedInvestment(),
+                updatedLimit.investmentCap()
         );
     }
 
 
     /*
      * ============================================================
-     * CAP QUERIES
+     * INVESTMENT LIMIT QUERY
+     * ============================================================
+     *
+     * Future GUI, progression display, scaling, and advancement
+     * calculations can consume the exact same tier policy.
+     */
+
+    public static StatInvestmentLimit getInvestmentLimit(
+            ServerPlayer player,
+            StatDefinition stat
+    ) {
+
+        return TierInvestmentPolicy.evaluate(
+                player,
+                stat
+        );
+    }
+
+
+    public static StatInvestmentLimit getInvestmentLimit(
+            PlayerEssenceData playerData,
+            StatDefinition stat
+    ) {
+
+        return TierInvestmentPolicy.evaluate(
+                playerData,
+                stat
+        );
+    }
+
+
+    /*
+     * ============================================================
+     * CAP QUERY
      * ============================================================
      */
 
@@ -355,18 +374,10 @@ public final class StatProgressionService {
             StatDefinition stat
     ) {
 
-        PlayerEssenceData playerData =
-                EssenceSavedData
-                        .get(player.server)
-                        .getPlayerData(
-                                player.getUUID()
-                        );
-
-
-        return getInvestmentCap(
-                playerData,
+        return getInvestmentLimit(
+                player,
                 stat
-        );
+        ).investmentCap();
     }
 
 
@@ -375,32 +386,17 @@ public final class StatProgressionService {
             StatDefinition stat
     ) {
 
-        return EssenceConfigManager
-                .get()
-                .balanceProfile()
-                .getInvestmentCap(
-                        playerData.getTier(),
-                        stat
-                );
+        return getInvestmentLimit(
+                playerData,
+                stat
+        ).investmentCap();
     }
 
 
     /*
      * ============================================================
-     * EFFECTIVE INVESTMENT
+     * EFFECTIVE INVESTMENT QUERY
      * ============================================================
-     *
-     * Issue 4.5:
-     *
-     * effective investment =
-     * min(stored investment, current cap)
-     *
-     * This method will eventually be consumed by:
-     *
-     * - stat scaling
-     * - Ascendance depth/breadth calculations
-     * - GUI display
-     * - debug/progression commands
      */
 
     public static long getEffectiveInvestment(
@@ -408,18 +404,10 @@ public final class StatProgressionService {
             StatDefinition stat
     ) {
 
-        PlayerEssenceData playerData =
-                EssenceSavedData
-                        .get(player.server)
-                        .getPlayerData(
-                                player.getUUID()
-                        );
-
-
-        return getEffectiveInvestment(
-                playerData,
+        return getInvestmentLimit(
+                player,
                 stat
-        );
+        ).effectiveInvestment();
     }
 
 
@@ -428,23 +416,10 @@ public final class StatProgressionService {
             StatDefinition stat
     ) {
 
-        long stored =
-                playerData.getInvested(
-                        stat
-                );
-
-
-        long cap =
-                getInvestmentCap(
-                        playerData,
-                        stat
-                );
-
-
-        return Math.min(
-                stored,
-                cap
-        );
+        return getInvestmentLimit(
+                playerData,
+                stat
+        ).effectiveInvestment();
     }
 
 
