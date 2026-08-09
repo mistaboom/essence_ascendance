@@ -5,6 +5,12 @@ import com.mistaboom.essence_ascendance.balance.BalanceProfiles;
 import com.mistaboom.essence_ascendance.command.EssenceCommands;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.essence.EssenceTypes;
+import com.mistaboom.essence_ascendance.progression.AscendanceAdvancementRegistry;
+import com.mistaboom.essence_ascendance.progression.AscendanceAdvancements;
+import com.mistaboom.essence_ascendance.progression.MilestoneProviderRegistry;
+import com.mistaboom.essence_ascendance.progression.MilestoneProviders;
+import com.mistaboom.essence_ascendance.progression.MilestoneRegistry;
+import com.mistaboom.essence_ascendance.progression.Milestones;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.EssenceStats;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
@@ -31,9 +37,9 @@ public final class EssenceAscendance {
     public static void init() {
 
         /*
-         * Registration order matters where definitions reference
-         * one another.
+         * Definitions are initialized in dependency order.
          */
+
         EssenceTypes.init();
 
         AscendanceTiers.init();
@@ -41,6 +47,12 @@ public final class EssenceAscendance {
         EssenceStats.init();
 
         BalanceProfiles.init();
+
+        MilestoneProviders.init();
+
+        Milestones.init();
+
+        AscendanceAdvancements.init();
 
 
         CommandRegistrationEvent.EVENT.register(
@@ -52,11 +64,14 @@ public final class EssenceAscendance {
 
 
         LOGGER.info(
-                "Initializing Essence Ascendance with {} essence types, {} registered stats, {} Ascendance tiers, and {} balance profiles",
+                "Initializing Essence Ascendance with {} essence types, {} registered stats, {} Ascendance tiers, {} balance profiles, {} milestone providers, {} milestones, and {} Ascendance advancement definitions",
                 EssenceRegistry.size(),
                 EssenceStatRegistry.size(),
                 AscendanceTierRegistry.size(),
-                BalanceProfileRegistry.size()
+                BalanceProfileRegistry.size(),
+                MilestoneProviderRegistry.size(),
+                MilestoneRegistry.size(),
+                AscendanceAdvancementRegistry.size()
         );
     }
 }

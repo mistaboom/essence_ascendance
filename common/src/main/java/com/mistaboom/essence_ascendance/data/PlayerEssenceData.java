@@ -7,11 +7,14 @@ import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
 import com.mistaboom.essence_ascendance.tier.AscendanceTiers;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 
 public final class PlayerEssenceData {
 
@@ -24,6 +27,9 @@ public final class PlayerEssenceData {
     private static final String TIER_TAG =
             "tier";
 
+    private static final String COMPLETED_MILESTONES_TAG =
+            "completed_milestones";
+
 
     private final Map<ResourceLocation, Long> availableEssence =
             new LinkedHashMap<>();
@@ -31,11 +37,10 @@ public final class PlayerEssenceData {
     private final Map<ResourceLocation, Long> investedEssence =
             new LinkedHashMap<>();
 
+    private final Set<ResourceLocation> completedMilestones =
+            new LinkedHashSet<>();
 
-    /*
-     * Store the stable ResourceLocation rather than an enum ordinal
-     * or tier order.
-     */
+
     private ResourceLocation currentTierId =
             AscendanceTiers.DORMANT.id();
 
@@ -76,7 +81,9 @@ public final class PlayerEssenceData {
         }
 
         long current =
-                getAvailable(essence);
+                getAvailable(
+                        essence
+                );
 
         long updated =
                 Math.addExact(
@@ -104,11 +111,13 @@ public final class PlayerEssenceData {
         }
 
         if (amount == 0) {
+
             availableEssence.remove(
                     essence.id()
             );
 
         } else {
+
             availableEssence.put(
                     essence.id(),
                     amount
@@ -149,12 +158,6 @@ public final class PlayerEssenceData {
     }
 
 
-    /*
-     * This is currently the normal investment operation.
-     *
-     * Later, Issue 6.5 will move normal progression validation
-     * into the centralized progression transaction service.
-     */
     public boolean invest(
             StatDefinition stat,
             long amount
@@ -178,12 +181,10 @@ public final class PlayerEssenceData {
         }
 
         long currentInvestment =
-                getInvested(stat);
+                getInvested(
+                        stat
+                );
 
-        /*
-         * Calculate all resulting values before mutating either map.
-         * Math.addExact also protects against long overflow.
-         */
         long newInvestment =
                 Math.addExact(
                         currentInvestment,
@@ -193,17 +194,21 @@ public final class PlayerEssenceData {
         long remaining =
                 available - amount;
 
+
         if (remaining == 0) {
+
             availableEssence.remove(
                     requiredEssence.id()
             );
 
         } else {
+
             availableEssence.put(
                     requiredEssence.id(),
                     remaining
             );
         }
+
 
         investedEssence.put(
                 stat.id(),
@@ -221,11 +226,6 @@ public final class PlayerEssenceData {
     }
 
 
-    /*
-     * Administrative/debug operation.
-     *
-     * This intentionally bypasses normal investment rules.
-     */
     public void setInvested(
             StatDefinition stat,
             long amount
@@ -237,11 +237,13 @@ public final class PlayerEssenceData {
         }
 
         if (amount == 0) {
+
             investedEssence.remove(
                     stat.id()
             );
 
         } else {
+
             investedEssence.put(
                     stat.id(),
                     amount
@@ -261,6 +263,12 @@ public final class PlayerEssenceData {
 
 
     public void clearAll() {
+        /*
+         * Intentionally clears Essence/stat progression only.
+         *
+         * It does not modify Ascendance tier or completed world
+         * milestones.
+         */
         availableEssence.clear();
         investedEssence.clear();
     }
@@ -273,13 +281,10 @@ public final class PlayerEssenceData {
      */
 
     public AscendanceTierDefinition getTier() {
-        /*
-         * If the stored ID is valid but its tier is not currently
-         * registered, behave as Dormant without destroying the
-         * stored ID.
-         */
         return AscendanceTierRegistry
-                .get(currentTierId)
+                .get(
+                        currentTierId
+                )
                 .orElse(
                         AscendanceTiers.DORMANT
                 );
@@ -301,11 +306,52 @@ public final class PlayerEssenceData {
 
     /*
      * ============================================================
+     * INTERNAL MILESTONES
+     * ============================================================
+     */
+
+    public boolean hasCompletedMilestone(
+            ResourceLocation milestoneId
+    ) {
+        return completedMilestones.contains(
+                milestoneId
+        );
+    }
+
+
+    public boolean completeMilestone(
+            ResourceLocation milestoneId
+    ) {
+        return completedMilestones.add(
+                milestoneId
+        );
+    }
+
+
+    public boolean revokeMilestone(
+            ResourceLocation milestoneId
+    ) {
+        return completedMilestones.remove(
+                milestoneId
+        );
+    }
+
+
+    public Set<ResourceLocation> getCompletedMilestones() {
+        return Collections.unmodifiableSet(
+                completedMilestones
+        );
+    }
+
+
+    /*
+     * ============================================================
      * NBT SERIALIZATION
      * ============================================================
      */
 
     public CompoundTag save() {
+
         CompoundTag root =
                 new CompoundTag();
 
@@ -361,6 +407,27 @@ public final class PlayerEssenceData {
         );
 
 
+        /*
+         * Internal milestone completion
+         */
+        CompoundTag milestoneTag =
+                new CompoundTag();
+
+        for (ResourceLocation milestoneId :
+                completedMilestones) {
+
+            milestoneTag.putBoolean(
+                    milestoneId.toString(),
+                    true
+            );
+        }
+
+        root.put(
+                COMPLETED_MILESTONES_TAG,
+                milestoneTag
+        );
+
+
         return root;
     }
 
@@ -368,6 +435,7 @@ public final class PlayerEssenceData {
     public static PlayerEssenceData load(
             CompoundTag root
     ) {
+
         PlayerEssenceData data =
                 new PlayerEssenceData();
 
@@ -392,16 +460,6 @@ public final class PlayerEssenceData {
 
             if (tierId != null) {
 
-                /*
-                 * Preserve valid ResourceLocation IDs even if the
-                 * corresponding tier is not currently registered.
-                 *
-                 * This allows data belonging to a temporarily
-                 * missing addon or future tier to survive.
-                 *
-                 * getTier() safely returns Dormant while that ID
-                 * remains unavailable.
-                 */
                 data.currentTierId =
                         tierId;
 
@@ -417,10 +475,6 @@ public final class PlayerEssenceData {
 
             } else {
 
-                /*
-                 * A syntactically invalid ResourceLocation cannot
-                 * safely be preserved as an ID.
-                 */
                 EssenceAscendance.LOGGER.warn(
                         "Invalid Ascendance tier ID '{}' in saved player data; defaulting to Dormant",
                         savedTier
@@ -460,6 +514,55 @@ public final class PlayerEssenceData {
         );
 
 
+        /*
+         * ========================================================
+         * INTERNAL MILESTONES
+         * ========================================================
+         *
+         * Older saves do not contain this tag, so check for it
+         * explicitly.
+         */
+
+        if (root.contains(
+                COMPLETED_MILESTONES_TAG,
+                Tag.TAG_COMPOUND
+        )) {
+
+            CompoundTag milestoneTag =
+                    root.getCompound(
+                            COMPLETED_MILESTONES_TAG
+                    );
+
+            for (String key :
+                    milestoneTag.getAllKeys()) {
+
+                ResourceLocation milestoneId =
+                        ResourceLocation.tryParse(
+                                key
+                        );
+
+                if (milestoneId == null) {
+
+                    EssenceAscendance.LOGGER.warn(
+                            "Ignoring invalid milestone ID '{}' in Essence Ascendance player data",
+                            key
+                    );
+
+                    continue;
+                }
+
+                if (milestoneTag.getBoolean(
+                        key
+                )) {
+
+                    data.completedMilestones.add(
+                            milestoneId
+                    );
+                }
+            }
+        }
+
+
         return data;
     }
 
@@ -474,6 +577,7 @@ public final class PlayerEssenceData {
             CompoundTag tag,
             Map<ResourceLocation, Long> target
     ) {
+
         for (String key :
                 tag.getAllKeys()) {
 
@@ -482,11 +586,8 @@ public final class PlayerEssenceData {
                             key
                     );
 
-            /*
-             * Ignore malformed IDs rather than preventing the
-             * entire player record/world from loading.
-             */
             if (id == null) {
+
                 EssenceAscendance.LOGGER.warn(
                         "Ignoring invalid ResourceLocation '{}' in Essence Ascendance player data",
                         key
@@ -500,11 +601,8 @@ public final class PlayerEssenceData {
                             key
                     );
 
-            /*
-             * Zero values do not need to occupy save space.
-             * Negative progression values are treated as invalid.
-             */
             if (value > 0) {
+
                 target.put(
                         id,
                         value
