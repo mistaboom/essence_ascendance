@@ -8,7 +8,8 @@ import java.util.Objects;
 public sealed interface MilestoneRequirement
         permits MilestoneRequirement.Milestone,
         MilestoneRequirement.AllOf,
-        MilestoneRequirement.AnyOf {
+        MilestoneRequirement.AnyOf,
+        MilestoneRequirement.Always {
 
 
     static Milestone milestone(
@@ -47,11 +48,10 @@ public sealed interface MilestoneRequirement
     }
 
 
-    /*
-     * ============================================================
-     * SINGLE MILESTONE
-     * ============================================================
-     */
+    static Always always() {
+        return new Always();
+    }
+
 
     record Milestone(
             ResourceLocation milestoneId
@@ -65,12 +65,6 @@ public sealed interface MilestoneRequirement
         }
     }
 
-
-    /*
-     * ============================================================
-     * ALL OF
-     * ============================================================
-     */
 
     record AllOf(
             List<MilestoneRequirement> children
@@ -94,12 +88,6 @@ public sealed interface MilestoneRequirement
     }
 
 
-    /*
-     * ============================================================
-     * ANY OF
-     * ============================================================
-     */
-
     record AnyOf(
             List<MilestoneRequirement> children
     ) implements MilestoneRequirement {
@@ -119,5 +107,16 @@ public sealed interface MilestoneRequirement
                             children
                     );
         }
+    }
+
+
+    /*
+     * Represents a deliberately disabled world-progression gate.
+     *
+     * This is useful for configuration profiles that want Ascendance
+     * to depend only on Depth and Breadth.
+     */
+    record Always()
+            implements MilestoneRequirement {
     }
 }

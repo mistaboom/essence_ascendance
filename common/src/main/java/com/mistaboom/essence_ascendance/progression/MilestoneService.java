@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.progression;
 
+import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
@@ -19,6 +20,24 @@ public final class MilestoneService {
 
         /*
          * ========================================================
+         * ALWAYS COMPLETE
+         * ========================================================
+         */
+
+        if (requirement
+                instanceof MilestoneRequirement.Always) {
+
+            return new MilestoneProgress(
+                    requirement,
+                    true,
+                    true,
+                    List.of()
+            );
+        }
+
+
+        /*
+         * ========================================================
          * SINGLE MILESTONE
          * ========================================================
          */
@@ -27,9 +46,11 @@ public final class MilestoneService {
                 instanceof MilestoneRequirement.Milestone leaf) {
 
             Optional<MilestoneDefinition> definition =
-                    MilestoneRegistry.get(
-                            leaf.milestoneId()
-                    );
+                    EssenceConfigManager
+                            .get()
+                            .getMilestone(
+                                    leaf.milestoneId()
+                            );
 
             if (definition.isEmpty()) {
 
@@ -40,6 +61,7 @@ public final class MilestoneService {
                         List.of()
                 );
             }
+
 
             Optional<MilestoneProvider> provider =
                     MilestoneProviderRegistry.get(
@@ -56,12 +78,14 @@ public final class MilestoneService {
                 );
             }
 
+
             boolean complete =
                     provider.get()
                             .isComplete(
                                     player,
                                     definition.get()
                             );
+
 
             return new MilestoneProgress(
                     requirement,
@@ -87,11 +111,13 @@ public final class MilestoneService {
                             allOf.children()
                     );
 
+
             boolean resolvable =
                     children.stream()
                             .allMatch(
                                     MilestoneProgress::resolvable
                             );
+
 
             boolean complete =
                     resolvable
@@ -99,6 +125,7 @@ public final class MilestoneService {
                             .allMatch(
                                     MilestoneProgress::complete
                             );
+
 
             return new MilestoneProgress(
                     requirement,
@@ -124,9 +151,13 @@ public final class MilestoneService {
                             anyOf.children()
                     );
 
+
             /*
-             * All branches must be valid configuration even though
-             * only one needs to be completed.
+             * All branches must resolve successfully.
+             *
+             * This treats a missing provider or bad milestone ID as
+             * a configuration problem rather than silently allowing
+             * another branch to bypass it.
              */
             boolean resolvable =
                     children.stream()
@@ -134,12 +165,14 @@ public final class MilestoneService {
                                     MilestoneProgress::resolvable
                             );
 
+
             boolean complete =
                     resolvable
                             && children.stream()
                             .anyMatch(
                                     MilestoneProgress::complete
                             );
+
 
             return new MilestoneProgress(
                     requirement,
@@ -161,8 +194,10 @@ public final class MilestoneService {
             ServerPlayer player,
             List<MilestoneRequirement> requirements
     ) {
+
         List<MilestoneProgress> results =
                 new ArrayList<>();
+
 
         for (MilestoneRequirement requirement :
                 requirements) {
@@ -174,6 +209,7 @@ public final class MilestoneService {
                     )
             );
         }
+
 
         return List.copyOf(
                 results

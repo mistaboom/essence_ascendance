@@ -15,6 +15,7 @@ import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.EssenceStats;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
 import com.mistaboom.essence_ascendance.tier.AscendanceTiers;
+import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import dev.architectury.event.events.common.CommandRegistrationEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,6 +55,7 @@ public final class EssenceAscendance {
 
         AscendanceAdvancements.init();
 
+        EssenceConfigManager.load();
 
         CommandRegistrationEvent.EVENT.register(
                 (dispatcher, registry, selection) ->
@@ -62,16 +64,19 @@ public final class EssenceAscendance {
                         )
         );
 
-
         LOGGER.info(
-                "Initializing Essence Ascendance with {} essence types, {} registered stats, {} Ascendance tiers, {} balance profiles, {} milestone providers, {} milestones, and {} Ascendance advancement definitions",
+                "Initializing Essence Ascendance with {} essence types, {} registered stats, {} Ascendance tiers, {} balance profiles, {} milestone providers, {} milestones, {} Ascendance advancement definitions, using balance profile {}",
                 EssenceRegistry.size(),
                 EssenceStatRegistry.size(),
                 AscendanceTierRegistry.size(),
                 BalanceProfileRegistry.size(),
                 MilestoneProviderRegistry.size(),
                 MilestoneRegistry.size(),
-                AscendanceAdvancementRegistry.size()
+                AscendanceAdvancementRegistry.size(),
+                EssenceConfigManager
+                        .get()
+                        .balanceProfile()
+                        .id()
         );
     }
 }
