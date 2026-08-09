@@ -6,8 +6,8 @@ import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.util.datafix.DataFixTypes;
+import net.minecraft.world.level.saveddata.SavedData;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -31,7 +31,9 @@ public final class EssenceSavedData extends SavedData {
      * ============================================================
      */
 
-    public static EssenceSavedData get(MinecraftServer server) {
+    public static EssenceSavedData get(
+            MinecraftServer server
+    ) {
         return server
                 .overworld()
                 .getDataStorage()
@@ -45,8 +47,12 @@ public final class EssenceSavedData extends SavedData {
                 );
     }
 
-    public PlayerEssenceData getPlayerData(UUID playerId) {
-        PlayerEssenceData existing = players.get(playerId);
+
+    public PlayerEssenceData getPlayerData(
+            UUID playerId
+    ) {
+        PlayerEssenceData existing =
+                players.get(playerId);
 
         if (existing != null) {
             return existing;
@@ -55,7 +61,10 @@ public final class EssenceSavedData extends SavedData {
         PlayerEssenceData created =
                 new PlayerEssenceData();
 
-        players.put(playerId, created);
+        players.put(
+                playerId,
+                created
+        );
 
         setDirty();
 
@@ -65,7 +74,7 @@ public final class EssenceSavedData extends SavedData {
 
     /*
      * ============================================================
-     * MUTATION
+     * ESSENCE MUTATION
      * ============================================================
      */
 
@@ -78,12 +87,16 @@ public final class EssenceSavedData extends SavedData {
                 getPlayerData(playerId);
 
         long updated =
-                playerData.addAvailable(essence, amount);
+                playerData.addAvailable(
+                        essence,
+                        amount
+                );
 
         setDirty();
 
         return updated;
     }
+
 
     public void setEssence(
             UUID playerId,
@@ -93,10 +106,20 @@ public final class EssenceSavedData extends SavedData {
         PlayerEssenceData playerData =
                 getPlayerData(playerId);
 
-        playerData.setAvailable(essence, amount);
+        playerData.setAvailable(
+                essence,
+                amount
+        );
 
         setDirty();
     }
+
+
+    /*
+     * ============================================================
+     * STAT INVESTMENT
+     * ============================================================
+     */
 
     public boolean invest(
             UUID playerId,
@@ -107,7 +130,10 @@ public final class EssenceSavedData extends SavedData {
                 getPlayerData(playerId);
 
         boolean success =
-                playerData.invest(stat, amount);
+                playerData.invest(
+                        stat,
+                        amount
+                );
 
         if (success) {
             setDirty();
@@ -115,6 +141,7 @@ public final class EssenceSavedData extends SavedData {
 
         return success;
     }
+
 
     public void setInvested(
             UUID playerId,
@@ -124,12 +151,18 @@ public final class EssenceSavedData extends SavedData {
         PlayerEssenceData playerData =
                 getPlayerData(playerId);
 
-        playerData.setInvested(stat, amount);
+        playerData.setInvested(
+                stat,
+                amount
+        );
 
         setDirty();
     }
 
-    public void clearAll(UUID playerId) {
+
+    public void clearAll(
+            UUID playerId
+    ) {
         PlayerEssenceData playerData =
                 getPlayerData(playerId);
 
@@ -137,6 +170,34 @@ public final class EssenceSavedData extends SavedData {
 
         setDirty();
     }
+
+
+    /*
+     * ============================================================
+     * ASCENDANCE TIER
+     * ============================================================
+     */
+
+    public AscendanceTierDefinition getTier(
+            UUID playerId
+    ) {
+        return getPlayerData(playerId)
+                .getTier();
+    }
+
+
+    public void setTier(
+            UUID playerId,
+            AscendanceTierDefinition tier
+    ) {
+        PlayerEssenceData playerData =
+                getPlayerData(playerId);
+
+        playerData.setTier(tier);
+
+        setDirty();
+    }
+
 
     /*
      * ============================================================
@@ -146,9 +207,16 @@ public final class EssenceSavedData extends SavedData {
 
     @Override
     public CompoundTag save(
-            CompoundTag tag,
+            CompoundTag root,
             HolderLookup.Provider registries
     ) {
+        /*
+         * Always write the current schema version when saving.
+         */
+        EssenceDataMigration.writeCurrentVersion(
+                root
+        );
+
         CompoundTag playersTag =
                 new CompoundTag();
 
@@ -161,30 +229,52 @@ public final class EssenceSavedData extends SavedData {
             );
         }
 
-        tag.put(PLAYERS_TAG, playersTag);
+        root.put(
+                PLAYERS_TAG,
+                playersTag
+        );
 
-        return tag;
+        return root;
     }
 
+
     public static EssenceSavedData load(
-            CompoundTag tag,
-            HolderLookup.Provider registries
+            CompoundTag root,
+            HolderLookup.Provider provider
     ) {
+        /*
+         * Upgrade older data before attempting to interpret it.
+         */
+        EssenceDataMigration.MigrationResult migration =
+                EssenceDataMigration.migrate(
+                        root
+                );
+
+        CompoundTag migratedRoot =
+                migration.root();
+
         EssenceSavedData data =
                 new EssenceSavedData();
 
         CompoundTag playersTag =
-                tag.getCompound(PLAYERS_TAG);
+                migratedRoot.getCompound(
+                        PLAYERS_TAG
+                );
 
-        for (String key : playersTag.getAllKeys()) {
+        for (String key :
+                playersTag.getAllKeys()) {
 
             try {
                 UUID playerId =
-                        UUID.fromString(key);
+                        UUID.fromString(
+                                key
+                        );
 
                 PlayerEssenceData playerData =
                         PlayerEssenceData.load(
-                                playersTag.getCompound(key)
+                                playersTag.getCompound(
+                                        key
+                                )
                         );
 
                 data.players.put(
@@ -193,34 +283,21 @@ public final class EssenceSavedData extends SavedData {
                 );
 
             } catch (IllegalArgumentException ignored) {
-                // Ignore malformed UUID keys rather than
-                // preventing the world from loading.
+                /*
+                 * Ignore malformed UUID keys rather than preventing
+                 * the entire world from loading.
+                 */
             }
         }
 
+        /*
+         * If an old save was migrated, ensure Minecraft writes the
+         * upgraded format back to disk.
+         */
+        if (migration.migrated()) {
+            data.setDirty();
+        }
+
         return data;
-    }
-
-    /*
-     * ============================================================
-     * ASCENDANCE TIER
-     * ============================================================
-     */
-
-    public AscendanceTierDefinition getTier(UUID playerId) {
-        return getPlayerData(playerId)
-                .getTier();
-    }
-
-    public void setTier(
-            UUID playerId,
-            AscendanceTierDefinition tier
-    ) {
-        PlayerEssenceData playerData =
-                getPlayerData(playerId);
-
-        playerData.setTier(tier);
-
-        setDirty();
     }
 }
