@@ -2,6 +2,10 @@ package com.mistaboom.essence_ascendance.data;
 
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
+import com.mistaboom.essence_ascendance.EssenceAscendance;
+import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
+import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
+import com.mistaboom.essence_ascendance.tier.AscendanceTiers;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 
@@ -13,12 +17,16 @@ public final class PlayerEssenceData {
 
     private static final String AVAILABLE_TAG = "available";
     private static final String INVESTED_TAG = "invested";
+    private static final String TIER_TAG = "tier";
 
     private final Map<ResourceLocation, Long> availableEssence =
             new LinkedHashMap<>();
 
     private final Map<ResourceLocation, Long> investedEssence =
             new LinkedHashMap<>();
+
+    private ResourceLocation currentTierId =
+            AscendanceTiers.DORMANT.id();
 
 
     /*
@@ -182,11 +190,41 @@ public final class PlayerEssenceData {
 
         root.put(INVESTED_TAG, investedTag);
 
+        root.putString(
+                TIER_TAG,
+                currentTierId.toString()
+        );
+
         return root;
     }
 
     public static PlayerEssenceData load(CompoundTag root) {
         PlayerEssenceData data = new PlayerEssenceData();
+
+        String savedTier =
+                root.getString(TIER_TAG);
+
+        if (!savedTier.isBlank()) {
+
+            ResourceLocation tierId =
+                    ResourceLocation.tryParse(savedTier);
+
+            if (tierId != null
+                    && AscendanceTierRegistry.get(tierId).isPresent()) {
+
+                data.currentTierId = tierId;
+
+            } else {
+
+                EssenceAscendance.LOGGER.warn(
+                        "Unknown Ascendance tier '{}' in saved player data; defaulting to Dormant",
+                        savedTier
+                );
+
+                data.currentTierId =
+                        AscendanceTiers.DORMANT.id();
+            }
+        }
 
         readLongMap(
                 root.getCompound(AVAILABLE_TAG),
@@ -220,5 +258,25 @@ public final class PlayerEssenceData {
                 target.put(id, value);
             }
         }
+    }
+
+    /*
+     * ============================================================
+     * ASCENDANCE TIER
+     * ============================================================
+     */
+
+    public AscendanceTierDefinition getTier() {
+        return AscendanceTierRegistry
+                .get(currentTierId)
+                .orElse(AscendanceTiers.DORMANT);
+    }
+
+    public ResourceLocation getTierId() {
+        return currentTierId;
+    }
+
+    public void setTier(AscendanceTierDefinition tier) {
+        currentTierId = tier.id();
     }
 }

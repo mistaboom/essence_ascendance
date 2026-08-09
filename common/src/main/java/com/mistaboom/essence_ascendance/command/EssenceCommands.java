@@ -7,6 +7,8 @@ import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
+import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
+import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -36,6 +38,13 @@ public final class EssenceCommands {
             new DynamicCommandExceptionType(
                     value -> Component.literal(
                             "Unknown stat: " + value
+                    )
+            );
+
+    private static final DynamicCommandExceptionType UNKNOWN_TIER =
+            new DynamicCommandExceptionType(
+                    value -> Component.literal(
+                            "Unknown Ascendance tier: " + value
                     )
             );
 
@@ -302,6 +311,48 @@ public final class EssenceCommands {
                                                 resetAll(
                                                         context.getSource()
                                                 )
+                                        )
+                        )
+
+                        /*
+                         * /essence tier
+                         */
+                        .then(
+                                Commands.literal("tier")
+                                        .executes(context ->
+                                                showTier(
+                                                        context.getSource()
+                                                )
+                                        )
+                        )
+
+                        /*
+                         * /essence settier <tier>
+                         *
+                         * Admin/testing command.
+                         */
+                        .then(
+                                Commands.literal("settier")
+                                        .requires(source ->
+                                                source.hasPermission(2)
+                                        )
+                                        .then(
+                                                Commands.argument(
+                                                                "tier",
+                                                                StringArgumentType.word()
+                                                        )
+                                                        .suggests(
+                                                                EssenceCommands::suggestTiers
+                                                        )
+                                                        .executes(context ->
+                                                                setTier(
+                                                                        context.getSource(),
+                                                                        StringArgumentType.getString(
+                                                                                context,
+                                                                                "tier"
+                                                                        )
+                                                                )
+                                                        )
                                         )
                         )
         );
@@ -722,6 +773,68 @@ public final class EssenceCommands {
 
     /*
      * ============================================================
+     * ASCENDANCE TIER
+     * ============================================================
+     */
+
+    private static int showTier(
+            CommandSourceStack source
+    ) throws CommandSyntaxException {
+
+        ServerPlayer player =
+                source.getPlayerOrException();
+
+        AscendanceTierDefinition tier =
+                EssenceSavedData
+                        .get(source.getServer())
+                        .getTier(
+                                player.getUUID()
+                        );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "Current Ascendance Tier: "
+                                + tier.displayName()
+                ),
+                false
+        );
+
+        return 1;
+    }
+
+
+    private static int setTier(
+            CommandSourceStack source,
+            String tierName
+    ) throws CommandSyntaxException {
+
+        ServerPlayer player =
+                source.getPlayerOrException();
+
+        AscendanceTierDefinition tier =
+                resolveTier(tierName);
+
+        EssenceSavedData
+                .get(source.getServer())
+                .setTier(
+                        player.getUUID(),
+                        tier
+                );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "Ascendance Tier set to "
+                                + tier.displayName()
+                ),
+                false
+        );
+
+        return 1;
+    }
+
+
+    /*
+     * ============================================================
      * LOOKUP
      * ============================================================
      */
@@ -732,6 +845,10 @@ public final class EssenceCommands {
 
         ResourceLocation id =
                 parseId(input);
+
+        if (id == null) {
+            throw UNKNOWN_ESSENCE.create(input);
+        }
 
         return EssenceRegistry
                 .get(id)
@@ -748,6 +865,10 @@ public final class EssenceCommands {
         ResourceLocation id =
                 parseId(input);
 
+        if (id == null) {
+            throw UNKNOWN_STAT.create(input);
+        }
+
         return EssenceStatRegistry
                 .get(id)
                 .orElseThrow(
@@ -756,10 +877,28 @@ public final class EssenceCommands {
     }
 
 
-    private static ResourceLocation parseId(
+    private static AscendanceTierDefinition resolveTier(
             String input
     ) throws CommandSyntaxException {
 
+        ResourceLocation id =
+                parseId(input);
+
+        if (id == null) {
+            throw UNKNOWN_TIER.create(input);
+        }
+
+        return AscendanceTierRegistry
+                .get(id)
+                .orElseThrow(
+                        () -> UNKNOWN_TIER.create(input)
+                );
+    }
+
+
+    private static ResourceLocation parseId(
+            String input
+    ) {
         String fullId =
                 input.contains(":")
                         ? input
@@ -767,14 +906,9 @@ public final class EssenceCommands {
                         + ":"
                         + input;
 
-        ResourceLocation id =
-                ResourceLocation.tryParse(fullId);
-
-        if (id == null) {
-            throw UNKNOWN_STAT.create(input);
-        }
-
-        return id;
+        return ResourceLocation.tryParse(
+                fullId
+        );
     }
 
 
@@ -828,13 +962,40 @@ public final class EssenceCommands {
     }
 
 
+    private static CompletableFuture<Suggestions> suggestTiers(
+            CommandContext<CommandSourceStack> context,
+            SuggestionsBuilder builder
+    ) {
+        String remaining =
+                builder.getRemainingLowerCase();
+
+        for (AscendanceTierDefinition tier :
+                AscendanceTierRegistry.values()) {
+
+            String name =
+                    tier.id().getPath();
+
+            if (name.startsWith(remaining)) {
+                builder.suggest(name);
+            }
+        }
+
+        return builder.buildFuture();
+    }
+
+
     /*
      * ============================================================
      * FORMATTING
      * ============================================================
      */
 
-    private static String format(long value) {
-        return String.format("%,d", value);
+    private static String format(
+            long value
+    ) {
+        return String.format(
+                "%,d",
+                value
+        );
     }
 }

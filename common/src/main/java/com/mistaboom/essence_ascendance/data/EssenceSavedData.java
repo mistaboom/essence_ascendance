@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.data;
 
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
+import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.MinecraftServer;
@@ -198,5 +199,28 @@ public final class EssenceSavedData extends SavedData {
         }
 
         return data;
+    }
+
+    /*
+     * ============================================================
+     * ASCENDANCE TIER
+     * ============================================================
+     */
+
+    public AscendanceTierDefinition getTier(UUID playerId) {
+        return getPlayerData(playerId)
+                .getTier();
+    }
+
+    public void setTier(
+            UUID playerId,
+            AscendanceTierDefinition tier
+    ) {
+        PlayerEssenceData playerData =
+                getPlayerData(playerId);
+
+        playerData.setTier(tier);
+
+        setDirty();
     }
 }
