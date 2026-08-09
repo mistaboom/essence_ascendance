@@ -3,6 +3,7 @@ package com.mistaboom.essence_ascendance.config;
 import com.mistaboom.essence_ascendance.balance.BalanceProfileDefinition;
 import com.mistaboom.essence_ascendance.progression.AscendanceAdvancementDefinition;
 import com.mistaboom.essence_ascendance.progression.MilestoneDefinition;
+import com.mistaboom.essence_ascendance.stat.StatDefinition;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.Collections;
@@ -22,12 +23,15 @@ public final class EssenceServerConfig {
 
     private final Map<ResourceLocation, AscendanceAdvancementDefinition> advancementsByFromTier;
 
+    private final Map<ResourceLocation, Double> statMaxBonuses;
+
 
     public EssenceServerConfig(
             int configVersion,
             BalanceProfileDefinition balanceProfile,
             Map<ResourceLocation, MilestoneDefinition> milestones,
-            Map<ResourceLocation, AscendanceAdvancementDefinition> advancements
+            Map<ResourceLocation, AscendanceAdvancementDefinition> advancements,
+            Map<ResourceLocation, Double> statMaxBonuses
     ) {
         this.configVersion =
                 configVersion;
@@ -46,6 +50,13 @@ public final class EssenceServerConfig {
                 Collections.unmodifiableMap(
                         new LinkedHashMap<>(
                                 advancements
+                        )
+                );
+
+        this.statMaxBonuses =
+                Collections.unmodifiableMap(
+                        new LinkedHashMap<>(
+                                statMaxBonuses
                         )
                 );
 
@@ -100,6 +111,34 @@ public final class EssenceServerConfig {
 
     public Map<ResourceLocation, MilestoneDefinition> milestones() {
         return milestones;
+    }
+
+    public Map<ResourceLocation, Double> statMaxBonuses() {
+
+        return statMaxBonuses;
+    }
+
+
+    public double statMaxBonus(
+            StatDefinition stat
+    ) {
+
+        Double value =
+                statMaxBonuses.get(
+                        stat.id()
+                );
+
+
+        if (value == null) {
+
+            throw new IllegalStateException(
+                    "No stat scaling definition exists for "
+                            + stat.id()
+            );
+        }
+
+
+        return value;
     }
 
 

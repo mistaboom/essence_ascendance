@@ -11,6 +11,8 @@ import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
 import com.mistaboom.essence_ascendance.progression.StatInvestmentResult;
 import com.mistaboom.essence_ascendance.progression.StatProgressionService;
+import com.mistaboom.essence_ascendance.progression.StatScalingResult;
+import com.mistaboom.essence_ascendance.progression.StatScalingService;
 import com.mistaboom.essence_ascendance.progression.AscendanceAttemptResult;
 import com.mistaboom.essence_ascendance.progression.AscendanceEngine;
 import com.mistaboom.essence_ascendance.progression.AscendanceEvaluationResult;
@@ -194,6 +196,34 @@ public final class EssenceCommands {
                                                         )
                                                         .executes(context ->
                                                                 showStat(
+                                                                        context.getSource(),
+                                                                        StringArgumentType.getString(
+                                                                                context,
+                                                                                "stat"
+                                                                        )
+                                                                )
+                                                        )
+                                        )
+                        )
+
+                        /*
+                         * /essence scale <stat>
+                         *
+                         * Displays the resolved scaling calculation
+                         * for a stat without applying its gameplay effect.
+                         */
+                        .then(
+                                Commands.literal("scale")
+                                        .then(
+                                                Commands.argument(
+                                                                "stat",
+                                                                StringArgumentType.word()
+                                                        )
+                                                        .suggests(
+                                                                EssenceCommands::suggestStats
+                                                        )
+                                                        .executes(context ->
+                                                                showStatScaling(
                                                                         context.getSource(),
                                                                         StringArgumentType.getString(
                                                                                 context,
@@ -841,6 +871,120 @@ public final class EssenceCommands {
     }
 
 
+    /*
+     * ============================================================
+     * STAT SCALING
+     * ============================================================
+     */
+
+    private static int showStatScaling(
+            CommandSourceStack source,
+            String statName
+    ) throws CommandSyntaxException {
+
+        ServerPlayer player =
+                source.getPlayerOrException();
+
+        StatDefinition stat =
+                resolveStat(
+                        statName
+                );
+
+        StatScalingResult scaling =
+                StatScalingService.evaluate(
+                        player,
+                        stat
+                );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        stat.displayName()
+                                + " scaling:"
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Stored investment: "
+                                + format(
+                                scaling.storedInvestment()
+                        )
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Effective investment: "
+                                + format(
+                                scaling.effectiveInvestment()
+                        )
+                                + " / "
+                                + format(
+                                scaling.currentInvestmentCap()
+                        )
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Scaling progress: "
+                                + String.format(
+                                "%.2f%%",
+                                scaling.progression()
+                                        * 100.0
+                        )
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Current bonus: "
+                                + formatBonus(
+                                stat,
+                                scaling.scaledBonus()
+                        )
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Current tier ceiling: "
+                                + formatBonus(
+                                stat,
+                                scaling.currentTierMaximumBonus()
+                        )
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Transcendent maximum: "
+                                + formatBonus(
+                                stat,
+                                scaling.transcendentMaximumBonus()
+                        )
+                ),
+                false
+        );
+
+
+        return 1;
+    }
+
+
     private static int showAllStats(
             CommandSourceStack source
     ) throws CommandSyntaxException {
@@ -1376,5 +1520,57 @@ public final class EssenceCommands {
                 "%,d",
                 value
         );
+    }
+
+
+    private static String formatBonus(
+            StatDefinition stat,
+            double value
+    ) {
+
+        return switch (stat.unit()) {
+
+            case PERCENT ->
+                    String.format(
+                            "%.2f%%",
+                            value
+                    );
+
+            case HEARTS ->
+                    String.format(
+                            "%.2f hearts",
+                            value
+                    );
+
+            case HEARTS_PER_SECOND ->
+                    String.format(
+                            "%.3f hearts/sec",
+                            value
+                    );
+
+            case BLOCKS ->
+                    String.format(
+                            "%.2f blocks",
+                            value
+                    );
+
+            case SECONDS ->
+                    String.format(
+                            "%.2f seconds",
+                            value
+                    );
+
+            case LEVELS ->
+                    String.format(
+                            "%.2f levels",
+                            value
+                    );
+
+            case FLAT ->
+                    String.format(
+                            "%.3f",
+                            value
+                    );
+        };
     }
 }

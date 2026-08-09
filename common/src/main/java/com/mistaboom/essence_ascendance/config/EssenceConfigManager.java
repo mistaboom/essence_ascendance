@@ -15,6 +15,8 @@ import com.mistaboom.essence_ascendance.progression.AscendanceAdvancementRegistr
 import com.mistaboom.essence_ascendance.progression.MilestoneDefinition;
 import com.mistaboom.essence_ascendance.progression.MilestoneRegistry;
 import com.mistaboom.essence_ascendance.progression.MilestoneRequirement;
+import com.mistaboom.essence_ascendance.progression.StatScalingDefaults;
+import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import dev.architectury.platform.Platform;
 import net.minecraft.resources.ResourceLocation;
 
@@ -49,6 +51,121 @@ public final class EssenceConfigManager {
 
 
     private EssenceConfigManager() {
+    }
+
+    private static Map<ResourceLocation, Double> parseStatMaxBonuses(
+            JsonObject root
+    ) {
+
+        Map<ResourceLocation, Double> values =
+                new LinkedHashMap<>(
+                        StatScalingDefaults.values()
+                );
+
+
+        JsonElement overridesElement =
+                root.get(
+                        "stat_max_bonus_overrides"
+                );
+
+
+        if (overridesElement == null
+                || overridesElement.isJsonNull()) {
+
+            return values;
+        }
+
+
+        if (!overridesElement.isJsonObject()) {
+
+            throw new IllegalArgumentException(
+                    "stat_max_bonus_overrides must be a JSON object"
+            );
+        }
+
+
+        JsonObject overrides =
+                overridesElement.getAsJsonObject();
+
+
+        for (Map.Entry<String, JsonElement> entry :
+                overrides.entrySet()) {
+
+            ResourceLocation statId =
+                    ResourceLocation.tryParse(
+                            entry.getKey()
+                    );
+
+
+            if (statId == null) {
+
+                throw new IllegalArgumentException(
+                        "Invalid stat ID in stat_max_bonus_overrides: "
+                                + entry.getKey()
+                );
+            }
+
+
+            if (EssenceStatRegistry
+                    .get(statId)
+                    .isEmpty()) {
+
+                throw new IllegalArgumentException(
+                        "Unknown stat in stat_max_bonus_overrides: "
+                                + statId
+                );
+            }
+
+
+            JsonElement valueElement =
+                    entry.getValue();
+
+
+            if (!valueElement.isJsonPrimitive()
+                    || !valueElement
+                    .getAsJsonPrimitive()
+                    .isNumber()) {
+
+                throw new IllegalArgumentException(
+                        "Stat max bonus for "
+                                + statId
+                                + " must be numeric"
+                );
+            }
+
+
+            double value =
+                    valueElement.getAsDouble();
+
+
+            if (!Double.isFinite(value)) {
+
+                throw new IllegalArgumentException(
+                        "Stat max bonus for "
+                                + statId
+                                + " must be finite"
+                );
+            }
+
+
+            if (value < 0.0) {
+
+                throw new IllegalArgumentException(
+                        "Stat max bonus for "
+                                + statId
+                                + " cannot be negative"
+                );
+            }
+
+
+            values.put(
+                    statId,
+                    value
+            );
+        }
+
+
+        return values;
     }
 
 
@@ -225,6 +342,11 @@ public final class EssenceConfigManager {
                 new JsonObject()
         );
 
+        root.add(
+                "stat_max_bonus_overrides",
+                new JsonObject()
+        );
+
 
         root.add(
                 "milestone_overrides",
@@ -292,6 +414,11 @@ public final class EssenceConfigManager {
                         root
                 );
 
+        Map<ResourceLocation, Double> statMaxBonuses =
+                parseStatMaxBonuses(
+                        root
+                );
+
 
         Map<ResourceLocation, MilestoneDefinition> milestones =
                 parseMilestones(
@@ -309,7 +436,8 @@ public final class EssenceConfigManager {
                 version,
                 balanceProfile,
                 milestones,
-                advancements
+                advancements,
+                statMaxBonuses
         );
     }
 
@@ -1147,7 +1275,10 @@ public final class EssenceConfigManager {
                 CURRENT_CONFIG_VERSION,
                 BalanceProfiles.VANILLA,
                 milestones,
-                advancements
+                advancements,
+                new LinkedHashMap<>(
+                        StatScalingDefaults.values()
+                )
         );
     }
 
