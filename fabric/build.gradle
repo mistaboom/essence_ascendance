@@ -45,6 +45,8 @@ loom {
 
             programArg "--uuid"
             programArg "0e0b750fe8aa3304aa414466ca4fc44e"
+
+            ideConfigGenerated = true
         }
     }
 }
