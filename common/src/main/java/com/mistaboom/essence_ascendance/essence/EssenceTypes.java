@@ -60,6 +60,27 @@ public final class EssenceTypes {
      * ============================================================
      */
 
+    public static final EssenceDefinition PYRE =
+            register(
+                    "pyre",
+                    "Pyre Essence",
+                    EssenceFamily.SKILL
+            );
+
+    public static final EssenceDefinition FLOW =
+            register(
+                    "flow",
+                    "Flow Essence",
+                    EssenceFamily.SKILL
+            );
+
+    public static final EssenceDefinition TERRA =
+            register(
+                    "terra",
+                    "Terra Essence",
+                    EssenceFamily.SKILL
+            );
+
     public static final EssenceDefinition GALE =
             register(
                     "gale",
@@ -101,7 +122,6 @@ public final class EssenceTypes {
                     "Void Essence",
                     EssenceFamily.SKILL
             );
-
 
     private EssenceTypes() {
     }

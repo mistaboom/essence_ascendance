@@ -6,6 +6,8 @@ import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.EssenceStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.mistaboom.essence_ascendance.command.EssenceCommands;
+import dev.architectury.event.events.common.CommandRegistrationEvent;
 
 public final class EssenceAscendance {
 
@@ -20,6 +22,11 @@ public final class EssenceAscendance {
     public static void init() {
         EssenceTypes.init();
         EssenceStats.init();
+
+        CommandRegistrationEvent.EVENT.register(
+                (dispatcher, registry, selection) ->
+                        EssenceCommands.register(dispatcher)
+        );
 
         LOGGER.info(
                 "Initializing Essence Ascendance with {} essence types and {} registered stats",
