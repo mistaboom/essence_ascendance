@@ -119,6 +119,32 @@ public final class PlayerEssenceData {
         return Collections.unmodifiableMap(investedEssence);
     }
 
+    public void setInvested(StatDefinition stat, long amount) {
+        if (amount < 0) {
+            throw new IllegalArgumentException(
+                    "Invested Essence amount cannot be negative"
+            );
+        }
+
+        if (amount == 0) {
+            investedEssence.remove(stat.id());
+        } else {
+            investedEssence.put(stat.id(), amount);
+        }
+    }
+
+    public void clearAvailable() {
+        availableEssence.clear();
+    }
+
+    public void clearInvested() {
+        investedEssence.clear();
+    }
+
+    public void clearAll() {
+        availableEssence.clear();
+        investedEssence.clear();
+    }
 
     /*
      * ============================================================

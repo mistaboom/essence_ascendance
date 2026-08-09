@@ -115,6 +115,27 @@ public final class EssenceSavedData extends SavedData {
         return success;
     }
 
+    public void setInvested(
+            UUID playerId,
+            StatDefinition stat,
+            long amount
+    ) {
+        PlayerEssenceData playerData =
+                getPlayerData(playerId);
+
+        playerData.setInvested(stat, amount);
+
+        setDirty();
+    }
+
+    public void clearAll(UUID playerId) {
+        PlayerEssenceData playerData =
+                getPlayerData(playerId);
+
+        playerData.clearAll();
+
+        setDirty();
+    }
 
     /*
      * ============================================================

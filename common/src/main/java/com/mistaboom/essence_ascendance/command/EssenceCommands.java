@@ -10,13 +10,18 @@ import com.mistaboom.essence_ascendance.stat.StatDefinition;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+
+import java.util.concurrent.CompletableFuture;
 
 public final class EssenceCommands {
 
@@ -34,10 +39,15 @@ public final class EssenceCommands {
                     )
             );
 
-
     private EssenceCommands() {
     }
 
+
+    /*
+     * ============================================================
+     * COMMAND REGISTRATION
+     * ============================================================
+     */
 
     public static void register(
             CommandDispatcher<CommandSourceStack> dispatcher
@@ -60,6 +70,9 @@ public final class EssenceCommands {
                                                 Commands.argument(
                                                                 "essence",
                                                                 StringArgumentType.word()
+                                                        )
+                                                        .suggests(
+                                                                EssenceCommands::suggestEssences
                                                         )
                                                         .executes(context ->
                                                                 showBalance(
@@ -88,6 +101,9 @@ public final class EssenceCommands {
                                                                 "essence",
                                                                 StringArgumentType.word()
                                                         )
+                                                        .suggests(
+                                                                EssenceCommands::suggestEssences
+                                                        )
                                                         .then(
                                                                 Commands.argument(
                                                                                 "amount",
@@ -112,6 +128,9 @@ public final class EssenceCommands {
 
                         /*
                          * /essence invest <stat> <amount>
+                         *
+                         * Normal progression operation.
+                         * Removes available Essence and invests it into a stat.
                          */
                         .then(
                                 Commands.literal("invest")
@@ -119,6 +138,9 @@ public final class EssenceCommands {
                                                 Commands.argument(
                                                                 "stat",
                                                                 StringArgumentType.word()
+                                                        )
+                                                        .suggests(
+                                                                EssenceCommands::suggestStats
                                                         )
                                                         .then(
                                                                 Commands.argument(
@@ -152,6 +174,9 @@ public final class EssenceCommands {
                                                                 "stat",
                                                                 StringArgumentType.word()
                                                         )
+                                                        .suggests(
+                                                                EssenceCommands::suggestStats
+                                                        )
                                                         .executes(context ->
                                                                 showStat(
                                                                         context.getSource(),
@@ -161,6 +186,122 @@ public final class EssenceCommands {
                                                                         )
                                                                 )
                                                         )
+                                        )
+                        )
+
+                        /*
+                         * /essence set <essence> <amount>
+                         *
+                         * Admin/testing command.
+                         * Directly sets an available Essence balance.
+                         */
+                        .then(
+                                Commands.literal("set")
+                                        .requires(source ->
+                                                source.hasPermission(2)
+                                        )
+                                        .then(
+                                                Commands.argument(
+                                                                "essence",
+                                                                StringArgumentType.word()
+                                                        )
+                                                        .suggests(
+                                                                EssenceCommands::suggestEssences
+                                                        )
+                                                        .then(
+                                                                Commands.argument(
+                                                                                "amount",
+                                                                                LongArgumentType.longArg(0)
+                                                                        )
+                                                                        .executes(context ->
+                                                                                setEssence(
+                                                                                        context.getSource(),
+                                                                                        StringArgumentType.getString(
+                                                                                                context,
+                                                                                                "essence"
+                                                                                        ),
+                                                                                        LongArgumentType.getLong(
+                                                                                                context,
+                                                                                                "amount"
+                                                                                        )
+                                                                                )
+                                                                        )
+                                                        )
+                                        )
+                        )
+
+                        /*
+                         * /essence setstat <stat> <amount>
+                         *
+                         * Admin/testing command.
+                         * Directly sets invested Essence without consuming
+                         * an available Essence balance.
+                         */
+                        .then(
+                                Commands.literal("setstat")
+                                        .requires(source ->
+                                                source.hasPermission(2)
+                                        )
+                                        .then(
+                                                Commands.argument(
+                                                                "stat",
+                                                                StringArgumentType.word()
+                                                        )
+                                                        .suggests(
+                                                                EssenceCommands::suggestStats
+                                                        )
+                                                        .then(
+                                                                Commands.argument(
+                                                                                "amount",
+                                                                                LongArgumentType.longArg(0)
+                                                                        )
+                                                                        .executes(context ->
+                                                                                setStat(
+                                                                                        context.getSource(),
+                                                                                        StringArgumentType.getString(
+                                                                                                context,
+                                                                                                "stat"
+                                                                                        ),
+                                                                                        LongArgumentType.getLong(
+                                                                                                context,
+                                                                                                "amount"
+                                                                                        )
+                                                                                )
+                                                                        )
+                                                        )
+                                        )
+                        )
+
+                        /*
+                         * /essence stats
+                         *
+                         * Lists every registered stat and its invested Essence.
+                         */
+                        .then(
+                                Commands.literal("stats")
+                                        .executes(context ->
+                                                showAllStats(
+                                                        context.getSource()
+                                                )
+                                        )
+                        )
+
+                        /*
+                         * /essence reset
+                         *
+                         * Admin/testing command.
+                         * Clears all available and invested Essence
+                         * for the executing player.
+                         */
+                        .then(
+                                Commands.literal("reset")
+                                        .requires(source ->
+                                                source.hasPermission(2)
+                                        )
+                                        .executes(context ->
+                                                resetAll(
+                                                        context.getSource()
+                                                )
                                         )
                         )
         );
@@ -295,6 +436,46 @@ public final class EssenceCommands {
 
     /*
      * ============================================================
+     * SET AVAILABLE ESSENCE
+     * ============================================================
+     */
+
+    private static int setEssence(
+            CommandSourceStack source,
+            String essenceName,
+            long amount
+    ) throws CommandSyntaxException {
+
+        ServerPlayer player =
+                source.getPlayerOrException();
+
+        EssenceDefinition essence =
+                resolveEssence(essenceName);
+
+        EssenceSavedData
+                .get(source.getServer())
+                .setEssence(
+                        player.getUUID(),
+                        essence,
+                        amount
+                );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "Set "
+                                + essence.displayName()
+                                + " to "
+                                + format(amount)
+                ),
+                false
+        );
+
+        return 1;
+    }
+
+
+    /*
+     * ============================================================
      * INVEST
      * ============================================================
      */
@@ -391,6 +572,46 @@ public final class EssenceCommands {
 
     /*
      * ============================================================
+     * SET INVESTED ESSENCE
+     * ============================================================
+     */
+
+    private static int setStat(
+            CommandSourceStack source,
+            String statName,
+            long amount
+    ) throws CommandSyntaxException {
+
+        ServerPlayer player =
+                source.getPlayerOrException();
+
+        StatDefinition stat =
+                resolveStat(statName);
+
+        EssenceSavedData
+                .get(source.getServer())
+                .setInvested(
+                        player.getUUID(),
+                        stat,
+                        amount
+                );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "Set "
+                                + stat.displayName()
+                                + " invested Essence to "
+                                + format(amount)
+                ),
+                false
+        );
+
+        return 1;
+    }
+
+
+    /*
+     * ============================================================
      * STAT INFO
      * ============================================================
      */
@@ -429,6 +650,76 @@ public final class EssenceCommands {
     }
 
 
+    private static int showAllStats(
+            CommandSourceStack source
+    ) throws CommandSyntaxException {
+
+        ServerPlayer player =
+                source.getPlayerOrException();
+
+        PlayerEssenceData playerData =
+                EssenceSavedData
+                        .get(source.getServer())
+                        .getPlayerData(player.getUUID());
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "Essence Ascendance stats:"
+                ),
+                false
+        );
+
+        for (StatDefinition stat :
+                EssenceStatRegistry.values()) {
+
+            long invested =
+                    playerData.getInvested(stat);
+
+            source.sendSuccess(
+                    () -> Component.literal(
+                            "  "
+                                    + stat.displayName()
+                                    + ": "
+                                    + format(invested)
+                    ),
+                    false
+            );
+        }
+
+        return 1;
+    }
+
+
+    /*
+     * ============================================================
+     * RESET
+     * ============================================================
+     */
+
+    private static int resetAll(
+            CommandSourceStack source
+    ) throws CommandSyntaxException {
+
+        ServerPlayer player =
+                source.getPlayerOrException();
+
+        EssenceSavedData
+                .get(source.getServer())
+                .clearAll(
+                        player.getUUID()
+                );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "Reset all Essence balances and stat investments."
+                ),
+                false
+        );
+
+        return 1;
+    }
+
+
     /*
      * ============================================================
      * LOOKUP
@@ -449,6 +740,7 @@ public final class EssenceCommands {
                 );
     }
 
+
     private static StatDefinition resolveStat(
             String input
     ) throws CommandSyntaxException {
@@ -462,6 +754,7 @@ public final class EssenceCommands {
                         () -> UNKNOWN_STAT.create(input)
                 );
     }
+
 
     private static ResourceLocation parseId(
             String input
@@ -484,6 +777,62 @@ public final class EssenceCommands {
         return id;
     }
 
+
+    /*
+     * ============================================================
+     * COMMAND SUGGESTIONS
+     * ============================================================
+     */
+
+    private static CompletableFuture<Suggestions> suggestEssences(
+            CommandContext<CommandSourceStack> context,
+            SuggestionsBuilder builder
+    ) {
+        String remaining =
+                builder.getRemainingLowerCase();
+
+        for (EssenceDefinition essence :
+                EssenceRegistry.values()) {
+
+            String name =
+                    essence.id().getPath();
+
+            if (name.startsWith(remaining)) {
+                builder.suggest(name);
+            }
+        }
+
+        return builder.buildFuture();
+    }
+
+
+    private static CompletableFuture<Suggestions> suggestStats(
+            CommandContext<CommandSourceStack> context,
+            SuggestionsBuilder builder
+    ) {
+        String remaining =
+                builder.getRemainingLowerCase();
+
+        for (StatDefinition stat :
+                EssenceStatRegistry.values()) {
+
+            String name =
+                    stat.id().getPath();
+
+            if (name.startsWith(remaining)) {
+                builder.suggest(name);
+            }
+        }
+
+        return builder.buildFuture();
+    }
+
+
+    /*
+     * ============================================================
+     * FORMATTING
+     * ============================================================
+     */
 
     private static String format(long value) {
         return String.format("%,d", value);
