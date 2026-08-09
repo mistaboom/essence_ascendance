@@ -5,7 +5,7 @@ import net.minecraft.server.level.ServerPlayer;
 @FunctionalInterface
 public interface MilestoneProvider {
 
-    boolean isComplete(
+    MilestoneCheckResult evaluate(
             ServerPlayer player,
             MilestoneDefinition milestone
     );

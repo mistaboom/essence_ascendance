@@ -11,6 +11,10 @@ import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
 import com.mistaboom.essence_ascendance.progression.StatInvestmentResult;
 import com.mistaboom.essence_ascendance.progression.StatProgressionService;
+import com.mistaboom.essence_ascendance.progression.AscendanceAttemptResult;
+import com.mistaboom.essence_ascendance.progression.AscendanceEngine;
+import com.mistaboom.essence_ascendance.progression.AscendanceEvaluationResult;
+import com.mistaboom.essence_ascendance.progression.AscendanceProgressSnapshot;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -355,6 +359,34 @@ public final class EssenceCommands {
                                                                         )
                                                                 )
                                                         )
+                                        )
+                        )
+
+                        /*
+                         * /essence progress
+                         *
+                         * Shows qualification for the next Ascendance tier.
+                         */
+                        .then(
+                                Commands.literal("progress")
+                                        .executes(context ->
+                                                showAscendanceProgress(
+                                                        context.getSource()
+                                                )
+                                        )
+                        )
+
+                        /*
+                         * /essence ascend
+                         *
+                         * Manual, server-authoritative tier advancement.
+                         */
+                        .then(
+                                Commands.literal("ascend")
+                                        .executes(context ->
+                                                ascend(
+                                                        context.getSource()
+                                                )
                                         )
                         )
         );
@@ -1017,6 +1049,245 @@ public final class EssenceCommands {
         return ResourceLocation.tryParse(
                 fullId
         );
+    }
+
+    /*
+     * ============================================================
+     * ASCENDANCE PROGRESS
+     * ============================================================
+     */
+
+    private static int showAscendanceProgress(
+            CommandSourceStack source
+    ) throws CommandSyntaxException {
+
+        ServerPlayer player =
+                source.getPlayerOrException();
+
+
+        AscendanceEvaluationResult evaluation =
+                AscendanceEngine.evaluate(
+                        player
+                );
+
+
+        if (evaluation.status()
+                == AscendanceEvaluationResult.Status.MAX_TIER) {
+
+            source.sendSuccess(
+                    () -> Component.literal(
+                            "Current Ascendance Tier: "
+                                    + evaluation.currentTier().displayName()
+                                    + ". This is the highest Ascendance tier."
+                    ),
+                    false
+            );
+
+            return 1;
+        }
+
+
+        if (evaluation.status()
+                == AscendanceEvaluationResult.Status.CONFIGURATION_ERROR) {
+
+            source.sendFailure(
+                    Component.literal(
+                            "Ascendance progress cannot be evaluated because the current progression configuration is invalid. Check the server log."
+                    )
+            );
+
+            return 0;
+        }
+
+
+        AscendanceProgressSnapshot progress =
+                evaluation.progress();
+
+
+        String worldState;
+
+        if (!progress
+                .worldProgress()
+                .resolvable()) {
+
+            worldState =
+                    "UNRESOLVED";
+
+        } else if (progress
+                .worldProgress()
+                .complete()) {
+
+            worldState =
+                    "Complete";
+
+        } else {
+
+            worldState =
+                    "Incomplete";
+        }
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "Ascendance Progress: "
+                                + evaluation.currentTier().displayName()
+                                + " -> "
+                                + evaluation.nextTier().displayName()
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Depth: "
+                                + format(
+                                progress.effectiveInvestment()
+                        )
+                                + " / "
+                                + format(
+                                progress.requiredInvestment()
+                        )
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Developed Stats: "
+                                + progress.developedStats()
+                                + " / "
+                                + progress.requiredDevelopedStats()
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Represented Categories: "
+                                + progress.representedCategories()
+                                + " / "
+                                + progress.requiredRepresentedCategories()
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  World Progression: "
+                                + worldState
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Ready to Ascend: "
+                                + (
+                                progress.readyToAscend()
+                                        ? "YES"
+                                        : "NO"
+                        )
+                ),
+                false
+        );
+
+
+        return 1;
+    }
+
+
+    /*
+     * ============================================================
+     * MANUAL ASCENSION
+     * ============================================================
+     */
+
+    private static int ascend(
+            CommandSourceStack source
+    ) throws CommandSyntaxException {
+
+        ServerPlayer player =
+                source.getPlayerOrException();
+
+
+        AscendanceAttemptResult result =
+                AscendanceEngine.ascend(
+                        player
+                );
+
+
+        switch (result.status()) {
+
+            case SUCCESS -> {
+
+                source.sendSuccess(
+                        () -> Component.literal(
+                                "Ascended from "
+                                        + result
+                                        .evaluation()
+                                        .currentTier()
+                                        .displayName()
+                                        + " to "
+                                        + result
+                                        .evaluation()
+                                        .nextTier()
+                                        .displayName()
+                                        + "."
+                        ),
+                        false
+                );
+
+
+                return 1;
+            }
+
+
+            case NOT_READY -> {
+
+                source.sendFailure(
+                        Component.literal(
+                                "You do not yet meet the requirements to Ascend. Use /essence progress for details."
+                        )
+                );
+
+
+                return 0;
+            }
+
+
+            case MAX_TIER -> {
+
+                source.sendFailure(
+                        Component.literal(
+                                "You are already at the highest Ascendance tier."
+                        )
+                );
+
+
+                return 0;
+            }
+
+
+            case CONFIGURATION_ERROR -> {
+
+                source.sendFailure(
+                        Component.literal(
+                                "Ascendance cannot be completed because the current progression configuration is invalid. Check the server log."
+                        )
+                );
+
+
+                return 0;
+            }
+        }
+
+
+        return 0;
     }
 
 

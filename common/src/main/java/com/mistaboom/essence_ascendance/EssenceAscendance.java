@@ -16,6 +16,7 @@ import com.mistaboom.essence_ascendance.stat.EssenceStats;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
 import com.mistaboom.essence_ascendance.tier.AscendanceTiers;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
+import com.mistaboom.essence_ascendance.progression.AscendanceMilestoneEvents;
 import dev.architectury.event.events.common.CommandRegistrationEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,6 +57,8 @@ public final class EssenceAscendance {
         AscendanceAdvancements.init();
 
         EssenceConfigManager.load();
+
+        AscendanceMilestoneEvents.init();
 
         CommandRegistrationEvent.EVENT.register(
                 (dispatcher, registry, selection) ->

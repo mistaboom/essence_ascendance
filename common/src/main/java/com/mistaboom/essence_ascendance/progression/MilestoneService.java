@@ -20,7 +20,7 @@ public final class MilestoneService {
 
         /*
          * ========================================================
-         * ALWAYS COMPLETE
+         * ALWAYS
          * ========================================================
          */
 
@@ -52,6 +52,7 @@ public final class MilestoneService {
                                     leaf.milestoneId()
                             );
 
+
             if (definition.isEmpty()) {
 
                 return new MilestoneProgress(
@@ -68,6 +69,7 @@ public final class MilestoneService {
                             definition.get().providerId()
                     );
 
+
             if (provider.isEmpty()) {
 
                 return new MilestoneProgress(
@@ -79,9 +81,10 @@ public final class MilestoneService {
             }
 
 
-            boolean complete =
-                    provider.get()
-                            .isComplete(
+            MilestoneCheckResult check =
+                    provider
+                            .get()
+                            .evaluate(
                                     player,
                                     definition.get()
                             );
@@ -89,8 +92,8 @@ public final class MilestoneService {
 
             return new MilestoneProgress(
                     requirement,
-                    true,
-                    complete,
+                    check.resolvable(),
+                    check.complete(),
                     List.of()
             );
         }
@@ -153,12 +156,12 @@ public final class MilestoneService {
 
 
             /*
-             * All branches must resolve successfully.
+             * Every configured branch must resolve.
              *
-             * This treats a missing provider or bad milestone ID as
-             * a configuration problem rather than silently allowing
-             * another branch to bypass it.
+             * A typo or unavailable provider is treated as a
+             * configuration error rather than silently ignored.
              */
+
             boolean resolvable =
                     children.stream()
                             .allMatch(

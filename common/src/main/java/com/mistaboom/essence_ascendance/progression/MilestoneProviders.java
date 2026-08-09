@@ -2,109 +2,152 @@ package com.mistaboom.essence_ascendance.progression;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
-import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 
 public final class MilestoneProviders {
 
     public static final ResourceLocation ADVANCEMENT =
-            id(
-                    "advancement"
-            );
+            id("advancement");
 
     public static final ResourceLocation INTERNAL =
-            id(
-                    "internal"
-            );
-
-
-    static {
-
-        MilestoneProviderRegistry.register(
-                ADVANCEMENT,
-                MilestoneProviders::checkAdvancement
-        );
-
-        MilestoneProviderRegistry.register(
-                INTERNAL,
-                MilestoneProviders::checkInternal
-        );
-    }
+            id("internal");
 
 
     private MilestoneProviders() {
     }
 
 
-    private static boolean checkAdvancement(
+    public static void init() {
+
+        MilestoneProviderRegistry.register(
+                ADVANCEMENT,
+                MilestoneProviders::evaluateAdvancement
+        );
+
+
+        MilestoneProviderRegistry.register(
+                INTERNAL,
+                MilestoneProviders::evaluateInternal
+        );
+    }
+
+
+    /*
+     * ============================================================
+     * VANILLA ADVANCEMENT PROVIDER
+     * ============================================================
+     */
+
+    private static MilestoneCheckResult evaluateAdvancement(
             ServerPlayer player,
             MilestoneDefinition milestone
     ) {
+
         ResourceLocation advancementId =
                 ResourceLocation.tryParse(
                         milestone.target()
                 );
 
+
         if (advancementId == null) {
-            return false;
+
+            EssenceAscendance.LOGGER.warn(
+                    "Milestone '{}' has invalid advancement target '{}'",
+                    milestone.id(),
+                    milestone.target()
+            );
+
+            return MilestoneCheckResult.unresolved();
         }
 
-        AdvancementHolder advancement =
+
+        var advancement =
                 player.server
                         .getAdvancements()
                         .get(
                                 advancementId
                         );
 
+
         if (advancement == null) {
-            return false;
+
+            EssenceAscendance.LOGGER.warn(
+                    "Milestone '{}' references unknown advancement '{}'",
+                    milestone.id(),
+                    advancementId
+            );
+
+            return MilestoneCheckResult.unresolved();
         }
 
-        return player
-                .getAdvancements()
-                .getOrStartProgress(
-                        advancement
-                )
-                .isDone();
+
+        boolean complete =
+                player
+                        .getAdvancements()
+                        .getOrStartProgress(
+                                advancement
+                        )
+                        .isDone();
+
+
+        return complete
+                ? MilestoneCheckResult.completed()
+                : MilestoneCheckResult.incomplete();
     }
 
 
-    private static boolean checkInternal(
+    /*
+     * ============================================================
+     * INTERNAL PROVIDER
+     * ============================================================
+     */
+
+    private static MilestoneCheckResult evaluateInternal(
             ServerPlayer player,
             MilestoneDefinition milestone
     ) {
+
         ResourceLocation milestoneId =
                 ResourceLocation.tryParse(
                         milestone.target()
                 );
 
+
         if (milestoneId == null) {
-            return false;
+
+            EssenceAscendance.LOGGER.warn(
+                    "Milestone '{}' has invalid internal milestone target '{}'",
+                    milestone.id(),
+                    milestone.target()
+            );
+
+            return MilestoneCheckResult.unresolved();
         }
 
-        return EssenceSavedData
-                .get(
-                        player.server
-                )
-                .hasCompletedInternalMilestone(
-                        player.getUUID(),
-                        milestoneId
-                );
+
+        boolean complete =
+                EssenceSavedData
+                        .get(player.server)
+                        .hasCompletedInternalMilestone(
+                                player.getUUID(),
+                                milestoneId
+                        );
+
+
+        return complete
+                ? MilestoneCheckResult.completed()
+                : MilestoneCheckResult.incomplete();
     }
 
 
     private static ResourceLocation id(
             String path
     ) {
+
         return ResourceLocation.fromNamespaceAndPath(
                 EssenceAscendance.MOD_ID,
                 path
         );
-    }
-
-
-    public static void init() {
-        // Forces static initialization.
     }
 }
