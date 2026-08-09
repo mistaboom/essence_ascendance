@@ -37,6 +37,18 @@ dependencies {
     shadowBundle project(path: ':common', configuration: 'transformProductionFabric')
 }
 
+loom {
+    runs {
+        client {
+            programArg "--username"
+            programArg "ReedDev"
+
+            programArg "--uuid"
+            programArg "0e0b750fe8aa3304aa414466ca4fc44e"
+        }
+    }
+}
+
 processResources {
     inputs.property 'version', project.version
 
