@@ -9,6 +9,8 @@ import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
+import com.mistaboom.essence_ascendance.progression.StatInvestmentResult;
+import com.mistaboom.essence_ascendance.progression.StatProgressionService;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -540,84 +542,190 @@ public final class EssenceCommands {
         ServerPlayer player =
                 source.getPlayerOrException();
 
+
         StatDefinition stat =
-                resolveStat(statName);
-
-        EssenceSavedData savedData =
-                EssenceSavedData.get(
-                        source.getServer()
+                resolveStat(
+                        statName
                 );
 
-        PlayerEssenceData playerData =
-                savedData.getPlayerData(
-                        player.getUUID()
-                );
 
-        EssenceDefinition requiredEssence =
-                stat.essenceType();
-
-        long available =
-                playerData.getAvailable(
-                        requiredEssence
-                );
-
-        if (available < amount) {
-            source.sendFailure(
-                    Component.literal(
-                            "Not enough "
-                                    + requiredEssence.displayName()
-                                    + ". Required: "
-                                    + format(amount)
-                                    + ", available: "
-                                    + format(available)
-                    )
-            );
-
-            return 0;
-        }
-
-        boolean success =
-                savedData.invest(
-                        player.getUUID(),
+        StatInvestmentResult result =
+                StatProgressionService.invest(
+                        player,
                         stat,
                         amount
                 );
 
-        if (!success) {
-            source.sendFailure(
-                    Component.literal(
-                            "Unable to invest Essence."
-                    )
+
+        /*
+         * ============================================================
+         * SUCCESS
+         * ============================================================
+         */
+
+        if (result.success()) {
+
+            EssenceDefinition requiredEssence =
+                    stat.essenceType();
+
+
+            source.sendSuccess(
+                    () -> Component.literal(
+                            "Invested "
+                                    + format(amount)
+                                    + " "
+                                    + requiredEssence.displayName()
+                                    + " into "
+                                    + stat.displayName()
+                                    + ". Total invested: "
+                                    + format(
+                                    result.investedAfter()
+                            )
+                                    + " / "
+                                    + format(
+                                    result.investmentCap()
+                            )
+                                    + ". Remaining balance: "
+                                    + format(
+                                    result.availableAfter()
+                            )
+                    ),
+                    false
             );
 
-            return 0;
+
+            return 1;
         }
 
-        long invested =
-                playerData.getInvested(stat);
 
-        long remaining =
-                playerData.getAvailable(
-                        requiredEssence
-                );
+        /*
+         * ============================================================
+         * FAILURE
+         * ============================================================
+         */
 
-        source.sendSuccess(
-                () -> Component.literal(
-                        "Invested "
-                                + format(amount)
-                                + " "
-                                + requiredEssence.displayName()
-                                + " into "
-                                + stat.displayName()
-                                + ". Total invested: "
-                                + format(invested)
-                                + ". Remaining balance: "
-                                + format(remaining)
-                ),
-                false
-        );
+        switch (result.status()) {
 
-        return 1;
+            case INVALID_AMOUNT ->
+
+                    source.sendFailure(
+                            Component.literal(
+                                    "Investment amount must be greater than zero."
+                            )
+                    );
+
+
+            case INSUFFICIENT_ESSENCE ->
+
+                    source.sendFailure(
+                            Component.literal(
+                                    "Not enough "
+                                            + stat.essenceType().displayName()
+                                            + ". Required: "
+                                            + format(amount)
+                                            + ", available: "
+                                            + format(
+                                            result.availableBefore()
+                                    )
+                            )
+                    );
+
+
+            case AT_CAP ->
+
+                    source.sendFailure(
+                            Component.literal(
+                                    stat.displayName()
+                                            + " is already at its current investment cap of "
+                                            + format(
+                                            result.investmentCap()
+                                    )
+                                            + "."
+                            )
+                    );
+
+
+            case OVER_CAP ->
+
+                    source.sendFailure(
+                            Component.literal(
+                                    stat.displayName()
+                                            + " is currently over its investment cap. Stored: "
+                                            + format(
+                                            result.investedBefore()
+                                    )
+                                            + ", current cap: "
+                                            + format(
+                                            result.investmentCap()
+                                    )
+                                            + ". Existing investment is preserved, but no additional normal investment is allowed."
+                            )
+                    );
+
+
+            case WOULD_EXCEED_CAP ->
+
+                    source.sendFailure(
+                            Component.literal(
+                                    "Investment would exceed the current cap for "
+                                            + stat.displayName()
+                                            + ". Current: "
+                                            + format(
+                                            result.investedBefore()
+                                    )
+                                            + ", requested: "
+                                            + format(amount)
+                                            + ", cap: "
+                                            + format(
+                                            result.investmentCap()
+                                    )
+                                            + ". Maximum additional investment: "
+                                            + format(
+                                            result.remainingCapacityBefore()
+                                    )
+                                            + "."
+                            )
+                    );
+
+
+            case NUMERIC_OVERFLOW ->
+
+                    source.sendFailure(
+                            Component.literal(
+                                    "Investment would exceed the supported numeric range."
+                            )
+                    );
+
+
+            case CONFIGURATION_ERROR ->
+
+                    source.sendFailure(
+                            Component.literal(
+                                    "Unable to determine the current investment cap for "
+                                            + stat.displayName()
+                                            + ". Check the server configuration and logs."
+                            )
+                    );
+
+
+            case TRANSACTION_FAILED ->
+
+                    source.sendFailure(
+                            Component.literal(
+                                    "Unable to complete the Essence investment transaction."
+                            )
+                    );
+
+
+            case SUCCESS ->
+
+                    throw new IllegalStateException(
+                            "Successful investment reached failure handling"
+                    );
+        }
+
+
+        return 0;
     }
 
 
