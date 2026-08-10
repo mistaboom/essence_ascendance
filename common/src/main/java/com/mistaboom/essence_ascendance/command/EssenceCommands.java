@@ -419,6 +419,15 @@ public final class EssenceCommands {
                                                 )
                                         )
                         )
+
+                        /*
+                         * /essence debug ...
+                         *
+                         * Admin/development diagnostics.
+                         */
+                        .then(
+                                EssenceDebugCommands.build()
+                        )
         );
     }
 
