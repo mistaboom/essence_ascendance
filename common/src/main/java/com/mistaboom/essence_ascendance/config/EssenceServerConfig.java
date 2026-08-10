@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.config;
 
 import com.mistaboom.essence_ascendance.balance.BalanceProfileDefinition;
+import com.mistaboom.essence_ascendance.equipment.ArmorChassisConfig;
 import com.mistaboom.essence_ascendance.progression.AscendanceAdvancementDefinition;
 import com.mistaboom.essence_ascendance.progression.MilestoneDefinition;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
@@ -25,14 +26,18 @@ public final class EssenceServerConfig {
 
     private final Map<ResourceLocation, Double> statMaxBonuses;
 
+    private final ArmorChassisConfig armorChassisConfig;
+
 
     public EssenceServerConfig(
             int configVersion,
             BalanceProfileDefinition balanceProfile,
             Map<ResourceLocation, MilestoneDefinition> milestones,
             Map<ResourceLocation, AscendanceAdvancementDefinition> advancements,
-            Map<ResourceLocation, Double> statMaxBonuses
+            Map<ResourceLocation, Double> statMaxBonuses,
+            ArmorChassisConfig armorChassisConfig
     ) {
+
         this.configVersion =
                 configVersion;
 
@@ -60,9 +65,13 @@ public final class EssenceServerConfig {
                         )
                 );
 
+        this.armorChassisConfig =
+                armorChassisConfig;
+
 
         Map<ResourceLocation, AscendanceAdvancementDefinition> byTier =
                 new LinkedHashMap<>();
+
 
         for (AscendanceAdvancementDefinition advancement :
                 advancements.values()) {
@@ -73,13 +82,16 @@ public final class EssenceServerConfig {
                             advancement
                     );
 
+
             if (previous != null) {
+
                 throw new IllegalArgumentException(
                         "Multiple Ascendance advancement definitions originate from tier "
                                 + advancement.fromTierId()
                 );
             }
         }
+
 
         this.advancementsByFromTier =
                 Collections.unmodifiableMap(
@@ -101,6 +113,7 @@ public final class EssenceServerConfig {
     public Optional<MilestoneDefinition> getMilestone(
             ResourceLocation milestoneId
     ) {
+
         return Optional.ofNullable(
                 milestones.get(
                         milestoneId
@@ -113,8 +126,8 @@ public final class EssenceServerConfig {
         return milestones;
     }
 
-    public Map<ResourceLocation, Double> statMaxBonuses() {
 
+    public Map<ResourceLocation, Double> statMaxBonuses() {
         return statMaxBonuses;
     }
 
@@ -142,9 +155,15 @@ public final class EssenceServerConfig {
     }
 
 
+    public ArmorChassisConfig armorChassisConfig() {
+        return armorChassisConfig;
+    }
+
+
     public Optional<AscendanceAdvancementDefinition> getAdvancement(
             ResourceLocation advancementId
     ) {
+
         return Optional.ofNullable(
                 advancements.get(
                         advancementId
@@ -156,6 +175,7 @@ public final class EssenceServerConfig {
     public Optional<AscendanceAdvancementDefinition> getAdvancementForTier(
             ResourceLocation tierId
     ) {
+
         return Optional.ofNullable(
                 advancementsByFromTier.get(
                         tierId

@@ -17,6 +17,8 @@ import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
 import com.mistaboom.essence_ascendance.tier.AscendanceTiers;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.progression.AscendanceMilestoneEvents;
+import com.mistaboom.essence_ascendance.equipment.StatConduits;
+import com.mistaboom.essence_ascendance.equipment.ArmorConduitWeights;
 import dev.architectury.event.events.common.CommandRegistrationEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +49,10 @@ public final class EssenceAscendance {
         AscendanceTiers.init();
 
         EssenceStats.init();
+
+        StatConduits.init();
+
+        ArmorConduitWeights.init();
 
         BalanceProfiles.init();
 

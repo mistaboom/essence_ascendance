@@ -17,6 +17,8 @@ import com.mistaboom.essence_ascendance.progression.MilestoneRegistry;
 import com.mistaboom.essence_ascendance.progression.MilestoneRequirement;
 import com.mistaboom.essence_ascendance.progression.StatScalingDefaults;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
+import com.mistaboom.essence_ascendance.equipment.ArmorChassisConfig;
+import com.mistaboom.essence_ascendance.equipment.ArmorChassisDefaults;
 import dev.architectury.platform.Platform;
 import net.minecraft.resources.ResourceLocation;
 
@@ -166,6 +168,235 @@ public final class EssenceConfigManager {
 
 
         return values;
+    }
+
+    private static ArmorChassisConfig parseArmorChassisConfig(
+            JsonObject root,
+            BalanceProfileDefinition balanceProfile
+    ) {
+
+        ArmorChassisConfig defaults =
+                ArmorChassisDefaults.create(
+                        balanceProfile
+                );
+
+
+        JsonObject overrides =
+                getObject(
+                        root,
+                        "armor_chassis_overrides"
+                );
+
+
+        if (overrides == null) {
+            return defaults;
+        }
+
+
+        double armorDefenseWeight =
+                readNonNegativeFiniteDouble(
+                        overrides,
+                        "armor_defense_weight",
+                        defaults.armorDefenseWeight()
+                );
+
+
+        double armorVitalityWeight =
+                readNonNegativeFiniteDouble(
+                        overrides,
+                        "armor_vitality_weight",
+                        defaults.armorVitalityWeight()
+                );
+
+
+        double toughnessDefenseWeight =
+                readNonNegativeFiniteDouble(
+                        overrides,
+                        "toughness_defense_weight",
+                        defaults.toughnessDefenseWeight()
+                );
+
+
+        double toughnessVitalityWeight =
+                readNonNegativeFiniteDouble(
+                        overrides,
+                        "toughness_vitality_weight",
+                        defaults.toughnessVitalityWeight()
+                );
+
+
+        if (armorDefenseWeight
+                + armorVitalityWeight
+                <= 0.0) {
+
+            EssenceAscendance.LOGGER.warn(
+                    "Armor chassis armor weights cannot both be zero. Using built-in weights."
+            );
+
+
+            armorDefenseWeight =
+                    defaults.armorDefenseWeight();
+
+            armorVitalityWeight =
+                    defaults.armorVitalityWeight();
+        }
+
+
+        if (toughnessDefenseWeight
+                + toughnessVitalityWeight
+                <= 0.0) {
+
+            EssenceAscendance.LOGGER.warn(
+                    "Armor chassis toughness weights cannot both be zero. Using built-in weights."
+            );
+
+
+            toughnessDefenseWeight =
+                    defaults.toughnessDefenseWeight();
+
+            toughnessVitalityWeight =
+                    defaults.toughnessVitalityWeight();
+        }
+
+
+        Map<
+                ResourceLocation,
+                ArmorChassisConfig.TierRange
+                > tierRanges =
+                new LinkedHashMap<>(
+                        defaults.tierRanges()
+                );
+
+
+        JsonObject tierRangeOverrides =
+                getObject(
+                        overrides,
+                        "tier_ranges"
+                );
+
+
+        if (tierRangeOverrides != null) {
+
+            for (Map.Entry<String, JsonElement> entry :
+                    tierRangeOverrides.entrySet()) {
+
+                ResourceLocation tierId =
+                        ResourceLocation.tryParse(
+                                entry.getKey()
+                        );
+
+
+                if (tierId == null) {
+
+                    EssenceAscendance.LOGGER.warn(
+                            "Ignoring invalid tier ID '{}' in armor chassis overrides",
+                            entry.getKey()
+                    );
+
+                    continue;
+                }
+
+
+                ArmorChassisConfig.TierRange existing =
+                        tierRanges.get(
+                                tierId
+                        );
+
+
+                if (existing == null) {
+
+                    EssenceAscendance.LOGGER.warn(
+                            "Ignoring armor chassis override for unknown or unsupported tier '{}'",
+                            tierId
+                    );
+
+                    continue;
+                }
+
+
+                if (!entry
+                        .getValue()
+                        .isJsonObject()) {
+
+                    EssenceAscendance.LOGGER.warn(
+                            "Ignoring armor chassis tier override '{}' because it is not an object",
+                            tierId
+                    );
+
+                    continue;
+                }
+
+
+                JsonObject rangeObject =
+                        entry
+                                .getValue()
+                                .getAsJsonObject();
+
+
+                double minArmor =
+                        readNonNegativeFiniteDouble(
+                                rangeObject,
+                                "min_armor",
+                                existing.minArmor()
+                        );
+
+
+                double maxArmor =
+                        readNonNegativeFiniteDouble(
+                                rangeObject,
+                                "max_armor",
+                                existing.maxArmor()
+                        );
+
+
+                double minToughness =
+                        readNonNegativeFiniteDouble(
+                                rangeObject,
+                                "min_toughness",
+                                existing.minToughness()
+                        );
+
+
+                double maxToughness =
+                        readNonNegativeFiniteDouble(
+                                rangeObject,
+                                "max_toughness",
+                                existing.maxToughness()
+                        );
+
+
+                try {
+
+                    tierRanges.put(
+                            tierId,
+                            new ArmorChassisConfig.TierRange(
+                                    minArmor,
+                                    maxArmor,
+                                    minToughness,
+                                    maxToughness
+                            )
+                    );
+
+
+                } catch (IllegalArgumentException exception) {
+
+                    EssenceAscendance.LOGGER.warn(
+                            "Ignoring invalid armor chassis range for tier '{}': {}",
+                            tierId,
+                            exception.getMessage()
+                    );
+                }
+            }
+        }
+
+
+        return new ArmorChassisConfig(
+                armorDefenseWeight,
+                armorVitalityWeight,
+                toughnessDefenseWeight,
+                toughnessVitalityWeight,
+                tierRanges
+        );
     }
 
 
@@ -349,6 +580,12 @@ public final class EssenceConfigManager {
 
 
         root.add(
+                "armor_chassis_overrides",
+                new JsonObject()
+        );
+
+
+        root.add(
                 "milestone_overrides",
                 new JsonObject()
         );
@@ -420,6 +657,13 @@ public final class EssenceConfigManager {
                 );
 
 
+        ArmorChassisConfig armorChassisConfig =
+                parseArmorChassisConfig(
+                        root,
+                        balanceProfile
+                );
+
+
         Map<ResourceLocation, MilestoneDefinition> milestones =
                 parseMilestones(
                         root
@@ -437,7 +681,8 @@ public final class EssenceConfigManager {
                 balanceProfile,
                 milestones,
                 advancements,
-                statMaxBonuses
+                statMaxBonuses,
+                armorChassisConfig
         );
     }
 
@@ -1278,6 +1523,9 @@ public final class EssenceConfigManager {
                 advancements,
                 new LinkedHashMap<>(
                         StatScalingDefaults.values()
+                ),
+                ArmorChassisDefaults.create(
+                        BalanceProfiles.VANILLA
                 )
         );
     }
@@ -1288,6 +1536,56 @@ public final class EssenceConfigManager {
      * JSON HELPERS
      * ============================================================
      */
+
+    private static double readNonNegativeFiniteDouble(
+            JsonObject object,
+            String key,
+            double fallback
+    ) {
+
+        if (!object.has(
+                key
+        )) {
+
+            return fallback;
+        }
+
+
+        try {
+
+            double value =
+                    object
+                            .get(key)
+                            .getAsDouble();
+
+
+            if (!Double.isFinite(
+                    value
+            )
+                    || value < 0.0) {
+
+                EssenceAscendance.LOGGER.warn(
+                        "Ignoring invalid non-negative decimal value for '{}'",
+                        key
+                );
+
+                return fallback;
+            }
+
+
+            return value;
+
+
+        } catch (RuntimeException exception) {
+
+            EssenceAscendance.LOGGER.warn(
+                    "Ignoring invalid decimal value for '{}'",
+                    key
+            );
+
+            return fallback;
+        }
+    }
 
     private static JsonObject getObject(
             JsonObject parent,

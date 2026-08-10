@@ -22,6 +22,14 @@ import com.mistaboom.essence_ascendance.stat.StatCategory;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
+import com.mistaboom.essence_ascendance.equipment.ArmorChassisConfig;
+import com.mistaboom.essence_ascendance.equipment.ArmorChassisResult;
+import com.mistaboom.essence_ascendance.equipment.ArmorChassisService;
+import com.mistaboom.essence_ascendance.equipment.EquipmentConduitType;
+import com.mistaboom.essence_ascendance.equipment.StatConduits;
+import com.mistaboom.essence_ascendance.equipment.ArmorConduitWeights;
+import net.minecraft.world.entity.EquipmentSlot;
+import java.util.Map;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -247,6 +255,55 @@ public final class EssenceDebugCommands {
                                                                         )
                                                                 )
                                                 )
+                                )
+                )
+
+                /*
+                 * /essence debug conduits <stat>
+                 */
+                .then(
+                        Commands.literal("conduits")
+                                .then(
+                                        Commands.argument(
+                                                        "stat",
+                                                        StringArgumentType.word()
+                                                )
+                                                .suggests(
+                                                        EssenceDebugCommands::suggestStats
+                                                )
+                                                .executes(context ->
+                                                        showConduits(
+                                                                context.getSource(),
+                                                                StringArgumentType.getString(
+                                                                        context,
+                                                                        "stat"
+                                                                )
+                                                        )
+                                                )
+                                )
+                )
+
+                /*
+                 * /essence debug chassis
+                 */
+                .then(
+                        Commands.literal("chassis")
+                                .executes(context ->
+                                        showArmorChassis(
+                                                context.getSource()
+                                        )
+                                )
+                )
+
+                /*
+                 * /essence debug armorweights
+                 */
+                .then(
+                        Commands.literal("armorweights")
+                                .executes(context ->
+                                        showArmorWeights(
+                                                context.getSource()
+                                        )
                                 )
                 );
     }
@@ -1207,6 +1264,286 @@ public final class EssenceDebugCommands {
         );
     }
 
+    /*
+     * ============================================================
+     * EQUIPMENT CONDUIT DEBUG
+     * ============================================================
+     */
+
+    private static int showConduits(
+            CommandSourceStack source,
+            String statName
+    ) throws CommandSyntaxException {
+
+        StatDefinition stat =
+                resolveStat(
+                        statName
+                );
+
+
+        String conduits =
+                StatConduits
+                        .validConduitsFor(
+                                stat
+                        )
+                        .stream()
+                        .map(
+                                EquipmentConduitType::name
+                        )
+                        .sorted()
+                        .reduce(
+                                (left, right) ->
+                                        left
+                                                + ", "
+                                                + right
+                        )
+                        .orElse(
+                                "NONE"
+                        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "Conduit Debug: "
+                                + stat.displayName()
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Valid conduits: "
+                                + conduits
+                ),
+                false
+        );
+
+
+        return 1;
+    }
+
+
+    /*
+     * ============================================================
+     * ARMOR CHASSIS DEBUG
+     * ============================================================
+     */
+
+    private static int showArmorChassis(
+            CommandSourceStack source
+    ) throws CommandSyntaxException {
+
+        ServerPlayer player =
+                source.getPlayerOrException();
+
+
+        ArmorChassisResult result =
+                ArmorChassisService.evaluatePotential(
+                        player
+                );
+
+
+        ArmorChassisConfig config =
+                EssenceConfigManager
+                        .get()
+                        .armorChassisConfig();
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "Armor Chassis Debug:"
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Tier: "
+                                + result.tier().displayName()
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Defense development: "
+                                + formatPercent(
+                                result
+                                        .defenseDevelopment()
+                                        .development()
+                        )
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Vitality development: "
+                                + formatPercent(
+                                result
+                                        .vitalityDevelopment()
+                                        .development()
+                        )
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Armor weights: Defense "
+                                + config.armorDefenseWeight()
+                                + ", Vitality "
+                                + config.armorVitalityWeight()
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Toughness weights: Defense "
+                                + config.toughnessDefenseWeight()
+                                + ", Vitality "
+                                + config.toughnessVitalityWeight()
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Armor progress: "
+                                + formatPercent(
+                                result.armorProgress()
+                        )
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Toughness progress: "
+                                + formatPercent(
+                                result.toughnessProgress()
+                        )
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Armor range: "
+                                + formatDecimal(
+                                result
+                                        .tierRange()
+                                        .minArmor()
+                        )
+                                + " -> "
+                                + formatDecimal(
+                                result
+                                        .tierRange()
+                                        .maxArmor()
+                        )
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Toughness range: "
+                                + formatDecimal(
+                                result
+                                        .tierRange()
+                                        .minToughness()
+                        )
+                                + " -> "
+                                + formatDecimal(
+                                result
+                                        .tierRange()
+                                        .maxToughness()
+                        )
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Potential full-set armor: "
+                                + formatDecimal(
+                                result.targetArmor()
+                        )
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Potential full-set toughness: "
+                                + formatDecimal(
+                                result.targetToughness()
+                        )
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  ARMOR_SET active: NO (armor items not implemented yet)"
+                ),
+                false
+        );
+
+
+        return 1;
+    }
+
+    private static int showArmorWeights(
+            CommandSourceStack source
+    ) {
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "Ascendance armor conduit weights:"
+                ),
+                false
+        );
+
+
+        for (Map.Entry<EquipmentSlot, Double> entry :
+                ArmorConduitWeights
+                        .values()
+                        .entrySet()) {
+
+            source.sendSuccess(
+                    () -> Component.literal(
+                            "  "
+                                    + entry
+                                    .getKey()
+                                    .getName()
+                                    + ": "
+                                    + formatPercent(
+                                    entry.getValue()
+                            )
+                    ),
+                    false
+            );
+        }
+
+
+        return 1;
+    }
+
 
     /*
      * ============================================================
@@ -1557,6 +1894,15 @@ public final class EssenceDebugCommands {
 
         return String.format(
                 "%,d",
+                value
+        );
+    }
+    private static String formatDecimal(
+            double value
+    ) {
+
+        return String.format(
+                "%.2f",
                 value
         );
     }
