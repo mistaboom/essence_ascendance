@@ -28,6 +28,10 @@ import com.mistaboom.essence_ascendance.equipment.ArmorChassisService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentConduitType;
 import com.mistaboom.essence_ascendance.equipment.StatConduits;
 import com.mistaboom.essence_ascendance.equipment.ArmorConduitWeights;
+import com.mistaboom.essence_ascendance.equipment.EquipmentConduitResolver;
+import com.mistaboom.essence_ascendance.equipment.EquipmentConduitState;
+import com.mistaboom.essence_ascendance.item.AscendanceArmorItem;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.entity.EquipmentSlot;
 import java.util.Map;
 import com.mojang.brigadier.arguments.BoolArgumentType;
@@ -302,6 +306,18 @@ public final class EssenceDebugCommands {
                         Commands.literal("armorweights")
                                 .executes(context ->
                                         showArmorWeights(
+                                                context.getSource()
+                                        )
+                                )
+                )
+
+                /*
+                 * /essence debug equipment
+                 */
+                .then(
+                        Commands.literal("equipment")
+                                .executes(context ->
+                                        showEquipmentConduits(
                                                 context.getSource()
                                         )
                                 )
@@ -1350,6 +1366,28 @@ public final class EssenceDebugCommands {
                         .armorChassisConfig();
 
 
+        EquipmentConduitState conduitState =
+                EquipmentConduitResolver.evaluate(
+                        player
+                );
+
+
+        double armorStrength =
+                conduitState.strength(
+                        EquipmentConduitType.ARMOR_SET
+                );
+
+
+        double activeArmor =
+                result.targetArmor()
+                        * armorStrength;
+
+
+        double activeToughness =
+                result.targetToughness()
+                        * armorStrength;
+
+
         source.sendSuccess(
                 () -> Component.literal(
                         "Armor Chassis Debug:"
@@ -1477,7 +1515,7 @@ public final class EssenceDebugCommands {
 
         source.sendSuccess(
                 () -> Component.literal(
-                        "  Potential full-set armor: "
+                        "  Potential 100% armor: "
                                 + formatDecimal(
                                 result.targetArmor()
                         )
@@ -1488,7 +1526,7 @@ public final class EssenceDebugCommands {
 
         source.sendSuccess(
                 () -> Component.literal(
-                        "  Potential full-set toughness: "
+                        "  Potential 100% toughness: "
                                 + formatDecimal(
                                 result.targetToughness()
                         )
@@ -1499,7 +1537,40 @@ public final class EssenceDebugCommands {
 
         source.sendSuccess(
                 () -> Component.literal(
-                        "  ARMOR_SET active: NO (armor items not implemented yet)"
+                        "  ARMOR_SET strength: "
+                                + formatPercent(
+                                armorStrength
+                        )
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Active chassis armor: "
+                                + formatDecimal(
+                                activeArmor
+                        )
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Active chassis toughness: "
+                                + formatDecimal(
+                                activeToughness
+                        )
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Gameplay attributes applied: NO (effect refresh layer not implemented yet)"
                 ),
                 false
         );
@@ -1539,6 +1610,108 @@ public final class EssenceDebugCommands {
                     false
             );
         }
+
+
+        return 1;
+    }
+
+    /*
+     * ============================================================
+     * EQUIPMENT STATE DEBUG
+     * ============================================================
+     */
+
+    private static int showEquipmentConduits(
+            CommandSourceStack source
+    ) throws CommandSyntaxException {
+
+        ServerPlayer player =
+                source.getPlayerOrException();
+
+
+        EquipmentConduitState state =
+                EquipmentConduitResolver.evaluate(
+                        player
+                );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "Equipment Conduit Debug:"
+                ),
+                false
+        );
+
+
+        for (EquipmentSlot slot :
+                EquipmentConduitResolver.armorSlots()) {
+
+            ItemStack stack =
+                    player.getItemBySlot(
+                            slot
+                    );
+
+
+            boolean valid =
+                    stack.getItem()
+                            instanceof AscendanceArmorItem armorItem
+                            && armorItem.ascendanceSlot()
+                            == slot;
+
+
+            double contribution =
+                    valid
+                            ? ArmorConduitWeights.weightFor(
+                            slot
+                    )
+                            : 0.0;
+
+
+            String itemName =
+                    stack.isEmpty()
+                            ? "EMPTY"
+                            : stack
+                            .getHoverName()
+                            .getString();
+
+
+            source.sendSuccess(
+                    () -> Component.literal(
+                            "  "
+                                    + slot.getName()
+                                    + ": "
+                                    + itemName
+                                    + " | Ascendance: "
+                                    + (
+                                    valid
+                                            ? "YES"
+                                            : "NO"
+                            )
+                                    + " | contribution: "
+                                    + formatPercent(
+                                    contribution
+                            )
+                    ),
+                    false
+            );
+        }
+
+
+        double armorStrength =
+                state.strength(
+                        EquipmentConduitType.ARMOR_SET
+                );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  ARMOR_SET strength: "
+                                + formatPercent(
+                                armorStrength
+                        )
+                ),
+                false
+        );
 
 
         return 1;

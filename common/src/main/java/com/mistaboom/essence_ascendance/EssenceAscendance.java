@@ -19,6 +19,8 @@ import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.progression.AscendanceMilestoneEvents;
 import com.mistaboom.essence_ascendance.equipment.StatConduits;
 import com.mistaboom.essence_ascendance.equipment.ArmorConduitWeights;
+import com.mistaboom.essence_ascendance.item.AscendanceArmorMaterials;
+import com.mistaboom.essence_ascendance.item.AscendanceItems;
 import dev.architectury.event.events.common.CommandRegistrationEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +55,17 @@ public final class EssenceAscendance {
         StatConduits.init();
 
         ArmorConduitWeights.init();
+
+        /*
+         * Game content.
+         *
+         * Armor material must be registered before the armor items
+         * that reference it.
+         */
+
+        AscendanceArmorMaterials.init();
+
+        AscendanceItems.init();
 
         BalanceProfiles.init();
 
