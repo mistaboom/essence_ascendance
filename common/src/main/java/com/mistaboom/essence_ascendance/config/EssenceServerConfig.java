@@ -2,14 +2,17 @@ package com.mistaboom.essence_ascendance.config;
 
 import com.mistaboom.essence_ascendance.balance.BalanceProfileDefinition;
 import com.mistaboom.essence_ascendance.equipment.ArmorChassisConfig;
+import com.mistaboom.essence_ascendance.equipment.WeaponChassisConfig;
 import com.mistaboom.essence_ascendance.progression.AscendanceAdvancementDefinition;
 import com.mistaboom.essence_ascendance.progression.MilestoneDefinition;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
+import com.mistaboom.essence_ascendance.stat.StatScalingMode;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 public final class EssenceServerConfig {
@@ -28,6 +31,8 @@ public final class EssenceServerConfig {
 
     private final ArmorChassisConfig armorChassisConfig;
 
+    private final WeaponChassisConfig weaponChassisConfig;
+
 
     public EssenceServerConfig(
             int configVersion,
@@ -35,38 +40,60 @@ public final class EssenceServerConfig {
             Map<ResourceLocation, MilestoneDefinition> milestones,
             Map<ResourceLocation, AscendanceAdvancementDefinition> advancements,
             Map<ResourceLocation, Double> statMaxBonuses,
-            ArmorChassisConfig armorChassisConfig
+            ArmorChassisConfig armorChassisConfig,
+            WeaponChassisConfig weaponChassisConfig
     ) {
 
         this.configVersion =
                 configVersion;
 
         this.balanceProfile =
-                balanceProfile;
+                Objects.requireNonNull(
+                        balanceProfile,
+                        "Balance profile cannot be null"
+                );
 
         this.milestones =
                 Collections.unmodifiableMap(
                         new LinkedHashMap<>(
-                                milestones
+                                Objects.requireNonNull(
+                                        milestones,
+                                        "Milestone definitions cannot be null"
+                                )
                         )
                 );
 
         this.advancements =
                 Collections.unmodifiableMap(
                         new LinkedHashMap<>(
-                                advancements
+                                Objects.requireNonNull(
+                                        advancements,
+                                        "Advancement definitions cannot be null"
+                                )
                         )
                 );
 
         this.statMaxBonuses =
                 Collections.unmodifiableMap(
                         new LinkedHashMap<>(
-                                statMaxBonuses
+                                Objects.requireNonNull(
+                                        statMaxBonuses,
+                                        "Stat max bonuses cannot be null"
+                                )
                         )
                 );
 
         this.armorChassisConfig =
-                armorChassisConfig;
+                Objects.requireNonNull(
+                        armorChassisConfig,
+                        "Armor chassis config cannot be null"
+                );
+
+        this.weaponChassisConfig =
+                Objects.requireNonNull(
+                        weaponChassisConfig,
+                        "Weapon chassis config cannot be null"
+                );
 
 
         Map<ResourceLocation, AscendanceAdvancementDefinition> byTier =
@@ -74,7 +101,7 @@ public final class EssenceServerConfig {
 
 
         for (AscendanceAdvancementDefinition advancement :
-                advancements.values()) {
+                this.advancements.values()) {
 
             AscendanceAdvancementDefinition previous =
                     byTier.put(
@@ -101,11 +128,13 @@ public final class EssenceServerConfig {
 
 
     public int configVersion() {
+
         return configVersion;
     }
 
 
     public BalanceProfileDefinition balanceProfile() {
+
         return balanceProfile;
     }
 
@@ -123,11 +152,13 @@ public final class EssenceServerConfig {
 
 
     public Map<ResourceLocation, MilestoneDefinition> milestones() {
+
         return milestones;
     }
 
 
     public Map<ResourceLocation, Double> statMaxBonuses() {
+
         return statMaxBonuses;
     }
 
@@ -135,6 +166,19 @@ public final class EssenceServerConfig {
     public double statMaxBonus(
             StatDefinition stat
     ) {
+
+        Objects.requireNonNull(
+                stat,
+                "Stat cannot be null"
+        );
+
+
+        if (stat.scalingMode()
+                == StatScalingMode.CHASSIS) {
+
+            return 0.0;
+        }
+
 
         Double value =
                 statMaxBonuses.get(
@@ -156,7 +200,14 @@ public final class EssenceServerConfig {
 
 
     public ArmorChassisConfig armorChassisConfig() {
+
         return armorChassisConfig;
+    }
+
+
+    public WeaponChassisConfig weaponChassisConfig() {
+
+        return weaponChassisConfig;
     }
 
 
@@ -185,6 +236,7 @@ public final class EssenceServerConfig {
 
 
     public Map<ResourceLocation, AscendanceAdvancementDefinition> advancements() {
+
         return advancements;
     }
 }

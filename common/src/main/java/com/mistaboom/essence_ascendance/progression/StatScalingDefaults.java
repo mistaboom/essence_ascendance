@@ -31,24 +31,29 @@ public final class StatScalingDefaults {
          * 50.0  = +50%
          */
 
+        /*
+         * These stats drive absolute weapon chassis values.
+         *
+         * They intentionally have NO additive stat bonus.
+         */
         register(
                 "melee_damage",
-                100.0
+                0.0
         );
 
         register(
                 "melee_attack_speed",
-                50.0
+                0.0
         );
 
         register(
                 "ranged_damage",
-                100.0
+                0.0
         );
 
         register(
                 "ranged_attack_speed",
-                50.0
+                0.0
         );
 
         register(
@@ -58,12 +63,12 @@ public final class StatScalingDefaults {
 
         register(
                 "magic_damage",
-                100.0
+                0.0
         );
 
         register(
                 "magic_cast_speed",
-                50.0
+                0.0
         );
 
         register(

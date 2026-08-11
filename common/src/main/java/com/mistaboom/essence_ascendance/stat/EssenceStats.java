@@ -18,32 +18,40 @@ public final class EssenceStats {
                     "melee_damage",
                     "Melee Damage",
                     StatCategory.OFFENSE,
-                    StatUnit.PERCENT
+                    StatUnit.FLAT,
+                    StatScalingMode.CHASSIS
             );
+
 
     public static final StatDefinition MELEE_ATTACK_SPEED =
             register(
                     "melee_attack_speed",
                     "Melee Attack Speed",
                     StatCategory.OFFENSE,
-                    StatUnit.PERCENT
+                    StatUnit.FLAT,
+                    StatScalingMode.CHASSIS
             );
+
 
     public static final StatDefinition RANGED_DAMAGE =
             register(
                     "ranged_damage",
                     "Ranged Damage",
                     StatCategory.OFFENSE,
-                    StatUnit.PERCENT
+                    StatUnit.FLAT,
+                    StatScalingMode.CHASSIS
             );
+
 
     public static final StatDefinition RANGED_ATTACK_SPEED =
             register(
                     "ranged_attack_speed",
                     "Ranged Attack Speed",
                     StatCategory.OFFENSE,
-                    StatUnit.PERCENT
+                    StatUnit.FLAT,
+                    StatScalingMode.CHASSIS
             );
+
 
     public static final StatDefinition PROJECTILE_SPEED =
             register(
@@ -53,20 +61,24 @@ public final class EssenceStats {
                     StatUnit.PERCENT
             );
 
+
     public static final StatDefinition MAGIC_DAMAGE =
             register(
                     "magic_damage",
                     "Magic Damage",
                     StatCategory.OFFENSE,
-                    StatUnit.PERCENT
+                    StatUnit.FLAT,
+                    StatScalingMode.CHASSIS
             );
+
 
     public static final StatDefinition MAGIC_CAST_SPEED =
             register(
                     "magic_cast_speed",
                     "Magic Cast Speed",
                     StatCategory.OFFENSE,
-                    StatUnit.PERCENT
+                    StatUnit.FLAT,
+                    StatScalingMode.CHASSIS
             );
 
     public static final StatDefinition ATTACK_KNOCKBACK =
@@ -354,14 +366,40 @@ public final class EssenceStats {
             StatCategory category,
             StatUnit unit
     ) {
+
         return register(
                 path,
                 displayName,
                 category,
                 unit,
-                getDefaultEssenceType(category)
+                getDefaultEssenceType(
+                        category
+                ),
+                StatScalingMode.BONUS
         );
     }
+
+
+    private static StatDefinition register(
+            String path,
+            String displayName,
+            StatCategory category,
+            StatUnit unit,
+            StatScalingMode scalingMode
+    ) {
+
+        return register(
+                path,
+                displayName,
+                category,
+                unit,
+                getDefaultEssenceType(
+                        category
+                ),
+                scalingMode
+        );
+    }
+
 
     private static StatDefinition register(
             String path,
@@ -370,6 +408,27 @@ public final class EssenceStats {
             StatUnit unit,
             EssenceDefinition essenceType
     ) {
+
+        return register(
+                path,
+                displayName,
+                category,
+                unit,
+                essenceType,
+                StatScalingMode.BONUS
+        );
+    }
+
+
+    private static StatDefinition register(
+            String path,
+            String displayName,
+            StatCategory category,
+            StatUnit unit,
+            EssenceDefinition essenceType,
+            StatScalingMode scalingMode
+    ) {
+
         return EssenceStatRegistry.register(
                 ResourceLocation.fromNamespaceAndPath(
                         EssenceAscendance.MOD_ID,
@@ -378,7 +437,8 @@ public final class EssenceStats {
                 displayName,
                 category,
                 unit,
-                essenceType
+                essenceType,
+                scalingMode
         );
     }
 

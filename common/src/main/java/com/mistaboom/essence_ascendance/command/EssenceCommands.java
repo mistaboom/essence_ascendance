@@ -7,6 +7,7 @@ import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
+import com.mistaboom.essence_ascendance.stat.StatScalingMode;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
 import com.mistaboom.essence_ascendance.progression.StatInvestmentResult;
@@ -917,6 +918,15 @@ public final class EssenceCommands {
 
         source.sendSuccess(
                 () -> Component.literal(
+                        "  Scaling mode: "
+                                + stat.scalingMode()
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
                         "  Stored investment: "
                                 + format(
                                 scaling.storedInvestment()
@@ -943,15 +953,44 @@ public final class EssenceCommands {
 
         source.sendSuccess(
                 () -> Component.literal(
-                        "  Scaling progress: "
-                                + String.format(
-                                "%.2f%%",
+                        "  Progression: "
+                                + formatPercent(
                                 scaling.progression()
-                                        * 100.0
                         )
                 ),
                 false
         );
+
+
+        if (stat.scalingMode()
+                == StatScalingMode.CHASSIS) {
+
+            source.sendSuccess(
+                    () -> Component.literal(
+                            "  Additive bonus: NONE"
+                    ),
+                    false
+            );
+
+
+            source.sendSuccess(
+                    () -> Component.literal(
+                            "  This stat drives an absolute equipment chassis value."
+                    ),
+                    false
+            );
+
+
+            source.sendSuccess(
+                    () -> Component.literal(
+                            "  Use /essence debug armorchassis or /essence debug weaponchassis for resolved chassis values."
+                    ),
+                    false
+            );
+
+
+            return 1;
+        }
 
 
         source.sendSuccess(
@@ -993,7 +1032,6 @@ public final class EssenceCommands {
         return 1;
     }
 
-
     private static int showAllStats(
             CommandSourceStack source
     ) throws CommandSyntaxException {
@@ -1001,10 +1039,16 @@ public final class EssenceCommands {
         ServerPlayer player =
                 source.getPlayerOrException();
 
+
         PlayerEssenceData playerData =
                 EssenceSavedData
-                        .get(source.getServer())
-                        .getPlayerData(player.getUUID());
+                        .get(
+                                source.getServer()
+                        )
+                        .getPlayerData(
+                                player.getUUID()
+                        );
+
 
         source.sendSuccess(
                 () -> Component.literal(
@@ -1013,22 +1057,29 @@ public final class EssenceCommands {
                 false
         );
 
+
         for (StatDefinition stat :
                 EssenceStatRegistry.values()) {
 
             long invested =
-                    playerData.getInvested(stat);
+                    playerData.getInvested(
+                            stat
+                    );
+
 
             source.sendSuccess(
                     () -> Component.literal(
                             "  "
                                     + stat.displayName()
                                     + ": "
-                                    + format(invested)
+                                    + format(
+                                    invested
+                            )
                     ),
                     false
             );
         }
+
 
         return 1;
     }
@@ -1528,6 +1579,17 @@ public final class EssenceCommands {
         return String.format(
                 "%,d",
                 value
+        );
+    }
+
+
+    private static String formatPercent(
+            double value
+    ) {
+
+        return String.format(
+                "%.2f%%",
+                value * 100.0
         );
     }
 

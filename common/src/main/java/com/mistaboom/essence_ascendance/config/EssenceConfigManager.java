@@ -19,6 +19,10 @@ import com.mistaboom.essence_ascendance.progression.StatScalingDefaults;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.equipment.ArmorChassisConfig;
 import com.mistaboom.essence_ascendance.equipment.ArmorChassisDefaults;
+import com.mistaboom.essence_ascendance.equipment.WeaponChassisConfig;
+import com.mistaboom.essence_ascendance.equipment.WeaponChassisDefaults;
+import com.mistaboom.essence_ascendance.stat.StatDefinition;
+import com.mistaboom.essence_ascendance.stat.StatScalingMode;
 import dev.architectury.platform.Platform;
 import net.minecraft.resources.ResourceLocation;
 
@@ -108,14 +112,35 @@ public final class EssenceConfigManager {
             }
 
 
-            if (EssenceStatRegistry
-                    .get(statId)
-                    .isEmpty()) {
+            StatDefinition stat =
+                    EssenceStatRegistry
+                            .get(
+                                    statId
+                            )
+                            .orElseThrow(
+                                    () ->
+                                            new IllegalArgumentException(
+                                                    "Unknown stat in stat_max_bonus_overrides: "
+                                                            + statId
+                                            )
+                            );
 
-                throw new IllegalArgumentException(
-                        "Unknown stat in stat_max_bonus_overrides: "
-                                + statId
+
+            /*
+             * Old configs may still contain values for these stats.
+             *
+             * Ignore rather than fail the whole configuration.
+             */
+
+            if (stat.scalingMode()
+                    == StatScalingMode.CHASSIS) {
+
+                EssenceAscendance.LOGGER.warn(
+                        "Ignoring stat_max_bonus_overrides entry for chassis stat '{}'. Configure its weapon chassis range instead.",
+                        statId
                 );
+
+                continue;
             }
 
 
@@ -140,7 +165,9 @@ public final class EssenceConfigManager {
                     valueElement.getAsDouble();
 
 
-            if (!Double.isFinite(value)) {
+            if (!Double.isFinite(
+                    value
+            )) {
 
                 throw new IllegalArgumentException(
                         "Stat max bonus for "
@@ -399,6 +426,189 @@ public final class EssenceConfigManager {
         );
     }
 
+    private static WeaponChassisConfig parseWeaponChassisConfig(
+            JsonObject root,
+            BalanceProfileDefinition balanceProfile
+    ) {
+
+        WeaponChassisConfig defaults =
+                WeaponChassisDefaults.create(
+                        balanceProfile
+                );
+
+
+        JsonObject overrides =
+                getObject(
+                        root,
+                        "weapon_chassis_overrides"
+                );
+
+
+        if (overrides == null) {
+            return defaults;
+        }
+
+
+        Map<
+                ResourceLocation,
+                WeaponChassisConfig.TierRange
+                > tierRanges =
+                new LinkedHashMap<>(
+                        defaults.tierRanges()
+                );
+
+
+        JsonObject tierRangeOverrides =
+                getObject(
+                        overrides,
+                        "tier_ranges"
+                );
+
+
+        if (tierRangeOverrides != null) {
+
+            for (Map.Entry<String, JsonElement> entry :
+                    tierRangeOverrides.entrySet()) {
+
+                ResourceLocation tierId =
+                        ResourceLocation.tryParse(
+                                entry.getKey()
+                        );
+
+
+                if (tierId == null) {
+
+                    EssenceAscendance.LOGGER.warn(
+                            "Ignoring invalid tier ID '{}' in weapon chassis overrides",
+                            entry.getKey()
+                    );
+
+                    continue;
+                }
+
+
+                WeaponChassisConfig.TierRange existing =
+                        tierRanges.get(
+                                tierId
+                        );
+
+
+                if (existing == null) {
+
+                    EssenceAscendance.LOGGER.warn(
+                            "Ignoring weapon chassis override for unknown or unsupported tier '{}'",
+                            tierId
+                    );
+
+                    continue;
+                }
+
+
+                if (!entry
+                        .getValue()
+                        .isJsonObject()) {
+
+                    EssenceAscendance.LOGGER.warn(
+                            "Ignoring weapon chassis tier override '{}' because it is not an object",
+                            tierId
+                    );
+
+                    continue;
+                }
+
+
+                JsonObject rangeObject =
+                        entry
+                                .getValue()
+                                .getAsJsonObject();
+
+
+                try {
+
+                    tierRanges.put(
+                            tierId,
+                            new WeaponChassisConfig.TierRange(
+                                    readNonNegativeFiniteDouble(
+                                            rangeObject,
+                                            "min_melee_damage",
+                                            existing.minMeleeDamage()
+                                    ),
+                                    readNonNegativeFiniteDouble(
+                                            rangeObject,
+                                            "max_melee_damage",
+                                            existing.maxMeleeDamage()
+                                    ),
+                                    readNonNegativeFiniteDouble(
+                                            rangeObject,
+                                            "min_melee_attack_speed",
+                                            existing.minMeleeAttackSpeed()
+                                    ),
+                                    readNonNegativeFiniteDouble(
+                                            rangeObject,
+                                            "max_melee_attack_speed",
+                                            existing.maxMeleeAttackSpeed()
+                                    ),
+                                    readNonNegativeFiniteDouble(
+                                            rangeObject,
+                                            "min_ranged_damage",
+                                            existing.minRangedDamage()
+                                    ),
+                                    readNonNegativeFiniteDouble(
+                                            rangeObject,
+                                            "max_ranged_damage",
+                                            existing.maxRangedDamage()
+                                    ),
+                                    readNonNegativeFiniteDouble(
+                                            rangeObject,
+                                            "min_ranged_attack_speed",
+                                            existing.minRangedAttackSpeed()
+                                    ),
+                                    readNonNegativeFiniteDouble(
+                                            rangeObject,
+                                            "max_ranged_attack_speed",
+                                            existing.maxRangedAttackSpeed()
+                                    ),
+                                    readNonNegativeFiniteDouble(
+                                            rangeObject,
+                                            "min_magic_damage",
+                                            existing.minMagicDamage()
+                                    ),
+                                    readNonNegativeFiniteDouble(
+                                            rangeObject,
+                                            "max_magic_damage",
+                                            existing.maxMagicDamage()
+                                    ),
+                                    readNonNegativeFiniteDouble(
+                                            rangeObject,
+                                            "min_magic_cast_speed",
+                                            existing.minMagicCastSpeed()
+                                    ),
+                                    readNonNegativeFiniteDouble(
+                                            rangeObject,
+                                            "max_magic_cast_speed",
+                                            existing.maxMagicCastSpeed()
+                                    )
+                            )
+                    );
+
+
+                } catch (IllegalArgumentException exception) {
+
+                    EssenceAscendance.LOGGER.warn(
+                            "Ignoring invalid weapon chassis range for tier '{}': {}",
+                            tierId,
+                            exception.getMessage()
+                    );
+                }
+            }
+        }
+
+
+        return new WeaponChassisConfig(
+                tierRanges
+        );
+    }
+
 
     /*
      * ============================================================
@@ -584,6 +794,10 @@ public final class EssenceConfigManager {
                 new JsonObject()
         );
 
+        root.add(
+                "weapon_chassis_overrides",
+                new JsonObject()
+        );
 
         root.add(
                 "milestone_overrides",
@@ -663,6 +877,11 @@ public final class EssenceConfigManager {
                         balanceProfile
                 );
 
+        WeaponChassisConfig weaponChassisConfig =
+                parseWeaponChassisConfig(
+                        root,
+                        balanceProfile
+                );
 
         Map<ResourceLocation, MilestoneDefinition> milestones =
                 parseMilestones(
@@ -682,7 +901,8 @@ public final class EssenceConfigManager {
                 milestones,
                 advancements,
                 statMaxBonuses,
-                armorChassisConfig
+                armorChassisConfig,
+                weaponChassisConfig
         );
     }
 
@@ -1525,6 +1745,9 @@ public final class EssenceConfigManager {
                         StatScalingDefaults.values()
                 ),
                 ArmorChassisDefaults.create(
+                        BalanceProfiles.VANILLA
+                ),
+                WeaponChassisDefaults.create(
                         BalanceProfiles.VANILLA
                 )
         );

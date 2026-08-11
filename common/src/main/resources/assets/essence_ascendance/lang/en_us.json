@@ -2,5 +2,9 @@
   "item.essence_ascendance.ascendance_helmet": "Ascendance Helmet",
   "item.essence_ascendance.ascendance_chestplate": "Ascendance Chestplate",
   "item.essence_ascendance.ascendance_leggings": "Ascendance Leggings",
-  "item.essence_ascendance.ascendance_boots": "Ascendance Boots"
+  "item.essence_ascendance.ascendance_boots": "Ascendance Boots",
+
+  "item.essence_ascendance.ascendance_melee_weapon": "Ascendance Blade",
+  "item.essence_ascendance.ascendance_ranged_weapon": "Ascendance Bow",
+  "item.essence_ascendance.ascendance_magic_weapon": "Ascendance Focus"
 }

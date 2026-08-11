@@ -8,6 +8,7 @@ import com.mistaboom.essence_ascendance.stat.StatCategory;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
+import com.mistaboom.essence_ascendance.stat.StatScalingMode;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
@@ -80,12 +81,38 @@ public final class StatScalingService {
                 playerData.getTier();
 
 
-        double transcendentMaximumBonus =
-                EssenceConfigManager
-                        .get()
-                        .statMaxBonus(
-                                stat
-                        );
+        /*
+         * CHASSIS stats use current-tier development as their normalized
+         * progression value.
+         *
+         * This mirrors the current-tier saturation model used by armor
+         * chassis development and gives future chassis systems one
+         * authoritative normalized value to consume.
+         *
+         * CHASSIS stats intentionally produce no additive bonus.
+         */
+
+        if (stat.scalingMode()
+                == StatScalingMode.CHASSIS) {
+
+            double progression =
+                    currentTierDevelopment(
+                            investmentLimit
+                    );
+
+
+            return new StatScalingResult(
+                    stat,
+                    currentTier,
+                    investmentLimit.storedInvestment(),
+                    investmentLimit.effectiveInvestment(),
+                    investmentLimit.investmentCap(),
+                    progression,
+                    0.0,
+                    0.0,
+                    0.0
+            );
+        }
 
 
         List<AscendanceTierDefinition> tiers =
@@ -108,13 +135,13 @@ public final class StatScalingService {
         }
 
 
-        double currentTierMaximumBonus =
-                transcendentMaximumBonus
-                        * tierFraction(
-                        currentTierIndex,
-                        tiers.size()
-                );
-
+        /*
+         * BONUS stats retain the continuous cross-tier progression curve
+         * introduced by Issue 8.
+         *
+         * Their earned bonus therefore does not drop simply because the
+         * player Ascends into a tier with a larger investment cap.
+         */
 
         double progression =
                 calculateProgression(
@@ -122,6 +149,22 @@ public final class StatScalingService {
                         investmentLimit.effectiveInvestment(),
                         currentTierIndex,
                         tiers
+                );
+
+
+        double transcendentMaximumBonus =
+                EssenceConfigManager
+                        .get()
+                        .statMaxBonus(
+                                stat
+                        );
+
+
+        double currentTierMaximumBonus =
+                transcendentMaximumBonus
+                        * tierFraction(
+                        currentTierIndex,
+                        tiers.size()
                 );
 
 
@@ -140,6 +183,37 @@ public final class StatScalingService {
                 currentTierMaximumBonus,
                 transcendentMaximumBonus,
                 scaledBonus
+        );
+    }
+
+
+    /*
+     * ============================================================
+     * CURRENT-TIER CHASSIS DEVELOPMENT
+     * ============================================================
+     *
+     * CHASSIS progression is intentionally current-tier saturation:
+     *
+     *     effective investment / current tier cap
+     *
+     * This is the same general development concept used by the armor
+     * chassis, while BONUS stats continue to use the cross-tier curve.
+     */
+
+    private static double currentTierDevelopment(
+            StatInvestmentLimit limit
+    ) {
+
+        if (limit.investmentCap()
+                <= 0L) {
+
+            return 0.0;
+        }
+
+
+        return clamp01(
+                limit.effectiveInvestment()
+                        / (double) limit.investmentCap()
         );
     }
 

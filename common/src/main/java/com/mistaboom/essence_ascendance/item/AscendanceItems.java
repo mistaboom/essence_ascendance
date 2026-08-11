@@ -16,10 +16,72 @@ public final class AscendanceItems {
             37;
 
 
+    /*
+     * Shared weapon durability baseline.
+     *
+     * Bow/focus store durability directly on Item.Properties.
+     * The melee weapon receives the same baseline from
+     * AscendanceToolTier.
+     *
+     * Durability is not one of the weapon chassis combat properties.
+     */
+    private static final int WEAPON_DURABILITY =
+            2031;
+
+
     private static final DeferredRegister<Item> ITEMS =
             DeferredRegister.create(
                     EssenceAscendance.MOD_ID,
                     Registries.ITEM
+            );
+
+
+    /*
+     * ============================================================
+     * ASCENDANCE WEAPONS
+     * ============================================================
+     */
+
+    public static final RegistrySupplier<AscendanceMeleeWeaponItem>
+            ASCENDANCE_MELEE_WEAPON =
+            ITEMS.register(
+                    "ascendance_melee_weapon",
+                    () ->
+                            new AscendanceMeleeWeaponItem(
+                                    AscendanceToolTier.INSTANCE,
+                                    new Item.Properties()
+                                            .fireResistant()
+                            )
+            );
+
+
+    public static final RegistrySupplier<AscendanceRangedWeaponItem>
+            ASCENDANCE_RANGED_WEAPON =
+            ITEMS.register(
+                    "ascendance_ranged_weapon",
+                    () ->
+                            new AscendanceRangedWeaponItem(
+                                    new Item.Properties()
+                                            .durability(
+                                                    WEAPON_DURABILITY
+                                            )
+                                            .fireResistant()
+                            )
+            );
+
+
+    public static final RegistrySupplier<AscendanceMagicWeaponItem>
+            ASCENDANCE_MAGIC_WEAPON =
+            ITEMS.register(
+                    "ascendance_magic_weapon",
+                    () ->
+                            new AscendanceMagicWeaponItem(
+                                    new Item.Properties()
+                                            .durability(
+                                                    WEAPON_DURABILITY
+                                            )
+                                            .fireResistant()
+                            )
             );
 
 
@@ -99,12 +161,20 @@ public final class AscendanceItems {
         ITEMS.register();
 
 
-        /*
-         * Put development armor in the vanilla Combat tab.
-         *
-         * We can move this to an Essence Ascendance creative tab
-         * later if the mod grows enough to justify one.
-         */
+        CreativeTabRegistry.append(
+                CreativeModeTabs.COMBAT,
+                ASCENDANCE_MELEE_WEAPON
+        );
+
+        CreativeTabRegistry.append(
+                CreativeModeTabs.COMBAT,
+                ASCENDANCE_RANGED_WEAPON
+        );
+
+        CreativeTabRegistry.append(
+                CreativeModeTabs.COMBAT,
+                ASCENDANCE_MAGIC_WEAPON
+        );
 
         CreativeTabRegistry.append(
                 CreativeModeTabs.COMBAT,

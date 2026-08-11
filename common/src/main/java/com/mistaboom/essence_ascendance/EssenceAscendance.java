@@ -21,6 +21,7 @@ import com.mistaboom.essence_ascendance.equipment.StatConduits;
 import com.mistaboom.essence_ascendance.equipment.ArmorConduitWeights;
 import com.mistaboom.essence_ascendance.item.AscendanceArmorMaterials;
 import com.mistaboom.essence_ascendance.item.AscendanceItems;
+import com.mistaboom.essence_ascendance.equipment.EquipmentConduitRegistry;
 import dev.architectury.event.events.common.CommandRegistrationEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,22 +53,27 @@ public final class EssenceAscendance {
 
         EssenceStats.init();
 
+        /*
+         * Balance profiles depend on registered Ascendance tiers and are
+         * needed by chassis/config defaults.
+         */
+        BalanceProfiles.init();
+
+        /*
+         * Equipment rules depend on registered stats.
+         */
         StatConduits.init();
 
         ArmorConduitWeights.init();
 
-        /*
-         * Game content.
-         *
-         * Armor material must be registered before the armor items
-         * that reference it.
-         */
+        EquipmentConduitRegistry.init();
 
+        /*
+         * Native item registrations come after the equipment framework.
+         */
         AscendanceArmorMaterials.init();
 
         AscendanceItems.init();
-
-        BalanceProfiles.init();
 
         MilestoneProviders.init();
 

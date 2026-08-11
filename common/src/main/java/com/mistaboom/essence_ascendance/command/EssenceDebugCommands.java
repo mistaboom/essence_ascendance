@@ -30,7 +30,9 @@ import com.mistaboom.essence_ascendance.equipment.StatConduits;
 import com.mistaboom.essence_ascendance.equipment.ArmorConduitWeights;
 import com.mistaboom.essence_ascendance.equipment.EquipmentConduitResolver;
 import com.mistaboom.essence_ascendance.equipment.EquipmentConduitState;
-import com.mistaboom.essence_ascendance.item.AscendanceArmorItem;
+import com.mistaboom.essence_ascendance.equipment.WeaponChassisResult;
+import com.mistaboom.essence_ascendance.equipment.WeaponChassisService;
+import com.mistaboom.essence_ascendance.stat.StatScalingMode;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.entity.EquipmentSlot;
 import java.util.Map;
@@ -288,10 +290,13 @@ public final class EssenceDebugCommands {
                 )
 
                 /*
-                 * /essence debug chassis
+                 * /essence debug armorchassis
+                 *
+                 * /essence debug chassis is retained as a compatibility
+                 * alias for the original armor-chassis command.
                  */
                 .then(
-                        Commands.literal("chassis")
+                        Commands.literal("armorchassis")
                                 .executes(context ->
                                         showArmorChassis(
                                                 context.getSource()
@@ -300,8 +305,53 @@ public final class EssenceDebugCommands {
                 )
 
                 /*
-                 * /essence debug armorweights
+                 * ============================================================
+                 * CHASSIS DIAGNOSTICS
+                 * ============================================================
+                 *
+                 * /essence debug chassis
+                 *     Compact overview of every chassis system.
+                 *
+                 * /essence debug armorchassis
+                 *     Detailed armor chassis diagnostics.
+                 *
+                 * /essence debug weaponchassis
+                 *     Detailed weapon chassis diagnostics.
+                 *
+                 * /essence debug toolchassis
+                 *     Will be added in Issue 9.7.
                  */
+
+                .then(
+                        Commands.literal("chassis")
+                                .executes(context ->
+                                        showChassisOverview(
+                                                context.getSource()
+                                        )
+                                )
+                )
+
+                .then(
+                        Commands.literal("armorchassis")
+                                .executes(context ->
+                                        showArmorChassis(
+                                                context.getSource()
+                                        )
+                                )
+                )
+
+                .then(
+                        Commands.literal("weaponchassis")
+                                .executes(context ->
+                                        showWeaponChassis(
+                                                context.getSource()
+                                        )
+                                )
+                )
+
+/*
+ * /essence debug armorweights
+ */
                 .then(
                         Commands.literal("armorweights")
                                 .executes(context ->
@@ -690,13 +740,45 @@ public final class EssenceDebugCommands {
 
         source.sendSuccess(
                 () -> Component.literal(
-                        "  Scaling progress: "
+                        "  Scaling mode: "
+                                + stat.scalingMode()
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Progression: "
                                 + formatPercent(
                                 scaling.progression()
                         )
                 ),
                 false
         );
+
+
+        if (stat.scalingMode()
+                == StatScalingMode.CHASSIS) {
+
+            source.sendSuccess(
+                    () -> Component.literal(
+                            "  Additive bonus: NONE"
+                    ),
+                    false
+            );
+
+
+            source.sendSuccess(
+                    () -> Component.literal(
+                            "  Chassis target: use armorchassis/weaponchassis diagnostics."
+                    ),
+                    false
+            );
+
+
+            return 1;
+        }
 
 
         source.sendSuccess(
@@ -929,6 +1011,30 @@ public final class EssenceDebugCommands {
                         "  Advancement definitions: "
                                 + config
                                 .advancements()
+                                .size()
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Armor chassis tier ranges: "
+                                + config
+                                .armorChassisConfig()
+                                .tierRanges()
+                                .size()
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Weapon chassis tier ranges: "
+                                + config
+                                .weaponChassisConfig()
+                                .tierRanges()
                                 .size()
                 ),
                 false
@@ -1339,6 +1445,450 @@ public final class EssenceDebugCommands {
         return 1;
     }
 
+    /*
+     * ============================================================
+     * CHASSIS OVERVIEW
+     * ============================================================
+     *
+     * Compact summary of every implemented equipment chassis.
+     *
+     * Detailed diagnostics remain available through:
+     *
+     * /essence debug armorchassis
+     * /essence debug weaponchassis
+     *
+     * Issue 9.7 will extend this overview with tool chassis data.
+     */
+
+    private static int showChassisOverview(
+            CommandSourceStack source
+    ) throws CommandSyntaxException {
+
+        ServerPlayer player =
+                source.getPlayerOrException();
+
+
+        /*
+         * ========================================================
+         * PLAYER / CONFIG CONTEXT
+         * ========================================================
+         */
+
+        PlayerEssenceData playerData =
+                EssenceSavedData
+                        .get(
+                                source.getServer()
+                        )
+                        .getPlayerData(
+                                player.getUUID()
+                        );
+
+
+        EssenceServerConfig config =
+                EssenceConfigManager.get();
+
+
+        /*
+         * ========================================================
+         * CHASSIS POTENTIAL
+         * ========================================================
+         */
+
+        ArmorChassisResult armor =
+                ArmorChassisService.evaluatePotential(
+                        player
+                );
+
+
+        WeaponChassisResult weapons =
+                WeaponChassisService.evaluatePotential(
+                        player
+                );
+
+
+        /*
+         * ========================================================
+         * ACTIVE EQUIPMENT CONTEXT
+         * ========================================================
+         */
+
+        EquipmentConduitState conduits =
+                EquipmentConduitResolver.evaluate(
+                        player
+                );
+
+
+        double armorStrength =
+                conduits.strength(
+                        EquipmentConduitType.ARMOR_SET
+                );
+
+
+        double meleeStrength =
+                conduits.strength(
+                        EquipmentConduitType.MELEE_WEAPON
+                );
+
+
+        double rangedStrength =
+                conduits.strength(
+                        EquipmentConduitType.RANGED_WEAPON
+                );
+
+
+        double magicStrength =
+                conduits.strength(
+                        EquipmentConduitType.MAGIC_WEAPON
+                );
+
+
+        /*
+         * ========================================================
+         * ACTIVE ARMOR CHASSIS
+         * ========================================================
+         */
+
+        double activeArmor =
+                armor.targetArmor()
+                        * armorStrength;
+
+
+        double activeToughness =
+                armor.targetToughness()
+                        * armorStrength;
+
+
+        /*
+         * ========================================================
+         * ACTIVE WEAPON CHASSIS
+         * ========================================================
+         *
+         * A weapon's potential always exists.
+         *
+         * Active values are multiplied by the currently-resolved
+         * conduit strength so the overview clearly distinguishes
+         * player progression from currently-active equipment.
+         */
+
+        double activeMeleeDamage =
+                weapons.targetMeleeDamage()
+                        * meleeStrength;
+
+
+        double activeMeleeAttackSpeed =
+                weapons.targetMeleeAttackSpeed()
+                        * meleeStrength;
+
+
+        double activeRangedDamage =
+                weapons.targetRangedDamage()
+                        * rangedStrength;
+
+
+        double activeRangedAttackSpeed =
+                weapons.targetRangedAttackSpeed()
+                        * rangedStrength;
+
+
+        double activeMagicDamage =
+                weapons.targetMagicDamage()
+                        * magicStrength;
+
+
+        double activeMagicCastSpeed =
+                weapons.targetMagicCastSpeed()
+                        * magicStrength;
+
+
+        /*
+         * ========================================================
+         * HEADER
+         * ========================================================
+         */
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "Chassis Debug:"
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Tier: "
+                                + playerData
+                                .getTier()
+                                .displayName()
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Balance Profile: "
+                                + config
+                                .balanceProfile()
+                                .displayName()
+                ),
+                false
+        );
+
+
+        /*
+         * ========================================================
+         * ARMOR
+         * ========================================================
+         */
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Armor:"
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "    Armor: "
+                                + formatDecimal(
+                                armor.targetArmor()
+                        )
+                                + " potential / "
+                                + formatDecimal(
+                                activeArmor
+                        )
+                                + " active"
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "    Toughness: "
+                                + formatDecimal(
+                                armor.targetToughness()
+                        )
+                                + " potential / "
+                                + formatDecimal(
+                                activeToughness
+                        )
+                                + " active"
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "    ARMOR_SET: "
+                                + formatPercent(
+                                armorStrength
+                        )
+                ),
+                false
+        );
+
+
+        /*
+         * ========================================================
+         * MELEE
+         * ========================================================
+         */
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Melee:"
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "    Damage: "
+                                + formatDecimal(
+                                weapons.targetMeleeDamage()
+                        )
+                                + " potential / "
+                                + formatDecimal(
+                                activeMeleeDamage
+                        )
+                                + " active"
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "    Attack Speed: "
+                                + formatDecimal(
+                                weapons.targetMeleeAttackSpeed()
+                        )
+                                + "/sec potential / "
+                                + formatDecimal(
+                                activeMeleeAttackSpeed
+                        )
+                                + "/sec active"
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "    MELEE_WEAPON: "
+                                + formatPercent(
+                                meleeStrength
+                        )
+                ),
+                false
+        );
+
+
+        /*
+         * ========================================================
+         * RANGED
+         * ========================================================
+         */
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Ranged:"
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "    Damage: "
+                                + formatDecimal(
+                                weapons.targetRangedDamage()
+                        )
+                                + " potential / "
+                                + formatDecimal(
+                                activeRangedDamage
+                        )
+                                + " active"
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "    Draw Speed: "
+                                + formatDecimal(
+                                weapons.targetRangedAttackSpeed()
+                        )
+                                + "/sec potential / "
+                                + formatDecimal(
+                                activeRangedAttackSpeed
+                        )
+                                + "/sec active"
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "    RANGED_WEAPON: "
+                                + formatPercent(
+                                rangedStrength
+                        )
+                ),
+                false
+        );
+
+
+        /*
+         * ========================================================
+         * MAGIC
+         * ========================================================
+         */
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Magic:"
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "    Damage: "
+                                + formatDecimal(
+                                weapons.targetMagicDamage()
+                        )
+                                + " potential / "
+                                + formatDecimal(
+                                activeMagicDamage
+                        )
+                                + " active"
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "    Cast Speed: "
+                                + formatDecimal(
+                                weapons.targetMagicCastSpeed()
+                        )
+                                + "/sec potential / "
+                                + formatDecimal(
+                                activeMagicCastSpeed
+                        )
+                                + "/sec active"
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "    MAGIC_WEAPON: "
+                                + formatPercent(
+                                magicStrength
+                        )
+                ),
+                false
+        );
+
+
+        /*
+         * ========================================================
+         * TOOLS
+         * ========================================================
+         */
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Tools: not implemented yet"
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Detailed diagnostics: /essence debug armorchassis | /essence debug weaponchassis"
+                ),
+                false
+        );
+
+
+        return 1;
+    }
+
 
     /*
      * ============================================================
@@ -1629,7 +2179,7 @@ public final class EssenceDebugCommands {
                 source.getPlayerOrException();
 
 
-        EquipmentConduitState state =
+        EquipmentConduitState defaultState =
                 EquipmentConduitResolver.evaluate(
                         player
                 );
@@ -1643,6 +2193,12 @@ public final class EssenceDebugCommands {
         );
 
 
+        /*
+         * ============================================================
+         * ARMOR
+         * ============================================================
+         */
+
         for (EquipmentSlot slot :
                 EquipmentConduitResolver.armorSlots()) {
 
@@ -1652,19 +2208,16 @@ public final class EssenceDebugCommands {
                     );
 
 
-            boolean valid =
-                    stack.getItem()
-                            instanceof AscendanceArmorItem armorItem
-                            && armorItem.ascendanceSlot()
-                            == slot;
-
-
             double contribution =
-                    valid
-                            ? ArmorConduitWeights.weightFor(
-                            slot
-                    )
-                            : 0.0;
+                    EquipmentConduitResolver
+                            .armorContribution(
+                                    player,
+                                    slot
+                            );
+
+
+            boolean active =
+                    contribution > 0.0;
 
 
             String itemName =
@@ -1681,9 +2234,9 @@ public final class EssenceDebugCommands {
                                     + slot.getName()
                                     + ": "
                                     + itemName
-                                    + " | Ascendance: "
+                                    + " | conduit: "
                                     + (
-                                    valid
+                                    active
                                             ? "YES"
                                             : "NO"
                             )
@@ -1697,18 +2250,373 @@ public final class EssenceDebugCommands {
         }
 
 
-        double armorStrength =
-                state.strength(
-                        EquipmentConduitType.ARMOR_SET
+        /*
+         * ============================================================
+         * HANDS
+         * ============================================================
+         */
+
+        ItemStack mainHand =
+                player.getMainHandItem();
+
+
+        ItemStack offHand =
+                player.getOffhandItem();
+
+
+        String mainHandName =
+                mainHand.isEmpty()
+                        ? "EMPTY"
+                        : mainHand
+                        .getHoverName()
+                        .getString();
+
+
+        String offHandName =
+                offHand.isEmpty()
+                        ? "EMPTY"
+                        : offHand
+                        .getHoverName()
+                        .getString();
+
+
+        String mainHandConduits =
+                formatItemConduits(
+                        mainHand
+                );
+
+
+        String offHandConduits =
+                formatItemConduits(
+                        offHand
                 );
 
 
         source.sendSuccess(
                 () -> Component.literal(
-                        "  ARMOR_SET strength: "
+                        "  mainhand: "
+                                + mainHandName
+                                + " | conduits: "
+                                + mainHandConduits
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  offhand: "
+                                + offHandName
+                                + " | conduits: "
+                                + offHandConduits
+                ),
+                false
+        );
+
+
+
+
+        /*
+         * ============================================================
+         * DEFAULT RESOLVED STATE
+         * ============================================================
+         */
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "Resolved default state (armor + main hand):"
+                ),
+                false
+        );
+
+
+        for (EquipmentConduitType conduit :
+                EquipmentConduitType.values()) {
+
+            double strength =
+                    defaultState.strength(
+                            conduit
+                    );
+
+
+            source.sendSuccess(
+                    () -> Component.literal(
+                            "  "
+                                    + conduit.name()
+                                    + ": "
+                                    + formatPercent(
+                                    strength
+                            )
+                    ),
+                    false
+            );
+        }
+
+
+        return 1;
+    }
+
+    private static int showWeaponChassis(
+            CommandSourceStack source
+    ) throws CommandSyntaxException {
+
+        ServerPlayer player =
+                source.getPlayerOrException();
+
+
+        WeaponChassisResult result =
+                WeaponChassisService.evaluatePotential(
+                        player
+                );
+
+
+        EquipmentConduitState conduitState =
+                EquipmentConduitResolver.evaluate(
+                        player
+                );
+
+
+        double meleeStrength =
+                conduitState.strength(
+                        EquipmentConduitType.MELEE_WEAPON
+                );
+
+        double rangedStrength =
+                conduitState.strength(
+                        EquipmentConduitType.RANGED_WEAPON
+                );
+
+        double magicStrength =
+                conduitState.strength(
+                        EquipmentConduitType.MAGIC_WEAPON
+                );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "Weapon Chassis Debug:"
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Tier: "
+                                + result.tier().displayName()
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Melee Damage: "
                                 + formatPercent(
-                                armorStrength
+                                result.meleeDamageDevelopment()
                         )
+                                + " -> "
+                                + formatDecimal(
+                                result.targetMeleeDamage()
+                        )
+                                + " damage | range "
+                                + formatDecimal(
+                                result.tierRange().minMeleeDamage()
+                        )
+                                + " -> "
+                                + formatDecimal(
+                                result.tierRange().maxMeleeDamage()
+                        )
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Melee Attack Speed: "
+                                + formatPercent(
+                                result.meleeAttackSpeedDevelopment()
+                        )
+                                + " -> "
+                                + formatDecimal(
+                                result.targetMeleeAttackSpeed()
+                        )
+                                + " attacks/sec | range "
+                                + formatDecimal(
+                                result.tierRange().minMeleeAttackSpeed()
+                        )
+                                + " -> "
+                                + formatDecimal(
+                                result.tierRange().maxMeleeAttackSpeed()
+                        )
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Ranged Damage: "
+                                + formatPercent(
+                                result.rangedDamageDevelopment()
+                        )
+                                + " -> "
+                                + formatDecimal(
+                                result.targetRangedDamage()
+                        )
+                                + " damage | range "
+                                + formatDecimal(
+                                result.tierRange().minRangedDamage()
+                        )
+                                + " -> "
+                                + formatDecimal(
+                                result.tierRange().maxRangedDamage()
+                        )
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Ranged Attack Speed: "
+                                + formatPercent(
+                                result.rangedAttackSpeedDevelopment()
+                        )
+                                + " -> "
+                                + formatDecimal(
+                                result.targetRangedAttackSpeed()
+                        )
+                                + " full draws/sec ("
+                                + result.rangedDrawTicks()
+                                + " ticks) | range "
+                                + formatDecimal(
+                                result.tierRange().minRangedAttackSpeed()
+                        )
+                                + " -> "
+                                + formatDecimal(
+                                result.tierRange().maxRangedAttackSpeed()
+                        )
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Magic Damage: "
+                                + formatPercent(
+                                result.magicDamageDevelopment()
+                        )
+                                + " -> "
+                                + formatDecimal(
+                                result.targetMagicDamage()
+                        )
+                                + " damage | range "
+                                + formatDecimal(
+                                result.tierRange().minMagicDamage()
+                        )
+                                + " -> "
+                                + formatDecimal(
+                                result.tierRange().maxMagicDamage()
+                        )
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Magic Cast Speed: "
+                                + formatPercent(
+                                result.magicCastSpeedDevelopment()
+                        )
+                                + " -> "
+                                + formatDecimal(
+                                result.targetMagicCastSpeed()
+                        )
+                                + " casts/sec ("
+                                + result.magicCastTicks()
+                                + " ticks) | range "
+                                + formatDecimal(
+                                result.tierRange().minMagicCastSpeed()
+                        )
+                                + " -> "
+                                + formatDecimal(
+                                result.tierRange().maxMagicCastSpeed()
+                        )
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  MELEE_WEAPON strength: "
+                                + formatPercent(
+                                meleeStrength
+                        )
+                                + " | active damage: "
+                                + formatDecimal(
+                                result.targetMeleeDamage()
+                                        * meleeStrength
+                        )
+                                + " | active speed: "
+                                + formatDecimal(
+                                result.targetMeleeAttackSpeed()
+                                        * meleeStrength
+                        )
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  RANGED_WEAPON strength: "
+                                + formatPercent(
+                                rangedStrength
+                        )
+                                + " | active damage: "
+                                + formatDecimal(
+                                result.targetRangedDamage()
+                                        * rangedStrength
+                        )
+                                + " | active draw rate: "
+                                + formatDecimal(
+                                result.targetRangedAttackSpeed()
+                                        * rangedStrength
+                        )
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  MAGIC_WEAPON strength: "
+                                + formatPercent(
+                                magicStrength
+                        )
+                                + " | active damage: "
+                                + formatDecimal(
+                                result.targetMagicDamage()
+                                        * magicStrength
+                        )
+                                + " | active cast rate: "
+                                + formatDecimal(
+                                result.targetMagicCastSpeed()
+                                        * magicStrength
+                        )
+                ),
+                false
+        );
+
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Gameplay attributes/behavior applied: NO (effect refresh layer not implemented yet)"
                 ),
                 false
         );
@@ -1961,6 +2869,68 @@ public final class EssenceDebugCommands {
      * FORMATTING
      * ============================================================
      */
+
+    private static String formatItemConduits(
+            ItemStack stack
+    ) {
+
+        EquipmentConduitState state =
+                EquipmentConduitResolver.evaluateItem(
+                        stack
+                );
+
+
+        StringBuilder builder =
+                new StringBuilder();
+
+
+        for (EquipmentConduitType conduit :
+                EquipmentConduitType.values()) {
+
+            double strength =
+                    state.strength(
+                            conduit
+                    );
+
+
+            if (strength <= 0.0) {
+
+                continue;
+            }
+
+
+            if (builder.length() > 0) {
+
+                builder.append(
+                        ", "
+                );
+            }
+
+
+            builder.append(
+                    conduit.name()
+            );
+
+            builder.append(
+                    " "
+            );
+
+            builder.append(
+                    formatPercent(
+                            strength
+                    )
+            );
+        }
+
+
+        if (builder.length() == 0) {
+
+            return "NONE";
+        }
+
+
+        return builder.toString();
+    }
 
     private static List<AscendanceTierDefinition> orderedTiers() {
 
