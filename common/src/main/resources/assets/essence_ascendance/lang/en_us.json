@@ -6,5 +6,10 @@
 
   "item.essence_ascendance.ascendance_melee_weapon": "Ascendance Blade",
   "item.essence_ascendance.ascendance_ranged_weapon": "Ascendance Bow",
-  "item.essence_ascendance.ascendance_magic_weapon": "Ascendance Focus"
+  "item.essence_ascendance.ascendance_magic_weapon": "Ascendance Focus",
+
+  "item.essence_ascendance.ascendance_pickaxe": "Ascendance Pickaxe",
+  "item.essence_ascendance.ascendance_axe": "Ascendance Axe",
+  "item.essence_ascendance.ascendance_shovel": "Ascendance Shovel",
+  "item.essence_ascendance.ascendance_hoe": "Ascendance Hoe"
 }

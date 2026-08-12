@@ -47,7 +47,7 @@ public final class AscendanceToolTier
      * the player's mining_speed investment applied on top.
      */
     private static final float SPEED =
-            1.0F;
+            6.0F;
 
 
     /*
@@ -90,17 +90,17 @@ public final class AscendanceToolTier
 
 
     /*
-     * Lowest normal vanilla harvest baseline.
+     * Safe construction-time fallback matching built-in Dormant capability.
      *
      * Player Ascendance tier is dynamic while Minecraft's Tier object is
-     * static per Item, so harvest capability cannot safely live here. The
-     * later block-harvest gameplay layer must consult EquipmentBaselineService
-     * for the player's current tier-derived harvest level.
+     * static per Item, so this tag is only the bootstrap component used before
+     * AscendanceToolMiningService synchronizes the ItemStack. The authoritative
+     * harvest level still comes from EquipmentBaselineService/config.
      */
     @Override
     public TagKey<Block> getIncorrectBlocksForDrops() {
 
-        return BlockTags.INCORRECT_FOR_WOODEN_TOOL;
+        return BlockTags.INCORRECT_FOR_IRON_TOOL;
     }
 
 

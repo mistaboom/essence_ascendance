@@ -16,12 +16,17 @@ import java.util.Objects;
  * fixed tier baselines. That preserves the old zero-investment physical floor
  * while moving all player specialization back into StatScalingService.
  *
- * Mining speed and durability remain conservative bootstrap placeholders until
- * the actual tool/gameplay effect tranche deliberately balances them.
+ * Tool mining speed is now a real tier-owned baseline. Harvest capability is
+ * deliberately progression-safe: the current tier can harvest any material
+ * required to unlock the next tier. In the built-in progression that means
+ * Dormant is iron-equivalent (Diamond-capable) and Awakened is
+ * diamond-equivalent (Ancient-Debris-capable).
+ *
+ * Durability remains a conservative bootstrap value until dynamic max damage
+ * is applied by the durability gameplay tranche.
  */
 public final class EquipmentBaselineDefaults {
 
-    private static final double BOOTSTRAP_MINING_SPEED = 1.0;
     private static final int BOOTSTRAP_DURABILITY = 2031;
 
     private EquipmentBaselineDefaults() {
@@ -43,31 +48,31 @@ public final class EquipmentBaselineDefaults {
 
     private static EquipmentBaselineConfig createVanilla() {
         return create(
-                baseline(7.0, 0.0, 4.0, 1.20, 4.0, 1.00, 4.0, 1.00, 0),
-                baseline(12.0, 2.0, 6.0, 1.60, 6.0, 1.25, 6.0, 1.25, 1),
-                baseline(15.0, 4.0, 8.0, 1.90, 8.0, 1.50, 8.0, 1.50, 2),
-                baseline(20.0, 8.0, 11.0, 2.20, 11.0, 1.75, 11.0, 1.75, 3),
-                baseline(24.0, 12.0, 15.0, 2.60, 15.0, 2.00, 15.0, 2.00, 4)
+                baseline(7.0, 0.0, 4.0, 1.20, 4.0, 1.00, 4.0, 1.00, 6.0, 2),
+                baseline(12.0, 2.0, 6.0, 1.60, 6.0, 1.25, 6.0, 1.25, 8.0, 3),
+                baseline(15.0, 4.0, 8.0, 1.90, 8.0, 1.50, 8.0, 1.50, 9.0, 4),
+                baseline(20.0, 8.0, 11.0, 2.20, 11.0, 1.75, 11.0, 1.75, 11.0, 5),
+                baseline(24.0, 12.0, 15.0, 2.60, 15.0, 2.00, 15.0, 2.00, 14.0, 6)
         );
     }
 
     private static EquipmentBaselineConfig createVanillaPlus() {
         return create(
-                baseline(8.0, 0.0, 5.0, 1.25, 5.0, 1.00, 5.0, 1.00, 0),
-                baseline(13.0, 3.0, 7.0, 1.65, 7.0, 1.30, 7.0, 1.30, 1),
-                baseline(17.0, 6.0, 10.0, 2.00, 10.0, 1.60, 10.0, 1.60, 2),
-                baseline(21.0, 10.0, 14.0, 2.35, 14.0, 1.90, 14.0, 1.90, 3),
-                baseline(25.0, 14.0, 19.0, 2.80, 19.0, 2.25, 19.0, 2.25, 4)
+                baseline(8.0, 0.0, 5.0, 1.25, 5.0, 1.00, 5.0, 1.00, 7.0, 2),
+                baseline(13.0, 3.0, 7.0, 1.65, 7.0, 1.30, 7.0, 1.30, 9.0, 3),
+                baseline(17.0, 6.0, 10.0, 2.00, 10.0, 1.60, 10.0, 1.60, 11.0, 4),
+                baseline(21.0, 10.0, 14.0, 2.35, 14.0, 1.90, 14.0, 1.90, 14.0, 5),
+                baseline(25.0, 14.0, 19.0, 2.80, 19.0, 2.25, 19.0, 2.25, 18.0, 6)
         );
     }
 
     private static EquipmentBaselineConfig createModded() {
         return create(
-                baseline(10.0, 0.0, 6.0, 1.30, 6.0, 1.10, 6.0, 1.10, 0),
-                baseline(14.0, 4.0, 9.0, 1.75, 9.0, 1.40, 9.0, 1.40, 1),
-                baseline(18.0, 8.0, 13.0, 2.15, 13.0, 1.75, 13.0, 1.75, 2),
-                baseline(22.0, 12.0, 19.0, 2.60, 19.0, 2.15, 19.0, 2.15, 3),
-                baseline(26.0, 16.0, 28.0, 3.20, 28.0, 2.65, 28.0, 2.65, 4)
+                baseline(10.0, 0.0, 6.0, 1.30, 6.0, 1.10, 6.0, 1.10, 8.0, 2),
+                baseline(14.0, 4.0, 9.0, 1.75, 9.0, 1.40, 9.0, 1.40, 10.0, 3),
+                baseline(18.0, 8.0, 13.0, 2.15, 13.0, 1.75, 13.0, 1.75, 13.0, 4),
+                baseline(22.0, 12.0, 19.0, 2.60, 19.0, 2.15, 19.0, 2.15, 17.0, 5),
+                baseline(26.0, 16.0, 28.0, 3.20, 28.0, 2.65, 28.0, 2.65, 22.0, 6)
         );
     }
 
@@ -80,6 +85,7 @@ public final class EquipmentBaselineDefaults {
             double rangedAttackSpeed,
             double magicDamage,
             double magicCastSpeed,
+            double miningSpeed,
             int harvestLevel
     ) {
         return new EquipmentBaselineConfig.TierBaseline(
@@ -91,7 +97,7 @@ public final class EquipmentBaselineDefaults {
                 rangedAttackSpeed,
                 magicDamage,
                 magicCastSpeed,
-                BOOTSTRAP_MINING_SPEED,
+                miningSpeed,
                 harvestLevel,
                 BOOTSTRAP_DURABILITY
         );

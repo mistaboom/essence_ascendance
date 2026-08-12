@@ -11,14 +11,17 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineProperty;
 import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineResult;
 import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfileDefinition;
+import com.mistaboom.essence_ascendance.equipment.EquipmentProfileItem;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfileRegistry;
 import com.mistaboom.essence_ascendance.equipment.EquipmentStatProfile;
 import com.mistaboom.essence_ascendance.equipment.EquipmentStatProviderRegistry;
 import com.mistaboom.essence_ascendance.equipment.EquipmentStatResolver;
 import com.mistaboom.essence_ascendance.equipment.EquipmentStatState;
+import com.mistaboom.essence_ascendance.equipment.EquipmentValueService;
 import com.mistaboom.essence_ascendance.progression.AscendanceEngine;
 import com.mistaboom.essence_ascendance.progression.AscendanceEvaluationResult;
 import com.mistaboom.essence_ascendance.progression.CategoryDevelopment;
+import com.mistaboom.essence_ascendance.progression.HarvestProgressionSafety;
 import com.mistaboom.essence_ascendance.progression.MilestoneDefinition;
 import com.mistaboom.essence_ascendance.progression.MilestoneProgress;
 import com.mistaboom.essence_ascendance.progression.MilestoneProviders;
@@ -29,6 +32,7 @@ import com.mistaboom.essence_ascendance.progression.StatScalingResult;
 import com.mistaboom.essence_ascendance.progression.StatScalingService;
 import com.mistaboom.essence_ascendance.progression.TierInvestmentPolicy;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
+import com.mistaboom.essence_ascendance.stat.EssenceStats;
 import com.mistaboom.essence_ascendance.stat.StatCategory;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
 import com.mojang.brigadier.arguments.BoolArgumentType;
@@ -154,6 +158,10 @@ public final class EssenceDebugCommands {
                 .then(
                         Commands.literal("equipmentstats")
                                 .executes(context -> showEquipmentStats(context.getSource()))
+                )
+                .then(
+                        Commands.literal("tool")
+                                .executes(context -> showTool(context.getSource()))
                 )
                 .then(
                         Commands.literal("statprofile")
@@ -381,6 +389,29 @@ public final class EssenceDebugCommands {
                 false
         );
 
+        var harvestIssues = HarvestProgressionSafety.evaluate(config);
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Harvest progression safety: "
+                                + (harvestIssues.isEmpty()
+                                ? "PASS"
+                                : "WARNING (" + harvestIssues.size() + ")")
+                ),
+                false
+        );
+
+        for (HarvestProgressionSafety.Issue issue : harvestIssues) {
+            source.sendSuccess(
+                    () -> Component.literal(
+                            "    " + issue.fromTierId() + " -> " + issue.toTierId()
+                                    + ": configured level " + issue.configuredHarvestLevel()
+                                    + ", milestone requires at least "
+                                    + issue.requiredHarvestLevel()
+                    ),
+                    false
+            );
+        }
+
         return 1;
     }
 
@@ -580,6 +611,112 @@ public final class EssenceDebugCommands {
                     false
             );
         }
+
+        return 1;
+    }
+
+    private static int showTool(
+            CommandSourceStack source
+    ) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        ItemStack stack = player.getMainHandItem();
+
+        if (stack.isEmpty()
+                || !(stack.getItem() instanceof EquipmentProfileItem profileItem)) {
+            source.sendFailure(
+                    Component.literal(
+                            "Main hand is not a first-party Ascendance equipment item."
+                    )
+            );
+            return 0;
+        }
+
+        EquipmentProfileDefinition profile = EquipmentProfileRegistry
+                .get(profileItem.equipmentProfileId())
+                .orElse(null);
+
+        if (profile == null
+                || profile.baselineMultiplier(EquipmentBaselineProperty.MINING_SPEED) <= 0.0
+                || profile.statStrength(
+                        EquipmentActivationType.HELD,
+                        EssenceStats.MINING_SPEED
+                ) <= 0.0) {
+            source.sendFailure(
+                    Component.literal(
+                            "Main-hand Ascendance item is not a mining tool profile."
+                    )
+            );
+            return 0;
+        }
+
+        PlayerEssenceData playerData = EssenceSavedData
+                .get(player.server)
+                .getPlayerData(player.getUUID());
+
+        EquipmentBaselineResult baseline = EquipmentBaselineService.evaluate(
+                playerData,
+                profile.id()
+        );
+
+        double applicability = profile.statStrength(
+                EquipmentActivationType.HELD,
+                EssenceStats.MINING_SPEED
+        );
+
+        StatScalingResult miningScaling = StatScalingService.evaluate(
+                playerData,
+                EssenceStats.MINING_SPEED
+        );
+
+        double resolvedMiningSpeed = EquipmentValueService.applyPercentBonus(
+                playerData,
+                EssenceStats.MINING_SPEED,
+                applicability,
+                baseline.miningSpeed()
+        );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "Ascendance Tool Debug: " + stack.getHoverName().getString()
+                ),
+                false
+        );
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Profile: " + profile.displayName() + " [" + profile.id() + "]"
+                                + " | Tier: " + playerData.getTier().displayName()
+                ),
+                false
+        );
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Harvest level: " + baseline.harvestLevel()
+                                + " | Base mining speed: " + formatDecimal(baseline.miningSpeed())
+                ),
+                false
+        );
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Mining Speed investment bonus: "
+                                + formatBonus(
+                                EssenceStats.MINING_SPEED,
+                                miningScaling.scaledBonus()
+                        )
+                                + " @ " + formatStrength(applicability)
+                                + " applicability | Resolved speed: "
+                                + formatDecimal(resolvedMiningSpeed)
+                ),
+                false
+        );
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Melee archetype baseline: damage "
+                                + formatDecimal(baseline.meleeDamage())
+                                + ", attack speed "
+                                + formatDecimal(baseline.meleeAttackSpeed())
+                ),
+                false
+        );
 
         return 1;
     }

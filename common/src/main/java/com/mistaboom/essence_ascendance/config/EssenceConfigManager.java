@@ -14,12 +14,15 @@ import com.mistaboom.essence_ascendance.progression.AscendanceAdvancementDefinit
 import com.mistaboom.essence_ascendance.progression.AscendanceAdvancementRegistry;
 import com.mistaboom.essence_ascendance.progression.MilestoneDefinition;
 import com.mistaboom.essence_ascendance.progression.MilestoneRegistry;
+import com.mistaboom.essence_ascendance.progression.HarvestProgressionSafety;
 import com.mistaboom.essence_ascendance.progression.MilestoneRequirement;
 import com.mistaboom.essence_ascendance.progression.StatScalingDefaults;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
+import com.mistaboom.essence_ascendance.equipment.AscendanceToolMiningService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineConfig;
 import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineDefaults;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
+import com.mistaboom.essence_ascendance.tier.AscendanceTiers;
 import dev.architectury.platform.Platform;
 import net.minecraft.resources.ResourceLocation;
 
@@ -295,6 +298,8 @@ public final class EssenceConfigManager {
         if (current == null) {
             current =
                     createBuiltInDefault();
+            AscendanceToolMiningService.invalidateCache();
+            HarvestProgressionSafety.logWarnings(current);
         }
 
         return current;
@@ -343,6 +348,8 @@ public final class EssenceConfigManager {
 
                 current =
                         createBuiltInDefault();
+                AscendanceToolMiningService.invalidateCache();
+                HarvestProgressionSafety.logWarnings(current);
 
                 return;
             }
@@ -374,6 +381,9 @@ public final class EssenceConfigManager {
                             parsed.getAsJsonObject()
                     );
 
+            AscendanceToolMiningService.invalidateCache();
+            HarvestProgressionSafety.logWarnings(current);
+
 
             EssenceAscendance.LOGGER.info(
                     "Loaded Essence Ascendance config from {} using balance profile {}",
@@ -393,6 +403,8 @@ public final class EssenceConfigManager {
 
             current =
                     createBuiltInDefault();
+            AscendanceToolMiningService.invalidateCache();
+            HarvestProgressionSafety.logWarnings(current);
         }
     }
 
@@ -466,9 +478,43 @@ public final class EssenceConfigManager {
         JsonObject equipmentBaselines =
                 new JsonObject();
 
+        equipmentBaselines.addProperty(
+                "_harvest_level_comment",
+                "Logical tool harvest capability. Defaults are progression-safe: Dormant=2 (iron/Diamond-capable), Awakened=3 (diamond/Ancient-Debris-capable), then 4/5/6. Any non-negative integer is allowed for modpack tiers."
+        );
+
+        JsonObject tierEquipmentOverrides =
+                new JsonObject();
+
+        addDefaultHarvestLevel(
+                tierEquipmentOverrides,
+                AscendanceTiers.DORMANT.id(),
+                2
+        );
+        addDefaultHarvestLevel(
+                tierEquipmentOverrides,
+                AscendanceTiers.AWAKENED.id(),
+                3
+        );
+        addDefaultHarvestLevel(
+                tierEquipmentOverrides,
+                AscendanceTiers.RESONANT.id(),
+                4
+        );
+        addDefaultHarvestLevel(
+                tierEquipmentOverrides,
+                AscendanceTiers.ASCENDANT.id(),
+                5
+        );
+        addDefaultHarvestLevel(
+                tierEquipmentOverrides,
+                AscendanceTiers.TRANSCENDENT.id(),
+                6
+        );
+
         equipmentBaselines.add(
                 "tiers",
-                new JsonObject()
+                tierEquipmentOverrides
         );
 
         root.add(
@@ -505,6 +551,23 @@ public final class EssenceConfigManager {
         EssenceAscendance.LOGGER.info(
                 "Created default Essence Ascendance config at {}",
                 configPath
+        );
+    }
+
+
+    private static void addDefaultHarvestLevel(
+            JsonObject tierOverrides,
+            ResourceLocation tierId,
+            int harvestLevel
+    ) {
+        JsonObject tier = new JsonObject();
+        tier.addProperty(
+                "harvest_level",
+                harvestLevel
+        );
+        tierOverrides.add(
+                tierId.toString(),
+                tier
         );
     }
 

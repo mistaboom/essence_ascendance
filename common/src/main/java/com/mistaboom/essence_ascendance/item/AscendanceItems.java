@@ -8,7 +8,11 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.CreativeModeTabs;
+import net.minecraft.world.item.AxeItem;
+import net.minecraft.world.item.HoeItem;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.PickaxeItem;
+import net.minecraft.world.item.ShovelItem;
 import net.minecraft.world.item.SwordItem;
 
 public final class AscendanceItems {
@@ -86,6 +90,100 @@ public final class AscendanceItems {
                                     new Item.Properties()
                                             .durability(
                                                     WEAPON_DURABILITY
+                                            )
+                                            .fireResistant()
+                            )
+            );
+
+
+    /*
+     * ============================================================
+     * ASCENDANCE TOOLS
+     * ============================================================
+     *
+     * These are real vanilla tool subclasses so stripping, path creation,
+     * tilling, mineable-tag behavior, enchantment compatibility, and normal
+     * tool interactions remain native Minecraft behavior.
+     *
+     * Static combat attributes below are constructor/bootstrap values only.
+     * EquipmentProfiles owns archetype balance and the later combat gameplay
+     * layer will apply tier + invested melee values authoritatively.
+     */
+
+    public static final RegistrySupplier<AscendancePickaxeItem>
+            ASCENDANCE_PICKAXE =
+            ITEMS.register(
+                    "ascendance_pickaxe",
+                    () ->
+                            new AscendancePickaxeItem(
+                                    AscendanceToolTier.INSTANCE,
+                                    new Item.Properties()
+                                            .attributes(
+                                                    PickaxeItem.createAttributes(
+                                                            AscendanceToolTier.INSTANCE,
+                                                            1.0F,
+                                                            -2.8F
+                                                    )
+                                            )
+                                            .fireResistant()
+                            )
+            );
+
+
+    public static final RegistrySupplier<AscendanceAxeItem>
+            ASCENDANCE_AXE =
+            ITEMS.register(
+                    "ascendance_axe",
+                    () ->
+                            new AscendanceAxeItem(
+                                    AscendanceToolTier.INSTANCE,
+                                    new Item.Properties()
+                                            .attributes(
+                                                    AxeItem.createAttributes(
+                                                            AscendanceToolTier.INSTANCE,
+                                                            5.0F,
+                                                            -3.1F
+                                                    )
+                                            )
+                                            .fireResistant()
+                            )
+            );
+
+
+    public static final RegistrySupplier<AscendanceShovelItem>
+            ASCENDANCE_SHOVEL =
+            ITEMS.register(
+                    "ascendance_shovel",
+                    () ->
+                            new AscendanceShovelItem(
+                                    AscendanceToolTier.INSTANCE,
+                                    new Item.Properties()
+                                            .attributes(
+                                                    ShovelItem.createAttributes(
+                                                            AscendanceToolTier.INSTANCE,
+                                                            1.5F,
+                                                            -3.0F
+                                                    )
+                                            )
+                                            .fireResistant()
+                            )
+            );
+
+
+    public static final RegistrySupplier<AscendanceHoeItem>
+            ASCENDANCE_HOE =
+            ITEMS.register(
+                    "ascendance_hoe",
+                    () ->
+                            new AscendanceHoeItem(
+                                    AscendanceToolTier.INSTANCE,
+                                    new Item.Properties()
+                                            .attributes(
+                                                    HoeItem.createAttributes(
+                                                            AscendanceToolTier.INSTANCE,
+                                                            0.0F,
+                                                            -1.0F
+                                                    )
                                             )
                                             .fireResistant()
                             )
@@ -181,6 +279,28 @@ public final class AscendanceItems {
         CreativeTabRegistry.append(
                 CreativeModeTabs.COMBAT,
                 ASCENDANCE_MAGIC_WEAPON
+        );
+
+
+
+        CreativeTabRegistry.append(
+                CreativeModeTabs.TOOLS_AND_UTILITIES,
+                ASCENDANCE_PICKAXE
+        );
+
+        CreativeTabRegistry.append(
+                CreativeModeTabs.TOOLS_AND_UTILITIES,
+                ASCENDANCE_AXE
+        );
+
+        CreativeTabRegistry.append(
+                CreativeModeTabs.TOOLS_AND_UTILITIES,
+                ASCENDANCE_SHOVEL
+        );
+
+        CreativeTabRegistry.append(
+                CreativeModeTabs.TOOLS_AND_UTILITIES,
+                ASCENDANCE_HOE
         );
 
         CreativeTabRegistry.append(
