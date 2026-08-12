@@ -15,8 +15,8 @@ import net.minecraft.world.level.block.Block;
  * This is NOT the player's actual Ascendance equipment power.
  *
  * Primary equipment behavior is calculated separately through the
- * tier/archetype equipment baseline plus invested stat bonuses, and later
- * applied by the gameplay-effect layer.
+ * tier/archetype equipment baseline plus invested stat bonuses and applied by
+ * the equipment gameplay layer.
  *
  * The Tier exists because vanilla SwordItem / DiggerItem classes
  * require one for their normal Minecraft behavior.

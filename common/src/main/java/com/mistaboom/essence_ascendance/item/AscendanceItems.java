@@ -58,7 +58,7 @@ public final class AscendanceItems {
                                                     SwordItem.createAttributes(
                                                             AscendanceToolTier.INSTANCE,
                                                             0,
-                                                            -3.0F
+                                                            0.0F
                                                     )
                                             )
                                             .fireResistant()
@@ -105,9 +105,12 @@ public final class AscendanceItems {
      * tilling, mineable-tag behavior, enchantment compatibility, and normal
      * tool interactions remain native Minecraft behavior.
      *
-     * Static combat attributes below are constructor/bootstrap values only.
-     * EquipmentProfiles owns archetype balance and the later combat gameplay
-     * layer will apply tier + invested melee values authoritatively.
+     * Static combat attributes below are deliberately neutral (zero item
+     * damage contribution and zero attack-speed modifier). The server-side
+     * EquipmentAttributeService supplies the authoritative tier/archetype
+     * baseline plus applicable invested melee bonuses as transient player
+     * attributes. This prevents the constructor values from becoming a second
+     * hidden balance source.
      */
 
     public static final RegistrySupplier<AscendancePickaxeItem>
@@ -121,8 +124,8 @@ public final class AscendanceItems {
                                             .attributes(
                                                     PickaxeItem.createAttributes(
                                                             AscendanceToolTier.INSTANCE,
-                                                            1.0F,
-                                                            -2.8F
+                                                            0.0F,
+                                                            0.0F
                                                     )
                                             )
                                             .fireResistant()
@@ -141,8 +144,8 @@ public final class AscendanceItems {
                                             .attributes(
                                                     AxeItem.createAttributes(
                                                             AscendanceToolTier.INSTANCE,
-                                                            5.0F,
-                                                            -3.1F
+                                                            0.0F,
+                                                            0.0F
                                                     )
                                             )
                                             .fireResistant()
@@ -161,8 +164,8 @@ public final class AscendanceItems {
                                             .attributes(
                                                     ShovelItem.createAttributes(
                                                             AscendanceToolTier.INSTANCE,
-                                                            1.5F,
-                                                            -3.0F
+                                                            0.0F,
+                                                            0.0F
                                                     )
                                             )
                                             .fireResistant()
@@ -182,7 +185,7 @@ public final class AscendanceItems {
                                                     HoeItem.createAttributes(
                                                             AscendanceToolTier.INSTANCE,
                                                             0.0F,
-                                                            -1.0F
+                                                            0.0F
                                                     )
                                             )
                                             .fireResistant()

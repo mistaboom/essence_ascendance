@@ -7,6 +7,7 @@ import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import com.mistaboom.essence_ascendance.equipment.ArmorStatWeights;
 import com.mistaboom.essence_ascendance.equipment.EquipmentActivationType;
+import com.mistaboom.essence_ascendance.equipment.EquipmentAttributeService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineProperty;
 import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineResult;
 import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineService;
@@ -50,6 +51,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.Locale;
@@ -158,6 +160,10 @@ public final class EssenceDebugCommands {
                 .then(
                         Commands.literal("equipmentstats")
                                 .executes(context -> showEquipmentStats(context.getSource()))
+                )
+                .then(
+                        Commands.literal("gameplay")
+                                .executes(context -> showGameplay(context.getSource()))
                 )
                 .then(
                         Commands.literal("tool")
@@ -615,6 +621,106 @@ public final class EssenceDebugCommands {
         return 1;
     }
 
+    private static int showGameplay(
+            CommandSourceStack source
+    ) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+
+        /* Ensure command output reflects equipment/stat changes immediately. */
+        EquipmentAttributeService.sync(player);
+        EquipmentAttributeService.AppliedState state =
+                EquipmentAttributeService.evaluate(player);
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "Ascendance Gameplay Attribute Debug:"
+                ),
+                false
+        );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Armor: +" + formatDecimal(state.armor())
+                                + " Ascendance | actual "
+                                + formatDecimal(player.getAttributeValue(Attributes.ARMOR))
+                                + " | Toughness: +"
+                                + formatDecimal(state.toughness())
+                                + " Ascendance | actual "
+                                + formatDecimal(player.getAttributeValue(Attributes.ARMOR_TOUGHNESS))
+                ),
+                false
+        );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Melee: damage modifier "
+                                + formatSigned(state.meleeDamageModifier())
+                                + " | actual attack damage "
+                                + formatDecimal(player.getAttributeValue(Attributes.ATTACK_DAMAGE))
+                                + " | speed modifier "
+                                + formatSigned(state.meleeAttackSpeedModifier())
+                                + " | actual attack speed "
+                                + formatDecimal(player.getAttributeValue(Attributes.ATTACK_SPEED))
+                ),
+                false
+        );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Attack knockback: +"
+                                + formatDecimal(state.attackKnockback())
+                                + " | actual "
+                                + formatDecimal(player.getAttributeValue(Attributes.ATTACK_KNOCKBACK))
+                                + " | Mining Speed: +"
+                                + formatPercent(state.miningSpeedFraction())
+                                + " | block-break multiplier "
+                                + formatDecimal(player.getAttributeValue(Attributes.BLOCK_BREAK_SPEED))
+                ),
+                false
+        );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Max Health: +"
+                                + formatDecimal(state.maxHealthPoints() / 2.0)
+                                + " hearts | actual "
+                                + formatDecimal(player.getMaxHealth() / 2.0)
+                                + " hearts | Movement Speed: +"
+                                + formatPercent(state.movementSpeedFraction())
+                                + " | actual "
+                                + formatDecimal(player.getAttributeValue(Attributes.MOVEMENT_SPEED))
+                ),
+                false
+        );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Knockback Resistance: +"
+                                + formatPercent(state.knockbackResistance())
+                                + " | Sneak Speed: +"
+                                + formatPercent(state.sneakSpeedFraction())
+                                + " | Step Height: +"
+                                + formatDecimal(state.stepHeightBlocks())
+                                + " blocks"
+                ),
+                false
+        );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Reach: +"
+                                + formatDecimal(state.reachBlocks())
+                                + " blocks | actual block/entity range "
+                                + formatDecimal(player.getAttributeValue(Attributes.BLOCK_INTERACTION_RANGE))
+                                + "/"
+                                + formatDecimal(player.getAttributeValue(Attributes.ENTITY_INTERACTION_RANGE))
+                ),
+                false
+        );
+
+        return 1;
+    }
+
     private static int showTool(
             CommandSourceStack source
     ) throws CommandSyntaxException {
@@ -960,6 +1066,10 @@ public final class EssenceDebugCommands {
             return "UNRESOLVED";
         }
         return progress.complete() ? "COMPLETE" : "INCOMPLETE";
+    }
+
+    private static String formatSigned(double value) {
+        return String.format(Locale.ROOT, "%+.2f", value);
     }
 
     private static String formatStrength(double value) {

@@ -6,6 +6,7 @@ import com.mistaboom.essence_ascendance.command.EssenceCommands;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.equipment.ArmorStatWeights;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfileRegistry;
+import com.mistaboom.essence_ascendance.equipment.EquipmentGameplayEvents;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfiles;
 import com.mistaboom.essence_ascendance.equipment.EquipmentStatProviderRegistry;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
@@ -58,6 +59,9 @@ public final class EssenceAscendance {
         AscendanceAdvancements.init();
 
         EssenceConfigManager.load();
+
+        /* Gameplay hooks depend on loaded balance/config values. */
+        EquipmentGameplayEvents.init();
         AscendanceMilestoneEvents.init();
 
         CommandRegistrationEvent.EVENT.register(

@@ -9,17 +9,39 @@ import com.mistaboom.essence_ascendance.stat.StatUnit;
 import java.util.Objects;
 
 /*
- * Small composition helper for the architecture's final step:
+ * Composition helpers for the architecture's final calculation step.
  *
- * baseline x applicable invested percentage bonus.
- *
- * This does not apply Minecraft attributes/events yet. It provides one
- * authoritative calculation that later gameplay hooks and debug verification
- * can share.
+ * StatScalingService owns how much of a stat the player has earned.
+ * Equipment applicability owns whether that stat applies in this context and
+ * at what strength. This class combines those two concepts without knowing
+ * anything about a particular Minecraft gameplay hook.
  */
 public final class EquipmentValueService {
 
     private EquipmentValueService() {
+    }
+
+    /*
+     * Returns the stat's earned gameplay bonus after equipment applicability
+     * has been applied. The returned unit is the stat's own StatUnit:
+     * percentage points, hearts, blocks, levels, etc.
+     */
+    public static double scaledBonus(
+            PlayerEssenceData playerData,
+            StatDefinition stat,
+            double applicabilityStrength
+    ) {
+        Objects.requireNonNull(playerData, "Player Essence data cannot be null");
+        Objects.requireNonNull(stat, "Stat cannot be null");
+
+        if (!Double.isFinite(applicabilityStrength) || applicabilityStrength < 0.0) {
+            throw new IllegalArgumentException(
+                    "Applicability strength must be finite and non-negative"
+            );
+        }
+
+        StatScalingResult scaling = StatScalingService.evaluate(playerData, stat);
+        return scaling.scaledBonus() * applicabilityStrength;
     }
 
     public static double applyPercentBonus(
@@ -37,20 +59,17 @@ public final class EquipmentValueService {
             );
         }
 
-        if (!Double.isFinite(applicabilityStrength) || applicabilityStrength < 0.0) {
-            throw new IllegalArgumentException(
-                    "Applicability strength must be finite and non-negative"
-            );
-        }
-
         if (!Double.isFinite(baseValue) || baseValue < 0.0) {
             throw new IllegalArgumentException(
                     "Base value must be finite and non-negative"
             );
         }
 
-        StatScalingResult scaling = StatScalingService.evaluate(playerData, stat);
-        double effectivePercent = scaling.scaledBonus() * applicabilityStrength;
+        double effectivePercent = scaledBonus(
+                playerData,
+                stat,
+                applicabilityStrength
+        );
 
         return baseValue * (1.0 + effectivePercent / 100.0);
     }

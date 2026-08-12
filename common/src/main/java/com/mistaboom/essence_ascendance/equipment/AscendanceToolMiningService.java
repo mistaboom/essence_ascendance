@@ -2,7 +2,6 @@ package com.mistaboom.essence_ascendance.equipment;
 
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
-import com.mistaboom.essence_ascendance.stat.EssenceStats;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -30,7 +29,8 @@ import java.util.regex.Pattern;
  * Vanilla's Tier object is static per Item, but an Ascendance tool's harvest
  * capability belongs to the player tier. Minecraft 1.21 stores mining speed
  * and drop-correctness rules in the TOOL data component, so the server keeps
- * that component synchronized with the current player/tier/stat state.
+ * that component synchronized with the current player's tier/archetype
+ * baseline. Invested mining_speed remains a separate player attribute.
  *
  * Numeric modded mining-level tags are discovered generically. Tags named
  * "needs_tool_level_N" or "needs_tool_level/N" in any namespace are treated
@@ -76,21 +76,14 @@ public final class AscendanceToolMiningService {
                         profileId
                 );
 
-        double applicability =
-                baseline.profile().statStrength(
-                        EquipmentActivationType.HELD,
-                        EssenceStats.MINING_SPEED
-                );
-
-        double resolvedMiningSpeed =
-                EquipmentValueService.applyPercentBonus(
-                        playerData,
-                        EssenceStats.MINING_SPEED,
-                        applicability,
-                        baseline.miningSpeed()
-                );
-
-        float miningSpeed = toPositiveFloat(resolvedMiningSpeed);
+        /*
+         * The TOOL component owns only the physical tier/archetype mining
+         * baseline. The invested mining_speed percentage is applied separately
+         * to the player through Attributes.BLOCK_BREAK_SPEED by
+         * EquipmentAttributeService. Keeping those layers separate prevents
+         * stat investment from becoming baked into an ItemStack.
+         */
+        float miningSpeed = toPositiveFloat(baseline.miningSpeed());
         int harvestLevel = baseline.harvestLevel();
 
         Tool tool = toolFor(
