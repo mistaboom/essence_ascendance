@@ -1,47 +1,34 @@
 package com.mistaboom.essence_ascendance.item;
 
-import com.mistaboom.essence_ascendance.equipment.EquipmentConduitItem;
-import com.mistaboom.essence_ascendance.equipment.EquipmentConduitType;
+import com.mistaboom.essence_ascendance.equipment.EquipmentProfileItem;
+import com.mistaboom.essence_ascendance.equipment.EquipmentProfiles;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.SwordItem;
 import net.minecraft.world.item.Tier;
 
 /*
- * Native melee conduit item.
+ * Vanilla SwordItem supplies interaction semantics only.
  *
- * IMPORTANT:
+ * The Tier constructor values are bootstrap requirements. Actual intended
+ * melee balance comes from:
  *
- * This item intentionally does not define fixed attack-damage or
- * attack-speed attribute modifiers.
- *
- * Those primary combat properties are chassis values driven by:
- *
- *     melee_damage
- *     melee_attack_speed
- *
- * WeaponChassisService calculates the authoritative targets. The
- * gameplay effect/refresh layer will apply them later without stacking
- * them on top of a vanilla sword baseline.
+ * Ascendance tier -> EquipmentBaselineService -> melee profile -> invested
+ * melee_damage / melee_attack_speed bonuses.
  */
 public final class AscendanceMeleeWeaponItem
         extends SwordItem
-        implements EquipmentConduitItem {
+        implements EquipmentProfileItem {
 
     public AscendanceMeleeWeaponItem(
             Tier tier,
             Item.Properties properties
     ) {
-
-        super(
-                tier,
-                properties
-        );
+        super(tier, properties);
     }
 
-
     @Override
-    public EquipmentConduitType conduitType() {
-
-        return EquipmentConduitType.MELEE_WEAPON;
+    public ResourceLocation equipmentProfileId() {
+        return EquipmentProfiles.MELEE_WEAPON.id();
     }
 }

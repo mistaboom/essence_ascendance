@@ -17,12 +17,9 @@ import com.mistaboom.essence_ascendance.progression.MilestoneRegistry;
 import com.mistaboom.essence_ascendance.progression.MilestoneRequirement;
 import com.mistaboom.essence_ascendance.progression.StatScalingDefaults;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
-import com.mistaboom.essence_ascendance.equipment.ArmorChassisConfig;
-import com.mistaboom.essence_ascendance.equipment.ArmorChassisDefaults;
-import com.mistaboom.essence_ascendance.equipment.WeaponChassisConfig;
-import com.mistaboom.essence_ascendance.equipment.WeaponChassisDefaults;
+import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineConfig;
+import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineDefaults;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
-import com.mistaboom.essence_ascendance.stat.StatScalingMode;
 import dev.architectury.platform.Platform;
 import net.minecraft.resources.ResourceLocation;
 
@@ -37,7 +34,7 @@ import java.util.Map;
 public final class EssenceConfigManager {
 
     public static final int CURRENT_CONFIG_VERSION =
-            1;
+            2;
 
     private static final int MAX_REQUIREMENT_DEPTH =
             32;
@@ -68,31 +65,24 @@ public final class EssenceConfigManager {
                         StatScalingDefaults.values()
                 );
 
-
         JsonElement overridesElement =
                 root.get(
                         "stat_max_bonus_overrides"
                 );
 
-
         if (overridesElement == null
                 || overridesElement.isJsonNull()) {
-
             return values;
         }
 
-
         if (!overridesElement.isJsonObject()) {
-
             throw new IllegalArgumentException(
                     "stat_max_bonus_overrides must be a JSON object"
             );
         }
 
-
         JsonObject overrides =
                 overridesElement.getAsJsonObject();
-
 
         for (Map.Entry<String, JsonElement> entry :
                 overrides.entrySet()) {
@@ -102,511 +92,195 @@ public final class EssenceConfigManager {
                             entry.getKey()
                     );
 
-
             if (statId == null) {
-
-                throw new IllegalArgumentException(
-                        "Invalid stat ID in stat_max_bonus_overrides: "
-                                + entry.getKey()
-                );
-            }
-
-
-            StatDefinition stat =
-                    EssenceStatRegistry
-                            .get(
-                                    statId
-                            )
-                            .orElseThrow(
-                                    () ->
-                                            new IllegalArgumentException(
-                                                    "Unknown stat in stat_max_bonus_overrides: "
-                                                            + statId
-                                            )
-                            );
-
-
-            /*
-             * Old configs may still contain values for these stats.
-             *
-             * Ignore rather than fail the whole configuration.
-             */
-
-            if (stat.scalingMode()
-                    == StatScalingMode.CHASSIS) {
-
                 EssenceAscendance.LOGGER.warn(
-                        "Ignoring stat_max_bonus_overrides entry for chassis stat '{}'. Configure its weapon chassis range instead.",
-                        statId
+                        "Ignoring invalid stat ID '{}' in stat_max_bonus_overrides",
+                        entry.getKey()
                 );
-
                 continue;
             }
 
+            if (EssenceStatRegistry.get(statId).isEmpty()) {
+                EssenceAscendance.LOGGER.warn(
+                        "Ignoring stat_max_bonus_overrides entry for unknown/removed stat '{}'",
+                        statId
+                );
+                continue;
+            }
 
-            JsonElement valueElement =
-                    entry.getValue();
-
+            JsonElement valueElement = entry.getValue();
 
             if (!valueElement.isJsonPrimitive()
-                    || !valueElement
-                    .getAsJsonPrimitive()
-                    .isNumber()) {
-
-                throw new IllegalArgumentException(
-                        "Stat max bonus for "
-                                + statId
-                                + " must be numeric"
+                    || !valueElement.getAsJsonPrimitive().isNumber()) {
+                EssenceAscendance.LOGGER.warn(
+                        "Ignoring non-numeric stat max bonus for '{}'",
+                        statId
                 );
+                continue;
             }
 
+            double value = valueElement.getAsDouble();
 
-            double value =
-                    valueElement.getAsDouble();
-
-
-            if (!Double.isFinite(
-                    value
-            )) {
-
-                throw new IllegalArgumentException(
-                        "Stat max bonus for "
-                                + statId
-                                + " must be finite"
+            if (!Double.isFinite(value) || value < 0.0) {
+                EssenceAscendance.LOGGER.warn(
+                        "Ignoring invalid stat max bonus for '{}': {}",
+                        statId,
+                        value
                 );
+                continue;
             }
 
-
-            if (value < 0.0) {
-
-                throw new IllegalArgumentException(
-                        "Stat max bonus for "
-                                + statId
-                                + " cannot be negative"
-                );
-            }
-
-
-            values.put(
-                    statId,
-                    value
-            );
+            values.put(statId, value);
         }
-
 
         return values;
     }
 
-    private static ArmorChassisConfig parseArmorChassisConfig(
+
+    private static EquipmentBaselineConfig parseEquipmentBaselineConfig(
             JsonObject root,
             BalanceProfileDefinition balanceProfile
     ) {
 
-        ArmorChassisConfig defaults =
-                ArmorChassisDefaults.create(
+        EquipmentBaselineConfig defaults =
+                EquipmentBaselineDefaults.create(
                         balanceProfile
                 );
-
 
         JsonObject overrides =
                 getObject(
                         root,
-                        "armor_chassis_overrides"
+                        "equipment_baseline_overrides"
                 );
-
 
         if (overrides == null) {
             return defaults;
         }
 
-
-        double armorDefenseWeight =
-                readNonNegativeFiniteDouble(
-                        overrides,
-                        "armor_defense_weight",
-                        defaults.armorDefenseWeight()
-                );
-
-
-        double armorVitalityWeight =
-                readNonNegativeFiniteDouble(
-                        overrides,
-                        "armor_vitality_weight",
-                        defaults.armorVitalityWeight()
-                );
-
-
-        double toughnessDefenseWeight =
-                readNonNegativeFiniteDouble(
-                        overrides,
-                        "toughness_defense_weight",
-                        defaults.toughnessDefenseWeight()
-                );
-
-
-        double toughnessVitalityWeight =
-                readNonNegativeFiniteDouble(
-                        overrides,
-                        "toughness_vitality_weight",
-                        defaults.toughnessVitalityWeight()
-                );
-
-
-        if (armorDefenseWeight
-                + armorVitalityWeight
-                <= 0.0) {
-
-            EssenceAscendance.LOGGER.warn(
-                    "Armor chassis armor weights cannot both be zero. Using built-in weights."
-            );
-
-
-            armorDefenseWeight =
-                    defaults.armorDefenseWeight();
-
-            armorVitalityWeight =
-                    defaults.armorVitalityWeight();
-        }
-
-
-        if (toughnessDefenseWeight
-                + toughnessVitalityWeight
-                <= 0.0) {
-
-            EssenceAscendance.LOGGER.warn(
-                    "Armor chassis toughness weights cannot both be zero. Using built-in weights."
-            );
-
-
-            toughnessDefenseWeight =
-                    defaults.toughnessDefenseWeight();
-
-            toughnessVitalityWeight =
-                    defaults.toughnessVitalityWeight();
-        }
-
-
-        Map<
-                ResourceLocation,
-                ArmorChassisConfig.TierRange
-                > tierRanges =
-                new LinkedHashMap<>(
-                        defaults.tierRanges()
-                );
-
-
-        JsonObject tierRangeOverrides =
+        JsonObject tierOverrides =
                 getObject(
                         overrides,
-                        "tier_ranges"
+                        "tiers"
                 );
 
-
-        if (tierRangeOverrides != null) {
-
-            for (Map.Entry<String, JsonElement> entry :
-                    tierRangeOverrides.entrySet()) {
-
-                ResourceLocation tierId =
-                        ResourceLocation.tryParse(
-                                entry.getKey()
-                        );
-
-
-                if (tierId == null) {
-
-                    EssenceAscendance.LOGGER.warn(
-                            "Ignoring invalid tier ID '{}' in armor chassis overrides",
-                            entry.getKey()
-                    );
-
-                    continue;
-                }
-
-
-                ArmorChassisConfig.TierRange existing =
-                        tierRanges.get(
-                                tierId
-                        );
-
-
-                if (existing == null) {
-
-                    EssenceAscendance.LOGGER.warn(
-                            "Ignoring armor chassis override for unknown or unsupported tier '{}'",
-                            tierId
-                    );
-
-                    continue;
-                }
-
-
-                if (!entry
-                        .getValue()
-                        .isJsonObject()) {
-
-                    EssenceAscendance.LOGGER.warn(
-                            "Ignoring armor chassis tier override '{}' because it is not an object",
-                            tierId
-                    );
-
-                    continue;
-                }
-
-
-                JsonObject rangeObject =
-                        entry
-                                .getValue()
-                                .getAsJsonObject();
-
-
-                double minArmor =
-                        readNonNegativeFiniteDouble(
-                                rangeObject,
-                                "min_armor",
-                                existing.minArmor()
-                        );
-
-
-                double maxArmor =
-                        readNonNegativeFiniteDouble(
-                                rangeObject,
-                                "max_armor",
-                                existing.maxArmor()
-                        );
-
-
-                double minToughness =
-                        readNonNegativeFiniteDouble(
-                                rangeObject,
-                                "min_toughness",
-                                existing.minToughness()
-                        );
-
-
-                double maxToughness =
-                        readNonNegativeFiniteDouble(
-                                rangeObject,
-                                "max_toughness",
-                                existing.maxToughness()
-                        );
-
-
-                try {
-
-                    tierRanges.put(
-                            tierId,
-                            new ArmorChassisConfig.TierRange(
-                                    minArmor,
-                                    maxArmor,
-                                    minToughness,
-                                    maxToughness
-                            )
-                    );
-
-
-                } catch (IllegalArgumentException exception) {
-
-                    EssenceAscendance.LOGGER.warn(
-                            "Ignoring invalid armor chassis range for tier '{}': {}",
-                            tierId,
-                            exception.getMessage()
-                    );
-                }
-            }
-        }
-
-
-        return new ArmorChassisConfig(
-                armorDefenseWeight,
-                armorVitalityWeight,
-                toughnessDefenseWeight,
-                toughnessVitalityWeight,
-                tierRanges
-        );
-    }
-
-    private static WeaponChassisConfig parseWeaponChassisConfig(
-            JsonObject root,
-            BalanceProfileDefinition balanceProfile
-    ) {
-
-        WeaponChassisConfig defaults =
-                WeaponChassisDefaults.create(
-                        balanceProfile
-                );
-
-
-        JsonObject overrides =
-                getObject(
-                        root,
-                        "weapon_chassis_overrides"
-                );
-
-
-        if (overrides == null) {
+        if (tierOverrides == null) {
             return defaults;
         }
 
-
-        Map<
-                ResourceLocation,
-                WeaponChassisConfig.TierRange
-                > tierRanges =
+        Map<ResourceLocation, EquipmentBaselineConfig.TierBaseline> baselines =
                 new LinkedHashMap<>(
-                        defaults.tierRanges()
+                        defaults.tierBaselines()
                 );
 
+        for (Map.Entry<String, JsonElement> entry :
+                tierOverrides.entrySet()) {
 
-        JsonObject tierRangeOverrides =
-                getObject(
-                        overrides,
-                        "tier_ranges"
-                );
-
-
-        if (tierRangeOverrides != null) {
-
-            for (Map.Entry<String, JsonElement> entry :
-                    tierRangeOverrides.entrySet()) {
-
-                ResourceLocation tierId =
-                        ResourceLocation.tryParse(
-                                entry.getKey()
-                        );
-
-
-                if (tierId == null) {
-
-                    EssenceAscendance.LOGGER.warn(
-                            "Ignoring invalid tier ID '{}' in weapon chassis overrides",
+            ResourceLocation tierId =
+                    ResourceLocation.tryParse(
                             entry.getKey()
                     );
 
-                    continue;
-                }
+            if (tierId == null) {
+                EssenceAscendance.LOGGER.warn(
+                        "Ignoring invalid tier ID '{}' in equipment baseline overrides",
+                        entry.getKey()
+                );
+                continue;
+            }
 
+            EquipmentBaselineConfig.TierBaseline existing =
+                    baselines.get(tierId);
 
-                WeaponChassisConfig.TierRange existing =
-                        tierRanges.get(
-                                tierId
-                        );
+            if (existing == null) {
+                EssenceAscendance.LOGGER.warn(
+                        "Ignoring equipment baseline override for unknown tier '{}'",
+                        tierId
+                );
+                continue;
+            }
 
+            if (!entry.getValue().isJsonObject()) {
+                EssenceAscendance.LOGGER.warn(
+                        "Ignoring equipment baseline override '{}' because it is not an object",
+                        tierId
+                );
+                continue;
+            }
 
-                if (existing == null) {
+            JsonObject object = entry.getValue().getAsJsonObject();
 
-                    EssenceAscendance.LOGGER.warn(
-                            "Ignoring weapon chassis override for unknown or unsupported tier '{}'",
-                            tierId
-                    );
+            try {
+                baselines.put(
+                        tierId,
+                        new EquipmentBaselineConfig.TierBaseline(
+                                readNonNegativeFiniteDouble(
+                                        object,
+                                        "full_set_armor",
+                                        existing.fullSetArmor()
+                                ),
+                                readNonNegativeFiniteDouble(
+                                        object,
+                                        "full_set_toughness",
+                                        existing.fullSetToughness()
+                                ),
+                                readNonNegativeFiniteDouble(
+                                        object,
+                                        "melee_damage",
+                                        existing.meleeDamage()
+                                ),
+                                readNonNegativeFiniteDouble(
+                                        object,
+                                        "melee_attack_speed",
+                                        existing.meleeAttackSpeed()
+                                ),
+                                readNonNegativeFiniteDouble(
+                                        object,
+                                        "ranged_damage",
+                                        existing.rangedDamage()
+                                ),
+                                readNonNegativeFiniteDouble(
+                                        object,
+                                        "ranged_attack_speed",
+                                        existing.rangedAttackSpeed()
+                                ),
+                                readNonNegativeFiniteDouble(
+                                        object,
+                                        "magic_damage",
+                                        existing.magicDamage()
+                                ),
+                                readNonNegativeFiniteDouble(
+                                        object,
+                                        "magic_cast_speed",
+                                        existing.magicCastSpeed()
+                                ),
+                                readNonNegativeFiniteDouble(
+                                        object,
+                                        "mining_speed",
+                                        existing.miningSpeed()
+                                ),
+                                readInt(
+                                        object,
+                                        "harvest_level",
+                                        existing.harvestLevel()
+                                ),
+                                readInt(
+                                        object,
+                                        "durability",
+                                        existing.durability()
+                                )
+                        )
+                );
 
-                    continue;
-                }
-
-
-                if (!entry
-                        .getValue()
-                        .isJsonObject()) {
-
-                    EssenceAscendance.LOGGER.warn(
-                            "Ignoring weapon chassis tier override '{}' because it is not an object",
-                            tierId
-                    );
-
-                    continue;
-                }
-
-
-                JsonObject rangeObject =
-                        entry
-                                .getValue()
-                                .getAsJsonObject();
-
-
-                try {
-
-                    tierRanges.put(
-                            tierId,
-                            new WeaponChassisConfig.TierRange(
-                                    readNonNegativeFiniteDouble(
-                                            rangeObject,
-                                            "min_melee_damage",
-                                            existing.minMeleeDamage()
-                                    ),
-                                    readNonNegativeFiniteDouble(
-                                            rangeObject,
-                                            "max_melee_damage",
-                                            existing.maxMeleeDamage()
-                                    ),
-                                    readNonNegativeFiniteDouble(
-                                            rangeObject,
-                                            "min_melee_attack_speed",
-                                            existing.minMeleeAttackSpeed()
-                                    ),
-                                    readNonNegativeFiniteDouble(
-                                            rangeObject,
-                                            "max_melee_attack_speed",
-                                            existing.maxMeleeAttackSpeed()
-                                    ),
-                                    readNonNegativeFiniteDouble(
-                                            rangeObject,
-                                            "min_ranged_damage",
-                                            existing.minRangedDamage()
-                                    ),
-                                    readNonNegativeFiniteDouble(
-                                            rangeObject,
-                                            "max_ranged_damage",
-                                            existing.maxRangedDamage()
-                                    ),
-                                    readNonNegativeFiniteDouble(
-                                            rangeObject,
-                                            "min_ranged_attack_speed",
-                                            existing.minRangedAttackSpeed()
-                                    ),
-                                    readNonNegativeFiniteDouble(
-                                            rangeObject,
-                                            "max_ranged_attack_speed",
-                                            existing.maxRangedAttackSpeed()
-                                    ),
-                                    readNonNegativeFiniteDouble(
-                                            rangeObject,
-                                            "min_magic_damage",
-                                            existing.minMagicDamage()
-                                    ),
-                                    readNonNegativeFiniteDouble(
-                                            rangeObject,
-                                            "max_magic_damage",
-                                            existing.maxMagicDamage()
-                                    ),
-                                    readNonNegativeFiniteDouble(
-                                            rangeObject,
-                                            "min_magic_cast_speed",
-                                            existing.minMagicCastSpeed()
-                                    ),
-                                    readNonNegativeFiniteDouble(
-                                            rangeObject,
-                                            "max_magic_cast_speed",
-                                            existing.maxMagicCastSpeed()
-                                    )
-                            )
-                    );
-
-
-                } catch (IllegalArgumentException exception) {
-
-                    EssenceAscendance.LOGGER.warn(
-                            "Ignoring invalid weapon chassis range for tier '{}': {}",
-                            tierId,
-                            exception.getMessage()
-                    );
-                }
+            } catch (RuntimeException exception) {
+                EssenceAscendance.LOGGER.warn(
+                        "Ignoring invalid equipment baseline for tier '{}': {}",
+                        tierId,
+                        exception.getMessage()
+                );
             }
         }
 
-
-        return new WeaponChassisConfig(
-                tierRanges
-        );
+        return new EquipmentBaselineConfig(baselines);
     }
 
 
@@ -789,14 +463,17 @@ public final class EssenceConfigManager {
         );
 
 
-        root.add(
-                "armor_chassis_overrides",
+        JsonObject equipmentBaselines =
+                new JsonObject();
+
+        equipmentBaselines.add(
+                "tiers",
                 new JsonObject()
         );
 
         root.add(
-                "weapon_chassis_overrides",
-                new JsonObject()
+                "equipment_baseline_overrides",
+                equipmentBaselines
         );
 
         root.add(
@@ -871,14 +548,8 @@ public final class EssenceConfigManager {
                 );
 
 
-        ArmorChassisConfig armorChassisConfig =
-                parseArmorChassisConfig(
-                        root,
-                        balanceProfile
-                );
-
-        WeaponChassisConfig weaponChassisConfig =
-                parseWeaponChassisConfig(
+        EquipmentBaselineConfig equipmentBaselineConfig =
+                parseEquipmentBaselineConfig(
                         root,
                         balanceProfile
                 );
@@ -901,8 +572,7 @@ public final class EssenceConfigManager {
                 milestones,
                 advancements,
                 statMaxBonuses,
-                armorChassisConfig,
-                weaponChassisConfig
+                equipmentBaselineConfig
         );
     }
 
@@ -1036,6 +706,15 @@ public final class EssenceConfigManager {
                             statEntry.getKey()
                     );
 
+                    continue;
+                }
+
+
+                if (EssenceStatRegistry.get(statId).isEmpty()) {
+                    EssenceAscendance.LOGGER.warn(
+                            "Ignoring stat_cap_overrides entry for unknown/removed stat '{}'",
+                            statId
+                    );
                     continue;
                 }
 
@@ -1744,10 +1423,7 @@ public final class EssenceConfigManager {
                 new LinkedHashMap<>(
                         StatScalingDefaults.values()
                 ),
-                ArmorChassisDefaults.create(
-                        BalanceProfiles.VANILLA
-                ),
-                WeaponChassisDefaults.create(
+                EquipmentBaselineDefaults.create(
                         BalanceProfiles.VANILLA
                 )
         );

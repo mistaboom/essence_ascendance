@@ -47,12 +47,10 @@ public final class AscendanceArmorMaterials {
         /*
          * IMPORTANT:
          *
-         * The Ascendance chassis is player-dependent.
-         *
-         * Static vanilla ArmorMaterial protection therefore remains
-         * zero so it cannot double-dip with the dynamic Armor and
-         * Toughness values that will be applied by the progression
-         * effect layer.
+         * Ascendance physical Armor/Toughness are tier-derived through
+         * EquipmentBaselineService and will be applied by the gameplay-effect
+         * layer. Static ArmorMaterial protection therefore remains zero so the
+         * vanilla material never becomes a second hidden balance source.
          */
 
         for (ArmorItem.Type type :
@@ -105,9 +103,7 @@ public final class AscendanceArmorMaterials {
                 ),
 
                 /*
-                 * Static toughness.
-                 *
-                 * Dynamic chassis owns this later.
+                 * Static toughness stays zero; the tier baseline owns it.
                  */
                 0.0F,
 

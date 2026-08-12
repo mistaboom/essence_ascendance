@@ -106,9 +106,10 @@ public final class EssenceAscendanceClient {
          * 0.0 = just started drawing
          * 1.0 = vanilla full-draw visual state
          *
-         * The 20 tick visual baseline will later be tied to the
-         * authoritative ranged attack-speed chassis when client
-         * progression synchronization is implemented.
+         * The 20 tick visual baseline is only a vanilla-compatible client
+         * placeholder. Once progression is synchronized client-side, this
+         * should reflect the resolved ranged tier/archetype baseline plus the
+         * player's ranged_attack_speed bonus.
          */
 
         registrar.register(

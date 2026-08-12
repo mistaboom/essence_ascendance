@@ -7,7 +7,6 @@ import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
-import com.mistaboom.essence_ascendance.stat.StatScalingMode;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
 import com.mistaboom.essence_ascendance.progression.StatInvestmentResult;
@@ -918,15 +917,6 @@ public final class EssenceCommands {
 
         source.sendSuccess(
                 () -> Component.literal(
-                        "  Scaling mode: "
-                                + stat.scalingMode()
-                ),
-                false
-        );
-
-
-        source.sendSuccess(
-                () -> Component.literal(
                         "  Stored investment: "
                                 + format(
                                 scaling.storedInvestment()
@@ -960,37 +950,6 @@ public final class EssenceCommands {
                 ),
                 false
         );
-
-
-        if (stat.scalingMode()
-                == StatScalingMode.CHASSIS) {
-
-            source.sendSuccess(
-                    () -> Component.literal(
-                            "  Additive bonus: NONE"
-                    ),
-                    false
-            );
-
-
-            source.sendSuccess(
-                    () -> Component.literal(
-                            "  This stat drives an absolute equipment chassis value."
-                    ),
-                    false
-            );
-
-
-            source.sendSuccess(
-                    () -> Component.literal(
-                            "  Use /essence debug armorchassis or /essence debug weaponchassis for resolved chassis values."
-                    ),
-                    false
-            );
-
-
-            return 1;
-        }
 
 
         source.sendSuccess(

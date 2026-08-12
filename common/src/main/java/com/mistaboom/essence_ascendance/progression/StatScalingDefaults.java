@@ -31,29 +31,24 @@ public final class StatScalingDefaults {
          * 50.0  = +50%
          */
 
-        /*
-         * These stats drive absolute weapon chassis values.
-         *
-         * They intentionally have NO additive stat bonus.
-         */
         register(
                 "melee_damage",
-                0.0
+                100.0
         );
 
         register(
                 "melee_attack_speed",
-                0.0
+                50.0
         );
 
         register(
                 "ranged_damage",
-                0.0
+                100.0
         );
 
         register(
                 "ranged_attack_speed",
-                0.0
+                50.0
         );
 
         register(
@@ -63,12 +58,12 @@ public final class StatScalingDefaults {
 
         register(
                 "magic_damage",
-                0.0
+                100.0
         );
 
         register(
                 "magic_cast_speed",
-                0.0
+                50.0
         );
 
         register(
@@ -203,12 +198,6 @@ public final class StatScalingDefaults {
                 "mining_speed",
                 100.0
         );
-
-        register(
-                "mining_level",
-                2.0
-        );
-
         register(
                 "fortune",
                 3.0
@@ -243,11 +232,6 @@ public final class StatScalingDefaults {
 
         register(
                 "sneak_speed",
-                50.0
-        );
-
-        register(
-                "item_use_speed",
                 50.0
         );
 

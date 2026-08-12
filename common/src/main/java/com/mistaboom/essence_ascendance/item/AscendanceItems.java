@@ -9,6 +9,7 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.SwordItem;
 
 public final class AscendanceItems {
 
@@ -17,13 +18,12 @@ public final class AscendanceItems {
 
 
     /*
-     * Shared weapon durability baseline.
+     * Static Minecraft bootstrap durability.
      *
-     * Bow/focus store durability directly on Item.Properties.
-     * The melee weapon receives the same baseline from
-     * AscendanceToolTier.
-     *
-     * Durability is not one of the weapon chassis combat properties.
+     * Item.Properties/Tier require a concrete max-damage value at item
+     * construction time. This number is therefore implementation scaffolding,
+     * not the authoritative tier balance model. EquipmentBaselineService owns
+     * the tier/archetype durability target used by later gameplay hooks.
      */
     private static final int WEAPON_DURABILITY =
             2031;
@@ -50,6 +50,13 @@ public final class AscendanceItems {
                             new AscendanceMeleeWeaponItem(
                                     AscendanceToolTier.INSTANCE,
                                     new Item.Properties()
+                                            .attributes(
+                                                    SwordItem.createAttributes(
+                                                            AscendanceToolTier.INSTANCE,
+                                                            0,
+                                                            -3.0F
+                                                    )
+                                            )
                                             .fireResistant()
                             )
             );

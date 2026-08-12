@@ -7,20 +7,19 @@ import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.block.Block;
 
 /*
- * Shared structural Tier implementation used by the Ascendance melee
- * weapon now and intended for Ascendance tools in Issue 9.7.
+ * Neutral vanilla bootstrap tier shared by Ascendance weapons
+ * and tools.
  *
  * IMPORTANT:
  *
- * This is NOT an Ascendance progression tier and it is NOT the source of
- * dynamic combat power.
+ * This is NOT the player's actual Ascendance equipment power.
  *
- * Primary weapon properties such as attack damage and attack speed are
- * driven by WeaponChassisService. getAttackDamageBonus() therefore stays
- * zero and AscendanceItems does not install SwordItem attribute modifiers.
+ * Primary equipment behavior is calculated separately through the
+ * tier/archetype equipment baseline plus invested stat bonuses, and later
+ * applied by the gameplay-effect layer.
  *
- * Mining speed/harvest behavior is intentionally provisional until the
- * tool chassis is designed in Issue 9.7.
+ * The Tier exists because vanilla SwordItem / DiggerItem classes
+ * require one for their normal Minecraft behavior.
  */
 public final class AscendanceToolTier
         implements Tier {
@@ -29,19 +28,37 @@ public final class AscendanceToolTier
             new AscendanceToolTier();
 
 
+    /*
+     * Durability remains a normal Minecraft mechanic.
+     *
+     * durability_efficiency will modify durability consumption
+     * later in the gameplay-effect layer.
+     */
     private static final int USES =
             2031;
 
+
     /*
-     * Provisional tool-side value. Do not use this as the final mining
-     * chassis implementation; Issue 9.7 will decide how mining_speed and
-     * mining_level map to actual tool behavior.
+     * Neutral mining baseline.
+     *
+     * We deliberately do NOT grant netherite mining speed here.
+     *
+     * Ascendance tool mining speed will be tier/archetype baseline power with
+     * the player's mining_speed investment applied on top.
      */
     private static final float SPEED =
-            9.0F;
+            1.0F;
 
+
+    /*
+     * Tool and weapon combat values are baseline/stat driven.
+     *
+     * Do not place a permanent attack-damage bonus here because
+     * doing so would double-count melee progression.
+     */
     private static final float ATTACK_DAMAGE_BONUS =
             0.0F;
+
 
     private static final int ENCHANTMENT_VALUE =
             15;
@@ -72,10 +89,18 @@ public final class AscendanceToolTier
     }
 
 
+    /*
+     * Lowest normal vanilla harvest baseline.
+     *
+     * Player Ascendance tier is dynamic while Minecraft's Tier object is
+     * static per Item, so harvest capability cannot safely live here. The
+     * later block-harvest gameplay layer must consult EquipmentBaselineService
+     * for the player's current tier-derived harvest level.
+     */
     @Override
     public TagKey<Block> getIncorrectBlocksForDrops() {
 
-        return BlockTags.INCORRECT_FOR_NETHERITE_TOOL;
+        return BlockTags.INCORRECT_FOR_WOODEN_TOOL;
     }
 
 
@@ -86,6 +111,10 @@ public final class AscendanceToolTier
     }
 
 
+    /*
+     * Ascendance equipment currently has no vanilla-material
+     * repair ingredient.
+     */
     @Override
     public Ingredient getRepairIngredient() {
 
