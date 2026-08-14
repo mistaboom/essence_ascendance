@@ -13,9 +13,11 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineResult;
 import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentDamageService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentVitalityService;
+import com.mistaboom.essence_ascendance.equipment.EquipmentWeaponService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfileDefinition;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfileItem;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfileRegistry;
+import com.mistaboom.essence_ascendance.equipment.EquipmentProfiles;
 import com.mistaboom.essence_ascendance.equipment.EquipmentStatProfile;
 import com.mistaboom.essence_ascendance.equipment.EquipmentStatProviderRegistry;
 import com.mistaboom.essence_ascendance.equipment.EquipmentStatResolver;
@@ -174,6 +176,10 @@ public final class EssenceDebugCommands {
                 .then(
                         Commands.literal("vitality")
                                 .executes(context -> showVitality(context.getSource()))
+                )
+                .then(
+                        Commands.literal("weapons")
+                                .executes(context -> showWeapons(context.getSource()))
                 )
                 .then(
                         Commands.literal("tool")
@@ -1000,6 +1006,177 @@ public final class EssenceDebugCommands {
         );
 
         return 1;
+    }
+
+    private static int showWeapons(
+            CommandSourceStack source
+    ) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        ItemStack stack = player.getMainHandItem();
+
+        if (stack.isEmpty()
+                || !(stack.getItem() instanceof EquipmentProfileItem profileItem)) {
+            source.sendFailure(
+                    Component.literal(
+                            "Main hand is not a first-party Ascendance equipment item."
+                    )
+            );
+            return 0;
+        }
+
+        ResourceLocation profileId = profileItem.equipmentProfileId();
+
+        if (profileId.equals(EquipmentProfiles.RANGED_WEAPON.id())) {
+            EquipmentWeaponService.RangedState state =
+                    EquipmentWeaponService.evaluateRanged(player, stack);
+
+            source.sendSuccess(
+                    () -> Component.literal(
+                            "Ascendance Ranged Weapon Debug: "
+                                    + stack.getHoverName().getString()
+                    ),
+                    false
+            );
+
+            source.sendSuccess(
+                    () -> Component.literal(
+                            "  Damage: baseline "
+                                    + formatDecimal(state.baselineDamage())
+                                    + " -> resolved "
+                                    + formatDecimal(state.finalDamage())
+                    ),
+                    false
+            );
+
+            source.sendSuccess(
+                    () -> Component.literal(
+                            "  Draw rate: baseline "
+                                    + formatDecimal(state.baselineAttackSpeed())
+                                    + "/sec -> resolved "
+                                    + formatDecimal(state.finalAttackSpeed())
+                                    + "/sec | full draw "
+                                    + state.fullDrawTicks()
+                                    + " ticks"
+                    ),
+                    false
+            );
+
+            source.sendSuccess(
+                    () -> Component.literal(
+                            "  Projectile Speed: +"
+                                    + formatDecimal(state.projectileSpeedPercent())
+                                    + "% | velocity x"
+                                    + formatDecimal(state.projectileSpeedMultiplier())
+                    ),
+                    false
+            );
+
+            EquipmentWeaponService.lastRangedShot(player).ifPresentOrElse(
+                    shot -> source.sendSuccess(
+                            () -> Component.literal(
+                                    "  Last shot: held "
+                                            + shot.actualUseTicks()
+                                            + " ticks -> vanilla-equivalent "
+                                            + shot.syntheticUseTicks()
+                                            + " ticks | velocity "
+                                            + formatDecimal(shot.vanillaVelocity())
+                                            + " -> "
+                                            + formatDecimal(shot.resolvedVelocity())
+                                            + " | arrow base damage "
+                                            + (shot.resolvedArrowBaseDamage() < 0.0
+                                            ? "N/A"
+                                            : formatDecimal(shot.resolvedArrowBaseDamage()))
+                            ),
+                            false
+                    ),
+                    () -> source.sendSuccess(
+                            () -> Component.literal(
+                                    "  Last shot: NONE RECORDED"
+                            ),
+                            false
+                    )
+            );
+
+            return 1;
+        }
+
+        if (profileId.equals(EquipmentProfiles.MAGIC_FOCUS.id())) {
+            EquipmentWeaponService.MagicState state =
+                    EquipmentWeaponService.evaluateMagic(player, stack);
+
+            source.sendSuccess(
+                    () -> Component.literal(
+                            "Ascendance Magic Focus Debug: "
+                                    + stack.getHoverName().getString()
+                    ),
+                    false
+            );
+
+            source.sendSuccess(
+                    () -> Component.literal(
+                            "  Damage: baseline "
+                                    + formatDecimal(state.baselineDamage())
+                                    + " -> resolved "
+                                    + formatDecimal(state.finalDamage())
+                    ),
+                    false
+            );
+
+            source.sendSuccess(
+                    () -> Component.literal(
+                            "  Cast rate: baseline "
+                                    + formatDecimal(state.baselineCastSpeed())
+                                    + "/sec -> resolved "
+                                    + formatDecimal(state.finalCastSpeed())
+                                    + "/sec | cooldown "
+                                    + state.castTicks()
+                                    + " ticks"
+                    ),
+                    false
+            );
+
+            source.sendSuccess(
+                    () -> Component.literal(
+                            "  Neutral focus range: "
+                                    + formatDecimal(EquipmentWeaponService.MAGIC_RANGE_BLOCKS)
+                                    + " blocks"
+                    ),
+                    false
+            );
+
+            EquipmentWeaponService.lastMagicCast(player).ifPresentOrElse(
+                    cast -> source.sendSuccess(
+                            () -> Component.literal(
+                                    "  Last cast: "
+                                            + (cast.castPerformed() ? "CAST" : "BLOCKED")
+                                            + " | target "
+                                            + cast.targetName()
+                                            + " | distance "
+                                            + formatDecimal(cast.targetDistance())
+                                            + " | attempted damage "
+                                            + formatDecimal(cast.attemptedDamage())
+                                            + " | damage applied "
+                                            + (cast.damageApplied() ? "YES" : "NO")
+                            ),
+                            false
+                    ),
+                    () -> source.sendSuccess(
+                            () -> Component.literal(
+                                    "  Last cast: NONE RECORDED"
+                            ),
+                            false
+                    )
+            );
+
+            return 1;
+        }
+
+        source.sendFailure(
+                Component.literal(
+                        "Main-hand Ascendance item is not the ranged weapon or magic focus."
+                )
+        );
+        return 0;
     }
 
     private static int showTool(

@@ -27,6 +27,7 @@ public final class EquipmentGameplayEvents {
             if (player instanceof ServerPlayer serverPlayer) {
                 EquipmentAttributeService.sync(serverPlayer);
                 EquipmentVitalityService.tick(serverPlayer);
+                EquipmentWeaponService.syncRangedVisualState(serverPlayer);
             }
         });
 
@@ -35,6 +36,7 @@ public final class EquipmentGameplayEvents {
                     EquipmentAttributeService.forget(player);
                     EquipmentDamageService.forget(player);
                     EquipmentVitalityService.forget(player);
+                    EquipmentWeaponService.forget(player);
                 }
         );
 

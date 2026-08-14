@@ -6,6 +6,10 @@
     "PlayerVitalityMixin",
     "MobEffectInstanceDurationMixin"
   ],
+  "client": [
+    "ItemInHandRendererMixin",
+    "AbstractClientPlayerFovMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }

@@ -1,11 +1,23 @@
 package com.mistaboom.essence_ascendance.fabric.client;
 
+import com.mistaboom.essence_ascendance.client.EssenceAscendanceClient;
 import net.fabricmc.api.ClientModInitializer;
+import net.minecraft.client.renderer.item.ItemProperties;
 
-public final class EssenceAscendanceFabricClient implements ClientModInitializer {
+/*
+ * Fabric client entrypoint.
+ *
+ * Fabric API's transitive access widener exposes vanilla ItemProperties
+ * registration methods, so the common client definition can attach the same
+ * item predicates used by vanilla bows to our custom BowItem.
+ */
+public final class EssenceAscendanceFabricClient
+        implements ClientModInitializer {
+
     @Override
     public void onInitializeClient() {
-        // Client-only initialization will go here later:
-        // screens, rendering, keybinds, HUD elements, etc.
+        EssenceAscendanceClient.init(
+                ItemProperties::register
+        );
     }
 }
