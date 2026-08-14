@@ -1,11 +1,59 @@
 package com.mistaboom.essence_ascendance.neoforge;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
+import com.mistaboom.essence_ascendance.equipment.EquipmentDamageService;
+import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 @Mod(EssenceAscendance.MOD_ID)
 public final class EssenceAscendanceNeoForge {
+
     public EssenceAscendanceNeoForge() {
         EssenceAscendance.init();
+
+        /*
+         * NeoForge exposes mutable incoming damage and a post-damage event,
+         * so this loader needs only thin adapters into the common service.
+         */
+        NeoForge.EVENT_BUS.addListener(
+                EssenceAscendanceNeoForge::onIncomingDamage
+        );
+
+        NeoForge.EVENT_BUS.addListener(
+                EssenceAscendanceNeoForge::onDamagePost
+        );
+    }
+
+    private static void onIncomingDamage(
+            LivingIncomingDamageEvent event
+    ) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+
+        event.setAmount(
+                EquipmentDamageService.modifyIncomingDamage(
+                        player,
+                        event.getSource(),
+                        event.getAmount()
+                )
+        );
+    }
+
+    private static void onDamagePost(
+            LivingDamageEvent.Post event
+    ) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+
+        EquipmentDamageService.reflectAfterDamage(
+                player,
+                event.getSource(),
+                event.getNewDamage()
+        );
     }
 }

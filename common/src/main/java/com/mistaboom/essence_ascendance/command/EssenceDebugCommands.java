@@ -11,6 +11,7 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentAttributeService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineProperty;
 import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineResult;
 import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineService;
+import com.mistaboom.essence_ascendance.equipment.EquipmentDamageService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfileDefinition;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfileItem;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfileRegistry;
@@ -164,6 +165,10 @@ public final class EssenceDebugCommands {
                 .then(
                         Commands.literal("gameplay")
                                 .executes(context -> showGameplay(context.getSource()))
+                )
+                .then(
+                        Commands.literal("damage")
+                                .executes(context -> showDamage(context.getSource()))
                 )
                 .then(
                         Commands.literal("tool")
@@ -719,6 +724,100 @@ public final class EssenceDebugCommands {
         );
 
         return 1;
+    }
+
+    private static int showDamage(
+            CommandSourceStack source
+    ) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+
+        EquipmentDamageService.DamageStatState stats =
+                EquipmentDamageService.evaluateStats(player);
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "Ascendance Damage Debug:"
+                ),
+                false
+        );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Resistances: melee "
+                                + formatDecimal(stats.meleeResistancePercent()) + "%"
+                                + " | ranged "
+                                + formatDecimal(stats.rangedResistancePercent()) + "%"
+                                + " | magic "
+                                + formatDecimal(stats.magicResistancePercent()) + "%"
+                ),
+                false
+        );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Environment: fall "
+                                + formatDecimal(stats.fallResistancePercent()) + "%"
+                                + " | fire "
+                                + formatDecimal(stats.fireResistancePercent()) + "%"
+                                + " | explosion "
+                                + formatDecimal(stats.explosionResistancePercent()) + "%"
+                ),
+                false
+        );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Damage Reflection: "
+                                + formatDecimal(stats.damageReflectionPercent()) + "%"
+                ),
+                false
+        );
+
+        EquipmentDamageService.lastDamage(player).ifPresentOrElse(
+                evaluation -> {
+                    source.sendSuccess(
+                            () -> Component.literal(
+                                    "  Last hit: " + evaluation.category()
+                                            + " | incoming "
+                                            + damageValue(evaluation.incomingDamage())
+                                            + " -> after Ascendance resistance "
+                                            + damageValue(evaluation.resolvedIncomingDamage())
+                                            + " ("
+                                            + formatDecimal(evaluation.resistancePercent())
+                                            + "% resistance)"
+                            ),
+                            false
+                    );
+
+                    source.sendSuccess(
+                            () -> Component.literal(
+                                    "  Last result: actual health lost "
+                                            + damageValue(evaluation.actualHealthDamage())
+                                            + " | reflected "
+                                            + damageValue(evaluation.reflectedDamage())
+                                            + " @ "
+                                            + formatDecimal(evaluation.reflectionPercent())
+                                            + "%"
+                            ),
+                            false
+                    );
+                },
+                () -> source.sendSuccess(
+                        () -> Component.literal(
+                                "  Last hit: NONE RECORDED"
+                        ),
+                        false
+                )
+        );
+
+        return 1;
+    }
+
+    private static String damageValue(float value) {
+        if (value < 0.0F) {
+            return "N/A";
+        }
+        return formatDecimal(value);
     }
 
     private static int showTool(

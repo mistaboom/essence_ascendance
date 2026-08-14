@@ -31,7 +31,10 @@ public final class EquipmentGameplayEvents {
         });
 
         PlayerEvent.PLAYER_QUIT.register(
-                EquipmentAttributeService::forget
+                player -> {
+                    EquipmentAttributeService.forget(player);
+                    EquipmentDamageService.forget(player);
+                }
         );
 
         initialized = true;

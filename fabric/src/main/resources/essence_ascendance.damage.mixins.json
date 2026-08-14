@@ -1,0 +1,11 @@
+{
+  "required": true,
+  "package": "com.mistaboom.essence_ascendance.fabric.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "LivingEntityDamageMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

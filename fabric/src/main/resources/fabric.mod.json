@@ -14,11 +14,12 @@
       "com.mistaboom.essence_ascendance.fabric.EssenceAscendanceFabric"
     ],
     "client": [
-      "com.mistaboom.essence_ascendance.fabric.EssenceAscendanceFabricClient"
+      "com.mistaboom.essence_ascendance.fabric.client.EssenceAscendanceFabricClient"
     ]
   },
   "mixins": [
-    "essence_ascendance.mixins.json"
+    "essence_ascendance.mixins.json",
+    "essence_ascendance.damage.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=0.19.3",
