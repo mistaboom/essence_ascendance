@@ -8,9 +8,8 @@ import net.minecraft.server.level.ServerPlayer;
  * Cross-loader event wiring for equipment gameplay effects.
  *
  * Architectury's common player tick runs on both Fabric and NeoForge. The
- * service itself rejects client-side player instances by requiring
- * ServerPlayer, so all authoritative attribute changes originate on the
- * logical server and vanilla attribute synchronization handles the client.
+ * services reject client-side player instances by requiring ServerPlayer, so
+ * authoritative attribute/vitality changes originate on the logical server.
  */
 public final class EquipmentGameplayEvents {
 
@@ -27,6 +26,7 @@ public final class EquipmentGameplayEvents {
         TickEvent.PLAYER_POST.register(player -> {
             if (player instanceof ServerPlayer serverPlayer) {
                 EquipmentAttributeService.sync(serverPlayer);
+                EquipmentVitalityService.tick(serverPlayer);
             }
         });
 
@@ -34,6 +34,7 @@ public final class EquipmentGameplayEvents {
                 player -> {
                     EquipmentAttributeService.forget(player);
                     EquipmentDamageService.forget(player);
+                    EquipmentVitalityService.forget(player);
                 }
         );
 

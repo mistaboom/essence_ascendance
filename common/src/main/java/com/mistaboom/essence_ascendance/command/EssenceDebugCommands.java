@@ -12,6 +12,7 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineProperty;
 import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineResult;
 import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentDamageService;
+import com.mistaboom.essence_ascendance.equipment.EquipmentVitalityService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfileDefinition;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfileItem;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfileRegistry;
@@ -169,6 +170,10 @@ public final class EssenceDebugCommands {
                 .then(
                         Commands.literal("damage")
                                 .executes(context -> showDamage(context.getSource()))
+                )
+                .then(
+                        Commands.literal("vitality")
+                                .executes(context -> showVitality(context.getSource()))
                 )
                 .then(
                         Commands.literal("tool")
@@ -818,6 +823,183 @@ public final class EssenceDebugCommands {
             return "N/A";
         }
         return formatDecimal(value);
+    }
+
+    private static int showVitality(
+            CommandSourceStack source
+    ) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+
+        EquipmentVitalityService.VitalityRuntimeSnapshot snapshot =
+                EquipmentVitalityService.runtimeSnapshot(player);
+
+        EquipmentVitalityService.VitalityStatState stats =
+                snapshot.stats();
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "Ascendance Vitality Debug:"
+                ),
+                false
+        );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Health Regeneration: "
+                                + formatDecimal(
+                                stats.healthRegenerationHeartsPerSecond()
+                        )
+                                + " hearts/sec | last tick restored "
+                                + formatDecimal(
+                                snapshot.lastPassiveRegenHealthPoints()
+                        )
+                                + " health points"
+                ),
+                false
+        );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Healing Effectiveness: +"
+                                + formatDecimal(
+                                stats.healingEffectivenessPercent()
+                        )
+                                + "% | Health "
+                                + formatDecimal(snapshot.health())
+                                + "/"
+                                + formatDecimal(snapshot.maxHealth())
+                ),
+                false
+        );
+
+        EquipmentVitalityService.lastHealing(player).ifPresentOrElse(
+                healing -> source.sendSuccess(
+                        () -> Component.literal(
+                                "  Last heal: "
+                                        + formatDecimal(
+                                        healing.requestedHealing()
+                                )
+                                        + " -> "
+                                        + formatDecimal(
+                                        healing.resolvedHealing()
+                                )
+                                        + " | bypass "
+                                        + healing.bypassReason()
+                        ),
+                        false
+                ),
+                () -> source.sendSuccess(
+                        () -> Component.literal(
+                                "  Last heal: NONE RECORDED"
+                        ),
+                        false
+                )
+        );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Hunger Efficiency: "
+                                + formatDecimal(
+                                stats.hungerEfficiencyPercent()
+                        )
+                                + "% | food/saturation/exhaustion "
+                                + snapshot.foodLevel()
+                                + "/"
+                                + formatDecimal(snapshot.saturationLevel())
+                                + "/"
+                                + formatDecimal(snapshot.exhaustionLevel())
+                ),
+                false
+        );
+
+        EquipmentVitalityService.lastExhaustion(player).ifPresentOrElse(
+                exhaustion -> source.sendSuccess(
+                        () -> Component.literal(
+                                "  Last exhaustion: "
+                                        + formatDecimal(
+                                        exhaustion.requestedExhaustion()
+                                )
+                                        + " -> "
+                                        + formatDecimal(
+                                        exhaustion.resolvedExhaustion()
+                                )
+                                        + " ("
+                                        + formatDecimal(
+                                        exhaustion.hungerEfficiencyPercent()
+                                )
+                                        + "% reduced)"
+                        ),
+                        false
+                ),
+                () -> source.sendSuccess(
+                        () -> Component.literal(
+                                "  Last exhaustion: NONE RECORDED"
+                        ),
+                        false
+                )
+        );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Breath Hold: +"
+                                + formatDecimal(stats.breathHoldSeconds())
+                                + " sec | estimated total "
+                                + formatDecimal(
+                                snapshot.estimatedTotalBreathSeconds()
+                        )
+                                + " sec | air "
+                                + snapshot.airSupply()
+                                + "/"
+                                + snapshot.maxAirSupply()
+                                + " | last refund "
+                                + snapshot.lastAirRefund()
+                ),
+                false
+        );
+
+        double statusDurationMultiplier = Math.max(
+                0.0,
+                1.0 - stats.statusResistancePercent() / 100.0
+        );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Status Resistance: "
+                                + formatDecimal(
+                                stats.statusResistancePercent()
+                        )
+                                + "% | harmful duration x"
+                                + formatDecimal(statusDurationMultiplier)
+                ),
+                false
+        );
+
+        EquipmentVitalityService.lastStatusEffect(player).ifPresentOrElse(
+                effect -> source.sendSuccess(
+                        () -> Component.literal(
+                                "  Last harmful effect: "
+                                        + effect.effectDescriptionId()
+                                        + " | "
+                                        + formatDecimal(
+                                        effect.originalDurationTicks() / 20.0
+                                )
+                                        + " sec -> "
+                                        + formatDecimal(
+                                        effect.resolvedDurationTicks() / 20.0
+                                )
+                                        + " sec"
+                        ),
+                        false
+                ),
+                () -> source.sendSuccess(
+                        () -> Component.literal(
+                                "  Last harmful effect: NONE RECORDED"
+                        ),
+                        false
+                )
+        );
+
+        return 1;
     }
 
     private static int showTool(

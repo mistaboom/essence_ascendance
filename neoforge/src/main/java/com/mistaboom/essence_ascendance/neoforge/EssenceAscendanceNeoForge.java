@@ -2,10 +2,12 @@ package com.mistaboom.essence_ascendance.neoforge;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.equipment.EquipmentDamageService;
+import com.mistaboom.essence_ascendance.equipment.EquipmentVitalityService;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
+import net.neoforged.neoforge.event.entity.living.LivingHealEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 @Mod(EssenceAscendance.MOD_ID)
@@ -15,8 +17,9 @@ public final class EssenceAscendanceNeoForge {
         EssenceAscendance.init();
 
         /*
-         * NeoForge exposes mutable incoming damage and a post-damage event,
-         * so this loader needs only thin adapters into the common service.
+         * NeoForge exposes mutable incoming damage, post-damage health loss,
+         * and mutable healing events. These listeners therefore remain thin
+         * loader adapters into the common gameplay services.
          */
         NeoForge.EVENT_BUS.addListener(
                 EssenceAscendanceNeoForge::onIncomingDamage
@@ -25,6 +28,11 @@ public final class EssenceAscendanceNeoForge {
         NeoForge.EVENT_BUS.addListener(
                 EssenceAscendanceNeoForge::onDamagePost
         );
+
+        NeoForge.EVENT_BUS.addListener(
+                EssenceAscendanceNeoForge::onHealing
+        );
+
     }
 
     private static void onIncomingDamage(
@@ -54,6 +62,21 @@ public final class EssenceAscendanceNeoForge {
                 player,
                 event.getSource(),
                 event.getNewDamage()
+        );
+    }
+
+    private static void onHealing(
+            LivingHealEvent event
+    ) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+
+        event.setAmount(
+                EquipmentVitalityService.modifyExternalHealing(
+                        player,
+                        event.getAmount()
+                )
         );
     }
 }
