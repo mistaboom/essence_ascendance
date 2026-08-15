@@ -28,6 +28,7 @@ public final class EquipmentGameplayEvents {
                 EquipmentAttributeService.sync(serverPlayer);
                 EquipmentVitalityService.tick(serverPlayer);
                 EquipmentWeaponService.syncRangedVisualState(serverPlayer);
+                EquipmentGatheringService.sync(serverPlayer);
             }
         });
 
@@ -37,6 +38,7 @@ public final class EquipmentGameplayEvents {
                     EquipmentDamageService.forget(player);
                     EquipmentVitalityService.forget(player);
                     EquipmentWeaponService.forget(player);
+                    EquipmentGatheringService.forget(player);
                 }
         );
 

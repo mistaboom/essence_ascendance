@@ -6,7 +6,10 @@
     "LivingEntityDamageMixin",
     "LivingEntityVitalityMixin",
     "PlayerVitalityMixin",
-    "MobEffectInstanceDurationMixin"
+    "MobEffectInstanceDurationMixin",
+    "EnchantmentHelperGatheringMixin",
+    "PlayerExperienceMixin",
+    "ItemStackDurabilityMixin"
   ],
   "client": [
     "ItemInHandRendererMixin",

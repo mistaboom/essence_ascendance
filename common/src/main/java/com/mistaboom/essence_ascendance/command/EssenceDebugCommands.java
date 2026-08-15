@@ -12,6 +12,7 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineProperty;
 import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineResult;
 import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentDamageService;
+import com.mistaboom.essence_ascendance.equipment.EquipmentGatheringService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentVitalityService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentWeaponService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfileDefinition;
@@ -180,6 +181,10 @@ public final class EssenceDebugCommands {
                 .then(
                         Commands.literal("weapons")
                                 .executes(context -> showWeapons(context.getSource()))
+                )
+                .then(
+                        Commands.literal("gathering")
+                                .executes(context -> showGathering(context.getSource()))
                 )
                 .then(
                         Commands.literal("tool")
@@ -1177,6 +1182,113 @@ public final class EssenceDebugCommands {
                 )
         );
         return 0;
+    }
+
+
+    private static int showGathering(
+            CommandSourceStack source
+    ) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        EquipmentGatheringService.GatheringState state =
+                EquipmentGatheringService.evaluate(player);
+
+        source.sendSuccess(
+                () -> Component.literal("Gathering / Utility Gameplay Debug:"),
+                false
+        );
+        source.sendSuccess(
+                () -> Component.literal("  Main hand: " + state.mainHandName()),
+                false
+        );
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Fortune: "
+                                + formatDecimal(state.fortuneEarnedLevels())
+                                + " earned levels -> virtual Fortune "
+                                + state.fortuneVirtualLevel()
+                ),
+                false
+        );
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Looting: "
+                                + formatDecimal(state.lootingEarnedLevels())
+                                + " earned levels -> virtual Looting "
+                                + state.lootingVirtualLevel()
+                ),
+                false
+        );
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Experience Gain: +"
+                                + formatDecimal(state.experienceGainPercent())
+                                + "%"
+                ),
+                false
+        );
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Main-hand Durability Efficiency: "
+                                + formatDecimal(state.durabilityEfficiencyPercent())
+                                + "%"
+                ),
+                false
+        );
+
+        EquipmentGatheringService.lastEnchantmentQuery(player).ifPresentOrElse(
+                query -> source.sendSuccess(
+                        () -> Component.literal(
+                                "  Last virtual enchantment query: "
+                                        + query.enchantment()
+                                        + " | vanilla " + query.vanillaLevel()
+                                        + " | Essence " + query.virtualLevel()
+                                        + " | resolved " + query.resolvedLevel()
+                                        + " | " + query.queryPath()
+                        ),
+                        false
+                ),
+                () -> source.sendSuccess(
+                        () -> Component.literal("  Last virtual enchantment query: NONE RECORDED"),
+                        false
+                )
+        );
+
+        EquipmentGatheringService.lastExperienceGain(player).ifPresentOrElse(
+                xp -> source.sendSuccess(
+                        () -> Component.literal(
+                                "  Last XP gain: "
+                                        + xp.requested() + " -> " + xp.resolved()
+                                        + " | +" + formatDecimal(xp.bonusPercent()) + "%"
+                                        + " | carry " + formatDecimal(xp.fractionalBonusCarry())
+                        ),
+                        false
+                ),
+                () -> source.sendSuccess(
+                        () -> Component.literal("  Last XP gain: NONE RECORDED"),
+                        false
+                )
+        );
+
+        EquipmentGatheringService.lastDurabilityEvent(player).ifPresentOrElse(
+                durability -> source.sendSuccess(
+                        () -> Component.literal(
+                                "  Last durability: "
+                                        + durability.itemName()
+                                        + " | " + durability.requested()
+                                        + " -> " + durability.resolved()
+                                        + " | " + formatDecimal(durability.efficiencyPercent()) + "% efficient"
+                                        + " | carry " + formatDecimal(durability.fractionalDamageCarry())
+                                        + " | " + durability.context()
+                        ),
+                        false
+                ),
+                () -> source.sendSuccess(
+                        () -> Component.literal("  Last durability: NONE RECORDED"),
+                        false
+                )
+        );
+
+        return 1;
     }
 
     private static int showTool(
