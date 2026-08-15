@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.command;
 
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
+import com.mistaboom.essence_ascendance.lifecycle.PlayerRuntimeLifecycleService;
 import com.mistaboom.essence_ascendance.config.EssenceServerConfig;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
@@ -403,6 +404,15 @@ final class EssenceAdminCommands {
 
     private static int reloadConfig(CommandSourceStack source) {
         EssenceConfigManager.reload();
+
+        /*
+         * Recalculate every connected player's gameplay modifiers and client
+         * snapshots immediately against the newly loaded server configuration.
+         */
+        PlayerRuntimeLifecycleService.refreshAll(
+                source.getServer()
+        );
+
         EssenceCommandUtil.send(source, EssenceCommandUtil.good("Reloaded Essence Ascendance configuration."));
         return showConfig(source);
     }

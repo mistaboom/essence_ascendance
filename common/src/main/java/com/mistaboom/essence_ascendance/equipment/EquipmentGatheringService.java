@@ -695,13 +695,34 @@ public final class EquipmentGatheringService {
         );
     }
 
-    public static void forget(LivingEntity entity) {
+    /*
+     * Clears only held-item virtual Fortune/Looting synchronization.
+     *
+     * Lifecycle transitions such as respawn/dimension changes may replace or
+     * copy ItemStack instances, so the held-stack cache must be rebuilt. Keep
+     * fractional XP/durability accounting intact because it represents earned
+     * rounding carry, not stale equipment identity.
+     */
+    public static void resetHeldState(LivingEntity entity) {
         UUID playerId = entity.getUUID();
         HeldStacks held = HELD_STACKS.remove(playerId);
+
         if (held != null) {
             removeVirtualState(held.mainHand());
             removeVirtualState(held.offHand());
         }
+    }
+
+    /*
+     * Full session cleanup for logout.
+     */
+    public static void forget(LivingEntity entity) {
+        UUID playerId = entity.getUUID();
+
+        resetHeldState(
+                entity
+        );
+
         EXPERIENCE_BONUS_CARRY.remove(playerId);
         LAST_EXPERIENCE.remove(playerId);
         LAST_DURABILITY.remove(playerId);

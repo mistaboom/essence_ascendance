@@ -69,21 +69,11 @@ public final class PlayerEssenceSyncService {
             );
         }
 
-        PlayerEvent.PLAYER_JOIN.register(
-                PlayerEssenceSyncService::forceSync
-        );
-
-        PlayerEvent.PLAYER_RESPAWN.register(
-                (player, conqueredEnd, removalReason) ->
-                        forceSync(player)
-        );
-
-        PlayerEvent.CHANGE_DIMENSION.register(
-                (player, oldLevel, newLevel) ->
-                        forceSync(player)
-        );
-
         /*
+         * Join/respawn/dimension/quit lifecycle ownership lives in
+         * PlayerRuntimeLifecycleService so gameplay cleanup and presentation
+         * synchronization happen as one ordered operation.
+         *
          * Advancement-backed Ascendance requirements can change without
          * mutating PlayerEssenceData, so advancement completion explicitly
          * invalidates/sends the progression snapshot.
@@ -107,10 +97,6 @@ public final class PlayerEssenceSyncService {
                         );
                     }
                 }
-        );
-
-        PlayerEvent.PLAYER_QUIT.register(
-                PlayerEssenceSyncService::forget
         );
 
         initialized = true;

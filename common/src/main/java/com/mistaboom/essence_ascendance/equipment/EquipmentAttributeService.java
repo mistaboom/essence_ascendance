@@ -253,8 +253,39 @@ public final class EquipmentAttributeService {
         );
     }
 
+    /*
+     * Drops only the runtime comparison cache.
+     *
+     * Used when the entity is going away permanently (normal logout).
+     */
     public static void forget(ServerPlayer player) {
         LAST_APPLIED.remove(player);
+    }
+
+    /*
+     * Removes every transient Ascendance attribute modifier from the supplied
+     * player and clears the comparison cache.
+     *
+     * Lifecycle transitions can create/copy a new ServerPlayer instance before
+     * our normal tick reconciliation runs. Explicit removal guarantees that a
+     * stale copied modifier can never survive respawn/dimension transitions.
+     */
+    public static void resetTransientState(ServerPlayer player) {
+        LAST_APPLIED.remove(player);
+
+        remove(player, Attributes.ARMOR, ARMOR_ID);
+        remove(player, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_ID);
+        remove(player, Attributes.ATTACK_DAMAGE, MELEE_DAMAGE_ID);
+        remove(player, Attributes.ATTACK_SPEED, MELEE_ATTACK_SPEED_ID);
+        remove(player, Attributes.ATTACK_KNOCKBACK, ATTACK_KNOCKBACK_ID);
+        remove(player, Attributes.BLOCK_BREAK_SPEED, MINING_SPEED_ID);
+        remove(player, Attributes.MAX_HEALTH, MAX_HEALTH_ID);
+        remove(player, Attributes.MOVEMENT_SPEED, MOVEMENT_SPEED_ID);
+        remove(player, Attributes.KNOCKBACK_RESISTANCE, KNOCKBACK_RESISTANCE_ID);
+        remove(player, Attributes.SNEAKING_SPEED, SNEAK_SPEED_ID);
+        remove(player, Attributes.STEP_HEIGHT, STEP_HEIGHT_ID);
+        remove(player, Attributes.BLOCK_INTERACTION_RANGE, BLOCK_REACH_ID);
+        remove(player, Attributes.ENTITY_INTERACTION_RANGE, ENTITY_REACH_ID);
     }
 
     private static ArmorBaseline resolveArmorBaseline(
@@ -351,6 +382,17 @@ public final class EquipmentAttributeService {
                 stat,
                 applicability
         ) / 100.0;
+    }
+
+    private static void remove(
+            ServerPlayer player,
+            Holder<Attribute> attribute,
+            ResourceLocation modifierId
+    ) {
+        AttributeInstance instance = player.getAttribute(attribute);
+        if (instance != null) {
+            instance.removeModifier(modifierId);
+        }
     }
 
     private static void apply(

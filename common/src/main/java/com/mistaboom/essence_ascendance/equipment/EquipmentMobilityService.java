@@ -12,7 +12,8 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Abilities;
 
 import java.util.Map;
-import java.util.WeakHashMap;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /*
  * Server-authoritative application layer for the remaining mobility/utility
@@ -67,8 +68,16 @@ public final class EquipmentMobilityService {
     private static final net.minecraft.resources.ResourceLocation LUCK_ID =
             id("luck");
 
-    private static final Map<ServerPlayer, FlightRuntime> FLIGHT_RUNTIME =
-            new WeakHashMap<>();
+    /*
+     * UUID-keyed so the remembered pre-Essence flight baseline survives a
+     * ServerPlayer object replacement during respawn. This prevents a copied
+     * already-boosted flyingSpeed from becoming the next baseline and being
+     * multiplied a second time.
+     *
+     * Entries are explicitly removed on normal logout by forget().
+     */
+    private static final Map<UUID, FlightRuntime> FLIGHT_RUNTIME =
+            new ConcurrentHashMap<>();
 
     private EquipmentMobilityService() {
     }
@@ -158,7 +167,7 @@ public final class EquipmentMobilityService {
 
         Abilities abilities = player.getAbilities();
         float currentFlightSpeed = abilities.getFlyingSpeed();
-        FlightRuntime runtime = FLIGHT_RUNTIME.get(player);
+        FlightRuntime runtime = FLIGHT_RUNTIME.get(player.getUUID());
 
         float baselineFlightSpeed = runtime != null
                 && approximately(currentFlightSpeed, runtime.appliedSpeed())
@@ -193,7 +202,7 @@ public final class EquipmentMobilityService {
     ) {
         Abilities abilities = player.getAbilities();
         float currentSpeed = abilities.getFlyingSpeed();
-        FlightRuntime previous = FLIGHT_RUNTIME.get(player);
+        FlightRuntime previous = FLIGHT_RUNTIME.get(player.getUUID());
 
         /*
          * If the speed still equals what we applied last tick, recover the
@@ -211,7 +220,7 @@ public final class EquipmentMobilityService {
                 setFlyingSpeed(player, previous.baselineSpeed());
             }
 
-            FLIGHT_RUNTIME.remove(player);
+            FLIGHT_RUNTIME.remove(player.getUUID());
             return;
         }
 
@@ -225,7 +234,7 @@ public final class EquipmentMobilityService {
         }
 
         FLIGHT_RUNTIME.put(
-                player,
+                player.getUUID(),
                 new FlightRuntime(
                         baselineSpeed,
                         targetSpeed,
@@ -235,7 +244,7 @@ public final class EquipmentMobilityService {
     }
 
     private static void restoreFlightBaseline(ServerPlayer player) {
-        FlightRuntime runtime = FLIGHT_RUNTIME.remove(player);
+        FlightRuntime runtime = FLIGHT_RUNTIME.remove(player.getUUID());
         if (runtime == null) {
             return;
         }

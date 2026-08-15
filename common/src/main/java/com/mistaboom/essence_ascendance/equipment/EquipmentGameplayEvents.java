@@ -1,7 +1,7 @@
 package com.mistaboom.essence_ascendance.equipment;
 
+import com.mistaboom.essence_ascendance.lifecycle.PlayerRuntimeLifecycleService;
 import com.mistaboom.essence_ascendance.network.PlayerEssenceSyncService;
-import dev.architectury.event.events.common.PlayerEvent;
 import dev.architectury.event.events.common.TickEvent;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -26,6 +26,7 @@ public final class EquipmentGameplayEvents {
 
         PlayerEssenceSyncService.init();
         EquipmentTooltipSyncService.init();
+        PlayerRuntimeLifecycleService.init();
 
         TickEvent.PLAYER_POST.register(player -> {
             if (player instanceof ServerPlayer serverPlayer) {
@@ -37,18 +38,6 @@ public final class EquipmentGameplayEvents {
                 EquipmentTooltipSyncService.sync(serverPlayer);
             }
         });
-
-        PlayerEvent.PLAYER_QUIT.register(
-                player -> {
-                    EquipmentAttributeService.forget(player);
-                    EquipmentMobilityService.forget(player);
-                    EquipmentDamageService.forget(player);
-                    EquipmentVitalityService.forget(player);
-                    EquipmentWeaponService.forget(player);
-                    EquipmentGatheringService.forget(player);
-                    EquipmentTooltipSyncService.forget(player);
-                }
-        );
 
         initialized = true;
     }

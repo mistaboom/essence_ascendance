@@ -58,7 +58,33 @@ public final class EquipmentTooltipSyncService {
     }
 
     public static void sync(ServerPlayer player) {
-        if (player.tickCount % SYNC_INTERVAL_TICKS != 0) {
+        send(
+                player,
+                false
+        );
+    }
+
+    /*
+     * Lifecycle/config transitions should not wait for the normal 10-tick
+     * presentation refresh interval.
+     */
+    public static void forceSync(ServerPlayer player) {
+        send(
+                player,
+                true
+        );
+    }
+
+    public static void forget(ServerPlayer player) {
+        LAST_SENT.remove(player);
+    }
+
+    private static void send(
+            ServerPlayer player,
+            boolean force
+    ) {
+        if (!force
+                && player.tickCount % SYNC_INTERVAL_TICKS != 0) {
             return;
         }
 
@@ -72,16 +98,13 @@ public final class EquipmentTooltipSyncService {
         EquipmentTooltipPayload desired = build(player);
         EquipmentTooltipPayload previous = LAST_SENT.get(player);
 
-        if (desired.equals(previous)) {
+        if (!force
+                && desired.equals(previous)) {
             return;
         }
 
         NetworkManager.sendToPlayer(player, desired);
         LAST_SENT.put(player, desired);
-    }
-
-    public static void forget(ServerPlayer player) {
-        LAST_SENT.remove(player);
     }
 
     private static EquipmentTooltipPayload build(ServerPlayer player) {
