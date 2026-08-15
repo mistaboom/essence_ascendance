@@ -13,6 +13,7 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineResult;
 import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentDamageService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentGatheringService;
+import com.mistaboom.essence_ascendance.equipment.EquipmentMobilityService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentVitalityService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentWeaponService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfileDefinition;
@@ -169,6 +170,10 @@ public final class EssenceDebugCommands {
                 .then(
                         Commands.literal("gameplay")
                                 .executes(context -> showGameplay(context.getSource()))
+                )
+                .then(
+                        Commands.literal("mobility")
+                                .executes(context -> showMobility(context.getSource()))
                 )
                 .then(
                         Commands.literal("damage")
@@ -735,6 +740,72 @@ public final class EssenceDebugCommands {
                                 + formatDecimal(player.getAttributeValue(Attributes.BLOCK_INTERACTION_RANGE))
                                 + "/"
                                 + formatDecimal(player.getAttributeValue(Attributes.ENTITY_INTERACTION_RANGE))
+                ),
+                false
+        );
+
+        return 1;
+    }
+
+    private static int showMobility(
+            CommandSourceStack source
+    ) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+
+        /* Ensure output reflects equipment/stat changes immediately. */
+        EquipmentMobilityService.sync(player);
+        EquipmentMobilityService.MobilityState state =
+                EquipmentMobilityService.evaluate(player);
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "Ascendance Mobility / Utility Debug:"
+                ),
+                false
+        );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Swim Speed: +"
+                                + formatDecimal(state.swimSpeedPercent())
+                                + "% | actual water movement efficiency "
+                                + formatDecimal(state.waterMovementEfficiency())
+                ),
+                false
+        );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Jump Height: +"
+                                + formatDecimal(state.jumpHeightPercent())
+                                + "% | actual jump strength "
+                                + formatDecimal(state.jumpStrength())
+                ),
+                false
+        );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Flight Speed: +"
+                                + formatDecimal(state.flightSpeedPercent())
+                                + "% | ability fly speed "
+                                + formatDecimal(state.baselineFlightSpeed())
+                                + " -> "
+                                + formatDecimal(state.resolvedFlightSpeed())
+                                + " | mayfly "
+                                + (state.mayFly() ? "YES" : "NO")
+                                + " | flying "
+                                + (state.flying() ? "YES" : "NO")
+                ),
+                false
+        );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "  Luck: +"
+                                + formatDecimal(state.luckBonus())
+                                + " | actual luck "
+                                + formatDecimal(state.actualLuck())
                 ),
                 false
         );

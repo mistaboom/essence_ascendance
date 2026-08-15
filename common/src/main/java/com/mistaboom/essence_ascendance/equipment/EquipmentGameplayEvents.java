@@ -26,6 +26,7 @@ public final class EquipmentGameplayEvents {
         TickEvent.PLAYER_POST.register(player -> {
             if (player instanceof ServerPlayer serverPlayer) {
                 EquipmentAttributeService.sync(serverPlayer);
+                EquipmentMobilityService.sync(serverPlayer);
                 EquipmentVitalityService.tick(serverPlayer);
                 EquipmentWeaponService.syncRangedVisualState(serverPlayer);
                 EquipmentGatheringService.sync(serverPlayer);
@@ -35,6 +36,7 @@ public final class EquipmentGameplayEvents {
         PlayerEvent.PLAYER_QUIT.register(
                 player -> {
                     EquipmentAttributeService.forget(player);
+                    EquipmentMobilityService.forget(player);
                     EquipmentDamageService.forget(player);
                     EquipmentVitalityService.forget(player);
                     EquipmentWeaponService.forget(player);
