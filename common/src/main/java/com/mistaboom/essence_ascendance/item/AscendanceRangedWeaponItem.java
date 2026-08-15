@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.item;
 
+import com.mistaboom.essence_ascendance.client.EquipmentTooltipClientState;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfileItem;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfiles;
 import com.mistaboom.essence_ascendance.equipment.EquipmentWeaponService;
@@ -11,6 +12,9 @@ import net.minecraft.world.item.BowItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.TooltipFlag;
+import java.util.List;
 
 /*
  * Native Ascendance ranged weapon.
@@ -118,4 +122,24 @@ public final class AscendanceRangedWeaponItem
                 velocity
         );
     }
+
+    @Override
+    public void appendHoverText(
+            ItemStack stack,
+            Item.TooltipContext context,
+            List<Component> tooltipComponents,
+            TooltipFlag tooltipFlag
+    ) {
+        super.appendHoverText(
+                stack,
+                context,
+                tooltipComponents,
+                tooltipFlag
+        );
+        EquipmentTooltipClientState.append(
+                stack,
+                tooltipComponents
+        );
+    }
+
 }

@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "essence_ascendance:ascendance_pickaxe",
+    "essence_ascendance:ascendance_axe",
+    "essence_ascendance:ascendance_shovel",
+    "essence_ascendance:ascendance_hoe"
+  ]
+}

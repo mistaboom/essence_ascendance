@@ -23,6 +23,8 @@ public final class EquipmentGameplayEvents {
             return;
         }
 
+        EquipmentTooltipSyncService.init();
+
         TickEvent.PLAYER_POST.register(player -> {
             if (player instanceof ServerPlayer serverPlayer) {
                 EquipmentAttributeService.sync(serverPlayer);
@@ -30,6 +32,7 @@ public final class EquipmentGameplayEvents {
                 EquipmentVitalityService.tick(serverPlayer);
                 EquipmentWeaponService.syncRangedVisualState(serverPlayer);
                 EquipmentGatheringService.sync(serverPlayer);
+                EquipmentTooltipSyncService.sync(serverPlayer);
             }
         });
 
@@ -41,6 +44,7 @@ public final class EquipmentGameplayEvents {
                     EquipmentVitalityService.forget(player);
                     EquipmentWeaponService.forget(player);
                     EquipmentGatheringService.forget(player);
+                    EquipmentTooltipSyncService.forget(player);
                 }
         );
 

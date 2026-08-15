@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.item;
 
+import com.mistaboom.essence_ascendance.client.EquipmentTooltipClientState;
 import com.mistaboom.essence_ascendance.equipment.AscendanceToolMiningService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfileItem;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfiles;
@@ -10,6 +11,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ShovelItem;
 import net.minecraft.world.item.Tier;
 import net.minecraft.world.level.Level;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.Item;
+import java.util.List;
 
 public final class AscendanceShovelItem
         extends ShovelItem
@@ -45,4 +50,24 @@ public final class AscendanceShovelItem
                 equipmentProfileId()
         );
     }
+
+    @Override
+    public void appendHoverText(
+            ItemStack stack,
+            Item.TooltipContext context,
+            List<Component> tooltipComponents,
+            TooltipFlag tooltipFlag
+    ) {
+        super.appendHoverText(
+                stack,
+                context,
+                tooltipComponents,
+                tooltipFlag
+        );
+        EquipmentTooltipClientState.append(
+                stack,
+                tooltipComponents
+        );
+    }
+
 }

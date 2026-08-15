@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.item;
 
+import com.mistaboom.essence_ascendance.client.EquipmentTooltipClientState;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfileItem;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfiles;
 import com.mistaboom.essence_ascendance.equipment.EquipmentWeaponService;
@@ -11,6 +12,9 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.TooltipFlag;
+import java.util.List;
 
 /*
  * Native Ascendance magic focus.
@@ -24,8 +28,20 @@ public final class AscendanceMagicWeaponItem
         extends Item
         implements EquipmentProfileItem {
 
+    private static final int ENCHANTMENT_VALUE = 15;
+
     public AscendanceMagicWeaponItem(Item.Properties properties) {
         super(properties);
+    }
+
+    /*
+     * The magic focus is not a vanilla TieredItem, so it does not inherit an
+     * enchantment value from AscendanceToolTier. Match the rest of Ascendance
+     * equipment so the enchanting table can offer its supported enchantments.
+     */
+    @Override
+    public int getEnchantmentValue() {
+        return ENCHANTMENT_VALUE;
     }
 
     @Override
@@ -58,4 +74,24 @@ public final class AscendanceMagicWeaponItem
                 level.isClientSide
         );
     }
+
+    @Override
+    public void appendHoverText(
+            ItemStack stack,
+            Item.TooltipContext context,
+            List<Component> tooltipComponents,
+            TooltipFlag tooltipFlag
+    ) {
+        super.appendHoverText(
+                stack,
+                context,
+                tooltipComponents,
+                tooltipFlag
+        );
+        EquipmentTooltipClientState.append(
+                stack,
+                tooltipComponents
+        );
+    }
+
 }
