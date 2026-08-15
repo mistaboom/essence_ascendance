@@ -1,1606 +1,592 @@
 package com.mistaboom.essence_ascendance.command;
 
-import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
+import com.mistaboom.essence_ascendance.equipment.EquipmentActivationType;
+import com.mistaboom.essence_ascendance.equipment.EquipmentProfileDefinition;
+import com.mistaboom.essence_ascendance.equipment.EquipmentProfileRegistry;
+import com.mistaboom.essence_ascendance.equipment.EquipmentStatResolver;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
+import com.mistaboom.essence_ascendance.essence.EssenceFamily;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
-import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
-import com.mistaboom.essence_ascendance.stat.StatDefinition;
-import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
-import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
-import com.mistaboom.essence_ascendance.progression.StatInvestmentResult;
-import com.mistaboom.essence_ascendance.progression.StatProgressionService;
-import com.mistaboom.essence_ascendance.progression.StatScalingResult;
-import com.mistaboom.essence_ascendance.progression.StatScalingService;
 import com.mistaboom.essence_ascendance.progression.AscendanceAttemptResult;
 import com.mistaboom.essence_ascendance.progression.AscendanceEngine;
 import com.mistaboom.essence_ascendance.progression.AscendanceEvaluationResult;
 import com.mistaboom.essence_ascendance.progression.AscendanceProgressSnapshot;
+import com.mistaboom.essence_ascendance.progression.MilestoneDefinition;
+import com.mistaboom.essence_ascendance.progression.MilestoneProgress;
+import com.mistaboom.essence_ascendance.progression.MilestoneRequirement;
+import com.mistaboom.essence_ascendance.progression.MilestoneService;
+import com.mistaboom.essence_ascendance.progression.StatInvestmentLimit;
+import com.mistaboom.essence_ascendance.progression.StatInvestmentResult;
+import com.mistaboom.essence_ascendance.progression.StatProgressionService;
+import com.mistaboom.essence_ascendance.progression.StatScalingResult;
+import com.mistaboom.essence_ascendance.progression.StatScalingService;
+import com.mistaboom.essence_ascendance.progression.TierInvestmentPolicy;
+import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
+import com.mistaboom.essence_ascendance.stat.StatCategory;
+import com.mistaboom.essence_ascendance.stat.StatDefinition;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
-import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
-import com.mojang.brigadier.suggestion.Suggestions;
-import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerPlayer;
 
-import java.util.concurrent.CompletableFuture;
-
 public final class EssenceCommands {
-
-    private static final DynamicCommandExceptionType UNKNOWN_ESSENCE =
-            new DynamicCommandExceptionType(
-                    value -> Component.literal(
-                            "Unknown Essence type: " + value
-                    )
-            );
-
-    private static final DynamicCommandExceptionType UNKNOWN_STAT =
-            new DynamicCommandExceptionType(
-                    value -> Component.literal(
-                            "Unknown stat: " + value
-                    )
-            );
-
-    private static final DynamicCommandExceptionType UNKNOWN_TIER =
-            new DynamicCommandExceptionType(
-                    value -> Component.literal(
-                            "Unknown Ascendance tier: " + value
-                    )
-            );
 
     private EssenceCommands() {
     }
 
-
-    /*
-     * ============================================================
-     * COMMAND REGISTRATION
-     * ============================================================
-     */
-
-    public static void register(
-            CommandDispatcher<CommandSourceStack> dispatcher
-    ) {
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(
                 Commands.literal("essence")
-
-                        /*
-                         * /essence balance
-                         * /essence balance <essence>
-                         */
+                        .executes(context -> showStatus(context.getSource()))
+                        .then(
+                                Commands.literal("help")
+                                        .executes(context -> showHelp(context.getSource()))
+                                        .then(
+                                                Commands.literal("admin")
+                                                        .requires(source -> source.hasPermission(EssenceCommandUtil.ADMIN_PERMISSION))
+                                                        .executes(context -> EssenceAdminCommands.showHelp(context.getSource()))
+                                        )
+                                        .then(
+                                                Commands.literal("debug")
+                                                        .requires(source -> source.hasPermission(EssenceCommandUtil.ADMIN_PERMISSION))
+                                                        .executes(context -> EssenceDebugCommands.showHelp(context.getSource()))
+                                        )
+                                        .then(
+                                                Commands.literal("test")
+                                                        .requires(source -> source.hasPermission(EssenceCommandUtil.ADMIN_PERMISSION))
+                                                        .executes(context -> EssenceTestCommands.showHelp(context.getSource()))
+                                        )
+                        )
+                        .then(
+                                Commands.literal("status")
+                                        .executes(context -> showStatus(context.getSource()))
+                        )
                         .then(
                                 Commands.literal("balance")
-                                        .executes(context ->
-                                                showAllBalances(
-                                                        context.getSource()
-                                                )
-                                        )
+                                        .executes(context -> showAllBalances(context.getSource()))
                                         .then(
-                                                Commands.argument(
-                                                                "essence",
-                                                                StringArgumentType.word()
-                                                        )
-                                                        .suggests(
-                                                                EssenceCommands::suggestEssences
-                                                        )
-                                                        .executes(context ->
-                                                                showBalance(
-                                                                        context.getSource(),
-                                                                        StringArgumentType.getString(
-                                                                                context,
-                                                                                "essence"
-                                                                        )
-                                                                )
-                                                        )
+                                                Commands.argument("essence", StringArgumentType.word())
+                                                        .suggests(EssenceCommandUtil::suggestEssences)
+                                                        .executes(context -> showBalance(
+                                                                context.getSource(),
+                                                                StringArgumentType.getString(context, "essence")
+                                                        ))
                                         )
                         )
-
-                        /*
-                         * /essence give <essence> <amount>
-                         *
-                         * Admin/testing command.
-                         */
                         .then(
-                                Commands.literal("give")
-                                        .requires(source ->
-                                                source.hasPermission(2)
-                                        )
+                                Commands.literal("stats")
+                                        .executes(context -> showAllStats(context.getSource()))
                                         .then(
-                                                Commands.argument(
-                                                                "essence",
-                                                                StringArgumentType.word()
-                                                        )
-                                                        .suggests(
-                                                                EssenceCommands::suggestEssences
-                                                        )
-                                                        .then(
-                                                                Commands.argument(
-                                                                                "amount",
-                                                                                LongArgumentType.longArg(1)
-                                                                        )
-                                                                        .executes(context ->
-                                                                                giveEssence(
-                                                                                        context.getSource(),
-                                                                                        StringArgumentType.getString(
-                                                                                                context,
-                                                                                                "essence"
-                                                                                        ),
-                                                                                        LongArgumentType.getLong(
-                                                                                                context,
-                                                                                                "amount"
-                                                                                        )
-                                                                                )
-                                                                        )
-                                                        )
+                                                Commands.argument("category", StringArgumentType.word())
+                                                        .suggests(EssenceCommandUtil::suggestCategories)
+                                                        .executes(context -> showStats(
+                                                                context.getSource(),
+                                                                EssenceCommandUtil.resolveCategory(
+                                                                        StringArgumentType.getString(context, "category")
+                                                                )
+                                                        ))
                                         )
                         )
-
-                        /*
-                         * /essence invest <stat> <amount>
-                         *
-                         * Normal progression operation.
-                         * Removes available Essence and invests it into a stat.
-                         */
+                        .then(
+                                Commands.literal("stat")
+                                        .then(
+                                                Commands.argument("stat", StringArgumentType.word())
+                                                        .suggests(EssenceCommandUtil::suggestStats)
+                                                        .executes(context -> showStat(
+                                                                context.getSource(),
+                                                                StringArgumentType.getString(context, "stat")
+                                                        ))
+                                        )
+                        )
                         .then(
                                 Commands.literal("invest")
                                         .then(
-                                                Commands.argument(
-                                                                "stat",
-                                                                StringArgumentType.word()
-                                                        )
-                                                        .suggests(
-                                                                EssenceCommands::suggestStats
-                                                        )
+                                                Commands.argument("stat", StringArgumentType.word())
+                                                        .suggests(EssenceCommandUtil::suggestStats)
                                                         .then(
-                                                                Commands.argument(
-                                                                                "amount",
-                                                                                LongArgumentType.longArg(1)
-                                                                        )
-                                                                        .executes(context ->
-                                                                                invest(
-                                                                                        context.getSource(),
-                                                                                        StringArgumentType.getString(
-                                                                                                context,
-                                                                                                "stat"
-                                                                                        ),
-                                                                                        LongArgumentType.getLong(
-                                                                                                context,
-                                                                                                "amount"
-                                                                                        )
-                                                                                )
-                                                                        )
+                                                                Commands.argument("amount", LongArgumentType.longArg(1))
+                                                                        .executes(context -> invest(
+                                                                                context.getSource(),
+                                                                                StringArgumentType.getString(context, "stat"),
+                                                                                LongArgumentType.getLong(context, "amount")
+                                                                        ))
                                                         )
                                         )
                         )
-
-                        /*
-                         * /essence get <stat>
-                         */
-                        .then(
-                                Commands.literal("get")
-                                        .then(
-                                                Commands.argument(
-                                                                "stat",
-                                                                StringArgumentType.word()
-                                                        )
-                                                        .suggests(
-                                                                EssenceCommands::suggestStats
-                                                        )
-                                                        .executes(context ->
-                                                                showStat(
-                                                                        context.getSource(),
-                                                                        StringArgumentType.getString(
-                                                                                context,
-                                                                                "stat"
-                                                                        )
-                                                                )
-                                                        )
-                                        )
-                        )
-
-                        /*
-                         * /essence scale <stat>
-                         *
-                         * Displays the resolved scaling calculation
-                         * for a stat without applying its gameplay effect.
-                         */
-                        .then(
-                                Commands.literal("scale")
-                                        .then(
-                                                Commands.argument(
-                                                                "stat",
-                                                                StringArgumentType.word()
-                                                        )
-                                                        .suggests(
-                                                                EssenceCommands::suggestStats
-                                                        )
-                                                        .executes(context ->
-                                                                showStatScaling(
-                                                                        context.getSource(),
-                                                                        StringArgumentType.getString(
-                                                                                context,
-                                                                                "stat"
-                                                                        )
-                                                                )
-                                                        )
-                                        )
-                        )
-
-                        /*
-                         * /essence set <essence> <amount>
-                         *
-                         * Admin/testing command.
-                         * Directly sets an available Essence balance.
-                         */
-                        .then(
-                                Commands.literal("set")
-                                        .requires(source ->
-                                                source.hasPermission(2)
-                                        )
-                                        .then(
-                                                Commands.argument(
-                                                                "essence",
-                                                                StringArgumentType.word()
-                                                        )
-                                                        .suggests(
-                                                                EssenceCommands::suggestEssences
-                                                        )
-                                                        .then(
-                                                                Commands.argument(
-                                                                                "amount",
-                                                                                LongArgumentType.longArg(0)
-                                                                        )
-                                                                        .executes(context ->
-                                                                                setEssence(
-                                                                                        context.getSource(),
-                                                                                        StringArgumentType.getString(
-                                                                                                context,
-                                                                                                "essence"
-                                                                                        ),
-                                                                                        LongArgumentType.getLong(
-                                                                                                context,
-                                                                                                "amount"
-                                                                                        )
-                                                                                )
-                                                                        )
-                                                        )
-                                        )
-                        )
-
-                        /*
-                         * /essence setstat <stat> <amount>
-                         *
-                         * Admin/testing command.
-                         * Directly sets invested Essence without consuming
-                         * an available Essence balance.
-                         */
-                        .then(
-                                Commands.literal("setstat")
-                                        .requires(source ->
-                                                source.hasPermission(2)
-                                        )
-                                        .then(
-                                                Commands.argument(
-                                                                "stat",
-                                                                StringArgumentType.word()
-                                                        )
-                                                        .suggests(
-                                                                EssenceCommands::suggestStats
-                                                        )
-                                                        .then(
-                                                                Commands.argument(
-                                                                                "amount",
-                                                                                LongArgumentType.longArg(0)
-                                                                        )
-                                                                        .executes(context ->
-                                                                                setStat(
-                                                                                        context.getSource(),
-                                                                                        StringArgumentType.getString(
-                                                                                                context,
-                                                                                                "stat"
-                                                                                        ),
-                                                                                        LongArgumentType.getLong(
-                                                                                                context,
-                                                                                                "amount"
-                                                                                        )
-                                                                                )
-                                                                        )
-                                                        )
-                                        )
-                        )
-
-                        /*
-                         * /essence stats
-                         *
-                         * Lists every registered stat and its invested Essence.
-                         */
-                        .then(
-                                Commands.literal("stats")
-                                        .executes(context ->
-                                                showAllStats(
-                                                        context.getSource()
-                                                )
-                                        )
-                        )
-
-                        /*
-                         * /essence reset
-                         *
-                         * Admin/testing command.
-                         * Clears all available and invested Essence
-                         * for the executing player.
-                         */
-                        .then(
-                                Commands.literal("reset")
-                                        .requires(source ->
-                                                source.hasPermission(2)
-                                        )
-                                        .executes(context ->
-                                                resetAll(
-                                                        context.getSource()
-                                                )
-                                        )
-                        )
-
-                        /*
-                         * /essence tier
-                         */
-                        .then(
-                                Commands.literal("tier")
-                                        .executes(context ->
-                                                showTier(
-                                                        context.getSource()
-                                                )
-                                        )
-                        )
-
-                        /*
-                         * /essence settier <tier>
-                         *
-                         * Admin/testing command.
-                         */
-                        .then(
-                                Commands.literal("settier")
-                                        .requires(source ->
-                                                source.hasPermission(2)
-                                        )
-                                        .then(
-                                                Commands.argument(
-                                                                "tier",
-                                                                StringArgumentType.word()
-                                                        )
-                                                        .suggests(
-                                                                EssenceCommands::suggestTiers
-                                                        )
-                                                        .executes(context ->
-                                                                setTier(
-                                                                        context.getSource(),
-                                                                        StringArgumentType.getString(
-                                                                                context,
-                                                                                "tier"
-                                                                        )
-                                                                )
-                                                        )
-                                        )
-                        )
-
-                        /*
-                         * /essence progress
-                         *
-                         * Shows qualification for the next Ascendance tier.
-                         */
                         .then(
                                 Commands.literal("progress")
-                                        .executes(context ->
-                                                showAscendanceProgress(
-                                                        context.getSource()
-                                                )
-                                        )
+                                        .executes(context -> showAscendanceProgress(context.getSource()))
                         )
-
-                        /*
-                         * /essence ascend
-                         *
-                         * Manual, server-authoritative tier advancement.
-                         */
                         .then(
                                 Commands.literal("ascend")
-                                        .executes(context ->
-                                                ascend(
-                                                        context.getSource()
-                                                )
+                                        .executes(context -> ascend(context.getSource()))
+                        )
+                        .then(
+                                Commands.literal("milestones")
+                                        .executes(context -> showMilestones(context.getSource()))
+                                        .then(
+                                                Commands.argument("milestone", StringArgumentType.string())
+                                                        .suggests(EssenceCommandUtil::suggestMilestones)
+                                                        .executes(context -> showMilestone(
+                                                                context.getSource(),
+                                                                StringArgumentType.getString(context, "milestone")
+                                                        ))
                                         )
                         )
-
-                        /*
-                         * /essence debug ...
-                         *
-                         * Admin/development diagnostics.
-                         */
-                        .then(
-                                EssenceDebugCommands.build()
-                        )
+                        .then(EssenceAdminCommands.build())
+                        .then(EssenceDebugCommands.build())
+                        .then(EssenceTestCommands.build())
         );
     }
 
+    private static int showHelp(CommandSourceStack source) {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Essence Ascendance Commands"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Player"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence", "show your current overview"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence balance [essence]", "show available Essence balances"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence stats [category]", "list stats, grouped by their real stat categories"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence stat <stat>", "one complete stat view: investment, scaling, and equipment applicability"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence invest <stat> <amount>", "invest available Essence into a stat"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence progress", "show requirements for the next Ascendance tier"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence ascend", "Ascend when all requirements are met"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence milestones [milestone]", "show milestone progress"));
 
-    /*
-     * ============================================================
-     * BALANCES
-     * ============================================================
-     */
+        if (source.hasPermission(EssenceCommandUtil.ADMIN_PERMISSION)) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.section("Development / Administration"));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin", "data/configuration mutations"));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug", "read-only diagnostics organized by gameplay category"));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence test", "deterministic validation helpers"));
+        }
 
-    private static int showAllBalances(
-            CommandSourceStack source
-    ) throws CommandSyntaxException {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.muted("Use tab completion after any branch to discover its subcommands."));
+        return 1;
+    }
 
-        ServerPlayer player =
-                source.getPlayerOrException();
+    private static int showStatus(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        PlayerEssenceData data = playerData(source, player);
 
-        EssenceSavedData savedData =
-                EssenceSavedData.get(
-                        source.getServer()
-                );
+        long totalAvailable = 0L;
+        for (EssenceDefinition essence : EssenceRegistry.values()) {
+            totalAvailable = safeAdd(totalAvailable, data.getAvailable(essence));
+        }
 
-        PlayerEssenceData playerData =
-                savedData.getPlayerData(
-                        player.getUUID()
-                );
+        long stored = 0L;
+        long effective = 0L;
+        long capacity = 0L;
+        for (StatDefinition stat : EssenceStatRegistry.values()) {
+            StatInvestmentLimit limit = TierInvestmentPolicy.evaluate(data, stat);
+            stored = safeAdd(stored, limit.storedInvestment());
+            effective = safeAdd(effective, limit.effectiveInvestment());
+            capacity = safeAdd(capacity, limit.investmentCap());
+        }
 
-        source.sendSuccess(
-                () -> Component.literal(
-                        "Essence balances:"
-                ),
-                false
-        );
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Essence Ascendance Status"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Player", player.getGameProfile().getName()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Tier",
+                Component.literal(data.getTier().displayName()).withStyle(ChatFormatting.AQUA)
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Available Essence", EssenceCommandUtil.format(totalAvailable) + " total"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Investment",
+                EssenceCommandUtil.format(effective) + " / " + EssenceCommandUtil.format(capacity)
+                        + " effective (" + EssenceCommandUtil.format(stored) + " stored)"
+        ));
 
-        for (EssenceDefinition essence :
-                EssenceRegistry.values()) {
-
-            long balance =
-                    playerData.getAvailable(essence);
-
-            source.sendSuccess(
-                    () -> Component.literal(
-                            "  "
-                                    + essence.displayName()
-                                    + ": "
-                                    + format(balance)
-                    ),
-                    false
+        AscendanceEvaluationResult evaluation = AscendanceEngine.evaluate(player);
+        switch (evaluation.status()) {
+            case AVAILABLE -> EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.line(
+                            "Next Ascendance",
+                            Component.literal(evaluation.nextTier().displayName() + " - ")
+                                    .withStyle(ChatFormatting.WHITE)
+                                    .append(evaluation.progress().readyToAscend()
+                                            ? EssenceCommandUtil.good("READY")
+                                            : EssenceCommandUtil.warn("NOT READY"))
+                    )
+            );
+            case MAX_TIER -> EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.line("Next Ascendance", EssenceCommandUtil.good("MAX TIER"))
+            );
+            case CONFIGURATION_ERROR -> EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.line("Next Ascendance", EssenceCommandUtil.bad("CONFIGURATION ERROR"))
             );
         }
 
+        EssenceCommandUtil.send(source, EssenceCommandUtil.muted("Details: /essence balance | /essence stats | /essence progress"));
         return 1;
     }
 
+    private static int showAllBalances(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        PlayerEssenceData data = playerData(source, player);
 
-    private static int showBalance(
-            CommandSourceStack source,
-            String essenceName
-    ) throws CommandSyntaxException {
-
-        ServerPlayer player =
-                source.getPlayerOrException();
-
-        EssenceDefinition essence =
-                resolveEssence(essenceName);
-
-        PlayerEssenceData playerData =
-                EssenceSavedData
-                        .get(source.getServer())
-                        .getPlayerData(player.getUUID());
-
-        long balance =
-                playerData.getAvailable(essence);
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        essence.displayName()
-                                + ": "
-                                + format(balance)
-                ),
-                false
-        );
-
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Essence Balances"));
+        for (EssenceFamily family : EssenceFamily.values()) {
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.section(family == EssenceFamily.ATTRIBUTE ? "Attribute Essence" : "Skill Essence")
+            );
+            for (EssenceDefinition essence : EssenceRegistry.values()) {
+                if (essence.family() != family) {
+                    continue;
+                }
+                EssenceCommandUtil.send(
+                        source,
+                        EssenceCommandUtil.line(essence.displayName(), EssenceCommandUtil.format(data.getAvailable(essence)))
+                );
+            }
+        }
         return 1;
     }
 
+    private static int showBalance(CommandSourceStack source, String essenceName) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        EssenceDefinition essence = EssenceCommandUtil.resolveEssence(essenceName);
+        long amount = playerData(source, player).getAvailable(essence);
 
-    /*
-     * ============================================================
-     * GIVE
-     * ============================================================
-     */
-
-    private static int giveEssence(
-            CommandSourceStack source,
-            String essenceName,
-            long amount
-    ) throws CommandSyntaxException {
-
-        ServerPlayer player =
-                source.getPlayerOrException();
-
-        EssenceDefinition essence =
-                resolveEssence(essenceName);
-
-        long updated =
-                EssenceSavedData
-                        .get(source.getServer())
-                        .addEssence(
-                                player.getUUID(),
-                                essence,
-                                amount
-                        );
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "Added "
-                                + format(amount)
-                                + " "
-                                + essence.displayName()
-                                + ". New balance: "
-                                + format(updated)
-                ),
-                false
-        );
-
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(essence.displayName()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Available", EssenceCommandUtil.format(amount)));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Family",
+                essence.family() == EssenceFamily.ATTRIBUTE ? "Attribute" : "Skill"
+        ));
         return 1;
     }
 
+    private static int showAllStats(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Essence Stats"));
+        for (StatCategory category : StatCategory.values()) {
+            showStats(source, player, category, true);
+        }
+        EssenceCommandUtil.send(source, EssenceCommandUtil.muted("Use /essence stat <stat> for the full calculation and equipment applicability."));
+        return 1;
+    }
 
-    /*
-     * ============================================================
-     * SET AVAILABLE ESSENCE
-     * ============================================================
-     */
+    private static int showStats(CommandSourceStack source, StatCategory category) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceCommandUtil.categoryName(category) + " Stats"));
+        showStats(source, player, category, false);
+        return 1;
+    }
 
-    private static int setEssence(
+    private static void showStats(
             CommandSourceStack source,
-            String essenceName,
-            long amount
-    ) throws CommandSyntaxException {
-
-        ServerPlayer player =
-                source.getPlayerOrException();
-
-        EssenceDefinition essence =
-                resolveEssence(essenceName);
-
-        EssenceSavedData
+            ServerPlayer player,
+            StatCategory category,
+            boolean includeHeading
+    ) {
+        PlayerEssenceData data = EssenceSavedData
                 .get(source.getServer())
-                .setEssence(
-                        player.getUUID(),
-                        essence,
-                        amount
-                );
+                .getPlayerData(player.getUUID());
 
-        source.sendSuccess(
-                () -> Component.literal(
-                        "Set "
-                                + essence.displayName()
-                                + " to "
-                                + format(amount)
-                ),
-                false
+        if (includeHeading) {
+            EssenceCommandUtil.send(
+                    source,
+                    Component.literal(EssenceCommandUtil.categoryName(category))
+                            .withStyle(EssenceCommandUtil.categoryColor(category), ChatFormatting.BOLD)
+            );
+        }
+
+        for (StatDefinition stat : EssenceStatRegistry.values()) {
+            if (stat.category() != category) {
+                continue;
+            }
+
+            StatInvestmentLimit limit = TierInvestmentPolicy.evaluate(data, stat);
+            StatScalingResult scaling = StatScalingService.evaluate(data, stat);
+
+            MutableComponent value = Component.literal(
+                    EssenceCommandUtil.format(limit.effectiveInvestment())
+                            + " / " + EssenceCommandUtil.format(limit.investmentCap())
+                            + "  |  "
+            ).withStyle(ChatFormatting.GRAY)
+                    .append(
+                            Component.literal(EssenceCommandUtil.formatBonus(stat, scaling.scaledBonus()))
+                                    .withStyle(scaling.scaledBonus() > 0.0 ? ChatFormatting.GREEN : ChatFormatting.DARK_GRAY)
+                    );
+
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(stat.displayName(), value));
+        }
+    }
+
+    private static int showStat(CommandSourceStack source, String statName) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        StatDefinition stat = EssenceCommandUtil.resolveStat(statName);
+        PlayerEssenceData data = playerData(source, player);
+        StatInvestmentLimit limit = TierInvestmentPolicy.evaluate(data, stat);
+        StatScalingResult scaling = StatScalingService.evaluate(data, stat);
+        double activeStrength = EquipmentStatResolver.evaluate(player).strength(stat);
+
+        EssenceCommandUtil.send(
+                source,
+                Component.literal(stat.displayName())
+                        .withStyle(EssenceCommandUtil.categoryColor(stat.category()), ChatFormatting.BOLD)
         );
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("ID", EssenceCommandUtil.muted(stat.id().toString())));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Category", EssenceCommandUtil.categoryName(stat.category())));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Unit", stat.unit().name().toLowerCase(java.util.Locale.ROOT)));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Essence", stat.essenceType().displayName()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Available " + stat.essenceType().displayName(),
+                EssenceCommandUtil.format(data.getAvailable(stat.essenceType()))
+        ));
 
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Progression"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Investment",
+                EssenceCommandUtil.format(limit.effectiveInvestment()) + " / "
+                        + EssenceCommandUtil.format(limit.investmentCap())
+                        + " effective (" + EssenceCommandUtil.format(limit.storedInvestment()) + " stored)"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Investment state", limit.state().toString()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Progress", EssenceCommandUtil.formatProgress(scaling.progression())));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Current bonus", EssenceCommandUtil.formatBonus(stat, scaling.scaledBonus())));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Current tier ceiling", EssenceCommandUtil.formatBonus(stat, scaling.currentTierMaximumBonus())));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Transcendent maximum", EssenceCommandUtil.formatBonus(stat, scaling.transcendentMaximumBonus())));
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Equipment Applicability"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Current active strength", EssenceCommandUtil.formatStrength(activeStrength)));
+
+        boolean found = false;
+        for (EquipmentProfileDefinition profile : EquipmentProfileRegistry.values()) {
+            for (EquipmentActivationType activation : profile.activationTypes()) {
+                double strength = profile.statStrength(activation, stat);
+                if (strength <= 0.0) {
+                    continue;
+                }
+                found = true;
+                EssenceCommandUtil.send(
+                        source,
+                        EssenceCommandUtil.line(
+                                profile.displayName(),
+                                EssenceCommandUtil.formatStrength(strength)
+                                        + " when " + activation.name().toLowerCase()
+                        )
+                );
+            }
+        }
+
+        if (!found) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.warn("  No built-in equipment profile currently activates this stat."));
+        }
         return 1;
     }
 
-
-    /*
-     * ============================================================
-     * INVEST
-     * ============================================================
-     */
-
-    private static int invest(
-            CommandSourceStack source,
-            String statName,
-            long amount
-    ) throws CommandSyntaxException {
-
-        ServerPlayer player =
-                source.getPlayerOrException();
-
-
-        StatDefinition stat =
-                resolveStat(
-                        statName
-                );
-
-
-        StatInvestmentResult result =
-                StatProgressionService.invest(
-                        player,
-                        stat,
-                        amount
-                );
-
-
-        /*
-         * ============================================================
-         * SUCCESS
-         * ============================================================
-         */
+    private static int invest(CommandSourceStack source, String statName, long amount) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        StatDefinition stat = EssenceCommandUtil.resolveStat(statName);
+        StatInvestmentResult result = StatProgressionService.invest(player, stat, amount);
 
         if (result.success()) {
-
-            EssenceDefinition requiredEssence =
-                    stat.essenceType();
-
-
-            source.sendSuccess(
-                    () -> Component.literal(
-                            "Invested "
-                                    + format(amount)
-                                    + " "
-                                    + requiredEssence.displayName()
-                                    + " into "
-                                    + stat.displayName()
-                                    + ". Total invested: "
-                                    + format(
-                                    result.investedAfter()
-                            )
-                                    + " / "
-                                    + format(
-                                    result.investmentCap()
-                            )
-                                    + ". Remaining balance: "
-                                    + format(
-                                    result.availableAfter()
-                            )
-                    ),
-                    false
-            );
-
-
+            EssenceCommandUtil.send(source, EssenceCommandUtil.title("Investment Complete"));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Stat", stat.displayName()));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Invested",
+                    EssenceCommandUtil.format(amount) + " " + stat.essenceType().displayName()
+            ));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Total",
+                    EssenceCommandUtil.format(result.investedAfter()) + " / "
+                            + EssenceCommandUtil.format(result.investmentCap())
+            ));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Remaining Essence", EssenceCommandUtil.format(result.availableAfter())));
             return 1;
         }
 
-
-        /*
-         * ============================================================
-         * FAILURE
-         * ============================================================
-         */
-
         switch (result.status()) {
-
-            case INVALID_AMOUNT ->
-
-                    source.sendFailure(
-                            Component.literal(
-                                    "Investment amount must be greater than zero."
-                            )
-                    );
-
-
-            case INSUFFICIENT_ESSENCE ->
-
-                    source.sendFailure(
-                            Component.literal(
-                                    "Not enough "
-                                            + stat.essenceType().displayName()
-                                            + ". Required: "
-                                            + format(amount)
-                                            + ", available: "
-                                            + format(
-                                            result.availableBefore()
-                                    )
-                            )
-                    );
-
-
-            case AT_CAP ->
-
-                    source.sendFailure(
-                            Component.literal(
-                                    stat.displayName()
-                                            + " is already at its current investment cap of "
-                                            + format(
-                                            result.investmentCap()
-                                    )
-                                            + "."
-                            )
-                    );
-
-
-            case OVER_CAP ->
-
-                    source.sendFailure(
-                            Component.literal(
-                                    stat.displayName()
-                                            + " is currently over its investment cap. Stored: "
-                                            + format(
-                                            result.investedBefore()
-                                    )
-                                            + ", current cap: "
-                                            + format(
-                                            result.investmentCap()
-                                    )
-                                            + ". Existing investment is preserved, but no additional normal investment is allowed."
-                            )
-                    );
-
-
-            case WOULD_EXCEED_CAP ->
-
-                    source.sendFailure(
-                            Component.literal(
-                                    "Investment would exceed the current cap for "
-                                            + stat.displayName()
-                                            + ". Current: "
-                                            + format(
-                                            result.investedBefore()
-                                    )
-                                            + ", requested: "
-                                            + format(amount)
-                                            + ", cap: "
-                                            + format(
-                                            result.investmentCap()
-                                    )
-                                            + ". Maximum additional investment: "
-                                            + format(
-                                            result.remainingCapacityBefore()
-                                    )
-                                            + "."
-                            )
-                    );
-
-
-            case NUMERIC_OVERFLOW ->
-
-                    source.sendFailure(
-                            Component.literal(
-                                    "Investment would exceed the supported numeric range."
-                            )
-                    );
-
-
-            case CONFIGURATION_ERROR ->
-
-                    source.sendFailure(
-                            Component.literal(
-                                    "Unable to determine the current investment cap for "
-                                            + stat.displayName()
-                                            + ". Check the server configuration and logs."
-                            )
-                    );
-
-
-            case TRANSACTION_FAILED ->
-
-                    source.sendFailure(
-                            Component.literal(
-                                    "Unable to complete the Essence investment transaction."
-                            )
-                    );
-
-
-            case SUCCESS ->
-
-                    throw new IllegalStateException(
-                            "Successful investment reached failure handling"
-                    );
+            case INVALID_AMOUNT -> EssenceCommandUtil.fail(source, "Investment amount must be greater than zero.");
+            case INSUFFICIENT_ESSENCE -> EssenceCommandUtil.fail(
+                    source,
+                    "Not enough " + stat.essenceType().displayName()
+                            + ". Required: " + EssenceCommandUtil.format(amount)
+                            + ", available: " + EssenceCommandUtil.format(result.availableBefore())
+            );
+            case AT_CAP -> EssenceCommandUtil.fail(
+                    source,
+                    stat.displayName() + " is already at its current cap of "
+                            + EssenceCommandUtil.format(result.investmentCap()) + "."
+            );
+            case OVER_CAP -> EssenceCommandUtil.fail(
+                    source,
+                    stat.displayName() + " is over its current cap. Stored: "
+                            + EssenceCommandUtil.format(result.investedBefore())
+                            + ", cap: " + EssenceCommandUtil.format(result.investmentCap())
+                            + ". Existing investment is preserved."
+            );
+            case WOULD_EXCEED_CAP -> EssenceCommandUtil.fail(
+                    source,
+                    "Investment would exceed the cap for " + stat.displayName()
+                            + ". Maximum additional investment: "
+                            + EssenceCommandUtil.format(result.remainingCapacityBefore()) + "."
+            );
+            case NUMERIC_OVERFLOW -> EssenceCommandUtil.fail(source, "Investment would exceed the supported numeric range.");
+            case CONFIGURATION_ERROR -> EssenceCommandUtil.fail(source, "Unable to determine the current investment cap. Check the server configuration and logs.");
+            case TRANSACTION_FAILED -> EssenceCommandUtil.fail(source, "Unable to complete the Essence investment transaction.");
+            case SUCCESS -> throw new IllegalStateException("Successful investment reached failure handling");
         }
-
-
         return 0;
     }
 
-
-    /*
-     * ============================================================
-     * SET INVESTED ESSENCE
-     * ============================================================
-     */
-
-    private static int setStat(
-            CommandSourceStack source,
-            String statName,
-            long amount
-    ) throws CommandSyntaxException {
-
-        ServerPlayer player =
-                source.getPlayerOrException();
-
-        StatDefinition stat =
-                resolveStat(statName);
-
-        EssenceSavedData
-                .get(source.getServer())
-                .setInvested(
-                        player.getUUID(),
-                        stat,
-                        amount
-                );
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "Set "
-                                + stat.displayName()
-                                + " invested Essence to "
-                                + format(amount)
-                ),
-                false
-        );
-
-        return 1;
-    }
-
-
-    /*
-     * ============================================================
-     * STAT INFO
-     * ============================================================
-     */
-
-    private static int showStat(
-            CommandSourceStack source,
-            String statName
-    ) throws CommandSyntaxException {
-
-        ServerPlayer player =
-                source.getPlayerOrException();
-
-        StatDefinition stat =
-                resolveStat(statName);
-
-        PlayerEssenceData playerData =
-                EssenceSavedData
-                        .get(source.getServer())
-                        .getPlayerData(player.getUUID());
-
-        long invested =
-                playerData.getInvested(stat);
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        stat.displayName()
-                                + ": "
-                                + format(invested)
-                                + " invested "
-                                + stat.essenceType().displayName()
-                ),
-                false
-        );
-
-        return 1;
-    }
-
-
-    /*
-     * ============================================================
-     * STAT SCALING
-     * ============================================================
-     */
-
-    private static int showStatScaling(
-            CommandSourceStack source,
-            String statName
-    ) throws CommandSyntaxException {
-
-        ServerPlayer player =
-                source.getPlayerOrException();
-
-        StatDefinition stat =
-                resolveStat(
-                        statName
-                );
-
-        StatScalingResult scaling =
-                StatScalingService.evaluate(
-                        player,
-                        stat
-                );
-
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        stat.displayName()
-                                + " scaling:"
-                ),
-                false
-        );
-
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Stored investment: "
-                                + format(
-                                scaling.storedInvestment()
-                        )
-                ),
-                false
-        );
-
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Effective investment: "
-                                + format(
-                                scaling.effectiveInvestment()
-                        )
-                                + " / "
-                                + format(
-                                scaling.currentInvestmentCap()
-                        )
-                ),
-                false
-        );
-
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Progression: "
-                                + formatPercent(
-                                scaling.progression()
-                        )
-                ),
-                false
-        );
-
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Current bonus: "
-                                + formatBonus(
-                                stat,
-                                scaling.scaledBonus()
-                        )
-                ),
-                false
-        );
-
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Current tier ceiling: "
-                                + formatBonus(
-                                stat,
-                                scaling.currentTierMaximumBonus()
-                        )
-                ),
-                false
-        );
-
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Transcendent maximum: "
-                                + formatBonus(
-                                stat,
-                                scaling.transcendentMaximumBonus()
-                        )
-                ),
-                false
-        );
-
-
-        return 1;
-    }
-
-    private static int showAllStats(
-            CommandSourceStack source
-    ) throws CommandSyntaxException {
-
-        ServerPlayer player =
-                source.getPlayerOrException();
-
-
-        PlayerEssenceData playerData =
-                EssenceSavedData
-                        .get(
-                                source.getServer()
-                        )
-                        .getPlayerData(
-                                player.getUUID()
-                        );
-
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "Essence Ascendance stats:"
-                ),
-                false
-        );
-
-
-        for (StatDefinition stat :
-                EssenceStatRegistry.values()) {
-
-            long invested =
-                    playerData.getInvested(
-                            stat
-                    );
-
-
-            source.sendSuccess(
-                    () -> Component.literal(
-                            "  "
-                                    + stat.displayName()
-                                    + ": "
-                                    + format(
-                                    invested
-                            )
-                    ),
-                    false
-            );
-        }
-
-
-        return 1;
-    }
-
-
-    /*
-     * ============================================================
-     * RESET
-     * ============================================================
-     */
-
-    private static int resetAll(
-            CommandSourceStack source
-    ) throws CommandSyntaxException {
-
-        ServerPlayer player =
-                source.getPlayerOrException();
-
-        EssenceSavedData
-                .get(source.getServer())
-                .clearAll(
-                        player.getUUID()
-                );
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "Reset all Essence balances and stat investments."
-                ),
-                false
-        );
-
-        return 1;
-    }
-
-
-    /*
-     * ============================================================
-     * ASCENDANCE TIER
-     * ============================================================
-     */
-
-    private static int showTier(
-            CommandSourceStack source
-    ) throws CommandSyntaxException {
-
-        ServerPlayer player =
-                source.getPlayerOrException();
-
-        AscendanceTierDefinition tier =
-                EssenceSavedData
-                        .get(source.getServer())
-                        .getTier(
-                                player.getUUID()
-                        );
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "Current Ascendance Tier: "
-                                + tier.displayName()
-                ),
-                false
-        );
-
-        return 1;
-    }
-
-
-    private static int setTier(
-            CommandSourceStack source,
-            String tierName
-    ) throws CommandSyntaxException {
-
-        ServerPlayer player =
-                source.getPlayerOrException();
-
-        AscendanceTierDefinition tier =
-                resolveTier(tierName);
-
-        EssenceSavedData
-                .get(source.getServer())
-                .setTier(
-                        player.getUUID(),
-                        tier
-                );
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "Ascendance Tier set to "
-                                + tier.displayName()
-                ),
-                false
-        );
-
-        return 1;
-    }
-
-
-    /*
-     * ============================================================
-     * LOOKUP
-     * ============================================================
-     */
-
-    private static EssenceDefinition resolveEssence(
-            String input
-    ) throws CommandSyntaxException {
-
-        ResourceLocation id =
-                parseId(input);
-
-        if (id == null) {
-            throw UNKNOWN_ESSENCE.create(input);
-        }
-
-        return EssenceRegistry
-                .get(id)
-                .orElseThrow(
-                        () -> UNKNOWN_ESSENCE.create(input)
-                );
-    }
-
-
-    private static StatDefinition resolveStat(
-            String input
-    ) throws CommandSyntaxException {
-
-        ResourceLocation id =
-                parseId(input);
-
-        if (id == null) {
-            throw UNKNOWN_STAT.create(input);
-        }
-
-        return EssenceStatRegistry
-                .get(id)
-                .orElseThrow(
-                        () -> UNKNOWN_STAT.create(input)
-                );
-    }
-
-
-    private static AscendanceTierDefinition resolveTier(
-            String input
-    ) throws CommandSyntaxException {
-
-        ResourceLocation id =
-                parseId(input);
-
-        if (id == null) {
-            throw UNKNOWN_TIER.create(input);
-        }
-
-        return AscendanceTierRegistry
-                .get(id)
-                .orElseThrow(
-                        () -> UNKNOWN_TIER.create(input)
-                );
-    }
-
-
-    private static ResourceLocation parseId(
-            String input
-    ) {
-        String fullId =
-                input.contains(":")
-                        ? input
-                        : EssenceAscendance.MOD_ID
-                        + ":"
-                        + input;
-
-        return ResourceLocation.tryParse(
-                fullId
-        );
-    }
-
-    /*
-     * ============================================================
-     * ASCENDANCE PROGRESS
-     * ============================================================
-     */
-
-    private static int showAscendanceProgress(
-            CommandSourceStack source
-    ) throws CommandSyntaxException {
-
-        ServerPlayer player =
-                source.getPlayerOrException();
-
-
-        AscendanceEvaluationResult evaluation =
-                AscendanceEngine.evaluate(
-                        player
-                );
-
-
-        if (evaluation.status()
-                == AscendanceEvaluationResult.Status.MAX_TIER) {
-
-            source.sendSuccess(
-                    () -> Component.literal(
-                            "Current Ascendance Tier: "
-                                    + evaluation.currentTier().displayName()
-                                    + ". This is the highest Ascendance tier."
-                    ),
-                    false
-            );
-
+    private static int showAscendanceProgress(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        AscendanceEvaluationResult evaluation = AscendanceEngine.evaluate(player);
+
+        if (evaluation.status() == AscendanceEvaluationResult.Status.MAX_TIER) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.title("Ascendance Progress"));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Current tier", evaluation.currentTier().displayName()));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Next tier", EssenceCommandUtil.good("MAX TIER")));
             return 1;
         }
 
-
-        if (evaluation.status()
-                == AscendanceEvaluationResult.Status.CONFIGURATION_ERROR) {
-
-            source.sendFailure(
-                    Component.literal(
-                            "Ascendance progress cannot be evaluated because the current progression configuration is invalid. Check the server log."
-                    )
-            );
-
+        if (evaluation.status() == AscendanceEvaluationResult.Status.CONFIGURATION_ERROR) {
+            EssenceCommandUtil.fail(source, "Ascendance progress cannot be evaluated because the progression configuration is invalid. Check the server log.");
             return 0;
         }
 
+        AscendanceProgressSnapshot progress = evaluation.progress();
+        String worldState = !progress.worldProgress().resolvable()
+                ? "UNRESOLVED"
+                : progress.worldProgress().complete() ? "COMPLETE" : "INCOMPLETE";
 
-        AscendanceProgressSnapshot progress =
-                evaluation.progress();
-
-
-        String worldState;
-
-        if (!progress
-                .worldProgress()
-                .resolvable()) {
-
-            worldState =
-                    "UNRESOLVED";
-
-        } else if (progress
-                .worldProgress()
-                .complete()) {
-
-            worldState =
-                    "Complete";
-
-        } else {
-
-            worldState =
-                    "Incomplete";
-        }
-
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "Ascendance Progress: "
-                                + evaluation.currentTier().displayName()
-                                + " -> "
-                                + evaluation.nextTier().displayName()
-                ),
-                false
-        );
-
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Depth: "
-                                + format(
-                                progress.effectiveInvestment()
-                        )
-                                + " / "
-                                + format(
-                                progress.requiredInvestment()
-                        )
-                ),
-                false
-        );
-
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Developed Stats: "
-                                + progress.developedStats()
-                                + " / "
-                                + progress.requiredDevelopedStats()
-                ),
-                false
-        );
-
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Represented Categories: "
-                                + progress.representedCategories()
-                                + " / "
-                                + progress.requiredRepresentedCategories()
-                ),
-                false
-        );
-
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  World Progression: "
-                                + worldState
-                ),
-                false
-        );
-
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Ready to Ascend: "
-                                + (
-                                progress.readyToAscend()
-                                        ? "YES"
-                                        : "NO"
-                        )
-                ),
-                false
-        );
-
-
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Ascendance Progress"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Transition",
+                evaluation.currentTier().displayName() + " -> " + evaluation.nextTier().displayName()
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Investment depth",
+                EssenceCommandUtil.format(progress.effectiveInvestment()) + " / "
+                        + EssenceCommandUtil.format(progress.requiredInvestment())
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Developed stats",
+                progress.developedStats() + " / " + progress.requiredDevelopedStats()
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Represented categories",
+                progress.representedCategories() + " / " + progress.requiredRepresentedCategories()
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "World progression",
+                "COMPLETE".equals(worldState)
+                        ? EssenceCommandUtil.good(worldState)
+                        : "UNRESOLVED".equals(worldState)
+                        ? EssenceCommandUtil.bad(worldState)
+                        : EssenceCommandUtil.warn(worldState)
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Ready to Ascend",
+                progress.readyToAscend() ? EssenceCommandUtil.good("YES") : EssenceCommandUtil.warn("NO")
+        ));
         return 1;
     }
 
+    private static int ascend(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        AscendanceAttemptResult result = AscendanceEngine.ascend(player);
 
-    /*
-     * ============================================================
-     * MANUAL ASCENSION
-     * ============================================================
-     */
-
-    private static int ascend(
-            CommandSourceStack source
-    ) throws CommandSyntaxException {
-
-        ServerPlayer player =
-                source.getPlayerOrException();
-
-
-        AscendanceAttemptResult result =
-                AscendanceEngine.ascend(
-                        player
-                );
-
-
-        switch (result.status()) {
-
+        return switch (result.status()) {
             case SUCCESS -> {
-
-                source.sendSuccess(
-                        () -> Component.literal(
-                                "Ascended from "
-                                        + result
-                                        .evaluation()
-                                        .currentTier()
-                                        .displayName()
-                                        + " to "
-                                        + result
-                                        .evaluation()
-                                        .nextTier()
-                                        .displayName()
-                                        + "."
-                        ),
-                        false
+                EssenceCommandUtil.send(source, EssenceCommandUtil.title("Ascendance Complete"));
+                EssenceCommandUtil.send(
+                        source,
+                        EssenceCommandUtil.line(
+                                "Tier",
+                                result.evaluation().currentTier().displayName()
+                                        + " -> " + result.evaluation().nextTier().displayName()
+                        )
                 );
-
-
-                return 1;
+                yield 1;
             }
-
-
             case NOT_READY -> {
-
-                source.sendFailure(
-                        Component.literal(
-                                "You do not yet meet the requirements to Ascend. Use /essence progress for details."
-                        )
-                );
-
-
-                return 0;
+                EssenceCommandUtil.fail(source, "You do not yet meet the requirements to Ascend. Use /essence progress.");
+                yield 0;
             }
-
-
             case MAX_TIER -> {
-
-                source.sendFailure(
-                        Component.literal(
-                                "You are already at the highest Ascendance tier."
-                        )
-                );
-
-
-                return 0;
+                EssenceCommandUtil.fail(source, "You are already at the highest Ascendance tier.");
+                yield 0;
             }
-
-
             case CONFIGURATION_ERROR -> {
-
-                source.sendFailure(
-                        Component.literal(
-                                "Ascendance cannot be completed because the current progression configuration is invalid. Check the server log."
-                        )
-                );
-
-
-                return 0;
+                EssenceCommandUtil.fail(source, "Ascendance cannot be completed because the progression configuration is invalid. Check the server log.");
+                yield 0;
             }
-        }
-
-
-        return 0;
-    }
-
-
-    /*
-     * ============================================================
-     * COMMAND SUGGESTIONS
-     * ============================================================
-     */
-
-    private static CompletableFuture<Suggestions> suggestEssences(
-            CommandContext<CommandSourceStack> context,
-            SuggestionsBuilder builder
-    ) {
-        String remaining =
-                builder.getRemainingLowerCase();
-
-        for (EssenceDefinition essence :
-                EssenceRegistry.values()) {
-
-            String name =
-                    essence.id().getPath();
-
-            if (name.startsWith(remaining)) {
-                builder.suggest(name);
-            }
-        }
-
-        return builder.buildFuture();
-    }
-
-
-    private static CompletableFuture<Suggestions> suggestStats(
-            CommandContext<CommandSourceStack> context,
-            SuggestionsBuilder builder
-    ) {
-        String remaining =
-                builder.getRemainingLowerCase();
-
-        for (StatDefinition stat :
-                EssenceStatRegistry.values()) {
-
-            String name =
-                    stat.id().getPath();
-
-            if (name.startsWith(remaining)) {
-                builder.suggest(name);
-            }
-        }
-
-        return builder.buildFuture();
-    }
-
-
-    private static CompletableFuture<Suggestions> suggestTiers(
-            CommandContext<CommandSourceStack> context,
-            SuggestionsBuilder builder
-    ) {
-        String remaining =
-                builder.getRemainingLowerCase();
-
-        for (AscendanceTierDefinition tier :
-                AscendanceTierRegistry.values()) {
-
-            String name =
-                    tier.id().getPath();
-
-            if (name.startsWith(remaining)) {
-                builder.suggest(name);
-            }
-        }
-
-        return builder.buildFuture();
-    }
-
-
-    /*
-     * ============================================================
-     * FORMATTING
-     * ============================================================
-     */
-
-    private static String format(
-            long value
-    ) {
-        return String.format(
-                "%,d",
-                value
-        );
-    }
-
-
-    private static String formatPercent(
-            double value
-    ) {
-
-        return String.format(
-                "%.2f%%",
-                value * 100.0
-        );
-    }
-
-
-    private static String formatBonus(
-            StatDefinition stat,
-            double value
-    ) {
-
-        return switch (stat.unit()) {
-
-            case PERCENT ->
-                    String.format(
-                            "%.2f%%",
-                            value
-                    );
-
-            case HEARTS ->
-                    String.format(
-                            "%.2f hearts",
-                            value
-                    );
-
-            case HEARTS_PER_SECOND ->
-                    String.format(
-                            "%.3f hearts/sec",
-                            value
-                    );
-
-            case BLOCKS ->
-                    String.format(
-                            "%.2f blocks",
-                            value
-                    );
-
-            case SECONDS ->
-                    String.format(
-                            "%.2f seconds",
-                            value
-                    );
-
-            case LEVELS ->
-                    String.format(
-                            "%.2f levels",
-                            value
-                    );
-
-            case FLAT ->
-                    String.format(
-                            "%.3f",
-                            value
-                    );
         };
+    }
+
+    private static int showMilestones(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Milestones"));
+
+        for (MilestoneDefinition milestone : com.mistaboom.essence_ascendance.config.EssenceConfigManager.get().milestones().values()) {
+            MilestoneProgress progress = evaluateMilestone(player, milestone);
+            Component state = !progress.resolvable()
+                    ? EssenceCommandUtil.bad("UNRESOLVED")
+                    : progress.complete()
+                    ? EssenceCommandUtil.good("COMPLETE")
+                    : EssenceCommandUtil.warn("INCOMPLETE");
+
+            EssenceCommandUtil.send(
+                    source,
+                    Component.literal("  ")
+                            .append(Component.literal(milestone.displayName()).withStyle(ChatFormatting.WHITE))
+                            .append(Component.literal(" [" + milestone.id().getPath() + "] ").withStyle(ChatFormatting.DARK_GRAY))
+                            .append(state)
+            );
+        }
+        return 1;
+    }
+
+    private static int showMilestone(CommandSourceStack source, String milestoneName) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        MilestoneDefinition milestone = EssenceCommandUtil.resolveMilestone(milestoneName);
+        MilestoneProgress progress = evaluateMilestone(player, milestone);
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(milestone.displayName()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("ID", EssenceCommandUtil.muted(milestone.id().toString())));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Provider", milestone.providerId().toString()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Target", milestone.target()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "State",
+                !progress.resolvable()
+                        ? EssenceCommandUtil.bad("UNRESOLVED")
+                        : progress.complete()
+                        ? EssenceCommandUtil.good("COMPLETE")
+                        : EssenceCommandUtil.warn("INCOMPLETE")
+        ));
+        return 1;
+    }
+
+    private static MilestoneProgress evaluateMilestone(ServerPlayer player, MilestoneDefinition milestone) {
+        return MilestoneService.evaluate(player, MilestoneRequirement.milestone(milestone.id()));
+    }
+
+    private static PlayerEssenceData playerData(CommandSourceStack source, ServerPlayer player) {
+        return EssenceSavedData
+                .get(source.getServer())
+                .getPlayerData(player.getUUID());
+    }
+
+    private static long safeAdd(long left, long right) {
+        if (right > 0 && left > Long.MAX_VALUE - right) {
+            return Long.MAX_VALUE;
+        }
+        if (right < 0 && left < Long.MIN_VALUE - right) {
+            return Long.MIN_VALUE;
+        }
+        return left + right;
     }
 }

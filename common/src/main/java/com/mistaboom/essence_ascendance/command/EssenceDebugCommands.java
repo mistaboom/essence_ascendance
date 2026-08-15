@@ -1,6 +1,5 @@
 package com.mistaboom.essence_ascendance.command;
 
-import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.config.EssenceServerConfig;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
@@ -14,8 +13,6 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentDamageService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentGatheringService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentMobilityService;
-import com.mistaboom.essence_ascendance.equipment.EquipmentVitalityService;
-import com.mistaboom.essence_ascendance.equipment.EquipmentWeaponService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfileDefinition;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfileItem;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfileRegistry;
@@ -25,15 +22,11 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentStatProviderRegistry;
 import com.mistaboom.essence_ascendance.equipment.EquipmentStatResolver;
 import com.mistaboom.essence_ascendance.equipment.EquipmentStatState;
 import com.mistaboom.essence_ascendance.equipment.EquipmentValueService;
+import com.mistaboom.essence_ascendance.equipment.EquipmentVitalityService;
+import com.mistaboom.essence_ascendance.equipment.EquipmentWeaponService;
 import com.mistaboom.essence_ascendance.progression.AscendanceEngine;
 import com.mistaboom.essence_ascendance.progression.AscendanceEvaluationResult;
 import com.mistaboom.essence_ascendance.progression.CategoryDevelopment;
-import com.mistaboom.essence_ascendance.progression.HarvestProgressionSafety;
-import com.mistaboom.essence_ascendance.progression.MilestoneDefinition;
-import com.mistaboom.essence_ascendance.progression.MilestoneProgress;
-import com.mistaboom.essence_ascendance.progression.MilestoneProviders;
-import com.mistaboom.essence_ascendance.progression.MilestoneRequirement;
-import com.mistaboom.essence_ascendance.progression.MilestoneService;
 import com.mistaboom.essence_ascendance.progression.StatInvestmentLimit;
 import com.mistaboom.essence_ascendance.progression.StatScalingResult;
 import com.mistaboom.essence_ascendance.progression.StatScalingService;
@@ -42,14 +35,9 @@ import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.EssenceStats;
 import com.mistaboom.essence_ascendance.stat.StatCategory;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
-import com.mojang.brigadier.arguments.BoolArgumentType;
-import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
-import com.mojang.brigadier.suggestion.Suggestions;
-import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -62,1479 +50,355 @@ import net.minecraft.world.item.ItemStack;
 
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
-/*
- * Development diagnostics for the post-conduit equipment architecture.
- *
- * The commands intentionally describe the same four layers used by gameplay:
- *
- * player stat scaling -> tier/archetype baseline -> item applicability -> context.
- */
-public final class EssenceDebugCommands {
-
-    private static final DynamicCommandExceptionType UNKNOWN_STAT =
-            new DynamicCommandExceptionType(
-                    value -> Component.literal("Unknown stat: " + value)
-            );
-
-    private static final DynamicCommandExceptionType UNKNOWN_CATEGORY =
-            new DynamicCommandExceptionType(
-                    value -> Component.literal("Unknown stat category: " + value)
-            );
-
-    private static final DynamicCommandExceptionType UNKNOWN_MILESTONE =
-            new DynamicCommandExceptionType(
-                    value -> Component.literal("Unknown milestone: " + value)
-            );
+final class EssenceDebugCommands {
 
     private EssenceDebugCommands() {
     }
 
-    public static LiteralArgumentBuilder<CommandSourceStack> build() {
+    static LiteralArgumentBuilder<CommandSourceStack> build() {
         return Commands.literal("debug")
-                .requires(source -> source.hasPermission(2))
+                .requires(source -> source.hasPermission(EssenceCommandUtil.ADMIN_PERMISSION))
                 .executes(context -> showSummary(context.getSource()))
-                .then(
-                        Commands.literal("summary")
-                                .executes(context -> showSummary(context.getSource()))
-                )
-                .then(
-                        Commands.literal("stat")
-                                .then(
-                                        Commands.argument("stat", StringArgumentType.word())
-                                                .suggests(EssenceDebugCommands::suggestStats)
-                                                .executes(context -> showStat(
-                                                        context.getSource(),
-                                                        StringArgumentType.getString(context, "stat")
-                                                ))
-                                )
-                )
-                .then(
-                        Commands.literal("category")
-                                .then(
-                                        Commands.argument("category", StringArgumentType.word())
-                                                .suggests(EssenceDebugCommands::suggestCategories)
-                                                .executes(context -> showCategory(
-                                                        context.getSource(),
-                                                        StringArgumentType.getString(context, "category")
-                                                ))
-                                )
-                )
-                .then(
-                        Commands.literal("config")
-                                .executes(context -> showConfig(context.getSource()))
-                )
-                .then(
-                        Commands.literal("reloadconfig")
-                                .executes(context -> reloadConfig(context.getSource()))
-                )
-                .then(
-                        Commands.literal("milestones")
-                                .executes(context -> showMilestones(context.getSource()))
-                )
-                .then(
-                        Commands.literal("milestone")
-                                .then(
-                                        Commands.argument("milestone", StringArgumentType.string())
-                                                .suggests(EssenceDebugCommands::suggestMilestones)
-                                                .executes(context -> showMilestone(
-                                                        context.getSource(),
-                                                        StringArgumentType.getString(context, "milestone")
-                                                ))
-                                )
-                )
-                .then(
-                        Commands.literal("setmilestone")
-                                .then(
-                                        Commands.argument("milestone", StringArgumentType.string())
-                                                .suggests(EssenceDebugCommands::suggestMilestones)
-                                                .then(
-                                                        Commands.argument("complete", BoolArgumentType.bool())
-                                                                .executes(context -> setMilestone(
-                                                                        context.getSource(),
-                                                                        StringArgumentType.getString(context, "milestone"),
-                                                                        BoolArgumentType.getBool(context, "complete")
-                                                                ))
-                                                )
-                                )
-                )
-                .then(
-                        Commands.literal("equipment")
-                                .executes(context -> showEquipment(context.getSource()))
-                )
-                .then(
-                        Commands.literal("equipmentstats")
-                                .executes(context -> showEquipmentStats(context.getSource()))
-                )
-                .then(
-                        Commands.literal("gameplay")
-                                .executes(context -> showGameplay(context.getSource()))
-                )
-                .then(
-                        Commands.literal("mobility")
-                                .executes(context -> showMobility(context.getSource()))
-                )
-                .then(
-                        Commands.literal("damage")
-                                .executes(context -> showDamage(context.getSource()))
-                )
-                .then(
-                        Commands.literal("vitality")
-                                .executes(context -> showVitality(context.getSource()))
-                )
-                .then(
-                        Commands.literal("weapons")
-                                .executes(context -> showWeapons(context.getSource()))
-                )
-                .then(
-                        Commands.literal("gathering")
-                                .executes(context -> showGathering(context.getSource()))
-                )
-                .then(
-                        Commands.literal("tool")
-                                .executes(context -> showTool(context.getSource()))
-                )
-                .then(
-                        Commands.literal("statprofile")
-                                .then(
-                                        Commands.argument("stat", StringArgumentType.word())
-                                                .suggests(EssenceDebugCommands::suggestStats)
-                                                .executes(context -> showStatProfile(
-                                                        context.getSource(),
-                                                        StringArgumentType.getString(context, "stat")
-                                                ))
-                                )
-                )
-                .then(
-                        Commands.literal("baseline")
-                                .executes(context -> showBaselines(context.getSource()))
-                );
+                .then(Commands.literal("help").executes(context -> showHelp(context.getSource())))
+                .then(Commands.literal("summary").executes(context -> showSummary(context.getSource())))
+                .then(Commands.literal("equipment").executes(context -> showEquipment(context.getSource())))
+                .then(Commands.literal("item").executes(context -> showItem(context.getSource())))
+                .then(Commands.literal("baselines").executes(context -> showBaselines(context.getSource())))
+                .then(Commands.literal("offense").executes(context -> showOffense(context.getSource())))
+                .then(Commands.literal("defense").executes(context -> showDefense(context.getSource())))
+                .then(Commands.literal("vitality").executes(context -> showVitality(context.getSource())))
+                .then(Commands.literal("mobility").executes(context -> showMobility(context.getSource())))
+                .then(Commands.literal("gathering").executes(context -> showGathering(context.getSource())))
+                .then(Commands.literal("utility").executes(context -> showUtility(context.getSource())));
     }
 
-    private static int showSummary(
-            CommandSourceStack source
-    ) throws CommandSyntaxException {
+    static int showHelp(CommandSourceStack source) {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Essence Debug Commands"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug summary", "system/player diagnostic overview"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug equipment", "all active equipment profiles plus resolved stat applicability"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug item", "deep-dive the main-hand Ascendance item"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug baselines", "tier/archetype equipment baselines"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Gameplay categories"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug offense", "melee, ranged, magic, knockback, reflection"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug defense", "all resistance stats and last incoming-damage/status events"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug vitality", "health, regeneration, healing, hunger, breath"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug mobility", "movement, swimming, jumping, stepping, flight"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug gathering", "mining, Fortune, Looting, reach, XP gain"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug utility", "Luck, sneak speed, durability efficiency"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.muted("Stat investment/scaling/applicability is intentionally centralized at /essence stat <stat>."));
+        return 1;
+    }
+
+    private static int showSummary(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
-        PlayerEssenceData playerData = EssenceSavedData
-                .get(source.getServer())
-                .getPlayerData(player.getUUID());
+        PlayerEssenceData data = playerData(player);
 
-        long totalStored = 0L;
-        long totalEffective = 0L;
-        long totalCapacity = 0L;
-
+        long stored = 0L;
+        long effective = 0L;
+        long capacity = 0L;
         for (StatDefinition stat : EssenceStatRegistry.values()) {
-            StatInvestmentLimit limit = TierInvestmentPolicy.evaluate(playerData, stat);
-            totalStored = Math.addExact(totalStored, limit.storedInvestment());
-            totalEffective = Math.addExact(totalEffective, limit.effectiveInvestment());
-            totalCapacity = Math.addExact(totalCapacity, limit.investmentCap());
+            StatInvestmentLimit limit = TierInvestmentPolicy.evaluate(data, stat);
+            stored = Math.addExact(stored, limit.storedInvestment());
+            effective = Math.addExact(effective, limit.effectiveInvestment());
+            capacity = Math.addExact(capacity, limit.investmentCap());
         }
 
         EssenceServerConfig config = EssenceConfigManager.get();
-
-        final long finalTotalStored = totalStored;
-        final long finalTotalEffective = totalEffective;
-        final long finalTotalCapacity = totalCapacity;
-
-        source.sendSuccess(
-                () -> Component.literal("Essence Ascendance debug summary:"),
-                false
-        );
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Player: " + player.getGameProfile().getName()
-                                + " | Tier: " + playerData.getTier().displayName()
-                ),
-                false
-        );
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Investment: " + format(finalTotalEffective)
-                                + " effective / " + format(finalTotalCapacity)
-                                + " capacity (" + format(finalTotalStored) + " stored)"
-                ),
-                false
-        );
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Registries: "
-                                + EssenceStatRegistry.size() + " stats, "
-                                + EquipmentProfileRegistry.size() + " equipment profiles, "
-                                + EquipmentStatProviderRegistry.providers().size() + " equipment providers"
-                ),
-                false
-        );
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Balance profile: " + config.balanceProfile().displayName()
-                                + " [" + config.balanceProfile().id() + "]"
-                ),
-                false
-        );
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Essence Debug Summary"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Player", player.getGameProfile().getName()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Tier", data.getTier().displayName()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Investment",
+                EssenceCommandUtil.format(effective) + " / " + EssenceCommandUtil.format(capacity)
+                        + " effective (" + EssenceCommandUtil.format(stored) + " stored)"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Registries",
+                EssenceStatRegistry.size() + " stats, "
+                        + EquipmentProfileRegistry.size() + " equipment profiles, "
+                        + EquipmentStatProviderRegistry.providers().size() + " providers"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Balance profile",
+                config.balanceProfile().displayName() + " [" + config.balanceProfile().id() + "]"
+        ));
 
         AscendanceEvaluationResult evaluation = AscendanceEngine.evaluate(player);
         switch (evaluation.status()) {
-            case AVAILABLE -> source.sendSuccess(
-                    () -> Component.literal(
-                            "  Next tier: " + evaluation.nextTier().displayName()
-                                    + " | Ready: "
-                                    + (evaluation.progress().readyToAscend() ? "YES" : "NO")
-                    ),
-                    false
-            );
-            case MAX_TIER -> source.sendSuccess(
-                    () -> Component.literal("  Next tier: MAX TIER"),
-                    false
-            );
-            case CONFIGURATION_ERROR -> source.sendSuccess(
-                    () -> Component.literal("  Next tier: CONFIGURATION ERROR"),
-                    false
-            );
-        }
-
-        return 1;
-    }
-
-    private static int showStat(
-            CommandSourceStack source,
-            String statName
-    ) throws CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
-        StatDefinition stat = resolveStat(statName);
-        PlayerEssenceData playerData = EssenceSavedData
-                .get(source.getServer())
-                .getPlayerData(player.getUUID());
-
-        StatInvestmentLimit limit = TierInvestmentPolicy.evaluate(playerData, stat);
-        StatScalingResult scaling = StatScalingService.evaluate(playerData, stat);
-
-        source.sendSuccess(
-                () -> Component.literal("Stat Debug: " + stat.displayName()),
-                false
-        );
-        source.sendSuccess(
-                () -> Component.literal("  ID: " + stat.id()),
-                false
-        );
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Category: " + stat.category().name().toLowerCase(Locale.ROOT)
-                                + " | Essence: " + stat.essenceType().displayName()
-                                + " | Unit: " + stat.unit().name().toLowerCase(Locale.ROOT)
-                ),
-                false
-        );
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Investment: " + format(limit.effectiveInvestment())
-                                + " / " + format(limit.investmentCap())
-                                + " effective; " + format(limit.storedInvestment())
-                                + " stored; state " + limit.state()
-                ),
-                false
-        );
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Progression: " + formatPercent(scaling.progression())
-                ),
-                false
-        );
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Current bonus: " + formatBonus(stat, scaling.scaledBonus())
-                                + " | Tier ceiling: "
-                                + formatBonus(stat, scaling.currentTierMaximumBonus())
-                                + " | Transcendent max: "
-                                + formatBonus(stat, scaling.transcendentMaximumBonus())
-                ),
-                false
-        );
-
-        return showStatProfile(source, statName);
-    }
-
-    private static int showCategory(
-            CommandSourceStack source,
-            String categoryName
-    ) throws CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
-        StatCategory category = resolveCategory(categoryName);
-        CategoryDevelopment development = StatScalingService.evaluateCategory(player, category);
-
-        int count = 0;
-        for (StatDefinition stat : EssenceStatRegistry.values()) {
-            if (stat.category() == category) {
-                count++;
-            }
-        }
-
-        int finalCount = count;
-        source.sendSuccess(
-                () -> Component.literal(
-                        "Category Debug: " + category.name().toLowerCase(Locale.ROOT)
-                ),
-                false
-        );
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  " + finalCount + " registered stats | "
-                                + format(development.effectiveInvestment()) + " / "
-                                + format(development.currentCapacity()) + " effective | "
-                                + formatPercent(development.development()) + " developed"
-                ),
-                false
-        );
-
-        return 1;
-    }
-
-    private static int showConfig(CommandSourceStack source) {
-        EssenceServerConfig config = EssenceConfigManager.get();
-
-        source.sendSuccess(
-                () -> Component.literal("Essence Ascendance configuration:"),
-                false
-        );
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Path: " + EssenceConfigManager.getConfigPath().toAbsolutePath()
-                ),
-                false
-        );
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Config version: " + config.configVersion()
-                                + " | Balance profile: " + config.balanceProfile().displayName()
-                                + " [" + config.balanceProfile().id() + "]"
-                ),
-                false
-        );
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Definitions: " + config.statMaxBonuses().size() + " stat bonuses, "
-                                + config.equipmentBaselineConfig().tierBaselines().size()
-                                + " equipment tier baselines, "
-                                + config.milestones().size() + " milestones, "
-                                + config.advancements().size() + " Ascendance transitions"
-                ),
-                false
-        );
-
-        var harvestIssues = HarvestProgressionSafety.evaluate(config);
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Harvest progression safety: "
-                                + (harvestIssues.isEmpty()
-                                ? "PASS"
-                                : "WARNING (" + harvestIssues.size() + ")")
-                ),
-                false
-        );
-
-        for (HarvestProgressionSafety.Issue issue : harvestIssues) {
-            source.sendSuccess(
-                    () -> Component.literal(
-                            "    " + issue.fromTierId() + " -> " + issue.toTierId()
-                                    + ": configured level " + issue.configuredHarvestLevel()
-                                    + ", milestone requires at least "
-                                    + issue.requiredHarvestLevel()
-                    ),
-                    false
-            );
-        }
-
-        return 1;
-    }
-
-    private static int reloadConfig(CommandSourceStack source) {
-        EssenceConfigManager.reload();
-        source.sendSuccess(
-                () -> Component.literal("Reloaded Essence Ascendance configuration."),
-                false
-        );
-        return showConfig(source);
-    }
-
-    private static int showMilestones(
-            CommandSourceStack source
-    ) throws CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
-        EssenceServerConfig config = EssenceConfigManager.get();
-
-        source.sendSuccess(
-                () -> Component.literal("Configured milestones:"),
-                false
-        );
-
-        for (MilestoneDefinition milestone : config.milestones().values()) {
-            MilestoneProgress progress = evaluateMilestone(player, milestone);
-            source.sendSuccess(
-                    () -> Component.literal(
-                            "  " + milestone.displayName()
-                                    + " [" + milestone.id() + "]: "
-                                    + milestoneState(progress)
-                    ),
-                    false
-            );
-        }
-
-        return 1;
-    }
-
-    private static int showMilestone(
-            CommandSourceStack source,
-            String milestoneName
-    ) throws CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
-        MilestoneDefinition milestone = resolveMilestone(milestoneName);
-        MilestoneProgress progress = evaluateMilestone(player, milestone);
-
-        source.sendSuccess(
-                () -> Component.literal("Milestone Debug: " + milestone.displayName()),
-                false
-        );
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  ID: " + milestone.id()
-                                + " | Provider: " + milestone.providerId()
-                                + " | Target: " + milestone.target()
-                ),
-                false
-        );
-        source.sendSuccess(
-                () -> Component.literal("  State: " + milestoneState(progress)),
-                false
-        );
-
-        return 1;
-    }
-
-    private static int setMilestone(
-            CommandSourceStack source,
-            String milestoneName,
-            boolean complete
-    ) throws CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
-        MilestoneDefinition milestone = resolveMilestone(milestoneName);
-
-        if (!milestone.providerId().equals(MilestoneProviders.INTERNAL)) {
-            source.sendFailure(
-                    Component.literal(
-                            "Only INTERNAL milestones can be changed directly. "
-                                    + milestone.id() + " uses " + milestone.providerId()
+            case AVAILABLE -> EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.line(
+                            "Next tier",
+                            Component.literal(evaluation.nextTier().displayName() + " - ")
+                                    .withStyle(ChatFormatting.WHITE)
+                                    .append(evaluation.progress().readyToAscend()
+                                            ? EssenceCommandUtil.good("READY")
+                                            : EssenceCommandUtil.warn("NOT READY"))
                     )
             );
-            return 0;
+            case MAX_TIER -> EssenceCommandUtil.send(source, EssenceCommandUtil.line("Next tier", EssenceCommandUtil.good("MAX TIER")));
+            case CONFIGURATION_ERROR -> EssenceCommandUtil.send(source, EssenceCommandUtil.line("Next tier", EssenceCommandUtil.bad("CONFIGURATION ERROR")));
         }
 
-        ResourceLocation target = ResourceLocation.tryParse(milestone.target());
-        if (target == null) {
-            source.sendFailure(
-                    Component.literal("Milestone has invalid internal target: " + milestone.target())
-            );
-            return 0;
-        }
-
-        EssenceSavedData savedData = EssenceSavedData.get(player.server);
-        boolean changed = complete
-                ? savedData.completeInternalMilestone(player.getUUID(), target)
-                : savedData.revokeInternalMilestone(player.getUUID(), target);
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "Milestone " + milestone.displayName() + " is now "
-                                + (complete ? "COMPLETE" : "INCOMPLETE")
-                                + (changed ? "." : " (state was already set).")
-                ),
-                false
-        );
         return 1;
     }
 
-    private static int showEquipment(
-            CommandSourceStack source
-    ) throws CommandSyntaxException {
+    private static int showEquipment(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
-
-        source.sendSuccess(
-                () -> Component.literal("Active equipment profiles:"),
-                false
-        );
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Active Equipment"));
 
         showItemProfile(source, "Main hand", player.getItemInHand(InteractionHand.MAIN_HAND));
         showItemProfile(source, "Off hand", player.getItemInHand(InteractionHand.OFF_HAND));
-
         for (EquipmentSlot slot : EquipmentStatResolver.armorSlots()) {
-            showItemProfile(
-                    source,
-                    slot.getName(),
-                    player.getItemBySlot(slot)
-            );
+            showItemProfile(source, slot.getName(), player.getItemBySlot(slot));
         }
 
+        EquipmentStatState active = EquipmentStatResolver.evaluate(player);
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Resolved active stat applicability"));
+        if (active.values().isEmpty()) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.muted("  NONE"));
+            return 1;
+        }
+
+        for (StatCategory category : StatCategory.values()) {
+            boolean headingShown = false;
+            for (StatDefinition stat : EssenceStatRegistry.values()) {
+                if (stat.category() != category) {
+                    continue;
+                }
+                double strength = active.strength(stat);
+                if (strength <= 0.0) {
+                    continue;
+                }
+                if (!headingShown) {
+                    EssenceCommandUtil.send(
+                            source,
+                            Component.literal(EssenceCommandUtil.categoryName(category))
+                                    .withStyle(EssenceCommandUtil.categoryColor(category), ChatFormatting.BOLD)
+                    );
+                    headingShown = true;
+                }
+                EssenceCommandUtil.send(source, EssenceCommandUtil.line(stat.displayName(), EssenceCommandUtil.formatStrength(strength)));
+            }
+        }
         return 1;
     }
 
-    private static void showItemProfile(
-            CommandSourceStack source,
-            String label,
-            ItemStack stack
-    ) {
+    private static void showItemProfile(CommandSourceStack source, String label, ItemStack stack) {
         if (stack.isEmpty()) {
-            source.sendSuccess(
-                    () -> Component.literal("  " + label + ": EMPTY"),
-                    false
-            );
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(label, EssenceCommandUtil.muted("EMPTY")));
             return;
         }
 
-        EquipmentStatProfile profile = EquipmentStatResolver.inspectItem(stack);
+        EquipmentStatProfile statProfile = EquipmentStatResolver.inspectItem(stack);
         StringBuilder details = new StringBuilder();
-
-        for (EquipmentActivationType activation : profile.activations()) {
+        for (EquipmentActivationType activation : statProfile.activations()) {
             if (details.length() > 0) {
                 details.append(" | ");
             }
-            details.append(activation.name()).append(": ");
-            appendStrengths(details, profile.strengths(activation));
+            details.append(activation.name().toLowerCase(Locale.ROOT)).append(": ");
+            appendStrengths(details, statProfile.strengths(activation));
         }
-
         if (details.length() == 0) {
-            details.append("NO ESSENCE STAT PROFILE");
+            details.append("no Essence stat profile");
         }
 
-        String itemName = stack.getHoverName().getString();
-        String finalDetails = details.toString();
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  " + label + ": " + itemName + " -> " + finalDetails
-                ),
-                false
-        );
-    }
-
-    private static int showEquipmentStats(
-            CommandSourceStack source
-    ) throws CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
-        EquipmentStatState state = EquipmentStatResolver.evaluate(player);
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "Resolved active stats (worn armor + main hand; same-stat contexts merge by MAX):"
-                ),
-                false
-        );
-
-        if (state.values().isEmpty()) {
-            source.sendSuccess(
-                    () -> Component.literal("  NONE"),
-                    false
-            );
-            return 1;
-        }
-
-        for (Map.Entry<ResourceLocation, Double> entry : state.values().entrySet()) {
-            source.sendSuccess(
-                    () -> Component.literal(
-                            "  " + entry.getKey() + ": " + formatStrength(entry.getValue())
-                    ),
-                    false
-            );
-        }
-
-        return 1;
-    }
-
-    private static int showGameplay(
-            CommandSourceStack source
-    ) throws CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
-
-        /* Ensure command output reflects equipment/stat changes immediately. */
-        EquipmentAttributeService.sync(player);
-        EquipmentAttributeService.AppliedState state =
-                EquipmentAttributeService.evaluate(player);
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "Ascendance Gameplay Attribute Debug:"
-                ),
-                false
-        );
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Armor: +" + formatDecimal(state.armor())
-                                + " Ascendance | actual "
-                                + formatDecimal(player.getAttributeValue(Attributes.ARMOR))
-                                + " | Toughness: +"
-                                + formatDecimal(state.toughness())
-                                + " Ascendance | actual "
-                                + formatDecimal(player.getAttributeValue(Attributes.ARMOR_TOUGHNESS))
-                ),
-                false
-        );
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Melee: damage modifier "
-                                + formatSigned(state.meleeDamageModifier())
-                                + " | actual attack damage "
-                                + formatDecimal(player.getAttributeValue(Attributes.ATTACK_DAMAGE))
-                                + " | speed modifier "
-                                + formatSigned(state.meleeAttackSpeedModifier())
-                                + " | actual attack speed "
-                                + formatDecimal(player.getAttributeValue(Attributes.ATTACK_SPEED))
-                ),
-                false
-        );
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Attack knockback: +"
-                                + formatDecimal(state.attackKnockback())
-                                + " | actual "
-                                + formatDecimal(player.getAttributeValue(Attributes.ATTACK_KNOCKBACK))
-                                + " | Mining Speed: +"
-                                + formatPercent(state.miningSpeedFraction())
-                                + " | block-break multiplier "
-                                + formatDecimal(player.getAttributeValue(Attributes.BLOCK_BREAK_SPEED))
-                ),
-                false
-        );
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Max Health: +"
-                                + formatDecimal(state.maxHealthPoints() / 2.0)
-                                + " hearts | actual "
-                                + formatDecimal(player.getMaxHealth() / 2.0)
-                                + " hearts | Movement Speed: +"
-                                + formatPercent(state.movementSpeedFraction())
-                                + " | actual "
-                                + formatDecimal(player.getAttributeValue(Attributes.MOVEMENT_SPEED))
-                ),
-                false
-        );
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Knockback Resistance: +"
-                                + formatPercent(state.knockbackResistance())
-                                + " | Sneak Speed: +"
-                                + formatPercent(state.sneakSpeedFraction())
-                                + " | Step Height: +"
-                                + formatDecimal(state.stepHeightBlocks())
-                                + " blocks"
-                ),
-                false
-        );
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Reach: +"
-                                + formatDecimal(state.reachBlocks())
-                                + " blocks | actual block/entity range "
-                                + formatDecimal(player.getAttributeValue(Attributes.BLOCK_INTERACTION_RANGE))
-                                + "/"
-                                + formatDecimal(player.getAttributeValue(Attributes.ENTITY_INTERACTION_RANGE))
-                ),
-                false
-        );
-
-        return 1;
-    }
-
-    private static int showMobility(
-            CommandSourceStack source
-    ) throws CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
-
-        /* Ensure output reflects equipment/stat changes immediately. */
-        EquipmentMobilityService.sync(player);
-        EquipmentMobilityService.MobilityState state =
-                EquipmentMobilityService.evaluate(player);
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "Ascendance Mobility / Utility Debug:"
-                ),
-                false
-        );
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Swim Speed: +"
-                                + formatDecimal(state.swimSpeedPercent())
-                                + "% | actual water movement efficiency "
-                                + formatDecimal(state.waterMovementEfficiency())
-                ),
-                false
-        );
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Jump Height: +"
-                                + formatDecimal(state.jumpHeightPercent())
-                                + "% | actual jump strength "
-                                + formatDecimal(state.jumpStrength())
-                ),
-                false
-        );
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Flight Speed: +"
-                                + formatDecimal(state.flightSpeedPercent())
-                                + "% | ability fly speed "
-                                + formatDecimal(state.baselineFlightSpeed())
-                                + " -> "
-                                + formatDecimal(state.resolvedFlightSpeed())
-                                + " | mayfly "
-                                + (state.mayFly() ? "YES" : "NO")
-                                + " | flying "
-                                + (state.flying() ? "YES" : "NO")
-                ),
-                false
-        );
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Luck: +"
-                                + formatDecimal(state.luckBonus())
-                                + " | actual luck "
-                                + formatDecimal(state.actualLuck())
-                ),
-                false
-        );
-
-        return 1;
-    }
-
-    private static int showDamage(
-            CommandSourceStack source
-    ) throws CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
-
-        EquipmentDamageService.DamageStatState stats =
-                EquipmentDamageService.evaluateStats(player);
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "Ascendance Damage Debug:"
-                ),
-                false
-        );
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Resistances: melee "
-                                + formatDecimal(stats.meleeResistancePercent()) + "%"
-                                + " | ranged "
-                                + formatDecimal(stats.rangedResistancePercent()) + "%"
-                                + " | magic "
-                                + formatDecimal(stats.magicResistancePercent()) + "%"
-                ),
-                false
-        );
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Environment: fall "
-                                + formatDecimal(stats.fallResistancePercent()) + "%"
-                                + " | fire "
-                                + formatDecimal(stats.fireResistancePercent()) + "%"
-                                + " | explosion "
-                                + formatDecimal(stats.explosionResistancePercent()) + "%"
-                ),
-                false
-        );
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Damage Reflection: "
-                                + formatDecimal(stats.damageReflectionPercent()) + "%"
-                ),
-                false
-        );
-
-        EquipmentDamageService.lastDamage(player).ifPresentOrElse(
-                evaluation -> {
-                    source.sendSuccess(
-                            () -> Component.literal(
-                                    "  Last hit: " + evaluation.category()
-                                            + " | incoming "
-                                            + damageValue(evaluation.incomingDamage())
-                                            + " -> after Ascendance resistance "
-                                            + damageValue(evaluation.resolvedIncomingDamage())
-                                            + " ("
-                                            + formatDecimal(evaluation.resistancePercent())
-                                            + "% resistance)"
-                            ),
-                            false
-                    );
-
-                    source.sendSuccess(
-                            () -> Component.literal(
-                                    "  Last result: actual health lost "
-                                            + damageValue(evaluation.actualHealthDamage())
-                                            + " | reflected "
-                                            + damageValue(evaluation.reflectedDamage())
-                                            + " @ "
-                                            + formatDecimal(evaluation.reflectionPercent())
-                                            + "%"
-                            ),
-                            false
-                    );
-                },
-                () -> source.sendSuccess(
-                        () -> Component.literal(
-                                "  Last hit: NONE RECORDED"
-                        ),
-                        false
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        label,
+                        stack.getHoverName().getString() + " -> " + details
                 )
         );
-
-        return 1;
     }
 
-    private static String damageValue(float value) {
-        if (value < 0.0F) {
-            return "N/A";
-        }
-        return formatDecimal(value);
-    }
-
-    private static int showVitality(
-            CommandSourceStack source
-    ) throws CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
-
-        EquipmentVitalityService.VitalityRuntimeSnapshot snapshot =
-                EquipmentVitalityService.runtimeSnapshot(player);
-
-        EquipmentVitalityService.VitalityStatState stats =
-                snapshot.stats();
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "Ascendance Vitality Debug:"
-                ),
-                false
-        );
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Health Regeneration: "
-                                + formatDecimal(
-                                stats.healthRegenerationHeartsPerSecond()
-                        )
-                                + " hearts/sec | last tick restored "
-                                + formatDecimal(
-                                snapshot.lastPassiveRegenHealthPoints()
-                        )
-                                + " health points"
-                ),
-                false
-        );
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Healing Effectiveness: +"
-                                + formatDecimal(
-                                stats.healingEffectivenessPercent()
-                        )
-                                + "% | Health "
-                                + formatDecimal(snapshot.health())
-                                + "/"
-                                + formatDecimal(snapshot.maxHealth())
-                ),
-                false
-        );
-
-        EquipmentVitalityService.lastHealing(player).ifPresentOrElse(
-                healing -> source.sendSuccess(
-                        () -> Component.literal(
-                                "  Last heal: "
-                                        + formatDecimal(
-                                        healing.requestedHealing()
-                                )
-                                        + " -> "
-                                        + formatDecimal(
-                                        healing.resolvedHealing()
-                                )
-                                        + " | bypass "
-                                        + healing.bypassReason()
-                        ),
-                        false
-                ),
-                () -> source.sendSuccess(
-                        () -> Component.literal(
-                                "  Last heal: NONE RECORDED"
-                        ),
-                        false
-                )
-        );
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Hunger Efficiency: "
-                                + formatDecimal(
-                                stats.hungerEfficiencyPercent()
-                        )
-                                + "% | food/saturation/exhaustion "
-                                + snapshot.foodLevel()
-                                + "/"
-                                + formatDecimal(snapshot.saturationLevel())
-                                + "/"
-                                + formatDecimal(snapshot.exhaustionLevel())
-                ),
-                false
-        );
-
-        EquipmentVitalityService.lastExhaustion(player).ifPresentOrElse(
-                exhaustion -> source.sendSuccess(
-                        () -> Component.literal(
-                                "  Last exhaustion: "
-                                        + formatDecimal(
-                                        exhaustion.requestedExhaustion()
-                                )
-                                        + " -> "
-                                        + formatDecimal(
-                                        exhaustion.resolvedExhaustion()
-                                )
-                                        + " ("
-                                        + formatDecimal(
-                                        exhaustion.hungerEfficiencyPercent()
-                                )
-                                        + "% reduced)"
-                        ),
-                        false
-                ),
-                () -> source.sendSuccess(
-                        () -> Component.literal(
-                                "  Last exhaustion: NONE RECORDED"
-                        ),
-                        false
-                )
-        );
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Breath Hold: +"
-                                + formatDecimal(stats.breathHoldSeconds())
-                                + " sec | estimated total "
-                                + formatDecimal(
-                                snapshot.estimatedTotalBreathSeconds()
-                        )
-                                + " sec | air "
-                                + snapshot.airSupply()
-                                + "/"
-                                + snapshot.maxAirSupply()
-                                + " | last refund "
-                                + snapshot.lastAirRefund()
-                ),
-                false
-        );
-
-        double statusDurationMultiplier = Math.max(
-                0.0,
-                1.0 - stats.statusResistancePercent() / 100.0
-        );
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Status Resistance: "
-                                + formatDecimal(
-                                stats.statusResistancePercent()
-                        )
-                                + "% | harmful duration x"
-                                + formatDecimal(statusDurationMultiplier)
-                ),
-                false
-        );
-
-        EquipmentVitalityService.lastStatusEffect(player).ifPresentOrElse(
-                effect -> source.sendSuccess(
-                        () -> Component.literal(
-                                "  Last harmful effect: "
-                                        + effect.effectDescriptionId()
-                                        + " | "
-                                        + formatDecimal(
-                                        effect.originalDurationTicks() / 20.0
-                                )
-                                        + " sec -> "
-                                        + formatDecimal(
-                                        effect.resolvedDurationTicks() / 20.0
-                                )
-                                        + " sec"
-                        ),
-                        false
-                ),
-                () -> source.sendSuccess(
-                        () -> Component.literal(
-                                "  Last harmful effect: NONE RECORDED"
-                        ),
-                        false
-                )
-        );
-
-        return 1;
-    }
-
-    private static int showWeapons(
-            CommandSourceStack source
-    ) throws CommandSyntaxException {
+    private static int showItem(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         ItemStack stack = player.getMainHandItem();
 
-        if (stack.isEmpty()
-                || !(stack.getItem() instanceof EquipmentProfileItem profileItem)) {
-            source.sendFailure(
-                    Component.literal(
-                            "Main hand is not a first-party Ascendance equipment item."
-                    )
-            );
-            return 0;
-        }
-
-        ResourceLocation profileId = profileItem.equipmentProfileId();
-
-        if (profileId.equals(EquipmentProfiles.RANGED_WEAPON.id())) {
-            EquipmentWeaponService.RangedState state =
-                    EquipmentWeaponService.evaluateRanged(player, stack);
-
-            source.sendSuccess(
-                    () -> Component.literal(
-                            "Ascendance Ranged Weapon Debug: "
-                                    + stack.getHoverName().getString()
-                    ),
-                    false
-            );
-
-            source.sendSuccess(
-                    () -> Component.literal(
-                            "  Damage: baseline "
-                                    + formatDecimal(state.baselineDamage())
-                                    + " -> resolved "
-                                    + formatDecimal(state.finalDamage())
-                    ),
-                    false
-            );
-
-            source.sendSuccess(
-                    () -> Component.literal(
-                            "  Draw rate: baseline "
-                                    + formatDecimal(state.baselineAttackSpeed())
-                                    + "/sec -> resolved "
-                                    + formatDecimal(state.finalAttackSpeed())
-                                    + "/sec | full draw "
-                                    + state.fullDrawTicks()
-                                    + " ticks"
-                    ),
-                    false
-            );
-
-            source.sendSuccess(
-                    () -> Component.literal(
-                            "  Projectile Speed: +"
-                                    + formatDecimal(state.projectileSpeedPercent())
-                                    + "% | velocity x"
-                                    + formatDecimal(state.projectileSpeedMultiplier())
-                    ),
-                    false
-            );
-
-            EquipmentWeaponService.lastRangedShot(player).ifPresentOrElse(
-                    shot -> source.sendSuccess(
-                            () -> Component.literal(
-                                    "  Last shot: held "
-                                            + shot.actualUseTicks()
-                                            + " ticks -> vanilla-equivalent "
-                                            + shot.syntheticUseTicks()
-                                            + " ticks | velocity "
-                                            + formatDecimal(shot.vanillaVelocity())
-                                            + " -> "
-                                            + formatDecimal(shot.resolvedVelocity())
-                                            + " | arrow base damage "
-                                            + (shot.resolvedArrowBaseDamage() < 0.0
-                                            ? "N/A"
-                                            : formatDecimal(shot.resolvedArrowBaseDamage()))
-                            ),
-                            false
-                    ),
-                    () -> source.sendSuccess(
-                            () -> Component.literal(
-                                    "  Last shot: NONE RECORDED"
-                            ),
-                            false
-                    )
-            );
-
-            return 1;
-        }
-
-        if (profileId.equals(EquipmentProfiles.MAGIC_FOCUS.id())) {
-            EquipmentWeaponService.MagicState state =
-                    EquipmentWeaponService.evaluateMagic(player, stack);
-
-            source.sendSuccess(
-                    () -> Component.literal(
-                            "Ascendance Magic Focus Debug: "
-                                    + stack.getHoverName().getString()
-                    ),
-                    false
-            );
-
-            source.sendSuccess(
-                    () -> Component.literal(
-                            "  Damage: baseline "
-                                    + formatDecimal(state.baselineDamage())
-                                    + " -> resolved "
-                                    + formatDecimal(state.finalDamage())
-                    ),
-                    false
-            );
-
-            source.sendSuccess(
-                    () -> Component.literal(
-                            "  Cast rate: baseline "
-                                    + formatDecimal(state.baselineCastSpeed())
-                                    + "/sec -> resolved "
-                                    + formatDecimal(state.finalCastSpeed())
-                                    + "/sec | cooldown "
-                                    + state.castTicks()
-                                    + " ticks"
-                    ),
-                    false
-            );
-
-            source.sendSuccess(
-                    () -> Component.literal(
-                            "  Neutral focus range: "
-                                    + formatDecimal(EquipmentWeaponService.MAGIC_RANGE_BLOCKS)
-                                    + " blocks"
-                    ),
-                    false
-            );
-
-            EquipmentWeaponService.lastMagicCast(player).ifPresentOrElse(
-                    cast -> source.sendSuccess(
-                            () -> Component.literal(
-                                    "  Last cast: "
-                                            + (cast.castPerformed() ? "CAST" : "BLOCKED")
-                                            + " | target "
-                                            + cast.targetName()
-                                            + " | distance "
-                                            + formatDecimal(cast.targetDistance())
-                                            + " | attempted damage "
-                                            + formatDecimal(cast.attemptedDamage())
-                                            + " | damage applied "
-                                            + (cast.damageApplied() ? "YES" : "NO")
-                            ),
-                            false
-                    ),
-                    () -> source.sendSuccess(
-                            () -> Component.literal(
-                                    "  Last cast: NONE RECORDED"
-                            ),
-                            false
-                    )
-            );
-
-            return 1;
-        }
-
-        source.sendFailure(
-                Component.literal(
-                        "Main-hand Ascendance item is not the ranged weapon or magic focus."
-                )
-        );
-        return 0;
-    }
-
-
-    private static int showGathering(
-            CommandSourceStack source
-    ) throws CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
-        EquipmentGatheringService.GatheringState state =
-                EquipmentGatheringService.evaluate(player);
-
-        source.sendSuccess(
-                () -> Component.literal("Gathering / Utility Gameplay Debug:"),
-                false
-        );
-        source.sendSuccess(
-                () -> Component.literal("  Main hand: " + state.mainHandName()),
-                false
-        );
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Fortune: "
-                                + formatDecimal(state.fortuneEarnedLevels())
-                                + " earned levels -> virtual Fortune "
-                                + state.fortuneVirtualLevel()
-                ),
-                false
-        );
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Looting: "
-                                + formatDecimal(state.lootingEarnedLevels())
-                                + " earned levels -> virtual Looting "
-                                + state.lootingVirtualLevel()
-                ),
-                false
-        );
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Experience Gain: +"
-                                + formatDecimal(state.experienceGainPercent())
-                                + "%"
-                ),
-                false
-        );
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Main-hand Durability Efficiency: "
-                                + formatDecimal(state.durabilityEfficiencyPercent())
-                                + "%"
-                ),
-                false
-        );
-
-        EquipmentGatheringService.lastEnchantmentQuery(player).ifPresentOrElse(
-                query -> source.sendSuccess(
-                        () -> Component.literal(
-                                "  Last virtual enchantment query: "
-                                        + query.enchantment()
-                                        + " | vanilla " + query.vanillaLevel()
-                                        + " | Essence " + query.virtualLevel()
-                                        + " | resolved " + query.resolvedLevel()
-                                        + " | " + query.queryPath()
-                        ),
-                        false
-                ),
-                () -> source.sendSuccess(
-                        () -> Component.literal("  Last virtual enchantment query: NONE RECORDED"),
-                        false
-                )
-        );
-
-        EquipmentGatheringService.lastExperienceGain(player).ifPresentOrElse(
-                xp -> source.sendSuccess(
-                        () -> Component.literal(
-                                "  Last XP gain: "
-                                        + xp.requested() + " -> " + xp.resolved()
-                                        + " | +" + formatDecimal(xp.bonusPercent()) + "%"
-                                        + " | carry " + formatDecimal(xp.fractionalBonusCarry())
-                        ),
-                        false
-                ),
-                () -> source.sendSuccess(
-                        () -> Component.literal("  Last XP gain: NONE RECORDED"),
-                        false
-                )
-        );
-
-        EquipmentGatheringService.lastDurabilityEvent(player).ifPresentOrElse(
-                durability -> source.sendSuccess(
-                        () -> Component.literal(
-                                "  Last durability: "
-                                        + durability.itemName()
-                                        + " | " + durability.requested()
-                                        + " -> " + durability.resolved()
-                                        + " | " + formatDecimal(durability.efficiencyPercent()) + "% efficient"
-                                        + " | carry " + formatDecimal(durability.fractionalDamageCarry())
-                                        + " | " + durability.context()
-                        ),
-                        false
-                ),
-                () -> source.sendSuccess(
-                        () -> Component.literal("  Last durability: NONE RECORDED"),
-                        false
-                )
-        );
-
-        return 1;
-    }
-
-    private static int showTool(
-            CommandSourceStack source
-    ) throws CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
-        ItemStack stack = player.getMainHandItem();
-
-        if (stack.isEmpty()
-                || !(stack.getItem() instanceof EquipmentProfileItem profileItem)) {
-            source.sendFailure(
-                    Component.literal(
-                            "Main hand is not a first-party Ascendance equipment item."
-                    )
-            );
+        if (stack.isEmpty() || !(stack.getItem() instanceof EquipmentProfileItem profileItem)) {
+            EssenceCommandUtil.fail(source, "Main hand is not a first-party Ascendance equipment item.");
             return 0;
         }
 
         EquipmentProfileDefinition profile = EquipmentProfileRegistry
                 .get(profileItem.equipmentProfileId())
                 .orElse(null);
-
-        if (profile == null
-                || profile.baselineMultiplier(EquipmentBaselineProperty.MINING_SPEED) <= 0.0
-                || profile.statStrength(
-                        EquipmentActivationType.HELD,
-                        EssenceStats.MINING_SPEED
-                ) <= 0.0) {
-            source.sendFailure(
-                    Component.literal(
-                            "Main-hand Ascendance item is not a mining tool profile."
-                    )
-            );
+        if (profile == null) {
+            EssenceCommandUtil.fail(source, "Main-hand item references an unknown equipment profile: " + profileItem.equipmentProfileId());
             return 0;
         }
 
-        PlayerEssenceData playerData = EssenceSavedData
-                .get(player.server)
-                .getPlayerData(player.getUUID());
+        PlayerEssenceData data = playerData(player);
+        EquipmentBaselineResult baseline = EquipmentBaselineService.evaluate(data, profile.id());
+        EquipmentStatProfile statProfile = EquipmentStatResolver.inspectItem(stack);
 
-        EquipmentBaselineResult baseline = EquipmentBaselineService.evaluate(
-                playerData,
-                profile.id()
-        );
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Item Debug - " + stack.getHoverName().getString()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Profile", profile.displayName() + " [" + profile.id() + "]"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Tier", data.getTier().displayName()));
 
-        double applicability = profile.statStrength(
-                EquipmentActivationType.HELD,
-                EssenceStats.MINING_SPEED
-        );
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Baseline"));
+        boolean anyBaseline = false;
+        for (EquipmentBaselineProperty property : EquipmentBaselineProperty.values()) {
+            if (profile.baselineMultiplier(property) <= 0.0) {
+                continue;
+            }
+            anyBaseline = true;
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.line(
+                            property.name().toLowerCase(Locale.ROOT),
+                            EssenceCommandUtil.formatDecimal(baseline.value(property))
+                    )
+            );
+        }
+        if (!anyBaseline) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.muted("  No physical baseline properties."));
+        }
 
-        StatScalingResult miningScaling = StatScalingService.evaluate(
-                playerData,
-                EssenceStats.MINING_SPEED
-        );
-
-        double resolvedMiningSpeed = EquipmentValueService.applyPercentBonus(
-                playerData,
-                EssenceStats.MINING_SPEED,
-                applicability,
-                baseline.miningSpeed()
-        );
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "Ascendance Tool Debug: " + stack.getHoverName().getString()
-                ),
-                false
-        );
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Profile: " + profile.displayName() + " [" + profile.id() + "]"
-                                + " | Tier: " + playerData.getTier().displayName()
-                ),
-                false
-        );
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Harvest level: " + baseline.harvestLevel()
-                                + " | Base mining speed: " + formatDecimal(baseline.miningSpeed())
-                ),
-                false
-        );
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Mining Speed investment bonus: "
-                                + formatBonus(
-                                EssenceStats.MINING_SPEED,
-                                miningScaling.scaledBonus()
-                        )
-                                + " @ " + formatStrength(applicability)
-                                + " applicability | Resolved speed: "
-                                + formatDecimal(resolvedMiningSpeed)
-                ),
-                false
-        );
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Melee archetype baseline: damage "
-                                + formatDecimal(baseline.meleeDamage())
-                                + ", attack speed "
-                                + formatDecimal(baseline.meleeAttackSpeed())
-                ),
-                false
-        );
-
-        return 1;
-    }
-
-    private static int showStatProfile(
-            CommandSourceStack source,
-            String statName
-    ) throws CommandSyntaxException {
-        StatDefinition stat = resolveStat(statName);
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "Built-in equipment applicability for " + stat.displayName() + ":"
-                ),
-                false
-        );
-
-        boolean found = false;
-        for (EquipmentProfileDefinition profile : EquipmentProfileRegistry.values()) {
-            for (EquipmentActivationType activation : profile.activationTypes()) {
-                double strength = profile.statStrength(activation, stat);
-                if (strength <= 0.0) {
-                    continue;
-                }
-
-                found = true;
-                source.sendSuccess(
-                        () -> Component.literal(
-                                "  " + profile.displayName()
-                                        + " [" + profile.id() + "]: "
-                                        + formatStrength(strength)
-                                        + " when " + activation
-                        ),
-                        false
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Item stat applicability"));
+        if (statProfile.activations().isEmpty()) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.muted("  NONE"));
+        } else {
+            for (EquipmentActivationType activation : statProfile.activations()) {
+                StringBuilder strengths = new StringBuilder();
+                appendStrengths(strengths, statProfile.strengths(activation));
+                EssenceCommandUtil.send(
+                        source,
+                        EssenceCommandUtil.line(activation.name().toLowerCase(Locale.ROOT), strengths.toString())
                 );
             }
         }
 
-        if (!found) {
-            source.sendSuccess(
-                    () -> Component.literal("  No built-in profile uses this stat."),
-                    false
+        EquipmentAttributeService.sync(player);
+        EquipmentAttributeService.AppliedState attributes = EquipmentAttributeService.evaluate(player);
+
+        if (profile.baselineMultiplier(EquipmentBaselineProperty.MELEE_DAMAGE) > 0.0) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.section("Melee runtime"));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Baseline damage / speed",
+                    EssenceCommandUtil.formatDecimal(baseline.meleeDamage()) + " / "
+                            + EssenceCommandUtil.formatDecimal(baseline.meleeAttackSpeed())
+            ));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Actual player damage / speed",
+                    EssenceCommandUtil.formatDecimal(player.getAttributeValue(Attributes.ATTACK_DAMAGE)) + " / "
+                            + EssenceCommandUtil.formatDecimal(player.getAttributeValue(Attributes.ATTACK_SPEED))
+            ));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Ascendance attack knockback",
+                    EssenceCommandUtil.formatDecimal(attributes.attackKnockback())
+            ));
+        }
+
+        if (profile.baselineMultiplier(EquipmentBaselineProperty.MINING_SPEED) > 0.0) {
+            double applicability = profile.statStrength(EquipmentActivationType.HELD, EssenceStats.MINING_SPEED);
+            double resolved = EquipmentValueService.applyPercentBonus(
+                    data,
+                    EssenceStats.MINING_SPEED,
+                    applicability,
+                    baseline.miningSpeed()
             );
+            EssenceCommandUtil.send(source, EssenceCommandUtil.section("Tool runtime"));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Harvest level", Integer.toString(baseline.harvestLevel())));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Mining speed",
+                    EssenceCommandUtil.formatDecimal(baseline.miningSpeed()) + " -> "
+                            + EssenceCommandUtil.formatDecimal(resolved)
+            ));
+        }
+
+        if (profile.id().equals(EquipmentProfiles.RANGED_WEAPON.id())) {
+            showRangedRuntime(source, player, stack);
+        }
+
+        if (profile.id().equals(EquipmentProfiles.MAGIC_FOCUS.id())) {
+            showMagicRuntime(source, player, stack);
         }
 
         return 1;
     }
 
-    private static int showBaselines(
-            CommandSourceStack source
-    ) throws CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
+    private static void showRangedRuntime(CommandSourceStack source, ServerPlayer player, ItemStack stack) {
+        EquipmentWeaponService.RangedState state = EquipmentWeaponService.evaluateRanged(player, stack);
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Ranged runtime"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Damage",
+                EssenceCommandUtil.formatDecimal(state.baselineDamage()) + " -> " + EssenceCommandUtil.formatDecimal(state.finalDamage())
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Draw rate",
+                EssenceCommandUtil.formatDecimal(state.baselineAttackSpeed()) + "/sec -> "
+                        + EssenceCommandUtil.formatDecimal(state.finalAttackSpeed()) + "/sec ("
+                        + state.fullDrawTicks() + " ticks)"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Projectile speed",
+                "+" + EssenceCommandUtil.formatDecimal(state.projectileSpeedPercent()) + "% | velocity x"
+                        + EssenceCommandUtil.formatDecimal(state.projectileSpeedMultiplier())
+        ));
 
-        source.sendSuccess(
-                () -> Component.literal(
-                        "Tier/archetype equipment baselines for "
-                                + EssenceSavedData.get(player.server)
-                                .getPlayerData(player.getUUID())
-                                .getTier()
-                                .displayName()
-                                + ":"
+        EquipmentWeaponService.lastRangedShot(player).ifPresentOrElse(
+                shot -> EssenceCommandUtil.send(
+                        source,
+                        EssenceCommandUtil.line(
+                                "Last shot",
+                                "held " + shot.actualUseTicks() + " ticks -> vanilla-equivalent "
+                                        + shot.syntheticUseTicks() + " | velocity "
+                                        + EssenceCommandUtil.formatDecimal(shot.vanillaVelocity()) + " -> "
+                                        + EssenceCommandUtil.formatDecimal(shot.resolvedVelocity())
+                                        + " | arrow base damage "
+                                        + (shot.resolvedArrowBaseDamage() < 0.0
+                                        ? "N/A"
+                                        : EssenceCommandUtil.formatDecimal(shot.resolvedArrowBaseDamage()))
+                        )
                 ),
-                false
+                () -> EssenceCommandUtil.send(source, EssenceCommandUtil.muted("  Last shot: NONE RECORDED"))
         );
+    }
+
+    private static void showMagicRuntime(CommandSourceStack source, ServerPlayer player, ItemStack stack) {
+        EquipmentWeaponService.MagicState state = EquipmentWeaponService.evaluateMagic(player, stack);
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Magic runtime"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Damage",
+                EssenceCommandUtil.formatDecimal(state.baselineDamage()) + " -> " + EssenceCommandUtil.formatDecimal(state.finalDamage())
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Cast rate",
+                EssenceCommandUtil.formatDecimal(state.baselineCastSpeed()) + "/sec -> "
+                        + EssenceCommandUtil.formatDecimal(state.finalCastSpeed()) + "/sec ("
+                        + state.castTicks() + " tick cooldown)"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Neutral range",
+                EssenceCommandUtil.formatDecimal(EquipmentWeaponService.MAGIC_RANGE_BLOCKS) + " blocks"
+        ));
+
+        EquipmentWeaponService.lastMagicCast(player).ifPresentOrElse(
+                cast -> EssenceCommandUtil.send(
+                        source,
+                        EssenceCommandUtil.line(
+                                "Last cast",
+                                (cast.castPerformed() ? "CAST" : "BLOCKED")
+                                        + " | target " + cast.targetName()
+                                        + " | distance " + EssenceCommandUtil.formatDecimal(cast.targetDistance())
+                                        + " | attempted damage " + EssenceCommandUtil.formatDecimal(cast.attemptedDamage())
+                                        + " | applied " + (cast.damageApplied() ? "YES" : "NO")
+                        )
+                ),
+                () -> EssenceCommandUtil.send(source, EssenceCommandUtil.muted("  Last cast: NONE RECORDED"))
+        );
+    }
+
+    private static int showBaselines(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        PlayerEssenceData data = playerData(player);
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Equipment Baselines - " + data.getTier().displayName()));
 
         for (EquipmentProfileDefinition profile : EquipmentProfileRegistry.values()) {
-            EquipmentBaselineResult baseline = EquipmentBaselineService.evaluate(
-                    player,
-                    profile.id()
-            );
-
+            EquipmentBaselineResult baseline = EquipmentBaselineService.evaluate(player, profile.id());
             StringBuilder values = new StringBuilder();
             for (EquipmentBaselineProperty property : EquipmentBaselineProperty.values()) {
                 if (profile.baselineMultiplier(property) <= 0.0) {
@@ -1545,146 +409,462 @@ public final class EssenceDebugCommands {
                 }
                 values.append(property.name().toLowerCase(Locale.ROOT))
                         .append('=')
-                        .append(formatDecimal(baseline.value(property)));
+                        .append(EssenceCommandUtil.formatDecimal(baseline.value(property)));
             }
-
-            source.sendSuccess(
-                    () -> Component.literal(
-                            "  " + profile.displayName() + " [" + profile.id() + "]: " + values
-                    ),
-                    false
-            );
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(profile.displayName(), values.toString()));
         }
 
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Tier harvest capability level: "
-                                + EssenceConfigManager.get()
-                                .equipmentBaselineConfig()
-                                .baselineFor(
-                                        EssenceSavedData.get(player.server)
-                                                .getPlayerData(player.getUUID())
-                                                .getTier()
-                                )
-                                .harvestLevel()
-                ),
-                false
-        );
-        source.sendSuccess(
-                () -> Component.literal(
-                        "  Armor slot weights: HEAD " + formatStrength(ArmorStatWeights.weightFor(EquipmentSlot.HEAD))
-                                + ", CHEST " + formatStrength(ArmorStatWeights.weightFor(EquipmentSlot.CHEST))
-                                + ", LEGS " + formatStrength(ArmorStatWeights.weightFor(EquipmentSlot.LEGS))
-                                + ", FEET " + formatStrength(ArmorStatWeights.weightFor(EquipmentSlot.FEET))
-                ),
-                false
-        );
-
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Tier harvest capability",
+                Integer.toString(EssenceConfigManager.get()
+                        .equipmentBaselineConfig()
+                        .baselineFor(data.getTier())
+                        .harvestLevel())
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Armor coverage weights",
+                "head " + EssenceCommandUtil.formatStrength(ArmorStatWeights.weightFor(EquipmentSlot.HEAD))
+                        + ", chest " + EssenceCommandUtil.formatStrength(ArmorStatWeights.weightFor(EquipmentSlot.CHEST))
+                        + ", legs " + EssenceCommandUtil.formatStrength(ArmorStatWeights.weightFor(EquipmentSlot.LEGS))
+                        + ", feet " + EssenceCommandUtil.formatStrength(ArmorStatWeights.weightFor(EquipmentSlot.FEET))
+        ));
         return 1;
     }
 
-    private static MilestoneProgress evaluateMilestone(
-            ServerPlayer player,
-            MilestoneDefinition milestone
-    ) {
-        return MilestoneService.evaluate(
-                player,
-                MilestoneRequirement.milestone(milestone.id())
+    private static int showOffense(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        showCategoryHeaderAndStats(source, player, StatCategory.OFFENSE);
+
+        EquipmentAttributeService.sync(player);
+        EquipmentAttributeService.AppliedState attributes = EquipmentAttributeService.evaluate(player);
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Runtime"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Melee",
+                "damage modifier " + EssenceCommandUtil.formatSigned(attributes.meleeDamageModifier())
+                        + " | actual damage " + EssenceCommandUtil.formatDecimal(player.getAttributeValue(Attributes.ATTACK_DAMAGE))
+                        + " | speed modifier " + EssenceCommandUtil.formatSigned(attributes.meleeAttackSpeedModifier())
+                        + " | actual speed " + EssenceCommandUtil.formatDecimal(player.getAttributeValue(Attributes.ATTACK_SPEED))
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Attack knockback",
+                "+" + EssenceCommandUtil.formatDecimal(attributes.attackKnockback())
+                        + " | actual " + EssenceCommandUtil.formatDecimal(player.getAttributeValue(Attributes.ATTACK_KNOCKBACK))
+        ));
+
+        ItemStack held = player.getMainHandItem();
+        if (usesProfile(held, EquipmentProfiles.RANGED_WEAPON.id())) {
+            EquipmentWeaponService.RangedState ranged = EquipmentWeaponService.evaluateRanged(player, held);
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Ranged",
+                    "damage " + EssenceCommandUtil.formatDecimal(ranged.finalDamage())
+                            + " | draw " + EssenceCommandUtil.formatDecimal(ranged.finalAttackSpeed()) + "/sec"
+                            + " | projectile +" + EssenceCommandUtil.formatDecimal(ranged.projectileSpeedPercent()) + "%"
+            ));
+        }
+        if (usesProfile(held, EquipmentProfiles.MAGIC_FOCUS.id())) {
+            EquipmentWeaponService.MagicState magic = EquipmentWeaponService.evaluateMagic(player, held);
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Magic",
+                    "damage " + EssenceCommandUtil.formatDecimal(magic.finalDamage())
+                            + " | cast " + EssenceCommandUtil.formatDecimal(magic.finalCastSpeed()) + "/sec"
+            ));
+        }
+
+        EquipmentDamageService.DamageStatState damage = EquipmentDamageService.evaluateStats(player);
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Damage reflection",
+                EssenceCommandUtil.formatDecimal(damage.damageReflectionPercent()) + "%"
+        ));
+        EquipmentDamageService.lastDamage(player).ifPresent(
+                last -> EssenceCommandUtil.send(
+                        source,
+                        EssenceCommandUtil.line(
+                                "Last reflected result",
+                                "health lost " + damageValue(last.actualHealthDamage())
+                                        + " | reflected " + damageValue(last.reflectedDamage())
+                                        + " @ " + EssenceCommandUtil.formatDecimal(last.reflectionPercent()) + "%"
+                        )
+                )
         );
+        return 1;
     }
 
-    private static StatDefinition resolveStat(
-            String input
-    ) throws CommandSyntaxException {
-        ResourceLocation id = parseId(input);
-        if (id == null) {
-            throw UNKNOWN_STAT.create(input);
+    private static int showDefense(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        showCategoryHeaderAndStats(source, player, StatCategory.DEFENSE);
+
+        EquipmentDamageService.DamageStatState stats = EquipmentDamageService.evaluateStats(player);
+        EquipmentAttributeService.sync(player);
+        EquipmentAttributeService.AppliedState attributes = EquipmentAttributeService.evaluate(player);
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Runtime"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Physical defense",
+                "Ascendance armor +" + EssenceCommandUtil.formatDecimal(attributes.armor())
+                        + " | actual " + EssenceCommandUtil.formatDecimal(player.getAttributeValue(Attributes.ARMOR))
+                        + " | Ascendance toughness +" + EssenceCommandUtil.formatDecimal(attributes.toughness())
+                        + " | actual " + EssenceCommandUtil.formatDecimal(player.getAttributeValue(Attributes.ARMOR_TOUGHNESS))
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Combat resistances",
+                "melee " + EssenceCommandUtil.formatDecimal(stats.meleeResistancePercent()) + "%"
+                        + " | ranged " + EssenceCommandUtil.formatDecimal(stats.rangedResistancePercent()) + "%"
+                        + " | magic " + EssenceCommandUtil.formatDecimal(stats.magicResistancePercent()) + "%"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Environmental resistances",
+                "fall " + EssenceCommandUtil.formatDecimal(stats.fallResistancePercent()) + "%"
+                        + " | fire " + EssenceCommandUtil.formatDecimal(stats.fireResistancePercent()) + "%"
+                        + " | explosion " + EssenceCommandUtil.formatDecimal(stats.explosionResistancePercent()) + "%"
+        ));
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Knockback resistance",
+                EssenceCommandUtil.formatDecimal(player.getAttributeValue(Attributes.KNOCKBACK_RESISTANCE))
+        ));
+
+        EquipmentDamageService.lastDamage(player).ifPresentOrElse(
+                last -> EssenceCommandUtil.send(
+                        source,
+                        EssenceCommandUtil.line(
+                                "Last incoming hit",
+                                last.category() + " | incoming " + damageValue(last.incomingDamage())
+                                        + " -> Ascendance " + damageValue(last.resolvedIncomingDamage())
+                                        + " | actual health lost " + damageValue(last.actualHealthDamage())
+                        )
+                ),
+                () -> EssenceCommandUtil.send(source, EssenceCommandUtil.muted("  Last incoming hit: NONE RECORDED"))
+        );
+
+        EquipmentVitalityService.VitalityRuntimeSnapshot vitality = EquipmentVitalityService.runtimeSnapshot(player);
+        double statusPercent = vitality.stats().statusResistancePercent();
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Status resistance",
+                EssenceCommandUtil.formatDecimal(statusPercent) + "% | harmful duration x"
+                        + EssenceCommandUtil.formatDecimal(Math.max(0.0, 1.0 - statusPercent / 100.0))
+        ));
+        EquipmentVitalityService.lastStatusEffect(player).ifPresentOrElse(
+                effect -> EssenceCommandUtil.send(
+                        source,
+                        EssenceCommandUtil.line(
+                                "Last harmful effect",
+                                effect.effectDescriptionId() + " | "
+                                        + EssenceCommandUtil.formatDecimal(effect.originalDurationTicks() / 20.0)
+                                        + " sec -> "
+                                        + EssenceCommandUtil.formatDecimal(effect.resolvedDurationTicks() / 20.0) + " sec"
+                        )
+                ),
+                () -> EssenceCommandUtil.send(source, EssenceCommandUtil.muted("  Last harmful effect: NONE RECORDED"))
+        );
+        return 1;
+    }
+
+    private static int showVitality(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        showCategoryHeaderAndStats(source, player, StatCategory.VITALITY);
+
+        EquipmentAttributeService.sync(player);
+        EquipmentVitalityService.VitalityRuntimeSnapshot snapshot = EquipmentVitalityService.runtimeSnapshot(player);
+        EquipmentVitalityService.VitalityStatState stats = snapshot.stats();
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Runtime"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Health",
+                EssenceCommandUtil.formatDecimal(snapshot.health()) + " / "
+                        + EssenceCommandUtil.formatDecimal(snapshot.maxHealth()) + " health points"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Health regeneration",
+                EssenceCommandUtil.formatDecimal(stats.healthRegenerationHeartsPerSecond())
+                        + " hearts/sec | last tick restored "
+                        + EssenceCommandUtil.formatDecimal(snapshot.lastPassiveRegenHealthPoints()) + " health points"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Healing effectiveness",
+                "+" + EssenceCommandUtil.formatDecimal(stats.healingEffectivenessPercent()) + "%"
+        ));
+        EquipmentVitalityService.lastHealing(player).ifPresentOrElse(
+                healing -> EssenceCommandUtil.send(
+                        source,
+                        EssenceCommandUtil.line(
+                                "Last heal",
+                                EssenceCommandUtil.formatDecimal(healing.requestedHealing()) + " -> "
+                                        + EssenceCommandUtil.formatDecimal(healing.resolvedHealing())
+                                        + " | bypass " + healing.bypassReason()
+                        )
+                ),
+                () -> EssenceCommandUtil.send(source, EssenceCommandUtil.muted("  Last heal: NONE RECORDED"))
+        );
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Hunger efficiency",
+                EssenceCommandUtil.formatDecimal(stats.hungerEfficiencyPercent()) + "%"
+                        + " | food/saturation/exhaustion " + snapshot.foodLevel() + "/"
+                        + EssenceCommandUtil.formatDecimal(snapshot.saturationLevel()) + "/"
+                        + EssenceCommandUtil.formatDecimal(snapshot.exhaustionLevel())
+        ));
+        EquipmentVitalityService.lastExhaustion(player).ifPresentOrElse(
+                exhaustion -> EssenceCommandUtil.send(
+                        source,
+                        EssenceCommandUtil.line(
+                                "Last exhaustion",
+                                EssenceCommandUtil.formatDecimal(exhaustion.requestedExhaustion()) + " -> "
+                                        + EssenceCommandUtil.formatDecimal(exhaustion.resolvedExhaustion())
+                                        + " (" + EssenceCommandUtil.formatDecimal(exhaustion.hungerEfficiencyPercent()) + "% reduced)"
+                        )
+                ),
+                () -> EssenceCommandUtil.send(source, EssenceCommandUtil.muted("  Last exhaustion: NONE RECORDED"))
+        );
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Breath hold",
+                "+" + EssenceCommandUtil.formatDecimal(stats.breathHoldSeconds()) + " sec"
+                        + " | estimated total " + EssenceCommandUtil.formatDecimal(snapshot.estimatedTotalBreathSeconds()) + " sec"
+                        + " | air " + snapshot.airSupply() + "/" + snapshot.maxAirSupply()
+                        + " | last refund " + snapshot.lastAirRefund()
+        ));
+        return 1;
+    }
+
+    private static int showMobility(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        showCategoryHeaderAndStats(source, player, StatCategory.MOBILITY);
+
+        EquipmentAttributeService.sync(player);
+        EquipmentMobilityService.sync(player);
+        EquipmentAttributeService.AppliedState attributes = EquipmentAttributeService.evaluate(player);
+        EquipmentMobilityService.MobilityState mobility = EquipmentMobilityService.evaluate(player);
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Runtime"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Movement speed",
+                "+" + EssenceCommandUtil.formatDecimal(attributes.movementSpeedFraction() * 100.0) + "%"
+                        + " | actual " + EssenceCommandUtil.formatDecimal(player.getAttributeValue(Attributes.MOVEMENT_SPEED))
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Swim speed",
+                "+" + EssenceCommandUtil.formatDecimal(mobility.swimSpeedPercent()) + "%"
+                        + " | water movement efficiency " + EssenceCommandUtil.formatDecimal(mobility.waterMovementEfficiency())
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Jump height",
+                "+" + EssenceCommandUtil.formatDecimal(mobility.jumpHeightPercent()) + "%"
+                        + " | jump strength " + EssenceCommandUtil.formatDecimal(mobility.jumpStrength())
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Step height",
+                "+" + EssenceCommandUtil.formatDecimal(attributes.stepHeightBlocks()) + " blocks"
+                        + " | actual " + EssenceCommandUtil.formatDecimal(player.getAttributeValue(Attributes.STEP_HEIGHT))
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Flight speed",
+                "+" + EssenceCommandUtil.formatDecimal(mobility.flightSpeedPercent()) + "%"
+                        + " | ability " + EssenceCommandUtil.formatDecimal(mobility.baselineFlightSpeed())
+                        + " -> " + EssenceCommandUtil.formatDecimal(mobility.resolvedFlightSpeed())
+                        + " | mayfly " + (mobility.mayFly() ? "YES" : "NO")
+                        + " | flying " + (mobility.flying() ? "YES" : "NO")
+        ));
+        return 1;
+    }
+
+    private static int showGathering(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        showCategoryHeaderAndStats(source, player, StatCategory.GATHERING);
+
+        EquipmentAttributeService.sync(player);
+        EquipmentAttributeService.AppliedState attributes = EquipmentAttributeService.evaluate(player);
+        EquipmentGatheringService.GatheringState gathering = EquipmentGatheringService.evaluate(player);
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Runtime"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Main hand", gathering.mainHandName()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Mining speed",
+                "+" + EssenceCommandUtil.formatDecimal(attributes.miningSpeedFraction() * 100.0) + "%"
+                        + " | block-break multiplier " + EssenceCommandUtil.formatDecimal(player.getAttributeValue(Attributes.BLOCK_BREAK_SPEED))
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Fortune",
+                EssenceCommandUtil.formatDecimal(gathering.fortuneEarnedLevels())
+                        + " Essence levels -> virtual " + gathering.fortuneVirtualLevel()
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Looting",
+                EssenceCommandUtil.formatDecimal(gathering.lootingEarnedLevels())
+                        + " Essence levels -> virtual " + gathering.lootingVirtualLevel()
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Reach",
+                "+" + EssenceCommandUtil.formatDecimal(attributes.reachBlocks()) + " blocks"
+                        + " | actual block/entity "
+                        + EssenceCommandUtil.formatDecimal(player.getAttributeValue(Attributes.BLOCK_INTERACTION_RANGE)) + "/"
+                        + EssenceCommandUtil.formatDecimal(player.getAttributeValue(Attributes.ENTITY_INTERACTION_RANGE))
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Experience gain",
+                "+" + EssenceCommandUtil.formatDecimal(gathering.experienceGainPercent()) + "%"
+        ));
+
+        EquipmentGatheringService.lastEnchantmentQuery(player).ifPresentOrElse(
+                query -> EssenceCommandUtil.send(
+                        source,
+                        EssenceCommandUtil.line(
+                                "Last Fortune/Looting query",
+                                query.enchantment() + " | vanilla " + query.vanillaLevel()
+                                        + " + Essence " + query.virtualLevel()
+                                        + " = " + query.resolvedLevel()
+                                        + " | " + query.queryPath()
+                        )
+                ),
+                () -> EssenceCommandUtil.send(source, EssenceCommandUtil.muted("  Last Fortune/Looting query: NONE RECORDED"))
+        );
+        EquipmentGatheringService.lastExperienceGain(player).ifPresentOrElse(
+                xp -> EssenceCommandUtil.send(
+                        source,
+                        EssenceCommandUtil.line(
+                                "Last XP gain",
+                                xp.requested() + " -> " + xp.resolved()
+                                        + " | +" + EssenceCommandUtil.formatDecimal(xp.bonusPercent()) + "%"
+                                        + " | carry " + EssenceCommandUtil.formatDecimal(xp.fractionalBonusCarry())
+                        )
+                ),
+                () -> EssenceCommandUtil.send(source, EssenceCommandUtil.muted("  Last XP gain: NONE RECORDED"))
+        );
+        return 1;
+    }
+
+    private static int showUtility(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        showCategoryHeaderAndStats(source, player, StatCategory.UTILITY);
+
+        EquipmentAttributeService.sync(player);
+        EquipmentMobilityService.sync(player);
+        EquipmentAttributeService.AppliedState attributes = EquipmentAttributeService.evaluate(player);
+        EquipmentMobilityService.MobilityState mobility = EquipmentMobilityService.evaluate(player);
+        EquipmentGatheringService.GatheringState gathering = EquipmentGatheringService.evaluate(player);
+        PlayerEssenceData data = playerData(player);
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Runtime"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Luck",
+                "+" + EssenceCommandUtil.formatDecimal(mobility.luckBonus())
+                        + " | actual vanilla Luck " + EssenceCommandUtil.formatDecimal(mobility.actualLuck())
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Sneak speed",
+                "+" + EssenceCommandUtil.formatDecimal(attributes.sneakSpeedFraction() * 100.0) + "%"
+                        + " | actual " + EssenceCommandUtil.formatDecimal(player.getAttributeValue(Attributes.SNEAKING_SPEED))
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Main-hand durability efficiency",
+                EssenceCommandUtil.formatDecimal(gathering.durabilityEfficiencyPercent()) + "%"
+        ));
+
+        for (EquipmentSlot slot : EquipmentStatResolver.armorSlots()) {
+            ItemStack stack = player.getItemBySlot(slot);
+            if (stack.isEmpty()) {
+                continue;
+            }
+            EquipmentStatState wornItem = EquipmentStatResolver.evaluateWornItem(player, slot);
+            double percent = EquipmentValueService.scaledBonus(
+                    data,
+                    EssenceStats.DURABILITY_EFFICIENCY,
+                    wornItem.strength(EssenceStats.DURABILITY_EFFICIENCY)
+            );
+            if (percent > 0.0) {
+                EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                        slot.getName() + " durability efficiency",
+                        EssenceCommandUtil.formatDecimal(percent) + "% (item-local)"
+                ));
+            }
         }
-        return EssenceStatRegistry
-                .get(id)
-                .orElseThrow(() -> UNKNOWN_STAT.create(input));
+
+        EquipmentGatheringService.lastDurabilityEvent(player).ifPresentOrElse(
+                durability -> EssenceCommandUtil.send(
+                        source,
+                        EssenceCommandUtil.line(
+                                "Last durability event",
+                                durability.itemName() + " | " + durability.requested() + " -> " + durability.resolved()
+                                        + " | " + EssenceCommandUtil.formatDecimal(durability.efficiencyPercent()) + "% efficient"
+                                        + " | carry " + EssenceCommandUtil.formatDecimal(durability.fractionalDamageCarry())
+                                        + " | " + durability.context()
+                        )
+                ),
+                () -> EssenceCommandUtil.send(source, EssenceCommandUtil.muted("  Last durability event: NONE RECORDED"))
+        );
+        return 1;
     }
 
-    private static StatCategory resolveCategory(
-            String input
-    ) throws CommandSyntaxException {
-        try {
-            return StatCategory.valueOf(input.toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException exception) {
-            throw UNKNOWN_CATEGORY.create(input);
-        }
-    }
-
-    private static MilestoneDefinition resolveMilestone(
-            String input
-    ) throws CommandSyntaxException {
-        ResourceLocation id = parseId(input);
-        if (id == null) {
-            throw UNKNOWN_MILESTONE.create(input);
-        }
-        return EssenceConfigManager
-                .get()
-                .getMilestone(id)
-                .orElseThrow(() -> UNKNOWN_MILESTONE.create(input));
-    }
-
-    private static ResourceLocation parseId(String input) {
-        String fullId = input.contains(":")
-                ? input
-                : EssenceAscendance.MOD_ID + ":" + input;
-        return ResourceLocation.tryParse(fullId);
-    }
-
-    private static CompletableFuture<Suggestions> suggestStats(
-            CommandContext<CommandSourceStack> context,
-            SuggestionsBuilder builder
+    private static void showCategoryHeaderAndStats(
+            CommandSourceStack source,
+            ServerPlayer player,
+            StatCategory category
     ) {
-        String remaining = builder.getRemainingLowerCase();
+        EssenceCommandUtil.send(
+                source,
+                Component.literal(EssenceCommandUtil.categoryName(category) + " Debug")
+                        .withStyle(EssenceCommandUtil.categoryColor(category), ChatFormatting.BOLD)
+        );
+
+        PlayerEssenceData data = playerData(player);
+        EquipmentStatState active = EquipmentStatResolver.evaluate(player);
+        CategoryDevelopment development = StatScalingService.evaluateCategory(data, category);
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Category development",
+                EssenceCommandUtil.format(development.effectiveInvestment()) + " / "
+                        + EssenceCommandUtil.format(development.currentCapacity()) + " effective | "
+                        + EssenceCommandUtil.formatProgress(development.development()) + " developed"
+        ));
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Stats"));
         for (StatDefinition stat : EssenceStatRegistry.values()) {
-            String name = stat.id().getPath();
-            if (name.startsWith(remaining)) {
-                builder.suggest(name);
+            if (stat.category() != category) {
+                continue;
             }
+
+            StatScalingResult scaling = StatScalingService.evaluate(data, stat);
+            double strength = active.strength(stat);
+            double applied = scaling.scaledBonus() * strength;
+
+            if (stat == EssenceStats.DURABILITY_EFFICIENCY) {
+                EssenceCommandUtil.send(
+                        source,
+                        EssenceCommandUtil.line(
+                                stat.displayName(),
+                                "investment " + EssenceCommandUtil.formatBonus(stat, scaling.scaledBonus())
+                                        + " | item-local applicability; runtime details below"
+                        )
+                );
+                continue;
+            }
+
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.line(
+                            stat.displayName(),
+                            "investment " + EssenceCommandUtil.formatBonus(stat, scaling.scaledBonus())
+                                    + " | active " + EssenceCommandUtil.formatStrength(strength)
+                                    + " | applied " + EssenceCommandUtil.formatBonus(stat, applied)
+                    )
+            );
         }
-        return builder.buildFuture();
     }
 
-    private static CompletableFuture<Suggestions> suggestCategories(
-            CommandContext<CommandSourceStack> context,
-            SuggestionsBuilder builder
-    ) {
-        String remaining = builder.getRemainingLowerCase();
-        for (StatCategory category : StatCategory.values()) {
-            String name = category.name().toLowerCase(Locale.ROOT);
-            if (name.startsWith(remaining)) {
-                builder.suggest(name);
-            }
-        }
-        return builder.buildFuture();
+    private static boolean usesProfile(ItemStack stack, ResourceLocation profileId) {
+        return !stack.isEmpty()
+                && stack.getItem() instanceof EquipmentProfileItem item
+                && item.equipmentProfileId().equals(profileId);
     }
 
-    private static CompletableFuture<Suggestions> suggestMilestones(
-            CommandContext<CommandSourceStack> context,
-            SuggestionsBuilder builder
-    ) {
-        String remaining = builder.getRemainingLowerCase();
-        for (MilestoneDefinition milestone : EssenceConfigManager.get().milestones().values()) {
-            ResourceLocation id = milestone.id();
-            String suggestion = id.getNamespace().equals(EssenceAscendance.MOD_ID)
-                    ? id.getPath()
-                    : "\"" + id + "\"";
-
-            if (suggestion.toLowerCase(Locale.ROOT).startsWith(remaining)) {
-                builder.suggest(suggestion);
-            }
-        }
-        return builder.buildFuture();
+    private static String damageValue(float value) {
+        return value < 0.0F ? "N/A" : EssenceCommandUtil.formatDecimal(value);
     }
 
-    private static void appendStrengths(
-            StringBuilder builder,
-            Map<ResourceLocation, Double> strengths
-    ) {
+    private static PlayerEssenceData playerData(ServerPlayer player) {
+        return EssenceSavedData.get(player.server).getPlayerData(player.getUUID());
+    }
+
+    private static void appendStrengths(StringBuilder builder, Map<ResourceLocation, Double> strengths) {
         if (strengths.isEmpty()) {
             builder.append("NONE");
             return;
@@ -1698,49 +878,7 @@ public final class EssenceDebugCommands {
             first = false;
             builder.append(entry.getKey().getPath())
                     .append(' ')
-                    .append(formatStrength(entry.getValue()));
+                    .append(EssenceCommandUtil.formatStrength(entry.getValue()));
         }
-    }
-
-    private static String milestoneState(MilestoneProgress progress) {
-        if (!progress.resolvable()) {
-            return "UNRESOLVED";
-        }
-        return progress.complete() ? "COMPLETE" : "INCOMPLETE";
-    }
-
-    private static String formatSigned(double value) {
-        return String.format(Locale.ROOT, "%+.2f", value);
-    }
-
-    private static String formatStrength(double value) {
-        return String.format(Locale.ROOT, "%.2fx", value);
-    }
-
-    private static String formatPercent(double value) {
-        return String.format(Locale.ROOT, "%.2f%%", value * 100.0);
-    }
-
-    private static String formatBonus(
-            StatDefinition stat,
-            double value
-    ) {
-        return switch (stat.unit()) {
-            case PERCENT -> String.format(Locale.ROOT, "%.2f%%", value);
-            case HEARTS -> String.format(Locale.ROOT, "%.2f hearts", value);
-            case HEARTS_PER_SECOND -> String.format(Locale.ROOT, "%.3f hearts/sec", value);
-            case BLOCKS -> String.format(Locale.ROOT, "%.2f blocks", value);
-            case SECONDS -> String.format(Locale.ROOT, "%.2f seconds", value);
-            case LEVELS -> String.format(Locale.ROOT, "%.2f levels", value);
-            case FLAT -> String.format(Locale.ROOT, "%.3f", value);
-        };
-    }
-
-    private static String format(long value) {
-        return String.format(Locale.ROOT, "%,d", value);
-    }
-
-    private static String formatDecimal(double value) {
-        return String.format(Locale.ROOT, "%.2f", value);
     }
 }
