@@ -36,3 +36,6 @@ side = "BOTH"
 
 [[mixins]]
 config = "essence_ascendance.mixins.json"
+
+[[mixins]]
+config="essence_ascendance.vitality.mixins.json"
