@@ -44,6 +44,27 @@ public final class PlayerEssenceData {
     private ResourceLocation currentTierId =
             AscendanceTiers.DORMANT.id();
 
+    /*
+     * Runtime-only mutation revision used by server -> client synchronization.
+     *
+     * This value is deliberately NOT serialized. Its only purpose is to let
+     * runtime systems cheaply detect that a player's authoritative progression
+     * state changed.
+     */
+    private long revision = 0L;
+
+
+    public long revision() {
+        return revision;
+    }
+
+
+    private void bumpRevision() {
+        if (revision < Long.MAX_VALUE) {
+            revision++;
+        }
+    }
+
 
     /*
      * ============================================================
@@ -96,6 +117,8 @@ public final class PlayerEssenceData {
                 updated
         );
 
+        bumpRevision();
+
         return updated;
     }
 
@@ -108,6 +131,15 @@ public final class PlayerEssenceData {
             throw new IllegalArgumentException(
                     "Essence amount cannot be negative"
             );
+        }
+
+        long current =
+                getAvailable(
+                        essence
+                );
+
+        if (current == amount) {
+            return;
         }
 
         if (amount == 0) {
@@ -123,6 +155,8 @@ public final class PlayerEssenceData {
                     amount
             );
         }
+
+        bumpRevision();
     }
 
 
@@ -215,6 +249,8 @@ public final class PlayerEssenceData {
                 newInvestment
         );
 
+        bumpRevision();
+
         return true;
     }
 
@@ -236,6 +272,15 @@ public final class PlayerEssenceData {
             );
         }
 
+        long current =
+                getInvested(
+                        stat
+                );
+
+        if (current == amount) {
+            return;
+        }
+
         if (amount == 0) {
 
             investedEssence.remove(
@@ -249,16 +294,28 @@ public final class PlayerEssenceData {
                     amount
             );
         }
+
+        bumpRevision();
     }
 
 
     public void clearAvailable() {
+        if (availableEssence.isEmpty()) {
+            return;
+        }
+
         availableEssence.clear();
+        bumpRevision();
     }
 
 
     public void clearInvested() {
+        if (investedEssence.isEmpty()) {
+            return;
+        }
+
         investedEssence.clear();
+        bumpRevision();
     }
 
 
@@ -269,8 +326,14 @@ public final class PlayerEssenceData {
          * It does not modify Ascendance tier or completed world
          * milestones.
          */
+        if (availableEssence.isEmpty()
+                && investedEssence.isEmpty()) {
+            return;
+        }
+
         availableEssence.clear();
         investedEssence.clear();
+        bumpRevision();
     }
 
 
@@ -299,8 +362,16 @@ public final class PlayerEssenceData {
     public void setTier(
             AscendanceTierDefinition tier
     ) {
+        if (currentTierId.equals(
+                tier.id()
+        )) {
+            return;
+        }
+
         currentTierId =
                 tier.id();
+
+        bumpRevision();
     }
 
 
@@ -322,18 +393,32 @@ public final class PlayerEssenceData {
     public boolean completeMilestone(
             ResourceLocation milestoneId
     ) {
-        return completedMilestones.add(
-                milestoneId
-        );
+        boolean changed =
+                completedMilestones.add(
+                        milestoneId
+                );
+
+        if (changed) {
+            bumpRevision();
+        }
+
+        return changed;
     }
 
 
     public boolean revokeMilestone(
             ResourceLocation milestoneId
     ) {
-        return completedMilestones.remove(
-                milestoneId
-        );
+        boolean changed =
+                completedMilestones.remove(
+                        milestoneId
+                );
+
+        if (changed) {
+            bumpRevision();
+        }
+
+        return changed;
     }
 
 

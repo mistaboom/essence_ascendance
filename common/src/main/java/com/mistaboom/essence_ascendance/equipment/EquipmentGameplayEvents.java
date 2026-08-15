@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.equipment;
 
+import com.mistaboom.essence_ascendance.network.PlayerEssenceSyncService;
 import dev.architectury.event.events.common.PlayerEvent;
 import dev.architectury.event.events.common.TickEvent;
 import net.minecraft.server.level.ServerPlayer;
@@ -23,6 +24,7 @@ public final class EquipmentGameplayEvents {
             return;
         }
 
+        PlayerEssenceSyncService.init();
         EquipmentTooltipSyncService.init();
 
         TickEvent.PLAYER_POST.register(player -> {
