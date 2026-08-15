@@ -1,0 +1,8 @@
+{
+  "priority": 0,
+  "item": "minecraft:magma_cream",
+  "outputs": {
+    "essence_ascendance:defense": 25,
+    "essence_ascendance:utility": 20
+  }
+}

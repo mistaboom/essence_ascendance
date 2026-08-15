@@ -1,0 +1,8 @@
+{
+  "priority": 0,
+  "item": "minecraft:string",
+  "outputs": {
+    "essence_ascendance:gathering": 2,
+    "essence_ascendance:utility": 3
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:diamond_horse_armor",
+  "outputs": {
+    "essence_ascendance:defense": 3000
+  }
+}

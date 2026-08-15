@@ -1,0 +1,8 @@
+{
+  "priority": 0,
+  "item": "minecraft:hopper_minecart",
+  "outputs": {
+    "essence_ascendance:mobility": 350,
+    "essence_ascendance:utility": 500
+  }
+}

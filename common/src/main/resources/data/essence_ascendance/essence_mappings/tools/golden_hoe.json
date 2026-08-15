@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:golden_hoe",
+  "outputs": {
+    "essence_ascendance:gathering": 12
+  }
+}

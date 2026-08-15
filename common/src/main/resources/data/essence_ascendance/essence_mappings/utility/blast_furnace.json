@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:blast_furnace",
+  "outputs": {
+    "essence_ascendance:utility": 450
+  }
+}

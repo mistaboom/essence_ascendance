@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:sculk_sensor",
+  "outputs": {
+    "essence_ascendance:utility": 100
+  }
+}

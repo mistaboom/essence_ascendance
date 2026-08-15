@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:sticky_piston",
+  "outputs": {
+    "essence_ascendance:utility": 105
+  }
+}

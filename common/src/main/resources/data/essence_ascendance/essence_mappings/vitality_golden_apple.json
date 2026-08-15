@@ -1,7 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:golden_apple",
-  "outputs": {
-    "essence_ascendance:vitality": 12
-  }
-}

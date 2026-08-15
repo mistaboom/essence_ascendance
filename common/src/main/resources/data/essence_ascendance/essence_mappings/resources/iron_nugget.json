@@ -1,0 +1,9 @@
+{
+  "priority": 0,
+  "item": "minecraft:iron_nugget",
+  "outputs": {
+    "essence_ascendance:gathering": 4,
+    "essence_ascendance:defense": 4,
+    "essence_ascendance:utility": 3
+  }
+}

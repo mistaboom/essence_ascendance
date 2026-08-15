@@ -1,7 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:shield",
-  "outputs": {
-    "essence_ascendance:defense": 8
-  }
-}

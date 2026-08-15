@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "tag": "minecraft:coals",
+  "outputs": {
+    "essence_ascendance:utility": 5
+  }
+}

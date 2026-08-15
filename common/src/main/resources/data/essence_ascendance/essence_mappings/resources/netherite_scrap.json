@@ -1,0 +1,8 @@
+{
+  "priority": 0,
+  "item": "minecraft:netherite_scrap",
+  "outputs": {
+    "essence_ascendance:gathering": 12000,
+    "essence_ascendance:utility": 8000
+  }
+}

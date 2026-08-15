@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:fletching_table",
+  "outputs": {
+    "essence_ascendance:utility": 10
+  }
+}

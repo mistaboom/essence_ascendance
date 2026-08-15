@@ -1,0 +1,9 @@
+{
+  "priority": 0,
+  "item": "minecraft:respawn_anchor",
+  "outputs": {
+    "essence_ascendance:vitality": 250,
+    "essence_ascendance:defense": 50,
+    "essence_ascendance:utility": 300
+  }
+}

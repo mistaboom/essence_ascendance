@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:gold_nugget",
+  "outputs": {
+    "essence_ascendance:utility": 1
+  }
+}

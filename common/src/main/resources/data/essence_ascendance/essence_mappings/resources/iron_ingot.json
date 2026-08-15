@@ -1,0 +1,9 @@
+{
+  "priority": 0,
+  "item": "minecraft:iron_ingot",
+  "outputs": {
+    "essence_ascendance:gathering": 36,
+    "essence_ascendance:defense": 36,
+    "essence_ascendance:utility": 27
+  }
+}

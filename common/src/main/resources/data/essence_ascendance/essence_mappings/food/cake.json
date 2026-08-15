@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:cake",
+  "outputs": {
+    "essence_ascendance:vitality": 20
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:nether_wart",
+  "outputs": {
+    "essence_ascendance:utility": 5
+  }
+}

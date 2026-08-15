@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:rabbit",
+  "outputs": {
+    "essence_ascendance:vitality": 4
+  }
+}

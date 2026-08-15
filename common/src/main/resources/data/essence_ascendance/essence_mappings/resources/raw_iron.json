@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:raw_iron",
+  "outputs": {
+    "essence_ascendance:gathering": 99
+  }
+}

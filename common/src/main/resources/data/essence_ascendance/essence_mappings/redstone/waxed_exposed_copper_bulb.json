@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:waxed_exposed_copper_bulb",
+  "outputs": {
+    "essence_ascendance:utility": 80
+  }
+}

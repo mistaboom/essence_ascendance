@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:slime_ball",
+  "outputs": {
+    "essence_ascendance:utility": 5
+  }
+}

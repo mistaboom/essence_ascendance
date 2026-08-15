@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:wolf_armor",
+  "outputs": {
+    "essence_ascendance:defense": 100
+  }
+}

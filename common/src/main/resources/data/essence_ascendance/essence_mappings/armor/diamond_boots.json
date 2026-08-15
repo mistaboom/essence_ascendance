@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:diamond_boots",
+  "outputs": {
+    "essence_ascendance:defense": 3000
+  }
+}

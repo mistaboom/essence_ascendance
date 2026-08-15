@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:emerald_block",
+  "outputs": {
+    "essence_ascendance:utility": 90
+  }
+}

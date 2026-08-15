@@ -1,0 +1,8 @@
+{
+  "priority": 0,
+  "item": "minecraft:diamond_hoe",
+  "outputs": {
+    "essence_ascendance:gathering": 1450,
+    "essence_ascendance:utility": 150
+  }
+}

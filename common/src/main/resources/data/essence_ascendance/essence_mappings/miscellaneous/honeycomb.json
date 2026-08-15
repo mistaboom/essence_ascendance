@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:honeycomb",
+  "outputs": {
+    "essence_ascendance:utility": 5
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:beetroot",
+  "outputs": {
+    "essence_ascendance:vitality": 2
+  }
+}

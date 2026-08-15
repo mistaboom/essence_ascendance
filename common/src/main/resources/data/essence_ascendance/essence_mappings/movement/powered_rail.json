@@ -1,0 +1,8 @@
+{
+  "priority": 0,
+  "item": "minecraft:powered_rail",
+  "outputs": {
+    "essence_ascendance:mobility": 5,
+    "essence_ascendance:utility": 4
+  }
+}

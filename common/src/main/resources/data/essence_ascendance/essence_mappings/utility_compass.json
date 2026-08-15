@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:compass",
-  "outputs": {
-    "essence_ascendance:mobility": 2,
-    "essence_ascendance:utility": 2
-  }
-}

@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:emerald",
+  "outputs": {
+    "essence_ascendance:utility": 10
+  }
+}

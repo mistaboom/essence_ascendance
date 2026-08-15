@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:golden_boots",
+  "outputs": {
+    "essence_ascendance:defense": 36
+  }
+}

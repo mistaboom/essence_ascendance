@@ -1,0 +1,8 @@
+{
+  "priority": 0,
+  "item": "minecraft:shears",
+  "outputs": {
+    "essence_ascendance:gathering": 120,
+    "essence_ascendance:utility": 60
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "priority": 0,
+  "item": "minecraft:wooden_axe",
+  "outputs": {
+    "essence_ascendance:gathering": 3,
+    "essence_ascendance:offense": 2
+  }
+}

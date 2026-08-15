@@ -1,0 +1,8 @@
+{
+  "priority": 0,
+  "item": "minecraft:lapis_lazuli",
+  "outputs": {
+    "essence_ascendance:gathering": 5,
+    "essence_ascendance:utility": 10
+  }
+}

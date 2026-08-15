@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:stone_hoe",
+  "outputs": {
+    "essence_ascendance:gathering": 5
+  }
+}

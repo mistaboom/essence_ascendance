@@ -1,0 +1,8 @@
+{
+  "priority": 0,
+  "item": "minecraft:map",
+  "outputs": {
+    "essence_ascendance:mobility": 150,
+    "essence_ascendance:utility": 180
+  }
+}

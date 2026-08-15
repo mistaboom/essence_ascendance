@@ -1,0 +1,8 @@
+{
+  "priority": 0,
+  "item": "minecraft:phantom_membrane",
+  "outputs": {
+    "essence_ascendance:mobility": 50,
+    "essence_ascendance:utility": 50
+  }
+}

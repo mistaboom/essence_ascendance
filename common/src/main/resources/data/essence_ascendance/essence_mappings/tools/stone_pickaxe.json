@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:stone_pickaxe",
+  "outputs": {
+    "essence_ascendance:gathering": 8
+  }
+}

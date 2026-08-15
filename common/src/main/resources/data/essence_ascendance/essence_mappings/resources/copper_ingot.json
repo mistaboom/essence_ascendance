@@ -1,0 +1,8 @@
+{
+  "priority": 0,
+  "item": "minecraft:copper_ingot",
+  "outputs": {
+    "essence_ascendance:gathering": 5,
+    "essence_ascendance:utility": 5
+  }
+}

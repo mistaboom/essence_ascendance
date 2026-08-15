@@ -1,0 +1,9 @@
+{
+  "priority": 0,
+  "item": "minecraft:conduit",
+  "outputs": {
+    "essence_ascendance:vitality": 2000,
+    "essence_ascendance:mobility": 1000,
+    "essence_ascendance:utility": 2000
+  }
+}

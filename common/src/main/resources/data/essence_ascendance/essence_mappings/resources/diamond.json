@@ -1,0 +1,10 @@
+{
+  "priority": 0,
+  "item": "minecraft:diamond",
+  "outputs": {
+    "essence_ascendance:offense": 150,
+    "essence_ascendance:defense": 150,
+    "essence_ascendance:gathering": 400,
+    "essence_ascendance:utility": 300
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "priority": 0,
+  "item": "minecraft:diamond_block",
+  "outputs": {
+    "essence_ascendance:offense": 1350,
+    "essence_ascendance:defense": 1350,
+    "essence_ascendance:gathering": 3600,
+    "essence_ascendance:utility": 2700
+  }
+}

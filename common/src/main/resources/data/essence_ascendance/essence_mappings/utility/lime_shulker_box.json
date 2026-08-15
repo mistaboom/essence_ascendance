@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:lime_shulker_box",
+  "outputs": {
+    "essence_ascendance:utility": 200
+  }
+}

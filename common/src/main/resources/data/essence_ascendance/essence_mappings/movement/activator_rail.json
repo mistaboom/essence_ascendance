@@ -1,0 +1,8 @@
+{
+  "priority": 0,
+  "item": "minecraft:activator_rail",
+  "outputs": {
+    "essence_ascendance:mobility": 45,
+    "essence_ascendance:utility": 50
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "tag": "minecraft:coal_ores",
+  "outputs": {
+    "essence_ascendance:gathering": 5
+  }
+}

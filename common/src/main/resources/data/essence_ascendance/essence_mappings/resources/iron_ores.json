@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "tag": "minecraft:iron_ores",
+  "outputs": {
+    "essence_ascendance:gathering": 90
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "priority": 0,
+  "item": "minecraft:chorus_fruit",
+  "outputs": {
+    "essence_ascendance:vitality": 3,
+    "essence_ascendance:mobility": 10
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "priority": 0,
+  "item": "minecraft:sculk_catalyst",
+  "outputs": {
+    "essence_ascendance:gathering": 250,
+    "essence_ascendance:utility": 250
+  }
+}

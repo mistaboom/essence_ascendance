@@ -1,0 +1,8 @@
+{
+  "priority": 0,
+  "item": "minecraft:carrot_on_a_stick",
+  "outputs": {
+    "essence_ascendance:mobility": 8,
+    "essence_ascendance:utility": 5
+  }
+}

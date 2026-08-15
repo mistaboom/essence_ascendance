@@ -1,0 +1,8 @@
+{
+  "priority": 0,
+  "item": "minecraft:rabbit_foot",
+  "outputs": {
+    "essence_ascendance:mobility": 40,
+    "essence_ascendance:utility": 20
+  }
+}

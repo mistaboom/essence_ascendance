@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:cauldron",
+  "outputs": {
+    "essence_ascendance:utility": 600
+  }
+}

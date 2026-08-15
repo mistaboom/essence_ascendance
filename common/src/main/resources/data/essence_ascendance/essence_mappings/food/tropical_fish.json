@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:tropical_fish",
+  "outputs": {
+    "essence_ascendance:vitality": 2
+  }
+}

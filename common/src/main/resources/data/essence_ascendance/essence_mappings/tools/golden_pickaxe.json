@@ -1,0 +1,8 @@
+{
+  "priority": 0,
+  "item": "minecraft:golden_pickaxe",
+  "outputs": {
+    "essence_ascendance:gathering": 20,
+    "essence_ascendance:utility": 5
+  }
+}

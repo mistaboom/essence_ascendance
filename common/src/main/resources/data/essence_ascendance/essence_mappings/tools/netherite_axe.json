@@ -1,0 +1,9 @@
+{
+  "priority": 0,
+  "item": "minecraft:netherite_axe",
+  "outputs": {
+    "essence_ascendance:gathering": 20000,
+    "essence_ascendance:offense": 25000,
+    "essence_ascendance:utility": 5000
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "priority": 0,
+  "item": "minecraft:iron_sword",
+  "outputs": {
+    "essence_ascendance:offense": 180,
+    "essence_ascendance:utility": 15
+  }
+}

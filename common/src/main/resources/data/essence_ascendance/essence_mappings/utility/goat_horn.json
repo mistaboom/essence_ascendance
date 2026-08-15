@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:goat_horn",
+  "outputs": {
+    "essence_ascendance:utility": 50
+  }
+}

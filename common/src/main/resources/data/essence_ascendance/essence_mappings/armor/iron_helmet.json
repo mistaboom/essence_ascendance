@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:iron_helmet",
+  "outputs": {
+    "essence_ascendance:defense": 300
+  }
+}

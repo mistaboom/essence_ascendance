@@ -1,0 +1,7 @@
+{
+  "priority": 0,
+  "item": "minecraft:gold_ore",
+  "outputs": {
+    "essence_ascendance:gathering": 9
+  }
+}

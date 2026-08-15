@@ -1,0 +1,8 @@
+{
+  "priority": 0,
+  "item": "minecraft:netherite_hoe",
+  "outputs": {
+    "essence_ascendance:gathering": 40000,
+    "essence_ascendance:utility": 10000
+  }
+}

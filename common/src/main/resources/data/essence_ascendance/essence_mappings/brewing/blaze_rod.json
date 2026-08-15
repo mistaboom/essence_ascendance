@@ -1,0 +1,9 @@
+{
+  "priority": 0,
+  "item": "minecraft:blaze_rod",
+  "outputs": {
+    "essence_ascendance:offense": 20,
+    "essence_ascendance:defense": 10,
+    "essence_ascendance:utility": 50
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "priority": 0,
+  "item": "minecraft:netherite_sword",
+  "outputs": {
+    "essence_ascendance:offense": 45000,
+    "essence_ascendance:utility": 5000
+  }
+}
