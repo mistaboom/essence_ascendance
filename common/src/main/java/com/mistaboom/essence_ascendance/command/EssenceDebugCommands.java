@@ -24,6 +24,9 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentStatState;
 import com.mistaboom.essence_ascendance.equipment.EquipmentValueService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentVitalityService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentWeaponService;
+import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingDefinition;
+import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingRegistry;
+import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingResult;
 import com.mistaboom.essence_ascendance.progression.AscendanceEngine;
 import com.mistaboom.essence_ascendance.progression.AscendanceEvaluationResult;
 import com.mistaboom.essence_ascendance.progression.CategoryDevelopment;
@@ -35,6 +38,7 @@ import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.EssenceStats;
 import com.mistaboom.essence_ascendance.stat.StatCategory;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
+import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.ChatFormatting;
@@ -46,6 +50,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.Locale;
@@ -64,6 +69,8 @@ final class EssenceDebugCommands {
                 .then(Commands.literal("summary").executes(context -> showSummary(context.getSource())))
                 .then(Commands.literal("equipment").executes(context -> showEquipment(context.getSource())))
                 .then(Commands.literal("item").executes(context -> showItem(context.getSource())))
+                .then(Commands.literal("mapping").executes(context -> showItemMapping(context.getSource())))
+                .then(Commands.literal("mappings").executes(context -> showMappingRegistry(context.getSource())))
                 .then(Commands.literal("baselines").executes(context -> showBaselines(context.getSource())))
                 .then(Commands.literal("offense").executes(context -> showOffense(context.getSource())))
                 .then(Commands.literal("defense").executes(context -> showDefense(context.getSource())))
@@ -78,6 +85,8 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug summary", "system/player diagnostic overview"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug equipment", "all active equipment profiles plus resolved stat applicability"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug item", "deep-dive the main-hand Ascendance item"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug mapping", "resolve the main-hand item to Attribute Essence"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug mappings", "mapping registry/reload summary"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug baselines", "tier/archetype equipment baselines"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.section("Gameplay categories"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug offense", "melee, ranged, magic, knockback, reflection"));
@@ -391,6 +400,338 @@ final class EssenceDebugCommands {
                 () -> EssenceCommandUtil.send(source, EssenceCommandUtil.muted("  Last cast: NONE RECORDED"))
         );
     }
+
+
+    private static int showItemMapping(
+            CommandSourceStack source
+    ) throws CommandSyntaxException {
+        ServerPlayer player =
+                source.getPlayerOrException();
+
+        ItemStack stack =
+                player.getMainHandItem();
+
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.title(
+                        "Item → Essence Mapping"
+                )
+        );
+
+        if (stack.isEmpty()) {
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.muted(
+                            "Hold an item in your main hand."
+                    )
+            );
+
+            return 0;
+        }
+
+        ResourceLocation itemId =
+                BuiltInRegistries.ITEM.getKey(
+                        stack.getItem()
+                );
+
+        ItemEssenceMappingResult result =
+                ItemEssenceMappingRegistry.resolve(
+                        stack
+                );
+
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Item",
+                        stack.getHoverName()
+                                .getString()
+                                + " ["
+                                + itemId
+                                + "]"
+                )
+        );
+
+        if (!result.mapped()) {
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.line(
+                            "Mapping",
+                            EssenceCommandUtil.warn(
+                                    "NONE"
+                            )
+                    )
+            );
+
+            return 1;
+        }
+
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Matched rules",
+                        Integer.toString(
+                                result.matchedMappings()
+                                        .size()
+                        )
+                )
+        );
+
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Winning priority",
+                        Integer.toString(
+                                result.priority()
+                                        .orElseThrow()
+                        )
+                )
+        );
+
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.section(
+                        "Applied rules"
+                )
+        );
+
+        for (ResourceLocation mappingId :
+                result.appliedMappings()) {
+
+            ItemEssenceMappingDefinition definition =
+                    ItemEssenceMappingRegistry
+                            .definitions()
+                            .stream()
+                            .filter(
+                                    candidate ->
+                                            candidate.id()
+                                                    .equals(
+                                                            mappingId
+                                                    )
+                            )
+                            .findFirst()
+                            .orElse(
+                                    null
+                            );
+
+            String detail =
+                    definition == null
+                            ? mappingId.toString()
+                            : mappingId
+                                    + " | "
+                                    + definition.selectorDisplay();
+
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.muted(
+                            "  "
+                                    + detail
+                    )
+            );
+        }
+
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.section(
+                        "Resolved Attribute Essence"
+                )
+        );
+
+        if (result.outputs()
+                .isEmpty()) {
+
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.muted(
+                            "  BLOCKED / no outputs at winning priority"
+                    )
+            );
+
+            return 1;
+        }
+
+        result.outputs()
+                .entrySet()
+                .stream()
+                .sorted(
+                        Map.Entry.comparingByKey(
+                                java.util.Comparator.comparing(
+                                        essence ->
+                                                essence.id()
+                                                        .toString()
+                                )
+                        )
+                )
+                .forEach(
+                        entry ->
+                                EssenceCommandUtil.send(
+                                        source,
+                                        EssenceCommandUtil.line(
+                                                entry.getKey()
+                                                        .displayName(),
+                                                EssenceCommandUtil.format(
+                                                        entry.getValue()
+                                                )
+                                        )
+                                )
+                );
+
+        if (result.matchedMappings()
+                .size()
+                > result.appliedMappings()
+                        .size()) {
+
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.muted(
+                            "  "
+                                    + (
+                                    result.matchedMappings()
+                                            .size()
+                                            - result.appliedMappings()
+                                            .size()
+                            )
+                                    + " lower-priority match(es) shadowed"
+                    )
+            );
+        }
+
+        return 1;
+    }
+
+
+    private static int showMappingRegistry(
+            CommandSourceStack source
+    ) {
+        ItemEssenceMappingRegistry.ReloadReport report =
+                ItemEssenceMappingRegistry.lastReload();
+
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.title(
+                        "Item → Essence Mapping Registry"
+                )
+        );
+
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Last reload",
+                        report.successful()
+                                ? EssenceCommandUtil.good(
+                                        "SUCCESS"
+                                )
+                                : EssenceCommandUtil.bad(
+                                        "REJECTED / NOT LOADED"
+                                )
+                )
+        );
+
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Generation",
+                        Long.toString(
+                                report.generation()
+                        )
+                )
+        );
+
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Bundled defaults",
+                        Integer.toString(
+                                report.bundledDefaultCount()
+                        )
+                )
+        );
+
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Default changes",
+                        report.removedDefaultCount()
+                                + " removed, "
+                                + report.replacedDefaultCount()
+                                + " replaced"
+                )
+        );
+
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Config",
+                        report.configMappingCount()
+                                + " mapping(s) / "
+                                + report.configFileCount()
+                                + " file(s)"
+                )
+        );
+
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Active mappings",
+                        report.activeMappingCount()
+                                + " ("
+                                + report.explicitItemRuleCount()
+                                + " item, "
+                                + report.tagRuleCount()
+                                + " tag)"
+                )
+        );
+
+        if (!report.warnings()
+                .isEmpty()) {
+
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.section(
+                            "Last load warnings"
+                    )
+            );
+
+            for (String warning :
+                    report.warnings()) {
+
+                EssenceCommandUtil.send(
+                        source,
+                        EssenceCommandUtil.warn(
+                                "  "
+                                        + warning
+                        )
+                );
+            }
+        }
+
+        if (!report.errors()
+                .isEmpty()) {
+
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.section(
+                            "Last reload errors"
+                    )
+            );
+
+            for (String error :
+                    report.errors()) {
+
+                EssenceCommandUtil.send(
+                        source,
+                        EssenceCommandUtil.bad(
+                                "  "
+                                        + error
+                        )
+                );
+            }
+        }
+
+        return report.successful()
+                ? 1
+                : 0;
+    }
+
 
     private static int showBaselines(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();

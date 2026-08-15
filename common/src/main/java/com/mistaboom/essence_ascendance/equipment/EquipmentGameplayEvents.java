@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.equipment;
 
 import com.mistaboom.essence_ascendance.lifecycle.PlayerRuntimeLifecycleService;
+import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappings;
 import com.mistaboom.essence_ascendance.network.PlayerEssenceSyncService;
 import dev.architectury.event.events.common.TickEvent;
 import net.minecraft.server.level.ServerPlayer;
@@ -24,6 +25,7 @@ public final class EquipmentGameplayEvents {
             return;
         }
 
+        ItemEssenceMappings.init();
         PlayerEssenceSyncService.init();
         EquipmentTooltipSyncService.init();
         PlayerRuntimeLifecycleService.init();

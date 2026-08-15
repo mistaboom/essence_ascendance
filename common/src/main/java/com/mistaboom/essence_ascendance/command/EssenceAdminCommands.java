@@ -2,6 +2,9 @@ package com.mistaboom.essence_ascendance.command;
 
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.lifecycle.PlayerRuntimeLifecycleService;
+import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingDefinition;
+import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingRegistry;
+import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappings;
 import com.mistaboom.essence_ascendance.config.EssenceServerConfig;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
@@ -160,6 +163,18 @@ final class EssenceAdminCommands {
                                 )
                 )
                 .then(
+                        Commands.literal("mappings")
+                                .executes(context -> showMappings(context.getSource()))
+                                .then(
+                                        Commands.literal("reload")
+                                                .executes(context -> reloadMappings(context.getSource()))
+                                )
+                                .then(
+                                        Commands.literal("list")
+                                                .executes(context -> listMappings(context.getSource()))
+                                )
+                )
+                .then(
                         Commands.literal("config")
                                 .executes(context -> showConfig(context.getSource()))
                                 .then(
@@ -184,6 +199,9 @@ final class EssenceAdminCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin stats clear", "clear investments without clearing balances"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin tier set <tier>", "force the current tier"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin milestone set <milestone> <true|false>", "set an INTERNAL milestone"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin mappings", "show item mapping status and config path"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin mappings reload", "reload item mappings from global config"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin mappings list", "list the active mapping IDs/selectors"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin config", "show the loaded server configuration"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin config reload", "reload configuration and show the result"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin reset", "clear all balances and investments"));
@@ -361,6 +379,267 @@ final class EssenceAdminCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.good("Reset all Essence balances and stat investments."));
         return 1;
     }
+
+
+    private static int showMappings(
+            CommandSourceStack source
+    ) {
+        ItemEssenceMappingRegistry.ReloadReport report =
+                ItemEssenceMappingRegistry.lastReload();
+
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.title(
+                        "Item → Attribute Essence Mappings"
+                )
+        );
+
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Config path",
+                        EssenceCommandUtil.muted(
+                                ItemEssenceMappings
+                                        .configDirectory()
+                                        .toAbsolutePath()
+                                        .toString()
+                        )
+                )
+        );
+
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Last load",
+                        report.successful()
+                                ? EssenceCommandUtil.good(
+                                        "SUCCESS"
+                                )
+                                : EssenceCommandUtil.bad(
+                                        "REJECTED / NOT LOADED"
+                                )
+                )
+        );
+
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Generation",
+                        Long.toString(
+                                report.generation()
+                        )
+                )
+        );
+
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Bundled defaults",
+                        Integer.toString(
+                                report.bundledDefaultCount()
+                        )
+                )
+        );
+
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Default changes",
+                        report.removedDefaultCount()
+                                + " removed, "
+                                + report.replacedDefaultCount()
+                                + " replaced"
+                )
+        );
+
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Config mappings",
+                        report.configMappingCount()
+                                + " mapping(s) from "
+                                + report.configFileCount()
+                                + " file(s)"
+                )
+        );
+
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Active",
+                        report.activeMappingCount()
+                                + " mappings ("
+                                + report.explicitItemRuleCount()
+                                + " item, "
+                                + report.tagRuleCount()
+                                + " tag)"
+                )
+        );
+
+        if (!report.warnings()
+                .isEmpty()) {
+
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.section(
+                            "Warnings"
+                    )
+            );
+
+            for (String warning :
+                    report.warnings()) {
+
+                EssenceCommandUtil.send(
+                        source,
+                        EssenceCommandUtil.warn(
+                                "  "
+                                        + warning
+                        )
+                );
+            }
+        }
+
+        if (!report.errors()
+                .isEmpty()) {
+
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.section(
+                            "Errors"
+                    )
+            );
+
+            for (String error :
+                    report.errors()) {
+
+                EssenceCommandUtil.send(
+                        source,
+                        EssenceCommandUtil.bad(
+                                "  "
+                                        + error
+                        )
+                );
+            }
+        }
+
+        return report.successful()
+                ? 1
+                : 0;
+    }
+
+
+    private static int reloadMappings(
+            CommandSourceStack source
+    ) {
+        long before =
+                ItemEssenceMappingRegistry.generation();
+
+        ItemEssenceMappingRegistry.ReloadReport report =
+                ItemEssenceMappings.reload();
+
+        if (report.successful()
+                && report.generation()
+                > before) {
+
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.good(
+                            "Reloaded item → Attribute Essence mappings."
+                    )
+            );
+
+        } else {
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.bad(
+                            "Item mapping reload was rejected; the previous known-good generation remains active."
+                    )
+            );
+        }
+
+        return showMappings(
+                source
+        );
+    }
+
+
+    private static int listMappings(
+            CommandSourceStack source
+    ) {
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.title(
+                        "Active Item → Essence Mapping Rules"
+                )
+        );
+
+        if (ItemEssenceMappingRegistry.definitions()
+                .isEmpty()) {
+
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.muted(
+                            "No active mappings."
+                    )
+            );
+
+            return 1;
+        }
+
+        for (ItemEssenceMappingDefinition definition :
+                ItemEssenceMappingRegistry.definitions()) {
+
+            String outputs =
+                    definition.outputs()
+                            .entrySet()
+                            .stream()
+                            .sorted(
+                                    java.util.Comparator.comparing(
+                                            entry ->
+                                                    entry.getKey()
+                                                            .id()
+                                                            .toString()
+                                    )
+                            )
+                            .map(
+                                    entry ->
+                                            entry.getKey()
+                                                    .id()
+                                                    .getPath()
+                                                    + "="
+                                                    + EssenceCommandUtil.format(
+                                                            entry.getValue()
+                                                    )
+                            )
+                            .collect(
+                                    java.util.stream.Collectors.joining(
+                                            ", "
+                                    )
+                            );
+
+            if (outputs.isBlank()) {
+                outputs =
+                        "BLOCK";
+            }
+
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.muted(
+                            "  "
+                                    + definition.id()
+                                    + " | p="
+                                    + definition.priority()
+                                    + " | "
+                                    + definition.selectorDisplay()
+                                    + " | "
+                                    + outputs
+                    )
+            );
+        }
+
+        return 1;
+    }
+
 
     private static int showConfig(CommandSourceStack source) {
         EssenceServerConfig config = EssenceConfigManager.get();
