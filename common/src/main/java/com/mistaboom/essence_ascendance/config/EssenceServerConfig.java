@@ -16,6 +16,7 @@ import java.util.Optional;
 public final class EssenceServerConfig {
 
     private final int configVersion;
+    private final boolean skillEssencesEnabled;
     private final BalanceProfileDefinition balanceProfile;
     private final Map<ResourceLocation, MilestoneDefinition> milestones;
     private final Map<ResourceLocation, AscendanceAdvancementDefinition> advancements;
@@ -25,6 +26,7 @@ public final class EssenceServerConfig {
 
     public EssenceServerConfig(
             int configVersion,
+            boolean skillEssencesEnabled,
             BalanceProfileDefinition balanceProfile,
             Map<ResourceLocation, MilestoneDefinition> milestones,
             Map<ResourceLocation, AscendanceAdvancementDefinition> advancements,
@@ -32,6 +34,7 @@ public final class EssenceServerConfig {
             EquipmentBaselineConfig equipmentBaselineConfig
     ) {
         this.configVersion = configVersion;
+        this.skillEssencesEnabled = skillEssencesEnabled;
         this.balanceProfile = Objects.requireNonNull(
                 balanceProfile,
                 "Balance profile cannot be null"
@@ -90,6 +93,10 @@ public final class EssenceServerConfig {
 
     public int configVersion() {
         return configVersion;
+    }
+
+    public boolean skillEssencesEnabled() {
+        return skillEssencesEnabled;
     }
 
     public BalanceProfileDefinition balanceProfile() {

@@ -4,6 +4,9 @@ import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.config.EssenceServerConfig;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
+import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleBlockEntity;
+import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleEssences;
+import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleStructureStats;
 import com.mistaboom.essence_ascendance.equipment.ArmorStatWeights;
 import com.mistaboom.essence_ascendance.equipment.EquipmentActivationType;
 import com.mistaboom.essence_ascendance.equipment.EquipmentAttributeService;
@@ -52,6 +55,8 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 
 import java.util.Locale;
 import java.util.Map;
@@ -71,6 +76,7 @@ final class EssenceDebugCommands {
                 .then(Commands.literal("item").executes(context -> showItem(context.getSource())))
                 .then(Commands.literal("mapping").executes(context -> showItemMapping(context.getSource())))
                 .then(Commands.literal("mappings").executes(context -> showMappingRegistry(context.getSource())))
+                .then(Commands.literal("crucible").executes(context -> showCrucible(context.getSource())))
                 .then(Commands.literal("baselines").executes(context -> showBaselines(context.getSource())))
                 .then(Commands.literal("offense").executes(context -> showOffense(context.getSource())))
                 .then(Commands.literal("defense").executes(context -> showDefense(context.getSource())))
@@ -87,6 +93,7 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug item", "deep-dive the main-hand Ascendance item"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug mapping", "resolve the main-hand item to Attribute Essence"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug mappings", "mapping registry/reload summary"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug crucible", "inspect the Essence Crucible you are looking at"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug baselines", "tier/archetype equipment baselines"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.section("Gameplay categories"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug offense", "melee, ranged, magic, knockback, reflection"));
@@ -532,7 +539,7 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(
                 source,
                 EssenceCommandUtil.section(
-                        "Resolved Attribute Essence"
+                        "Resolved Essence"
                 )
         );
 
@@ -549,9 +556,22 @@ final class EssenceDebugCommands {
             return 1;
         }
 
+        boolean hasVisibleOutputs = result.outputs()
+                .keySet()
+                .stream()
+                .anyMatch(EssenceCommandUtil::isEssenceVisible);
+
+        if (!hasVisibleOutputs) {
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.muted("  No enabled Essence outputs.")
+            );
+        }
+
         result.outputs()
                 .entrySet()
                 .stream()
+                .filter(entry -> EssenceCommandUtil.isEssenceVisible(entry.getKey()))
                 .sorted(
                         Map.Entry.comparingByKey(
                                 java.util.Comparator.comparing(
@@ -596,6 +616,141 @@ final class EssenceDebugCommands {
         }
 
         return 1;
+    }
+
+
+    private static int showCrucible(
+            CommandSourceStack source
+    ) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        HitResult hit = player.pick(8.0D, 0.0F, false);
+
+        if (!(hit instanceof BlockHitResult blockHit)
+                || hit.getType() != HitResult.Type.BLOCK
+                || !(player.serverLevel().getBlockEntity(blockHit.getBlockPos())
+                instanceof EssenceCrucibleBlockEntity crucible)) {
+            EssenceCommandUtil.fail(
+                    source,
+                    "Look directly at an Essence Crucible within 8 blocks."
+            );
+            return 0;
+        }
+
+        EssenceCrucibleStructureStats stats = crucible.structureStats();
+        ItemStack input = crucible.getItem(0);
+        ItemEssenceMappingResult mapping = input.isEmpty()
+                ? null
+                : ItemEssenceMappingRegistry.resolve(input);
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Essence Crucible Debug"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Position", crucible.getBlockPos().getX() + ", " + crucible.getBlockPos().getY() + ", " + crucible.getBlockPos().getZ()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Owner", crucible.ownerDisplayName()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Access", crucible.accessMode().serializedName()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Input",
+                input.isEmpty()
+                        ? "EMPTY"
+                        : input.getCount() + "x " + input.getHoverName().getString()
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Input mapping",
+                mappingSummary(mapping)
+        ));
+
+        long[] stored = crucible.storedEssenceSnapshot();
+        for (int i = 0; i < stored.length; i++) {
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.line(
+                            EssenceCrucibleEssences.shortName(i),
+                            EssenceCommandUtil.format(stored[i])
+                    )
+            );
+        }
+
+        if (EssenceConfigManager.get().skillEssencesEnabled()) {
+            long[] skillStored = crucible.storedSkillEssenceSnapshot();
+            for (int i = 0; i < skillStored.length; i++) {
+                EssenceCommandUtil.send(
+                        source,
+                        EssenceCommandUtil.line(
+                                EssenceCrucibleEssences.skillShortName(i),
+                                EssenceCommandUtil.format(skillStored[i])
+                        )
+                );
+            }
+        }
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Owner shared reservoir",
+                EssenceCommandUtil.format(crucible.totalStoredEssence())
+                        + " / " + EssenceCommandUtil.format(crucible.effectiveReservoirCapacity())
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Structure",
+                stats.usableItemSlots() + " slot(s), "
+                        + stats.activePylonCount() + " pylon(s), "
+                        + stats.automationConnectionPorts() + " automation port(s), "
+                        + stats.visualTransferStreams() + " stream(s)"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Transfer",
+                EssenceCommandUtil.format(stats.transferRatePerSecond())
+                        + "/sec, range "
+                        + EssenceCommandUtil.formatDecimal(stats.transferRange())
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Dissolution",
+                stats.dissolutionTicksPerItem() + " ticks/item, progress "
+                        + crucible.processingTicks() + "/"
+                        + stats.dissolutionTicksPerItem()
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Channel",
+                crucible.isChanneling()
+                        ? "ACTIVE -> " + crucible.channelingPlayerId()
+                        : "INACTIVE"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Distance",
+                EssenceCommandUtil.formatDecimal(crucible.distanceTo(player))
+                        + " / " + EssenceCommandUtil.formatDecimal(stats.transferRange())
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Break protection",
+                "DISABLED - reservoir is player-owned"
+        ));
+
+        return 1;
+    }
+
+    private static String mappingSummary(
+            ItemEssenceMappingResult result
+    ) {
+        if (result == null || !result.mapped()) {
+            return "NONE";
+        }
+        if (result.outputs().isEmpty()) {
+            return "BLOCKED / empty output";
+        }
+
+        StringBuilder text = new StringBuilder();
+        result.outputs().entrySet().stream()
+                .filter(entry -> EssenceCommandUtil.isEssenceVisible(entry.getKey()))
+                .sorted(Map.Entry.comparingByKey(
+                        java.util.Comparator.comparing(essence -> essence.id().toString())
+                ))
+                .forEach(entry -> {
+                    if (text.length() > 0) {
+                        text.append(", ");
+                    }
+                    text.append(entry.getKey().id().getPath())
+                            .append('=')
+                            .append(entry.getValue());
+                });
+        return text.length() == 0
+                ? "NO VISIBLE OUTPUTS"
+                : text.toString();
     }
 
 

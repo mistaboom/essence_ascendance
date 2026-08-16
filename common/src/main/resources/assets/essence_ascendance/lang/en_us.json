@@ -3,13 +3,15 @@
   "item.essence_ascendance.ascendance_chestplate": "Ascendance Chestplate",
   "item.essence_ascendance.ascendance_leggings": "Ascendance Leggings",
   "item.essence_ascendance.ascendance_boots": "Ascendance Boots",
-
   "item.essence_ascendance.ascendance_melee_weapon": "Ascendance Blade",
   "item.essence_ascendance.ascendance_ranged_weapon": "Ascendance Bow",
   "item.essence_ascendance.ascendance_magic_weapon": "Ascendance Focus",
-
   "item.essence_ascendance.ascendance_pickaxe": "Ascendance Pickaxe",
   "item.essence_ascendance.ascendance_axe": "Ascendance Axe",
   "item.essence_ascendance.ascendance_shovel": "Ascendance Shovel",
-  "item.essence_ascendance.ascendance_hoe": "Ascendance Hoe"
+  "item.essence_ascendance.ascendance_hoe": "Ascendance Hoe",
+  "block.essence_ascendance.essence_crucible": "Essence Crucible",
+  "container.essence_ascendance.essence_crucible": "Essence Crucible",
+  "message.essence_ascendance.crucible_private": "This Essence Crucible is privately attuned to another player.",
+  "message.essence_ascendance.crucible_break_blocked": "Only the owner can break an empty Essence Crucible. Remove its input and drain all stored Essence first."
 }

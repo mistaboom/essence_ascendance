@@ -37,7 +37,7 @@ import java.util.Map;
 public final class EssenceConfigManager {
 
     public static final int CURRENT_CONFIG_VERSION =
-            2;
+            3;
 
     private static final int MAX_REQUIREMENT_DEPTH =
             32;
@@ -449,6 +449,15 @@ public final class EssenceConfigManager {
                 CURRENT_CONFIG_VERSION
         );
 
+        root.addProperty(
+                "_skill_essence_comment",
+                "Skill Essence is future/expansion content. When false, Skill Essence stays registered and persisted but is hidden from player commands and interfaces."
+        );
+        root.addProperty(
+                "enable_skill_essences",
+                false
+        );
+
 
         root.addProperty(
                 "preset",
@@ -600,6 +609,13 @@ public final class EssenceConfigManager {
         }
 
 
+        boolean skillEssencesEnabled =
+                readBoolean(
+                        root,
+                        "enable_skill_essences",
+                        false
+                );
+
         BalanceProfileDefinition balanceProfile =
                 parseBalanceProfile(
                         root
@@ -631,6 +647,7 @@ public final class EssenceConfigManager {
 
         return new EssenceServerConfig(
                 version,
+                skillEssencesEnabled,
                 balanceProfile,
                 milestones,
                 advancements,
@@ -1480,6 +1497,7 @@ public final class EssenceConfigManager {
 
         return new EssenceServerConfig(
                 CURRENT_CONFIG_VERSION,
+                false,
                 BalanceProfiles.VANILLA,
                 milestones,
                 advancements,
@@ -1600,6 +1618,36 @@ public final class EssenceConfigManager {
 
 
         return element.getAsJsonArray();
+    }
+
+
+    private static boolean readBoolean(
+            JsonObject object,
+            String key,
+            boolean fallback
+    ) {
+
+        if (!object.has(
+                key
+        )) {
+            return fallback;
+        }
+
+        try {
+            JsonElement element = object.get(key);
+            if (!element.isJsonPrimitive()
+                    || !element.getAsJsonPrimitive().isBoolean()) {
+                throw new IllegalArgumentException();
+            }
+            return element.getAsBoolean();
+
+        } catch (RuntimeException exception) {
+            throw new IllegalArgumentException(
+                    "Invalid boolean value for '"
+                            + key
+                            + "'"
+            );
+        }
     }
 
 

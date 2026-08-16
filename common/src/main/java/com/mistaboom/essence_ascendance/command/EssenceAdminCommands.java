@@ -10,6 +10,7 @@ import com.mistaboom.essence_ascendance.config.EssenceServerConfig;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
+import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.progression.HarvestProgressionSafety;
 import com.mistaboom.essence_ascendance.progression.MilestoneDefinition;
 import com.mistaboom.essence_ascendance.progression.MilestoneProviders;
@@ -74,6 +75,30 @@ final class EssenceAdminCommands {
                                                                                         LongArgumentType.getLong(context, "amount")
                                                                                 ))
                                                                 )
+                                                )
+                                )
+                )
+                .then(
+                        Commands.literal("essences")
+                                .executes(context -> showEssencesHelp(context.getSource()))
+                                .then(
+                                        Commands.literal("clear")
+                                                .executes(context -> clearAllEssences(context.getSource()))
+                                )
+                )
+                .then(
+                        Commands.literal("crucible")
+                                .executes(context -> showCrucibleHelp(context.getSource()))
+                                .then(
+                                        Commands.literal("clear")
+                                                .executes(context -> clearAllCrucibleEssences(context.getSource()))
+                                                .then(
+                                                        Commands.argument("essence", StringArgumentType.word())
+                                                                .suggests(EssenceCommandUtil::suggestEssences)
+                                                                .executes(context -> clearCrucibleEssence(
+                                                                        context.getSource(),
+                                                                        StringArgumentType.getString(context, "essence")
+                                                                ))
                                                 )
                                 )
                 )
@@ -193,6 +218,9 @@ final class EssenceAdminCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.title("Essence Admin Commands"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin essence give <essence> <amount>", "add available Essence"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin essence set <essence> <amount>", "set an available Essence balance"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin essences clear", "clear all available Essence balances"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin crucible clear", "clear stored Crucible Essence"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin crucible clear <essence>", "clear one stored Crucible Essence"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin stat set <stat> <amount>", "set stored investment directly"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin stat max <stat>", "set one stat exactly to its current tier cap"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin stat clear <stat>", "clear one stat investment"));
@@ -213,6 +241,28 @@ final class EssenceAdminCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.section("Admin - Essence balances"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin essence give <essence> <amount>", "add to a balance"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin essence set <essence> <amount>", "replace a balance"));
+        return 1;
+    }
+
+    private static int showEssencesHelp(CommandSourceStack source) {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Admin - All Essence balances"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin essences clear", "clear all available Essence balances while preserving investments and Crucible storage"));
+        return 1;
+    }
+
+    private static int showCrucibleHelp(CommandSourceStack source) {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Admin - Crucible reservoir"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command(
+                "/essence admin crucible clear",
+                "clear all currently enabled Essence from your shared Crucible reservoir"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command(
+                "/essence admin crucible clear <essence>",
+                "clear one currently visible Essence from your shared Crucible reservoir"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
+                "Disabled Skill Essence remains preserved and hidden."
+        ));
         return 1;
     }
 
@@ -252,6 +302,81 @@ final class EssenceAdminCommands {
 
         EssenceCommandUtil.send(source, EssenceCommandUtil.good(
                 "Set " + essence.displayName() + " to " + EssenceCommandUtil.format(amount) + "."
+        ));
+        return 1;
+    }
+
+    private static int clearAllEssences(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        EssenceSavedData savedData = EssenceSavedData.get(source.getServer());
+        int count = 0;
+
+        for (EssenceDefinition essence : EssenceRegistry.values()) {
+            if (!EssenceCommandUtil.isEssenceVisible(essence)) {
+                continue;
+            }
+
+            savedData.setEssence(player.getUUID(), essence, 0L);
+            count++;
+        }
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.good(
+                "Cleared available balances for " + count
+                        + " enabled Essence types. Stat investments, Crucible storage, and disabled Essence data were preserved."
+        ));
+        return 1;
+    }
+
+    private static int clearAllCrucibleEssences(
+            CommandSourceStack source
+    ) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        EssenceSavedData savedData = EssenceSavedData.get(source.getServer());
+        int visibleTypes = 0;
+        int clearedTypes = 0;
+
+        for (EssenceDefinition essence : EssenceRegistry.values()) {
+            if (!EssenceCommandUtil.isEssenceVisible(essence)) {
+                continue;
+            }
+
+            visibleTypes++;
+            long removed = savedData.removeCrucibleStored(
+                    player.getUUID(),
+                    essence,
+                    Long.MAX_VALUE
+            );
+            if (removed > 0L) {
+                clearedTypes++;
+            }
+        }
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.good(
+                "Cleared stored Crucible Essence from " + clearedTypes
+                        + " of " + visibleTypes
+                        + " enabled Essence types. Disabled Essence storage was preserved."
+        ));
+        return 1;
+    }
+
+    private static int clearCrucibleEssence(
+            CommandSourceStack source,
+            String essenceName
+    ) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        EssenceDefinition essence = EssenceCommandUtil.resolveEssence(essenceName);
+        long removed = EssenceSavedData
+                .get(source.getServer())
+                .removeCrucibleStored(
+                        player.getUUID(),
+                        essence,
+                        Long.MAX_VALUE
+                );
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.good(
+                "Cleared " + EssenceCommandUtil.format(removed) + " "
+                        + essence.displayName()
+                        + " from your shared Crucible reservoir."
         ));
         return 1;
     }
@@ -598,6 +723,7 @@ final class EssenceAdminCommands {
                     definition.outputs()
                             .entrySet()
                             .stream()
+                            .filter(entry -> EssenceCommandUtil.isEssenceVisible(entry.getKey()))
                             .sorted(
                                     java.util.Comparator.comparing(
                                             entry ->
@@ -623,8 +749,9 @@ final class EssenceAdminCommands {
                             );
 
             if (outputs.isBlank()) {
-                outputs =
-                        "BLOCK";
+                outputs = definition.outputs().isEmpty()
+                        ? "BLOCK"
+                        : "NO VISIBLE OUTPUTS";
             }
 
             EssenceCommandUtil.send(

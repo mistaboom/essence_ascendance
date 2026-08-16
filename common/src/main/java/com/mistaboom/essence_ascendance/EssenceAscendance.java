@@ -4,6 +4,8 @@ import com.mistaboom.essence_ascendance.balance.BalanceProfileRegistry;
 import com.mistaboom.essence_ascendance.balance.BalanceProfiles;
 import com.mistaboom.essence_ascendance.command.EssenceCommands;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
+import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleContent;
+import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleGameplayEvents;
 import com.mistaboom.essence_ascendance.equipment.ArmorStatWeights;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfileRegistry;
 import com.mistaboom.essence_ascendance.equipment.EquipmentGameplayEvents;
@@ -53,6 +55,8 @@ public final class EssenceAscendance {
         /* Native item registrations come after equipment definitions. */
         AscendanceArmorMaterials.init();
         AscendanceItems.init();
+        EssenceCrucibleContent.init();
+        EssenceCrucibleGameplayEvents.init();
 
         MilestoneProviders.init();
         Milestones.init();

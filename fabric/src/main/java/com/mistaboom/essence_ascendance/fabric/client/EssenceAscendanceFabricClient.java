@@ -1,6 +1,9 @@
 package com.mistaboom.essence_ascendance.fabric.client;
 
 import com.mistaboom.essence_ascendance.client.EssenceAscendanceClient;
+import com.mistaboom.essence_ascendance.client.EssenceCrucibleScreen;
+import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleContent;
+import net.minecraft.client.gui.screens.MenuScreens;
 import net.fabricmc.api.ClientModInitializer;
 import net.minecraft.client.renderer.item.ItemProperties;
 
@@ -18,6 +21,11 @@ public final class EssenceAscendanceFabricClient
     public void onInitializeClient() {
         EssenceAscendanceClient.init(
                 ItemProperties::register
+        );
+
+        MenuScreens.register(
+                EssenceCrucibleContent.ESSENCE_CRUCIBLE_MENU.get(),
+                EssenceCrucibleScreen::new
         );
     }
 }

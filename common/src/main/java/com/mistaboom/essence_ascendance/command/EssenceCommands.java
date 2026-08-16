@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.command;
 
+import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import com.mistaboom.essence_ascendance.equipment.EquipmentActivationType;
@@ -175,7 +176,11 @@ public final class EssenceCommands {
         PlayerEssenceData data = playerData(source, player);
 
         long totalAvailable = 0L;
+
         for (EssenceDefinition essence : EssenceRegistry.values()) {
+            if (!EssenceCommandUtil.isEssenceVisible(essence)) {
+                continue;
+            }
             totalAvailable = safeAdd(totalAvailable, data.getAvailable(essence));
         }
 
@@ -234,13 +239,22 @@ public final class EssenceCommands {
         PlayerEssenceData data = playerData(source, player);
 
         EssenceCommandUtil.send(source, EssenceCommandUtil.title("Essence Balances"));
+        boolean skillEssencesEnabled =
+                EssenceConfigManager.get().skillEssencesEnabled();
+
         for (EssenceFamily family : EssenceFamily.values()) {
+            if (family == EssenceFamily.SKILL
+                    && !skillEssencesEnabled) {
+                continue;
+            }
+
             EssenceCommandUtil.send(
                     source,
                     EssenceCommandUtil.section(family == EssenceFamily.ATTRIBUTE ? "Attribute Essence" : "Skill Essence")
             );
             for (EssenceDefinition essence : EssenceRegistry.values()) {
-                if (essence.family() != family) {
+                if (essence.family() != family
+                        || !EssenceCommandUtil.isEssenceVisible(essence)) {
                     continue;
                 }
                 EssenceCommandUtil.send(

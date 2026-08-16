@@ -130,6 +130,81 @@ public final class EssenceSavedData extends SavedData {
 
     /*
      * ============================================================
+     * CRUCIBLE RESERVOIR MUTATION
+     * ============================================================
+     */
+
+    public long addCrucibleStored(
+            UUID playerId,
+            EssenceDefinition essence,
+            long amount
+    ) {
+        PlayerEssenceData playerData =
+                getPlayerData(
+                        playerId
+                );
+
+        long updated =
+                playerData.addCrucibleStored(
+                        essence,
+                        amount
+                );
+
+        setDirty();
+        return updated;
+    }
+
+
+    public long removeCrucibleStored(
+            UUID playerId,
+            EssenceDefinition essence,
+            long amount
+    ) {
+        PlayerEssenceData playerData =
+                getPlayerData(
+                        playerId
+                );
+
+        long removed =
+                playerData.removeCrucibleStored(
+                        essence,
+                        amount
+                );
+
+        if (removed > 0L) {
+            setDirty();
+        }
+
+        return removed;
+    }
+
+
+    public long transferCrucibleToAvailable(
+            UUID playerId,
+            EssenceDefinition essence,
+            long amount
+    ) {
+        PlayerEssenceData playerData =
+                getPlayerData(
+                        playerId
+                );
+
+        long moved =
+                playerData.transferCrucibleToAvailable(
+                        essence,
+                        amount
+                );
+
+        if (moved > 0L) {
+            setDirty();
+        }
+
+        return moved;
+    }
+
+
+    /*
+     * ============================================================
      * STAT INVESTMENT
      * ============================================================
      */

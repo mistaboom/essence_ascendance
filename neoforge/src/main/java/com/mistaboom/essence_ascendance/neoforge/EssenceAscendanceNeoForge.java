@@ -1,12 +1,17 @@
 package com.mistaboom.essence_ascendance.neoforge;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
+import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleContent;
+import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleStructureService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentDamageService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentGatheringService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentVitalityService;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.enchantment.Enchantments;
+import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingHealEvent;
@@ -16,8 +21,12 @@ import net.neoforged.neoforge.event.enchanting.GetEnchantmentLevelEvent;
 @Mod(EssenceAscendance.MOD_ID)
 public final class EssenceAscendanceNeoForge {
 
-    public EssenceAscendanceNeoForge() {
+    public EssenceAscendanceNeoForge(IEventBus modBus) {
         EssenceAscendance.init();
+
+        modBus.addListener(
+                EssenceAscendanceNeoForge::registerCapabilities
+        );
 
         /*
          * NeoForge exposes mutable incoming damage, post-damage health loss,
@@ -40,6 +49,27 @@ public final class EssenceAscendanceNeoForge {
                 EssenceAscendanceNeoForge::onGetEnchantmentLevel
         );
 
+    }
+
+    private static void registerCapabilities(
+            RegisterCapabilitiesEvent event
+    ) {
+        event.registerBlockEntity(
+                Capabilities.ItemHandler.BLOCK,
+                EssenceCrucibleContent.ESSENCE_CRUCIBLE_BLOCK_ENTITY.get(),
+                (blockEntity, direction) -> {
+                    if (direction != null
+                            && blockEntity.getLevel() != null
+                            && !EssenceCrucibleStructureService.allowsAutomationConnection(
+                                    blockEntity.getLevel(),
+                                    blockEntity.getBlockPos(),
+                                    direction
+                            )) {
+                        return null;
+                    }
+                    return new EssenceCrucibleNeoForgeItemHandler(blockEntity);
+                }
+        );
     }
 
     private static void onIncomingDamage(

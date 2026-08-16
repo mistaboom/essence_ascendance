@@ -24,6 +24,9 @@ public final class PlayerEssenceData {
     private static final String INVESTED_TAG =
             "invested";
 
+    private static final String CRUCIBLE_RESERVOIR_TAG =
+            "crucible_reservoir";
+
     private static final String TIER_TAG =
             "tier";
 
@@ -35,6 +38,20 @@ public final class PlayerEssenceData {
             new LinkedHashMap<>();
 
     private final Map<ResourceLocation, Long> investedEssence =
+            new LinkedHashMap<>();
+
+    /*
+     * Essence dissolved by owned Crucibles but not yet channeled into the
+     * player's spendable AVAILABLE balance. This is intentionally player-
+     * owned rather than block-owned so multiple Crucibles share one capped
+     * reservoir and breaking/replacing a Crucible cannot lose the stored
+     * Essence.
+     *
+     * Changes here do not bump the normal progression revision because the
+     * existing player Essence sync payload does not expose this reservoir.
+     * The Crucible screen has its own server-authoritative state payload.
+     */
+    private final Map<ResourceLocation, Long> crucibleReservoir =
             new LinkedHashMap<>();
 
     private final Set<ResourceLocation> completedMilestones =
@@ -163,6 +180,147 @@ public final class PlayerEssenceData {
     public Map<ResourceLocation, Long> getAllAvailable() {
         return Collections.unmodifiableMap(
                 availableEssence
+        );
+    }
+
+
+    /*
+     * ============================================================
+     * CRUCIBLE RESERVOIR
+     * ============================================================
+     */
+
+    public long getCrucibleStored(
+            EssenceDefinition essence
+    ) {
+        return getCrucibleStored(
+                essence.id()
+        );
+    }
+
+
+    public long getCrucibleStored(
+            ResourceLocation essenceId
+    ) {
+        return crucibleReservoir.getOrDefault(
+                essenceId,
+                0L
+        );
+    }
+
+
+    public long addCrucibleStored(
+            EssenceDefinition essence,
+            long amount
+    ) {
+        if (amount <= 0L) {
+            throw new IllegalArgumentException(
+                    "Crucible Essence amount must be greater than zero"
+            );
+        }
+
+        long updated = Math.addExact(
+                getCrucibleStored(essence),
+                amount
+        );
+
+        crucibleReservoir.put(
+                essence.id(),
+                updated
+        );
+
+        return updated;
+    }
+
+
+    public long removeCrucibleStored(
+            EssenceDefinition essence,
+            long amount
+    ) {
+        if (amount <= 0L) {
+            throw new IllegalArgumentException(
+                    "Crucible Essence amount must be greater than zero"
+            );
+        }
+
+        long current = getCrucibleStored(essence);
+        long removed = Math.min(current, amount);
+        if (removed <= 0L) {
+            return 0L;
+        }
+
+        long remaining = current - removed;
+        if (remaining == 0L) {
+            crucibleReservoir.remove(
+                    essence.id()
+            );
+        } else {
+            crucibleReservoir.put(
+                    essence.id(),
+                    remaining
+            );
+        }
+
+        return removed;
+    }
+
+
+    public long transferCrucibleToAvailable(
+            EssenceDefinition essence,
+            long requestedAmount
+    ) {
+        if (requestedAmount <= 0L) {
+            throw new IllegalArgumentException(
+                    "Transfer amount must be greater than zero"
+            );
+        }
+
+        long stored = getCrucibleStored(essence);
+        if (stored <= 0L) {
+            return 0L;
+        }
+
+        long available = getAvailable(essence);
+        long room = Long.MAX_VALUE - available;
+        if (room <= 0L) {
+            return 0L;
+        }
+
+        long moved = Math.min(
+                requestedAmount,
+                Math.min(stored, room)
+        );
+        if (moved <= 0L) {
+            return 0L;
+        }
+
+        long remainingStored = stored - moved;
+        if (remainingStored == 0L) {
+            crucibleReservoir.remove(
+                    essence.id()
+            );
+        } else {
+            crucibleReservoir.put(
+                    essence.id(),
+                    remainingStored
+            );
+        }
+
+        availableEssence.put(
+                essence.id(),
+                available + moved
+        );
+
+        /* AVAILABLE changed, so the normal player Essence payload must sync. */
+        bumpRevision();
+
+        return moved;
+    }
+
+
+    public Map<ResourceLocation, Long> getAllCrucibleStored() {
+        return Collections.unmodifiableMap(
+                crucibleReservoir
         );
     }
 
@@ -327,12 +485,14 @@ public final class PlayerEssenceData {
          * milestones.
          */
         if (availableEssence.isEmpty()
-                && investedEssence.isEmpty()) {
+                && investedEssence.isEmpty()
+                && crucibleReservoir.isEmpty()) {
             return;
         }
 
         availableEssence.clear();
         investedEssence.clear();
+        crucibleReservoir.clear();
         bumpRevision();
     }
 
@@ -463,6 +623,27 @@ public final class PlayerEssenceData {
 
 
         /*
+         * Crucible reservoir Essence
+         */
+        CompoundTag crucibleReservoirTag =
+                new CompoundTag();
+
+        for (Map.Entry<ResourceLocation, Long> entry :
+                crucibleReservoir.entrySet()) {
+
+            crucibleReservoirTag.putLong(
+                    entry.getKey().toString(),
+                    entry.getValue()
+            );
+        }
+
+        root.put(
+                CRUCIBLE_RESERVOIR_TAG,
+                crucibleReservoirTag
+        );
+
+
+        /*
          * Invested Essence
          */
         CompoundTag investedTag =
@@ -582,6 +763,23 @@ public final class PlayerEssenceData {
                         AVAILABLE_TAG
                 ),
                 data.availableEssence
+        );
+
+
+        /*
+         * ========================================================
+         * CRUCIBLE RESERVOIR
+         * ========================================================
+         *
+         * Older saves do not contain this tag, so an absent compound
+         * naturally loads as an empty reservoir.
+         */
+
+        readLongMap(
+                root.getCompound(
+                        CRUCIBLE_RESERVOIR_TAG
+                ),
+                data.crucibleReservoir
         );
 
 

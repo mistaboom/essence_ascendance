@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.lifecycle;
 
+import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleChannelService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentAttributeService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentDamageService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentGatheringService;
@@ -7,6 +8,7 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentMobilityService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTooltipSyncService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentVitalityService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentWeaponService;
+import com.mistaboom.essence_ascendance.network.EssenceCrucibleNetworkService;
 import com.mistaboom.essence_ascendance.network.PlayerEssenceSyncService;
 import dev.architectury.event.events.common.PlayerEvent;
 import net.minecraft.server.MinecraftServer;
@@ -168,6 +170,14 @@ public final class PlayerRuntimeLifecycleService {
         PlayerEssenceSyncService.forget(
                 player
         );
+
+        EssenceCrucibleChannelService.stopForPlayer(
+                player
+        );
+
+        EssenceCrucibleNetworkService.forget(
+                player
+        );
     }
 
     /*
@@ -208,6 +218,14 @@ public final class PlayerRuntimeLifecycleService {
         );
 
         PlayerEssenceSyncService.forget(
+                player
+        );
+
+        EssenceCrucibleChannelService.stopForPlayer(
+                player
+        );
+
+        EssenceCrucibleNetworkService.forget(
                 player
         );
     }
