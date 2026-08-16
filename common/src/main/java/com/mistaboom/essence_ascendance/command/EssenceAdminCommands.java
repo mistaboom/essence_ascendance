@@ -5,6 +5,7 @@ import com.mistaboom.essence_ascendance.lifecycle.PlayerRuntimeLifecycleService;
 import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingDefinition;
 import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingRegistry;
 import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappings;
+import com.mistaboom.essence_ascendance.network.ItemEssenceTooltipSyncService;
 import com.mistaboom.essence_ascendance.config.EssenceServerConfig;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
@@ -541,10 +542,14 @@ final class EssenceAdminCommands {
                 && report.generation()
                 > before) {
 
+            ItemEssenceTooltipSyncService.syncAll(
+                    source.getServer()
+            );
+
             EssenceCommandUtil.send(
                     source,
                     EssenceCommandUtil.good(
-                            "Reloaded item → Attribute Essence mappings."
+                            "Reloaded item → Attribute Essence mappings and synchronized item tooltips."
                     )
             );
 

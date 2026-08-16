@@ -2,7 +2,6 @@ package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.network.EquipmentTooltipPayload;
-import dev.architectury.event.events.client.ClientTooltipEvent;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
@@ -18,6 +17,9 @@ import net.minecraft.world.item.enchantment.ItemEnchantments;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.LinkedHashSet;
+import java.util.Locale;
+import java.util.Set;
 import java.util.Map;
 
 /*
@@ -54,10 +56,6 @@ public final class EquipmentTooltipClientState {
                         )
         );
 
-        ClientTooltipEvent.ITEM.register(
-                EquipmentTooltipClientState::organizeTooltip
-        );
-
         initialized = true;
 
         EssenceAscendance.LOGGER.info(
@@ -68,7 +66,8 @@ public final class EquipmentTooltipClientState {
     /*
      * Kept for compatibility with the first tooltip patch, whose Ascendance item
      * classes call this from appendHoverText(). The actual presentation now runs
-     * once from ClientTooltipEvent after the complete vanilla tooltip exists.
+     * once from the ItemStack#getTooltipLines return pipeline after the complete
+     * vanilla tooltip exists.
      */
     public static void append(
             ItemStack stack,
@@ -77,7 +76,7 @@ public final class EquipmentTooltipClientState {
         // Intentionally empty.
     }
 
-    private static void organizeTooltip(
+    public static void applyToGeneratedTooltip(
             ItemStack stack,
             List<Component> tooltip,
             Item.TooltipContext tooltipContext,
@@ -375,6 +374,88 @@ public final class EquipmentTooltipClientState {
                 );
     }
 
+
+    /*
+     * Returns the searchable WORDS represented by the visible player-aware
+     * equipment tooltip for this stack.
+     *
+     * JEI's tooltip search indexes words, not whole lines, so this deliberately
+     * tokenizes Component#getString() using whitespace just like JEI does.
+     */
+    public static Set<String> getSearchTerms(
+            ItemStack stack
+    ) {
+        if (stack == null
+                || stack.isEmpty()) {
+            return Set.of();
+        }
+
+        ResourceLocation itemId =
+                BuiltInRegistries.ITEM
+                        .getKey(
+                                stack.getItem()
+                        );
+
+        List<EquipmentTooltipPayload.Line> lines =
+                LINES_BY_ITEM.get(
+                        itemId
+                );
+
+        if (lines == null
+                || lines.isEmpty()) {
+            return Set.of();
+        }
+
+        Set<String> result =
+                new LinkedHashSet<>();
+
+        /*
+         * LINES_BY_ITEM stores the server-synchronized semantic Line records,
+         * not rendered Components. Search the exact display text carried by
+         * each record; the normal tooltip renderer styles that same text later.
+         */
+        for (EquipmentTooltipPayload.Line line :
+                lines) {
+
+            addSearchWords(
+                    result,
+                    line.text()
+            );
+        }
+
+        return Set.copyOf(
+                result
+        );
+    }
+
+
+    private static void addSearchWords(
+            Set<String> result,
+            String text
+    ) {
+        if (text == null
+                || text.isBlank()) {
+            return;
+        }
+
+        for (String word :
+                text.toLowerCase(
+                                Locale.ROOT
+                        )
+                        .trim()
+                        .split(
+                                "\\s+"
+                        )) {
+
+            if (!word.isBlank()) {
+                result.add(
+                        word
+                );
+            }
+        }
+    }
+
+
     private static void accept(
             EquipmentTooltipPayload payload
     ) {
@@ -390,6 +471,17 @@ public final class EquipmentTooltipClientState {
             }
         }
 
-        LINES_BY_ITEM = Map.copyOf(next);
+        LINES_BY_ITEM =
+                Map.copyOf(
+                        next
+                );
+
+        /*
+         * JEI's $ tooltip-search index is built from ItemStack#getTooltipLines.
+         * If its runtime already exists, rebuild the index now that this
+         * player-aware tooltip snapshot has changed. If JEI has not initialized
+         * yet, its normal initial index build will see this state later.
+         */
+        JeiTooltipSearchRefreshBridge.requestRefresh();
     }
 }

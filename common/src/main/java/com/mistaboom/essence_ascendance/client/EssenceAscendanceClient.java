@@ -55,6 +55,7 @@ public final class EssenceAscendanceClient {
 
         ClientEssenceState.init();
         EquipmentTooltipClientState.init();
+        ItemEssenceTooltipClientState.init();
 
         Item rangedWeapon = AscendanceItems
                 .ASCENDANCE_RANGED_WEAPON

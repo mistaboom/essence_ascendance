@@ -10,7 +10,10 @@
   ],
   "client": [
     "ItemInHandRendererMixin",
-    "AbstractClientPlayerFovMixin"
+    "AbstractClientPlayerFovMixin",
+    "ItemStackTooltipMixin",
+    "JeiListElementInfoMixin",
+    "JeiIngredientFilterMixin"
   ],
   "injectors": {
     "defaultRequire": 1
