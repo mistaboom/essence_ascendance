@@ -7,6 +7,9 @@ import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleBlockEntity;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleEssences;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleStructureStats;
+import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleStructureSnapshot;
+import com.mistaboom.essence_ascendance.pylon.EssencePylonBlockEntity;
+import com.mistaboom.essence_ascendance.pylon.EssencePylonContribution;
 import com.mistaboom.essence_ascendance.equipment.ArmorStatWeights;
 import com.mistaboom.essence_ascendance.equipment.EquipmentActivationType;
 import com.mistaboom.essence_ascendance.equipment.EquipmentAttributeService;
@@ -77,6 +80,7 @@ final class EssenceDebugCommands {
                 .then(Commands.literal("mapping").executes(context -> showItemMapping(context.getSource())))
                 .then(Commands.literal("mappings").executes(context -> showMappingRegistry(context.getSource())))
                 .then(Commands.literal("crucible").executes(context -> showCrucible(context.getSource())))
+                .then(Commands.literal("pylon").executes(context -> showPylon(context.getSource())))
                 .then(Commands.literal("baselines").executes(context -> showBaselines(context.getSource())))
                 .then(Commands.literal("offense").executes(context -> showOffense(context.getSource())))
                 .then(Commands.literal("defense").executes(context -> showDefense(context.getSource())))
@@ -94,6 +98,7 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug mapping", "resolve the main-hand item to Attribute Essence"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug mappings", "mapping registry/reload summary"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug crucible", "inspect the Essence Crucible you are looking at"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug pylon", "inspect the Essence Pylon you are looking at"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug baselines", "tier/archetype equipment baselines"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.section("Gameplay categories"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug offense", "melee, ranged, magic, knockback, reflection"));
@@ -637,25 +642,34 @@ final class EssenceDebugCommands {
         }
 
         EssenceCrucibleStructureStats stats = crucible.structureStats();
-        ItemStack input = crucible.getItem(0);
-        ItemEssenceMappingResult mapping = input.isEmpty()
-                ? null
-                : ItemEssenceMappingRegistry.resolve(input);
 
         EssenceCommandUtil.send(source, EssenceCommandUtil.title("Essence Crucible Debug"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line("Position", crucible.getBlockPos().getX() + ", " + crucible.getBlockPos().getY() + ", " + crucible.getBlockPos().getZ()));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line("Owner", crucible.ownerDisplayName()));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line("Access", crucible.accessMode().serializedName()));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Input",
-                input.isEmpty()
-                        ? "EMPTY"
-                        : input.getCount() + "x " + input.getHoverName().getString()
-        ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Input mapping",
-                mappingSummary(mapping)
-        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Input Lanes"));
+        for (int slot = 0; slot < EssenceCrucibleBlockEntity.MAX_INPUT_SLOTS; slot++) {
+            ItemStack input = crucible.getItem(slot);
+            boolean active = crucible.isInputSlotActive(slot);
+            if (input.isEmpty() && !active) {
+                continue;
+            }
+
+            ItemEssenceMappingResult mapping = input.isEmpty()
+                    ? null
+                    : ItemEssenceMappingRegistry.resolve(input);
+            String status = active ? "ACTIVE" : "OFFLINE";
+            String contents = input.isEmpty()
+                    ? "EMPTY"
+                    : input.getCount() + "x " + input.getHoverName().getString();
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.muted(
+                            "  #" + (slot + 1) + " [" + status + "] "
+                                    + contents + " | " + mappingSummary(mapping)
+                    )
+            );
+        }
 
         long[] stored = crucible.storedEssenceSnapshot();
         for (int i = 0; i < stored.length; i++) {
@@ -688,10 +702,9 @@ final class EssenceDebugCommands {
         ));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
                 "Structure",
-                stats.usableItemSlots() + " slot(s), "
-                        + stats.activePylonCount() + " pylon(s), "
-                        + stats.automationConnectionPorts() + " automation port(s), "
-                        + stats.visualTransferStreams() + " stream(s)"
+                stats.usableItemSlots() + " active input slot(s), "
+                        + stats.activePylonCount() + "/" + EssenceConfigManager.get().maxActivePylons() + " active pylon(s), "
+                        + stats.automationConnectionPorts() + " automation port(s)"
         ));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
                 "Transfer",
@@ -701,10 +714,37 @@ final class EssenceDebugCommands {
         ));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
                 "Dissolution",
-                stats.dissolutionTicksPerItem() + " ticks/item, progress "
+                stats.simultaneousItemProcesses() + " item(s)/batch, "
+                        + EssenceCommandUtil.formatDecimal(
+                                20.0D / Math.max(1, stats.dissolutionTicksPerItem())
+                        ) + " batch(es)/sec, progress "
                         + crucible.processingTicks() + "/"
                         + stats.dissolutionTicksPerItem()
         ));
+        EssenceCrucibleStructureSnapshot structureSnapshot = crucible.structureSnapshot();
+        if (!structureSnapshot.activePylons().isEmpty()) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.section("Active Pylons"));
+            int pylonNumber = 1;
+            for (EssenceCrucibleStructureSnapshot.ActivePylon pylon : structureSnapshot.activePylons()) {
+                EssencePylonContribution contribution = pylon.contribution();
+                EssenceCommandUtil.send(
+                        source,
+                        EssenceCommandUtil.muted(
+                                "  #" + pylonNumber++ + " "
+                                        + pylon.pos().getX() + ","
+                                        + pylon.pos().getY() + ","
+                                        + pylon.pos().getZ()
+                                        + " | " + pylon.focusDisplayName()
+                                        + " | +" + EssenceCommandUtil.format(contribution.transferRatePerSecondBonus()) + "/sec"
+                                        + " | +" + EssenceCommandUtil.formatDecimal(contribution.transferRangeBonus()) + " range"
+                                        + " | +" + EssenceCommandUtil.format(contribution.reservoirCapacityBonus()) + " cap/family"
+                                        + " | +" + EssenceCommandUtil.formatDecimal(contribution.dissolutionSpeedBonus() * 100.0D) + "% dissolve"
+                                        + " | +" + contribution.simultaneousItemProcessesBonus() + " items/batch"
+                        )
+                );
+            }
+        }
+
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
                 "Channel",
                 crucible.isChanneling()
@@ -723,6 +763,87 @@ final class EssenceDebugCommands {
 
         return 1;
     }
+
+    private static int showPylon(
+            CommandSourceStack source
+    ) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        HitResult hit = player.pick(8.0D, 0.0F, false);
+
+        if (!(hit instanceof BlockHitResult blockHit)
+                || hit.getType() != HitResult.Type.BLOCK
+                || !(player.serverLevel().getBlockEntity(blockHit.getBlockPos())
+                        instanceof EssencePylonBlockEntity pylon)) {
+            EssenceCommandUtil.fail(
+                    source,
+                    "Look directly at an Essence Pylon within 8 blocks."
+            );
+            return 0;
+        }
+
+        pylon.refreshLink();
+        EssencePylonContribution contribution = pylon.contribution();
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Essence Pylon Debug"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Position",
+                pylon.getBlockPos().getX() + ", " + pylon.getBlockPos().getY() + ", " + pylon.getBlockPos().getZ()
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Owner", pylon.ownerDisplayName()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Focus", pylon.focusDisplayName()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Configured search",
+                EssenceCommandUtil.formatDecimal(EssenceConfigManager.get().pylonRadius())
+                        + " block radius, max " + EssenceConfigManager.get().maxActivePylons() + " active"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Contribution",
+                "+" + EssenceCommandUtil.format(contribution.transferRatePerSecondBonus()) + "/sec, "
+                        + "+" + EssenceCommandUtil.formatDecimal(contribution.transferRangeBonus()) + " range, "
+                        + "+" + EssenceCommandUtil.format(contribution.reservoirCapacityBonus()) + " capacity/family"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Processing contribution",
+                "+" + EssenceCommandUtil.formatDecimal(contribution.dissolutionSpeedBonus() * 100.0D)
+                        + "% speed, +" + contribution.simultaneousItemProcessesBonus() + " item(s)/batch"
+        ));
+
+        if (pylon.linkedCruciblePos() == null) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Link", EssenceCommandUtil.warn("UNLINKED")));
+            return 1;
+        }
+
+        var linkedPos = pylon.linkedCruciblePos();
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Linked Crucible",
+                linkedPos.getX() + ", " + linkedPos.getY() + ", " + linkedPos.getZ()
+                        + " (distance " + EssenceCommandUtil.formatDecimal(pylon.distanceToLinkedCrucible()) + ")"
+        ));
+
+        if (player.serverLevel().getBlockEntity(linkedPos) instanceof EssenceCrucibleBlockEntity crucible) {
+            EssenceCrucibleStructureSnapshot snapshot = crucible.structureSnapshot();
+            EssenceCrucibleStructureStats stats = snapshot.stats();
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Active",
+                    snapshot.containsPylon(pylon.getBlockPos()) ? EssenceCommandUtil.good("YES") : EssenceCommandUtil.warn("NO / PYLON LIMIT")
+            ));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Linked structure",
+                    stats.activePylonCount() + "/" + EssenceConfigManager.get().maxActivePylons() + " pylons, "
+                            + EssenceCommandUtil.format(stats.transferRatePerSecond()) + "/sec, range "
+                            + EssenceCommandUtil.formatDecimal(stats.transferRange())
+            ));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Linked processing",
+                    stats.simultaneousItemProcesses() + " item(s)/batch, "
+                            + EssenceCommandUtil.formatDecimal(
+                                    20.0D / Math.max(1, stats.dissolutionTicksPerItem())
+                            ) + " batch(es)/sec"
+            ));
+        }
+
+        return 1;
+    }
+
 
     private static String mappingSummary(
             ItemEssenceMappingResult result

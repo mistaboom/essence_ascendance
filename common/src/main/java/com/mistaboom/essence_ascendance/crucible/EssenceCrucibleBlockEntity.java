@@ -28,15 +28,16 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
 public final class EssenceCrucibleBlockEntity extends BlockEntity
         implements WorldlyContainer, MenuProvider {
 
-    private static final int INPUT_SLOT = 0;
-    private static final int[] AUTOMATION_SLOTS = {INPUT_SLOT};
+    public static final int MAX_INPUT_SLOTS = EssenceCrucibleStructureService.MAX_INPUT_SLOTS;
     private static final int[] NO_AUTOMATION_SLOTS = {};
+    private static final long STRUCTURE_CACHE_TICKS = 10L;
 
     private static final String OWNER_TAG = "owner";
     private static final String OWNER_NAME_TAG = "owner_name";
@@ -45,7 +46,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
     private static final String RESERVOIR_TAG = "reservoir";
 
     private final NonNullList<ItemStack> items =
-            NonNullList.withSize(1, ItemStack.EMPTY);
+            NonNullList.withSize(MAX_INPUT_SLOTS, ItemStack.EMPTY);
 
     /*
      * One-time migration buffer for worlds saved by the first Crucible tranche,
@@ -61,11 +62,17 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             EssenceCrucibleAccessMode.PRIVATE;
 
     private int processingTicks = 0;
+    private int dissolutionSlotCursor = 0;
 
     /* Runtime-only channel state. */
     private UUID channelingPlayerId;
     private long transferRateRemainder = 0L;
     private int transferCursor = 0;
+
+    /* Short-lived structure cache; pylon changes explicitly invalidate it. */
+    private EssenceCrucibleStructureSnapshot cachedStructureSnapshot;
+    private long cachedStructureGameTime = Long.MIN_VALUE;
+    private boolean processingVisualActive = false;
 
     public EssenceCrucibleBlockEntity(
             BlockPos pos,
@@ -84,16 +91,35 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             BlockState state,
             EssenceCrucibleBlockEntity crucible
     ) {
+        crucible.processingVisualActive = false;
         crucible.migrateLegacyReservoirIfNeeded();
         crucible.tickDissolution();
         crucible.tickChanneling();
+        crucible.tickPylonSupportParticles(level);
+    }
+
+    public EssenceCrucibleStructureSnapshot structureSnapshot() {
+        if (level == null) {
+            return EssenceCrucibleStructureService.BASE_SNAPSHOT;
+        }
+
+        long gameTime = level.getGameTime();
+        if (cachedStructureSnapshot == null
+                || gameTime - cachedStructureGameTime >= STRUCTURE_CACHE_TICKS) {
+            cachedStructureSnapshot =
+                    EssenceCrucibleStructureService.evaluateSnapshot(level, worldPosition);
+            cachedStructureGameTime = gameTime;
+        }
+        return cachedStructureSnapshot;
     }
 
     public EssenceCrucibleStructureStats structureStats() {
-        if (level == null) {
-            return EssenceCrucibleStructureService.BASE;
-        }
-        return EssenceCrucibleStructureService.evaluate(level, worldPosition);
+        return structureSnapshot().stats();
+    }
+
+    public void invalidateStructureCache() {
+        cachedStructureSnapshot = null;
+        cachedStructureGameTime = Long.MIN_VALUE;
     }
 
     public UUID ownerId() {
@@ -321,8 +347,9 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             return;
         }
 
-        ItemStack input = items.get(INPUT_SLOT);
-        if (input.isEmpty()) {
+        EssenceCrucibleStructureStats stats = structureStats();
+        int activeSlots = activeInputSlotCount(stats);
+        if (!hasAnyActiveInput(activeSlots)) {
             if (processingTicks != 0) {
                 processingTicks = 0;
                 setChanged();
@@ -330,17 +357,26 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             return;
         }
 
-        ItemEssenceMappingResult mapping = resolvePositiveAttributeMapping(input);
-        if (mapping == null) {
-            /*
-             * Config reload may invalidate an already-inserted item. Keep it
-             * untouched and retain its progress so remapping it can resume.
-             */
+        /*
+         * A config reload may make one or more already-inserted stacks unmapped.
+         * Those stacks remain untouched, while any other still-valid lanes may
+         * continue processing normally. If every occupied active lane is now
+         * invalid, preserve the current progress so a later mapping reload can
+         * resume without destroying anything.
+         */
+        if (!hasAnyMappedActiveInput(activeSlots)) {
+            processingVisualActive = false;
             return;
         }
 
-        EssenceCrucibleStructureStats stats = structureStats();
         int requiredTicks = stats.dissolutionTicksPerItem();
+        long capacity = effectiveReservoirCapacity();
+        DissolutionPlan potential = buildDissolutionPlan(
+                activeSlots,
+                stats.simultaneousItemProcesses(),
+                capacity
+        );
+        processingVisualActive = potential.totalItems() > 0;
 
         if (processingTicks < requiredTicks) {
             processingTicks++;
@@ -351,53 +387,252 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             return;
         }
 
-        if (!canAcceptEntireMapping(mapping, effectiveReservoirCapacity())) {
-            /* Ready but blocked on reservoir space; consume nothing. */
+        /* Shared storage or structure state may have changed during the cycle. */
+        DissolutionPlan plan = buildDissolutionPlan(
+                activeSlots,
+                stats.simultaneousItemProcesses(),
+                capacity
+        );
+        if (plan.totalItems() <= 0) {
+            processingVisualActive = false;
             return;
         }
 
-        /*
-         * Atomic validation is complete before the item stack is touched.
-         * All Crucibles owned by this UUID write into the same player-owned
-         * reservoir, so a second block cannot bypass the capacity limit.
-         */
-        input.shrink(1);
-        if (input.isEmpty()) {
-            items.set(INPUT_SLOT, ItemStack.EMPTY);
+        for (int slot = 0; slot < plan.consumeCounts().length; slot++) {
+            int consume = plan.consumeCounts()[slot];
+            if (consume <= 0) {
+                continue;
+            }
+
+            ItemStack stack = items.get(slot);
+            stack.shrink(consume);
+            if (stack.isEmpty()) {
+                items.set(slot, ItemStack.EMPTY);
+            }
         }
 
-        EssenceSavedData saved =
-                EssenceSavedData.get(serverLevel.getServer());
-        for (Map.Entry<EssenceDefinition, Long> output : mapping.outputs().entrySet()) {
-            saved.addCrucibleStored(
-                    ownerId,
-                    output.getKey(),
-                    output.getValue()
-            );
+        EssenceSavedData saved = EssenceSavedData.get(serverLevel.getServer());
+        for (Map.Entry<EssenceDefinition, Long> output : plan.outputs().entrySet()) {
+            saved.addCrucibleStored(ownerId, output.getKey(), output.getValue());
         }
 
         processingTicks = 0;
+        dissolutionSlotCursor = activeSlots <= 1
+                ? 0
+                : (dissolutionSlotCursor + 1) % activeSlots;
         setChanged();
     }
 
-    private boolean canAcceptEntireMapping(
-            ItemEssenceMappingResult mapping,
+    private DissolutionPlan buildDissolutionPlan(
+            int activeSlots,
+            int maxItems,
             long capacity
     ) {
-        long incomingTotal = 0L;
+        int[] consumeCounts = new int[MAX_INPUT_SLOTS];
+        Map<EssenceDefinition, Long> outputs = new LinkedHashMap<>();
 
-        for (Map.Entry<EssenceDefinition, Long> output : mapping.outputs().entrySet()) {
-            if (output.getValue() <= 0L
-                    || EssenceCrucibleEssences.indexOf(output.getKey()) < 0) {
-                return false;
-            }
-            incomingTotal = Math.addExact(incomingTotal, output.getValue());
+        if (activeSlots <= 0 || maxItems <= 0) {
+            return new DissolutionPlan(consumeCounts, outputs, 0);
         }
 
         long currentTotal = totalStoredEssence();
-        return incomingTotal > 0L
-                && currentTotal <= capacity
-                && incomingTotal <= capacity - currentTotal;
+        if (currentTotal > capacity) {
+            return new DissolutionPlan(consumeCounts, outputs, 0);
+        }
+
+        /*
+         * Build the occupied/mapped lane list in a rotating order. Each batch
+         * divides its item budget as evenly as possible across these lanes.
+         * The rotation only decides who receives remainder items, so one slot
+         * does not permanently get the extra item when maxItems is not evenly
+         * divisible by the occupied-lane count.
+         */
+        int start = Math.floorMod(dissolutionSlotCursor, activeSlots);
+        int[] eligibleSlots = new int[activeSlots];
+        ItemEssenceMappingResult[] mappings = new ItemEssenceMappingResult[activeSlots];
+        int eligibleCount = 0;
+
+        for (int offset = 0; offset < activeSlots; offset++) {
+            int slot = (start + offset) % activeSlots;
+            ItemStack stack = items.get(slot);
+            if (stack.isEmpty()) {
+                continue;
+            }
+
+            ItemEssenceMappingResult mapping = resolvePositiveAttributeMapping(stack);
+            if (mapping == null) {
+                continue;
+            }
+
+            eligibleSlots[eligibleCount] = slot;
+            mappings[eligibleCount] = mapping;
+            eligibleCount++;
+        }
+
+        if (eligibleCount == 0) {
+            return new DissolutionPlan(consumeCounts, outputs, 0);
+        }
+
+        long room = capacity - currentTotal;
+        int baseShare = maxItems / eligibleCount;
+        int remainder = maxItems % eligibleCount;
+        int totalItems = 0;
+
+        /* First pass: give every occupied lane its even share. */
+        for (int i = 0; i < eligibleCount; i++) {
+            int requested = baseShare + (i < remainder ? 1 : 0);
+            if (requested <= 0) {
+                continue;
+            }
+
+            long perItemTotal = mappingOutputTotal(mappings[i]);
+            if (perItemTotal <= 0L) {
+                continue;
+            }
+
+            int added = addPlannedItemsFromSlot(
+                    eligibleSlots[i],
+                    mappings[i],
+                    requested,
+                    room,
+                    consumeCounts,
+                    outputs
+            );
+            if (added < 0) {
+                return new DissolutionPlan(new int[MAX_INPUT_SLOTS], Map.of(), 0);
+            }
+
+            totalItems += added;
+            room -= perItemTotal * added;
+        }
+
+        /*
+         * If a lane was short on items (or its requested share would not fit),
+         * redistribute unused batch capacity one item at a time across lanes
+         * that can still contribute. This preserves throughput while remaining
+         * as even as the actual stacks/capacity allow.
+         */
+        while (totalItems < maxItems) {
+            boolean addedThisPass = false;
+
+            for (int i = 0; i < eligibleCount && totalItems < maxItems; i++) {
+                int slot = eligibleSlots[i];
+                ItemStack stack = items.get(slot);
+                if (consumeCounts[slot] >= stack.getCount()) {
+                    continue;
+                }
+
+                long perItemTotal = mappingOutputTotal(mappings[i]);
+                if (perItemTotal <= 0L || perItemTotal > room) {
+                    continue;
+                }
+
+                int added = addPlannedItemsFromSlot(
+                        slot,
+                        mappings[i],
+                        1,
+                        room,
+                        consumeCounts,
+                        outputs
+                );
+                if (added < 0) {
+                    return new DissolutionPlan(new int[MAX_INPUT_SLOTS], Map.of(), 0);
+                }
+                if (added == 0) {
+                    continue;
+                }
+
+                totalItems += added;
+                room -= perItemTotal;
+                addedThisPass = true;
+            }
+
+            if (!addedThisPass) {
+                break;
+            }
+        }
+
+        return new DissolutionPlan(consumeCounts, outputs, totalItems);
+    }
+
+    /**
+     * Adds up to {@code requested} copies of one mapped stack to an in-memory
+     * atomic dissolution plan. Returns -1 on arithmetic overflow.
+     */
+    private int addPlannedItemsFromSlot(
+            int slot,
+            ItemEssenceMappingResult mapping,
+            int requested,
+            long room,
+            int[] consumeCounts,
+            Map<EssenceDefinition, Long> outputs
+    ) {
+        ItemStack stack = items.get(slot);
+        int available = Math.max(0, stack.getCount() - consumeCounts[slot]);
+        long perItemTotal = mappingOutputTotal(mapping);
+        if (available <= 0 || requested <= 0 || perItemTotal <= 0L) {
+            return 0;
+        }
+
+        int byRoom = (int) Math.min(Integer.MAX_VALUE, room / perItemTotal);
+        int count = Math.min(requested, Math.min(available, byRoom));
+        if (count <= 0) {
+            return 0;
+        }
+
+        try {
+            for (Map.Entry<EssenceDefinition, Long> output : mapping.outputs().entrySet()) {
+                long amount = Math.multiplyExact(output.getValue(), (long) count);
+                outputs.merge(output.getKey(), amount, Math::addExact);
+            }
+            consumeCounts[slot] = Math.addExact(consumeCounts[slot], count);
+        } catch (ArithmeticException overflow) {
+            return -1;
+        }
+
+        return count;
+    }
+
+    private long mappingOutputTotal(ItemEssenceMappingResult mapping) {
+        long total = 0L;
+        try {
+            for (Map.Entry<EssenceDefinition, Long> output : mapping.outputs().entrySet()) {
+                if (output.getValue() <= 0L
+                        || EssenceCrucibleEssences.indexOf(output.getKey()) < 0) {
+                    return 0L;
+                }
+                total = Math.addExact(total, output.getValue());
+            }
+        } catch (ArithmeticException overflow) {
+            return 0L;
+        }
+        return total;
+    }
+
+    private boolean hasAnyActiveInput(int activeSlots) {
+        for (int slot = 0; slot < activeSlots; slot++) {
+            if (!items.get(slot).isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean hasAnyMappedActiveInput(int activeSlots) {
+        for (int slot = 0; slot < activeSlots; slot++) {
+            ItemStack stack = items.get(slot);
+            if (!stack.isEmpty() && resolvePositiveAttributeMapping(stack) != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private record DissolutionPlan(
+            int[] consumeCounts,
+            Map<EssenceDefinition, Long> outputs,
+            int totalItems
+    ) {
     }
 
     public static ItemEssenceMappingResult resolvePositiveAttributeMapping(
@@ -582,6 +817,45 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         return movedTotal;
     }
 
+    private void tickPylonSupportParticles(ServerLevel level) {
+        if ((!processingVisualActive && !isChanneling())
+                || level.getGameTime() % 5L != 0L) {
+            return;
+        }
+
+        Vec3 target = new Vec3(
+                worldPosition.getX() + 0.5D,
+                worldPosition.getY() + 0.70D,
+                worldPosition.getZ() + 0.5D
+        );
+
+        for (EssenceCrucibleStructureSnapshot.ActivePylon pylon :
+                structureSnapshot().activePylons()) {
+            Vec3 start = new Vec3(
+                    pylon.pos().getX() + 0.5D,
+                    pylon.pos().getY() + 1.15D,
+                    pylon.pos().getZ() + 0.5D
+            );
+            Vec3 delta = target.subtract(start);
+
+            for (int point = 1; point <= 3; point++) {
+                double t = point / 4.0D;
+                Vec3 at = start.add(delta.scale(t));
+                level.sendParticles(
+                        ParticleTypes.END_ROD,
+                        at.x,
+                        at.y,
+                        at.z,
+                        1,
+                        0.005D,
+                        0.005D,
+                        0.005D,
+                        0.0D
+                );
+            }
+        }
+    }
+
     private void spawnChannelParticles(
             ServerLevel level,
             ServerPlayer player,
@@ -594,9 +868,14 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
 
             Vec3 start = new Vec3(endpoint.x(), endpoint.y(), endpoint.z());
             Vec3 delta = target.subtract(start);
+            int segments = Math.max(
+                    4,
+                    Math.min(12, (int) Math.ceil(delta.length() / 1.5D))
+            );
 
-            for (int point = 1; point <= 4; point++) {
-                double t = point / 5.0D;
+            /* Include t=1.0 so the final particle remains attached to the player. */
+            for (int point = 1; point <= segments; point++) {
+                double t = point / (double) segments;
                 Vec3 at = start.add(delta.scale(t));
                 level.sendParticles(
                         ParticleTypes.END_ROD,
@@ -684,6 +963,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
                 tag.getString(ACCESS_MODE_TAG)
         );
         processingTicks = Math.max(0, tag.getInt(PROCESSING_TICKS_TAG));
+        dissolutionSlotCursor = 0;
 
         Arrays.fill(legacyStoredEssence, 0L);
         if (tag.contains(RESERVOIR_TAG, Tag.TAG_COMPOUND)) {
@@ -702,12 +982,44 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         channelingPlayerId = null;
         transferRateRemainder = 0L;
         transferCursor = 0;
+        cachedStructureSnapshot = null;
+        cachedStructureGameTime = Long.MIN_VALUE;
+        processingVisualActive = false;
     }
 
     @Override
     public void setRemoved() {
         stopChanneling();
         super.setRemoved();
+    }
+
+    public int activeInputSlotCount() {
+        return activeInputSlotCount(structureStats());
+    }
+
+    private int activeInputSlotCount(EssenceCrucibleStructureStats stats) {
+        return Math.max(1, Math.min(MAX_INPUT_SLOTS, stats.usableItemSlots()));
+    }
+
+    public boolean isInputSlotActive(int slot) {
+        return slot >= 0 && slot < activeInputSlotCount();
+    }
+
+    public boolean containsMatchingItemInOtherSlot(int slot, ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        for (int other = 0; other < items.size(); other++) {
+            if (other == slot) {
+                continue;
+            }
+            ItemStack existing = items.get(other);
+            if (!existing.isEmpty()
+                    && ItemStack.isSameItemSameComponents(existing, stack)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -717,19 +1029,24 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
 
     @Override
     public boolean isEmpty() {
-        return items.get(INPUT_SLOT).isEmpty();
+        for (ItemStack stack : items) {
+            if (!stack.isEmpty()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override
     public ItemStack getItem(int slot) {
-        return slot == INPUT_SLOT
-                ? items.get(INPUT_SLOT)
+        return slot >= 0 && slot < items.size()
+                ? items.get(slot)
                 : ItemStack.EMPTY;
     }
 
     @Override
     public ItemStack removeItem(int slot, int amount) {
-        if (slot != INPUT_SLOT || amount <= 0) {
+        if (slot < 0 || slot >= items.size() || amount <= 0) {
             return ItemStack.EMPTY;
         }
         ItemStack removed = ContainerHelper.removeItem(items, slot, amount);
@@ -742,7 +1059,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
 
     @Override
     public ItemStack removeItemNoUpdate(int slot) {
-        if (slot != INPUT_SLOT) {
+        if (slot < 0 || slot >= items.size()) {
             return ItemStack.EMPTY;
         }
         ItemStack removed = ContainerHelper.takeItem(items, slot);
@@ -755,7 +1072,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
 
     @Override
     public void setItem(int slot, ItemStack stack) {
-        if (slot != INPUT_SLOT) {
+        if (slot < 0 || slot >= items.size()) {
             return;
         }
 
@@ -764,11 +1081,14 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             normalized.limitSize(getMaxStackSize(normalized));
         }
 
-        ItemStack previous = items.get(INPUT_SLOT);
+        ItemStack previous = items.get(slot);
         boolean sameItem = ItemStack.isSameItemSameComponents(previous, normalized);
+        boolean replacingOccupiedType = !previous.isEmpty()
+                && !normalized.isEmpty()
+                && !sameItem;
 
-        items.set(INPUT_SLOT, normalized);
-        if (!sameItem) {
+        items.set(slot, normalized);
+        if (replacingOccupiedType || (normalized.isEmpty() && !previous.isEmpty())) {
             processingTicks = 0;
         }
         setChanged();
@@ -802,18 +1122,20 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
                 )) {
             return NO_AUTOMATION_SLOTS;
         }
-        return AUTOMATION_SLOTS;
+
+        int active = activeInputSlotCount();
+        int[] slots = new int[active];
+        for (int slot = 0; slot < active; slot++) {
+            slots[slot] = slot;
+        }
+        return slots;
     }
 
     @Override
     public boolean canPlaceItem(int slot, ItemStack stack) {
-        /*
-         * Slot validity describes the incoming stack, not the stack currently
-         * occupying the slot. Keeping these concerns separate restores normal
-         * vanilla click-to-swap behavior in the GUI. Hopper/pipe adapters still
-         * perform their own merge/space checks and remain insertion-only.
-         */
-        return slot == INPUT_SLOT && isValidNewInput(stack);
+        return isInputSlotActive(slot)
+                && isValidNewInput(stack)
+                && !containsMatchingItemInOtherSlot(slot, stack);
     }
 
     @Override

@@ -8,8 +8,10 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.world.entity.player.Inventory;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -33,7 +35,7 @@ public final class EssenceCrucibleScreen
     private static final int TOTAL_PANEL_HEIGHT = 17;
 
     private static final int INFO_PANEL_WIDTH = 154;
-    private static final int INFO_PANEL_HEIGHT = 92;
+    private static final int INFO_PANEL_HEIGHT = 180;
     private static final int SIDE_PANEL_GAP = 4;
 
     private static final int VENT_PANEL_WIDTH = 172;
@@ -46,6 +48,8 @@ public final class EssenceCrucibleScreen
     private Button channelButton;
     private Button infoButton;
     private Button settingsButton;
+    private Button infoCloseButton;
+    private Button settingsCloseButton;
     private final Button[] ventButtons =
             new Button[EssenceCrucibleEssences.ALL_ORDERED.size()];
     private boolean infoOpen;
@@ -118,6 +122,36 @@ public final class EssenceCrucibleScreen
                         )
                         .build()
         );
+
+        infoCloseButton = addRenderableWidget(
+                Button.builder(
+                                Component.literal("X"),
+                                button -> infoOpen = false
+                        )
+                        .bounds(
+                                infoPanelX() + INFO_PANEL_WIDTH - 18,
+                                topPos + 8,
+                                12,
+                                12
+                        )
+                        .build()
+        );
+        infoCloseButton.visible = false;
+
+        settingsCloseButton = addRenderableWidget(
+                Button.builder(
+                                Component.literal("X"),
+                                button -> settingsOpen = false
+                        )
+                        .bounds(
+                                ventPanelX() + VENT_PANEL_WIDTH - 18,
+                                topPos + 8,
+                                12,
+                                12
+                        )
+                        .build()
+        );
+        settingsCloseButton.visible = false;
 
         int ventPanelX = ventPanelX();
         int ventPanelY = topPos + 4;
@@ -215,11 +249,40 @@ public final class EssenceCrucibleScreen
         EssenceCrucibleStatePayload state =
                 EssenceCrucibleClientState.snapshotFor(menu.containerId);
 
-        if (infoOpen && state != null) {
-            renderInfoPopup(graphics, state);
+        /*
+         * Side panels are deliberately rendered after the normal container
+         * screen. This makes a narrow-screen fallback a true opaque overlay
+         * instead of allowing the Crucible labels, slots, or widgets to show
+         * through it. Popup-owned buttons are then rendered one final time on
+         * top of the panel itself.
+         */
+        if ((settingsOpen && state != null && state.allowed())
+                || (infoOpen && state != null)) {
+            /*
+             * Vanilla button labels are rendered slightly in front of their
+             * button backgrounds. A later same-depth fill can therefore hide
+             * the button body while leaving glyphs such as the gear or "i"
+             * visible. Put the complete popup pass on its own foreground Z
+             * layer so the panel occludes every covered main-GUI element,
+             * including widget text, while popup-owned controls remain above
+             * the panel.
+             */
+            graphics.pose().pushPose();
+            graphics.pose().translate(0.0F, 0.0F, 300.0F);
+            if (settingsOpen && state.allowed()) {
+                renderVentPopup(graphics, state);
+                renderVentPopupWidgets(graphics, mouseX, mouseY, partialTick);
+            } else {
+                renderInfoPopup(graphics, state);
+                renderInfoPopupWidgets(graphics, mouseX, mouseY, partialTick);
+            }
+            graphics.pose().popPose();
         }
 
-        renderTooltip(graphics, mouseX, mouseY);
+        /* Do not leak covered slot/tooltips through an overlapping popup. */
+        if (!mouseInsideOpenPopup(mouseX, mouseY, state)) {
+            renderTooltip(graphics, mouseX, mouseY);
+        }
     }
 
     private void updateButtons() {
@@ -252,6 +315,15 @@ public final class EssenceCrucibleScreen
                     Component.literal("\u2699")
             );
             settingsButton.active = state != null && state.allowed();
+        }
+
+        if (infoCloseButton != null) {
+            infoCloseButton.visible = infoOpen && state != null;
+        }
+        if (settingsCloseButton != null) {
+            settingsCloseButton.visible = settingsOpen
+                    && state != null
+                    && state.allowed();
         }
 
         updateVentButtons(state);
@@ -292,9 +364,20 @@ public final class EssenceCrucibleScreen
         graphics.fill(x, y, x + imageWidth, y + imageHeight, PANEL);
         outline(graphics, x, y, imageWidth, imageHeight, BORDER);
 
-        /* Centered machine slot. */
-        graphics.fill(x + 140, y + 32, x + 160, y + 52, PANEL_INNER);
-        outline(graphics, x + 140, y + 32, 20, 20, BORDER);
+        /* Active pylon count expands the real distinct-item input lanes. */
+        for (int slot = 0; slot < EssenceCrucibleMenu.MAX_MACHINE_SLOTS; slot++) {
+            if (!menu.shouldRenderMachineSlot(slot)) {
+                continue;
+            }
+
+            int slotX = x + EssenceCrucibleMenu.machineSlotX(slot) - 1;
+            int slotY = y + EssenceCrucibleMenu.machineSlotY() - 1;
+            int border = menu.isMachineSlotCurrentlyAvailable(slot)
+                    ? BORDER
+                    : 0xFF6E5151;
+            graphics.fill(slotX, slotY, slotX + 20, slotY + 20, PANEL_INNER);
+            outline(graphics, slotX, slotY, 20, 20, border);
+        }
 
         EssenceCrucibleStatePayload state =
                 EssenceCrucibleClientState.snapshotFor(menu.containerId);
@@ -362,9 +445,6 @@ public final class EssenceCrucibleScreen
         graphics.fill(x + 67, y + 235, x + 233, y + 315, PANEL_INNER);
         outline(graphics, x + 67, y + 235, 166, 80, 0xFF535B68);
 
-        if (settingsOpen && state != null && state.allowed()) {
-            renderVentPopup(graphics, state);
-        }
     }
 
     @Override
@@ -377,7 +457,7 @@ public final class EssenceCrucibleScreen
                 EssenceCrucibleClientState.snapshotFor(menu.containerId);
 
         drawCentered(graphics, "ESSENCE CRUCIBLE", 7, TEXT);
-        drawCentered(graphics, "Slot", 20, MUTED);
+        drawCentered(graphics, "Input Slots", 20, MUTED);
 
         if (state == null) {
             drawCentered(graphics, "Synchronizing...", 56, MUTED);
@@ -476,10 +556,7 @@ public final class EssenceCrucibleScreen
                 EssenceCrucibleEssences.enabledOrdered(
                         state.skillEssencesEnabled()
                 );
-        int panelHeight =
-                VENT_HEADER_HEIGHT
-                        + values.length * VENT_ROW_HEIGHT
-                        + VENT_FOOTER_HEIGHT;
+        int panelHeight = ventPanelHeight(state);
 
         graphics.fill(
                 panelX,
@@ -536,6 +613,107 @@ public final class EssenceCrucibleScreen
         }
     }
 
+    private void renderVentPopupWidgets(
+            GuiGraphics graphics,
+            int mouseX,
+            int mouseY,
+            float partialTick
+    ) {
+        if (settingsCloseButton != null && settingsCloseButton.visible) {
+            settingsCloseButton.render(graphics, mouseX, mouseY, partialTick);
+        }
+        for (Button button : ventButtons) {
+            if (button != null && button.visible) {
+                button.render(graphics, mouseX, mouseY, partialTick);
+            }
+        }
+    }
+
+    private void renderInfoPopupWidgets(
+            GuiGraphics graphics,
+            int mouseX,
+            int mouseY,
+            float partialTick
+    ) {
+        if (infoCloseButton != null && infoCloseButton.visible) {
+            infoCloseButton.render(graphics, mouseX, mouseY, partialTick);
+        }
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        EssenceCrucibleStatePayload state =
+                EssenceCrucibleClientState.snapshotFor(menu.containerId);
+
+        if (settingsOpen && state != null && state.allowed()
+                && pointInsideVentPanel(mouseX, mouseY, state)) {
+            if (settingsCloseButton != null
+                    && settingsCloseButton.mouseClicked(mouseX, mouseY, button)) {
+                return true;
+            }
+            for (Button ventButton : ventButtons) {
+                if (ventButton != null
+                        && ventButton.visible
+                        && ventButton.mouseClicked(mouseX, mouseY, button)) {
+                    return true;
+                }
+            }
+            /* Consume all remaining clicks inside the popup. */
+            return true;
+        }
+
+        if (infoOpen && state != null
+                && pointInsideInfoPanel(mouseX, mouseY)) {
+            if (infoCloseButton != null
+                    && infoCloseButton.mouseClicked(mouseX, mouseY, button)) {
+                return true;
+            }
+            return true;
+        }
+
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    private boolean mouseInsideOpenPopup(
+            double mouseX,
+            double mouseY,
+            EssenceCrucibleStatePayload state
+    ) {
+        if (settingsOpen && state != null && state.allowed()) {
+            return pointInsideVentPanel(mouseX, mouseY, state);
+        }
+        return infoOpen && state != null && pointInsideInfoPanel(mouseX, mouseY);
+    }
+
+    private boolean pointInsideInfoPanel(double mouseX, double mouseY) {
+        int x = infoPanelX();
+        int y = topPos + 4;
+        return mouseX >= x
+                && mouseX < x + INFO_PANEL_WIDTH
+                && mouseY >= y
+                && mouseY < y + INFO_PANEL_HEIGHT;
+    }
+
+    private boolean pointInsideVentPanel(
+            double mouseX,
+            double mouseY,
+            EssenceCrucibleStatePayload state
+    ) {
+        int x = ventPanelX();
+        int y = topPos + 4;
+        int height = ventPanelHeight(state);
+        return mouseX >= x
+                && mouseX < x + VENT_PANEL_WIDTH
+                && mouseY >= y
+                && mouseY < y + height;
+    }
+
+    private int ventPanelHeight(EssenceCrucibleStatePayload state) {
+        return VENT_HEADER_HEIGHT
+                + enabledEssenceValues(state).length * VENT_ROW_HEIGHT
+                + VENT_FOOTER_HEIGHT;
+    }
+
     private long[] enabledEssenceValues(
             EssenceCrucibleStatePayload state
     ) {
@@ -568,19 +746,30 @@ public final class EssenceCrucibleScreen
     }
 
     private int ventPanelX() {
-        int leftX =
+        int preferredLeft =
                 leftPos - SIDE_PANEL_GAP - VENT_PANEL_WIDTH;
-
-        if (leftX >= 4) {
-            return leftX;
+        if (preferredLeft >= 4) {
+            return preferredLeft;
         }
 
-        return leftPos + imageWidth + SIDE_PANEL_GAP;
+        int alternateRight =
+                leftPos + imageWidth + SIDE_PANEL_GAP;
+        if (alternateRight + VENT_PANEL_WIDTH <= width - 4) {
+            return alternateRight;
+        }
+
+        /*
+         * Narrow-screen fallback: neither external side can fit the panel.
+         * Clamp it against the left screen edge, allowing only the amount of
+         * overlap with the main Crucible rectangle that is actually required.
+         */
+        return clampPanelX(preferredLeft, VENT_PANEL_WIDTH);
     }
 
     /*
-     * Mekanism-style informational side panel: it is anchored outside the
-     * Crucible's main rectangle and never displaces or covers the machine UI.
+     * Mekanism-style informational side panel. It prefers an external side,
+     * but on narrow screens may overlap the Crucible as an opaque foreground
+     * panel so it is never clipped off-screen.
      */
     private void renderInfoPopup(
             GuiGraphics graphics,
@@ -606,7 +795,9 @@ public final class EssenceCrucibleScreen
         );
 
         int textX = panelX + 7;
+        int indentX = textX + 8;
         int textWidth = INFO_PANEL_WIDTH - 14;
+        int indentWidth = textWidth - 8;
 
         graphics.drawString(font, "Info", textX, panelY + 7, TEXT, false);
         drawFittedAbsolute(
@@ -625,49 +816,139 @@ public final class EssenceCrucibleScreen
                 textWidth,
                 MUTED
         );
+
+        graphics.drawString(font, "Crucible", textX, panelY + 46, TEXT, false);
+        drawFittedAbsolute(
+                graphics,
+                "Capacity: " + format(state.reservoirCapacity()),
+                indentX,
+                panelY + 57,
+                indentWidth,
+                MUTED
+        );
+        drawFittedAbsolute(
+                graphics,
+                "Pylons: " + state.activePylonCount() + "/" + state.maxActivePylons(),
+                indentX,
+                panelY + 68,
+                indentWidth,
+                MUTED
+        );
+        drawFittedAbsolute(
+                graphics,
+                String.format(Locale.ROOT, "Pylon radius: %.1f", state.pylonRadius()),
+                indentX,
+                panelY + 79,
+                indentWidth,
+                MUTED
+        );
+        drawFittedAbsolute(
+                graphics,
+                "Input slots: " + menu.activeMachineSlots(),
+                indentX,
+                panelY + 90,
+                indentWidth,
+                MUTED
+        );
+
+        graphics.drawString(font, "Channeling", textX, panelY + 105, TEXT, false);
         drawFittedAbsolute(
                 graphics,
                 "Rate: " + format(state.transferRatePerSecond()) + "/sec",
-                textX,
-                panelY + 42,
-                textWidth,
-                TEXT
+                indentX,
+                panelY + 116,
+                indentWidth,
+                MUTED
         );
         drawFittedAbsolute(
                 graphics,
                 String.format(Locale.ROOT, "Range: %.1f blocks", state.transferRange()),
-                textX,
-                panelY + 53,
-                textWidth,
-                TEXT
+                indentX,
+                panelY + 127,
+                indentWidth,
+                MUTED
+        );
+
+        graphics.drawString(font, "Dissolution", textX, panelY + 142, TEXT, false);
+        drawFittedAbsolute(
+                graphics,
+                "Items/batch: " + state.simultaneousItemProcesses(),
+                indentX,
+                panelY + 153,
+                indentWidth,
+                MUTED
         );
         drawFittedAbsolute(
                 graphics,
-                "Capacity: " + format(state.reservoirCapacity()),
-                textX,
-                panelY + 64,
-                textWidth,
-                TEXT
-        );
-        drawFittedAbsolute(
-                graphics,
-                "Pylons: " + state.activePylonCount(),
-                textX,
-                panelY + 75,
-                textWidth,
+                "Batches/sec: " + batchesPerSecond(state),
+                indentX,
+                panelY + 164,
+                indentWidth,
                 MUTED
         );
     }
 
     private int infoPanelX() {
-        int rightX =
+        int preferredRight =
                 leftPos + imageWidth + SIDE_PANEL_GAP;
-
-        if (rightX + INFO_PANEL_WIDTH <= width - 4) {
-            return rightX;
+        if (preferredRight + INFO_PANEL_WIDTH <= width - 4) {
+            return preferredRight;
         }
 
-        return leftPos - SIDE_PANEL_GAP - INFO_PANEL_WIDTH;
+        int alternateLeft =
+                leftPos - SIDE_PANEL_GAP - INFO_PANEL_WIDTH;
+        if (alternateLeft >= 4) {
+            return alternateLeft;
+        }
+
+        /*
+         * Narrow-screen fallback: neither external side can fit the panel.
+         * Clamp it against the right screen edge and let it overlap the main
+         * Crucible only as far inward as the available width requires.
+         */
+        return clampPanelX(preferredRight, INFO_PANEL_WIDTH);
+    }
+
+    private int clampPanelX(int desiredX, int panelWidth) {
+        int minX = 4;
+        int maxX = Math.max(minX, width - 4 - panelWidth);
+        return Math.max(minX, Math.min(desiredX, maxX));
+    }
+
+    /**
+     * Screen-space rectangles occupied by currently open side panels.
+     * Optional recipe viewers such as JEI can use these to keep their
+     * ingredient/bookmark overlays out of the way.
+     */
+    public List<Rect2i> extraGuiAreas() {
+        EssenceCrucibleStatePayload state =
+                EssenceCrucibleClientState.snapshotFor(menu.containerId);
+        if (state == null) {
+            return List.of();
+        }
+
+        List<Rect2i> areas = new ArrayList<>(1);
+        if (infoOpen) {
+            areas.add(
+                    new Rect2i(
+                            infoPanelX(),
+                            topPos + 4,
+                            INFO_PANEL_WIDTH,
+                            INFO_PANEL_HEIGHT
+                    )
+            );
+        } else if (settingsOpen && state.allowed()) {
+            int panelHeight = ventPanelHeight(state);
+            areas.add(
+                    new Rect2i(
+                            ventPanelX(),
+                            topPos + 4,
+                            VENT_PANEL_WIDTH,
+                            panelHeight
+                    )
+            );
+        }
+        return List.copyOf(areas);
     }
 
     private void drawCentered(
@@ -751,6 +1032,15 @@ public final class EssenceCrucibleScreen
             end--;
         }
         return text.substring(0, end) + suffix;
+    }
+
+    private static String batchesPerSecond(EssenceCrucibleStatePayload state) {
+        int ticks = Math.max(1, state.dissolutionTicksPerItem());
+        double perSecond = 20.0D / ticks;
+        if (Math.abs(perSecond - Math.rint(perSecond)) < 0.0001D) {
+            return String.format(Locale.ROOT, "%,.0f", perSecond);
+        }
+        return String.format(Locale.ROOT, "%,.2f", perSecond);
     }
 
     private static String format(long value) {

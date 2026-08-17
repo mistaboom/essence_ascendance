@@ -6,6 +6,7 @@ import com.mistaboom.essence_ascendance.command.EssenceCommands;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleContent;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleGameplayEvents;
+import com.mistaboom.essence_ascendance.pylon.EssencePylonContent;
 import com.mistaboom.essence_ascendance.equipment.ArmorStatWeights;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfileRegistry;
 import com.mistaboom.essence_ascendance.equipment.EquipmentGameplayEvents;
@@ -56,6 +57,7 @@ public final class EssenceAscendance {
         AscendanceArmorMaterials.init();
         AscendanceItems.init();
         EssenceCrucibleContent.init();
+        EssencePylonContent.init();
         EssenceCrucibleGameplayEvents.init();
 
         MilestoneProviders.init();

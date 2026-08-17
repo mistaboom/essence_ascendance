@@ -17,6 +17,8 @@ public final class EssenceServerConfig {
 
     private final int configVersion;
     private final boolean skillEssencesEnabled;
+    private final double pylonRadius;
+    private final int maxActivePylons;
     private final BalanceProfileDefinition balanceProfile;
     private final Map<ResourceLocation, MilestoneDefinition> milestones;
     private final Map<ResourceLocation, AscendanceAdvancementDefinition> advancements;
@@ -27,6 +29,8 @@ public final class EssenceServerConfig {
     public EssenceServerConfig(
             int configVersion,
             boolean skillEssencesEnabled,
+            double pylonRadius,
+            int maxActivePylons,
             BalanceProfileDefinition balanceProfile,
             Map<ResourceLocation, MilestoneDefinition> milestones,
             Map<ResourceLocation, AscendanceAdvancementDefinition> advancements,
@@ -35,6 +39,14 @@ public final class EssenceServerConfig {
     ) {
         this.configVersion = configVersion;
         this.skillEssencesEnabled = skillEssencesEnabled;
+        if (!(pylonRadius > 0.0D) || !Double.isFinite(pylonRadius)) {
+            throw new IllegalArgumentException("Pylon radius must be finite and positive");
+        }
+        if (maxActivePylons < 0) {
+            throw new IllegalArgumentException("Maximum active pylons cannot be negative");
+        }
+        this.pylonRadius = pylonRadius;
+        this.maxActivePylons = maxActivePylons;
         this.balanceProfile = Objects.requireNonNull(
                 balanceProfile,
                 "Balance profile cannot be null"
@@ -97,6 +109,14 @@ public final class EssenceServerConfig {
 
     public boolean skillEssencesEnabled() {
         return skillEssencesEnabled;
+    }
+
+    public double pylonRadius() {
+        return pylonRadius;
+    }
+
+    public int maxActivePylons() {
+        return maxActivePylons;
     }
 
     public BalanceProfileDefinition balanceProfile() {

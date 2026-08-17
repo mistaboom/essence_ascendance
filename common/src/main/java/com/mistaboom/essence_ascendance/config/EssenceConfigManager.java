@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.config;
 
+import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleStructureService;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -37,7 +38,7 @@ import java.util.Map;
 public final class EssenceConfigManager {
 
     public static final int CURRENT_CONFIG_VERSION =
-            3;
+            4;
 
     private static final int MAX_REQUIREMENT_DEPTH =
             32;
@@ -458,6 +459,24 @@ public final class EssenceConfigManager {
                 false
         );
 
+        JsonObject cruciblePylons = new JsonObject();
+        cruciblePylons.addProperty(
+                "_comment",
+                "Freeform Essence Pylons link to the nearest owned Crucible inside this spherical radius. Each active pylon adds one distinct-item Crucible input lane; the configured maximum is capped at 8."
+        );
+        cruciblePylons.addProperty(
+                "radius",
+                6.0D
+        );
+        cruciblePylons.addProperty(
+                "max_active_pylons",
+                8
+        );
+        root.add(
+                "crucible_pylons",
+                cruciblePylons
+        );
+
 
         root.addProperty(
                 "preset",
@@ -616,6 +635,40 @@ public final class EssenceConfigManager {
                         false
                 );
 
+        double pylonRadius = 6.0D;
+        int maxActivePylons = 8;
+        JsonElement pylonElement = root.get("crucible_pylons");
+        if (pylonElement != null && !pylonElement.isJsonNull()) {
+            if (!pylonElement.isJsonObject()) {
+                throw new IllegalArgumentException("crucible_pylons must be an object");
+            }
+
+            JsonObject pylonObject = pylonElement.getAsJsonObject();
+            pylonRadius = readNonNegativeFiniteDouble(
+                    pylonObject,
+                    "radius",
+                    pylonRadius
+            );
+            maxActivePylons = readInt(
+                    pylonObject,
+                    "max_active_pylons",
+                    maxActivePylons
+            );
+
+            if (!(pylonRadius > 0.0D) || pylonRadius > 32.0D) {
+                throw new IllegalArgumentException(
+                        "crucible_pylons.radius must be greater than 0 and no more than 32"
+                );
+            }
+            if (maxActivePylons < 0
+                    || maxActivePylons > EssenceCrucibleStructureService.MAX_SUPPORTED_ACTIVE_PYLONS) {
+                throw new IllegalArgumentException(
+                        "crucible_pylons.max_active_pylons must be between 0 and "
+                                + EssenceCrucibleStructureService.MAX_SUPPORTED_ACTIVE_PYLONS
+                );
+            }
+        }
+
         BalanceProfileDefinition balanceProfile =
                 parseBalanceProfile(
                         root
@@ -648,6 +701,8 @@ public final class EssenceConfigManager {
         return new EssenceServerConfig(
                 version,
                 skillEssencesEnabled,
+                pylonRadius,
+                maxActivePylons,
                 balanceProfile,
                 milestones,
                 advancements,
@@ -1498,6 +1553,8 @@ public final class EssenceConfigManager {
         return new EssenceServerConfig(
                 CURRENT_CONFIG_VERSION,
                 false,
+                6.0D,
+                8,
                 BalanceProfiles.VANILLA,
                 milestones,
                 advancements,

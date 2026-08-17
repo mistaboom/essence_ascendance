@@ -5,19 +5,27 @@ import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
 public final class EssenceCrucibleMenu extends AbstractContainerMenu {
 
-    public static final int MACHINE_SLOT = 0;
-    public static final int PLAYER_INVENTORY_START = 1;
+    public static final int MAX_MACHINE_SLOTS = EssenceCrucibleBlockEntity.MAX_INPUT_SLOTS;
+    public static final int PLAYER_INVENTORY_START = MAX_MACHINE_SLOTS;
     public static final int PLAYER_INVENTORY_END = PLAYER_INVENTORY_START + 36;
+
+    /* Slot 0 stays exactly where the original single Crucible slot lived. */
+    private static final int[] MACHINE_SLOT_X = {
+            141, 123, 159, 105, 177, 87, 195, 69, 213
+    };
+    private static final int MACHINE_SLOT_Y = 33;
 
     private final Container crucibleContainer;
     private final EssenceCrucibleBlockEntity serverCrucible;
+    private final SimpleContainerData menuData;
 
-    /* Client constructor used by MenuType. Server state arrives by S2C payload. */
+    /* Client constructor used by MenuType. Server state arrives by menu sync/S2C payload. */
     public EssenceCrucibleMenu(
             int containerId,
             Inventory playerInventory
@@ -25,9 +33,11 @@ public final class EssenceCrucibleMenu extends AbstractContainerMenu {
         this(
                 containerId,
                 playerInventory,
-                new SimpleContainer(1),
-                null
+                new SimpleContainer(MAX_MACHINE_SLOTS),
+                null,
+                new SimpleContainerData(1)
         );
+        menuData.set(0, 1);
     }
 
     public EssenceCrucibleMenu(
@@ -39,15 +49,18 @@ public final class EssenceCrucibleMenu extends AbstractContainerMenu {
                 containerId,
                 playerInventory,
                 crucible,
-                crucible
+                crucible,
+                new SimpleContainerData(1)
         );
+        menuData.set(0, crucible.activeInputSlotCount());
     }
 
     private EssenceCrucibleMenu(
             int containerId,
             Inventory playerInventory,
             Container crucibleContainer,
-            EssenceCrucibleBlockEntity serverCrucible
+            EssenceCrucibleBlockEntity serverCrucible,
+            SimpleContainerData menuData
     ) {
         super(
                 EssenceCrucibleContent.ESSENCE_CRUCIBLE_MENU.get(),
@@ -56,35 +69,48 @@ public final class EssenceCrucibleMenu extends AbstractContainerMenu {
 
         this.crucibleContainer = crucibleContainer;
         this.serverCrucible = serverCrucible;
+        this.menuData = menuData;
 
         crucibleContainer.startOpen(playerInventory.player);
+        addDataSlots(menuData);
 
-        /* Centered machine slot in the top machine section. */
-        addSlot(
-                new Slot(
-                        crucibleContainer,
-                        MACHINE_SLOT,
-                        141,
-                        33
-                ) {
-                    @Override
-                    public boolean mayPlace(ItemStack stack) {
-                        /*
-                         * The global item-mapping config is server authoritative.
-                         * Client prediction must not reject a stack using a local
-                         * mapping registry. The physical server menu performs the
-                         * real mapping validation and corrects prediction.
-                         *
-                         * canPlaceItem() intentionally validates only the incoming
-                         * stack, not the item already occupying the slot. That is
-                         * what allows normal vanilla click-to-swap behavior.
-                         */
-                        return serverCrucible == null
-                                || (EssenceCrucibleBlockEntity.isValidNewInput(stack)
-                                    && crucibleContainer.canPlaceItem(MACHINE_SLOT, stack));
+        for (int slotIndex = 0; slotIndex < MAX_MACHINE_SLOTS; slotIndex++) {
+            final int machineSlot = slotIndex;
+            addSlot(
+                    new Slot(
+                            crucibleContainer,
+                            machineSlot,
+                            machineSlotX(machineSlot),
+                            MACHINE_SLOT_Y
+                    ) {
+                        @Override
+                        public boolean mayPlace(ItemStack stack) {
+                            if (!isMachineSlotCurrentlyAvailable(machineSlot)) {
+                                return false;
+                            }
+
+                            /*
+                             * The mapping config is server authoritative. The client
+                             * may predict placement, but the real menu validates the
+                             * mapping plus the one-distinct-item-type-per-slot rule.
+                             */
+                            return serverCrucible == null
+                                    || crucibleContainer.canPlaceItem(machineSlot, stack);
+                        }
+
+                        @Override
+                        public boolean isActive() {
+                            /*
+                             * An occupied lane stays visible/removable after pylons
+                             * disappear, but it cannot accept or process new items
+                             * until that lane becomes active again.
+                             */
+                            return isMachineSlotCurrentlyAvailable(machineSlot)
+                                    || hasItem();
+                        }
                     }
-                }
-        );
+            );
+        }
 
         /* Player main inventory: 3 rows x 9. */
         for (int row = 0; row < 3; row++) {
@@ -113,8 +139,43 @@ public final class EssenceCrucibleMenu extends AbstractContainerMenu {
         }
     }
 
+    public static int machineSlotX(int slot) {
+        if (slot < 0 || slot >= MACHINE_SLOT_X.length) {
+            return MACHINE_SLOT_X[0];
+        }
+        return MACHINE_SLOT_X[slot];
+    }
+
+    public static int machineSlotY() {
+        return MACHINE_SLOT_Y;
+    }
+
     public EssenceCrucibleBlockEntity serverCrucible() {
         return serverCrucible;
+    }
+
+    public int activeMachineSlots() {
+        if (serverCrucible != null) {
+            return serverCrucible.activeInputSlotCount();
+        }
+        return Math.max(1, Math.min(MAX_MACHINE_SLOTS, menuData.get(0)));
+    }
+
+    public boolean isMachineSlotCurrentlyAvailable(int slot) {
+        return slot >= 0 && slot < activeMachineSlots();
+    }
+
+    public boolean shouldRenderMachineSlot(int slot) {
+        return isMachineSlotCurrentlyAvailable(slot)
+                || (slot >= 0 && slot < MAX_MACHINE_SLOTS && getSlot(slot).hasItem());
+    }
+
+    @Override
+    public void broadcastChanges() {
+        if (serverCrucible != null) {
+            menuData.set(0, serverCrucible.activeInputSlotCount());
+        }
+        super.broadcastChanges();
     }
 
     @Override
@@ -128,6 +189,10 @@ public final class EssenceCrucibleMenu extends AbstractContainerMenu {
             Player player,
             int index
     ) {
+        if (index < 0 || index >= slots.size()) {
+            return ItemStack.EMPTY;
+        }
+
         Slot slot = slots.get(index);
         if (!slot.hasItem()) {
             return ItemStack.EMPTY;
@@ -136,7 +201,7 @@ public final class EssenceCrucibleMenu extends AbstractContainerMenu {
         ItemStack source = slot.getItem();
         ItemStack copy = source.copy();
 
-        if (index == MACHINE_SLOT) {
+        if (index < MAX_MACHINE_SLOTS) {
             if (!moveItemStackTo(
                     source,
                     PLAYER_INVENTORY_START,
@@ -146,12 +211,13 @@ public final class EssenceCrucibleMenu extends AbstractContainerMenu {
                 return ItemStack.EMPTY;
             }
         } else {
+            int activeEnd = activeMachineSlots();
             if ((serverCrucible != null
                     && !EssenceCrucibleBlockEntity.isValidNewInput(source))
                     || !moveItemStackTo(
                             source,
-                            MACHINE_SLOT,
-                            MACHINE_SLOT + 1,
+                            0,
+                            activeEnd,
                             false
                     )) {
                 return ItemStack.EMPTY;

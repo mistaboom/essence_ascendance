@@ -15,6 +15,9 @@
     ],
     "client": [
       "com.mistaboom.essence_ascendance.fabric.client.EssenceAscendanceFabricClient"
+    ],
+    "jei_mod_plugin": [
+      "com.mistaboom.essence_ascendance.compat.jei.EssenceAscendanceJeiPlugin"
     ]
   },
   "mixins": [

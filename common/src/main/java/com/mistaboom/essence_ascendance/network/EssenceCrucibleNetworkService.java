@@ -300,7 +300,11 @@ public final class EssenceCrucibleNetworkService {
                 stats.transferRange(),
                 stats.dissolutionTicksPerItem(),
                 crucible.processingTicks(),
-                stats.activePylonCount()
+                stats.activePylonCount(),
+                EssenceConfigManager.get().maxActivePylons(),
+                EssenceConfigManager.get().pylonRadius(),
+                stats.visualTransferStreams(),
+                stats.simultaneousItemProcesses()
         );
     }
 }

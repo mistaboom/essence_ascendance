@@ -13,5 +13,13 @@
   "block.essence_ascendance.essence_crucible": "Essence Crucible",
   "container.essence_ascendance.essence_crucible": "Essence Crucible",
   "message.essence_ascendance.crucible_private": "This Essence Crucible is privately attuned to another player.",
-  "message.essence_ascendance.crucible_break_blocked": "Only the owner can break an empty Essence Crucible. Remove its input and drain all stored Essence first."
+  "message.essence_ascendance.crucible_break_blocked": "Only the owner can break an empty Essence Crucible. Remove its input and drain all stored Essence first.",
+  "block.essence_ascendance.essence_pylon": "Essence Pylon",
+  "item.essence_ascendance.dormant_pylon_focus": "Dormant Pylon Focus",
+  "item.essence_ascendance.awakened_pylon_focus": "Awakened Pylon Focus",
+  "item.essence_ascendance.resonant_pylon_focus": "Resonant Pylon Focus",
+  "item.essence_ascendance.ascendant_pylon_focus": "Ascendant Pylon Focus",
+  "item.essence_ascendance.transcendent_pylon_focus": "Transcendent Pylon Focus",
+  "container.essence_ascendance.essence_pylon": "Essence Pylon",
+  "message.essence_ascendance.pylon_private": "This Essence Pylon is privately attuned to another player."
 }

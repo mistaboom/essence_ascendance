@@ -785,6 +785,15 @@ final class EssenceAdminCommands {
                 config.balanceProfile().displayName() + " [" + config.balanceProfile().id() + "]"
         ));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Skill Essence",
+                config.skillEssencesEnabled() ? "ENABLED" : "DISABLED"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Crucible pylons",
+                "radius " + EssenceCommandUtil.formatDecimal(config.pylonRadius())
+                        + ", max active " + config.maxActivePylons()
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
                 "Definitions",
                 config.statMaxBonuses().size() + " stat bonuses, "
                         + config.equipmentBaselineConfig().tierBaselines().size() + " equipment tier baselines, "

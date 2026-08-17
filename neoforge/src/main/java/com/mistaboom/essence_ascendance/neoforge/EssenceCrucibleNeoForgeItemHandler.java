@@ -4,7 +4,7 @@ import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleBlockEntity;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.IItemHandler;
 
-/* NeoForge item capability adapter: one exposed slot, insertion only. */
+/* NeoForge item capability adapter: active pylon-expanded lanes, insertion only. */
 final class EssenceCrucibleNeoForgeItemHandler implements IItemHandler {
 
     private final EssenceCrucibleBlockEntity crucible;
@@ -15,13 +15,13 @@ final class EssenceCrucibleNeoForgeItemHandler implements IItemHandler {
 
     @Override
     public int getSlots() {
-        return 1;
+        return crucible.activeInputSlotCount();
     }
 
     @Override
     public ItemStack getStackInSlot(int slot) {
-        return slot == 0
-                ? crucible.getItem(0)
+        return slot >= 0 && slot < getSlots()
+                ? crucible.getItem(slot)
                 : ItemStack.EMPTY;
     }
 
@@ -31,13 +31,14 @@ final class EssenceCrucibleNeoForgeItemHandler implements IItemHandler {
             ItemStack stack,
             boolean simulate
     ) {
-        if (slot != 0
+        if (slot < 0
+                || slot >= getSlots()
                 || stack.isEmpty()
-                || !EssenceCrucibleBlockEntity.isValidNewInput(stack)) {
+                || !crucible.canPlaceItem(slot, stack)) {
             return stack;
         }
 
-        ItemStack current = crucible.getItem(0);
+        ItemStack current = crucible.getItem(slot);
         if (!current.isEmpty()
                 && !ItemStack.isSameItemSameComponents(current, stack)) {
             return stack;
@@ -64,7 +65,7 @@ final class EssenceCrucibleNeoForgeItemHandler implements IItemHandler {
                 replacement = current.copy();
                 replacement.grow(inserted);
             }
-            crucible.setItem(0, replacement);
+            crucible.setItem(slot, replacement);
         }
 
         if (inserted >= stack.getCount()) {
@@ -86,18 +87,19 @@ final class EssenceCrucibleNeoForgeItemHandler implements IItemHandler {
 
     @Override
     public int getSlotLimit(int slot) {
-        if (slot != 0) {
+        if (slot < 0 || slot >= getSlots()) {
             return 0;
         }
-        ItemStack current = crucible.getItem(0);
+        ItemStack current = crucible.getItem(slot);
         return current.isEmpty()
-                ? 99
+                ? 64
                 : current.getMaxStackSize();
     }
 
     @Override
     public boolean isItemValid(int slot, ItemStack stack) {
-        return slot == 0
-                && EssenceCrucibleBlockEntity.isValidNewInput(stack);
+        return slot >= 0
+                && slot < getSlots()
+                && crucible.canPlaceItem(slot, stack);
     }
 }

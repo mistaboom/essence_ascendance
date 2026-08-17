@@ -55,6 +55,7 @@ public final class EssenceAscendanceClient {
 
         ClientEssenceState.init();
         EssenceCrucibleClientState.init();
+        EssencePylonClientState.init();
         EquipmentTooltipClientState.init();
         ItemEssenceTooltipClientState.init();
 
