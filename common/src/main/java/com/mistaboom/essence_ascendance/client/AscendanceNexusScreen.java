@@ -6,11 +6,13 @@ import com.mistaboom.essence_ascendance.client.nexus.NexusProgressionTrack;
 import com.mistaboom.essence_ascendance.balance.BalanceProfileDefinition;
 import com.mistaboom.essence_ascendance.balance.BalanceProfileRegistry;
 import com.mistaboom.essence_ascendance.nexus.AscendanceNexusMenu;
+import com.mistaboom.essence_ascendance.network.AscendanceAllocationPayload;
 import com.mistaboom.essence_ascendance.progression.StatScalingService;
 import com.mistaboom.essence_ascendance.stat.StatUnit;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
 import net.minecraft.client.gui.GuiGraphics;
+import dev.architectury.networking.NetworkManager;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -22,16 +24,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Fullscreen, data-driven progression shell for the Ascendance Nexus.
  *
- * This tranche is deliberately presentation-only. Dragging an Attribute track
- * stages a proposed reallocation locally, including an affordable-Essence
- * ceiling. Released sliders remain at their staged positions and can refund
- * Essence back into the selected category budget. No progression mutation
- * packet is sent yet. Issue #28 Section 5 will turn the explicit ALLOCATE
- * control into the single server-authoritative commit point.
+ * Dragging an Attribute track stages a proposed reallocation locally, including
+ * an affordable-Essence ceiling. Released sliders remain staged and can refund
+ * Essence back into their category budget. Pressing ALLOCATE sends one complete
+ * staged plan to the server; the server validates and commits it atomically.
  */
 public final class AscendanceNexusScreen
         extends AbstractContainerScreen<AscendanceNexusMenu> {
@@ -79,7 +80,14 @@ public final class AscendanceNexusScreen
 
     private final Map<ResourceLocation, Long> stagedInvestments =
             new LinkedHashMap<>();
+    private final Map<ResourceLocation, Long> stagedBaseStoredInvestments =
+            new LinkedHashMap<>();
+    private final Map<ResourceLocation, Long> stagedBaseInvestmentCaps =
+            new LinkedHashMap<>();
+
     private long stagedBaseRevision = Long.MIN_VALUE;
+    private ResourceLocation stagedBaseTierId;
+    private ResourceLocation stagedBaseProfileId;
 
     private ResourceLocation selectedEssenceId;
 
@@ -1006,8 +1014,8 @@ public final class AscendanceNexusScreen
     ) {
         String instruction =
                 hasStagedChanges()
-                        ? "Staged locally — refunded Essence is immediately reusable. ALLOCATE will commit this plan in Section 5."
-                        : "Move sliders to stage an Essence reallocation. Closing the Nexus currently discards the staged plan.";
+                        ? "Staged locally — refunded Essence is immediately reusable. Press ALLOCATE to commit all staged changes."
+                        : "Move sliders to stage an Essence reallocation. ALLOCATE commits the plan; closing the Nexus discards it.";
 
         graphics.drawCenteredString(
                 font,
@@ -1238,8 +1246,8 @@ public final class AscendanceNexusScreen
         if (button == 0
                 && draggingTrackIndex >= 0) {
             /*
-             * Released sliders keep their staged target. Section 5 will send
-             * the complete staged reallocation only when ALLOCATE is used.
+             * Released sliders keep their staged target. The complete staged
+             * reallocation is sent only when ALLOCATE is pressed.
              */
             draggingTrackIndex = -1;
             return true;
@@ -1388,11 +1396,63 @@ public final class AscendanceNexusScreen
             return false;
         }
 
-        /*
-         * The staged plan is intentionally local in Section 4. Issue #28
-         * Section 5 will validate and commit this plan server-side with one
-         * explicit request, then authoritative sync will replace the staging.
-         */
+        if (!hasStagedChanges()) {
+            return true;
+        }
+
+        ClientEssenceState.Snapshot snapshot =
+                ClientEssenceState.snapshot();
+
+        if (!snapshot.ready()) {
+            return true;
+        }
+
+        List<AscendanceAllocationPayload.Target> targets =
+                new ArrayList<>();
+
+        for (Map.Entry<ResourceLocation, Long> entry :
+                stagedInvestments.entrySet()) {
+            ClientEssenceState.StatSnapshot state =
+                    snapshot.stats().get(entry.getKey());
+
+            if (state == null) {
+                continue;
+            }
+
+            long target = Math.max(0L, entry.getValue());
+
+            if (target == state.storedInvestment()) {
+                continue;
+            }
+
+            targets.add(
+                    new AscendanceAllocationPayload.Target(
+                            entry.getKey().toString(),
+                            state.storedInvestment(),
+                            target
+                    )
+            );
+        }
+
+        if (targets.isEmpty()) {
+            return true;
+        }
+
+        long baseRevision =
+                stagedBaseRevision == Long.MIN_VALUE
+                        ? snapshot.playerRevision()
+                        : stagedBaseRevision;
+
+        NetworkManager.sendToServer(
+                new AscendanceAllocationPayload(
+                        menu.containerId,
+                        baseRevision,
+                        snapshot.tierId().toString(),
+                        snapshot.balanceProfileId().toString(),
+                        targets
+                )
+        );
+
         return true;
     }
 
@@ -1708,15 +1768,96 @@ public final class AscendanceNexusScreen
         }
 
         if (stagedBaseRevision == Long.MIN_VALUE) {
+            captureStagedAuthoritativeBaseline(snapshot);
+            return;
+        }
+
+        if (stagedBaseRevision == snapshot.playerRevision()) {
+            return;
+        }
+
+        /*
+         * AVAILABLE Essence is allowed to change underneath an open Nexus.
+         * Crucible channeling does exactly that and bumps the normal player
+         * synchronization revision every time Essence is transferred.
+         *
+         * A balance-only update must therefore rebase the request revision
+         * without throwing away the user's staged slider positions. If the
+         * authoritative tier/profile, stored investments, or investment caps
+         * changed, the staged plan is no longer based on the same progression
+         * state and is discarded instead.
+         */
+        if (matchesStagedAuthoritativeBaseline(snapshot)) {
             stagedBaseRevision = snapshot.playerRevision();
             return;
         }
 
-        if (stagedBaseRevision != snapshot.playerRevision()) {
-            stagedInvestments.clear();
-            draggingTrackIndex = -1;
-            stagedBaseRevision = snapshot.playerRevision();
+        stagedInvestments.clear();
+        draggingTrackIndex = -1;
+        captureStagedAuthoritativeBaseline(snapshot);
+    }
+
+    private void captureStagedAuthoritativeBaseline(
+            ClientEssenceState.Snapshot snapshot
+    ) {
+        stagedBaseRevision = snapshot.playerRevision();
+        stagedBaseTierId = snapshot.tierId();
+        stagedBaseProfileId = snapshot.balanceProfileId();
+
+        stagedBaseStoredInvestments.clear();
+        stagedBaseInvestmentCaps.clear();
+
+        for (Map.Entry<ResourceLocation, ClientEssenceState.StatSnapshot> entry :
+                snapshot.stats().entrySet()) {
+            stagedBaseStoredInvestments.put(
+                    entry.getKey(),
+                    entry.getValue().storedInvestment()
+            );
+            stagedBaseInvestmentCaps.put(
+                    entry.getKey(),
+                    entry.getValue().currentInvestmentCap()
+            );
         }
+    }
+
+    private boolean matchesStagedAuthoritativeBaseline(
+            ClientEssenceState.Snapshot snapshot
+    ) {
+        if (!Objects.equals(
+                stagedBaseTierId,
+                snapshot.tierId()
+        ) || !Objects.equals(
+                stagedBaseProfileId,
+                snapshot.balanceProfileId()
+        )) {
+            return false;
+        }
+
+        if (stagedBaseStoredInvestments.size()
+                != snapshot.stats().size()
+                || stagedBaseInvestmentCaps.size()
+                != snapshot.stats().size()) {
+            return false;
+        }
+
+        for (Map.Entry<ResourceLocation, ClientEssenceState.StatSnapshot> entry :
+                snapshot.stats().entrySet()) {
+            Long stored =
+                    stagedBaseStoredInvestments.get(entry.getKey());
+            Long cap =
+                    stagedBaseInvestmentCaps.get(entry.getKey());
+
+            if (stored == null
+                    || cap == null
+                    || stored.longValue()
+                    != entry.getValue().storedInvestment()
+                    || cap.longValue()
+                    != entry.getValue().currentInvestmentCap()) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private long safeAddNonNegative(
@@ -1774,14 +1915,12 @@ public final class AscendanceNexusScreen
         TabLayout layout =
                 tabLayout(categories);
 
-        if (selectedCategoryIndex < tabWindowStart) {
-            tabWindowStart = selectedCategoryIndex;
-        } else if (selectedCategoryIndex
-                >= tabWindowStart + layout.visibleCount()) {
-            tabWindowStart =
-                    selectedCategoryIndex - layout.visibleCount() + 1;
-        }
-
+        /*
+         * Tab paging is independent of the active category. The selected tab is
+         * allowed to scroll completely off-screen so the player can browse the
+         * rest of a long category list without the active tab forcing the
+         * window back into view every frame.
+         */
         tabWindowStart =
                 Math.max(
                         0,

@@ -254,6 +254,29 @@ public final class EssenceSavedData extends SavedData {
     }
 
 
+    /** Apply one prevalidated Nexus allocation/reallocation atomically. */
+    public boolean applyAllocationTargets(
+            UUID playerId,
+            Map<StatDefinition, Long> targetInvestments,
+            Map<EssenceDefinition, Long> targetAvailable
+    ) {
+        PlayerEssenceData playerData =
+                getPlayerData(playerId);
+
+        boolean changed =
+                playerData.applyAllocationTargets(
+                        targetInvestments,
+                        targetAvailable
+                );
+
+        if (changed) {
+            setDirty();
+        }
+
+        return changed;
+    }
+
+
     public void clearAll(
             UUID playerId
     ) {

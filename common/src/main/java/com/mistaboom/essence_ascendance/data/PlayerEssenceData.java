@@ -457,6 +457,91 @@ public final class PlayerEssenceData {
     }
 
 
+    /**
+     * Applies a prevalidated allocation transaction in one mutation revision.
+     *
+     * The caller is responsible for validating tier caps and Essence budgets
+     * before invoking this method. Keeping the map replacement here lets a
+     * multi-stat Nexus allocation become visible atomically to synchronization
+     * and save-data consumers instead of as a sequence of partial investments.
+     */
+    public boolean applyAllocationTargets(
+            Map<StatDefinition, Long> targetInvestments,
+            Map<EssenceDefinition, Long> targetAvailable
+    ) {
+        if (targetInvestments == null || targetAvailable == null) {
+            throw new IllegalArgumentException(
+                    "Allocation target maps cannot be null"
+            );
+        }
+
+        boolean changed = false;
+
+        for (Map.Entry<StatDefinition, Long> entry :
+                targetInvestments.entrySet()) {
+            StatDefinition stat = entry.getKey();
+            Long amount = entry.getValue();
+
+            if (stat == null || amount == null || amount < 0L) {
+                throw new IllegalArgumentException(
+                        "Invalid stat allocation target"
+                );
+            }
+
+            if (getInvested(stat) != amount) {
+                changed = true;
+            }
+        }
+
+        for (Map.Entry<EssenceDefinition, Long> entry :
+                targetAvailable.entrySet()) {
+            EssenceDefinition essence = entry.getKey();
+            Long amount = entry.getValue();
+
+            if (essence == null || amount == null || amount < 0L) {
+                throw new IllegalArgumentException(
+                        "Invalid available Essence target"
+                );
+            }
+
+            if (getAvailable(essence) != amount) {
+                changed = true;
+            }
+        }
+
+        if (!changed) {
+            return false;
+        }
+
+        for (Map.Entry<EssenceDefinition, Long> entry :
+                targetAvailable.entrySet()) {
+            EssenceDefinition essence = entry.getKey();
+            long amount = entry.getValue();
+
+            if (amount == 0L) {
+                availableEssence.remove(essence.id());
+            } else {
+                availableEssence.put(essence.id(), amount);
+            }
+        }
+
+        for (Map.Entry<StatDefinition, Long> entry :
+                targetInvestments.entrySet()) {
+            StatDefinition stat = entry.getKey();
+            long amount = entry.getValue();
+
+            if (amount == 0L) {
+                investedEssence.remove(stat.id());
+            } else {
+                investedEssence.put(stat.id(), amount);
+            }
+        }
+
+        bumpRevision();
+        return true;
+    }
+
+
     public void clearAvailable() {
         if (availableEssence.isEmpty()) {
             return;

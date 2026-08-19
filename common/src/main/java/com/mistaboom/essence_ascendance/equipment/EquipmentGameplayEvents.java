@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.equipment;
 
 import com.mistaboom.essence_ascendance.lifecycle.PlayerRuntimeLifecycleService;
 import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappings;
+import com.mistaboom.essence_ascendance.network.AscendanceNexusNetworkService;
 import com.mistaboom.essence_ascendance.network.EssenceCrucibleNetworkService;
 import com.mistaboom.essence_ascendance.network.EssencePylonNetworkService;
 import com.mistaboom.essence_ascendance.network.ItemEssenceTooltipSyncService;
@@ -29,6 +30,7 @@ public final class EquipmentGameplayEvents {
         }
 
         ItemEssenceMappings.init();
+        AscendanceNexusNetworkService.init();
         EssenceCrucibleNetworkService.init();
         EssencePylonNetworkService.init();
         ItemEssenceTooltipSyncService.init();

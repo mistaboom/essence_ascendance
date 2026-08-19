@@ -89,6 +89,19 @@ public final class PlayerRuntimeLifecycleService {
         }
     }
 
+
+    /**
+     * Re-evaluate runtime gameplay effects and presentation immediately after
+     * an authoritative progression mutation without clearing unrelated runtime
+     * carry/state as a full lifecycle transition would.
+     */
+    public static void refreshProgressionState(
+            ServerPlayer player
+    ) {
+        refreshCurrentState(player);
+    }
+
+
     private static void refreshCurrentState(
             ServerPlayer player
     ) {
