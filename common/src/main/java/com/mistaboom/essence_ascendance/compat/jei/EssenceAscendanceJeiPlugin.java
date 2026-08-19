@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.compat.jei;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.client.EssenceCrucibleScreen;
+import com.mistaboom.essence_ascendance.client.AscendanceNexusScreen;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.gui.handlers.IGuiContainerHandler;
@@ -45,6 +46,30 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
                             EssenceCrucibleScreen screen
                     ) {
                         return screen.extraGuiAreas();
+                    }
+                }
+        );
+
+        /*
+         * The Nexus consumes the full logical screen. Mark that complete area
+         * as GUI-owned so JEI does not place its ingredient list over the
+         * progression tracks while remaining an optional compile-time bridge.
+         */
+        registration.addGuiContainerHandler(
+                AscendanceNexusScreen.class,
+                new IGuiContainerHandler<AscendanceNexusScreen>() {
+                    @Override
+                    public List<Rect2i> getGuiExtraAreas(
+                            AscendanceNexusScreen screen
+                    ) {
+                        return List.of(
+                                new Rect2i(
+                                        0,
+                                        0,
+                                        screen.width,
+                                        screen.height
+                                )
+                        );
                     }
                 }
         );

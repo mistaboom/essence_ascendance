@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.progression;
 
+import com.mistaboom.essence_ascendance.balance.BalanceProfileDefinition;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
@@ -121,7 +122,10 @@ public final class StatScalingService {
                         stat,
                         investmentLimit.effectiveInvestment(),
                         currentTierIndex,
-                        tiers
+                        tiers,
+                        EssenceConfigManager
+                                .get()
+                                .balanceProfile()
                 );
 
 
@@ -141,6 +145,160 @@ public final class StatScalingService {
                 transcendentMaximumBonus,
                 scaledBonus
         );
+    }
+
+
+    /*
+     * ============================================================
+     * CLIENT-SAFE PROGRESSION PREVIEW
+     * ============================================================
+     *
+     * These helpers use only immutable registry/profile data and therefore
+     * let presentation code preview the same tier curve used by the server
+     * without mutating player progression.
+     */
+
+    public static double progressionForInvestment(
+            StatDefinition stat,
+            long effectiveInvestment,
+            AscendanceTierDefinition currentTier,
+            BalanceProfileDefinition balanceProfile
+    ) {
+
+        Objects.requireNonNull(stat, "Stat cannot be null");
+        Objects.requireNonNull(currentTier, "Current tier cannot be null");
+        Objects.requireNonNull(balanceProfile, "Balance profile cannot be null");
+
+        List<AscendanceTierDefinition> tiers =
+                orderedTiers();
+
+        int currentTierIndex =
+                findTierIndex(
+                        tiers,
+                        currentTier
+                );
+
+        if (currentTierIndex < 0) {
+            throw new IllegalStateException(
+                    "Current tier is not registered: "
+                            + currentTier.id()
+            );
+        }
+
+        return calculateProgression(
+                stat,
+                Math.max(0L, effectiveInvestment),
+                currentTierIndex,
+                tiers,
+                balanceProfile
+        );
+    }
+
+
+    public static long investmentForProgression(
+            StatDefinition stat,
+            double progression,
+            AscendanceTierDefinition currentTier,
+            BalanceProfileDefinition balanceProfile
+    ) {
+
+        Objects.requireNonNull(stat, "Stat cannot be null");
+        Objects.requireNonNull(currentTier, "Current tier cannot be null");
+        Objects.requireNonNull(balanceProfile, "Balance profile cannot be null");
+
+        List<AscendanceTierDefinition> tiers =
+                orderedTiers();
+
+        int currentTierIndex =
+                findTierIndex(
+                        tiers,
+                        currentTier
+                );
+
+        if (currentTierIndex < 0) {
+            throw new IllegalStateException(
+                    "Current tier is not registered: "
+                            + currentTier.id()
+            );
+        }
+
+        double maximumProgression =
+                tierFraction(
+                        currentTierIndex,
+                        tiers.size()
+                );
+        double requestedProgression =
+                Math.max(
+                        0.0,
+                        Math.min(
+                                maximumProgression,
+                                progression
+                        )
+                );
+
+        long previousCap = 0L;
+        double previousFraction = 0.0;
+
+        for (int i = 0; i <= currentTierIndex; i++) {
+            AscendanceTierDefinition tier =
+                    tiers.get(i);
+            long currentCap =
+                    balanceProfile.getInvestmentCap(
+                            tier,
+                            stat
+                    );
+
+            if (currentCap < previousCap) {
+                throw new IllegalStateException(
+                        "Investment caps must not decrease across tiers for stat "
+                                + stat.id()
+                                + ". "
+                                + tier.id()
+                                + " has cap "
+                                + currentCap
+                                + " after previous cap "
+                                + previousCap
+                );
+            }
+
+            double currentFraction =
+                    tierFraction(
+                            i,
+                            tiers.size()
+                    );
+
+            if (currentCap == 0L) {
+                continue;
+            }
+
+            if (requestedProgression <= currentFraction) {
+                if (currentCap == previousCap) {
+                    return currentCap;
+                }
+
+                double segment =
+                        (requestedProgression - previousFraction)
+                                / (currentFraction - previousFraction);
+                segment = clamp01(segment);
+
+                return Math.max(
+                        previousCap,
+                        Math.min(
+                                currentCap,
+                                Math.round(
+                                        previousCap
+                                                + (currentCap - previousCap)
+                                                * segment
+                                )
+                        )
+                );
+            }
+
+            previousCap = currentCap;
+            previousFraction = currentFraction;
+        }
+
+        return previousCap;
     }
 
 
@@ -170,7 +328,8 @@ public final class StatScalingService {
             StatDefinition stat,
             long effectiveInvestment,
             int currentTierIndex,
-            List<AscendanceTierDefinition> tiers
+            List<AscendanceTierDefinition> tiers,
+            BalanceProfileDefinition balanceProfile
     ) {
 
         long previousCap =
@@ -190,9 +349,7 @@ public final class StatScalingService {
 
 
             long currentCap =
-                    EssenceConfigManager
-                            .get()
-                            .balanceProfile()
+                    balanceProfile
                             .getInvestmentCap(
                                     tier,
                                     stat

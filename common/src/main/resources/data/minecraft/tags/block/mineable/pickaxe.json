@@ -2,6 +2,7 @@
   "replace": false,
   "values": [
     "essence_ascendance:essence_crucible",
-    "essence_ascendance:essence_pylon"
+    "essence_ascendance:essence_pylon",
+    "essence_ascendance:ascendance_nexus"
   ]
 }

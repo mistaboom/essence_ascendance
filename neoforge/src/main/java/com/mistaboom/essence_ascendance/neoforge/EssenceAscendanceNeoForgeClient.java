@@ -2,11 +2,13 @@ package com.mistaboom.essence_ascendance.neoforge;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.client.EssenceAscendanceClient;
+import com.mistaboom.essence_ascendance.client.AscendanceNexusScreen;
 import com.mistaboom.essence_ascendance.client.EssenceCrucibleScreen;
 import com.mistaboom.essence_ascendance.client.EssencePylonRenderer;
 import com.mistaboom.essence_ascendance.client.EssencePylonScreen;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleContent;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonContent;
+import com.mistaboom.essence_ascendance.nexus.AscendanceNexusContent;
 import net.minecraft.client.renderer.item.ItemProperties;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
@@ -45,6 +47,10 @@ public final class EssenceAscendanceNeoForgeClient {
         event.register(
                 EssencePylonContent.ESSENCE_PYLON_MENU.get(),
                 EssencePylonScreen::new
+        );
+        event.register(
+                AscendanceNexusContent.ASCENDANCE_NEXUS_MENU.get(),
+                AscendanceNexusScreen::new
         );
     }
 

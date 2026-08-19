@@ -21,5 +21,7 @@
   "item.essence_ascendance.ascendant_pylon_focus": "Ascendant Pylon Focus",
   "item.essence_ascendance.transcendent_pylon_focus": "Transcendent Pylon Focus",
   "container.essence_ascendance.essence_pylon": "Essence Pylon",
-  "message.essence_ascendance.pylon_private": "This Essence Pylon is privately attuned to another player."
+  "message.essence_ascendance.pylon_private": "This Essence Pylon is privately attuned to another player.",
+  "block.essence_ascendance.ascendance_nexus": "Ascendance Nexus",
+  "container.essence_ascendance.ascendance_nexus": "Ascendance Nexus"
 }
