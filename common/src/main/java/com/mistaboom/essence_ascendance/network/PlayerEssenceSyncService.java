@@ -7,9 +7,13 @@ import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceFamily;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
+import com.mistaboom.essence_ascendance.progression.AscendanceAdvancementDefinition;
 import com.mistaboom.essence_ascendance.progression.AscendanceEngine;
 import com.mistaboom.essence_ascendance.progression.AscendanceEvaluationResult;
 import com.mistaboom.essence_ascendance.progression.AscendanceProgressSnapshot;
+import com.mistaboom.essence_ascendance.progression.MilestoneDefinition;
+import com.mistaboom.essence_ascendance.progression.MilestoneProgress;
+import com.mistaboom.essence_ascendance.progression.MilestoneRequirement;
 import com.mistaboom.essence_ascendance.progression.StatScalingResult;
 import com.mistaboom.essence_ascendance.progression.StatScalingService;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
@@ -301,6 +305,19 @@ public final class PlayerEssenceSyncService {
                 AscendanceProgressSnapshot progress =
                         evaluation.progress();
 
+                AscendanceAdvancementDefinition advancement =
+                        EssenceConfigManager
+                                .get()
+                                .getAdvancementForTier(
+                                        evaluation.currentTier().id()
+                                )
+                                .orElseThrow(
+                                        () -> new IllegalStateException(
+                                                "Missing synchronized Ascendance advancement for tier "
+                                                        + evaluation.currentTier().id()
+                                        )
+                                );
+
                 yield new PlayerEssenceSyncPayload.ProgressState(
                         PlayerEssenceSyncPayload.ProgressStatus.AVAILABLE,
                         evaluation.nextTier()
@@ -312,6 +329,10 @@ public final class PlayerEssenceSyncService {
                         progress.requiredDevelopedStats(),
                         progress.representedCategories(),
                         progress.requiredRepresentedCategories(),
+                        advancement.developedStatThreshold(),
+                        flattenWorldRequirements(
+                                progress.worldProgress()
+                        ),
                         progress.worldProgressComplete(),
                         progress.readyToAscend()
                 );
@@ -327,6 +348,8 @@ public final class PlayerEssenceSyncService {
                             0,
                             0,
                             0,
+                            0.0D,
+                            List.of(),
                             true,
                             false
                     );
@@ -341,10 +364,86 @@ public final class PlayerEssenceSyncService {
                             0,
                             0,
                             0,
+                            0.0D,
+                            List.of(),
                             false,
                             false
                     );
         };
+    }
+
+    private static List<PlayerEssenceSyncPayload.WorldRequirementState> flattenWorldRequirements(
+            MilestoneProgress root
+    ) {
+        List<PlayerEssenceSyncPayload.WorldRequirementState> lines =
+                new ArrayList<>();
+
+        appendWorldRequirement(
+                root,
+                0,
+                lines
+        );
+
+        return List.copyOf(lines);
+    }
+
+    private static void appendWorldRequirement(
+            MilestoneProgress progress,
+            int depth,
+            List<PlayerEssenceSyncPayload.WorldRequirementState> lines
+    ) {
+        if (lines.size()
+                >= PlayerEssenceSyncPayload.MAX_WORLD_REQUIREMENT_LINES) {
+            return;
+        }
+
+        MilestoneRequirement requirement =
+                progress.requirement();
+
+        PlayerEssenceSyncPayload.WorldRequirementKind kind;
+        String label;
+
+        if (requirement instanceof MilestoneRequirement.Milestone milestone) {
+            kind = PlayerEssenceSyncPayload.WorldRequirementKind.MILESTONE;
+            label =
+                    EssenceConfigManager
+                            .get()
+                            .getMilestone(milestone.milestoneId())
+                            .map(MilestoneDefinition::displayName)
+                            .orElse(milestone.milestoneId().toString());
+        } else if (requirement instanceof MilestoneRequirement.AllOf) {
+            kind = PlayerEssenceSyncPayload.WorldRequirementKind.ALL_OF;
+            label = "Complete all of:";
+        } else if (requirement instanceof MilestoneRequirement.AnyOf) {
+            kind = PlayerEssenceSyncPayload.WorldRequirementKind.ANY_OF;
+            label = "Complete any one of:";
+        } else if (requirement instanceof MilestoneRequirement.Always) {
+            kind = PlayerEssenceSyncPayload.WorldRequirementKind.ALWAYS;
+            label = "No world milestone required";
+        } else {
+            throw new IllegalStateException(
+                    "Unsupported milestone requirement type: "
+                            + requirement.getClass().getName()
+            );
+        }
+
+        lines.add(
+                new PlayerEssenceSyncPayload.WorldRequirementState(
+                        depth,
+                        kind,
+                        label,
+                        progress.resolvable(),
+                        progress.complete()
+                )
+        );
+
+        for (MilestoneProgress child : progress.children()) {
+            appendWorldRequirement(
+                    child,
+                    depth + 1,
+                    lines
+            );
+        }
     }
 
     private record LastSentState(

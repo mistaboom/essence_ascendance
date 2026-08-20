@@ -550,6 +550,11 @@ public final class EssenceConfigManager {
                 equipmentBaselines
         );
 
+        root.addProperty(
+                "_ascendance_requirements_comment",
+                "Ascension requirements are global config, not datapacks. Use milestone_overrides for world-objective definitions and advancement_overrides for tier-transition requirements."
+        );
+
         root.add(
                 "milestone_overrides",
                 new JsonObject()

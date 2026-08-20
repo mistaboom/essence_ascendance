@@ -3,7 +3,11 @@ package com.mistaboom.essence_ascendance.network;
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.nexus.AscendanceAllocationFeedback;
 import com.mistaboom.essence_ascendance.nexus.AscendanceNexusMenu;
+import com.mistaboom.essence_ascendance.nexus.AscendanceTierFeedback;
 import com.mistaboom.essence_ascendance.progression.AscendanceAllocationService;
+import com.mistaboom.essence_ascendance.progression.AscendanceAttemptResult;
+import com.mistaboom.essence_ascendance.progression.AscendanceEngine;
+import com.mistaboom.essence_ascendance.progression.AscendanceEvaluationResult;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
 import com.mistaboom.essence_ascendance.lifecycle.PlayerRuntimeLifecycleService;
@@ -51,10 +55,27 @@ public final class AscendanceNexusNetworkService {
                         )
         );
 
+        NetworkManager.registerReceiver(
+                NetworkManager.Side.C2S,
+                AscendanceAscendPayload.TYPE,
+                AscendanceAscendPayload.CODEC,
+                (payload, context) ->
+                        context.queue(
+                                () -> {
+                                    if (context.getPlayer() instanceof ServerPlayer player) {
+                                        handleAscendRequest(
+                                                player,
+                                                payload
+                                        );
+                                    }
+                                }
+                        )
+        );
+
         initialized = true;
 
         EssenceAscendance.LOGGER.info(
-                "Registered Ascendance Nexus allocation requests"
+                "Registered Ascendance Nexus allocation and Ascension requests"
         );
     }
 
@@ -73,15 +94,9 @@ public final class AscendanceNexusNetworkService {
             return;
         }
 
-        long now = player.serverLevel().getGameTime();
-        Long previous = LAST_REQUEST_TICK.get(player);
-
-        if (previous != null
-                && now - previous < REQUEST_COOLDOWN_TICKS) {
+        if (!beginRequest(player)) {
             return;
         }
-
-        LAST_REQUEST_TICK.put(player, now);
 
         if (payload.targets().isEmpty()
                 || payload.targets().size() > AscendanceAllocationPayload.MAX_TARGETS) {
@@ -186,6 +201,91 @@ public final class AscendanceNexusNetworkService {
                     true
             );
         }
+    }
+
+    private static void handleAscendRequest(
+            ServerPlayer player,
+            AscendanceAscendPayload payload
+    ) {
+        if (!(player.containerMenu instanceof AscendanceNexusMenu menu)
+                || menu.containerId != payload.menuId()
+                || !menu.stillValid(player)) {
+            reject(
+                    player,
+                    "Ascension rejected: the Ascendance Nexus is no longer valid.",
+                    false
+            );
+            return;
+        }
+
+        if (!beginRequest(player)) {
+            return;
+        }
+
+        ResourceLocation baseTierId =
+                ResourceLocation.tryParse(payload.baseTierId());
+
+        if (baseTierId == null) {
+            reject(
+                    player,
+                    "Ascension rejected: invalid tier context.",
+                    true
+            );
+            return;
+        }
+
+        AscendanceEvaluationResult evaluation =
+                AscendanceEngine.evaluate(player);
+
+        if (!evaluation.currentTier().id().equals(baseTierId)) {
+            reject(
+                    player,
+                    "Ascension rejected: your progression changed. Review the refreshed requirements.",
+                    true
+            );
+            return;
+        }
+
+        AscendanceAttemptResult result =
+                AscendanceEngine.ascend(player);
+
+        switch (result.status()) {
+            case SUCCESS -> {
+                PlayerRuntimeLifecycleService.refreshProgressionState(player);
+                player.closeContainer();
+                AscendanceTierFeedback.play(player);
+            }
+            case NOT_READY -> reject(
+                    player,
+                    "Ascension requirements are not yet complete.",
+                    true
+            );
+            case MAX_TIER -> reject(
+                    player,
+                    "You are already at maximum Ascendance.",
+                    true
+            );
+            case CONFIGURATION_ERROR -> reject(
+                    player,
+                    "Ascension is unavailable because the progression configuration is invalid.",
+                    true
+            );
+        }
+    }
+
+    private static boolean beginRequest(
+            ServerPlayer player
+    ) {
+        long now = player.serverLevel().getGameTime();
+        Long previous = LAST_REQUEST_TICK.get(player);
+
+        if (previous != null
+                && now - previous < REQUEST_COOLDOWN_TICKS) {
+            return false;
+        }
+
+        LAST_REQUEST_TICK.put(player, now);
+        return true;
     }
 
     private static void reject(

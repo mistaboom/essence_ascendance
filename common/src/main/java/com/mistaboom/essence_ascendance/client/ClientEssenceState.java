@@ -10,6 +10,7 @@ import net.minecraft.resources.ResourceLocation;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -225,6 +226,22 @@ public final class ClientEssenceState {
             }
         }
 
+        List<WorldRequirementSnapshot> worldRequirements =
+                payload.progress()
+                        .worldRequirements()
+                        .stream()
+                        .map(
+                                requirement ->
+                                        new WorldRequirementSnapshot(
+                                                requirement.depth(),
+                                                requirement.kind(),
+                                                requirement.label(),
+                                                requirement.resolvable(),
+                                                requirement.complete()
+                                        )
+                        )
+                        .toList();
+
         ProgressSnapshot progress =
                 new ProgressSnapshot(
                         payload.progress().status(),
@@ -237,6 +254,8 @@ public final class ClientEssenceState {
                         payload.progress().requiredDevelopedStats(),
                         payload.progress().representedCategories(),
                         payload.progress().requiredRepresentedCategories(),
+                        payload.progress().developedStatThreshold(),
+                        worldRequirements,
                         payload.progress().worldProgressComplete(),
                         payload.progress().readyToAscend()
                 );
@@ -348,9 +367,15 @@ public final class ClientEssenceState {
             int requiredDevelopedStats,
             int representedCategories,
             int requiredRepresentedCategories,
+            double developedStatThreshold,
+            List<WorldRequirementSnapshot> worldRequirements,
             boolean worldProgressComplete,
             boolean readyToAscend
     ) {
+        public ProgressSnapshot {
+            worldRequirements = List.copyOf(worldRequirements);
+        }
+
         public boolean hasNextTier() {
             return nextTierId != null;
         }
@@ -365,9 +390,20 @@ public final class ClientEssenceState {
                     0,
                     0,
                     0,
+                    0.0D,
+                    List.of(),
                     false,
                     false
             );
         }
+    }
+
+    public record WorldRequirementSnapshot(
+            int depth,
+            PlayerEssenceSyncPayload.WorldRequirementKind kind,
+            String label,
+            boolean resolvable,
+            boolean complete
+    ) {
     }
 }

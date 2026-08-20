@@ -7,6 +7,8 @@ import com.mistaboom.essence_ascendance.balance.BalanceProfileDefinition;
 import com.mistaboom.essence_ascendance.balance.BalanceProfileRegistry;
 import com.mistaboom.essence_ascendance.nexus.AscendanceNexusMenu;
 import com.mistaboom.essence_ascendance.network.AscendanceAllocationPayload;
+import com.mistaboom.essence_ascendance.network.AscendanceAscendPayload;
+import com.mistaboom.essence_ascendance.network.PlayerEssenceSyncPayload;
 import com.mistaboom.essence_ascendance.progression.StatScalingService;
 import com.mistaboom.essence_ascendance.stat.StatUnit;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
@@ -52,8 +54,14 @@ public final class AscendanceNexusScreen
     private static final int TIER_LINE = 0x665F5969;
     private static final int LOCKED = 0x552F2B35;
     private static final int GAUGE_FILL = 0xFF7B62A2;
+    private static final int COMPLETE = 0xFF78C69A;
+    private static final int INCOMPLETE = 0xFFD1B36A;
+    private static final int ERROR = 0xFFD47A7A;
 
     private static final int SAFE_MARGIN = 14;
+    private static final int ASCENDANCE_HEADER_WIDTH = 150;
+    private static final int ASCENDANCE_HEADER_HEIGHT = 24;
+    private static final int ASCENDANCE_HEADER_Y = 5;
     private static final int TAB_HEIGHT = 20;
     private static final int TAB_GAP = 3;
     private static final int TAB_ARROW_WIDTH = 18;
@@ -66,6 +74,7 @@ public final class AscendanceNexusScreen
     private static final int TRACK_KNOB_HEIGHT = 7;
     private static final int TRACK_HIT_PADDING = 4;
     private static final int ALLOCATE_BUTTON_WIDTH = 70;
+    private static final int ASCEND_BUTTON_WIDTH = 84;
     private static final int BOTTOM_CONTROL_HEIGHT = 16;
     private static final int BOTTOM_CONTROL_GAP = 5;
     private static final int GAUGE_TEXT_GAP = 4;
@@ -77,6 +86,7 @@ public final class AscendanceNexusScreen
     private int trackWindowStart = 0;
 
     private int draggingTrackIndex = -1;
+    private boolean ascensionView = false;
 
     private final Map<ResourceLocation, Long> stagedInvestments =
             new LinkedHashMap<>();
@@ -132,15 +142,35 @@ public final class AscendanceNexusScreen
         List<NexusCategoryView> categories =
                 categories();
 
-        renderHeader(graphics);
+        renderHeader(
+                graphics,
+                mouseX,
+                mouseY
+        );
+
+        if (!ClientEssenceState.ready()) {
+            renderWaitingState(graphics);
+            return;
+        }
+
+        if (!categories.isEmpty()) {
+            stabilizeSelection(categories);
+            renderTabs(graphics, categories);
+        }
+
+        if (ascensionView) {
+            renderAscensionPage(
+                    graphics,
+                    mouseX,
+                    mouseY
+            );
+            return;
+        }
 
         if (categories.isEmpty()) {
             renderWaitingState(graphics);
             return;
         }
-
-        stabilizeSelection(categories);
-        renderTabs(graphics, categories);
 
         NexusCategoryView category =
                 categories.get(selectedCategoryIndex);
@@ -186,26 +216,56 @@ public final class AscendanceNexusScreen
     }
 
     private void renderHeader(
-            GuiGraphics graphics
+            GuiGraphics graphics,
+            int mouseX,
+            int mouseY
     ) {
-        graphics.drawCenteredString(
-                font,
-                title,
-                width / 2,
-                8,
-                TEXT
+        int left =
+                (width - ASCENDANCE_HEADER_WIDTH) / 2;
+        boolean hovered =
+                inside(
+                        mouseX,
+                        mouseY,
+                        left,
+                        ASCENDANCE_HEADER_Y,
+                        ASCENDANCE_HEADER_WIDTH,
+                        ASCENDANCE_HEADER_HEIGHT
+                );
+
+        graphics.fill(
+                left,
+                ASCENDANCE_HEADER_Y,
+                left + ASCENDANCE_HEADER_WIDTH,
+                ASCENDANCE_HEADER_Y + ASCENDANCE_HEADER_HEIGHT,
+                ascensionView
+                        ? PANEL_INNER
+                        : hovered ? 0xAA292733 : 0x44292733
+        );
+        outline(
+                graphics,
+                left,
+                ASCENDANCE_HEADER_Y,
+                ASCENDANCE_HEADER_WIDTH,
+                ASCENDANCE_HEADER_HEIGHT,
+                ascensionView || hovered ? BORDER_BRIGHT : 0x8877658E
         );
 
-        String subtitle =
-                "Permanent progression • server authoritative";
-
+        float scale = 1.28F;
+        graphics.pose().pushPose();
+        graphics.pose().translate(
+                width / 2.0F,
+                ASCENDANCE_HEADER_Y + 5.0F,
+                0.0F
+        );
+        graphics.pose().scale(scale, scale, 1.0F);
         graphics.drawCenteredString(
                 font,
-                subtitle,
-                width / 2,
-                19,
-                MUTED
+                "ASCENDANCE",
+                0,
+                0,
+                ascensionView || hovered ? TEXT : MUTED
         );
+        graphics.pose().popPose();
     }
 
     private void renderWaitingState(
@@ -213,7 +273,7 @@ public final class AscendanceNexusScreen
     ) {
         int panelWidth =
                 Math.min(320, Math.max(180, width - 2 * SAFE_MARGIN));
-        int panelHeight = 72;
+        int panelHeight = 54;
         int left = (width - panelWidth) / 2;
         int top = Math.max(52, (height - panelHeight) / 2);
 
@@ -239,13 +299,6 @@ public final class AscendanceNexusScreen
                 width / 2,
                 top + 24,
                 TEXT
-        );
-        graphics.drawCenteredString(
-                font,
-                "The Nexus never reads server save data directly on the client.",
-                width / 2,
-                top + 42,
-                MUTED
         );
     }
 
@@ -293,7 +346,8 @@ public final class AscendanceNexusScreen
                     categories.get(i);
 
             boolean selected =
-                    i == selectedCategoryIndex;
+                    !ascensionView
+                            && i == selectedCategoryIndex;
 
             graphics.fill(
                     x,
@@ -328,6 +382,722 @@ public final class AscendanceNexusScreen
 
             x += layout.tabWidth() + TAB_GAP;
         }
+    }
+
+    private void renderAscensionPage(
+            GuiGraphics graphics,
+            int mouseX,
+            int mouseY
+    ) {
+        ContentLayout layout =
+                contentLayout();
+
+        graphics.fill(
+                layout.left(),
+                layout.top(),
+                layout.right(),
+                layout.bottom(),
+                PANEL
+        );
+        outline(
+                graphics,
+                layout.left(),
+                layout.top(),
+                layout.width(),
+                layout.height(),
+                BORDER_BRIGHT
+        );
+
+        ClientEssenceState.Snapshot snapshot =
+                ClientEssenceState.snapshot();
+        ClientEssenceState.ProgressSnapshot progress =
+                snapshot.progress();
+
+        renderAscensionTransition(
+                graphics,
+                snapshot,
+                progress,
+                layout
+        );
+
+        switch (progress.status()) {
+            case AVAILABLE ->
+                    renderAscensionRequirements(
+                            graphics,
+                            progress,
+                            layout,
+                            mouseX,
+                            mouseY
+                    );
+            case MAX_TIER ->
+                    renderAscensionMaxTier(
+                            graphics,
+                            snapshot,
+                            layout
+                    );
+            case CONFIGURATION_ERROR ->
+                    renderAscensionConfigurationError(
+                            graphics,
+                            layout
+                    );
+        }
+    }
+
+    private void renderAscensionTransition(
+            GuiGraphics graphics,
+            ClientEssenceState.Snapshot snapshot,
+            ClientEssenceState.ProgressSnapshot progress,
+            ContentLayout layout
+    ) {
+        String current =
+                tierDisplayName(snapshot.tierId());
+        String transition;
+
+        if (progress.status()
+                == PlayerEssenceSyncPayload.ProgressStatus.AVAILABLE
+                && progress.nextTierId() != null) {
+            transition =
+                    current
+                            + "  →  "
+                            + tierDisplayName(progress.nextTierId());
+        } else if (progress.status()
+                == PlayerEssenceSyncPayload.ProgressStatus.MAX_TIER) {
+            transition = current + "  •  MAXIMUM";
+        } else {
+            transition = current + "  •  UNAVAILABLE";
+        }
+
+        float scale = 1.12F;
+        int maximumWidth =
+                Math.max(
+                        40,
+                        (int) ((layout.width() - 20) / scale)
+                );
+        String rendered =
+                trimToWidth(
+                        transition.toUpperCase(Locale.ROOT),
+                        maximumWidth
+                );
+
+        float lineHeight =
+                font.lineHeight * scale;
+        float y =
+                layout.top()
+                        + Math.max(
+                                1.0F,
+                                (layout.sectionHeight() - lineHeight) / 2.0F
+                        );
+
+        graphics.pose().pushPose();
+        graphics.pose().translate(
+                (layout.left() + layout.right()) / 2.0F,
+                y,
+                0.0F
+        );
+        graphics.pose().scale(scale, scale, 1.0F);
+        graphics.drawCenteredString(
+                font,
+                rendered,
+                0,
+                0,
+                TEXT
+        );
+        graphics.pose().popPose();
+    }
+
+    private void renderAscensionRequirements(
+            GuiGraphics graphics,
+            ClientEssenceState.ProgressSnapshot progress,
+            ContentLayout layout,
+            int mouseX,
+            int mouseY
+    ) {
+        int innerLeft = layout.left() + 8;
+        int innerRight = layout.right() - 8;
+        int y = layout.middleTop() + 5;
+        int rowHeight =
+                height < 260 ? 25 : 30;
+        int rowGap = 3;
+
+        y = renderAscensionRequirementRow(
+                graphics,
+                innerLeft,
+                innerRight,
+                y,
+                rowHeight,
+                "TOTAL INVESTMENT",
+                formatLong(progress.effectiveInvestment())
+                        + " / "
+                        + formatLong(progress.requiredInvestment()),
+                progress.effectiveInvestment(),
+                progress.requiredInvestment(),
+                progress.effectiveInvestment()
+                        >= progress.requiredInvestment()
+        ) + rowGap;
+
+        y = renderAscensionRequirementRow(
+                graphics,
+                innerLeft,
+                innerRight,
+                y,
+                rowHeight,
+                developedStatsRequirementLabel(progress),
+                progress.developedStats()
+                        + " / "
+                        + progress.requiredDevelopedStats(),
+                progress.developedStats(),
+                progress.requiredDevelopedStats(),
+                progress.developedStats()
+                        >= progress.requiredDevelopedStats()
+        ) + rowGap;
+
+        y = renderAscensionRequirementRow(
+                graphics,
+                innerLeft,
+                innerRight,
+                y,
+                rowHeight,
+                developedCategoryRequirementLabel(progress),
+                progress.representedCategories()
+                        + " / "
+                        + progress.requiredRepresentedCategories(),
+                progress.representedCategories(),
+                progress.requiredRepresentedCategories(),
+                progress.representedCategories()
+                        >= progress.requiredRepresentedCategories()
+        ) + rowGap;
+
+        renderWorldRequirements(
+                graphics,
+                progress,
+                innerLeft,
+                innerRight,
+                y,
+                layout.middleBottom() - 5
+        );
+
+        renderAscendControls(
+                graphics,
+                progress,
+                layout,
+                mouseX,
+                mouseY
+        );
+    }
+
+    private String developedStatsRequirementLabel(
+            ClientEssenceState.ProgressSnapshot progress
+    ) {
+        ClientEssenceState.Snapshot snapshot =
+                ClientEssenceState.snapshot();
+        Long sharedThreshold = null;
+
+        for (ClientEssenceState.StatSnapshot stat :
+                snapshot.stats().values()) {
+            if (stat.currentInvestmentCap() <= 0L) {
+                continue;
+            }
+
+            long threshold =
+                    (long) Math.ceil(
+                            stat.currentInvestmentCap()
+                                    * progress.developedStatThreshold()
+                    );
+
+            if (sharedThreshold == null) {
+                sharedThreshold = threshold;
+                continue;
+            }
+
+            if (sharedThreshold.longValue() != threshold) {
+                int thresholdPercent =
+                        (int) Math.round(
+                                progress.developedStatThreshold() * 100.0D
+                        );
+
+                return "DEVELOPED STATS (≥ "
+                        + thresholdPercent
+                        + "% of current cap)";
+            }
+        }
+
+        if (sharedThreshold == null) {
+            return "DEVELOPED STATS";
+        }
+
+        return "DEVELOPED STATS (≥ "
+                + formatLong(sharedThreshold)
+                + ")";
+    }
+
+    private String developedCategoryRequirementLabel(
+            ClientEssenceState.ProgressSnapshot progress
+    ) {
+        ClientEssenceState.Snapshot snapshot =
+                ClientEssenceState.snapshot();
+
+        Long sharedThreshold = null;
+
+        for (ClientEssenceState.StatSnapshot stat :
+                snapshot.stats().values()) {
+
+            if (stat.currentInvestmentCap() <= 0L) {
+                continue;
+            }
+
+            long threshold =
+                    (long) Math.ceil(
+                            stat.currentInvestmentCap()
+                                    * progress.developedStatThreshold()
+                    );
+
+            if (sharedThreshold == null) {
+                sharedThreshold = threshold;
+                continue;
+            }
+
+            if (sharedThreshold.longValue() != threshold) {
+                int thresholdPercent =
+                        (int) Math.round(
+                                progress.developedStatThreshold() * 100.0D
+                        );
+
+                return "DEVELOPED CATEGORIES (1 stat ≥ "
+                        + thresholdPercent
+                        + "% of its cap)";
+            }
+        }
+
+        if (sharedThreshold == null) {
+            return "DEVELOPED CATEGORIES";
+        }
+
+        return "DEVELOPED CATEGORIES (1 stat ≥ "
+                + formatLong(sharedThreshold)
+                + ")";
+    }
+
+    private int renderAscensionRequirementRow(
+            GuiGraphics graphics,
+            int left,
+            int right,
+            int top,
+            int rowHeight,
+            String label,
+            String value,
+            long current,
+            long required,
+            boolean complete
+    ) {
+        int bottom = top + rowHeight;
+
+        graphics.fill(
+                left,
+                top,
+                right,
+                bottom,
+                0x66292733
+        );
+        outline(
+                graphics,
+                left,
+                top,
+                right - left,
+                rowHeight,
+                complete ? COMPLETE : 0x665F5969
+        );
+
+        String renderedLabel =
+                trimToWidth(
+                        label,
+                        Math.max(20, (right - left) * 2 / 3)
+                );
+        String renderedValue =
+                formatRequirementValueForWidth(
+                        value,
+                        Math.max(20, (right - left) / 3 - 8)
+                );
+
+        graphics.drawString(
+                font,
+                renderedLabel,
+                left + 6,
+                top + 5,
+                complete ? COMPLETE : TEXT,
+                false
+        );
+        graphics.drawString(
+                font,
+                renderedValue,
+                right - 6 - font.width(renderedValue),
+                top + 5,
+                complete ? COMPLETE : MUTED,
+                false
+        );
+
+        int barLeft = left + 6;
+        int barRight = right - 6;
+        int barTop = bottom - 7;
+        graphics.fill(
+                barLeft,
+                barTop,
+                barRight,
+                barTop + 3,
+                TRACK
+        );
+
+        double fraction =
+                required <= 0L
+                        ? 1.0D
+                        : clamp01(current / (double) required);
+        int fill =
+                (int) Math.round(
+                        (barRight - barLeft) * fraction
+                );
+        graphics.fill(
+                barLeft,
+                barTop,
+                barLeft + fill,
+                barTop + 3,
+                complete ? COMPLETE : TRACK_PREVIEW
+        );
+
+        return bottom;
+    }
+
+    private String formatRequirementValueForWidth(
+            String value,
+            int maximumWidth
+    ) {
+        if (font.width(value) <= maximumWidth) {
+            return value;
+        }
+
+        int separator = value.indexOf(" / ");
+        if (separator > 0) {
+            try {
+                long current =
+                        Long.parseLong(
+                                value.substring(0, separator)
+                                        .replace(",", "")
+                        );
+                long required =
+                        Long.parseLong(
+                                value.substring(separator + 3)
+                                        .replace(",", "")
+                        );
+                String compact =
+                        formatCompactLong(current, 1)
+                                + " / "
+                                + formatCompactLong(required, 1);
+                if (font.width(compact) <= maximumWidth) {
+                    return compact;
+                }
+            } catch (NumberFormatException ignored) {
+                /* Count-based requirements fall through to normal trimming. */
+            }
+        }
+
+        return trimToWidth(
+                value,
+                maximumWidth
+        );
+    }
+
+    private void renderWorldRequirements(
+            GuiGraphics graphics,
+            ClientEssenceState.ProgressSnapshot progress,
+            int left,
+            int right,
+            int top,
+            int bottom
+    ) {
+        if (bottom <= top + font.lineHeight + 4) {
+            return;
+        }
+
+        graphics.fill(
+                left,
+                top,
+                right,
+                bottom,
+                0x44292733
+        );
+        outline(
+                graphics,
+                left,
+                top,
+                right - left,
+                bottom - top,
+                progress.worldProgressComplete()
+                        ? COMPLETE
+                        : 0x665F5969
+        );
+
+        graphics.drawString(
+                font,
+                "WORLD PROGRESSION",
+                left + 6,
+                top + 4,
+                progress.worldProgressComplete()
+                        ? COMPLETE
+                        : TEXT,
+                false
+        );
+
+        List<ClientEssenceState.WorldRequirementSnapshot> requirements =
+                progress.worldRequirements();
+
+        if (requirements.isEmpty()) {
+            graphics.drawString(
+                    font,
+                    progress.worldProgressComplete()
+                            ? "No world milestone required"
+                            : "No resolvable world requirement",
+                    left + 10,
+                    top + 16,
+                    progress.worldProgressComplete()
+                            ? COMPLETE
+                            : ERROR,
+                    false
+            );
+            return;
+        }
+
+        int lineY = top + 16;
+        int lineHeight = 10;
+        int maximumLines =
+                Math.max(
+                        1,
+                        (bottom - lineY - 3) / lineHeight
+                );
+        int renderedLines =
+                Math.min(
+                        maximumLines,
+                        requirements.size()
+                );
+
+        for (int i = 0; i < renderedLines; i++) {
+            ClientEssenceState.WorldRequirementSnapshot requirement =
+                    requirements.get(i);
+
+            int indent =
+                    Math.min(
+                            36,
+                            requirement.depth() * 10
+                    );
+            int textLeft = left + 10 + indent;
+            int textWidth =
+                    Math.max(
+                            1,
+                            right - 8 - textLeft
+                    );
+
+            String prefix;
+            if (!requirement.resolvable()) {
+                prefix = "! ";
+            } else if (requirement.complete()) {
+                prefix = "✓ ";
+            } else if (requirement.kind()
+                    == PlayerEssenceSyncPayload.WorldRequirementKind.MILESTONE) {
+                prefix = "• ";
+            } else {
+                prefix = "";
+            }
+
+            int color =
+                    !requirement.resolvable()
+                            ? ERROR
+                            : requirement.complete()
+                            ? COMPLETE
+                            : requirement.kind()
+                            == PlayerEssenceSyncPayload.WorldRequirementKind.MILESTONE
+                            ? MUTED
+                            : DIM;
+
+            graphics.drawString(
+                    font,
+                    trimToWidth(
+                            prefix + requirement.label(),
+                            textWidth
+                    ),
+                    textLeft,
+                    lineY + i * lineHeight,
+                    color,
+                    false
+            );
+        }
+
+        if (renderedLines < requirements.size()) {
+            String more =
+                    "… +"
+                            + (requirements.size() - renderedLines)
+                            + " more";
+            graphics.drawString(
+                    font,
+                    trimToWidth(
+                            more,
+                            Math.max(1, right - left - 20)
+                    ),
+                    left + 10,
+                    bottom - font.lineHeight - 2,
+                    DIM,
+                    false
+            );
+        }
+    }
+
+    private void renderAscendControls(
+            GuiGraphics graphics,
+            ClientEssenceState.ProgressSnapshot progress,
+            ContentLayout layout,
+            int mouseX,
+            int mouseY
+    ) {
+        boolean staged =
+                hasStagedChanges();
+        boolean enabled =
+                progress.readyToAscend()
+                        && !staged;
+        int buttonY =
+                layout.bottom()
+                        - BOTTOM_CONTROL_HEIGHT
+                        - 3;
+        int buttonX =
+                (layout.left() + layout.right() - ASCEND_BUTTON_WIDTH) / 2;
+
+        if (layout.sectionHeight() >= 28) {
+            String status =
+                    staged
+                            ? "ALLOCATE staged changes before Ascending"
+                            : progress.readyToAscend()
+                            ? "READY TO ASCEND"
+                            : "Requirements incomplete";
+            graphics.drawCenteredString(
+                    font,
+                    trimToWidth(
+                            status,
+                            Math.max(40, layout.width() - 20)
+                    ),
+                    (layout.left() + layout.right()) / 2,
+                    layout.middleBottom() + 3,
+                    enabled ? COMPLETE : MUTED
+            );
+        }
+
+        renderAscendButton(
+                graphics,
+                buttonX,
+                buttonY,
+                enabled,
+                inside(
+                        mouseX,
+                        mouseY,
+                        buttonX,
+                        buttonY,
+                        ASCEND_BUTTON_WIDTH,
+                        BOTTOM_CONTROL_HEIGHT
+                )
+        );
+    }
+
+    private void renderAscendButton(
+            GuiGraphics graphics,
+            int x,
+            int y,
+            boolean enabled,
+            boolean hovered
+    ) {
+        graphics.fill(
+                x,
+                y,
+                x + ASCEND_BUTTON_WIDTH,
+                y + BOTTOM_CONTROL_HEIGHT,
+                enabled
+                        ? hovered ? 0xFF41364F : PANEL_INNER
+                        : 0x88201E26
+        );
+        outline(
+                graphics,
+                x,
+                y,
+                ASCEND_BUTTON_WIDTH,
+                BOTTOM_CONTROL_HEIGHT,
+                enabled
+                        ? hovered ? 0xFFD0ADEB : BORDER_BRIGHT
+                        : 0xFF4A4650
+        );
+        graphics.drawCenteredString(
+                font,
+                "ASCEND",
+                x + ASCEND_BUTTON_WIDTH / 2,
+                y + Math.max(
+                        2,
+                        (BOTTOM_CONTROL_HEIGHT - font.lineHeight) / 2
+                ),
+                enabled ? TEXT : DIM
+        );
+    }
+
+    private void renderAscensionMaxTier(
+            GuiGraphics graphics,
+            ClientEssenceState.Snapshot snapshot,
+            ContentLayout layout
+    ) {
+        int centerX =
+                (layout.left() + layout.right()) / 2;
+        int centerY =
+                (layout.middleTop() + layout.middleBottom()) / 2;
+
+        graphics.drawCenteredString(
+                font,
+                tierDisplayName(snapshot.tierId()).toUpperCase(Locale.ROOT),
+                centerX,
+                centerY - 14,
+                COMPLETE
+        );
+        graphics.drawCenteredString(
+                font,
+                "Maximum Ascendance achieved.",
+                centerX,
+                centerY + 4,
+                TEXT
+        );
+        graphics.drawCenteredString(
+                font,
+                "No higher registered tier exists.",
+                centerX,
+                centerY + 18,
+                MUTED
+        );
+    }
+
+    private void renderAscensionConfigurationError(
+            GuiGraphics graphics,
+            ContentLayout layout
+    ) {
+        int centerX =
+                (layout.left() + layout.right()) / 2;
+        int centerY =
+                (layout.middleTop() + layout.middleBottom()) / 2;
+
+        graphics.drawCenteredString(
+                font,
+                "ASCENSION UNAVAILABLE",
+                centerX,
+                centerY - 12,
+                ERROR
+        );
+        graphics.drawCenteredString(
+                font,
+                trimToWidth(
+                        "The server could not resolve the configured Ascension requirements.",
+                        Math.max(80, layout.width() - 24)
+                ),
+                centerX,
+                centerY + 5,
+                MUTED
+        );
     }
 
     private void renderAttributeCategory(
@@ -1014,8 +1784,8 @@ public final class AscendanceNexusScreen
     ) {
         String instruction =
                 hasStagedChanges()
-                        ? "Staged locally — refunded Essence is immediately reusable. Press ALLOCATE to commit all staged changes."
-                        : "Move sliders to stage an Essence reallocation. ALLOCATE commits the plan; closing the Nexus discards it.";
+                        ? "Essence reallocation staged. Press ALLOCATE to commit the changes."
+                        : "Move sliders to redistribute Essence. Closing the Nexus discards unallocated changes.";
 
         graphics.drawCenteredString(
                 font,
@@ -1112,10 +1882,36 @@ public final class AscendanceNexusScreen
             );
         }
 
+        if (handleAscendanceHeaderClick(
+                mouseX,
+                mouseY
+        )) {
+            return true;
+        }
+
         List<NexusCategoryView> categories =
                 categories();
 
-        if (categories.isEmpty()) {
+        if (!categories.isEmpty()) {
+            stabilizeSelection(categories);
+
+            if (handleTabClick(
+                    mouseX,
+                    mouseY,
+                    categories
+            )) {
+                return true;
+            }
+        }
+
+        if (ascensionView) {
+            if (handleAscendClick(
+                    mouseX,
+                    mouseY
+            )) {
+                return true;
+            }
+
             return super.mouseClicked(
                     mouseX,
                     mouseY,
@@ -1123,14 +1919,12 @@ public final class AscendanceNexusScreen
             );
         }
 
-        stabilizeSelection(categories);
-
-        if (handleTabClick(
-                mouseX,
-                mouseY,
-                categories
-        )) {
-            return true;
+        if (categories.isEmpty()) {
+            return super.mouseClicked(
+                    mouseX,
+                    mouseY,
+                    button
+            );
         }
 
         NexusCategoryView category =
@@ -1206,7 +2000,8 @@ public final class AscendanceNexusScreen
             double dragX,
             double dragY
     ) {
-        if (button == 0
+        if (!ascensionView
+                && button == 0
                 && draggingTrackIndex >= 0) {
             List<NexusCategoryView> categories =
                     categories();
@@ -1258,6 +2053,76 @@ public final class AscendanceNexusScreen
                 mouseY,
                 button
         );
+    }
+
+    private boolean handleAscendanceHeaderClick(
+            double mouseX,
+            double mouseY
+    ) {
+        int left =
+                (width - ASCENDANCE_HEADER_WIDTH) / 2;
+
+        if (!inside(
+                mouseX,
+                mouseY,
+                left,
+                ASCENDANCE_HEADER_Y,
+                ASCENDANCE_HEADER_WIDTH,
+                ASCENDANCE_HEADER_HEIGHT
+        )) {
+            return false;
+        }
+
+        ascensionView = true;
+        draggingTrackIndex = -1;
+        return true;
+    }
+
+    private boolean handleAscendClick(
+            double mouseX,
+            double mouseY
+    ) {
+        ContentLayout layout =
+                contentLayout();
+        int buttonY =
+                layout.bottom()
+                        - BOTTOM_CONTROL_HEIGHT
+                        - 3;
+        int buttonX =
+                (layout.left() + layout.right() - ASCEND_BUTTON_WIDTH) / 2;
+
+        if (!inside(
+                mouseX,
+                mouseY,
+                buttonX,
+                buttonY,
+                ASCEND_BUTTON_WIDTH,
+                BOTTOM_CONTROL_HEIGHT
+        )) {
+            return false;
+        }
+
+        ClientEssenceState.Snapshot snapshot =
+                ClientEssenceState.snapshot();
+        ClientEssenceState.ProgressSnapshot progress =
+                snapshot.progress();
+
+        if (!snapshot.ready()
+                || progress.status()
+                != PlayerEssenceSyncPayload.ProgressStatus.AVAILABLE
+                || !progress.readyToAscend()
+                || hasStagedChanges()) {
+            return true;
+        }
+
+        NetworkManager.sendToServer(
+                new AscendanceAscendPayload(
+                        menu.containerId,
+                        snapshot.tierId().toString()
+                )
+        );
+
+        return true;
     }
 
     private boolean handleTabClick(
@@ -1315,6 +2180,7 @@ public final class AscendanceNexusScreen
                 selectedCategoryIndex = i;
                 selectedEssenceId =
                         categories.get(i).essence().id();
+                ascensionView = false;
                 trackWindowStart = 0;
                 draggingTrackIndex = -1;
                 return true;
@@ -2260,6 +3126,19 @@ public final class AscendanceNexusScreen
                 )
         );
         return tiers;
+    }
+
+    private String tierDisplayName(
+            ResourceLocation tierId
+    ) {
+        if (tierId == null) {
+            return "Unknown";
+        }
+
+        return AscendanceTierRegistry
+                .get(tierId)
+                .map(AscendanceTierDefinition::displayName)
+                .orElse(tierId.getPath());
     }
 
     private String formatBonus(

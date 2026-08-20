@@ -28,12 +28,14 @@ public record PlayerEssenceSyncPayload(
         ProgressState progress
 ) implements CustomPacketPayload {
 
-    public static final int CURRENT_SCHEMA_VERSION = 1;
+    public static final int CURRENT_SCHEMA_VERSION = 2;
 
     private static final int MAX_ID_LENGTH = 128;
     private static final int MAX_ESSENCES = 128;
     private static final int MAX_STATS = 256;
     private static final int MAX_MILESTONES = 256;
+    public static final int MAX_WORLD_REQUIREMENT_LINES = 256;
+    private static final int MAX_REQUIREMENT_LABEL_LENGTH = 192;
 
     public static final Type<PlayerEssenceSyncPayload> TYPE =
             new Type<>(
@@ -107,6 +109,15 @@ public record PlayerEssenceSyncPayload(
         buffer.writeVarInt(payload.progress.requiredDevelopedStats());
         buffer.writeVarInt(payload.progress.representedCategories());
         buffer.writeVarInt(payload.progress.requiredRepresentedCategories());
+        buffer.writeDouble(payload.progress.developedStatThreshold());
+        buffer.writeVarInt(payload.progress.worldRequirements().size());
+        for (WorldRequirementState requirement : payload.progress.worldRequirements()) {
+            buffer.writeVarInt(requirement.depth());
+            buffer.writeByte(requirement.kind().ordinal());
+            buffer.writeUtf(requirement.label(), MAX_REQUIREMENT_LABEL_LENGTH);
+            buffer.writeBoolean(requirement.resolvable());
+            buffer.writeBoolean(requirement.complete());
+        }
         buffer.writeBoolean(payload.progress.worldProgressComplete());
         buffer.writeBoolean(payload.progress.readyToAscend());
     }
@@ -197,16 +208,61 @@ public record PlayerEssenceSyncPayload(
             );
         }
 
+        String nextTierId =
+                buffer.readUtf(MAX_ID_LENGTH);
+        long effectiveInvestment = buffer.readLong();
+        long requiredInvestment = buffer.readLong();
+        int developedStats = buffer.readVarInt();
+        int requiredDevelopedStats = buffer.readVarInt();
+        int representedCategories = buffer.readVarInt();
+        int requiredRepresentedCategories = buffer.readVarInt();
+        double developedStatThreshold = buffer.readDouble();
+
+        int worldRequirementCount =
+                readBoundedCount(
+                        buffer,
+                        MAX_WORLD_REQUIREMENT_LINES,
+                        "world requirement"
+                );
+
+        List<WorldRequirementState> worldRequirements =
+                new ArrayList<>(worldRequirementCount);
+
+        for (int i = 0; i < worldRequirementCount; i++) {
+            int depth = buffer.readVarInt();
+            int kindOrdinal = buffer.readUnsignedByte();
+
+            if (kindOrdinal < 0
+                    || kindOrdinal >= WorldRequirementKind.values().length) {
+                throw new IllegalArgumentException(
+                        "Invalid Ascendance world requirement kind: "
+                                + kindOrdinal
+                );
+            }
+
+            worldRequirements.add(
+                    new WorldRequirementState(
+                            depth,
+                            WorldRequirementKind.values()[kindOrdinal],
+                            buffer.readUtf(MAX_REQUIREMENT_LABEL_LENGTH),
+                            buffer.readBoolean(),
+                            buffer.readBoolean()
+                    )
+            );
+        }
+
         ProgressState progress =
                 new ProgressState(
                         ProgressStatus.values()[statusOrdinal],
-                        buffer.readUtf(MAX_ID_LENGTH),
-                        buffer.readLong(),
-                        buffer.readLong(),
-                        buffer.readVarInt(),
-                        buffer.readVarInt(),
-                        buffer.readVarInt(),
-                        buffer.readVarInt(),
+                        nextTierId,
+                        effectiveInvestment,
+                        requiredInvestment,
+                        developedStats,
+                        requiredDevelopedStats,
+                        representedCategories,
+                        requiredRepresentedCategories,
+                        developedStatThreshold,
+                        worldRequirements,
                         buffer.readBoolean(),
                         buffer.readBoolean()
                 );
@@ -334,6 +390,8 @@ public record PlayerEssenceSyncPayload(
             int requiredDevelopedStats,
             int representedCategories,
             int requiredRepresentedCategories,
+            double developedStatThreshold,
+            List<WorldRequirementState> worldRequirements,
             boolean worldProgressComplete,
             boolean readyToAscend
     ) {
@@ -348,6 +406,13 @@ public record PlayerEssenceSyncPayload(
                     "Next tier ID cannot be null"
             );
 
+            Objects.requireNonNull(
+                    worldRequirements,
+                    "World requirements cannot be null"
+            );
+
+            worldRequirements = List.copyOf(worldRequirements);
+
             if (effectiveInvestment < 0L
                     || requiredInvestment < 0L
                     || developedStats < 0
@@ -358,11 +423,48 @@ public record PlayerEssenceSyncPayload(
                         "Synchronized Ascendance progress cannot be negative"
                 );
             }
+
+            if (!Double.isFinite(developedStatThreshold)
+                    || developedStatThreshold < 0.0D
+                    || developedStatThreshold > 1.0D) {
+                throw new IllegalArgumentException(
+                        "Synchronized developed-stat threshold must be between 0 and 1"
+                );
+            }
         }
 
         public boolean hasNextTier() {
             return !nextTierId.isBlank();
         }
+    }
+
+    public record WorldRequirementState(
+            int depth,
+            WorldRequirementKind kind,
+            String label,
+            boolean resolvable,
+            boolean complete
+    ) {
+        public WorldRequirementState {
+            if (depth < 0 || depth > 32) {
+                throw new IllegalArgumentException(
+                        "World requirement depth must be between 0 and 32"
+                );
+            }
+
+            Objects.requireNonNull(kind, "World requirement kind cannot be null");
+            Objects.requireNonNull(label, "World requirement label cannot be null");
+            if (label.length() > MAX_REQUIREMENT_LABEL_LENGTH) {
+                label = label.substring(0, MAX_REQUIREMENT_LABEL_LENGTH);
+            }
+        }
+    }
+
+    public enum WorldRequirementKind {
+        MILESTONE,
+        ALL_OF,
+        ANY_OF,
+        ALWAYS
     }
 
     public enum ProgressStatus {
