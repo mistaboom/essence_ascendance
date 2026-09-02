@@ -31,7 +31,7 @@ final class EssenceInfuserNeoForgeItemHandler implements IItemHandler {
     public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
         if (slot != 0
                 || stack.isEmpty()
-                || !infuser.canPlaceItem(EssenceInfuserBlockEntity.INPUT_SLOT, stack)) {
+                || !EssenceInfuserBlockEntity.isLatentCarrier(stack)) {
             return stack;
         }
 
@@ -91,6 +91,6 @@ final class EssenceInfuserNeoForgeItemHandler implements IItemHandler {
     @Override
     public boolean isItemValid(int slot, ItemStack stack) {
         return slot == 0
-                && infuser.canPlaceItem(EssenceInfuserBlockEntity.INPUT_SLOT, stack);
+                && EssenceInfuserBlockEntity.isLatentCarrier(stack);
     }
 }

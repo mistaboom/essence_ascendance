@@ -38,7 +38,7 @@ import java.util.Map;
 public final class EssenceConfigManager {
 
     public static final int CURRENT_CONFIG_VERSION =
-            5;
+            6;
 
     private static final int MAX_REQUIREMENT_DEPTH =
             32;
@@ -513,6 +513,29 @@ public final class EssenceConfigManager {
             grades.add(gradeName, gradeObject);
         }
         infuser.add("grades", grades);
+
+        JsonObject focusUpgrades = new JsonObject();
+        focusUpgrades.addProperty(
+                "_comment",
+                "Focus upgrades consume all six core Attribute Essences automatically. minimum_per_attribute_essence is required from EACH core Attribute Essence; total_essence_required may be satisfied by any mix after all six minimums are met."
+        );
+        for (String targetTier : new String[]{
+                "dormant", "awakened", "resonant", "ascendant", "transcendent"
+        }) {
+            InfuserBalanceSettings.FocusUpgradeSettings focus =
+                    defaultInfuser.focusUpgrade(targetTier);
+            JsonObject focusObject = new JsonObject();
+            focusObject.addProperty(
+                    "minimum_per_attribute_essence",
+                    focus.minimumPerAttributeEssence()
+            );
+            focusObject.addProperty(
+                    "total_essence_required",
+                    focus.totalEssenceRequired()
+            );
+            focusUpgrades.add(targetTier, focusObject);
+        }
+        infuser.add("focus_upgrades", focusUpgrades);
         root.add("essence_infuser", infuser);
 
 
@@ -837,11 +860,43 @@ public final class EssenceConfigManager {
             }
         }
 
+        Map<String, InfuserBalanceSettings.FocusUpgradeSettings> focusUpgrades =
+                new LinkedHashMap<>(defaults.focusUpgrades());
+        JsonObject focusUpgradeObject = getObject(object, "focus_upgrades");
+        if (focusUpgradeObject != null) {
+            for (String targetTier : new String[]{
+                    "dormant", "awakened", "resonant", "ascendant", "transcendent"
+            }) {
+                JsonObject configured = getObject(focusUpgradeObject, targetTier);
+                if (configured == null) {
+                    continue;
+                }
+                InfuserBalanceSettings.FocusUpgradeSettings fallback =
+                        focusUpgrades.get(targetTier);
+                focusUpgrades.put(
+                        targetTier,
+                        new InfuserBalanceSettings.FocusUpgradeSettings(
+                                readLong(
+                                        configured,
+                                        "minimum_per_attribute_essence",
+                                        fallback.minimumPerAttributeEssence()
+                                ),
+                                readLong(
+                                        configured,
+                                        "total_essence_required",
+                                        fallback.totalEssenceRequired()
+                                )
+                        )
+                );
+            }
+        }
+
         return new InfuserBalanceSettings(
                 linkRange,
                 noFocusEfficiency,
                 noFocusTicks,
-                grades
+                grades,
+                focusUpgrades
         );
     }
 

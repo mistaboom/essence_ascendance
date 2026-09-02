@@ -14,7 +14,8 @@ public record InfuserBalanceSettings(
         double linkRange,
         int noFocusEfficiencyBasisPoints,
         int noFocusProcessingTicks,
-        Map<String, GradeSettings> grades
+        Map<String, GradeSettings> grades,
+        Map<String, FocusUpgradeSettings> focusUpgrades
 ) {
     public InfuserBalanceSettings {
         if (!(linkRange > 0.0D) || !Double.isFinite(linkRange)) {
@@ -33,6 +34,15 @@ public record InfuserBalanceSettings(
                 throw new IllegalArgumentException("Missing Infuser grade settings for " + required);
             }
         }
+        Objects.requireNonNull(focusUpgrades, "Infuser Focus upgrade settings cannot be null");
+        focusUpgrades = Collections.unmodifiableMap(new LinkedHashMap<>(focusUpgrades));
+        for (String required : new String[]{
+                "dormant", "awakened", "resonant", "ascendant", "transcendent"
+        }) {
+            if (!focusUpgrades.containsKey(required)) {
+                throw new IllegalArgumentException("Missing Infuser Focus upgrade settings for " + required);
+            }
+        }
     }
 
     public GradeSettings grade(String serializedGrade) {
@@ -43,9 +53,34 @@ public record InfuserBalanceSettings(
         return settings;
     }
 
+    public FocusUpgradeSettings focusUpgrade(String serializedTargetTier) {
+        FocusUpgradeSettings settings = focusUpgrades.get(serializedTargetTier);
+        if (settings == null) {
+            throw new IllegalArgumentException("Unknown Infuser Focus target " + serializedTargetTier);
+        }
+        return settings;
+    }
+
     private static void validateEfficiency(int basisPoints, String label) {
         if (basisPoints <= 0 || basisPoints >= 10_000) {
             throw new IllegalArgumentException(label + " must be between 1 and 9999 basis points");
+        }
+    }
+
+    public record FocusUpgradeSettings(
+            long minimumPerAttributeEssence,
+            long totalEssenceRequired
+    ) {
+        public FocusUpgradeSettings {
+            if (minimumPerAttributeEssence <= 0L || totalEssenceRequired <= 0L) {
+                throw new IllegalArgumentException("Focus infusion requirements must be positive");
+            }
+            long minimumTotal = Math.multiplyExact(minimumPerAttributeEssence, 6L);
+            if (totalEssenceRequired < minimumTotal) {
+                throw new IllegalArgumentException(
+                        "Focus infusion total must cover all six Attribute Essence minimums"
+                );
+            }
         }
     }
 
@@ -72,6 +107,20 @@ public record InfuserBalanceSettings(
         grades.put("resonant", new GradeSettings(500_000L, 7_000, 100));
         grades.put("ascendant", new GradeSettings(1_000_000L, 8_000, 80));
         grades.put("transcendent", new GradeSettings(2_000_000L, 9_000, 60));
-        return new InfuserBalanceSettings(8.0D, 5_000, 200, grades);
+
+        Map<String, FocusUpgradeSettings> focusUpgrades = new LinkedHashMap<>();
+        focusUpgrades.put("dormant", new FocusUpgradeSettings(15_000L, 300_000L));
+        focusUpgrades.put("awakened", new FocusUpgradeSettings(50_000L, 1_000_000L));
+        focusUpgrades.put("resonant", new FocusUpgradeSettings(150_000L, 3_000_000L));
+        focusUpgrades.put("ascendant", new FocusUpgradeSettings(400_000L, 8_000_000L));
+        focusUpgrades.put("transcendent", new FocusUpgradeSettings(1_000_000L, 20_000_000L));
+
+        return new InfuserBalanceSettings(
+                8.0D,
+                5_000,
+                200,
+                grades,
+                focusUpgrades
+        );
     }
 }

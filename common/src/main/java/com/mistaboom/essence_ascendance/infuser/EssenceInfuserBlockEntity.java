@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.infuser;
 
+import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleBlockEntity;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleChannelService;
@@ -38,6 +39,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public final class EssenceInfuserBlockEntity extends BlockEntity
@@ -57,6 +59,10 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     public static final int STATUS_INVALID_INPUT = 6;
     public static final int STATUS_STOPPED = 7;
     public static final int STATUS_PLAYER_CHANNELING = 8;
+    public static final int STATUS_FOCUS_TIER_REQUIRED = 9;
+    public static final int STATUS_FOCUS_MALFORMED = 10;
+
+    private static final int FOCUS_INFUSION_INTERVAL_TICKS = 4;
 
     private static final int[] AUTOMATION_SLOTS = {INPUT_SLOT, OUTPUT_SLOT};
 
@@ -154,6 +160,64 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         return EssenceInfuserBalance.profile(getItem(FOCUS_SLOT));
     }
 
+    public Optional<FocusInfusionRecipe> focusInfusionRecipe() {
+        return FocusInfusionRecipe.forWorkpiece(getItem(INPUT_SLOT));
+    }
+
+    public boolean focusInfusionMode() {
+        return focusInfusionRecipe().isPresent();
+    }
+
+    public long focusInfusionMinimumPerEssence() {
+        return focusInfusionRecipe()
+                .map(FocusInfusionRecipe::minimumPerAttributeEssence)
+                .orElse(0L);
+    }
+
+    public long focusInfusionTotalRequired() {
+        return focusInfusionRecipe()
+                .map(FocusInfusionRecipe::totalEssenceRequired)
+                .orElse(0L);
+    }
+
+    public long focusInfusionTotalContributed() {
+        return FocusInfusionData.totalContributed(getItem(INPUT_SLOT));
+    }
+
+    public long focusInfusionContribution(EssenceDefinition essence) {
+        return FocusInfusionData.contribution(getItem(INPUT_SLOT), essence);
+    }
+
+    @Nullable
+    public EssencePylonFocusTier focusInfusionTargetTier() {
+        return focusInfusionRecipe().map(FocusInfusionRecipe::targetTier).orElse(null);
+    }
+
+    @Nullable
+    public EssencePylonFocusTier focusInfusionRequiredInstalledTier() {
+        return focusInfusionRecipe()
+                .map(FocusInfusionRecipe::requiredInstalledTier)
+                .orElse(null);
+    }
+
+    public long focusInfusionRatePerSecond() {
+        EssenceInfuserBalance.Profile current = profile();
+        long carrierCapacity = EssenceConfigManager.get()
+                .infuserBalance()
+                .grade(current.grade().serializedName())
+                .ingotCapacity();
+        long perTick = Math.max(1L, carrierCapacity / Math.max(1, current.processingTicks()));
+        try {
+            return Math.multiplyExact(perTick, 20L);
+        } catch (ArithmeticException overflow) {
+            return Long.MAX_VALUE;
+        }
+    }
+
+    private long focusInfusionRatePerTick() {
+        return Math.max(1L, focusInfusionRatePerSecond() / 20L);
+    }
+
     public int processingTicks() {
         return processingTicks;
     }
@@ -217,7 +281,8 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         if (!processingEnabled) {
             return STATUS_STOPPED;
         }
-        if (getItem(INPUT_SLOT).isEmpty()) {
+        ItemStack input = getItem(INPUT_SLOT);
+        if (input.isEmpty()) {
             return STATUS_IDLE;
         }
         if (!isCurrentLinkValid()) {
@@ -226,10 +291,16 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         if (EssenceCrucibleChannelService.isChanneling(ownerId)) {
             return STATUS_PLAYER_CHANNELING;
         }
+
+        Optional<FocusInfusionRecipe> focusRecipe = FocusInfusionRecipe.forWorkpiece(input);
+        if (focusRecipe.isPresent()) {
+            return focusInfusionStatus(focusRecipe.get());
+        }
+
         if (!hasValidSelection()) {
             return STATUS_INVALID_SELECTION;
         }
-        if (outputCarrierFor(getItem(INPUT_SLOT)) == null) {
+        if (outputCarrierFor(input) == null) {
             return STATUS_INVALID_INPUT;
         }
 
@@ -246,6 +317,29 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             return STATUS_INSUFFICIENT_SOURCE;
         }
         return STATUS_PROCESSING;
+    }
+
+    private int focusInfusionStatus(FocusInfusionRecipe recipe) {
+        ItemStack workpiece = getItem(INPUT_SLOT);
+        if (FocusInfusionData.readValidated(workpiece).isEmpty()) {
+            return STATUS_FOCUS_MALFORMED;
+        }
+        if (!recipe.installedFocusAllows(focusTier())) {
+            return STATUS_FOCUS_TIER_REQUIRED;
+        }
+        ItemStack result = recipe.createOutput();
+        if (result.isEmpty()) {
+            return STATUS_INVALID_INPUT;
+        }
+        if (!canAcceptOutput(result)) {
+            return STATUS_OUTPUT_BLOCKED;
+        }
+        if (FocusInfusionData.requirementsMet(workpiece, recipe)) {
+            return STATUS_PROCESSING;
+        }
+        return hasUsefulFocusEssence(recipe)
+                ? STATUS_PROCESSING
+                : STATUS_INSUFFICIENT_SOURCE;
     }
 
     public void refreshLink() {
@@ -330,6 +424,9 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     }
 
     private void cycleSelection(boolean source, int direction) {
+        if (focusInfusionMode()) {
+            return;
+        }
         List<EssenceDefinition> enabled = enabledEssences();
         if (enabled.size() < 2) {
             return;
@@ -357,7 +454,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             } else {
                 targetEssenceId = candidate;
             }
-            resetProcessing();
+            disarmProcessingState();
             syncBlockEntity();
             return;
         }
@@ -454,6 +551,15 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     }
 
     private void tickProcessing(ServerLevel serverLevel) {
+        Optional<FocusInfusionRecipe> focusRecipe = focusInfusionRecipe();
+        if (focusRecipe.isPresent()) {
+            tickFocusInfusion(serverLevel, focusRecipe.get());
+            return;
+        }
+        tickCarrierConversion(serverLevel);
+    }
+
+    private void tickCarrierConversion(ServerLevel serverLevel) {
         int status = statusCode();
         if (status != STATUS_PROCESSING) {
             processingVisualActive = false;
@@ -471,6 +577,206 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         }
 
         completeConversion(serverLevel);
+    }
+
+    private void tickFocusInfusion(ServerLevel serverLevel, FocusInfusionRecipe recipe) {
+        processingTicks = 0;
+        if (statusCode() != STATUS_PROCESSING) {
+            processingVisualActive = false;
+            return;
+        }
+
+        ItemStack workpiece = getItem(INPUT_SLOT);
+        if (FocusInfusionData.requirementsMet(workpiece, recipe)) {
+            completeFocusInfusion(recipe);
+            return;
+        }
+
+        if (serverLevel.getGameTime() % FOCUS_INFUSION_INTERVAL_TICKS != 0L) {
+            return;
+        }
+
+        long perPulse;
+        try {
+            perPulse = Math.multiplyExact(
+                    focusInfusionRatePerTick(),
+                    (long) FOCUS_INFUSION_INTERVAL_TICKS
+            );
+        } catch (ArithmeticException overflow) {
+            perPulse = Long.MAX_VALUE;
+        }
+
+        long moved = transferFocusEssence(serverLevel, recipe, perPulse);
+        processingVisualActive = moved > 0L;
+        if (moved > 0L) {
+            syncBlockEntity();
+        }
+
+        if (FocusInfusionData.requirementsMet(getItem(INPUT_SLOT), recipe)) {
+            completeFocusInfusion(recipe);
+        }
+    }
+
+    private long transferFocusEssence(
+            ServerLevel serverLevel,
+            FocusInfusionRecipe recipe,
+            long requestedBudget
+    ) {
+        if (ownerId == null || requestedBudget <= 0L) {
+            return 0L;
+        }
+
+        ItemStack workpiece = getItem(INPUT_SLOT);
+        Optional<FocusInfusionData.Progress> progressOptional =
+                FocusInfusionData.readValidated(workpiece);
+        if (progressOptional.isEmpty()) {
+            return 0L;
+        }
+
+        long remainingTotal = recipe.totalEssenceRequired()
+                - progressOptional.get().totalContributed();
+        long budget = Math.min(requestedBudget, Math.max(0L, remainingTotal));
+        if (budget <= 0L) {
+            return 0L;
+        }
+
+        boolean minimumPhase = !FocusInfusionData.minimumsMet(workpiece, recipe);
+        EssenceSavedData saved = EssenceSavedData.get(serverLevel.getServer());
+        long movedTotal = 0L;
+
+        while (budget > 0L) {
+            List<EssenceDefinition> candidates = new ArrayList<>();
+            for (EssenceDefinition essence : FocusInfusionRecipe.coreAttributeEssences()) {
+                long contribution = FocusInfusionData.contribution(workpiece, essence);
+                if (minimumPhase
+                        && contribution >= recipe.minimumPerAttributeEssence()) {
+                    continue;
+                }
+                if (saved.getPlayerData(ownerId).getCrucibleStored(essence) > 0L) {
+                    candidates.add(essence);
+                }
+            }
+            if (candidates.isEmpty()) {
+                break;
+            }
+
+            if (!minimumPhase) {
+                candidates.sort(
+                        java.util.Comparator
+                                .<EssenceDefinition>comparingLong(
+                                        essence -> saved.getPlayerData(ownerId)
+                                                .getCrucibleStored(essence)
+                                )
+                                .reversed()
+                                .thenComparing(essence -> essence.id().toString())
+                );
+            }
+
+            long divisor = candidates.size();
+            long share = minimumPhase
+                    ? Math.max(
+                            1L,
+                            budget / divisor + (budget % divisor == 0L ? 0L : 1L)
+                    )
+                    : budget;
+            boolean movedThisPass = false;
+
+            for (EssenceDefinition essence : candidates) {
+                if (budget <= 0L) {
+                    break;
+                }
+                long contribution = FocusInfusionData.contribution(workpiece, essence);
+                long contributionRoom = minimumPhase
+                        ? recipe.minimumPerAttributeEssence() - contribution
+                        : recipe.totalEssenceRequired() - FocusInfusionData.totalContributed(workpiece);
+                if (contributionRoom <= 0L) {
+                    continue;
+                }
+                long available = saved.getPlayerData(ownerId).getCrucibleStored(essence);
+                long amount = Math.min(
+                        budget,
+                        Math.min(share, Math.min(contributionRoom, available))
+                );
+                if (amount <= 0L
+                        || !saved.removeCrucibleStoredExact(ownerId, essence, amount)) {
+                    continue;
+                }
+
+                try {
+                    FocusInfusionData.addContribution(workpiece, recipe, essence, amount);
+                } catch (RuntimeException failure) {
+                    saved.addCrucibleStored(ownerId, essence, amount);
+                    EssenceAscendance.LOGGER.error(
+                            "Failed to persist Focus infusion contribution; rolled back {} {}",
+                            amount,
+                            essence.id(),
+                            failure
+                    );
+                    return movedTotal;
+                }
+
+                budget -= amount;
+                movedTotal = Math.addExact(movedTotal, amount);
+                movedThisPass = true;
+            }
+
+            if (!movedThisPass) {
+                break;
+            }
+
+            if (minimumPhase && FocusInfusionData.minimumsMet(workpiece, recipe)) {
+                minimumPhase = false;
+            }
+        }
+
+        return movedTotal;
+    }
+
+    private boolean hasUsefulFocusEssence(FocusInfusionRecipe recipe) {
+        PlayerEssenceData data = ownerPlayerData();
+        ItemStack workpiece = getItem(INPUT_SLOT);
+        if (data == null || FocusInfusionData.readValidated(workpiece).isEmpty()) {
+            return false;
+        }
+        if (FocusInfusionData.requirementsMet(workpiece, recipe)) {
+            return true;
+        }
+
+        boolean minimumPhase = !FocusInfusionData.minimumsMet(workpiece, recipe);
+        for (EssenceDefinition essence : FocusInfusionRecipe.coreAttributeEssences()) {
+            if (minimumPhase
+                    && FocusInfusionData.contribution(workpiece, essence)
+                    >= recipe.minimumPerAttributeEssence()) {
+                continue;
+            }
+            if (data.getCrucibleStored(essence) > 0L) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void completeFocusInfusion(FocusInfusionRecipe recipe) {
+        ItemStack workpiece = getItem(INPUT_SLOT);
+        if (!FocusInfusionData.requirementsMet(workpiece, recipe)
+                || !recipe.installedFocusAllows(focusTier())) {
+            return;
+        }
+
+        ItemStack result = recipe.createOutput();
+        if (result.isEmpty() || !canAcceptOutput(result)) {
+            return;
+        }
+
+        items.set(INPUT_SLOT, ItemStack.EMPTY);
+        ItemStack output = getItem(OUTPUT_SLOT);
+        if (output.isEmpty()) {
+            items.set(OUTPUT_SLOT, result);
+        } else {
+            output.grow(1);
+        }
+        processingTicks = 0;
+        syncBlockEntity();
     }
 
     private void completeConversion(ServerLevel serverLevel) {
@@ -570,7 +876,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         ItemStack installed = held.copy();
         installed.setCount(1);
         items.set(FOCUS_SLOT, installed);
-        resetProcessing();
+        disarmProcessingState();
 
         if (!player.getAbilities().instabuild) {
             held.shrink(1);
@@ -617,6 +923,29 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             return null;
         }
         return EssenceSavedData.get(serverLevel.getServer()).getPlayerData(ownerId);
+    }
+
+    /**
+     * Disarms the machine after a player changes the active recipe context.
+     * Partial Focus infusion is stored on the workpiece itself and is not
+     * discarded; only the machine's armed state and transient carrier timer
+     * are cleared.
+     */
+    public void disarmProcessingForContextChange() {
+        if (disarmProcessingState()) {
+            syncBlockEntity();
+        }
+    }
+
+    private boolean disarmProcessingState() {
+        boolean changed = processingEnabled || processingTicks != 0 || processingVisualActive;
+        processingEnabled = false;
+        processingTicks = 0;
+        processingVisualActive = false;
+        if (changed) {
+            setChanged();
+        }
+        return changed;
     }
 
     private void resetProcessing() {
@@ -760,7 +1089,12 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         }
         ItemStack normalized = stack == null ? ItemStack.EMPTY : stack;
         if (!normalized.isEmpty()) {
-            normalized.limitSize(slot == FOCUS_SLOT ? 1 : getMaxStackSize(normalized));
+            int limit = slot == FOCUS_SLOT
+                    ? 1
+                    : (slot == INPUT_SLOT
+                    ? workpieceStackLimit(normalized)
+                    : getMaxStackSize(normalized));
+            normalized.limitSize(limit);
         }
         ItemStack previous = items.get(slot);
         boolean changedType = !ItemStack.isSameItemSameComponents(previous, normalized);
@@ -796,7 +1130,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         if (slot == FOCUS_SLOT) {
             return EssencePylonContent.isFocus(stack);
         }
-        return slot == INPUT_SLOT && isLatentCarrier(stack);
+        return slot == INPUT_SLOT && isValidWorkpiece(stack);
     }
 
     @Override
@@ -822,5 +1156,24 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
                 && !stack.isEmpty()
                 && (stack.is(EssenceInfuserContent.LATENT_INGOT.get())
                 || stack.is(EssenceInfuserContent.LATENT_BLOCK_ITEM.get()));
+    }
+
+    public static boolean isFocusWorkpiece(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        if (stack.is(EssenceInfuserContent.LATENT_FOCUS.get())) {
+            return true;
+        }
+        EssencePylonFocusTier tier = EssencePylonContent.rawFocusTier(stack);
+        return tier != null && tier != EssencePylonFocusTier.TRANSCENDENT;
+    }
+
+    public static boolean isValidWorkpiece(ItemStack stack) {
+        return isLatentCarrier(stack) || isFocusWorkpiece(stack);
+    }
+
+    public static int workpieceStackLimit(ItemStack stack) {
+        return isFocusWorkpiece(stack) ? 1 : Math.max(1, stack.getMaxStackSize());
     }
 }

@@ -93,6 +93,10 @@ public final class EssenceInfuserContent {
             "latent_block",
             LATENT_BLOCK
     );
+    public static final RegistrySupplier<Item> LATENT_FOCUS = ITEMS.register(
+            "latent_focus",
+            () -> new LatentFocusItem(new Item.Properties())
+    );
     public static final RegistrySupplier<Item> ESSENTIUM_INGOT = ITEMS.register(
             "essentium_ingot",
             () -> new EssentiumItem(
@@ -164,6 +168,7 @@ public final class EssenceInfuserContent {
                 CreativeModeTabs.INGREDIENTS,
                 RAW_LATENT_ORE,
                 LATENT_INGOT,
+                LATENT_FOCUS,
                 ESSENTIUM_INGOT,
                 ESSENTIUM_BLOCK
         );

@@ -1,10 +1,16 @@
 package com.mistaboom.essence_ascendance.pylon;
 
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBlockEntity;
+import com.mistaboom.essence_ascendance.infuser.FocusInfusionData;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
+
+import java.util.List;
 
 public final class EssencePylonFocusItem extends Item {
 
@@ -50,4 +56,15 @@ public final class EssencePylonFocusItem extends Item {
                 ? InteractionResult.CONSUME
                 : InteractionResult.FAIL;
     }
+    @Override
+    public void appendHoverText(
+            ItemStack stack,
+            Item.TooltipContext context,
+            List<Component> tooltipComponents,
+            TooltipFlag tooltipFlag
+    ) {
+        super.appendHoverText(stack, context, tooltipComponents, tooltipFlag);
+        FocusInfusionData.appendTooltip(stack, tooltipComponents);
+    }
+
 }

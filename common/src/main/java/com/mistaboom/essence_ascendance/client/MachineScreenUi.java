@@ -65,11 +65,23 @@ public final class MachineScreenUi {
             int progress,
             int required
     ) {
+        progressBar(graphics, x, y, width, height, (long) progress, (long) required);
+    }
+
+    public static void progressBar(
+            GuiGraphics graphics,
+            int x,
+            int y,
+            int width,
+            int height,
+            long progress,
+            long required
+    ) {
         inset(graphics, x, y, width, height);
-        if (required <= 0 || progress <= 0) {
+        if (required <= 0L || progress <= 0L) {
             return;
         }
-        int clamped = Math.min(required, progress);
+        long clamped = Math.min(required, progress);
         int innerWidth = Math.max(0, width - 2);
         int fillWidth = (int) Math.round(innerWidth * (clamped / (double) required));
         if (fillWidth > 0) {

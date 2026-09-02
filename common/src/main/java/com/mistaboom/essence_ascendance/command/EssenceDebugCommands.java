@@ -11,6 +11,7 @@ import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleStructureStats;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleStructureSnapshot;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBalance;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBlockEntity;
+import com.mistaboom.essence_ascendance.infuser.FocusInfusionRecipe;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonBlockEntity;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonContribution;
 import com.mistaboom.essence_ascendance.equipment.ArmorStatWeights;
@@ -919,27 +920,64 @@ final class EssenceDebugCommands {
                                         + (infuser.isCurrentLinkValid() ? " [VALID]" : " [INVALID]")
                         )
         ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Source",
-                sourceEssence == null ? "NONE" : sourceEssence.displayName()
-        ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Target",
-                targetEssence == null ? "NONE" : targetEssence.displayName()
-        ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Source reservoir",
-                EssenceCommandUtil.format(infuser.sourceAmountAvailable())
-                        + " / " + EssenceCommandUtil.format(infuser.sourceRequired()) + " required"
-        ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Carrier capacity",
-                EssenceCommandUtil.format(infuser.targetCarrierCapacity())
-        ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Progress",
-                infuser.processingTicks() + " / " + infuser.requiredProcessingTicks() + " ticks"
-        ));
+        if (infuser.focusInfusionMode()) {
+            var recipe = infuser.focusInfusionRecipe().orElse(null);
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Mode", "FOCUS INFUSION"));
+            if (recipe != null) {
+                EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                        "Target Focus", recipe.targetTier().displayName()
+                ));
+                EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                        "Installed requirement",
+                        recipe.requiredInstalledTier() == null
+                                ? "NONE"
+                                : recipe.requiredInstalledTier().displayName()
+                ));
+                EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                        "Minimum / Attribute Essence",
+                        EssenceCommandUtil.format(recipe.minimumPerAttributeEssence())
+                ));
+                EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                        "Progress",
+                        EssenceCommandUtil.format(infuser.focusInfusionTotalContributed())
+                                + " / " + EssenceCommandUtil.format(recipe.totalEssenceRequired())
+                ));
+                EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                        "Infusion rate",
+                        EssenceCommandUtil.format(infuser.focusInfusionRatePerSecond()) + " Essence/sec"
+                ));
+                for (EssenceDefinition essence : FocusInfusionRecipe.coreAttributeEssences()) {
+                    EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                            essence.displayName(),
+                            EssenceCommandUtil.format(infuser.focusInfusionContribution(essence))
+                                    + " / " + EssenceCommandUtil.format(recipe.minimumPerAttributeEssence())
+                    ));
+                }
+            }
+        } else {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Mode", "ESSENTIUM CONVERSION"));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Source",
+                    sourceEssence == null ? "NONE" : sourceEssence.displayName()
+            ));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Target",
+                    targetEssence == null ? "NONE" : targetEssence.displayName()
+            ));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Source reservoir",
+                    EssenceCommandUtil.format(infuser.sourceAmountAvailable())
+                            + " / " + EssenceCommandUtil.format(infuser.sourceRequired()) + " required"
+            ));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Carrier capacity",
+                    EssenceCommandUtil.format(infuser.targetCarrierCapacity())
+            ));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Progress",
+                    infuser.processingTicks() + " / " + infuser.requiredProcessingTicks() + " ticks"
+            ));
+        }
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
                 "State",
                 infuserStatusName(infuser.statusCode())
@@ -971,6 +1009,8 @@ final class EssenceDebugCommands {
             case EssenceInfuserBlockEntity.STATUS_INVALID_INPUT -> "INVALID INPUT";
             case EssenceInfuserBlockEntity.STATUS_STOPPED -> "STOPPED";
             case EssenceInfuserBlockEntity.STATUS_PLAYER_CHANNELING -> "PAUSED / PLAYER CHANNELING";
+            case EssenceInfuserBlockEntity.STATUS_FOCUS_TIER_REQUIRED -> "FOCUS TIER REQUIRED";
+            case EssenceInfuserBlockEntity.STATUS_FOCUS_MALFORMED -> "MALFORMED FOCUS DATA";
             default -> "IDLE";
         };
     }

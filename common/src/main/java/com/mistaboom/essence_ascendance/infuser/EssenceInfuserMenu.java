@@ -8,6 +8,7 @@ import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.inventory.Slot;
@@ -53,7 +54,22 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
     private static final int DATA_TARGET_CAPACITY_3 = 23;
     private static final int DATA_FOCUS_TIER = 24;
     private static final int DATA_PROCESSING_ENABLED = 25;
-    private static final int DATA_COUNT = 26;
+    private static final int DATA_FOCUS_MODE = 26;
+    private static final int DATA_FOCUS_MINIMUM_0 = 27;
+    private static final int DATA_FOCUS_MINIMUM_1 = 28;
+    private static final int DATA_FOCUS_MINIMUM_2 = 29;
+    private static final int DATA_FOCUS_MINIMUM_3 = 30;
+    private static final int DATA_FOCUS_TOTAL_0 = 31;
+    private static final int DATA_FOCUS_TOTAL_1 = 32;
+    private static final int DATA_FOCUS_TOTAL_2 = 33;
+    private static final int DATA_FOCUS_TOTAL_3 = 34;
+    private static final int DATA_FOCUS_RATE_0 = 35;
+    private static final int DATA_FOCUS_RATE_1 = 36;
+    private static final int DATA_FOCUS_RATE_2 = 37;
+    private static final int DATA_FOCUS_RATE_3 = 38;
+    private static final int DATA_FOCUS_TARGET_TIER = 39;
+    private static final int DATA_FOCUS_REQUIRED_INSTALLED_TIER = 40;
+    private static final int DATA_COUNT = 41;
 
     public static final int MACHINE_SLOT_COUNT = 3;
     public static final int PLAYER_INVENTORY_START = MACHINE_SLOT_COUNT;
@@ -106,7 +122,12 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
         addSlot(new Slot(container, EssenceInfuserBlockEntity.INPUT_SLOT, 64, 60) {
             @Override
             public boolean mayPlace(ItemStack stack) {
-                return EssenceInfuserBlockEntity.isLatentCarrier(stack);
+                return EssenceInfuserBlockEntity.isValidWorkpiece(stack);
+            }
+
+            @Override
+            public int getMaxStackSize(ItemStack stack) {
+                return EssenceInfuserBlockEntity.workpieceStackLimit(stack);
             }
         });
         addSlot(new Slot(container, EssenceInfuserBlockEntity.OUTPUT_SLOT, 148, 60) {
@@ -190,6 +211,25 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
                             ? -1
                             : infuser.focusTier().ordinal();
                     case DATA_PROCESSING_ENABLED -> infuser.processingEnabled() ? 1 : 0;
+                    case DATA_FOCUS_MODE -> infuser.focusInfusionMode() ? 1 : 0;
+                    case DATA_FOCUS_MINIMUM_0 -> word(infuser.focusInfusionMinimumPerEssence(), 0);
+                    case DATA_FOCUS_MINIMUM_1 -> word(infuser.focusInfusionMinimumPerEssence(), 16);
+                    case DATA_FOCUS_MINIMUM_2 -> word(infuser.focusInfusionMinimumPerEssence(), 32);
+                    case DATA_FOCUS_MINIMUM_3 -> word(infuser.focusInfusionMinimumPerEssence(), 48);
+                    case DATA_FOCUS_TOTAL_0 -> word(infuser.focusInfusionTotalRequired(), 0);
+                    case DATA_FOCUS_TOTAL_1 -> word(infuser.focusInfusionTotalRequired(), 16);
+                    case DATA_FOCUS_TOTAL_2 -> word(infuser.focusInfusionTotalRequired(), 32);
+                    case DATA_FOCUS_TOTAL_3 -> word(infuser.focusInfusionTotalRequired(), 48);
+                    case DATA_FOCUS_RATE_0 -> word(infuser.focusInfusionRatePerSecond(), 0);
+                    case DATA_FOCUS_RATE_1 -> word(infuser.focusInfusionRatePerSecond(), 16);
+                    case DATA_FOCUS_RATE_2 -> word(infuser.focusInfusionRatePerSecond(), 32);
+                    case DATA_FOCUS_RATE_3 -> word(infuser.focusInfusionRatePerSecond(), 48);
+                    case DATA_FOCUS_TARGET_TIER -> infuser.focusInfusionTargetTier() == null
+                            ? -1
+                            : infuser.focusInfusionTargetTier().ordinal();
+                    case DATA_FOCUS_REQUIRED_INSTALLED_TIER -> infuser.focusInfusionRequiredInstalledTier() == null
+                            ? -1
+                            : infuser.focusInfusionRequiredInstalledTier().ordinal();
                     default -> 0;
                 };
             }
@@ -235,6 +275,65 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
 
     public boolean processingEnabled() {
         return data.get(DATA_PROCESSING_ENABLED) != 0;
+    }
+
+    public boolean focusInfusionMode() {
+        return data.get(DATA_FOCUS_MODE) != 0;
+    }
+
+    public long focusMinimumPerEssence() {
+        return combineWords(
+                data.get(DATA_FOCUS_MINIMUM_0),
+                data.get(DATA_FOCUS_MINIMUM_1),
+                data.get(DATA_FOCUS_MINIMUM_2),
+                data.get(DATA_FOCUS_MINIMUM_3)
+        );
+    }
+
+    public long focusTotalRequired() {
+        return combineWords(
+                data.get(DATA_FOCUS_TOTAL_0),
+                data.get(DATA_FOCUS_TOTAL_1),
+                data.get(DATA_FOCUS_TOTAL_2),
+                data.get(DATA_FOCUS_TOTAL_3)
+        );
+    }
+
+    public long focusInfusionRatePerSecond() {
+        return combineWords(
+                data.get(DATA_FOCUS_RATE_0),
+                data.get(DATA_FOCUS_RATE_1),
+                data.get(DATA_FOCUS_RATE_2),
+                data.get(DATA_FOCUS_RATE_3)
+        );
+    }
+
+    public EssencePylonFocusTier focusTargetTier() {
+        int ordinal = data.get(DATA_FOCUS_TARGET_TIER);
+        EssencePylonFocusTier[] values = EssencePylonFocusTier.values();
+        return ordinal >= 0 && ordinal < values.length ? values[ordinal] : null;
+    }
+
+    public EssencePylonFocusTier focusRequiredInstalledTier() {
+        int ordinal = data.get(DATA_FOCUS_REQUIRED_INSTALLED_TIER);
+        EssencePylonFocusTier[] values = EssencePylonFocusTier.values();
+        return ordinal >= 0 && ordinal < values.length ? values[ordinal] : null;
+    }
+
+    public ItemStack workpieceStack() {
+        return getSlot(EssenceInfuserBlockEntity.INPUT_SLOT).getItem();
+    }
+
+    public EssenceInfuserWorkpieceMode workpieceMode() {
+        return EssenceInfuserWorkpieceMode.forStack(workpieceStack());
+    }
+
+    public long focusContribution(EssenceDefinition essence) {
+        return FocusInfusionData.rawContribution(workpieceStack(), essence);
+    }
+
+    public long focusTotalContributed() {
+        return FocusInfusionData.rawTotalContributed(workpieceStack());
     }
 
     public long sourceAvailable() {
@@ -328,6 +427,36 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
         return true;
     }
 
+
+    @Override
+    public void clicked(int slotId, int button, ClickType clickType, Player player) {
+        ItemStack inputBefore = serverInfuser == null
+                ? ItemStack.EMPTY
+                : serverInfuser.getItem(EssenceInfuserBlockEntity.INPUT_SLOT).copy();
+        ItemStack focusBefore = serverInfuser == null
+                ? ItemStack.EMPTY
+                : serverInfuser.getItem(EssenceInfuserBlockEntity.FOCUS_SLOT).copy();
+
+        super.clicked(slotId, button, clickType, player);
+
+        if (serverInfuser == null) {
+            return;
+        }
+        ItemStack inputAfter = serverInfuser.getItem(EssenceInfuserBlockEntity.INPUT_SLOT);
+        ItemStack focusAfter = serverInfuser.getItem(EssenceInfuserBlockEntity.FOCUS_SLOT);
+        if (!sameContextStack(inputBefore, inputAfter)
+                || !sameContextStack(focusBefore, focusAfter)) {
+            serverInfuser.disarmProcessingForContextChange();
+        }
+    }
+
+    private static boolean sameContextStack(ItemStack first, ItemStack second) {
+        if (first.isEmpty() || second.isEmpty()) {
+            return first.isEmpty() && second.isEmpty();
+        }
+        return ItemStack.isSameItemSameComponents(first, second);
+    }
+
     @Override
     public boolean stillValid(Player player) {
         return serverInfuser == null || serverInfuser.stillValid(player);
@@ -347,15 +476,24 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
                 return ItemStack.EMPTY;
             }
         } else if (com.mistaboom.essence_ascendance.pylon.EssencePylonContent.isFocus(source)) {
-            if (!moveItemStackTo(
+            boolean moved = moveItemStackTo(
                     source,
                     EssenceInfuserBlockEntity.FOCUS_SLOT,
                     EssenceInfuserBlockEntity.FOCUS_SLOT + 1,
                     false
-            )) {
+            );
+            if (!moved && EssenceInfuserBlockEntity.isFocusWorkpiece(source)) {
+                moved = moveItemStackTo(
+                        source,
+                        EssenceInfuserBlockEntity.INPUT_SLOT,
+                        EssenceInfuserBlockEntity.INPUT_SLOT + 1,
+                        false
+                );
+            }
+            if (!moved) {
                 return ItemStack.EMPTY;
             }
-        } else if (EssenceInfuserBlockEntity.isLatentCarrier(source)) {
+        } else if (EssenceInfuserBlockEntity.isValidWorkpiece(source)) {
             if (!moveItemStackTo(
                     source,
                     EssenceInfuserBlockEntity.INPUT_SLOT,
