@@ -179,6 +179,27 @@ public final class EssenceSavedData extends SavedData {
     }
 
 
+    public boolean removeCrucibleStoredExact(
+            UUID playerId,
+            EssenceDefinition essence,
+            long amount
+    ) {
+        PlayerEssenceData playerData =
+                getPlayerData(playerId);
+
+        boolean removed =
+                playerData.removeCrucibleStoredExact(
+                        essence,
+                        amount
+                );
+
+        if (removed) {
+            setDirty();
+        }
+        return removed;
+    }
+
+
     public long transferCrucibleToAvailable(
             UUID playerId,
             EssenceDefinition essence,

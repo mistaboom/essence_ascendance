@@ -3,9 +3,12 @@ package com.mistaboom.essence_ascendance.fabric.client;
 import com.mistaboom.essence_ascendance.client.EssenceAscendanceClient;
 import com.mistaboom.essence_ascendance.client.AscendanceNexusScreen;
 import com.mistaboom.essence_ascendance.client.EssenceCrucibleScreen;
+import com.mistaboom.essence_ascendance.client.EssenceInfuserRenderer;
+import com.mistaboom.essence_ascendance.client.EssenceInfuserScreen;
 import com.mistaboom.essence_ascendance.client.EssencePylonRenderer;
 import com.mistaboom.essence_ascendance.client.EssencePylonScreen;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleContent;
+import com.mistaboom.essence_ascendance.infuser.EssenceInfuserContent;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonContent;
 import com.mistaboom.essence_ascendance.nexus.AscendanceNexusContent;
 import net.minecraft.client.gui.screens.MenuScreens;
@@ -38,12 +41,20 @@ public final class EssenceAscendanceFabricClient
                 EssencePylonScreen::new
         );
         MenuScreens.register(
+                EssenceInfuserContent.ESSENCE_INFUSER_MENU.get(),
+                EssenceInfuserScreen::new
+        );
+        MenuScreens.register(
                 AscendanceNexusContent.ASCENDANCE_NEXUS_MENU.get(),
                 AscendanceNexusScreen::new
         );
         BlockEntityRendererRegistry.register(
                 EssencePylonContent.ESSENCE_PYLON_BLOCK_ENTITY.get(),
                 EssencePylonRenderer::new
+        );
+        BlockEntityRendererRegistry.register(
+                EssenceInfuserContent.ESSENCE_INFUSER_BLOCK_ENTITY.get(),
+                EssenceInfuserRenderer::new
         );
     }
 }

@@ -5,9 +5,12 @@ import com.mistaboom.essence_ascendance.config.EssenceServerConfig;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleBlockEntity;
+import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleChannelService;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleEssences;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleStructureStats;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleStructureSnapshot;
+import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBalance;
+import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBlockEntity;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonBlockEntity;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonContribution;
 import com.mistaboom.essence_ascendance.equipment.ArmorStatWeights;
@@ -48,6 +51,7 @@ import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -81,6 +85,7 @@ final class EssenceDebugCommands {
                 .then(Commands.literal("mappings").executes(context -> showMappingRegistry(context.getSource())))
                 .then(Commands.literal("crucible").executes(context -> showCrucible(context.getSource())))
                 .then(Commands.literal("pylon").executes(context -> showPylon(context.getSource())))
+                .then(Commands.literal("infuser").executes(context -> showInfuser(context.getSource())))
                 .then(Commands.literal("baselines").executes(context -> showBaselines(context.getSource())))
                 .then(Commands.literal("offense").executes(context -> showOffense(context.getSource())))
                 .then(Commands.literal("defense").executes(context -> showDefense(context.getSource())))
@@ -99,6 +104,7 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug mappings", "mapping registry/reload summary"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug crucible", "inspect the Essence Crucible you are looking at"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug pylon", "inspect the Essence Pylon you are looking at"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug infuser", "inspect the Essence Infuser you are looking at"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug baselines", "tier/archetype equipment baselines"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.section("Gameplay categories"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug offense", "melee, ranged, magic, knockback, reflection"));
@@ -720,6 +726,7 @@ final class EssenceDebugCommands {
                         ) + " batch(es)/sec, progress "
                         + crucible.processingTicks() + "/"
                         + stats.dissolutionTicksPerItem()
+                        + ", mode " + crucible.dissolutionMode().displayName()
         ));
         EssenceCrucibleStructureSnapshot structureSnapshot = crucible.structureSnapshot();
         if (!structureSnapshot.activePylons().isEmpty()) {
@@ -842,6 +849,130 @@ final class EssenceDebugCommands {
         }
 
         return 1;
+    }
+
+
+    private static int showInfuser(
+            CommandSourceStack source
+    ) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        HitResult hit = player.pick(8.0D, 0.0F, false);
+
+        if (!(hit instanceof BlockHitResult blockHit)
+                || hit.getType() != HitResult.Type.BLOCK
+                || !(player.serverLevel().getBlockEntity(blockHit.getBlockPos())
+                        instanceof EssenceInfuserBlockEntity infuser)) {
+            EssenceCommandUtil.fail(
+                    source,
+                    "Look directly at an Essence Infuser within 8 blocks."
+            );
+            return 0;
+        }
+
+        infuser.refreshLink();
+        EssenceDefinition sourceEssence = infuser.sourceEssence();
+        EssenceDefinition targetEssence = infuser.targetEssence();
+        var focusTier = infuser.focusTier();
+        var profile = infuser.profile();
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Essence Infuser Debug"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Position",
+                infuser.getBlockPos().getX() + ", " + infuser.getBlockPos().getY() + ", " + infuser.getBlockPos().getZ()
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Owner", infuser.ownerDisplayName()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Processing",
+                infuser.processingEnabled() ? "ENABLED" : "STOPPED"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Player channel",
+                infuser.ownerId() != null
+                        && EssenceCrucibleChannelService.isChanneling(infuser.ownerId())
+                        ? "ACTIVE / INFUSER PAUSED"
+                        : "INACTIVE"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Focus",
+                focusTier == null ? "NONE" : focusTier.displayName()
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Infusion Grade",
+                profile.grade().displayName()
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Efficiency",
+                EssenceCommandUtil.formatDecimal(profile.efficiencyPercent()) + "%"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Link range",
+                EssenceCommandUtil.formatDecimal(EssenceInfuserBalance.linkRange())
+        ));
+
+        BlockPos linked = infuser.linkedCruciblePos();
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Linked Crucible",
+                linked == null
+                        ? EssenceCommandUtil.warn("UNLINKED")
+                        : Component.literal(
+                                linked.getX() + ", " + linked.getY() + ", " + linked.getZ()
+                                        + (infuser.isCurrentLinkValid() ? " [VALID]" : " [INVALID]")
+                        )
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Source",
+                sourceEssence == null ? "NONE" : sourceEssence.displayName()
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Target",
+                targetEssence == null ? "NONE" : targetEssence.displayName()
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Source reservoir",
+                EssenceCommandUtil.format(infuser.sourceAmountAvailable())
+                        + " / " + EssenceCommandUtil.format(infuser.sourceRequired()) + " required"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Carrier capacity",
+                EssenceCommandUtil.format(infuser.targetCarrierCapacity())
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Progress",
+                infuser.processingTicks() + " / " + infuser.requiredProcessingTicks() + " ticks"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "State",
+                infuserStatusName(infuser.statusCode())
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Input",
+                infuser.getItem(EssenceInfuserBlockEntity.INPUT_SLOT).isEmpty()
+                        ? "EMPTY"
+                        : infuser.getItem(EssenceInfuserBlockEntity.INPUT_SLOT).getCount() + "x "
+                                + infuser.getItem(EssenceInfuserBlockEntity.INPUT_SLOT).getHoverName().getString()
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Output",
+                infuser.getItem(EssenceInfuserBlockEntity.OUTPUT_SLOT).isEmpty()
+                        ? "EMPTY"
+                        : infuser.getItem(EssenceInfuserBlockEntity.OUTPUT_SLOT).getCount() + "x "
+                                + infuser.getItem(EssenceInfuserBlockEntity.OUTPUT_SLOT).getHoverName().getString()
+        ));
+        return 1;
+    }
+
+    private static String infuserStatusName(int status) {
+        return switch (status) {
+            case EssenceInfuserBlockEntity.STATUS_UNLINKED -> "UNLINKED";
+            case EssenceInfuserBlockEntity.STATUS_INVALID_SELECTION -> "INVALID SELECTION";
+            case EssenceInfuserBlockEntity.STATUS_INSUFFICIENT_SOURCE -> "INSUFFICIENT SOURCE";
+            case EssenceInfuserBlockEntity.STATUS_OUTPUT_BLOCKED -> "OUTPUT BLOCKED";
+            case EssenceInfuserBlockEntity.STATUS_PROCESSING -> "PROCESSING";
+            case EssenceInfuserBlockEntity.STATUS_INVALID_INPUT -> "INVALID INPUT";
+            case EssenceInfuserBlockEntity.STATUS_STOPPED -> "STOPPED";
+            case EssenceInfuserBlockEntity.STATUS_PLAYER_CHANNELING -> "PAUSED / PLAYER CHANNELING";
+            default -> "IDLE";
+        };
     }
 
 

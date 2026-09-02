@@ -38,6 +38,7 @@ public record EssenceCrucibleStatePayload(
         double transferRange,
         int dissolutionTicksPerItem,
         int processingTicks,
+        String dissolutionMode,
         int activePylonCount,
         int maxActivePylons,
         double pylonRadius,
@@ -45,7 +46,7 @@ public record EssenceCrucibleStatePayload(
         int simultaneousItemProcesses
 ) implements CustomPacketPayload {
 
-    public static final int CURRENT_SCHEMA_VERSION = 3;
+    public static final int CURRENT_SCHEMA_VERSION = 6;
     private static final int MAX_TEXT = 128;
 
     public static final Type<EssenceCrucibleStatePayload> TYPE =
@@ -126,6 +127,7 @@ public record EssenceCrucibleStatePayload(
         buffer.writeDouble(payload.transferRange);
         buffer.writeVarInt(payload.dissolutionTicksPerItem);
         buffer.writeVarInt(payload.processingTicks);
+        buffer.writeUtf(payload.dissolutionMode, MAX_TEXT);
         buffer.writeVarInt(payload.activePylonCount);
         buffer.writeVarInt(payload.maxActivePylons);
         buffer.writeDouble(payload.pylonRadius);
@@ -167,6 +169,7 @@ public record EssenceCrucibleStatePayload(
                 buffer.readDouble(),
                 buffer.readVarInt(),
                 buffer.readVarInt(),
+                buffer.readUtf(MAX_TEXT),
                 buffer.readVarInt(),
                 buffer.readVarInt(),
                 buffer.readDouble(),

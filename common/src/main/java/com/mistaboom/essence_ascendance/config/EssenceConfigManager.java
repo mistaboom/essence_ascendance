@@ -38,7 +38,7 @@ import java.util.Map;
 public final class EssenceConfigManager {
 
     public static final int CURRENT_CONFIG_VERSION =
-            4;
+            5;
 
     private static final int MAX_REQUIREMENT_DEPTH =
             32;
@@ -477,6 +477,44 @@ public final class EssenceConfigManager {
                 cruciblePylons
         );
 
+        InfuserBalanceSettings defaultInfuser =
+                InfuserBalanceSettings.defaults();
+        JsonObject infuser = new JsonObject();
+        infuser.addProperty(
+                "_comment",
+                "Global Essence Infuser progression values. Efficiency is expressed in basis points (5000 = 50%). These settings are loaded before world creation; no datapack is required."
+        );
+        infuser.addProperty("link_range", defaultInfuser.linkRange());
+
+        JsonObject noFocus = new JsonObject();
+        noFocus.addProperty(
+                "efficiency_basis_points",
+                defaultInfuser.noFocusEfficiencyBasisPoints()
+        );
+        noFocus.addProperty(
+                "processing_ticks",
+                defaultInfuser.noFocusProcessingTicks()
+        );
+        infuser.add("no_focus", noFocus);
+
+        JsonObject grades = new JsonObject();
+        for (String gradeName : new String[]{
+                "dormant", "awakened", "resonant", "ascendant", "transcendent"
+        }) {
+            InfuserBalanceSettings.GradeSettings grade =
+                    defaultInfuser.grade(gradeName);
+            JsonObject gradeObject = new JsonObject();
+            gradeObject.addProperty("ingot_capacity", grade.ingotCapacity());
+            gradeObject.addProperty(
+                    "efficiency_basis_points",
+                    grade.efficiencyBasisPoints()
+            );
+            gradeObject.addProperty("processing_ticks", grade.processingTicks());
+            grades.add(gradeName, gradeObject);
+        }
+        infuser.add("grades", grades);
+        root.add("essence_infuser", infuser);
+
 
         root.addProperty(
                 "preset",
@@ -674,6 +712,9 @@ public final class EssenceConfigManager {
             }
         }
 
+        InfuserBalanceSettings infuserBalance =
+                parseInfuserBalance(root);
+
         BalanceProfileDefinition balanceProfile =
                 parseBalanceProfile(
                         root
@@ -708,11 +749,99 @@ public final class EssenceConfigManager {
                 skillEssencesEnabled,
                 pylonRadius,
                 maxActivePylons,
+                infuserBalance,
                 balanceProfile,
                 milestones,
                 advancements,
                 statMaxBonuses,
                 equipmentBaselineConfig
+        );
+    }
+
+
+    private static InfuserBalanceSettings parseInfuserBalance(
+            JsonObject root
+    ) {
+        InfuserBalanceSettings defaults =
+                InfuserBalanceSettings.defaults();
+
+        JsonElement element = root.get("essence_infuser");
+        if (element == null || element.isJsonNull()) {
+            return defaults;
+        }
+        if (!element.isJsonObject()) {
+            throw new IllegalArgumentException("essence_infuser must be an object");
+        }
+
+        JsonObject object = element.getAsJsonObject();
+        double linkRange = readNonNegativeFiniteDouble(
+                object,
+                "link_range",
+                defaults.linkRange()
+        );
+        if (!(linkRange > 0.0D) || linkRange > 64.0D) {
+            throw new IllegalArgumentException(
+                    "essence_infuser.link_range must be greater than 0 and no more than 64"
+            );
+        }
+
+        int noFocusEfficiency = defaults.noFocusEfficiencyBasisPoints();
+        int noFocusTicks = defaults.noFocusProcessingTicks();
+        JsonObject noFocus = getObject(object, "no_focus");
+        if (noFocus != null) {
+            noFocusEfficiency = readInt(
+                    noFocus,
+                    "efficiency_basis_points",
+                    noFocusEfficiency
+            );
+            noFocusTicks = readInt(
+                    noFocus,
+                    "processing_ticks",
+                    noFocusTicks
+            );
+        }
+
+        Map<String, InfuserBalanceSettings.GradeSettings> grades =
+                new LinkedHashMap<>(defaults.grades());
+        JsonObject gradeObject = getObject(object, "grades");
+        if (gradeObject != null) {
+            for (String gradeName : new String[]{
+                    "dormant", "awakened", "resonant", "ascendant", "transcendent"
+            }) {
+                JsonObject configured = getObject(gradeObject, gradeName);
+                if (configured == null) {
+                    continue;
+                }
+                InfuserBalanceSettings.GradeSettings fallback =
+                        grades.get(gradeName);
+                grades.put(
+                        gradeName,
+                        new InfuserBalanceSettings.GradeSettings(
+                                readLong(
+                                        configured,
+                                        "ingot_capacity",
+                                        fallback.ingotCapacity()
+                                ),
+                                readInt(
+                                        configured,
+                                        "efficiency_basis_points",
+                                        fallback.efficiencyBasisPoints()
+                                ),
+                                readInt(
+                                        configured,
+                                        "processing_ticks",
+                                        fallback.processingTicks()
+                                )
+                        )
+                );
+            }
+        }
+
+        return new InfuserBalanceSettings(
+                linkRange,
+                noFocusEfficiency,
+                noFocusTicks,
+                grades
         );
     }
 
@@ -1560,6 +1689,7 @@ public final class EssenceConfigManager {
                 false,
                 6.0D,
                 8,
+                InfuserBalanceSettings.defaults(),
                 BalanceProfiles.VANILLA,
                 milestones,
                 advancements,

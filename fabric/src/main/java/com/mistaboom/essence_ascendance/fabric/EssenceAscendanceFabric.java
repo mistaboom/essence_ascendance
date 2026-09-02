@@ -6,6 +6,8 @@ import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleBlockEntity;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleContent;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleStructureService;
+import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBlockEntity;
+import com.mistaboom.essence_ascendance.infuser.EssenceInfuserContent;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemStorage;
 
 public final class EssenceAscendanceFabric implements ModInitializer {
@@ -40,6 +42,13 @@ public final class EssenceAscendanceFabric implements ModInitializer {
                     return new EssenceCrucibleFabricItemStorage(crucible);
                 },
                 EssenceCrucibleContent.ESSENCE_CRUCIBLE_BLOCK_ENTITY.get()
+        );
+
+        ItemStorage.SIDED.registerForBlockEntities(
+                (blockEntity, direction) -> blockEntity instanceof EssenceInfuserBlockEntity infuser
+                        ? new EssenceInfuserFabricItemStorage(infuser)
+                        : null,
+                EssenceInfuserContent.ESSENCE_INFUSER_BLOCK_ENTITY.get()
         );
     }
 }

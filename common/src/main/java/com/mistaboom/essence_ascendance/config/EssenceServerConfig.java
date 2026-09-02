@@ -19,6 +19,7 @@ public final class EssenceServerConfig {
     private final boolean skillEssencesEnabled;
     private final double pylonRadius;
     private final int maxActivePylons;
+    private final InfuserBalanceSettings infuserBalance;
     private final BalanceProfileDefinition balanceProfile;
     private final Map<ResourceLocation, MilestoneDefinition> milestones;
     private final Map<ResourceLocation, AscendanceAdvancementDefinition> advancements;
@@ -31,6 +32,7 @@ public final class EssenceServerConfig {
             boolean skillEssencesEnabled,
             double pylonRadius,
             int maxActivePylons,
+            InfuserBalanceSettings infuserBalance,
             BalanceProfileDefinition balanceProfile,
             Map<ResourceLocation, MilestoneDefinition> milestones,
             Map<ResourceLocation, AscendanceAdvancementDefinition> advancements,
@@ -47,6 +49,10 @@ public final class EssenceServerConfig {
         }
         this.pylonRadius = pylonRadius;
         this.maxActivePylons = maxActivePylons;
+        this.infuserBalance = Objects.requireNonNull(
+                infuserBalance,
+                "Infuser balance cannot be null"
+        );
         this.balanceProfile = Objects.requireNonNull(
                 balanceProfile,
                 "Balance profile cannot be null"
@@ -117,6 +123,10 @@ public final class EssenceServerConfig {
 
     public int maxActivePylons() {
         return maxActivePylons;
+    }
+
+    public InfuserBalanceSettings infuserBalance() {
+        return infuserBalance;
     }
 
     public BalanceProfileDefinition balanceProfile() {

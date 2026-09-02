@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.network.EssenceCrucibleChannelPayload;
+import com.mistaboom.essence_ascendance.network.EssenceCrucibleDissolutionModePayload;
 import com.mistaboom.essence_ascendance.network.EssenceCrucibleStateRequestPayload;
 import com.mistaboom.essence_ascendance.network.EssenceCrucibleVentPayload;
 import com.mistaboom.essence_ascendance.network.EssenceCrucibleStatePayload;
@@ -69,6 +70,7 @@ public final class EssenceCrucibleClientState {
         );
     }
 
+
     public static void requestState(
             int menuId
     ) {
@@ -87,6 +89,18 @@ public final class EssenceCrucibleClientState {
                 new EssenceCrucibleVentPayload(
                         menuId,
                         essenceId.toString()
+                )
+        );
+    }
+
+    public static void requestDissolutionMode(
+            int menuId,
+            String mode
+    ) {
+        NetworkManager.sendToServer(
+                new EssenceCrucibleDissolutionModePayload(
+                        menuId,
+                        mode
                 )
         );
     }

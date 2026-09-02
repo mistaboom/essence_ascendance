@@ -4,6 +4,7 @@ import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleContent;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleStructureService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentDamageService;
+import com.mistaboom.essence_ascendance.infuser.EssenceInfuserContent;
 import com.mistaboom.essence_ascendance.equipment.EquipmentGatheringService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentVitalityService;
 import net.minecraft.server.level.ServerPlayer;
@@ -69,6 +70,12 @@ public final class EssenceAscendanceNeoForge {
                     }
                     return new EssenceCrucibleNeoForgeItemHandler(blockEntity);
                 }
+        );
+
+        event.registerBlockEntity(
+                Capabilities.ItemHandler.BLOCK,
+                EssenceInfuserContent.ESSENCE_INFUSER_BLOCK_ENTITY.get(),
+                (blockEntity, direction) -> new EssenceInfuserNeoForgeItemHandler(blockEntity)
         );
     }
 

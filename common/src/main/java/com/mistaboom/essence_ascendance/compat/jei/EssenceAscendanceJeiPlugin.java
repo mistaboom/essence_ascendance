@@ -1,7 +1,6 @@
 package com.mistaboom.essence_ascendance.compat.jei;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
-import com.mistaboom.essence_ascendance.client.EssenceCrucibleScreen;
 import com.mistaboom.essence_ascendance.client.AscendanceNexusScreen;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
@@ -15,11 +14,11 @@ import net.minecraft.resources.ResourceLocation;
 import java.util.List;
 
 /**
- * Optional JEI integration for Crucible side panels.
+ * Optional JEI GUI integration.
  *
- * This class is only discovered and loaded by JEI when JEI is present. The
- * project depends on JEI's common API at compile time only, so Essence
- * Ascendance continues to run normally without JEI installed.
+ * Crucible/Pylon/Infuser popups intentionally render in front of JEI rather
+ * than advertising extra GUI areas that make JEI move. The Nexus remains the
+ * one exception because it owns the full logical screen.
  */
 @JeiPlugin
 @Environment(EnvType.CLIENT)
@@ -38,18 +37,6 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
 
     @Override
     public void registerGuiHandlers(IGuiHandlerRegistration registration) {
-        registration.addGuiContainerHandler(
-                EssenceCrucibleScreen.class,
-                new IGuiContainerHandler<EssenceCrucibleScreen>() {
-                    @Override
-                    public List<Rect2i> getGuiExtraAreas(
-                            EssenceCrucibleScreen screen
-                    ) {
-                        return screen.extraGuiAreas();
-                    }
-                }
-        );
-
         /*
          * The Nexus consumes the full logical screen. Mark that complete area
          * as GUI-owned so JEI does not place its ingredient list over the

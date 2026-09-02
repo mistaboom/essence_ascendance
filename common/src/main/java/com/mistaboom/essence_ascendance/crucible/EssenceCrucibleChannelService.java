@@ -40,6 +40,11 @@ public final class EssenceCrucibleChannelService {
         );
     }
 
+
+    public static boolean isChanneling(UUID playerId) {
+        return playerId != null && ACTIVE_BY_PLAYER.containsKey(playerId);
+    }
+
     public static void stopForPlayer(ServerPlayer player) {
         EssenceCrucibleBlockEntity crucible =
                 ACTIVE_BY_PLAYER.remove(

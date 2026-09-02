@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.pylon;
 
+import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBlockEntity;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -23,8 +24,10 @@ public final class EssencePylonFocusItem extends Item {
 
     @Override
     public InteractionResult useOn(UseOnContext context) {
-        if (!(context.getLevel().getBlockEntity(context.getClickedPos())
-                instanceof EssencePylonBlockEntity pylon)) {
+        Object blockEntity =
+                context.getLevel().getBlockEntity(context.getClickedPos());
+        if (!(blockEntity instanceof EssencePylonBlockEntity)
+                && !(blockEntity instanceof EssenceInfuserBlockEntity)) {
             return InteractionResult.PASS;
         }
 
@@ -37,6 +40,14 @@ public final class EssencePylonFocusItem extends Item {
             return InteractionResult.SUCCESS;
         }
 
-        return pylon.installOrSwapFocus(player, context.getHand());
+        if (blockEntity instanceof EssencePylonBlockEntity pylon) {
+            return pylon.installOrSwapFocus(player, context.getHand());
+        }
+
+        EssenceInfuserBlockEntity infuser =
+                (EssenceInfuserBlockEntity) blockEntity;
+        return infuser.installOrSwapFocus(player, context.getHand())
+                ? InteractionResult.CONSUME
+                : InteractionResult.FAIL;
     }
 }

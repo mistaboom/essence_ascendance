@@ -3,6 +3,7 @@ package com.mistaboom.essence_ascendance.client;
 import com.mistaboom.essence_ascendance.network.EssencePylonStatePayload;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonMenu;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -13,13 +14,13 @@ import java.util.Locale;
 public final class EssencePylonScreen
         extends AbstractContainerScreen<EssencePylonMenu> {
 
-    private static final int PANEL = 0xFF20242B;
-    private static final int PANEL_INNER = 0xFF2D333D;
-    private static final int BORDER = 0xFF8A70B5;
-    private static final int TEXT = 0xFFE9E9EF;
-    private static final int MUTED = 0xFFAEB4C0;
-    private static final int GOOD = 0xFF86D98C;
-    private static final int WARN = 0xFFE4C36A;
+    private static final int INFO_PANEL_WIDTH = 180;
+    private static final int INFO_PANEL_HEIGHT = 160;
+    private static final int SIDE_PANEL_GAP = 4;
+
+    private Button infoButton;
+    private Button infoCloseButton;
+    private boolean infoOpen;
 
     public EssencePylonScreen(
             EssencePylonMenu menu,
@@ -37,11 +38,24 @@ public final class EssencePylonScreen
     protected void init() {
         super.init();
         EssencePylonClientState.requestState(menu.containerId);
-    }
 
-    @Override
-    public void removed() {
-        super.removed();
+        infoButton = addRenderableWidget(
+                Button.builder(
+                                Component.literal("i"),
+                                button -> infoOpen = !infoOpen
+                        )
+                        .bounds(leftPos + imageWidth - 20, topPos + 5, 15, 15)
+                        .build()
+        );
+        infoCloseButton = addRenderableWidget(
+                Button.builder(
+                                Component.literal("X"),
+                                button -> infoOpen = false
+                        )
+                        .bounds(infoPanelX() + INFO_PANEL_WIDTH - 18, topPos + 8, 12, 12)
+                        .build()
+        );
+        infoCloseButton.visible = false;
     }
 
     @Override
@@ -60,17 +74,10 @@ public final class EssencePylonScreen
         int x = leftPos;
         int y = topPos;
 
-        graphics.fill(x, y, x + imageWidth, y + imageHeight, PANEL);
-        outline(graphics, x, y, imageWidth, imageHeight, BORDER);
-
-        graphics.fill(x + 105, y + 31, x + 125, y + 51, PANEL_INNER);
-        outline(graphics, x + 105, y + 31, 20, 20, BORDER);
-
-        graphics.fill(x + 10, y + 58, x + 220, y + 158, PANEL_INNER);
-        outline(graphics, x + 10, y + 58, 210, 100, BORDER);
-
-        graphics.fill(x + 32, y + 174, x + 198, y + 254, PANEL_INNER);
-        outline(graphics, x + 32, y + 174, 166, 80, 0xFF535B68);
+        MachineScreenUi.panel(graphics, x, y, imageWidth, imageHeight);
+        MachineScreenUi.accentedInset(graphics, x + 105, y + 31, 20, 20);
+        MachineScreenUi.inset(graphics, x + 10, y + 58, 210, 34);
+        MachineScreenUi.inset(graphics, x + 32, y + 174, 166, 80);
     }
 
     @Override
@@ -82,66 +89,31 @@ public final class EssencePylonScreen
         EssencePylonStatePayload state =
                 EssencePylonClientState.snapshotFor(menu.containerId);
 
-        drawCentered(graphics, "ESSENCE PYLON", 7, TEXT);
-        drawCentered(graphics, "Focus", 20, MUTED);
+        drawCentered(graphics, "ESSENCE PYLON", 7, MachineScreenUi.TEXT);
+        drawCentered(graphics, "Focus", 20, MachineScreenUi.MUTED);
 
         if (state == null) {
-            drawCentered(graphics, "Synchronizing...", 67, MUTED);
-            graphics.drawString(font, playerInventoryTitle, 34, 163, MUTED, false);
+            drawCentered(graphics, "Synchronizing...", 68, MachineScreenUi.MUTED);
+            graphics.drawString(
+                    font, playerInventoryTitle, inventoryLabelX, inventoryLabelY,
+                    MachineScreenUi.MUTED, false
+            );
             return;
         }
 
-        int statusColor = state.active() ? GOOD : WARN;
-        String status;
-        if (!state.linked()) {
-            status = "UNLINKED";
-        } else if (!state.active()) {
-            status = "INACTIVE / LIMIT";
-        } else {
-            status = "ACTIVE";
-        }
-
-        graphics.drawString(font, "Status", 16, 64, MUTED, false);
-        drawRightAligned(graphics, status, 214, 64, statusColor);
-
-        graphics.drawString(font, "Focus", 16, 76, MUTED, false);
-        drawRightAligned(graphics, state.focusName(), 214, 76, TEXT);
-
-        graphics.drawString(font, "Transfer", 16, 88, MUTED, false);
-        drawRightAligned(graphics, "+" + format(state.transferRatePerSecondBonus()) + "/sec", 214, 88, TEXT);
-
-        graphics.drawString(font, "Range", 16, 100, MUTED, false);
-        drawRightAligned(graphics, "+" + decimal(state.transferRangeBonus()) + " blocks", 214, 100, TEXT);
-
-        graphics.drawString(font, "Reservoir", 16, 112, MUTED, false);
-        drawRightAligned(graphics, "+" + format(state.reservoirCapacityBonus()) + " / family", 214, 112, TEXT);
-
-        graphics.drawString(font, "Dissolution", 16, 124, MUTED, false);
-        drawRightAligned(
-                graphics,
-                "+" + decimal(state.dissolutionSpeedBonus() * 100.0D) + "% speed",
-                214,
-                124,
-                TEXT
+        MachineScreenUi.row(
+                graphics, font, "Status", statusText(state),
+                16, 214, 66, statusColor(state)
+        );
+        MachineScreenUi.row(
+                graphics, font, "Installed Focus", focusText(state),
+                16, 214, 80
         );
 
-        graphics.drawString(font, "Batch items", 16, 136, MUTED, false);
-        drawRightAligned(
-                graphics,
-                "+" + state.simultaneousItemProcessesBonus(),
-                214,
-                136,
-                TEXT
+        graphics.drawString(
+                font, playerInventoryTitle, inventoryLabelX, inventoryLabelY,
+                MachineScreenUi.MUTED, false
         );
-
-        if (state.linked()) {
-            BlockPos linked = BlockPos.of(state.linkedCruciblePos());
-            String linkedText = linked.getX() + ", " + linked.getY() + ", " + linked.getZ();
-            graphics.drawString(font, "Crucible", 16, 148, MUTED, false);
-            drawRightAligned(graphics, linkedText, 214, 148, TEXT);
-        }
-
-        graphics.drawString(font, playerInventoryTitle, 34, 163, MUTED, false);
     }
 
     @Override
@@ -153,42 +125,154 @@ public final class EssencePylonScreen
     ) {
         renderBackground(graphics, mouseX, mouseY, partialTick);
         super.render(graphics, mouseX, mouseY, partialTick);
-        renderTooltip(graphics, mouseX, mouseY);
+
+        EssencePylonStatePayload state = EssencePylonClientState.snapshotFor(menu.containerId);
+        if (infoButton != null) {
+            infoButton.active = state != null;
+        }
+        if (infoCloseButton != null) {
+            infoCloseButton.visible = infoOpen && state != null;
+        }
+
+        if (infoOpen && state != null) {
+            graphics.pose().pushPose();
+            graphics.pose().translate(0.0F, 0.0F, 300.0F);
+            renderInfoPopup(graphics, state);
+            infoCloseButton.render(graphics, mouseX, mouseY, partialTick);
+            graphics.pose().popPose();
+        }
+
+        if (!mouseInsideInfo(mouseX, mouseY, state)) {
+            renderTooltip(graphics, mouseX, mouseY);
+        }
     }
 
-    private void drawCentered(GuiGraphics graphics, String text, int y, int color) {
-        graphics.drawString(
-                font,
-                text,
-                (imageWidth - font.width(text)) / 2,
-                y,
-                color,
-                false
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        EssencePylonStatePayload state = EssencePylonClientState.snapshotFor(menu.containerId);
+        if (infoOpen && mouseInsideInfo(mouseX, mouseY, state)) {
+            if (infoCloseButton != null
+                    && infoCloseButton.mouseClicked(mouseX, mouseY, button)) {
+                return true;
+            }
+            return true;
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    private void renderInfoPopup(GuiGraphics graphics, EssencePylonStatePayload state) {
+        int x = infoPanelX();
+        int y = topPos + 4;
+        MachineScreenUi.panel(graphics, x, y, INFO_PANEL_WIDTH, INFO_PANEL_HEIGHT);
+
+        int textX = x + 7;
+        int width = INFO_PANEL_WIDTH - 14;
+
+        MachineScreenUi.sectionHeader(graphics, font, "Info", textX, y + 7);
+        MachineScreenUi.fitted(
+                graphics, font, "Owner: " + state.ownerName(),
+                textX, y + 20, width, MachineScreenUi.MUTED
+        );
+
+        MachineScreenUi.sectionHeader(graphics, font, "Link", textX, y + 37);
+        MachineScreenUi.indentedLine(
+                graphics, font,
+                "Crucible: " + linkedText(state),
+                textX, y + 48, width
+        );
+        MachineScreenUi.indentedLine(
+                graphics, font,
+                String.format(Locale.ROOT, "Link Radius: %.1f blocks", state.pylonRadius()),
+                textX, y + 59, width
+        );
+
+        MachineScreenUi.sectionHeader(graphics, font, "Contribution", textX, y + 76);
+        MachineScreenUi.indentedLine(
+                graphics, font,
+                "Reservoir: +" + format(state.reservoirCapacityBonus()),
+                textX, y + 87, width
+        );
+        MachineScreenUi.indentedLine(
+                graphics, font,
+                "Channel Rate: +" + format(state.transferRatePerSecondBonus()) + "/sec",
+                textX, y + 98, width
+        );
+        MachineScreenUi.indentedLine(
+                graphics, font,
+                "Channel Range: +" + decimal(state.transferRangeBonus()) + " blocks",
+                textX, y + 109, width
+        );
+        MachineScreenUi.indentedLine(
+                graphics, font,
+                "Dissolution Speed: +" + decimal(state.dissolutionSpeedBonus() * 100.0D) + "%",
+                textX, y + 120, width
+        );
+        MachineScreenUi.indentedLine(
+                graphics, font,
+                "Items/Batch: +" + state.simultaneousItemProcessesBonus(),
+                textX, y + 131, width
         );
     }
 
-    private void drawRightAligned(
-            GuiGraphics graphics,
-            String text,
-            int right,
-            int y,
-            int color
-    ) {
-        graphics.drawString(font, text, right - font.width(text), y, color, false);
+    private static String statusText(EssencePylonStatePayload state) {
+        if (!state.linked()) {
+            return "Unlinked";
+        }
+        if (!state.active()) {
+            return "Inactive - Pylon Limit";
+        }
+        return "Active";
     }
 
-    private static void outline(
-            GuiGraphics graphics,
-            int x,
-            int y,
-            int width,
-            int height,
-            int color
-    ) {
-        graphics.fill(x, y, x + width, y + 1, color);
-        graphics.fill(x, y + height - 1, x + width, y + height, color);
-        graphics.fill(x, y, x + 1, y + height, color);
-        graphics.fill(x + width - 1, y, x + width, y + height, color);
+    private static int statusColor(EssencePylonStatePayload state) {
+        if (!state.linked() || !state.active()) {
+            return MachineScreenUi.WARN;
+        }
+        return MachineScreenUi.GOOD;
+    }
+
+    private static String focusText(EssencePylonStatePayload state) {
+        if (!state.focusInstalled()) {
+            return "None";
+        }
+        String name = state.focusName();
+        return name.endsWith(" Focus")
+                ? name.substring(0, name.length() - " Focus".length())
+                : name;
+    }
+
+    private static String linkedText(EssencePylonStatePayload state) {
+        if (!state.linked()) {
+            return "None";
+        }
+        BlockPos linked = BlockPos.of(state.linkedCruciblePos());
+        return linked.getX() + ", " + linked.getY() + ", " + linked.getZ();
+    }
+
+    private int infoPanelX() {
+        int right = leftPos + imageWidth + SIDE_PANEL_GAP;
+        if (right + INFO_PANEL_WIDTH <= width - 4) {
+            return right;
+        }
+        int left = leftPos - SIDE_PANEL_GAP - INFO_PANEL_WIDTH;
+        if (left >= 4) {
+            return left;
+        }
+        return Math.max(4, Math.min(right, width - 4 - INFO_PANEL_WIDTH));
+    }
+
+    private boolean mouseInsideInfo(double mouseX, double mouseY, EssencePylonStatePayload state) {
+        if (!infoOpen || state == null) {
+            return false;
+        }
+        int x = infoPanelX();
+        int y = topPos + 4;
+        return mouseX >= x && mouseX < x + INFO_PANEL_WIDTH
+                && mouseY >= y && mouseY < y + INFO_PANEL_HEIGHT;
+    }
+
+    private void drawCentered(GuiGraphics graphics, String text, int y, int color) {
+        graphics.drawString(font, text, (imageWidth - font.width(text)) / 2, y, color, false);
     }
 
     private static String format(long value) {

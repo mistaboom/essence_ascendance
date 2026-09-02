@@ -4,6 +4,7 @@ import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleBlockEntity;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleEssences;
+import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleDissolutionMode;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleMenu;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
@@ -64,6 +65,7 @@ public final class EssenceCrucibleNetworkService {
                         )
         );
 
+
         NetworkManager.registerReceiver(
                 NetworkManager.Side.C2S,
                 EssenceCrucibleStateRequestPayload.TYPE,
@@ -92,6 +94,20 @@ public final class EssenceCrucibleNetworkService {
                         )
         );
 
+        NetworkManager.registerReceiver(
+                NetworkManager.Side.C2S,
+                EssenceCrucibleDissolutionModePayload.TYPE,
+                EssenceCrucibleDissolutionModePayload.CODEC,
+                (payload, context) ->
+                        context.queue(
+                                () -> {
+                                    if (context.getPlayer() instanceof ServerPlayer player) {
+                                        handleDissolutionModeRequest(player, payload);
+                                    }
+                                }
+                        )
+        );
+
         TickEvent.PLAYER_POST.register(
                 player -> {
                     if (player instanceof ServerPlayer serverPlayer
@@ -103,7 +119,7 @@ public final class EssenceCrucibleNetworkService {
 
         initialized = true;
         EssenceAscendance.LOGGER.info(
-                "Registered Essence Crucible channel/state/vent requests and S2C machine-state sync"
+                "Registered Essence Crucible channel/state/vent/dissolution-mode requests and S2C machine-state sync"
         );
     }
 
@@ -114,6 +130,7 @@ public final class EssenceCrucibleNetworkService {
     public static void forget(ServerPlayer player) {
         LAST_SENT.remove(player);
     }
+
 
     private static void handleStateRequest(
             ServerPlayer player,
@@ -183,6 +200,31 @@ public final class EssenceCrucibleNetworkService {
             crucible.stopChanneling();
         }
 
+        forceSync(player);
+    }
+
+    private static void handleDissolutionModeRequest(
+            ServerPlayer player,
+            EssenceCrucibleDissolutionModePayload payload
+    ) {
+        if (!(player.containerMenu instanceof EssenceCrucibleMenu menu)
+                || menu.containerId != payload.menuId()) {
+            return;
+        }
+
+        EssenceCrucibleBlockEntity crucible = menu.serverCrucible();
+        if (crucible == null
+                || crucible.getLevel() != player.serverLevel()
+                || !player.serverLevel().hasChunkAt(crucible.getBlockPos())
+                || player.serverLevel().getBlockEntity(crucible.getBlockPos()) != crucible
+                || !crucible.canPlayerUse(player)
+                || menu.activeMachineSlots() <= 1) {
+            return;
+        }
+
+        EssenceCrucibleDissolutionMode requested =
+                EssenceCrucibleDissolutionMode.fromSerializedName(payload.mode());
+        crucible.setDissolutionMode(requested);
         forceSync(player);
     }
 
@@ -300,6 +342,7 @@ public final class EssenceCrucibleNetworkService {
                 stats.transferRange(),
                 stats.dissolutionTicksPerItem(),
                 crucible.processingTicks(),
+                crucible.dissolutionMode().serializedName(),
                 stats.activePylonCount(),
                 EssenceConfigManager.get().maxActivePylons(),
                 EssenceConfigManager.get().pylonRadius(),

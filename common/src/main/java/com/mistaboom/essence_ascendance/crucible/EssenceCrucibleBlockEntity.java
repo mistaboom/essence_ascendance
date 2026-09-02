@@ -6,6 +6,7 @@ import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingRegistry;
 import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingResult;
+import com.mistaboom.essence_ascendance.infuser.EssentiumCarrierData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -27,8 +28,11 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -43,7 +47,11 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
     private static final String OWNER_NAME_TAG = "owner_name";
     private static final String ACCESS_MODE_TAG = "access_mode";
     private static final String PROCESSING_TICKS_TAG = "processing_ticks";
+    private static final String DISSOLUTION_MODE_TAG = "dissolution_mode";
     private static final String RESERVOIR_TAG = "reservoir";
+
+    /* Number of full dissolution cycles Smart Round Robin gives a blocked lane. */
+    private static final int SMART_ROUND_ROBIN_WAIT_CYCLES = 3;
 
     private final NonNullList<ItemStack> items =
             NonNullList.withSize(MAX_INPUT_SLOTS, ItemStack.EMPTY);
@@ -63,6 +71,12 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
 
     private int processingTicks = 0;
     private int dissolutionSlotCursor = 0;
+    private EssenceCrucibleDissolutionMode dissolutionMode =
+            EssenceCrucibleDissolutionMode.SMART_ROUND_ROBIN;
+
+    /* Runtime-only fairness state for Smart Round Robin. */
+    private int smartRoundRobinBlockedTicks = 0;
+    private int smartRoundRobinWaitSlot = -1;
 
     /* Runtime-only channel state. */
     private UUID channelingPlayerId;
@@ -283,6 +297,10 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             ServerPlayer player,
             boolean active
     ) {
+        if (!bindOwner(player) || ownerId == null) {
+            return;
+        }
+
         if (active) {
             startChanneling(player);
         } else if (channelingPlayerId != null
@@ -342,6 +360,29 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         setChanged();
     }
 
+    public EssenceCrucibleDissolutionMode dissolutionMode() {
+        return dissolutionMode;
+    }
+
+    public void setDissolutionMode(EssenceCrucibleDissolutionMode mode) {
+        EssenceCrucibleDissolutionMode normalized = mode == null
+                ? EssenceCrucibleDissolutionMode.SMART_ROUND_ROBIN
+                : mode;
+        if (dissolutionMode == normalized) {
+            return;
+        }
+
+        dissolutionMode = normalized;
+        processingTicks = 0;
+        resetSmartRoundRobinWait();
+        setChanged();
+    }
+
+    private void resetSmartRoundRobinWait() {
+        smartRoundRobinBlockedTicks = 0;
+        smartRoundRobinWaitSlot = -1;
+    }
+
     private void tickDissolution() {
         if (!(level instanceof ServerLevel serverLevel) || ownerId == null) {
             return;
@@ -350,6 +391,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         EssenceCrucibleStructureStats stats = structureStats();
         int activeSlots = activeInputSlotCount(stats);
         if (!hasAnyActiveInput(activeSlots)) {
+            resetSmartRoundRobinWait();
             if (processingTicks != 0) {
                 processingTicks = 0;
                 setChanged();
@@ -376,7 +418,17 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
                 stats.simultaneousItemProcesses(),
                 capacity
         );
-        processingVisualActive = potential.totalItems() > 0;
+        RoundRobinCapacityBlock capacityBlock = roundRobinCapacityBlock(
+                activeSlots,
+                capacity
+        );
+        /*
+         * A capacity-blocked Smart/Strict lane is waiting, not actively
+         * dissolving. Keep the progress bar behavior, but do not advertise
+         * processing particles until the selected scheduler can actually
+         * complete a dissolution plan.
+         */
+        processingVisualActive = potential.totalItems() > 0 && capacityBlock == null;
 
         if (processingTicks < requiredTicks) {
             processingTicks++;
@@ -385,6 +437,52 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
 
         if (processingTicks < requiredTicks) {
             return;
+        }
+
+        /*
+         * Strict Round Robin never skips a temporarily-full preferred lane.
+         * Smart Round Robin gives that lane a few complete dissolution cycles
+         * to become viable before allowing the normal skip/redistribution path.
+         * An item whose output could never fit into an empty reservoir is not
+         * considered a temporary capacity block and therefore cannot deadlock
+         * either mode forever.
+         */
+        if (capacityBlock != null) {
+            if (dissolutionMode == EssenceCrucibleDissolutionMode.STRICT_ROUND_ROBIN) {
+                processingVisualActive = false;
+                return;
+            }
+
+            if (dissolutionMode == EssenceCrucibleDissolutionMode.SMART_ROUND_ROBIN) {
+                if (smartRoundRobinWaitSlot != capacityBlock.slot()) {
+                    smartRoundRobinWaitSlot = capacityBlock.slot();
+                    smartRoundRobinBlockedTicks = 0;
+                }
+
+                /*
+                 * Hold the completed progress bar while Smart Round Robin waits
+                 * for capacity. The old implementation reset processingTicks
+                 * once per wait cycle, which made the bar loop continuously and
+                 * incorrectly drove processing particles while nothing could be
+                 * dissolved.
+                 */
+                long waitTicks = (long) Math.max(1, requiredTicks)
+                        * SMART_ROUND_ROBIN_WAIT_CYCLES;
+                if (smartRoundRobinBlockedTicks < waitTicks) {
+                    smartRoundRobinBlockedTicks++;
+                    processingVisualActive = false;
+                    return;
+                }
+
+                /*
+                 * The wait window has expired. Keep the bar full and allow the
+                 * normal plan builder to skip this blocked turn. If nothing else
+                 * fits yet, stay full and retry without restarting the animation.
+                 */
+                processingVisualActive = false;
+            }
+        } else {
+            resetSmartRoundRobinWait();
         }
 
         /* Shared storage or structure state may have changed during the cycle. */
@@ -417,6 +515,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         }
 
         processingTicks = 0;
+        resetSmartRoundRobinWait();
         dissolutionSlotCursor = activeSlots <= 1
                 ? 0
                 : (dissolutionSlotCursor + 1) % activeSlots;
@@ -440,17 +539,40 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             return new DissolutionPlan(consumeCounts, outputs, 0);
         }
 
-        /*
-         * Build the occupied/mapped lane list in a rotating order. Each batch
-         * divides its item budget as evenly as possible across these lanes.
-         * The rotation only decides who receives remainder items, so one slot
-         * does not permanently get the extra item when maxItems is not evenly
-         * divisible by the occupied-lane count.
-         */
+        List<DissolutionCandidate> candidates = collectDissolutionCandidates(activeSlots);
+        if (candidates.isEmpty()) {
+            return new DissolutionPlan(consumeCounts, outputs, 0);
+        }
+
+        if (dissolutionMode == EssenceCrucibleDissolutionMode.LOWEST_STORED) {
+            candidates.sort(Comparator.comparingLong(
+                    (DissolutionCandidate candidate) ->
+                            lowestStoredPriority(candidate.mapping())
+            ));
+        } else if (dissolutionMode == EssenceCrucibleDissolutionMode.HIGHEST_STORED) {
+            candidates.sort((left, right) -> Long.compare(
+                    highestStoredPriority(right.mapping()),
+                    highestStoredPriority(left.mapping())
+            ));
+        }
+
+        return buildEvenDissolutionPlan(
+                candidates,
+                maxItems,
+                capacity - currentTotal,
+                consumeCounts,
+                outputs
+        );
+    }
+
+    /**
+     * Collect mapped active lanes in rotating order. Java's List.sort is
+     * stable, so reservoir-priority modes retain round-robin order as their
+     * tie-breaker without needing a second slot-priority field.
+     */
+    private List<DissolutionCandidate> collectDissolutionCandidates(int activeSlots) {
+        List<DissolutionCandidate> candidates = new ArrayList<>(activeSlots);
         int start = Math.floorMod(dissolutionSlotCursor, activeSlots);
-        int[] eligibleSlots = new int[activeSlots];
-        ItemEssenceMappingResult[] mappings = new ItemEssenceMappingResult[activeSlots];
-        int eligibleCount = 0;
 
         for (int offset = 0; offset < activeSlots; offset++) {
             int slot = (start + offset) % activeSlots;
@@ -459,40 +581,42 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
                 continue;
             }
 
-            ItemEssenceMappingResult mapping = resolvePositiveAttributeMapping(stack);
-            if (mapping == null) {
-                continue;
+            ResolvedDissolution mapping = resolveDissolution(stack);
+            if (mapping != null) {
+                candidates.add(new DissolutionCandidate(slot, mapping));
             }
-
-            eligibleSlots[eligibleCount] = slot;
-            mappings[eligibleCount] = mapping;
-            eligibleCount++;
         }
+        return candidates;
+    }
 
-        if (eligibleCount == 0) {
-            return new DissolutionPlan(consumeCounts, outputs, 0);
-        }
-
-        long room = capacity - currentTotal;
-        int baseShare = maxItems / eligibleCount;
-        int remainder = maxItems % eligibleCount;
+    private DissolutionPlan buildEvenDissolutionPlan(
+            List<DissolutionCandidate> candidates,
+            int maxItems,
+            long room,
+            int[] consumeCounts,
+            Map<EssenceDefinition, Long> outputs
+    ) {
+        int candidateCount = candidates.size();
+        int baseShare = maxItems / candidateCount;
+        int remainder = maxItems % candidateCount;
         int totalItems = 0;
 
-        /* First pass: give every occupied lane its even share. */
-        for (int i = 0; i < eligibleCount; i++) {
+        /* First pass: give every candidate its even share in priority order. */
+        for (int i = 0; i < candidateCount; i++) {
             int requested = baseShare + (i < remainder ? 1 : 0);
             if (requested <= 0) {
                 continue;
             }
 
-            long perItemTotal = mappingOutputTotal(mappings[i]);
+            DissolutionCandidate candidate = candidates.get(i);
+            long perItemTotal = mappingOutputTotal(candidate.mapping());
             if (perItemTotal <= 0L) {
                 continue;
             }
 
             int added = addPlannedItemsFromSlot(
-                    eligibleSlots[i],
-                    mappings[i],
+                    candidate.slot(),
+                    candidate.mapping(),
                     requested,
                     room,
                     consumeCounts,
@@ -507,29 +631,33 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         }
 
         /*
-         * If a lane was short on items (or its requested share would not fit),
-         * redistribute unused batch capacity one item at a time across lanes
-         * that can still contribute. This preserves throughput while remaining
-         * as even as the actual stacks/capacity allow.
+         * Redistribute unused batch capacity one item at a time. The candidate
+         * order is the selected mode's priority order, so Lowest/Highest Stored
+         * naturally receive first claim on limited reservoir room while Skip
+         * Round Robin behaves like the historical first-available scheduler.
          */
         while (totalItems < maxItems) {
             boolean addedThisPass = false;
 
-            for (int i = 0; i < eligibleCount && totalItems < maxItems; i++) {
-                int slot = eligibleSlots[i];
+            for (DissolutionCandidate candidate : candidates) {
+                if (totalItems >= maxItems) {
+                    break;
+                }
+
+                int slot = candidate.slot();
                 ItemStack stack = items.get(slot);
                 if (consumeCounts[slot] >= stack.getCount()) {
                     continue;
                 }
 
-                long perItemTotal = mappingOutputTotal(mappings[i]);
+                long perItemTotal = mappingOutputTotal(candidate.mapping());
                 if (perItemTotal <= 0L || perItemTotal > room) {
                     continue;
                 }
 
                 int added = addPlannedItemsFromSlot(
                         slot,
-                        mappings[i],
+                        candidate.mapping(),
                         1,
                         room,
                         consumeCounts,
@@ -556,12 +684,92 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
     }
 
     /**
+     * Returns a temporary capacity block only for the currently preferred
+     * round-robin lane. Lowest/Highest/Skip modes deliberately never wait.
+     */
+    private RoundRobinCapacityBlock roundRobinCapacityBlock(
+            int activeSlots,
+            long capacity
+    ) {
+        if (dissolutionMode != EssenceCrucibleDissolutionMode.SMART_ROUND_ROBIN
+                && dissolutionMode != EssenceCrucibleDissolutionMode.STRICT_ROUND_ROBIN) {
+            return null;
+        }
+
+        long currentTotal = totalStoredEssence();
+        if (currentTotal > capacity) {
+            return null;
+        }
+
+        List<DissolutionCandidate> candidates = collectDissolutionCandidates(activeSlots);
+        if (candidates.isEmpty()) {
+            return null;
+        }
+
+        DissolutionCandidate preferred = candidates.get(0);
+        long perItemTotal = mappingOutputTotal(preferred.mapping());
+        if (perItemTotal <= 0L || perItemTotal > capacity) {
+            return null;
+        }
+
+        long room = capacity - currentTotal;
+        return perItemTotal > room
+                ? new RoundRobinCapacityBlock(preferred.slot())
+                : null;
+    }
+
+    /**
+     * For multi-output mapped items, Lowest Stored considers the least-stocked
+     * Essence they produce. This makes any depleted output sufficient to pull
+     * that lane forward. Ties retain rotating slot order.
+     */
+    private long lowestStoredPriority(ResolvedDissolution mapping) {
+        long lowest = Long.MAX_VALUE;
+        boolean found = false;
+        for (EssenceDefinition essence : mapping.outputs().keySet()) {
+            if (!isDissolutionEssenceEnabled(essence)) {
+                continue;
+            }
+            lowest = Math.min(lowest, storedEssence(essence));
+            found = true;
+        }
+        return found ? lowest : Long.MAX_VALUE;
+    }
+
+    /**
+     * Highest Stored mirrors Lowest Stored using the most-stocked output type.
+     * This is useful when deliberately concentrating production into an Essence
+     * that the player's automation is already consuming heavily.
+     */
+    private long highestStoredPriority(ResolvedDissolution mapping) {
+        long highest = Long.MIN_VALUE;
+        boolean found = false;
+        for (EssenceDefinition essence : mapping.outputs().keySet()) {
+            if (!isDissolutionEssenceEnabled(essence)) {
+                continue;
+            }
+            highest = Math.max(highest, storedEssence(essence));
+            found = true;
+        }
+        return found ? highest : Long.MIN_VALUE;
+    }
+
+    private record DissolutionCandidate(
+            int slot,
+            ResolvedDissolution mapping
+    ) {
+    }
+
+    private record RoundRobinCapacityBlock(int slot) {
+    }
+
+    /**
      * Adds up to {@code requested} copies of one mapped stack to an in-memory
      * atomic dissolution plan. Returns -1 on arithmetic overflow.
      */
     private int addPlannedItemsFromSlot(
             int slot,
-            ItemEssenceMappingResult mapping,
+            ResolvedDissolution mapping,
             int requested,
             long room,
             int[] consumeCounts,
@@ -593,12 +801,12 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         return count;
     }
 
-    private long mappingOutputTotal(ItemEssenceMappingResult mapping) {
+    private long mappingOutputTotal(ResolvedDissolution mapping) {
         long total = 0L;
         try {
             for (Map.Entry<EssenceDefinition, Long> output : mapping.outputs().entrySet()) {
                 if (output.getValue() <= 0L
-                        || EssenceCrucibleEssences.indexOf(output.getKey()) < 0) {
+                        || !isDissolutionEssenceEnabled(output.getKey())) {
                     return 0L;
                 }
                 total = Math.addExact(total, output.getValue());
@@ -621,7 +829,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
     private boolean hasAnyMappedActiveInput(int activeSlots) {
         for (int slot = 0; slot < activeSlots; slot++) {
             ItemStack stack = items.get(slot);
-            if (!stack.isEmpty() && resolvePositiveAttributeMapping(stack) != null) {
+            if (!stack.isEmpty() && resolveDissolution(stack) != null) {
                 return true;
             }
         }
@@ -634,6 +842,46 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             int totalItems
     ) {
     }
+
+    private record ResolvedDissolution(
+            Map<EssenceDefinition, Long> outputs
+    ) {
+    }
+
+    private static ResolvedDissolution resolveDissolution(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return null;
+        }
+
+        if (EssentiumCarrierData.isEssentium(stack)) {
+            return EssentiumCarrierData.readValidated(stack)
+                    .filter(EssentiumCarrierData::isEnabled)
+                    .map(value -> new ResolvedDissolution(
+                            Map.of(value.essence(), value.amount())
+                    ))
+                    .orElse(null);
+        }
+
+        ItemEssenceMappingResult mapping =
+                resolvePositiveAttributeMapping(stack);
+        return mapping == null
+                ? null
+                : new ResolvedDissolution(mapping.outputs());
+    }
+
+    private static boolean isDissolutionEssenceEnabled(EssenceDefinition essence) {
+        if (essence == null) {
+            return false;
+        }
+        if (EssenceCrucibleEssences.ATTRIBUTE_ORDERED.stream()
+                .anyMatch(candidate -> candidate.id().equals(essence.id()))) {
+            return true;
+        }
+        return EssenceConfigManager.get().skillEssencesEnabled()
+                && EssenceCrucibleEssences.SKILL_ORDERED.stream()
+                .anyMatch(candidate -> candidate.id().equals(essence.id()));
+    }
+
 
     public static ItemEssenceMappingResult resolvePositiveAttributeMapping(
             ItemStack stack
@@ -660,7 +908,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
     }
 
     public static boolean isValidNewInput(ItemStack stack) {
-        return resolvePositiveAttributeMapping(stack) != null;
+        return resolveDissolution(stack) != null;
     }
 
     private void tickChanneling() {
@@ -930,6 +1178,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         }
         tag.putString(ACCESS_MODE_TAG, accessMode.serializedName());
         tag.putInt(PROCESSING_TICKS_TAG, processingTicks);
+        tag.putString(DISSOLUTION_MODE_TAG, dissolutionMode.serializedName());
 
         /*
          * New saves do not write normal reservoir data to the block. Keep only
@@ -963,7 +1212,11 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
                 tag.getString(ACCESS_MODE_TAG)
         );
         processingTicks = Math.max(0, tag.getInt(PROCESSING_TICKS_TAG));
+        dissolutionMode = EssenceCrucibleDissolutionMode.fromSerializedName(
+                tag.getString(DISSOLUTION_MODE_TAG)
+        );
         dissolutionSlotCursor = 0;
+        resetSmartRoundRobinWait();
 
         Arrays.fill(legacyStoredEssence, 0L);
         if (tag.contains(RESERVOIR_TAG, Tag.TAG_COMPOUND)) {
@@ -1052,6 +1305,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         ItemStack removed = ContainerHelper.removeItem(items, slot, amount);
         if (!removed.isEmpty()) {
             processingTicks = 0;
+            resetSmartRoundRobinWait();
             setChanged();
         }
         return removed;
@@ -1064,6 +1318,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         }
         ItemStack removed = ContainerHelper.takeItem(items, slot);
         processingTicks = 0;
+        resetSmartRoundRobinWait();
         if (!removed.isEmpty()) {
             setChanged();
         }
@@ -1090,6 +1345,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         items.set(slot, normalized);
         if (replacingOccupiedType || (normalized.isEmpty() && !previous.isEmpty())) {
             processingTicks = 0;
+            resetSmartRoundRobinWait();
         }
         setChanged();
     }
@@ -1109,6 +1365,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
     public void clearContent() {
         items.clear();
         processingTicks = 0;
+        resetSmartRoundRobinWait();
         setChanged();
     }
 

@@ -312,6 +312,51 @@ public final class ItemEssenceTooltipClientState {
      *
      * JEI's own tokenizer similarly indexes whitespace-separated words.
      */
+    public static void appendDirectEssenceTooltip(
+            ResourceLocation essenceId,
+            long amount,
+            List<Component> tooltip
+    ) {
+        if (essenceId == null || amount <= 0L || tooltip == null) {
+            return;
+        }
+
+        MutableComponent line =
+                Component.literal("Essence: ")
+                        .withStyle(ChatFormatting.DARK_GRAY);
+        line.append(
+                Component.literal(
+                                formatAmount(amount)
+                                        + " "
+                                        + shortName(essenceId)
+                        )
+                        .withStyle(colorFor(essenceId))
+        );
+        tooltip.add(line);
+    }
+
+    public static Set<String> getDirectSearchTerms(
+            ResourceLocation essenceId,
+            long amount
+    ) {
+        if (essenceId == null || amount <= 0L) {
+            return Set.of();
+        }
+        Set<String> result = new LinkedHashSet<>();
+        result.add("essence");
+        result.add(Long.toString(amount));
+        for (String word : shortName(essenceId)
+                .toLowerCase(Locale.ROOT)
+                .trim()
+                .split("\\s+")) {
+            if (!word.isBlank()) {
+                result.add(word);
+            }
+        }
+        return Set.copyOf(result);
+    }
+
+
     public static Set<String> getSearchTerms(
             ItemStack stack
     ) {

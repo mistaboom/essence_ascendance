@@ -1,0 +1,10 @@
+{
+  "replace": false,
+  "values": [
+    "essence_ascendance:latent_ore",
+    "essence_ascendance:deepslate_latent_ore",
+    "essence_ascendance:raw_latent_ore_block",
+    "essence_ascendance:latent_block",
+    "essence_ascendance:essence_infuser"
+  ]
+}

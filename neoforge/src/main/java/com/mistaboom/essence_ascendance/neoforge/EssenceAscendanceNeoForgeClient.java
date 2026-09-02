@@ -4,9 +4,12 @@ import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.client.EssenceAscendanceClient;
 import com.mistaboom.essence_ascendance.client.AscendanceNexusScreen;
 import com.mistaboom.essence_ascendance.client.EssenceCrucibleScreen;
+import com.mistaboom.essence_ascendance.client.EssenceInfuserRenderer;
+import com.mistaboom.essence_ascendance.client.EssenceInfuserScreen;
 import com.mistaboom.essence_ascendance.client.EssencePylonRenderer;
 import com.mistaboom.essence_ascendance.client.EssencePylonScreen;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleContent;
+import com.mistaboom.essence_ascendance.infuser.EssenceInfuserContent;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonContent;
 import com.mistaboom.essence_ascendance.nexus.AscendanceNexusContent;
 import net.minecraft.client.renderer.item.ItemProperties;
@@ -49,6 +52,10 @@ public final class EssenceAscendanceNeoForgeClient {
                 EssencePylonScreen::new
         );
         event.register(
+                EssenceInfuserContent.ESSENCE_INFUSER_MENU.get(),
+                EssenceInfuserScreen::new
+        );
+        event.register(
                 AscendanceNexusContent.ASCENDANCE_NEXUS_MENU.get(),
                 AscendanceNexusScreen::new
         );
@@ -60,6 +67,10 @@ public final class EssenceAscendanceNeoForgeClient {
         event.registerBlockEntityRenderer(
                 EssencePylonContent.ESSENCE_PYLON_BLOCK_ENTITY.get(),
                 EssencePylonRenderer::new
+        );
+        event.registerBlockEntityRenderer(
+                EssenceInfuserContent.ESSENCE_INFUSER_BLOCK_ENTITY.get(),
+                EssenceInfuserRenderer::new
         );
     }
 

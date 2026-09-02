@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.client;
 
+import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleDissolutionMode;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleEssences;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleMenu;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
@@ -8,10 +9,8 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.world.entity.player.Inventory;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -19,11 +18,11 @@ import java.util.Locale;
 public final class EssenceCrucibleScreen
         extends AbstractContainerScreen<EssenceCrucibleMenu> {
 
-    private static final int PANEL = 0xFF20242B;
-    private static final int PANEL_INNER = 0xFF2D333D;
-    private static final int BORDER = 0xFF8A70B5;
-    private static final int TEXT = 0xFFE9E9EF;
-    private static final int MUTED = 0xFFAEB4C0;
+    private static final int PANEL = MachineScreenUi.PANEL;
+    private static final int PANEL_INNER = MachineScreenUi.PANEL_INNER;
+    private static final int BORDER = MachineScreenUi.BORDER;
+    private static final int TEXT = MachineScreenUi.TEXT;
+    private static final int MUTED = MachineScreenUi.MUTED;
 
     private static final int PANEL_MARGIN = 12;
     private static final int PANEL_GAP = 12;
@@ -39,7 +38,9 @@ public final class EssenceCrucibleScreen
     private static final int SIDE_PANEL_GAP = 4;
 
     private static final int VENT_PANEL_WIDTH = 172;
-    private static final int VENT_HEADER_HEIGHT = 29;
+    private static final int SETTINGS_HEADER_HEIGHT = 27;
+    private static final int DISSOLUTION_MODE_SECTION_HEIGHT = 43;
+    private static final int VENT_SECTION_HEIGHT = 27;
     private static final int VENT_ROW_HEIGHT = 14;
     private static final int VENT_FOOTER_HEIGHT = 8;
     private static final int VENT_BUTTON_WIDTH = 38;
@@ -50,6 +51,7 @@ public final class EssenceCrucibleScreen
     private Button settingsButton;
     private Button infoCloseButton;
     private Button settingsCloseButton;
+    private Button dissolutionModeButton;
     private final Button[] ventButtons =
             new Button[EssenceCrucibleEssences.ALL_ORDERED.size()];
     private boolean infoOpen;
@@ -77,13 +79,14 @@ public final class EssenceCrucibleScreen
                                 button -> toggleChannel()
                         )
                         .bounds(
-                                leftPos + 90,
+                                leftPos + 70,
                                 topPos + 202,
-                                120,
+                                160,
                                 20
                         )
                         .build()
         );
+
 
         settingsButton = addRenderableWidget(
                 Button.builder(
@@ -153,6 +156,21 @@ public final class EssenceCrucibleScreen
         );
         settingsCloseButton.visible = false;
 
+        dissolutionModeButton = addRenderableWidget(
+                Button.builder(
+                                Component.literal("Smart Round Robin"),
+                                button -> cycleDissolutionMode()
+                        )
+                        .bounds(
+                                ventPanelX() + 7,
+                                topPos + 4 + SETTINGS_HEADER_HEIGHT + 12,
+                                VENT_PANEL_WIDTH - 14,
+                                16
+                        )
+                        .build()
+        );
+        dissolutionModeButton.visible = false;
+
         int ventPanelX = ventPanelX();
         int ventPanelY = topPos + 4;
         for (int i = 0; i < ventButtons.length; i++) {
@@ -164,7 +182,7 @@ public final class EssenceCrucibleScreen
                             )
                             .bounds(
                                     ventPanelX + VENT_PANEL_WIDTH - VENT_BUTTON_WIDTH - 6,
-                                    ventPanelY + VENT_HEADER_HEIGHT + i * VENT_ROW_HEIGHT,
+                                    ventPanelY + SETTINGS_HEADER_HEIGHT + DISSOLUTION_MODE_SECTION_HEIGHT + VENT_SECTION_HEIGHT + i * VENT_ROW_HEIGHT,
                                     VENT_BUTTON_WIDTH,
                                     VENT_BUTTON_HEIGHT
                             )
@@ -211,6 +229,27 @@ public final class EssenceCrucibleScreen
         EssenceCrucibleClientState.requestChannel(
                 menu.containerId,
                 !state.channeling()
+        );
+    }
+
+
+    private void cycleDissolutionMode() {
+        EssenceCrucibleStatePayload state =
+                EssenceCrucibleClientState.snapshotFor(menu.containerId);
+        if (state == null
+                || !state.allowed()
+                || !settingsOpen
+                || menu.activeMachineSlots() <= 1) {
+            return;
+        }
+
+        EssenceCrucibleDissolutionMode current =
+                EssenceCrucibleDissolutionMode.fromSerializedName(
+                        state.dissolutionMode()
+                );
+        EssenceCrucibleClientState.requestDissolutionMode(
+                menu.containerId,
+                current.next().serializedName()
         );
     }
 
@@ -326,6 +365,23 @@ public final class EssenceCrucibleScreen
                     && state.allowed();
         }
 
+        if (dissolutionModeButton != null) {
+            boolean showMode = settingsOpen
+                    && state != null
+                    && state.allowed()
+                    && menu.activeMachineSlots() > 1;
+            dissolutionModeButton.visible = showMode;
+            if (showMode) {
+                EssenceCrucibleDissolutionMode mode =
+                        EssenceCrucibleDissolutionMode.fromSerializedName(
+                                state.dissolutionMode()
+                        );
+                dissolutionModeButton.setMessage(
+                        Component.literal(mode.displayName())
+                );
+            }
+        }
+
         updateVentButtons(state);
     }
 
@@ -344,8 +400,10 @@ public final class EssenceCrucibleScreen
 
         long[] values = enabledEssenceValues(state);
 
+        int firstVentRowY = ventPanelFirstRowY(state);
         for (int i = 0; i < values.length && i < ventButtons.length; i++) {
             Button button = ventButtons[i];
+            button.setY(firstVentRowY + i * VENT_ROW_HEIGHT);
             button.visible = true;
             button.active = values[i] > 0L;
         }
@@ -361,8 +419,7 @@ public final class EssenceCrucibleScreen
         int x = leftPos;
         int y = topPos;
 
-        graphics.fill(x, y, x + imageWidth, y + imageHeight, PANEL);
-        outline(graphics, x, y, imageWidth, imageHeight, BORDER);
+        MachineScreenUi.panel(graphics, x, y, imageWidth, imageHeight);
 
         /* Active pylon count expands the real distinct-item input lanes. */
         for (int slot = 0; slot < EssenceCrucibleMenu.MAX_MACHINE_SLOTS; slot++) {
@@ -381,6 +438,22 @@ public final class EssenceCrucibleScreen
 
         EssenceCrucibleStatePayload state =
                 EssenceCrucibleClientState.snapshotFor(menu.containerId);
+
+        /* Visual dissolution progress replaces the old numeric text line. */
+        int barX = x + 105;
+        int barY = y + 56;
+        int barWidth = 90;
+        int barHeight = 10;
+        MachineScreenUi.progressBar(
+                graphics,
+                barX,
+                barY,
+                barWidth,
+                barHeight,
+                state == null ? 0 : state.processingTicks(),
+                state == null ? 1 : Math.max(1, state.dissolutionTicksPerItem())
+        );
+
         boolean showSkill =
                 state != null && state.skillEssencesEnabled();
 
@@ -389,61 +462,36 @@ public final class EssenceCrucibleScreen
                         ? TWO_COLUMN_WIDTH
                         : FULL_PANEL_WIDTH;
 
-        graphics.fill(
-                x + PANEL_MARGIN,
-                y + PANEL_Y,
-                x + PANEL_MARGIN + attributeWidth,
-                y + PANEL_Y + PANEL_HEIGHT,
-                PANEL_INNER
-        );
-        outline(
+        MachineScreenUi.accentedInset(
                 graphics,
                 x + PANEL_MARGIN,
                 y + PANEL_Y,
                 attributeWidth,
-                PANEL_HEIGHT,
-                BORDER
+                PANEL_HEIGHT
         );
 
         if (showSkill) {
             int skillX = x + PANEL_MARGIN + TWO_COLUMN_WIDTH + PANEL_GAP;
-            graphics.fill(
-                    skillX,
-                    y + PANEL_Y,
-                    skillX + TWO_COLUMN_WIDTH,
-                    y + PANEL_Y + PANEL_HEIGHT,
-                    PANEL_INNER
-            );
-            outline(
+            MachineScreenUi.accentedInset(
                     graphics,
                     skillX,
                     y + PANEL_Y,
                     TWO_COLUMN_WIDTH,
-                    PANEL_HEIGHT,
-                    BORDER
+                    PANEL_HEIGHT
             );
         }
 
         /* Enabled-family total/capacity stays independent of either column. */
-        graphics.fill(
-                x + PANEL_MARGIN,
-                y + TOTAL_PANEL_Y,
-                x + PANEL_MARGIN + FULL_PANEL_WIDTH,
-                y + TOTAL_PANEL_Y + TOTAL_PANEL_HEIGHT,
-                PANEL_INNER
-        );
-        outline(
+        MachineScreenUi.accentedInset(
                 graphics,
                 x + PANEL_MARGIN,
                 y + TOTAL_PANEL_Y,
                 FULL_PANEL_WIDTH,
-                TOTAL_PANEL_HEIGHT,
-                BORDER
+                TOTAL_PANEL_HEIGHT
         );
 
         /* Player inventory slot backing. */
-        graphics.fill(x + 67, y + 235, x + 233, y + 315, PANEL_INNER);
-        outline(graphics, x + 67, y + 235, 166, 80, 0xFF535B68);
+        MachineScreenUi.inset(graphics, x + 67, y + 235, 166, 80);
 
     }
 
@@ -464,15 +512,6 @@ public final class EssenceCrucibleScreen
             graphics.drawString(font, playerInventoryTitle, 69, 224, MUTED, false);
             return;
         }
-
-        int required = Math.max(1, state.dissolutionTicksPerItem());
-        int progress = Math.min(required, Math.max(0, state.processingTicks()));
-        drawCentered(
-                graphics,
-                "Dissolution: " + progress + "/" + required,
-                56,
-                MUTED
-        );
 
         boolean showSkill = state.skillEssencesEnabled();
         int attributeRight =
@@ -558,41 +597,63 @@ public final class EssenceCrucibleScreen
                 );
         int panelHeight = ventPanelHeight(state);
 
-        graphics.fill(
-                panelX,
-                panelY,
-                panelX + VENT_PANEL_WIDTH,
-                panelY + panelHeight,
-                PANEL
-        );
-        outline(
+        MachineScreenUi.panel(
                 graphics,
                 panelX,
                 panelY,
                 VENT_PANEL_WIDTH,
-                panelHeight,
-                BORDER
+                panelHeight
         );
 
-        graphics.drawString(
+        int textX = panelX + 7;
+        int textWidth = VENT_PANEL_WIDTH - 14;
+        MachineScreenUi.sectionHeader(graphics, font, "Settings", textX, panelY + 7);
+
+        int cursorY = panelY + SETTINGS_HEADER_HEIGHT;
+        if (showDissolutionModeSetting(state)) {
+            MachineScreenUi.sectionHeader(
+                    graphics,
+                    font,
+                    "Dissolution Mode",
+                    textX,
+                    cursorY
+            );
+
+            EssenceCrucibleDissolutionMode mode =
+                    EssenceCrucibleDissolutionMode.fromSerializedName(
+                            state.dissolutionMode()
+                    );
+            MachineScreenUi.fitted(
+                    graphics,
+                    font,
+                    dissolutionModeDescription(mode),
+                    textX,
+                    cursorY + 29,
+                    textWidth,
+                    MUTED
+            );
+            cursorY += DISSOLUTION_MODE_SECTION_HEIGHT;
+        }
+
+        MachineScreenUi.sectionHeader(
+                graphics,
                 font,
                 "Reservoir Vent",
-                panelX + 7,
-                panelY + 6,
-                TEXT,
-                false
+                textX,
+                cursorY
         );
         graphics.drawString(
                 font,
                 "Vented Essence is lost.",
-                panelX + 7,
-                panelY + 17,
+                textX,
+                cursorY + 10,
                 MUTED,
                 false
         );
 
+        int firstRowY = ventPanelFirstRowY(state);
         for (int i = 0; i < values.length; i++) {
-            int rowY = panelY + VENT_HEADER_HEIGHT + i * VENT_ROW_HEIGHT;
+            int rowY = firstRowY + i * VENT_ROW_HEIGHT;
             String name = displayName(enabled.get(i));
 
             graphics.drawString(
@@ -613,6 +674,16 @@ public final class EssenceCrucibleScreen
         }
     }
 
+    private String dissolutionModeDescription(EssenceCrucibleDissolutionMode mode) {
+        return switch (mode) {
+            case SMART_ROUND_ROBIN -> "Wait briefly, then skip.";
+            case STRICT_ROUND_ROBIN -> "Wait until each lane fits.";
+            case SKIP_ROUND_ROBIN -> "Use the first lane that fits.";
+            case LOWEST_STORED -> "Favor least-stocked Essence.";
+            case HIGHEST_STORED -> "Favor most-stocked Essence.";
+        };
+    }
+
     private void renderVentPopupWidgets(
             GuiGraphics graphics,
             int mouseX,
@@ -621,6 +692,9 @@ public final class EssenceCrucibleScreen
     ) {
         if (settingsCloseButton != null && settingsCloseButton.visible) {
             settingsCloseButton.render(graphics, mouseX, mouseY, partialTick);
+        }
+        if (dissolutionModeButton != null && dissolutionModeButton.visible) {
+            dissolutionModeButton.render(graphics, mouseX, mouseY, partialTick);
         }
         for (Button button : ventButtons) {
             if (button != null && button.visible) {
@@ -649,6 +723,11 @@ public final class EssenceCrucibleScreen
                 && pointInsideVentPanel(mouseX, mouseY, state)) {
             if (settingsCloseButton != null
                     && settingsCloseButton.mouseClicked(mouseX, mouseY, button)) {
+                return true;
+            }
+            if (dissolutionModeButton != null
+                    && dissolutionModeButton.visible
+                    && dissolutionModeButton.mouseClicked(mouseX, mouseY, button)) {
                 return true;
             }
             for (Button ventButton : ventButtons) {
@@ -708,8 +787,25 @@ public final class EssenceCrucibleScreen
                 && mouseY < y + height;
     }
 
+    private boolean showDissolutionModeSetting(EssenceCrucibleStatePayload state) {
+        return state != null && menu.activeMachineSlots() > 1;
+    }
+
+    private int ventPanelFirstRowY(EssenceCrucibleStatePayload state) {
+        return topPos + 4
+                + SETTINGS_HEADER_HEIGHT
+                + (showDissolutionModeSetting(state)
+                        ? DISSOLUTION_MODE_SECTION_HEIGHT
+                        : 0)
+                + VENT_SECTION_HEIGHT;
+    }
+
     private int ventPanelHeight(EssenceCrucibleStatePayload state) {
-        return VENT_HEADER_HEIGHT
+        return SETTINGS_HEADER_HEIGHT
+                + (showDissolutionModeSetting(state)
+                        ? DISSOLUTION_MODE_SECTION_HEIGHT
+                        : 0)
+                + VENT_SECTION_HEIGHT
                 + enabledEssenceValues(state).length * VENT_ROW_HEIGHT
                 + VENT_FOOTER_HEIGHT;
     }
@@ -778,113 +874,81 @@ public final class EssenceCrucibleScreen
         int panelX = infoPanelX();
         int panelY = topPos + 4;
 
-        graphics.fill(
-                panelX,
-                panelY,
-                panelX + INFO_PANEL_WIDTH,
-                panelY + INFO_PANEL_HEIGHT,
-                PANEL
-        );
-        outline(
+        MachineScreenUi.panel(
                 graphics,
                 panelX,
                 panelY,
                 INFO_PANEL_WIDTH,
-                INFO_PANEL_HEIGHT,
-                BORDER
+                INFO_PANEL_HEIGHT
         );
 
         int textX = panelX + 7;
-        int indentX = textX + 8;
         int textWidth = INFO_PANEL_WIDTH - 14;
-        int indentWidth = textWidth - 8;
 
-        graphics.drawString(font, "Info", textX, panelY + 7, TEXT, false);
-        drawFittedAbsolute(
+        MachineScreenUi.sectionHeader(graphics, font, "Info", textX, panelY + 7);
+        MachineScreenUi.fitted(
                 graphics,
+                font,
                 "Owner: " + state.ownerName(),
                 textX,
                 panelY + 20,
                 textWidth,
                 MUTED
         );
-        drawFittedAbsolute(
+        MachineScreenUi.fitted(
                 graphics,
-                "Access: " + state.accessMode(),
+                font,
+                "Access: " + titleCase(state.accessMode()),
                 textX,
                 panelY + 31,
                 textWidth,
                 MUTED
         );
 
-        graphics.drawString(font, "Crucible", textX, panelY + 46, TEXT, false);
-        drawFittedAbsolute(
-                graphics,
+        MachineScreenUi.sectionHeader(graphics, font, "Crucible", textX, panelY + 46);
+        MachineScreenUi.indentedLine(
+                graphics, font,
                 "Capacity: " + format(state.reservoirCapacity()),
-                indentX,
-                panelY + 57,
-                indentWidth,
-                MUTED
+                textX, panelY + 57, textWidth
         );
-        drawFittedAbsolute(
-                graphics,
+        MachineScreenUi.indentedLine(
+                graphics, font,
                 "Pylons: " + state.activePylonCount() + "/" + state.maxActivePylons(),
-                indentX,
-                panelY + 68,
-                indentWidth,
-                MUTED
+                textX, panelY + 68, textWidth
         );
-        drawFittedAbsolute(
-                graphics,
-                String.format(Locale.ROOT, "Pylon radius: %.1f", state.pylonRadius()),
-                indentX,
-                panelY + 79,
-                indentWidth,
-                MUTED
+        MachineScreenUi.indentedLine(
+                graphics, font,
+                String.format(Locale.ROOT, "Pylon Radius: %.1f", state.pylonRadius()),
+                textX, panelY + 79, textWidth
         );
-        drawFittedAbsolute(
-                graphics,
-                "Input slots: " + menu.activeMachineSlots(),
-                indentX,
-                panelY + 90,
-                indentWidth,
-                MUTED
+        MachineScreenUi.indentedLine(
+                graphics, font,
+                "Input Slots: " + menu.activeMachineSlots(),
+                textX, panelY + 90, textWidth
         );
 
-        graphics.drawString(font, "Channeling", textX, panelY + 105, TEXT, false);
-        drawFittedAbsolute(
-                graphics,
+        MachineScreenUi.sectionHeader(graphics, font, "Channeling", textX, panelY + 105);
+        MachineScreenUi.indentedLine(
+                graphics, font,
                 "Rate: " + format(state.transferRatePerSecond()) + "/sec",
-                indentX,
-                panelY + 116,
-                indentWidth,
-                MUTED
+                textX, panelY + 116, textWidth
         );
-        drawFittedAbsolute(
-                graphics,
+        MachineScreenUi.indentedLine(
+                graphics, font,
                 String.format(Locale.ROOT, "Range: %.1f blocks", state.transferRange()),
-                indentX,
-                panelY + 127,
-                indentWidth,
-                MUTED
+                textX, panelY + 127, textWidth
         );
 
-        graphics.drawString(font, "Dissolution", textX, panelY + 142, TEXT, false);
-        drawFittedAbsolute(
-                graphics,
-                "Items/batch: " + state.simultaneousItemProcesses(),
-                indentX,
-                panelY + 153,
-                indentWidth,
-                MUTED
+        MachineScreenUi.sectionHeader(graphics, font, "Dissolution", textX, panelY + 142);
+        MachineScreenUi.indentedLine(
+                graphics, font,
+                "Items/Batch: " + state.simultaneousItemProcesses(),
+                textX, panelY + 153, textWidth
         );
-        drawFittedAbsolute(
-                graphics,
-                "Batches/sec: " + batchesPerSecond(state),
-                indentX,
-                panelY + 164,
-                indentWidth,
-                MUTED
+        MachineScreenUi.indentedLine(
+                graphics, font,
+                "Batches/Sec: " + batchesPerSecond(state),
+                textX, panelY + 164, textWidth
         );
     }
 
@@ -913,42 +977,6 @@ public final class EssenceCrucibleScreen
         int minX = 4;
         int maxX = Math.max(minX, width - 4 - panelWidth);
         return Math.max(minX, Math.min(desiredX, maxX));
-    }
-
-    /**
-     * Screen-space rectangles occupied by currently open side panels.
-     * Optional recipe viewers such as JEI can use these to keep their
-     * ingredient/bookmark overlays out of the way.
-     */
-    public List<Rect2i> extraGuiAreas() {
-        EssenceCrucibleStatePayload state =
-                EssenceCrucibleClientState.snapshotFor(menu.containerId);
-        if (state == null) {
-            return List.of();
-        }
-
-        List<Rect2i> areas = new ArrayList<>(1);
-        if (infoOpen) {
-            areas.add(
-                    new Rect2i(
-                            infoPanelX(),
-                            topPos + 4,
-                            INFO_PANEL_WIDTH,
-                            INFO_PANEL_HEIGHT
-                    )
-            );
-        } else if (settingsOpen && state.allowed()) {
-            int panelHeight = ventPanelHeight(state);
-            areas.add(
-                    new Rect2i(
-                            ventPanelX(),
-                            topPos + 4,
-                            VENT_PANEL_WIDTH,
-                            panelHeight
-                    )
-            );
-        }
-        return List.copyOf(areas);
     }
 
     private void drawCentered(
@@ -1047,6 +1075,14 @@ public final class EssenceCrucibleScreen
         return String.format(Locale.ROOT, "%,d", value);
     }
 
+    private static String titleCase(String value) {
+        if (value == null || value.isBlank()) {
+            return "Unknown";
+        }
+        String normalized = value.toLowerCase(Locale.ROOT);
+        return Character.toUpperCase(normalized.charAt(0)) + normalized.substring(1);
+    }
+
     private static void outline(
             GuiGraphics graphics,
             int x,
@@ -1055,9 +1091,6 @@ public final class EssenceCrucibleScreen
             int height,
             int color
     ) {
-        graphics.fill(x, y, x + width, y + 1, color);
-        graphics.fill(x, y + height - 1, x + width, y + height, color);
-        graphics.fill(x, y, x + 1, y + height, color);
-        graphics.fill(x + width - 1, y, x + width, y + height, color);
+        MachineScreenUi.outline(graphics, x, y, width, height, color);
     }
 }

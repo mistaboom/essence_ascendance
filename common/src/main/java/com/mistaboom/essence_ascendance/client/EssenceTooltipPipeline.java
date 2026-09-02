@@ -1,5 +1,8 @@
 package com.mistaboom.essence_ascendance.client;
 
+import com.mistaboom.essence_ascendance.infuser.EssentiumCarrierData;
+import com.mistaboom.essence_ascendance.essence.EssenceFamily;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -43,11 +46,39 @@ public final class EssenceTooltipPipeline {
                 tooltipFlag
         );
 
+        if (EssentiumCarrierData.isEssentium(stack)) {
+            EssentiumCarrierData.read(stack)
+                    .filter(EssenceTooltipPipeline::isCarrierEssenceVisible)
+                    .ifPresent(value -> {
+                ItemEssenceTooltipClientState.appendDirectEssenceTooltip(
+                        value.essence().id(),
+                        value.amount(),
+                        tooltip
+                );
+                tooltip.add(
+                        Component.literal(
+                                        "Infusion Grade: "
+                                                + value.grade().displayName()
+                                )
+                                .withStyle(ChatFormatting.DARK_GRAY)
+                );
+            });
+            return;
+        }
+
         ItemEssenceTooltipClientState.appendToGeneratedTooltip(
                 stack,
                 tooltip,
                 tooltipContext,
                 tooltipFlag
         );
+    }
+
+    private static boolean isCarrierEssenceVisible(EssentiumCarrierData.Value value) {
+        if (value.essence().family() != EssenceFamily.SKILL) {
+            return true;
+        }
+        return ClientEssenceState.ready()
+                && ClientEssenceState.snapshot().availableEssence().containsKey(value.essence().id());
     }
 }

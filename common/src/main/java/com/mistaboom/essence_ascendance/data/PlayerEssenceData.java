@@ -27,6 +27,7 @@ public final class PlayerEssenceData {
     private static final String CRUCIBLE_RESERVOIR_TAG =
             "crucible_reservoir";
 
+
     private static final String TIER_TAG =
             "tier";
 
@@ -60,6 +61,7 @@ public final class PlayerEssenceData {
 
     private ResourceLocation currentTierId =
             AscendanceTiers.DORMANT.id();
+
 
     /*
      * Runtime-only mutation revision used by server -> client synchronization.
@@ -262,6 +264,31 @@ public final class PlayerEssenceData {
         }
 
         return removed;
+    }
+
+
+    public boolean removeCrucibleStoredExact(
+            EssenceDefinition essence,
+            long amount
+    ) {
+        if (amount <= 0L) {
+            throw new IllegalArgumentException(
+                    "Crucible Essence amount must be greater than zero"
+            );
+        }
+
+        long current = getCrucibleStored(essence);
+        if (current < amount) {
+            return false;
+        }
+
+        long remaining = current - amount;
+        if (remaining == 0L) {
+            crucibleReservoir.remove(essence.id());
+        } else {
+            crucibleReservoir.put(essence.id(), remaining);
+        }
+        return true;
     }
 
 
@@ -728,6 +755,7 @@ public final class PlayerEssenceData {
         );
 
 
+
         /*
          * Invested Essence
          */
@@ -866,6 +894,7 @@ public final class PlayerEssenceData {
                 ),
                 data.crucibleReservoir
         );
+
 
 
         /*
