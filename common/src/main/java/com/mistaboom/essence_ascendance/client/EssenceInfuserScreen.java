@@ -420,13 +420,12 @@ public final class EssenceInfuserScreen
         );
         MachineScreenUi.indentedLine(
                 graphics, font,
-                String.format(Locale.ROOT, "Processing Time: %.2f sec/item", menu.requiredProcessingTicks() / 20.0D),
+                "Infusion Rate: " + format(menu.infusionThroughputPerSecond()) + " Essence/sec",
                 textX, y + 97, width
         );
-        double perMinute = 1200.0D / Math.max(1, menu.requiredProcessingTicks());
         MachineScreenUi.indentedLine(
                 graphics, font,
-                String.format(Locale.ROOT, "Max Throughput: %.2f items/min", perMinute),
+                String.format(Locale.ROOT, "Processing Time: %.2f sec/item", menu.requiredProcessingTicks() / 20.0D),
                 textX, y + 108, width
         );
 
@@ -468,7 +467,7 @@ public final class EssenceInfuserScreen
         );
         MachineScreenUi.indentedLine(
                 graphics, font,
-                "Infusion Rate: " + format(menu.focusInfusionRatePerSecond()) + "/sec",
+                "Infusion Rate: " + format(menu.infusionThroughputPerSecond()) + " Essence/sec",
                 textX, y + 119, width
         );
 

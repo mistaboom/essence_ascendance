@@ -63,10 +63,10 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
     private static final int DATA_FOCUS_TOTAL_1 = 32;
     private static final int DATA_FOCUS_TOTAL_2 = 33;
     private static final int DATA_FOCUS_TOTAL_3 = 34;
-    private static final int DATA_FOCUS_RATE_0 = 35;
-    private static final int DATA_FOCUS_RATE_1 = 36;
-    private static final int DATA_FOCUS_RATE_2 = 37;
-    private static final int DATA_FOCUS_RATE_3 = 38;
+    private static final int DATA_INFUSION_THROUGHPUT_0 = 35;
+    private static final int DATA_INFUSION_THROUGHPUT_1 = 36;
+    private static final int DATA_INFUSION_THROUGHPUT_2 = 37;
+    private static final int DATA_INFUSION_THROUGHPUT_3 = 38;
     private static final int DATA_FOCUS_TARGET_TIER = 39;
     private static final int DATA_FOCUS_REQUIRED_INSTALLED_TIER = 40;
     private static final int DATA_COUNT = 41;
@@ -220,10 +220,10 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
                     case DATA_FOCUS_TOTAL_1 -> word(infuser.focusInfusionTotalRequired(), 16);
                     case DATA_FOCUS_TOTAL_2 -> word(infuser.focusInfusionTotalRequired(), 32);
                     case DATA_FOCUS_TOTAL_3 -> word(infuser.focusInfusionTotalRequired(), 48);
-                    case DATA_FOCUS_RATE_0 -> word(infuser.focusInfusionRatePerSecond(), 0);
-                    case DATA_FOCUS_RATE_1 -> word(infuser.focusInfusionRatePerSecond(), 16);
-                    case DATA_FOCUS_RATE_2 -> word(infuser.focusInfusionRatePerSecond(), 32);
-                    case DATA_FOCUS_RATE_3 -> word(infuser.focusInfusionRatePerSecond(), 48);
+                    case DATA_INFUSION_THROUGHPUT_0 -> word(infuser.infusionThroughputPerSecond(), 0);
+                    case DATA_INFUSION_THROUGHPUT_1 -> word(infuser.infusionThroughputPerSecond(), 16);
+                    case DATA_INFUSION_THROUGHPUT_2 -> word(infuser.infusionThroughputPerSecond(), 32);
+                    case DATA_INFUSION_THROUGHPUT_3 -> word(infuser.infusionThroughputPerSecond(), 48);
                     case DATA_FOCUS_TARGET_TIER -> infuser.focusInfusionTargetTier() == null
                             ? -1
                             : infuser.focusInfusionTargetTier().ordinal();
@@ -299,12 +299,12 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
         );
     }
 
-    public long focusInfusionRatePerSecond() {
+    public long infusionThroughputPerSecond() {
         return combineWords(
-                data.get(DATA_FOCUS_RATE_0),
-                data.get(DATA_FOCUS_RATE_1),
-                data.get(DATA_FOCUS_RATE_2),
-                data.get(DATA_FOCUS_RATE_3)
+                data.get(DATA_INFUSION_THROUGHPUT_0),
+                data.get(DATA_INFUSION_THROUGHPUT_1),
+                data.get(DATA_INFUSION_THROUGHPUT_2),
+                data.get(DATA_INFUSION_THROUGHPUT_3)
         );
     }
 

@@ -1,30 +1,33 @@
 package com.mistaboom.essence_ascendance.infuser;
 
+import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.config.InfuserBalanceSettings;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceTypes;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonContent;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonFocusTier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
- * Small, explicit Focus-upgrade recipe model for the Infuser.
+ * Resolved Focus-upgrade recipe for the Infuser.
  *
- * Focus infusion is deliberately separate from Source -> Target Essentium
- * conversion: all six core Attribute Essences participate automatically and
- * Skill Essences are never considered.
+ * Focus infusion is a STREAMED_PERSISTENT recipe: contribution progress lives
+ * on the Focus workpiece itself rather than in the machine's timed progress.
  */
 public record FocusInfusionRecipe(
         EssencePylonFocusTier targetTier,
         @Nullable EssencePylonFocusTier requiredInstalledTier,
         long minimumPerAttributeEssence,
         long totalEssenceRequired
-) {
+) implements EssenceInfuserRecipe {
 
     private static final List<EssenceDefinition> CORE_ATTRIBUTE_ESSENCES = List.of(
             EssenceTypes.OFFENSE,
@@ -57,8 +60,19 @@ public record FocusInfusionRecipe(
         return CORE_ATTRIBUTE_ESSENCES;
     }
 
-    public static Optional<FocusInfusionRecipe> forWorkpiece(ItemStack stack) {
+    public static boolean isWorkpiece(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        if (stack.is(EssenceInfuserContent.LATENT_FOCUS.get())) {
+            return true;
+        }
+        EssencePylonFocusTier tier = EssencePylonContent.rawFocusTier(stack);
+        return tier != null && tier != EssencePylonFocusTier.TRANSCENDENT;
+    }
+
+    public static Optional<FocusInfusionRecipe> forWorkpiece(ItemStack stack) {
+        if (!isWorkpiece(stack)) {
             return Optional.empty();
         }
 
@@ -88,6 +102,53 @@ public record FocusInfusionRecipe(
                 settings.minimumPerAttributeEssence(),
                 settings.totalEssenceRequired()
         ));
+    }
+
+    @Override
+    public ResourceLocation id() {
+        return ResourceLocation.fromNamespaceAndPath(
+                EssenceAscendance.MOD_ID,
+                "infuser/focus_" + targetTier.serializedName()
+        );
+    }
+
+    @Override
+    public EssenceInfuserWorkpieceMode workpieceMode() {
+        return EssenceInfuserWorkpieceMode.FOCUS;
+    }
+
+    @Override
+    public EssenceInfuserProgressModel progressModel() {
+        return EssenceInfuserProgressModel.STREAMED_PERSISTENT;
+    }
+
+    @Override
+    public int workpieceStackLimit(ItemStack workpiece) {
+        return 1;
+    }
+
+    @Override
+    public EssencePylonFocusTier requiredInstalledFocusTier() {
+        return requiredInstalledTier;
+    }
+
+    @Override
+    public EssenceInfusionRequirements essenceRequirements(EssenceInfuserRecipeContext context) {
+        Map<ResourceLocation, Long> minimums = new LinkedHashMap<>();
+        for (EssenceDefinition essence : CORE_ATTRIBUTE_ESSENCES) {
+            minimums.put(essence.id(), minimumPerAttributeEssence);
+        }
+        return new EssenceInfusionRequirements(minimums, totalEssenceRequired);
+    }
+
+    @Override
+    public int processingTicks(EssenceInfuserRecipeContext context) {
+        return 0;
+    }
+
+    @Override
+    public ItemStack createOutput(EssenceInfuserRecipeContext context) {
+        return createOutput();
     }
 
     public boolean installedFocusAllows(@Nullable EssencePylonFocusTier installed) {

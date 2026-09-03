@@ -6,14 +6,13 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Global, pre-world Infuser balance values. The temporary defaults are kept
- * here instead of being scattered through machine code so modpacks can tune
- * conversion without a datapack.
+ * Global, pre-world Infuser balance values. Carrier density, conversion
+ * efficiency, and machine throughput are deliberately independent knobs.
  */
 public record InfuserBalanceSettings(
         double linkRange,
         int noFocusEfficiencyBasisPoints,
-        int noFocusProcessingTicks,
+        long noFocusInfusionThroughputPerSecond,
         Map<String, GradeSettings> grades,
         Map<String, FocusUpgradeSettings> focusUpgrades
 ) {
@@ -22,8 +21,8 @@ public record InfuserBalanceSettings(
             throw new IllegalArgumentException("Infuser link range must be finite and positive");
         }
         validateEfficiency(noFocusEfficiencyBasisPoints, "No-Focus efficiency");
-        if (noFocusProcessingTicks <= 0) {
-            throw new IllegalArgumentException("No-Focus processing ticks must be positive");
+        if (noFocusInfusionThroughputPerSecond <= 0L) {
+            throw new IllegalArgumentException("No-Focus Infuser throughput must be positive");
         }
         Objects.requireNonNull(grades, "Infuser grade settings cannot be null");
         grades = Collections.unmodifiableMap(new LinkedHashMap<>(grades));
@@ -87,26 +86,33 @@ public record InfuserBalanceSettings(
     public record GradeSettings(
             long ingotCapacity,
             int efficiencyBasisPoints,
-            int processingTicks
+            long infusionThroughputPerSecond
     ) {
         public GradeSettings {
             if (ingotCapacity <= 0L) {
                 throw new IllegalArgumentException("Essentium ingot capacity must be positive");
             }
             validateEfficiency(efficiencyBasisPoints, "Infuser efficiency");
-            if (processingTicks <= 0) {
-                throw new IllegalArgumentException("Infuser processing ticks must be positive");
+            if (infusionThroughputPerSecond <= 0L) {
+                throw new IllegalArgumentException("Infuser throughput must be positive");
             }
         }
     }
 
     public static InfuserBalanceSettings defaults() {
         Map<String, GradeSettings> grades = new LinkedHashMap<>();
-        grades.put("dormant", new GradeSettings(100_000L, 5_500, 160));
-        grades.put("awakened", new GradeSettings(250_000L, 6_200, 130));
-        grades.put("resonant", new GradeSettings(500_000L, 7_000, 100));
-        grades.put("ascendant", new GradeSettings(1_000_000L, 8_000, 80));
-        grades.put("transcendent", new GradeSettings(2_000_000L, 9_000, 60));
+
+        /*
+         * Throughput values preserve the old approximate ingot processing
+         * times while decoupling speed from carrier density. A Latent Block
+         * therefore performs 9x the infusion work of a Latent Ingot instead
+         * of receiving a free 9x throughput multiplier.
+         */
+        grades.put("dormant", new GradeSettings(100_000L, 5_500, 12_500L));
+        grades.put("awakened", new GradeSettings(250_000L, 6_200, 38_462L));
+        grades.put("resonant", new GradeSettings(500_000L, 7_000, 100_000L));
+        grades.put("ascendant", new GradeSettings(1_000_000L, 8_000, 250_000L));
+        grades.put("transcendent", new GradeSettings(2_000_000L, 9_000, 666_667L));
 
         Map<String, FocusUpgradeSettings> focusUpgrades = new LinkedHashMap<>();
         focusUpgrades.put("dormant", new FocusUpgradeSettings(15_000L, 300_000L));
@@ -118,7 +124,7 @@ public record InfuserBalanceSettings(
         return new InfuserBalanceSettings(
                 8.0D,
                 5_000,
-                200,
+                10_000L,
                 grades,
                 focusUpgrades
         );

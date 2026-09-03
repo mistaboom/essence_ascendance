@@ -29,7 +29,6 @@ import net.minecraft.world.WorldlyContainer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -83,6 +82,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     private ResourceLocation sourceEssenceId;
     private ResourceLocation targetEssenceId;
     private int processingTicks;
+    private int focusThroughputRemainderTwentieths;
     private boolean processingEnabled;
     private boolean processingVisualActive;
 
@@ -160,12 +160,37 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         return EssenceInfuserBalance.profile(getItem(FOCUS_SLOT));
     }
 
+    public Optional<EssenceInfuserRecipe> currentInfusionRecipe() {
+        return EssenceInfuserRecipeRegistry.resolve(getItem(INPUT_SLOT));
+    }
+
     public Optional<FocusInfusionRecipe> focusInfusionRecipe() {
-        return FocusInfusionRecipe.forWorkpiece(getItem(INPUT_SLOT));
+        return currentInfusionRecipe()
+                .filter(FocusInfusionRecipe.class::isInstance)
+                .map(FocusInfusionRecipe.class::cast);
+    }
+
+    private Optional<EssentiumInfusionRecipe> essentiumInfusionRecipe() {
+        return currentInfusionRecipe()
+                .filter(EssentiumInfusionRecipe.class::isInstance)
+                .map(EssentiumInfusionRecipe.class::cast);
+    }
+
+    private EssenceInfuserRecipeContext recipeContext() {
+        return new EssenceInfuserRecipeContext(
+                getItem(INPUT_SLOT),
+                sourceEssence(),
+                targetEssence(),
+                focusTier(),
+                profile()
+        );
     }
 
     public boolean focusInfusionMode() {
-        return focusInfusionRecipe().isPresent();
+        return currentInfusionRecipe()
+                .map(EssenceInfuserRecipe::workpieceMode)
+                .orElse(EssenceInfuserWorkpieceMode.NONE)
+                == EssenceInfuserWorkpieceMode.FOCUS;
     }
 
     public long focusInfusionMinimumPerEssence() {
@@ -200,22 +225,12 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
                 .orElse(null);
     }
 
-    public long focusInfusionRatePerSecond() {
-        EssenceInfuserBalance.Profile current = profile();
-        long carrierCapacity = EssenceConfigManager.get()
-                .infuserBalance()
-                .grade(current.grade().serializedName())
-                .ingotCapacity();
-        long perTick = Math.max(1L, carrierCapacity / Math.max(1, current.processingTicks()));
-        try {
-            return Math.multiplyExact(perTick, 20L);
-        } catch (ArithmeticException overflow) {
-            return Long.MAX_VALUE;
-        }
+    public long infusionThroughputPerSecond() {
+        return profile().infusionThroughputPerSecond();
     }
 
-    private long focusInfusionRatePerTick() {
-        return Math.max(1L, focusInfusionRatePerSecond() / 20L);
+    public long focusInfusionRatePerSecond() {
+        return infusionThroughputPerSecond();
     }
 
     public int processingTicks() {
@@ -242,11 +257,15 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             return;
         }
         processingEnabled = enabled;
+        focusThroughputRemainderTwentieths = 0;
         syncBlockEntity();
     }
 
     public int requiredProcessingTicks() {
-        return profile().processingTicks();
+        EssenceInfuserRecipeContext context = recipeContext();
+        return currentInfusionRecipe()
+                .map(recipe -> recipe.processingTicks(context))
+                .orElse(1);
     }
 
     public int efficiencyBasisPoints() {
@@ -262,19 +281,21 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     }
 
     public long targetCarrierCapacity() {
-        ItemStack input = getItem(INPUT_SLOT);
-        EssentiumItem output = outputCarrierFor(input);
-        return output == null
-                ? 0L
-                : EssentiumCarrierData.capacityFor(output, profile().grade());
+        EssenceInfuserRecipeContext context = recipeContext();
+        return essentiumInfusionRecipe()
+                .map(recipe -> recipe.targetCapacity(context))
+                .orElse(0L);
     }
 
     public long sourceRequired() {
-        long target = targetCarrierCapacity();
-        return EssenceInfuserBalance.requiredSource(
-                target,
-                profile().efficiencyBasisPoints()
-        );
+        EssenceDefinition source = sourceEssence();
+        if (source == null) {
+            return 0L;
+        }
+        EssenceInfuserRecipeContext context = recipeContext();
+        return essentiumInfusionRecipe()
+                .map(recipe -> recipe.essenceRequirements(context).minimumFor(source))
+                .orElse(0L);
     }
 
     public int statusCode() {
@@ -292,19 +313,29 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             return STATUS_PLAYER_CHANNELING;
         }
 
-        Optional<FocusInfusionRecipe> focusRecipe = FocusInfusionRecipe.forWorkpiece(input);
-        if (focusRecipe.isPresent()) {
-            return focusInfusionStatus(focusRecipe.get());
+        Optional<EssenceInfuserRecipe> resolvedRecipe =
+                EssenceInfuserRecipeRegistry.resolve(input);
+        if (resolvedRecipe.isEmpty()) {
+            return STATUS_INVALID_INPUT;
         }
-
-        if (!hasValidSelection()) {
-            return STATUS_INVALID_SELECTION;
+        EssenceInfuserRecipe recipe = resolvedRecipe.get();
+        EssenceInfuserRecipeContext context = recipeContext();
+        if (!recipe.installedFocusAllows(context)) {
+            return STATUS_FOCUS_TIER_REQUIRED;
         }
-        if (outputCarrierFor(input) == null) {
+        if (recipe instanceof FocusInfusionRecipe focusRecipe) {
+            return focusInfusionStatus(focusRecipe);
+        }
+        if (recipe.progressModel() != EssenceInfuserProgressModel.TIMED_ATOMIC
+                || input.getCount() < Math.max(1, recipe.inputCount())) {
             return STATUS_INVALID_INPUT;
         }
 
-        ItemStack result = createCurrentOutput();
+        if (recipe instanceof EssentiumInfusionRecipe && !hasValidSelection()) {
+            return STATUS_INVALID_SELECTION;
+        }
+
+        ItemStack result = recipe.createOutput(context);
         if (result.isEmpty()) {
             return STATUS_INVALID_INPUT;
         }
@@ -312,8 +343,11 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             return STATUS_OUTPUT_BLOCKED;
         }
 
-        long required = sourceRequired();
-        if (required <= 0L || sourceAmountAvailable() < required) {
+        EssenceInfusionRequirements requirements = recipe.essenceRequirements(context);
+        if (!validFixedRequirements(requirements)) {
+            return STATUS_INVALID_INPUT;
+        }
+        if (!hasFixedRequirementsAvailable(requirements)) {
             return STATUS_INSUFFICIENT_SOURCE;
         }
         return STATUS_PROCESSING;
@@ -551,23 +585,36 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     }
 
     private void tickProcessing(ServerLevel serverLevel) {
-        Optional<FocusInfusionRecipe> focusRecipe = focusInfusionRecipe();
-        if (focusRecipe.isPresent()) {
-            tickFocusInfusion(serverLevel, focusRecipe.get());
+        Optional<EssenceInfuserRecipe> resolvedRecipe = currentInfusionRecipe();
+        if (resolvedRecipe.isEmpty()) {
+            processingVisualActive = false;
             return;
         }
-        tickCarrierConversion(serverLevel);
+        EssenceInfuserRecipe recipe = resolvedRecipe.get();
+        if (recipe instanceof FocusInfusionRecipe focusRecipe) {
+            tickFocusInfusion(serverLevel, focusRecipe);
+            return;
+        }
+        if (recipe.progressModel() == EssenceInfuserProgressModel.TIMED_ATOMIC) {
+            tickTimedAtomicRecipe(serverLevel, recipe);
+            return;
+        }
+        processingVisualActive = false;
     }
 
-    private void tickCarrierConversion(ServerLevel serverLevel) {
+    private void tickTimedAtomicRecipe(
+            ServerLevel serverLevel,
+            EssenceInfuserRecipe recipe
+    ) {
         int status = statusCode();
         if (status != STATUS_PROCESSING) {
             processingVisualActive = false;
             return;
         }
 
+        EssenceInfuserRecipeContext context = recipeContext();
+        int requiredTicks = Math.max(1, recipe.processingTicks(context));
         processingVisualActive = true;
-        int requiredTicks = requiredProcessingTicks();
         if (processingTicks < requiredTicks) {
             processingTicks++;
             setChanged();
@@ -576,7 +623,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             return;
         }
 
-        completeConversion(serverLevel);
+        completeTimedAtomicRecipe(serverLevel, recipe);
     }
 
     private void tickFocusInfusion(ServerLevel serverLevel, FocusInfusionRecipe recipe) {
@@ -596,17 +643,15 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             return;
         }
 
-        long perPulse;
-        try {
-            perPulse = Math.multiplyExact(
-                    focusInfusionRatePerTick(),
-                    (long) FOCUS_INFUSION_INTERVAL_TICKS
-            );
-        } catch (ArithmeticException overflow) {
-            perPulse = Long.MAX_VALUE;
-        }
+        EssenceInfuserBalance.ThroughputSlice slice =
+                EssenceInfuserBalance.throughputForTicks(
+                        infusionThroughputPerSecond(),
+                        FOCUS_INFUSION_INTERVAL_TICKS,
+                        focusThroughputRemainderTwentieths
+                );
+        focusThroughputRemainderTwentieths = slice.remainderTwentieths();
 
-        long moved = transferFocusEssence(serverLevel, recipe, perPulse);
+        long moved = transferFocusEssence(serverLevel, recipe, slice.amount());
         processingVisualActive = moved > 0L;
         if (moved > 0L) {
             syncBlockEntity();
@@ -776,32 +821,46 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             output.grow(1);
         }
         processingTicks = 0;
+        focusThroughputRemainderTwentieths = 0;
         syncBlockEntity();
     }
 
-    private void completeConversion(ServerLevel serverLevel) {
-        if (ownerId == null
-                || statusCode() != STATUS_PROCESSING) {
+    private void completeTimedAtomicRecipe(
+            ServerLevel serverLevel,
+            EssenceInfuserRecipe expectedRecipe
+    ) {
+        if (ownerId == null || statusCode() != STATUS_PROCESSING) {
             return;
         }
 
-        EssenceDefinition source = sourceEssence();
-        ItemStack result = createCurrentOutput();
-        long required = sourceRequired();
-        if (source == null
-                || result.isEmpty()
-                || required <= 0L
-                || !canAcceptOutput(result)) {
+        EssenceInfuserRecipe current = currentInfusionRecipe().orElse(null);
+        if (current == null
+                || !current.id().equals(expectedRecipe.id())
+                || current.progressModel() != EssenceInfuserProgressModel.TIMED_ATOMIC) {
+            return;
+        }
+
+        EssenceInfuserRecipeContext context = recipeContext();
+        ItemStack result = current.createOutput(context);
+        EssenceInfusionRequirements requirements = current.essenceRequirements(context);
+        if (result.isEmpty()
+                || !canAcceptOutput(result)
+                || !validFixedRequirements(requirements)) {
             return;
         }
 
         EssenceSavedData saved = EssenceSavedData.get(serverLevel.getServer());
-        if (!saved.removeCrucibleStoredExact(ownerId, source, required)) {
+        if (!withdrawFixedRequirements(saved, requirements)) {
             return;
         }
 
         ItemStack input = getItem(INPUT_SLOT);
-        input.shrink(1);
+        int consumed = Math.max(1, current.inputCount());
+        if (input.getCount() < consumed) {
+            rollbackFixedRequirements(saved, requirements);
+            return;
+        }
+        input.shrink(consumed);
         if (input.isEmpty()) {
             items.set(INPUT_SLOT, ItemStack.EMPTY);
         }
@@ -810,40 +869,93 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         if (output.isEmpty()) {
             items.set(OUTPUT_SLOT, result);
         } else {
-            output.grow(1);
+            output.grow(result.getCount());
         }
 
         processingTicks = 0;
+        focusThroughputRemainderTwentieths = 0;
         syncBlockEntity();
     }
 
-    private ItemStack createCurrentOutput() {
-        EssentiumItem item = outputCarrierFor(getItem(INPUT_SLOT));
-        EssenceDefinition target = targetEssence();
-        if (item == null || target == null || !isEnabled(target)) {
-            return ItemStack.EMPTY;
+    private boolean validFixedRequirements(EssenceInfusionRequirements requirements) {
+        if (requirements == null
+                || requirements.totalRequired() <= 0L
+                || requirements.hasFlexibleRemainder()
+                || requirements.minimumByEssence().isEmpty()) {
+            return false;
         }
-        return EssentiumCarrierData.createFull(item, target, profile().grade());
+        for (var entry : requirements.minimumByEssence().entrySet()) {
+            EssenceDefinition essence = EssenceRegistry.get(entry.getKey()).orElse(null);
+            if (essence == null || !isEnabled(essence) || entry.getValue() <= 0L) {
+                return false;
+            }
+        }
+        return true;
     }
 
-    @Nullable
-    private static EssentiumItem outputCarrierFor(ItemStack input) {
-        if (input == null || input.isEmpty()) {
-            return null;
+    private boolean hasFixedRequirementsAvailable(EssenceInfusionRequirements requirements) {
+        PlayerEssenceData data = ownerPlayerData();
+        if (data == null || !validFixedRequirements(requirements)) {
+            return false;
         }
-        Item output;
-        if (input.is(EssenceInfuserContent.LATENT_INGOT.get())) {
-            output = EssenceInfuserContent.ESSENTIUM_INGOT.get();
-        } else if (input.is(EssenceInfuserContent.LATENT_BLOCK_ITEM.get())) {
-            output = EssenceInfuserContent.ESSENTIUM_BLOCK.get();
-        } else {
-            return null;
+        for (var entry : requirements.minimumByEssence().entrySet()) {
+            EssenceDefinition essence = EssenceRegistry.get(entry.getKey()).orElse(null);
+            if (essence == null || data.getCrucibleStored(essence) < entry.getValue()) {
+                return false;
+            }
         }
-        return output instanceof EssentiumItem essentium ? essentium : null;
+        return true;
+    }
+
+    private boolean withdrawFixedRequirements(
+            EssenceSavedData saved,
+            EssenceInfusionRequirements requirements
+    ) {
+        if (ownerId == null || !hasFixedRequirementsAvailable(requirements)) {
+            return false;
+        }
+        List<EssenceWithdrawal> withdrawn = new ArrayList<>();
+        for (var entry : requirements.minimumByEssence().entrySet()) {
+            EssenceDefinition essence = EssenceRegistry.get(entry.getKey()).orElse(null);
+            long amount = entry.getValue();
+            if (essence == null
+                    || !saved.removeCrucibleStoredExact(ownerId, essence, amount)) {
+                rollbackWithdrawals(saved, withdrawn);
+                return false;
+            }
+            withdrawn.add(new EssenceWithdrawal(essence, amount));
+        }
+        return true;
+    }
+
+    private void rollbackFixedRequirements(
+            EssenceSavedData saved,
+            EssenceInfusionRequirements requirements
+    ) {
+        List<EssenceWithdrawal> withdrawals = new ArrayList<>();
+        for (var entry : requirements.minimumByEssence().entrySet()) {
+            EssenceDefinition essence = EssenceRegistry.get(entry.getKey()).orElse(null);
+            if (essence != null) {
+                withdrawals.add(new EssenceWithdrawal(essence, entry.getValue()));
+            }
+        }
+        rollbackWithdrawals(saved, withdrawals);
+    }
+
+    private void rollbackWithdrawals(
+            EssenceSavedData saved,
+            List<EssenceWithdrawal> withdrawals
+    ) {
+        if (ownerId == null) {
+            return;
+        }
+        for (EssenceWithdrawal withdrawal : withdrawals) {
+            saved.addCrucibleStored(ownerId, withdrawal.essence(), withdrawal.amount());
+        }
     }
 
     private boolean canAcceptOutput(ItemStack result) {
-        if (result.isEmpty()) {
+        if (result.isEmpty() || result.getCount() > result.getMaxStackSize()) {
             return false;
         }
         ItemStack output = getItem(OUTPUT_SLOT);
@@ -851,7 +963,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             return true;
         }
         return ItemStack.isSameItemSameComponents(output, result)
-                && output.getCount() < output.getMaxStackSize();
+                && result.getCount() <= output.getMaxStackSize() - output.getCount();
     }
 
     public boolean installOrSwapFocus(Player player, net.minecraft.world.InteractionHand hand) {
@@ -941,6 +1053,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         boolean changed = processingEnabled || processingTicks != 0 || processingVisualActive;
         processingEnabled = false;
         processingTicks = 0;
+        focusThroughputRemainderTwentieths = 0;
         processingVisualActive = false;
         if (changed) {
             setChanged();
@@ -949,8 +1062,9 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     }
 
     private void resetProcessing() {
-        if (processingTicks != 0) {
+        if (processingTicks != 0 || focusThroughputRemainderTwentieths != 0) {
             processingTicks = 0;
+            focusThroughputRemainderTwentieths = 0;
             setChanged();
         }
     }
@@ -1139,7 +1253,8 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             ItemStack stack,
             @Nullable Direction direction
     ) {
-        return slot == INPUT_SLOT && isLatentCarrier(stack);
+        return slot == INPUT_SLOT
+                && EssenceInfuserRecipeRegistry.allowsAutomationInput(stack);
     }
 
     @Override
@@ -1152,28 +1267,27 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     }
 
     public static boolean isLatentCarrier(ItemStack stack) {
-        return stack != null
-                && !stack.isEmpty()
-                && (stack.is(EssenceInfuserContent.LATENT_INGOT.get())
-                || stack.is(EssenceInfuserContent.LATENT_BLOCK_ITEM.get()));
+        return EssenceInfuserRecipeRegistry.modeFor(stack)
+                == EssenceInfuserWorkpieceMode.ESSENTIUM;
     }
 
     public static boolean isFocusWorkpiece(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return false;
-        }
-        if (stack.is(EssenceInfuserContent.LATENT_FOCUS.get())) {
-            return true;
-        }
-        EssencePylonFocusTier tier = EssencePylonContent.rawFocusTier(stack);
-        return tier != null && tier != EssencePylonFocusTier.TRANSCENDENT;
+        return EssenceInfuserRecipeRegistry.modeFor(stack)
+                == EssenceInfuserWorkpieceMode.FOCUS;
     }
 
     public static boolean isValidWorkpiece(ItemStack stack) {
-        return isLatentCarrier(stack) || isFocusWorkpiece(stack);
+        return EssenceInfuserRecipeRegistry.isValidWorkpiece(stack);
     }
 
     public static int workpieceStackLimit(ItemStack stack) {
-        return isFocusWorkpiece(stack) ? 1 : Math.max(1, stack.getMaxStackSize());
+        return EssenceInfuserRecipeRegistry.workpieceStackLimit(stack);
+    }
+
+    public static boolean allowsAutomationInput(ItemStack stack) {
+        return EssenceInfuserRecipeRegistry.allowsAutomationInput(stack);
+    }
+
+    private record EssenceWithdrawal(EssenceDefinition essence, long amount) {
     }
 }

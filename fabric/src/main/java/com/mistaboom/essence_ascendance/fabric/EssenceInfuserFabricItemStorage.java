@@ -100,7 +100,7 @@ final class EssenceInfuserFabricItemStorage implements SlottedStorage<ItemVarian
         @Override
         protected boolean canInsert(ItemVariant variant) {
             return machineSlot == EssenceInfuserBlockEntity.INPUT_SLOT
-                    && EssenceInfuserBlockEntity.isLatentCarrier(variant.toStack(1));
+                    && EssenceInfuserBlockEntity.allowsAutomationInput(variant.toStack(1));
         }
 
         @Override

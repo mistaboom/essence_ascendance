@@ -11,6 +11,7 @@ import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleStructureStats;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleStructureSnapshot;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBalance;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBlockEntity;
+import com.mistaboom.essence_ascendance.infuser.EssentiumInfusionRecipe;
 import com.mistaboom.essence_ascendance.infuser.FocusInfusionRecipe;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonBlockEntity;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonContribution;
@@ -906,6 +907,10 @@ final class EssenceDebugCommands {
                 EssenceCommandUtil.formatDecimal(profile.efficiencyPercent()) + "%"
         ));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Infusion throughput",
+                EssenceCommandUtil.format(infuser.infusionThroughputPerSecond()) + " Essence/sec"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
                 "Link range",
                 EssenceCommandUtil.formatDecimal(EssenceInfuserBalance.linkRange())
         ));
@@ -920,42 +925,44 @@ final class EssenceDebugCommands {
                                         + (infuser.isCurrentLinkValid() ? " [VALID]" : " [INVALID]")
                         )
         ));
-        if (infuser.focusInfusionMode()) {
-            var recipe = infuser.focusInfusionRecipe().orElse(null);
+        var currentRecipe = infuser.currentInfusionRecipe().orElse(null);
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Recipe",
+                currentRecipe == null ? "NONE" : currentRecipe.id().toString()
+        ));
+        if (currentRecipe instanceof FocusInfusionRecipe recipe) {
             EssenceCommandUtil.send(source, EssenceCommandUtil.line("Mode", "FOCUS INFUSION"));
-            if (recipe != null) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Target Focus", recipe.targetTier().displayName()
+            ));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Installed requirement",
+                    recipe.requiredInstalledTier() == null
+                            ? "NONE"
+                            : recipe.requiredInstalledTier().displayName()
+            ));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Minimum / Attribute Essence",
+                    EssenceCommandUtil.format(recipe.minimumPerAttributeEssence())
+            ));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Progress",
+                    EssenceCommandUtil.format(infuser.focusInfusionTotalContributed())
+                            + " / " + EssenceCommandUtil.format(recipe.totalEssenceRequired())
+            ));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Infusion rate",
+                    EssenceCommandUtil.format(infuser.focusInfusionRatePerSecond()) + " Essence/sec"
+            ));
+            for (EssenceDefinition essence : FocusInfusionRecipe.coreAttributeEssences()) {
                 EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                        "Target Focus", recipe.targetTier().displayName()
+                        essence.displayName(),
+                        EssenceCommandUtil.format(infuser.focusInfusionContribution(essence))
+                                + " / " + EssenceCommandUtil.format(recipe.minimumPerAttributeEssence())
                 ));
-                EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                        "Installed requirement",
-                        recipe.requiredInstalledTier() == null
-                                ? "NONE"
-                                : recipe.requiredInstalledTier().displayName()
-                ));
-                EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                        "Minimum / Attribute Essence",
-                        EssenceCommandUtil.format(recipe.minimumPerAttributeEssence())
-                ));
-                EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                        "Progress",
-                        EssenceCommandUtil.format(infuser.focusInfusionTotalContributed())
-                                + " / " + EssenceCommandUtil.format(recipe.totalEssenceRequired())
-                ));
-                EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                        "Infusion rate",
-                        EssenceCommandUtil.format(infuser.focusInfusionRatePerSecond()) + " Essence/sec"
-                ));
-                for (EssenceDefinition essence : FocusInfusionRecipe.coreAttributeEssences()) {
-                    EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                            essence.displayName(),
-                            EssenceCommandUtil.format(infuser.focusInfusionContribution(essence))
-                                    + " / " + EssenceCommandUtil.format(recipe.minimumPerAttributeEssence())
-                    ));
-                }
             }
-        } else {
-            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Mode", "ESSENTIUM CONVERSION"));
+        } else if (currentRecipe instanceof EssentiumInfusionRecipe) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Mode", "ESSENTIUM"));
             EssenceCommandUtil.send(source, EssenceCommandUtil.line(
                     "Source",
                     sourceEssence == null ? "NONE" : sourceEssence.displayName()
@@ -977,6 +984,25 @@ final class EssenceDebugCommands {
                     "Progress",
                     infuser.processingTicks() + " / " + infuser.requiredProcessingTicks() + " ticks"
             ));
+        } else if (currentRecipe != null) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Mode", currentRecipe.workpieceMode().name()
+            ));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Progress model", currentRecipe.progressModel().name()
+            ));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Installed requirement",
+                    currentRecipe.requiredInstalledFocusTier() == null
+                            ? "NONE"
+                            : currentRecipe.requiredInstalledFocusTier().displayName()
+            ));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Progress",
+                    infuser.processingTicks() + " / " + infuser.requiredProcessingTicks() + " ticks"
+            ));
+        } else {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Mode", "NONE"));
         }
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
                 "State",

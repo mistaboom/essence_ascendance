@@ -38,7 +38,7 @@ import java.util.Map;
 public final class EssenceConfigManager {
 
     public static final int CURRENT_CONFIG_VERSION =
-            6;
+            7;
 
     private static final int MAX_REQUIREMENT_DEPTH =
             32;
@@ -482,7 +482,7 @@ public final class EssenceConfigManager {
         JsonObject infuser = new JsonObject();
         infuser.addProperty(
                 "_comment",
-                "Global Essence Infuser progression values. Efficiency is expressed in basis points (5000 = 50%). These settings are loaded before world creation; no datapack is required."
+                "Global Essence Infuser progression values. Efficiency is expressed in basis points (5000 = 50%). Infusion throughput is Essence work per second and is independent from carrier density. These settings are loaded before world creation; no datapack is required."
         );
         infuser.addProperty("link_range", defaultInfuser.linkRange());
 
@@ -492,8 +492,8 @@ public final class EssenceConfigManager {
                 defaultInfuser.noFocusEfficiencyBasisPoints()
         );
         noFocus.addProperty(
-                "processing_ticks",
-                defaultInfuser.noFocusProcessingTicks()
+                "infusion_throughput_per_second",
+                defaultInfuser.noFocusInfusionThroughputPerSecond()
         );
         infuser.add("no_focus", noFocus);
 
@@ -509,7 +509,10 @@ public final class EssenceConfigManager {
                     "efficiency_basis_points",
                     grade.efficiencyBasisPoints()
             );
-            gradeObject.addProperty("processing_ticks", grade.processingTicks());
+            gradeObject.addProperty(
+                    "infusion_throughput_per_second",
+                    grade.infusionThroughputPerSecond()
+            );
             grades.add(gradeName, gradeObject);
         }
         infuser.add("grades", grades);
@@ -809,7 +812,8 @@ public final class EssenceConfigManager {
         }
 
         int noFocusEfficiency = defaults.noFocusEfficiencyBasisPoints();
-        int noFocusTicks = defaults.noFocusProcessingTicks();
+        Long configuredNoFocusThroughput = null;
+        Integer legacyNoFocusTicks = null;
         JsonObject noFocus = getObject(object, "no_focus");
         if (noFocus != null) {
             noFocusEfficiency = readInt(
@@ -817,11 +821,19 @@ public final class EssenceConfigManager {
                     "efficiency_basis_points",
                     noFocusEfficiency
             );
-            noFocusTicks = readInt(
-                    noFocus,
-                    "processing_ticks",
-                    noFocusTicks
-            );
+            if (noFocus.has("infusion_throughput_per_second")) {
+                configuredNoFocusThroughput = readLong(
+                        noFocus,
+                        "infusion_throughput_per_second",
+                        defaults.noFocusInfusionThroughputPerSecond()
+                );
+            } else if (noFocus.has("processing_ticks")) {
+                legacyNoFocusTicks = readInt(
+                        noFocus,
+                        "processing_ticks",
+                        200
+                );
+            }
         }
 
         Map<String, InfuserBalanceSettings.GradeSettings> grades =
@@ -837,28 +849,52 @@ public final class EssenceConfigManager {
                 }
                 InfuserBalanceSettings.GradeSettings fallback =
                         grades.get(gradeName);
+                long ingotCapacity = readLong(
+                        configured,
+                        "ingot_capacity",
+                        fallback.ingotCapacity()
+                );
+                int efficiency = readInt(
+                        configured,
+                        "efficiency_basis_points",
+                        fallback.efficiencyBasisPoints()
+                );
+                long throughput;
+                if (configured.has("infusion_throughput_per_second")) {
+                    throughput = readLong(
+                            configured,
+                            "infusion_throughput_per_second",
+                            fallback.infusionThroughputPerSecond()
+                    );
+                } else if (configured.has("processing_ticks")) {
+                    throughput = legacyInfusionThroughput(
+                            ingotCapacity,
+                            readInt(configured, "processing_ticks", 1),
+                            fallback.infusionThroughputPerSecond()
+                    );
+                } else {
+                    throughput = fallback.infusionThroughputPerSecond();
+                }
                 grades.put(
                         gradeName,
                         new InfuserBalanceSettings.GradeSettings(
-                                readLong(
-                                        configured,
-                                        "ingot_capacity",
-                                        fallback.ingotCapacity()
-                                ),
-                                readInt(
-                                        configured,
-                                        "efficiency_basis_points",
-                                        fallback.efficiencyBasisPoints()
-                                ),
-                                readInt(
-                                        configured,
-                                        "processing_ticks",
-                                        fallback.processingTicks()
-                                )
+                                ingotCapacity,
+                                efficiency,
+                                throughput
                         )
                 );
             }
         }
+
+        long noFocusThroughput = configuredNoFocusThroughput != null
+                ? configuredNoFocusThroughput
+                : legacyNoFocusTicks != null
+                ? legacyInfusionThroughput(
+                        grades.get("dormant").ingotCapacity(),
+                        legacyNoFocusTicks,
+                        defaults.noFocusInfusionThroughputPerSecond()
+                )
+                : defaults.noFocusInfusionThroughputPerSecond();
 
         Map<String, InfuserBalanceSettings.FocusUpgradeSettings> focusUpgrades =
                 new LinkedHashMap<>(defaults.focusUpgrades());
@@ -894,12 +930,42 @@ public final class EssenceConfigManager {
         return new InfuserBalanceSettings(
                 linkRange,
                 noFocusEfficiency,
-                noFocusTicks,
+                noFocusThroughput,
                 grades,
                 focusUpgrades
         );
     }
 
+
+    /**
+     * Backward compatibility for config versions that expressed Infuser speed
+     * as flat ticks per ingot. Round the derived throughput up so the migrated
+     * ingot never becomes slower than the old configured duration.
+     */
+    private static long legacyInfusionThroughput(
+            long ingotCapacity,
+            int processingTicks,
+            long fallback
+    ) {
+        if (ingotCapacity <= 0L || processingTicks <= 0) {
+            return fallback;
+        }
+        long whole = ingotCapacity / processingTicks;
+        long remainder = ingotCapacity % processingTicks;
+        if (whole > Long.MAX_VALUE / 20L) {
+            return Long.MAX_VALUE;
+        }
+        long numeratorWhole = whole * 20L;
+        long numeratorRemainder = remainder * 20L;
+        long extra = numeratorRemainder / processingTicks;
+        if (numeratorRemainder % processingTicks != 0L) {
+            extra++;
+        }
+        if (numeratorWhole > Long.MAX_VALUE - extra) {
+            return Long.MAX_VALUE;
+        }
+        return Math.max(1L, numeratorWhole + extra);
+    }
 
     /*
      * ============================================================

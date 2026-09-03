@@ -31,7 +31,7 @@ final class EssenceInfuserNeoForgeItemHandler implements IItemHandler {
     public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
         if (slot != 0
                 || stack.isEmpty()
-                || !EssenceInfuserBlockEntity.isLatentCarrier(stack)) {
+                || !EssenceInfuserBlockEntity.allowsAutomationInput(stack)) {
             return stack;
         }
 
@@ -40,7 +40,7 @@ final class EssenceInfuserNeoForgeItemHandler implements IItemHandler {
             return stack;
         }
 
-        int room = stack.getMaxStackSize() - current.getCount();
+        int room = EssenceInfuserBlockEntity.workpieceStackLimit(stack) - current.getCount();
         int inserted = Math.min(room, stack.getCount());
         if (inserted <= 0) {
             return stack;
@@ -91,6 +91,6 @@ final class EssenceInfuserNeoForgeItemHandler implements IItemHandler {
     @Override
     public boolean isItemValid(int slot, ItemStack stack) {
         return slot == 0
-                && EssenceInfuserBlockEntity.isLatentCarrier(stack);
+                && EssenceInfuserBlockEntity.allowsAutomationInput(stack);
     }
 }
