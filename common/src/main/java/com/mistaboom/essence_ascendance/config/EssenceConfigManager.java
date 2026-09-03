@@ -23,6 +23,7 @@ import com.mistaboom.essence_ascendance.equipment.AscendanceToolMiningService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineConfig;
 import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineDefaults;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
+import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
 import com.mistaboom.essence_ascendance.tier.AscendanceTiers;
 import dev.architectury.platform.Platform;
 import net.minecraft.resources.ResourceLocation;
@@ -38,7 +39,7 @@ import java.util.Map;
 public final class EssenceConfigManager {
 
     public static final int CURRENT_CONFIG_VERSION =
-            7;
+            9;
 
     private static final int MAX_REQUIREMENT_DEPTH =
             32;
@@ -316,6 +317,43 @@ public final class EssenceConfigManager {
     }
 
 
+    /**
+     * Writes a fully materialized, preset-specific template beside the live
+     * configuration file. The live config is never replaced by this method.
+     */
+    public static Path writePresetTemplate(
+            BalanceProfileDefinition preset
+    ) throws IOException {
+        if (preset == null) {
+            throw new IllegalArgumentException("Preset cannot be null");
+        }
+
+        Path liveConfig = getConfigPath();
+        Path templatePath = liveConfig.resolveSibling(
+                "essence_ascendance_template_" + preset.id().getPath() + ".json"
+        );
+
+        Path parent = templatePath.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+
+        JsonObject root = createCompletePresetTemplate(preset);
+
+        // Validate the generated document through the same parser used by the
+        // live server before writing it to disk.
+        parseConfig(root);
+        writeConfigObject(templatePath, root);
+
+        EssenceAscendance.LOGGER.info(
+                "Generated complete Essence Ascendance {} config template at {}",
+                preset.displayName(),
+                templatePath
+        );
+        return templatePath;
+    }
+
+
     /*
      * Loads the configuration from disk.
      *
@@ -357,6 +395,9 @@ public final class EssenceConfigManager {
         }
 
 
+        JsonObject loadedRoot = null;
+        boolean configScaffoldingChanged = false;
+
         try (
                 Reader reader =
                         Files.newBufferedReader(
@@ -376,10 +417,12 @@ public final class EssenceConfigManager {
                 );
             }
 
+            loadedRoot = parsed.getAsJsonObject();
+            configScaffoldingChanged = addMissingCurrentConfigScaffolding(loadedRoot);
 
             current =
                     parseConfig(
-                            parsed.getAsJsonObject()
+                            loadedRoot
                     );
 
             AscendanceToolMiningService.invalidateCache();
@@ -406,6 +449,24 @@ public final class EssenceConfigManager {
                     createBuiltInDefault();
             AscendanceToolMiningService.invalidateCache();
             HarvestProgressionSafety.logWarnings(current);
+            return;
+        }
+
+        if (loadedRoot != null && configScaffoldingChanged) {
+            try {
+                writeConfigObject(configPath, loadedRoot);
+                EssenceAscendance.LOGGER.info(
+                        "Updated Essence Ascendance config scaffolding at {} to version {}",
+                        configPath,
+                        CURRENT_CONFIG_VERSION
+                );
+            } catch (IOException exception) {
+                EssenceAscendance.LOGGER.warn(
+                        "Loaded Essence Ascendance config successfully, but could not write new default config fields to {}. Runtime defaults will still be used for missing fields.",
+                        configPath,
+                        exception
+                );
+            }
         }
     }
 
@@ -541,7 +602,6 @@ public final class EssenceConfigManager {
         infuser.add("focus_upgrades", focusUpgrades);
         root.add("essence_infuser", infuser);
 
-
         root.addProperty(
                 "preset",
                 BalanceProfiles.VANILLA
@@ -669,6 +729,408 @@ public final class EssenceConfigManager {
     }
 
 
+    private static boolean addMissingCurrentConfigScaffolding(
+            JsonObject root
+    ) {
+        int version = readInt(root, "config_version", 0);
+        if (version > CURRENT_CONFIG_VERSION) {
+            return false;
+        }
+
+        boolean changed = false;
+
+        /*
+         * v8 briefly auto-materialized the Latent Ore defaults into every
+         * config. v9 returns to the mod's sparse override philosophy. If the
+         * section is byte-for-byte equivalent to the v8 generated defaults,
+         * remove it. Any actual user edits are preserved.
+         */
+        if (version <= 8 && isGeneratedV8LatentOreDefaults(root.get("latent_ore_worldgen"))) {
+            root.remove("latent_ore_worldgen");
+            changed = true;
+        }
+
+        if (version < CURRENT_CONFIG_VERSION) {
+            root.addProperty("config_version", CURRENT_CONFIG_VERSION);
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    private static boolean isGeneratedV8LatentOreDefaults(
+            JsonElement element
+    ) {
+        if (element == null || !element.isJsonObject()) {
+            return false;
+        }
+
+        JsonObject actual = element.getAsJsonObject().deepCopy();
+        JsonObject expected = createLatentOreWorldgenJson(
+                LatentOreWorldgenSettings.defaults(),
+                false
+        );
+
+        // v8 predates custom_dimensions entirely. Ignore the v9-only empty
+        // container when recognizing the exact auto-generated v8 defaults.
+        expected.remove("custom_dimensions");
+        actual.remove("_comment");
+        expected.remove("_comment");
+        return actual.equals(expected);
+    }
+
+    private static void writeConfigObject(
+            Path configPath,
+            JsonObject root
+    ) throws IOException {
+        try (Writer writer = Files.newBufferedWriter(configPath)) {
+            GSON.toJson(root, writer);
+        }
+    }
+
+    private static JsonObject createLatentOreWorldgenJson(
+            LatentOreWorldgenSettings settings,
+            boolean includeCustomExample
+    ) {
+        JsonObject worldgen = new JsonObject();
+        worldgen.addProperty(
+                "_comment",
+                "Optional Latent Ore overrides. Missing sections use built-in defaults. Values affect NEW chunks only. Custom rules may target one exact dimension or a dimension_type_tag, replace a block or #block_tag, and either choose a built-in ore_variant or supply a registered ore_block from a compatibility addon."
+        );
+        worldgen.add(
+                "overworld",
+                createLatentOreDimensionJson(settings.overworld())
+        );
+        worldgen.add(
+                "nether",
+                createLatentOreDimensionJson(settings.nether())
+        );
+        worldgen.add(
+                "end",
+                createLatentOreDimensionJson(settings.end())
+        );
+
+        JsonObject custom = new JsonObject();
+        for (Map.Entry<String, LatentOreWorldgenSettings.CustomDimensionSettings> entry
+                : settings.customDimensions().entrySet()) {
+            custom.add(entry.getKey(), createCustomLatentOreDimensionJson(entry.getValue()));
+        }
+        if (includeCustomExample) {
+            JsonObject variantExample = new JsonObject();
+            variantExample.addProperty(
+                    "_comment",
+                    "Ignored example using one of Essence Ascendance's built-in ore appearances. Copy to a new rule name and remove the leading underscore from the rule name."
+            );
+            variantExample.addProperty("dimension", "example_mod:moon");
+            variantExample.addProperty("replace", "#example_mod:moon_stone_replaceables");
+            variantExample.addProperty("ore_variant", "end_stone");
+            variantExample.addProperty("enabled", true);
+            variantExample.addProperty("vein_size", 8);
+            variantExample.addProperty("veins_per_chunk", 5);
+            variantExample.addProperty("min_y", -32);
+            variantExample.addProperty("max_y", 96);
+            variantExample.addProperty("discard_chance_on_air_exposure", 0.0D);
+            custom.add("_example_builtin_variant", variantExample);
+
+            JsonObject customBlockExample = new JsonObject();
+            customBlockExample.addProperty(
+                    "_comment",
+                    "Ignored advanced example. ore_block may point at a registered ore block supplied by a compatibility addon; when present it overrides ore_variant."
+            );
+            customBlockExample.addProperty("dimension_type_tag", "#example_mod:moon_like");
+            customBlockExample.addProperty("replace", "example_mod:moon_stone");
+            customBlockExample.addProperty("ore_block", "example_addon:moon_latent_ore");
+            customBlockExample.addProperty("enabled", true);
+            customBlockExample.addProperty("vein_size", 8);
+            customBlockExample.addProperty("veins_per_chunk", 5);
+            customBlockExample.addProperty("min_y", -32);
+            customBlockExample.addProperty("max_y", 96);
+            customBlockExample.addProperty("discard_chance_on_air_exposure", 0.0D);
+            custom.add("_example_custom_block", customBlockExample);
+        }
+        worldgen.add("custom_dimensions", custom);
+        return worldgen;
+    }
+
+    private static JsonObject createLatentOreDimensionJson(
+            LatentOreWorldgenSettings.DimensionSettings settings
+    ) {
+        JsonObject object = new JsonObject();
+        object.addProperty("enabled", settings.enabled());
+        object.addProperty("vein_size", settings.veinSize());
+        object.addProperty("veins_per_chunk", settings.veinsPerChunk());
+        object.addProperty("min_y", settings.minY());
+        object.addProperty("max_y", settings.maxY());
+        object.addProperty(
+                "discard_chance_on_air_exposure",
+                settings.discardChanceOnAirExposure()
+        );
+        return object;
+    }
+
+    private static JsonObject createCustomLatentOreDimensionJson(
+            LatentOreWorldgenSettings.CustomDimensionSettings settings
+    ) {
+        JsonObject object = createLatentOreDimensionJson(settings.distribution());
+        if (settings.dimension() != null) {
+            object.addProperty("dimension", settings.dimension().toString());
+        } else {
+            object.addProperty("dimension_type_tag", "#" + settings.dimensionTypeTag());
+        }
+        object.addProperty("replace", settings.replacement().configValue());
+        if (settings.usesCustomOreBlock()) {
+            object.addProperty("ore_block", settings.oreBlock().toString());
+        } else {
+            object.addProperty("ore_variant", settings.oreVariant().configName());
+        }
+        return object;
+    }
+
+    private static JsonObject createCompletePresetTemplate(
+            BalanceProfileDefinition preset
+    ) {
+        JsonObject root = new JsonObject();
+        root.addProperty(
+                "_comment",
+                "Complete Essence Ascendance template generated from the "
+                        + preset.displayName()
+                        + " preset. Every currently configurable core setting is materialized so this file can be copied/renamed and edited for a modpack."
+        );
+        root.addProperty("config_version", CURRENT_CONFIG_VERSION);
+
+        root.addProperty(
+                "_skill_essence_comment",
+                "Skill Essence is future/expansion content. When false, Skill Essence stays registered and persisted but is hidden from player commands and interfaces."
+        );
+        root.addProperty("enable_skill_essences", false);
+
+        JsonObject cruciblePylons = new JsonObject();
+        cruciblePylons.addProperty(
+                "_comment",
+                "Freeform Essence Pylons link to the nearest owned Crucible inside this spherical radius."
+        );
+        cruciblePylons.addProperty("radius", 6.0D);
+        cruciblePylons.addProperty("max_active_pylons", 8);
+        root.add("crucible_pylons", cruciblePylons);
+
+        root.add("essence_infuser", createCompleteInfuserJson(InfuserBalanceSettings.defaults()));
+        root.add(
+                "latent_ore_worldgen",
+                createLatentOreWorldgenJson(LatentOreWorldgenSettings.defaults(), true)
+        );
+
+        root.addProperty("preset", preset.id().toString());
+
+        JsonObject tierCaps = new JsonObject();
+        for (Map.Entry<ResourceLocation, Long> entry : preset.defaultTierCaps().entrySet()) {
+            tierCaps.addProperty(entry.getKey().toString(), entry.getValue());
+        }
+        root.add("tier_cap_overrides", tierCaps);
+
+        JsonObject statCaps = new JsonObject();
+        for (StatDefinition stat : EssenceStatRegistry.values()) {
+            JsonObject perTier = new JsonObject();
+            for (var tier : AscendanceTierRegistry.values()) {
+                perTier.addProperty(
+                        tier.id().toString(),
+                        preset.getInvestmentCap(tier, stat)
+                );
+            }
+            statCaps.add(stat.id().toString(), perTier);
+        }
+        root.add("stat_cap_overrides", statCaps);
+
+        JsonObject statMaxBonuses = new JsonObject();
+        for (Map.Entry<ResourceLocation, Double> entry : StatScalingDefaults.values().entrySet()) {
+            statMaxBonuses.addProperty(entry.getKey().toString(), entry.getValue());
+        }
+        root.add("stat_max_bonus_overrides", statMaxBonuses);
+
+        root.add(
+                "equipment_baseline_overrides",
+                createCompleteEquipmentBaselineJson(EquipmentBaselineDefaults.create(preset))
+        );
+
+        root.addProperty(
+                "_ascendance_requirements_comment",
+                "Ascension requirements are global config, not datapacks. The generated template materializes the current built-in milestone and transition definitions."
+        );
+        root.add("milestone_overrides", createCompleteMilestoneJson());
+        root.add("advancement_overrides", createCompleteAdvancementJson());
+        return root;
+    }
+
+    private static JsonObject createCompleteInfuserJson(
+            InfuserBalanceSettings settings
+    ) {
+        JsonObject infuser = new JsonObject();
+        infuser.addProperty(
+                "_comment",
+                "Global Essence Infuser values. Efficiency is basis points (5000 = 50%). Infusion throughput is Essence work/second and is independent from carrier density."
+        );
+        infuser.addProperty("link_range", settings.linkRange());
+
+        JsonObject noFocus = new JsonObject();
+        noFocus.addProperty(
+                "efficiency_basis_points",
+                settings.noFocusEfficiencyBasisPoints()
+        );
+        noFocus.addProperty(
+                "infusion_throughput_per_second",
+                settings.noFocusInfusionThroughputPerSecond()
+        );
+        infuser.add("no_focus", noFocus);
+
+        JsonObject grades = new JsonObject();
+        for (String gradeName : new String[]{
+                "dormant", "awakened", "resonant", "ascendant", "transcendent"
+        }) {
+            InfuserBalanceSettings.GradeSettings grade = settings.grade(gradeName);
+            JsonObject gradeObject = new JsonObject();
+            gradeObject.addProperty("ingot_capacity", grade.ingotCapacity());
+            gradeObject.addProperty(
+                    "efficiency_basis_points",
+                    grade.efficiencyBasisPoints()
+            );
+            gradeObject.addProperty(
+                    "infusion_throughput_per_second",
+                    grade.infusionThroughputPerSecond()
+            );
+            grades.add(gradeName, gradeObject);
+        }
+        infuser.add("grades", grades);
+
+        JsonObject focusUpgrades = new JsonObject();
+        focusUpgrades.addProperty(
+                "_comment",
+                "minimum_per_attribute_essence is required from EACH of the six core Attribute Essences; the remainder of total_essence_required is flexible."
+        );
+        for (String targetTier : new String[]{
+                "dormant", "awakened", "resonant", "ascendant", "transcendent"
+        }) {
+            InfuserBalanceSettings.FocusUpgradeSettings focus =
+                    settings.focusUpgrade(targetTier);
+            JsonObject focusObject = new JsonObject();
+            focusObject.addProperty(
+                    "minimum_per_attribute_essence",
+                    focus.minimumPerAttributeEssence()
+            );
+            focusObject.addProperty(
+                    "total_essence_required",
+                    focus.totalEssenceRequired()
+            );
+            focusUpgrades.add(targetTier, focusObject);
+        }
+        infuser.add("focus_upgrades", focusUpgrades);
+        return infuser;
+    }
+
+    private static JsonObject createCompleteEquipmentBaselineJson(
+            EquipmentBaselineConfig config
+    ) {
+        JsonObject root = new JsonObject();
+        root.addProperty(
+                "_comment",
+                "Complete effective equipment chassis values for the selected preset."
+        );
+        JsonObject tiers = new JsonObject();
+        for (Map.Entry<ResourceLocation, EquipmentBaselineConfig.TierBaseline> entry
+                : config.tierBaselines().entrySet()) {
+            EquipmentBaselineConfig.TierBaseline value = entry.getValue();
+            JsonObject tier = new JsonObject();
+            tier.addProperty("full_set_armor", value.fullSetArmor());
+            tier.addProperty("full_set_toughness", value.fullSetToughness());
+            tier.addProperty("melee_damage", value.meleeDamage());
+            tier.addProperty("melee_attack_speed", value.meleeAttackSpeed());
+            tier.addProperty("ranged_damage", value.rangedDamage());
+            tier.addProperty("ranged_attack_speed", value.rangedAttackSpeed());
+            tier.addProperty("magic_damage", value.magicDamage());
+            tier.addProperty("magic_cast_speed", value.magicCastSpeed());
+            tier.addProperty("mining_speed", value.miningSpeed());
+            tier.addProperty("harvest_level", value.harvestLevel());
+            tier.addProperty("durability", value.durability());
+            tiers.add(entry.getKey().toString(), tier);
+        }
+        root.add("tiers", tiers);
+        return root;
+    }
+
+    private static JsonObject createCompleteMilestoneJson() {
+        JsonObject root = new JsonObject();
+        for (MilestoneDefinition milestone : MilestoneRegistry.values()) {
+            JsonObject object = new JsonObject();
+            object.addProperty("display_name", milestone.displayName());
+            object.addProperty("provider", milestone.providerId().toString());
+            object.addProperty("target", milestone.target());
+            root.add(milestone.id().toString(), object);
+        }
+        return root;
+    }
+
+    private static JsonObject createCompleteAdvancementJson() {
+        JsonObject root = new JsonObject();
+        for (AscendanceAdvancementDefinition advancement
+                : AscendanceAdvancementRegistry.values()) {
+            JsonObject object = new JsonObject();
+            object.addProperty("from_tier", advancement.fromTierId().toString());
+            object.addProperty("to_tier", advancement.toTierId().toString());
+            object.addProperty(
+                    "total_investment_multiplier",
+                    advancement.totalInvestmentMultiplier()
+            );
+            object.addProperty(
+                    "minimum_developed_stats",
+                    advancement.minimumDevelopedStats()
+            );
+            object.addProperty(
+                    "minimum_represented_categories",
+                    advancement.minimumRepresentedCategories()
+            );
+            object.addProperty(
+                    "developed_stat_threshold",
+                    advancement.developedStatThreshold()
+            );
+            object.add(
+                    "world_requirement",
+                    createRequirementJson(advancement.worldRequirement())
+            );
+            root.add(advancement.id().toString(), object);
+        }
+        return root;
+    }
+
+    private static JsonElement createRequirementJson(
+            MilestoneRequirement requirement
+    ) {
+        if (requirement instanceof MilestoneRequirement.Milestone milestone) {
+            return GSON.toJsonTree(milestone.milestoneId().toString());
+        }
+        if (requirement instanceof MilestoneRequirement.AllOf allOf) {
+            JsonObject object = new JsonObject();
+            object.addProperty("type", "all_of");
+            JsonArray children = new JsonArray();
+            for (MilestoneRequirement child : allOf.children()) {
+                children.add(createRequirementJson(child));
+            }
+            object.add("children", children);
+            return object;
+        }
+        if (requirement instanceof MilestoneRequirement.AnyOf anyOf) {
+            JsonObject object = new JsonObject();
+            object.addProperty("type", "any_of");
+            JsonArray children = new JsonArray();
+            for (MilestoneRequirement child : anyOf.children()) {
+                children.add(createRequirementJson(child));
+            }
+            object.add("children", children);
+            return object;
+        }
+
+        JsonObject object = new JsonObject();
+        object.addProperty("type", "always");
+        return object;
+    }
+
     /*
      * ============================================================
      * CONFIG PARSING
@@ -741,6 +1203,9 @@ public final class EssenceConfigManager {
         InfuserBalanceSettings infuserBalance =
                 parseInfuserBalance(root);
 
+        LatentOreWorldgenSettings latentOreWorldgen =
+                parseLatentOreWorldgen(root);
+
         BalanceProfileDefinition balanceProfile =
                 parseBalanceProfile(
                         root
@@ -776,6 +1241,7 @@ public final class EssenceConfigManager {
                 pylonRadius,
                 maxActivePylons,
                 infuserBalance,
+                latentOreWorldgen,
                 balanceProfile,
                 milestones,
                 advancements,
@@ -784,6 +1250,263 @@ public final class EssenceConfigManager {
         );
     }
 
+
+    private static LatentOreWorldgenSettings parseLatentOreWorldgen(
+            JsonObject root
+    ) {
+        LatentOreWorldgenSettings defaults =
+                LatentOreWorldgenSettings.defaults();
+
+        JsonElement element = root.get("latent_ore_worldgen");
+        if (element == null || element.isJsonNull()) {
+            return defaults;
+        }
+        if (!element.isJsonObject()) {
+            throw new IllegalArgumentException("latent_ore_worldgen must be an object");
+        }
+
+        JsonObject object = element.getAsJsonObject();
+        return new LatentOreWorldgenSettings(
+                parseLatentOreDimension(
+                        object,
+                        "overworld",
+                        defaults.overworld()
+                ),
+                parseLatentOreDimension(
+                        object,
+                        "nether",
+                        defaults.nether()
+                ),
+                parseLatentOreDimension(
+                        object,
+                        "end",
+                        defaults.end()
+                ),
+                parseCustomLatentOreDimensions(object)
+        );
+    }
+
+    private static Map<String, LatentOreWorldgenSettings.CustomDimensionSettings>
+    parseCustomLatentOreDimensions(
+            JsonObject worldgen
+    ) {
+        Map<String, LatentOreWorldgenSettings.CustomDimensionSettings> rules =
+                new LinkedHashMap<>();
+
+        JsonElement customElement = worldgen.get("custom_dimensions");
+        if (customElement == null || customElement.isJsonNull()) {
+            return rules;
+        }
+        if (!customElement.isJsonObject()) {
+            throw new IllegalArgumentException(
+                    "latent_ore_worldgen.custom_dimensions must be an object"
+            );
+        }
+
+        for (Map.Entry<String, JsonElement> entry
+                : customElement.getAsJsonObject().entrySet()) {
+            String ruleName = entry.getKey();
+            if (ruleName.startsWith("_")) {
+                continue;
+            }
+            if (!entry.getValue().isJsonObject()) {
+                throw new IllegalArgumentException(
+                        "latent_ore_worldgen.custom_dimensions." + ruleName + " must be an object"
+                );
+            }
+            rules.put(
+                    ruleName,
+                    parseCustomLatentOreDimension(
+                            ruleName,
+                            entry.getValue().getAsJsonObject()
+                    )
+            );
+        }
+        return rules;
+    }
+
+    private static LatentOreWorldgenSettings.CustomDimensionSettings
+    parseCustomLatentOreDimension(
+            String ruleName,
+            JsonObject object
+    ) {
+        ResourceLocation dimension = null;
+        ResourceLocation dimensionTypeTag = null;
+
+        String dimensionRaw = readNullableString(object, "dimension");
+        if (dimensionRaw != null) {
+            dimension = ResourceLocation.tryParse(dimensionRaw);
+            if (dimension == null) {
+                throw new IllegalArgumentException(
+                        "Invalid dimension id in custom Latent Ore rule '" + ruleName + "': " + dimensionRaw
+                );
+            }
+        }
+
+        String dimensionTypeTagRaw = readNullableString(object, "dimension_type_tag");
+        if (dimensionTypeTagRaw != null) {
+            if (dimensionTypeTagRaw.startsWith("#")) {
+                dimensionTypeTagRaw = dimensionTypeTagRaw.substring(1);
+            }
+            dimensionTypeTag = ResourceLocation.tryParse(dimensionTypeTagRaw);
+            if (dimensionTypeTag == null) {
+                throw new IllegalArgumentException(
+                        "Invalid dimension_type_tag in custom Latent Ore rule '"
+                                + ruleName + "': " + dimensionTypeTagRaw
+                );
+            }
+        }
+
+        String replacementRaw = readString(object, "replace", "minecraft:stone");
+        boolean replacementIsTag = replacementRaw.startsWith("#");
+        String replacementIdRaw = replacementIsTag
+                ? replacementRaw.substring(1)
+                : replacementRaw;
+        ResourceLocation replacementId = ResourceLocation.tryParse(replacementIdRaw);
+        if (replacementId == null) {
+            throw new IllegalArgumentException(
+                    "Invalid replace target in custom Latent Ore rule '"
+                            + ruleName + "': " + replacementRaw
+            );
+        }
+
+        ResourceLocation oreBlock = null;
+        String oreBlockRaw = readNullableString(object, "ore_block");
+        if (oreBlockRaw != null) {
+            oreBlock = ResourceLocation.tryParse(oreBlockRaw);
+            if (oreBlock == null) {
+                throw new IllegalArgumentException(
+                        "Invalid ore_block in custom Latent Ore rule '"
+                                + ruleName + "': " + oreBlockRaw
+                );
+            }
+        }
+
+        // ore_block is the advanced output override. When it is present, an
+        // unused/missing ore_variant must not be able to invalidate the rule.
+        LatentOreWorldgenSettings.OreVariant oreVariant = oreBlock != null
+                ? LatentOreWorldgenSettings.OreVariant.STONE
+                : LatentOreWorldgenSettings.OreVariant.parse(
+                        readString(object, "ore_variant", "stone")
+                );
+
+        LatentOreWorldgenSettings.DimensionSettings distribution;
+        try {
+            distribution = new LatentOreWorldgenSettings.DimensionSettings(
+                    readBoolean(object, "enabled", true),
+                    readInt(object, "vein_size", 4),
+                    readInt(object, "veins_per_chunk", 2),
+                    readInt(object, "min_y", -64),
+                    readInt(object, "max_y", 64),
+                    readNonNegativeFiniteDouble(
+                            object,
+                            "discard_chance_on_air_exposure",
+                            0.0D
+                    )
+            );
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException(
+                    "Invalid distribution in custom Latent Ore rule '"
+                            + ruleName + "': " + exception.getMessage(),
+                    exception
+            );
+        }
+
+        try {
+            return new LatentOreWorldgenSettings.CustomDimensionSettings(
+                    dimension,
+                    dimensionTypeTag,
+                    new LatentOreWorldgenSettings.ReplacementTarget(
+                            replacementId,
+                            replacementIsTag
+                    ),
+                    oreVariant,
+                    oreBlock,
+                    distribution
+            );
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException(
+                    "Invalid custom Latent Ore rule '" + ruleName + "': "
+                            + exception.getMessage(),
+                    exception
+            );
+        }
+    }
+
+    private static LatentOreWorldgenSettings.DimensionSettings parseLatentOreDimension(
+            JsonObject worldgen,
+            String dimensionName,
+            LatentOreWorldgenSettings.DimensionSettings defaults
+    ) {
+        JsonElement dimensionElement = worldgen.get(dimensionName);
+        if (dimensionElement == null || dimensionElement.isJsonNull()) {
+            return defaults;
+        }
+        if (!dimensionElement.isJsonObject()) {
+            throw new IllegalArgumentException(
+                    "latent_ore_worldgen." + dimensionName + " must be an object"
+            );
+        }
+        JsonObject object = dimensionElement.getAsJsonObject();
+
+        try {
+            return new LatentOreWorldgenSettings.DimensionSettings(
+                    readBoolean(
+                            object,
+                            "enabled",
+                            defaults.enabled()
+                    ),
+                    readInt(
+                            object,
+                            "vein_size",
+                            defaults.veinSize()
+                    ),
+                    readInt(
+                            object,
+                            "veins_per_chunk",
+                            defaults.veinsPerChunk()
+                    ),
+                    readInt(
+                            object,
+                            "min_y",
+                            defaults.minY()
+                    ),
+                    readInt(
+                            object,
+                            "max_y",
+                            defaults.maxY()
+                    ),
+                    readNonNegativeFiniteDouble(
+                            object,
+                            "discard_chance_on_air_exposure",
+                            defaults.discardChanceOnAirExposure()
+                    )
+            );
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException(
+                    "Invalid latent_ore_worldgen."
+                            + dimensionName
+                            + ": "
+                            + exception.getMessage(),
+                    exception
+            );
+        }
+    }
+
+    private static String readNullableString(
+            JsonObject object,
+            String key
+    ) {
+        JsonElement element = object.get(key);
+        if (element == null || element.isJsonNull()) {
+            return null;
+        }
+        if (!element.isJsonPrimitive() || !element.getAsJsonPrimitive().isString()) {
+            throw new IllegalArgumentException(key + " must be a string");
+        }
+        String value = element.getAsString().trim();
+        return value.isEmpty() ? null : value;
+    }
 
     private static InfuserBalanceSettings parseInfuserBalance(
             JsonObject root
@@ -1811,6 +2534,7 @@ public final class EssenceConfigManager {
                 6.0D,
                 8,
                 InfuserBalanceSettings.defaults(),
+                LatentOreWorldgenSettings.defaults(),
                 BalanceProfiles.VANILLA,
                 milestones,
                 advancements,

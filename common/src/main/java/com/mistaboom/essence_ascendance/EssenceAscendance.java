@@ -29,6 +29,7 @@ import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.EssenceStats;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
 import com.mistaboom.essence_ascendance.tier.AscendanceTiers;
+import com.mistaboom.essence_ascendance.worldgen.LatentOreWorldgen;
 import dev.architectury.event.events.common.CommandRegistrationEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,6 +62,7 @@ public final class EssenceAscendance {
         EssenceCrucibleContent.init();
         EssencePylonContent.init();
         EssenceInfuserContent.init();
+        LatentOreWorldgen.init();
         AscendanceNexusContent.init();
         EssenceCrucibleGameplayEvents.init();
 

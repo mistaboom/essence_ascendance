@@ -8,7 +8,12 @@ import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleContent;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleStructureService;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBlockEntity;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserContent;
+import com.mistaboom.essence_ascendance.worldgen.LatentOreWorldgen;
+import net.fabricmc.fabric.api.biome.v1.BiomeModifications;
+import net.fabricmc.fabric.api.biome.v1.BiomeSelectors;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemStorage;
+import net.fabricmc.fabric.api.tag.convention.v2.ConventionalBiomeTags;
+import net.minecraft.world.level.levelgen.GenerationStep;
 
 public final class EssenceAscendanceFabric implements ModInitializer {
     @Override
@@ -19,6 +24,27 @@ public final class EssenceAscendanceFabric implements ModInitializer {
 
         // Run our common setup.
         EssenceAscendance.init();
+
+        BiomeModifications.addFeature(
+                BiomeSelectors.tag(ConventionalBiomeTags.IS_OVERWORLD),
+                GenerationStep.Decoration.UNDERGROUND_ORES,
+                LatentOreWorldgen.OVERWORLD_PLACED
+        );
+        BiomeModifications.addFeature(
+                BiomeSelectors.tag(ConventionalBiomeTags.IS_NETHER),
+                GenerationStep.Decoration.UNDERGROUND_ORES,
+                LatentOreWorldgen.NETHER_PLACED
+        );
+        BiomeModifications.addFeature(
+                BiomeSelectors.tag(ConventionalBiomeTags.IS_END),
+                GenerationStep.Decoration.UNDERGROUND_ORES,
+                LatentOreWorldgen.END_PLACED
+        );
+        BiomeModifications.addFeature(
+                BiomeSelectors.all(),
+                GenerationStep.Decoration.UNDERGROUND_ORES,
+                LatentOreWorldgen.CUSTOM_PLACED
+        );
 
         /*
          * Register a specific provider ahead of Fabric's vanilla-inventory

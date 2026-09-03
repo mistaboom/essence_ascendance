@@ -1,0 +1,6 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#c:is_nether",
+  "features": "essence_ascendance:latent_ore_nether",
+  "step": "underground_ores"
+}

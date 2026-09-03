@@ -23,6 +23,7 @@ import net.neoforged.neoforge.event.enchanting.GetEnchantmentLevelEvent;
 public final class EssenceAscendanceNeoForge {
 
     public EssenceAscendanceNeoForge(IEventBus modBus) {
+        EssenceAscendanceNeoForgeWorldgen.register(modBus);
         EssenceAscendance.init();
 
         modBus.addListener(

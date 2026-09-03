@@ -35,5 +35,7 @@
   "block.essence_ascendance.essence_infuser": "Essence Infuser",
   "container.essence_ascendance.essence_infuser": "Essence Infuser",
   "message.essence_ascendance.infuser_private": "This Essence Infuser is privately attuned to another player.",
-  "item.essence_ascendance.latent_focus": "Latent Focus"
+  "item.essence_ascendance.latent_focus": "Latent Focus",
+  "block.essence_ascendance.netherrack_latent_ore": "Netherrack Latent Ore",
+  "block.essence_ascendance.end_stone_latent_ore": "End Stone Latent Ore"
 }

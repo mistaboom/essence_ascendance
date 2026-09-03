@@ -43,6 +43,22 @@ public final class EssenceInfuserContent {
                             .strength(4.5F)
             )
     );
+    public static final RegistrySupplier<Block> NETHERRACK_LATENT_ORE = BLOCKS.register(
+            "netherrack_latent_ore",
+            () -> new Block(
+                    BlockBehaviour.Properties.of()
+                            .requiresCorrectToolForDrops()
+                            .strength(3.0F)
+            )
+    );
+    public static final RegistrySupplier<Block> END_STONE_LATENT_ORE = BLOCKS.register(
+            "end_stone_latent_ore",
+            () -> new Block(
+                    BlockBehaviour.Properties.of()
+                            .requiresCorrectToolForDrops()
+                            .strength(3.0F)
+            )
+    );
     public static final RegistrySupplier<Block> RAW_LATENT_ORE_BLOCK = BLOCKS.register(
             "raw_latent_ore_block",
             () -> new Block(
@@ -76,6 +92,14 @@ public final class EssenceInfuserContent {
     public static final RegistrySupplier<Item> DEEPSLATE_LATENT_ORE_ITEM = blockItem(
             "deepslate_latent_ore",
             DEEPSLATE_LATENT_ORE
+    );
+    public static final RegistrySupplier<Item> NETHERRACK_LATENT_ORE_ITEM = blockItem(
+            "netherrack_latent_ore",
+            NETHERRACK_LATENT_ORE
+    );
+    public static final RegistrySupplier<Item> END_STONE_LATENT_ORE_ITEM = blockItem(
+            "end_stone_latent_ore",
+            END_STONE_LATENT_ORE
     );
     public static final RegistrySupplier<Item> RAW_LATENT_ORE = ITEMS.register(
             "raw_latent_ore",
@@ -162,7 +186,9 @@ public final class EssenceInfuserContent {
         CreativeTabRegistry.append(
                 CreativeModeTabs.NATURAL_BLOCKS,
                 LATENT_ORE_ITEM,
-                DEEPSLATE_LATENT_ORE_ITEM
+                DEEPSLATE_LATENT_ORE_ITEM,
+                NETHERRACK_LATENT_ORE_ITEM,
+                END_STONE_LATENT_ORE_ITEM
         );
         CreativeTabRegistry.append(
                 CreativeModeTabs.INGREDIENTS,

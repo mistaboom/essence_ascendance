@@ -20,6 +20,7 @@ public final class EssenceServerConfig {
     private final double pylonRadius;
     private final int maxActivePylons;
     private final InfuserBalanceSettings infuserBalance;
+    private final LatentOreWorldgenSettings latentOreWorldgen;
     private final BalanceProfileDefinition balanceProfile;
     private final Map<ResourceLocation, MilestoneDefinition> milestones;
     private final Map<ResourceLocation, AscendanceAdvancementDefinition> advancements;
@@ -33,6 +34,7 @@ public final class EssenceServerConfig {
             double pylonRadius,
             int maxActivePylons,
             InfuserBalanceSettings infuserBalance,
+            LatentOreWorldgenSettings latentOreWorldgen,
             BalanceProfileDefinition balanceProfile,
             Map<ResourceLocation, MilestoneDefinition> milestones,
             Map<ResourceLocation, AscendanceAdvancementDefinition> advancements,
@@ -52,6 +54,10 @@ public final class EssenceServerConfig {
         this.infuserBalance = Objects.requireNonNull(
                 infuserBalance,
                 "Infuser balance cannot be null"
+        );
+        this.latentOreWorldgen = Objects.requireNonNull(
+                latentOreWorldgen,
+                "Latent Ore worldgen settings cannot be null"
         );
         this.balanceProfile = Objects.requireNonNull(
                 balanceProfile,
@@ -127,6 +133,10 @@ public final class EssenceServerConfig {
 
     public InfuserBalanceSettings infuserBalance() {
         return infuserBalance;
+    }
+
+    public LatentOreWorldgenSettings latentOreWorldgen() {
+        return latentOreWorldgen;
     }
 
     public BalanceProfileDefinition balanceProfile() {

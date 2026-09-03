@@ -1,0 +1,8 @@
+{
+  "feature": "essence_ascendance:latent_ore_custom",
+  "placement": [
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}
