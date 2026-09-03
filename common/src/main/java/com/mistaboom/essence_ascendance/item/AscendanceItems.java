@@ -81,12 +81,12 @@ public final class AscendanceItems {
             );
 
 
-    public static final RegistrySupplier<AscendanceMagicWeaponItem>
-            ASCENDANCE_MAGIC_WEAPON =
+    public static final RegistrySupplier<AscendanceCasterItem>
+            ASCENDANCE_CASTER =
             ITEMS.register(
-                    "ascendance_magic_weapon",
+                    "ascendance_caster",
                     () ->
-                            new AscendanceMagicWeaponItem(
+                            new AscendanceCasterItem(
                                     new Item.Properties()
                                             .durability(
                                                     WEAPON_DURABILITY
@@ -281,7 +281,7 @@ public final class AscendanceItems {
 
         CreativeTabRegistry.append(
                 CreativeModeTabs.COMBAT,
-                ASCENDANCE_MAGIC_WEAPON
+                ASCENDANCE_CASTER
         );
 
 

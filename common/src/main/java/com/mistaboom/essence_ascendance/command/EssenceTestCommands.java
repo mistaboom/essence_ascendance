@@ -133,7 +133,7 @@ public final class EssenceTestCommands {
                     "  NOTE: This is a zero-bonus validation. To test a nonzero modifier, wear qualifying Ascendance armor and invest Luck."
             ));
             EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
-                    "  Fast setup: /essence admin tier set transcendent, then /essence admin stat max luck"
+                    "  Fast player setup: /essence admin tier set transcendent, then /essence admin stat max luck"
             ));
         }
 

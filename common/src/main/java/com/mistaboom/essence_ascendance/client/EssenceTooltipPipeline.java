@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.infuser.EssentiumCarrierData;
+import com.mistaboom.essence_ascendance.infuser.EquipmentInfusionData;
 import com.mistaboom.essence_ascendance.essence.EssenceFamily;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -45,6 +46,8 @@ public final class EssenceTooltipPipeline {
                 tooltipContext,
                 tooltipFlag
         );
+
+        EquipmentInfusionData.appendTooltip(stack, tooltip);
 
         if (EssentiumCarrierData.isEssentium(stack)) {
             EssentiumCarrierData.read(stack)

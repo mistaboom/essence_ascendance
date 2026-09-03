@@ -12,8 +12,14 @@ import com.mistaboom.essence_ascendance.network.ItemEssenceTooltipSyncService;
 import com.mistaboom.essence_ascendance.config.EssenceServerConfig;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
+import com.mistaboom.essence_ascendance.equipment.EquipmentTier;
+import com.mistaboom.essence_ascendance.equipment.EquipmentTierData;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
+import com.mistaboom.essence_ascendance.infuser.EquipmentInfusionData;
+import com.mistaboom.essence_ascendance.infuser.FocusInfusionData;
+import com.mistaboom.essence_ascendance.pylon.EssenceFocusData;
+import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
 import com.mistaboom.essence_ascendance.progression.HarvestProgressionSafety;
 import com.mistaboom.essence_ascendance.progression.MilestoneDefinition;
 import com.mistaboom.essence_ascendance.progression.MilestoneProviders;
@@ -33,6 +39,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -164,12 +171,28 @@ final class EssenceAdminCommands {
                 )
                 .then(
                         Commands.literal("tier")
+                                .executes(context -> showPlayerTierHelp(context.getSource()))
                                 .then(
                                         Commands.literal("set")
                                                 .then(
                                                         Commands.argument("tier", StringArgumentType.word())
                                                                 .suggests(EssenceCommandUtil::suggestTiers)
                                                                 .executes(context -> setTier(
+                                                                        context.getSource(),
+                                                                        StringArgumentType.getString(context, "tier")
+                                                                ))
+                                                )
+                                )
+                )
+                .then(
+                        Commands.literal("itemtier")
+                                .executes(context -> showItemTierHelp(context.getSource()))
+                                .then(
+                                        Commands.literal("set")
+                                                .then(
+                                                        Commands.argument("tier", StringArgumentType.word())
+                                                                .suggests(EssenceCommandUtil::suggestItemTiers)
+                                                                .executes(context -> setHeldItemTier(
                                                                         context.getSource(),
                                                                         StringArgumentType.getString(context, "tier")
                                                                 ))
@@ -257,7 +280,8 @@ final class EssenceAdminCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin stat clear <stat>", "clear one stat investment"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin stats max", "max every stat to the current tier caps"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin stats clear", "clear investments without clearing balances"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin tier set <tier>", "force the current tier"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin tier set <tier>", "force your PLAYER Ascendance tier"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin itemtier set <tier>", "set the held Ascendance equipment/Essence Focus tier"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin milestone set <milestone> <true|false>", "set an INTERNAL milestone"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin mappings", "show item mapping status and config path"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin mappings reload", "reload item mappings from global config"));
@@ -310,6 +334,27 @@ final class EssenceAdminCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.section("Admin - All stats"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin stats max", "set every stat to its current cap"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin stats clear", "clear every stat while preserving Essence balances"));
+        return 1;
+    }
+
+    private static int showPlayerTierHelp(CommandSourceStack source) {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Admin - Player Ascendance Tier"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command(
+                "/essence admin tier set <dormant|awakened|resonant|ascendant|transcendent>",
+                "force YOUR player progression tier; this does not change held item tiers"
+        ));
+        return 1;
+    }
+
+    private static int showItemTierHelp(CommandSourceStack source) {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Admin - Held Item Tier"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command(
+                "/essence admin itemtier set <latent|dormant|awakened|resonant|ascendant|transcendent>",
+                "set the completed tier of held Ascendance equipment or an Essence Focus"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
+                "Changing an item tier clears partial infusion progress on that item."
+        ));
         return 1;
     }
 
@@ -481,11 +526,65 @@ final class EssenceAdminCommands {
         ServerPlayer player = source.getPlayerOrException();
         AscendanceTierDefinition tier = EssenceCommandUtil.resolveTier(tierName);
         EssenceSavedData.get(source.getServer()).setTier(player.getUUID(), tier);
+        PlayerRuntimeLifecycleService.refreshProgressionState(player);
 
         EssenceCommandUtil.send(source, EssenceCommandUtil.good(
-                "Ascendance tier set to " + tier.displayName() + "."
+                "Player Ascendance tier set to " + tier.displayName() + "."
         ));
         return 1;
+    }
+
+    private static int setHeldItemTier(
+            CommandSourceStack source,
+            String tierName
+    ) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        ItemStack held = player.getMainHandItem();
+        EquipmentTier requested = EssenceCommandUtil.resolveItemTier(tierName);
+
+        if (held == null || held.isEmpty()) {
+            EssenceCommandUtil.fail(source, "Hold Ascendance equipment or an Essence Focus in your main hand.");
+            return 0;
+        }
+
+        if (EquipmentTierData.isAscendanceEquipment(held)) {
+            EquipmentTierData.setTier(held, requested);
+            EquipmentInfusionData.clear(held);
+            PlayerRuntimeLifecycleService.refreshProgressionState(player);
+            EssenceCommandUtil.send(source, EssenceCommandUtil.good(
+                    held.getHoverName().getString() + " item tier set to " + requested.displayName() + "."
+            ));
+            return 1;
+        }
+
+        if (EssenceFocusData.isFocusItem(held)) {
+            FocusInfusionData.clear(held);
+            if (requested == EquipmentTier.LATENT) {
+                EssenceFocusData.setLatent(held);
+            } else {
+                EssenceFocusTier focusTier = focusTierFor(requested);
+                EssenceFocusData.setTier(held, focusTier);
+            }
+            EssenceCommandUtil.send(source, EssenceCommandUtil.good(
+                    "Essence Focus item tier set to " + requested.displayName() + "."
+            ));
+            return 1;
+        }
+
+        EssenceCommandUtil.fail(
+                source,
+                "Held item has no Ascendance item tier. Hold Ascendance equipment or an Essence Focus."
+        );
+        return 0;
+    }
+
+    private static EssenceFocusTier focusTierFor(EquipmentTier tier) {
+        for (EssenceFocusTier focusTier : EssenceFocusTier.values()) {
+            if (focusTier.serializedName().equals(tier.serializedName())) {
+                return focusTier;
+            }
+        }
+        throw new IllegalArgumentException("No Essence Focus tier for " + tier.serializedName());
     }
 
     private static int setMilestone(

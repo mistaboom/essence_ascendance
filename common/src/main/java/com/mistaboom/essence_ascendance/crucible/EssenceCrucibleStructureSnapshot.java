@@ -1,7 +1,7 @@
 package com.mistaboom.essence_ascendance.crucible;
 
 import com.mistaboom.essence_ascendance.pylon.EssencePylonContribution;
-import com.mistaboom.essence_ascendance.pylon.EssencePylonFocusTier;
+import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
 import net.minecraft.core.BlockPos;
 import org.jetbrains.annotations.Nullable;
 
@@ -22,7 +22,7 @@ public record EssenceCrucibleStructureSnapshot(
 
     public record ActivePylon(
             BlockPos pos,
-            @Nullable EssencePylonFocusTier focusTier,
+            @Nullable EssenceFocusTier focusTier,
             EssencePylonContribution contribution
     ) {
         public String focusDisplayName() {

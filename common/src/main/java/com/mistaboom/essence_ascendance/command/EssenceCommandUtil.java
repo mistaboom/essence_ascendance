@@ -5,6 +5,7 @@ import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceFamily;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
+import com.mistaboom.essence_ascendance.equipment.EquipmentTier;
 import com.mistaboom.essence_ascendance.progression.MilestoneDefinition;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.StatCategory;
@@ -44,6 +45,12 @@ final class EssenceCommandUtil {
     private static final DynamicCommandExceptionType UNKNOWN_TIER =
             new DynamicCommandExceptionType(
                     value -> Component.literal("Unknown Ascendance tier: " + value)
+                            .withStyle(ChatFormatting.RED)
+            );
+
+    private static final DynamicCommandExceptionType UNKNOWN_ITEM_TIER =
+            new DynamicCommandExceptionType(
+                    value -> Component.literal("Unknown item tier: " + value)
                             .withStyle(ChatFormatting.RED)
             );
 
@@ -208,6 +215,18 @@ final class EssenceCommandUtil {
                 .orElseThrow(() -> UNKNOWN_TIER.create(input));
     }
 
+    static EquipmentTier resolveItemTier(String input) throws CommandSyntaxException {
+        if (input != null) {
+            String normalized = input.toLowerCase(Locale.ROOT);
+            for (EquipmentTier tier : EquipmentTier.values()) {
+                if (tier.serializedName().equals(normalized)) {
+                    return tier;
+                }
+            }
+        }
+        throw UNKNOWN_ITEM_TIER.create(input);
+    }
+
     static StatCategory resolveCategory(String input) throws CommandSyntaxException {
         try {
             return StatCategory.valueOf(input.toUpperCase(Locale.ROOT));
@@ -272,6 +291,20 @@ final class EssenceCommandUtil {
         String remaining = builder.getRemainingLowerCase();
         for (AscendanceTierDefinition tier : AscendanceTierRegistry.values()) {
             String name = tier.id().getPath();
+            if (name.startsWith(remaining)) {
+                builder.suggest(name);
+            }
+        }
+        return builder.buildFuture();
+    }
+
+    static CompletableFuture<Suggestions> suggestItemTiers(
+            CommandContext<CommandSourceStack> context,
+            SuggestionsBuilder builder
+    ) {
+        String remaining = builder.getRemainingLowerCase();
+        for (EquipmentTier tier : EquipmentTier.values()) {
+            String name = tier.serializedName();
             if (name.startsWith(remaining)) {
                 builder.suggest(name);
             }

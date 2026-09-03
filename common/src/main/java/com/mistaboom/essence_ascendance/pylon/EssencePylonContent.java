@@ -1,7 +1,6 @@
 package com.mistaboom.essence_ascendance.pylon;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
-import com.mistaboom.essence_ascendance.infuser.FocusInfusionData;
 import dev.architectury.registry.CreativeTabRegistry;
 import dev.architectury.registry.registries.DeferredRegister;
 import dev.architectury.registry.registries.RegistrySupplier;
@@ -51,16 +50,11 @@ public final class EssencePylonContent {
                     )
             );
 
-    public static final RegistrySupplier<Item> DORMANT_PYLON_FOCUS =
-            focus("dormant_pylon_focus", EssencePylonFocusTier.DORMANT);
-    public static final RegistrySupplier<Item> AWAKENED_PYLON_FOCUS =
-            focus("awakened_pylon_focus", EssencePylonFocusTier.AWAKENED);
-    public static final RegistrySupplier<Item> RESONANT_PYLON_FOCUS =
-            focus("resonant_pylon_focus", EssencePylonFocusTier.RESONANT);
-    public static final RegistrySupplier<Item> ASCENDANT_PYLON_FOCUS =
-            focus("ascendant_pylon_focus", EssencePylonFocusTier.ASCENDANT);
-    public static final RegistrySupplier<Item> TRANSCENDENT_PYLON_FOCUS =
-            focus("transcendent_pylon_focus", EssencePylonFocusTier.TRANSCENDENT);
+    public static final RegistrySupplier<Item> ESSENCE_FOCUS =
+            ITEMS.register(
+                    "essence_focus",
+                    () -> new EssenceFocusItem(new Item.Properties())
+            );
 
     public static final RegistrySupplier<BlockEntityType<EssencePylonBlockEntity>> ESSENCE_PYLON_BLOCK_ENTITY =
             BLOCK_ENTITIES.register(
@@ -85,18 +79,7 @@ public final class EssencePylonContent {
     private EssencePylonContent() {
     }
 
-    private static RegistrySupplier<Item> focus(
-            String id,
-            EssencePylonFocusTier tier
-    ) {
-        return ITEMS.register(
-                id,
-                () -> new EssencePylonFocusItem(
-                        tier,
-                        new Item.Properties()
-                )
-        );
-    }
+
 
     public static void init() {
         if (initialized) {
@@ -114,53 +97,40 @@ public final class EssencePylonContent {
         );
         CreativeTabRegistry.append(
                 CreativeModeTabs.INGREDIENTS,
-                DORMANT_PYLON_FOCUS,
-                AWAKENED_PYLON_FOCUS,
-                RESONANT_PYLON_FOCUS,
-                ASCENDANT_PYLON_FOCUS,
-                TRANSCENDENT_PYLON_FOCUS
+                ESSENCE_FOCUS
         );
 
         initialized = true;
     }
 
-    /** Operational tier for an installed Focus. Partially infused workpieces cannot power machines. */
-    public static EssencePylonFocusTier focusTier(ItemStack stack) {
-        EssencePylonFocusTier raw = rawFocusTier(stack);
-        return raw != null && !FocusInfusionData.hasInfusionTag(stack) ? raw : null;
+    /**
+     * Operational tier for an installed Focus. A partially infused Focus keeps
+     * operating at its last completed tier; only a still-Latent Focus is inactive.
+     */
+    public static EssenceFocusTier focusTier(ItemStack stack) {
+        return rawFocusTier(stack);
     }
 
-    /** Raw tier identity used when a Focus item itself is the Infuser workpiece. */
-    public static EssencePylonFocusTier rawFocusTier(ItemStack stack) {
-        if (stack != null && !stack.isEmpty()
-                && stack.getItem() instanceof EssencePylonFocusItem focusItem) {
-            return focusItem.tier();
-        }
-        return null;
-    }
-
-    public static Item itemForTier(EssencePylonFocusTier tier) {
-        return switch (tier) {
-            case DORMANT -> DORMANT_PYLON_FOCUS.get();
-            case AWAKENED -> AWAKENED_PYLON_FOCUS.get();
-            case RESONANT -> RESONANT_PYLON_FOCUS.get();
-            case ASCENDANT -> ASCENDANT_PYLON_FOCUS.get();
-            case TRANSCENDENT -> TRANSCENDENT_PYLON_FOCUS.get();
-        };
+    /** Completed tier identity used when an Essence Focus itself is the Infuser workpiece. */
+    public static EssenceFocusTier rawFocusTier(ItemStack stack) {
+        return EssenceFocusData.tier(stack);
     }
 
     public static EssencePylonContribution contribution(ItemStack stack) {
-        EssencePylonFocusTier tier = focusTier(stack);
+        EssenceFocusTier tier = focusTier(stack);
         return tier == null
-                ? EssencePylonFocusTier.EMPTY_PYLON
+                ? EssenceFocusTier.EMPTY_PYLON
                 : tier.contribution();
     }
 
+    /** True only for a completed, installable Essence Focus. */
     public static boolean isFocus(ItemStack stack) {
         return focusTier(stack) != null;
     }
 
+    /** True for the unified Essence Focus at any completed/Latent infusion state. */
     public static boolean isFocusItem(ItemStack stack) {
-        return rawFocusTier(stack) != null;
+        return EssenceFocusData.isFocusItem(stack);
     }
+
 }

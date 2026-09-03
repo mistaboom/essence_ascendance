@@ -5,7 +5,6 @@
   "item.essence_ascendance.ascendance_boots": "Ascendance Boots",
   "item.essence_ascendance.ascendance_melee_weapon": "Ascendance Blade",
   "item.essence_ascendance.ascendance_ranged_weapon": "Ascendance Bow",
-  "item.essence_ascendance.ascendance_magic_weapon": "Ascendance Focus",
   "item.essence_ascendance.ascendance_pickaxe": "Ascendance Pickaxe",
   "item.essence_ascendance.ascendance_axe": "Ascendance Axe",
   "item.essence_ascendance.ascendance_shovel": "Ascendance Shovel",
@@ -15,11 +14,6 @@
   "message.essence_ascendance.crucible_private": "This Essence Crucible is privately attuned to another player.",
   "message.essence_ascendance.crucible_break_blocked": "Only the owner can break an empty Essence Crucible. Remove its input and drain all stored Essence first.",
   "block.essence_ascendance.essence_pylon": "Essence Pylon",
-  "item.essence_ascendance.dormant_pylon_focus": "Dormant Focus",
-  "item.essence_ascendance.awakened_pylon_focus": "Awakened Focus",
-  "item.essence_ascendance.resonant_pylon_focus": "Resonant Focus",
-  "item.essence_ascendance.ascendant_pylon_focus": "Ascendant Focus",
-  "item.essence_ascendance.transcendent_pylon_focus": "Transcendent Focus",
   "container.essence_ascendance.essence_pylon": "Essence Pylon",
   "message.essence_ascendance.pylon_private": "This Essence Pylon is privately attuned to another player.",
   "block.essence_ascendance.ascendance_nexus": "Ascendance Nexus",
@@ -35,7 +29,10 @@
   "block.essence_ascendance.essence_infuser": "Essence Infuser",
   "container.essence_ascendance.essence_infuser": "Essence Infuser",
   "message.essence_ascendance.infuser_private": "This Essence Infuser is privately attuned to another player.",
-  "item.essence_ascendance.latent_focus": "Latent Focus",
   "block.essence_ascendance.netherrack_latent_ore": "Netherrack Latent Ore",
-  "block.essence_ascendance.end_stone_latent_ore": "End Stone Latent Ore"
+  "block.essence_ascendance.end_stone_latent_ore": "End Stone Latent Ore",
+  "block.essence_ascendance.channelstone": "Channelstone",
+  "item.essence_ascendance.ascendance_matrix": "Ascendance Matrix",
+  "item.essence_ascendance.essence_focus": "Essence Focus",
+  "item.essence_ascendance.ascendance_caster": "Ascendance Caster"
 }

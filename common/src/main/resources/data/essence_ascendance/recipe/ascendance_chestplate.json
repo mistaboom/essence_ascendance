@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "L L",
+    "LLL",
+    "LLL"
+  ],
+  "key": {
+    "L": {
+      "item": "essence_ascendance:latent_ingot"
+    }
+  },
+  "result": {
+    "id": "essence_ascendance:ascendance_chestplate",
+    "count": 1
+  },
+  "show_notification": false
+}

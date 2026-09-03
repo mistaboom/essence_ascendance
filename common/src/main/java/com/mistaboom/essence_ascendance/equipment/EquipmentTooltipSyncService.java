@@ -109,85 +109,28 @@ public final class EquipmentTooltipSyncService {
 
     private static EquipmentTooltipPayload build(ServerPlayer player) {
         PlayerEssenceData data =
-                EssenceSavedData
-                        .get(player.server)
-                        .getPlayerData(player.getUUID());
+                EssenceSavedData.get(player.server).getPlayerData(player.getUUID());
 
-        ArmorSetState armorSet =
-                evaluateArmorSet(player);
+        ArmorSetState armorSet = evaluateArmorSet(player);
+        List<EquipmentTooltipPayload.Entry> entries = new ArrayList<>(66);
 
-        List<EquipmentTooltipPayload.Entry> entries =
-                new ArrayList<>(11);
-
-        entries.add(
-                armor(
-                        data,
-                        armorSet,
-                        EquipmentSlot.HEAD,
-                        "Helmet"
-                )
-        );
-        entries.add(
-                armor(
-                        data,
-                        armorSet,
-                        EquipmentSlot.CHEST,
-                        "Chestplate"
-                )
-        );
-        entries.add(
-                armor(
-                        data,
-                        armorSet,
-                        EquipmentSlot.LEGS,
-                        "Leggings"
-                )
-        );
-        entries.add(
-                armor(
-                        data,
-                        armorSet,
-                        EquipmentSlot.FEET,
-                        "Boots"
-                )
-        );
-
-        entries.add(melee(data));
-        entries.add(ranged(data));
-        entries.add(magic(data));
-
-        entries.add(
-                tool(
-                        data,
-                        EquipmentProfiles.PICKAXE,
-                        "ascendance_pickaxe",
-                        "Pickaxe"
-                )
-        );
-        entries.add(
-                tool(
-                        data,
-                        EquipmentProfiles.AXE,
-                        "ascendance_axe",
-                        "Axe"
-                )
-        );
-        entries.add(
-                tool(
-                        data,
-                        EquipmentProfiles.SHOVEL,
-                        "ascendance_shovel",
-                        "Shovel"
-                )
-        );
-        entries.add(
-                tool(
-                        data,
-                        EquipmentProfiles.HOE,
-                        "ascendance_hoe",
-                        "Hoe"
-                )
-        );
+        // Tooltip presentation is stack-tier aware. A single registered item can
+        // exist at six completed equipment tiers, so synchronize one resolved
+        // snapshot per item+tier instead of caching one player-tier snapshot per
+        // registered item ID.
+        for (EquipmentTier itemTier : EquipmentTier.values()) {
+            entries.add(armor(data, armorSet, EquipmentSlot.HEAD, "Helmet", itemTier));
+            entries.add(armor(data, armorSet, EquipmentSlot.CHEST, "Chestplate", itemTier));
+            entries.add(armor(data, armorSet, EquipmentSlot.LEGS, "Leggings", itemTier));
+            entries.add(armor(data, armorSet, EquipmentSlot.FEET, "Boots", itemTier));
+            entries.add(melee(data, itemTier));
+            entries.add(ranged(data, itemTier));
+            entries.add(magic(data, itemTier));
+            entries.add(tool(data, EquipmentProfiles.PICKAXE, "ascendance_pickaxe", "Pickaxe", itemTier));
+            entries.add(tool(data, EquipmentProfiles.AXE, "ascendance_axe", "Axe", itemTier));
+            entries.add(tool(data, EquipmentProfiles.SHOVEL, "ascendance_shovel", "Shovel", itemTier));
+            entries.add(tool(data, EquipmentProfiles.HOE, "ascendance_hoe", "Hoe", itemTier));
+        }
 
         return new EquipmentTooltipPayload(entries);
     }
@@ -196,12 +139,14 @@ public final class EquipmentTooltipSyncService {
             PlayerEssenceData data,
             ArmorSetState armorSet,
             EquipmentSlot slot,
-            String label
+            String label,
+            EquipmentTier itemTier
     ) {
         EquipmentBaselineResult baseline =
-                EquipmentBaselineService.evaluate(
+                EquipmentBaselineService.evaluateForEquipmentTier(
                         data,
-                        EquipmentProfiles.ARMOR.id()
+                        EquipmentProfiles.ARMOR.id(),
+                        itemTier
                 );
 
         double pieceStrength =
@@ -210,7 +155,7 @@ public final class EquipmentTooltipSyncService {
         List<EquipmentTooltipPayload.Line> lines =
                 new ArrayList<>();
 
-        lines.add(identity(data, label));
+        lines.add(identity(itemTier, label));
 
         lines.add(stat(
                 "Armor: "
@@ -226,22 +171,25 @@ public final class EquipmentTooltipSyncService {
                         )
         ));
 
-        lines.add(
-                setBonus(
-                        "Set: "
-                                + armorSet.piecesWorn()
-                                + "/4 worn"
-                                + "  •  "
-                                + wholePercent(
-                                        armorSet.essenceStrength()
-                                )
-                                + " Essence power"
-                )
-        );
+        if (itemTier != EquipmentTier.LATENT) {
+            lines.add(
+                    setBonus(
+                            "Set: "
+                                    + armorSet.piecesWorn()
+                                    + "/4 worn"
+                                    + "  •  "
+                                    + wholePercent(
+                                            armorSet.essenceStrength()
+                                    )
+                                    + " Essence power"
+                    )
+            );
+        }
 
         addProfileAbilities(
                 lines,
                 data,
+                itemTier,
                 EquipmentProfiles.ARMOR,
                 EquipmentActivationType.WORN,
                 pieceStrength
@@ -249,22 +197,26 @@ public final class EquipmentTooltipSyncService {
 
         return entry(
                 "ascendance_" + armorPath(slot),
+                itemTier,
                 lines
         );
     }
 
     private static EquipmentTooltipPayload.Entry melee(
-            PlayerEssenceData data
+            PlayerEssenceData data,
+            EquipmentTier itemTier
     ) {
         EquipmentBaselineResult base =
-                EquipmentBaselineService.evaluate(
+                EquipmentBaselineService.evaluateForEquipmentTier(
                         data,
-                        EquipmentProfiles.MELEE_WEAPON.id()
+                        EquipmentProfiles.MELEE_WEAPON.id(),
+                        itemTier
                 );
 
         double damage =
                 percentCurrent(
                         data,
+                        itemTier,
                         EssenceStats.MELEE_DAMAGE,
                         1.0,
                         base.meleeDamage()
@@ -273,6 +225,7 @@ public final class EquipmentTooltipSyncService {
         double speed =
                 percentCurrent(
                         data,
+                        itemTier,
                         EssenceStats.MELEE_ATTACK_SPEED,
                         1.0,
                         base.meleeAttackSpeed()
@@ -281,13 +234,14 @@ public final class EquipmentTooltipSyncService {
         List<EquipmentTooltipPayload.Line> lines =
                 new ArrayList<>();
 
-        lines.add(identity(data, "Melee Weapon"));
+        lines.add(identity(itemTier, "Melee Weapon"));
         lines.add(stat("Attack Damage: " + number(damage)));
         lines.add(stat("Attack Speed: " + number(speed) + "/s"));
 
         addProfileAbilities(
                 lines,
                 data,
+                itemTier,
                 EquipmentProfiles.MELEE_WEAPON,
                 EquipmentActivationType.HELD,
                 1.0
@@ -295,22 +249,26 @@ public final class EquipmentTooltipSyncService {
 
         return entry(
                 "ascendance_melee_weapon",
+                itemTier,
                 lines
         );
     }
 
     private static EquipmentTooltipPayload.Entry ranged(
-            PlayerEssenceData data
+            PlayerEssenceData data,
+            EquipmentTier itemTier
     ) {
         EquipmentBaselineResult base =
-                EquipmentBaselineService.evaluate(
+                EquipmentBaselineService.evaluateForEquipmentTier(
                         data,
-                        EquipmentProfiles.RANGED_WEAPON.id()
+                        EquipmentProfiles.RANGED_WEAPON.id(),
+                        itemTier
                 );
 
         double damage =
                 percentCurrent(
                         data,
+                        itemTier,
                         EssenceStats.RANGED_DAMAGE,
                         1.0,
                         base.rangedDamage()
@@ -319,6 +277,7 @@ public final class EquipmentTooltipSyncService {
         double drawSpeed =
                 percentCurrent(
                         data,
+                        itemTier,
                         EssenceStats.RANGED_ATTACK_SPEED,
                         1.0,
                         base.rangedAttackSpeed()
@@ -327,13 +286,14 @@ public final class EquipmentTooltipSyncService {
         List<EquipmentTooltipPayload.Line> lines =
                 new ArrayList<>();
 
-        lines.add(identity(data, "Ranged Weapon"));
+        lines.add(identity(itemTier, "Ranged Weapon"));
         lines.add(stat("Ranged Damage: " + number(damage)));
         lines.add(stat("Draw Speed: " + number(drawSpeed) + "/s"));
 
         addProfileAbilities(
                 lines,
                 data,
+                itemTier,
                 EquipmentProfiles.RANGED_WEAPON,
                 EquipmentActivationType.HELD,
                 1.0
@@ -341,22 +301,26 @@ public final class EquipmentTooltipSyncService {
 
         return entry(
                 "ascendance_ranged_weapon",
+                itemTier,
                 lines
         );
     }
 
     private static EquipmentTooltipPayload.Entry magic(
-            PlayerEssenceData data
+            PlayerEssenceData data,
+            EquipmentTier itemTier
     ) {
         EquipmentBaselineResult base =
-                EquipmentBaselineService.evaluate(
+                EquipmentBaselineService.evaluateForEquipmentTier(
                         data,
-                        EquipmentProfiles.MAGIC_FOCUS.id()
+                        EquipmentProfiles.MAGIC_CASTER.id(),
+                        itemTier
                 );
 
         double damage =
                 percentCurrent(
                         data,
+                        itemTier,
                         EssenceStats.MAGIC_DAMAGE,
                         1.0,
                         base.magicDamage()
@@ -365,6 +329,7 @@ public final class EquipmentTooltipSyncService {
         double castSpeed =
                 percentCurrent(
                         data,
+                        itemTier,
                         EssenceStats.MAGIC_CAST_SPEED,
                         1.0,
                         base.magicCastSpeed()
@@ -373,20 +338,22 @@ public final class EquipmentTooltipSyncService {
         List<EquipmentTooltipPayload.Line> lines =
                 new ArrayList<>();
 
-        lines.add(identity(data, "Magic Focus"));
+        lines.add(identity(itemTier, "Caster"));
         lines.add(stat("Magic Damage: " + number(damage)));
         lines.add(stat("Cast Speed: " + number(castSpeed) + "/s"));
 
         addProfileAbilities(
                 lines,
                 data,
-                EquipmentProfiles.MAGIC_FOCUS,
+                itemTier,
+                EquipmentProfiles.MAGIC_CASTER,
                 EquipmentActivationType.HELD,
                 1.0
         );
 
         return entry(
-                "ascendance_magic_weapon",
+                "ascendance_caster",
+                itemTier,
                 lines
         );
     }
@@ -395,12 +362,14 @@ public final class EquipmentTooltipSyncService {
             PlayerEssenceData data,
             EquipmentProfileDefinition profile,
             String itemPath,
-            String label
+            String label,
+            EquipmentTier itemTier
     ) {
         EquipmentBaselineResult base =
-                EquipmentBaselineService.evaluate(
+                EquipmentBaselineService.evaluateForEquipmentTier(
                         data,
-                        profile.id()
+                        profile.id(),
+                        itemTier
                 );
 
         double miningStrength =
@@ -424,6 +393,7 @@ public final class EquipmentTooltipSyncService {
         double miningSpeed =
                 percentCurrent(
                         data,
+                        itemTier,
                         EssenceStats.MINING_SPEED,
                         miningStrength,
                         base.miningSpeed()
@@ -432,6 +402,7 @@ public final class EquipmentTooltipSyncService {
         double damage =
                 percentCurrent(
                         data,
+                        itemTier,
                         EssenceStats.MELEE_DAMAGE,
                         damageStrength,
                         base.meleeDamage()
@@ -440,6 +411,7 @@ public final class EquipmentTooltipSyncService {
         double attackSpeed =
                 percentCurrent(
                         data,
+                        itemTier,
                         EssenceStats.MELEE_ATTACK_SPEED,
                         speedStrength,
                         base.meleeAttackSpeed()
@@ -448,7 +420,7 @@ public final class EquipmentTooltipSyncService {
         List<EquipmentTooltipPayload.Line> lines =
                 new ArrayList<>();
 
-        lines.add(identity(data, label));
+        lines.add(identity(itemTier, label));
         lines.add(stat("Mining Speed: " + number(miningSpeed)));
         lines.add(stat("Attack Damage: " + number(damage)));
         lines.add(stat("Attack Speed: " + number(attackSpeed) + "/s"));
@@ -457,6 +429,7 @@ public final class EquipmentTooltipSyncService {
         addProfileAbilities(
                 lines,
                 data,
+                itemTier,
                 profile,
                 EquipmentActivationType.HELD,
                 1.0
@@ -464,6 +437,7 @@ public final class EquipmentTooltipSyncService {
 
         return entry(
                 itemPath,
+                itemTier,
                 lines
         );
     }
@@ -471,6 +445,7 @@ public final class EquipmentTooltipSyncService {
     private static void addProfileAbilities(
             List<EquipmentTooltipPayload.Line> lines,
             PlayerEssenceData data,
+            EquipmentTier itemTier,
             EquipmentProfileDefinition profile,
             EquipmentActivationType activation,
             double outerStrength
@@ -493,6 +468,7 @@ public final class EquipmentTooltipSyncService {
             double resolved =
                     bonus(
                             data,
+                            itemTier,
                             stat,
                             strength
                     );
@@ -550,33 +526,31 @@ public final class EquipmentTooltipSyncService {
 
     private static double bonus(
             PlayerEssenceData data,
+            EquipmentTier itemTier,
             StatDefinition stat,
             double strength
     ) {
-        return StatScalingService
-                .evaluate(
-                        data,
-                        stat
-                )
-                .scaledBonus()
-                * strength;
+        if (itemTier == EquipmentTier.LATENT) {
+            return 0.0D;
+        }
+
+        EquipmentTier playerTier = EquipmentTier.fromAscendanceTier(data.getTier());
+        EquipmentTier effective = itemTier.order() <= playerTier.order() ? itemTier : playerTier;
+        return StatScalingService.scaledBonusForTier(
+                data,
+                stat,
+                effective.ascendanceTier()
+        ) * strength;
     }
 
     private static double percentCurrent(
             PlayerEssenceData data,
+            EquipmentTier itemTier,
             StatDefinition stat,
             double strength,
             double base
     ) {
-        return base
-                * (
-                1.0
-                        + bonus(
-                        data,
-                        stat,
-                        strength
-                ) / 100.0
-        );
+        return base * (1.0D + bonus(data, itemTier, stat, strength) / 100.0D);
     }
 
     private static String formatAbility(
@@ -638,18 +612,13 @@ public final class EquipmentTooltipSyncService {
     }
 
     private static EquipmentTooltipPayload.Line identity(
-            PlayerEssenceData data,
+            EquipmentTier itemTier,
             String itemLabel
     ) {
-        /*
-         * The vanilla item name already identifies the equipment. Repeating
-         * "Helmet", "Pickaxe", etc. here adds noise, so the identity line is
-         * intentionally just the player's current Ascendance tier.
-         */
         return new EquipmentTooltipPayload.Line(
                 EquipmentTooltipPayload.Group.IDENTITY,
                 EquipmentTooltipPayload.Tone.TIER,
-                data.getTier().displayName()
+                "Tier: " + itemTier.displayName()
         );
     }
 
@@ -685,10 +654,11 @@ public final class EquipmentTooltipSyncService {
 
     private static EquipmentTooltipPayload.Entry entry(
             String itemPath,
+            EquipmentTier itemTier,
             List<EquipmentTooltipPayload.Line> lines
     ) {
         return new EquipmentTooltipPayload.Entry(
-                "essence_ascendance:" + itemPath,
+                "essence_ascendance:" + itemPath + "#" + itemTier.serializedName(),
                 lines
         );
     }

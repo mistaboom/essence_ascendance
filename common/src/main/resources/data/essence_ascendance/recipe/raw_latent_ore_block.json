@@ -13,5 +13,6 @@
   ],
   "result": {
     "id": "essence_ascendance:raw_latent_ore_block"
-  }
+  },
+  "show_notification": false
 }

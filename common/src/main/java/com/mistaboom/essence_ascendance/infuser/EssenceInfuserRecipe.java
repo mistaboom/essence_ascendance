@@ -1,6 +1,6 @@
 package com.mistaboom.essence_ascendance.infuser;
 
-import com.mistaboom.essence_ascendance.pylon.EssencePylonFocusTier;
+import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
@@ -34,13 +34,13 @@ public interface EssenceInfuserRecipe {
     }
 
     @Nullable
-    default EssencePylonFocusTier requiredInstalledFocusTier() {
+    default EssenceFocusTier requiredInstalledFocusTier() {
         return null;
     }
 
     default boolean installedFocusAllows(EssenceInfuserRecipeContext context) {
-        EssencePylonFocusTier required = requiredInstalledFocusTier();
-        EssencePylonFocusTier installed = context.installedFocusTier();
+        EssenceFocusTier required = requiredInstalledFocusTier();
+        EssenceFocusTier installed = context.installedFocusTier();
         return required == null
                 || (installed != null && installed.ordinal() >= required.ordinal());
     }

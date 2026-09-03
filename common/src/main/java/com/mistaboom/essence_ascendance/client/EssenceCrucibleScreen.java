@@ -33,9 +33,8 @@ public final class EssenceCrucibleScreen
     private static final int TOTAL_PANEL_Y = 182;
     private static final int TOTAL_PANEL_HEIGHT = 17;
 
-    private static final int INFO_PANEL_WIDTH = 154;
-    private static final int INFO_PANEL_HEIGHT = 180;
-    private static final int SIDE_PANEL_GAP = 4;
+    private static final int INFO_PANEL_WIDTH = MachineScreenLayout.INFO_PANEL_WIDTH;
+    private static final int INFO_PANEL_HEIGHT = 198;
 
     private static final int VENT_PANEL_WIDTH = 172;
     private static final int SETTINGS_HEADER_HEIGHT = 27;
@@ -766,11 +765,10 @@ public final class EssenceCrucibleScreen
 
     private boolean pointInsideInfoPanel(double mouseX, double mouseY) {
         int x = infoPanelX();
-        int y = topPos + 4;
-        return mouseX >= x
-                && mouseX < x + INFO_PANEL_WIDTH
-                && mouseY >= y
-                && mouseY < y + INFO_PANEL_HEIGHT;
+        int y = topPos + MachineScreenLayout.SIDE_PANEL_TOP_OFFSET;
+        return MachineScreenLayout.contains(
+                mouseX, mouseY, x, y, INFO_PANEL_WIDTH, INFO_PANEL_HEIGHT
+        );
     }
 
     private boolean pointInsideVentPanel(
@@ -843,13 +841,13 @@ public final class EssenceCrucibleScreen
 
     private int ventPanelX() {
         int preferredLeft =
-                leftPos - SIDE_PANEL_GAP - VENT_PANEL_WIDTH;
+                leftPos - MachineScreenLayout.SIDE_PANEL_GAP - VENT_PANEL_WIDTH;
         if (preferredLeft >= 4) {
             return preferredLeft;
         }
 
         int alternateRight =
-                leftPos + imageWidth + SIDE_PANEL_GAP;
+                leftPos + imageWidth + MachineScreenLayout.SIDE_PANEL_GAP;
         if (alternateRight + VENT_PANEL_WIDTH <= width - 4) {
             return alternateRight;
         }
@@ -872,105 +870,29 @@ public final class EssenceCrucibleScreen
             EssenceCrucibleStatePayload state
     ) {
         int panelX = infoPanelX();
-        int panelY = topPos + 4;
+        int panelY = topPos + MachineScreenLayout.SIDE_PANEL_TOP_OFFSET;
 
-        MachineScreenUi.panel(
-                graphics,
-                panelX,
-                panelY,
-                INFO_PANEL_WIDTH,
-                INFO_PANEL_HEIGHT
-        );
-
-        int textX = panelX + 7;
-        int textWidth = INFO_PANEL_WIDTH - 14;
-
-        MachineScreenUi.sectionHeader(graphics, font, "Info", textX, panelY + 7);
-        MachineScreenUi.fitted(
-                graphics,
-                font,
-                "Owner: " + state.ownerName(),
-                textX,
-                panelY + 20,
-                textWidth,
-                MUTED
-        );
-        MachineScreenUi.fitted(
-                graphics,
-                font,
-                "Access: " + titleCase(state.accessMode()),
-                textX,
-                panelY + 31,
-                textWidth,
-                MUTED
-        );
-
-        MachineScreenUi.sectionHeader(graphics, font, "Crucible", textX, panelY + 46);
-        MachineScreenUi.indentedLine(
-                graphics, font,
-                "Capacity: " + format(state.reservoirCapacity()),
-                textX, panelY + 57, textWidth
-        );
-        MachineScreenUi.indentedLine(
-                graphics, font,
-                "Pylons: " + state.activePylonCount() + "/" + state.maxActivePylons(),
-                textX, panelY + 68, textWidth
-        );
-        MachineScreenUi.indentedLine(
-                graphics, font,
-                String.format(Locale.ROOT, "Pylon Radius: %.1f", state.pylonRadius()),
-                textX, panelY + 79, textWidth
-        );
-        MachineScreenUi.indentedLine(
-                graphics, font,
-                "Input Slots: " + menu.activeMachineSlots(),
-                textX, panelY + 90, textWidth
-        );
-
-        MachineScreenUi.sectionHeader(graphics, font, "Channeling", textX, panelY + 105);
-        MachineScreenUi.indentedLine(
-                graphics, font,
-                "Rate: " + format(state.transferRatePerSecond()) + "/sec",
-                textX, panelY + 116, textWidth
-        );
-        MachineScreenUi.indentedLine(
-                graphics, font,
-                String.format(Locale.ROOT, "Range: %.1f blocks", state.transferRange()),
-                textX, panelY + 127, textWidth
-        );
-
-        MachineScreenUi.sectionHeader(graphics, font, "Dissolution", textX, panelY + 142);
-        MachineScreenUi.indentedLine(
-                graphics, font,
-                "Items/Batch: " + state.simultaneousItemProcesses(),
-                textX, panelY + 153, textWidth
-        );
-        MachineScreenUi.indentedLine(
-                graphics, font,
-                "Batches/Sec: " + batchesPerSecond(state),
-                textX, panelY + 164, textWidth
-        );
+        new MachineInfoPanel(
+                graphics, font, panelX, panelY, INFO_PANEL_WIDTH, INFO_PANEL_HEIGHT
+        )
+                .title("Info")
+                .metadata("Owner: " + state.ownerName())
+                .metadata("Access: " + titleCase(state.accessMode()))
+                .section("Crucible")
+                .line("Capacity: " + format(state.reservoirCapacity()))
+                .line("Pylons: " + state.activePylonCount() + "/" + state.maxActivePylons())
+                .line(String.format(Locale.ROOT, "Pylon Radius: %.1f", state.pylonRadius()))
+                .line("Input Slots: " + menu.activeMachineSlots())
+                .section("Channeling")
+                .line("Rate: " + format(state.transferRatePerSecond()) + "/sec")
+                .line(String.format(Locale.ROOT, "Range: %.1f blocks", state.transferRange()))
+                .section("Dissolution")
+                .line("Items/Batch: " + state.simultaneousItemProcesses())
+                .line("Batches/Sec: " + batchesPerSecond(state));
     }
 
     private int infoPanelX() {
-        int preferredRight =
-                leftPos + imageWidth + SIDE_PANEL_GAP;
-        if (preferredRight + INFO_PANEL_WIDTH <= width - 4) {
-            return preferredRight;
-        }
-
-        int alternateLeft =
-                leftPos - SIDE_PANEL_GAP - INFO_PANEL_WIDTH;
-        if (alternateLeft >= 4) {
-            return alternateLeft;
-        }
-
-        /*
-         * Narrow-screen fallback: neither external side can fit the panel.
-         * Clamp it against the right screen edge and let it overlap the main
-         * Crucible only as far inward as the available width requires.
-         */
-        return clampPanelX(preferredRight, INFO_PANEL_WIDTH);
+        return MachineScreenLayout.infoPanelX(leftPos, imageWidth, width);
     }
 
     private int clampPanelX(int desiredX, int panelWidth) {

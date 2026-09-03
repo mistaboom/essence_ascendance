@@ -1,7 +1,7 @@
 package com.mistaboom.essence_ascendance.infuser;
 
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
-import com.mistaboom.essence_ascendance.pylon.EssencePylonFocusTier;
+import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
@@ -15,7 +15,7 @@ public record EssenceInfuserRecipeContext(
         ItemStack workpiece,
         @Nullable EssenceDefinition sourceEssence,
         @Nullable EssenceDefinition targetEssence,
-        @Nullable EssencePylonFocusTier installedFocusTier,
+        @Nullable EssenceFocusTier installedFocusTier,
         EssenceInfuserBalance.Profile profile
 ) {
 

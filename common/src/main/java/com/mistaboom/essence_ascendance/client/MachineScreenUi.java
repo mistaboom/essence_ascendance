@@ -2,6 +2,9 @@ package com.mistaboom.essence_ascendance.client;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
+
+import java.util.List;
 
 /**
  * Shared procedural presentation primitives for normal Essence Ascendance
@@ -54,6 +57,16 @@ public final class MachineScreenUi {
     ) {
         graphics.fill(x, y, x + width, y + height, PANEL_INNER);
         outline(graphics, x, y, width, height, BORDER);
+    }
+
+    /** Standard normal-machine input/socket treatment. */
+    public static void inputSlot(GuiGraphics graphics, int x, int y) {
+        accentedInset(graphics, x, y, 20, 20);
+    }
+
+    /** Standard normal-machine output treatment. */
+    public static void outputSlot(GuiGraphics graphics, int x, int y) {
+        inset(graphics, x, y, 20, 20);
     }
 
     public static void progressBar(
@@ -168,6 +181,44 @@ public final class MachineScreenUi {
             end--;
         }
         graphics.drawString(font, text.substring(0, end) + ellipsis, x, y, color, false);
+    }
+
+    /**
+     * Draws wrapped text using Minecraft's own font splitter rather than
+     * truncating with an ellipsis. Returns the number of rendered lines so a
+     * caller can place subsequent content consistently when desired.
+     */
+    public static int wrapped(
+            GuiGraphics graphics,
+            Font font,
+            String text,
+            int x,
+            int y,
+            int maxWidth,
+            int color,
+            int lineHeight,
+            int maxLines
+    ) {
+        if (maxWidth <= 0 || maxLines <= 0 || text == null || text.isEmpty()) {
+            return 0;
+        }
+
+        List<net.minecraft.util.FormattedCharSequence> lines = font.split(
+                Component.literal(text),
+                maxWidth
+        );
+        int rendered = Math.min(maxLines, lines.size());
+        for (int line = 0; line < rendered; line++) {
+            graphics.drawString(
+                    font,
+                    lines.get(line),
+                    x,
+                    y + line * lineHeight,
+                    color,
+                    false
+            );
+        }
+        return rendered;
     }
 
     public static void outline(

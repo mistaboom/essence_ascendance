@@ -1,8 +1,8 @@
 package com.mistaboom.essence_ascendance.infuser;
 
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
-import com.mistaboom.essence_ascendance.pylon.EssencePylonFocusItem;
-import com.mistaboom.essence_ascendance.pylon.EssencePylonFocusTier;
+import com.mistaboom.essence_ascendance.pylon.EssenceFocusData;
+import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
@@ -29,9 +29,7 @@ public final class FocusInfusionData {
     }
 
     public static Optional<Progress> readRaw(ItemStack stack) {
-        if (stack == null || stack.isEmpty()
-                || (!stack.is(EssenceInfuserContent.LATENT_FOCUS.get())
-                && !(stack.getItem() instanceof EssencePylonFocusItem))) {
+        if (!EssenceFocusData.isFocusItem(stack)) {
             return Optional.empty();
         }
 
@@ -45,7 +43,7 @@ public final class FocusInfusionData {
         }
 
         CompoundTag tag = outer.getCompound(ROOT_TAG);
-        EssencePylonFocusTier target = parseTier(tag.getString(TARGET_TAG));
+        EssenceFocusTier target = parseTier(tag.getString(TARGET_TAG));
         if (target == null) {
             return Optional.empty();
         }
@@ -206,6 +204,21 @@ public final class FocusInfusionData {
         );
     }
 
+    public static void clear(ItemStack stack) {
+        if (!EssenceFocusData.isFocusItem(stack)) {
+            return;
+        }
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, outer -> outer.remove(ROOT_TAG));
+    }
+
+    public static void complete(ItemStack stack, FocusInfusionRecipe recipe) {
+        if (!requirementsMet(stack, recipe)) {
+            throw new IllegalStateException("Focus infusion is incomplete");
+        }
+        EssenceFocusData.setTier(stack, recipe.targetTier());
+        clear(stack);
+    }
+
     public static void appendTooltip(ItemStack stack, List<Component> tooltip) {
         Optional<Progress> progressOptional = readRaw(stack);
         if (progressOptional.isEmpty() || progressOptional.get().totalContributed() <= 0L) {
@@ -213,10 +226,13 @@ public final class FocusInfusionData {
         }
 
         Progress progress = progressOptional.get();
-        tooltip.add(Component.literal("Infusing: " + progress.targetTier().displayName())
-                .withStyle(ChatFormatting.LIGHT_PURPLE));
+        tooltip.add(Component.empty());
+        tooltip.add(Component.literal("Infusion Progress")
+                .withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.BOLD));
+        tooltip.add(Component.literal("  Target: " + progress.targetTier().displayName())
+                .withStyle(ChatFormatting.WHITE));
         tooltip.add(Component.literal(
-                        "Infused Essence: " + format(progress.totalContributed())
+                        "  Infused Essence: " + format(progress.totalContributed())
                 )
                 .withStyle(ChatFormatting.GRAY));
     }
@@ -229,11 +245,11 @@ public final class FocusInfusionData {
         return Map.copyOf(values);
     }
 
-    private static EssencePylonFocusTier parseTier(String name) {
+    private static EssenceFocusTier parseTier(String name) {
         if (name == null || name.isBlank()) {
             return null;
         }
-        for (EssencePylonFocusTier tier : EssencePylonFocusTier.values()) {
+        for (EssenceFocusTier tier : EssenceFocusTier.values()) {
             if (tier.serializedName().equals(name)) {
                 return tier;
             }
@@ -246,7 +262,7 @@ public final class FocusInfusionData {
     }
 
     public record Progress(
-            EssencePylonFocusTier targetTier,
+            EssenceFocusTier targetTier,
             UUID sessionId,
             Map<EssenceDefinition, Long> contributions
     ) {

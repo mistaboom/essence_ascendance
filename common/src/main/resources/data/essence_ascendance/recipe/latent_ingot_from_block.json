@@ -9,5 +9,6 @@
   "result": {
     "id": "essence_ascendance:latent_ingot",
     "count": 9
-  }
+  },
+  "show_notification": false
 }

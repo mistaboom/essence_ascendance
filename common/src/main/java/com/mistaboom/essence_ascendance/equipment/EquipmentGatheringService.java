@@ -333,6 +333,7 @@ public final class EquipmentGatheringService {
     ) {
         PlayerEssenceData playerData = playerData(player);
         EquipmentStatState held = EquipmentStatResolver.evaluateItem(
+                player,
                 stack,
                 EquipmentActivationType.HELD
         );
@@ -514,6 +515,7 @@ public final class EquipmentGatheringService {
         }
 
         EquipmentStatState state = EquipmentStatResolver.evaluateItem(
+                player,
                 stack,
                 EquipmentActivationType.HELD
         );

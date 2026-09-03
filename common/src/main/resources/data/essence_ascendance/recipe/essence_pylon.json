@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " A ",
+    "CLC",
+    " C "
+  ],
+  "key": {
+    "A": {
+      "item": "minecraft:amethyst_shard"
+    },
+    "C": {
+      "item": "essence_ascendance:channelstone"
+    },
+    "L": {
+      "item": "essence_ascendance:latent_ingot"
+    }
+  },
+  "result": {
+    "id": "essence_ascendance:essence_pylon",
+    "count": 1
+  },
+  "show_notification": false
+}

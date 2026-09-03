@@ -71,9 +71,10 @@ public final class AscendanceToolMiningService {
                         .getPlayerData(player.getUUID());
 
         EquipmentBaselineResult baseline =
-                EquipmentBaselineService.evaluate(
+                EquipmentBaselineService.evaluateForStack(
                         playerData,
-                        profileId
+                        profileId,
+                        stack
                 );
 
         /*

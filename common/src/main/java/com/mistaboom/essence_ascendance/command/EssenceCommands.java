@@ -162,7 +162,7 @@ public final class EssenceCommands {
 
         if (source.hasPermission(EssenceCommandUtil.ADMIN_PERMISSION)) {
             EssenceCommandUtil.send(source, EssenceCommandUtil.section("Development / Administration"));
-            EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin", "data/configuration mutations"));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin", "player/item/configuration mutations"));
             EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug", "read-only diagnostics organized by gameplay category"));
             EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence test", "deterministic validation helpers"));
         }

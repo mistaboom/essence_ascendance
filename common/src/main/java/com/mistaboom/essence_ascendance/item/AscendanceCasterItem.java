@@ -17,25 +17,25 @@ import net.minecraft.world.item.TooltipFlag;
 import java.util.List;
 
 /*
- * Native Ascendance magic focus.
+ * Native Ascendance caster.
  *
  * This tranche intentionally starts with one neutral, universal magic action:
  * right-click performs a server-authoritative hitscan cast. Later spell/Essence
  * systems can replace or expand the presentation while continuing to consume
  * the same authoritative magic damage/cast-speed values.
  */
-public final class AscendanceMagicWeaponItem
+public final class AscendanceCasterItem
         extends Item
         implements EquipmentProfileItem {
 
     private static final int ENCHANTMENT_VALUE = 15;
 
-    public AscendanceMagicWeaponItem(Item.Properties properties) {
+    public AscendanceCasterItem(Item.Properties properties) {
         super(properties);
     }
 
     /*
-     * The magic focus is not a vanilla TieredItem, so it does not inherit an
+     * The caster is not a vanilla TieredItem, so it does not inherit an
      * enchantment value from AscendanceToolTier. Match the rest of Ascendance
      * equipment so the enchanting table can offer its supported enchantments.
      */
@@ -46,7 +46,7 @@ public final class AscendanceMagicWeaponItem
 
     @Override
     public ResourceLocation equipmentProfileId() {
-        return EquipmentProfiles.MAGIC_FOCUS.id();
+        return EquipmentProfiles.MAGIC_CASTER.id();
     }
 
     @Override

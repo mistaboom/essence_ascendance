@@ -1022,6 +1022,38 @@ public final class EssenceConfigManager {
             focusUpgrades.add(targetTier, focusObject);
         }
         infuser.add("focus_upgrades", focusUpgrades);
+
+        JsonObject equipmentUpgrades = new JsonObject();
+        equipmentUpgrades.addProperty(
+                "_comment",
+                "Equipment upgrades stream exact thematic Attribute Essence requirements. total_essence_required is divided by the per-equipment weights below; matrix_count is consumed atomically on completion."
+        );
+        for (String targetTier : new String[]{
+                "dormant", "awakened", "resonant", "ascendant", "transcendent"
+        }) {
+            InfuserBalanceSettings.EquipmentUpgradeSettings upgrade =
+                    settings.equipmentUpgrade(targetTier);
+            JsonObject upgradeObject = new JsonObject();
+            upgradeObject.addProperty("total_essence_required", upgrade.totalEssenceRequired());
+            upgradeObject.addProperty("matrix_count", upgrade.matrixCount());
+            equipmentUpgrades.add(targetTier, upgradeObject);
+        }
+        infuser.add("equipment_upgrades", equipmentUpgrades);
+
+        JsonObject equipmentWeights = new JsonObject();
+        equipmentWeights.addProperty(
+                "_comment",
+                "Positive relative weights for the six core Attribute Essences. Skill Essences are not valid here."
+        );
+        for (Map.Entry<String, Map<String, Integer>> equipment :
+                settings.equipmentEssenceWeights().entrySet()) {
+            JsonObject weightObject = new JsonObject();
+            for (Map.Entry<String, Integer> weight : equipment.getValue().entrySet()) {
+                weightObject.addProperty(weight.getKey(), weight.getValue());
+            }
+            equipmentWeights.add(equipment.getKey(), weightObject);
+        }
+        infuser.add("equipment_essence_weights", equipmentWeights);
         return infuser;
     }
 
@@ -1650,12 +1682,70 @@ public final class EssenceConfigManager {
             }
         }
 
+        Map<String, InfuserBalanceSettings.EquipmentUpgradeSettings> equipmentUpgrades =
+                new LinkedHashMap<>(defaults.equipmentUpgrades());
+        JsonObject equipmentUpgradeObject = getObject(object, "equipment_upgrades");
+        if (equipmentUpgradeObject != null) {
+            for (String targetTier : new String[]{
+                    "dormant", "awakened", "resonant", "ascendant", "transcendent"
+            }) {
+                JsonObject configured = getObject(equipmentUpgradeObject, targetTier);
+                if (configured == null) continue;
+                InfuserBalanceSettings.EquipmentUpgradeSettings fallback =
+                        equipmentUpgrades.get(targetTier);
+                equipmentUpgrades.put(
+                        targetTier,
+                        new InfuserBalanceSettings.EquipmentUpgradeSettings(
+                                readLong(configured, "total_essence_required", fallback.totalEssenceRequired()),
+                                readInt(configured, "matrix_count", fallback.matrixCount())
+                        )
+                );
+            }
+        }
+
+        Map<String, Map<String, Integer>> equipmentWeights = new LinkedHashMap<>();
+        defaults.equipmentEssenceWeights().forEach((key, value) ->
+                equipmentWeights.put(key, new LinkedHashMap<>(value)));
+        JsonObject equipmentWeightObject = getObject(object, "equipment_essence_weights");
+        if (equipmentWeightObject != null) {
+            for (String equipmentKey : defaults.equipmentEssenceWeights().keySet()) {
+                JsonObject configured = getObject(equipmentWeightObject, equipmentKey);
+                // Backward-compatible read for sparse configs made before the
+                // magic weapon was renamed Ascendance Caster. New templates
+                // always emit the canonical magic_caster key.
+                if (configured == null && equipmentKey.equals("magic_caster")) {
+                    configured = getObject(equipmentWeightObject, "magic_weapon");
+                }
+                if (configured == null) continue;
+                LinkedHashMap<String, Integer> configuredWeights = new LinkedHashMap<>();
+                for (String essenceKey : new String[]{
+                        "offense", "defense", "vitality", "mobility", "gathering", "utility"
+                }) {
+                    if (configured.has(essenceKey)) {
+                        int weight = readInt(configured, essenceKey, 0);
+                        if (weight <= 0) {
+                            throw new IllegalArgumentException(
+                                    "essence_infuser.equipment_essence_weights." + equipmentKey
+                                            + "." + essenceKey + " must be positive"
+                            );
+                        }
+                        configuredWeights.put(essenceKey, weight);
+                    }
+                }
+                if (!configuredWeights.isEmpty()) {
+                    equipmentWeights.put(equipmentKey, configuredWeights);
+                }
+            }
+        }
+
         return new InfuserBalanceSettings(
                 linkRange,
                 noFocusEfficiency,
                 noFocusThroughput,
                 grades,
-                focusUpgrades
+                focusUpgrades,
+                equipmentUpgrades,
+                equipmentWeights
         );
     }
 

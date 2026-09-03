@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "SAS",
+    "ALA",
+    "SAS"
+  ],
+  "key": {
+    "S": {
+      "item": "minecraft:stone"
+    },
+    "A": {
+      "item": "minecraft:amethyst_shard"
+    },
+    "L": {
+      "item": "essence_ascendance:latent_ingot"
+    }
+  },
+  "result": {
+    "id": "essence_ascendance:channelstone",
+    "count": 4
+  },
+  "show_notification": false
+}

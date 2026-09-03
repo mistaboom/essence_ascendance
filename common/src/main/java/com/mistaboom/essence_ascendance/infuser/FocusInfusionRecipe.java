@@ -5,8 +5,9 @@ import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.config.InfuserBalanceSettings;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceTypes;
+import com.mistaboom.essence_ascendance.pylon.EssenceFocusData;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonContent;
-import com.mistaboom.essence_ascendance.pylon.EssencePylonFocusTier;
+import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
@@ -23,8 +24,8 @@ import java.util.Optional;
  * on the Focus workpiece itself rather than in the machine's timed progress.
  */
 public record FocusInfusionRecipe(
-        EssencePylonFocusTier targetTier,
-        @Nullable EssencePylonFocusTier requiredInstalledTier,
+        EssenceFocusTier targetTier,
+        @Nullable EssenceFocusTier requiredInstalledTier,
         long minimumPerAttributeEssence,
         long totalEssenceRequired
 ) implements EssenceInfuserRecipe {
@@ -61,14 +62,11 @@ public record FocusInfusionRecipe(
     }
 
     public static boolean isWorkpiece(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
+        if (!EssenceFocusData.isFocusItem(stack)) {
             return false;
         }
-        if (stack.is(EssenceInfuserContent.LATENT_FOCUS.get())) {
-            return true;
-        }
-        EssencePylonFocusTier tier = EssencePylonContent.rawFocusTier(stack);
-        return tier != null && tier != EssencePylonFocusTier.TRANSCENDENT;
+        EssenceFocusTier tier = EssencePylonContent.rawFocusTier(stack);
+        return tier != EssenceFocusTier.TRANSCENDENT;
     }
 
     public static Optional<FocusInfusionRecipe> forWorkpiece(ItemStack stack) {
@@ -76,18 +74,18 @@ public record FocusInfusionRecipe(
             return Optional.empty();
         }
 
-        EssencePylonFocusTier target;
-        EssencePylonFocusTier requiredInstalled;
+        EssenceFocusTier current = EssencePylonContent.rawFocusTier(stack);
+        EssenceFocusTier target;
+        EssenceFocusTier requiredInstalled;
 
-        if (stack.is(EssenceInfuserContent.LATENT_FOCUS.get())) {
-            target = EssencePylonFocusTier.DORMANT;
+        if (current == null) {
+            target = EssenceFocusTier.DORMANT;
             requiredInstalled = null;
         } else {
-            EssencePylonFocusTier current = EssencePylonContent.rawFocusTier(stack);
-            if (current == null || current == EssencePylonFocusTier.TRANSCENDENT) {
+            if (current == EssenceFocusTier.TRANSCENDENT) {
                 return Optional.empty();
             }
-            target = EssencePylonFocusTier.values()[current.ordinal() + 1];
+            target = EssenceFocusTier.values()[current.ordinal() + 1];
             requiredInstalled = current;
         }
 
@@ -128,7 +126,7 @@ public record FocusInfusionRecipe(
     }
 
     @Override
-    public EssencePylonFocusTier requiredInstalledFocusTier() {
+    public EssenceFocusTier requiredInstalledFocusTier() {
         return requiredInstalledTier;
     }
 
@@ -151,20 +149,19 @@ public record FocusInfusionRecipe(
         return createOutput();
     }
 
-    public boolean installedFocusAllows(@Nullable EssencePylonFocusTier installed) {
+    public boolean installedFocusAllows(@Nullable EssenceFocusTier installed) {
         return requiredInstalledTier == null
                 || (installed != null && installed.ordinal() >= requiredInstalledTier.ordinal());
     }
 
     public ItemStack createOutput() {
-        return new ItemStack(EssencePylonContent.itemForTier(targetTier));
+        ItemStack result = new ItemStack(EssencePylonContent.ESSENCE_FOCUS.get());
+        EssenceFocusData.setTier(result, targetTier);
+        return result;
     }
 
     public String workpieceName(ItemStack stack) {
-        if (stack != null && stack.is(EssenceInfuserContent.LATENT_FOCUS.get())) {
-            return "Latent";
-        }
-        EssencePylonFocusTier current = EssencePylonContent.rawFocusTier(stack);
-        return current == null ? "Unknown" : current.displayName();
+        EssenceFocusTier current = EssencePylonContent.rawFocusTier(stack);
+        return current == null ? "Latent" : current.displayName();
     }
 }

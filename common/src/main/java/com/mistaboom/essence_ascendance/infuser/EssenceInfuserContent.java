@@ -75,6 +75,14 @@ public final class EssenceInfuserContent {
                             .strength(5.0F)
             )
     );
+    public static final RegistrySupplier<Block> CHANNELSTONE = BLOCKS.register(
+            "channelstone",
+            () -> new Block(
+                    BlockBehaviour.Properties.of()
+                            .requiresCorrectToolForDrops()
+                            .strength(3.5F, 6.0F)
+            )
+    );
     public static final RegistrySupplier<EssenceInfuserBlock> ESSENCE_INFUSER = BLOCKS.register(
             "essence_infuser",
             () -> new EssenceInfuserBlock(
@@ -117,9 +125,13 @@ public final class EssenceInfuserContent {
             "latent_block",
             LATENT_BLOCK
     );
-    public static final RegistrySupplier<Item> LATENT_FOCUS = ITEMS.register(
-            "latent_focus",
-            () -> new LatentFocusItem(new Item.Properties())
+    public static final RegistrySupplier<Item> CHANNELSTONE_ITEM = blockItem(
+            "channelstone",
+            CHANNELSTONE
+    );
+    public static final RegistrySupplier<Item> ASCENDANCE_MATRIX = ITEMS.register(
+            "ascendance_matrix",
+            () -> new Item(new Item.Properties())
     );
     public static final RegistrySupplier<Item> ESSENTIUM_INGOT = ITEMS.register(
             "essentium_ingot",
@@ -194,14 +206,15 @@ public final class EssenceInfuserContent {
                 CreativeModeTabs.INGREDIENTS,
                 RAW_LATENT_ORE,
                 LATENT_INGOT,
-                LATENT_FOCUS,
+                ASCENDANCE_MATRIX,
                 ESSENTIUM_INGOT,
                 ESSENTIUM_BLOCK
         );
         CreativeTabRegistry.append(
                 CreativeModeTabs.BUILDING_BLOCKS,
                 RAW_LATENT_ORE_BLOCK_ITEM,
-                LATENT_BLOCK_ITEM
+                LATENT_BLOCK_ITEM,
+                CHANNELSTONE_ITEM
         );
         CreativeTabRegistry.append(
                 CreativeModeTabs.FUNCTIONAL_BLOCKS,

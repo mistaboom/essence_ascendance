@@ -292,31 +292,27 @@ public final class EquipmentAttributeService {
             ServerPlayer player,
             PlayerEssenceData playerData
     ) {
-        double coverage = 0.0;
+        double armor = 0.0D;
+        double toughness = 0.0D;
+        boolean found = false;
 
         for (EquipmentSlot slot : EquipmentStatResolver.armorSlots()) {
             ItemStack stack = player.getItemBySlot(slot);
             if (!isFirstPartyProfile(stack, EquipmentProfiles.ARMOR.id())) {
                 continue;
             }
-
-            coverage += ArmorStatWeights.weightFor(slot);
+            found = true;
+            EquipmentBaselineResult baseline = EquipmentBaselineService.evaluateForStack(
+                    playerData,
+                    EquipmentProfiles.ARMOR.id(),
+                    stack
+            );
+            double weight = ArmorStatWeights.weightFor(slot);
+            armor += baseline.armor() * weight;
+            toughness += baseline.toughness() * weight;
         }
 
-        if (coverage <= 0.0) {
-            return ArmorBaseline.NONE;
-        }
-
-        EquipmentBaselineResult baseline =
-                EquipmentBaselineService.evaluate(
-                        playerData,
-                        EquipmentProfiles.ARMOR.id()
-                );
-
-        return new ArmorBaseline(
-                baseline.armor() * coverage,
-                baseline.toughness() * coverage
-        );
+        return found ? new ArmorBaseline(armor, toughness) : ArmorBaseline.NONE;
     }
 
     private static MeleeBaseline resolveMeleeBaseline(
@@ -341,7 +337,7 @@ public final class EquipmentAttributeService {
         }
 
         EquipmentBaselineResult baseline =
-                EquipmentBaselineService.evaluate(playerData, profileId);
+                EquipmentBaselineService.evaluateForStack(playerData, profileId, mainHand);
 
         double finalDamage = EquipmentValueService.applyPercentBonus(
                 playerData,

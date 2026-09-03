@@ -14,7 +14,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-/** Fabric Transfer API view exposing only the Infuser's input and output. */
+/** Fabric Transfer API view exposing workpiece/output/component slots while protecting the installed machine Focus. */
 final class EssenceInfuserFabricItemStorage implements SlottedStorage<ItemVariant> {
 
     private final EssenceInfuserBlockEntity infuser;
@@ -24,7 +24,8 @@ final class EssenceInfuserFabricItemStorage implements SlottedStorage<ItemVarian
         this.infuser = infuser;
         this.slots = List.of(
                 new InfuserSlotStorage(EssenceInfuserBlockEntity.INPUT_SLOT),
-                new InfuserSlotStorage(EssenceInfuserBlockEntity.OUTPUT_SLOT)
+                new InfuserSlotStorage(EssenceInfuserBlockEntity.OUTPUT_SLOT),
+                new InfuserSlotStorage(EssenceInfuserBlockEntity.COMPONENT_SLOT)
         );
     }
 
@@ -46,7 +47,11 @@ final class EssenceInfuserFabricItemStorage implements SlottedStorage<ItemVarian
     @Override
     public long insert(ItemVariant resource, long maxAmount, TransactionContext transaction) {
         StoragePreconditions.notBlankNotNegative(resource, maxAmount);
-        return slots.get(0).insert(resource, maxAmount, transaction);
+        long inserted = slots.get(0).insert(resource, maxAmount, transaction);
+        if (inserted >= maxAmount) {
+            return inserted;
+        }
+        return inserted + slots.get(2).insert(resource, maxAmount - inserted, transaction);
     }
 
     @Override
@@ -99,8 +104,11 @@ final class EssenceInfuserFabricItemStorage implements SlottedStorage<ItemVarian
 
         @Override
         protected boolean canInsert(ItemVariant variant) {
-            return machineSlot == EssenceInfuserBlockEntity.INPUT_SLOT
-                    && EssenceInfuserBlockEntity.allowsAutomationInput(variant.toStack(1));
+            if (machineSlot == EssenceInfuserBlockEntity.INPUT_SLOT) {
+                return EssenceInfuserBlockEntity.allowsAutomationInput(variant.toStack(1));
+            }
+            return machineSlot == EssenceInfuserBlockEntity.COMPONENT_SLOT
+                    && infuser.canPlaceItem(machineSlot, variant.toStack(1));
         }
 
         @Override

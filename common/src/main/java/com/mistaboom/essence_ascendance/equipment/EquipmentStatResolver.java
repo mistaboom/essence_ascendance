@@ -1,5 +1,10 @@
 package com.mistaboom.essence_ascendance.equipment;
 
+import com.mistaboom.essence_ascendance.data.EssenceSavedData;
+import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
+import com.mistaboom.essence_ascendance.progression.StatScalingService;
+import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
@@ -65,6 +70,7 @@ public final class EquipmentStatResolver {
         Objects.requireNonNull(hand, "Interaction hand cannot be null");
 
         return evaluateItem(
+                entity,
                 entity.getItemInHand(hand),
                 EquipmentActivationType.HELD
         );
@@ -82,6 +88,7 @@ public final class EquipmentStatResolver {
         requireArmorSlot(slot);
 
         return evaluateItem(
+                entity,
                 entity.getItemBySlot(slot),
                 EquipmentActivationType.WORN
         );
@@ -126,12 +133,52 @@ public final class EquipmentStatResolver {
     }
 
     public static EquipmentStatState evaluateItem(
+            LivingEntity entity,
+            ItemStack stack,
+            EquipmentActivationType activation
+    ) {
+        Objects.requireNonNull(entity, "Entity cannot be null");
+        EquipmentStatState raw = evaluateItem(stack, activation);
+        if (!(entity instanceof ServerPlayer player) || !EquipmentTierData.isAscendanceEquipment(stack)) {
+            return raw;
+        }
+        EquipmentTier itemTier = EquipmentTierData.tier(stack);
+        if (itemTier == EquipmentTier.LATENT) {
+            return EquipmentStatState.none();
+        }
+        PlayerEssenceData playerData = EssenceSavedData.get(player.server).getPlayerData(player.getUUID());
+        EquipmentTier playerTier = EquipmentTier.fromAscendanceTier(playerData.getTier());
+        EquipmentTier effective = itemTier.order() <= playerTier.order() ? itemTier : playerTier;
+        if (effective == playerTier) {
+            return raw;
+        }
+
+        java.util.Map<net.minecraft.resources.ResourceLocation, Double> adjusted = new java.util.LinkedHashMap<>();
+        for (var entry : raw.values().entrySet()) {
+            var stat = EssenceStatRegistry.get(entry.getKey()).orElse(null);
+            if (stat == null) continue;
+            double uncapped = StatScalingService.evaluate(playerData, stat).scaledBonus();
+            if (uncapped <= 0.0D) {
+                adjusted.put(entry.getKey(), entry.getValue());
+                continue;
+            }
+            double capped = StatScalingService.scaledBonusForTier(playerData, stat, effective.ascendanceTier());
+            adjusted.put(entry.getKey(), entry.getValue() * Math.max(0.0D, Math.min(1.0D, capped / uncapped)));
+        }
+        return new EquipmentStatState(adjusted);
+    }
+
+    public static EquipmentStatState evaluateItem(
             ItemStack stack,
             EquipmentActivationType activation
     ) {
         Objects.requireNonNull(stack, "Item stack cannot be null");
         Objects.requireNonNull(activation, "Activation type cannot be null");
 
+        if (EquipmentTierData.isAscendanceEquipment(stack)
+                && EquipmentTierData.tier(stack) == EquipmentTier.LATENT) {
+            return EquipmentStatState.none();
+        }
         return new EquipmentStatState(
                 EquipmentStatProviderRegistry
                         .evaluate(stack)

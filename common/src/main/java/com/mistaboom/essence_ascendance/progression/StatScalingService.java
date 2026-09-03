@@ -148,6 +148,21 @@ public final class StatScalingService {
     }
 
 
+    public static double scaledBonusForTier(
+            PlayerEssenceData playerData,
+            StatDefinition stat,
+            AscendanceTierDefinition tier
+    ) {
+        Objects.requireNonNull(playerData, "Player Essence data cannot be null");
+        Objects.requireNonNull(stat, "Stat cannot be null");
+        Objects.requireNonNull(tier, "Tier cannot be null");
+        BalanceProfileDefinition profile = EssenceConfigManager.get().balanceProfile();
+        long cap = profile.getInvestmentCap(tier, stat);
+        long effectiveInvestment = Math.min(playerData.getInvested(stat), cap);
+        double progression = progressionForInvestment(stat, effectiveInvestment, tier, profile);
+        return EssenceConfigManager.get().statMaxBonus(stat) * progression;
+    }
+
     /*
      * ============================================================
      * CLIENT-SAFE PROGRESSION PREVIEW

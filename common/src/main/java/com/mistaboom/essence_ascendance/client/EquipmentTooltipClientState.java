@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.network.EquipmentTooltipPayload;
+import com.mistaboom.essence_ascendance.equipment.EquipmentTierData;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
@@ -33,7 +34,7 @@ import java.util.Map;
  */
 public final class EquipmentTooltipClientState {
 
-    private static volatile Map<ResourceLocation, List<EquipmentTooltipPayload.Line>>
+    private static volatile Map<String, List<EquipmentTooltipPayload.Line>>
             LINES_BY_ITEM = Map.of();
 
     private static boolean initialized = false;
@@ -82,11 +83,8 @@ public final class EquipmentTooltipClientState {
             Item.TooltipContext tooltipContext,
             TooltipFlag tooltipFlag
     ) {
-        ResourceLocation itemId =
-                BuiltInRegistries.ITEM.getKey(stack.getItem());
-
         List<EquipmentTooltipPayload.Line> lines =
-                LINES_BY_ITEM.get(itemId);
+                LINES_BY_ITEM.get(lookupKey(stack));
 
         if (lines == null || lines.isEmpty()) {
             return;
@@ -390,16 +388,8 @@ public final class EquipmentTooltipClientState {
             return Set.of();
         }
 
-        ResourceLocation itemId =
-                BuiltInRegistries.ITEM
-                        .getKey(
-                                stack.getItem()
-                        );
-
         List<EquipmentTooltipPayload.Line> lines =
-                LINES_BY_ITEM.get(
-                        itemId
-                );
+                LINES_BY_ITEM.get(lookupKey(stack));
 
         if (lines == null
                 || lines.isEmpty()) {
@@ -426,6 +416,12 @@ public final class EquipmentTooltipClientState {
         return Set.copyOf(
                 result
         );
+    }
+
+
+    private static String lookupKey(ItemStack stack) {
+        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        return itemId + "#" + EquipmentTierData.tier(stack).serializedName();
     }
 
 
@@ -459,15 +455,12 @@ public final class EquipmentTooltipClientState {
     private static void accept(
             EquipmentTooltipPayload payload
     ) {
-        Map<ResourceLocation, List<EquipmentTooltipPayload.Line>> next =
+        Map<String, List<EquipmentTooltipPayload.Line>> next =
                 new LinkedHashMap<>();
 
         for (EquipmentTooltipPayload.Entry entry : payload.entries()) {
-            ResourceLocation itemId =
-                    ResourceLocation.tryParse(entry.itemId());
-
-            if (itemId != null) {
-                next.put(itemId, entry.lines());
+            if (entry.itemId() != null && !entry.itemId().isBlank()) {
+                next.put(entry.itemId(), entry.lines());
             }
         }
 

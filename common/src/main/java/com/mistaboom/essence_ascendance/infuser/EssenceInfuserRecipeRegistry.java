@@ -1,6 +1,8 @@
 package com.mistaboom.essence_ascendance.infuser;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
+import com.mistaboom.essence_ascendance.equipment.EquipmentTierData;
+import com.mistaboom.essence_ascendance.pylon.EssenceFocusData;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
@@ -40,10 +42,21 @@ public final class EssenceInfuserRecipeRegistry {
                         "focus_upgrade"
                 ),
                 EssenceInfuserWorkpieceMode.FOCUS,
-                FocusInfusionRecipe::isWorkpiece,
+                EssenceFocusData::isFocusItem,
                 stack -> 1,
                 false,
                 FocusInfusionRecipe::forWorkpiece
+        );
+        register(
+                ResourceLocation.fromNamespaceAndPath(
+                        EssenceAscendance.MOD_ID,
+                        "equipment_upgrade"
+                ),
+                EssenceInfuserWorkpieceMode.EQUIPMENT,
+                EquipmentTierData::isAscendanceEquipment,
+                stack -> 1,
+                false,
+                EquipmentInfusionRecipe::forWorkpiece
         );
     }
 

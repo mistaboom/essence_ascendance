@@ -4,7 +4,9 @@ import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
+import com.mistaboom.essence_ascendance.tier.AscendanceTiers;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.Objects;
@@ -32,6 +34,56 @@ public final class EquipmentBaselineService {
         return evaluate(playerData, profileId);
     }
 
+    public static EquipmentBaselineResult evaluateForStack(
+            PlayerEssenceData playerData,
+            ResourceLocation profileId,
+            ItemStack stack
+    ) {
+        Objects.requireNonNull(stack, "Equipment stack cannot be null");
+        if (!EquipmentTierData.isAscendanceEquipment(stack)) {
+            return evaluate(playerData, profileId);
+        }
+        EquipmentTier itemTier = EquipmentTierData.tier(stack);
+        if (itemTier == EquipmentTier.LATENT) {
+            return evaluateWithBaseline(
+                    profileId,
+                    AscendanceTiers.DORMANT,
+                    latentBaseline()
+            );
+        }
+        // Native/mundane equipment capability belongs to the artifact itself.
+        // Player Ascendance only caps Attribute Essence channeling; it must not
+        // drag armor, attack damage, mining speed, etc. back down to player tier.
+        return evaluateAtTier(playerData, profileId, itemTier.ascendanceTier());
+    }
+
+
+    public static EquipmentBaselineResult evaluateForEquipmentTier(
+            PlayerEssenceData playerData,
+            ResourceLocation profileId,
+            EquipmentTier itemTier
+    ) {
+        Objects.requireNonNull(itemTier, "Equipment tier cannot be null");
+        if (itemTier == EquipmentTier.LATENT) {
+            return evaluateWithBaseline(profileId, AscendanceTiers.DORMANT, latentBaseline());
+        }
+        return evaluateAtTier(playerData, profileId, itemTier.ascendanceTier());
+    }
+
+    public static EquipmentBaselineResult evaluateAtTier(
+            PlayerEssenceData playerData,
+            ResourceLocation profileId,
+            AscendanceTierDefinition tier
+    ) {
+        Objects.requireNonNull(playerData, "Player Essence data cannot be null");
+        Objects.requireNonNull(tier, "Tier cannot be null");
+        return evaluateWithBaseline(
+                profileId,
+                tier,
+                EssenceConfigManager.get().equipmentBaselineConfig().baselineFor(tier)
+        );
+    }
+
     public static EquipmentBaselineResult evaluate(
             PlayerEssenceData playerData,
             ResourceLocation profileId
@@ -50,11 +102,17 @@ public final class EquipmentBaselineService {
 
         AscendanceTierDefinition tier = playerData.getTier();
         EquipmentBaselineConfig.TierBaseline tierBaseline =
-                EssenceConfigManager
-                        .get()
-                        .equipmentBaselineConfig()
-                        .baselineFor(tier);
+                EssenceConfigManager.get().equipmentBaselineConfig().baselineFor(tier);
+        return evaluateWithBaseline(profileId, tier, tierBaseline);
+    }
 
+    private static EquipmentBaselineResult evaluateWithBaseline(
+            ResourceLocation profileId,
+            AscendanceTierDefinition tier,
+            EquipmentBaselineConfig.TierBaseline tierBaseline
+    ) {
+        EquipmentProfileDefinition profile = EquipmentProfileRegistry.get(profileId)
+                .orElseThrow(() -> new IllegalArgumentException("Unknown equipment profile: " + profileId));
         return new EquipmentBaselineResult(
                 tier,
                 profile,
@@ -69,16 +127,19 @@ public final class EquipmentBaselineService {
                 multiply(tierBaseline.magicCastSpeed(), profile, EquipmentBaselineProperty.MAGIC_CAST_SPEED),
                 multiply(tierBaseline.miningSpeed(), profile, EquipmentBaselineProperty.MINING_SPEED),
                 tierBaseline.harvestLevel(),
-                (int) Math.max(
-                        1,
-                        Math.round(
-                                multiply(
-                                        tierBaseline.durability(),
-                                        profile,
-                                        EquipmentBaselineProperty.DURABILITY
-                                )
-                        )
-                )
+                (int) Math.max(1, Math.round(multiply(tierBaseline.durability(), profile, EquipmentBaselineProperty.DURABILITY)))
+        );
+    }
+
+    private static EquipmentBaselineConfig.TierBaseline latentBaseline() {
+        return new EquipmentBaselineConfig.TierBaseline(
+                15.0D, 0.0D,
+                6.0D, 1.6D,
+                6.0D, 1.0D,
+                5.0D, 1.0D,
+                6.0D,
+                2,
+                250
         );
     }
 

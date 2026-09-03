@@ -1,10 +1,10 @@
 package com.mistaboom.essence_ascendance.pylon;
 
 /**
- * Temporary pylon-focus balance values. These are deliberately centralized so
+ * Essence Focus operational tiers and their machine-performance values. These are deliberately centralized so
  * recipes and final balance can be tuned later without touching machine logic.
  */
-public enum EssencePylonFocusTier {
+public enum EssenceFocusTier {
     DORMANT(
             "dormant",
             "Dormant",
@@ -39,7 +39,7 @@ public enum EssencePylonFocusTier {
     private final String displayName;
     private final EssencePylonContribution contribution;
 
-    EssencePylonFocusTier(
+    EssenceFocusTier(
             String serializedName,
             String displayName,
             EssencePylonContribution contribution

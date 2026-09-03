@@ -1,6 +1,11 @@
 {
   "type": "minecraft:crafting_shaped",
   "category": "misc",
+  "pattern": [
+    "LAL",
+    "ADA",
+    "LAL"
+  ],
   "key": {
     "L": {
       "item": "essence_ascendance:latent_ingot"
@@ -8,19 +13,13 @@
     "A": {
       "item": "minecraft:amethyst_shard"
     },
-    "E": {
-      "item": "minecraft:emerald"
-    },
     "D": {
       "item": "minecraft:diamond"
     }
   },
-  "pattern": [
-    "LAL",
-    "EDE",
-    "LAL"
-  ],
   "result": {
-    "id": "essence_ascendance:latent_focus"
-  }
+    "id": "essence_ascendance:ascendance_matrix",
+    "count": 1
+  },
+  "show_notification": false
 }

@@ -21,7 +21,7 @@ public record EquipmentTooltipPayload(
         List<Entry> entries
 ) implements CustomPacketPayload {
 
-    private static final int MAX_ENTRIES = 32;
+    private static final int MAX_ENTRIES = 96;
     private static final int MAX_LINES_PER_ENTRY = 64;
     private static final int MAX_ITEM_ID_LENGTH = 96;
     private static final int MAX_LINE_LENGTH = 192;

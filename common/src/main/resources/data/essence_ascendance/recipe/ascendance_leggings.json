@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "LLL",
+    "L L",
+    "L L"
+  ],
+  "key": {
+    "L": {
+      "item": "essence_ascendance:latent_ingot"
+    }
+  },
+  "result": {
+    "id": "essence_ascendance:ascendance_leggings",
+    "count": 1
+  },
+  "show_notification": false
+}

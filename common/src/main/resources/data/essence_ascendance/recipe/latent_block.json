@@ -13,5 +13,6 @@
   ],
   "result": {
     "id": "essence_ascendance:latent_block"
-  }
+  },
+  "show_notification": false
 }

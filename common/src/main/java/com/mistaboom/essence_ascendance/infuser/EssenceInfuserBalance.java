@@ -2,7 +2,7 @@ package com.mistaboom.essence_ascendance.infuser;
 
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.config.InfuserBalanceSettings;
-import com.mistaboom.essence_ascendance.pylon.EssencePylonFocusTier;
+import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
 import net.minecraft.world.item.ItemStack;
 
 /** Central conversion arithmetic and Focus-to-Infusion-Grade evaluation. */
@@ -19,18 +19,18 @@ public final class EssenceInfuserBalance {
     }
 
     public static Profile profile(ItemStack focusStack) {
-        EssencePylonFocusTier focusTier =
+        EssenceFocusTier focusTier =
                 com.mistaboom.essence_ascendance.pylon.EssencePylonContent
                         .focusTier(focusStack);
         return profile(focusTier);
     }
 
-    public static Profile profile(EssencePylonFocusTier focusTier) {
+    public static Profile profile(EssenceFocusTier focusTier) {
         InfuserBalanceSettings settings =
                 EssenceConfigManager.get().infuserBalance();
 
-        EssencePylonFocusTier grade = focusTier == null
-                ? EssencePylonFocusTier.DORMANT
+        EssenceFocusTier grade = focusTier == null
+                ? EssenceFocusTier.DORMANT
                 : focusTier;
         InfuserBalanceSettings.GradeSettings gradeSettings =
                 settings.grade(grade.serializedName());
@@ -147,7 +147,7 @@ public final class EssenceInfuserBalance {
     }
 
     public record Profile(
-            EssencePylonFocusTier grade,
+            EssenceFocusTier grade,
             int efficiencyBasisPoints,
             long infusionThroughputPerSecond
     ) {

@@ -1,0 +1,34 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ADA",
+    "CLC",
+    "OEO"
+  ],
+  "key": {
+    "A": {
+      "item": "minecraft:amethyst_shard"
+    },
+    "D": {
+      "item": "minecraft:diamond"
+    },
+    "C": {
+      "item": "essence_ascendance:channelstone"
+    },
+    "L": {
+      "item": "essence_ascendance:latent_ingot"
+    },
+    "O": {
+      "item": "minecraft:obsidian"
+    },
+    "E": {
+      "item": "minecraft:enchanting_table"
+    }
+  },
+  "result": {
+    "id": "essence_ascendance:ascendance_nexus",
+    "count": 1
+  },
+  "show_notification": false
+}

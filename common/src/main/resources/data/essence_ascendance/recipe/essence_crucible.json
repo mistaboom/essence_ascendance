@@ -1,0 +1,28 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "CLC",
+    "HFH",
+    "CCC"
+  ],
+  "key": {
+    "C": {
+      "item": "essence_ascendance:channelstone"
+    },
+    "L": {
+      "item": "essence_ascendance:latent_ingot"
+    },
+    "H": {
+      "item": "minecraft:hopper"
+    },
+    "F": {
+      "item": "minecraft:furnace"
+    }
+  },
+  "result": {
+    "id": "essence_ascendance:essence_crucible",
+    "count": 1
+  },
+  "show_notification": false
+}

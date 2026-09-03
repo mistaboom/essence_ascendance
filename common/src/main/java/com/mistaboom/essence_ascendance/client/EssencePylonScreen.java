@@ -14,9 +14,8 @@ import java.util.Locale;
 public final class EssencePylonScreen
         extends AbstractContainerScreen<EssencePylonMenu> {
 
-    private static final int INFO_PANEL_WIDTH = 180;
-    private static final int INFO_PANEL_HEIGHT = 160;
-    private static final int SIDE_PANEL_GAP = 4;
+    private static final int INFO_PANEL_WIDTH = MachineScreenLayout.INFO_PANEL_WIDTH;
+    private static final int INFO_PANEL_HEIGHT = 172;
 
     private Button infoButton;
     private Button infoCloseButton;
@@ -75,7 +74,7 @@ public final class EssencePylonScreen
         int y = topPos;
 
         MachineScreenUi.panel(graphics, x, y, imageWidth, imageHeight);
-        MachineScreenUi.accentedInset(graphics, x + 105, y + 31, 20, 20);
+        MachineScreenUi.inputSlot(graphics, x + 105, y + 31);
         MachineScreenUi.inset(graphics, x + 10, y + 58, 210, 34);
         MachineScreenUi.inset(graphics, x + 32, y + 174, 166, 80);
     }
@@ -162,56 +161,24 @@ public final class EssencePylonScreen
 
     private void renderInfoPopup(GuiGraphics graphics, EssencePylonStatePayload state) {
         int x = infoPanelX();
-        int y = topPos + 4;
-        MachineScreenUi.panel(graphics, x, y, INFO_PANEL_WIDTH, INFO_PANEL_HEIGHT);
+        int y = topPos + MachineScreenLayout.SIDE_PANEL_TOP_OFFSET;
 
-        int textX = x + 7;
-        int width = INFO_PANEL_WIDTH - 14;
-
-        MachineScreenUi.sectionHeader(graphics, font, "Info", textX, y + 7);
-        MachineScreenUi.fitted(
-                graphics, font, "Owner: " + state.ownerName(),
-                textX, y + 20, width, MachineScreenUi.MUTED
-        );
-
-        MachineScreenUi.sectionHeader(graphics, font, "Link", textX, y + 37);
-        MachineScreenUi.indentedLine(
-                graphics, font,
-                "Crucible: " + linkedText(state),
-                textX, y + 48, width
-        );
-        MachineScreenUi.indentedLine(
-                graphics, font,
-                String.format(Locale.ROOT, "Link Radius: %.1f blocks", state.pylonRadius()),
-                textX, y + 59, width
-        );
-
-        MachineScreenUi.sectionHeader(graphics, font, "Contribution", textX, y + 76);
-        MachineScreenUi.indentedLine(
-                graphics, font,
-                "Reservoir: +" + format(state.reservoirCapacityBonus()),
-                textX, y + 87, width
-        );
-        MachineScreenUi.indentedLine(
-                graphics, font,
-                "Channel Rate: +" + format(state.transferRatePerSecondBonus()) + "/sec",
-                textX, y + 98, width
-        );
-        MachineScreenUi.indentedLine(
-                graphics, font,
-                "Channel Range: +" + decimal(state.transferRangeBonus()) + " blocks",
-                textX, y + 109, width
-        );
-        MachineScreenUi.indentedLine(
-                graphics, font,
-                "Dissolution Speed: +" + decimal(state.dissolutionSpeedBonus() * 100.0D) + "%",
-                textX, y + 120, width
-        );
-        MachineScreenUi.indentedLine(
-                graphics, font,
-                "Items/Batch: +" + state.simultaneousItemProcessesBonus(),
-                textX, y + 131, width
-        );
+        new MachineInfoPanel(graphics, font, x, y, INFO_PANEL_WIDTH, INFO_PANEL_HEIGHT)
+                .title("Info")
+                .metadata("Owner: " + state.ownerName())
+                .section("Link")
+                .line("Crucible: " + linkedText(state))
+                .line(String.format(
+                        Locale.ROOT,
+                        "Link Radius: %.1f blocks",
+                        state.pylonRadius()
+                ))
+                .section("Contribution")
+                .line("Reservoir: +" + format(state.reservoirCapacityBonus()))
+                .line("Channel Rate: +" + format(state.transferRatePerSecondBonus()) + "/sec")
+                .line("Channel Range: +" + decimal(state.transferRangeBonus()) + " blocks")
+                .line("Dissolution Speed: +" + decimal(state.dissolutionSpeedBonus() * 100.0D) + "%")
+                .line("Items/Batch: +" + state.simultaneousItemProcessesBonus());
     }
 
     private static String statusText(EssencePylonStatePayload state) {
@@ -250,15 +217,7 @@ public final class EssencePylonScreen
     }
 
     private int infoPanelX() {
-        int right = leftPos + imageWidth + SIDE_PANEL_GAP;
-        if (right + INFO_PANEL_WIDTH <= width - 4) {
-            return right;
-        }
-        int left = leftPos - SIDE_PANEL_GAP - INFO_PANEL_WIDTH;
-        if (left >= 4) {
-            return left;
-        }
-        return Math.max(4, Math.min(right, width - 4 - INFO_PANEL_WIDTH));
+        return MachineScreenLayout.infoPanelX(leftPos, imageWidth, width);
     }
 
     private boolean mouseInsideInfo(double mouseX, double mouseY, EssencePylonStatePayload state) {
@@ -266,9 +225,10 @@ public final class EssencePylonScreen
             return false;
         }
         int x = infoPanelX();
-        int y = topPos + 4;
-        return mouseX >= x && mouseX < x + INFO_PANEL_WIDTH
-                && mouseY >= y && mouseY < y + INFO_PANEL_HEIGHT;
+        int y = topPos + MachineScreenLayout.SIDE_PANEL_TOP_OFFSET;
+        return MachineScreenLayout.contains(
+                mouseX, mouseY, x, y, INFO_PANEL_WIDTH, INFO_PANEL_HEIGHT
+        );
     }
 
     private void drawCentered(GuiGraphics graphics, String text, int y, int color) {

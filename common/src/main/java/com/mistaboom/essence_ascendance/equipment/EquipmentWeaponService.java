@@ -24,7 +24,7 @@ import java.util.Optional;
 import java.util.WeakHashMap;
 
 /*
- * Server-authoritative gameplay layer for Ascendance ranged and magic weapons.
+ * Server-authoritative gameplay layer for Ascendance ranged weapons and caster.
  *
  * The same architecture used by melee/tools is preserved here:
  *
@@ -43,7 +43,7 @@ import java.util.WeakHashMap;
  *
  * MAGIC
  * -----
- * The native magic focus performs a deliberately simple neutral hitscan cast.
+ * The native Ascendance Caster performs a deliberately simple neutral hitscan cast.
  * It requires no custom entity registration and gives the magic baseline/stat
  * pipeline a real gameplay target before spell families are designed later.
  */
@@ -80,13 +80,15 @@ public final class EquipmentWeaponService {
         requireProfile(stack, EquipmentProfiles.RANGED_WEAPON.id());
 
         EquipmentStatState held = EquipmentStatResolver.evaluateItem(
+                player,
                 stack,
                 EquipmentActivationType.HELD
         );
 
-        EquipmentBaselineResult baseline = EquipmentBaselineService.evaluate(
+        EquipmentBaselineResult baseline = EquipmentBaselineService.evaluateForStack(
                 playerData,
-                EquipmentProfiles.RANGED_WEAPON.id()
+                EquipmentProfiles.RANGED_WEAPON.id(),
+                stack
         );
 
         double finalDamage = EquipmentValueService.applyPercentBonus(
@@ -130,16 +132,18 @@ public final class EquipmentWeaponService {
             ItemStack stack
     ) {
         PlayerEssenceData playerData = playerData(player);
-        requireProfile(stack, EquipmentProfiles.MAGIC_FOCUS.id());
+        requireProfile(stack, EquipmentProfiles.MAGIC_CASTER.id());
 
         EquipmentStatState held = EquipmentStatResolver.evaluateItem(
+                player,
                 stack,
                 EquipmentActivationType.HELD
         );
 
-        EquipmentBaselineResult baseline = EquipmentBaselineService.evaluate(
+        EquipmentBaselineResult baseline = EquipmentBaselineService.evaluateForStack(
                 playerData,
-                EquipmentProfiles.MAGIC_FOCUS.id()
+                EquipmentProfiles.MAGIC_CASTER.id(),
+                stack
         );
 
         double finalDamage = EquipmentValueService.applyPercentBonus(

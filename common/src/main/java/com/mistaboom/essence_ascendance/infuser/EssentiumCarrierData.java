@@ -4,7 +4,7 @@ import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceFamily;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
-import com.mistaboom.essence_ascendance.pylon.EssencePylonFocusTier;
+import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -55,7 +55,7 @@ public final class EssentiumCarrierData {
         }
 
         EssenceDefinition essence = EssenceRegistry.get(essenceId).orElse(null);
-        EssencePylonFocusTier grade = parseGrade(tag.getString(GRADE_TAG));
+        EssenceFocusTier grade = parseGrade(tag.getString(GRADE_TAG));
         long amount = tag.getLong(AMOUNT_TAG);
         if (essence == null || grade == null || amount <= 0L) {
             return Optional.empty();
@@ -94,7 +94,7 @@ public final class EssentiumCarrierData {
 
     public static long capacityFor(
             ItemStack stack,
-            EssencePylonFocusTier grade
+            EssenceFocusTier grade
     ) {
         if (stack == null
                 || stack.isEmpty()
@@ -106,7 +106,7 @@ public final class EssentiumCarrierData {
 
     public static long capacityFor(
             EssentiumItem item,
-            EssencePylonFocusTier grade
+            EssenceFocusTier grade
     ) {
         if (item == null || grade == null) {
             return 0L;
@@ -129,7 +129,7 @@ public final class EssentiumCarrierData {
     public static ItemStack createFull(
             EssentiumItem item,
             EssenceDefinition essence,
-            EssencePylonFocusTier grade
+            EssenceFocusTier grade
     ) {
         long capacity = capacityFor(item, grade);
         if (capacity <= 0L) {
@@ -163,11 +163,11 @@ public final class EssentiumCarrierData {
         );
     }
 
-    private static EssencePylonFocusTier parseGrade(String serializedName) {
+    private static EssenceFocusTier parseGrade(String serializedName) {
         if (serializedName == null || serializedName.isBlank()) {
             return null;
         }
-        for (EssencePylonFocusTier tier : EssencePylonFocusTier.values()) {
+        for (EssenceFocusTier tier : EssenceFocusTier.values()) {
             if (tier.serializedName().equals(serializedName)) {
                 return tier;
             }
@@ -177,7 +177,7 @@ public final class EssentiumCarrierData {
 
     public record Value(
             EssenceDefinition essence,
-            EssencePylonFocusTier grade,
+            EssenceFocusTier grade,
             long amount
     ) {
     }

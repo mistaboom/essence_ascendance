@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    " A ",
+    "LDL",
+    " L "
+  ],
+  "key": {
+    "L": {
+      "item": "essence_ascendance:latent_ingot"
+    },
+    "A": {
+      "item": "minecraft:amethyst_shard"
+    },
+    "D": {
+      "item": "minecraft:diamond"
+    }
+  },
+  "result": {
+    "id": "essence_ascendance:ascendance_caster",
+    "count": 1
+  },
+  "show_notification": false
+}

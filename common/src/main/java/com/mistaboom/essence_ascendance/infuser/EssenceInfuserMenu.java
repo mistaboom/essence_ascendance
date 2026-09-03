@@ -1,7 +1,7 @@
 package com.mistaboom.essence_ascendance.infuser;
 
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
-import com.mistaboom.essence_ascendance.pylon.EssencePylonFocusTier;
+import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.Container;
 import net.minecraft.world.SimpleContainer;
@@ -71,7 +71,7 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
     private static final int DATA_FOCUS_REQUIRED_INSTALLED_TIER = 40;
     private static final int DATA_COUNT = 41;
 
-    public static final int MACHINE_SLOT_COUNT = 3;
+    public static final int MACHINE_SLOT_COUNT = 4;
     public static final int PLAYER_INVENTORY_START = MACHINE_SLOT_COUNT;
     public static final int PLAYER_INVENTORY_END = PLAYER_INVENTORY_START + 36;
 
@@ -147,6 +147,17 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
                 return 1;
             }
         });
+        addSlot(new Slot(container, EssenceInfuserBlockEntity.COMPONENT_SLOT, 40, 60) {
+            @Override
+            public boolean mayPlace(ItemStack stack) {
+                return isActive() && stack.is(EssenceInfuserContent.ASCENDANCE_MATRIX.get());
+            }
+
+            @Override
+            public boolean isActive() {
+                return workpieceMode() == EssenceInfuserWorkpieceMode.EQUIPMENT;
+            }
+        });
 
         for (int row = 0; row < 3; row++) {
             for (int column = 0; column < 9; column++) {
@@ -154,7 +165,7 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
                         playerInventory,
                         column + row * 9 + 9,
                         34 + column * 18,
-                        234 + row * 18
+                        256 + row * 18
                 ));
             }
         }
@@ -163,7 +174,7 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
                     playerInventory,
                     column,
                     34 + column * 18,
-                    292
+                    314
             ));
         }
 
@@ -308,15 +319,15 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
         );
     }
 
-    public EssencePylonFocusTier focusTargetTier() {
+    public EssenceFocusTier focusTargetTier() {
         int ordinal = data.get(DATA_FOCUS_TARGET_TIER);
-        EssencePylonFocusTier[] values = EssencePylonFocusTier.values();
+        EssenceFocusTier[] values = EssenceFocusTier.values();
         return ordinal >= 0 && ordinal < values.length ? values[ordinal] : null;
     }
 
-    public EssencePylonFocusTier focusRequiredInstalledTier() {
+    public EssenceFocusTier focusRequiredInstalledTier() {
         int ordinal = data.get(DATA_FOCUS_REQUIRED_INSTALLED_TIER);
-        EssencePylonFocusTier[] values = EssencePylonFocusTier.values();
+        EssenceFocusTier[] values = EssenceFocusTier.values();
         return ordinal >= 0 && ordinal < values.length ? values[ordinal] : null;
     }
 
@@ -325,7 +336,10 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
     }
 
     public EssenceInfuserWorkpieceMode workpieceMode() {
-        return EssenceInfuserWorkpieceMode.forStack(workpieceStack());
+        return EssenceInfuserWorkpieceMode.forContext(
+                workpieceStack(),
+                getSlot(EssenceInfuserBlockEntity.COMPONENT_SLOT).getItem()
+        );
     }
 
     public long focusContribution(EssenceDefinition essence) {
@@ -334,6 +348,18 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
 
     public long focusTotalContributed() {
         return FocusInfusionData.rawTotalContributed(workpieceStack());
+    }
+
+    public java.util.Optional<EquipmentInfusionRecipe> equipmentRecipe() {
+        return EquipmentInfusionRecipe.forWorkpiece(workpieceStack());
+    }
+
+    public long equipmentContribution(EssenceDefinition essence) {
+        return EquipmentInfusionData.contribution(workpieceStack(), essence);
+    }
+
+    public long equipmentTotalContributed() {
+        return EquipmentInfusionData.totalContributed(workpieceStack());
     }
 
     public long sourceAvailable() {
@@ -376,17 +402,17 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
         ));
     }
 
-    public EssencePylonFocusTier grade() {
+    public EssenceFocusTier grade() {
         int ordinal = data.get(DATA_GRADE);
-        EssencePylonFocusTier[] values = EssencePylonFocusTier.values();
+        EssenceFocusTier[] values = EssenceFocusTier.values();
         return ordinal >= 0 && ordinal < values.length
                 ? values[ordinal]
-                : EssencePylonFocusTier.DORMANT;
+                : EssenceFocusTier.DORMANT;
     }
 
-    public EssencePylonFocusTier installedFocusTier() {
+    public EssenceFocusTier installedFocusTier() {
         int ordinal = data.get(DATA_FOCUS_TIER);
-        EssencePylonFocusTier[] values = EssencePylonFocusTier.values();
+        EssenceFocusTier[] values = EssenceFocusTier.values();
         return ordinal >= 0 && ordinal < values.length ? values[ordinal] : null;
     }
 
@@ -436,6 +462,13 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
         ItemStack focusBefore = serverInfuser == null
                 ? ItemStack.EMPTY
                 : serverInfuser.getItem(EssenceInfuserBlockEntity.FOCUS_SLOT).copy();
+        ItemStack componentBefore = serverInfuser == null
+                ? ItemStack.EMPTY
+                : serverInfuser.getItem(EssenceInfuserBlockEntity.COMPONENT_SLOT).copy();
+        EssenceInfuserWorkpieceMode modeBefore = EssenceInfuserWorkpieceMode.forContext(
+                inputBefore,
+                componentBefore
+        );
 
         super.clicked(slotId, button, clickType, player);
 
@@ -444,9 +477,46 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
         }
         ItemStack inputAfter = serverInfuser.getItem(EssenceInfuserBlockEntity.INPUT_SLOT);
         ItemStack focusAfter = serverInfuser.getItem(EssenceInfuserBlockEntity.FOCUS_SLOT);
+        ItemStack componentAfter = serverInfuser.getItem(EssenceInfuserBlockEntity.COMPONENT_SLOT);
+
+        /*
+         * A loaded Matrix deliberately keeps an empty Infuser in EQUIPMENT mode.
+         * If the player actually changes the universal workpiece slot to a
+         * different recipe family, however, that mode-specific component should
+         * not become a hidden stack. Return it to the player's inventory as part
+         * of the mode transition. Future workpiece modes automatically inherit
+         * the same behavior because this is based on resolved mode, not item IDs.
+         */
+        EssenceInfuserWorkpieceMode directModeAfter = EssenceInfuserWorkpieceMode.forStack(inputAfter);
+        if (modeBefore == EssenceInfuserWorkpieceMode.EQUIPMENT
+                && directModeAfter != EssenceInfuserWorkpieceMode.NONE
+                && directModeAfter != EssenceInfuserWorkpieceMode.EQUIPMENT
+                && componentAfter.is(EssenceInfuserContent.ASCENDANCE_MATRIX.get())) {
+            returnComponentToPlayer(player);
+            componentAfter = serverInfuser.getItem(EssenceInfuserBlockEntity.COMPONENT_SLOT);
+        }
+
         if (!sameContextStack(inputBefore, inputAfter)
-                || !sameContextStack(focusBefore, focusAfter)) {
+                || !sameContextStack(focusBefore, focusAfter)
+                || !sameContextStack(componentBefore, componentAfter)) {
             serverInfuser.disarmProcessingForContextChange();
+        }
+    }
+
+    private void returnComponentToPlayer(Player player) {
+        if (serverInfuser == null) {
+            return;
+        }
+        ItemStack component = serverInfuser.removeItemNoUpdate(
+                EssenceInfuserBlockEntity.COMPONENT_SLOT
+        );
+        if (component.isEmpty()) {
+            return;
+        }
+
+        player.getInventory().add(component);
+        if (!component.isEmpty()) {
+            player.drop(component, false);
         }
     }
 
@@ -491,6 +561,15 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
                 );
             }
             if (!moved) {
+                return ItemStack.EMPTY;
+            }
+        } else if (source.is(EssenceInfuserContent.ASCENDANCE_MATRIX.get())) {
+            if (workpieceMode() != EssenceInfuserWorkpieceMode.EQUIPMENT || !moveItemStackTo(
+                    source,
+                    EssenceInfuserBlockEntity.COMPONENT_SLOT,
+                    EssenceInfuserBlockEntity.COMPONENT_SLOT + 1,
+                    false
+            )) {
                 return ItemStack.EMPTY;
             }
         } else if (EssenceInfuserBlockEntity.isValidWorkpiece(source)) {

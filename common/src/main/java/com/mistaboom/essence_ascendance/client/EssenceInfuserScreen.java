@@ -6,7 +6,10 @@ import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBlockEntity;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserMenu;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserWorkpieceMode;
 import com.mistaboom.essence_ascendance.infuser.FocusInfusionRecipe;
-import com.mistaboom.essence_ascendance.pylon.EssencePylonFocusTier;
+import com.mistaboom.essence_ascendance.infuser.EquipmentInfusionRecipe;
+import com.mistaboom.essence_ascendance.equipment.EquipmentTierData;
+import com.mistaboom.essence_ascendance.pylon.EssenceFocusData;
+import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -19,9 +22,8 @@ import java.util.Locale;
 public final class EssenceInfuserScreen
         extends AbstractContainerScreen<EssenceInfuserMenu> {
 
-    private static final int INFO_PANEL_WIDTH = 174;
-    private static final int INFO_PANEL_HEIGHT = 178;
-    private static final int SIDE_PANEL_GAP = 4;
+    private static final int INFO_PANEL_WIDTH = MachineScreenLayout.INFO_PANEL_WIDTH;
+    private static final int INFO_PANEL_HEIGHT = 224;
 
     private Button sourcePreviousButton;
     private Button sourceNextButton;
@@ -39,9 +41,9 @@ public final class EssenceInfuserScreen
     ) {
         super(menu, playerInventory, title);
         imageWidth = 230;
-        imageHeight = 316;
+        imageHeight = 338;
         inventoryLabelX = 34;
-        inventoryLabelY = 221;
+        inventoryLabelY = 243;
     }
 
     @Override
@@ -66,7 +68,7 @@ public final class EssenceInfuserScreen
                                 Component.literal("START PROCESSING"),
                                 button -> clickMenuButton(EssenceInfuserMenu.BUTTON_TOGGLE_PROCESSING)
                         )
-                        .bounds(leftPos + 45, topPos + 198, 140, 20)
+                        .bounds(leftPos + 45, topPos + 220, 140, 20)
                         .build()
         );
 
@@ -118,11 +120,14 @@ public final class EssenceInfuserScreen
         int y = topPos;
         MachineScreenUi.panel(graphics, x, y, imageWidth, imageHeight);
 
-        slotBox(graphics, x + 63, y + 59);
-        slotBox(graphics, x + 147, y + 59);
-        slotBox(graphics, x + 105, y + 23);
+        MachineScreenUi.inputSlot(graphics, x + 63, y + 59);
+        MachineScreenUi.outputSlot(graphics, x + 147, y + 59);
+        MachineScreenUi.inputSlot(graphics, x + 105, y + 23);
 
         EssenceInfuserWorkpieceMode mode = menu.workpieceMode();
+        if (mode == EssenceInfuserWorkpieceMode.EQUIPMENT) {
+            MachineScreenUi.inputSlot(graphics, x + 39, y + 59);
+        }
         if (mode == EssenceInfuserWorkpieceMode.FOCUS) {
             MachineScreenUi.progressBar(
                     graphics,
@@ -133,8 +138,16 @@ public final class EssenceInfuserScreen
                     menu.focusTotalContributed(),
                     menu.focusTotalRequired()
             );
-            MachineScreenUi.inset(graphics, x + 10, y + 82, 210, 86);
-            MachineScreenUi.inset(graphics, x + 10, y + 172, 210, 22);
+            MachineScreenUi.inset(graphics, x + 10, y + 82, 210, 106);
+            MachineScreenUi.inset(graphics, x + 10, y + 194, 210, 22);
+        } else if (mode == EssenceInfuserWorkpieceMode.EQUIPMENT) {
+            MachineScreenUi.progressBar(
+                    graphics, x + 90, y + 61, 50, 14,
+                    menu.equipmentTotalContributed(),
+                    menu.equipmentRecipe().map(EquipmentInfusionRecipe::totalRequired).orElse(1L)
+            );
+            MachineScreenUi.inset(graphics, x + 10, y + 82, 210, 106);
+            MachineScreenUi.inset(graphics, x + 10, y + 194, 210, 22);
         } else if (mode == EssenceInfuserWorkpieceMode.ESSENTIUM) {
             MachineScreenUi.progressBar(
                     graphics,
@@ -146,16 +159,14 @@ public final class EssenceInfuserScreen
                     menu.requiredProcessingTicks()
             );
             MachineScreenUi.inset(graphics, x + 10, y + 82, 210, 50);
-            MachineScreenUi.inset(graphics, x + 10, y + 138, 210, 56);
+            MachineScreenUi.inset(graphics, x + 10, y + 138, 210, 78);
         } else {
-            MachineScreenUi.inset(graphics, x + 10, y + 82, 210, 112);
+            MachineScreenUi.inset(graphics, x + 10, y + 82, 210, 106);
+            MachineScreenUi.inset(graphics, x + 10, y + 194, 210, 22);
         }
-        MachineScreenUi.inset(graphics, x + 32, y + 232, 166, 80);
+        MachineScreenUi.inset(graphics, x + 32, y + 254, 166, 80);
     }
 
-    private static void slotBox(GuiGraphics graphics, int x, int y) {
-        MachineScreenUi.inset(graphics, x, y, 18, 18);
-    }
 
     @Override
     protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
@@ -167,6 +178,10 @@ public final class EssenceInfuserScreen
             graphics.drawString(font, "Workpiece", 50, 48, MachineScreenUi.MUTED, false);
             graphics.drawString(font, "Upgrade", 141, 48, MachineScreenUi.MUTED, false);
             renderFocusInfusionLabels(graphics);
+        } else if (mode == EssenceInfuserWorkpieceMode.EQUIPMENT) {
+            graphics.drawString(font, "Matrix", 22, 48, MachineScreenUi.MUTED, false);
+            graphics.drawString(font, "Equipment", 62, 48, MachineScreenUi.MUTED, false);
+            renderEquipmentInfusionLabels(graphics);
         } else if (mode == EssenceInfuserWorkpieceMode.ESSENTIUM) {
             graphics.drawString(font, "Latent", 59, 48, MachineScreenUi.MUTED, false);
             graphics.drawString(font, "Essentium", 140, 48, MachineScreenUi.MUTED, false);
@@ -199,15 +214,27 @@ public final class EssenceInfuserScreen
                 false
         );
 
-        String hint = "The interface adapts to the workpiece.";
-        MachineScreenUi.fitted(
+        String hint = "The Infuser conforms to the workpiece placed within.";
+        MachineScreenUi.wrapped(
                 graphics,
                 font,
                 hint,
                 25,
                 132,
                 imageWidth - 50,
-                MachineScreenUi.MUTED
+                MachineScreenUi.MUTED,
+                10,
+                3
+        );
+        MachineScreenUi.row(
+                graphics,
+                font,
+                "Status",
+                statusText(menu.statusCode()),
+                16,
+                214,
+                201,
+                statusColor(menu.statusCode())
         );
     }
 
@@ -235,17 +262,21 @@ public final class EssenceInfuserScreen
     }
 
     private void renderFocusInfusionLabels(GuiGraphics graphics) {
-        EssencePylonFocusTier target = menu.focusTargetTier();
+        EssenceFocusTier target = menu.focusTargetTier();
+        String currentName = EssenceFocusData.displayTier(menu.workpieceStack());
         String targetName = target == null ? "Unknown" : target.displayName();
-        MachineScreenUi.sectionHeader(
+        MachineScreenUi.sectionHeader(graphics, font, "Essence Focus", 16, 88);
+        MachineScreenUi.row(
                 graphics,
                 font,
-                "Focus Infusion -> " + targetName,
-                16,
-                88
+                "Tier",
+                currentName + " -> " + targetName,
+                20,
+                210,
+                100
         );
 
-        int rowY = 100;
+        int rowY = 112;
         long minimum = menu.focusMinimumPerEssence();
         for (EssenceDefinition essence : FocusInfusionRecipe.coreAttributeEssences()) {
             long current = menu.focusContribution(essence);
@@ -263,7 +294,7 @@ public final class EssenceInfuserScreen
                 format(menu.focusTotalContributed()) + " / " + format(menu.focusTotalRequired()),
                 20,
                 210,
-                160,
+                176,
                 menu.focusTotalContributed() >= menu.focusTotalRequired()
                         ? MachineScreenUi.GOOD
                         : MachineScreenUi.TEXT
@@ -275,9 +306,54 @@ public final class EssenceInfuserScreen
                 statusText(menu.statusCode()),
                 16,
                 214,
-                179,
+                201,
                 statusColor(menu.statusCode())
         );
+    }
+
+    private void renderEquipmentInfusionLabels(GuiGraphics graphics) {
+        EquipmentInfusionRecipe recipe = menu.equipmentRecipe().orElse(null);
+        if (recipe == null) {
+            MachineScreenUi.sectionHeader(graphics, font, "Equipment Infusion", 16, 88);
+            MachineScreenUi.wrapped(
+                    graphics,
+                    font,
+                    "Insert Ascendance equipment; the loaded Matrix keeps this mode open.",
+                    20,
+                    104,
+                    190,
+                    MachineScreenUi.MUTED,
+                    10,
+                    4
+            );
+            MachineScreenUi.row(
+                    graphics,
+                    font,
+                    "Status",
+                    "Waiting for Equipment",
+                    16,
+                    214,
+                    201,
+                    MachineScreenUi.WARN
+            );
+            return;
+        }
+        String itemName = menu.workpieceStack().getHoverName().getString();
+        MachineScreenUi.sectionHeader(graphics, font, itemName, 16, 88);
+        MachineScreenUi.row(graphics, font, "Tier", recipe.currentTier().displayName() + " -> " + recipe.targetTier().displayName(), 20, 210, 100);
+        int rowY = 112;
+        for (var entry : recipe.requirements().entrySet()) {
+            EssenceDefinition essence = com.mistaboom.essence_ascendance.essence.EssenceRegistry.get(entry.getKey()).orElse(null);
+            if (essence == null) continue;
+            long current = menu.equipmentContribution(essence);
+            long required = entry.getValue();
+            MachineScreenUi.row(graphics, font, shortName(essence), format(current) + " / " + format(required), 20, 210, rowY,
+                    current >= required ? MachineScreenUi.GOOD : MachineScreenUi.TEXT);
+            rowY += 10;
+        }
+        MachineScreenUi.row(graphics, font, "Total", format(menu.equipmentTotalContributed()) + " / " + format(recipe.totalRequired()),
+                20, 210, 176, menu.equipmentTotalContributed() >= recipe.totalRequired() ? MachineScreenUi.GOOD : MachineScreenUi.TEXT);
+        MachineScreenUi.row(graphics, font, "Status", statusText(menu.statusCode()), 16, 214, 201, statusColor(menu.statusCode()));
     }
 
     private void drawSelectionLine(
@@ -330,6 +406,7 @@ public final class EssenceInfuserScreen
         EssenceInfuserWorkpieceMode mode = menu.workpieceMode();
         boolean carrierMode = mode == EssenceInfuserWorkpieceMode.ESSENTIUM;
         boolean focusMode = mode == EssenceInfuserWorkpieceMode.FOCUS;
+        boolean equipmentMode = mode == EssenceInfuserWorkpieceMode.EQUIPMENT;
         sourcePreviousButton.visible = carrierMode;
         sourceNextButton.visible = carrierMode;
         targetPreviousButton.visible = carrierMode;
@@ -341,9 +418,11 @@ public final class EssenceInfuserScreen
 
         if (processingButton != null) {
             processingButton.visible = mode != EssenceInfuserWorkpieceMode.NONE;
-            processingButton.active = mode != EssenceInfuserWorkpieceMode.NONE;
+            boolean hasActionableWorkpiece = mode != EssenceInfuserWorkpieceMode.NONE
+                    && !(equipmentMode && menu.equipmentRecipe().isEmpty());
+            processingButton.active = hasActionableWorkpiece;
             if (mode != EssenceInfuserWorkpieceMode.NONE) {
-                String action = focusMode ? "INFUSION" : "PROCESSING";
+                String action = (focusMode || equipmentMode) ? "INFUSION" : "PROCESSING";
                 String label;
                 if (!menu.processingEnabled()) {
                     label = "START " + action;
@@ -376,122 +455,89 @@ public final class EssenceInfuserScreen
 
     private void renderInfoPopup(GuiGraphics graphics) {
         int x = infoPanelX();
-        int y = topPos + 4;
-        MachineScreenUi.panel(graphics, x, y, INFO_PANEL_WIDTH, INFO_PANEL_HEIGHT);
+        int y = topPos + MachineScreenLayout.SIDE_PANEL_TOP_OFFSET;
 
-        int textX = x + 7;
-        int width = INFO_PANEL_WIDTH - 14;
-        MachineScreenUi.sectionHeader(graphics, font, "Info", textX, y + 7);
-
-        MachineScreenUi.sectionHeader(graphics, font, "Link", textX, y + 25);
-        MachineScreenUi.indentedLine(
-                graphics, font, "Crucible: " + linkedText(),
-                textX, y + 36, width
-        );
-        MachineScreenUi.indentedLine(
-                graphics, font,
-                String.format(Locale.ROOT, "Range: %.1f blocks", EssenceInfuserBalance.linkRange()),
-                textX, y + 47, width
-        );
+        MachineInfoPanel info = new MachineInfoPanel(
+                graphics, font, x, y, INFO_PANEL_WIDTH, INFO_PANEL_HEIGHT
+        )
+                .title("Info")
+                .metadata("Owner: " + ownerText())
+                .section("Link")
+                .line("Crucible: " + linkedText())
+                .line(String.format(
+                        Locale.ROOT,
+                        "Link Radius: %.1f blocks",
+                        EssenceInfuserBalance.linkRange()
+                ));
 
         EssenceInfuserWorkpieceMode mode = menu.workpieceMode();
         if (mode == EssenceInfuserWorkpieceMode.FOCUS) {
-            renderFocusInfo(graphics, textX, y, width);
+            renderFocusInfo(info);
+        } else if (mode == EssenceInfuserWorkpieceMode.EQUIPMENT) {
+            renderEquipmentInfo(info);
         } else if (mode == EssenceInfuserWorkpieceMode.ESSENTIUM) {
-            renderCarrierInfo(graphics, textX, y, width);
+            renderCarrierInfo(info);
         } else {
-            MachineScreenUi.sectionHeader(graphics, font, "Workpiece", textX, y + 64);
-            MachineScreenUi.indentedLine(
-                    graphics, font, "Insert an infusable item to view its settings.",
-                    textX, y + 75, width
-            );
+            info.section("Workpiece")
+                    .line("Insert an infusable item to view its settings.");
         }
     }
 
-    private void renderCarrierInfo(GuiGraphics graphics, int textX, int y, int width) {
-        MachineScreenUi.sectionHeader(graphics, font, "Infusion", textX, y + 64);
-        MachineScreenUi.indentedLine(
-                graphics, font, "Source Cost/Item: " + format(menu.sourceRequired()),
-                textX, y + 75, width
-        );
-        MachineScreenUi.indentedLine(
-                graphics, font, "Output Essence/Item: " + format(menu.targetCapacity()),
-                textX, y + 86, width
-        );
-        MachineScreenUi.indentedLine(
-                graphics, font,
-                "Infusion Rate: " + format(menu.infusionThroughputPerSecond()) + " Essence/sec",
-                textX, y + 97, width
-        );
-        MachineScreenUi.indentedLine(
-                graphics, font,
-                String.format(Locale.ROOT, "Processing Time: %.2f sec/item", menu.requiredProcessingTicks() / 20.0D),
-                textX, y + 108, width
-        );
-
-        MachineScreenUi.sectionHeader(graphics, font, "Automation", textX, y + 125);
-        MachineScreenUi.indentedLine(
-                graphics, font, "Input: Latent Carrier",
-                textX, y + 136, width
-        );
-        MachineScreenUi.indentedLine(
-                graphics, font, "Output: Essentium",
-                textX, y + 147, width
-        );
+    private void renderCarrierInfo(MachineInfoPanel info) {
+        info.section("Infusion")
+                .line("Source Cost/Item: " + format(menu.sourceRequired()))
+                .line("Output Essence/Item: " + format(menu.targetCapacity()))
+                .line("Rate: " + format(menu.infusionThroughputPerSecond()) + "/sec")
+                .line(String.format(
+                        Locale.ROOT,
+                        "Processing Time: %.2f sec/item",
+                        menu.requiredProcessingTicks() / 20.0D
+                ))
+                .section("Automation")
+                .line("Input: Manual / Hopper / Pipe")
+                .line("Output: Essentium carrier in the output slot.");
     }
 
-    private void renderFocusInfo(GuiGraphics graphics, int textX, int y, int width) {
-        EssencePylonFocusTier target = menu.focusTargetTier();
-        EssencePylonFocusTier required = menu.focusRequiredInstalledTier();
+    private void renderEquipmentInfo(MachineInfoPanel info) {
+        EquipmentInfusionRecipe recipe = menu.equipmentRecipe().orElse(null);
+        info.section("Equipment Infusion");
+        if (recipe == null) {
+            info.line(
+                    "Matrix loaded. Insert Ascendance equipment to continue; "
+                            + "the Matrix keeps Equipment mode open."
+            );
+        } else {
+            info.line("Target: " + recipe.targetTier().displayName())
+                    .line("Matrices: " + recipe.matrixCount())
+                    .line("Rate: " + format(menu.infusionThroughputPerSecond()) + "/sec");
+        }
 
-        MachineScreenUi.sectionHeader(graphics, font, "Focus Infusion", textX, y + 64);
-        MachineScreenUi.indentedLine(
-                graphics, font,
-                "Target: " + (target == null ? "Unknown" : target.displayName()),
-                textX, y + 75, width
-        );
-        MachineScreenUi.indentedLine(
-                graphics, font,
-                "Required Focus: " + (required == null ? "None" : required.displayName()),
-                textX, y + 86, width
-        );
-        MachineScreenUi.indentedLine(
-                graphics, font,
-                "Minimum/Essence: " + format(menu.focusMinimumPerEssence()),
-                textX, y + 97, width
-        );
-        MachineScreenUi.indentedLine(
-                graphics, font,
-                "Total Required: " + format(menu.focusTotalRequired()),
-                textX, y + 108, width
-        );
-        MachineScreenUi.indentedLine(
-                graphics, font,
-                "Infusion Rate: " + format(menu.infusionThroughputPerSecond()) + " Essence/sec",
-                textX, y + 119, width
-        );
+        info.section("Automation")
+                .line("Input: Manual")
+                .line(
+                        "Output: Same equipment, upgraded on completion; "
+                                + "partial progress stays on the equipment."
+                );
+    }
 
-        MachineScreenUi.sectionHeader(graphics, font, "Automation", textX, y + 136);
-        MachineScreenUi.indentedLine(
-                graphics, font, "Workpiece Input: Manual",
-                textX, y + 147, width
-        );
-        MachineScreenUi.indentedLine(
-                graphics, font, "Output: Upgraded Focus",
-                textX, y + 158, width
-        );
+    private void renderFocusInfo(MachineInfoPanel info) {
+        EssenceFocusTier target = menu.focusTargetTier();
+        EssenceFocusTier required = menu.focusRequiredInstalledTier();
+
+        info.section("Focus Infusion")
+                .line("Target: " + (target == null ? "Unknown" : target.displayName()))
+                .line("Required Focus: " + (required == null ? "None" : required.displayName()))
+                .line("Rate: " + format(menu.infusionThroughputPerSecond()) + "/sec")
+                .section("Automation")
+                .line("Input: Manual")
+                .line(
+                        "Output: Same Essence Focus, upgraded on completion; "
+                                + "partial progress stays on the Focus."
+                );
     }
 
     private int infoPanelX() {
-        int right = leftPos + imageWidth + SIDE_PANEL_GAP;
-        if (right + INFO_PANEL_WIDTH <= width - 4) {
-            return right;
-        }
-        int left = leftPos - SIDE_PANEL_GAP - INFO_PANEL_WIDTH;
-        if (left >= 4) {
-            return left;
-        }
-        return Math.max(4, Math.min(right, width - 4 - INFO_PANEL_WIDTH));
+        return MachineScreenLayout.infoPanelX(leftPos, imageWidth, width);
     }
 
     private boolean mouseInsideInfo(double mouseX, double mouseY) {
@@ -499,9 +545,16 @@ public final class EssenceInfuserScreen
             return false;
         }
         int x = infoPanelX();
-        int y = topPos + 4;
-        return mouseX >= x && mouseX < x + INFO_PANEL_WIDTH
-                && mouseY >= y && mouseY < y + INFO_PANEL_HEIGHT;
+        int y = topPos + MachineScreenLayout.SIDE_PANEL_TOP_OFFSET;
+        return MachineScreenLayout.contains(
+                mouseX, mouseY, x, y, INFO_PANEL_WIDTH, INFO_PANEL_HEIGHT
+        );
+    }
+
+    private String ownerText() {
+        return minecraft != null && minecraft.player != null
+                ? minecraft.player.getGameProfile().getName()
+                : "Bound Player";
     }
 
     private String linkedText() {
@@ -529,6 +582,7 @@ public final class EssenceInfuserScreen
             case EssenceInfuserBlockEntity.STATUS_PLAYER_CHANNELING -> "Paused - Player Channeling";
             case EssenceInfuserBlockEntity.STATUS_FOCUS_TIER_REQUIRED -> "Needs Stronger Focus";
             case EssenceInfuserBlockEntity.STATUS_FOCUS_MALFORMED -> "Invalid Focus Data";
+                        case EssenceInfuserBlockEntity.STATUS_COMPONENT_REQUIRED -> "Needs Ascendance Matrix";
             default -> "Waiting for Input";
         };
     }

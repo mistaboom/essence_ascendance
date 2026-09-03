@@ -9,5 +9,6 @@
   "result": {
     "id": "essence_ascendance:raw_latent_ore",
     "count": 9
-  }
+  },
+  "show_notification": false
 }

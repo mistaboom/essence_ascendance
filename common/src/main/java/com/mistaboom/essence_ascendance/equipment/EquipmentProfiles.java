@@ -76,11 +76,11 @@ public final class EquipmentProfiles {
                             .build()
             );
 
-    public static final EquipmentProfileDefinition MAGIC_FOCUS =
+    public static final EquipmentProfileDefinition MAGIC_CASTER =
             EquipmentProfileRegistry.register(
                     EquipmentProfileDefinition.builder(
-                                    id("magic_focus"),
-                                    "Ascendance Magic Focus"
+                                    id("magic_caster"),
+                                    "Ascendance Caster"
                             )
                             .baseline(EquipmentBaselineProperty.MAGIC_DAMAGE)
                             .baseline(EquipmentBaselineProperty.MAGIC_CAST_SPEED)

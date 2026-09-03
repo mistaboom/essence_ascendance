@@ -99,7 +99,7 @@ public final class EssencePylonBlockEntity extends BlockEntity
         return linkedCruciblePos != null && linkedCruciblePos.equals(cruciblePos);
     }
 
-    public EssencePylonFocusTier focusTier() {
+    public EssenceFocusTier focusTier() {
         return EssencePylonContent.focusTier(getItem(FOCUS_SLOT));
     }
 
@@ -108,7 +108,7 @@ public final class EssencePylonBlockEntity extends BlockEntity
     }
 
     public String focusDisplayName() {
-        EssencePylonFocusTier tier = focusTier();
+        EssenceFocusTier tier = focusTier();
         return tier == null ? "Empty / Base Pylon" : tier.displayName() + " Focus";
     }
 

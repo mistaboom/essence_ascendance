@@ -107,7 +107,7 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug crucible", "inspect the Essence Crucible you are looking at"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug pylon", "inspect the Essence Pylon you are looking at"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug infuser", "inspect the Essence Infuser you are looking at"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug baselines", "tier/archetype equipment baselines"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug baselines", "player-tier baseline preset reference"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.section("Gameplay categories"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug offense", "melee, ranged, magic, knockback, reflection"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug defense", "all resistance stats and last incoming-damage/status events"));
@@ -342,7 +342,7 @@ final class EssenceDebugCommands {
             showRangedRuntime(source, player, stack);
         }
 
-        if (profile.id().equals(EquipmentProfiles.MAGIC_FOCUS.id())) {
+        if (profile.id().equals(EquipmentProfiles.MAGIC_CASTER.id())) {
             showMagicRuntime(source, player, stack);
         }
 
@@ -1209,7 +1209,15 @@ final class EssenceDebugCommands {
     private static int showBaselines(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         PlayerEssenceData data = playerData(player);
-        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Equipment Baselines - " + data.getTier().displayName()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(
+                "Equipment Baseline Preset Reference - Player Tier " + data.getTier().displayName()
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
+                "Reference only: real Ascendance equipment uses its own item tier for native stats."
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
+                "Use /essence admin itemtier set <tier> while holding an item to test another item tier."
+        ));
 
         for (EquipmentProfileDefinition profile : EquipmentProfileRegistry.values()) {
             EquipmentBaselineResult baseline = EquipmentBaselineService.evaluate(player, profile.id());
@@ -1275,7 +1283,7 @@ final class EssenceDebugCommands {
                             + " | projectile +" + EssenceCommandUtil.formatDecimal(ranged.projectileSpeedPercent()) + "%"
             ));
         }
-        if (usesProfile(held, EquipmentProfiles.MAGIC_FOCUS.id())) {
+        if (usesProfile(held, EquipmentProfiles.MAGIC_CASTER.id())) {
             EquipmentWeaponService.MagicState magic = EquipmentWeaponService.evaluateMagic(player, held);
             EssenceCommandUtil.send(source, EssenceCommandUtil.line(
                     "Magic",
