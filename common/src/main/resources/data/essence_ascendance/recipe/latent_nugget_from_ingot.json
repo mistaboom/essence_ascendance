@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "essence_ascendance:latent_ingot"
+    }
+  ],
+  "result": {
+    "id": "essence_ascendance:latent_nugget",
+    "count": 9
+  },
+  "show_notification": false
+}

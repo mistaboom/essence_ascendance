@@ -117,10 +117,15 @@ public final class EssentiumCarrierData {
                 .grade(grade.serializedName())
                 .ingotCapacity();
         try {
-            return Math.multiplyExact(
+            long scaled = Math.multiplyExact(
                     ingotCapacity,
-                    item.form().capacityMultiplier()
+                    item.form().capacityNumerator()
             );
+            long denominator = item.form().capacityDenominator();
+            if (denominator <= 0L || scaled % denominator != 0L) {
+                return 0L;
+            }
+            return scaled / denominator;
         } catch (ArithmeticException overflow) {
             return 0L;
         }

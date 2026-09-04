@@ -1619,10 +1619,13 @@ public final class EssenceConfigManager {
                 }
                 InfuserBalanceSettings.GradeSettings fallback =
                         grades.get(gradeName);
-                long ingotCapacity = readLong(
-                        configured,
-                        "ingot_capacity",
-                        fallback.ingotCapacity()
+                long ingotCapacity = normalizeEssentiumIngotCapacity(
+                        readLong(
+                                configured,
+                                "ingot_capacity",
+                                fallback.ingotCapacity()
+                        ),
+                        "essence_infuser.grades." + gradeName + ".ingot_capacity"
                 );
                 int efficiency = readInt(
                         configured,
@@ -1788,6 +1791,37 @@ public final class EssenceConfigManager {
      * as flat ticks per ingot. Round the derived throughput up so the migrated
      * ingot never becomes slower than the old configured duration.
      */
+    /**
+     * Essentium Nugget is exactly one ninth of an Ingot. Older explicit
+     * configurations may contain capacities from before nugget support that
+     * are not divisible by nine. Normalize those values upward by at most
+     * eight Essence. Rounding upward keeps already-created legacy carriers
+     * valid while making all newly created nugget/ingot conversions exact.
+     */
+    private static long normalizeEssentiumIngotCapacity(long configured, String path) {
+        if (configured <= 0L) {
+            return configured;
+        }
+        long remainder = configured % 9L;
+        long normalized;
+        try {
+            normalized = remainder == 0L
+                    ? configured
+                    : Math.addExact(configured, 9L - remainder);
+        } catch (ArithmeticException overflow) {
+            throw new IllegalArgumentException(path + " is too large to normalize for nugget conversion", overflow);
+        }
+        if (normalized != configured) {
+            EssenceAscendance.LOGGER.warn(
+                    "Normalized {} from {} to {} so Essentium Nugget conversion remains exact",
+                    path,
+                    configured,
+                    normalized
+            );
+        }
+        return normalized;
+    }
+
     private static long legacyInfusionThroughput(
             long ingotCapacity,
             int processingTicks,

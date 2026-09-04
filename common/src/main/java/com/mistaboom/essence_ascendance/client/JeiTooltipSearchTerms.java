@@ -46,6 +46,7 @@ public final class JeiTooltipSearchTerms {
                                 value.amount()
                         )
                 );
+                result.add("tier");
                 result.add("infusion");
                 result.add("grade");
                 result.add(value.grade().displayName().toLowerCase(java.util.Locale.ROOT));

@@ -16,6 +16,10 @@ public record EssentiumInfusionRecipe(
         EssentiumItem outputItem
 ) implements EssenceInfuserRecipe {
 
+    private static final ResourceLocation NUGGET_ID = ResourceLocation.fromNamespaceAndPath(
+            EssenceAscendance.MOD_ID,
+            "infuser/essentium_nugget"
+    );
     private static final ResourceLocation INGOT_ID = ResourceLocation.fromNamespaceAndPath(
             EssenceAscendance.MOD_ID,
             "infuser/essentium_ingot"
@@ -28,13 +32,21 @@ public record EssentiumInfusionRecipe(
     public static boolean isWorkpiece(ItemStack stack) {
         return stack != null
                 && !stack.isEmpty()
-                && (stack.is(EssenceInfuserContent.LATENT_INGOT.get())
+                && (stack.is(EssenceInfuserContent.LATENT_NUGGET.get())
+                || stack.is(EssenceInfuserContent.LATENT_INGOT.get())
                 || stack.is(EssenceInfuserContent.LATENT_BLOCK_ITEM.get()));
     }
 
     public static Optional<EssentiumInfusionRecipe> forWorkpiece(ItemStack stack) {
         if (!isWorkpiece(stack)) {
             return Optional.empty();
+        }
+        if (stack.is(EssenceInfuserContent.LATENT_NUGGET.get())) {
+            return create(
+                    NUGGET_ID,
+                    EssenceInfuserContent.LATENT_NUGGET.get(),
+                    EssenceInfuserContent.ESSENTIUM_NUGGET.get()
+            );
         }
         if (stack.is(EssenceInfuserContent.LATENT_INGOT.get())) {
             return create(

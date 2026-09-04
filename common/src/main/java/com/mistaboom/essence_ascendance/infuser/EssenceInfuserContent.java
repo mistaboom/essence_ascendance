@@ -7,6 +7,8 @@ import dev.architectury.registry.registries.RegistrySupplier;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.flag.FeatureFlags;
 import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.item.crafting.RecipeSerializer;
+import net.minecraft.world.item.crafting.SimpleCraftingRecipeSerializer;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
@@ -26,6 +28,8 @@ public final class EssenceInfuserContent {
             DeferredRegister.create(EssenceAscendance.MOD_ID, Registries.BLOCK_ENTITY_TYPE);
     private static final DeferredRegister<MenuType<?>> MENUS =
             DeferredRegister.create(EssenceAscendance.MOD_ID, Registries.MENU);
+    private static final DeferredRegister<RecipeSerializer<?>> RECIPE_SERIALIZERS =
+            DeferredRegister.create(EssenceAscendance.MOD_ID, Registries.RECIPE_SERIALIZER);
 
     public static final RegistrySupplier<Block> LATENT_ORE = BLOCKS.register(
             "latent_ore",
@@ -117,6 +121,10 @@ public final class EssenceInfuserContent {
             "raw_latent_ore_block",
             RAW_LATENT_ORE_BLOCK
     );
+    public static final RegistrySupplier<Item> LATENT_NUGGET = ITEMS.register(
+            "latent_nugget",
+            () -> new Item(new Item.Properties())
+    );
     public static final RegistrySupplier<Item> LATENT_INGOT = ITEMS.register(
             "latent_ingot",
             () -> new Item(new Item.Properties())
@@ -132,6 +140,13 @@ public final class EssenceInfuserContent {
     public static final RegistrySupplier<Item> ASCENDANCE_MATRIX = ITEMS.register(
             "ascendance_matrix",
             () -> new Item(new Item.Properties())
+    );
+    public static final RegistrySupplier<Item> ESSENTIUM_NUGGET = ITEMS.register(
+            "essentium_nugget",
+            () -> new EssentiumItem(
+                    EssentiumItem.CarrierForm.NUGGET,
+                    new Item.Properties()
+            )
     );
     public static final RegistrySupplier<Item> ESSENTIUM_INGOT = ITEMS.register(
             "essentium_ingot",
@@ -170,6 +185,31 @@ public final class EssenceInfuserContent {
                     )
             );
 
+
+    public static final RegistrySupplier<RecipeSerializer<EssentiumNuggetCompactingRecipe>> ESSENTIUM_NUGGET_COMPACTING_SERIALIZER =
+            RECIPE_SERIALIZERS.register(
+                    "essentium_nugget_compacting",
+                    () -> new SimpleCraftingRecipeSerializer<>(EssentiumNuggetCompactingRecipe::new)
+            );
+
+    public static final RegistrySupplier<RecipeSerializer<EssentiumNuggetUncompactingRecipe>> ESSENTIUM_NUGGET_UNCOMPACTING_SERIALIZER =
+            RECIPE_SERIALIZERS.register(
+                    "essentium_nugget_uncompacting",
+                    () -> new SimpleCraftingRecipeSerializer<>(EssentiumNuggetUncompactingRecipe::new)
+            );
+
+    public static final RegistrySupplier<RecipeSerializer<EssentiumBlockCompactingRecipe>> ESSENTIUM_BLOCK_COMPACTING_SERIALIZER =
+            RECIPE_SERIALIZERS.register(
+                    "essentium_block_compacting",
+                    () -> new SimpleCraftingRecipeSerializer<>(EssentiumBlockCompactingRecipe::new)
+            );
+
+    public static final RegistrySupplier<RecipeSerializer<EssentiumBlockUncompactingRecipe>> ESSENTIUM_BLOCK_UNCOMPACTING_SERIALIZER =
+            RECIPE_SERIALIZERS.register(
+                    "essentium_block_uncompacting",
+                    () -> new SimpleCraftingRecipeSerializer<>(EssentiumBlockUncompactingRecipe::new)
+            );
+
     private static boolean initialized = false;
 
     private EssenceInfuserContent() {
@@ -194,6 +234,7 @@ public final class EssenceInfuserContent {
         ITEMS.register();
         BLOCK_ENTITIES.register();
         MENUS.register();
+        RECIPE_SERIALIZERS.register();
 
         CreativeTabRegistry.append(
                 CreativeModeTabs.NATURAL_BLOCKS,
@@ -205,8 +246,10 @@ public final class EssenceInfuserContent {
         CreativeTabRegistry.append(
                 CreativeModeTabs.INGREDIENTS,
                 RAW_LATENT_ORE,
+                LATENT_NUGGET,
                 LATENT_INGOT,
                 ASCENDANCE_MATRIX,
+                ESSENTIUM_NUGGET,
                 ESSENTIUM_INGOT,
                 ESSENTIUM_BLOCK
         );

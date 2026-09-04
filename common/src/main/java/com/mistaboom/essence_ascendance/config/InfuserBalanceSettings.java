@@ -145,6 +145,11 @@ public record InfuserBalanceSettings(
     public record GradeSettings(long ingotCapacity, int efficiencyBasisPoints, long infusionThroughputPerSecond) {
         public GradeSettings {
             if (ingotCapacity <= 0L) throw new IllegalArgumentException("Essentium ingot capacity must be positive");
+            if (ingotCapacity % 9L != 0L) {
+                throw new IllegalArgumentException(
+                        "Essentium ingot capacity must be divisible by 9 for exact nugget conversion"
+                );
+            }
             validateEfficiency(efficiencyBasisPoints, "Infuser efficiency");
             if (infusionThroughputPerSecond <= 0L) throw new IllegalArgumentException("Infuser throughput must be positive");
         }
@@ -152,11 +157,11 @@ public record InfuserBalanceSettings(
 
     public static InfuserBalanceSettings defaults() {
         Map<String, GradeSettings> grades = new LinkedHashMap<>();
-        grades.put("dormant", new GradeSettings(100_000L, 5_500, 12_500L));
-        grades.put("awakened", new GradeSettings(250_000L, 6_200, 38_462L));
-        grades.put("resonant", new GradeSettings(500_000L, 7_000, 100_000L));
-        grades.put("ascendant", new GradeSettings(1_000_000L, 8_000, 250_000L));
-        grades.put("transcendent", new GradeSettings(2_000_000L, 9_000, 666_667L));
+        grades.put("dormant", new GradeSettings(100_008L, 5_500, 12_500L));
+        grades.put("awakened", new GradeSettings(250_002L, 6_200, 38_462L));
+        grades.put("resonant", new GradeSettings(500_004L, 7_000, 100_000L));
+        grades.put("ascendant", new GradeSettings(1_000_008L, 8_000, 250_000L));
+        grades.put("transcendent", new GradeSettings(2_000_007L, 9_000, 666_667L));
 
         Map<String, FocusUpgradeSettings> focusUpgrades = new LinkedHashMap<>();
         focusUpgrades.put("dormant", new FocusUpgradeSettings(15_000L, 300_000L));

@@ -6,17 +6,24 @@ import net.minecraft.world.item.Item;
 public final class EssentiumItem extends Item {
 
     public enum CarrierForm {
-        INGOT(1L),
-        BLOCK(9L);
+        NUGGET(1L, 9L),
+        INGOT(1L, 1L),
+        BLOCK(9L, 1L);
 
-        private final long capacityMultiplier;
+        private final long capacityNumerator;
+        private final long capacityDenominator;
 
-        CarrierForm(long capacityMultiplier) {
-            this.capacityMultiplier = capacityMultiplier;
+        CarrierForm(long capacityNumerator, long capacityDenominator) {
+            this.capacityNumerator = capacityNumerator;
+            this.capacityDenominator = capacityDenominator;
         }
 
-        public long capacityMultiplier() {
-            return capacityMultiplier;
+        public long capacityNumerator() {
+            return capacityNumerator;
+        }
+
+        public long capacityDenominator() {
+            return capacityDenominator;
         }
     }
 

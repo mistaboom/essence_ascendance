@@ -95,6 +95,18 @@
           }
         ]
       }
+    },
+    "has_latent_nugget": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "essence_ascendance:latent_nugget"
+            ]
+          }
+        ]
+      }
     }
   },
   "requirements": [
@@ -106,7 +118,8 @@
       "has_raw_latent_ore",
       "has_raw_latent_ore_block",
       "has_latent_ingot",
-      "has_latent_block"
+      "has_latent_block",
+      "has_latent_nugget"
     ]
   ],
   "rewards": {
@@ -129,6 +142,10 @@
       "essence_ascendance:essence_focus",
       "essence_ascendance:essence_infuser",
       "essence_ascendance:essence_pylon",
+      "essence_ascendance:essentium_nugget_compacting",
+      "essence_ascendance:essentium_nugget_uncompacting",
+      "essence_ascendance:essentium_block_compacting",
+      "essence_ascendance:essentium_block_uncompacting",
       "essence_ascendance:latent_block",
       "essence_ascendance:latent_ingot_from_blasting_raw_latent_ore",
       "essence_ascendance:latent_ingot_from_block",
@@ -138,9 +155,11 @@
       "essence_ascendance:latent_ingot_from_end_stone_ore_blasting",
       "essence_ascendance:latent_ingot_from_netherrack_ore",
       "essence_ascendance:latent_ingot_from_netherrack_ore_blasting",
+      "essence_ascendance:latent_ingot_from_nuggets",
       "essence_ascendance:latent_ingot_from_ore",
       "essence_ascendance:latent_ingot_from_ore_blasting",
       "essence_ascendance:latent_ingot_from_smelting_raw_latent_ore",
+      "essence_ascendance:latent_nugget_from_ingot",
       "essence_ascendance:raw_latent_ore_block",
       "essence_ascendance:raw_latent_ore_from_block"
     ]
