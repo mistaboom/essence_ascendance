@@ -1,3 +1,95 @@
 {
-  "parent": "minecraft:block/gold_block"
+  "parent": "minecraft:block/gold_block",
+  "overrides": [
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.03125
+      },
+      "model": "essence_ascendance:item/essentium/offense/block"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.0625
+      },
+      "model": "essence_ascendance:item/essentium/defense/block"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.09375
+      },
+      "model": "essence_ascendance:item/essentium/vitality/block"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.125
+      },
+      "model": "essence_ascendance:item/essentium/mobility/block"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.15625
+      },
+      "model": "essence_ascendance:item/essentium/gathering/block"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.1875
+      },
+      "model": "essence_ascendance:item/essentium/utility/block"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.21875
+      },
+      "model": "essence_ascendance:item/essentium/pyre/block"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.25
+      },
+      "model": "essence_ascendance:item/essentium/flow/block"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.28125
+      },
+      "model": "essence_ascendance:item/essentium/terra/block"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.3125
+      },
+      "model": "essence_ascendance:item/essentium/gale/block"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.34375
+      },
+      "model": "essence_ascendance:item/essentium/body/block"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.375
+      },
+      "model": "essence_ascendance:item/essentium/mind/block"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.40625
+      },
+      "model": "essence_ascendance:item/essentium/spirit/block"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.4375
+      },
+      "model": "essence_ascendance:item/essentium/radiance/block"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.46875
+      },
+      "model": "essence_ascendance:item/essentium/void/block"
+    }
+  ]
 }

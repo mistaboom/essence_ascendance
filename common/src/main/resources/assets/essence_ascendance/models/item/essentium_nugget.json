@@ -1,3 +1,95 @@
 {
-  "parent": "minecraft:item/gold_nugget"
+  "parent": "minecraft:item/gold_nugget",
+  "overrides": [
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.03125
+      },
+      "model": "essence_ascendance:item/essentium/offense/nugget"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.0625
+      },
+      "model": "essence_ascendance:item/essentium/defense/nugget"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.09375
+      },
+      "model": "essence_ascendance:item/essentium/vitality/nugget"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.125
+      },
+      "model": "essence_ascendance:item/essentium/mobility/nugget"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.15625
+      },
+      "model": "essence_ascendance:item/essentium/gathering/nugget"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.1875
+      },
+      "model": "essence_ascendance:item/essentium/utility/nugget"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.21875
+      },
+      "model": "essence_ascendance:item/essentium/pyre/nugget"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.25
+      },
+      "model": "essence_ascendance:item/essentium/flow/nugget"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.28125
+      },
+      "model": "essence_ascendance:item/essentium/terra/nugget"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.3125
+      },
+      "model": "essence_ascendance:item/essentium/gale/nugget"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.34375
+      },
+      "model": "essence_ascendance:item/essentium/body/nugget"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.375
+      },
+      "model": "essence_ascendance:item/essentium/mind/nugget"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.40625
+      },
+      "model": "essence_ascendance:item/essentium/spirit/nugget"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.4375
+      },
+      "model": "essence_ascendance:item/essentium/radiance/nugget"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:essentium_essence": 0.46875
+      },
+      "model": "essence_ascendance:item/essentium/void/nugget"
+    }
+  ]
 }

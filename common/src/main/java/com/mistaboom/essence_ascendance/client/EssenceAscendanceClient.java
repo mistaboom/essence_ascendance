@@ -4,6 +4,7 @@ import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTierVisuals;
 import com.mistaboom.essence_ascendance.equipment.EquipmentWeaponService;
 import com.mistaboom.essence_ascendance.item.AscendanceItems;
+import com.mistaboom.essence_ascendance.infuser.EssenceInfuserContent;
 import net.minecraft.client.renderer.item.ClampedItemPropertyFunction;
 import net.minecraft.client.renderer.item.ItemProperties;
 import net.minecraft.resources.ResourceLocation;
@@ -28,6 +29,9 @@ public final class EssenceAscendanceClient {
 
     private static final ResourceLocation EQUIPMENT_TIER =
             EquipmentTierVisuals.MODEL_PROPERTY;
+
+    private static final ResourceLocation ESSENTIUM_ESSENCE =
+            EssentiumCarrierVisuals.MODEL_PROPERTY;
 
     private static boolean initialized = false;
 
@@ -83,6 +87,21 @@ public final class EssenceAscendanceClient {
                     EQUIPMENT_TIER,
                     (stack, level, entity, seed) ->
                             EquipmentTierVisuals.modelPropertyValue(stack)
+            );
+        }
+
+        Item[] essentiumVisualItems = {
+                EssenceInfuserContent.ESSENTIUM_NUGGET.get(),
+                EssenceInfuserContent.ESSENTIUM_INGOT.get(),
+                EssenceInfuserContent.ESSENTIUM_BLOCK.get()
+        };
+
+        for (Item item : essentiumVisualItems) {
+            registrar.register(
+                    item,
+                    ESSENTIUM_ESSENCE,
+                    (stack, level, entity, seed) ->
+                            EssentiumCarrierVisuals.modelPropertyValue(stack)
             );
         }
 
@@ -171,10 +190,19 @@ public final class EssenceAscendanceClient {
             }
         }
 
+        for (Item item : essentiumVisualItems) {
+            if (ItemProperties.getProperty(new ItemStack(item), ESSENTIUM_ESSENCE) == null) {
+                throw new IllegalStateException(
+                        "Essence Ascendance failed to register Essentium Essence model property for "
+                                + item
+                );
+            }
+        }
+
         initialized = true;
 
         EssenceAscendance.LOGGER.info(
-                "Registered Ascendance equipment tier model property plus bow pulling properties"
+                "Registered Ascendance equipment tier, Essentium Essence, and bow pulling model properties"
         );
     }
 
