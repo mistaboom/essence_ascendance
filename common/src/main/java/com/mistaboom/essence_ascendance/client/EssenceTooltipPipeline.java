@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.infuser.EssentiumCarrierData;
 import com.mistaboom.essence_ascendance.essence.EssenceFamily;
+import com.mistaboom.essence_ascendance.text.EssenceText;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
@@ -51,10 +52,8 @@ public final class EssenceTooltipPipeline {
                     .filter(EssenceTooltipPipeline::isCarrierEssenceVisible)
                     .ifPresent(value -> {
                 tooltip.add(
-                        Component.literal(
-                                        " Tier: "
-                                                + value.grade().displayName()
-                                )
+                        Component.literal(" ")
+                                .append(EssenceText.tooltip("tier", EssenceText.focusTier(value.grade())))
                                 .withStyle(
                                         ChatFormatting.LIGHT_PURPLE,
                                         ChatFormatting.BOLD

@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.network.EssencePylonStatePayload;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonMenu;
+import com.mistaboom.essence_ascendance.text.EssenceText;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -88,11 +89,11 @@ public final class EssencePylonScreen
         EssencePylonStatePayload state =
                 EssencePylonClientState.snapshotFor(menu.containerId);
 
-        drawCentered(graphics, "ESSENCE PYLON", 7, MachineScreenUi.TEXT);
-        drawCentered(graphics, "Focus", 20, MachineScreenUi.MUTED);
+        drawCentered(graphics, EssenceText.gui("pylon.title"), 7, MachineScreenUi.TEXT);
+        drawCentered(graphics, EssenceText.term("focus"), 20, MachineScreenUi.MUTED);
 
         if (state == null) {
-            drawCentered(graphics, "Synchronizing...", 68, MachineScreenUi.MUTED);
+            drawCentered(graphics, EssenceText.term("synchronizing"), 68, MachineScreenUi.MUTED);
             graphics.drawString(
                     font, playerInventoryTitle, inventoryLabelX, inventoryLabelY,
                     MachineScreenUi.MUTED, false
@@ -101,11 +102,11 @@ public final class EssencePylonScreen
         }
 
         MachineScreenUi.row(
-                graphics, font, "Status", statusText(state),
+                graphics, font, EssenceText.term("status"), statusText(state),
                 16, 214, 66, statusColor(state)
         );
         MachineScreenUi.row(
-                graphics, font, "Installed Focus", focusText(state),
+                graphics, font, EssenceText.term("installed_focus"), focusText(state),
                 16, 214, 80
         );
 
@@ -164,31 +165,30 @@ public final class EssencePylonScreen
         int y = topPos + MachineScreenLayout.SIDE_PANEL_TOP_OFFSET;
 
         new MachineInfoPanel(graphics, font, x, y, INFO_PANEL_WIDTH, INFO_PANEL_HEIGHT)
-                .title("Info")
-                .metadata("Owner: " + state.ownerName())
-                .section("Link")
-                .line("Crucible: " + linkedText(state))
-                .line(String.format(
-                        Locale.ROOT,
-                        "Link Radius: %.1f blocks",
-                        state.pylonRadius()
+                .title(EssenceText.term("info"))
+                .metadata(EssenceText.gui("owner", state.ownerName()))
+                .section(EssenceText.term("link"))
+                .line(EssenceText.gui("crucible_link", linkedText(state)))
+                .line(EssenceText.gui(
+                        "link_radius_blocks",
+                        String.format(Locale.ROOT, "%.1f", state.pylonRadius())
                 ))
-                .section("Contribution")
-                .line("Reservoir: +" + format(state.reservoirCapacityBonus()))
-                .line("Channel Rate: +" + format(state.transferRatePerSecondBonus()) + "/sec")
-                .line("Channel Range: +" + decimal(state.transferRangeBonus()) + " blocks")
-                .line("Dissolution Speed: +" + decimal(state.dissolutionSpeedBonus() * 100.0D) + "%")
-                .line("Items/Batch: +" + state.simultaneousItemProcessesBonus());
+                .section(EssenceText.term("contribution"))
+                .line(EssenceText.gui("pylon.info.reservoir_bonus", format(state.reservoirCapacityBonus())))
+                .line(EssenceText.gui("pylon.info.channel_rate_bonus", format(state.transferRatePerSecondBonus())))
+                .line(EssenceText.gui("pylon.info.channel_range_bonus", decimal(state.transferRangeBonus())))
+                .line(EssenceText.gui("pylon.info.dissolution_speed_bonus", decimal(state.dissolutionSpeedBonus() * 100.0D)))
+                .line(EssenceText.gui("pylon.info.items_batch_bonus", state.simultaneousItemProcessesBonus()));
     }
 
-    private static String statusText(EssencePylonStatePayload state) {
+    private static Component statusText(EssencePylonStatePayload state) {
         if (!state.linked()) {
-            return "Unlinked";
+            return EssenceText.gui("pylon.status.unlinked");
         }
         if (!state.active()) {
-            return "Inactive - Pylon Limit";
+            return EssenceText.gui("pylon.status.inactive_limit");
         }
-        return "Active";
+        return EssenceText.gui("pylon.status.active");
     }
 
     private static int statusColor(EssencePylonStatePayload state) {
@@ -198,22 +198,25 @@ public final class EssencePylonScreen
         return MachineScreenUi.GOOD;
     }
 
-    private static String focusText(EssencePylonStatePayload state) {
+    private static Component focusText(EssencePylonStatePayload state) {
         if (!state.focusInstalled()) {
-            return "None";
+            return EssenceText.term("none");
         }
-        String name = state.focusName();
-        return name.endsWith(" Focus")
-                ? name.substring(0, name.length() - " Focus".length())
-                : name;
+        for (com.mistaboom.essence_ascendance.pylon.EssenceFocusTier tier
+                : com.mistaboom.essence_ascendance.pylon.EssenceFocusTier.values()) {
+            if (state.focusTierName().equals(tier.serializedName())) {
+                return EssenceText.focusTier(tier);
+            }
+        }
+        return EssenceText.term("unknown");
     }
 
-    private static String linkedText(EssencePylonStatePayload state) {
+    private static Component linkedText(EssencePylonStatePayload state) {
         if (!state.linked()) {
-            return "None";
+            return EssenceText.term("none");
         }
         BlockPos linked = BlockPos.of(state.linkedCruciblePos());
-        return linked.getX() + ", " + linked.getY() + ", " + linked.getZ();
+        return Component.literal(linked.getX() + ", " + linked.getY() + ", " + linked.getZ());
     }
 
     private int infoPanelX() {
@@ -231,7 +234,7 @@ public final class EssencePylonScreen
         );
     }
 
-    private void drawCentered(GuiGraphics graphics, String text, int y, int color) {
+    private void drawCentered(GuiGraphics graphics, Component text, int y, int color) {
         graphics.drawString(font, text, (imageWidth - font.width(text)) / 2, y, color, false);
     }
 

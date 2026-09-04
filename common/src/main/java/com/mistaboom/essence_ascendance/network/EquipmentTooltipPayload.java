@@ -11,11 +11,13 @@ import java.util.List;
 import java.util.Objects;
 
 /*
- * Server -> client snapshot containing already-resolved, display-ready
- * Ascendance equipment information for the local player.
+ * Server -> client semantic Ascendance equipment tooltip snapshot.
  *
- * Lines are grouped so the client can place real vanilla enchantments between
- * Current Stats and Essence Abilities without mixing the two systems.
+ * The server owns the resolved values, but it does NOT pre-render English.
+ * Each line carries a translation key plus compact semantic arguments so the
+ * receiving client can render it in its own language. Arguments beginning with
+ * '@' are semantic references interpreted by EquipmentTooltipClientState
+ * (for example @stat:... and @equipment_tier:...).
  */
 public record EquipmentTooltipPayload(
         List<Entry> entries
@@ -24,7 +26,9 @@ public record EquipmentTooltipPayload(
     private static final int MAX_ENTRIES = 96;
     private static final int MAX_LINES_PER_ENTRY = 64;
     private static final int MAX_ITEM_ID_LENGTH = 96;
-    private static final int MAX_LINE_LENGTH = 192;
+    private static final int MAX_TRANSLATION_KEY_LENGTH = 160;
+    private static final int MAX_ARGUMENTS_PER_LINE = 8;
+    private static final int MAX_ARGUMENT_LENGTH = 192;
 
     public static final Type<EquipmentTooltipPayload> TYPE =
             new Type<>(
@@ -63,7 +67,11 @@ public record EquipmentTooltipPayload(
             for (Line line : entry.lines()) {
                 buffer.writeByte(line.group().ordinal());
                 buffer.writeByte(line.tone().ordinal());
-                buffer.writeUtf(line.text(), MAX_LINE_LENGTH);
+                buffer.writeUtf(line.translationKey(), MAX_TRANSLATION_KEY_LENGTH);
+                buffer.writeVarInt(line.arguments().size());
+                for (String argument : line.arguments()) {
+                    buffer.writeUtf(argument, MAX_ARGUMENT_LENGTH);
+                }
             }
         }
     }
@@ -108,11 +116,24 @@ public record EquipmentTooltipPayload(
                     );
                 }
 
+                String translationKey = buffer.readUtf(MAX_TRANSLATION_KEY_LENGTH);
+                int argumentCount = buffer.readVarInt();
+                if (argumentCount < 0 || argumentCount > MAX_ARGUMENTS_PER_LINE) {
+                    throw new IllegalArgumentException(
+                            "Invalid Ascendance tooltip argument count: " + argumentCount
+                    );
+                }
+                List<String> arguments = new ArrayList<>(argumentCount);
+                for (int argument = 0; argument < argumentCount; argument++) {
+                    arguments.add(buffer.readUtf(MAX_ARGUMENT_LENGTH));
+                }
+
                 lines.add(
                         new Line(
                                 Group.values()[groupIndex],
                                 Tone.values()[toneIndex],
-                                buffer.readUtf(MAX_LINE_LENGTH)
+                                translationKey,
+                                arguments
                         )
                 );
             }
@@ -137,12 +158,15 @@ public record EquipmentTooltipPayload(
     public record Line(
             Group group,
             Tone tone,
-            String text
+            String translationKey,
+            List<String> arguments
     ) {
         public Line {
             Objects.requireNonNull(group, "Tooltip group cannot be null");
             Objects.requireNonNull(tone, "Tooltip tone cannot be null");
-            Objects.requireNonNull(text, "Tooltip text cannot be null");
+            Objects.requireNonNull(translationKey, "Tooltip translation key cannot be null");
+            Objects.requireNonNull(arguments, "Tooltip arguments cannot be null");
+            arguments = List.copyOf(arguments);
         }
     }
 

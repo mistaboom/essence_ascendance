@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.client.nexus;
 
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
+import com.mistaboom.essence_ascendance.text.EssenceText;
 
 import java.util.List;
 import java.util.Objects;
@@ -22,16 +23,7 @@ public record NexusCategoryView(
     }
 
     public String shortDisplayName() {
-        String displayName = essence.displayName();
-        String suffix = " Essence";
-        if (displayName.endsWith(suffix)
-                && displayName.length() > suffix.length()) {
-            return displayName.substring(
-                    0,
-                    displayName.length() - suffix.length()
-            );
-        }
-        return displayName;
+        return EssenceText.essenceShort(essence).getString();
     }
 
     public enum PresentationType {

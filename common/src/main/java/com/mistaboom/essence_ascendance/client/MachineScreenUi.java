@@ -10,6 +10,10 @@ import java.util.List;
  * Shared procedural presentation primitives for normal Essence Ascendance
  * machine/container screens. The fullscreen Nexus intentionally does not use
  * this system.
+ *
+ * <p>Component overloads are the preferred API. String overloads remain as a
+ * compatibility bridge for non-player-facing/dynamic text while the rest of
+ * the mod migrates to translation keys.</p>
  */
 public final class MachineScreenUi {
 
@@ -26,35 +30,17 @@ public final class MachineScreenUi {
     private MachineScreenUi() {
     }
 
-    public static void panel(
-            GuiGraphics graphics,
-            int x,
-            int y,
-            int width,
-            int height
-    ) {
+    public static void panel(GuiGraphics graphics, int x, int y, int width, int height) {
         graphics.fill(x, y, x + width, y + height, PANEL);
         outline(graphics, x, y, width, height, BORDER);
     }
 
-    public static void inset(
-            GuiGraphics graphics,
-            int x,
-            int y,
-            int width,
-            int height
-    ) {
+    public static void inset(GuiGraphics graphics, int x, int y, int width, int height) {
         graphics.fill(x, y, x + width, y + height, PANEL_INNER);
         outline(graphics, x, y, width, height, DIVIDER);
     }
 
-    public static void accentedInset(
-            GuiGraphics graphics,
-            int x,
-            int y,
-            int width,
-            int height
-    ) {
+    public static void accentedInset(GuiGraphics graphics, int x, int y, int width, int height) {
         graphics.fill(x, y, x + width, y + height, PANEL_INNER);
         outline(graphics, x, y, width, height, BORDER);
     }
@@ -111,13 +97,99 @@ public final class MachineScreenUi {
     public static void sectionHeader(
             GuiGraphics graphics,
             Font font,
-            String text,
+            Component text,
             int x,
             int y
     ) {
         graphics.drawString(font, text, x, y, TEXT, false);
     }
 
+    public static void sectionHeader(
+            GuiGraphics graphics,
+            Font font,
+            String text,
+            int x,
+            int y
+    ) {
+        sectionHeader(graphics, font, Component.literal(text), x, y);
+    }
+
+    public static void row(
+            GuiGraphics graphics,
+            Font font,
+            Component label,
+            Component value,
+            int left,
+            int right,
+            int y
+    ) {
+        row(graphics, font, label, value, left, right, y, TEXT);
+    }
+
+    public static void row(
+            GuiGraphics graphics,
+            Font font,
+            Component label,
+            Component value,
+            int left,
+            int right,
+            int y,
+            int valueColor
+    ) {
+        graphics.drawString(font, label, left, y, MUTED, false);
+        graphics.drawString(font, value, right - font.width(value), y, valueColor, false);
+    }
+
+
+    public static void row(
+            GuiGraphics graphics,
+            Font font,
+            Component label,
+            String value,
+            int left,
+            int right,
+            int y
+    ) {
+        row(graphics, font, label, Component.literal(value), left, right, y, TEXT);
+    }
+
+    public static void row(
+            GuiGraphics graphics,
+            Font font,
+            Component label,
+            String value,
+            int left,
+            int right,
+            int y,
+            int valueColor
+    ) {
+        row(graphics, font, label, Component.literal(value), left, right, y, valueColor);
+    }
+
+    public static void row(
+            GuiGraphics graphics,
+            Font font,
+            String label,
+            Component value,
+            int left,
+            int right,
+            int y
+    ) {
+        row(graphics, font, Component.literal(label), value, left, right, y, TEXT);
+    }
+
+    public static void row(
+            GuiGraphics graphics,
+            Font font,
+            String label,
+            Component value,
+            int left,
+            int right,
+            int y,
+            int valueColor
+    ) {
+        row(graphics, font, Component.literal(label), value, left, right, y, valueColor);
+    }
     public static void row(
             GuiGraphics graphics,
             Font font,
@@ -127,7 +199,7 @@ public final class MachineScreenUi {
             int right,
             int y
     ) {
-        row(graphics, font, label, value, left, right, y, TEXT);
+        row(graphics, font, Component.literal(label), Component.literal(value), left, right, y, TEXT);
     }
 
     public static void row(
@@ -140,8 +212,18 @@ public final class MachineScreenUi {
             int y,
             int valueColor
     ) {
-        graphics.drawString(font, label, left, y, MUTED, false);
-        graphics.drawString(font, value, right - font.width(value), y, valueColor, false);
+        row(graphics, font, Component.literal(label), Component.literal(value), left, right, y, valueColor);
+    }
+
+    public static void indentedLine(
+            GuiGraphics graphics,
+            Font font,
+            Component text,
+            int x,
+            int y,
+            int maxWidth
+    ) {
+        fitted(graphics, font, text, x + 8, y, Math.max(0, maxWidth - 8), MUTED);
     }
 
     public static void indentedLine(
@@ -152,7 +234,22 @@ public final class MachineScreenUi {
             int y,
             int maxWidth
     ) {
-        fitted(graphics, font, text, x + 8, y, Math.max(0, maxWidth - 8), MUTED);
+        indentedLine(graphics, font, Component.literal(text), x, y, maxWidth);
+    }
+
+    public static void fitted(
+            GuiGraphics graphics,
+            Font font,
+            Component text,
+            int x,
+            int y,
+            int maxWidth,
+            int color
+    ) {
+        if (text == null) {
+            return;
+        }
+        fitted(graphics, font, text.getString(), x, y, maxWidth, color);
     }
 
     public static void fitted(
@@ -183,15 +280,10 @@ public final class MachineScreenUi {
         graphics.drawString(font, text.substring(0, end) + ellipsis, x, y, color, false);
     }
 
-    /**
-     * Draws wrapped text using Minecraft's own font splitter rather than
-     * truncating with an ellipsis. Returns the number of rendered lines so a
-     * caller can place subsequent content consistently when desired.
-     */
     public static int wrapped(
             GuiGraphics graphics,
             Font font,
-            String text,
+            Component text,
             int x,
             int y,
             int maxWidth,
@@ -199,14 +291,11 @@ public final class MachineScreenUi {
             int lineHeight,
             int maxLines
     ) {
-        if (maxWidth <= 0 || maxLines <= 0 || text == null || text.isEmpty()) {
+        if (maxWidth <= 0 || maxLines <= 0 || text == null) {
             return 0;
         }
 
-        List<net.minecraft.util.FormattedCharSequence> lines = font.split(
-                Component.literal(text),
-                maxWidth
-        );
+        List<net.minecraft.util.FormattedCharSequence> lines = font.split(text, maxWidth);
         int rendered = Math.min(maxLines, lines.size());
         for (int line = 0; line < rendered; line++) {
             graphics.drawString(
@@ -219,6 +308,33 @@ public final class MachineScreenUi {
             );
         }
         return rendered;
+    }
+
+    public static int wrapped(
+            GuiGraphics graphics,
+            Font font,
+            String text,
+            int x,
+            int y,
+            int maxWidth,
+            int color,
+            int lineHeight,
+            int maxLines
+    ) {
+        if (text == null || text.isEmpty()) {
+            return 0;
+        }
+        return wrapped(
+                graphics,
+                font,
+                Component.literal(text),
+                x,
+                y,
+                maxWidth,
+                color,
+                lineHeight,
+                maxLines
+        );
     }
 
     public static void outline(

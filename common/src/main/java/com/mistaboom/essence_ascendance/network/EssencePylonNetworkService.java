@@ -141,7 +141,7 @@ public final class EssencePylonNetworkService {
                 linkedPos == null ? 0L : linkedPos.asLong(),
                 active,
                 pylon.focusTier() != null,
-                pylon.focusDisplayName(),
+                pylon.focusTier() == null ? "" : pylon.focusTier().serializedName(),
                 EssenceConfigManager.get().pylonRadius(),
                 EssenceConfigManager.get().maxActivePylons(),
                 contribution.reservoirCapacityBonus(),

@@ -3,6 +3,7 @@ package com.mistaboom.essence_ascendance.client;
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
+import com.mistaboom.essence_ascendance.text.EssenceText;
 import com.mistaboom.essence_ascendance.network.ItemEssenceTooltipPayload;
 import dev.architectury.event.events.client.ClientPlayerEvent;
 import dev.architectury.networking.NetworkManager;
@@ -247,14 +248,10 @@ public final class ItemEssenceTooltipClientState {
                     );
 
             MutableComponent line =
-                    Component.literal(
-                                    from == 0
-                                            ? "Essence: "
-                                            : "         "
-                            )
-                            .withStyle(
-                                    ChatFormatting.DARK_GRAY
-                            );
+                    (from == 0
+                            ? EssenceText.tooltip("essence_prefix")
+                            : Component.literal("         "))
+                            .withStyle(ChatFormatting.DARK_GRAY);
 
             for (int index = from;
                  index < to;
@@ -277,20 +274,12 @@ public final class ItemEssenceTooltipClientState {
                         );
 
                 line.append(
-                        Component.literal(
-                                        formatAmount(
-                                                output.amount()
-                                        )
-                                                + " "
-                                                + shortName(
-                                                        output.essenceId()
-                                                )
+                        EssenceText.tooltip(
+                                        "essence_amount",
+                                        formatAmount(output.amount()),
+                                        shortNameComponent(output.essenceId())
                                 )
-                                .withStyle(
-                                        colorFor(
-                                                output.essenceId()
-                                        )
-                                )
+                                .withStyle(colorFor(output.essenceId()))
                 );
             }
 
@@ -322,13 +311,13 @@ public final class ItemEssenceTooltipClientState {
         }
 
         MutableComponent line =
-                Component.literal("Essence: ")
+                EssenceText.tooltip("essence_prefix")
                         .withStyle(ChatFormatting.DARK_GRAY);
         line.append(
-                Component.literal(
-                                formatAmount(amount)
-                                        + " "
-                                        + shortName(essenceId)
+                EssenceText.tooltip(
+                                "essence_amount",
+                                formatAmount(amount),
+                                shortNameComponent(essenceId)
                         )
                         .withStyle(colorFor(essenceId))
         );
@@ -425,38 +414,20 @@ public final class ItemEssenceTooltipClientState {
     }
 
 
+    private static Component shortNameComponent(
+            ResourceLocation essenceId
+    ) {
+        EssenceDefinition definition = EssenceRegistry.get(essenceId).orElse(null);
+        if (definition != null) {
+            return EssenceText.essenceShort(definition);
+        }
+        return Component.literal(titleCase(essenceId.getPath()));
+    }
+
     private static String shortName(
             ResourceLocation essenceId
     ) {
-        String displayName =
-                EssenceRegistry
-                        .get(
-                                essenceId
-                        )
-                        .map(
-                                EssenceDefinition::displayName
-                        )
-                        .orElseGet(
-                                () ->
-                                        titleCase(
-                                                essenceId.getPath()
-                                        )
-                        );
-
-        String suffix =
-                " Essence";
-
-        if (displayName.endsWith(
-                suffix
-        )) {
-            return displayName.substring(
-                    0,
-                    displayName.length()
-                            - suffix.length()
-            );
-        }
-
-        return displayName;
+        return shortNameComponent(essenceId).getString();
     }
 
     private static ChatFormatting colorFor(

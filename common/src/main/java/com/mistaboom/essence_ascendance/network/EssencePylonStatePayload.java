@@ -16,7 +16,7 @@ public record EssencePylonStatePayload(
         long linkedCruciblePos,
         boolean active,
         boolean focusInstalled,
-        String focusName,
+        String focusTierName,
         double pylonRadius,
         int maxActivePylons,
         long reservoirCapacityBonus,
@@ -32,7 +32,7 @@ public record EssencePylonStatePayload(
         int linkedSimultaneousItemProcesses
 ) implements CustomPacketPayload {
 
-    public static final int CURRENT_SCHEMA_VERSION = 1;
+    public static final int CURRENT_SCHEMA_VERSION = 2;
     private static final int MAX_TEXT = 128;
 
     public static final Type<EssencePylonStatePayload> TYPE =
@@ -67,7 +67,7 @@ public record EssencePylonStatePayload(
         buffer.writeLong(payload.linkedCruciblePos);
         buffer.writeBoolean(payload.active);
         buffer.writeBoolean(payload.focusInstalled);
-        buffer.writeUtf(payload.focusName, MAX_TEXT);
+        buffer.writeUtf(payload.focusTierName, MAX_TEXT);
         buffer.writeDouble(payload.pylonRadius);
         buffer.writeVarInt(payload.maxActivePylons);
         buffer.writeLong(payload.reservoirCapacityBonus);

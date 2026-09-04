@@ -12,6 +12,7 @@ import com.mistaboom.essence_ascendance.stat.StatCategory;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
+import com.mistaboom.essence_ascendance.text.EssenceText;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
@@ -32,37 +33,37 @@ final class EssenceCommandUtil {
 
     private static final DynamicCommandExceptionType UNKNOWN_ESSENCE =
             new DynamicCommandExceptionType(
-                    value -> Component.literal("Unknown Essence type: " + value)
+                    value -> EssenceText.command("error.unknown_essence", value)
                             .withStyle(ChatFormatting.RED)
             );
 
     private static final DynamicCommandExceptionType UNKNOWN_STAT =
             new DynamicCommandExceptionType(
-                    value -> Component.literal("Unknown stat: " + value)
+                    value -> EssenceText.command("error.unknown_stat", value)
                             .withStyle(ChatFormatting.RED)
             );
 
     private static final DynamicCommandExceptionType UNKNOWN_TIER =
             new DynamicCommandExceptionType(
-                    value -> Component.literal("Unknown Ascendance tier: " + value)
+                    value -> EssenceText.command("error.unknown_tier", value)
                             .withStyle(ChatFormatting.RED)
             );
 
     private static final DynamicCommandExceptionType UNKNOWN_ITEM_TIER =
             new DynamicCommandExceptionType(
-                    value -> Component.literal("Unknown item tier: " + value)
+                    value -> EssenceText.command("error.unknown_item_tier", value)
                             .withStyle(ChatFormatting.RED)
             );
 
     private static final DynamicCommandExceptionType UNKNOWN_CATEGORY =
             new DynamicCommandExceptionType(
-                    value -> Component.literal("Unknown stat category: " + value)
+                    value -> EssenceText.command("error.unknown_category", value)
                             .withStyle(ChatFormatting.RED)
             );
 
     private static final DynamicCommandExceptionType UNKNOWN_MILESTONE =
             new DynamicCommandExceptionType(
-                    value -> Component.literal("Unknown milestone: " + value)
+                    value -> EssenceText.command("error.unknown_milestone", value)
                             .withStyle(ChatFormatting.RED)
             );
 
@@ -74,57 +75,105 @@ final class EssenceCommandUtil {
     }
 
     static void fail(CommandSourceStack source, String message) {
-        source.sendFailure(Component.literal(message).withStyle(ChatFormatting.RED));
+        fail(source, Component.literal(message));
+    }
+
+    static void fail(CommandSourceStack source, Component message) {
+        source.sendFailure(message.copy().withStyle(ChatFormatting.RED));
     }
 
     static MutableComponent title(String text) {
-        return Component.literal(text)
-                .withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD);
+        return title(Component.literal(text));
+    }
+
+    static MutableComponent title(Component text) {
+        return text.copy().withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD);
     }
 
     static MutableComponent section(String text) {
-        return Component.literal(text)
-                .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD);
+        return section(Component.literal(text));
+    }
+
+    static MutableComponent section(Component text) {
+        return text.copy().withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD);
     }
 
     static MutableComponent muted(String text) {
-        return Component.literal(text).withStyle(ChatFormatting.DARK_GRAY);
+        return muted(Component.literal(text));
+    }
+
+    static MutableComponent muted(Component text) {
+        return text.copy().withStyle(ChatFormatting.DARK_GRAY);
     }
 
     static MutableComponent value(String text) {
-        return Component.literal(text).withStyle(ChatFormatting.WHITE);
+        return value(Component.literal(text));
+    }
+
+    static MutableComponent value(Component text) {
+        return text.copy().withStyle(ChatFormatting.WHITE);
     }
 
     static MutableComponent good(String text) {
-        return Component.literal(text).withStyle(ChatFormatting.GREEN);
+        return good(Component.literal(text));
+    }
+
+    static MutableComponent good(Component text) {
+        return text.copy().withStyle(ChatFormatting.GREEN);
     }
 
     static MutableComponent warn(String text) {
-        return Component.literal(text).withStyle(ChatFormatting.YELLOW);
+        return warn(Component.literal(text));
+    }
+
+    static MutableComponent warn(Component text) {
+        return text.copy().withStyle(ChatFormatting.YELLOW);
     }
 
     static MutableComponent bad(String text) {
-        return Component.literal(text).withStyle(ChatFormatting.RED);
+        return bad(Component.literal(text));
+    }
+
+    static MutableComponent bad(Component text) {
+        return text.copy().withStyle(ChatFormatting.RED);
     }
 
     static MutableComponent line(String label, String value) {
+        return line(Component.literal(label), Component.literal(value).withStyle(ChatFormatting.WHITE));
+    }
+
+    static MutableComponent line(Component label, String value) {
         return line(label, Component.literal(value).withStyle(ChatFormatting.WHITE));
     }
 
     static MutableComponent line(String label, Component value) {
+        return line(Component.literal(label), value);
+    }
+
+    static MutableComponent line(Component label, Component value) {
         return Component.literal("  ")
-                .append(Component.literal(label + ": ").withStyle(ChatFormatting.GRAY))
+                .append(label.copy().withStyle(ChatFormatting.GRAY))
+                .append(Component.literal(": ").withStyle(ChatFormatting.GRAY))
                 .append(value);
     }
 
     static MutableComponent command(String command, String description) {
+        return command(command, Component.literal(description));
+    }
+
+    static MutableComponent command(String command, Component description) {
         return Component.literal("  ")
                 .append(Component.literal(command).withStyle(ChatFormatting.YELLOW))
-                .append(Component.literal(" - " + description).withStyle(ChatFormatting.GRAY));
+                .append(Component.literal(" - ").withStyle(ChatFormatting.GRAY))
+                .append(description.copy().withStyle(ChatFormatting.GRAY));
+    }
+
+    static MutableComponent status(boolean good, Component yes, Component no) {
+        return good ? good(yes) : bad(no);
     }
 
     static MutableComponent status(boolean good, String yes, String no) {
-        return good ? good(yes) : bad(no);
+        return status(good, Component.literal(yes), Component.literal(no));
     }
 
     static ChatFormatting categoryColor(StatCategory category) {
@@ -139,8 +188,7 @@ final class EssenceCommandUtil {
     }
 
     static String categoryName(StatCategory category) {
-        String lower = category.name().toLowerCase(Locale.ROOT);
-        return Character.toUpperCase(lower.charAt(0)) + lower.substring(1);
+        return EssenceText.category(category).getString();
     }
 
     static String format(long value) {
@@ -173,6 +221,17 @@ final class EssenceCommandUtil {
             case LEVELS -> String.format(Locale.ROOT, "%.2f levels", value);
             case FLAT -> String.format(Locale.ROOT, "%.3f", value);
         };
+    }
+
+    static Component formatBonusComponent(StatDefinition stat, double value) {
+        String number = switch (stat.unit()) {
+            case PERCENT, HEARTS, BLOCKS, SECONDS, LEVELS ->
+                    String.format(Locale.ROOT, "%.2f", value);
+            case HEARTS_PER_SECOND, FLAT ->
+                    String.format(Locale.ROOT, "%.3f", value);
+        };
+        String unit = stat.unit().name().toLowerCase(Locale.ROOT);
+        return EssenceText.command("bonus." + unit, number);
     }
 
     static boolean isEssenceVisible(

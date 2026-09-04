@@ -10,6 +10,7 @@ import com.mistaboom.essence_ascendance.infuser.EquipmentInfusionRecipe;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTierData;
 import com.mistaboom.essence_ascendance.pylon.EssenceFocusData;
 import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
+import com.mistaboom.essence_ascendance.text.EssenceText;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -65,7 +66,7 @@ public final class EssenceInfuserScreen
 
         processingButton = addRenderableWidget(
                 Button.builder(
-                                Component.literal("START PROCESSING"),
+                                EssenceText.gui("infuser.button.start_processing"),
                                 button -> clickMenuButton(EssenceInfuserMenu.BUTTON_TOGGLE_PROCESSING)
                         )
                         .bounds(leftPos + 45, topPos + 220, 140, 20)
@@ -173,34 +174,34 @@ public final class EssenceInfuserScreen
 
     @Override
     protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
-        drawCentered(graphics, "ESSENCE INFUSER", 6, MachineScreenUi.TEXT);
+        drawCentered(graphics, EssenceText.gui("infuser.title"), 6, MachineScreenUi.TEXT);
 
-        graphics.drawString(font, "Focus", 72, 29, MachineScreenUi.MUTED, false);
+        graphics.drawString(font, EssenceText.term("focus"), 72, 29, MachineScreenUi.MUTED, false);
         EssenceInfuserWorkpieceMode mode = menu.workpieceMode();
         if (mode == EssenceInfuserWorkpieceMode.FOCUS) {
-            graphics.drawString(font, "Workpiece", 50, 48, MachineScreenUi.MUTED, false);
-            graphics.drawString(font, "Upgrade", 141, 48, MachineScreenUi.MUTED, false);
+            graphics.drawString(font, EssenceText.term("workpiece"), 50, 48, MachineScreenUi.MUTED, false);
+            graphics.drawString(font, EssenceText.term("upgrade"), 141, 48, MachineScreenUi.MUTED, false);
             renderFocusInfusionLabels(graphics);
         } else if (mode == EssenceInfuserWorkpieceMode.EQUIPMENT) {
-            graphics.drawString(font, "Matrix", 22, 48, MachineScreenUi.MUTED, false);
-            graphics.drawString(font, "Equipment", 62, 48, MachineScreenUi.MUTED, false);
+            graphics.drawString(font, EssenceText.term("matrix"), 22, 48, MachineScreenUi.MUTED, false);
+            graphics.drawString(font, EssenceText.term("equipment"), 62, 48, MachineScreenUi.MUTED, false);
             renderEquipmentInfusionLabels(graphics);
         } else if (mode == EssenceInfuserWorkpieceMode.REPAIR) {
             if (menu.repairLatentIngotRequired() > 0) {
-                graphics.drawString(font, "Latent", 23, 48, MachineScreenUi.MUTED, false);
-                graphics.drawString(font, "Equipment", 62, 48, MachineScreenUi.MUTED, false);
+                graphics.drawString(font, EssenceText.equipmentTier(com.mistaboom.essence_ascendance.equipment.EquipmentTier.LATENT), 23, 48, MachineScreenUi.MUTED, false);
+                graphics.drawString(font, EssenceText.term("equipment"), 62, 48, MachineScreenUi.MUTED, false);
             } else {
-                graphics.drawString(font, "Equipment", 50, 48, MachineScreenUi.MUTED, false);
+                graphics.drawString(font, EssenceText.term("equipment"), 50, 48, MachineScreenUi.MUTED, false);
             }
-            graphics.drawString(font, "Output", 144, 48, MachineScreenUi.MUTED, false);
+            graphics.drawString(font, EssenceText.term("output"), 144, 48, MachineScreenUi.MUTED, false);
             renderRepairLabels(graphics);
         } else if (mode == EssenceInfuserWorkpieceMode.ESSENTIUM) {
-            graphics.drawString(font, "Latent", 59, 48, MachineScreenUi.MUTED, false);
-            graphics.drawString(font, "Essentium", 140, 48, MachineScreenUi.MUTED, false);
+            graphics.drawString(font, EssenceText.equipmentTier(com.mistaboom.essence_ascendance.equipment.EquipmentTier.LATENT), 59, 48, MachineScreenUi.MUTED, false);
+            graphics.drawString(font, EssenceText.term("essentium"), 140, 48, MachineScreenUi.MUTED, false);
             renderCarrierLabels(graphics);
         } else {
-            graphics.drawString(font, "Workpiece", 50, 48, MachineScreenUi.MUTED, false);
-            graphics.drawString(font, "Output", 144, 48, MachineScreenUi.MUTED, false);
+            graphics.drawString(font, EssenceText.term("workpiece"), 50, 48, MachineScreenUi.MUTED, false);
+            graphics.drawString(font, EssenceText.term("output"), 144, 48, MachineScreenUi.MUTED, false);
             renderEmptyWorkpieceLabels(graphics);
         }
 
@@ -216,7 +217,7 @@ public final class EssenceInfuserScreen
 
 
     private void renderEmptyWorkpieceLabels(GuiGraphics graphics) {
-        String title = "Insert an infusable item";
+        Component title = EssenceText.gui("infuser.empty.title");
         graphics.drawString(
                 font,
                 title,
@@ -226,7 +227,7 @@ public final class EssenceInfuserScreen
                 false
         );
 
-        String hint = "The Infuser conforms to the workpiece placed within.";
+        Component hint = EssenceText.gui("infuser.empty.hint");
         MachineScreenUi.wrapped(
                 graphics,
                 font,
@@ -241,7 +242,7 @@ public final class EssenceInfuserScreen
         MachineScreenUi.row(
                 graphics,
                 font,
-                "Status",
+                EssenceText.term("status"),
                 statusText(menu.statusCode()),
                 16,
                 214,
@@ -251,47 +252,47 @@ public final class EssenceInfuserScreen
     }
 
     private void renderCarrierLabels(GuiGraphics graphics) {
-        drawSelectionLine(graphics, "Source", menu.sourceEssence(), 89);
-        drawSelectionLine(graphics, "Target", menu.targetEssence(), 113);
+        drawSelectionLine(graphics, EssenceText.term("source"), menu.sourceEssence(), 89);
+        drawSelectionLine(graphics, EssenceText.term("target"), menu.targetEssence(), 113);
 
         MachineScreenUi.row(
-                graphics, font, "Status", statusText(menu.statusCode()),
+                graphics, font, EssenceText.term("status"), statusText(menu.statusCode()),
                 16, 214, 144, statusColor(menu.statusCode())
         );
         MachineScreenUi.row(
-                graphics, font, "Installed Focus", focusText(),
+                graphics, font, EssenceText.term("installed_focus"), focusText(),
                 16, 214, 156
         );
         MachineScreenUi.row(
-                graphics, font, "Efficiency",
+                graphics, font, EssenceText.term("efficiency"),
                 String.format(Locale.ROOT, "%.1f%%", menu.efficiencyBasisPoints() / 100.0D),
                 16, 214, 168
         );
         MachineScreenUi.row(
-                graphics, font, "Essence Available", format(menu.sourceAvailable()),
+                graphics, font, EssenceText.term("essence_available"), format(menu.sourceAvailable()),
                 16, 214, 180
         );
     }
 
     private void renderRepairLabels(GuiGraphics graphics) {
-        drawSelectionLine(graphics, "Essence", menu.sourceEssence(), 89);
+        drawSelectionLine(graphics, EssenceText.term("essence"), menu.sourceEssence(), 89);
 
         MachineScreenUi.row(
-                graphics, font, "Status", statusText(menu.statusCode()),
+                graphics, font, EssenceText.term("status"), statusText(menu.statusCode()),
                 16, 214, 144, statusColor(menu.statusCode())
         );
         MachineScreenUi.row(
-                graphics, font, "Missing Durability",
+                graphics, font, EssenceText.term("missing_durability"),
                 format(menu.repairMissingDurability()),
                 16, 214, 156
         );
         MachineScreenUi.row(
-                graphics, font, "Essence Cost",
+                graphics, font, EssenceText.term("essence_cost"),
                 format(menu.sourceRequired()),
                 16, 214, 168
         );
         MachineScreenUi.row(
-                graphics, font, "Essence Available",
+                graphics, font, EssenceText.term("essence_available"),
                 format(menu.sourceAvailable()),
                 16, 214, 180
         );
@@ -300,7 +301,7 @@ public final class EssenceInfuserScreen
                     .getItem()
                     .getCount();
             MachineScreenUi.row(
-                    graphics, font, "Latent Ingot",
+                    graphics, font, EssenceText.term("latent_ingot"),
                     present + " / " + menu.repairLatentIngotRequired(),
                     16, 214, 192,
                     present >= menu.repairLatentIngotRequired()
@@ -312,14 +313,16 @@ public final class EssenceInfuserScreen
 
     private void renderFocusInfusionLabels(GuiGraphics graphics) {
         EssenceFocusTier target = menu.focusTargetTier();
-        String currentName = EssenceFocusData.displayTier(menu.workpieceStack());
-        String targetName = target == null ? "Unknown" : target.displayName();
-        MachineScreenUi.sectionHeader(graphics, font, "Essence Focus", 16, 88);
+        Component currentName = EssenceFocusData.tier(menu.workpieceStack()) == null
+                ? EssenceText.equipmentTier(com.mistaboom.essence_ascendance.equipment.EquipmentTier.LATENT)
+                : EssenceText.focusTier(EssenceFocusData.tier(menu.workpieceStack()));
+        Component targetName = target == null ? EssenceText.term("unknown") : EssenceText.focusTier(target);
+        MachineScreenUi.sectionHeader(graphics, font, EssenceText.term("essence_focus"), 16, 88);
         MachineScreenUi.row(
                 graphics,
                 font,
-                "Tier",
-                currentName + " -> " + targetName,
+                EssenceText.term("tier"),
+                EssenceText.gui("tier_transition", currentName, targetName),
                 20,
                 210,
                 100
@@ -329,7 +332,7 @@ public final class EssenceInfuserScreen
         long minimum = menu.focusMinimumPerEssence();
         for (EssenceDefinition essence : FocusInfusionRecipe.coreAttributeEssences()) {
             long current = menu.focusContribution(essence);
-            String label = shortName(essence);
+            Component label = shortName(essence);
             String value = format(current) + " / " + format(minimum);
             int color = current >= minimum ? MachineScreenUi.GOOD : MachineScreenUi.TEXT;
             MachineScreenUi.row(graphics, font, label, value, 20, 210, rowY, color);
@@ -339,7 +342,7 @@ public final class EssenceInfuserScreen
         MachineScreenUi.row(
                 graphics,
                 font,
-                "Total",
+                EssenceText.term("total"),
                 format(menu.focusTotalContributed()) + " / " + format(menu.focusTotalRequired()),
                 20,
                 210,
@@ -351,7 +354,7 @@ public final class EssenceInfuserScreen
         MachineScreenUi.row(
                 graphics,
                 font,
-                "Status",
+                EssenceText.term("status"),
                 statusText(menu.statusCode()),
                 16,
                 214,
@@ -363,11 +366,11 @@ public final class EssenceInfuserScreen
     private void renderEquipmentInfusionLabels(GuiGraphics graphics) {
         EquipmentInfusionRecipe recipe = menu.equipmentRecipe().orElse(null);
         if (recipe == null) {
-            MachineScreenUi.sectionHeader(graphics, font, "Equipment Infusion", 16, 88);
+            MachineScreenUi.sectionHeader(graphics, font, EssenceText.term("equipment_infusion"), 16, 88);
             MachineScreenUi.wrapped(
                     graphics,
                     font,
-                    "Insert Ascendance equipment; the loaded Matrix keeps this mode open.",
+                    EssenceText.gui("infuser.equipment.waiting_hint"),
                     20,
                     104,
                     190,
@@ -378,8 +381,8 @@ public final class EssenceInfuserScreen
             MachineScreenUi.row(
                     graphics,
                     font,
-                    "Status",
-                    "Waiting for Equipment",
+                    EssenceText.term("status"),
+                    EssenceText.gui("infuser.status.waiting_equipment"),
                     16,
                     214,
                     201,
@@ -387,9 +390,13 @@ public final class EssenceInfuserScreen
             );
             return;
         }
-        String itemName = menu.workpieceStack().getHoverName().getString();
+        Component itemName = menu.workpieceStack().getHoverName();
         MachineScreenUi.sectionHeader(graphics, font, itemName, 16, 88);
-        MachineScreenUi.row(graphics, font, "Tier", recipe.currentTier().displayName() + " -> " + recipe.targetTier().displayName(), 20, 210, 100);
+        MachineScreenUi.row(
+                graphics, font, EssenceText.term("tier"),
+                EssenceText.gui("tier_transition", EssenceText.equipmentTier(recipe.currentTier()), EssenceText.equipmentTier(recipe.targetTier())),
+                20, 210, 100
+        );
         int rowY = 112;
         for (var entry : recipe.requirements().entrySet()) {
             EssenceDefinition essence = com.mistaboom.essence_ascendance.essence.EssenceRegistry.get(entry.getKey()).orElse(null);
@@ -400,19 +407,19 @@ public final class EssenceInfuserScreen
                     current >= required ? MachineScreenUi.GOOD : MachineScreenUi.TEXT);
             rowY += 10;
         }
-        MachineScreenUi.row(graphics, font, "Total", format(menu.equipmentTotalContributed()) + " / " + format(recipe.totalRequired()),
+        MachineScreenUi.row(graphics, font, EssenceText.term("total"), format(menu.equipmentTotalContributed()) + " / " + format(recipe.totalRequired()),
                 20, 210, 176, menu.equipmentTotalContributed() >= recipe.totalRequired() ? MachineScreenUi.GOOD : MachineScreenUi.TEXT);
-        MachineScreenUi.row(graphics, font, "Status", statusText(menu.statusCode()), 16, 214, 201, statusColor(menu.statusCode()));
+        MachineScreenUi.row(graphics, font, EssenceText.term("status"), statusText(menu.statusCode()), 16, 214, 201, statusColor(menu.statusCode()));
     }
 
     private void drawSelectionLine(
             GuiGraphics graphics,
-            String label,
+            Component label,
             EssenceDefinition essence,
             int y
     ) {
         graphics.drawString(font, label, 16, y, MachineScreenUi.MUTED, false);
-        String value = shortName(essence);
+        Component value = shortName(essence);
         int valueLeft = 88;
         int valueRight = 196;
         int valueX = valueLeft + Math.max(0, (valueRight - valueLeft - font.width(value)) / 2);
@@ -473,19 +480,21 @@ public final class EssenceInfuserScreen
                     && !(equipmentMode && menu.equipmentRecipe().isEmpty());
             processingButton.active = hasActionableWorkpiece;
             if (mode != EssenceInfuserWorkpieceMode.NONE) {
-                String action = repairMode
-                        ? "REPAIR"
-                        : (focusMode || equipmentMode) ? "INFUSION" : "PROCESSING";
-                String label;
+                String actionKey = repairMode
+                        ? "repair"
+                        : (focusMode || equipmentMode) ? "infusion" : "processing";
+                String verbKey;
                 if (!menu.processingEnabled()) {
-                    label = "START " + action;
+                    verbKey = "start";
                 } else if (menu.statusCode()
                         == EssenceInfuserBlockEntity.STATUS_PLAYER_CHANNELING) {
-                    label = "RESUME " + action;
+                    verbKey = "resume";
                 } else {
-                    label = "STOP " + action;
+                    verbKey = "stop";
                 }
-                processingButton.setMessage(Component.literal(label));
+                processingButton.setMessage(EssenceText.gui(
+                        "infuser.button." + verbKey + "_" + actionKey
+                ));
             }
         }
         if (infoCloseButton != null) {
@@ -513,14 +522,13 @@ public final class EssenceInfuserScreen
         MachineInfoPanel info = new MachineInfoPanel(
                 graphics, font, x, y, INFO_PANEL_WIDTH, INFO_PANEL_HEIGHT
         )
-                .title("Info")
-                .metadata("Owner: " + ownerText())
-                .section("Link")
-                .line("Crucible: " + linkedText())
-                .line(String.format(
-                        Locale.ROOT,
-                        "Link Radius: %.1f blocks",
-                        EssenceInfuserBalance.linkRange()
+                .title(EssenceText.term("info"))
+                .metadata(EssenceText.gui("owner", ownerText()))
+                .section(EssenceText.term("link"))
+                .line(EssenceText.gui("crucible_link", linkedText()))
+                .line(EssenceText.gui(
+                        "link_radius_blocks",
+                        String.format(Locale.ROOT, "%.1f", EssenceInfuserBalance.linkRange())
                 ));
 
         EssenceInfuserWorkpieceMode mode = menu.workpieceMode();
@@ -533,82 +541,71 @@ public final class EssenceInfuserScreen
         } else if (mode == EssenceInfuserWorkpieceMode.ESSENTIUM) {
             renderCarrierInfo(info);
         } else {
-            info.section("Workpiece")
-                    .line("Insert an infusable item to view its settings.");
+            info.section(EssenceText.term("workpiece"))
+                    .line(EssenceText.gui("infuser.info.insert_workpiece"));
         }
     }
 
     private void renderCarrierInfo(MachineInfoPanel info) {
-        info.section("Infusion")
-                .line("Source Cost/Item: " + format(menu.sourceRequired()))
-                .line("Output Essence/Item: " + format(menu.targetCapacity()))
-                .line("Rate: " + format(menu.infusionThroughputPerSecond()) + "/sec")
-                .line(String.format(
-                        Locale.ROOT,
-                        "Processing Time: %.2f sec/item",
-                        menu.requiredProcessingTicks() / 20.0D
+        info.section(EssenceText.term("infusion"))
+                .line(EssenceText.gui("infuser.info.source_cost_per_item", format(menu.sourceRequired())))
+                .line(EssenceText.gui("infuser.info.output_essence_per_item", format(menu.targetCapacity())))
+                .line(EssenceText.gui("rate_per_second", format(menu.infusionThroughputPerSecond())))
+                .line(EssenceText.gui(
+                        "infuser.info.processing_time_per_item",
+                        String.format(Locale.ROOT, "%.2f", menu.requiredProcessingTicks() / 20.0D)
                 ))
-                .section("Automation")
-                .line("Input: Manual / Hopper / Pipe")
-                .line("Output: Essentium carrier in the output slot.");
+                .section(EssenceText.term("automation"))
+                .line(EssenceText.gui("infuser.info.input_automated"))
+                .line(EssenceText.gui("infuser.info.output_essentium"));
     }
 
     private void renderRepairInfo(MachineInfoPanel info) {
-        info.section("Repair")
-                .line("Missing Durability: " + format(menu.repairMissingDurability()))
-                .line("Essence Cost: " + format(menu.sourceRequired()))
-                .line("Rate: " + format(menu.infusionThroughputPerSecond()) + "/sec");
+        info.section(EssenceText.term("repair"))
+                .line(EssenceText.gui("missing_durability_value", format(menu.repairMissingDurability())))
+                .line(EssenceText.gui("essence_cost_value", format(menu.sourceRequired())))
+                .line(EssenceText.gui("rate_per_second", format(menu.infusionThroughputPerSecond())));
 
         if (menu.repairLatentIngotRequired() > 0) {
-            info.line("Fractured Material: "
-                    + menu.repairLatentIngotRequired()
-                    + " Latent Ingot");
+            info.line(EssenceText.gui(
+                    "infuser.info.fractured_material",
+                    menu.repairLatentIngotRequired(),
+                    Component.translatable("item.essence_ascendance.latent_ingot")
+            ));
         }
 
-        info.section("Automation")
-                .line("Input: Manual")
-                .line(
-                        "Output: Repaired equipment moves to the output slot; "
-                                + "Fractured state is cleared."
-                );
+        info.section(EssenceText.term("automation"))
+                .line(EssenceText.gui("infuser.info.input_manual"))
+                .line(EssenceText.gui("infuser.info.output_repair"));
     }
 
     private void renderEquipmentInfo(MachineInfoPanel info) {
         EquipmentInfusionRecipe recipe = menu.equipmentRecipe().orElse(null);
-        info.section("Equipment Infusion");
+        info.section(EssenceText.term("equipment_infusion"));
         if (recipe == null) {
-            info.line(
-                    "Matrix loaded. Insert Ascendance equipment to continue; "
-                            + "the Matrix keeps Equipment mode open."
-            );
+            info.line(EssenceText.gui("infuser.info.matrix_waiting"));
         } else {
-            info.line("Target: " + recipe.targetTier().displayName())
-                    .line("Matrices: " + recipe.matrixCount())
-                    .line("Rate: " + format(menu.infusionThroughputPerSecond()) + "/sec");
+            info.line(EssenceText.gui("target_value", EssenceText.equipmentTier(recipe.targetTier())))
+                    .line(EssenceText.gui("matrices_value", recipe.matrixCount()))
+                    .line(EssenceText.gui("rate_per_second", format(menu.infusionThroughputPerSecond())));
         }
 
-        info.section("Automation")
-                .line("Input: Manual")
-                .line(
-                        "Output: Same equipment, upgraded on completion; "
-                                + "partial progress stays on the equipment."
-                );
+        info.section(EssenceText.term("automation"))
+                .line(EssenceText.gui("infuser.info.input_manual"))
+                .line(EssenceText.gui("infuser.info.output_equipment"));
     }
 
     private void renderFocusInfo(MachineInfoPanel info) {
         EssenceFocusTier target = menu.focusTargetTier();
         EssenceFocusTier required = menu.focusRequiredInstalledTier();
 
-        info.section("Focus Infusion")
-                .line("Target: " + (target == null ? "Unknown" : target.displayName()))
-                .line("Required Focus: " + (required == null ? "None" : required.displayName()))
-                .line("Rate: " + format(menu.infusionThroughputPerSecond()) + "/sec")
-                .section("Automation")
-                .line("Input: Manual")
-                .line(
-                        "Output: Same Essence Focus, upgraded on completion; "
-                                + "partial progress stays on the Focus."
-                );
+        info.section(EssenceText.term("focus_infusion"))
+                .line(EssenceText.gui("target_value", target == null ? EssenceText.term("unknown") : EssenceText.focusTier(target)))
+                .line(EssenceText.gui("required_focus_value", required == null ? EssenceText.term("none") : EssenceText.focusTier(required)))
+                .line(EssenceText.gui("rate_per_second", format(menu.infusionThroughputPerSecond())))
+                .section(EssenceText.term("automation"))
+                .line(EssenceText.gui("infuser.info.input_manual"))
+                .line(EssenceText.gui("infuser.info.output_focus"));
     }
 
     private int infoPanelX() {
@@ -626,41 +623,44 @@ public final class EssenceInfuserScreen
         );
     }
 
-    private String ownerText() {
+    private Component ownerText() {
         return minecraft != null && minecraft.player != null
-                ? minecraft.player.getGameProfile().getName()
-                : "Bound Player";
+                ? Component.literal(minecraft.player.getGameProfile().getName())
+                : EssenceText.term("bound_player");
     }
 
-    private String linkedText() {
+    private Component linkedText() {
         if (!menu.linked()) {
-            return "None";
+            return EssenceText.term("none");
         }
         var pos = menu.linkedPos();
-        return pos.getX() + ", " + pos.getY() + ", " + pos.getZ();
+        return Component.literal(pos.getX() + ", " + pos.getY() + ", " + pos.getZ());
     }
 
-    private String focusText() {
+    private Component focusText() {
         var focus = menu.installedFocusTier();
-        return focus == null ? "None / Dormant" : focus.displayName();
+        return focus == null
+                ? EssenceText.gui("infuser.focus.none_dormant")
+                : EssenceText.focusTier(focus);
     }
 
-    private static String statusText(int status) {
-        return switch (status) {
-            case EssenceInfuserBlockEntity.STATUS_STOPPED -> "Stopped";
-            case EssenceInfuserBlockEntity.STATUS_UNLINKED -> "Paused - No Crucible";
-            case EssenceInfuserBlockEntity.STATUS_INVALID_SELECTION -> "Invalid Selection";
-            case EssenceInfuserBlockEntity.STATUS_INSUFFICIENT_SOURCE -> "Waiting - Need Essence";
-            case EssenceInfuserBlockEntity.STATUS_OUTPUT_BLOCKED -> "Paused - Output Blocked";
-            case EssenceInfuserBlockEntity.STATUS_PROCESSING -> "Processing";
-            case EssenceInfuserBlockEntity.STATUS_INVALID_INPUT -> "Invalid Workpiece";
-            case EssenceInfuserBlockEntity.STATUS_PLAYER_CHANNELING -> "Paused - Player Channeling";
-            case EssenceInfuserBlockEntity.STATUS_FOCUS_TIER_REQUIRED -> "Needs Stronger Focus";
-            case EssenceInfuserBlockEntity.STATUS_FOCUS_MALFORMED -> "Invalid Focus Data";
-                        case EssenceInfuserBlockEntity.STATUS_COMPONENT_REQUIRED -> "Needs Ascendance Matrix";
-            case EssenceInfuserBlockEntity.STATUS_REPAIR_MATERIAL_REQUIRED -> "Needs Latent Ingot";
-            default -> "Waiting for Input";
+    private static Component statusText(int status) {
+        String key = switch (status) {
+            case EssenceInfuserBlockEntity.STATUS_STOPPED -> "stopped";
+            case EssenceInfuserBlockEntity.STATUS_UNLINKED -> "unlinked";
+            case EssenceInfuserBlockEntity.STATUS_INVALID_SELECTION -> "invalid_selection";
+            case EssenceInfuserBlockEntity.STATUS_INSUFFICIENT_SOURCE -> "insufficient_source";
+            case EssenceInfuserBlockEntity.STATUS_OUTPUT_BLOCKED -> "output_blocked";
+            case EssenceInfuserBlockEntity.STATUS_PROCESSING -> "processing";
+            case EssenceInfuserBlockEntity.STATUS_INVALID_INPUT -> "invalid_input";
+            case EssenceInfuserBlockEntity.STATUS_PLAYER_CHANNELING -> "player_channeling";
+            case EssenceInfuserBlockEntity.STATUS_FOCUS_TIER_REQUIRED -> "focus_tier_required";
+            case EssenceInfuserBlockEntity.STATUS_FOCUS_MALFORMED -> "focus_malformed";
+            case EssenceInfuserBlockEntity.STATUS_COMPONENT_REQUIRED -> "component_required";
+            case EssenceInfuserBlockEntity.STATUS_REPAIR_MATERIAL_REQUIRED -> "repair_material_required";
+            default -> "waiting_input";
         };
+        return EssenceText.gui("infuser.status." + key);
     }
 
     private static int statusColor(int status) {
@@ -674,18 +674,12 @@ public final class EssenceInfuserScreen
         };
     }
 
-    private void drawCentered(GuiGraphics graphics, String text, int y, int color) {
+    private void drawCentered(GuiGraphics graphics, Component text, int y, int color) {
         graphics.drawString(font, text, (imageWidth - font.width(text)) / 2, y, color, false);
     }
 
-    private static String shortName(EssenceDefinition essence) {
-        if (essence == null) {
-            return "None";
-        }
-        String display = essence.displayName();
-        return display.endsWith(" Essence")
-                ? display.substring(0, display.length() - " Essence".length())
-                : display;
+    private static Component shortName(EssenceDefinition essence) {
+        return essence == null ? EssenceText.term("none") : EssenceText.essenceShort(essence);
     }
 
     private static String format(long value) {

@@ -10,6 +10,7 @@ import com.mistaboom.essence_ascendance.progression.AscendanceEngine;
 import com.mistaboom.essence_ascendance.progression.AscendanceEvaluationResult;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
+import com.mistaboom.essence_ascendance.text.EssenceText;
 import com.mistaboom.essence_ascendance.lifecycle.PlayerRuntimeLifecycleService;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.network.chat.Component;
@@ -88,7 +89,7 @@ public final class AscendanceNexusNetworkService {
                 || !menu.stillValid(player)) {
             reject(
                     player,
-                    "Allocation rejected: the Ascendance Nexus is no longer valid.",
+                    EssenceText.gui("nexus.reject.invalid_menu"),
                     false
             );
             return;
@@ -102,7 +103,7 @@ public final class AscendanceNexusNetworkService {
                 || payload.targets().size() > AscendanceAllocationPayload.MAX_TARGETS) {
             reject(
                     player,
-                    "Allocation rejected: invalid staged allocation.",
+                    EssenceText.gui("nexus.reject.invalid_allocation"),
                     true
             );
             return;
@@ -116,7 +117,7 @@ public final class AscendanceNexusNetworkService {
         if (baseTierId == null || baseBalanceProfileId == null) {
             reject(
                     player,
-                    "Allocation rejected: invalid staged progression context.",
+                    EssenceText.gui("nexus.reject.invalid_context"),
                     true
             );
             return;
@@ -132,7 +133,7 @@ public final class AscendanceNexusNetworkService {
             if (statId == null) {
                 reject(
                         player,
-                        "Allocation rejected: invalid stat identifier.",
+                        EssenceText.gui("nexus.reject.invalid_stat_id"),
                         true
                 );
                 return;
@@ -144,7 +145,7 @@ public final class AscendanceNexusNetworkService {
             if (stat == null) {
                 reject(
                         player,
-                        "Allocation rejected: unknown stat.",
+                        EssenceText.gui("nexus.reject.unknown_stat"),
                         true
                 );
                 return;
@@ -159,7 +160,7 @@ public final class AscendanceNexusNetworkService {
             ) != null) {
                 reject(
                         player,
-                        "Allocation rejected: duplicate stat target.",
+                        EssenceText.gui("nexus.reject.duplicate_stat"),
                         true
                 );
                 return;
@@ -212,7 +213,7 @@ public final class AscendanceNexusNetworkService {
                 || !menu.stillValid(player)) {
             reject(
                     player,
-                    "Ascension rejected: the Ascendance Nexus is no longer valid.",
+                    EssenceText.gui("nexus.reject.ascend_invalid_menu"),
                     false
             );
             return;
@@ -228,7 +229,7 @@ public final class AscendanceNexusNetworkService {
         if (baseTierId == null) {
             reject(
                     player,
-                    "Ascension rejected: invalid tier context.",
+                    EssenceText.gui("nexus.reject.invalid_tier_context"),
                     true
             );
             return;
@@ -240,7 +241,7 @@ public final class AscendanceNexusNetworkService {
         if (!evaluation.currentTier().id().equals(baseTierId)) {
             reject(
                     player,
-                    "Ascension rejected: your progression changed. Review the refreshed requirements.",
+                    EssenceText.gui("nexus.reject.progression_changed"),
                     true
             );
             return;
@@ -257,17 +258,17 @@ public final class AscendanceNexusNetworkService {
             }
             case NOT_READY -> reject(
                     player,
-                    "Ascension requirements are not yet complete.",
+                    EssenceText.gui("nexus.reject.requirements_incomplete"),
                     true
             );
             case MAX_TIER -> reject(
                     player,
-                    "You are already at maximum Ascendance.",
+                    EssenceText.gui("nexus.reject.max_tier"),
                     true
             );
             case CONFIGURATION_ERROR -> reject(
                     player,
-                    "Ascension is unavailable because the progression configuration is invalid.",
+                    EssenceText.gui("nexus.reject.config_error"),
                     true
             );
         }
@@ -293,8 +294,16 @@ public final class AscendanceNexusNetworkService {
             String message,
             boolean refreshState
     ) {
+        reject(player, Component.literal(message), refreshState);
+    }
+
+    private static void reject(
+            ServerPlayer player,
+            Component message,
+            boolean refreshState
+    ) {
         player.displayClientMessage(
-                Component.literal(message),
+                message,
                 true
         );
 

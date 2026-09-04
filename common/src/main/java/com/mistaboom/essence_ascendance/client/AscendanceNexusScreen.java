@@ -13,6 +13,7 @@ import com.mistaboom.essence_ascendance.progression.StatScalingService;
 import com.mistaboom.essence_ascendance.stat.StatUnit;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
+import com.mistaboom.essence_ascendance.text.EssenceText;
 import net.minecraft.client.gui.GuiGraphics;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -260,7 +261,7 @@ public final class AscendanceNexusScreen
         graphics.pose().scale(scale, scale, 1.0F);
         graphics.drawCenteredString(
                 font,
-                "ASCENDANCE",
+                EssenceText.gui("nexus.ascendance").getString(),
                 0,
                 0,
                 ascensionView || hovered ? TEXT : MUTED
@@ -295,7 +296,7 @@ public final class AscendanceNexusScreen
 
         graphics.drawCenteredString(
                 font,
-                "Synchronizing progression data…",
+                EssenceText.gui("nexus.synchronizing").getString(),
                 width / 2,
                 top + 24,
                 TEXT
@@ -368,7 +369,7 @@ public final class AscendanceNexusScreen
 
             String tabName =
                     trimToWidth(
-                            category.shortDisplayName(),
+                            EssenceText.essenceShort(category.essence()).getString(),
                             layout.tabWidth() - 10
                     );
 
@@ -462,9 +463,9 @@ public final class AscendanceNexusScreen
                             + tierDisplayName(progress.nextTierId());
         } else if (progress.status()
                 == PlayerEssenceSyncPayload.ProgressStatus.MAX_TIER) {
-            transition = current + "  •  MAXIMUM";
+            transition = current + "  •  " + EssenceText.gui("nexus.maximum").getString();
         } else {
-            transition = current + "  •  UNAVAILABLE";
+            transition = current + "  •  " + EssenceText.gui("nexus.unavailable").getString();
         }
 
         float scale = 1.12F;
@@ -525,7 +526,7 @@ public final class AscendanceNexusScreen
                 innerRight,
                 y,
                 rowHeight,
-                "TOTAL INVESTMENT",
+                EssenceText.gui("nexus.total_investment").getString(),
                 formatLong(progress.effectiveInvestment())
                         + " / "
                         + formatLong(progress.requiredInvestment()),
@@ -615,19 +616,21 @@ public final class AscendanceNexusScreen
                                 progress.developedStatThreshold() * 100.0D
                         );
 
-                return "DEVELOPED STATS (≥ "
-                        + thresholdPercent
-                        + "% of current cap)";
+                return EssenceText.gui(
+                        "nexus.developed_stats_percent",
+                        thresholdPercent
+                ).getString();
             }
         }
 
         if (sharedThreshold == null) {
-            return "DEVELOPED STATS";
+            return EssenceText.gui("nexus.developed_stats").getString();
         }
 
-        return "DEVELOPED STATS (≥ "
-                + formatLong(sharedThreshold)
-                + ")";
+        return EssenceText.gui(
+                "nexus.developed_stats_value",
+                formatLong(sharedThreshold)
+        ).getString();
     }
 
     private String developedCategoryRequirementLabel(
@@ -662,19 +665,21 @@ public final class AscendanceNexusScreen
                                 progress.developedStatThreshold() * 100.0D
                         );
 
-                return "DEVELOPED CATEGORIES (1 stat ≥ "
-                        + thresholdPercent
-                        + "% of its cap)";
+                return EssenceText.gui(
+                        "nexus.developed_categories_percent",
+                        thresholdPercent
+                ).getString();
             }
         }
 
         if (sharedThreshold == null) {
-            return "DEVELOPED CATEGORIES";
+            return EssenceText.gui("nexus.developed_categories").getString();
         }
 
-        return "DEVELOPED CATEGORIES (1 stat ≥ "
-                + formatLong(sharedThreshold)
-                + ")";
+        return EssenceText.gui(
+                "nexus.developed_categories_value",
+                formatLong(sharedThreshold)
+        ).getString();
     }
 
     private int renderAscensionRequirementRow(
@@ -836,7 +841,7 @@ public final class AscendanceNexusScreen
 
         graphics.drawString(
                 font,
-                "WORLD PROGRESSION",
+                EssenceText.gui("nexus.world_progression").getString(),
                 left + 6,
                 top + 4,
                 progress.worldProgressComplete()
@@ -852,8 +857,8 @@ public final class AscendanceNexusScreen
             graphics.drawString(
                     font,
                     progress.worldProgressComplete()
-                            ? "No world milestone required"
-                            : "No resolvable world requirement",
+                            ? EssenceText.gui("nexus.no_world_milestone_required").getString()
+                            : EssenceText.gui("nexus.no_resolvable_world_requirement").getString(),
                     left + 10,
                     top + 16,
                     progress.worldProgressComplete()
@@ -918,7 +923,7 @@ public final class AscendanceNexusScreen
             graphics.drawString(
                     font,
                     trimToWidth(
-                            prefix + requirement.label(),
+                            prefix + worldRequirementLabel(requirement),
                             textWidth
                     ),
                     textLeft,
@@ -929,10 +934,10 @@ public final class AscendanceNexusScreen
         }
 
         if (renderedLines < requirements.size()) {
-            String more =
-                    "… +"
-                            + (requirements.size() - renderedLines)
-                            + " more";
+            String more = EssenceText.gui(
+                    "nexus.more_requirements",
+                    requirements.size() - renderedLines
+            ).getString();
             graphics.drawString(
                     font,
                     trimToWidth(
@@ -945,6 +950,17 @@ public final class AscendanceNexusScreen
                     false
             );
         }
+    }
+
+    private String worldRequirementLabel(
+            ClientEssenceState.WorldRequirementSnapshot requirement
+    ) {
+        return switch (requirement.kind()) {
+            case ALL_OF -> EssenceText.gui("nexus.world.all_of").getString();
+            case ANY_OF -> EssenceText.gui("nexus.world.any_of").getString();
+            case ALWAYS -> EssenceText.gui("nexus.world.none_required").getString();
+            case MILESTONE -> requirement.label();
+        };
     }
 
     private void renderAscendControls(
@@ -969,10 +985,10 @@ public final class AscendanceNexusScreen
         if (layout.sectionHeight() >= 28) {
             String status =
                     staged
-                            ? "ALLOCATE staged changes before Ascending"
+                            ? EssenceText.gui("nexus.allocate_before_ascending").getString()
                             : progress.readyToAscend()
-                            ? "READY TO ASCEND"
-                            : "Requirements incomplete";
+                            ? EssenceText.gui("nexus.ready_to_ascend").getString()
+                            : EssenceText.gui("nexus.requirements_incomplete").getString();
             graphics.drawCenteredString(
                     font,
                     trimToWidth(
@@ -1029,7 +1045,7 @@ public final class AscendanceNexusScreen
         );
         graphics.drawCenteredString(
                 font,
-                "ASCEND",
+                EssenceText.gui("nexus.ascend").getString(),
                 x + ASCEND_BUTTON_WIDTH / 2,
                 y + Math.max(
                         2,
@@ -1058,14 +1074,14 @@ public final class AscendanceNexusScreen
         );
         graphics.drawCenteredString(
                 font,
-                "Maximum Ascendance achieved.",
+                EssenceText.gui("nexus.maximum_achieved").getString(),
                 centerX,
                 centerY + 4,
                 TEXT
         );
         graphics.drawCenteredString(
                 font,
-                "No higher registered tier exists.",
+                EssenceText.gui("nexus.no_higher_tier").getString(),
                 centerX,
                 centerY + 18,
                 MUTED
@@ -1083,7 +1099,7 @@ public final class AscendanceNexusScreen
 
         graphics.drawCenteredString(
                 font,
-                "ASCENSION UNAVAILABLE",
+                EssenceText.gui("nexus.ascension_unavailable").getString(),
                 centerX,
                 centerY - 12,
                 ERROR
@@ -1091,7 +1107,7 @@ public final class AscendanceNexusScreen
         graphics.drawCenteredString(
                 font,
                 trimToWidth(
-                        "The server could not resolve the configured Ascension requirements.",
+                        EssenceText.gui("nexus.ascension_config_error").getString(),
                         Math.max(80, layout.width() - 24)
                 ),
                 centerX,
@@ -1127,7 +1143,7 @@ public final class AscendanceNexusScreen
 
         renderCategoryTitle(
                 graphics,
-                category.shortDisplayName(),
+                EssenceText.essenceShort(category.essence()).getString(),
                 layout
         );
         renderAvailableGauge(
@@ -1223,7 +1239,7 @@ public final class AscendanceNexusScreen
                 );
         String availableLabel =
                 trimToWidth(
-                        "AVAILABLE",
+                        EssenceText.gui("nexus.available").getString(),
                         availableLabelWidth
                 );
 
@@ -1428,7 +1444,7 @@ public final class AscendanceNexusScreen
         if (tracks.isEmpty()) {
             graphics.drawCenteredString(
                     font,
-                    "No synchronized stats are registered for this category.",
+                    EssenceText.gui("nexus.no_stats").getString(),
                     (layout.tracksLeft() + layout.tracksRight()) / 2,
                     layout.trackTop() + 24,
                     MUTED
@@ -1540,7 +1556,7 @@ public final class AscendanceNexusScreen
 
         String[] nameLines =
                 wrapTwoLines(
-                        track.stat().displayName(),
+                        EssenceText.stat(track.stat()).getString(),
                         trackWidth - 6
                 );
 
@@ -1739,7 +1755,7 @@ public final class AscendanceNexusScreen
         );
         graphics.drawCenteredString(
                 font,
-                "ALLOCATE",
+                EssenceText.gui("nexus.allocate").getString(),
                 x + ALLOCATE_BUTTON_WIDTH / 2,
                 y + Math.max(
                         2,
@@ -1784,8 +1800,8 @@ public final class AscendanceNexusScreen
     ) {
         String instruction =
                 hasStagedChanges()
-                        ? "Essence reallocation staged. Press ALLOCATE to commit the changes."
-                        : "Move sliders to redistribute Essence. Closing the Nexus discards unallocated changes.";
+                        ? EssenceText.gui("nexus.footer_staged").getString()
+                        : EssenceText.gui("nexus.footer_default").getString();
 
         graphics.drawCenteredString(
                 font,
@@ -1824,7 +1840,7 @@ public final class AscendanceNexusScreen
 
         renderCategoryTitle(
                 graphics,
-                category.shortDisplayName(),
+                EssenceText.essenceShort(category.essence()).getString(),
                 layout
         );
         renderAvailableGauge(
@@ -1840,28 +1856,28 @@ public final class AscendanceNexusScreen
 
         graphics.drawCenteredString(
                 font,
-                category.essence().displayName(),
+                EssenceText.essence(category.essence()).getString(),
                 centerX,
                 centerY - 20,
                 TEXT
         );
         graphics.drawCenteredString(
                 font,
-                "This Essence uses a separate progression presentation.",
+                EssenceText.gui("nexus.placeholder.line1").getString(),
                 centerX,
                 centerY,
                 MUTED
         );
         graphics.drawCenteredString(
                 font,
-                "Its skill/passive/ability progression model is not defined yet.",
+                EssenceText.gui("nexus.placeholder.line2").getString(),
                 centerX,
                 centerY + 13,
                 MUTED
         );
         graphics.drawCenteredString(
                 font,
-                "The Nexus shell and dynamic navigation are already ready for it.",
+                EssenceText.gui("nexus.placeholder.line3").getString(),
                 centerX,
                 centerY + 26,
                 DIM
@@ -2813,7 +2829,7 @@ public final class AscendanceNexusScreen
             desiredWidth =
                     Math.max(
                             desiredWidth,
-                            font.width(category.shortDisplayName()) + 14
+                            font.width(EssenceText.essenceShort(category.essence()).getString()) + 14
                     );
         }
         desiredWidth =
@@ -3132,12 +3148,12 @@ public final class AscendanceNexusScreen
             ResourceLocation tierId
     ) {
         if (tierId == null) {
-            return "Unknown";
+            return EssenceText.term("unknown").getString();
         }
 
         return AscendanceTierRegistry
                 .get(tierId)
-                .map(AscendanceTierDefinition::displayName)
+                .map(tier -> EssenceText.ascendanceTier(tier).getString())
                 .orElse(tierId.getPath());
     }
 
@@ -3149,13 +3165,13 @@ public final class AscendanceNexusScreen
                 formatDecimal(value);
 
         return switch (unit) {
-            case PERCENT -> "+" + number + "%";
-            case HEARTS -> "+" + number + " hearts";
-            case HEARTS_PER_SECOND -> "+" + number + " hearts/s";
-            case BLOCKS -> "+" + number + " blocks";
-            case SECONDS -> "+" + number + " s";
-            case LEVELS -> "+" + number + " levels";
-            case FLAT -> "+" + number;
+            case PERCENT -> EssenceText.gui("nexus.bonus.percent", number).getString();
+            case HEARTS -> EssenceText.gui("nexus.bonus.hearts", number).getString();
+            case HEARTS_PER_SECOND -> EssenceText.gui("nexus.bonus.hearts_per_second", number).getString();
+            case BLOCKS -> EssenceText.gui("nexus.bonus.blocks", number).getString();
+            case SECONDS -> EssenceText.gui("nexus.bonus.seconds", number).getString();
+            case LEVELS -> EssenceText.gui("nexus.bonus.levels", number).getString();
+            case FLAT -> EssenceText.gui("nexus.bonus.flat", number).getString();
         };
     }
 

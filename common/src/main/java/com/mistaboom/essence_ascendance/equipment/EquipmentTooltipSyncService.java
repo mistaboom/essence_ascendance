@@ -32,6 +32,7 @@ import java.util.WeakHashMap;
 public final class EquipmentTooltipSyncService {
 
     private static final double EPSILON = 0.0000001;
+    private static final String TOOLTIP_KEY = "tooltip.essence_ascendance.equipment.";
     private static final int SYNC_INTERVAL_TICKS = 10;
 
     private static final Map<ServerPlayer, EquipmentTooltipPayload> LAST_SENT =
@@ -173,31 +174,15 @@ public final class EquipmentTooltipSyncService {
 
         lines.add(identity(itemTier, label));
 
-        lines.add(stat(
-                "Armor: "
-                        + number(
-                                baseline.armorForSlot(slot)
-                        )
-        ));
+        lines.add(stat("stat.armor", number(baseline.armorForSlot(slot))));
 
-        lines.add(stat(
-                "Toughness: "
-                        + number(
-                                baseline.toughnessForSlot(slot)
-                        )
-        ));
+        lines.add(stat("stat.toughness", number(baseline.toughnessForSlot(slot))));
 
         if (itemTier != EquipmentTier.LATENT) {
             lines.add(
                     setBonus(
-                            "Set: "
-                                    + armorSet.piecesWorn()
-                                    + "/4 worn"
-                                    + "  •  "
-                                    + wholePercent(
-                                            armorSet.essenceStrength()
-                                    )
-                                    + " Essence power"
+                            Integer.toString(armorSet.piecesWorn()),
+                            wholePercent(armorSet.essenceStrength())
                     )
             );
         }
@@ -251,8 +236,8 @@ public final class EquipmentTooltipSyncService {
                 new ArrayList<>();
 
         lines.add(identity(itemTier, "Melee Weapon"));
-        lines.add(stat("Attack Damage: " + number(damage)));
-        lines.add(stat("Attack Speed: " + number(speed) + "/s"));
+        lines.add(stat("stat.attack_damage", number(damage)));
+        lines.add(stat("stat.attack_speed", number(speed)));
 
         addProfileAbilities(
                 lines,
@@ -303,8 +288,8 @@ public final class EquipmentTooltipSyncService {
                 new ArrayList<>();
 
         lines.add(identity(itemTier, "Ranged Weapon"));
-        lines.add(stat("Ranged Damage: " + number(damage)));
-        lines.add(stat("Draw Speed: " + number(drawSpeed) + "/s"));
+        lines.add(stat("stat.ranged_damage", number(damage)));
+        lines.add(stat("stat.draw_speed", number(drawSpeed)));
 
         addProfileAbilities(
                 lines,
@@ -355,8 +340,8 @@ public final class EquipmentTooltipSyncService {
                 new ArrayList<>();
 
         lines.add(identity(itemTier, "Caster"));
-        lines.add(stat("Magic Damage: " + number(damage)));
-        lines.add(stat("Cast Speed: " + number(castSpeed) + "/s"));
+        lines.add(stat("stat.magic_damage", number(damage)));
+        lines.add(stat("stat.cast_speed", number(castSpeed)));
 
         addProfileAbilities(
                 lines,
@@ -437,10 +422,10 @@ public final class EquipmentTooltipSyncService {
                 new ArrayList<>();
 
         lines.add(identity(itemTier, label));
-        lines.add(stat("Mining Speed: " + number(miningSpeed)));
-        lines.add(stat("Attack Damage: " + number(damage)));
-        lines.add(stat("Attack Speed: " + number(attackSpeed) + "/s"));
-        lines.add(stat("Harvest Level: " + base.harvestLevel()));
+        lines.add(stat("stat.mining_speed", number(miningSpeed)));
+        lines.add(stat("stat.attack_damage", number(damage)));
+        lines.add(stat("stat.attack_speed", number(attackSpeed)));
+        lines.add(stat("stat.harvest_level", Integer.toString(base.harvestLevel())));
 
         addProfileAbilities(
                 lines,
@@ -493,16 +478,7 @@ public final class EquipmentTooltipSyncService {
                 continue;
             }
 
-            lines.add(
-                    ability(
-                            stat.displayName()
-                                    + ": "
-                                    + formatAbility(
-                                            stat,
-                                            resolved
-                                    )
-                    )
-            );
+            lines.add(ability(stat, resolved));
         }
     }
 
@@ -571,102 +547,104 @@ public final class EquipmentTooltipSyncService {
         return base * (1.0D + bonus(data, itemTier, stat, strength) / 100.0D);
     }
 
-    private static String formatAbility(
-            StatDefinition stat,
-            double value
-    ) {
-        StatUnit unit =
-                stat.unit();
-
-        return switch (unit) {
-            case PERCENT ->
-                    "+" + number(value) + "%";
-
-            case HEARTS ->
-                    "+" + number(value) + " \u2665";
-
-            case HEARTS_PER_SECOND ->
-                    "+" + number(value) + " \u2665/s";
-
-            case SECONDS ->
-                    "+" + number(value) + " s";
-
-            case BLOCKS ->
-                    "+" + number(value) + " blocks";
-
-            case LEVELS ->
-                    "+" + roman(
-                            toGameplayLevel(value)
-                    );
-
-            case FLAT ->
-                    "+" + number(value);
-
-            default ->
-                    "+" + number(value);
-        };
-    }
-
-    private static int toGameplayLevel(
-            double value
-    ) {
-        if (!Double.isFinite(value)
-                || value <= 0.0) {
-            return 0;
-        }
-
-        long rounded =
-                (long) Math.floor(
-                        value + 0.5D
-                );
-
-        return (int) Math.max(
-                0L,
-                Math.min(
-                        255L,
-                        rounded
-                )
-        );
-    }
-
     private static EquipmentTooltipPayload.Line identity(
             EquipmentTier itemTier,
             String itemLabel
     ) {
-        return new EquipmentTooltipPayload.Line(
+        return translated(
                 EquipmentTooltipPayload.Group.IDENTITY,
                 EquipmentTooltipPayload.Tone.TIER,
-                "Tier: " + itemTier.displayName()
+                "tier",
+                "@equipment_tier:" + itemTier.serializedName()
         );
     }
 
     private static EquipmentTooltipPayload.Line stat(
-            String text
+            String key,
+            String value
     ) {
-        return new EquipmentTooltipPayload.Line(
+        return translated(
                 EquipmentTooltipPayload.Group.STATS,
                 EquipmentTooltipPayload.Tone.PRIMARY,
-                text
+                key,
+                value
         );
     }
 
     private static EquipmentTooltipPayload.Line ability(
-            String text
+            StatDefinition stat,
+            double value
     ) {
-        return new EquipmentTooltipPayload.Line(
+        String key;
+        String formatted;
+        switch (stat.unit()) {
+            case PERCENT -> {
+                key = "ability.percent";
+                formatted = number(value);
+            }
+            case HEARTS -> {
+                key = "ability.hearts";
+                formatted = number(value);
+            }
+            case HEARTS_PER_SECOND -> {
+                key = "ability.hearts_per_second";
+                formatted = number(value);
+            }
+            case SECONDS -> {
+                key = "ability.seconds";
+                formatted = number(value);
+            }
+            case BLOCKS -> {
+                key = "ability.blocks";
+                formatted = number(value);
+            }
+            case LEVELS -> {
+                key = "ability.levels";
+                formatted = roman(toGameplayLevel(value));
+            }
+            case FLAT -> {
+                key = "ability.flat";
+                formatted = number(value);
+            }
+            default -> {
+                key = "ability.flat";
+                formatted = number(value);
+            }
+        }
+
+        return translated(
                 EquipmentTooltipPayload.Group.ESSENCE,
                 EquipmentTooltipPayload.Tone.ABILITY,
-                text
+                key,
+                "@stat:" + stat.id(),
+                formatted
         );
     }
 
     private static EquipmentTooltipPayload.Line setBonus(
-            String text
+            String pieces,
+            String essenceStrengthPercent
     ) {
-        return new EquipmentTooltipPayload.Line(
+        return translated(
                 EquipmentTooltipPayload.Group.ESSENCE,
                 EquipmentTooltipPayload.Tone.SET_BONUS,
-                text
+                "set_bonus",
+                pieces,
+                essenceStrengthPercent
+        );
+    }
+
+    private static EquipmentTooltipPayload.Line translated(
+            EquipmentTooltipPayload.Group group,
+            EquipmentTooltipPayload.Tone tone,
+            String key,
+            String... arguments
+    ) {
+        return new EquipmentTooltipPayload.Line(
+                group,
+                tone,
+                TOOLTIP_KEY + key,
+                List.of(arguments)
         );
     }
 
@@ -754,6 +732,16 @@ public final class EquipmentTooltipSyncService {
                         value
                 )
         );
+    }
+
+    private static int toGameplayLevel(
+            double value
+    ) {
+        if (!Double.isFinite(value) || value <= 0.0) {
+            return 0;
+        }
+        long rounded = (long) Math.floor(value + 0.5D);
+        return (int) Math.max(0L, Math.min(255L, rounded));
     }
 
     private static String roman(

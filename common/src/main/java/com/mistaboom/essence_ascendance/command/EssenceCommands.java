@@ -27,6 +27,7 @@ import com.mistaboom.essence_ascendance.progression.TierInvestmentPolicy;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.StatCategory;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
+import com.mistaboom.essence_ascendance.text.EssenceText;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -149,25 +150,25 @@ public final class EssenceCommands {
     }
 
     private static int showHelp(CommandSourceStack source) {
-        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Essence Ascendance Commands"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Player"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence", "show your current overview"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence balance [essence]", "show available Essence balances"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence stats [category]", "list stats, grouped by their real stat categories"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence stat <stat>", "one complete stat view: investment, scaling, and equipment applicability"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence invest <stat> <amount>", "invest available Essence into a stat"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence progress", "show requirements for the next Ascendance tier"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence ascend", "Ascend when all requirements are met"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence milestones [milestone]", "show milestone progress"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("help.title")));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section(EssenceText.command("help.player")));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence", EssenceText.command("help.overview")));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence balance [essence]", EssenceText.command("help.balance")));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence stats [category]", EssenceText.command("help.stats")));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence stat <stat>", EssenceText.command("help.stat")));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence invest <stat> <amount>", EssenceText.command("help.invest")));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence progress", EssenceText.command("help.progress")));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence ascend", EssenceText.command("help.ascend")));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence milestones [milestone]", EssenceText.command("help.milestones")));
 
         if (source.hasPermission(EssenceCommandUtil.ADMIN_PERMISSION)) {
-            EssenceCommandUtil.send(source, EssenceCommandUtil.section("Development / Administration"));
-            EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin", "player/item/configuration mutations"));
-            EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug", "read-only diagnostics organized by gameplay category"));
-            EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence test", "deterministic validation helpers"));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.section(EssenceText.command("help.development")));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin", EssenceText.command("help.admin")));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug", EssenceText.command("help.debug")));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence test", EssenceText.command("help.test")));
         }
 
-        EssenceCommandUtil.send(source, EssenceCommandUtil.muted("Use tab completion after any branch to discover its subcommands."));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(EssenceText.command("help.tab_completion")));
         return 1;
     }
 
@@ -194,17 +195,16 @@ public final class EssenceCommands {
             capacity = safeAdd(capacity, limit.investmentCap());
         }
 
-        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Essence Ascendance Status"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Player", player.getGameProfile().getName()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("status.title")));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.command("label.player"), player.getGameProfile().getName()));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Tier",
-                Component.literal(data.getTier().displayName()).withStyle(ChatFormatting.AQUA)
+                EssenceText.command("label.tier"),
+                EssenceText.ascendanceTier(data.getTier()).withStyle(ChatFormatting.AQUA)
         ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Available Essence", EssenceCommandUtil.format(totalAvailable) + " total"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.command("label.available_essence"), EssenceText.command("value.total", EssenceCommandUtil.format(totalAvailable))));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Investment",
-                EssenceCommandUtil.format(effective) + " / " + EssenceCommandUtil.format(capacity)
-                        + " effective (" + EssenceCommandUtil.format(stored) + " stored)"
+                EssenceText.command("label.investment"),
+                EssenceText.command("value.investment", EssenceCommandUtil.format(effective), EssenceCommandUtil.format(capacity), EssenceCommandUtil.format(stored))
         ));
 
         AscendanceEvaluationResult evaluation = AscendanceEngine.evaluate(player);
@@ -212,25 +212,26 @@ public final class EssenceCommands {
             case AVAILABLE -> EssenceCommandUtil.send(
                     source,
                     EssenceCommandUtil.line(
-                            "Next Ascendance",
-                            Component.literal(evaluation.nextTier().displayName() + " - ")
+                            EssenceText.command("label.next_ascendance"),
+                            EssenceText.ascendanceTier(evaluation.nextTier())
+                                    .append(Component.literal(" - "))
                                     .withStyle(ChatFormatting.WHITE)
                                     .append(evaluation.progress().readyToAscend()
-                                            ? EssenceCommandUtil.good("READY")
-                                            : EssenceCommandUtil.warn("NOT READY"))
+                                            ? EssenceCommandUtil.good(EssenceText.command("state.ready"))
+                                            : EssenceCommandUtil.warn(EssenceText.command("state.not_ready")))
                     )
             );
             case MAX_TIER -> EssenceCommandUtil.send(
                     source,
-                    EssenceCommandUtil.line("Next Ascendance", EssenceCommandUtil.good("MAX TIER"))
+                    EssenceCommandUtil.line(EssenceText.command("label.next_ascendance"), EssenceCommandUtil.good(EssenceText.command("state.max_tier")))
             );
             case CONFIGURATION_ERROR -> EssenceCommandUtil.send(
                     source,
-                    EssenceCommandUtil.line("Next Ascendance", EssenceCommandUtil.bad("CONFIGURATION ERROR"))
+                    EssenceCommandUtil.line(EssenceText.command("label.next_ascendance"), EssenceCommandUtil.bad(EssenceText.command("state.configuration_error")))
             );
         }
 
-        EssenceCommandUtil.send(source, EssenceCommandUtil.muted("Details: /essence balance | /essence stats | /essence progress"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(EssenceText.command("status.details")));
         return 1;
     }
 
@@ -238,7 +239,7 @@ public final class EssenceCommands {
         ServerPlayer player = source.getPlayerOrException();
         PlayerEssenceData data = playerData(source, player);
 
-        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Essence Balances"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("balance.title")));
         boolean skillEssencesEnabled =
                 EssenceConfigManager.get().skillEssencesEnabled();
 
@@ -250,7 +251,7 @@ public final class EssenceCommands {
 
             EssenceCommandUtil.send(
                     source,
-                    EssenceCommandUtil.section(family == EssenceFamily.ATTRIBUTE ? "Attribute Essence" : "Skill Essence")
+                    EssenceCommandUtil.section(family == EssenceFamily.ATTRIBUTE ? EssenceText.term("attribute_essence") : EssenceText.term("skill_essence"))
             );
             for (EssenceDefinition essence : EssenceRegistry.values()) {
                 if (essence.family() != family
@@ -259,7 +260,7 @@ public final class EssenceCommands {
                 }
                 EssenceCommandUtil.send(
                         source,
-                        EssenceCommandUtil.line(essence.displayName(), EssenceCommandUtil.format(data.getAvailable(essence)))
+                        EssenceCommandUtil.line(EssenceText.essence(essence), EssenceCommandUtil.format(data.getAvailable(essence)))
                 );
             }
         }
@@ -271,28 +272,28 @@ public final class EssenceCommands {
         EssenceDefinition essence = EssenceCommandUtil.resolveEssence(essenceName);
         long amount = playerData(source, player).getAvailable(essence);
 
-        EssenceCommandUtil.send(source, EssenceCommandUtil.title(essence.displayName()));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Available", EssenceCommandUtil.format(amount)));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.essence(essence)));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.command("label.available"), EssenceCommandUtil.format(amount)));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Family",
-                essence.family() == EssenceFamily.ATTRIBUTE ? "Attribute" : "Skill"
+                EssenceText.command("label.family"),
+                essence.family() == EssenceFamily.ATTRIBUTE ? EssenceText.command("family.attribute") : EssenceText.command("family.skill")
         ));
         return 1;
     }
 
     private static int showAllStats(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
-        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Essence Stats"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("stats.title")));
         for (StatCategory category : StatCategory.values()) {
             showStats(source, player, category, true);
         }
-        EssenceCommandUtil.send(source, EssenceCommandUtil.muted("Use /essence stat <stat> for the full calculation and equipment applicability."));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(EssenceText.command("stats.details_hint")));
         return 1;
     }
 
     private static int showStats(CommandSourceStack source, StatCategory category) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
-        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceCommandUtil.categoryName(category) + " Stats"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("stats.category_title", EssenceText.category(category))));
         showStats(source, player, category, false);
         return 1;
     }
@@ -310,8 +311,7 @@ public final class EssenceCommands {
         if (includeHeading) {
             EssenceCommandUtil.send(
                     source,
-                    Component.literal(EssenceCommandUtil.categoryName(category))
-                            .withStyle(EssenceCommandUtil.categoryColor(category), ChatFormatting.BOLD)
+                    EssenceText.category(category).withStyle(EssenceCommandUtil.categoryColor(category), ChatFormatting.BOLD)
             );
         }
 
@@ -329,11 +329,11 @@ public final class EssenceCommands {
                             + "  |  "
             ).withStyle(ChatFormatting.GRAY)
                     .append(
-                            Component.literal(EssenceCommandUtil.formatBonus(stat, scaling.scaledBonus()))
-                                    .withStyle(scaling.scaledBonus() > 0.0 ? ChatFormatting.GREEN : ChatFormatting.DARK_GRAY)
+                            EssenceCommandUtil.formatBonusComponent(stat, scaling.scaledBonus())
+                                    .copy().withStyle(scaling.scaledBonus() > 0.0 ? ChatFormatting.GREEN : ChatFormatting.DARK_GRAY)
                     );
 
-            EssenceCommandUtil.send(source, EssenceCommandUtil.line(stat.displayName(), value));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.stat(stat), value));
         }
     }
 
@@ -347,33 +347,35 @@ public final class EssenceCommands {
 
         EssenceCommandUtil.send(
                 source,
-                Component.literal(stat.displayName())
-                        .withStyle(EssenceCommandUtil.categoryColor(stat.category()), ChatFormatting.BOLD)
+                EssenceText.stat(stat).withStyle(EssenceCommandUtil.categoryColor(stat.category()), ChatFormatting.BOLD)
         );
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line("ID", EssenceCommandUtil.muted(stat.id().toString())));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Category", EssenceCommandUtil.categoryName(stat.category())));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Unit", stat.unit().name().toLowerCase(java.util.Locale.ROOT)));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Essence", stat.essenceType().displayName()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.command("label.id"), EssenceCommandUtil.muted(stat.id().toString())));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.command("label.category"), EssenceText.category(stat.category())));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.command("label.unit"), EssenceText.command("unit." + stat.unit().name().toLowerCase(java.util.Locale.ROOT))));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.command("label.essence"), EssenceText.essence(stat.essenceType())));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Available " + stat.essenceType().displayName(),
+                EssenceText.command("label.available_named", EssenceText.essence(stat.essenceType())),
                 EssenceCommandUtil.format(data.getAvailable(stat.essenceType()))
         ));
 
-        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Progression"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section(EssenceText.command("section.progression")));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Investment",
-                EssenceCommandUtil.format(limit.effectiveInvestment()) + " / "
-                        + EssenceCommandUtil.format(limit.investmentCap())
-                        + " effective (" + EssenceCommandUtil.format(limit.storedInvestment()) + " stored)"
+                EssenceText.command("label.investment"),
+                EssenceText.command(
+                        "value.investment",
+                        EssenceCommandUtil.format(limit.effectiveInvestment()),
+                        EssenceCommandUtil.format(limit.investmentCap()),
+                        EssenceCommandUtil.format(limit.storedInvestment())
+                )
         ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Investment state", limit.state().toString()));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Progress", EssenceCommandUtil.formatProgress(scaling.progression())));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Current bonus", EssenceCommandUtil.formatBonus(stat, scaling.scaledBonus())));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Current tier ceiling", EssenceCommandUtil.formatBonus(stat, scaling.currentTierMaximumBonus())));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Transcendent maximum", EssenceCommandUtil.formatBonus(stat, scaling.transcendentMaximumBonus())));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.command("label.investment_state"), EssenceText.command("investment_state." + limit.state().name().toLowerCase(java.util.Locale.ROOT))));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.command("label.progress"), EssenceCommandUtil.formatProgress(scaling.progression())));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.command("label.current_bonus"), EssenceCommandUtil.formatBonusComponent(stat, scaling.scaledBonus())));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.command("label.current_tier_ceiling"), EssenceCommandUtil.formatBonusComponent(stat, scaling.currentTierMaximumBonus())));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.command("label.transcendent_maximum"), EssenceCommandUtil.formatBonusComponent(stat, scaling.transcendentMaximumBonus())));
 
-        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Equipment Applicability"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Current active strength", EssenceCommandUtil.formatStrength(activeStrength)));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section(EssenceText.command("section.equipment_applicability")));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.command("label.current_active_strength"), EssenceCommandUtil.formatStrength(activeStrength)));
 
         boolean found = false;
         for (EquipmentProfileDefinition profile : EquipmentProfileRegistry.values()) {
@@ -387,15 +389,18 @@ public final class EssenceCommands {
                         source,
                         EssenceCommandUtil.line(
                                 profile.displayName(),
-                                EssenceCommandUtil.formatStrength(strength)
-                                        + " when " + activation.name().toLowerCase()
+                                EssenceText.command(
+                                        "value.equipment_activation",
+                                        EssenceCommandUtil.formatStrength(strength),
+                                        EssenceText.command("activation." + activation.name().toLowerCase(java.util.Locale.ROOT))
+                                )
                         )
                 );
             }
         }
 
         if (!found) {
-            EssenceCommandUtil.send(source, EssenceCommandUtil.warn("  No built-in equipment profile currently activates this stat."));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.warn(EssenceText.command("stat.no_equipment_profile")));
         }
         return 1;
     }
@@ -406,50 +411,60 @@ public final class EssenceCommands {
         StatInvestmentResult result = StatProgressionService.invest(player, stat, amount);
 
         if (result.success()) {
-            EssenceCommandUtil.send(source, EssenceCommandUtil.title("Investment Complete"));
-            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Stat", stat.displayName()));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("invest.complete")));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.command("label.stat"), EssenceText.stat(stat)));
             EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                    "Invested",
-                    EssenceCommandUtil.format(amount) + " " + stat.essenceType().displayName()
+                    EssenceText.command("label.invested"),
+                    EssenceText.command("value.amount_essence", EssenceCommandUtil.format(amount), EssenceText.essence(stat.essenceType()))
             ));
             EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                    "Total",
+                    EssenceText.command("label.total"),
                     EssenceCommandUtil.format(result.investedAfter()) + " / "
                             + EssenceCommandUtil.format(result.investmentCap())
             ));
-            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Remaining Essence", EssenceCommandUtil.format(result.availableAfter())));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.command("label.remaining_essence"), EssenceCommandUtil.format(result.availableAfter())));
             return 1;
         }
 
         switch (result.status()) {
-            case INVALID_AMOUNT -> EssenceCommandUtil.fail(source, "Investment amount must be greater than zero.");
+            case INVALID_AMOUNT -> EssenceCommandUtil.fail(source, EssenceText.command("error.investment_positive"));
             case INSUFFICIENT_ESSENCE -> EssenceCommandUtil.fail(
                     source,
-                    "Not enough " + stat.essenceType().displayName()
-                            + ". Required: " + EssenceCommandUtil.format(amount)
-                            + ", available: " + EssenceCommandUtil.format(result.availableBefore())
+                    EssenceText.command(
+                            "error.insufficient_essence",
+                            EssenceText.essence(stat.essenceType()),
+                            EssenceCommandUtil.format(amount),
+                            EssenceCommandUtil.format(result.availableBefore())
+                    )
             );
             case AT_CAP -> EssenceCommandUtil.fail(
                     source,
-                    stat.displayName() + " is already at its current cap of "
-                            + EssenceCommandUtil.format(result.investmentCap()) + "."
+                    EssenceText.command(
+                            "error.at_cap",
+                            EssenceText.stat(stat),
+                            EssenceCommandUtil.format(result.investmentCap())
+                    )
             );
             case OVER_CAP -> EssenceCommandUtil.fail(
                     source,
-                    stat.displayName() + " is over its current cap. Stored: "
-                            + EssenceCommandUtil.format(result.investedBefore())
-                            + ", cap: " + EssenceCommandUtil.format(result.investmentCap())
-                            + ". Existing investment is preserved."
+                    EssenceText.command(
+                            "error.over_cap",
+                            EssenceText.stat(stat),
+                            EssenceCommandUtil.format(result.investedBefore()),
+                            EssenceCommandUtil.format(result.investmentCap())
+                    )
             );
             case WOULD_EXCEED_CAP -> EssenceCommandUtil.fail(
                     source,
-                    "Investment would exceed the cap for " + stat.displayName()
-                            + ". Maximum additional investment: "
-                            + EssenceCommandUtil.format(result.remainingCapacityBefore()) + "."
+                    EssenceText.command(
+                            "error.would_exceed_cap",
+                            EssenceText.stat(stat),
+                            EssenceCommandUtil.format(result.remainingCapacityBefore())
+                    )
             );
-            case NUMERIC_OVERFLOW -> EssenceCommandUtil.fail(source, "Investment would exceed the supported numeric range.");
-            case CONFIGURATION_ERROR -> EssenceCommandUtil.fail(source, "Unable to determine the current investment cap. Check the server configuration and logs.");
-            case TRANSACTION_FAILED -> EssenceCommandUtil.fail(source, "Unable to complete the Essence investment transaction.");
+            case NUMERIC_OVERFLOW -> EssenceCommandUtil.fail(source, EssenceText.command("error.investment_overflow"));
+            case CONFIGURATION_ERROR -> EssenceCommandUtil.fail(source, EssenceText.command("error.investment_config"));
+            case TRANSACTION_FAILED -> EssenceCommandUtil.fail(source, EssenceText.command("error.investment_transaction"));
             case SUCCESS -> throw new IllegalStateException("Successful investment reached failure handling");
         }
         return 0;
@@ -460,51 +475,51 @@ public final class EssenceCommands {
         AscendanceEvaluationResult evaluation = AscendanceEngine.evaluate(player);
 
         if (evaluation.status() == AscendanceEvaluationResult.Status.MAX_TIER) {
-            EssenceCommandUtil.send(source, EssenceCommandUtil.title("Ascendance Progress"));
-            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Current tier", evaluation.currentTier().displayName()));
-            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Next tier", EssenceCommandUtil.good("MAX TIER")));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("progress.title")));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.command("label.current_tier"), EssenceText.ascendanceTier(evaluation.currentTier())));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.command("label.next_tier"), EssenceCommandUtil.good(EssenceText.command("state.max_tier"))));
             return 1;
         }
 
         if (evaluation.status() == AscendanceEvaluationResult.Status.CONFIGURATION_ERROR) {
-            EssenceCommandUtil.fail(source, "Ascendance progress cannot be evaluated because the progression configuration is invalid. Check the server log.");
+            EssenceCommandUtil.fail(source, EssenceText.command("error.progress_config"));
             return 0;
         }
 
         AscendanceProgressSnapshot progress = evaluation.progress();
         String worldState = !progress.worldProgress().resolvable()
-                ? "UNRESOLVED"
-                : progress.worldProgress().complete() ? "COMPLETE" : "INCOMPLETE";
+                ? "unresolved"
+                : progress.worldProgress().complete() ? "complete" : "incomplete";
 
-        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Ascendance Progress"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("progress.title")));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Transition",
-                evaluation.currentTier().displayName() + " -> " + evaluation.nextTier().displayName()
+                EssenceText.command("label.transition"),
+                EssenceText.command("value.transition", EssenceText.ascendanceTier(evaluation.currentTier()), EssenceText.ascendanceTier(evaluation.nextTier()))
         ));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Investment depth",
+                EssenceText.command("label.investment_depth"),
                 EssenceCommandUtil.format(progress.effectiveInvestment()) + " / "
                         + EssenceCommandUtil.format(progress.requiredInvestment())
         ));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Developed stats",
+                EssenceText.command("label.developed_stats"),
                 progress.developedStats() + " / " + progress.requiredDevelopedStats()
         ));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Represented categories",
+                EssenceText.command("label.represented_categories"),
                 progress.representedCategories() + " / " + progress.requiredRepresentedCategories()
         ));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "World progression",
-                "COMPLETE".equals(worldState)
-                        ? EssenceCommandUtil.good(worldState)
-                        : "UNRESOLVED".equals(worldState)
-                        ? EssenceCommandUtil.bad(worldState)
-                        : EssenceCommandUtil.warn(worldState)
+                EssenceText.command("label.world_progression"),
+                "complete".equals(worldState)
+                        ? EssenceCommandUtil.good(EssenceText.command("state.complete"))
+                        : "unresolved".equals(worldState)
+                        ? EssenceCommandUtil.bad(EssenceText.command("state.unresolved"))
+                        : EssenceCommandUtil.warn(EssenceText.command("state.incomplete"))
         ));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Ready to Ascend",
-                progress.readyToAscend() ? EssenceCommandUtil.good("YES") : EssenceCommandUtil.warn("NO")
+                EssenceText.command("label.ready_to_ascend"),
+                progress.readyToAscend() ? EssenceCommandUtil.good(EssenceText.command("state.yes")) : EssenceCommandUtil.warn(EssenceText.command("state.no"))
         ));
         return 1;
     }
@@ -515,27 +530,30 @@ public final class EssenceCommands {
 
         return switch (result.status()) {
             case SUCCESS -> {
-                EssenceCommandUtil.send(source, EssenceCommandUtil.title("Ascendance Complete"));
+                EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("ascend.complete")));
                 EssenceCommandUtil.send(
                         source,
                         EssenceCommandUtil.line(
-                                "Tier",
-                                result.evaluation().currentTier().displayName()
-                                        + " -> " + result.evaluation().nextTier().displayName()
+                                EssenceText.command("label.tier"),
+                                EssenceText.command(
+                                        "value.transition",
+                                        EssenceText.ascendanceTier(result.evaluation().currentTier()),
+                                        EssenceText.ascendanceTier(result.evaluation().nextTier())
+                                )
                         )
                 );
                 yield 1;
             }
             case NOT_READY -> {
-                EssenceCommandUtil.fail(source, "You do not yet meet the requirements to Ascend. Use /essence progress.");
+                EssenceCommandUtil.fail(source, EssenceText.command("error.ascend_not_ready"));
                 yield 0;
             }
             case MAX_TIER -> {
-                EssenceCommandUtil.fail(source, "You are already at the highest Ascendance tier.");
+                EssenceCommandUtil.fail(source, EssenceText.command("error.ascend_max_tier"));
                 yield 0;
             }
             case CONFIGURATION_ERROR -> {
-                EssenceCommandUtil.fail(source, "Ascendance cannot be completed because the progression configuration is invalid. Check the server log.");
+                EssenceCommandUtil.fail(source, EssenceText.command("error.ascend_config"));
                 yield 0;
             }
         };
@@ -543,15 +561,15 @@ public final class EssenceCommands {
 
     private static int showMilestones(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
-        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Milestones"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("milestones.title")));
 
         for (MilestoneDefinition milestone : com.mistaboom.essence_ascendance.config.EssenceConfigManager.get().milestones().values()) {
             MilestoneProgress progress = evaluateMilestone(player, milestone);
             Component state = !progress.resolvable()
-                    ? EssenceCommandUtil.bad("UNRESOLVED")
+                    ? EssenceCommandUtil.bad(EssenceText.command("state.unresolved"))
                     : progress.complete()
-                    ? EssenceCommandUtil.good("COMPLETE")
-                    : EssenceCommandUtil.warn("INCOMPLETE");
+                    ? EssenceCommandUtil.good(EssenceText.command("state.complete"))
+                    : EssenceCommandUtil.warn(EssenceText.command("state.incomplete"));
 
             EssenceCommandUtil.send(
                     source,
@@ -570,16 +588,16 @@ public final class EssenceCommands {
         MilestoneProgress progress = evaluateMilestone(player, milestone);
 
         EssenceCommandUtil.send(source, EssenceCommandUtil.title(milestone.displayName()));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line("ID", EssenceCommandUtil.muted(milestone.id().toString())));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Provider", milestone.providerId().toString()));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Target", milestone.target()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.command("label.id"), EssenceCommandUtil.muted(milestone.id().toString())));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.command("label.provider"), milestone.providerId().toString()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.command("label.target"), milestone.target()));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "State",
+                EssenceText.command("label.state"),
                 !progress.resolvable()
-                        ? EssenceCommandUtil.bad("UNRESOLVED")
+                        ? EssenceCommandUtil.bad(EssenceText.command("state.unresolved"))
                         : progress.complete()
-                        ? EssenceCommandUtil.good("COMPLETE")
-                        : EssenceCommandUtil.warn("INCOMPLETE")
+                        ? EssenceCommandUtil.good(EssenceText.command("state.complete"))
+                        : EssenceCommandUtil.warn(EssenceText.command("state.incomplete"))
         ));
         return 1;
     }

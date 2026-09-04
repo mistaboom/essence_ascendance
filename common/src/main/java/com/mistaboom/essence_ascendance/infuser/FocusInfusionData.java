@@ -3,6 +3,7 @@ package com.mistaboom.essence_ascendance.infuser;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.pylon.EssenceFocusData;
 import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
+import com.mistaboom.essence_ascendance.text.EssenceText;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
@@ -227,13 +228,13 @@ public final class FocusInfusionData {
 
         Progress progress = progressOptional.get();
         tooltip.add(Component.empty());
-        tooltip.add(Component.literal("Infusion Progress")
+        tooltip.add(EssenceText.tooltip("infusion_progress")
                 .withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.BOLD));
-        tooltip.add(Component.literal("  Target: " + progress.targetTier().displayName())
+        tooltip.add(Component.literal("  ")
+                .append(EssenceText.tooltip("target", EssenceText.focusTier(progress.targetTier())))
                 .withStyle(ChatFormatting.WHITE));
-        tooltip.add(Component.literal(
-                        "  Infused Essence: " + format(progress.totalContributed())
-                )
+        tooltip.add(Component.literal("  ")
+                .append(EssenceText.tooltip("infused_essence", format(progress.totalContributed())))
                 .withStyle(ChatFormatting.GRAY));
     }
 

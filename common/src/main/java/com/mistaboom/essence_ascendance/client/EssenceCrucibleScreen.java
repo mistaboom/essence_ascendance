@@ -5,6 +5,7 @@ import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleEssences;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleMenu;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.network.EssenceCrucibleStatePayload;
+import com.mistaboom.essence_ascendance.text.EssenceText;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -74,7 +75,7 @@ public final class EssenceCrucibleScreen
 
         channelButton = addRenderableWidget(
                 Button.builder(
-                                Component.literal("START CHANNELING"),
+                                EssenceText.gui("crucible.button.start_channeling"),
                                 button -> toggleChannel()
                         )
                         .bounds(
@@ -157,7 +158,7 @@ public final class EssenceCrucibleScreen
 
         dissolutionModeButton = addRenderableWidget(
                 Button.builder(
-                                Component.literal("Smart Round Robin"),
+                                EssenceText.dissolutionMode(EssenceCrucibleDissolutionMode.SMART_ROUND_ROBIN),
                                 button -> cycleDissolutionMode()
                         )
                         .bounds(
@@ -176,7 +177,7 @@ public final class EssenceCrucibleScreen
             final int essenceIndex = i;
             Button ventButton = addRenderableWidget(
                     Button.builder(
-                                    Component.literal("VENT"),
+                                    EssenceText.gui("crucible.button.vent"),
                                     button -> ventEssence(essenceIndex)
                             )
                             .bounds(
@@ -330,11 +331,9 @@ public final class EssenceCrucibleScreen
         if (channelButton != null) {
             boolean active = state != null && state.channeling();
             channelButton.setMessage(
-                    Component.literal(
-                            active
-                                    ? "STOP CHANNELING"
-                                    : "START CHANNELING"
-                    )
+                    EssenceText.gui(active
+                            ? "crucible.button.stop_channeling"
+                            : "crucible.button.start_channeling")
             );
             channelButton.active = state != null
                     && state.allowed()
@@ -376,7 +375,7 @@ public final class EssenceCrucibleScreen
                                 state.dissolutionMode()
                         );
                 dissolutionModeButton.setMessage(
-                        Component.literal(mode.displayName())
+                        EssenceText.dissolutionMode(mode)
                 );
             }
         }
@@ -503,11 +502,11 @@ public final class EssenceCrucibleScreen
         EssenceCrucibleStatePayload state =
                 EssenceCrucibleClientState.snapshotFor(menu.containerId);
 
-        drawCentered(graphics, "ESSENCE CRUCIBLE", 7, TEXT);
-        drawCentered(graphics, "Input Slots", 20, MUTED);
+        drawCentered(graphics, EssenceText.gui("crucible.title"), 7, TEXT);
+        drawCentered(graphics, EssenceText.term("input_slots"), 20, MUTED);
 
         if (state == null) {
-            drawCentered(graphics, "Synchronizing...", 56, MUTED);
+            drawCentered(graphics, EssenceText.term("synchronizing"), 56, MUTED);
             graphics.drawString(font, playerInventoryTitle, 69, 224, MUTED, false);
             return;
         }
@@ -519,14 +518,14 @@ public final class EssenceCrucibleScreen
                         : PANEL_MARGIN + FULL_PANEL_WIDTH - 6;
 
         /* Attribute Essence is the actual family name for the six core values. */
-        graphics.drawString(font, "Attribute Essence", 18, 78, TEXT, false);
+        graphics.drawString(font, EssenceText.term("attribute_essence"), 18, 78, TEXT, false);
 
         long[] attributeValues = state.essenceAmounts();
         for (int i = 0; i < attributeValues.length; i++) {
             int rowY = 92 + i * 12;
             graphics.drawString(
                     font,
-                    EssenceCrucibleEssences.shortName(i),
+                    EssenceText.essenceShort(EssenceCrucibleEssences.ATTRIBUTE_ORDERED.get(i)),
                     18,
                     rowY,
                     MUTED,
@@ -548,14 +547,14 @@ public final class EssenceCrucibleScreen
                     PANEL_MARGIN + TWO_COLUMN_WIDTH + PANEL_GAP
                             + TWO_COLUMN_WIDTH - 6;
 
-            graphics.drawString(font, "Skill Essence", skillLeft, 78, TEXT, false);
+            graphics.drawString(font, EssenceText.term("skill_essence"), skillLeft, 78, TEXT, false);
 
             long[] skillValues = state.skillEssenceAmounts();
             for (int i = 0; i < skillValues.length; i++) {
                 int rowY = 92 + i * 9;
                 graphics.drawString(
                         font,
-                        EssenceCrucibleEssences.skillShortName(i),
+                        EssenceText.essenceShort(EssenceCrucibleEssences.SKILL_ORDERED.get(i)),
                         skillLeft,
                         rowY,
                         MUTED,
@@ -571,7 +570,7 @@ public final class EssenceCrucibleScreen
             }
         }
 
-        graphics.drawString(font, "Total Essence", 18, 186, TEXT, false);
+        graphics.drawString(font, EssenceText.term("total_essence"), 18, 186, TEXT, false);
         drawRightAligned(
                 graphics,
                 format(state.total()) + " / " + format(state.reservoirCapacity()),
@@ -606,14 +605,14 @@ public final class EssenceCrucibleScreen
 
         int textX = panelX + 7;
         int textWidth = VENT_PANEL_WIDTH - 14;
-        MachineScreenUi.sectionHeader(graphics, font, "Settings", textX, panelY + 7);
+        MachineScreenUi.sectionHeader(graphics, font, EssenceText.term("settings"), textX, panelY + 7);
 
         int cursorY = panelY + SETTINGS_HEADER_HEIGHT;
         if (showDissolutionModeSetting(state)) {
             MachineScreenUi.sectionHeader(
                     graphics,
                     font,
-                    "Dissolution Mode",
+                    EssenceText.term("dissolution_mode"),
                     textX,
                     cursorY
             );
@@ -637,13 +636,13 @@ public final class EssenceCrucibleScreen
         MachineScreenUi.sectionHeader(
                 graphics,
                 font,
-                "Reservoir Vent",
+                EssenceText.term("reservoir_vent"),
                 textX,
                 cursorY
         );
         graphics.drawString(
                 font,
-                "Vented Essence is lost.",
+                EssenceText.gui("crucible.vent_warning"),
                 textX,
                 cursorY + 10,
                 MUTED,
@@ -653,7 +652,7 @@ public final class EssenceCrucibleScreen
         int firstRowY = ventPanelFirstRowY(state);
         for (int i = 0; i < values.length; i++) {
             int rowY = firstRowY + i * VENT_ROW_HEIGHT;
-            String name = displayName(enabled.get(i));
+            Component name = displayName(enabled.get(i));
 
             graphics.drawString(
                     font,
@@ -673,14 +672,8 @@ public final class EssenceCrucibleScreen
         }
     }
 
-    private String dissolutionModeDescription(EssenceCrucibleDissolutionMode mode) {
-        return switch (mode) {
-            case SMART_ROUND_ROBIN -> "Wait briefly, then skip.";
-            case STRICT_ROUND_ROBIN -> "Wait until each lane fits.";
-            case SKIP_ROUND_ROBIN -> "Use the first lane that fits.";
-            case LOWEST_STORED -> "Favor least-stocked Essence.";
-            case HIGHEST_STORED -> "Favor most-stocked Essence.";
-        };
+    private Component dissolutionModeDescription(EssenceCrucibleDissolutionMode mode) {
+        return EssenceText.gui("crucible.dissolution_mode." + mode.serializedName() + ".description");
     }
 
     private void renderVentPopupWidgets(
@@ -823,20 +816,10 @@ public final class EssenceCrucibleScreen
         return combined;
     }
 
-    private String displayName(
+    private Component displayName(
             EssenceDefinition essence
     ) {
-        int attributeIndex = EssenceCrucibleEssences.ATTRIBUTE_ORDERED.indexOf(essence);
-        if (attributeIndex >= 0) {
-            return EssenceCrucibleEssences.shortName(attributeIndex);
-        }
-
-        int skillIndex = EssenceCrucibleEssences.SKILL_ORDERED.indexOf(essence);
-        if (skillIndex >= 0) {
-            return EssenceCrucibleEssences.skillShortName(skillIndex);
-        }
-
-        return essence.displayName();
+        return EssenceText.essenceShort(essence);
     }
 
     private int ventPanelX() {
@@ -875,20 +858,27 @@ public final class EssenceCrucibleScreen
         new MachineInfoPanel(
                 graphics, font, panelX, panelY, INFO_PANEL_WIDTH, INFO_PANEL_HEIGHT
         )
-                .title("Info")
-                .metadata("Owner: " + state.ownerName())
-                .metadata("Access: " + titleCase(state.accessMode()))
-                .section("Crucible")
-                .line("Capacity: " + format(state.reservoirCapacity()))
-                .line("Pylons: " + state.activePylonCount() + "/" + state.maxActivePylons())
-                .line(String.format(Locale.ROOT, "Pylon Radius: %.1f", state.pylonRadius()))
-                .line("Input Slots: " + menu.activeMachineSlots())
-                .section("Channeling")
-                .line("Rate: " + format(state.transferRatePerSecond()) + "/sec")
-                .line(String.format(Locale.ROOT, "Range: %.1f blocks", state.transferRange()))
-                .section("Dissolution")
-                .line("Items/Batch: " + state.simultaneousItemProcesses())
-                .line("Batches/Sec: " + batchesPerSecond(state));
+                .title(EssenceText.term("info"))
+                .metadata(EssenceText.gui("owner", state.ownerName()))
+                .metadata(EssenceText.gui("access", accessText(state.accessMode())))
+                .section(EssenceText.term("crucible"))
+                .line(EssenceText.gui("capacity_value", format(state.reservoirCapacity())))
+                .line(EssenceText.gui("pylons_value", state.activePylonCount(), state.maxActivePylons()))
+                .line(EssenceText.gui("pylon_radius_value", String.format(Locale.ROOT, "%.1f", state.pylonRadius())))
+                .line(EssenceText.gui("input_slots_value", menu.activeMachineSlots()))
+                .section(EssenceText.term("channeling"))
+                .line(EssenceText.gui("rate_per_second", format(state.transferRatePerSecond())))
+                .line(EssenceText.gui("range_blocks", String.format(Locale.ROOT, "%.1f", state.transferRange())))
+                .section(EssenceText.term("dissolution"))
+                .line(EssenceText.gui("items_batch_value", state.simultaneousItemProcesses()))
+                .line(EssenceText.gui("batches_second_value", batchesPerSecond(state)));
+    }
+
+    private static Component accessText(String accessMode) {
+        if (accessMode == null || accessMode.isBlank()) {
+            return EssenceText.term("unknown");
+        }
+        return EssenceText.gui("access_mode." + accessMode.toLowerCase(Locale.ROOT));
     }
 
     private int infoPanelX() {
@@ -903,7 +893,7 @@ public final class EssenceCrucibleScreen
 
     private void drawCentered(
             GuiGraphics graphics,
-            String text,
+            Component text,
             int y,
             int color
     ) {
@@ -997,13 +987,6 @@ public final class EssenceCrucibleScreen
         return String.format(Locale.ROOT, "%,d", value);
     }
 
-    private static String titleCase(String value) {
-        if (value == null || value.isBlank()) {
-            return "Unknown";
-        }
-        String normalized = value.toLowerCase(Locale.ROOT);
-        return Character.toUpperCase(normalized.charAt(0)) + normalized.substring(1);
-    }
 
     private static void outline(
             GuiGraphics graphics,

@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.infuser.EssentiumCarrierData;
 import com.mistaboom.essence_ascendance.essence.EssenceFamily;
+import com.mistaboom.essence_ascendance.text.EssenceText;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.LinkedHashSet;
@@ -46,10 +47,10 @@ public final class JeiTooltipSearchTerms {
                                 value.amount()
                         )
                 );
-                result.add("tier");
-                result.add("infusion");
-                result.add("grade");
-                result.add(value.grade().displayName().toLowerCase(java.util.Locale.ROOT));
+                result.add(EssenceText.term("tier").getString().toLowerCase(java.util.Locale.ROOT));
+                result.add(EssenceText.term("infusion").getString().toLowerCase(java.util.Locale.ROOT));
+                result.add(EssenceText.term("infusion_grade").getString().toLowerCase(java.util.Locale.ROOT));
+                result.add(EssenceText.focusTier(value.grade()).getString().toLowerCase(java.util.Locale.ROOT));
             });
         } else {
             result.addAll(

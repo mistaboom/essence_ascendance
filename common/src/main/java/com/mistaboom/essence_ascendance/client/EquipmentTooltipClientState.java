@@ -2,9 +2,12 @@ package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.network.EquipmentTooltipPayload;
+import com.mistaboom.essence_ascendance.equipment.EquipmentTier;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTierData;
 import com.mistaboom.essence_ascendance.equipment.FracturedEquipmentData;
 import com.mistaboom.essence_ascendance.equipment.SoulboundEquipmentData;
+import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
+import com.mistaboom.essence_ascendance.text.EssenceText;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
@@ -124,14 +127,16 @@ public final class EquipmentTooltipClientState {
 
         SoulboundEquipmentData.read(stack).ifPresent(binding ->
                 tooltip.add(
-                        Component.literal(" Soulbound: " + binding.displayOwner())
+                        Component.literal(" ")
+                                .append(EssenceText.tooltip("soulbound", binding.displayOwner()))
                                 .withStyle(ChatFormatting.DARK_PURPLE)
                 )
         );
 
         if (fractured) {
             tooltip.add(
-                    Component.literal(" Fractured")
+                    Component.literal(" ")
+                            .append(EssenceText.tooltip("fractured"))
                             .withStyle(
                                     ChatFormatting.RED,
                                     ChatFormatting.BOLD
@@ -143,7 +148,7 @@ public final class EquipmentTooltipClientState {
 
         tooltip.add(
                 section(
-                        "Current Stats",
+                        EssenceText.tooltip("section.current_stats"),
                         ChatFormatting.GREEN
                 )
         );
@@ -152,20 +157,21 @@ public final class EquipmentTooltipClientState {
                 tooltip,
                 activeLines,
                 EquipmentTooltipPayload.Group.STATS,
-                "No current equipment stats."
+                EssenceText.tooltip("empty.current_stats")
         );
 
         tooltip.add(Component.empty());
         tooltip.add(
                 section(
-                        "Enchantments",
+                        EssenceText.tooltip("section.enchantments"),
                         ChatFormatting.BLUE
                 )
         );
 
         if (enchantmentLines.isEmpty()) {
             tooltip.add(
-                    Component.literal("  None")
+                    Component.literal("  ")
+                            .append(EssenceText.term("none"))
                             .withStyle(ChatFormatting.DARK_GRAY)
             );
         } else {
@@ -180,7 +186,7 @@ public final class EquipmentTooltipClientState {
         tooltip.add(Component.empty());
         tooltip.add(
                 section(
-                        "Essence Abilities",
+                        EssenceText.tooltip("section.essence_abilities"),
                         ChatFormatting.AQUA
                 )
         );
@@ -189,7 +195,7 @@ public final class EquipmentTooltipClientState {
                 tooltip,
                 activeLines,
                 EquipmentTooltipPayload.Group.ESSENCE,
-                "No active Essence bonuses."
+                EssenceText.tooltip("empty.essence_abilities")
         );
     }
 
@@ -332,7 +338,7 @@ public final class EquipmentTooltipClientState {
             List<Component> tooltip,
             List<EquipmentTooltipPayload.Line> lines,
             EquipmentTooltipPayload.Group group,
-            String emptyText
+            Component emptyText
     ) {
         boolean added = false;
 
@@ -347,7 +353,8 @@ public final class EquipmentTooltipClientState {
 
         if (!added) {
             tooltip.add(
-                    Component.literal("  " + emptyText)
+                    Component.literal("  ")
+                            .append(emptyText)
                             .withStyle(ChatFormatting.DARK_GRAY)
             );
         }
@@ -359,40 +366,61 @@ public final class EquipmentTooltipClientState {
         String indent = line.tone() == EquipmentTooltipPayload.Tone.TIER
                 ? " "
                 : "  ";
-        Component base =
-                Component.literal(indent + line.text());
+
+        Object[] arguments = line.arguments().stream()
+                .map(EquipmentTooltipClientState::decodeTooltipArgument)
+                .toArray(Object[]::new);
+
+        Component translated = Component.translatable(
+                line.translationKey(),
+                arguments
+        );
+        Component base = Component.literal(indent).append(translated);
 
         return switch (line.tone()) {
             case TIER ->
-                    base.copy()
-                            .withStyle(
-                                    ChatFormatting.LIGHT_PURPLE,
-                                    ChatFormatting.BOLD
-                            );
-
-            case PRIMARY ->
-                    base.copy()
-                            .withStyle(ChatFormatting.WHITE);
-
-            case ABILITY ->
-                    base.copy()
-                            .withStyle(ChatFormatting.AQUA);
-
-            case SET_BONUS ->
-                    base.copy()
-                            .withStyle(ChatFormatting.GOLD);
-
-            case MUTED ->
-                    base.copy()
-                            .withStyle(ChatFormatting.GRAY);
+                    base.copy().withStyle(
+                            ChatFormatting.LIGHT_PURPLE,
+                            ChatFormatting.BOLD
+                    );
+            case PRIMARY -> base.copy().withStyle(ChatFormatting.WHITE);
+            case ABILITY -> base.copy().withStyle(ChatFormatting.AQUA);
+            case SET_BONUS -> base.copy().withStyle(ChatFormatting.GOLD);
+            case MUTED -> base.copy().withStyle(ChatFormatting.GRAY);
         };
     }
 
+    private static Object decodeTooltipArgument(String argument) {
+        if (argument == null) {
+            return "";
+        }
+        String tierPrefix = "@equipment_tier:";
+        if (argument.startsWith(tierPrefix)) {
+            return EssenceText.equipmentTier(
+                    EquipmentTier.fromSerializedName(argument.substring(tierPrefix.length()))
+            );
+        }
+
+        String statPrefix = "@stat:";
+        if (argument.startsWith(statPrefix)) {
+            ResourceLocation id = ResourceLocation.tryParse(
+                    argument.substring(statPrefix.length())
+            );
+            if (id != null) {
+                return EssenceStatRegistry.get(id)
+                        .<Object>map(EssenceText::stat)
+                        .orElse(Component.literal(id.toString()));
+            }
+        }
+
+        return argument;
+    }
+
     private static Component section(
-            String title,
+            Component title,
             ChatFormatting color
     ) {
-        return Component.literal(title)
+        return title.copy()
                 .withStyle(
                         color,
                         ChatFormatting.BOLD
@@ -440,14 +468,14 @@ public final class EquipmentTooltipClientState {
         // stats/abilities are coming from the Fractured snapshot.
         for (EquipmentTooltipPayload.Line line : lines) {
             if (!fractured || line.group() == EquipmentTooltipPayload.Group.IDENTITY) {
-                addSearchWords(result, line.text());
+                addSearchWords(result, component(line).getString());
             }
         }
 
         if (fractured) {
-            addSearchWords(result, "Fractured");
+            addSearchWords(result, EssenceText.tooltip("fractured").getString());
             for (EquipmentTooltipPayload.Line line : activeLines) {
-                addSearchWords(result, line.text());
+                addSearchWords(result, component(line).getString());
             }
         }
 

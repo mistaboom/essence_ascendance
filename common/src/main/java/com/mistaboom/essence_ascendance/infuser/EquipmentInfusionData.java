@@ -3,6 +3,7 @@ package com.mistaboom.essence_ascendance.infuser;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTier;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTierData;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
+import com.mistaboom.essence_ascendance.text.EssenceText;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -115,9 +116,13 @@ public final class EquipmentInfusionData {
 
     public static void appendTooltip(ItemStack stack, List<Component> tooltip) {
         if (!EquipmentTierData.isAscendanceEquipment(stack)) return;
-        read(stack).ifPresent(progress -> tooltip.add(Component.literal(
-                "Infusing toward " + progress.targetTier().displayName() + ": " + format(progress.totalContributed())
-        ).withStyle(ChatFormatting.DARK_PURPLE)));
+        read(stack).ifPresent(progress -> tooltip.add(
+                EssenceText.tooltip(
+                        "equipment_infusing_toward",
+                        EssenceText.equipmentTier(progress.targetTier()),
+                        format(progress.totalContributed())
+                ).withStyle(ChatFormatting.DARK_PURPLE)
+        ));
     }
 
     private static String format(long value) { return String.format("%,d", value); }

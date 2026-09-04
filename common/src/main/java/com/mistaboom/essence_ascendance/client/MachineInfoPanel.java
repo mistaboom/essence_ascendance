@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.client;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,9 +11,9 @@ import java.util.List;
  * Flowing text builder for the Info popup shared by normal machine screens.
  *
  * <p>Section headers are flush-left. Normal detail rows use one indentation
- * level, and wrapped continuation lines use two indentation levels. This keeps
- * long operational values readable without hard-coded Y coordinates or
- * ellipsis truncation.</p>
+ * level, and wrapped continuation lines use two indentation levels. Component
+ * inputs are preferred so translated strings can expand naturally without
+ * forcing each machine screen to pre-resolve English.</p>
  */
 public final class MachineInfoPanel {
 
@@ -48,22 +49,30 @@ public final class MachineInfoPanel {
         MachineScreenUi.panel(graphics, panelX, panelY, panelWidth, panelHeight);
     }
 
-    public MachineInfoPanel title(String text) {
+    public MachineInfoPanel title(Component text) {
         MachineScreenUi.sectionHeader(graphics, font, text, textX, cursorY);
         cursorY += TITLE_ADVANCE;
         return this;
     }
 
+    public MachineInfoPanel title(String text) {
+        return title(Component.literal(text));
+    }
+
     /** Flush-left metadata directly beneath the Info title, such as Owner. */
-    public MachineInfoPanel metadata(String text) {
+    public MachineInfoPanel metadata(Component text) {
         int lines = drawWrapped(text, 0, INDENT);
         cursorY += advanceFor(lines);
         hasBodyContent = true;
         return this;
     }
 
+    public MachineInfoPanel metadata(String text) {
+        return metadata(Component.literal(text));
+    }
+
     /** Starts a flush-left category heading after the standard inter-section gap. */
-    public MachineInfoPanel section(String text) {
+    public MachineInfoPanel section(Component text) {
         if (hasBodyContent) {
             cursorY += SECTION_GAP;
         }
@@ -73,19 +82,34 @@ public final class MachineInfoPanel {
         return this;
     }
 
+    public MachineInfoPanel section(String text) {
+        return section(Component.literal(text));
+    }
+
     /**
      * Draws a normal detail row. First line = one indent; wrapped continuation
      * lines = two indents.
      */
-    public MachineInfoPanel line(String text) {
+    public MachineInfoPanel line(Component text) {
         int lines = drawWrapped(text, INDENT, WRAP_INDENT);
         cursorY += advanceFor(lines);
         hasBodyContent = true;
         return this;
     }
 
+    public MachineInfoPanel line(String text) {
+        return line(Component.literal(text));
+    }
+
     public int cursorY() {
         return cursorY;
+    }
+
+    private int drawWrapped(Component text, int firstIndent, int continuationIndent) {
+        if (text == null || textWidth <= 0) {
+            return 0;
+        }
+        return drawWrapped(text.getString(), firstIndent, continuationIndent);
     }
 
     private int drawWrapped(String text, int firstIndent, int continuationIndent) {
