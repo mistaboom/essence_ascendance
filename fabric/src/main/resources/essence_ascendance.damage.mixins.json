@@ -17,7 +17,8 @@
     "AbstractClientPlayerFovMixin",
     "ItemStackTooltipMixin",
     "JeiListElementInfoMixin",
-    "JeiIngredientFilterMixin"
+    "JeiIngredientFilterMixin",
+    "HumanoidArmorLayerTierMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
+import com.mistaboom.essence_ascendance.equipment.EquipmentTierVisuals;
 import com.mistaboom.essence_ascendance.equipment.EquipmentWeaponService;
 import com.mistaboom.essence_ascendance.item.AscendanceItems;
 import net.minecraft.client.renderer.item.ClampedItemPropertyFunction;
@@ -24,6 +25,9 @@ public final class EssenceAscendanceClient {
                     "minecraft",
                     "pull"
             );
+
+    private static final ResourceLocation EQUIPMENT_TIER =
+            EquipmentTierVisuals.MODEL_PROPERTY;
 
     private static boolean initialized = false;
 
@@ -58,6 +62,29 @@ public final class EssenceAscendanceClient {
         EssencePylonClientState.init();
         EquipmentTooltipClientState.init();
         ItemEssenceTooltipClientState.init();
+
+        Item[] tierVisualItems = {
+                AscendanceItems.ASCENDANCE_MELEE_WEAPON.get(),
+                AscendanceItems.ASCENDANCE_RANGED_WEAPON.get(),
+                AscendanceItems.ASCENDANCE_CASTER.get(),
+                AscendanceItems.ASCENDANCE_PICKAXE.get(),
+                AscendanceItems.ASCENDANCE_AXE.get(),
+                AscendanceItems.ASCENDANCE_SHOVEL.get(),
+                AscendanceItems.ASCENDANCE_HOE.get(),
+                AscendanceItems.ASCENDANCE_HELMET.get(),
+                AscendanceItems.ASCENDANCE_CHESTPLATE.get(),
+                AscendanceItems.ASCENDANCE_LEGGINGS.get(),
+                AscendanceItems.ASCENDANCE_BOOTS.get()
+        };
+
+        for (Item item : tierVisualItems) {
+            registrar.register(
+                    item,
+                    EQUIPMENT_TIER,
+                    (stack, level, entity, seed) ->
+                            EquipmentTierVisuals.modelPropertyValue(stack)
+            );
+        }
 
         Item rangedWeapon = AscendanceItems
                 .ASCENDANCE_RANGED_WEAPON
@@ -127,18 +154,27 @@ public final class EssenceAscendanceClient {
         ItemStack probe = new ItemStack(rangedWeapon);
 
         if (ItemProperties.getProperty(probe, PULLING) == null
-                || ItemProperties.getProperty(probe, PULL) == null) {
+                || ItemProperties.getProperty(probe, PULL) == null
+                || ItemProperties.getProperty(probe, EQUIPMENT_TIER) == null) {
             throw new IllegalStateException(
-                    "Essence Ascendance failed to register bow model properties "
-                            + "minecraft:pulling and minecraft:pull for "
-                            + rangedWeapon
+                    "Essence Ascendance failed to register required model properties "
+                            + "for the Ascendance ranged weapon"
             );
+        }
+
+        for (Item item : tierVisualItems) {
+            if (ItemProperties.getProperty(new ItemStack(item), EQUIPMENT_TIER) == null) {
+                throw new IllegalStateException(
+                        "Essence Ascendance failed to register equipment tier model property for "
+                                + item
+                );
+            }
         }
 
         initialized = true;
 
         EssenceAscendance.LOGGER.info(
-                "Registered Ascendance bow model properties: minecraft:pulling and minecraft:pull"
+                "Registered Ascendance equipment tier model property plus bow pulling properties"
         );
     }
 

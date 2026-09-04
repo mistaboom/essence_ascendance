@@ -1,6 +1,35 @@
 {
-  "parent": "minecraft:item/generated",
-  "textures": {
-    "layer0": "minecraft:item/iron_boots"
-  }
+  "parent": "essence_ascendance:item/tier/latent/ascendance_boots",
+  "overrides": [
+    {
+      "predicate": {
+        "essence_ascendance:tier": 0.2
+      },
+      "model": "essence_ascendance:item/tier/dormant/ascendance_boots"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:tier": 0.4
+      },
+      "model": "essence_ascendance:item/tier/awakened/ascendance_boots"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:tier": 0.6
+      },
+      "model": "essence_ascendance:item/tier/resonant/ascendance_boots"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:tier": 0.8
+      },
+      "model": "essence_ascendance:item/tier/ascendant/ascendance_boots"
+    },
+    {
+      "predicate": {
+        "essence_ascendance:tier": 1.0
+      },
+      "model": "essence_ascendance:item/tier/transcendent/ascendance_boots"
+    }
+  ]
 }

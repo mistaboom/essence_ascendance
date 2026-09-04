@@ -14,7 +14,8 @@
     "AbstractClientPlayerFovMixin",
     "ItemStackTooltipMixin",
     "JeiListElementInfoMixin",
-    "JeiIngredientFilterMixin"
+    "JeiIngredientFilterMixin",
+    "AscendanceArmorItemClientMixin"
   ],
   "injectors": {
     "defaultRequire": 1
