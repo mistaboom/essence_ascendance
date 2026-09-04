@@ -108,6 +108,7 @@ final class EssenceInfuserFabricItemStorage implements SlottedStorage<ItemVarian
                 return EssenceInfuserBlockEntity.allowsAutomationInput(variant.toStack(1));
             }
             return machineSlot == EssenceInfuserBlockEntity.COMPONENT_SLOT
+                    && !infuser.repairMode()
                     && infuser.canPlaceItem(machineSlot, variant.toStack(1));
         }
 

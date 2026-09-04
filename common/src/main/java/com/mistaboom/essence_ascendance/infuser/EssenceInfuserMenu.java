@@ -69,7 +69,8 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
     private static final int DATA_INFUSION_THROUGHPUT_3 = 38;
     private static final int DATA_FOCUS_TARGET_TIER = 39;
     private static final int DATA_FOCUS_REQUIRED_INSTALLED_TIER = 40;
-    private static final int DATA_COUNT = 41;
+    private static final int DATA_REPAIR_LATENT_INGOTS = 41;
+    private static final int DATA_COUNT = 42;
 
     public static final int MACHINE_SLOT_COUNT = 4;
     public static final int PLAYER_INVENTORY_START = MACHINE_SLOT_COUNT;
@@ -150,12 +151,29 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
         addSlot(new Slot(container, EssenceInfuserBlockEntity.COMPONENT_SLOT, 40, 60) {
             @Override
             public boolean mayPlace(ItemStack stack) {
-                return isActive() && stack.is(EssenceInfuserContent.ASCENDANCE_MATRIX.get());
+                if (!isActive()) {
+                    return false;
+                }
+                return switch (workpieceMode()) {
+                    case EQUIPMENT -> stack.is(EssenceInfuserContent.ASCENDANCE_MATRIX.get());
+                    case REPAIR -> stack.is(EssenceInfuserContent.LATENT_INGOT.get());
+                    default -> false;
+                };
             }
 
             @Override
             public boolean isActive() {
-                return workpieceMode() == EssenceInfuserWorkpieceMode.EQUIPMENT;
+                EssenceInfuserWorkpieceMode mode = workpieceMode();
+                return mode == EssenceInfuserWorkpieceMode.EQUIPMENT
+                        || (mode == EssenceInfuserWorkpieceMode.REPAIR
+                            && repairLatentIngotRequired() > 0);
+            }
+
+            @Override
+            public int getMaxStackSize(ItemStack stack) {
+                return workpieceMode() == EssenceInfuserWorkpieceMode.REPAIR
+                        ? Math.max(1, repairLatentIngotRequired())
+                        : super.getMaxStackSize(stack);
             }
         });
 
@@ -241,6 +259,7 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
                     case DATA_FOCUS_REQUIRED_INSTALLED_TIER -> infuser.focusInfusionRequiredInstalledTier() == null
                             ? -1
                             : infuser.focusInfusionRequiredInstalledTier().ordinal();
+                    case DATA_REPAIR_LATENT_INGOTS -> infuser.repairLatentIngotRequired();
                     default -> 0;
                 };
             }
@@ -329,6 +348,21 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
         int ordinal = data.get(DATA_FOCUS_REQUIRED_INSTALLED_TIER);
         EssenceFocusTier[] values = EssenceFocusTier.values();
         return ordinal >= 0 && ordinal < values.length ? values[ordinal] : null;
+    }
+
+    public int repairLatentIngotRequired() {
+        return Math.max(0, data.get(DATA_REPAIR_LATENT_INGOTS));
+    }
+
+    public int repairMissingDurability() {
+        ItemStack stack = workpieceStack();
+        if (!RepairInfusionRecipe.isWorkpiece(stack)) {
+            return 0;
+        }
+        return com.mistaboom.essence_ascendance.equipment.FracturedEquipmentData
+                .isFractured(stack)
+                ? Math.max(0, stack.getMaxDamage())
+                : Math.max(0, stack.getDamageValue());
     }
 
     public ItemStack workpieceStack() {
@@ -480,18 +514,20 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
         ItemStack componentAfter = serverInfuser.getItem(EssenceInfuserBlockEntity.COMPONENT_SLOT);
 
         /*
-         * A loaded Matrix deliberately keeps an empty Infuser in EQUIPMENT mode.
-         * If the player actually changes the universal workpiece slot to a
-         * different recipe family, however, that mode-specific component should
-         * not become a hidden stack. Return it to the player's inventory as part
-         * of the mode transition. Future workpiece modes automatically inherit
-         * the same behavior because this is based on resolved mode, not item IDs.
+         * Auxiliary components belong to a workpiece mode, not to the universal
+         * slot itself. A Matrix may keep an empty EQUIPMENT screen open, but if
+         * the player changes to a different resolved workpiece family, return
+         * the old mode's component rather than hiding it. REPAIR uses the same
+         * rule for its optional Latent Ingot.
          */
-        EssenceInfuserWorkpieceMode directModeAfter = EssenceInfuserWorkpieceMode.forStack(inputAfter);
-        if (modeBefore == EssenceInfuserWorkpieceMode.EQUIPMENT
-                && directModeAfter != EssenceInfuserWorkpieceMode.NONE
-                && directModeAfter != EssenceInfuserWorkpieceMode.EQUIPMENT
-                && componentAfter.is(EssenceInfuserContent.ASCENDANCE_MATRIX.get())) {
+        EssenceInfuserWorkpieceMode directModeAfter =
+                EssenceInfuserWorkpieceMode.forStack(inputAfter);
+        boolean leavingMode = directModeAfter != EssenceInfuserWorkpieceMode.NONE
+                && directModeAfter != modeBefore;
+        boolean removedRepairWorkpiece = modeBefore == EssenceInfuserWorkpieceMode.REPAIR
+                && directModeAfter == EssenceInfuserWorkpieceMode.NONE;
+        if ((leavingMode || removedRepairWorkpiece)
+                && componentBelongsToMode(modeBefore, componentAfter)) {
             returnComponentToPlayer(player);
             componentAfter = serverInfuser.getItem(EssenceInfuserBlockEntity.COMPONENT_SLOT);
         }
@@ -501,6 +537,20 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
                 || !sameContextStack(componentBefore, componentAfter)) {
             serverInfuser.disarmProcessingForContextChange();
         }
+    }
+
+    private static boolean componentBelongsToMode(
+            EssenceInfuserWorkpieceMode mode,
+            ItemStack stack
+    ) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        return switch (mode) {
+            case EQUIPMENT -> stack.is(EssenceInfuserContent.ASCENDANCE_MATRIX.get());
+            case REPAIR -> stack.is(EssenceInfuserContent.LATENT_INGOT.get());
+            default -> false;
+        };
     }
 
     private void returnComponentToPlayer(Player player) {
@@ -565,6 +615,17 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
             }
         } else if (source.is(EssenceInfuserContent.ASCENDANCE_MATRIX.get())) {
             if (workpieceMode() != EssenceInfuserWorkpieceMode.EQUIPMENT || !moveItemStackTo(
+                    source,
+                    EssenceInfuserBlockEntity.COMPONENT_SLOT,
+                    EssenceInfuserBlockEntity.COMPONENT_SLOT + 1,
+                    false
+            )) {
+                return ItemStack.EMPTY;
+            }
+        } else if (source.is(EssenceInfuserContent.LATENT_INGOT.get())
+                && workpieceMode() == EssenceInfuserWorkpieceMode.REPAIR
+                && repairLatentIngotRequired() > 0) {
+            if (!moveItemStackTo(
                     source,
                     EssenceInfuserBlockEntity.COMPONENT_SLOT,
                     EssenceInfuserBlockEntity.COMPONENT_SLOT + 1,

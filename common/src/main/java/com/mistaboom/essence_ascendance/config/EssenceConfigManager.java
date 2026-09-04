@@ -1054,6 +1054,21 @@ public final class EssenceConfigManager {
             equipmentWeights.add(equipment.getKey(), weightObject);
         }
         infuser.add("equipment_essence_weights", equipmentWeights);
+
+        JsonObject repair = new JsonObject();
+        repair.addProperty(
+                "_comment",
+                "Repair consumes any one selected enabled Essence. essence_per_durability scales with missing durability; Fractured artifacts additionally consume fractured_latent_ingot_count Latent Ingots."
+        );
+        repair.addProperty(
+                "essence_per_durability",
+                settings.repair().essencePerDurability()
+        );
+        repair.addProperty(
+                "fractured_latent_ingot_count",
+                settings.repair().fracturedLatentIngotCount()
+        );
+        infuser.add("repair", repair);
         return infuser;
     }
 
@@ -1738,6 +1753,23 @@ public final class EssenceConfigManager {
             }
         }
 
+        InfuserBalanceSettings.RepairSettings repair = defaults.repair();
+        JsonObject repairObject = getObject(object, "repair");
+        if (repairObject != null) {
+            repair = new InfuserBalanceSettings.RepairSettings(
+                    readLong(
+                            repairObject,
+                            "essence_per_durability",
+                            repair.essencePerDurability()
+                    ),
+                    readInt(
+                            repairObject,
+                            "fractured_latent_ingot_count",
+                            repair.fracturedLatentIngotCount()
+                    )
+            );
+        }
+
         return new InfuserBalanceSettings(
                 linkRange,
                 noFocusEfficiency,
@@ -1745,7 +1777,8 @@ public final class EssenceConfigManager {
                 grades,
                 focusUpgrades,
                 equipmentUpgrades,
-                equipmentWeights
+                equipmentWeights,
+                repair
         );
     }
 

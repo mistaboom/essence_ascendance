@@ -50,6 +50,17 @@ public final class EssenceInfuserRecipeRegistry {
         register(
                 ResourceLocation.fromNamespaceAndPath(
                         EssenceAscendance.MOD_ID,
+                        "equipment_repair"
+                ),
+                EssenceInfuserWorkpieceMode.REPAIR,
+                RepairInfusionRecipe::isWorkpiece,
+                stack -> 1,
+                false,
+                RepairInfusionRecipe::forWorkpiece
+        );
+        register(
+                ResourceLocation.fromNamespaceAndPath(
+                        EssenceAscendance.MOD_ID,
                         "equipment_upgrade"
                 ),
                 EssenceInfuserWorkpieceMode.EQUIPMENT,

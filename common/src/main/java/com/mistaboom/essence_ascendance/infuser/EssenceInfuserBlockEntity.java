@@ -64,6 +64,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     public static final int STATUS_FOCUS_TIER_REQUIRED = 9;
     public static final int STATUS_FOCUS_MALFORMED = 10;
     public static final int STATUS_COMPONENT_REQUIRED = 12;
+    public static final int STATUS_REPAIR_MATERIAL_REQUIRED = 13;
 
     private static final int FOCUS_INFUSION_INTERVAL_TICKS = 4;
 
@@ -210,6 +211,25 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
                 .map(EquipmentInfusionRecipe.class::cast);
     }
 
+    public boolean repairMode() {
+        return currentInfusionRecipe()
+                .map(EssenceInfuserRecipe::workpieceMode)
+                .orElse(EssenceInfuserWorkpieceMode.NONE)
+                == EssenceInfuserWorkpieceMode.REPAIR;
+    }
+
+    public Optional<RepairInfusionRecipe> repairInfusionRecipe() {
+        return currentInfusionRecipe()
+                .filter(RepairInfusionRecipe.class::isInstance)
+                .map(RepairInfusionRecipe.class::cast);
+    }
+
+    public int repairLatentIngotRequired() {
+        return repairInfusionRecipe()
+                .map(RepairInfusionRecipe::latentIngotCount)
+                .orElse(0);
+    }
+
     public long equipmentInfusionTotalRequired() {
         return equipmentInfusionRecipe().map(EquipmentInfusionRecipe::totalRequired).orElse(0L);
     }
@@ -322,6 +342,10 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             return 0L;
         }
         EssenceInfuserRecipeContext context = recipeContext();
+        Optional<RepairInfusionRecipe> repair = repairInfusionRecipe();
+        if (repair.isPresent()) {
+            return repair.get().essenceRequired();
+        }
         return essentiumInfusionRecipe()
                 .map(recipe -> recipe.essenceRequirements(context).minimumFor(source))
                 .orElse(0L);
@@ -351,6 +375,9 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         EssenceInfuserRecipeContext context = recipeContext();
         if (!recipe.installedFocusAllows(context)) {
             return STATUS_FOCUS_TIER_REQUIRED;
+        }
+        if (recipe instanceof RepairInfusionRecipe repairRecipe) {
+            return repairInfusionStatus(repairRecipe);
         }
         if (recipe instanceof FocusInfusionRecipe focusRecipe) {
             return focusInfusionStatus(focusRecipe);
@@ -383,6 +410,38 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             return STATUS_INSUFFICIENT_SOURCE;
         }
         return STATUS_PROCESSING;
+    }
+
+    private int repairInfusionStatus(RepairInfusionRecipe recipe) {
+        ItemStack workpiece = getItem(INPUT_SLOT);
+        if (!RepairInfusionRecipe.isWorkpiece(workpiece)) {
+            return STATUS_INVALID_INPUT;
+        }
+        ItemStack repairedPreview = recipe.createOutput(recipeContext());
+        if (repairedPreview.isEmpty() || !canAcceptOutput(repairedPreview)) {
+            return STATUS_OUTPUT_BLOCKED;
+        }
+
+        EssenceDefinition source = sourceEssence();
+        if (source == null || !isEnabled(source)) {
+            return STATUS_INVALID_SELECTION;
+        }
+
+        if (recipe.latentIngotCount() > 0) {
+            ItemStack component = getItem(COMPONENT_SLOT);
+            if (!component.is(EssenceInfuserContent.LATENT_INGOT.get())
+                    || component.getCount() < recipe.latentIngotCount()) {
+                return STATUS_REPAIR_MATERIAL_REQUIRED;
+            }
+        }
+
+        PlayerEssenceData data = ownerPlayerData();
+        if (data == null) {
+            return STATUS_UNLINKED;
+        }
+        return data.getCrucibleStored(source) >= recipe.essenceRequired()
+                ? STATUS_PROCESSING
+                : STATUS_INSUFFICIENT_SOURCE;
     }
 
     private int focusInfusionStatus(FocusInfusionRecipe recipe) {
@@ -522,8 +581,9 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         if (focusInfusionMode()) {
             return;
         }
+        boolean repair = repairMode();
         List<EssenceDefinition> enabled = enabledEssences();
-        if (enabled.size() < 2) {
+        if (enabled.isEmpty() || (!repair && enabled.size() < 2)) {
             return;
         }
 
@@ -541,7 +601,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         for (int attempts = 0; attempts < enabled.size(); attempts++) {
             currentIndex = Math.floorMod(currentIndex + step, enabled.size());
             ResourceLocation candidate = enabled.get(currentIndex).id();
-            if (candidate.equals(other)) {
+            if (!repair && candidate.equals(other)) {
                 continue;
             }
             if (source) {
@@ -557,7 +617,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
 
     private void normalizeSelections() {
         List<EssenceDefinition> enabled = enabledEssences();
-        if (enabled.size() < 2) {
+        if (enabled.isEmpty()) {
             return;
         }
 
@@ -566,16 +626,23 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             sourceEssenceId = enabled.get(0).id();
             changed = true;
         }
-        if (!containsEssence(enabled, targetEssenceId)
-                || targetEssenceId.equals(sourceEssenceId)) {
-            for (EssenceDefinition candidate : enabled) {
-                if (!candidate.id().equals(sourceEssenceId)) {
-                    targetEssenceId = candidate.id();
-                    changed = true;
-                    break;
+
+        if (enabled.size() >= 2) {
+            if (!containsEssence(enabled, targetEssenceId)
+                    || targetEssenceId.equals(sourceEssenceId)) {
+                for (EssenceDefinition candidate : enabled) {
+                    if (!candidate.id().equals(sourceEssenceId)) {
+                        targetEssenceId = candidate.id();
+                        changed = true;
+                        break;
+                    }
                 }
             }
+        } else if (!containsEssence(enabled, targetEssenceId)) {
+            targetEssenceId = enabled.get(0).id();
+            changed = true;
         }
+
         if (changed) {
             resetProcessing();
             setChanged();
@@ -652,6 +719,10 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             return;
         }
         EssenceInfuserRecipe recipe = resolvedRecipe.get();
+        if (recipe instanceof RepairInfusionRecipe repairRecipe) {
+            tickRepairInfusion(serverLevel, repairRecipe);
+            return;
+        }
         if (recipe instanceof FocusInfusionRecipe focusRecipe) {
             tickFocusInfusion(serverLevel, focusRecipe);
             return;
@@ -665,6 +736,96 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             return;
         }
         processingVisualActive = false;
+    }
+
+    private void tickRepairInfusion(
+            ServerLevel serverLevel,
+            RepairInfusionRecipe recipe
+    ) {
+        int status = statusCode();
+        if (status != STATUS_PROCESSING) {
+            processingVisualActive = false;
+            return;
+        }
+
+        int requiredTicks = Math.max(1, recipe.processingTicks(recipeContext()));
+        processingVisualActive = true;
+        if (processingTicks < requiredTicks) {
+            processingTicks++;
+            setChanged();
+        }
+        if (processingTicks < requiredTicks) {
+            return;
+        }
+
+        completeRepairInfusion(serverLevel, recipe);
+    }
+
+    private void completeRepairInfusion(
+            ServerLevel serverLevel,
+            RepairInfusionRecipe expectedRecipe
+    ) {
+        if (ownerId == null || statusCode() != STATUS_PROCESSING) {
+            return;
+        }
+
+        RepairInfusionRecipe current = repairInfusionRecipe().orElse(null);
+        if (current == null
+                || current.missingDurability() != expectedRecipe.missingDurability()
+                || current.essenceRequired() != expectedRecipe.essenceRequired()
+                || current.latentIngotCount() != expectedRecipe.latentIngotCount()) {
+            return;
+        }
+
+        EssenceDefinition source = sourceEssence();
+        if (source == null || !isEnabled(source)) {
+            return;
+        }
+
+        ItemStack component = getItem(COMPONENT_SLOT);
+        if (current.latentIngotCount() > 0
+                && (!component.is(EssenceInfuserContent.LATENT_INGOT.get())
+                    || component.getCount() < current.latentIngotCount())) {
+            return;
+        }
+
+        ItemStack repaired = current.createOutput(recipeContext());
+        if (repaired.isEmpty() || !canAcceptOutput(repaired)) {
+            return;
+        }
+
+        EssenceSavedData saved = EssenceSavedData.get(serverLevel.getServer());
+        if (!saved.removeCrucibleStoredExact(ownerId, source, current.essenceRequired())) {
+            return;
+        }
+
+        try {
+            SoulboundEquipmentData.bind(repaired, ownerId, ownerName);
+        } catch (RuntimeException failure) {
+            saved.addCrucibleStored(ownerId, source, current.essenceRequired());
+            EssenceAscendance.LOGGER.error(
+                    "Failed to complete Ascendance equipment repair; rolled back {} {}",
+                    current.essenceRequired(),
+                    source.id(),
+                    failure
+            );
+            return;
+        }
+
+        if (current.latentIngotCount() > 0) {
+            component.shrink(current.latentIngotCount());
+            if (component.isEmpty()) {
+                items.set(COMPONENT_SLOT, ItemStack.EMPTY);
+            }
+        }
+
+        items.set(INPUT_SLOT, ItemStack.EMPTY);
+        items.set(OUTPUT_SLOT, repaired);
+
+        processingTicks = 0;
+        focusThroughputRemainderTwentieths = 0;
+        processingEnabled = false;
+        syncBlockEntity();
     }
 
     private void tickEquipmentInfusion(ServerLevel serverLevel, EquipmentInfusionRecipe recipe) {
@@ -1375,7 +1536,9 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
                     ? 1
                     : (slot == INPUT_SLOT
                     ? workpieceStackLimit(normalized)
-                    : getMaxStackSize(normalized));
+                    : (slot == COMPONENT_SLOT && repairMode()
+                    ? Math.max(1, repairLatentIngotRequired())
+                    : getMaxStackSize(normalized)));
             normalized.limitSize(limit);
         }
         ItemStack previous = items.get(slot);
@@ -1413,8 +1576,14 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             return EssencePylonContent.isFocus(stack);
         }
         if (slot == COMPONENT_SLOT) {
+            if (stack == null || stack.isEmpty()) {
+                return false;
+            }
+            if (repairMode()) {
+                return repairLatentIngotRequired() > 0
+                        && stack.is(EssenceInfuserContent.LATENT_INGOT.get());
+            }
             return equipmentInfusionMode()
-                    && stack != null
                     && stack.is(EssenceInfuserContent.ASCENDANCE_MATRIX.get());
         }
         return slot == INPUT_SLOT && isValidWorkpiece(stack);
@@ -1427,8 +1596,10 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             @Nullable Direction direction
     ) {
         if (slot == COMPONENT_SLOT) {
+            if (stack == null || stack.isEmpty() || repairMode()) {
+                return false;
+            }
             return equipmentInfusionMode()
-                    && stack != null
                     && stack.is(EssenceInfuserContent.ASCENDANCE_MATRIX.get());
         }
         return slot == INPUT_SLOT

@@ -38,7 +38,9 @@ final class EssenceInfuserNeoForgeItemHandler implements IItemHandler {
         if (slot == 0 && EssenceInfuserBlockEntity.allowsAutomationInput(stack)) {
             machineSlot = EssenceInfuserBlockEntity.INPUT_SLOT;
             limit = EssenceInfuserBlockEntity.workpieceStackLimit(stack);
-        } else if (slot == 2 && infuser.canPlaceItem(EssenceInfuserBlockEntity.COMPONENT_SLOT, stack)) {
+        } else if (slot == 2
+                && !infuser.repairMode()
+                && infuser.canPlaceItem(EssenceInfuserBlockEntity.COMPONENT_SLOT, stack)) {
             machineSlot = EssenceInfuserBlockEntity.COMPONENT_SLOT;
             limit = 64;
         } else {
@@ -96,6 +98,8 @@ final class EssenceInfuserNeoForgeItemHandler implements IItemHandler {
     @Override
     public boolean isItemValid(int slot, ItemStack stack) {
         return (slot == 0 && EssenceInfuserBlockEntity.allowsAutomationInput(stack))
-                || (slot == 2 && infuser.canPlaceItem(EssenceInfuserBlockEntity.COMPONENT_SLOT, stack));
+                || (slot == 2
+                    && !infuser.repairMode()
+                    && infuser.canPlaceItem(EssenceInfuserBlockEntity.COMPONENT_SLOT, stack));
     }
 }

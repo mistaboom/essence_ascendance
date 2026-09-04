@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.neoforge.mixin;
 
 import com.mistaboom.essence_ascendance.equipment.AscendanceArtifactDurabilityService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentGatheringService;
+import com.mistaboom.essence_ascendance.equipment.FracturedEquipmentData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -10,14 +11,54 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.function.Consumer;
 
 @Mixin(ItemStack.class)
 public abstract class ItemStackDurabilityMixin {
+
+    @Unique
+    private boolean essenceAscendance$fracturedBeforeServerDamage;
+
+    @Inject(
+            method = "hurtAndBreak(ILnet/minecraft/server/level/ServerLevel;Lnet/minecraft/server/level/ServerPlayer;Ljava/util/function/Consumer;)V",
+            at = @At("HEAD")
+    )
+    private void essenceAscendance$captureFractureStateBeforeDamage(
+            int amount,
+            ServerLevel level,
+            ServerPlayer player,
+            Consumer<Item> onBreak,
+            CallbackInfo ci
+    ) {
+        essenceAscendance$fracturedBeforeServerDamage =
+                FracturedEquipmentData.isFractured((ItemStack) (Object) this);
+    }
+
+    @Inject(
+            method = "hurtAndBreak(ILnet/minecraft/server/level/ServerLevel;Lnet/minecraft/server/level/ServerPlayer;Ljava/util/function/Consumer;)V",
+            at = @At("RETURN")
+    )
+    private void essenceAscendance$playBreakSoundWhenFractured(
+            int amount,
+            ServerLevel level,
+            ServerPlayer player,
+            Consumer<Item> onBreak,
+            CallbackInfo ci
+    ) {
+        ItemStack stack = (ItemStack) (Object) this;
+        if (!essenceAscendance$fracturedBeforeServerDamage
+                && FracturedEquipmentData.isFractured(stack)
+                && player != null) {
+            player.playSound(stack.getBreakingSound());
+        }
+    }
 
     @ModifyVariable(
             method = "hurtAndBreak(ILnet/minecraft/server/level/ServerLevel;Lnet/minecraft/server/level/ServerPlayer;Ljava/util/function/Consumer;)V",

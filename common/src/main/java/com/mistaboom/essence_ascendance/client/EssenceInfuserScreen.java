@@ -125,7 +125,9 @@ public final class EssenceInfuserScreen
         MachineScreenUi.inputSlot(graphics, x + 105, y + 23);
 
         EssenceInfuserWorkpieceMode mode = menu.workpieceMode();
-        if (mode == EssenceInfuserWorkpieceMode.EQUIPMENT) {
+        if (mode == EssenceInfuserWorkpieceMode.EQUIPMENT
+                || (mode == EssenceInfuserWorkpieceMode.REPAIR
+                    && menu.repairLatentIngotRequired() > 0)) {
             MachineScreenUi.inputSlot(graphics, x + 39, y + 59);
         }
         if (mode == EssenceInfuserWorkpieceMode.FOCUS) {
@@ -148,7 +150,8 @@ public final class EssenceInfuserScreen
             );
             MachineScreenUi.inset(graphics, x + 10, y + 82, 210, 106);
             MachineScreenUi.inset(graphics, x + 10, y + 194, 210, 22);
-        } else if (mode == EssenceInfuserWorkpieceMode.ESSENTIUM) {
+        } else if (mode == EssenceInfuserWorkpieceMode.ESSENTIUM
+                || mode == EssenceInfuserWorkpieceMode.REPAIR) {
             MachineScreenUi.progressBar(
                     graphics,
                     x + 90,
@@ -182,6 +185,15 @@ public final class EssenceInfuserScreen
             graphics.drawString(font, "Matrix", 22, 48, MachineScreenUi.MUTED, false);
             graphics.drawString(font, "Equipment", 62, 48, MachineScreenUi.MUTED, false);
             renderEquipmentInfusionLabels(graphics);
+        } else if (mode == EssenceInfuserWorkpieceMode.REPAIR) {
+            if (menu.repairLatentIngotRequired() > 0) {
+                graphics.drawString(font, "Latent", 23, 48, MachineScreenUi.MUTED, false);
+                graphics.drawString(font, "Equipment", 62, 48, MachineScreenUi.MUTED, false);
+            } else {
+                graphics.drawString(font, "Equipment", 50, 48, MachineScreenUi.MUTED, false);
+            }
+            graphics.drawString(font, "Output", 144, 48, MachineScreenUi.MUTED, false);
+            renderRepairLabels(graphics);
         } else if (mode == EssenceInfuserWorkpieceMode.ESSENTIUM) {
             graphics.drawString(font, "Latent", 59, 48, MachineScreenUi.MUTED, false);
             graphics.drawString(font, "Essentium", 140, 48, MachineScreenUi.MUTED, false);
@@ -259,6 +271,43 @@ public final class EssenceInfuserScreen
                 graphics, font, "Essence Available", format(menu.sourceAvailable()),
                 16, 214, 180
         );
+    }
+
+    private void renderRepairLabels(GuiGraphics graphics) {
+        drawSelectionLine(graphics, "Essence", menu.sourceEssence(), 89);
+
+        MachineScreenUi.row(
+                graphics, font, "Status", statusText(menu.statusCode()),
+                16, 214, 144, statusColor(menu.statusCode())
+        );
+        MachineScreenUi.row(
+                graphics, font, "Missing Durability",
+                format(menu.repairMissingDurability()),
+                16, 214, 156
+        );
+        MachineScreenUi.row(
+                graphics, font, "Essence Cost",
+                format(menu.sourceRequired()),
+                16, 214, 168
+        );
+        MachineScreenUi.row(
+                graphics, font, "Essence Available",
+                format(menu.sourceAvailable()),
+                16, 214, 180
+        );
+        if (menu.repairLatentIngotRequired() > 0) {
+            int present = menu.getSlot(EssenceInfuserBlockEntity.COMPONENT_SLOT)
+                    .getItem()
+                    .getCount();
+            MachineScreenUi.row(
+                    graphics, font, "Latent Ingot",
+                    present + " / " + menu.repairLatentIngotRequired(),
+                    16, 214, 192,
+                    present >= menu.repairLatentIngotRequired()
+                            ? MachineScreenUi.GOOD
+                            : MachineScreenUi.TEXT
+            );
+        }
     }
 
     private void renderFocusInfusionLabels(GuiGraphics graphics) {
@@ -407,12 +456,14 @@ public final class EssenceInfuserScreen
         boolean carrierMode = mode == EssenceInfuserWorkpieceMode.ESSENTIUM;
         boolean focusMode = mode == EssenceInfuserWorkpieceMode.FOCUS;
         boolean equipmentMode = mode == EssenceInfuserWorkpieceMode.EQUIPMENT;
-        sourcePreviousButton.visible = carrierMode;
-        sourceNextButton.visible = carrierMode;
+        boolean repairMode = mode == EssenceInfuserWorkpieceMode.REPAIR;
+        boolean sourceSelectable = carrierMode || repairMode;
+        sourcePreviousButton.visible = sourceSelectable;
+        sourceNextButton.visible = sourceSelectable;
         targetPreviousButton.visible = carrierMode;
         targetNextButton.visible = carrierMode;
-        sourcePreviousButton.active = carrierMode;
-        sourceNextButton.active = carrierMode;
+        sourcePreviousButton.active = sourceSelectable;
+        sourceNextButton.active = sourceSelectable;
         targetPreviousButton.active = carrierMode;
         targetNextButton.active = carrierMode;
 
@@ -422,7 +473,9 @@ public final class EssenceInfuserScreen
                     && !(equipmentMode && menu.equipmentRecipe().isEmpty());
             processingButton.active = hasActionableWorkpiece;
             if (mode != EssenceInfuserWorkpieceMode.NONE) {
-                String action = (focusMode || equipmentMode) ? "INFUSION" : "PROCESSING";
+                String action = repairMode
+                        ? "REPAIR"
+                        : (focusMode || equipmentMode) ? "INFUSION" : "PROCESSING";
                 String label;
                 if (!menu.processingEnabled()) {
                     label = "START " + action;
@@ -475,6 +528,8 @@ public final class EssenceInfuserScreen
             renderFocusInfo(info);
         } else if (mode == EssenceInfuserWorkpieceMode.EQUIPMENT) {
             renderEquipmentInfo(info);
+        } else if (mode == EssenceInfuserWorkpieceMode.REPAIR) {
+            renderRepairInfo(info);
         } else if (mode == EssenceInfuserWorkpieceMode.ESSENTIUM) {
             renderCarrierInfo(info);
         } else {
@@ -496,6 +551,26 @@ public final class EssenceInfuserScreen
                 .section("Automation")
                 .line("Input: Manual / Hopper / Pipe")
                 .line("Output: Essentium carrier in the output slot.");
+    }
+
+    private void renderRepairInfo(MachineInfoPanel info) {
+        info.section("Repair")
+                .line("Missing Durability: " + format(menu.repairMissingDurability()))
+                .line("Essence Cost: " + format(menu.sourceRequired()))
+                .line("Rate: " + format(menu.infusionThroughputPerSecond()) + "/sec");
+
+        if (menu.repairLatentIngotRequired() > 0) {
+            info.line("Fractured Material: "
+                    + menu.repairLatentIngotRequired()
+                    + " Latent Ingot");
+        }
+
+        info.section("Automation")
+                .line("Input: Manual")
+                .line(
+                        "Output: Repaired equipment moves to the output slot; "
+                                + "Fractured state is cleared."
+                );
     }
 
     private void renderEquipmentInfo(MachineInfoPanel info) {
@@ -583,6 +658,7 @@ public final class EssenceInfuserScreen
             case EssenceInfuserBlockEntity.STATUS_FOCUS_TIER_REQUIRED -> "Needs Stronger Focus";
             case EssenceInfuserBlockEntity.STATUS_FOCUS_MALFORMED -> "Invalid Focus Data";
                         case EssenceInfuserBlockEntity.STATUS_COMPONENT_REQUIRED -> "Needs Ascendance Matrix";
+            case EssenceInfuserBlockEntity.STATUS_REPAIR_MATERIAL_REQUIRED -> "Needs Latent Ingot";
             default -> "Waiting for Input";
         };
     }

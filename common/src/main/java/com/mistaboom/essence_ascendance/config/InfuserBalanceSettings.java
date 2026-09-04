@@ -17,7 +17,8 @@ public record InfuserBalanceSettings(
         Map<String, GradeSettings> grades,
         Map<String, FocusUpgradeSettings> focusUpgrades,
         Map<String, EquipmentUpgradeSettings> equipmentUpgrades,
-        Map<String, Map<String, Integer>> equipmentEssenceWeights
+        Map<String, Map<String, Integer>> equipmentEssenceWeights,
+        RepairSettings repair
 ) {
     private static final String[] TIERS = {
             "dormant", "awakened", "resonant", "ascendant", "transcendent"
@@ -77,6 +78,8 @@ public record InfuserBalanceSettings(
             }
         }
         equipmentEssenceWeights = Collections.unmodifiableMap(copiedWeights);
+
+        Objects.requireNonNull(repair, "Infuser repair settings cannot be null");
     }
 
     public GradeSettings grade(String serializedGrade) {
@@ -129,6 +132,16 @@ public record InfuserBalanceSettings(
         }
     }
 
+    public record RepairSettings(long essencePerDurability, int fracturedLatentIngotCount) {
+        public RepairSettings {
+            if (essencePerDurability <= 0L || fracturedLatentIngotCount <= 0) {
+                throw new IllegalArgumentException(
+                        "Repair Essence-per-durability and Fractured Latent Ingot count must be positive"
+                );
+            }
+        }
+    }
+
     public record GradeSettings(long ingotCapacity, int efficiencyBasisPoints, long infusionThroughputPerSecond) {
         public GradeSettings {
             if (ingotCapacity <= 0L) throw new IllegalArgumentException("Essentium ingot capacity must be positive");
@@ -172,7 +185,16 @@ public record InfuserBalanceSettings(
         equipmentWeights.put("shovel", weights("gathering", 6, "mobility", 4));
         equipmentWeights.put("hoe", weights("gathering", 7, "utility", 3));
 
-        return new InfuserBalanceSettings(8.0D, 5_000, 10_000L, grades, focusUpgrades, equipmentUpgrades, equipmentWeights);
+        return new InfuserBalanceSettings(
+                8.0D,
+                5_000,
+                10_000L,
+                grades,
+                focusUpgrades,
+                equipmentUpgrades,
+                equipmentWeights,
+                new RepairSettings(25L, 1)
+        );
     }
 
     private static Map<String, Integer> weights(Object... values) {

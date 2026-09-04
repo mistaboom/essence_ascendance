@@ -11,7 +11,8 @@ public enum EssenceInfuserWorkpieceMode {
     NONE,
     ESSENTIUM,
     FOCUS,
-    EQUIPMENT;
+    EQUIPMENT,
+    REPAIR;
 
     public static EssenceInfuserWorkpieceMode forStack(ItemStack stack) {
         return EssenceInfuserRecipeRegistry.modeFor(stack);
