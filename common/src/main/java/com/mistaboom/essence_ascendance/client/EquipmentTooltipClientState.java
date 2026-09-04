@@ -3,6 +3,7 @@ package com.mistaboom.essence_ascendance.client;
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.network.EquipmentTooltipPayload;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTierData;
+import com.mistaboom.essence_ascendance.equipment.SoulboundEquipmentData;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
@@ -113,6 +114,13 @@ public final class EquipmentTooltipClientState {
                 tooltip,
                 lines,
                 EquipmentTooltipPayload.Group.IDENTITY
+        );
+
+        SoulboundEquipmentData.read(stack).ifPresent(binding ->
+                tooltip.add(
+                        Component.literal(" Soulbound: " + binding.displayOwner())
+                                .withStyle(ChatFormatting.DARK_PURPLE)
+                )
         );
 
         tooltip.add(Component.empty());
@@ -332,8 +340,11 @@ public final class EquipmentTooltipClientState {
     private static Component component(
             EquipmentTooltipPayload.Line line
     ) {
+        String indent = line.tone() == EquipmentTooltipPayload.Tone.TIER
+                ? " "
+                : "  ";
         Component base =
-                Component.literal("  " + line.text());
+                Component.literal(indent + line.text());
 
         return switch (line.tone()) {
             case TIER ->

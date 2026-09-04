@@ -10,6 +10,7 @@ import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceFamily;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTierData;
+import com.mistaboom.essence_ascendance.equipment.SoulboundEquipmentData;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonContent;
 import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
 import net.minecraft.core.BlockPos;
@@ -715,6 +716,26 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
                 EssenceAscendance.LOGGER.error("Failed to persist equipment infusion contribution; rolled back {} {}", amount, essence.id(), failure);
                 break;
             }
+
+            /*
+             * The first successful Essence contribution permanently awakens
+             * the artifact's ownership identity. Merely inserting equipment
+             * or creating zero-progress infusion state does not soulbind it.
+             *
+             * Binding happens after contribution persistence so a zero-Essence
+             * attempt can never bind an untouched item. Binding failure must not
+             * refund already-persisted Essence, which would duplicate progress.
+             */
+            try {
+                SoulboundEquipmentData.bind(workpiece, ownerId, ownerName);
+            } catch (RuntimeException failure) {
+                EssenceAscendance.LOGGER.error(
+                        "Equipment infusion contribution persisted but soulbinding failed for {}",
+                        ownerId,
+                        failure
+                );
+            }
+
             budget -= amount;
             moved = Math.addExact(moved, amount);
         }

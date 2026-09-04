@@ -115,10 +115,6 @@ public final class EquipmentInfusionData {
 
     public static void appendTooltip(ItemStack stack, List<Component> tooltip) {
         if (!EquipmentTierData.isAscendanceEquipment(stack)) return;
-        EquipmentTier tier = EquipmentTierData.tier(stack);
-        if (tier == EquipmentTier.LATENT) {
-            tooltip.add(Component.literal("Essence Channeling: Inactive").withStyle(ChatFormatting.DARK_GRAY));
-        }
         read(stack).ifPresent(progress -> tooltip.add(Component.literal(
                 "Infusing toward " + progress.targetTier().displayName() + ": " + format(progress.totalContributed())
         ).withStyle(ChatFormatting.DARK_PURPLE)));

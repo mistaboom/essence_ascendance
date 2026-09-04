@@ -14,6 +14,7 @@ import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTier;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTierData;
+import com.mistaboom.essence_ascendance.equipment.SoulboundEquipmentData;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.infuser.EquipmentInfusionData;
@@ -550,6 +551,24 @@ final class EssenceAdminCommands {
         if (EquipmentTierData.isAscendanceEquipment(held)) {
             EquipmentTierData.setTier(held, requested);
             EquipmentInfusionData.clear(held);
+
+            /*
+             * Admin tier mutation is a testing shortcut around the real Infuser
+             * progression. A non-Latent tier therefore represents an artifact
+             * that must already have accepted Essence at some point. Bind an
+             * otherwise-unbound test item to the command player, but never
+             * overwrite an existing soulbinding. Demoting to Latent also leaves
+             * an established binding intact because soulbinding is permanent.
+             */
+            if (requested != EquipmentTier.LATENT
+                    && !SoulboundEquipmentData.isSoulbound(held)) {
+                SoulboundEquipmentData.bind(
+                        held,
+                        player.getUUID(),
+                        player.getGameProfile().getName()
+                );
+            }
+
             PlayerRuntimeLifecycleService.refreshProgressionState(player);
             EssenceCommandUtil.send(source, EssenceCommandUtil.good(
                     held.getHoverName().getString() + " item tier set to " + requested.displayName() + "."

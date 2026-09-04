@@ -37,6 +37,7 @@ public final class EquipmentGameplayEvents {
         PlayerEssenceSyncService.init();
         EquipmentTooltipSyncService.init();
         PlayerRuntimeLifecycleService.init();
+        SoulboundEquipmentService.init();
 
         TickEvent.PLAYER_POST.register(player -> {
             if (player instanceof ServerPlayer serverPlayer) {
