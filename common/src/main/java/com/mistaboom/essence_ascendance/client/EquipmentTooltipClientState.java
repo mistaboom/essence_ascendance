@@ -3,6 +3,7 @@ package com.mistaboom.essence_ascendance.client;
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.network.EquipmentTooltipPayload;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTierData;
+import com.mistaboom.essence_ascendance.equipment.FracturedEquipmentData;
 import com.mistaboom.essence_ascendance.equipment.SoulboundEquipmentData;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.ChatFormatting;
@@ -91,6 +92,11 @@ public final class EquipmentTooltipClientState {
             return;
         }
 
+        boolean fractured = FracturedEquipmentData.isFractured(stack);
+        List<EquipmentTooltipPayload.Line> activeLines = fractured
+                ? LINES_BY_ITEM.getOrDefault(fracturedLookupKey(stack), lines)
+                : lines;
+
         List<Component> enchantmentLines =
                 extractVanillaEnchantments(
                         stack,
@@ -123,6 +129,16 @@ public final class EquipmentTooltipClientState {
                 )
         );
 
+        if (fractured) {
+            tooltip.add(
+                    Component.literal(" Fractured")
+                            .withStyle(
+                                    ChatFormatting.RED,
+                                    ChatFormatting.BOLD
+                            )
+            );
+        }
+
         tooltip.add(Component.empty());
 
         tooltip.add(
@@ -134,7 +150,7 @@ public final class EquipmentTooltipClientState {
 
         appendGroupOrNone(
                 tooltip,
-                lines,
+                activeLines,
                 EquipmentTooltipPayload.Group.STATS,
                 "No current equipment stats."
         );
@@ -171,7 +187,7 @@ public final class EquipmentTooltipClientState {
 
         appendGroupOrNone(
                 tooltip,
-                lines,
+                activeLines,
                 EquipmentTooltipPayload.Group.ESSENCE,
                 "No active Essence bonuses."
         );
@@ -407,6 +423,11 @@ public final class EquipmentTooltipClientState {
             return Set.of();
         }
 
+        boolean fractured = FracturedEquipmentData.isFractured(stack);
+        List<EquipmentTooltipPayload.Line> activeLines = fractured
+                ? LINES_BY_ITEM.getOrDefault(fracturedLookupKey(stack), lines)
+                : lines;
+
         Set<String> result =
                 new LinkedHashSet<>();
 
@@ -415,13 +436,19 @@ public final class EquipmentTooltipClientState {
          * not rendered Components. Search the exact display text carried by
          * each record; the normal tooltip renderer styles that same text later.
          */
-        for (EquipmentTooltipPayload.Line line :
-                lines) {
+        // Keep the real completed tier searchable even while the active
+        // stats/abilities are coming from the Fractured snapshot.
+        for (EquipmentTooltipPayload.Line line : lines) {
+            if (!fractured || line.group() == EquipmentTooltipPayload.Group.IDENTITY) {
+                addSearchWords(result, line.text());
+            }
+        }
 
-            addSearchWords(
-                    result,
-                    line.text()
-            );
+        if (fractured) {
+            addSearchWords(result, "Fractured");
+            for (EquipmentTooltipPayload.Line line : activeLines) {
+                addSearchWords(result, line.text());
+            }
         }
 
         return Set.copyOf(
@@ -433,6 +460,11 @@ public final class EquipmentTooltipClientState {
     private static String lookupKey(ItemStack stack) {
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
         return itemId + "#" + EquipmentTierData.tier(stack).serializedName();
+    }
+
+    private static String fracturedLookupKey(ItemStack stack) {
+        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        return itemId + "#fractured";
     }
 
 

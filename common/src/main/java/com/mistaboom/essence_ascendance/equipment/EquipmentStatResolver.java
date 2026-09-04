@@ -142,6 +142,9 @@ public final class EquipmentStatResolver {
         if (!(entity instanceof ServerPlayer player) || !EquipmentTierData.isAscendanceEquipment(stack)) {
             return raw;
         }
+        if (FracturedEquipmentData.isFractured(stack)) {
+            return EquipmentStatState.none();
+        }
         EquipmentTier itemTier = EquipmentTierData.tier(stack);
         if (itemTier == EquipmentTier.LATENT) {
             return EquipmentStatState.none();
@@ -176,7 +179,8 @@ public final class EquipmentStatResolver {
         Objects.requireNonNull(activation, "Activation type cannot be null");
 
         if (EquipmentTierData.isAscendanceEquipment(stack)
-                && EquipmentTierData.tier(stack) == EquipmentTier.LATENT) {
+                && (FracturedEquipmentData.isFractured(stack)
+                || EquipmentTierData.tier(stack) == EquipmentTier.LATENT)) {
             return EquipmentStatState.none();
         }
         return new EquipmentStatState(

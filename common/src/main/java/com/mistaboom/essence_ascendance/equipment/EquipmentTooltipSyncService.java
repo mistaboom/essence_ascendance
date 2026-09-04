@@ -112,7 +112,7 @@ public final class EquipmentTooltipSyncService {
                 EssenceSavedData.get(player.server).getPlayerData(player.getUUID());
 
         ArmorSetState armorSet = evaluateArmorSet(player);
-        List<EquipmentTooltipPayload.Entry> entries = new ArrayList<>(66);
+        List<EquipmentTooltipPayload.Entry> entries = new ArrayList<>(80);
 
         // Tooltip presentation is stack-tier aware. A single registered item can
         // exist at six completed equipment tiers, so synchronize one resolved
@@ -131,6 +131,22 @@ public final class EquipmentTooltipSyncService {
             entries.add(tool(data, EquipmentProfiles.SHOVEL, "ascendance_shovel", "Shovel", itemTier));
             entries.add(tool(data, EquipmentProfiles.HOE, "ascendance_hoe", "Hoe", itemTier));
         }
+
+        // Fractured state is stack-specific, but its active gameplay baseline is
+        // always the mundane Latent baseline with no Essence abilities. One
+        // extra snapshot per equipment type is enough; the client keeps the
+        // real completed tier identity line from the normal tier snapshot.
+        entries.add(fractured(armor(data, armorSet, EquipmentSlot.HEAD, "Helmet", EquipmentTier.LATENT)));
+        entries.add(fractured(armor(data, armorSet, EquipmentSlot.CHEST, "Chestplate", EquipmentTier.LATENT)));
+        entries.add(fractured(armor(data, armorSet, EquipmentSlot.LEGS, "Leggings", EquipmentTier.LATENT)));
+        entries.add(fractured(armor(data, armorSet, EquipmentSlot.FEET, "Boots", EquipmentTier.LATENT)));
+        entries.add(fractured(melee(data, EquipmentTier.LATENT)));
+        entries.add(fractured(ranged(data, EquipmentTier.LATENT)));
+        entries.add(fractured(magic(data, EquipmentTier.LATENT)));
+        entries.add(fractured(tool(data, EquipmentProfiles.PICKAXE, "ascendance_pickaxe", "Pickaxe", EquipmentTier.LATENT)));
+        entries.add(fractured(tool(data, EquipmentProfiles.AXE, "ascendance_axe", "Axe", EquipmentTier.LATENT)));
+        entries.add(fractured(tool(data, EquipmentProfiles.SHOVEL, "ascendance_shovel", "Shovel", EquipmentTier.LATENT)));
+        entries.add(fractured(tool(data, EquipmentProfiles.HOE, "ascendance_hoe", "Hoe", EquipmentTier.LATENT)));
 
         return new EquipmentTooltipPayload(entries);
     }
@@ -514,8 +530,10 @@ public final class EquipmentTooltipSyncService {
             }
 
             pieces++;
-            strength +=
-                    ArmorStatWeights.weightFor(slot);
+            if (!FracturedEquipmentData.isFractured(stack)) {
+                strength +=
+                        ArmorStatWeights.weightFor(slot);
+            }
         }
 
         return new ArmorSetState(
@@ -660,6 +678,25 @@ public final class EquipmentTooltipSyncService {
         return new EquipmentTooltipPayload.Entry(
                 "essence_ascendance:" + itemPath + "#" + itemTier.serializedName(),
                 lines
+        );
+    }
+
+    private static EquipmentTooltipPayload.Entry fractured(
+            EquipmentTooltipPayload.Entry latentEntry
+    ) {
+        int tierSeparator = latentEntry.itemId().lastIndexOf('#');
+        String baseId = tierSeparator >= 0
+                ? latentEntry.itemId().substring(0, tierSeparator)
+                : latentEntry.itemId();
+
+        List<EquipmentTooltipPayload.Line> activeLines = latentEntry.lines()
+                .stream()
+                .filter(line -> line.group() == EquipmentTooltipPayload.Group.STATS)
+                .toList();
+
+        return new EquipmentTooltipPayload.Entry(
+                baseId + "#fractured",
+                activeLines
         );
     }
 

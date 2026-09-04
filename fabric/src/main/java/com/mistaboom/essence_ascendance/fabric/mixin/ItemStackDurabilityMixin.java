@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.fabric.mixin;
 
+import com.mistaboom.essence_ascendance.equipment.AscendanceArtifactDurabilityService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentGatheringService;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -7,9 +8,11 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.Redirect;
 
 import java.util.function.Consumer;
 
@@ -40,13 +43,18 @@ public abstract class ItemStackDurabilityMixin {
          * Use modifiedAmount as the current value so this remains composable
          * with any earlier transformer touching the same argument.
          */
-        if (player == null) {
+        ItemStack stack = (ItemStack) (Object) this;
+        modifiedAmount = AscendanceArtifactDurabilityService.preventDamageWhileFractured(
+                stack,
+                modifiedAmount
+        );
+        if (modifiedAmount <= 0 || player == null) {
             return modifiedAmount;
         }
 
         return EquipmentGatheringService.modifyHeldDurabilityDamage(
                 player,
-                (ItemStack) (Object) this,
+                stack,
                 modifiedAmount
         );
     }
@@ -70,6 +78,15 @@ public abstract class ItemStackDurabilityMixin {
          * exactly once. Applying it here as well would double-scale
          * tools/weapons.
          */
+        ItemStack stack = (ItemStack) (Object) this;
+        modifiedAmount = AscendanceArtifactDurabilityService.preventDamageWhileFractured(
+                stack,
+                modifiedAmount
+        );
+        if (modifiedAmount <= 0) {
+            return 0;
+        }
+
         if (slot == EquipmentSlot.MAINHAND
                 || slot == EquipmentSlot.OFFHAND) {
             return modifiedAmount;
@@ -77,9 +94,36 @@ public abstract class ItemStackDurabilityMixin {
 
         return EquipmentGatheringService.modifyWornDurabilityDamage(
                 entity,
-                (ItemStack) (Object) this,
+                stack,
                 slot,
                 modifiedAmount
+        );
+    }
+
+    @Redirect(
+            method = "hurtAndBreak(ILnet/minecraft/server/level/ServerLevel;Lnet/minecraft/server/level/ServerPlayer;Ljava/util/function/Consumer;)V",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/world/item/enchantment/EnchantmentHelper;processDurabilityChange(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/item/ItemStack;I)I"
+            )
+    )
+    private int essenceAscendance$fractureBeforeVanillaBreak(
+            ServerLevel level,
+            ItemStack stack,
+            int requestedDamage
+    ) {
+        // Let vanilla/enchants (especially Unbreaking) determine the real
+        // durability loss first. Only then decide whether that real loss
+        // would cross the break threshold. This prevents the stack from ever
+        // reaching vanilla's shrink/remove path.
+        int actualDamage = EnchantmentHelper.processDurabilityChange(
+                level,
+                stack,
+                requestedDamage
+        );
+        return AscendanceArtifactDurabilityService.fractureBeforeVanillaBreak(
+                stack,
+                actualDamage
         );
     }
 }

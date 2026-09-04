@@ -43,6 +43,19 @@ public final class EquipmentBaselineService {
         if (!EquipmentTierData.isAscendanceEquipment(stack)) {
             return evaluate(playerData, profileId);
         }
+
+        // A Fractured artifact keeps existing as the same tiered ItemStack,
+        // but its enhanced physical progression is offline until repaired.
+        // Fall back to the mundane Latent baseline rather than deleting the
+        // artifact or allowing completed-tier power to remain active.
+        if (FracturedEquipmentData.isFractured(stack)) {
+            return evaluateWithBaseline(
+                    profileId,
+                    AscendanceTiers.DORMANT,
+                    latentBaseline()
+            );
+        }
+
         EquipmentTier itemTier = EquipmentTierData.tier(stack);
         if (itemTier == EquipmentTier.LATENT) {
             return evaluateWithBaseline(
