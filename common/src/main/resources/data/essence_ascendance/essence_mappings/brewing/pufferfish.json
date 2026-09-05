@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:pufferfish",
-  "outputs": {
-    "essence_ascendance:vitality": 1,
-    "essence_ascendance:utility": 5
-  }
-}

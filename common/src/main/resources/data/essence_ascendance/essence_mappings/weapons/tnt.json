@@ -1,9 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:tnt",
-  "outputs": {
-    "essence_ascendance:offense": 40,
-    "essence_ascendance:gathering": 5,
-    "essence_ascendance:utility": 5
-  }
-}

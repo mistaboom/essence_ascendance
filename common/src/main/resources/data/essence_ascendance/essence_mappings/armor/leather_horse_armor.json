@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:leather_horse_armor",
-  "outputs": {
-    "essence_ascendance:defense": 140,
-    "essence_ascendance:utility": 20
-  }
-}

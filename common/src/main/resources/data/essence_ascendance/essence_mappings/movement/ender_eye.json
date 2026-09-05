@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:ender_eye",
-  "outputs": {
-    "essence_ascendance:mobility": 5,
-    "essence_ascendance:utility": 35
-  }
-}

@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:turtle_helmet",
-  "outputs": {
-    "essence_ascendance:defense": 200,
-    "essence_ascendance:vitality": 80
-  }
-}

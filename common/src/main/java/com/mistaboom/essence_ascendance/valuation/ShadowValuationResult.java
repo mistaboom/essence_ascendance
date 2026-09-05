@@ -30,7 +30,10 @@ public record ShadowValuationResult(
         int sourceTradeCount,
         List<ResourceLocation> downstreamExamples,
         List<String> factors,
-        RoutingDiagnostics routingDiagnostics
+        RoutingDiagnostics routingDiagnostics,
+        boolean modeledAcquisition,
+        int sourceArchaeologyCount,
+        String conservationStatus
 ) {
 
     public ShadowValuationResult {

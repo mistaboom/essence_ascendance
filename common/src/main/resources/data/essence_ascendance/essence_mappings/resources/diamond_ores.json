@@ -1,7 +1,0 @@
-{
-  "priority": 0,
-  "tag": "minecraft:diamond_ores",
-  "outputs": {
-    "essence_ascendance:gathering": 900
-  }
-}

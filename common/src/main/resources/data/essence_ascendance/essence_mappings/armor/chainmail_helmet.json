@@ -1,7 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:chainmail_helmet",
-  "outputs": {
-    "essence_ascendance:defense": 150
-  }
-}

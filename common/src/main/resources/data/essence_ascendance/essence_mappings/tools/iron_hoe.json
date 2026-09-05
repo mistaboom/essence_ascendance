@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:iron_hoe",
-  "outputs": {
-    "essence_ascendance:gathering": 150,
-    "essence_ascendance:utility": 30
-  }
-}

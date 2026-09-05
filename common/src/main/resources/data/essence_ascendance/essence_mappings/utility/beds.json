@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "tag": "minecraft:beds",
-  "outputs": {
-    "essence_ascendance:vitality": 10,
-    "essence_ascendance:utility": 5
-  }
-}

@@ -1,7 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:wind_charge",
-  "outputs": {
-    "essence_ascendance:mobility": 50
-  }
-}

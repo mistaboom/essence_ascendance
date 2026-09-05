@@ -1,7 +1,0 @@
-{
-  "priority": 0,
-  "tag": "minecraft:lapis_ores",
-  "outputs": {
-    "essence_ascendance:gathering": 50
-  }
-}

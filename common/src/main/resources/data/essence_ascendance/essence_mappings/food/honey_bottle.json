@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:honey_bottle",
-  "outputs": {
-    "essence_ascendance:vitality": 4,
-    "essence_ascendance:utility": 1
-  }
-}

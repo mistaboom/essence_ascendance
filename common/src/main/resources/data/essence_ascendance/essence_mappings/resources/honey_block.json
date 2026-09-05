@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:honey_block",
-  "outputs": {
-    "essence_ascendance:vitality": 16,
-    "essence_ascendance:utility": 4
-  }
-}

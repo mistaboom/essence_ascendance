@@ -1,7 +1,0 @@
-{
-  "priority": 0,
-  "tag": "minecraft:redstone_ores",
-  "outputs": {
-    "essence_ascendance:gathering": 20
-  }
-}

@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:ender_pearl",
-  "outputs": {
-    "essence_ascendance:mobility": 4,
-    "essence_ascendance:utility": 1
-  }
-}

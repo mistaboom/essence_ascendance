@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:golden_carrot",
-  "outputs": {
-    "essence_ascendance:vitality": 10,
-    "essence_ascendance:utility": 1
-  }
-}

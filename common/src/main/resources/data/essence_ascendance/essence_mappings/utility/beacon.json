@@ -1,9 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:beacon",
-  "outputs": {
-    "essence_ascendance:vitality": 2000,
-    "essence_ascendance:defense": 1000,
-    "essence_ascendance:utility": 7000
-  }
-}

@@ -1,9 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:iron_block",
-  "outputs": {
-    "essence_ascendance:gathering": 324,
-    "essence_ascendance:defense": 324,
-    "essence_ascendance:utility": 243
-  }
-}

@@ -45,7 +45,6 @@ import java.util.Set;
  */
 final class ShadowValuationIndex {
 
-    private static final String ENTITY_LOOT_PREFIX = "loot_table/entities/";
     private static final String BLOCK_LOOT_PREFIX = "loot_table/blocks/";
     private static final String LOOT_TABLE_PREFIX = "loot_table/";
 
@@ -57,6 +56,7 @@ final class ShadowValuationIndex {
     private final Map<Item, List<FishingLootSource>> fishingLootSourcesByItem;
     private final Map<Item, List<Item>> conservationGroups;
     private final Map<Item, List<ConservationEdge>> conservationEdges;
+    private final ShadowNaturalBlockIndex naturalBlockIndex;
     private final ShadowTradeIndex tradeIndex;
     private final ShadowProgressionIndex progressionIndex;
     private final Summary summary;
@@ -70,6 +70,7 @@ final class ShadowValuationIndex {
             Map<Item, List<FishingLootSource>> fishingLootSourcesByItem,
             Map<Item, List<Item>> conservationGroups,
             Map<Item, List<ConservationEdge>> conservationEdges,
+            ShadowNaturalBlockIndex naturalBlockIndex,
             ShadowTradeIndex tradeIndex,
             ShadowProgressionIndex progressionIndex,
             Summary summary
@@ -82,6 +83,7 @@ final class ShadowValuationIndex {
         this.fishingLootSourcesByItem = freezeLists(fishingLootSourcesByItem);
         this.conservationGroups = freezeLists(conservationGroups);
         this.conservationEdges = freezeLists(conservationEdges);
+        this.naturalBlockIndex = naturalBlockIndex;
         this.tradeIndex = tradeIndex;
         this.progressionIndex = progressionIndex == null ? ShadowProgressionIndex.empty() : progressionIndex;
         this.summary = summary;
@@ -111,10 +113,10 @@ final class ShadowValuationIndex {
                 }
 
                 List<IngredientChoice> ingredients = new ArrayList<>();
+                boolean unresolvedIngredient = false;
                 for (Ingredient ingredient : recipe.getIngredients()) {
-                    if (ingredient == null || ingredient.isEmpty()) {
-                        continue;
-                    }
+                    if (ingredient == Ingredient.EMPTY) continue;
+                    if (ingredient == null) { unresolvedIngredient = true; continue; }
 
                     LinkedHashSet<Item> alternatives = new LinkedHashSet<>();
                     for (ItemStack candidate : ingredient.getItems()) {
@@ -125,10 +127,10 @@ final class ShadowValuationIndex {
 
                     if (!alternatives.isEmpty()) {
                         ingredients.add(new IngredientChoice(List.copyOf(alternatives)));
-                    }
+                    } else { unresolvedIngredient = true; }
                 }
 
-                if (ingredients.isEmpty()) {
+                if (ingredients.isEmpty() || unresolvedIngredient) {
                     skippedRecipes++;
                     continue;
                 }
@@ -174,11 +176,24 @@ final class ShadowValuationIndex {
         recipeCount += smithingFallbacks.recipeCount();
         ingredientLinks += smithingFallbacks.ingredientLinks();
 
+        // Positive runtime interaction relationships (no hand-authored item prices).
+        for (RecipeModel model : ProceduralInteractionRecipes.discover(server)) {
+            byOutput.computeIfAbsent(model.outputItem(), ignored -> new ArrayList<>()).add(model);
+            for (IngredientChoice ingredient : model.ingredients()) {
+                for (Item candidate : ingredient.alternatives()) {
+                    byIngredient.computeIfAbsent(candidate, ignored -> new ArrayList<>()).add(new RecipeUse(model));
+                    ingredientLinks++;
+                }
+            }
+            recipeCount++;
+        }
+
         Map<Item, List<ConservationEdge>> conservationEdges = buildConservationEdges(byOutput);
         Map<Item, List<Item>> conservationGroups = buildConservationGroups(conservationEdges);
         ShadowStructureIndex structureIndex = ShadowStructureIndex.build(server);
         ShadowMobSpawnIndex mobSpawnIndex = ShadowMobSpawnIndex.build(server, structureIndex);
         ShadowTradeIndex tradeIndex = ShadowTradeIndex.build(server);
+        ShadowNaturalBlockIndex naturalBlockIndex = ShadowNaturalBlockIndex.build(server);
 
         int lootTablesScanned = scanEntityLootTables(server, drops, mobSpawnIndex);
         addVanillaHardcodedEntitySources(drops, mobSpawnIndex);
@@ -252,6 +267,7 @@ final class ShadowValuationIndex {
                 fishingLoot,
                 conservationGroups,
                 conservationEdges,
+                naturalBlockIndex,
                 tradeIndex,
                 progressionIndex,
                 summary
@@ -271,21 +287,29 @@ final class ShadowValuationIndex {
     }
 
     List<BlockDropSource> blockDropSources(Item item) {
-        boolean hasProducingRecipe = !recipesByOutput.getOrDefault(item, List.of()).isEmpty();
         return blockDropSourcesByItem.getOrDefault(item, List.of()).stream()
                 .filter(source -> {
                     Block sourceBlock = BuiltInRegistries.BLOCK.getOptional(source.blockId()).orElse(null);
-                    if (sourceBlock == null || sourceBlock.asItem() != item) {
-                        return true;
-                    }
-                    // A placed crafted block dropping itself is circular acquisition
-                    // (anvil, cauldron, machines, etc.). If there is a real producing
-                    // recipe, require that path instead. Naturally gathered self-drop
-                    // blocks with no loaded recipe (dirt, sand, logs, many modded raw
-                    // blocks) remain legitimate direct sources.
-                    return !hasProducingRecipe;
+                    if (sourceBlock == null) return false;
+                    return sourceBlock.asItem() != item
+                            || (naturalBlockIndex != null && naturalBlockIndex.contains(source.blockId()));
                 })
                 .toList();
+    }
+
+    List<String> naturalBlockEvidence(ResourceLocation blockId) {
+        return naturalBlockIndex == null ? List.of() : naturalBlockIndex.signals(blockId);
+    }
+
+    ShadowConservationMath.Plan<Item> conservationPlan(Item item) {
+        List<Item> members = conservationGroup(item);
+        List<ShadowConservationMath.Edge<Item>> edges = new ArrayList<>();
+        for (Item member : members) {
+            for (ConservationEdge edge : conservationEdges.getOrDefault(member, List.of())) {
+                edges.add(new ShadowConservationMath.Edge<>(member, edge.target(), edge.numerator(), edge.denominator()));
+            }
+        }
+        return ShadowConservationMath.plan(members, edges, ShadowValuationSettings.MAX_VALUE);
     }
 
     List<ShadowTradeIndex.TradeSource> tradeSources(Item item) {
@@ -563,10 +587,10 @@ final class ShadowValuationIndex {
                     continue;
                 }
                 edges.computeIfAbsent(input, ignored -> new ArrayList<>()).add(
-                        new ConservationEdge(recipe.outputItem(), outputPerInputValue)
+                        new ConservationEdge(recipe.outputItem(), recipe.ingredients().size(), Math.max(1, recipe.outputCount()))
                 );
                 edges.computeIfAbsent(recipe.outputItem(), ignored -> new ArrayList<>()).add(
-                        new ConservationEdge(input, 1.0 / outputPerInputValue)
+                        new ConservationEdge(input, Math.max(1, recipe.outputCount()), recipe.ingredients().size())
                 );
             }
         }
@@ -730,7 +754,8 @@ final class ShadowValuationIndex {
                 occurrence.structureFrequencyKnown(),
                 occurrence.structureId(),
                 occurrence.templateReferenceCount(),
-                List.copyOf(signals)
+                List.copyOf(signals),
+                false
         ));
     }
 
@@ -778,11 +803,21 @@ final class ShadowValuationIndex {
         for (Map.Entry<ResourceLocation, JsonObject> entry : tables.entrySet()) {
             ResourceLocation tableId = entry.getKey();
             JsonObject root = entry.getValue();
-            if (!isContainerLootTable(tableId, root)) {
+            if (!isContainerLootTable(tableId, root) && !isArchaeologyLootTable(tableId, root)) {
                 continue;
             }
 
+            boolean archaeology = isArchaeologyLootTable(tableId, root);
             ContainerContext context = containerContext(tableId, structureIndex);
+            if (archaeology) {
+                List<String> signals = new ArrayList<>(context.signals());
+                signals.add("loaded archaeology loot: brush/excavation access; not renewable chest farming");
+                signals.add("brushing context modeled; exact suspicious-block density is not derived");
+                context = new ContainerContext(context.progressionBand(),
+                        context.contextMultiplier() * ShadowValuationSettings.ARCHAEOLOGY_SOURCE_MULTIPLIER,
+                        context.tierLabel(), context.structureFrequencyKnown(), context.structureId(),
+                        context.templateReferenceCount(), List.copyOf(signals));
+            }
             Map<Item, ContainerEstimate> estimates = estimateContainerTable(
                     tableId,
                     tables,
@@ -792,6 +827,7 @@ final class ShadowValuationIndex {
 
             for (Map.Entry<Item, ContainerEstimate> estimateEntry : estimates.entrySet()) {
                 ContainerEstimate estimate = estimateEntry.getValue();
+                if (estimate.occurrenceChance() <= 0.0 || estimate.expectedCount() <= 0.0) continue;
                 ContainerLootSource source = new ContainerLootSource(
                         tableId,
                         clampProbability(estimate.occurrenceChance()),
@@ -803,7 +839,8 @@ final class ShadowValuationIndex {
                         context.structureFrequencyKnown(),
                         context.structureId(),
                         context.templateReferenceCount(),
-                        context.signals()
+                        context.signals(),
+                        archaeology
                 );
                 output.computeIfAbsent(estimateEntry.getKey(), ignored -> new ArrayList<>())
                         .add(source);
@@ -933,6 +970,12 @@ final class ShadowValuationIndex {
                 : ResourceLocation.tryBuild(resourceId.getNamespace(), tablePath);
     }
 
+    private static boolean isArchaeologyLootTable(ResourceLocation tableId, JsonObject root) {
+        String type = readString(root, "type");
+        return "minecraft:archaeology".equals(type)
+                || tableId.getPath().startsWith("archaeology/");
+    }
+
     private static boolean isContainerLootTable(ResourceLocation tableId, JsonObject root) {
         String type = readString(root, "type");
         if (type != null && (type.equals("minecraft:chest") || type.endsWith(":chest"))) {
@@ -986,7 +1029,7 @@ final class ShadowValuationIndex {
         Map<Item, ContainerEstimate> frozen = new IdentityHashMap<>();
         combined.forEach((item, estimate) -> frozen.put(item, estimate.freeze()));
         Map<Item, ContainerEstimate> result = Map.copyOf(frozen);
-        memo.put(tableId, result);
+        if (visiting.isEmpty()) memo.put(tableId, result);
         return result;
     }
 
@@ -1292,7 +1335,8 @@ final class ShadowValuationIndex {
         double occurrenceMultiplier = occurrence.combinedMultiplier();
         if (!occurrence.structureFrequencyKnown()
                 && (path.startsWith("chests/") || path.contains("/chests/")
-                || path.startsWith("containers/") || path.contains("/containers/"))) {
+                || path.startsWith("containers/") || path.contains("/containers/")
+                || path.startsWith("archaeology/"))) {
             occurrenceMultiplier *= ShadowValuationSettings.UNKNOWN_STRUCTURE_FREQUENCY_MULTIPLIER;
             signals.add("structure frequency not derivable; conservative unknown-frequency premium applied");
         }
@@ -1313,55 +1357,47 @@ final class ShadowValuationIndex {
             Map<Item, List<DropSource>> output,
             ShadowMobSpawnIndex mobSpawnIndex
     ) {
-        Map<ResourceLocation, Resource> resources;
+        Map<ResourceLocation, JsonObject> tables = new LinkedHashMap<>();
         try {
-            resources = server.getResourceManager().listResources(
-                    "loot_table/entities",
-                    id -> id.getPath().endsWith(".json")
-            );
+            Map<ResourceLocation, Resource> resources = server.getResourceManager().listResources(
+                    "loot_table", id -> id.getPath().endsWith(".json"));
+            for (Map.Entry<ResourceLocation, Resource> entry : resources.entrySet()) {
+                ResourceLocation tableId = lootTableIdFromResource(entry.getKey());
+                if (tableId == null) continue;
+                try (BufferedReader reader = entry.getValue().openAsReader()) {
+                    JsonElement root = JsonParser.parseReader(reader);
+                    if (root != null && root.isJsonObject()) tables.put(tableId, root.getAsJsonObject());
+                } catch (IOException | RuntimeException exception) {
+                    EssenceAscendance.LOGGER.debug("Shadow entity loot skipped {}: {}", tableId, exception.getMessage());
+                }
+            }
         } catch (RuntimeException exception) {
-            EssenceAscendance.LOGGER.warn(
-                    "Shadow valuation could not enumerate entity loot tables: {}",
-                    exception.getMessage()
-            );
+            EssenceAscendance.LOGGER.warn("Shadow entity loot enumeration failed: {}", exception.getMessage());
             return 0;
         }
-
         int scanned = 0;
-        for (Map.Entry<ResourceLocation, Resource> entry : resources.entrySet()) {
-            ResourceLocation resourceId = entry.getKey();
-            ResourceLocation entityId = entityIdFromLootResource(resourceId);
-            if (entityId == null) {
-                continue;
-            }
-
-            try (BufferedReader reader = entry.getValue().openAsReader()) {
-                JsonElement root = JsonParser.parseReader(reader);
-                MobStats stats = mobStats(entityId);
-                ShadowMobSpawnIndex.SpawnAvailability spawnAvailability = mobSpawnIndex == null
-                        ? ShadowMobSpawnIndex.SpawnAvailability.UNKNOWN
-                        : mobSpawnIndex.forEntity(entityId);
-                collectDropItems(
-                        root,
-                        entityId,
-                        stats,
-                        spawnAvailability,
-                        1.0,
-                        1.0,
-                        0,
-                        List.of(),
-                        output
-                );
+        for (ResourceLocation tableId : tables.keySet().stream().sorted().toList()) {
+            String entityPath = ShadowLootIdentity.registeredEntityPath(tableId.getPath(), path ->
+                    BuiltInRegistries.ENTITY_TYPE.getOptional(
+                            ResourceLocation.fromNamespaceAndPath(tableId.getNamespace(), path)).isPresent());
+            if (entityPath == null) continue;
+            ResourceLocation entityId = ResourceLocation.fromNamespaceAndPath(tableId.getNamespace(), entityPath);
+            boolean variant = !tableId.getPath().equals("entities/" + entityPath);
+            List<String> signals = new ArrayList<>();
+            signals.add("entity loot table " + tableId + " belongs to registered entity " + entityId);
+            if (variant) signals.add("nested/variant selection frequency unresolved; parent identity is not variant spawn probability");
+            ShadowMobSpawnIndex.SpawnAvailability availability = mobSpawnIndex == null
+                    ? ShadowMobSpawnIndex.SpawnAvailability.UNKNOWN : mobSpawnIndex.forEntity(entityId);
+            Set<ResourceLocation> visiting = new HashSet<>();
+            visiting.add(tableId);
+            try {
+                collectDropItems(tables.get(tableId), entityId, mobStats(entityId), availability,
+                        1.0, 1.0, variant ? 1 : 0, signals, output, tables, visiting);
                 scanned++;
-            } catch (IOException | RuntimeException exception) {
-                EssenceAscendance.LOGGER.debug(
-                        "Shadow valuation skipped entity loot table {}: {}",
-                        resourceId,
-                        exception.getMessage()
-                );
+            } catch (RuntimeException exception) {
+                EssenceAscendance.LOGGER.debug("Shadow entity source skipped {}: {}", tableId, exception.getMessage());
             }
         }
-
         return scanned;
     }
 
@@ -1535,6 +1571,9 @@ final class ShadowValuationIndex {
         }
         count *= readSetCountMultiplier(object.get("functions"));
 
+        // An impossible/empty branch is not an acquisition source.
+        if (!Double.isFinite(chance) || !Double.isFinite(count) || chance <= 0.0 || count <= 0.0) return;
+
         String type = readString(object, "type");
         String name = readString(object, "name");
         if ("minecraft:item".equals(type) && name != null) {
@@ -1575,24 +1614,6 @@ final class ShadowValuationIndex {
         }
     }
 
-    private static ResourceLocation entityIdFromLootResource(ResourceLocation resourceId) {
-        String path = resourceId.getPath();
-        if (!path.startsWith(ENTITY_LOOT_PREFIX) || !path.endsWith(".json")) {
-            return null;
-        }
-
-        String entityPath = path.substring(
-                ENTITY_LOOT_PREFIX.length(),
-                path.length() - ".json".length()
-        );
-
-        if (entityPath.isBlank()) {
-            return null;
-        }
-
-        return ResourceLocation.tryBuild(resourceId.getNamespace(), entityPath);
-    }
-
     private static void collectDropItems(
             JsonElement element,
             ResourceLocation entityId,
@@ -1602,7 +1623,9 @@ final class ShadowValuationIndex {
             double inheritedCount,
             int complexConditionCount,
             List<String> inheritedConditionSignals,
-            Map<Item, List<DropSource>> output
+            Map<Item, List<DropSource>> output,
+            Map<ResourceLocation, JsonObject> tables,
+            Set<ResourceLocation> visitingTables
     ) {
         if (element == null || element.isJsonNull()) {
             return;
@@ -1619,7 +1642,7 @@ final class ShadowValuationIndex {
                         inheritedCount,
                         complexConditionCount,
                         inheritedConditionSignals,
-                        output
+                        output, tables, visitingTables
                 );
             }
             return;
@@ -1649,6 +1672,20 @@ final class ShadowValuationIndex {
 
         String type = readString(object, "type");
         String name = readString(object, "name");
+        if (!Double.isFinite(chance) || !Double.isFinite(count) || chance <= 0.0 || count <= 0.0) return;
+        if ("minecraft:loot_table".equals(type)) {
+            ResourceLocation reference = referencedLootTableId(object);
+            if (reference == null || visitingTables.size() >= 32 || !visitingTables.add(reference)) return;
+            try {
+                List<String> nestedSignals = new ArrayList<>(conditionSignals);
+                nestedSignals.add("referenced loot table " + reference + " retains entity " + entityId);
+                collectDropItems(tables.get(reference), entityId, resolvedStats, spawnAvailability,
+                        chance, count, complexConditions, nestedSignals, output, tables, visitingTables);
+            } finally {
+                visitingTables.remove(reference);
+            }
+            return;
+        }
 
         if ("minecraft:item".equals(type) && name != null) {
             ResourceLocation itemId = ResourceLocation.tryParse(name);
@@ -1678,18 +1715,22 @@ final class ShadowValuationIndex {
 
         for (String childKey : List.of("pools", "entries", "children")) {
             JsonElement child = object.get(childKey);
-            if (child != null) {
-                collectDropItems(
-                        child,
-                        entityId,
-                        resolvedStats,
-                        spawnAvailability,
-                        chance,
-                        count,
-                        complexConditions,
-                        conditionSignals,
-                        output
-                );
+            if (child == null) continue;
+            if (childKey.equals("entries") && child.isJsonArray()) {
+                double weight = 0.0;
+                for (JsonElement entry : child.getAsJsonArray())
+                    if (entry.isJsonObject()) weight += readWeight(entry.getAsJsonObject());
+                if (weight <= 0.0) continue;
+                for (JsonElement entry : child.getAsJsonArray()) {
+                    if (!entry.isJsonObject()) continue;
+                    collectDropItems(entry, entityId, resolvedStats, spawnAvailability,
+                            chance * readWeight(entry.getAsJsonObject()) / weight, count,
+                            complexConditions, conditionSignals, output, tables, visitingTables);
+                }
+            } else {
+                int unresolved = complexConditions + (childKey.equals("children") ? 1 : 0);
+                collectDropItems(child, entityId, resolvedStats, spawnAvailability, chance, count,
+                        unresolved, conditionSignals, output, tables, visitingTables);
             }
         }
     }
@@ -2013,7 +2054,7 @@ final class ShadowValuationIndex {
         if (!Double.isFinite(value)) {
             return 1.0;
         }
-        return Math.max(0.000001, Math.min(1.0, value));
+        return Math.max(0.0, Math.min(1.0, value));
     }
 
     private static <T> Map<Item, List<T>> freezeLists(Map<Item, List<T>> source) {
@@ -2059,7 +2100,8 @@ final class ShadowValuationIndex {
     record RecipeUse(RecipeModel recipe) {
     }
 
-    record ConservationEdge(Item target, double targetValuePerSourceValue) {
+    record ConservationEdge(Item target, long numerator, long denominator) {
+        double targetValuePerSourceValue() { return (double) numerator / denominator; }
     }
 
     record DropSource(
@@ -2121,7 +2163,8 @@ final class ShadowValuationIndex {
             boolean structureFrequencyKnown,
             ResourceLocation structureId,
             int templateReferenceCount,
-            List<String> signals
+            List<String> signals,
+            boolean archaeology
     ) {
         ContainerLootSource {
             signals = List.copyOf(signals);

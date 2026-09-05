@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:heart_of_the_sea",
-  "outputs": {
-    "essence_ascendance:vitality": 2000,
-    "essence_ascendance:utility": 3000
-  }
-}

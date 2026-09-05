@@ -1,7 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:cooked_porkchop",
-  "outputs": {
-    "essence_ascendance:vitality": 15
-  }
-}

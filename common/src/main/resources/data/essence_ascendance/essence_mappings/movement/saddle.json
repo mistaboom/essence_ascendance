@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:saddle",
-  "outputs": {
-    "essence_ascendance:mobility": 100,
-    "essence_ascendance:utility": 50
-  }
-}

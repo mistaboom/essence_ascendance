@@ -1,7 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:milk_bucket",
-  "outputs": {
-    "essence_ascendance:utility": 250
-  }
-}

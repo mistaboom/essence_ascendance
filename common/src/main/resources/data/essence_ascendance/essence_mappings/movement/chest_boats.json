@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "tag": "minecraft:chest_boats",
-  "outputs": {
-    "essence_ascendance:mobility": 5,
-    "essence_ascendance:utility": 5
-  }
-}

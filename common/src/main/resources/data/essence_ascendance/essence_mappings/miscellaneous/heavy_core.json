@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:heavy_core",
-  "outputs": {
-    "essence_ascendance:offense": 20000,
-    "essence_ascendance:utility": 10000
-  }
-}

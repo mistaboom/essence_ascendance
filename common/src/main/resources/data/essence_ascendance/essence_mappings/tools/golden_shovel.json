@@ -1,7 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:golden_shovel",
-  "outputs": {
-    "essence_ascendance:gathering": 7
-  }
-}

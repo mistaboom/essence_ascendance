@@ -45,6 +45,7 @@ final class ShadowValuationTags {
     static final TagKey<Item> TRAPDOORS = item("minecraft", "trapdoors");
     static final TagKey<Item> FLOWERS = item("minecraft", "flowers");
     static final TagKey<Block> CLIMBABLE = block("minecraft", "climbable");
+    static final TagKey<Item> FERTILIZERS = item("c", "fertilizers");
     static final TagKey<Item> CROPS = item("c", "crops");
     static final TagKey<Item> SEEDS = item("c", "seeds");
     static final TagKey<Item> SAPLINGS = item("minecraft", "saplings");

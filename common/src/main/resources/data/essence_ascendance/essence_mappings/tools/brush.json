@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:brush",
-  "outputs": {
-    "essence_ascendance:gathering": 8,
-    "essence_ascendance:utility": 4
-  }
-}

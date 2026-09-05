@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:diamond_shovel",
-  "outputs": {
-    "essence_ascendance:gathering": 750,
-    "essence_ascendance:utility": 100
-  }
-}

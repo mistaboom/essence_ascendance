@@ -1,9 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:diamond_axe",
-  "outputs": {
-    "essence_ascendance:gathering": 1300,
-    "essence_ascendance:offense": 900,
-    "essence_ascendance:utility": 200
-  }
-}

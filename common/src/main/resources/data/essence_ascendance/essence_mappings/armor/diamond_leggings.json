@@ -1,7 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:diamond_leggings",
-  "outputs": {
-    "essence_ascendance:defense": 6000
-  }
-}

@@ -1,9 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:crying_obsidian",
-  "outputs": {
-    "essence_ascendance:defense": 20,
-    "essence_ascendance:vitality": 20,
-    "essence_ascendance:utility": 60
-  }
-}

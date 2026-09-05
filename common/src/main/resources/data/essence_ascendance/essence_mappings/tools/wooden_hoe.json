@@ -1,7 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:wooden_hoe",
-  "outputs": {
-    "essence_ascendance:gathering": 3
-  }
-}

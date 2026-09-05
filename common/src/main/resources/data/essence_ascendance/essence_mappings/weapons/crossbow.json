@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:crossbow",
-  "outputs": {
-    "essence_ascendance:offense": 120,
-    "essence_ascendance:utility": 20
-  }
-}

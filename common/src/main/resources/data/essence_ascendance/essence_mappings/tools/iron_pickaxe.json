@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:iron_pickaxe",
-  "outputs": {
-    "essence_ascendance:gathering": 260,
-    "essence_ascendance:utility": 30
-  }
-}

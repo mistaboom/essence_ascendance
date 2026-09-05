@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:copper_block",
-  "outputs": {
-    "essence_ascendance:gathering": 45,
-    "essence_ascendance:utility": 45
-  }
-}

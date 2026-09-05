@@ -1,9 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:trident",
-  "outputs": {
-    "essence_ascendance:offense": 900,
-    "essence_ascendance:mobility": 200,
-    "essence_ascendance:utility": 100
-  }
-}

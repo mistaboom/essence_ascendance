@@ -1,7 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:redstone_block",
-  "outputs": {
-    "essence_ascendance:utility": 45
-  }
-}

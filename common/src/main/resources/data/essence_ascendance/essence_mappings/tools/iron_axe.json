@@ -1,9 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:iron_axe",
-  "outputs": {
-    "essence_ascendance:gathering": 160,
-    "essence_ascendance:offense": 110,
-    "essence_ascendance:utility": 20
-  }
-}

@@ -1,7 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:nether_quartz_ore",
-  "outputs": {
-    "essence_ascendance:gathering": 45
-  }
-}

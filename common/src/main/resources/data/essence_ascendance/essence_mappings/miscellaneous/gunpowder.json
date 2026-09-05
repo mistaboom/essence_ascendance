@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:gunpowder",
-  "outputs": {
-    "essence_ascendance:offense": 5,
-    "essence_ascendance:utility": 5
-  }
-}

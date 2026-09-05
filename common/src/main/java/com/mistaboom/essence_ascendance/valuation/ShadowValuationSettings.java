@@ -4,9 +4,8 @@ package com.mistaboom.essence_ascendance.valuation;
  * Central tuning values for the procedural Item -> Essence valuation shadow
  * engine.
  *
- * IMPORTANT: these values do not affect Crucible gameplay yields. The shadow
- * engine is diagnostic-only until the generated model has been reviewed and
- * deliberately promoted into the live mapping path.
+ * These values define the shared procedural analysis used by generated defaults.
+ * Explicit config mappings remain the final gameplay override layer.
  *
  * Keeping the heuristics here prevents recipe/tag/source analysis from
  * scattering constants throughout the implementation. These values define the
@@ -21,7 +20,7 @@ public final class ShadowValuationSettings {
 
     public static final long MAX_VALUE = 2_000_000_000L;
     public static final int MAX_RECIPE_DEPTH = 10;
-    public static final int MAX_ALTERNATIVES_PER_INGREDIENT = 12;
+    public static final int MAX_GRAPH_PASSES = 128;
     public static final int MAX_DOWNSTREAM_EXAMPLES = 6;
     public static final int MAX_ROUTING_DEPTH = 3;
     public static final int MAX_ROUTING_DOWNSTREAM_RECIPES = 96;
@@ -121,6 +120,7 @@ public final class ShadowValuationSettings {
      * win normally.
      */
     public static final long MOB_DROP_BASE = 72L;
+    public static final double ARCHAEOLOGY_SOURCE_MULTIPLIER = 1.15;
     public static final long CONTAINER_LOOT_BASE = 80L;
 
     /* Mob/drop source weighting. */

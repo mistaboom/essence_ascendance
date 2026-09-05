@@ -1,7 +1,0 @@
-{
-  "priority": 0,
-  "tag": "minecraft:boats",
-  "outputs": {
-    "essence_ascendance:mobility": 5
-  }
-}

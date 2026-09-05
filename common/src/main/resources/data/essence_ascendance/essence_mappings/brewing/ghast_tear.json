@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:ghast_tear",
-  "outputs": {
-    "essence_ascendance:vitality": 100,
-    "essence_ascendance:utility": 30
-  }
-}

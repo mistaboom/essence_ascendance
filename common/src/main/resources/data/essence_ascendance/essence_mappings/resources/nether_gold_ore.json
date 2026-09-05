@@ -1,7 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:nether_gold_ore",
-  "outputs": {
-    "essence_ascendance:gathering": 3
-  }
-}

@@ -1,7 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:ancient_debris",
-  "outputs": {
-    "essence_ascendance:gathering": 20000
-  }
-}

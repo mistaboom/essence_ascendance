@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:breeze_rod",
-  "outputs": {
-    "essence_ascendance:mobility": 200,
-    "essence_ascendance:utility": 50
-  }
-}

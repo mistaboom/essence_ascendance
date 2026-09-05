@@ -1,7 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:iron_horse_armor",
-  "outputs": {
-    "essence_ascendance:defense": 800
-  }
-}

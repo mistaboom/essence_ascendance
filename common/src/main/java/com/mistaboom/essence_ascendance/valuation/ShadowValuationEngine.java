@@ -10,6 +10,7 @@ import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ArrowItem;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.BoatItem;
+import net.minecraft.world.item.BoneMealItem;
 import net.minecraft.world.item.BowItem;
 import net.minecraft.world.item.BrushItem;
 import net.minecraft.world.item.CrossbowItem;
@@ -47,21 +48,10 @@ import java.util.Optional;
 import java.util.Set;
 
 /*
- * Procedural Item -> Essence valuation prototype.
- *
- * SHADOW-ONLY CONTRACT:
- * - never participates in ItemEssenceMappingRegistry.resolve(...);
- * - never changes Crucible yields;
- * - exists only to generate proposed values/routing and explain why.
- * - does not normalize against legacy mapping totals or any later mod system.
- *
- * The procedural values are intended to become the foundational economy scale
- * that later progression/machine costs derive from. The implementation keeps
- * value and Essence routing separate.
- * Tags/item shape determine the item's semantic routing, while acquisition,
- * recipes, source difficulty, progression and downstream demand determine total
- * value. This makes it possible to tune either half without destabilizing the
- * other.
+ * Shared procedural economic analysis. Historical Shadow* names remain to keep
+ * source/API churn small; generated defaults now consume the same cached results.
+ * Explicit mapping overrides and dissolution eligibility remain separate layers.
+ * No normalization to legacy yields or later progression/machine costs occurs.
  */
 public final class ShadowValuationEngine {
 
@@ -69,6 +59,7 @@ public final class ShadowValuationEngine {
 
     private static volatile MinecraftServer indexedServer;
     private static volatile ShadowValuationIndex index;
+    private static volatile List<ShadowValuationResult> cachedResults;
 
     private ShadowValuationEngine() {
     }
@@ -84,34 +75,140 @@ public final class ShadowValuationEngine {
             throw new IllegalArgumentException("ItemStack cannot be empty");
         }
 
-        ShadowValuationIndex snapshot = ensureIndex(server);
-        Item item = stack.getItem();
-        EvaluationContext context = new EvaluationContext(snapshot);
-        return evaluateItem(snapshot, item, context);
+        ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        return evaluateAll(server).stream().filter(result -> result.itemId().equals(id))
+                .findFirst().orElseThrow(() -> new IllegalArgumentException("Unregistered item: " + id));
     }
 
-    /**
-     * Evaluates every registered non-air item using one shared memoized context.
-     * This is intended for diagnostic bulk export only; it does not mutate or
-     * consult the live Item -> Essence mapping registry.
-     */
-    public static List<ShadowValuationResult> evaluateAll(
-            MinecraftServer server
-    ) {
-        if (server == null) {
-            throw new IllegalArgumentException("Server cannot be null");
+    /** One deterministic generation shared by diagnostics and generated defaults. */
+    public static List<ShadowValuationResult> evaluateAll(MinecraftServer server) {
+        if (server == null) throw new IllegalArgumentException("Server cannot be null");
+        synchronized (INDEX_LOCK) {
+            ShadowValuationIndex snapshot = ensureIndex(server);
+            if (cachedResults != null) return cachedResults;
+            EvaluationContext context = new EvaluationContext(snapshot);
+            List<Item> items = BuiltInRegistries.ITEM.stream().filter(item -> item != Items.AIR)
+                    .sorted(Comparator.comparing(item -> BuiltInRegistries.ITEM.getKey(item).toString())).toList();
+            solveAcquisitionGraph(items, context);
+            List<ShadowValuationResult> complete = items.stream()
+                    .map(item -> evaluateItem(snapshot, item, context)).toList();
+            cachedResults = complete;
+            return complete;
         }
+    }
 
-        ShadowValuationIndex snapshot = ensureIndex(server);
-        EvaluationContext context = new EvaluationContext(snapshot);
+    public static void clear() {
+        synchronized (INDEX_LOCK) {
+            indexedServer = null;
+            index = null;
+            cachedResults = null;
+        }
+    }
 
-        return BuiltInRegistries.ITEM.stream()
-                .filter(item -> item != Items.AIR)
-                .sorted(Comparator.comparing(
-                        (Item item) -> BuiltInRegistries.ITEM.getKey(item).toString()
-                ))
-                .map(item -> evaluateItem(snapshot, item, context))
-                .toList();
+    /* Synchronous relaxation over complete previous-round snapshots, not a DFS
+     * cache whose first answer depends on the active recursion stack. Every input
+     * alternative is visited. Each chosen path carries its acquisition ancestry;
+     * a recipe/trade cannot establish a cheaper price through its own descendants.
+     * Unresolved paths remain diagnostics rather than seeds of known acquisition.
+     */
+    private static void solveAcquisitionGraph(List<Item> items, EvaluationContext context) {
+        context.solving = true;
+        Map<Item, EvaluationNode> previous = new IdentityHashMap<>();
+        boolean converged = false;
+        for (int pass = 0; pass < ShadowValuationSettings.MAX_GRAPH_PASSES; pass++) {
+            context.previous = previous;
+            Map<Item, EvaluationNode> next = new IdentityHashMap<>();
+            for (Item item : items) {
+                context.activeRoot = item;
+                EvaluationNode candidate;
+                try {
+                    candidate = evaluateNode(item, context, new LinkedHashSet<>(), 0);
+                } finally {
+                    context.activeRoot = null;
+                }
+                EvaluationNode old = previous.get(item);
+                next.put(item, preferPath(candidate, old));
+            }
+            normalizeGraphFamilies(items, next, context);
+            boolean changed = false;
+            for (Item item : items) {
+                EvaluationNode old = previous.get(item), value = next.get(item);
+                if (old == null || old.acquisitionValue() != value.acquisitionValue()
+                        || old.knownAcquisition() != value.knownAcquisition()
+                        || old.recipeDepth() != value.recipeDepth()
+                        || !old.dependencies().equals(value.dependencies())) {
+                    changed = true;
+                    break;
+                }
+            }
+            previous = next;
+            if (!changed) { converged = true; break; }
+        }
+        context.solving = false;
+        context.activeRoot = null;
+        if (!converged) throw new IllegalStateException("Acquisition graph did not converge after "
+                + ShadowValuationSettings.MAX_GRAPH_PASSES + " passes; live generation was NOT replaced");
+        context.memo().putAll(previous);
+        context.conservationMemo().putAll(previous);
+        context.solved = true;
+    }
+
+    private static EvaluationNode preferPath(EvaluationNode candidate, EvaluationNode old) {
+        if (old == null) return candidate;
+        if (candidate.knownAcquisition() != old.knownAcquisition())
+            return candidate.knownAcquisition() ? candidate : old;
+        if (candidate.acquisitionValue() != old.acquisitionValue())
+            return candidate.acquisitionValue() < old.acquisitionValue() ? candidate : old;
+        if (candidate.recipeDepth() != old.recipeDepth())
+            return candidate.recipeDepth() < old.recipeDepth() ? candidate : old;
+        if (candidate.dependencies().size() != old.dependencies().size())
+            return candidate.dependencies().size() < old.dependencies().size() ? candidate : old;
+        return old;
+    }
+
+    private static void normalizeGraphFamilies(List<Item> items, Map<Item, EvaluationNode> nodes,
+                                               EvaluationContext context) {
+        Set<Item> seen = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
+        for (Item item : items) {
+            if (!seen.add(item)) continue;
+            List<Item> family = context.index().conservationGroup(item);
+            seen.addAll(family);
+            if (family.size() < 2) continue;
+            ShadowConservationMath.Plan<Item> plan = context.index().conservationPlan(item);
+            if (!plan.valid()) continue; // Exact payout policy rejects this family later.
+            Item anchor = null;
+            double bestUnit = Double.POSITIVE_INFINITY;
+            boolean known = family.stream().anyMatch(member -> nodes.get(member).knownAcquisition());
+            for (Item member : family) {
+                EvaluationNode node = nodes.get(member);
+                if (known && !node.knownAcquisition()) continue;
+                double unit = (double) node.acquisitionValue() / plan.units().get(member);
+                if (unit < bestUnit) { bestUnit = unit; anchor = member; }
+            }
+            if (anchor == null) continue;
+            EvaluationNode anchorNode = nodes.get(anchor);
+            Set<Item> dependencies = new LinkedHashSet<>(anchorNode.dependencies());
+            dependencies.addAll(family);
+            for (Item member : family) {
+                EvaluationNode local = nodes.get(member);
+                long converted = clampValue(Math.ceil(bestUnit * plan.units().get(member) - 0.0000001));
+                // Ceil economics here; final integer unit/Essence payout rounds DOWN once.
+                List<String> factors = new ArrayList<>(local.factors());
+                if (member != anchor) {
+                    factors = new ArrayList<>(intrinsic(member).factors());
+                    factors.add("Conservation external anchor: " + BuiltInRegistries.ITEM.getKey(anchor)
+                            + " -> " + converted + "; anchor costs propagated before recipe selection");
+                    factors.addAll(anchorNode.factors().stream().filter(f -> !f.startsWith("Conservation external anchor"))
+                            .limit(12).map(f -> "Anchor: " + f).toList());
+                }
+                EvaluationNode normalized = new EvaluationNode(local.intrinsicValue(), converted,
+                        member == anchor ? anchorNode.recipeChoice() : Optional.empty(),
+                        anchorNode.progressionBand(), anchorNode.confidence(), anchorNode.recipeDepth(),
+                        anchorNode.knownAcquisition(), false, anchorNode.inferredProgressionScore(),
+                        anchorNode.progressionEvidenceCount(), List.copyOf(factors), Set.copyOf(dependencies));
+                nodes.put(member, normalized);
+            }
+        }
     }
 
     private static ShadowValuationResult evaluateItem(
@@ -134,9 +231,18 @@ public final class ShadowValuationEngine {
         RoutingResolution routing = resolveRouting(item, node, snapshot, context);
         RouteWeights route = routing.weights();
 
-        Map<EssenceDefinition, Long> routed = allocate(finalValue, route);
-
+        FamilyPayout familyPayout = resolveFamilyPayout(item, context);
+        Map<EssenceDefinition, Long> routed;
+        if (familyPayout != null) {
+            finalValue = familyPayout.total();
+            routed = familyPayout.routed();
+        } else {
+            routed = allocate(finalValue, route);
+        }
+        boolean modeledAcquisition = node.knownAcquisition()
+                && (familyPayout == null || familyPayout.modeled());
         List<String> factors = new ArrayList<>(node.factors());
+        if (familyPayout != null) factors.add(familyPayout.explanation());
         if (downstream.recipeCount() > 0) {
             factors.add(
                     "Downstream demand: "
@@ -177,7 +283,7 @@ public final class ShadowValuationEngine {
         // A fully resolved recipe/loot/trade/fishing path is at least medium
         // confidence even for unusual special/modded items. Unknown fallbacks
         // remain LOW.
-        if (node.knownAcquisition()) {
+        if (modeledAcquisition) {
             confidence = Math.max(confidence, 0.60);
             if (node.progressionEvidenceCount() > 0) {
                 confidence = Math.max(confidence, 0.64);
@@ -190,7 +296,9 @@ public final class ShadowValuationEngine {
         if (!directRouting(item, context).structured().isEmpty()) {
             confidence += 0.08;
         }
-        confidence = Math.max(0.10, Math.min(0.97, confidence));
+        confidence = ShadowValuationConfidence.bound(confidence, modeledAcquisition);
+        if (!modeledAcquisition) factors.add("Economic confidence capped LOW: acquisition is unresolved; "
+                + "classification, downstream uses and advancements cannot certify its price");
 
         return new ShadowValuationResult(
                 BuiltInRegistries.ITEM.getKey(item),
@@ -210,13 +318,68 @@ public final class ShadowValuationEngine {
                 downstream.crossModCount(),
                 snapshot.dropSources(item).size(),
                 snapshot.blockDropSources(item).size(),
-                snapshot.containerLootSources(item).size(),
+                (int) snapshot.containerLootSources(item).stream().filter(source -> !source.archaeology()).count(),
                 snapshot.fishingLootSources(item).size(),
                 snapshot.tradeSources(item).size(),
                 downstream.examples(),
                 factors,
-                diagnostics
+                diagnostics,
+                modeledAcquisition,
+                (int) snapshot.containerLootSources(item).stream().filter(ShadowValuationIndex.ContainerLootSource::archaeology).count(),
+                familyPayout == null ? "not_applicable" : familyPayout.status()
         );
+    }
+
+    private static FamilyPayout resolveFamilyPayout(Item item, EvaluationContext context) {
+        List<Item> family = context.index().conservationGroup(item);
+        if (family.size() < 2) return null;
+        FamilyPayout cached = context.familyPayoutMemo().get(item);
+        if (cached != null) return cached;
+        ShadowConservationMath.Plan<Item> plan = context.index().conservationPlan(item);
+        if (!plan.valid()) {
+            FamilyPayout rejected = new FamilyPayout(0, Map.of(), false, "invalid_family",
+                    "Conservation payout withheld: " + plan.problem() + "; no guessed positive payout");
+            family.forEach(member -> context.familyPayoutMemo().put(member, rejected));
+            return rejected;
+        }
+        Map<Item, EvaluationNode> locals = new IdentityHashMap<>();
+        boolean hasKnownAnchor = false;
+        for (Item member : family) {
+            EvaluationNode local = evaluateNode(member, context, new LinkedHashSet<>(), 0);
+            locals.put(member, local);
+            hasKnownAnchor |= local.knownAcquisition();
+        }
+        double perUnit = Double.POSITIVE_INFINITY;
+        double demand = 1.0;
+        long maximumUnits = 1;
+        for (Item member : family) {
+            EvaluationNode local = locals.get(member);
+            long units = plan.units().get(member);
+            maximumUnits = Math.max(maximumUnits, units);
+            demand = Math.max(demand, downstreamInfo(member, context.index()).multiplier());
+            if (!hasKnownAnchor || local.knownAcquisition()) {
+                perUnit = Math.min(perUnit, (double) local.acquisitionValue() / units);
+            }
+        }
+        long unitValue = ShadowConservationMath.unitPayout(perUnit * demand, maximumUnits,
+                ShadowValuationSettings.MAX_VALUE);
+        Item first = family.getFirst();
+        RouteWeights shared = resolveRouting(first, locals.get(first), context.index(), context).weights();
+        Map<EssenceDefinition, Long> primitiveRoute = allocate(unitValue, shared);
+        for (Item member : family) {
+            long units = plan.units().get(member);
+            Map<EssenceDefinition, Long> scaled = new LinkedHashMap<>();
+            primitiveRoute.forEach((essence, amount) -> scaled.put(essence, Math.multiplyExact(amount, units)));
+            String status = unitValue == 0 ? "below_integer_precision"
+                    : hasKnownAnchor ? "exact" : "exact_unresolved_anchor";
+            String explanation = "Conservation integer payout: " + units + " primitive unit(s) x " + unitValue
+                    + "; total and every Essence scale exactly across all " + family.size() + " forms"
+                    + (hasKnownAnchor ? "" : "; no resolved external anchor, diagnostic fallback only")
+                    + (unitValue == 0 ? "; positive payout cannot be represented safely" : "");
+            context.familyPayoutMemo().put(member, new FamilyPayout(Math.multiplyExact(unitValue, units),
+                    Map.copyOf(scaled), hasKnownAnchor && unitValue > 0, status, explanation));
+        }
+        return context.familyPayoutMemo().get(item);
     }
 
     private static EvaluationNode normalizeConservationGroupCached(
@@ -224,6 +387,7 @@ public final class ShadowValuationEngine {
             EvaluationNode original,
             EvaluationContext context
     ) {
+        if (context.solving || context.solved) return original;
         EvaluationNode cached = context.conservationMemo().get(target);
         if (cached != null) {
             return cached;
@@ -374,8 +538,10 @@ public final class ShadowValuationEngine {
 
     public static IndexSummary rebuild(MinecraftServer server) {
         synchronized (INDEX_LOCK) {
+            ShadowValuationIndex built = ShadowValuationIndex.build(server);
             indexedServer = server;
-            index = ShadowValuationIndex.build(server);
+            index = built;
+            cachedResults = null;
             return toPublicSummary(index.summary());
         }
     }
@@ -418,8 +584,10 @@ public final class ShadowValuationEngine {
         }
         synchronized (INDEX_LOCK) {
             if (index == null || indexedServer != server) {
+                ShadowValuationIndex built = ShadowValuationIndex.build(server);
                 indexedServer = server;
-                index = ShadowValuationIndex.build(server);
+                index = built;
+                cachedResults = null;
             }
             return index;
         }
@@ -431,6 +599,14 @@ public final class ShadowValuationEngine {
             Set<Item> visiting,
             int depth
     ) {
+        if (context.solving && !visiting.isEmpty()) {
+            EvaluationNode input = context.previous.get(item);
+            if (input != null && !input.dependencies().contains(context.activeRoot)) return input;
+            Intrinsic base = intrinsic(item);
+            return new EvaluationNode(base.value(), base.value(), Optional.empty(), base.progressionBand(),
+                    Math.min(0.42, base.confidence()), 0, false, input != null, 0.0, 0,
+                    List.of("Unresolved graph input; cannot establish acquisition evidence"), Set.of(item));
+        }
         EvaluationNode memoized = context.memo().get(item);
         if (memoized != null) {
             return memoized;
@@ -438,7 +614,7 @@ public final class ShadowValuationEngine {
 
         Intrinsic intrinsic = intrinsic(item);
 
-        if (depth >= ShadowValuationSettings.MAX_RECIPE_DEPTH || visiting.contains(item)) {
+        if ((!context.solving && depth >= ShadowValuationSettings.MAX_RECIPE_DEPTH) || visiting.contains(item)) {
             return new EvaluationNode(
                     intrinsic.value(),
                     intrinsic.value(),
@@ -466,6 +642,7 @@ public final class ShadowValuationEngine {
         boolean contextSensitive = directSource.contextSensitive();
 
         for (ShadowValuationIndex.RecipeModel recipe : context.index().recipesProducing(item)) {
+            if (context.index().isReversibleTransform(recipe)) continue;
             RecipeAttempt attempt = evaluateRecipe(
                     recipe,
                     context,
@@ -500,6 +677,7 @@ public final class ShadowValuationEngine {
         double confidence = directSource.confidence();
         double inferredProgressionScore = directSource.inferredProgressionScore();
         int progressionEvidenceCount = directSource.progressionEvidenceCount();
+        Set<Item> selectedDependencies = directSource.dependencies();
         List<String> factors = new ArrayList<>();
         factors.addAll(intrinsic.factors());
         factors.addAll(directSource.factors());
@@ -517,7 +695,8 @@ public final class ShadowValuationEngine {
                 acquisition = cheapestRecipe.value();
                 knownAcquisition = recipeIsKnown;
                 recipeChoice = Optional.of(cheapestRecipe.toChoice());
-                confidence = Math.max(confidence, cheapestRecipe.confidence());
+                selectedDependencies = cheapestRecipe.dependencies();
+                confidence = cheapestRecipe.confidence();
                 inferredProgressionScore = cheapestRecipe.inferredProgressionScore();
                 progressionEvidenceCount = cheapestRecipe.progressionEvidenceCount();
                 factors.add(
@@ -543,6 +722,12 @@ public final class ShadowValuationEngine {
                 );
                 if (!cheapestRecipe.reversible()) {
                     factors.add("Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied");
+                }
+                if (cheapestRecipe.recipe().id().getNamespace().equals("essence_ascendance")
+                        && cheapestRecipe.recipe().id().getPath().startsWith("valuation/interaction/")) {
+                    confidence = Math.min(confidence, 0.62);
+                    factors.add("Runtime interaction edge: conversion confirmed by registered behavior/loaded recipe; "
+                            + "reusable tool/access/time effort remains an estimate, not a hard-coded item price");
                 }
                 if (!cheapestRecipe.fullyModeledIngredients()) {
                     factors.add("Recipe reliability: one or more ingredient acquisition paths are unresolved; recipe kept as diagnostic fallback only");
@@ -578,10 +763,8 @@ public final class ShadowValuationEngine {
                 inferredProgressionScore = itemProgression.score();
             }
             progressionEvidenceCount += itemProgression.evidenceCount();
-            confidence = Math.max(
-                    confidence,
-                    Math.min(0.94, itemProgression.confidence() + 0.06)
-            );
+            // A progression gate says when, not how reliably we modeled acquisition.
+            // It must not turn a fallback price into HIGH economic confidence.
             factors.add(
                     "Advancement acquisition progression: "
                             + formatPercent(itemProgression.score())
@@ -618,25 +801,28 @@ public final class ShadowValuationEngine {
         int resolvedDepth = recipeChoice
                 .map(ShadowValuationResult.RecipeChoice::depth)
                 .orElse(0);
-        boolean resolvedContextSensitive = !knownAcquisition && contextSensitive;
+        boolean resolvedContextSensitive = !context.solving && contextSensitive;
+        Set<Item> resultDependencies = new LinkedHashSet<>(selectedDependencies);
+        resultDependencies.add(item);
         EvaluationNode result = new EvaluationNode(
                 intrinsic.value(),
                 acquisitionValue,
                 recipeChoice,
                 progression,
-                Math.min(0.95, confidence),
+                ShadowValuationConfidence.bound(confidence, knownAcquisition),
                 resolvedDepth,
                 knownAcquisition,
                 resolvedContextSensitive,
                 inferredProgressionScore,
                 progressionEvidenceCount,
-                List.copyOf(factors)
+                List.copyOf(factors),
+                Set.copyOf(resultDependencies)
         );
 
         // Only cache results proven independent of the current recursion stack.
         // This removes bulk-export order dependence from reversible/cyclic
         // recipe families without assigning arbitrary values to the cycle.
-        if (!result.contextSensitive()) {
+        if (!context.solving && !result.contextSensitive()) {
             context.memo().put(item, result);
         }
         return result;
@@ -652,11 +838,12 @@ public final class ShadowValuationEngine {
 
         double ingredientTotal = 0.0;
         LinkedHashSet<Item> uniqueChosen = new LinkedHashSet<>();
+        Set<Item> dependencies = new LinkedHashSet<>();
         int easy = 0;
         int rare = 0;
         int modSpecific = 0;
         int maxChainDepth = 0;
-        double confidence = 0.46;
+        double confidence = 0.91;
         boolean allIngredientsKnown = true;
         ShadowValuationResult.ProgressionBand progression =
                 ShadowValuationResult.ProgressionBand.OVERWORLD;
@@ -697,6 +884,8 @@ public final class ShadowValuationEngine {
             }
             allIngredientsKnown &= child.knownAcquisition();
 
+            dependencies.addAll(child.dependencies());
+            dependencies.add(chosen);
             ingredientTotal += child.acquisitionValue();
             uniqueChosen.add(chosen);
             if (child.acquisitionValue() <= ShadowValuationSettings.EASY_INGREDIENT_THRESHOLD) {
@@ -713,7 +902,7 @@ public final class ShadowValuationEngine {
                     progression,
                     child.progressionBand()
             );
-            confidence = Math.max(confidence, Math.min(0.78, child.confidence()));
+            confidence = Math.min(confidence, child.confidence());
             maxChainDepth = Math.max(
                     maxChainDepth,
                     1 + child.recipeDepth()
@@ -749,7 +938,7 @@ public final class ShadowValuationEngine {
                 context.index().progressionForRecipe(recipe.id());
         if (recipeProgression.present()) {
             perOutput *= recipeProgression.multiplier();
-            confidence = Math.max(confidence, recipeProgression.confidence());
+            // Do not substitute progression certainty for ingredient acquisition certainty.
         }
 
         return new RecipeAttempt(new RecipeCandidate(
@@ -764,9 +953,10 @@ public final class ShadowValuationEngine {
                 reversible,
                 allIngredientsKnown,
                 progression,
-                Math.min(0.91, confidence + 0.10),
+                ShadowValuationConfidence.bound(Math.min(0.91, confidence + 0.10), allIngredientsKnown),
                 recipeProgression.score(),
-                recipeProgression.evidenceCount()
+                recipeProgression.evidenceCount(),
+                Set.copyOf(dependencies)
         ), false);
     }
 
@@ -780,12 +970,8 @@ public final class ShadowValuationEngine {
             return IngredientSelection.NONE;
         }
 
-        List<Item> shortlist = alternatives.stream()
-                .sorted(
-                        Comparator.comparingLong((Item candidate) -> intrinsic(candidate).value())
-                                .thenComparing(candidate -> BuiltInRegistries.ITEM.getKey(candidate).toString())
-                )
-                .limit(ShadowValuationSettings.MAX_ALTERNATIVES_PER_INGREDIENT)
+        List<Item> shortlist = alternatives.stream().distinct()
+                .sorted(Comparator.comparing(candidate -> BuiltInRegistries.ITEM.getKey(candidate).toString()))
                 .toList();
 
         Item best = null;
@@ -811,7 +997,9 @@ public final class ShadowValuationEngine {
                 blockedByCycle = true;
                 continue;
             }
-            if (node.acquisitionValue() < bestValue) {
+            if (bestNode == null || (node.knownAcquisition() && !bestNode.knownAcquisition())
+                    || (node.knownAcquisition() == bestNode.knownAcquisition()
+                    && node.acquisitionValue() < bestValue)) {
                 bestValue = node.acquisitionValue();
                 best = candidate;
                 bestNode = node;
@@ -838,6 +1026,7 @@ public final class ShadowValuationEngine {
         boolean known = oreSource;
         boolean conditionalFallbackSelected = false;
         boolean contextSensitive = false;
+        Set<Item> dependencies = Set.of();
         double confidence = intrinsic.confidence();
         ShadowValuationResult.ProgressionBand progression = intrinsic.progressionBand();
         ShadowProgressionIndex.ProgressionEvidence selectedProgression =
@@ -875,10 +1064,6 @@ public final class ShadowValuationEngine {
         }
 
         List<BlockDropPath> blockPaths = index.blockDropSources(item).stream()
-                .filter(source -> {
-                    Block sourceBlock = BuiltInRegistries.BLOCK.getOptional(source.blockId()).orElse(null);
-                    return sourceBlock == null || sourceBlock.asItem() != item;
-                })
                 .map(source -> {
                     Block sourceBlock = BuiltInRegistries.BLOCK.getOptional(source.blockId()).orElse(null);
                     ShadowProgressionIndex.ProgressionEvidence sourceProgression =
@@ -905,9 +1090,7 @@ public final class ShadowValuationEngine {
                 conditionalFallbackSelected = !reliable;
                 ShadowValuationIndex.BlockDropSource source = selectedBlock.source();
                 selectedProgression = selectedBlock.progressionEvidence();
-                confidence += reliable
-                        ? 0.18
-                        : 0.04;
+                confidence = intrinsic.confidence() + (reliable ? 0.18 : 0.04);
                 progression = ShadowValuationResult.ProgressionBand.max(
                         progression,
                         source.progressionBand()
@@ -926,6 +1109,9 @@ public final class ShadowValuationEngine {
                 if (!source.signals().isEmpty()) {
                     factors.add("Block source signals: " + String.join(", ", source.signals()));
                 }
+                List<String> naturalEvidence = index.naturalBlockEvidence(source.blockId());
+                if (!naturalEvidence.isEmpty()) factors.add("Natural placement evidence: "
+                        + String.join(", ", naturalEvidence) + "; source loot also required, density not estimated");
                 factors.add(
                         "Block acquisition -> source x"
                                 + format(selectedBlock.sourceMultiplier())
@@ -961,7 +1147,7 @@ public final class ShadowValuationEngine {
                 conditionalFallbackSelected = !reliable;
                 ShadowValuationIndex.DropSource source = selectedDrop.source();
                 selectedProgression = selectedDrop.progressionEvidence();
-                confidence += reliable ? 0.17 : 0.04;
+                confidence = intrinsic.confidence() + (reliable ? 0.17 : 0.04);
                 progression = ShadowValuationResult.ProgressionBand.max(
                         progression,
                         selectedDrop.progressionBand()
@@ -1028,7 +1214,7 @@ public final class ShadowValuationEngine {
                 conditionalFallbackSelected = !reliable;
                 ShadowValuationIndex.ContainerLootSource source = selectedContainer.source();
                 selectedProgression = selectedContainer.progressionEvidence();
-                confidence += reliable ? 0.16 : 0.04;
+                confidence = intrinsic.confidence() + (reliable ? 0.16 : 0.04);
                 progression = ShadowValuationResult.ProgressionBand.max(
                         progression,
                         source.progressionBand()
@@ -1036,7 +1222,7 @@ public final class ShadowValuationEngine {
                 factors.add(
                         ("FIXED_TREASURE".equals(source.tierLabel())
                                 ? "Fixed structure source: "
-                                : "Container loot source: ")
+                                : source.archaeology() ? "Archaeology loot source: " : "Container loot source: ")
                                 + source.lootTableId()
                                 + " | tier "
                                 + source.tierLabel()
@@ -1097,7 +1283,7 @@ public final class ShadowValuationEngine {
                 conditionalFallbackSelected = !reliable;
                 ShadowValuationIndex.FishingLootSource source = selectedFishing.source();
                 selectedProgression = selectedFishing.progressionEvidence();
-                confidence += reliable ? 0.19 : 0.04;
+                confidence = intrinsic.confidence() + (reliable ? 0.19 : 0.04);
                 progression = ShadowValuationResult.ProgressionBand.max(
                         progression,
                         source.progressionBand()
@@ -1153,9 +1339,10 @@ public final class ShadowValuationEngine {
                     : (!known && (!conditionalFallbackSelected || selectedTrade.value() < value));
             if (shouldUse) {
                 value = selectedTrade.value();
+                dependencies = selectedTrade.dependencies();
                 known = reliable;
                 conditionalFallbackSelected = !reliable;
-                confidence += reliable ? 0.20 : 0.05;
+                confidence = Math.max(intrinsic.confidence(), selectedTrade.confidence());
                 progression = ShadowValuationResult.ProgressionBand.max(
                         progression,
                         selectedTrade.progressionBand()
@@ -1227,7 +1414,8 @@ public final class ShadowValuationEngine {
                 selectedProgression.score(),
                 selectedProgression.evidenceCount(),
                 contextSensitive,
-                List.copyOf(factors)
+                List.copyOf(factors),
+                dependencies
         );
     }
 
@@ -1240,7 +1428,8 @@ public final class ShadowValuationEngine {
         double costTotal = 0.0;
         boolean fullyModeled = true;
         boolean contextSensitive = false;
-        double confidence = 0.48;
+        double confidence = 0.84;
+        Set<Item> dependencies = new LinkedHashSet<>();
         ShadowValuationResult.ProgressionBand progression =
                 ShadowValuationResult.ProgressionBand.OVERWORLD;
 
@@ -1266,9 +1455,11 @@ public final class ShadowValuationEngine {
                 return new TradeAttempt(null, true);
             }
 
+            dependencies.addAll(child.dependencies());
+            dependencies.add(costItem);
             costTotal += child.acquisitionValue() * Math.max(1, cost.getCount());
             fullyModeled &= child.knownAcquisition();
-            confidence = Math.max(confidence, Math.min(0.84, child.confidence()));
+            confidence = Math.min(confidence, child.confidence());
             progression = ShadowValuationResult.ProgressionBand.max(
                     progression,
                     child.progressionBand()
@@ -1317,7 +1508,8 @@ public final class ShadowValuationEngine {
                         traderMultiplier,
                         fullyModeled,
                         progression,
-                        Math.min(0.92, confidence + 0.08)
+                        ShadowValuationConfidence.bound(Math.min(0.92, confidence + 0.08), fullyModeled),
+                        Set.copyOf(dependencies)
                 ),
                 contextSensitive
         );
@@ -1951,6 +2143,11 @@ public final class ShadowValuationEngine {
             structured.add(EssenceTypes.VITALITY, 3.0);
             signals.add("cultivation_material");
         }
+        if (item instanceof BoneMealItem || stack.is(ShadowValuationTags.FERTILIZERS)) {
+            structured.add(EssenceTypes.GATHERING, 7.0);
+            structured.add(EssenceTypes.VITALITY, 1.0);
+            signals.add("fertilizer_item/tag");
+        }
         if (stack.is(ShadowValuationTags.FLOWERS) || stack.is(ShadowValuationTags.LEAVES)) {
             structured.add(EssenceTypes.VITALITY, 3.0);
             structured.add(EssenceTypes.GATHERING, 2.0);
@@ -2485,27 +2682,31 @@ public final class ShadowValuationEngine {
         return String.format(Locale.ROOT, "%.2f%%", value * 100.0);
     }
 
-    private record EvaluationContext(
-            ShadowValuationIndex index,
-            Map<Item, EvaluationNode> memo,
-            Map<Item, RouteWeights> routeMemo,
-            Map<Item, DirectRouting> directRouteMemo,
-            Map<Item, RoutingResolution> resolvedRouteMemo,
-            Map<Item, EvaluationNode> conservationMemo,
-            Set<Item> conservationVisiting
-    ) {
-        EvaluationContext(ShadowValuationIndex index) {
-            this(
-                    index,
-                    new IdentityHashMap<>(),
-                    new IdentityHashMap<>(),
-                    new IdentityHashMap<>(),
-                    new IdentityHashMap<>(),
-                    new IdentityHashMap<>(),
-                    java.util.Collections.newSetFromMap(new IdentityHashMap<>())
-            );
-        }
+    private static final class EvaluationContext {
+        private final ShadowValuationIndex index;
+        private final Map<Item, EvaluationNode> memo = new IdentityHashMap<>();
+        private final Map<Item, RouteWeights> routeMemo = new IdentityHashMap<>();
+        private final Map<Item, DirectRouting> directRouteMemo = new IdentityHashMap<>();
+        private final Map<Item, RoutingResolution> resolvedRouteMemo = new IdentityHashMap<>();
+        private final Map<Item, EvaluationNode> conservationMemo = new IdentityHashMap<>();
+        private final Set<Item> conservationVisiting = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
+        private final Map<Item, FamilyPayout> familyPayoutMemo = new IdentityHashMap<>();
+        private Map<Item, EvaluationNode> previous = Map.of();
+        private boolean solving, solved;
+        private Item activeRoot;
+        EvaluationContext(ShadowValuationIndex index) { this.index = index; }
+        ShadowValuationIndex index() { return index; }
+        Map<Item, EvaluationNode> memo() { return memo; }
+        Map<Item, RouteWeights> routeMemo() { return routeMemo; }
+        Map<Item, DirectRouting> directRouteMemo() { return directRouteMemo; }
+        Map<Item, RoutingResolution> resolvedRouteMemo() { return resolvedRouteMemo; }
+        Map<Item, EvaluationNode> conservationMemo() { return conservationMemo; }
+        Set<Item> conservationVisiting() { return conservationVisiting; }
+        Map<Item, FamilyPayout> familyPayoutMemo() { return familyPayoutMemo; }
     }
+
+    private record FamilyPayout(long total, Map<EssenceDefinition, Long> routed,
+                                boolean modeled, String status, String explanation) { }
 
     private record DirectRouting(
             RouteWeights structured,
@@ -2532,8 +2733,18 @@ public final class ShadowValuationEngine {
             boolean contextSensitive,
             double inferredProgressionScore,
             int progressionEvidenceCount,
-            List<String> factors
+            List<String> factors,
+            Set<Item> dependencies
     ) {
+        EvaluationNode(long intrinsicValue, long acquisitionValue,
+                       Optional<ShadowValuationResult.RecipeChoice> recipeChoice,
+                       ShadowValuationResult.ProgressionBand progressionBand, double confidence,
+                       int recipeDepth, boolean knownAcquisition, boolean contextSensitive,
+                       double inferredProgressionScore, int progressionEvidenceCount, List<String> factors) {
+            this(intrinsicValue, acquisitionValue, recipeChoice, progressionBand, confidence, recipeDepth,
+                    knownAcquisition, contextSensitive, inferredProgressionScore, progressionEvidenceCount,
+                    factors, Set.of());
+        }
     }
 
     private record Intrinsic(
@@ -2555,7 +2766,8 @@ public final class ShadowValuationEngine {
             double inferredProgressionScore,
             int progressionEvidenceCount,
             boolean contextSensitive,
-            List<String> factors
+            List<String> factors,
+            Set<Item> dependencies
     ) {
     }
 
@@ -2621,7 +2833,8 @@ public final class ShadowValuationEngine {
             double traderMultiplier,
             boolean fullyModeledCosts,
             ShadowValuationResult.ProgressionBand progressionBand,
-            double confidence
+            double confidence,
+            Set<Item> dependencies
     ) {
     }
 
@@ -2661,7 +2874,8 @@ public final class ShadowValuationEngine {
             ShadowValuationResult.ProgressionBand progressionBand,
             double confidence,
             double inferredProgressionScore,
-            int progressionEvidenceCount
+            int progressionEvidenceCount,
+            Set<Item> dependencies
     ) {
         ShadowValuationResult.RecipeChoice toChoice() {
             return new ShadowValuationResult.RecipeChoice(

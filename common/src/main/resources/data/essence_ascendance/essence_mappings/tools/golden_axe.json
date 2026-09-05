@@ -1,9 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:golden_axe",
-  "outputs": {
-    "essence_ascendance:gathering": 12,
-    "essence_ascendance:offense": 8,
-    "essence_ascendance:utility": 5
-  }
-}

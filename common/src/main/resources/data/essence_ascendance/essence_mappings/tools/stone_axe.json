@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:stone_axe",
-  "outputs": {
-    "essence_ascendance:gathering": 5,
-    "essence_ascendance:offense": 3
-  }
-}

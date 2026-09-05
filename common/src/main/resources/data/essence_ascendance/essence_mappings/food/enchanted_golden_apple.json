@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:enchanted_golden_apple",
-  "outputs": {
-    "essence_ascendance:vitality": 4000,
-    "essence_ascendance:defense": 1000
-  }
-}

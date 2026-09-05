@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:bone",
-  "outputs": {
-    "essence_ascendance:gathering": 3,
-    "essence_ascendance:utility": 2
-  }
-}

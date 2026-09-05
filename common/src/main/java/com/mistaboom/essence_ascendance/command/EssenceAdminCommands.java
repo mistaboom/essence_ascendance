@@ -710,7 +710,7 @@ final class EssenceAdminCommands {
         EssenceCommandUtil.send(
                 source,
                 EssenceCommandUtil.line(
-                        "Bundled defaults",
+                        "Generated defaults",
                         Integer.toString(
                                 report.bundledDefaultCount()
                         )

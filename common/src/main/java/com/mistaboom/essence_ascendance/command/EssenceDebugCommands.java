@@ -50,6 +50,7 @@ import com.mistaboom.essence_ascendance.stat.EssenceStats;
 import com.mistaboom.essence_ascendance.stat.StatCategory;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
 import com.mistaboom.essence_ascendance.valuation.ShadowValuationCsvExporter;
+import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingManager;
 import com.mistaboom.essence_ascendance.valuation.ShadowValuationEngine;
 import com.mistaboom.essence_ascendance.valuation.ShadowValuationResult;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
@@ -113,9 +114,9 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug equipment", "all active equipment profiles plus resolved stat applicability"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug item", "deep-dive the main-hand Ascendance item"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug mapping", "resolve the main-hand item to Attribute Essence"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug valuation", "inspect the main-hand item's foundational procedural shadow valuation"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug valuation", "inspect the main-hand item's procedural value, eligibility and live mapping"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug valuation rebuild", "re-index recipes, loot tables, and advancement progression after data reloads"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug valuation export", "export every registered item's shadow valuation to CSV"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug valuation export", "export internal values, eligibility and live results to CSV"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug mappings", "mapping registry/reload summary"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug crucible", "inspect the Essence Crucible you are looking at"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug pylon", "inspect the Essence Pylon you are looking at"));
@@ -443,7 +444,7 @@ final class EssenceDebugCommands {
 
         EssenceCommandUtil.send(
                 source,
-                EssenceCommandUtil.title("Procedural Essence Valuation — SHADOW")
+                EssenceCommandUtil.title("Procedural Essence Valuation")
         );
 
         if (stack.isEmpty()) {
@@ -460,8 +461,17 @@ final class EssenceDebugCommands {
         );
         EssenceCommandUtil.send(
                 source,
-                EssenceCommandUtil.warn("  Diagnostic only — current Item → Essence mappings remain authoritative for gameplay.")
+                EssenceCommandUtil.warn("  Internal economic analysis; generated eligibility and explicit overrides determine the final live payout.")
         );
+        var eligibility = ItemEssenceMappingManager.generatedDecision(shadow);
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Generated eligibility",
+                eligibility.status().name() + " — " + eligibility.reason()));
+        var live = ItemEssenceMappingRegistry.resolve(stack);
+        long liveTotal = 0;
+        for (long amount : live.outputs().values()) liveTotal = Math.addExact(liveTotal, amount);
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Live item mapping",
+                ItemEssenceMappingRegistry.source(shadow.itemId()) + " / " + liveTotal
+                        + " (Essentium component recovery is separate)"));
         EssenceCommandUtil.send(
                 source,
                 EssenceCommandUtil.line(
@@ -472,7 +482,7 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(
                 source,
                 EssenceCommandUtil.line(
-                        "Shadow total",
+                        "Internal total",
                         EssenceCommandUtil.format(shadow.totalValue())
                 )
         );
@@ -666,8 +676,14 @@ final class EssenceDebugCommands {
     private static int rebuildShadowValuation(
             CommandSourceStack source
     ) {
-        ShadowValuationEngine.IndexSummary summary =
-                ShadowValuationEngine.rebuild(source.getServer());
+        ItemEssenceMappingRegistry.ReloadReport report = ItemEssenceMappingManager.reload();
+        if (!report.successful()) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.bad(
+                    "Procedural rebuild rejected; the last-known-good live generation remains active."));
+            for (String error : report.errors()) EssenceCommandUtil.send(source, EssenceCommandUtil.bad(error));
+            return 0;
+        }
+        ShadowValuationEngine.IndexSummary summary = ShadowValuationEngine.summary(source.getServer());
 
         EssenceCommandUtil.send(
                 source,
@@ -771,7 +787,7 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(
                 source,
                 EssenceCommandUtil.muted(
-                        "Run this after /reload while the valuation engine is still shadow-only."
+                        "Generated defaults and explicit overrides were installed as one new live generation."
                 )
         );
         return 1;
@@ -787,7 +803,7 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(
                 source,
                 EssenceCommandUtil.muted(
-                        "Evaluating all registered items using the current shadow index..."
+                        "Exporting the current procedural generation and installed live mapping results..."
                 )
         );
 
@@ -823,11 +839,11 @@ final class EssenceDebugCommands {
             EssenceCommandUtil.send(
                     source,
                     EssenceCommandUtil.muted(
-                            "The CSV contains shadow values only; live Item -> Essence mappings are intentionally excluded."
+                            "Internal values are independent of overrides; live columns show the installed mapping generation."
                     )
             );
             return 1;
-        } catch (IOException exception) {
+        } catch (IOException | RuntimeException exception) {
             EssenceCommandUtil.fail(
                     source,
                     "CSV export failed: " + exception.getMessage()
@@ -1526,7 +1542,7 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(
                 source,
                 EssenceCommandUtil.line(
-                        "Bundled defaults",
+                        "Generated defaults",
                         Integer.toString(
                                 report.bundledDefaultCount()
                         )

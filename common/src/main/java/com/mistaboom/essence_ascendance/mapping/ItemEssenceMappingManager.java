@@ -5,752 +5,241 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mistaboom.essence_ascendance.EssenceAscendance;
+import com.mistaboom.essence_ascendance.network.ItemEssenceTooltipSyncService;
+import com.mistaboom.essence_ascendance.valuation.GeneratedYieldEligibility;
+import com.mistaboom.essence_ascendance.valuation.ShadowValuationEngine;
+import com.mistaboom.essence_ascendance.valuation.ShadowValuationResult;
 import dev.architectury.event.events.common.LifecycleEvent;
+import dev.architectury.event.events.common.TickEvent;
 import dev.architectury.platform.Platform;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.Reader;
-import java.net.JarURLConnection;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
 import java.util.stream.Stream;
 
-/*
- * Loads item mappings from exactly two places:
- *
- * 1. Bundled defaults inside the Essence Ascendance mod JAR:
- *      data/essence_ascendance/essence_mappings/*.json
- *
- *    These files are read directly from the physical mod resource path.
- *    They are NOT loaded through Minecraft's datapack ResourceManager.
- *
- * 2. Global instance/server config:
- *      config/essence_ascendance/item_mappings/
- *
- * No world folder and no user datapack is required.
+/** Stages generated defaults + explicit global overrides, then publishes ONE
+ * complete server-authoritative generation. Never reads the retired bundled
+ * essence_mappings directory, and never mutates reservoir/player balances.
  */
 public final class ItemEssenceMappingManager {
+    private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
+    private static final String SETTINGS_FILE = "_settings.json";
+    private static final String README_FILE = "README.txt";
+    private static boolean initialized;
+    private static MinecraftServer activeServer;
+    private static Object observedResources, observedRecipes;
+    private static volatile ConfigSettings activeSettings = ConfigSettings.defaults();
 
-    private static final Gson GSON =
-            new GsonBuilder()
-                    .disableHtmlEscaping()
-                    .setPrettyPrinting()
-                    .create();
-
-    private static final String DEFAULT_DIRECTORY =
-            "essence_mappings";
-
-    /*
-     * Do not discover the bundled directory itself through a loader-specific
-     * mod container. Architectury dev runs can place common-module resources on
-     * the runtime classpath without exposing that common resource root as one
-     * of the platform mod container's physical roots.
-     *
-     * Looking up one exact marker resource is reliable in exploded dev
-     * classpaths and packaged JARs. From that marker we enumerate its sibling
-     * JSON files.
-     */
-    private static final String DEFAULT_RESOURCE_PREFIX =
-            "data/"
-                    + EssenceAscendance.MOD_ID
-                    + "/"
-                    + DEFAULT_DIRECTORY;
-
-    private static final String DEFAULT_ROOT_MARKER =
-            DEFAULT_RESOURCE_PREFIX
-                    + "/_root.marker";
-
-    private static final String SETTINGS_FILE =
-            "_settings.json";
-
-    private static final String README_FILE =
-            "README.txt";
-
-    private static boolean initialized =
-            false;
-
-    private ItemEssenceMappingManager() {
-    }
-
+    private ItemEssenceMappingManager() { }
     public static synchronized void init() {
-        if (initialized) {
-            return;
-        }
-
+        if (initialized) return;
         ensureConfigScaffold();
-
-        /*
-         * Explicit item validation needs the final game/mod item registries.
-         * SERVER_STARTED is late enough on both Fabric and NeoForge and also
-         * keeps the mapping system server-authoritative.
-         */
-        LifecycleEvent.SERVER_STARTED.register(
-                server ->
-                        reload()
-        );
-
-        initialized =
-                true;
+        LifecycleEvent.SERVER_STARTED.register(server -> {
+            activeServer = server;
+            observedResources = server.getResourceManager();
+            observedRecipes = server.getRecipeManager();
+            reload();
+        });
+        LifecycleEvent.SERVER_STOPPED.register(server -> {
+            if (activeServer == server) {
+                activeServer = null;
+                observedResources = null;
+                observedRecipes = null;
+                activeSettings = ConfigSettings.defaults();
+                ItemEssenceMappingRegistry.clear();
+                ShadowValuationEngine.clear();
+            }
+        });
+        // A successful vanilla /reload swaps the server's resource/recipe holders.
+        // Check identity in O(1), then rebuild at the next server tick, AFTER apply.
+        // Failed reloads retain the holders. Record new identity even on rejection
+        // so a bad config does not trigger an expensive retry every tick.
+        TickEvent.SERVER_POST.register(server -> {
+            if (server != activeServer) return;
+            if (observedResources != server.getResourceManager() || observedRecipes != server.getRecipeManager()) {
+                observedResources = server.getResourceManager();
+                observedRecipes = server.getRecipeManager();
+                reload();
+            }
+        });
+        initialized = true;
     }
 
     public static Path configDirectory() {
-        return Platform.getConfigFolder()
-                .resolve(
-                        EssenceAscendance.MOD_ID
-                )
-                .resolve(
-                        "item_mappings"
-                );
+        return Platform.getConfigFolder().resolve(EssenceAscendance.MOD_ID).resolve("item_mappings");
+    }
+    public static Path settingsPath() { return configDirectory().resolve(SETTINGS_FILE); }
+
+    public static ResourceLocation generatedId(ResourceLocation itemId) {
+        return ResourceLocation.fromNamespaceAndPath(EssenceAscendance.MOD_ID,
+                "generated/" + itemId.getNamespace() + "/" + itemId.getPath());
     }
 
-    public static Path settingsPath() {
-        return configDirectory()
-                .resolve(
-                        SETTINGS_FILE
-                );
+    public static GeneratedYieldEligibility.Decision generatedDecision(ShadowValuationResult result) {
+        Item item = BuiltInRegistries.ITEM.getOptional(result.itemId()).orElse(null);
+        if (item == null) return new GeneratedYieldEligibility.Decision(GeneratedYieldEligibility.Status.EXCLUDED, "unregistered");
+        ItemStack stack = new ItemStack(item);
+        return GeneratedYieldEligibility.decide(stack, result,
+                matchesAny(stack, activeSettings.allowGenerated()), matchesAny(stack, activeSettings.denyGenerated()));
     }
 
     public static synchronized ItemEssenceMappingRegistry.ReloadReport reload() {
         ensureConfigScaffold();
-
-        List<String> errors =
-                new ArrayList<>();
-
-        List<String> warnings =
-                new ArrayList<>();
-
-        Map<ResourceLocation, ItemEssenceMappingDefinition> bundledDefaults =
-                loadBundledDefaults(
-                        errors
-                );
-
-        ConfigSettings settings =
-                loadSettings(
-                        errors
-                );
-
-        Map<ResourceLocation, ItemEssenceMappingDefinition> configMappings =
-                loadConfigMappings(
-                        errors
-                );
-
-        int bundledDefaultCount =
-                bundledDefaults.size();
-
-        int configFileCount =
-                countConfigMappingFiles();
-
-        int removedDefaultCount =
-                0;
-
-        int replacedDefaultCount =
-                0;
-
-        /*
-         * A bad config never partially replaces the active generation.
-         */
+        List<String> errors = new ArrayList<>(), warnings = new ArrayList<>();
+        ConfigSettings settings = loadSettings(errors);
+        Map<ResourceLocation, ItemEssenceMappingDefinition> explicit = loadConfigMappings(errors);
+        int configFiles = countConfigMappingFiles();
+        int generatedCount = 0, removed = 0;
+        if (activeServer == null) errors.add("A running server is required to stage procedural defaults");
+        List<String> removedSelectors = new ArrayList<>();
+        for (ResourceLocation id : settings.removeDefaults()) {
+            List<String> selectors = removalSelectors(id);
+            if (selectors.isEmpty()) errors.add("remove_defaults references an unknown legacy/generated mapping or item: " + id);
+            else removedSelectors.addAll(selectors);
+        }
+        // Legacy replacement-by-ID intent remains meaningful even when a custom
+        // replacement intentionally changes selector. No old numeric values kept.
+        for (ResourceLocation id : explicit.keySet()) removedSelectors.addAll(removalSelectors(id));
+        Map<ResourceLocation, ItemEssenceMappingDefinition> generated = new LinkedHashMap<>();
+        if (errors.isEmpty()) {
+            try {
+                if (!activeServer.isSameThread()) throw new IllegalStateException("Mapping reload must run on the server thread");
+                List<ShadowValuationResult> values;
+                if (settings.proceduralDefaults() && !settings.removeAllDefaults()) {
+                    ShadowValuationEngine.rebuild(activeServer);
+                    values = ShadowValuationEngine.evaluateAll(activeServer);
+                } else {
+                    // The emergency off switch must work even when valuation fails.
+                    ShadowValuationEngine.clear();
+                    values = List.of();
+                }
+                for (ShadowValuationResult value : values) {
+                    Item item = BuiltInRegistries.ITEM.getOptional(value.itemId()).orElseThrow();
+                    ItemStack stack = new ItemStack(item);
+                    GeneratedYieldEligibility.Decision decision = GeneratedYieldEligibility.decide(stack, value,
+                            matchesAny(stack, settings.allowGenerated()), matchesAny(stack, settings.denyGenerated()));
+                    if (!decision.eligible()) continue;
+                    generatedCount++;
+                    if (!settings.proceduralDefaults() || settings.removeAllDefaults()
+                            || matchesAny(stack, removedSelectors)) { removed++; continue; }
+                    long sum = 0;
+                    for (long amount : value.routedEssence().values()) {
+                        if (amount < 0) throw new IllegalStateException("Negative generated output for " + value.itemId());
+                        sum = Math.addExact(sum, amount);
+                    }
+                    if (sum != value.totalValue()) throw new IllegalStateException("Generated total mismatch for " + value.itemId());
+                    generated.put(value.itemId(), new ItemEssenceMappingDefinition(generatedId(value.itemId()), 0,
+                            ItemEssenceMappingDefinition.SelectorType.ITEM, value.itemId(), item, null, value.routedEssence()));
+                }
+                ItemEssenceMappingRegistry.LoadSummary summary = new ItemEssenceMappingRegistry.LoadSummary(
+                        generatedCount, removed, 0, configFiles, explicit.size(), warnings);
+                ItemEssenceMappingRegistry.install(List.copyOf(explicit.values()), generated, summary);
+                activeSettings = settings;
+            } catch (RuntimeException exception) {
+                errors.add("Procedural generation rejected: " + message(exception));
+            }
+        }
         if (!errors.isEmpty()) {
-            ItemEssenceMappingRegistry.LoadSummary summary =
-                    new ItemEssenceMappingRegistry.LoadSummary(
-                            bundledDefaultCount,
-                            0,
-                            0,
-                            configFileCount,
-                            configMappings.size(),
-                            warnings
-                    );
-
-            ItemEssenceMappingRegistry.rejectReload(
-                    summary,
-                    errors
-            );
-
-            return ItemEssenceMappingRegistry.lastReload();
-        }
-
-        Map<ResourceLocation, ItemEssenceMappingDefinition> merged =
-                new LinkedHashMap<>();
-
-        if (!settings.removeAllDefaults()) {
-            merged.putAll(
-                    bundledDefaults
-            );
+            ItemEssenceMappingRegistry.rejectReload(new ItemEssenceMappingRegistry.LoadSummary(
+                    generatedCount, removed, 0, configFiles, explicit.size(), warnings), errors);
         } else {
-            removedDefaultCount +=
-                    bundledDefaults.size();
-        }
-
-        if (!settings.removeAllDefaults()) {
-            for (ResourceLocation removal :
-                    settings.removeDefaults()) {
-
-                if (merged.remove(
-                        removal
-                ) != null) {
-                    removedDefaultCount++;
-
-                } else if (!bundledDefaults.containsKey(
-                        removal
-                )) {
-                    warnings.add(
-                            "remove_defaults references no bundled default mapping: "
-                                    + removal
-                    );
-                }
+            try { ItemEssenceTooltipSyncService.syncAll(activeServer); }
+            catch (RuntimeException exception) {
+                // Installed generation remains valid. The existing per-player
+                // generation retry resends if negotiation was not ready yet.
+                EssenceAscendance.LOGGER.warn("Mapping generation installed; tooltip sync will retry: {}", message(exception));
             }
         }
-
-        /*
-         * Config mapping IDs are authoritative over bundled IDs.
-         *
-         * Therefore a config mapping with:
-         *
-         *   "id": "essence_ascendance:offense_iron_sword"
-         *
-         * is a true one-for-one replacement of that shipped default. No
-         * priority trick or zero-value placeholder is necessary.
-         */
-        for (Map.Entry<ResourceLocation, ItemEssenceMappingDefinition> entry :
-                configMappings.entrySet()) {
-
-            ResourceLocation id =
-                    entry.getKey();
-
-            if (bundledDefaults.containsKey(
-                    id
-            )) {
-                if (merged.remove(
-                        id
-                ) != null) {
-                    replacedDefaultCount++;
-
-                } else if (settings.removeAllDefaults()
-                        || settings.removeDefaults()
-                                .contains(
-                                        id
-                                )) {
-                    /*
-                     * Still count this as replacement intent even when settings
-                     * removed the default before the replacement was applied.
-                     */
-                    replacedDefaultCount++;
-                }
-            }
-
-            merged.put(
-                    id,
-                    entry.getValue()
-            );
-        }
-
-        ItemEssenceMappingRegistry.LoadSummary summary =
-                new ItemEssenceMappingRegistry.LoadSummary(
-                        bundledDefaultCount,
-                        removedDefaultCount,
-                        replacedDefaultCount,
-                        configFileCount,
-                        configMappings.size(),
-                        warnings
-                );
-
-        ItemEssenceMappingRegistry.install(
-                List.copyOf(
-                        merged.values()
-                ),
-                summary
-        );
-
         return ItemEssenceMappingRegistry.lastReload();
     }
 
-    private static Map<ResourceLocation, ItemEssenceMappingDefinition> loadBundledDefaults(
-            List<String> errors
-    ) {
-        Map<ResourceLocation, ItemEssenceMappingDefinition> result =
-                new LinkedHashMap<>();
+    private static List<String> removalSelectors(ResourceLocation id) {
+        List<String> legacy = LegacyDefaultSelectors.selectors(id);
+        if (!legacy.isEmpty()) return legacy;
+        if (id.getNamespace().equals(EssenceAscendance.MOD_ID) && id.getPath().startsWith("generated/")) {
+            String tail = id.getPath().substring("generated/".length());
+            int slash = tail.indexOf('/');
+            if (slash > 0) {
+                ResourceLocation itemId = ResourceLocation.tryParse(tail.substring(0, slash) + ":" + tail.substring(slash + 1));
+                if (itemId != null && BuiltInRegistries.ITEM.containsKey(itemId)) return List.of(itemId.toString());
+            }
+        }
+        if (BuiltInRegistries.ITEM.containsKey(id)) return List.of(id.toString());
+        return List.of();
+    }
 
-        int discoveredRoots =
-                0;
+    private static boolean matchesAny(ItemStack stack, Iterable<String> selectors) {
+        ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        for (String selector : selectors) {
+            if (selector.startsWith("#")) {
+                ResourceLocation tag = ResourceLocation.tryParse(selector.substring(1));
+                if (tag != null && stack.is(TagKey.create(Registries.ITEM, tag))) return true;
+            } else if (id.toString().equals(selector)) return true;
+        }
+        return false;
+    }
 
-        /*
-         * Primary path: resolve a known marker through the runtime classloader.
-         *
-         * This intentionally does NOT use Platform.getMod(...).findResource().
-         * In a multi-project Architectury development run, common resources can
-         * exist on the runtime classpath without belonging to the Fabric/
-         * NeoForge mod container's reported resource roots.
-         */
+    private static ConfigSettings loadSettings(List<String> errors) {
+        if (!Files.isRegularFile(settingsPath())) return ConfigSettings.defaults();
         try {
-            ClassLoader loader =
-                    EssenceAscendance.class
-                            .getClassLoader();
-
-            Enumeration<URL> markers =
-                    loader.getResources(
-                            DEFAULT_ROOT_MARKER
-                    );
-
-            while (markers.hasMoreElements()) {
-                URL marker =
-                        markers.nextElement();
-
-                discoveredRoots++;
-
-                loadBundledRoot(
-                        marker,
-                        result,
-                        errors
-                );
+            JsonElement parsed = readJson(settingsPath());
+            if (!parsed.isJsonObject()) throw new IllegalArgumentException("root must be an object");
+            JsonObject root = parsed.getAsJsonObject();
+            Set<String> allowed = Set.of("remove_all_defaults", "remove_defaults", "procedural_defaults", "allow_generated", "deny_generated");
+            for (String key : root.keySet()) if (!allowed.contains(key)) throw new IllegalArgumentException("unknown field '" + key + "'");
+            Set<ResourceLocation> removals = new LinkedHashSet<>();
+            if (root.has("remove_defaults")) {
+                if (!root.get("remove_defaults").isJsonArray()) throw new IllegalArgumentException("remove_defaults must be an array");
+                for (JsonElement entry : root.getAsJsonArray("remove_defaults"))
+                    removals.add(ItemEssenceMappingJson.readResourceLocation(entry, "remove_defaults[]"));
             }
-
-        } catch (IOException exception) {
-            errors.add(
-                    "Unable to discover bundled mapping resources: "
-                            + message(
-                                    exception
-                            )
-            );
-        }
-
-        if (discoveredRoots == 0) {
-            errors.add(
-                    "Bundled mapping resources are missing from the runtime classpath: "
-                            + DEFAULT_RESOURCE_PREFIX
-                            + " (marker "
-                            + DEFAULT_ROOT_MARKER
-                            + " was not found)"
-            );
-        }
-
-        return result;
-    }
-
-
-    private static void loadBundledRoot(
-            URL marker,
-            Map<ResourceLocation, ItemEssenceMappingDefinition> result,
-            List<String> errors
-    ) {
-        String protocol =
-                marker.getProtocol();
-
-        /*
-         * First try the URL as a mounted NIO filesystem path.
-         *
-         * This covers normal file: development roots and also loader-provided
-         * filesystem schemes (for example the mounted resource filesystems used
-         * by modern Forge-like launchers) without hard-coding their protocol.
-         */
-        try {
-            Path markerPath =
-                    Path.of(
-                            marker.toURI()
-                    );
-
-            Path root =
-                    markerPath.getParent();
-
-            if (root != null
-                    && Files.isDirectory(
-                            root
-                    )) {
-
-                loadBundledDirectory(
-                        root,
-                        result,
-                        errors
-                );
-
-                return;
-            }
-
-        } catch (RuntimeException
-                 | URISyntaxException ignored) {
-            /*
-             * Not every URL scheme has an installed NIO provider. Fall through
-             * to the standard JAR URL path below.
-             */
-        }
-
-        try {
-            if ("jar".equalsIgnoreCase(
-                    protocol
-            )) {
-                URLConnection rawConnection =
-                        marker.openConnection();
-
-                if (!(rawConnection instanceof JarURLConnection connection)) {
-                    errors.add(
-                            "Unsupported JAR URL connection for bundled mappings: "
-                                    + marker
-                    );
-
-                    return;
-                }
-
-                /*
-                 * Do not cache the JarURLConnection. This loader can be invoked
-                 * repeatedly through /essence admin mappings reload.
-                 */
-                connection.setUseCaches(
-                        false
-                );
-
-                try (JarFile jar =
-                             connection.getJarFile()) {
-
-                    loadBundledJar(
-                            jar,
-                            result,
-                            errors
-                    );
-                }
-
-                return;
-            }
-
-            errors.add(
-                    "Bundled mapping marker resolved through unsupported resource protocol '"
-                            + protocol
-                            + "' and could not be exposed as an NIO path: "
-                            + marker
-            );
-
-        } catch (IOException exception) {
-
-            errors.add(
-                    "Unable to read bundled mapping root "
-                            + marker
-                            + ": "
-                            + message(
-                                    exception
-                            )
-            );
-        }
-    }
-
-
-    private static void loadBundledDirectory(
-            Path root,
-            Map<ResourceLocation, ItemEssenceMappingDefinition> result,
-            List<String> errors
-    ) {
-        if (root == null
-                || !Files.isDirectory(
-                        root
-                )) {
-
-            errors.add(
-                    "Bundled mapping marker resolved without a readable sibling directory: "
-                            + root
-            );
-
-            return;
-        }
-
-        for (Path file :
-                jsonFiles(
-                        root,
-                        errors,
-                        "bundled defaults"
-                )) {
-
-            String relative =
-                    normalizeRelative(
-                            root,
-                            file
-                    );
-
-            ResourceLocation mappingId =
-                    idFromRelativePath(
-                            EssenceAscendance.MOD_ID,
-                            relative,
-                            false
-                    );
-
-            if (mappingId == null) {
-                errors.add(
-                        "Bundled default mapping path cannot become a ResourceLocation: "
-                                + relative
-                );
-
-                continue;
-            }
-
-            try {
-                installBundledDefinition(
-                        relative,
-                        mappingId,
-                        ItemEssenceMappingJson.parseDefault(
-                                mappingId,
-                                readJson(
-                                        file
-                                )
-                        ),
-                        result,
-                        errors
-                );
-
-            } catch (RuntimeException
-                     | IOException exception) {
-
-                errors.add(
-                        "Bundled "
-                                + relative
-                                + ": "
-                                + message(
-                                        exception
-                                )
-                );
-            }
-        }
-    }
-
-
-    private static void loadBundledJar(
-            JarFile jar,
-            Map<ResourceLocation, ItemEssenceMappingDefinition> result,
-            List<String> errors
-    ) {
-        String prefix =
-                DEFAULT_RESOURCE_PREFIX
-                        + "/";
-
-        Enumeration<JarEntry> entries =
-                jar.entries();
-
-        while (entries.hasMoreElements()) {
-            JarEntry entry =
-                    entries.nextElement();
-
-            String name =
-                    entry.getName();
-
-            if (entry.isDirectory()
-                    || !name.startsWith(
-                            prefix
-                    )
-                    || !name.toLowerCase(
-                                    java.util.Locale.ROOT
-                            )
-                            .endsWith(
-                                    ".json"
-                            )) {
-                continue;
-            }
-
-            String relative =
-                    name.substring(
-                            prefix.length()
-                    );
-
-            ResourceLocation mappingId =
-                    idFromRelativePath(
-                            EssenceAscendance.MOD_ID,
-                            relative,
-                            false
-                    );
-
-            if (mappingId == null) {
-                errors.add(
-                        "Bundled default mapping path cannot become a ResourceLocation: "
-                                + relative
-                );
-
-                continue;
-            }
-
-            try (Reader reader =
-                         new InputStreamReader(
-                                 jar.getInputStream(
-                                         entry
-                                 ),
-                                 StandardCharsets.UTF_8
-                         )) {
-
-                installBundledDefinition(
-                        relative,
-                        mappingId,
-                        ItemEssenceMappingJson.parseDefault(
-                                mappingId,
-                                readJson(
-                                        reader
-                                )
-                        ),
-                        result,
-                        errors
-                );
-
-            } catch (RuntimeException
-                     | IOException exception) {
-
-                errors.add(
-                        "Bundled "
-                                + relative
-                                + ": "
-                                + message(
-                                        exception
-                                )
-                );
-            }
-        }
-    }
-
-
-    private static void installBundledDefinition(
-            String relative,
-            ResourceLocation mappingId,
-            ItemEssenceMappingDefinition definition,
-            Map<ResourceLocation, ItemEssenceMappingDefinition> result,
-            List<String> errors
-    ) {
-        ItemEssenceMappingDefinition previous =
-                result.putIfAbsent(
-                        mappingId,
-                        definition
-                );
-
-        if (previous != null
-                && !previous.equals(
-                        definition
-                )) {
-
-            errors.add(
-                    "Duplicate bundled mapping ID with different definitions: "
-                            + mappingId
-                            + " (latest resource "
-                            + relative
-                            + ")"
-            );
-        }
-    }
-
-
-    private static ConfigSettings loadSettings(
-            List<String> errors
-    ) {
-        Path path =
-                settingsPath();
-
-        if (!Files.isRegularFile(
-                path
-        )) {
+            return new ConfigSettings(bool(root, "remove_all_defaults", false), Set.copyOf(removals),
+                    bool(root, "procedural_defaults", true), selectors(root, "allow_generated"), selectors(root, "deny_generated"));
+        } catch (IOException | RuntimeException exception) {
+            errors.add(SETTINGS_FILE + ": " + message(exception));
             return ConfigSettings.defaults();
         }
+    }
 
-        try {
-            JsonElement element =
-                    readJson(
-                            path
-                    );
-
-            if (!element.isJsonObject()) {
-                throw new IllegalArgumentException(
-                        "root must be a JSON object"
-                );
-            }
-
-            JsonObject root =
-                    element.getAsJsonObject();
-
-            Set<String> allowed =
-                    Set.of(
-                            "remove_all_defaults",
-                            "remove_defaults"
-                    );
-
-            for (String key :
-                    root.keySet()) {
-
-                if (!allowed.contains(
-                        key
-                )) {
-                    throw new IllegalArgumentException(
-                            "unknown field '"
-                                    + key
-                                    + "'"
-                    );
-                }
-            }
-
-            boolean removeAll =
-                    root.has(
-                            "remove_all_defaults"
-                    )
-                            && root.get(
-                                    "remove_all_defaults"
-                            )
-                            .getAsBoolean();
-
-            Set<ResourceLocation> removeDefaults =
-                    new LinkedHashSet<>();
-
-            if (root.has(
-                    "remove_defaults"
-            )) {
-                JsonElement removals =
-                        root.get(
-                                "remove_defaults"
-                        );
-
-                if (!removals.isJsonArray()) {
-                    throw new IllegalArgumentException(
-                            "'remove_defaults' must be an array of mapping IDs"
-                    );
-                }
-
-                for (JsonElement removal :
-                        removals.getAsJsonArray()) {
-
-                    ResourceLocation id =
-                            ItemEssenceMappingJson.readResourceLocation(
-                                    removal,
-                                    "remove_defaults[]"
-                            );
-
-                    removeDefaults.add(
-                            id
-                    );
-                }
-            }
-
-            return new ConfigSettings(
-                    removeAll,
-                    Set.copyOf(
-                            removeDefaults
-                    )
-            );
-
-        } catch (RuntimeException
-                 | IOException exception) {
-
-            errors.add(
-                    SETTINGS_FILE
-                            + ": "
-                            + message(
-                                    exception
-                            )
-            );
-
-            return ConfigSettings.defaults();
+    private static boolean bool(JsonObject object, String key, boolean fallback) {
+        if (!object.has(key)) return fallback;
+        JsonElement value = object.get(key);
+        if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isBoolean())
+            throw new IllegalArgumentException(key + " must be a boolean");
+        return value.getAsBoolean();
+    }
+    private static Set<String> selectors(JsonObject root, String key) {
+        if (!root.has(key)) return Set.of();
+        if (!root.get(key).isJsonArray()) throw new IllegalArgumentException(key + " must be an array of item IDs or #tags");
+        Set<String> result = new LinkedHashSet<>();
+        for (JsonElement element : root.getAsJsonArray(key)) {
+            if (!element.isJsonPrimitive() || !element.getAsJsonPrimitive().isString())
+                throw new IllegalArgumentException(key + " entries must be strings");
+            String text = element.getAsString();
+            ResourceLocation id = ResourceLocation.tryParse(text.startsWith("#") ? text.substring(1) : text);
+            if (id == null || (!text.startsWith("#") && !BuiltInRegistries.ITEM.containsKey(id)))
+                throw new IllegalArgumentException("Invalid/unknown selector in " + key + ": " + text);
+            result.add((text.startsWith("#") ? "#" : "") + id);
         }
+        return Set.copyOf(result);
     }
 
     private static Map<ResourceLocation, ItemEssenceMappingDefinition> loadConfigMappings(
@@ -1003,173 +492,61 @@ public final class ItemEssenceMappingManager {
     }
 
     private static void ensureConfigScaffold() {
-        Path directory =
-                configDirectory();
-
         try {
-            Files.createDirectories(
-                    directory
-            );
-
-            Path settings =
-                    directory.resolve(
-                            SETTINGS_FILE
-                    );
-
-            if (!Files.exists(
-                    settings
-            )) {
-                Files.writeString(
-                        settings,
-                        """
-                                {
-                                  "remove_all_defaults": false,
-                                  "remove_defaults": []
-                                }
-                                """,
-                        StandardCharsets.UTF_8,
-                        StandardOpenOption.CREATE_NEW
-                );
-            }
-
-            Path readme =
-                    directory.resolve(
-                            README_FILE
-                    );
-
-            if (!Files.exists(
-                    readme
-            )) {
-                Files.writeString(
-                        readme,
-                        README_TEXT,
-                        StandardCharsets.UTF_8,
-                        StandardOpenOption.CREATE_NEW
-                );
-            }
-
+            Files.createDirectories(configDirectory());
+            if (!Files.exists(settingsPath())) Files.writeString(settingsPath(), "{}\n", StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
+            Path readme = configDirectory().resolve(README_FILE);
+            if (!Files.exists(readme)) Files.writeString(readme, README_TEXT, StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
         } catch (IOException exception) {
-            EssenceAscendance.LOGGER.error(
-                    "Unable to create Essence item-mapping config directory {}",
-                    directory,
-                    exception
-            );
+            EssenceAscendance.LOGGER.error("Unable to scaffold item mapping config", exception);
         }
     }
-
-    private static String message(
-            Throwable throwable
-    ) {
-        String message =
-                throwable.getMessage();
-
-        return message == null
-                || message.isBlank()
-                ? throwable.getClass()
-                        .getSimpleName()
-                : message;
+    private static String message(Throwable error) {
+        return error.getMessage() == null ? error.getClass().getSimpleName() : error.getMessage();
     }
-
-    private record ConfigSettings(
-            boolean removeAllDefaults,
-            Set<ResourceLocation> removeDefaults
-    ) {
-        private ConfigSettings {
-            removeDefaults =
-                    Set.copyOf(
-                            removeDefaults
-                    );
-        }
-
-        private static ConfigSettings defaults() {
-            return new ConfigSettings(
-                    false,
-                    Set.of()
-            );
-        }
+    private record ConfigSettings(boolean removeAllDefaults, Set<ResourceLocation> removeDefaults,
+                                  boolean proceduralDefaults, Set<String> allowGenerated, Set<String> denyGenerated) {
+        static ConfigSettings defaults() { return new ConfigSettings(false, Set.of(), true, Set.of(), Set.of()); }
     }
+    private static final String README_TEXT = """
+            ESSENCE ASCENDANCE - PROCEDURAL DEFAULTS AND EXPLICIT OVERRIDES
+            ============================================================
+            The bundled hand-authored yield folder is retired and is not read.
+            Defaults are generated from the final loaded recipes/acquisition data.
+            Explicit JSON rules here are the final authority, even below priority 0.
+            Highest-priority explicit rules win; tied explicit rules add together.
+            An empty outputs object blocks lower-priority rules AND the generated default.
 
-    private static final String README_TEXT =
-            """
-            ESSENCE ASCENDANCE - ITEM -> ATTRIBUTE ESSENCE MAPPINGS
-            =======================================================
+            _settings.json is sparse. Missing keys use these defaults:
+              procedural_defaults: true
+              remove_all_defaults: false
+              remove_defaults: []
+              allow_generated: []
+              deny_generated: []
+            allow_generated/deny_generated accept item IDs and #item_tags.
+            Deny wins over allow. Explicit mappings still override the policy.
+            Allow changes eligibility ONLY: it does not invent acquisition evidence.
+            To price an unsupported custom acquisition mechanic, write an explicit mapping.
+            remove_defaults accepts generated IDs, item IDs and historical bundled mapping IDs.
+            Stable generated ID: essence_ascendance:generated/<namespace>/<item_path>
+            Historical aliases contain selectors only, never old yield numbers.
+            procedural_defaults:false or remove_all_defaults:true leaves explicit rules only;
+            it does NOT restore the deleted legacy dataset.
 
-            This directory is global to the Minecraft instance/server.
-            It is NOT world-specific and does NOT use datapacks.
+            Example explicit rule (put in its own JSON file):
+            {"item":"minecraft:pig_spawn_egg","outputs":{"essence_ascendance:vitality":100}}
+            This number is an EXAMPLE override, not a built-in default.
+            Example block: {"item":"minecraft:diamond","outputs":{}}
+            Optional mapping fields: id, priority. Use exactly one of item or tag.
 
-            SETTINGS
-            --------
-            _settings.json controls shipped defaults:
+            Own-mod items remain internally valued but are not automatic yield sources.
+            Spawn eggs need a modeled source in this pack, or an explicit mapping.
+            Unmodeled does not mean creative-only; unsupported items stay in CSV diagnostics.
+            Essentium uses its existing exact component recovery, never a generated base bonus.
 
-            {
-              "remove_all_defaults": false,
-              "remove_defaults": [
-                "essence_ascendance:offense_iron_sword"
-              ]
-            }
-
-            remove_all_defaults=true removes every mapping shipped by the mod.
-            Config mapping files are still loaded afterward.
-
-            remove_defaults removes only the listed shipped mapping IDs.
-
-            ONE-FOR-ONE REPLACEMENT
-            -----------------------
-            A config mapping whose explicit "id" equals a shipped default ID
-            replaces that default directly.
-
-            Example:
-
-            {
-              "id": "essence_ascendance:offense_iron_sword",
-              "priority": 0,
-              "item": "minecraft:iron_sword",
-              "outputs": {
-                "essence_ascendance:offense": 20
-              }
-            }
-
-            ADDING NEW / THIRD-PARTY ITEMS
-            ------------------------------
-            Add any other *.json file here. The same item/tag mapping schema is
-            used. If "id" is omitted, an ID is derived from the config file path.
-
-            Example:
-
-            {
-              "priority": 25,
-              "item": "some_mod:some_weapon",
-              "outputs": {
-                "essence_ascendance:offense": 40,
-                "essence_ascendance:utility": 5
-              }
-            }
-
-            Tag selectors are also supported:
-
-            {
-              "priority": 10,
-              "tag": "some_mod:weapons",
-              "outputs": {
-                "essence_ascendance:offense": 20
-              }
-            }
-
-            PRIORITY
-            --------
-            For a given ItemStack, only the highest matching priority applies.
-            All rules tied at that priority merge additively.
-
-            An empty outputs object at the winning priority blocks lower rules.
-
-            RELOAD
-            ------
-            /essence admin mappings reload
-
-            INSPECT
-            -------
-            /essence admin mappings
-            /essence admin mappings list
-            /essence debug mapping
+            Reload with /essence admin mappings reload or /essence debug valuation rebuild.
+            Successful vanilla /reload also refreshes at the next server tick.
+            Errors keep the complete last-known-good generation; first-start errors fail closed.
+            CSV includes eligibility and the installed live mapping source/total.
             """;
 }

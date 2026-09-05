@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:suspicious_stew",
-  "outputs": {
-    "essence_ascendance:vitality": 8,
-    "essence_ascendance:utility": 2
-  }
-}

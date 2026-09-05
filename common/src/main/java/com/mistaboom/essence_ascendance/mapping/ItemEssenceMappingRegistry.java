@@ -4,7 +4,9 @@ import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -12,345 +14,111 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/*
- * Runtime registry for the final, already-merged item -> Attribute Essence
- * mapping generation.
- *
- * Item resolution:
- * 1. collect every matching mapping;
- * 2. determine the highest matching priority;
- * 3. ignore lower-priority mappings;
- * 4. merge all rules tied at the winning priority additively.
- *
- * A winning mapping with an empty outputs object therefore blocks lower rules.
+/** Atomically published, pre-resolved generation. Explicit rules beat the generated
+ * baseline even at a lower numeric priority. Priority/tied addition remains
+ * unchanged WITHIN the explicit layer; empty winning output blocks the baseline.
+ * Tags resolve only while staging a generation, so a rejected reload cannot mix
+ * old numbers with newly changed tag membership. No graph evaluation on ticks.
  */
 public final class ItemEssenceMappingRegistry {
+    private static final Comparator<ItemEssenceMappingDefinition> ORDER = Comparator
+            .comparingInt(ItemEssenceMappingDefinition::priority).reversed()
+            .thenComparing(definition -> definition.id().toString());
+    private static volatile State state = State.empty();
+    private static volatile ReloadReport lastReload = ReloadReport.notLoaded();
+    private ItemEssenceMappingRegistry() { }
 
-    private static final Comparator<ItemEssenceMappingDefinition> DEFINITION_ORDER =
-            Comparator
-                    .comparingInt(
-                            ItemEssenceMappingDefinition::priority
-                    )
-                    .reversed()
-                    .thenComparing(
-                            definition ->
-                                    definition.id()
-                                            .toString()
-                    );
-
-    private static volatile State state =
-            State.empty();
-
-    private static volatile ReloadReport lastReload =
-            ReloadReport.notLoaded();
-
-    private static long generation =
-            0L;
-
-    private ItemEssenceMappingRegistry() {
+    public static ItemEssenceMappingResult resolve(ItemStack stack) {
+        ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack == null || stack.isEmpty() ? Items.AIR : stack.getItem());
+        if (stack == null || stack.isEmpty()) return unmapped(id);
+        return state.resolved().getOrDefault(id, unmapped(id));
     }
 
-    public static ItemEssenceMappingResult resolve(
-            ItemStack stack
-    ) {
-        ResourceLocation itemId =
-                stack == null
-                        || stack.isEmpty()
-                        ? BuiltInRegistries.ITEM
-                                .getKey(
-                                        net.minecraft.world.item.Items.AIR
-                                )
-                        : BuiltInRegistries.ITEM
-                                .getKey(
-                                        stack.getItem()
-                                );
+    public static String source(ResourceLocation itemId) {
+        return state.origins().getOrDefault(itemId, "none");
+    }
+    public static List<ItemEssenceMappingDefinition> definitions() { return state.definitions(); }
+    public static ReloadReport lastReload() { return lastReload; }
+    public static long generation() { return state.generation(); }
 
-        if (stack == null
-                || stack.isEmpty()) {
-            return unmapped(
-                    itemId
-            );
-        }
-
-        State snapshot =
-                state;
-
-        List<ItemEssenceMappingDefinition> matches =
-                new ArrayList<>();
-
-        for (ItemEssenceMappingDefinition definition :
-                snapshot.definitions()) {
-
-            if (definition.matches(
-                    stack
-            )) {
-                matches.add(
-                        definition
-                );
+    static synchronized void install(List<ItemEssenceMappingDefinition> explicit,
+                                     Map<ResourceLocation, ItemEssenceMappingDefinition> generated,
+                                     LoadSummary summary) {
+        List<ItemEssenceMappingDefinition> ordered = explicit.stream().sorted(ORDER).toList();
+        Map<ResourceLocation, ItemEssenceMappingResult> resolved = new LinkedHashMap<>();
+        Map<ResourceLocation, String> origins = new LinkedHashMap<>();
+        for (Item item : BuiltInRegistries.ITEM) {
+            if (item == Items.AIR) continue;
+            ResourceLocation id = BuiltInRegistries.ITEM.getKey(item);
+            ItemStack stack = new ItemStack(item);
+            List<ItemEssenceMappingDefinition> matches = ordered.stream().filter(rule -> rule.matches(stack)).toList();
+            if (!matches.isEmpty()) {
+                resolved.put(id, resolveRules(id, matches));
+                origins.put(id, resolved.get(id).outputs().isEmpty() ? "explicit_block" : "explicit");
+            } else if (generated.containsKey(id)) {
+                resolved.put(id, resolveRules(id, List.of(generated.get(id))));
+                origins.put(id, "procedural");
             }
         }
+        List<ItemEssenceMappingDefinition> all = new ArrayList<>(ordered);
+        all.addAll(generated.values());
+        all.sort(ORDER);
+        long next = Math.addExact(state.generation(), 1L);
+        State complete = new State(next, List.copyOf(all), Map.copyOf(resolved), Map.copyOf(origins));
+        // The table and its generation ID publish together, after ALL validation.
+        state = complete;
+        lastReload = new ReloadReport(true, next, summary.bundledDefaultCount(), summary.removedDefaultCount(),
+                summary.replacedDefaultCount(), summary.configFileCount(), summary.configMappingCount(), all.size(),
+                countItemRules(all), all.size() - countItemRules(all), summary.warnings(), List.of());
+        EssenceAscendance.LOGGER.info("Installed Essence mapping generation {}: {} generated defaults, {} explicit rules, {} resolved items",
+                next, generated.size(), explicit.size(), resolved.size());
+        summary.warnings().forEach(warning -> EssenceAscendance.LOGGER.warn("Essence mappings: {}", warning));
+    }
 
-        if (matches.isEmpty()) {
-            return unmapped(
-                    itemId
-            );
+    private static ItemEssenceMappingResult resolveRules(ResourceLocation itemId,
+                                                        List<ItemEssenceMappingDefinition> matches) {
+        int priority = matches.getFirst().priority();
+        List<ResourceLocation> applied = new ArrayList<>();
+        Map<EssenceDefinition, Long> outputs = new LinkedHashMap<>();
+        for (ItemEssenceMappingDefinition rule : matches) {
+            if (rule.priority() != priority) break;
+            applied.add(rule.id());
+            rule.outputs().forEach((essence, amount) -> {
+                if (amount < 0) throw new IllegalArgumentException("Negative output in " + rule.id());
+                if (amount > 0) outputs.merge(essence, amount, Math::addExact);
+            });
         }
-
-        matches.sort(
-                DEFINITION_ORDER
-        );
-
-        int winningPriority =
-                matches.getFirst()
-                        .priority();
-
-        List<ResourceLocation> matchedIds =
-                matches.stream()
-                        .map(
-                                ItemEssenceMappingDefinition::id
-                        )
-                        .toList();
-
-        List<ResourceLocation> appliedIds =
-                new ArrayList<>();
-
-        Map<EssenceDefinition, Long> outputs =
-                new LinkedHashMap<>();
-
-        for (ItemEssenceMappingDefinition definition :
-                matches) {
-
-            if (definition.priority()
-                    != winningPriority) {
-                break;
-            }
-
-            appliedIds.add(
-                    definition.id()
-            );
-
-            for (Map.Entry<EssenceDefinition, Long> output :
-                    definition.outputs()
-                            .entrySet()) {
-
-                outputs.merge(
-                        output.getKey(),
-                        output.getValue(),
-                        Math::addExact
-                );
-            }
-        }
-
-        List<Map.Entry<EssenceDefinition, Long>> sortedOutputs =
-                outputs.entrySet()
-                        .stream()
-                        .sorted(
-                                Comparator.comparing(
-                                        entry ->
-                                                entry.getKey()
-                                                        .id()
-                                                        .toString()
-                                )
-                        )
-                        .toList();
-
-        Map<EssenceDefinition, Long> orderedOutputs =
-                new LinkedHashMap<>();
-
-        for (Map.Entry<EssenceDefinition, Long> entry :
-                sortedOutputs) {
-
-            orderedOutputs.put(
-                    entry.getKey(),
-                    entry.getValue()
-            );
-        }
-
-        return new ItemEssenceMappingResult(
-                itemId,
-                matchedIds,
-                appliedIds,
-                winningPriority,
-                orderedOutputs
-        );
+        // Also check the complete multi-Essence total before publication.
+        long total = 0L;
+        for (long amount : outputs.values()) total = Math.addExact(total, amount);
+        return new ItemEssenceMappingResult(itemId, matches.stream().map(ItemEssenceMappingDefinition::id).toList(),
+                applied, priority, outputs);
     }
 
-    public static List<ItemEssenceMappingDefinition> definitions() {
-        return state.definitions();
+    static synchronized void rejectReload(LoadSummary summary, List<String> errors) {
+        lastReload = new ReloadReport(false, state.generation(), summary.bundledDefaultCount(), summary.removedDefaultCount(),
+                summary.replacedDefaultCount(), summary.configFileCount(), summary.configMappingCount(),
+                state.definitions().size(), countItemRules(state.definitions()),
+                state.definitions().size() - countItemRules(state.definitions()), summary.warnings(), errors);
+        EssenceAscendance.LOGGER.error("Rejected Essence mapping reload; keeping generation {}: {}", state.generation(), errors);
     }
 
-    public static ReloadReport lastReload() {
-        return lastReload;
+    static synchronized void clear() {
+        state = State.empty(Math.addExact(state.generation(), 1L));
+        lastReload = ReloadReport.notLoaded();
     }
 
-    public static long generation() {
-        return generation;
+    private static int countItemRules(List<ItemEssenceMappingDefinition> definitions) {
+        return (int) definitions.stream().filter(rule -> rule.selectorType() == ItemEssenceMappingDefinition.SelectorType.ITEM).count();
     }
-
-    static synchronized void install(
-            List<ItemEssenceMappingDefinition> definitions,
-            LoadSummary summary
-    ) {
-        List<ItemEssenceMappingDefinition> ordered =
-                definitions.stream()
-                        .sorted(
-                                DEFINITION_ORDER
-                        )
-                        .toList();
-
-        generation++;
-
-        state =
-                new State(
-                        ordered
-                );
-
-        long itemRules =
-                ordered.stream()
-                        .filter(
-                                definition ->
-                                        definition.selectorType()
-                                                == ItemEssenceMappingDefinition.SelectorType.ITEM
-                        )
-                        .count();
-
-        long tagRules =
-                ordered.size()
-                        - itemRules;
-
-        lastReload =
-                new ReloadReport(
-                        true,
-                        generation,
-                        summary.bundledDefaultCount(),
-                        summary.removedDefaultCount(),
-                        summary.replacedDefaultCount(),
-                        summary.configFileCount(),
-                        summary.configMappingCount(),
-                        ordered.size(),
-                        (int) itemRules,
-                        (int) tagRules,
-                        List.copyOf(
-                                summary.warnings()
-                        ),
-                        List.of()
-                );
-
-        EssenceAscendance.LOGGER.info(
-                "Loaded {} active Essence item mappings ({} bundled defaults, {} removed, {} replaced, {} config mappings, generation {})",
-                ordered.size(),
-                summary.bundledDefaultCount(),
-                summary.removedDefaultCount(),
-                summary.replacedDefaultCount(),
-                summary.configMappingCount(),
-                generation
-        );
-
-        for (String warning :
-                summary.warnings()) {
-
-            EssenceAscendance.LOGGER.warn(
-                    "Essence item mapping: {}",
-                    warning
-            );
-        }
+    private static ItemEssenceMappingResult unmapped(ResourceLocation id) {
+        return new ItemEssenceMappingResult(id, List.of(), List.of(), null, Map.of());
     }
-
-    static synchronized void rejectReload(
-            LoadSummary summary,
-            List<String> errors
-    ) {
-        lastReload =
-                new ReloadReport(
-                        false,
-                        generation,
-                        summary.bundledDefaultCount(),
-                        summary.removedDefaultCount(),
-                        summary.replacedDefaultCount(),
-                        summary.configFileCount(),
-                        summary.configMappingCount(),
-                        state.definitions()
-                                .size(),
-                        countItemRules(
-                                state.definitions()
-                        ),
-                        countTagRules(
-                                state.definitions()
-                        ),
-                        List.copyOf(
-                                summary.warnings()
-                        ),
-                        List.copyOf(
-                                errors
-                        )
-                );
-
-        EssenceAscendance.LOGGER.error(
-                "Rejected Essence item-mapping config reload with {} error(s). Keeping generation {} with {} active mappings.",
-                errors.size(),
-                generation,
-                state.definitions()
-                        .size()
-        );
-
-        for (String error :
-                errors) {
-
-            EssenceAscendance.LOGGER.error(
-                    "  {}",
-                    error
-            );
-        }
-    }
-
-    private static int countItemRules(
-            List<ItemEssenceMappingDefinition> definitions
-    ) {
-        return (int) definitions.stream()
-                .filter(
-                        definition ->
-                                definition.selectorType()
-                                        == ItemEssenceMappingDefinition.SelectorType.ITEM
-                )
-                .count();
-    }
-
-    private static int countTagRules(
-            List<ItemEssenceMappingDefinition> definitions
-    ) {
-        return definitions.size()
-                - countItemRules(
-                        definitions
-                );
-    }
-
-    private static ItemEssenceMappingResult unmapped(
-            ResourceLocation itemId
-    ) {
-        return new ItemEssenceMappingResult(
-                itemId,
-                List.of(),
-                List.of(),
-                null,
-                Map.of()
-        );
-    }
-
-    private record State(
-            List<ItemEssenceMappingDefinition> definitions
-    ) {
-        private State {
-            definitions =
-                    List.copyOf(
-                            definitions
-                    );
-        }
-
-        private static State empty() {
-            return new State(
-                    List.of()
-            );
-        }
+    private record State(long generation, List<ItemEssenceMappingDefinition> definitions,
+                         Map<ResourceLocation, ItemEssenceMappingResult> resolved,
+                         Map<ResourceLocation, String> origins) {
+        static State empty() { return empty(0L); }
+        static State empty(long generation) { return new State(generation, List.of(), Map.of(), Map.of()); }
     }
 
     public record LoadSummary(

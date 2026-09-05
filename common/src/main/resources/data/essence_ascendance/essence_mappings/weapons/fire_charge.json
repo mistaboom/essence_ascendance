@@ -1,7 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:fire_charge",
-  "outputs": {
-    "essence_ascendance:offense": 15
-  }
-}

@@ -1,7 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:furnace",
-  "outputs": {
-    "essence_ascendance:utility": 5
-  }
-}

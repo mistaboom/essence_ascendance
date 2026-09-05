@@ -19,6 +19,9 @@ import java.util.regex.Pattern;
 final class ShadowItemNomenclature {
     private static final Pattern CAMEL_BOUNDARY = Pattern.compile("([a-z0-9])([A-Z])");
     private static final Pattern SEPARATORS = Pattern.compile("[^a-z]+");
+    // Remove only a color-modifying occurrence; a later actual light/lamp remains.
+    private static final Pattern COLOR_LIGHT = Pattern.compile(
+            "\\blight (?=blue\\b|gray\\b|grey\\b|green\\b|red\\b|brown\\b|pink\\b|purple\\b|cyan\\b|yellow\\b)");
 
     // Only these whole prefixes may be peeled from a concatenated tool noun.
     // They do NOT carry a tier/value vote. Arbitrary suffix matching would make
@@ -110,6 +113,12 @@ final class ShadowItemNomenclature {
         }
         if (words.phrase("smithing template")) {
             out.add("form:smithing_template", 0, 1.2, 0, 0, 0, 1.2);
+            return out.finish();
+        }
+
+        // A compound's functional meaning wins over a homonymous component.
+        if (words.phrase("bone meal") || words.has("bonemeal")) {
+            out.add("agriculture:bone_meal", 0, 0, 0.3, 0, 3, 0.3);
             return out.finish();
         }
 
@@ -236,7 +245,7 @@ final class ShadowItemNomenclature {
         private final Set<String> tokens = new LinkedHashSet<>();
 
         Words(String path) {
-            normalized = normalize(path);
+            normalized = COLOR_LIGHT.matcher(normalize(path)).replaceAll("");
             if (!normalized.isBlank()) {
                 for (String token : normalized.split(" +")) {
                     tokens.add(token);

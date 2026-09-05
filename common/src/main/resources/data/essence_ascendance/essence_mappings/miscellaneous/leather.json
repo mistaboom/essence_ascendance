@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:leather",
-  "outputs": {
-    "essence_ascendance:defense": 10,
-    "essence_ascendance:utility": 15
-  }
-}

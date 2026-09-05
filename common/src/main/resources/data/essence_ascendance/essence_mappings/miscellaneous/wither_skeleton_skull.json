@@ -1,9 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:wither_skeleton_skull",
-  "outputs": {
-    "essence_ascendance:offense": 100,
-    "essence_ascendance:gathering": 100,
-    "essence_ascendance:utility": 100
-  }
-}

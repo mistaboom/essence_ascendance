@@ -4,6 +4,11 @@ import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceTypes;
 import dev.architectury.platform.Platform;
+import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingManager;
+import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingRegistry;
+import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingResult;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
 
 import java.io.BufferedWriter;
@@ -19,14 +24,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-/**
- * Diagnostic-only bulk export for the procedural shadow valuation engine.
- *
- * The exporter writes the shadow engine's own foundational values only. It
- * intentionally does not read or include legacy/live Item -> Essence mapping
- * totals so spreadsheet tuning cannot accidentally normalize the new economy
- * back toward the old hand-authored scale.
- */
+/** Exports the shared internal economic analysis plus live-resolution diagnostics.
+ * Live values are reported only for verification; they NEVER feed economic analysis.
+ * Historical shadow_valuation filename retained for existing CSV comparisons. */
 public final class ShadowValuationCsvExporter {
 
     private static final DateTimeFormatter FILE_TIMESTAMP =
@@ -113,7 +113,16 @@ public final class ShadowValuationCsvExporter {
                 "routing_confidence_band",
                 "name_hint_source",
                 "name_hint_matches",
-                "structured_routing_signals"
+                "structured_routing_signals",
+                "modeled_acquisition",
+                "source_archaeology_count",
+                "conservation_status",
+                "generated_eligibility",
+                "eligibility_reason",
+                "live_mapping_source",
+                "live_total",
+                "live_generation",
+                "live_offense", "live_defense", "live_vitality", "live_mobility", "live_gathering", "live_utility"
         ));
     }
 
@@ -121,6 +130,11 @@ public final class ShadowValuationCsvExporter {
             BufferedWriter writer,
             ShadowValuationResult result
     ) throws IOException {
+        GeneratedYieldEligibility.Decision eligibility = ItemEssenceMappingManager.generatedDecision(result);
+        ItemEssenceMappingResult live = ItemEssenceMappingRegistry.resolve(
+                new ItemStack(BuiltInRegistries.ITEM.getOptional(result.itemId()).orElseThrow()));
+        long liveTotal = 0;
+        for (long amount : live.outputs().values()) liveTotal = Math.addExact(liveTotal, amount);
         Optional<ShadowValuationResult.RecipeChoice> recipe = result.recipeChoice();
         long total = result.totalValue();
         Map<EssenceDefinition, Long> routed = result.routedEssence();
@@ -188,7 +202,21 @@ public final class ShadowValuationCsvExporter {
                 result.routingDiagnostics().confidence().name(),
                 result.routingDiagnostics().nameHintSource(),
                 String.join(" | ", result.routingDiagnostics().nameHints()),
-                String.join(" | ", result.routingDiagnostics().structuredSignals())
+                String.join(" | ", result.routingDiagnostics().structuredSignals()),
+                Boolean.toString(result.modeledAcquisition()),
+                Integer.toString(result.sourceArchaeologyCount()),
+                result.conservationStatus(),
+                eligibility.status().name(),
+                eligibility.reason(),
+                ItemEssenceMappingRegistry.source(result.itemId()),
+                Long.toString(liveTotal),
+                Long.toString(ItemEssenceMappingRegistry.generation()),
+                Long.toString(live.amountFor(EssenceTypes.OFFENSE)),
+                Long.toString(live.amountFor(EssenceTypes.DEFENSE)),
+                Long.toString(live.amountFor(EssenceTypes.VITALITY)),
+                Long.toString(live.amountFor(EssenceTypes.MOBILITY)),
+                Long.toString(live.amountFor(EssenceTypes.GATHERING)),
+                Long.toString(live.amountFor(EssenceTypes.UTILITY))
         ));
     }
 

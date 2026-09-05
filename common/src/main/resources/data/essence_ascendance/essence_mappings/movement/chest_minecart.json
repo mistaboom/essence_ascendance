@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:chest_minecart",
-  "outputs": {
-    "essence_ascendance:mobility": 300,
-    "essence_ascendance:utility": 150
-  }
-}

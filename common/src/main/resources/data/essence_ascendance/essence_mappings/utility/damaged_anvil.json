@@ -1,7 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:damaged_anvil",
-  "outputs": {
-    "essence_ascendance:utility": 900
-  }
-}

@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:obsidian",
-  "outputs": {
-    "essence_ascendance:defense": 20,
-    "essence_ascendance:utility": 30
-  }
-}

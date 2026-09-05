@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:diamond_sword",
-  "outputs": {
-    "essence_ascendance:offense": 1700,
-    "essence_ascendance:utility": 100
-  }
-}

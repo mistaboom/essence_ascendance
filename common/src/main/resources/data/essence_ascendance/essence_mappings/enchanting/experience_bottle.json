@@ -1,7 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:experience_bottle",
-  "outputs": {
-    "essence_ascendance:gathering": 20
-  }
-}

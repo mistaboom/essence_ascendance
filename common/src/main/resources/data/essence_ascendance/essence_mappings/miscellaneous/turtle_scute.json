@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:turtle_scute",
-  "outputs": {
-    "essence_ascendance:defense": 40,
-    "essence_ascendance:vitality": 20
-  }
-}

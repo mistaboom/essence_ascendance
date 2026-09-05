@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:recovery_compass",
-  "outputs": {
-    "essence_ascendance:mobility": 1500,
-    "essence_ascendance:utility": 6800
-  }
-}

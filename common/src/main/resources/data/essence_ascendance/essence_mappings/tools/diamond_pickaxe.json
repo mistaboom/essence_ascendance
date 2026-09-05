@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:diamond_pickaxe",
-  "outputs": {
-    "essence_ascendance:gathering": 2300,
-    "essence_ascendance:utility": 200
-  }
-}

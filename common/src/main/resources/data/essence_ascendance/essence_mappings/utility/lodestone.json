@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:lodestone",
-  "outputs": {
-    "essence_ascendance:mobility": 15000,
-    "essence_ascendance:utility": 55000
-  }
-}

@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:glistering_melon_slice",
-  "outputs": {
-    "essence_ascendance:vitality": 8,
-    "essence_ascendance:utility": 2
-  }
-}

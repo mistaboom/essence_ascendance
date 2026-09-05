@@ -1,7 +1,0 @@
-{
-  "priority": 0,
-  "tag": "minecraft:emerald_ores",
-  "outputs": {
-    "essence_ascendance:gathering": 9
-  }
-}

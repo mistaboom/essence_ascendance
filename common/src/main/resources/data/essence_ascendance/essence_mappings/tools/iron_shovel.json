@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:iron_shovel",
-  "outputs": {
-    "essence_ascendance:gathering": 80,
-    "essence_ascendance:utility": 15
-  }
-}

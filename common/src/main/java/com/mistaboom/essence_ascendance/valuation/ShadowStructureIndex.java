@@ -39,11 +39,11 @@ import java.util.zip.GZIPInputStream;
 final class ShadowStructureIndex {
 
     private static final Pattern LOOT_TABLE_STRING = Pattern.compile(
-            "([a-z0-9_.-]+):((?:chests|containers)/[a-z0-9_./-]+)"
+            "([a-z0-9_.-]+):((?:chests|containers|archaeology)/[a-z0-9_./-]+)"
     );
 
     private static final Set<String> STOP_TOKENS = Set.of(
-            "chest", "chests", "container", "containers", "treasure", "loot",
+            "chest", "chests", "container", "containers", "archaeology", "treasure", "loot",
             "common", "rare", "reward", "rewards", "ominous", "supply",
             "intersection", "corridor", "crossing", "room", "house", "map",
             "stable", "other", "bridge"

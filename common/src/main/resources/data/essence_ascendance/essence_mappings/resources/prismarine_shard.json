@@ -1,8 +1,0 @@
-{
-  "priority": 0,
-  "item": "minecraft:prismarine_shard",
-  "outputs": {
-    "essence_ascendance:gathering": 1,
-    "essence_ascendance:utility": 1
-  }
-}
