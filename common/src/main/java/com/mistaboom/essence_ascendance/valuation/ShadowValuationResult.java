@@ -29,7 +29,8 @@ public record ShadowValuationResult(
         int sourceFishingCount,
         int sourceTradeCount,
         List<ResourceLocation> downstreamExamples,
-        List<String> factors
+        List<String> factors,
+        RoutingDiagnostics routingDiagnostics
 ) {
 
     public ShadowValuationResult {
@@ -47,6 +48,21 @@ public record ShadowValuationResult(
             return ConfidenceBand.MEDIUM;
         }
         return ConfidenceBand.LOW;
+    }
+
+    /** Acquisition/value confidence above is independent of routing confidence. */
+    public record RoutingDiagnostics(
+            List<String> evidence,
+            ConfidenceBand confidence,
+            String nameHintSource,
+            List<String> nameHints,
+            List<String> structuredSignals
+    ) {
+        public RoutingDiagnostics {
+            evidence = List.copyOf(evidence);
+            nameHints = List.copyOf(nameHints);
+            structuredSignals = List.copyOf(structuredSignals);
+        }
     }
 
     public record RecipeChoice(

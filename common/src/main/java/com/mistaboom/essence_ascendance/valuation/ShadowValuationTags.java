@@ -27,6 +27,24 @@ final class ShadowValuationTags {
     static final TagKey<Item> MELEE_WEAPONS = item("c", "tools/melee_weapon");
     static final TagKey<Item> RANGED_WEAPONS = item("c", "tools/ranged_weapon");
     static final TagKey<Item> REDSTONE_DUSTS = item("c", "dusts/redstone");
+    // Functional vanilla tags complement convention tags on both loaders.
+    // Do not use enchantability or mineable/<tool> tags as item-function proof.
+    static final TagKey<Item> AXES = item("minecraft", "axes");
+    static final TagKey<Item> PICKAXES = item("minecraft", "pickaxes");
+    static final TagKey<Item> SHOVELS = item("minecraft", "shovels");
+    static final TagKey<Item> HOES = item("minecraft", "hoes");
+    static final TagKey<Item> SWORDS = item("minecraft", "swords");
+    static final TagKey<Item> ARROWS = item("minecraft", "arrows");
+    static final TagKey<Item> BEDS = item("minecraft", "beds");
+    static final TagKey<Item> WOOL = item("minecraft", "wool");
+    static final TagKey<Item> WOOL_CARPETS = item("minecraft", "wool_carpets");
+    static final TagKey<Item> FENCES = item("minecraft", "fences");
+    static final TagKey<Item> FENCE_GATES = item("minecraft", "fence_gates");
+    static final TagKey<Item> WALLS = item("minecraft", "walls");
+    static final TagKey<Item> DOORS = item("minecraft", "doors");
+    static final TagKey<Item> TRAPDOORS = item("minecraft", "trapdoors");
+    static final TagKey<Item> FLOWERS = item("minecraft", "flowers");
+    static final TagKey<Block> CLIMBABLE = block("minecraft", "climbable");
     static final TagKey<Item> CROPS = item("c", "crops");
     static final TagKey<Item> SEEDS = item("c", "seeds");
     static final TagKey<Item> SAPLINGS = item("minecraft", "saplings");

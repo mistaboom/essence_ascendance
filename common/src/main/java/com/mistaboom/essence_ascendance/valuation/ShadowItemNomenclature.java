@@ -1,261 +1,304 @@
 package com.mistaboom.essence_ascendance.valuation;
 
-import net.minecraft.resources.ResourceLocation;
-
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
- * Low-confidence semantic hints derived from common Minecraft/modded item names.
+ * Bounded, deterministic FUNCTION hints for poorly tagged vanilla/modded items.
  *
- * This parser is intentionally subordinate to tags, runtime item classes,
- * recipes, loot, progression, and other structured data. Names are useful for
- * unfamiliar modded items that do not participate in conventional tags, but a
- * name must never be treated as proof of rarity or acquisition difficulty.
+ * This class deliberately has no Minecraft/client dependency and knows nothing
+ * about prices, rarity, progression, acquisition confidence or numeric tiers.
+ * Only the registry path is read; a standard description-key path is a fallback
+ * for opaque registry names. Neither mod namespaces nor translated display text
+ * are evidence. In particular, an anvil-renamed item cannot influence valuation.
  */
 final class ShadowItemNomenclature {
+    private static final Pattern CAMEL_BOUNDARY = Pattern.compile("([a-z0-9])([A-Z])");
+    private static final Pattern SEPARATORS = Pattern.compile("[^a-z]+");
 
-    private static final Set<String> OFFENSE = Set.of(
-            "sword", "greatsword", "longsword", "shortsword", "blade", "dagger",
-            "spear", "halberd", "glaive", "katana", "mace", "weapon",
-            "bow", "crossbow", "rifle", "pistol", "gun", "cannon", "launcher",
-            "arrow", "bolt", "bullet", "ammo", "grenade", "bomb", "explosive"
+    // Only these whole prefixes may be peeled from a concatenated tool noun.
+    // They do NOT carry a tier/value vote. Arbitrary suffix matching would make
+    // e.g. 'television' or decorative names appear to be functional equipment.
+    private static final Set<String> COMPOUND_PREFIXES = Set.of(
+            "wood", "wooden", "stone", "iron", "gold", "golden", "diamond", "netherite",
+            "copper", "bronze", "steel", "silver", "tin", "lead", "brass", "osmium",
+            "cobalt", "ruby", "sapphire", "emerald", "obsidian", "bone", "flint",
+            "powered", "electric", "energy", "steam", "pneumatic", "mechanical",
+            "basic", "advanced", "elite", "ultimate", "superior", "reinforced"
     );
-
-    private static final Set<String> DEFENSE = Set.of(
-            "helmet", "chestplate", "leggings", "greaves", "armor", "armour",
-            "shield", "buckler", "barrier", "ward", "protector"
-    );
-
-    private static final Set<String> VITALITY = Set.of(
-            "food", "meal", "stew", "soup", "bread", "apple", "berry", "berries",
-            "meat", "steak", "heart", "health", "healing", "regeneration", "regen",
-            "elixir", "tonic"
-    );
-
-    private static final Set<String> MOBILITY = Set.of(
-            "elytra", "jetpack", "glider", "wings", "wing", "minecart", "boat",
-            "raft", "saddle", "vehicle", "hoverboard", "teleporter", "teleport",
-            "waystone", "warp", "portal", "thruster"
-    );
-
-    private static final Set<String> GATHERING = Set.of(
-            "pickaxe", "shovel", "hoe", "axe", "hatchet", "sickle", "scythe",
-            "drill", "excavator", "quarry", "miner", "mining", "harvester",
-            "harvest", "saw", "hammer"
-    );
-
-    private static final Set<String> UTILITY = Set.of(
-            "machine", "generator", "processor", "controller", "circuit", "component",
-            "upgrade", "matrix", "focus", "infuser", "crucible", "nexus", "pylon",
-            "altar", "ritual", "anvil", "forge", "workbench", "assembler", "assembly",
-            "beacon", "conduit", "enchant", "enchanter", "brewing", "brewer", "potion",
-            "furnace", "smelter", "crusher", "pulverizer", "grinder", "mixer", "press",
-            "pump", "pipe", "tube", "cable", "wire", "battery", "capacitor", "tank",
-            "storage", "barrel", "backpack", "wrench", "motor", "engine", "gearbox",
-            "redstone", "repeater", "comparator", "observer", "hopper", "piston",
-            "enchanting"
+    private static final List<String> COMPOUND_NOUNS = List.of(
+            "greatsword", "longsword", "shortsword", "crossbow", "pickaxe", "chestplate",
+            "jetpack", "chainsaw", "helmet", "leggings", "shovel", "sword", "shield",
+            "drill", "glider", "boots", "sickle", "scythe", "hatchet", "hammer"
     );
 
     private ShadowItemNomenclature() {
     }
 
-    static Analysis analyze(ResourceLocation itemId) {
-        if (itemId == null) {
+    static Analysis analyze(String registryId) {
+        return analyze(registryId, null);
+    }
+
+    static Analysis analyze(String registryId, String descriptionId) {
+        String path = registryId == null ? "" : registryId;
+        int colon = path.indexOf(':');
+        if (colon >= 0) {
+            path = path.substring(colon + 1);
+        }
+        Analysis primary = analyzePath(path, "registry_path");
+        if (primary.present()) {
+            return primary;
+        }
+
+        // Standard keys: item.<namespace>.<path> or block.<namespace>.<path>.
+        // Strip BOTH the category and the namespace. Do not guess at custom
+        // key layouts or feed the whole key through a noun matcher.
+        if (descriptionId != null && (descriptionId.startsWith("item.")
+                || descriptionId.startsWith("block."))) {
+            int namespaceEnd = descriptionId.indexOf('.', descriptionId.indexOf('.') + 1);
+            if (namespaceEnd >= 0 && namespaceEnd + 1 < descriptionId.length()) {
+                String fallback = descriptionId.substring(namespaceEnd + 1);
+                if (!normalize(path).equals(normalize(fallback))) {
+                    return analyzePath(fallback, "description_key");
+                }
+            }
+        }
+        return Analysis.EMPTY;
+    }
+
+    private static Analysis analyzePath(String path, String source) {
+        Words words = new Words(path);
+        MutableAnalysis out = new MutableAnalysis(source);
+        if (words.tokens.isEmpty()) {
             return Analysis.EMPTY;
         }
 
-        String path = normalize(itemId.getPath());
-        Set<String> tokens = tokenize(path);
-        MutableAnalysis result = new MutableAnalysis();
-
-        collect(result, path, tokens, OFFENSE, Semantic.OFFENSE);
-        collect(result, path, tokens, DEFENSE, Semantic.DEFENSE);
-        collect(result, path, tokens, VITALITY, Semantic.VITALITY);
-        collect(result, path, tokens, MOBILITY, Semantic.MOBILITY);
-        collect(result, path, tokens, GATHERING, Semantic.GATHERING);
-        collect(result, path, tokens, UTILITY, Semantic.UTILITY);
-
-        if (result.matches.isEmpty()) {
-            return Analysis.EMPTY;
+        // Object FORM takes precedence over artwork/material/creature names.
+        // These early returns stop blade/heart/miner sherds, music_disc_ward,
+        // tube coral, armor stands and spawn eggs impersonating useful gear.
+        if (words.phrase("pottery sherd") || words.phrase("pottery shard")) {
+            out.add("form:pottery_decoration", 0, 0, 0, 0, 0, 1);
+            return out.finish();
         }
-
-        double confidenceBonus = Math.min(0.08, 0.035 + result.matches.size() * 0.008);
-        return new Analysis(
-                result.offense,
-                result.defense,
-                result.vitality,
-                result.mobility,
-                result.gathering,
-                result.utility,
-                result.baseline,
-                confidenceBonus,
-                List.copyOf(result.matches)
-        );
-    }
-
-    private static void collect(
-            MutableAnalysis result,
-            String path,
-            Set<String> tokens,
-            Set<String> vocabulary,
-            Semantic semantic
-    ) {
-        for (String term : vocabulary) {
-            if (!matches(path, tokens, term)) {
-                continue;
+        if (words.phrase("music disc") || words.phrase("music disk") || words.has("record")) {
+            out.add("form:music", 0, 0, 0, 0, 0, 1);
+            return out.finish();
+        }
+        if (words.phrase("spawn egg") || words.has("spawnegg")) {
+            out.add("form:spawn_egg", 0, 0, 0, 0, 0, 1);
+            return out.finish();
+        }
+        if (words.has("coral")) {
+            if (words.has("dead")) {
+                out.add("form:dead_coral_decoration", 0, 0, 0, 0, 0, 0.8);
+            } else {
+                out.add("form:living_coral", 0, 0, 1.4, 0, 0.6, 0.4);
             }
-            result.add(semantic, term);
+            return out.finish();
         }
-    }
-
-    private static boolean matches(String path, Set<String> tokens, String term) {
-        if (tokens.contains(term)) {
-            return true;
+        if (words.phrase("armor stand") || words.phrase("armour stand")) {
+            out.add("form:equipment_display", 0, 0, 0, 0, 0, 1);
+            return out.finish();
         }
-        // Modded registries commonly concatenate equipment nouns (e.g.
-        // "greatsword", "powereddrill") or add prefixes/suffixes around them.
-        // Restrict fuzzy matching to reasonably distinctive nouns to avoid
-        // turning arbitrary substrings into semantic evidence.
-        if (term.length() < 5) {
-            return false;
+        if (words.has("banner") || words.has("painting")) {
+            out.add("form:artwork", 0, 0, 0, 0, 0, 1);
+            return out.finish();
         }
-        return path.equals(term)
-                || path.startsWith(term + "_")
-                || path.endsWith("_" + term)
-                || path.contains("_" + term + "_")
-                || path.endsWith(term);
-    }
-
-    private static String normalize(String path) {
-        return path.toLowerCase(Locale.ROOT)
-                .replace('-', '_')
-                .replace('.', '_');
-    }
-
-    private static Set<String> tokenize(String path) {
-        LinkedHashSet<String> tokens = new LinkedHashSet<>();
-        for (String token : path.split("_+")) {
-            if (!token.isBlank()) {
-                tokens.add(token);
-            }
+        if (words.phrase("smithing template")) {
+            out.add("form:smithing_template", 0, 1.2, 0, 0, 0, 1.2);
+            return out.finish();
         }
-        return tokens;
+
+        out.collect(words, "weapon", 3, 0, 0, 0, 0, 0,
+                "sword greatsword longsword shortsword blade dagger spear halberd glaive katana "
+                        + "mace rapier saber sabre cleaver weapon bow crossbow rifle pistol gun cannon "
+                        + "launcher arrow bullet ammunition ammo grenade bomb explosive explosives dynamite tnt");
+        out.collect(words, "armor", 0, 3, 0.6, 0, 0, 0,
+                "helmet helm chestplate leggings greaves armor armour shield buckler barrier ward protector "
+                        + "gauntlet gauntlets cuirass breastplate");
+        out.collect(words, "footwear", 0, 2.2, 0, 0.8, 0, 0,
+                "boots shoes sandals");
+        out.collect(words, "food", 0, 0, 2.4, 0, 0, 0,
+                "food meal stew soup bread apple berry berries meat steak elixir tonic cake cookie "
+                        + "pie sandwich salad cheese yogurt sausage bacon jerky ration rations juice");
+        out.collect(words, "recovery", 0, 0.6, 3, 0, 0, 0,
+                "health healing regeneration regen rejuvenation restoration undying resurrection bandage "
+                        + "bandages medkit antidote medicine");
+        if (words.has("heart") && !words.has("sea")) {
+            out.add("recovery:heart", 0, 0.4, 2.4, 0, 0, 0);
+        }
+        out.collect(words, "transport", 0, 0, 0, 3, 0, 0.4,
+                "elytra jetpack glider wings wing minecart boat raft saddle vehicle hoverboard "
+                        + "teleporter teleport teleportation waystone warp portal thruster rail rails "
+                        + "ladder scaffolding grappling parachute balloon locomotive elevator");
+        out.collect(words, "movement", 0, 0, 0, 2.4, 0, 0,
+                "speed agility swiftness sprint sprinting leap jumping flight flying levitation");
+        if (words.phrase("jet pack") || words.phrase("jump boots")) {
+            out.add("transport:powered_movement", 0, 0, 0, 3, 0, 0.4);
+        }
+        out.collect(words, "navigation", 0, 0, 0, 2.4, 0, 0.6,
+                "compass map sextant navigator navigation lodestone");
+        out.collect(words, "harvesting", 0, 0, 0, 0, 3, 0.3,
+                "pickaxe shovel hoe axe hatchet sickle scythe drill excavator quarry miner mining "
+                        + "harvester harvest saw chainsaw hammer shears brush mattock lumberjack");
+        out.collect(words, "agriculture", 0, 0, 1, 0, 2, 0.3,
+                "seed seeds sapling saplings propagule crop crops planter fertilizer fertiliser "
+                        + "composter apiary beehive");
+        out.collect(words, "protection_material", 0, 1.6, 0.8, 0, 0, 0.4,
+                "leather hide scute carapace wool");
+        out.collect(words, "barrier", 0, 2, 0, 0, 0, 1,
+                "fence fences wall walls door trapdoor gate railing");
+        out.collect(words, "rest", 0, 0, 2.4, 0.6, 0, 0.4,
+                "bed hammock bedroll sleepingbag respawn");
+        out.collect(words, "textile", 0, 0.8, 1.2, 0, 0, 0.8,
+                "carpet blanket cushion");
+        out.collect(words, "processing", 0, 0, 0, 0, 1.4, 1.6,
+                "crusher pulverizer grinder smelter furnace foundry mill sawmill extractor sifter sieve");
+        out.collect(words, "automation", 0, 0, 0, 0, 0, 2.4,
+                "generator processor controller circuit infuser crucible nexus pylon altar ritual "
+                        + "anvil forge workbench assembler assembly enchanter enchanting brewing brewer "
+                        + "mixer press pump pipe tube cable wire battery capacitor storage barrel chest "
+                        + "backpack wrench gearbox redstone repeater comparator observer hopper piston "
+                        + "crafter dispenser dropper sensor detector switch lever button");
+        // Generic component nouns are deliberately weaker than a specific role.
+        out.collect(words, "component", 0, 0, 0, 0, 0, 0.6,
+                "machine component upgrade matrix focus motor engine tank gear capacitorcell");
+        out.collect(words, "knowledge", 0, 0, 0, 0, 0, 2,
+                "book bookshelf lectern scroll tome experience potion");
+        out.collect(words, "light", 0, 0, 0, 0, 0, 2,
+                "torch lantern lamp bulb candle glowstone light");
+        out.collect(words, "decoration", 0, 0, 0, 0, 0, 1.4,
+                "banner painting dye pigment terracotta vase");
+        out.collect(words, "plant", 0, 0, 1.2, 0, 0.8, 0.4,
+                "flower flowers leaves foliage petal petals vine vines moss");
+        out.collect(words, "elastic", 0, 0, 0, 1.6, 0, 1.6,
+                "slime spring trampoline");
+
+        if (words.phrase("fishing rod")) {
+            out.add("harvesting:fishing_rod", 0, 0, 0, 0, 3, 0.4);
+        }
+        if (words.phrase("ender pearl") || words.phrase("ender eye")) {
+            out.add("transport:ender_travel", 0, 0, 0, 3, 0, 0.4);
+        }
+        if (words.phrase("wind charge") || words.phrase("breeze rod")) {
+            out.add("transport:wind_propulsion", 1, 0, 0, 2.4, 0, 0.2);
+        }
+        if (words.has("firework") || words.has("fireworks")) {
+            out.add("transport:firework", 0.6, 0, 0, 2, 0, 0.8);
+        } else if (words.has("rocket")) {
+            out.add("propulsion:rocket", 1.8, 0, 0, 1.4, 0, 0.4);
+        }
+        if (words.phrase("fire charge") || words.phrase("end crystal")) {
+            out.add("weapon:explosive_charge", 2.8, 0, 0, 0, 0.4, 0.6);
+        }
+        if (words.has("conduit")) {
+            out.add("support:conduit", 0, 0, 1.4, 1.4, 1, 1);
+        }
+        if (words.has("beacon")) {
+            out.add("support:beacon", 0.6, 0.6, 1, 1, 1, 1.4);
+        }
+        if (words.has("campfire") || words.has("smoker")) {
+            out.add("processing:cooking", 0, 0, 1.4, 0, 0, 1.4);
+        }
+        if (words.phrase("target dummy")) {
+            out.add("training:target_dummy", 2, 1, 0, 0, 0, 0.5);
+        }
+        if (words.phrase("milk bucket")) {
+            out.add("recovery:milk", 0, 0.5, 2.4, 0, 0, 0.4);
+        }
+        return out.finish();
     }
 
-    enum Baseline {
-        NONE,
-        WEAPON,
-        ARMOR,
-        TOOL,
-        FOOD,
-        TRANSPORT,
-        AUTOMATION
+    private static String normalize(String value) {
+        String camelSeparated = CAMEL_BOUNDARY.matcher(value).replaceAll("$1_$2");
+        return SEPARATORS.matcher(camelSeparated.toLowerCase(Locale.ROOT)).replaceAll(" ").trim();
     }
 
-    enum Semantic {
-        OFFENSE,
-        DEFENSE,
-        VITALITY,
-        MOBILITY,
-        GATHERING,
-        UTILITY
-    }
+    record Analysis(double offense, double defense, double vitality, double mobility,
+                    double gathering, double utility, List<String> matches, String source) {
+        static final Analysis EMPTY = new Analysis(0, 0, 0, 0, 0, 0, List.of(), "none");
 
-    record Analysis(
-            double offense,
-            double defense,
-            double vitality,
-            double mobility,
-            double gathering,
-            double utility,
-            Baseline baseline,
-            double confidenceBonus,
-            List<String> matches
-    ) {
-        private static final Analysis EMPTY = new Analysis(
-                0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                Baseline.NONE,
-                0.0,
-                List.of()
-        );
+        Analysis {
+            matches = List.copyOf(matches);
+        }
 
         boolean present() {
             return !matches.isEmpty();
         }
     }
 
+    private static final class Words {
+        private final String normalized;
+        private final Set<String> tokens = new LinkedHashSet<>();
+
+        Words(String path) {
+            normalized = normalize(path);
+            if (!normalized.isBlank()) {
+                for (String token : normalized.split(" +")) {
+                    tokens.add(token);
+                    // Add at most one matched compound noun per token. This
+                    // cannot turn 'greatsword' into two independent sword votes.
+                    for (String noun : COMPOUND_NOUNS) {
+                        if (token.length() > noun.length() && token.endsWith(noun)
+                                && COMPOUND_PREFIXES.contains(token.substring(0, token.length() - noun.length()))) {
+                            tokens.add(noun);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        boolean has(String term) {
+            return tokens.contains(term);
+        }
+
+        boolean phrase(String phrase) {
+            return (" " + normalized + " ").contains(" " + phrase + " ");
+        }
+    }
+
     private static final class MutableAnalysis {
-        private double offense;
-        private double defense;
-        private double vitality;
-        private double mobility;
-        private double gathering;
-        private double utility;
-        private Baseline baseline = Baseline.NONE;
+        private final String source;
+        private final double[] weights = new double[6];
         private final List<String> matches = new ArrayList<>();
 
-        private void add(Semantic semantic, String term) {
-            String signal = semantic.name().toLowerCase(Locale.ROOT) + ":" + term;
-            if (matches.contains(signal)) {
-                return;
-            }
-            matches.add(signal);
+        MutableAnalysis(String source) {
+            this.source = source;
+        }
 
-            switch (semantic) {
-                case OFFENSE -> {
-                    offense += 2.4;
-                    chooseBaseline(Baseline.WEAPON);
-                }
-                case DEFENSE -> {
-                    defense += 2.4;
-                    vitality += 0.8;
-                    chooseBaseline(Baseline.ARMOR);
-                }
-                case VITALITY -> {
-                    vitality += 2.2;
-                    chooseBaseline(Baseline.FOOD);
-                }
-                case MOBILITY -> {
-                    mobility += 2.4;
-                    utility += 0.4;
-                    chooseBaseline(Baseline.TRANSPORT);
-                }
-                case GATHERING -> {
-                    gathering += 2.4;
-                    utility += 0.6;
-                    chooseBaseline(Baseline.TOOL);
-                }
-                case UTILITY -> {
-                    utility += 2.2;
-                    chooseBaseline(Baseline.AUTOMATION);
+        void collect(Words words, String role, double offense, double defense, double vitality,
+                     double mobility, double gathering, double utility, String vocabulary) {
+            for (String term : vocabulary.split(" ")) {
+                if (words.has(term)) {
+                    add(role + ":" + term, offense, defense, vitality, mobility, gathering, utility);
                 }
             }
         }
 
-        private void chooseBaseline(Baseline candidate) {
-            if (baseline == Baseline.NONE) {
-                baseline = candidate;
-                return;
+        void add(String match, double offense, double defense, double vitality,
+                 double mobility, double gathering, double utility) {
+            if (!matches.contains(match)) {
+                matches.add(match);
             }
-            // Equipment/tool identities are more informative as a floor than
-            // generic machine/food words when a modded name contains several
-            // role nouns.
-            if (priority(candidate) > priority(baseline)) {
-                baseline = candidate;
+            // Synonyms cannot accumulate unlimited strength. The engine also
+            // normalizes the ENTIRE name-hint vector to one small evidence vote.
+            double[] incoming = {offense, defense, vitality, mobility, gathering, utility};
+            for (int i = 0; i < weights.length; i++) {
+                weights[i] = Math.max(weights[i], incoming[i]);
             }
         }
 
-        private static int priority(Baseline baseline) {
-            return switch (baseline) {
-                case WEAPON, ARMOR, TOOL -> 3;
-                case TRANSPORT, AUTOMATION -> 2;
-                case FOOD -> 1;
-                case NONE -> 0;
-            };
+        Analysis finish() {
+            if (matches.isEmpty()) {
+                return Analysis.EMPTY;
+            }
+            return new Analysis(weights[0], weights[1], weights[2], weights[3], weights[4],
+                    weights[5], matches, source);
         }
     }
 }

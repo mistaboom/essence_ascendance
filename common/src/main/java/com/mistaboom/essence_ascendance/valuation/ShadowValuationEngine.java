@@ -2,23 +2,38 @@ package com.mistaboom.essence_ascendance.valuation;
 
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceTypes;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.ArmorItem;
+import net.minecraft.world.item.ArrowItem;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.BoatItem;
 import net.minecraft.world.item.BowItem;
+import net.minecraft.world.item.BrushItem;
 import net.minecraft.world.item.CrossbowItem;
+import net.minecraft.world.item.DiggerItem;
+import net.minecraft.world.item.ElytraItem;
+import net.minecraft.world.item.EnderpearlItem;
+import net.minecraft.world.item.FireworkRocketItem;
 import net.minecraft.world.item.FishingRodItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.MaceItem;
+import net.minecraft.world.item.MinecartItem;
 import net.minecraft.world.item.Rarity;
+import net.minecraft.world.item.ShearsItem;
 import net.minecraft.world.item.ShieldItem;
 import net.minecraft.world.item.SwordItem;
 import net.minecraft.world.item.TridentItem;
 import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.world.level.block.BaseRailBlock;
+import net.minecraft.world.level.block.BedBlock;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.RespawnAnchorBlock;
+import net.minecraft.world.level.block.TntBlock;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -116,55 +131,8 @@ public final class ShadowValuationEngine {
         double downstreamMultiplier = conservationDownstreamMultiplier(item, snapshot, downstream);
         long finalValue = clampValue(node.acquisitionValue() * downstreamMultiplier);
 
-        RouteWeights directRoute = directRoute(item);
-        RouteWeights route = semanticRoute(
-                item,
-                snapshot,
-                context,
-                new LinkedHashSet<>(),
-                0
-        );
-        route = conservationSemanticRoute(item, snapshot, context, route);
-
-        /*
-         * Acquisition context is useful semantic evidence (boss drops tend
-         * toward combat, fishing toward Gathering, trades toward Utility), but
-         * it must not overpower what an item actually does or what it is used
-         * to make. Normalize it to a deliberately small vote.
-         */
-        RouteWeights acquisitionRoute = acquisitionRoute(item, snapshot);
-        if (!acquisitionRoute.isEmpty()) {
-            route.addNormalized(
-                    acquisitionRoute,
-                    directRoute.isEmpty()
-                            ? ShadowValuationSettings.ROUTING_ACQUISITION_WEIGHT_WITHOUT_DIRECT
-                            : ShadowValuationSettings.ROUTING_ACQUISITION_WEIGHT_WITH_DIRECT
-            );
-        }
-
-        /*
-         * A terminal crafted item with no direct or downstream semantic signal
-         * can still inherit meaning from the ingredients in its chosen recipe.
-         * This is intentionally generic and therefore applies to modded
-         * components/assemblies without item-ID compatibility code.
-         */
-        if (route.isEmpty()) {
-            RouteWeights compositionRoute = recipeCompositionRoute(
-                    item,
-                    node,
-                    snapshot,
-                    context
-            );
-            route.addNormalized(
-                    compositionRoute,
-                    ShadowValuationSettings.ROUTING_COMPOSITION_WEIGHT
-            );
-        }
-
-        boolean neutralRouteFallback = route.isEmpty();
-        if (neutralRouteFallback) {
-            addNeutralRoute(route);
-        }
+        RoutingResolution routing = resolveRouting(item, node, snapshot, context);
+        RouteWeights route = routing.weights();
 
         Map<EssenceDefinition, Long> routed = allocate(finalValue, route);
 
@@ -190,12 +158,17 @@ public final class ShadowValuationEngine {
                             + format(downstreamMultiplier)
             );
         }
-        if (neutralRouteFallback) {
-            factors.add("Essence routing: no semantic evidence found; neutral six-Essence fallback used");
-        } else if (directRoute.isEmpty()) {
-            factors.add("Essence routing: inferred from downstream recipes, recipe composition, and/or acquisition context");
-        } else {
-            factors.add("Essence routing: direct semantic evidence blended with downstream/acquisition context");
+        ShadowValuationResult.RoutingDiagnostics diagnostics = routing.diagnostics();
+        if (!diagnostics.nameHints().isEmpty()) {
+            factors.add("Nomenclature hint [" + diagnostics.nameHintSource() + "]: "
+                    + String.join("/", diagnostics.nameHints())
+                    + " (routing only; no price, tier, rarity or acquisition-confidence boost)");
+        }
+        factors.add("Essence routing: " + String.join(" + ", diagnostics.evidence())
+                + "; routing confidence " + diagnostics.confidence().name());
+        if (diagnostics.evidence().contains("neutral_fallback")) {
+            factors.add("Essence routing: no functional evidence found; neutral six-Essence fallback"
+                    + " used before any weak acquisition-context vote");
         }
 
         double confidence = node.confidence();
@@ -213,7 +186,8 @@ public final class ShadowValuationEngine {
         if (downstream.recipeCount() > 0) {
             confidence += 0.06;
         }
-        if (!directRoute.isEmpty()) {
+        // A name is a routing hypothesis, not proof that acquisition is modeled.
+        if (!directRouting(item, context).structured().isEmpty()) {
             confidence += 0.08;
         }
         confidence = Math.max(0.10, Math.min(0.97, confidence));
@@ -240,7 +214,8 @@ public final class ShadowValuationEngine {
                 snapshot.fishingLootSources(item).size(),
                 snapshot.tradeSources(item).size(),
                 downstream.examples(),
-                factors
+                factors,
+                diagnostics
         );
     }
 
@@ -1732,17 +1707,18 @@ public final class ShadowValuationEngine {
             confidence += 0.16;
             factors.add("Bucket: c:storage_blocks");
         }
-        if (stack.is(ShadowValuationTags.FOODS)) {
+        if (stack.is(ShadowValuationTags.FOODS) || stack.has(DataComponents.FOOD)) {
             base = Math.max(base, ShadowValuationSettings.FOOD_BASE);
             recognized = true;
             confidence += 0.14;
-            factors.add("Bucket: c:foods");
+            factors.add("Bucket: food tag/component");
         }
-        if (stack.is(ShadowValuationTags.MINING_TOOLS)) {
+        if (stack.is(ShadowValuationTags.MINING_TOOLS) || item instanceof DiggerItem
+                || item instanceof ShearsItem || item instanceof BrushItem || item instanceof FishingRodItem) {
             base = Math.max(base, ShadowValuationSettings.TOOL_BASE);
             recognized = true;
             confidence += 0.18;
-            factors.add("Bucket: c:tools/mining_tool");
+            factors.add("Bucket: harvesting tool tag/runtime class");
         }
         if (stack.is(ShadowValuationTags.MELEE_WEAPONS)) {
             base = Math.max(base, ShadowValuationSettings.WEAPON_BASE);
@@ -1756,7 +1732,7 @@ public final class ShadowValuationEngine {
             confidence += 0.18;
             factors.add("Bucket: c:tools/ranged_weapon");
         }
-        if (stack.is(ShadowValuationTags.ARMORS) || item instanceof ArmorItem) {
+        if (stack.is(ShadowValuationTags.ARMORS) || item instanceof ArmorItem || item instanceof ShieldItem) {
             base = Math.max(base, ShadowValuationSettings.ARMOR_BASE);
             recognized = true;
             confidence += 0.18;
@@ -1777,38 +1753,30 @@ public final class ShadowValuationEngine {
         if (item instanceof SwordItem
                 || item instanceof BowItem
                 || item instanceof CrossbowItem
-                || item instanceof TridentItem) {
+                || item instanceof TridentItem || item instanceof MaceItem || item instanceof ArrowItem) {
             base = Math.max(base, ShadowValuationSettings.WEAPON_BASE);
             recognized = true;
             confidence += 0.10;
             factors.add("Shape: weapon class");
         }
 
+        if (item instanceof BoatItem || item instanceof MinecartItem || item instanceof ElytraItem
+                || item instanceof EnderpearlItem || item instanceof FireworkRocketItem
+                || (item instanceof BlockItem blockItem && blockItem.getBlock() instanceof BaseRailBlock)) {
+            base = Math.max(base, ShadowValuationSettings.TRANSPORT_BASE);
+            recognized = true;
+            confidence += 0.10;
+            factors.add("Shape: transport/propulsion runtime class");
+        }
+
         String path = itemId == null
                 ? ""
                 : itemId.getPath().toLowerCase(Locale.ROOT);
 
-        ShadowItemNomenclature.Analysis nomenclature =
-                ShadowItemNomenclature.analyze(itemId);
-        if (nomenclature.present()) {
-            long nomenclatureFloor = switch (nomenclature.baseline()) {
-                case WEAPON -> ShadowValuationSettings.WEAPON_BASE;
-                case ARMOR -> ShadowValuationSettings.ARMOR_BASE;
-                case TOOL -> ShadowValuationSettings.TOOL_BASE;
-                case FOOD -> ShadowValuationSettings.FOOD_BASE;
-                case TRANSPORT -> ShadowValuationSettings.TRANSPORT_BASE;
-                case AUTOMATION -> ShadowValuationSettings.REDSTONE_BASE;
-                case NONE -> ShadowValuationSettings.DEFAULT_BASE;
-            };
-            base = Math.max(base, nomenclatureFloor);
-            recognized = true;
-            confidence += nomenclature.confidenceBonus();
-            factors.add(
-                    "Nomenclature hint: "
-                            + String.join("/", nomenclature.matches())
-                            + " (semantic/baseline hint only; never used as rarity proof)"
-            );
-        }
+        // Nomenclature is intentionally absent from economic valuation. The
+        // previous parser raised base prices/confidence for words such as
+        // "blade" even in pottery-shard names. Functional name hints now live
+        // exclusively in the separately diagnosed routing pass below.
 
         double rarityMultiplier = rarityMultiplier(stack.getRarity());
         if (rarityMultiplier != 1.0) {
@@ -1877,70 +1845,232 @@ public final class ShadowValuationEngine {
         );
     }
 
-    private static RouteWeights directRoute(Item item) {
-        ItemStack stack = new ItemStack(item);
-        RouteWeights route = new RouteWeights();
+    private static RouteWeights directRoute(Item item, EvaluationContext context) {
+        return directRouting(item, context).combined();
+    }
 
-        if (isRecognizedOreSource(item, stack)
-                || stack.is(ShadowValuationTags.RAW_MATERIALS)) {
-            route.add(EssenceTypes.GATHERING, 6.0);
-            route.add(EssenceTypes.UTILITY, 1.0);
+    private static DirectRouting directRouting(Item item, EvaluationContext context) {
+        DirectRouting cached = context.directRouteMemo().get(item);
+        if (cached != null) {
+            return cached;
         }
-        if (stack.is(ShadowValuationTags.MINING_TOOLS)) {
-            route.add(EssenceTypes.GATHERING, 6.0);
-            route.add(EssenceTypes.UTILITY, 2.0);
+        ItemStack stack = new ItemStack(item);
+        RouteWeights structured = new RouteWeights();
+        List<String> signals = new ArrayList<>();
+
+        if (isRecognizedOreSource(item, stack) || stack.is(ShadowValuationTags.RAW_MATERIALS)) {
+            structured.add(EssenceTypes.GATHERING, 7.0);
+            signals.add("resource/ore");
+        }
+        if (stack.is(ShadowValuationTags.MINING_TOOLS)
+                || stack.is(ShadowValuationTags.AXES) || stack.is(ShadowValuationTags.PICKAXES)
+                || stack.is(ShadowValuationTags.SHOVELS) || stack.is(ShadowValuationTags.HOES)
+                || item instanceof DiggerItem || item instanceof ShearsItem || item instanceof BrushItem) {
+            structured.add(EssenceTypes.GATHERING, 7.0);
+            signals.add("harvesting_tool");
         }
         if (item instanceof FishingRodItem) {
-            route.add(EssenceTypes.GATHERING, 5.5);
-            route.add(EssenceTypes.UTILITY, 2.0);
+            structured.add(EssenceTypes.GATHERING, 7.0);
+            signals.add("fishing_rod");
         }
         if (item instanceof ShieldItem) {
-            route.add(EssenceTypes.DEFENSE, 7.0);
-            route.add(EssenceTypes.VITALITY, 1.0);
-            route.add(EssenceTypes.UTILITY, 1.0);
+            structured.add(EssenceTypes.DEFENSE, 8.0);
+            structured.add(EssenceTypes.VITALITY, 1.0);
+            signals.add("shield");
         }
-        if (stack.is(ShadowValuationTags.MELEE_WEAPONS)
-                || item instanceof SwordItem
-                || item instanceof TridentItem) {
-            route.add(EssenceTypes.OFFENSE, 7.0);
-            route.add(EssenceTypes.UTILITY, 1.0);
+        if (stack.is(ShadowValuationTags.MELEE_WEAPONS) || stack.is(ShadowValuationTags.SWORDS)
+                || item instanceof SwordItem || item instanceof TridentItem || item instanceof MaceItem) {
+            structured.add(EssenceTypes.OFFENSE, 7.0);
+            signals.add("melee_weapon");
         }
-        if (stack.is(ShadowValuationTags.RANGED_WEAPONS)
-                || item instanceof BowItem
-                || item instanceof CrossbowItem) {
-            route.add(EssenceTypes.OFFENSE, 6.5);
-            route.add(EssenceTypes.MOBILITY, 1.0);
-            route.add(EssenceTypes.UTILITY, 1.0);
+        if (stack.is(ShadowValuationTags.RANGED_WEAPONS) || stack.is(ShadowValuationTags.ARROWS)
+                || item instanceof BowItem || item instanceof CrossbowItem || item instanceof ArrowItem) {
+            structured.add(EssenceTypes.OFFENSE, 7.0);
+            signals.add("ranged_weapon/projectile");
         }
         if (stack.is(ShadowValuationTags.ARMORS) || item instanceof ArmorItem) {
-            route.add(EssenceTypes.DEFENSE, 6.0);
-            route.add(EssenceTypes.VITALITY, 3.5);
+            structured.add(EssenceTypes.DEFENSE, 7.0);
+            structured.add(EssenceTypes.VITALITY, 2.0);
+            signals.add("armor");
         }
-        if (stack.is(ShadowValuationTags.FOODS)) {
-            route.add(EssenceTypes.VITALITY, 7.0);
-            route.add(EssenceTypes.UTILITY, 1.0);
+        if (stack.is(ShadowValuationTags.FOODS) || stack.has(DataComponents.FOOD)) {
+            structured.add(EssenceTypes.VITALITY, 8.0);
+            signals.add("food_tag/component");
         }
         if (stack.is(ShadowValuationTags.REDSTONE_DUSTS)) {
-            route.add(EssenceTypes.UTILITY, 7.0);
+            structured.add(EssenceTypes.UTILITY, 7.0);
+            signals.add("redstone_material");
+        }
+        if (item instanceof BoatItem || item instanceof MinecartItem
+                || item instanceof ElytraItem || item instanceof EnderpearlItem) {
+            structured.add(EssenceTypes.MOBILITY, 8.0);
+            signals.add("transport_item");
+        }
+        if (item instanceof FireworkRocketItem) {
+            structured.add(EssenceTypes.MOBILITY, 5.0);
+            structured.add(EssenceTypes.OFFENSE, 1.0);
+            structured.add(EssenceTypes.UTILITY, 2.0);
+            signals.add("firework_propulsion/display");
+        }
+        Block block = item instanceof BlockItem blockItem ? blockItem.getBlock() : null;
+        if (block != null && block.defaultBlockState().is(ShadowValuationTags.CLIMBABLE)) {
+            structured.add(EssenceTypes.MOBILITY, 7.0);
+            signals.add("climbable_block");
+        }
+        if (block instanceof BaseRailBlock) {
+            structured.add(EssenceTypes.MOBILITY, 8.0);
+            signals.add("rail_block");
+        }
+        if (stack.is(ShadowValuationTags.BEDS) || block instanceof BedBlock
+                || block instanceof RespawnAnchorBlock) {
+            structured.add(EssenceTypes.VITALITY, 7.0);
+            structured.add(EssenceTypes.MOBILITY, 2.0);
+            signals.add("rest/respawn_block");
+        }
+        if (block instanceof TntBlock) {
+            structured.add(EssenceTypes.OFFENSE, 7.0);
+            structured.add(EssenceTypes.GATHERING, 2.0);
+            signals.add("explosive/demolition_block");
+        }
+        if (stack.is(ShadowValuationTags.WOOL) || stack.is(ShadowValuationTags.WOOL_CARPETS)) {
+            structured.add(EssenceTypes.DEFENSE, 3.0);
+            structured.add(EssenceTypes.VITALITY, 2.0);
+            structured.add(EssenceTypes.UTILITY, 1.0);
+            signals.add("protective/comfort_textile");
+        }
+        if (stack.is(ShadowValuationTags.FENCES) || stack.is(ShadowValuationTags.FENCE_GATES)
+                || stack.is(ShadowValuationTags.WALLS) || stack.is(ShadowValuationTags.DOORS)
+                || stack.is(ShadowValuationTags.TRAPDOORS)) {
+            structured.add(EssenceTypes.DEFENSE, 6.0);
+            structured.add(EssenceTypes.UTILITY, 2.0);
+            signals.add("physical_barrier");
+        }
+        if (stack.is(ShadowValuationTags.CROPS) || stack.is(ShadowValuationTags.SEEDS)
+                || stack.is(ShadowValuationTags.SAPLINGS)) {
+            structured.add(EssenceTypes.GATHERING, 4.0);
+            structured.add(EssenceTypes.VITALITY, 3.0);
+            signals.add("cultivation_material");
+        }
+        if (stack.is(ShadowValuationTags.FLOWERS) || stack.is(ShadowValuationTags.LEAVES)) {
+            structured.add(EssenceTypes.VITALITY, 3.0);
+            structured.add(EssenceTypes.GATHERING, 2.0);
+            structured.add(EssenceTypes.UTILITY, 1.0);
+            signals.add("living_plant_material");
         }
 
-        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
-        ShadowItemNomenclature.Analysis nomenclature =
-                ShadowItemNomenclature.analyze(itemId);
-        if (nomenclature.present()) {
-            // Registry-name semantics are deliberately weak evidence. Tags,
-            // runtime item classes and the downstream recipe graph remain the
-            // primary routing signals, which keeps this useful for modded items
-            // without allowing creative names to define rarity or progression.
-            route.add(EssenceTypes.OFFENSE, nomenclature.offense());
-            route.add(EssenceTypes.DEFENSE, nomenclature.defense());
-            route.add(EssenceTypes.VITALITY, nomenclature.vitality());
-            route.add(EssenceTypes.MOBILITY, nomenclature.mobility());
-            route.add(EssenceTypes.GATHERING, nomenclature.gathering());
-            route.add(EssenceTypes.UTILITY, nomenclature.utility());
+        ResourceLocation id = BuiltInRegistries.ITEM.getKey(item);
+        ShadowItemNomenclature.Analysis name = ShadowItemNomenclature.analyze(
+                id == null ? "" : id.toString(), item.getDescriptionId());
+        RouteWeights hints = new RouteWeights();
+        hints.add(EssenceTypes.OFFENSE, name.offense());
+        hints.add(EssenceTypes.DEFENSE, name.defense());
+        hints.add(EssenceTypes.VITALITY, name.vitality());
+        hints.add(EssenceTypes.MOBILITY, name.mobility());
+        hints.add(EssenceTypes.GATHERING, name.gathering());
+        hints.add(EssenceTypes.UTILITY, name.utility());
+        RouteWeights combined = structured.copy();
+        double nameBudget = structured.isEmpty()
+                ? ShadowValuationSettings.ROUTING_NAME_WEIGHT_WITHOUT_STRUCTURED
+                : ShadowValuationSettings.ROUTING_NAME_WEIGHT_WITH_STRUCTURED;
+        combined.addNormalized(hints, Math.min(nameBudget, hints.totalWeight()));
+        DirectRouting result = new DirectRouting(structured, combined, name, List.copyOf(signals));
+        context.directRouteMemo().put(item, result);
+        return result;
+    }
+
+    /**
+     * Resolve function -> downstream -> composition, THEN add weak acquisition
+     * context. A sole trade/fishing hint must not be normalized into a 100%
+     * Utility/Gathering item. Reversible forms share the whole final route,
+     * including source context, rather than just sharing part of the vector.
+     */
+    private static RoutingResolution resolveRouting(
+            Item item, EvaluationNode node, ShadowValuationIndex snapshot, EvaluationContext context
+    ) {
+        RoutingResolution cached = context.resolvedRouteMemo().get(item);
+        if (cached != null) {
+            return cached;
+        }
+        List<Item> family = new ArrayList<>(snapshot.conservationGroup(item));
+        if (family.isEmpty()) {
+            family.add(item);
+        }
+        family.sort(Comparator.comparing(member -> BuiltInRegistries.ITEM.getKey(member).toString()));
+        boolean conserved = family.size() > 1;
+        boolean hasStructured = false;
+        boolean hasName = false;
+        boolean hasDownstream = false;
+        boolean hasComposition = false;
+        RouteWeights semantics = new RouteWeights();
+        RouteWeights sources = new RouteWeights();
+        LinkedHashSet<String> structuredSignals = new LinkedHashSet<>();
+        for (Item member : family) {
+            DirectRouting direct = directRouting(member, context);
+            hasStructured |= !direct.structured().isEmpty();
+            hasName |= direct.nomenclature().present();
+            structuredSignals.addAll(direct.signals());
+            RouteWeights memberRoute = semanticRoute(member, snapshot, context, new LinkedHashSet<>(), 0);
+            hasDownstream |= memberRoute.totalWeight() > direct.combined().totalWeight() + 0.000001;
+            if (conserved) {
+                semantics.addNormalized(memberRoute, 1.0);
+            } else {
+                semantics.add(memberRoute);
+            }
+            sources.addNormalized(acquisitionRoute(member, snapshot), 1.0);
+        }
+        RouteWeights route = new RouteWeights();
+        if (conserved) {
+            route.addNormalized(semantics, ShadowValuationSettings.ROUTING_CONSERVATION_WEIGHT);
+        } else {
+            route.add(semantics);
         }
 
-        return route;
+        if (route.isEmpty()) {
+            RouteWeights composition = new RouteWeights();
+            for (Item member : family) {
+                // Only obtain the local recipe choice. Do not re-enter final
+                // conservation normalization while resolving a family's route.
+                // Use LOCAL choices for every conserved member, including the
+                // requested one: normalized nodes may have cleared their recipe
+                // choice after choosing another form's cheaper source.
+                EvaluationNode memberNode = conserved
+                        ? evaluateNode(member, context, new LinkedHashSet<>(), 0)
+                        : node;
+                composition.addNormalized(recipeCompositionRoute(member, memberNode, snapshot, context), 1.0);
+            }
+            hasComposition = !composition.isEmpty();
+            route.addNormalized(composition, ShadowValuationSettings.ROUTING_COMPOSITION_WEIGHT);
+        }
+        boolean neutral = route.isEmpty();
+        if (neutral) {
+            addNeutralRoute(route);
+        }
+        route.addNormalized(sources, neutral
+                ? ShadowValuationSettings.ROUTING_ACQUISITION_WEIGHT_WITHOUT_DIRECT
+                : ShadowValuationSettings.ROUTING_ACQUISITION_WEIGHT_WITH_DIRECT);
+
+        List<String> evidence = new ArrayList<>();
+        if (hasStructured) evidence.add("structured_function");
+        if (hasName) evidence.add("name_hint");
+        if (hasDownstream) evidence.add("downstream_recipes");
+        if (hasComposition) evidence.add("recipe_composition");
+        if (conserved) evidence.add("conservation_family");
+        if (neutral) evidence.add("neutral_fallback");
+        if (!sources.isEmpty()) evidence.add("weak_acquisition_context");
+        ShadowValuationResult.ConfidenceBand confidence = hasStructured
+                ? ShadowValuationResult.ConfidenceBand.HIGH
+                : (hasDownstream || hasComposition)
+                ? ShadowValuationResult.ConfidenceBand.MEDIUM
+                : ShadowValuationResult.ConfidenceBand.LOW;
+        // Cache each form's own lexical diagnostics but one identical final
+        // weight vector. No new route recursion is introduced by this cache.
+        for (Item member : family) {
+            ShadowItemNomenclature.Analysis name = directRouting(member, context).nomenclature();
+            ShadowValuationResult.RoutingDiagnostics diagnostics = new ShadowValuationResult.RoutingDiagnostics(
+                    evidence, confidence, name.source(), name.matches(), List.copyOf(structuredSignals));
+            context.resolvedRouteMemo().put(member, new RoutingResolution(route.copy(), diagnostics));
+        }
+        return context.resolvedRouteMemo().get(item);
     }
 
     private static RouteWeights semanticRoute(
@@ -1958,7 +2088,7 @@ public final class ShadowValuationEngine {
             }
         }
 
-        RouteWeights direct = directRoute(item);
+        RouteWeights direct = directRoute(item, context);
         RouteWeights route = direct.copy();
         if (depth >= ShadowValuationSettings.MAX_ROUTING_DEPTH || !visiting.add(item)) {
             return route;
@@ -1984,7 +2114,7 @@ public final class ShadowValuationEngine {
                 continue;
             }
 
-            RouteWeights outputRoute = directRoute(output);
+            RouteWeights outputRoute = directRoute(output, context);
             if (outputRoute.isEmpty() && depth + 1 < ShadowValuationSettings.MAX_ROUTING_DEPTH) {
                 outputRoute = semanticRoute(
                         output,
@@ -2017,35 +2147,6 @@ public final class ShadowValuationEngine {
             context.routeMemo().put(item, route.copy());
         }
         return route;
-    }
-
-    private static RouteWeights conservationSemanticRoute(
-            Item item,
-            ShadowValuationIndex index,
-            EvaluationContext context,
-            RouteWeights ownRoute
-    ) {
-        List<Item> group = index.conservationGroup(item);
-        if (group.size() <= 1) {
-            return ownRoute;
-        }
-
-        RouteWeights shared = new RouteWeights();
-        for (Item member : group) {
-            RouteWeights memberRoute = member == item
-                    ? ownRoute
-                    : semanticRoute(
-                            member,
-                            index,
-                            context,
-                            new LinkedHashSet<>(),
-                            0
-                    );
-            if (!memberRoute.isEmpty()) {
-                shared.addNormalized(memberRoute, 1.0);
-            }
-        }
-        return shared.isEmpty() ? ownRoute : shared;
     }
 
     private static RouteWeights recipeCompositionRoute(
@@ -2151,7 +2252,6 @@ public final class ShadowValuationEngine {
 
         LinkedHashSet<ResourceLocation> uniqueRecipes = new LinkedHashSet<>();
         LinkedHashSet<ResourceLocation> examples = new LinkedHashSet<>();
-        RouteWeights route = new RouteWeights();
         int significant = 0;
         int crossMod = 0;
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
@@ -2174,12 +2274,6 @@ public final class ShadowValuationEngine {
             }
 
             Intrinsic outputIntrinsic = intrinsic(recipe.outputItem());
-            RouteWeights outputRoute = directRoute(recipe.outputItem());
-
-            double importance = outputIntrinsic.value() >= ShadowValuationSettings.RARE_INGREDIENT_THRESHOLD
-                    || outputIntrinsic.recognizedBucket()
-                    ? 1.0
-                    : 0.45;
 
             if (outputIntrinsic.value() >= ShadowValuationSettings.RARE_INGREDIENT_THRESHOLD
                     || isProgressionOutput(recipe.outputItem())) {
@@ -2191,8 +2285,6 @@ public final class ShadowValuationEngine {
                     && !itemId.getNamespace().equals(outputId.getNamespace())) {
                 crossMod++;
             }
-
-            route.addScaled(outputRoute, 0.28 * importance);
         }
 
         int count = uniqueRecipes.size();
@@ -2210,7 +2302,6 @@ public final class ShadowValuationEngine {
                 significant,
                 crossMod,
                 multiplier,
-                route,
                 List.copyOf(examples)
         );
     }
@@ -2228,51 +2319,40 @@ public final class ShadowValuationEngine {
                 || item instanceof TridentItem;
     }
 
-    private static Map<EssenceDefinition, Long> allocate(
-            long totalValue,
-            RouteWeights route
-    ) {
-        List<Map.Entry<EssenceDefinition, Double>> entries = route.entries().stream()
-                .filter(entry -> entry.getValue() > 0.0)
-                .sorted(
-                        Map.Entry.<EssenceDefinition, Double>comparingByValue()
-                                .reversed()
-                                .thenComparing(entry -> entry.getKey().id().toString())
-                )
-                .toList();
-
-        if (entries.isEmpty()) {
-            return Map.of(EssenceTypes.UTILITY, totalValue);
+    private static Map<EssenceDefinition, Long> allocate(long totalValue, RouteWeights route) {
+        if (totalValue <= 0L) {
+            return Map.of();
         }
-
-        double weightTotal = entries.stream().mapToDouble(Map.Entry::getValue).sum();
+        RouteWeights effective = route;
+        if (effective.isEmpty()) {
+            effective = new RouteWeights();
+            addNeutralRoute(effective);
+        }
+        double weightTotal = effective.totalWeight();
+        List<AllocationShare> shares = new ArrayList<>();
         Map<EssenceDefinition, Long> result = new LinkedHashMap<>();
         long assigned = 0L;
-
-        for (int i = 0; i < entries.size(); i++) {
-            Map.Entry<EssenceDefinition, Double> entry = entries.get(i);
-            long value;
-            if (i == entries.size() - 1) {
-                value = totalValue - assigned;
-            } else {
-                value = Math.max(
-                        0L,
-                        Math.round(totalValue * (entry.getValue() / weightTotal))
-                );
-                value = Math.min(value, totalValue - assigned);
+        for (Map.Entry<EssenceDefinition, Double> entry : effective.entries()) {
+            double exact = totalValue * (entry.getValue() / weightTotal);
+            long whole = Math.min(totalValue - assigned, Math.max(0L, (long) Math.floor(exact)));
+            if (whole > 0L) {
+                result.put(entry.getKey(), whole);
+                assigned += whole;
             }
-            if (value > 0L) {
-                result.put(entry.getKey(), value);
-                assigned += value;
-            }
+            shares.add(new AllocationShare(entry.getKey(), exact - Math.floor(exact)));
         }
-
-        if (assigned < totalValue) {
-            EssenceDefinition primary = entries.getFirst().getKey();
-            result.merge(primary, totalValue - assigned, Long::sum);
+        // Largest-remainder allocation preserves the total exactly without
+        // dumping all rounding error into whichever Essence sorted last.
+        shares.sort(Comparator.comparingDouble(AllocationShare::remainder).reversed()
+                .thenComparing(share -> share.essence().id().toString()));
+        long remaining = totalValue - assigned;
+        for (int i = 0; i < remaining; i++) {
+            result.merge(shares.get(i % shares.size()).essence(), 1L, Long::sum);
         }
-
         return result;
+    }
+
+    private record AllocationShare(EssenceDefinition essence, double remainder) {
     }
 
     private static double processMultiplier(RecipeType<?> type) {
@@ -2409,6 +2489,8 @@ public final class ShadowValuationEngine {
             ShadowValuationIndex index,
             Map<Item, EvaluationNode> memo,
             Map<Item, RouteWeights> routeMemo,
+            Map<Item, DirectRouting> directRouteMemo,
+            Map<Item, RoutingResolution> resolvedRouteMemo,
             Map<Item, EvaluationNode> conservationMemo,
             Set<Item> conservationVisiting
     ) {
@@ -2418,9 +2500,25 @@ public final class ShadowValuationEngine {
                     new IdentityHashMap<>(),
                     new IdentityHashMap<>(),
                     new IdentityHashMap<>(),
+                    new IdentityHashMap<>(),
+                    new IdentityHashMap<>(),
                     java.util.Collections.newSetFromMap(new IdentityHashMap<>())
             );
         }
+    }
+
+    private record DirectRouting(
+            RouteWeights structured,
+            RouteWeights combined,
+            ShadowItemNomenclature.Analysis nomenclature,
+            List<String> signals
+    ) {
+    }
+
+    private record RoutingResolution(
+            RouteWeights weights,
+            ShadowValuationResult.RoutingDiagnostics diagnostics
+    ) {
     }
 
     private record EvaluationNode(
@@ -2587,7 +2685,6 @@ public final class ShadowValuationEngine {
             int significantCount,
             int crossModCount,
             double multiplier,
-            RouteWeights routeContribution,
             List<ResourceLocation> examples
     ) {
         static final DownstreamInfo EMPTY = new DownstreamInfo(
@@ -2595,7 +2692,6 @@ public final class ShadowValuationEngine {
                 0,
                 0,
                 1.0,
-                new RouteWeights(),
                 List.of()
         );
     }

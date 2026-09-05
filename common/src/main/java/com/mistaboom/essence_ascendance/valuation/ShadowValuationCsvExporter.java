@@ -108,7 +108,12 @@ public final class ShadowValuationCsvExporter {
                 "gathering_percent",
                 "utility_percent",
                 "downstream_examples",
-                "factors"
+                "factors",
+                "routing_evidence",
+                "routing_confidence_band",
+                "name_hint_source",
+                "name_hint_matches",
+                "structured_routing_signals"
         ));
     }
 
@@ -178,7 +183,12 @@ public final class ShadowValuationCsvExporter {
                 formatPercent(gathering, total),
                 formatPercent(utility, total),
                 downstreamExamples,
-                factors
+                factors,
+                String.join(" | ", result.routingDiagnostics().evidence()),
+                result.routingDiagnostics().confidence().name(),
+                result.routingDiagnostics().nameHintSource(),
+                String.join(" | ", result.routingDiagnostics().nameHints()),
+                String.join(" | ", result.routingDiagnostics().structuredSignals())
         ));
     }
 

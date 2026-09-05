@@ -108,6 +108,10 @@ public final class ShadowValuationSettings {
     public static final double ROUTING_ACQUISITION_WEIGHT_WITHOUT_DIRECT = 0.70;
     public static final double ROUTING_ACQUISITION_WEIGHT_WITH_DIRECT = 0.30;
     public static final double ROUTING_COMPOSITION_WEIGHT = 1.60;
+    public static final double ROUTING_NAME_WEIGHT_WITH_STRUCTURED = 1.0;
+    public static final double ROUTING_NAME_WEIGHT_WITHOUT_STRUCTURED = 3.0;
+    public static final double ROUTING_CONSERVATION_WEIGHT = 4.0;
+
 
     /*
      * Direct-source event baselines. These are not normalization targets; they
