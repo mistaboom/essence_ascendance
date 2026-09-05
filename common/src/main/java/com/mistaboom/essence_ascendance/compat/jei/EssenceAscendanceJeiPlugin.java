@@ -2,6 +2,9 @@ package com.mistaboom.essence_ascendance.compat.jei;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.client.AscendanceNexusScreen;
+import com.mistaboom.essence_ascendance.client.EssenceCrucibleScreen;
+import com.mistaboom.essence_ascendance.client.EssenceInfuserScreen;
+import com.mistaboom.essence_ascendance.client.EssencePylonScreen;
 import com.mistaboom.essence_ascendance.client.JeiCarrierVisibilityBridge;
 import com.mistaboom.essence_ascendance.client.JeiTooltipSearchRefreshBridge;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
@@ -28,6 +31,9 @@ import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.category.extensions.vanilla.crafting.ICraftingCategoryExtension;
 import mezz.jei.api.registration.IExtraIngredientRegistration;
 import mezz.jei.api.registration.IGuiHandlerRegistration;
+import mezz.jei.api.registration.IRecipeCatalystRegistration;
+import mezz.jei.api.registration.IRecipeCategoryRegistration;
+import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.registration.ISubtypeRegistration;
 import mezz.jei.api.registration.IVanillaCategoryExtensionRegistration;
 import mezz.jei.api.runtime.IJeiRuntime;
@@ -45,9 +51,10 @@ import java.util.List;
 /**
  * Optional JEI integration.
  *
- * Normal machine popups intentionally render in front of JEI rather than
- * advertising extra GUI areas that make JEI move. The Nexus remains the one
- * exception because it owns the full logical screen.
+ * Normal machine popups intentionally render in front of JEI. While one is
+ * open, its exact dynamic bounds are also reported as GUI-owned exclusion
+ * space so JEI cannot consume mouse clicks through the foreground popup.
+ * The Nexus remains the full-screen exception.
  *
  * Essentium carriers are data-bearing ItemStacks. JEI therefore needs explicit
  * subtype/ingredient/category-extension information so it can distinguish and
@@ -63,7 +70,26 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
                     "gui_layout"
             );
 
+    // JEI exposes vanilla registry tags as browse-only recipe categories. The
+    // public runtime visibility API operates at category scope, so suppressing
+    // these removes the Item Tags / Block Tags browse tabs globally while this
+    // JEI plugin is active. It does not remove or alter any underlying Minecraft
+    // item/block tags, mining rules, enchantability rules, or equipment rules.
+    private static final ResourceLocation JEI_ITEM_TAG_RECIPES =
+            ResourceLocation.fromNamespaceAndPath(
+                    "minecraft",
+                    "tag_recipes/item"
+            );
+    private static final ResourceLocation JEI_BLOCK_TAG_RECIPES =
+            ResourceLocation.fromNamespaceAndPath(
+                    "minecraft",
+                    "tag_recipes/block"
+            );
+
     private static boolean skillCarrierIngredientsPresent = false;
+    private static Boolean skillInfuserRecipesVisible = null;
+    private static List<InfuserJeiRecipe> infuserRecipes = List.of();
+    private static List<InfuserJeiRecipe> skillInfuserRecipes = List.of();
 
     private static final ISubtypeInterpreter<ItemStack> ESSENTIUM_SUBTYPE =
             new ISubtypeInterpreter<>() {
@@ -124,18 +150,56 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
     }
 
     @Override
+    public void registerCategories(IRecipeCategoryRegistration registration) {
+        registration.addRecipeCategories(
+                new InfuserJeiCategory(
+                        registration.getJeiHelpers().getGuiHelper()
+                )
+        );
+    }
+
+    @Override
+    public void registerRecipes(IRecipeRegistration registration) {
+        infuserRecipes = InfuserJeiRecipe.createAll();
+        skillInfuserRecipes = infuserRecipes.stream()
+                .filter(InfuserJeiRecipe::isSkillEssentiumRecipe)
+                .toList();
+
+        registration.addRecipes(
+                InfuserJeiCategory.RECIPE_TYPE,
+                infuserRecipes
+        );
+    }
+
+    @Override
+    public void registerRecipeCatalysts(IRecipeCatalystRegistration registration) {
+        registration.addRecipeCatalysts(
+                InfuserJeiCategory.RECIPE_TYPE,
+                EssenceInfuserContent.ESSENCE_INFUSER_ITEM.get()
+        );
+    }
+
+    @Override
     public void onRuntimeAvailable(IJeiRuntime jeiRuntime) {
+        hideTagInformationCategories(jeiRuntime);
+
         JeiCarrierVisibilityBridge.installRuntimeListener(
-                visible -> synchronizeSkillCarrierIngredients(
+                visible -> synchronizeSkillJeiState(
                         jeiRuntime,
                         visible
                 )
+        );
+
+        synchronizeSkillJeiState(
+                jeiRuntime,
+                currentSkillEssenceVisibility()
         );
     }
 
     @Override
     public void onRuntimeUnavailable() {
         JeiCarrierVisibilityBridge.clearRuntimeListener();
+        skillInfuserRecipesVisible = null;
     }
 
     @Override
@@ -215,6 +279,37 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
                     }
                 }
         );
+
+        // These areas exist only while the foreground popup is open. Reporting
+        // them through JEI's supported GUI handler prevents ingredient/bookmark
+        // input from stealing the click before the screen's popup controls see it.
+        registration.addGuiContainerHandler(
+                EssenceCrucibleScreen.class,
+                new IGuiContainerHandler<EssenceCrucibleScreen>() {
+                    @Override
+                    public List<Rect2i> getGuiExtraAreas(EssenceCrucibleScreen screen) {
+                        return screen.overlayInteractionAreas();
+                    }
+                }
+        );
+        registration.addGuiContainerHandler(
+                EssencePylonScreen.class,
+                new IGuiContainerHandler<EssencePylonScreen>() {
+                    @Override
+                    public List<Rect2i> getGuiExtraAreas(EssencePylonScreen screen) {
+                        return screen.overlayInteractionAreas();
+                    }
+                }
+        );
+        registration.addGuiContainerHandler(
+                EssenceInfuserScreen.class,
+                new IGuiContainerHandler<EssenceInfuserScreen>() {
+                    @Override
+                    public List<Rect2i> getGuiExtraAreas(EssenceInfuserScreen screen) {
+                        return screen.overlayInteractionAreas();
+                    }
+                }
+        );
     }
 
     private static List<ItemStack> carrierVariants(
@@ -274,6 +369,22 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
         return EssenceConfigManager.get().skillEssencesEnabled();
     }
 
+    private static void hideTagInformationCategories(IJeiRuntime jeiRuntime) {
+        hideRecipeCategoryIfPresent(jeiRuntime, JEI_ITEM_TAG_RECIPES);
+        hideRecipeCategoryIfPresent(jeiRuntime, JEI_BLOCK_TAG_RECIPES);
+    }
+
+    private static void hideRecipeCategoryIfPresent(
+            IJeiRuntime jeiRuntime,
+            ResourceLocation recipeTypeId
+    ) {
+        jeiRuntime.getRecipeManager()
+                .getRecipeType(recipeTypeId)
+                .ifPresent(recipeType ->
+                        jeiRuntime.getRecipeManager().hideRecipeCategory(recipeType)
+                );
+    }
+
     private static void synchronizeSkillCarrierIngredients(
             IJeiRuntime jeiRuntime,
             boolean shouldBePresent
@@ -307,6 +418,47 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
                 "{} {} Skill-Essentium JEI carrier variants after server config sync",
                 shouldBePresent ? "Added" : "Removed",
                 skillVariants.size()
+        );
+    }
+
+    private static void synchronizeSkillJeiState(
+            IJeiRuntime jeiRuntime,
+            boolean shouldBePresent
+    ) {
+        synchronizeSkillCarrierIngredients(jeiRuntime, shouldBePresent);
+        synchronizeSkillInfuserRecipes(jeiRuntime, shouldBePresent);
+    }
+
+    private static void synchronizeSkillInfuserRecipes(
+            IJeiRuntime jeiRuntime,
+            boolean shouldBeVisible
+    ) {
+        if (skillInfuserRecipesVisible != null
+                && skillInfuserRecipesVisible == shouldBeVisible) {
+            return;
+        }
+        if (skillInfuserRecipes.isEmpty()) {
+            skillInfuserRecipesVisible = shouldBeVisible;
+            return;
+        }
+
+        if (shouldBeVisible) {
+            jeiRuntime.getRecipeManager().unhideRecipes(
+                    InfuserJeiCategory.RECIPE_TYPE,
+                    skillInfuserRecipes
+            );
+        } else {
+            jeiRuntime.getRecipeManager().hideRecipes(
+                    InfuserJeiCategory.RECIPE_TYPE,
+                    skillInfuserRecipes
+            );
+        }
+
+        skillInfuserRecipesVisible = shouldBeVisible;
+        EssenceAscendance.LOGGER.info(
+                "{} {} Skill-Essence Infuser JEI recipes after server config sync",
+                shouldBeVisible ? "Unhid" : "Hid",
+                skillInfuserRecipes.size()
         );
     }
 

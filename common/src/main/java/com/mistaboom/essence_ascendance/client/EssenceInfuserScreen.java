@@ -15,8 +15,10 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.world.entity.player.Inventory;
 
+import java.util.List;
 import java.util.Locale;
 
 /** Procedural machine GUI using the shared normal-machine presentation system. */
@@ -606,6 +608,19 @@ public final class EssenceInfuserScreen
                 .section(EssenceText.term("automation"))
                 .line(EssenceText.gui("infuser.info.input_manual"))
                 .line(EssenceText.gui("infuser.info.output_focus"));
+    }
+
+    /** Screen-space area owned by the foreground Info popup, when open. */
+    public List<Rect2i> overlayInteractionAreas() {
+        if (!infoOpen) {
+            return List.of();
+        }
+        return List.of(new Rect2i(
+                infoPanelX(),
+                topPos + MachineScreenLayout.SIDE_PANEL_TOP_OFFSET,
+                INFO_PANEL_WIDTH,
+                INFO_PANEL_HEIGHT
+        ));
     }
 
     private int infoPanelX() {

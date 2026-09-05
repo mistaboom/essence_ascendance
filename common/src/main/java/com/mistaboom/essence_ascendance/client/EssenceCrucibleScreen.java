@@ -10,6 +10,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.world.entity.player.Inventory;
 
 import java.util.List;
@@ -879,6 +880,34 @@ public final class EssenceCrucibleScreen
             return EssenceText.term("unknown");
         }
         return EssenceText.gui("access_mode." + accessMode.toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * Dynamic screen-space areas owned by an open machine popup. Optional
+     * recipe-viewer integrations can use these bounds to keep mouse input from
+     * falling through the foreground popup without coupling this screen to a
+     * specific viewer API.
+     */
+    public List<Rect2i> overlayInteractionAreas() {
+        EssenceCrucibleStatePayload state =
+                EssenceCrucibleClientState.snapshotFor(menu.containerId);
+        if (settingsOpen && state != null && state.allowed()) {
+            return List.of(new Rect2i(
+                    ventPanelX(),
+                    topPos + 4,
+                    VENT_PANEL_WIDTH,
+                    ventPanelHeight(state)
+            ));
+        }
+        if (infoOpen && state != null) {
+            return List.of(new Rect2i(
+                    infoPanelX(),
+                    topPos + MachineScreenLayout.SIDE_PANEL_TOP_OFFSET,
+                    INFO_PANEL_WIDTH,
+                    INFO_PANEL_HEIGHT
+            ));
+        }
+        return List.of();
     }
 
     private int infoPanelX() {

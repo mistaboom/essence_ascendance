@@ -423,7 +423,9 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         }
 
         EssenceDefinition source = sourceEssence();
-        if (source == null || !isEnabled(source)) {
+        if (source == null
+                || source.family() != EssenceFamily.ATTRIBUTE
+                || !isEnabled(source)) {
             return STATUS_INVALID_SELECTION;
         }
 
@@ -582,7 +584,9 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             return;
         }
         boolean repair = repairMode();
-        List<EssenceDefinition> enabled = enabledEssences();
+        List<EssenceDefinition> enabled = repair
+                ? enabledAttributeEssences()
+                : enabledEssences();
         if (enabled.isEmpty() || (!repair && enabled.size() < 2)) {
             return;
         }
@@ -616,7 +620,9 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     }
 
     private void normalizeSelections() {
-        List<EssenceDefinition> enabled = enabledEssences();
+        List<EssenceDefinition> enabled = repairMode()
+                ? enabledAttributeEssences()
+                : enabledEssences();
         if (enabled.isEmpty()) {
             return;
         }
@@ -686,6 +692,16 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         List<EssenceDefinition> result = new ArrayList<>();
         for (EssenceDefinition essence : EssenceRegistry.values()) {
             if (isEnabled(essence)) {
+                result.add(essence);
+            }
+        }
+        return result;
+    }
+
+    private static List<EssenceDefinition> enabledAttributeEssences() {
+        List<EssenceDefinition> result = new ArrayList<>();
+        for (EssenceDefinition essence : EssenceRegistry.values()) {
+            if (essence.family() == EssenceFamily.ATTRIBUTE && isEnabled(essence)) {
                 result.add(essence);
             }
         }
@@ -778,7 +794,9 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         }
 
         EssenceDefinition source = sourceEssence();
-        if (source == null || !isEnabled(source)) {
+        if (source == null
+                || source.family() != EssenceFamily.ATTRIBUTE
+                || !isEnabled(source)) {
             return;
         }
 

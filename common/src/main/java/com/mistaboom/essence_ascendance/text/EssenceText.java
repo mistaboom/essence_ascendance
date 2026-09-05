@@ -41,6 +41,10 @@ public final class EssenceText {
         return Component.translatable("command." + MOD_ID + "." + path, args);
     }
 
+    public static MutableComponent jei(String path, Object... args) {
+        return Component.translatable("jei." + MOD_ID + "." + path, args);
+    }
+
     public static MutableComponent term(String path, Object... args) {
         return Component.translatable("term." + MOD_ID + "." + path, args);
     }
