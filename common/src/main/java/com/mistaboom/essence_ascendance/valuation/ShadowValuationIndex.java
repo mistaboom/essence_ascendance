@@ -45,7 +45,6 @@ import java.util.Set;
  */
 final class ShadowValuationIndex {
 
-    private static final String BLOCK_LOOT_PREFIX = "loot_table/blocks/";
     private static final String LOOT_TABLE_PREFIX = "loot_table/";
 
     private final Map<Item, List<RecipeModel>> recipesByOutput;
@@ -176,8 +175,9 @@ final class ShadowValuationIndex {
         recipeCount += smithingFallbacks.recipeCount();
         ingredientLinks += smithingFallbacks.ingredientLinks();
 
+        ShadowNaturalBlockIndex naturalBlockIndex = ShadowNaturalBlockIndex.build(server);
         // Positive runtime interaction relationships (no hand-authored item prices).
-        for (RecipeModel model : ProceduralInteractionRecipes.discover(server)) {
+        for (RecipeModel model : ProceduralInteractionRecipes.discover(server, naturalBlockIndex)) {
             byOutput.computeIfAbsent(model.outputItem(), ignored -> new ArrayList<>()).add(model);
             for (IngredientChoice ingredient : model.ingredients()) {
                 for (Item candidate : ingredient.alternatives()) {
@@ -193,7 +193,6 @@ final class ShadowValuationIndex {
         ShadowStructureIndex structureIndex = ShadowStructureIndex.build(server);
         ShadowMobSpawnIndex mobSpawnIndex = ShadowMobSpawnIndex.build(server, structureIndex);
         ShadowTradeIndex tradeIndex = ShadowTradeIndex.build(server);
-        ShadowNaturalBlockIndex naturalBlockIndex = ShadowNaturalBlockIndex.build(server);
 
         int lootTablesScanned = scanEntityLootTables(server, drops, mobSpawnIndex);
         addVanillaHardcodedEntitySources(drops, mobSpawnIndex);
@@ -1405,71 +1404,21 @@ final class ShadowValuationIndex {
             MinecraftServer server,
             Map<Item, List<BlockDropSource>> output
     ) {
-        Map<ResourceLocation, Resource> resources;
-        try {
-            resources = server.getResourceManager().listResources(
-                    "loot_table/blocks",
-                    id -> id.getPath().endsWith(".json")
-            );
-        } catch (RuntimeException exception) {
-            EssenceAscendance.LOGGER.warn(
-                    "Shadow valuation could not enumerate block loot tables: {}",
-                    exception.getMessage()
-            );
-            return 0;
-        }
-
-        int scanned = 0;
-        for (Map.Entry<ResourceLocation, Resource> entry : resources.entrySet()) {
-            ResourceLocation resourceId = entry.getKey();
-            ResourceLocation blockId = blockIdFromLootResource(resourceId);
-            if (blockId == null) {
-                continue;
-            }
-
-            Block block = BuiltInRegistries.BLOCK.getOptional(blockId).orElse(null);
-            if (block == null) {
-                continue;
-            }
-
-            try (BufferedReader reader = entry.getValue().openAsReader()) {
-                JsonElement root = JsonParser.parseReader(reader);
-                BlockSourceStats stats = blockSourceStats(blockId, block);
-                collectBlockDropItems(
-                        root,
-                        blockId,
-                        stats,
-                        1.0,
-                        1.0,
-                        0,
-                        output
-                );
-                scanned++;
-            } catch (IOException | RuntimeException exception) {
-                EssenceAscendance.LOGGER.debug(
-                        "Shadow valuation skipped block loot table {}: {}",
-                        resourceId,
-                        exception.getMessage()
-                );
+        Map<Block, List<ProceduralBlockHarvest.HarvestDrop>> harvests = ProceduralBlockHarvest.discover(server);
+        for (Map.Entry<Block, List<ProceduralBlockHarvest.HarvestDrop>> entry : harvests.entrySet().stream()
+                .sorted(Comparator.comparing(e -> BuiltInRegistries.BLOCK.getKey(e.getKey()).toString())).toList()) {
+            ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(entry.getKey());
+            BlockSourceStats stats = blockSourceStats(blockId, entry.getKey());
+            for (ProceduralBlockHarvest.HarvestDrop drop : entry.getValue()) {
+                List<String> signals = new ArrayList<>(stats.signals());
+                signals.addAll(drop.signals());
+                output.computeIfAbsent(drop.output(), ignored -> new ArrayList<>()).add(new BlockDropSource(
+                        blockId, drop.chance(), drop.countWhenPresent(), drop.unresolved(),
+                        stats.progressionBand(), stats.sourceMultiplier(), stats.oreLike(), signals,
+                        drop.reusableTool(), drop.silkTouch()));
             }
         }
-
-        return scanned;
-    }
-
-    private static ResourceLocation blockIdFromLootResource(ResourceLocation resourceId) {
-        String path = resourceId.getPath();
-        if (!path.startsWith(BLOCK_LOOT_PREFIX) || !path.endsWith(".json")) {
-            return null;
-        }
-
-        String blockPath = path.substring(
-                BLOCK_LOOT_PREFIX.length(),
-                path.length() - ".json".length()
-        );
-        return blockPath.isBlank()
-                ? null
-                : ResourceLocation.tryBuild(resourceId.getNamespace(), blockPath);
+        return harvests.size();
     }
 
     private static BlockSourceStats blockSourceStats(ResourceLocation blockId, Block block) {
@@ -1528,90 +1477,6 @@ final class ShadowValuationIndex {
                 oreLike,
                 List.copyOf(signals)
         );
-    }
-
-    private static void collectBlockDropItems(
-            JsonElement element,
-            ResourceLocation blockId,
-            BlockSourceStats stats,
-            double inheritedChance,
-            double inheritedCount,
-            int complexConditionCount,
-            Map<Item, List<BlockDropSource>> output
-    ) {
-        if (element == null || element.isJsonNull()) {
-            return;
-        }
-        if (element.isJsonArray()) {
-            for (JsonElement child : element.getAsJsonArray()) {
-                collectBlockDropItems(
-                        child,
-                        blockId,
-                        stats,
-                        inheritedChance,
-                        inheritedCount,
-                        complexConditionCount,
-                        output
-                );
-            }
-            return;
-        }
-        if (!element.isJsonObject()) {
-            return;
-        }
-
-        JsonObject object = element.getAsJsonObject();
-        ChanceInfo chanceInfo = readChance(object.get("conditions"));
-        double chance = inheritedChance * chanceInfo.multiplier();
-        int complex = complexConditionCount + chanceInfo.complexConditions();
-
-        double count = inheritedCount;
-        if (object.has("rolls")) {
-            count *= estimateNumberProvider(object.get("rolls"), 1.0);
-        }
-        count *= readSetCountMultiplier(object.get("functions"));
-
-        // An impossible/empty branch is not an acquisition source.
-        if (!Double.isFinite(chance) || !Double.isFinite(count) || chance <= 0.0 || count <= 0.0) return;
-
-        String type = readString(object, "type");
-        String name = readString(object, "name");
-        if ("minecraft:item".equals(type) && name != null) {
-            ResourceLocation itemId = ResourceLocation.tryParse(name);
-            if (itemId != null) {
-                double resolvedCount = Math.max(0.01, count);
-                BuiltInRegistries.ITEM.getOptional(itemId).ifPresent(item -> {
-                    BlockDropSource source = new BlockDropSource(
-                            blockId,
-                            clampProbability(chance),
-                            resolvedCount,
-                            complex,
-                            stats.progressionBand(),
-                            stats.sourceMultiplier(),
-                            stats.oreLike(),
-                            stats.signals()
-                    );
-                    output.computeIfAbsent(item, ignored -> new ArrayList<>())
-                            .add(source);
-                });
-            }
-            return;
-        }
-
-        for (String childKey : List.of("pools", "entries", "children")) {
-            JsonElement child = object.get(childKey);
-            if (child != null) {
-                collectBlockDropItems(
-                        child,
-                        blockId,
-                        stats,
-                        chance,
-                        count,
-                        complex,
-                        output
-                );
-            }
-        }
     }
 
     private static void collectDropItems(
@@ -2137,7 +2002,9 @@ final class ShadowValuationIndex {
             ShadowValuationResult.ProgressionBand progressionBand,
             double sourceMultiplier,
             boolean oreLike,
-            List<String> signals
+            List<String> signals,
+            Item reusableTool,
+            boolean silkTouchRequired
     ) {
         BlockDropSource {
             signals = List.copyOf(signals);

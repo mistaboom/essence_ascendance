@@ -1074,18 +1074,21 @@ public final class ShadowValuationEngine {
                             intrinsic.value(),
                             intrinsic.progressionBand(),
                             source,
-                            sourceProgression
+                            sourceProgression,
+                            context, visiting, depth
                     );
                 })
                 .toList();
         BlockDropPath selectedBlock = selectBlockPath(blockPaths);
         if (selectedBlock != null) {
-            boolean reliable = selectedBlock.source().complexConditionCount() == 0;
+            boolean reliable = selectedBlock.reliable();
             boolean shouldUse = reliable
                     ? (!known || selectedBlock.value() < value)
                     : (!known && (!conditionalFallbackSelected || selectedBlock.value() < value));
             if (shouldUse) {
                 value = selectedBlock.value();
+                dependencies = selectedBlock.dependencies();
+                contextSensitive |= !selectedBlock.prerequisiteKnown();
                 known = reliable;
                 conditionalFallbackSelected = !reliable;
                 ShadowValuationIndex.BlockDropSource source = selectedBlock.source();
@@ -1122,6 +1125,11 @@ public final class ShadowValuationEngine {
                                 + ", condition x"
                                 + format(selectedBlock.conditionMultiplier())
                 );
+                if (source.reusableTool() != null) {
+                    factors.add("Reusable-tool wear: " + format(selectedBlock.reusableWear())
+                            + " Essence/harvest; full tool is not consumed; prerequisite acquisition "
+                            + (selectedBlock.prerequisiteKnown() ? "modeled" : "unresolved"));
+                }
                 if (!reliable) {
                     factors.add("Conditional block source is diagnostic fallback only; it cannot undercut a fully modeled recipe/source");
                 }
@@ -1143,6 +1151,7 @@ public final class ShadowValuationEngine {
                     : (!known && (!conditionalFallbackSelected || selectedDrop.value() < value));
             if (shouldUse) {
                 value = selectedDrop.value();
+                dependencies = Set.of();
                 known = reliable;
                 conditionalFallbackSelected = !reliable;
                 ShadowValuationIndex.DropSource source = selectedDrop.source();
@@ -1210,6 +1219,7 @@ public final class ShadowValuationEngine {
                     : (!known && (!conditionalFallbackSelected || selectedContainer.value() < value));
             if (shouldUse) {
                 value = selectedContainer.value();
+                dependencies = Set.of();
                 known = reliable;
                 conditionalFallbackSelected = !reliable;
                 ShadowValuationIndex.ContainerLootSource source = selectedContainer.source();
@@ -1279,6 +1289,7 @@ public final class ShadowValuationEngine {
                     : (!known && (!conditionalFallbackSelected || selectedFishing.value() < value));
             if (shouldUse) {
                 value = selectedFishing.value();
+                dependencies = Set.of();
                 known = reliable;
                 conditionalFallbackSelected = !reliable;
                 ShadowValuationIndex.FishingLootSource source = selectedFishing.source();
@@ -1526,7 +1537,7 @@ public final class ShadowValuationEngine {
 
     private static BlockDropPath selectBlockPath(List<BlockDropPath> paths) {
         return paths.stream()
-                .filter(path -> path.source().complexConditionCount() == 0)
+                .filter(BlockDropPath::reliable)
                 .min(Comparator.comparingDouble(BlockDropPath::value))
                 .orElseGet(() -> paths.stream()
                         .min(Comparator.comparingDouble(BlockDropPath::value))
@@ -1588,7 +1599,8 @@ public final class ShadowValuationEngine {
             double baseValue,
             ShadowValuationResult.ProgressionBand intrinsicProgression,
             ShadowValuationIndex.BlockDropSource source,
-            ShadowProgressionIndex.ProgressionEvidence progressionEvidence
+            ShadowProgressionIndex.ProgressionEvidence progressionEvidence,
+            EvaluationContext context, Set<Item> visiting, int depth
     ) {
         double sourceMultiplier = source.sourceMultiplier();
         if (intrinsicProgression.rank() >= source.progressionBand().rank()) {
@@ -1603,15 +1615,29 @@ public final class ShadowValuationEngine {
         double quantityMultiplier = quantityMultiplier(source.expectedCount());
         double conditionMultiplier = unresolvedConditionMultiplier(source.complexConditionCount());
 
+        boolean prerequisiteKnown = true;
+        double reusableWear = 0.0;
+        Set<Item> dependencies = Set.of();
+        if (source.reusableTool() != null) {
+            EvaluationNode tool = evaluateNode(source.reusableTool(), context, visiting, depth + 1);
+            prerequisiteKnown = tool.knownAcquisition();
+            dependencies = tool.dependencies();
+            int durability = new ItemStack(source.reusableTool()).getMaxDamage();
+            // Standard harvesting tools lose durability, not the complete tool per drop.
+            // Non-damageable reusable tools have no modeled wear, but still require acquisition.
+            reusableWear = durability > 0 ? (double) tool.acquisitionValue() / durability : 0.0;
+        }
+        if (source.silkTouchRequired()) sourceMultiplier *= ShadowValuationSettings.SILK_TOUCH_HARVEST_MULTIPLIER;
         return new BlockDropPath(
                 source,
                 baseValue * sourceMultiplier * rarityMultiplier * quantityMultiplier
-                        * conditionMultiplier * progressionEvidence.multiplier(),
+                        * conditionMultiplier * progressionEvidence.multiplier() + reusableWear,
                 sourceMultiplier,
                 rarityMultiplier,
                 quantityMultiplier,
                 conditionMultiplier,
-                progressionEvidence
+                progressionEvidence,
+                prerequisiteKnown, reusableWear, dependencies
         );
     }
 
@@ -2778,8 +2804,12 @@ public final class ShadowValuationEngine {
             double rarityMultiplier,
             double quantityMultiplier,
             double conditionMultiplier,
-            ShadowProgressionIndex.ProgressionEvidence progressionEvidence
+            ShadowProgressionIndex.ProgressionEvidence progressionEvidence,
+            boolean prerequisiteKnown,
+            double reusableWear,
+            Set<Item> dependencies
     ) {
+        boolean reliable() { return prerequisiteKnown && source.complexConditionCount() == 0; }
     }
 
     private record DropPath(

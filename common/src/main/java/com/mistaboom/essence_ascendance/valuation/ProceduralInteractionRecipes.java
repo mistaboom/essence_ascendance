@@ -6,6 +6,10 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.AxeItem;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.BucketItem;
+import net.minecraft.world.item.SolidBucketItem;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.item.DyeItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -16,6 +20,8 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.ShulkerBoxColoring;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.LiquidBlock;
+import net.minecraft.world.level.block.PowderSnowBlock;
 import net.minecraft.world.level.block.ConcretePowderBlock;
 import net.minecraft.world.level.block.ShulkerBoxBlock;
 import net.minecraft.world.level.block.WeatheringCopper;
@@ -38,7 +44,7 @@ import java.util.Map;
 final class ProceduralInteractionRecipes {
     private ProceduralInteractionRecipes() { }
 
-    static List<ShadowValuationIndex.RecipeModel> discover(MinecraftServer server) {
+    static List<ShadowValuationIndex.RecipeModel> discover(MinecraftServer server, ShadowNaturalBlockIndex natural) {
         Map<ResourceLocation, ShadowValuationIndex.RecipeModel> result = new LinkedHashMap<>();
         readStrippingMap(result);
         for (Block block : BuiltInRegistries.BLOCK) {
@@ -60,6 +66,7 @@ final class ProceduralInteractionRecipes {
             }
         }
         discoverColoring(server, result);
+        discoverBucketFilling(natural, result);
         return result.values().stream().sorted(Comparator.comparing(model -> model.id().toString())).toList();
     }
 
@@ -108,6 +115,37 @@ final class ProceduralInteractionRecipes {
                             List.of(new ShadowValuationIndex.IngredientChoice(entry.getValue()),
                                     new ShadowValuationIndex.IngredientChoice(List.of(dye)))));
                 }
+            }
+        }
+    }
+
+    private static void discoverBucketFilling(ShadowNaturalBlockIndex natural,
+                                             Map<ResourceLocation, ShadowValuationIndex.RecipeModel> result) {
+        if (natural == null) return;
+        for (Item item : BuiltInRegistries.ITEM) {
+            // Only the known vanilla bucket behavior. Mob buckets, custom filled
+            // containers, NBT variants and override callbacks need their own evidence.
+            if (item.getClass() == BucketItem.class) {
+                for (Field field : BucketItem.class.getDeclaredFields()) {
+                    if (Modifier.isStatic(field.getModifiers()) || field.getType() != Fluid.class) continue;
+                    try {
+                        if (!field.trySetAccessible() || !(field.get(item) instanceof Fluid fluid)
+                                || fluid == Fluids.EMPTY || fluid.getBucket() != item) continue;
+                        Block source = fluid.defaultFluidState().createLegacyBlock().getBlock();
+                        // Placement alone is not proof of the reverse pickup behavior.
+                        if (source.getClass() != LiquidBlock.class
+                                || !natural.contains(BuiltInRegistries.BLOCK.getKey(source))) continue;
+                        add(result, "natural_fluid_bucket_filling", Items.BUCKET, item);
+                    } catch (ReflectiveOperationException | RuntimeException exception) {
+                        EssenceAscendance.LOGGER.debug("Valuation bucket filling unavailable {}: {}",
+                                BuiltInRegistries.ITEM.getKey(item), exception.toString());
+                    }
+                }
+            } else if (item.getClass() == SolidBucketItem.class && item instanceof BlockItem blockItem) {
+                Block source = blockItem.getBlock();
+                if (source.getClass() == PowderSnowBlock.class
+                        && natural.contains(BuiltInRegistries.BLOCK.getKey(source)))
+                    add(result, "natural_solid_bucket_filling", Items.BUCKET, item);
             }
         }
     }

@@ -55,6 +55,8 @@ public final class ShadowValuationSettings {
     public static final double NEEDS_STONE_TOOL_MULTIPLIER = 1.06;
     public static final double NEEDS_IRON_TOOL_MULTIPLIER = 1.14;
     public static final double NEEDS_DIAMOND_TOOL_MULTIPLIER = 1.28;
+    // Shared enchantment-access/effort estimate, not a per-item price.
+    public static final double SILK_TOUCH_HARVEST_MULTIPLIER = 1.25;
 
     public static final double CRAFTING_PROCESS_MULTIPLIER = 1.035;
     public static final double SMELTING_PROCESS_MULTIPLIER = 1.08;

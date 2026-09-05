@@ -56,6 +56,7 @@ final class ShadowNaturalBlockIndex {
         terrain.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
             String source = "terrain definition " + entry.getKey();
             scan.states(entry.getValue().get("default_block"), source, 0);
+            scan.states(entry.getValue().get("default_fluid"), source, 0);
             scan.states(entry.getValue().get("surface_rule"), source, 0);
         });
         return new ShadowNaturalBlockIndex(scan.evidence);
