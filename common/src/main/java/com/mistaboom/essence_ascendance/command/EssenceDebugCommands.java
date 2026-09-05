@@ -49,6 +49,9 @@ import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.EssenceStats;
 import com.mistaboom.essence_ascendance.stat.StatCategory;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
+import com.mistaboom.essence_ascendance.valuation.ShadowValuationCsvExporter;
+import com.mistaboom.essence_ascendance.valuation.ShadowValuationEngine;
+import com.mistaboom.essence_ascendance.valuation.ShadowValuationResult;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -67,6 +70,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 
+import java.io.IOException;
 import java.util.Locale;
 import java.util.Map;
 
@@ -84,6 +88,12 @@ final class EssenceDebugCommands {
                 .then(Commands.literal("equipment").executes(context -> showEquipment(context.getSource())))
                 .then(Commands.literal("item").executes(context -> showItem(context.getSource())))
                 .then(Commands.literal("mapping").executes(context -> showItemMapping(context.getSource())))
+                .then(Commands.literal("valuation")
+                        .executes(context -> showShadowValuation(context.getSource()))
+                        .then(Commands.literal("rebuild")
+                                .executes(context -> rebuildShadowValuation(context.getSource())))
+                        .then(Commands.literal("export")
+                                .executes(context -> exportShadowValuation(context.getSource()))))
                 .then(Commands.literal("mappings").executes(context -> showMappingRegistry(context.getSource())))
                 .then(Commands.literal("crucible").executes(context -> showCrucible(context.getSource())))
                 .then(Commands.literal("pylon").executes(context -> showPylon(context.getSource())))
@@ -103,6 +113,9 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug equipment", "all active equipment profiles plus resolved stat applicability"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug item", "deep-dive the main-hand Ascendance item"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug mapping", "resolve the main-hand item to Attribute Essence"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug valuation", "inspect the main-hand item's foundational procedural shadow valuation"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug valuation rebuild", "re-index recipes, loot tables, and advancement progression after data reloads"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug valuation export", "export every registered item's shadow valuation to CSV"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug mappings", "mapping registry/reload summary"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug crucible", "inspect the Essence Crucible you are looking at"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug pylon", "inspect the Essence Pylon you are looking at"));
@@ -421,6 +434,407 @@ final class EssenceDebugCommands {
         );
     }
 
+
+    private static int showShadowValuation(
+            CommandSourceStack source
+    ) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        ItemStack stack = player.getMainHandItem();
+
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.title("Procedural Essence Valuation — SHADOW")
+        );
+
+        if (stack.isEmpty()) {
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.muted("Hold an item in your main hand.")
+            );
+            return 0;
+        }
+
+        ShadowValuationResult shadow = ShadowValuationEngine.evaluate(
+                source.getServer(),
+                stack
+        );
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.warn("  Diagnostic only — current Item → Essence mappings remain authoritative for gameplay.")
+        );
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Item",
+                        stack.getHoverName().getString() + " [" + shadow.itemId() + "]"
+                )
+        );
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Shadow total",
+                        EssenceCommandUtil.format(shadow.totalValue())
+                )
+        );
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Scale",
+                        "FOUNDATIONAL / UNNORMALIZED (no legacy mapping target)"
+                )
+        );
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Confidence",
+                        shadow.confidenceBand().name()
+                                + " ("
+                                + String.format(Locale.ROOT, "%.0f%%", shadow.confidence() * 100.0)
+                                + ")"
+                )
+        );
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Renewability",
+                        "x" + String.format(Locale.ROOT, "%.3f", shadow.renewabilityMultiplier())
+                )
+        );
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Progression signal",
+                        shadow.progressionBand().name()
+                )
+        );
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Advancement progression",
+                        String.format(Locale.ROOT, "%.1f%%", shadow.inferredProgressionScore() * 100.0)
+                                + " / "
+                                + shadow.progressionEvidenceCount()
+                                + " evidence ref(s)"
+                )
+        );
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Recipe graph",
+                        shadow.producingRecipeCount()
+                                + " producing / "
+                                + shadow.downstreamRecipeCount()
+                                + " downstream"
+                )
+        );
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Downstream demand",
+                        shadow.significantDownstreamRecipeCount()
+                                + " significant / "
+                                + shadow.crossModDownstreamRecipeCount()
+                                + " cross-mod | x"
+                                + String.format(Locale.ROOT, "%.3f", shadow.downstreamMultiplier())
+                )
+        );
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Direct sources",
+                        shadow.sourceBlockCount()
+                                + " block / "
+                                + shadow.sourceEntityCount()
+                                + " entity / "
+                                + shadow.sourceContainerCount()
+                                + " container / "
+                                + shadow.sourceFishingCount()
+                                + " fishing / "
+                                + shadow.sourceTradeCount()
+                                + " trade"
+                )
+        );
+
+        shadow.recipeChoice().ifPresent(choice -> {
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.section("Chosen recipe path")
+            );
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.line("Recipe", choice.recipeId().toString())
+            );
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.line(
+                            "Type / value",
+                            choice.recipeType()
+                                    + " / "
+                                    + EssenceCommandUtil.format(choice.valuePerOutput())
+                                    + " per output"
+                    )
+            );
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.line(
+                            "Ingredients",
+                            choice.ingredientSlots()
+                                    + " slots / "
+                                    + choice.uniqueChosenIngredients()
+                                    + " unique / "
+                                    + choice.easyChosenIngredients()
+                                    + " easy / "
+                                    + choice.rareChosenIngredients()
+                                    + " rare / "
+                                    + choice.modSpecificChosenIngredients()
+                                    + " mod-specific"
+                    )
+            );
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.line(
+                            "Depth / transform",
+                            choice.depth()
+                                    + " / "
+                                    + (choice.reversibleTransform() ? "REVERSIBLE" : "PROCESSING")
+                    )
+            );
+        });
+
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.section("Proposed Attribute Essence routing")
+        );
+        shadow.routedEssence().entrySet().stream()
+                .sorted(
+                        Map.Entry.<EssenceDefinition, Long>comparingByValue()
+                                .reversed()
+                                .thenComparing(entry -> entry.getKey().id().toString())
+                )
+                .forEach(entry -> {
+                    double fraction = shadow.totalValue() <= 0L
+                            ? 0.0
+                            : (double) entry.getValue() / shadow.totalValue();
+                    EssenceCommandUtil.send(
+                            source,
+                            EssenceCommandUtil.muted(
+                                    "  "
+                                            + entry.getKey().id().getPath()
+                                            + " = "
+                                            + EssenceCommandUtil.format(entry.getValue())
+                                            + " ("
+                                            + String.format(Locale.ROOT, "%.1f%%", fraction * 100.0)
+                                            + ")"
+                            )
+                    );
+                });
+
+        if (!shadow.downstreamExamples().isEmpty()) {
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.section("Example downstream outputs")
+            );
+            for (ResourceLocation output : shadow.downstreamExamples()) {
+                EssenceCommandUtil.send(
+                        source,
+                        EssenceCommandUtil.muted("  " + output)
+                );
+            }
+        }
+
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.section("Valuation factors")
+        );
+        for (String factor : shadow.factors()) {
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.muted("  " + factor)
+            );
+        }
+
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.muted(
+                        "Legacy/live mapping totals are intentionally not used as a valuation target; use /essence debug mapping separately when needed."
+                )
+        );
+
+        return 1;
+    }
+
+    private static int rebuildShadowValuation(
+            CommandSourceStack source
+    ) {
+        ShadowValuationEngine.IndexSummary summary =
+                ShadowValuationEngine.rebuild(source.getServer());
+
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.title("Procedural Valuation Index Rebuilt")
+        );
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Recipes",
+                        summary.recipeCount() + " indexed / " + summary.skippedRecipeCount() + " skipped"
+                )
+        );
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Recipe links",
+                        summary.outputItemCount()
+                                + " outputs / "
+                                + summary.ingredientLinkCount()
+                                + " ingredient links"
+                )
+        );
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Entity loot",
+                        summary.entityLootTableCount()
+                                + " tables / "
+                                + summary.dropSourceLinkCount()
+                                + " item-source links"
+                )
+        );
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Block loot",
+                        summary.blockLootTableCount()
+                                + " tables / "
+                                + summary.blockDropSourceLinkCount()
+                                + " item-source links"
+                )
+        );
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Container loot",
+                        summary.containerLootTableCount()
+                                + " tables / "
+                                + summary.containerLootSourceLinkCount()
+                                + " item-source links"
+                )
+        );
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Fishing loot",
+                        summary.fishingLootTableCount()
+                                + " root tables / "
+                                + summary.fishingLootSourceLinkCount()
+                                + " item-source links"
+                )
+        );
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Trades",
+                        summary.tradeListingCount()
+                                + " listings / "
+                                + summary.tradeOfferCount()
+                                + " sampled offers / "
+                                + summary.tradeProfessionTableCount()
+                                + " profession-level tables"
+                )
+        );
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Advancements",
+                        summary.consideredAdvancementCount()
+                                + "/"
+                                + summary.advancementCount()
+                                + " considered / "
+                                + summary.advancementTreeCount()
+                                + " trees / "
+                                + summary.advancementReferenceCount()
+                                + " progression refs"
+                )
+        );
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.line(
+                        "Advancement refs",
+                        summary.advancementItemReferenceCount()
+                                + " items / "
+                                + summary.advancementEntityReferenceCount()
+                                + " entities / "
+                                + summary.advancementDimensionReferenceCount()
+                                + " dimensions"
+                )
+        );
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.muted(
+                        "Run this after /reload while the valuation engine is still shadow-only."
+                )
+        );
+        return 1;
+    }
+
+    private static int exportShadowValuation(
+            CommandSourceStack source
+    ) {
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.title("Procedural Valuation CSV Export")
+        );
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.muted(
+                        "Evaluating all registered items using the current shadow index..."
+                )
+        );
+
+        try {
+            ShadowValuationCsvExporter.ExportReport report =
+                    ShadowValuationCsvExporter.export(source.getServer());
+
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.line(
+                            "Items",
+                            Integer.toString(report.itemCount())
+                    )
+            );
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.line(
+                            "Elapsed",
+                            String.format(
+                                    Locale.ROOT,
+                                    "%.2f sec",
+                                    report.elapsedMillis() / 1000.0
+                            )
+                    )
+            );
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.line(
+                            "CSV",
+                            report.path().toString()
+                    )
+            );
+            EssenceCommandUtil.send(
+                    source,
+                    EssenceCommandUtil.muted(
+                            "The CSV contains shadow values only; live Item -> Essence mappings are intentionally excluded."
+                    )
+            );
+            return 1;
+        } catch (IOException exception) {
+            EssenceCommandUtil.fail(
+                    source,
+                    "CSV export failed: " + exception.getMessage()
+            );
+            return 0;
+        }
+    }
 
     private static int showItemMapping(
             CommandSourceStack source
