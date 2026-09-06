@@ -3,7 +3,6 @@ package com.mistaboom.essence_ascendance.client;
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.network.EssencePylonStatePayload;
 import com.mistaboom.essence_ascendance.network.EssencePylonStateRequestPayload;
-import dev.architectury.event.events.client.ClientPlayerEvent;
 import dev.architectury.networking.NetworkManager;
 
 public final class EssencePylonClientState {
@@ -23,7 +22,7 @@ public final class EssencePylonClientState {
                 NetworkManager.Side.S2C,
                 EssencePylonStatePayload.TYPE,
                 EssencePylonStatePayload.CODEC,
-                (payload, context) -> context.queue(() -> {
+                (payload, context) -> ClientPacketDispatch.queue(context, () -> {
                     if (payload.schemaVersion()
                             == EssencePylonStatePayload.CURRENT_SCHEMA_VERSION) {
                         snapshot = payload;
@@ -37,7 +36,6 @@ public final class EssencePylonClientState {
                 })
         );
 
-        ClientPlayerEvent.CLIENT_PLAYER_QUIT.register(player -> clear());
         initialized = true;
     }
 

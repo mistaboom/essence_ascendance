@@ -5,6 +5,9 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mistaboom.essence_ascendance.EssenceAscendance;
+import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
+import com.mistaboom.essence_ascendance.essence.EssenceFamily;
+import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.network.ItemEssenceTooltipSyncService;
 import com.mistaboom.essence_ascendance.valuation.GeneratedYieldEligibility;
 import com.mistaboom.essence_ascendance.valuation.ShadowValuationEngine;
@@ -12,6 +15,7 @@ import com.mistaboom.essence_ascendance.valuation.ShadowValuationResult;
 import dev.architectury.event.events.common.LifecycleEvent;
 import dev.architectury.event.events.common.TickEvent;
 import dev.architectury.platform.Platform;
+import net.minecraft.SharedConstants;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
@@ -19,6 +23,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -69,7 +74,8 @@ public final class ItemEssenceMappingManager {
             }
         });
         // A successful vanilla /reload swaps the server's resource/recipe holders.
-        // Check identity in O(1), then rebuild at the next server tick, AFTER apply.
+        // Check identity in O(1), then re-resolve the saved baseline and explicit rules
+        // at the next server tick, AFTER apply. Only an absent cache calculates.
         // Failed reloads retain the holders. Record new identity even on rejection
         // so a bad config does not trigger an expensive retry every tick.
         TickEvent.SERVER_POST.register(server -> {
@@ -77,6 +83,8 @@ public final class ItemEssenceMappingManager {
             if (observedResources != server.getResourceManager() || observedRecipes != server.getRecipeManager()) {
                 observedResources = server.getResourceManager();
                 observedRecipes = server.getRecipeManager();
+                // Explicit diagnostics must not reuse analysis of the old data.
+                ShadowValuationEngine.clear();
                 reload();
             }
         });
@@ -87,6 +95,13 @@ public final class ItemEssenceMappingManager {
         return Platform.getConfigFolder().resolve(EssenceAscendance.MOD_ID).resolve("item_mappings");
     }
     public static Path settingsPath() { return configDirectory().resolve(SETTINGS_FILE); }
+    public static Path generatedCachePath() {
+        // Outside item_mappings/: cached candidates must never become explicit rules.
+        return Platform.getConfigFolder().resolve(EssenceAscendance.MOD_ID).resolve("generated_mappings.json");
+    }
+    public static boolean proceduralDefaultsEnabled() {
+        return activeSettings.proceduralDefaults() && !activeSettings.removeAllDefaults();
+    }
 
     public static ResourceLocation generatedId(ResourceLocation itemId) {
         return ResourceLocation.fromNamespaceAndPath(EssenceAscendance.MOD_ID,
@@ -102,6 +117,15 @@ public final class ItemEssenceMappingManager {
     }
 
     public static synchronized ItemEssenceMappingRegistry.ReloadReport reload() {
+        return reload(false);
+    }
+
+    /** Explicit operator request: bypass and replace the saved generated baseline. */
+    public static synchronized ItemEssenceMappingRegistry.ReloadReport rebuild() {
+        return reload(true);
+    }
+
+    private static ItemEssenceMappingRegistry.ReloadReport reload(boolean forceRegeneration) {
         ensureConfigScaffold();
         List<String> errors = new ArrayList<>(), warnings = new ArrayList<>();
         ConfigSettings settings = loadSettings(errors);
@@ -122,39 +146,85 @@ public final class ItemEssenceMappingManager {
         if (errors.isEmpty()) {
             try {
                 if (!activeServer.isSameThread()) throw new IllegalStateException("Mapping reload must run on the server thread");
-                List<ShadowValuationResult> values;
+                GeneratedMappingCache.Loaded cache = null;
+                List<GeneratedMappingCache.Entry> values;
                 if (settings.proceduralDefaults() && !settings.removeAllDefaults()) {
-                    ShadowValuationEngine.rebuild(activeServer);
-                    values = ShadowValuationEngine.evaluateAll(activeServer);
+                    cache = GeneratedMappingCache.loadOrGenerate(generatedCachePath(),
+                            SharedConstants.getCurrentVersion().getName(), forceRegeneration, () -> {
+                                EssenceAscendance.LOGGER.info("Calculating procedural mappings for {}; saved baseline will be replaced only after validation",
+                                        generatedCachePath());
+                                ShadowValuationEngine.rebuild(activeServer);
+                                return ShadowValuationEngine.evaluateAll(activeServer).stream().map(value -> {
+                                    Map<String, Long> outputs = new LinkedHashMap<>();
+                                    value.routedEssence().forEach((essence, amount) -> outputs.put(essence.id().toString(), amount));
+                                    return new GeneratedMappingCache.Entry(value.itemId().toString(), value.totalValue(),
+                                            value.modeledAcquisition(), value.conservationStatus(), outputs);
+                                }).toList();
+                            });
+                    values = cache.snapshot().entries();
                 } else {
-                    // The emergency off switch must work even when valuation fails.
+                    // The emergency off switch must work even with a bad cache.
+                    // Do not read, generate, overwrite or delete the saved baseline.
                     ShadowValuationEngine.clear();
                     values = List.of();
                 }
-                for (ShadowValuationResult value : values) {
-                    Item item = BuiltInRegistries.ITEM.getOptional(value.itemId()).orElseThrow();
+                Set<ResourceLocation> cachedIds = new LinkedHashSet<>();
+                int missingItems = 0;
+                for (GeneratedMappingCache.Entry value : values) {
+                    ResourceLocation itemId = ResourceLocation.parse(value.itemId());
+                    cachedIds.add(itemId);
+                    Map<EssenceDefinition, Long> outputs = new LinkedHashMap<>();
+                    for (var output : value.outputs().entrySet()) {
+                        ResourceLocation essenceId = ResourceLocation.parse(output.getKey());
+                        EssenceDefinition essence = EssenceRegistry.get(essenceId).orElseThrow(
+                                () -> new IllegalArgumentException("Unknown cached Essence: " + essenceId));
+                        if (essence.family() != EssenceFamily.ATTRIBUTE)
+                            throw new IllegalArgumentException("Cached outputs must use Attribute Essences: " + essenceId);
+                        outputs.put(essence, output.getValue());
+                    }
+                    Item item = BuiltInRegistries.ITEM.getOptional(itemId).orElse(null);
+                    if (item == null || item == Items.AIR) { missingItems++; continue; }
                     ItemStack stack = new ItemStack(item);
-                    GeneratedYieldEligibility.Decision decision = GeneratedYieldEligibility.decide(stack, value,
+                    GeneratedYieldEligibility.Decision decision = GeneratedYieldEligibility.decide(stack, itemId,
+                            value.totalValue(), value.modeledAcquisition(), value.conservationStatus(),
                             matchesAny(stack, settings.allowGenerated()), matchesAny(stack, settings.denyGenerated()));
                     if (!decision.eligible()) continue;
                     generatedCount++;
-                    if (!settings.proceduralDefaults() || settings.removeAllDefaults()
-                            || matchesAny(stack, removedSelectors)) { removed++; continue; }
-                    long sum = 0;
-                    for (long amount : value.routedEssence().values()) {
-                        if (amount < 0) throw new IllegalStateException("Negative generated output for " + value.itemId());
-                        sum = Math.addExact(sum, amount);
-                    }
-                    if (sum != value.totalValue()) throw new IllegalStateException("Generated total mismatch for " + value.itemId());
-                    generated.put(value.itemId(), new ItemEssenceMappingDefinition(generatedId(value.itemId()), 0,
-                            ItemEssenceMappingDefinition.SelectorType.ITEM, value.itemId(), item, null, value.routedEssence()));
+                    if (matchesAny(stack, removedSelectors)) { removed++; continue; }
+                    generated.put(itemId, new ItemEssenceMappingDefinition(generatedId(itemId), 0,
+                            ItemEssenceMappingDefinition.SelectorType.ITEM, itemId, item, null, outputs));
+                }
+                if (cache != null) {
+                    long newItems = BuiltInRegistries.ITEM.stream().filter(item -> item != Items.AIR
+                            && !cachedIds.contains(BuiltInRegistries.ITEM.getKey(item))).count();
+                    if (missingItems > 0 || newItems > 0) warnings.add("Saved procedural baseline: " + missingItems
+                            + " cached items are no longer registered; " + newItems
+                            + " registered items have no cached value. No automatic recalculation; use /essence debug valuation rebuild after pack changes.");
                 }
                 ItemEssenceMappingRegistry.LoadSummary summary = new ItemEssenceMappingRegistry.LoadSummary(
                         generatedCount, removed, 0, configFiles, explicit.size(), warnings);
-                ItemEssenceMappingRegistry.install(List.copyOf(explicit.values()), generated, summary);
+                GeneratedMappingCache.Loaded stagedCache = cache;
+                ItemEssenceMappingRegistry.install(List.copyOf(explicit.values()), generated, summary, () -> {
+                    if (stagedCache != null && stagedCache.generated())
+                        GeneratedMappingCache.writeAtomically(generatedCachePath(), stagedCache.snapshot());
+                });
+                if (cache != null) {
+                    if (cache.generated()) EssenceAscendance.LOGGER.info(
+                            "Saved procedural mapping cache to {}: {} valued items; installed mapping generation {}",
+                            generatedCachePath(), values.size(), ItemEssenceMappingRegistry.generation());
+                    else EssenceAscendance.LOGGER.info(
+                            "Loaded saved procedural mapping cache from {}: {} valued items; valuation calculation skipped",
+                            generatedCachePath(), values.size());
+                }
                 activeSettings = settings;
-            } catch (RuntimeException exception) {
-                errors.add("Procedural generation rejected: " + message(exception));
+                if (!settings.proceduralDefaults() || settings.removeAllDefaults()) {
+                    EssenceAscendance.LOGGER.info(
+                            "Installed mapping generation {} with procedural defaults disabled; only explicit mapping rules are active",
+                            ItemEssenceMappingRegistry.generation());
+                }
+            } catch (IOException | RuntimeException exception) {
+                errors.add("Procedural cache/load/rebuild rejected: " + message(exception)
+                        + ". The existing cache was not replaced. Repair it or use /essence debug valuation rebuild.");
             }
         }
         if (!errors.isEmpty()) {
@@ -512,7 +582,11 @@ public final class ItemEssenceMappingManager {
             ESSENCE ASCENDANCE - PROCEDURAL DEFAULTS AND EXPLICIT OVERRIDES
             ============================================================
             The bundled hand-authored yield folder is retired and is not read.
-            Defaults are generated from the final loaded recipes/acquisition data.
+            The first enabled server/world start generates a baseline from loaded data.
+            It is saved beside this folder as ../generated_mappings.json.
+            Later starts load that file without indexing recipes/loot/trades again.
+            The cache includes internal/nonpayable candidates; eligibility still applies.
+            All worlds sharing this config directory share the same saved baseline.
             Explicit JSON rules here are the final authority, even below priority 0.
             Highest-priority explicit rules win; tied explicit rules add together.
             An empty outputs object blocks lower-priority rules AND the generated default.
@@ -544,8 +618,18 @@ public final class ItemEssenceMappingManager {
             Unmodeled does not mean creative-only; unsupported items stay in CSV diagnostics.
             Essentium uses its existing exact component recovery, never a generated base bonus.
 
-            Reload with /essence admin mappings reload or /essence debug valuation rebuild.
-            Successful vanilla /reload also refreshes at the next server tick.
+            /essence admin mappings reload reads the saved baseline plus these overrides.
+            Successful vanilla /reload re-resolves the saved baseline/settings/tags as well.
+            Neither recalculates an existing cache. An absent cache generates once.
+            /essence debug valuation rebuild forces recalculation and atomically replaces
+            the cache only after the entire merged mapping generation validates.
+            Run rebuild after mod, recipe, loot, trade, world-data or valuation-code changes;
+            freshness is MANUAL, even when the item IDs did not change.
+            Unknown/removed items are skipped; new items need rebuild or explicit rules.
+            Invalid existing caches reject loading rather than silently recalculating.
+            Disabled defaults leave the cache untouched, including during rebuild.
+            Diagnostic /valuation and CSV export may compute current analysis on demand,
+            but neither saves nor installs it; analysis may differ from the cached baseline.
             Errors keep the complete last-known-good generation; first-start errors fail closed.
             CSV includes eligibility and the installed live mapping source/total.
             """;

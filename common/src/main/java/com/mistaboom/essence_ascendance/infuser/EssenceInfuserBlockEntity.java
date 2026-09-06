@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.infuser;
 
+import com.mistaboom.essence_ascendance.network.ServerMenuAccess;
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleBlockEntity;
@@ -932,9 +933,17 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
                 || component.getCount() < recipe.matrixCount()) {
             return;
         }
+        ItemStack completed = workpiece.copy();
+        try {
+            EquipmentInfusionData.complete(completed, recipe);
+        } catch (RuntimeException failure) {
+            EssenceAscendance.LOGGER.error(
+                    "Failed to complete equipment infusion; retaining workpiece progress and Matrix", failure);
+            return;
+        }
         component.shrink(recipe.matrixCount());
         if (component.isEmpty()) items.set(COMPONENT_SLOT, ItemStack.EMPTY);
-        EquipmentInfusionData.complete(workpiece, recipe);
+        items.set(INPUT_SLOT, completed);
         processingTicks = 0;
         focusThroughputRemainderTwentieths = 0;
         processingEnabled = false;
@@ -1568,12 +1577,30 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         syncBlockEntity();
     }
 
+    /**
+     * Fabric Transfer API snapshot write. The adapter enforces slot/capacity rules.
+     * Both provisional changes AND rollback must bypass processing/notification
+     * side effects; only a successful outer commit may publish those effects.
+     * Ordinary menus/hoppers/NeoForge execution continue to use setItem/removeItem.
+     */
+    public void setItemFromTransferSnapshot(int slot, ItemStack stack) {
+        if (slot < 0 || slot >= items.size()) {
+            throw new IndexOutOfBoundsException("Machine slot " + slot);
+        }
+        items.set(slot, stack == null ? ItemStack.EMPTY : stack);
+    }
+
+    /** Called once by an adapter after its successful outer transaction closes. */
+    public void finishItemTransfer(boolean contextChanged) {
+        if (contextChanged) {
+            resetProcessing();
+        }
+        syncBlockEntity();
+    }
+
     @Override
     public boolean stillValid(Player player) {
-        return level != null
-                && level.getBlockEntity(worldPosition) == this
-                && canPlayerUse(player)
-                && player.distanceToSqr(Vec3.atCenterOf(worldPosition)) <= 64.0D;
+        return ServerMenuAccess.canReach(player, this) && canPlayerUse(player);
     }
 
     @Override

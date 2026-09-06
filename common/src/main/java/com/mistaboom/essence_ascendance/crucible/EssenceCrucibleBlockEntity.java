@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.crucible;
 
+import com.mistaboom.essence_ascendance.network.ServerMenuAccess;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
@@ -1350,15 +1351,22 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         setChanged();
     }
 
+    /**
+     * Fabric Transfer API snapshot write. The adapter enforces slot/capacity rules.
+     * Both provisional changes AND rollback must bypass processing/notification
+     * side effects; only a successful outer commit may publish those effects.
+     * Ordinary menus/hoppers/NeoForge execution continue to use setItem/removeItem.
+     */
+    public void setItemFromTransferSnapshot(int slot, ItemStack stack) {
+        if (slot < 0 || slot >= items.size()) {
+            throw new IndexOutOfBoundsException("Machine slot " + slot);
+        }
+        items.set(slot, stack == null ? ItemStack.EMPTY : stack);
+    }
+
     @Override
     public boolean stillValid(Player player) {
-        if (level == null
-                || level.getBlockEntity(worldPosition) != this
-                || !canPlayerUse(player)) {
-            return false;
-        }
-
-        return player.distanceToSqr(Vec3.atCenterOf(worldPosition)) <= 64.0D;
+        return ServerMenuAccess.canReach(player, this) && canPlayerUse(player);
     }
 
     @Override

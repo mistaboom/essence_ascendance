@@ -6,6 +6,7 @@ import com.mistaboom.essence_ascendance.balance.BalanceProfiles;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.lifecycle.PlayerRuntimeLifecycleService;
 import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingDefinition;
+import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingManager;
 import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingRegistry;
 import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappings;
 import com.mistaboom.essence_ascendance.network.ItemEssenceTooltipSyncService;
@@ -285,7 +286,7 @@ final class EssenceAdminCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin itemtier set <tier>", "set the held Ascendance equipment/Essence Focus tier"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin milestone set <milestone> <true|false>", "set an INTERNAL milestone"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin mappings", "show item mapping status and config path"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin mappings reload", "reload item mappings from global config"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin mappings reload", "load saved procedural defaults and explicit overrides; calculate only when the cache is absent"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin mappings list", "list the active mapping IDs/selectors"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin config", "show the loaded server configuration"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin config reload", "reload configuration and show the result"));
@@ -683,6 +684,11 @@ final class EssenceAdminCommands {
                 )
         );
 
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Generated cache", ItemEssenceMappingManager.generatedCachePath().toAbsolutePath().toString()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
+                "Saved baseline is reused; /essence debug valuation rebuild recalculates and replaces it."));
+
         EssenceCommandUtil.send(
                 source,
                 EssenceCommandUtil.line(
@@ -824,7 +830,8 @@ final class EssenceAdminCommands {
             EssenceCommandUtil.send(
                     source,
                     EssenceCommandUtil.good(
-                            "Reloaded item → Attribute Essence mappings and synchronized item tooltips."
+                            "Installed item → Attribute Essence mapping generation " + report.generation()
+                                    + "; tooltip synchronization was requested."
                     )
             );
 
@@ -832,7 +839,8 @@ final class EssenceAdminCommands {
             EssenceCommandUtil.send(
                     source,
                     EssenceCommandUtil.bad(
-                            "Item mapping reload was rejected; the previous known-good generation remains active."
+                            "Item mapping reload was rejected; generation " + report.generation()
+                                    + " is unchanged. No replacement was installed."
                     )
             );
         }

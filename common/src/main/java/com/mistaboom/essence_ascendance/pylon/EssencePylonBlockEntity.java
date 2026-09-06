@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.pylon;
 
+import com.mistaboom.essence_ascendance.network.ServerMenuAccess;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleBlockEntity;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleStructureService;
@@ -399,13 +400,7 @@ public final class EssencePylonBlockEntity extends BlockEntity
 
     @Override
     public boolean stillValid(Player player) {
-        if (level == null
-                || level.getBlockEntity(worldPosition) != this
-                || !canPlayerUse(player)) {
-            return false;
-        }
-
-        return player.distanceToSqr(Vec3.atCenterOf(worldPosition)) <= 64.0D;
+        return ServerMenuAccess.canReach(player, this) && canPlayerUse(player);
     }
 
     @Override

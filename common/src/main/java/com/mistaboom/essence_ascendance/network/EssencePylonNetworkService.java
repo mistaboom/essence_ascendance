@@ -47,7 +47,8 @@ public final class EssencePylonNetworkService {
                 (payload, context) -> context.queue(() -> {
                     if (context.getPlayer() instanceof ServerPlayer player
                             && player.containerMenu instanceof EssencePylonMenu menu
-                            && menu.containerId == payload.menuId()) {
+                            && menu.containerId == payload.menuId()
+                            && ServerMenuAccess.isCurrent(player, menu)) {
                         forceSync(player);
                     }
                 })
@@ -75,7 +76,8 @@ public final class EssencePylonNetworkService {
     }
 
     private static void syncOpenMenu(ServerPlayer player, boolean force) {
-        if (!(player.containerMenu instanceof EssencePylonMenu menu)) {
+        if (!(player.containerMenu instanceof EssencePylonMenu menu)
+                || !ServerMenuAccess.isCurrent(player, menu)) {
             LAST_SENT.remove(player);
             return;
         }

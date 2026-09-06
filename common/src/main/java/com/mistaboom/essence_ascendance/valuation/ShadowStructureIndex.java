@@ -87,7 +87,7 @@ final class ShadowStructureIndex {
         int templates = scanStructureTemplates(server, templateReferences, templateExamples);
 
         EssenceAscendance.LOGGER.info(
-                "Shadow structure index built: {} structure sets, {} placed structures, {} structure definitions, {} structure-spawn entity types, {} structure templates, {} referenced container loot tables",
+                "Procedural structure index built: {} structure sets, {} placed structures, {} structure definitions, {} structure-spawn entity types, {} structure templates, {} referenced container loot tables",
                 structureSets,
                 structures.size(),
                 structureDefinitions,
@@ -268,7 +268,7 @@ final class ShadowStructureIndex {
                 scanned++;
             } catch (IOException | RuntimeException exception) {
                 EssenceAscendance.LOGGER.debug(
-                        "Shadow valuation skipped structure set {}: {}",
+                        "Procedural valuation skipped structure set {}: {}",
                         entry.getKey(),
                         exception.getMessage()
                 );
@@ -452,7 +452,7 @@ final class ShadowStructureIndex {
                 scanned++;
             } catch (IOException | RuntimeException exception) {
                 EssenceAscendance.LOGGER.debug(
-                        "Shadow valuation skipped structure definition {}: {}",
+                        "Procedural valuation skipped structure definition {}: {}",
                         entry.getKey(),
                         exception.getMessage()
                 );
@@ -496,7 +496,7 @@ final class ShadowStructureIndex {
                 scanned++;
             } catch (IOException | RuntimeException exception) {
                 EssenceAscendance.LOGGER.debug(
-                        "Shadow valuation skipped structure template {}: {}",
+                        "Procedural valuation skipped structure template {}: {}",
                         entry.getKey(),
                         exception.getMessage()
                 );
@@ -522,7 +522,7 @@ final class ShadowStructureIndex {
             );
         } catch (RuntimeException exception) {
             EssenceAscendance.LOGGER.debug(
-                    "Shadow valuation could not enumerate {} JSON resources: {}",
+                    "Procedural valuation could not enumerate {} JSON resources: {}",
                     path,
                     exception.getMessage()
             );

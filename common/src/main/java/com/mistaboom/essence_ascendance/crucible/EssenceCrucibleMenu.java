@@ -1,10 +1,12 @@
 package com.mistaboom.essence_ascendance.crucible;
 
+import com.mistaboom.essence_ascendance.network.ServerMenuAccess;
 import net.minecraft.world.Container;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
@@ -181,7 +183,16 @@ public final class EssenceCrucibleMenu extends AbstractContainerMenu {
     @Override
     public boolean stillValid(Player player) {
         return serverCrucible == null
-                || serverCrucible.stillValid(player);
+                ? player.level().isClientSide
+                : serverCrucible.stillValid(player);
+    }
+
+    @Override
+    public void clicked(int slotId, int button, ClickType clickType, Player player) {
+        if (!player.level().isClientSide && !ServerMenuAccess.isCurrent(player, this)) {
+            return;
+        }
+        super.clicked(slotId, button, clickType, player);
     }
 
     @Override
@@ -189,9 +200,11 @@ public final class EssenceCrucibleMenu extends AbstractContainerMenu {
             Player player,
             int index
     ) {
-        if (index < 0 || index >= slots.size()) {
+        if ((!player.level().isClientSide && !ServerMenuAccess.isCurrent(player, this))
+                || index < 0 || index >= slots.size()) {
             return ItemStack.EMPTY;
         }
+
 
         Slot slot = slots.get(index);
         if (!slot.hasItem()) {

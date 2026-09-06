@@ -61,6 +61,7 @@ public final class EssenceAscendanceClient {
             return;
         }
 
+        ClientPacketDispatch.init();
         ClientEssenceState.init();
         EssenceCrucibleClientState.init();
         EssencePylonClientState.init();

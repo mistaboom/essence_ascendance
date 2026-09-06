@@ -6,7 +6,6 @@ import com.mistaboom.essence_ascendance.network.EssenceCrucibleDissolutionModePa
 import com.mistaboom.essence_ascendance.network.EssenceCrucibleStateRequestPayload;
 import com.mistaboom.essence_ascendance.network.EssenceCrucibleVentPayload;
 import com.mistaboom.essence_ascendance.network.EssenceCrucibleStatePayload;
-import dev.architectury.event.events.client.ClientPlayerEvent;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.resources.ResourceLocation;
 
@@ -28,7 +27,7 @@ public final class EssenceCrucibleClientState {
                 EssenceCrucibleStatePayload.TYPE,
                 EssenceCrucibleStatePayload.CODEC,
                 (payload, context) ->
-                        context.queue(
+                        ClientPacketDispatch.queue(context,
                                 () -> {
                                     if (payload.schemaVersion()
                                             == EssenceCrucibleStatePayload.CURRENT_SCHEMA_VERSION) {
@@ -42,10 +41,6 @@ public final class EssenceCrucibleClientState {
                                     }
                                 }
                         )
-        );
-
-        ClientPlayerEvent.CLIENT_PLAYER_QUIT.register(
-                player -> clear()
         );
 
         initialized = true;

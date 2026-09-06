@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.fabric;
 
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleBlockEntity;
+import com.mistaboom.essence_ascendance.network.ServerMenuAccess;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.item.base.SingleStackStorage;
 import net.fabricmc.fabric.api.transfer.v1.storage.SlottedStorage;
@@ -119,12 +120,13 @@ final class EssenceCrucibleFabricItemStorage implements SlottedStorage<ItemVaria
 
         @Override
         protected void setStack(ItemStack stack) {
-            crucible.setItem(slot, stack);
+            crucible.setItemFromTransferSnapshot(slot, stack);
         }
 
         @Override
         protected boolean canInsert(ItemVariant variant) {
-            return crucible.isInputSlotActive(slot)
+            return ServerMenuAccess.isLoaded(crucible)
+                    && crucible.isInputSlotActive(slot)
                     && crucible.canPlaceItem(slot, variant.toStack(1));
         }
 

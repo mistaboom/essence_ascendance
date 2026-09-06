@@ -176,7 +176,7 @@ final class ShadowProgressionIndex {
         );
 
         EssenceAscendance.LOGGER.info(
-                "Shadow progression index built: {} advancements ({} considered, {} recipe advancements skipped), {} trees, {} semantic references -> {} items, {} blocks, {} entities, {} dimensions, {} recipes, {} loot tables",
+                "Procedural progression index built: {} advancements ({} considered, {} recipe advancements skipped), {} trees, {} semantic references -> {} items, {} blocks, {} entities, {} dimensions, {} recipes, {} loot tables",
                 summary.advancementCount(),
                 summary.consideredAdvancementCount(),
                 summary.skippedRecipeAdvancementCount(),
@@ -245,7 +245,7 @@ final class ShadowProgressionIndex {
             );
         } catch (RuntimeException exception) {
             EssenceAscendance.LOGGER.warn(
-                    "Shadow valuation could not enumerate advancements: {}",
+                    "Procedural valuation could not enumerate advancements: {}",
                     exception.getMessage()
             );
             return Map.of();
@@ -273,7 +273,7 @@ final class ShadowProgressionIndex {
                 nodes.put(advancementId, new AdvancementNode(advancementId, parent, root));
             } catch (IOException | RuntimeException exception) {
                 EssenceAscendance.LOGGER.debug(
-                        "Shadow valuation skipped advancement {}: {}",
+                        "Procedural valuation skipped advancement {}: {}",
                         entry.getKey(),
                         exception.getMessage()
                 );

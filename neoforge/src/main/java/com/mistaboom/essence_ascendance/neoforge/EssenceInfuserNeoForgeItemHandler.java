@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.neoforge;
 
+import com.mistaboom.essence_ascendance.network.ServerMenuAccess;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBlockEntity;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.IItemHandler;
@@ -30,7 +31,7 @@ final class EssenceInfuserNeoForgeItemHandler implements IItemHandler {
 
     @Override
     public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
-        if (stack.isEmpty()) {
+        if (!ServerMenuAccess.isLoaded(infuser) || stack.isEmpty()) {
             return stack;
         }
         int machineSlot;
@@ -52,6 +53,10 @@ final class EssenceInfuserNeoForgeItemHandler implements IItemHandler {
             return stack;
         }
 
+        limit = Math.min(limit, stack.getMaxStackSize());
+        if (!current.isEmpty()) {
+            limit = Math.min(limit, current.getMaxStackSize());
+        }
         int room = limit - current.getCount();
         int inserted = Math.min(room, stack.getCount());
         if (inserted <= 0) {
@@ -73,7 +78,7 @@ final class EssenceInfuserNeoForgeItemHandler implements IItemHandler {
 
     @Override
     public ItemStack extractItem(int slot, int amount, boolean simulate) {
-        if (slot != 1 || amount <= 0) {
+        if (!ServerMenuAccess.isLoaded(infuser) || slot != 1 || amount <= 0) {
             return ItemStack.EMPTY;
         }
         ItemStack current = infuser.getItem(EssenceInfuserBlockEntity.OUTPUT_SLOT);
@@ -97,9 +102,9 @@ final class EssenceInfuserNeoForgeItemHandler implements IItemHandler {
 
     @Override
     public boolean isItemValid(int slot, ItemStack stack) {
-        return (slot == 0 && EssenceInfuserBlockEntity.allowsAutomationInput(stack))
+        return ServerMenuAccess.isLoaded(infuser) && ((slot == 0 && EssenceInfuserBlockEntity.allowsAutomationInput(stack))
                 || (slot == 2
                     && !infuser.repairMode()
-                    && infuser.canPlaceItem(EssenceInfuserBlockEntity.COMPONENT_SLOT, stack));
+                    && infuser.canPlaceItem(EssenceInfuserBlockEntity.COMPONENT_SLOT, stack)));
     }
 }

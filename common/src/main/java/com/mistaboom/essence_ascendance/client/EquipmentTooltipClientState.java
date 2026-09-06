@@ -57,7 +57,7 @@ public final class EquipmentTooltipClientState {
                 EquipmentTooltipPayload.TYPE,
                 EquipmentTooltipPayload.CODEC,
                 (payload, context) ->
-                        context.queue(
+                        ClientPacketDispatch.queue(context,
                                 () -> accept(payload)
                         )
         );
@@ -522,6 +522,11 @@ public final class EquipmentTooltipClientState {
         }
     }
 
+
+    public static void clear() {
+        LINES_BY_ITEM = Map.of();
+        JeiTooltipSearchRefreshBridge.requestRefresh();
+    }
 
     private static void accept(
             EquipmentTooltipPayload payload

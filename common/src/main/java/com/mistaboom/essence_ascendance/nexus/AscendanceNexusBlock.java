@@ -27,6 +27,20 @@ public final class AscendanceNexusBlock extends Block {
     }
 
     @Override
+    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean moved) {
+        if (!level.isClientSide && !state.is(newState.getBlock())) {
+            for (Player player : level.players()) {
+                if (player instanceof ServerPlayer serverPlayer
+                        && player.containerMenu instanceof AscendanceNexusMenu menu
+                        && menu.isAt(level, pos)) {
+                    serverPlayer.closeContainer();
+                }
+            }
+        }
+        super.onRemove(state, level, pos, newState, moved);
+    }
+
+    @Override
     protected InteractionResult useWithoutItem(
             BlockState state,
             Level level,

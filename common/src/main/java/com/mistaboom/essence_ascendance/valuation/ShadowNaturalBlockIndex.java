@@ -80,11 +80,11 @@ final class ShadowNaturalBlockIndex {
                     JsonElement parsed = JsonParser.parseReader(reader);
                     if (parsed != null && parsed.isJsonObject()) result.put(id, parsed.getAsJsonObject());
                 } catch (IOException | RuntimeException exception) {
-                    EssenceAscendance.LOGGER.debug("Shadow natural-source data skipped {}: {}", id, exception.getMessage());
+                    EssenceAscendance.LOGGER.debug("Procedural natural-source data skipped {}: {}", id, exception.getMessage());
                 }
             }
         } catch (RuntimeException exception) {
-            EssenceAscendance.LOGGER.debug("Shadow natural-source data unavailable for {}: {}", prefix, exception.getMessage());
+            EssenceAscendance.LOGGER.debug("Procedural natural-source data unavailable for {}: {}", prefix, exception.getMessage());
         }
         return result;
     }

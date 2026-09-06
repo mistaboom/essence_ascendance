@@ -6,7 +6,6 @@ import com.mistaboom.essence_ascendance.essence.EssenceFamily;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.network.PlayerEssenceSyncPayload;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
-import dev.architectury.event.events.client.ClientPlayerEvent;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.resources.ResourceLocation;
 
@@ -43,16 +42,11 @@ public final class ClientEssenceState {
                 PlayerEssenceSyncPayload.TYPE,
                 PlayerEssenceSyncPayload.CODEC,
                 (payload, context) ->
-                        context.queue(
+                        ClientPacketDispatch.queue(context,
                                 () -> accept(
                                         payload
                                 )
                         )
-        );
-
-        ClientPlayerEvent.CLIENT_PLAYER_QUIT.register(
-                player ->
-                        clear()
         );
 
         initialized = true;

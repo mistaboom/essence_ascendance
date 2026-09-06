@@ -86,7 +86,7 @@ public final class AscendanceNexusNetworkService {
     ) {
         if (!(player.containerMenu instanceof AscendanceNexusMenu menu)
                 || menu.containerId != payload.menuId()
-                || !menu.stillValid(player)) {
+                || !ServerMenuAccess.isCurrent(player, menu)) {
             reject(
                     player,
                     EssenceText.gui("nexus.reject.invalid_menu"),
@@ -210,7 +210,7 @@ public final class AscendanceNexusNetworkService {
     ) {
         if (!(player.containerMenu instanceof AscendanceNexusMenu menu)
                 || menu.containerId != payload.menuId()
-                || !menu.stillValid(player)) {
+                || !ServerMenuAccess.isCurrent(player, menu)) {
             reject(
                     player,
                     EssenceText.gui("nexus.reject.ascend_invalid_menu"),

@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.fabric;
 
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBlockEntity;
+import com.mistaboom.essence_ascendance.network.ServerMenuAccess;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.item.base.SingleStackStorage;
 import net.fabricmc.fabric.api.transfer.v1.storage.SlottedStorage;
@@ -8,6 +9,7 @@ import net.fabricmc.fabric.api.transfer.v1.storage.StoragePreconditions;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
 import net.fabricmc.fabric.api.transfer.v1.storage.base.SingleSlotStorage;
 import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
+import net.fabricmc.fabric.api.transfer.v1.transaction.base.SnapshotParticipant;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.Iterator;
@@ -19,6 +21,7 @@ final class EssenceInfuserFabricItemStorage implements SlottedStorage<ItemVarian
 
     private final EssenceInfuserBlockEntity infuser;
     private final List<SingleStackStorage> slots;
+    private final TransferEffects effects = new TransferEffects();
 
     EssenceInfuserFabricItemStorage(EssenceInfuserBlockEntity infuser) {
         this.infuser = infuser;
@@ -99,11 +102,14 @@ final class EssenceInfuserFabricItemStorage implements SlottedStorage<ItemVarian
 
         @Override
         protected void setStack(ItemStack stack) {
-            infuser.setItem(machineSlot, stack);
+            infuser.setItemFromTransferSnapshot(machineSlot, stack);
         }
 
         @Override
         protected boolean canInsert(ItemVariant variant) {
+            if (!ServerMenuAccess.isLoaded(infuser)) {
+                return false;
+            }
             if (machineSlot == EssenceInfuserBlockEntity.INPUT_SLOT) {
                 return EssenceInfuserBlockEntity.allowsAutomationInput(variant.toStack(1));
             }
@@ -114,12 +120,66 @@ final class EssenceInfuserFabricItemStorage implements SlottedStorage<ItemVarian
 
         @Override
         protected boolean canExtract(ItemVariant variant) {
-            return machineSlot == EssenceInfuserBlockEntity.OUTPUT_SLOT;
+            return ServerMenuAccess.isLoaded(infuser)
+                    && machineSlot == EssenceInfuserBlockEntity.OUTPUT_SLOT;
+        }
+
+        @Override
+        protected int getCapacity(ItemVariant variant) {
+            int capacity = super.getCapacity(variant);
+            return machineSlot == EssenceInfuserBlockEntity.INPUT_SLOT && !variant.isBlank()
+                    ? Math.min(capacity, EssenceInfuserBlockEntity.workpieceStackLimit(variant.toStack(1)))
+                    : capacity;
+        }
+
+        @Override
+        public long insert(ItemVariant resource, long maxAmount, TransactionContext transaction) {
+            ItemStack before = getStack().copy();
+            long inserted = super.insert(resource, maxAmount, transaction);
+            if (inserted > 0L) {
+                effects.record(transaction, !ItemStack.isSameItemSameComponents(before, getStack()));
+            }
+            return inserted;
+        }
+
+        @Override
+        public long extract(ItemVariant resource, long maxAmount, TransactionContext transaction) {
+            long extracted = super.extract(resource, maxAmount, transaction);
+            if (extracted > 0L) {
+                // Only the output is extractable; taking output does not reset work.
+                effects.record(transaction, false);
+            }
+            return extracted;
+        }
+
+        // TransferEffects owns the one final-commit notification for all slots.
+    }
+
+    /** Pending effects are themselves transactional, including nested aborts. */
+    private final class TransferEffects extends SnapshotParticipant<Boolean> {
+        private boolean contextChanged;
+
+        void record(TransactionContext transaction, boolean changed) {
+            updateSnapshots(transaction);
+            contextChanged |= changed;
+        }
+
+        @Override
+        protected Boolean createSnapshot() {
+            return contextChanged;
+        }
+
+        @Override
+        protected void readSnapshot(Boolean snapshot) {
+            contextChanged = snapshot;
         }
 
         @Override
         protected void onFinalCommit() {
-            infuser.setChanged();
+            boolean changed = contextChanged;
+            contextChanged = false;
+            infuser.finishItemTransfer(changed);
         }
     }
+
 }

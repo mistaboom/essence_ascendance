@@ -1,5 +1,8 @@
 package com.mistaboom.essence_ascendance.nexus;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -42,11 +45,17 @@ public final class AscendanceNexusMenu extends AbstractContainerMenu {
 
     @Override
     public boolean stillValid(Player player) {
-        return stillValid(
-                access,
-                player,
-                AscendanceNexusContent.ASCENDANCE_NEXUS.get()
-        );
+        return access.evaluate((level, pos) -> player.isAlive()
+                        && !player.isSpectator()
+                        && player.level() == level
+                        && level.hasChunkAt(pos)
+                        && level.getBlockState(pos).is(AscendanceNexusContent.ASCENDANCE_NEXUS.get())
+                        && player.distanceToSqr(Vec3.atCenterOf(pos)) <= 64.0D,
+                player.level().isClientSide);
+    }
+
+    public boolean isAt(Level level, BlockPos pos) {
+        return access.evaluate((menuLevel, menuPos) -> menuLevel == level && menuPos.equals(pos), false);
     }
 
     @Override

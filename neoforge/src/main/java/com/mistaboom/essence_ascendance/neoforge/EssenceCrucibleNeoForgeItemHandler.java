@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.neoforge;
 
+import com.mistaboom.essence_ascendance.network.ServerMenuAccess;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleBlockEntity;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.IItemHandler;
@@ -31,7 +32,8 @@ final class EssenceCrucibleNeoForgeItemHandler implements IItemHandler {
             ItemStack stack,
             boolean simulate
     ) {
-        if (slot < 0
+        if (!ServerMenuAccess.isLoaded(crucible)
+                || slot < 0
                 || slot >= getSlots()
                 || stack.isEmpty()
                 || !crucible.canPlaceItem(slot, stack)) {
@@ -98,7 +100,8 @@ final class EssenceCrucibleNeoForgeItemHandler implements IItemHandler {
 
     @Override
     public boolean isItemValid(int slot, ItemStack stack) {
-        return slot >= 0
+        return ServerMenuAccess.isLoaded(crucible)
+                && slot >= 0
                 && slot < getSlots()
                 && crucible.canPlaceItem(slot, stack);
     }

@@ -137,7 +137,8 @@ public final class EssenceCrucibleNetworkService {
             EssenceCrucibleStateRequestPayload payload
     ) {
         if (player.containerMenu instanceof EssenceCrucibleMenu menu
-                && menu.containerId == payload.menuId()) {
+                && menu.containerId == payload.menuId()
+                && ServerMenuAccess.isCurrent(player, menu)) {
             /*
              * Force ignores LAST_SENT. This is important when JEI or another
              * temporary screen transition recreates the client screen while
@@ -152,7 +153,8 @@ public final class EssenceCrucibleNetworkService {
             EssenceCrucibleVentPayload payload
     ) {
         if (!(player.containerMenu instanceof EssenceCrucibleMenu menu)
-                || menu.containerId != payload.menuId()) {
+                || menu.containerId != payload.menuId()
+                || !ServerMenuAccess.isCurrent(player, menu)) {
             return;
         }
 
@@ -208,7 +210,8 @@ public final class EssenceCrucibleNetworkService {
             EssenceCrucibleDissolutionModePayload payload
     ) {
         if (!(player.containerMenu instanceof EssenceCrucibleMenu menu)
-                || menu.containerId != payload.menuId()) {
+                || menu.containerId != payload.menuId()
+                || !ServerMenuAccess.isCurrent(player, menu)) {
             return;
         }
 
@@ -224,6 +227,11 @@ public final class EssenceCrucibleNetworkService {
 
         EssenceCrucibleDissolutionMode requested =
                 EssenceCrucibleDissolutionMode.fromSerializedName(payload.mode());
+        if (!requested.serializedName().equals(payload.mode())) {
+            // The save-data parser has a default; malformed network actions do not.
+            forceSync(player);
+            return;
+        }
         crucible.setDissolutionMode(requested);
         forceSync(player);
     }
@@ -233,7 +241,8 @@ public final class EssenceCrucibleNetworkService {
             EssenceCrucibleChannelPayload payload
     ) {
         if (!(player.containerMenu instanceof EssenceCrucibleMenu menu)
-                || menu.containerId != payload.menuId()) {
+                || menu.containerId != payload.menuId()
+                || !ServerMenuAccess.isCurrent(player, menu)) {
             return;
         }
 
@@ -259,7 +268,8 @@ public final class EssenceCrucibleNetworkService {
             ServerPlayer player,
             boolean force
     ) {
-        if (!(player.containerMenu instanceof EssenceCrucibleMenu menu)) {
+        if (!(player.containerMenu instanceof EssenceCrucibleMenu menu)
+                || !ServerMenuAccess.isCurrent(player, menu)) {
             LAST_SENT.remove(player);
             return;
         }

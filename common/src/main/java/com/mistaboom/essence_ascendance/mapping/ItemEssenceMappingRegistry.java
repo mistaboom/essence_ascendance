@@ -43,7 +43,7 @@ public final class ItemEssenceMappingRegistry {
 
     static synchronized void install(List<ItemEssenceMappingDefinition> explicit,
                                      Map<ResourceLocation, ItemEssenceMappingDefinition> generated,
-                                     LoadSummary summary) {
+                                     LoadSummary summary, Runnable beforePublish) {
         List<ItemEssenceMappingDefinition> ordered = explicit.stream().sorted(ORDER).toList();
         Map<ResourceLocation, ItemEssenceMappingResult> resolved = new LinkedHashMap<>();
         Map<ResourceLocation, String> origins = new LinkedHashMap<>();
@@ -65,11 +65,14 @@ public final class ItemEssenceMappingRegistry {
         all.sort(ORDER);
         long next = Math.addExact(state.generation(), 1L);
         State complete = new State(next, List.copyOf(all), Map.copyOf(resolved), Map.copyOf(origins));
-        // The table and its generation ID publish together, after ALL validation.
-        state = complete;
-        lastReload = new ReloadReport(true, next, summary.bundledDefaultCount(), summary.removedDefaultCount(),
+        ReloadReport report = new ReloadReport(true, next, summary.bundledDefaultCount(), summary.removedDefaultCount(),
                 summary.replacedDefaultCount(), summary.configFileCount(), summary.configMappingCount(), all.size(),
                 countItemRules(all), all.size() - countItemRules(all), summary.warnings(), List.of());
+        // Persist a newly calculated cache only after ALL merged-table validation.
+        // A failed write/rename cannot replace either the live table or its report.
+        beforePublish.run();
+        state = complete;
+        lastReload = report;
         EssenceAscendance.LOGGER.info("Installed Essence mapping generation {}: {} generated defaults, {} explicit rules, {} resolved items",
                 next, generated.size(), explicit.size(), resolved.size());
         summary.warnings().forEach(warning -> EssenceAscendance.LOGGER.warn("Essence mappings: {}", warning));

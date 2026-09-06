@@ -114,9 +114,9 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug equipment", "all active equipment profiles plus resolved stat applicability"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug item", "deep-dive the main-hand Ascendance item"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug mapping", "resolve the main-hand item to Attribute Essence"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug valuation", "inspect the main-hand item's procedural value, eligibility and live mapping"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug valuation rebuild", "re-index recipes, loot tables, and advancement progression after data reloads"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug valuation export", "export internal values, eligibility and live results to CSV"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug valuation", "analyze current data on demand and compare with the saved/live mapping (may calculate)"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug valuation rebuild", "recalculate, save and install the generated baseline; later startups reuse the saved file"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug valuation export", "analyze/export current values and installed results; does not replace the saved baseline"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug mappings", "mapping registry/reload summary"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug crucible", "inspect the Essence Crucible you are looking at"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug pylon", "inspect the Essence Pylon you are looking at"));
@@ -455,13 +455,15 @@ final class EssenceDebugCommands {
             return 0;
         }
 
+        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
+                "Analyzing current loaded data on demand; this may calculate. Saved mappings are not replaced."));
         ShadowValuationResult shadow = ShadowValuationEngine.evaluate(
                 source.getServer(),
                 stack
         );
         EssenceCommandUtil.send(
                 source,
-                EssenceCommandUtil.warn("  Internal economic analysis; generated eligibility and explicit overrides determine the final live payout.")
+                EssenceCommandUtil.warn("  Current economic analysis may differ from the saved baseline. This command does not change live payouts.")
         );
         var eligibility = ItemEssenceMappingManager.generatedDecision(shadow);
         EssenceCommandUtil.send(source, EssenceCommandUtil.line("Generated eligibility",
@@ -666,7 +668,7 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(
                 source,
                 EssenceCommandUtil.muted(
-                        "Legacy/live mapping totals are intentionally not used as a valuation target; use /essence debug mapping separately when needed."
+                        "Installed mapping totals are not economic-analysis targets; /essence debug mapping shows the resolved payout separately."
                 )
         );
 
@@ -676,18 +678,28 @@ final class EssenceDebugCommands {
     private static int rebuildShadowValuation(
             CommandSourceStack source
     ) {
-        ItemEssenceMappingRegistry.ReloadReport report = ItemEssenceMappingManager.reload();
+        ItemEssenceMappingRegistry.ReloadReport report = ItemEssenceMappingManager.rebuild();
         if (!report.successful()) {
             EssenceCommandUtil.send(source, EssenceCommandUtil.bad(
-                    "Procedural rebuild rejected; the last-known-good live generation remains active."));
+                    "Procedural rebuild rejected; mapping generation " + report.generation()
+                            + " is unchanged. The saved cache was not replaced."));
             for (String error : report.errors()) EssenceCommandUtil.send(source, EssenceCommandUtil.bad(error));
             return 0;
         }
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Installed mapping generation", Long.toString(report.generation())));
+        if (!ItemEssenceMappingManager.proceduralDefaultsEnabled()) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
+                    "Procedural defaults are disabled: explicit rules reloaded; no calculation and no cache replacement."));
+            return 1;
+        }
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Saved generated baseline", ItemEssenceMappingManager.generatedCachePath().toString()));
         ShadowValuationEngine.IndexSummary summary = ShadowValuationEngine.summary(source.getServer());
 
         EssenceCommandUtil.send(
                 source,
-                EssenceCommandUtil.title("Procedural Valuation Index Rebuilt")
+                EssenceCommandUtil.title("Procedural Mapping Rebuild Complete")
         );
         EssenceCommandUtil.send(
                 source,
@@ -787,7 +799,7 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(
                 source,
                 EssenceCommandUtil.muted(
-                        "Generated defaults and explicit overrides were installed as one new live generation."
+                        "Generated baseline saved; defaults and explicit overrides installed as one new live generation."
                 )
         );
         return 1;
@@ -803,7 +815,7 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(
                 source,
                 EssenceCommandUtil.muted(
-                        "Exporting the current procedural generation and installed live mapping results..."
+                        "Analyzing current loaded data and exporting it with installed live results; this may calculate but does not replace the cache or install a generation..."
                 )
         );
 
@@ -839,7 +851,7 @@ final class EssenceDebugCommands {
             EssenceCommandUtil.send(
                     source,
                     EssenceCommandUtil.muted(
-                            "Internal values are independent of overrides; live columns show the installed mapping generation."
+                            "Analysis may differ from the saved baseline; live columns show installed results. Export did not replace the cache."
                     )
             );
             return 1;

@@ -215,8 +215,17 @@ public final class SoulboundEquipmentService {
             return true;
         }
 
-        /* Ascendance equipment is non-stackable, so this is all-or-nothing. */
-        return inventory.add(copy);
+        /*
+         * Ascendance equipment is non-stackable. Use a real empty main-inventory
+         * slot, not Inventory.add: creative overflow can report success while
+         * discarding the offered copy. A full inventory must leave recovery pending.
+         */
+        int freeSlot = inventory.getFreeSlot();
+        if (freeSlot < 0) {
+            return false;
+        }
+        inventory.setItem(freeSlot, copy);
+        return true;
     }
 
     private static boolean inventoryContainsBinding(

@@ -5,7 +5,6 @@ import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.text.EssenceText;
 import com.mistaboom.essence_ascendance.network.ItemEssenceTooltipPayload;
-import dev.architectury.event.events.client.ClientPlayerEvent;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -47,6 +46,8 @@ public final class ItemEssenceTooltipClientState {
     private static volatile Map<ResourceLocation, List<DisplayOutput>>
             OUTPUTS_BY_ITEM = Map.of();
 
+    private static long installedGeneration = -1L;
+
     private static long pendingGeneration =
             -1L;
 
@@ -72,16 +73,11 @@ public final class ItemEssenceTooltipClientState {
                 ItemEssenceTooltipPayload.TYPE,
                 ItemEssenceTooltipPayload.CODEC,
                 (payload, context) ->
-                        context.queue(
+                        ClientPacketDispatch.queue(context,
                                 () -> accept(
                                         payload
                                 )
                         )
-        );
-
-        ClientPlayerEvent.CLIENT_PLAYER_QUIT.register(
-                player ->
-                        clear()
         );
 
         initialized =
@@ -95,32 +91,21 @@ public final class ItemEssenceTooltipClientState {
     private static void accept(
             ItemEssenceTooltipPayload payload
     ) {
-        /*
-         * Chunk zero is the start of every server snapshot. Reset even when the
-         * numeric generation matches our current cache, because a player can
-         * disconnect from one server and join a different server whose local
-         * mapping generation happens to use the same number.
-         */
-        if (payload.chunkIndex()
-                == 0
-                || pendingGeneration
-                != payload.mappingGeneration()
-                || pendingChunkCount
-                != payload.chunkCount()) {
-
-            pendingGeneration =
-                    payload.mappingGeneration();
-
-            pendingChunkCount =
-                    payload.chunkCount();
-
+        // Only chunk zero may start a snapshot. A late older chunk must neither
+        // replace an installed table nor destroy a newer in-progress assembly.
+        long generation = payload.mappingGeneration();
+        if (generation < installedGeneration || generation < pendingGeneration) {
+            return;
+        }
+        if (payload.chunkIndex() == 0) {
+            pendingGeneration = generation;
+            pendingChunkCount = payload.chunkCount();
             PENDING_CHUNKS.clear();
+        } else if (generation != pendingGeneration || payload.chunkCount() != pendingChunkCount) {
+            return;
         }
 
-        PENDING_CHUNKS.put(
-                payload.chunkIndex(),
-                payload.entries()
-        );
+        PENDING_CHUNKS.putIfAbsent(payload.chunkIndex(), payload.entries());
 
         if (PENDING_CHUNKS.size()
                 != pendingChunkCount) {
@@ -152,7 +137,8 @@ public final class ItemEssenceTooltipClientState {
                         );
 
                 if (itemId == null) {
-                    continue;
+                    rejectPending();
+                    return;
                 }
 
                 List<DisplayOutput> outputs =
@@ -169,7 +155,8 @@ public final class ItemEssenceTooltipClientState {
                     if (essenceId == null
                             || output.amount()
                             <= 0L) {
-                        continue;
+                        rejectPending();
+                        return;
                     }
 
                     outputs.add(
@@ -196,6 +183,7 @@ public final class ItemEssenceTooltipClientState {
                         rebuilt
                 );
 
+        installedGeneration = pendingGeneration;
         PENDING_CHUNKS.clear();
         pendingGeneration =
                 -1L;
@@ -499,7 +487,17 @@ public final class ItemEssenceTooltipClientState {
         return result.toString();
     }
 
-    private static void clear() {
+    private static void rejectPending() {
+        EssenceAscendance.LOGGER.warn(
+                "Rejected incomplete/invalid item tooltip snapshot for generation {}; retaining installed generation {}",
+                pendingGeneration, installedGeneration);
+        PENDING_CHUNKS.clear();
+        pendingGeneration = -1L;
+        pendingChunkCount = 0;
+    }
+
+    static void clear() {
+        installedGeneration = -1L;
         OUTPUTS_BY_ITEM =
                 Map.of();
 
@@ -510,6 +508,7 @@ public final class ItemEssenceTooltipClientState {
 
         pendingChunkCount =
                 0;
+        JeiTooltipSearchRefreshBridge.requestRefresh();
     }
 
     private record DisplayOutput(

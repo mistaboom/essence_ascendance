@@ -159,7 +159,7 @@ final class ShadowValuationIndex {
             } catch (RuntimeException exception) {
                 skippedRecipes++;
                 EssenceAscendance.LOGGER.debug(
-                        "Shadow valuation skipped recipe {}: {}",
+                        "Procedural valuation skipped recipe {}: {}",
                         holder.id(),
                         exception.getMessage()
                 );
@@ -240,7 +240,7 @@ final class ShadowValuationIndex {
         );
 
         EssenceAscendance.LOGGER.info(
-                "Shadow valuation index built: {} recipes ({} skipped), {} outputs, {} ingredient links, {} entity loot tables, {} entity-drop links, {} block loot tables, {} block-drop links, {} container loot tables, {} container item-source links, {} fishing roots, {} fishing item-source links, {} trade listings / {} sampled offers",
+                "Procedural valuation index built: {} recipes ({} skipped), {} outputs, {} ingredient links, {} entity loot tables, {} entity-drop links, {} block loot tables, {} block-drop links, {} container loot tables, {} container item-source links, {} fishing roots, {} fishing item-source links, {} trade listings / {} sampled offers",
                 summary.recipeCount(),
                 summary.skippedRecipeCount(),
                 summary.outputItemCount(),
@@ -432,7 +432,7 @@ final class ShadowValuationIndex {
             );
         } catch (RuntimeException exception) {
             EssenceAscendance.LOGGER.debug(
-                    "Shadow valuation could not enumerate data recipe fallbacks: {}",
+                    "Procedural valuation could not enumerate data recipe fallbacks: {}",
                     exception.getMessage()
             );
             return FallbackRecipeStats.EMPTY;
@@ -492,7 +492,7 @@ final class ShadowValuationIndex {
                 recipes++;
             } catch (IOException | RuntimeException exception) {
                 EssenceAscendance.LOGGER.debug(
-                        "Shadow valuation skipped smithing recipe fallback {}: {}",
+                        "Procedural valuation skipped smithing recipe fallback {}: {}",
                         entry.getKey(),
                         exception.getMessage()
                 );
@@ -501,7 +501,7 @@ final class ShadowValuationIndex {
 
         if (recipes > 0) {
             EssenceAscendance.LOGGER.info(
-                    "Shadow valuation recovered {} smithing-transform recipes from final data resources",
+                    "Procedural valuation recovered {} smithing-transform recipes from final data resources",
                     recipes
             );
         }
@@ -771,7 +771,7 @@ final class ShadowValuationIndex {
             );
         } catch (RuntimeException exception) {
             EssenceAscendance.LOGGER.warn(
-                    "Shadow valuation could not enumerate container loot tables: {}",
+                    "Procedural valuation could not enumerate container loot tables: {}",
                     exception.getMessage()
             );
             return 0;
@@ -790,7 +790,7 @@ final class ShadowValuationIndex {
                 }
             } catch (IOException | RuntimeException exception) {
                 EssenceAscendance.LOGGER.debug(
-                        "Shadow valuation skipped loot table {} while indexing containers: {}",
+                        "Procedural valuation skipped loot table {} while indexing containers: {}",
                         entry.getKey(),
                         exception.getMessage()
                 );
@@ -862,7 +862,7 @@ final class ShadowValuationIndex {
             );
         } catch (RuntimeException exception) {
             EssenceAscendance.LOGGER.warn(
-                    "Shadow valuation could not enumerate fishing loot tables: {}",
+                    "Procedural valuation could not enumerate fishing loot tables: {}",
                     exception.getMessage()
             );
             return 0;
@@ -881,7 +881,7 @@ final class ShadowValuationIndex {
                 }
             } catch (IOException | RuntimeException exception) {
                 EssenceAscendance.LOGGER.debug(
-                        "Shadow valuation skipped loot table {} while indexing fishing: {}",
+                        "Procedural valuation skipped loot table {} while indexing fishing: {}",
                         entry.getKey(),
                         exception.getMessage()
                 );
@@ -1367,11 +1367,11 @@ final class ShadowValuationIndex {
                     JsonElement root = JsonParser.parseReader(reader);
                     if (root != null && root.isJsonObject()) tables.put(tableId, root.getAsJsonObject());
                 } catch (IOException | RuntimeException exception) {
-                    EssenceAscendance.LOGGER.debug("Shadow entity loot skipped {}: {}", tableId, exception.getMessage());
+                    EssenceAscendance.LOGGER.debug("Procedural entity loot skipped {}: {}", tableId, exception.getMessage());
                 }
             }
         } catch (RuntimeException exception) {
-            EssenceAscendance.LOGGER.warn("Shadow entity loot enumeration failed: {}", exception.getMessage());
+            EssenceAscendance.LOGGER.warn("Procedural entity loot enumeration failed: {}", exception.getMessage());
             return 0;
         }
         int scanned = 0;
@@ -1394,7 +1394,7 @@ final class ShadowValuationIndex {
                         1.0, 1.0, variant ? 1 : 0, signals, output, tables, visiting);
                 scanned++;
             } catch (RuntimeException exception) {
-                EssenceAscendance.LOGGER.debug("Shadow entity source skipped {}: {}", tableId, exception.getMessage());
+                EssenceAscendance.LOGGER.debug("Procedural entity source skipped {}: {}", tableId, exception.getMessage());
             }
         }
         return scanned;

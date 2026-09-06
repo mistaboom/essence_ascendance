@@ -116,7 +116,7 @@ final class ShadowTradeIndex {
             }
         } catch (RuntimeException exception) {
             EssenceAscendance.LOGGER.debug(
-                    "Shadow valuation could not fully index villager trades: {}",
+                    "Procedural valuation could not fully index villager trades: {}",
                     exception.getMessage()
             );
         }
@@ -151,7 +151,7 @@ final class ShadowTradeIndex {
             }
         } catch (RuntimeException exception) {
             EssenceAscendance.LOGGER.debug(
-                    "Shadow valuation could not fully index wandering-trader offers: {}",
+                    "Procedural valuation could not fully index wandering-trader offers: {}",
                     exception.getMessage()
             );
         }
@@ -166,7 +166,7 @@ final class ShadowTradeIndex {
         ));
 
         EssenceAscendance.LOGGER.info(
-                "Shadow trade index built: {} villager level tables, {} listing factories, {} sampled offer variants, {} output items",
+                "Procedural trade index built: {} villager level tables, {} listing factories, {} sampled offer variants, {} output items",
                 professionTables,
                 listings,
                 offers,

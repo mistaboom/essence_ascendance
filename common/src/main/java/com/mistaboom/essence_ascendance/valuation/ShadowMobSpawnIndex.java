@@ -50,7 +50,7 @@ final class ShadowMobSpawnIndex {
             );
         } catch (RuntimeException exception) {
             EssenceAscendance.LOGGER.debug(
-                    "Shadow valuation could not enumerate biome spawn data: {}",
+                    "Procedural valuation could not enumerate biome spawn data: {}",
                     exception.getMessage()
             );
             return new ShadowMobSpawnIndex(Map.of(), 0, structureIndex);
@@ -101,7 +101,7 @@ final class ShadowMobSpawnIndex {
                 biomes++;
             } catch (IOException | RuntimeException exception) {
                 EssenceAscendance.LOGGER.debug(
-                        "Shadow valuation skipped biome {} while indexing mob spawns: {}",
+                        "Procedural valuation skipped biome {} while indexing mob spawns: {}",
                         entry.getKey(),
                         exception.getMessage()
                 );
@@ -109,7 +109,7 @@ final class ShadowMobSpawnIndex {
         }
 
         EssenceAscendance.LOGGER.info(
-                "Shadow mob-spawn index built: {} biomes, {} naturally listed entity types",
+                "Procedural mob-spawn index built: {} biomes, {} naturally listed entity types",
                 biomes,
                 stats.size()
         );

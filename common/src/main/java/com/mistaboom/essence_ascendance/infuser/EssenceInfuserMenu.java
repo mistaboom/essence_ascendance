@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.infuser;
 
+import com.mistaboom.essence_ascendance.network.ServerMenuAccess;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
 import net.minecraft.core.BlockPos;
@@ -460,7 +461,7 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
 
     @Override
     public boolean clickMenuButton(Player player, int id) {
-        if (serverInfuser == null || !serverInfuser.canPlayerUse(player)) {
+        if (serverInfuser == null || !ServerMenuAccess.isCurrent(player, this)) {
             return false;
         }
         switch (id) {
@@ -490,6 +491,9 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
 
     @Override
     public void clicked(int slotId, int button, ClickType clickType, Player player) {
+        if (!player.level().isClientSide && !ServerMenuAccess.isCurrent(player, this)) {
+            return;
+        }
         ItemStack inputBefore = serverInfuser == null
                 ? ItemStack.EMPTY
                 : serverInfuser.getItem(EssenceInfuserBlockEntity.INPUT_SLOT).copy();
@@ -579,11 +583,18 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
 
     @Override
     public boolean stillValid(Player player) {
-        return serverInfuser == null || serverInfuser.stillValid(player);
+        return serverInfuser == null
+                ? player.level().isClientSide
+                : serverInfuser.stillValid(player);
     }
 
     @Override
     public ItemStack quickMoveStack(Player player, int index) {
+        if ((!player.level().isClientSide && !ServerMenuAccess.isCurrent(player, this))
+                || index < 0 || index >= slots.size()) {
+            return ItemStack.EMPTY;
+        }
+
         Slot slot = slots.get(index);
         if (!slot.hasItem()) {
             return ItemStack.EMPTY;
