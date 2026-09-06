@@ -123,15 +123,15 @@ public final class EssenceInfuserScreen
         int y = topPos;
         MachineScreenUi.panel(graphics, x, y, imageWidth, imageHeight);
 
-        MachineScreenUi.inputSlot(graphics, x + 63, y + 59);
-        MachineScreenUi.outputSlot(graphics, x + 147, y + 59);
-        MachineScreenUi.inputSlot(graphics, x + 105, y + 23);
+        MachineScreenUi.inputSlot(graphics, x, y, menu.getSlot(EssenceInfuserBlockEntity.INPUT_SLOT));
+        MachineScreenUi.outputSlot(graphics, x, y, menu.getSlot(EssenceInfuserBlockEntity.OUTPUT_SLOT));
+        MachineScreenUi.inputSlot(graphics, x, y, menu.getSlot(EssenceInfuserBlockEntity.FOCUS_SLOT));
 
         EssenceInfuserWorkpieceMode mode = menu.workpieceMode();
         if (mode == EssenceInfuserWorkpieceMode.EQUIPMENT
                 || (mode == EssenceInfuserWorkpieceMode.REPAIR
                     && menu.repairLatentIngotRequired() > 0)) {
-            MachineScreenUi.inputSlot(graphics, x + 39, y + 59);
+            MachineScreenUi.inputSlot(graphics, x, y, menu.getSlot(EssenceInfuserBlockEntity.COMPONENT_SLOT));
         }
         if (mode == EssenceInfuserWorkpieceMode.FOCUS) {
             MachineScreenUi.progressBar(

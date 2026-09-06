@@ -426,13 +426,10 @@ public final class EssenceCrucibleScreen
                 continue;
             }
 
-            int slotX = x + EssenceCrucibleMenu.machineSlotX(slot) - 1;
-            int slotY = y + EssenceCrucibleMenu.machineSlotY() - 1;
             int border = menu.isMachineSlotCurrentlyAvailable(slot)
                     ? BORDER
                     : 0xFF6E5151;
-            graphics.fill(slotX, slotY, slotX + 20, slotY + 20, PANEL_INNER);
-            outline(graphics, slotX, slotY, 20, 20, border);
+            MachineScreenUi.itemSlot(graphics, x, y, menu.getSlot(slot), border);
         }
 
         EssenceCrucibleStatePayload state =

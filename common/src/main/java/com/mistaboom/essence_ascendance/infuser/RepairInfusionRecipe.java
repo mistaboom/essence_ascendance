@@ -4,6 +4,8 @@ import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.config.InfuserBalanceSettings;
 import com.mistaboom.essence_ascendance.equipment.FracturedEquipmentData;
+import com.mistaboom.essence_ascendance.equipment.EquipmentShieldService;
+import com.mistaboom.essence_ascendance.equipment.EquipmentTierData;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
@@ -47,8 +49,11 @@ public record RepairInfusionRecipe(
 
         InfuserBalanceSettings.RepairSettings settings =
                 EssenceConfigManager.get().infuserBalance().repair();
-        boolean fractured = FracturedEquipmentData.isFractured(stack);
-        int maxDamage = Math.max(1, stack.getMaxDamage());
+        int maxDamage = EquipmentShieldService.isShield(stack)
+                ? EquipmentShieldService.nativeDurability(EquipmentTierData.tier(stack))
+                : Math.max(1, stack.getMaxDamage());
+        boolean fractured = FracturedEquipmentData.isFractured(stack)
+                || (EquipmentShieldService.isShield(stack) && stack.getDamageValue() >= maxDamage);
         int missing = fractured
                 ? maxDamage
                 : Math.max(1, Math.min(maxDamage, stack.getDamageValue()));
@@ -123,6 +128,7 @@ public record RepairInfusionRecipe(
         repaired.setCount(1);
         repaired.setDamageValue(0);
         FracturedEquipmentData.clearFractured(repaired);
+        EquipmentShieldService.refreshNativeDurability(repaired);
         return repaired;
     }
 }

@@ -7,7 +7,10 @@
     "MobEffectInstanceDurationMixin",
     "PlayerExperienceMixin",
     "PlayerSoulboundMixin",
-    "ItemStackDurabilityMixin"
+    "ItemStackDurabilityMixin",
+    "PlayerShieldMixin",
+    "LivingEntityShieldGuardMixin",
+    "LivingEntityShieldDamageMixin"
   ],
   "client": [
     "ItemInHandRendererMixin",
@@ -15,7 +18,9 @@
     "ItemStackTooltipMixin",
     "JeiListElementInfoMixin",
     "JeiIngredientFilterMixin",
-    "AscendanceArmorItemClientMixin"
+    "AscendanceArmorItemClientMixin",
+    "LocalPlayerShieldMovementMixin",
+    "ShieldItemRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -1,110 +1,41 @@
 package com.mistaboom.essence_ascendance.fabric.mixin;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mistaboom.essence_ascendance.equipment.EquipmentDamageService;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
-
-/*
- * Fabric-only bridge into vanilla's damage pipeline.
- *
- * Fabric's public living-damage events can allow/cancel damage and observe the
- * result, but they do not provide a mutable incoming amount at the point we
- * need. This mixin therefore does the smallest possible loader-specific work:
- * capture/replace the incoming float and report actual health loss back to the
- * common EquipmentDamageService.
- */
 @Mixin(LivingEntity.class)
 public abstract class LivingEntityDamageMixin {
+    @ModifyVariable(method = "hurt", at = @At("HEAD"), argsOnly = true, ordinal = 0)
+    private float essenceAscendance$modifyIncomingDamage(float amount, DamageSource source, float originalAmount) {
+        return (Object) this instanceof ServerPlayer player
+                ? EquipmentDamageService.modifyIncomingDamage(player, source, amount) : amount;
+    }
 
-    @Unique
-    private Deque<DamageSource> essenceAscendance$damageSources;
+    @WrapOperation(method = "hurt", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/world/entity/LivingEntity;hurtCurrentlyUsedShield(F)V"))
+    private void essenceAscendance$captureBlock(LivingEntity receiver, float durabilityDamage, Operation<Void> original,
+                                                DamageSource source, float incomingDamage) {
+        if (receiver instanceof ServerPlayer player) EquipmentDamageService.captureBlockingShield(player, source);
+        // Keep the context before the final durability hit can fracture the shield.
+        original.call(receiver, durabilityDamage);
+    }
 
-    @Unique
-    private Deque<Float> essenceAscendance$healthBeforeDamage;
-
-    @ModifyVariable(
-            method = "hurt",
-            at = @At("HEAD"),
-            argsOnly = true,
-            ordinal = 0
-    )
-    private float essenceAscendance$modifyIncomingDamage(
-            float amount,
-            DamageSource source,
-            float originalAmount
-    ) {
+    @Inject(method = "hurt", at = @At("TAIL"), locals = LocalCapture.CAPTURE_FAILHARD)
+    private void essenceAscendance$finalBlockedDamage(DamageSource source, float remainingDamage,
+            CallbackInfoReturnable<Boolean> ci, float originalDamage, boolean blocked, float blockedDamage) {
         if ((Object) this instanceof ServerPlayer player) {
-            return EquipmentDamageService.modifyIncomingDamage(
-                    player,
-                    source,
-                    amount
-            );
+            EquipmentDamageService.recordBlockedDamage(player, source, blockedDamage);
+            EquipmentDamageService.commitBlock(player, source);
         }
-
-        return amount;
-    }
-
-    @Inject(
-            method = "actuallyHurt",
-            at = @At("HEAD")
-    )
-    private void essenceAscendance$captureHealthBeforeDamage(
-            DamageSource source,
-            float amount,
-            CallbackInfo callbackInfo
-    ) {
-        if (!((Object) this instanceof ServerPlayer player)) {
-            return;
-        }
-
-        if (essenceAscendance$damageSources == null) {
-            essenceAscendance$damageSources = new ArrayDeque<>();
-            essenceAscendance$healthBeforeDamage = new ArrayDeque<>();
-        }
-
-        essenceAscendance$damageSources.push(source);
-        essenceAscendance$healthBeforeDamage.push(player.getHealth());
-    }
-
-    @Inject(
-            method = "actuallyHurt",
-            at = @At("RETURN")
-    )
-    private void essenceAscendance$reflectAfterDamage(
-            DamageSource source,
-            float amount,
-            CallbackInfo callbackInfo
-    ) {
-        if (!((Object) this instanceof ServerPlayer player)
-                || essenceAscendance$damageSources == null
-                || essenceAscendance$damageSources.isEmpty()
-                || essenceAscendance$healthBeforeDamage == null
-                || essenceAscendance$healthBeforeDamage.isEmpty()) {
-            return;
-        }
-
-        DamageSource capturedSource = essenceAscendance$damageSources.pop();
-        float healthBefore = essenceAscendance$healthBeforeDamage.pop();
-
-        float actualHealthDamage = Math.max(
-                0.0F,
-                healthBefore - player.getHealth()
-        );
-
-        EquipmentDamageService.reflectAfterDamage(
-                player,
-                capturedSource,
-                actualHealthDamage
-        );
     }
 }

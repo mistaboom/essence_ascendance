@@ -10,7 +10,9 @@
     "EnchantmentHelperGatheringMixin",
     "PlayerExperienceMixin",
     "PlayerSoulboundMixin",
-    "ItemStackDurabilityMixin"
+    "ItemStackDurabilityMixin",
+    "PlayerShieldMixin",
+    "LivingEntityShieldGuardMixin"
   ],
   "client": [
     "ItemInHandRendererMixin",
@@ -18,7 +20,9 @@
     "ItemStackTooltipMixin",
     "JeiListElementInfoMixin",
     "JeiIngredientFilterMixin",
-    "HumanoidArmorLayerTierMixin"
+    "HumanoidArmorLayerTierMixin",
+    "LocalPlayerShieldMovementMixin",
+    "ShieldItemRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

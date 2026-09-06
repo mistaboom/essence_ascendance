@@ -37,6 +37,7 @@ public final class EquipmentTierData {
             root.putString(TIER_TAG, tier.serializedName());
             outer.put(ROOT_TAG, root);
         });
+        EquipmentShieldService.refreshNativeDurability(stack);
     }
 
     public static EquipmentTier effectiveTier(ItemStack stack, EquipmentTier playerTier) {

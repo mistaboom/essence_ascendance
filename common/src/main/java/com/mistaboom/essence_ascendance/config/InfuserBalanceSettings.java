@@ -25,7 +25,7 @@ public record InfuserBalanceSettings(
     };
     private static final String[] EQUIPMENT_KEYS = {
             "helmet", "chestplate", "leggings", "boots", "melee_weapon",
-            "ranged_weapon", "magic_caster", "pickaxe", "axe", "shovel", "hoe"
+            "ranged_weapon", "magic_caster", "pickaxe", "axe", "shovel", "hoe", "shield"
     };
 
     public InfuserBalanceSettings {
@@ -189,6 +189,7 @@ public record InfuserBalanceSettings(
         equipmentWeights.put("axe", weights("gathering", 6, "offense", 4));
         equipmentWeights.put("shovel", weights("gathering", 6, "mobility", 4));
         equipmentWeights.put("hoe", weights("gathering", 7, "utility", 3));
+        equipmentWeights.put("shield", weights("defense", 5, "offense", 3, "mobility", 2));
 
         return new InfuserBalanceSettings(
                 8.0D,

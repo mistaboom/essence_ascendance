@@ -62,6 +62,7 @@ public record EquipmentTooltipPayload(
 
         for (Entry entry : payload.entries) {
             buffer.writeUtf(entry.itemId(), MAX_ITEM_ID_LENGTH);
+            buffer.writeDouble(entry.guardedMovementPercent());
             buffer.writeVarInt(entry.lines().size());
 
             for (Line line : entry.lines()) {
@@ -90,6 +91,7 @@ public record EquipmentTooltipPayload(
 
         for (int i = 0; i < entryCount; i++) {
             String itemId = buffer.readUtf(MAX_ITEM_ID_LENGTH);
+            double guardedMovementPercent = buffer.readDouble();
 
             int lineCount = buffer.readVarInt();
             if (lineCount < 0 || lineCount > MAX_LINES_PER_ENTRY) {
@@ -138,7 +140,7 @@ public record EquipmentTooltipPayload(
                 );
             }
 
-            entries.add(new Entry(itemId, lines));
+            entries.add(new Entry(itemId, lines, guardedMovementPercent));
         }
 
         return new EquipmentTooltipPayload(entries);
@@ -146,9 +148,18 @@ public record EquipmentTooltipPayload(
 
     public record Entry(
             String itemId,
-            List<Line> lines
+            List<Line> lines,
+            double guardedMovementPercent
     ) {
+        public Entry(String itemId, List<Line> lines) {
+            this(itemId, lines, 0.0D);
+        }
+
         public Entry {
+            if (!Double.isFinite(guardedMovementPercent) || guardedMovementPercent < 0.0D
+                    || guardedMovementPercent > 100.0D) {
+                throw new IllegalArgumentException("Invalid synchronized shield slowdown reduction");
+            }
             Objects.requireNonNull(itemId, "Tooltip item ID cannot be null");
             Objects.requireNonNull(lines, "Tooltip lines cannot be null");
             lines = List.copyOf(lines);

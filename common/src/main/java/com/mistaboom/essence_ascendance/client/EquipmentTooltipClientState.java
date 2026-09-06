@@ -3,6 +3,7 @@ package com.mistaboom.essence_ascendance.client;
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.network.EquipmentTooltipPayload;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTier;
+import com.mistaboom.essence_ascendance.equipment.EquipmentShieldService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTierData;
 import com.mistaboom.essence_ascendance.equipment.FracturedEquipmentData;
 import com.mistaboom.essence_ascendance.equipment.SoulboundEquipmentData;
@@ -41,6 +42,13 @@ public final class EquipmentTooltipClientState {
 
     private static volatile Map<String, List<EquipmentTooltipPayload.Line>>
             LINES_BY_ITEM = Map.of();
+
+    private static volatile Map<String, Double> GUARDED_MOVEMENT_BY_ITEM = Map.of();
+
+    public static double guardedMovementPercent(ItemStack stack) {
+        if (!EquipmentShieldService.functional(stack)) return 0.0D;
+        return GUARDED_MOVEMENT_BY_ITEM.getOrDefault(lookupKey(stack), 0.0D);
+    }
 
     private static boolean initialized = false;
 
@@ -492,7 +500,9 @@ public final class EquipmentTooltipClientState {
 
     private static String fracturedLookupKey(ItemStack stack) {
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        return itemId + "#fractured";
+        return EquipmentShieldService.isShield(stack)
+                ? lookupKey(stack) + "#fractured"
+                : itemId + "#fractured";
     }
 
 
@@ -525,6 +535,7 @@ public final class EquipmentTooltipClientState {
 
     public static void clear() {
         LINES_BY_ITEM = Map.of();
+        GUARDED_MOVEMENT_BY_ITEM = Map.of();
         JeiTooltipSearchRefreshBridge.requestRefresh();
     }
 
@@ -534,12 +545,15 @@ public final class EquipmentTooltipClientState {
         Map<String, List<EquipmentTooltipPayload.Line>> next =
                 new LinkedHashMap<>();
 
+        Map<String, Double> movement = new LinkedHashMap<>();
         for (EquipmentTooltipPayload.Entry entry : payload.entries()) {
             if (entry.itemId() != null && !entry.itemId().isBlank()) {
                 next.put(entry.itemId(), entry.lines());
+                movement.put(entry.itemId(), entry.guardedMovementPercent());
             }
         }
 
+        GUARDED_MOVEMENT_BY_ITEM = Map.copyOf(movement);
         LINES_BY_ITEM =
                 Map.copyOf(
                         next

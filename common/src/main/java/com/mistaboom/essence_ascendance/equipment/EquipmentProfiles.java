@@ -137,6 +137,15 @@ public final class EquipmentProfiles {
                     1.20
             );
 
+    public static final EquipmentProfileDefinition SHIELD = EquipmentProfileRegistry.register(
+            EquipmentProfileDefinition.builder(id("shield"), "Shield")
+                    .baseline(EquipmentBaselineProperty.DURABILITY)
+                    .stat(EquipmentActivationType.HELD, EssenceStats.DAMAGE_REFLECTION)
+                    .stat(EquipmentActivationType.HELD, EssenceStats.DURABILITY_EFFICIENCY)
+                    .stat(EquipmentActivationType.GUARDING, EssenceStats.GUARD_RECOVERY)
+                    .stat(EquipmentActivationType.GUARDING, EssenceStats.GUARDED_MOVEMENT)
+                    .build());
+
     private EquipmentProfiles() {
     }
 

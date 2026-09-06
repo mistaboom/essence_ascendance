@@ -272,7 +272,8 @@ public final class InfuserJeiRecipe {
                 AscendanceItems.ASCENDANCE_PICKAXE.get(),
                 AscendanceItems.ASCENDANCE_AXE.get(),
                 AscendanceItems.ASCENDANCE_SHOVEL.get(),
-                AscendanceItems.ASCENDANCE_HOE.get()
+                AscendanceItems.ASCENDANCE_HOE.get(),
+                AscendanceItems.ASCENDANCE_SHIELD.get()
         );
     }
 

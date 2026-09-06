@@ -41,6 +41,7 @@ public final class EquipmentGameplayEvents {
 
         TickEvent.PLAYER_POST.register(player -> {
             if (player instanceof ServerPlayer serverPlayer) {
+                EquipmentShieldService.tick(serverPlayer);
                 EquipmentAttributeService.sync(serverPlayer);
                 EquipmentMobilityService.sync(serverPlayer);
                 EquipmentVitalityService.tick(serverPlayer);

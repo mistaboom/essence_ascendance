@@ -328,6 +328,12 @@ public final class EssenceStats {
             );
 
 
+    public static final StatDefinition GUARD_RECOVERY = register(
+            "guard_recovery", "Guard Recovery", StatCategory.DEFENSE, StatUnit.PERCENT);
+
+    public static final StatDefinition GUARDED_MOVEMENT = register(
+            "guarded_movement", "Guarded Movement", StatCategory.MOBILITY, StatUnit.PERCENT);
+
     private EssenceStats() {
     }
 

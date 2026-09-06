@@ -17,11 +17,11 @@ public final class EssenceCrucibleMenu extends AbstractContainerMenu {
     public static final int PLAYER_INVENTORY_START = MAX_MACHINE_SLOTS;
     public static final int PLAYER_INVENTORY_END = PLAYER_INVENTORY_START + 36;
 
-    /* Slot 0 stays exactly where the original single Crucible slot lived. */
+    /* Item origins centered inside the existing 20px input frames. */
     private static final int[] MACHINE_SLOT_X = {
-            141, 123, 159, 105, 177, 87, 195, 69, 213
+            142, 124, 160, 106, 178, 88, 196, 70, 214
     };
-    private static final int MACHINE_SLOT_Y = 33;
+    private static final int MACHINE_SLOT_Y = 34;
 
     private final Container crucibleContainer;
     private final EssenceCrucibleBlockEntity serverCrucible;
@@ -121,8 +121,8 @@ public final class EssenceCrucibleMenu extends AbstractContainerMenu {
                         new Slot(
                                 playerInventory,
                                 column + row * 9 + 9,
-                                69 + column * 18,
-                                237 + row * 18
+                                70 + column * 18,
+                                238 + row * 18
                         )
                 );
             }
@@ -134,8 +134,8 @@ public final class EssenceCrucibleMenu extends AbstractContainerMenu {
                     new Slot(
                             playerInventory,
                             column,
-                            69 + column * 18,
-                            295
+                            70 + column * 18,
+                            296
                     )
             );
         }

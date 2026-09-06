@@ -44,6 +44,10 @@ public final class EquipmentBaselineService {
             return evaluate(playerData, profileId);
         }
 
+        if (profileId.equals(EquipmentProfiles.SHIELD.id())) {
+            return evaluateForEquipmentTier(playerData, profileId, EquipmentTierData.tier(stack));
+        }
+
         // A Fractured artifact keeps existing as the same tiered ItemStack,
         // but its enhanced physical progression is offline until repaired.
         // Fall back to the mundane Latent baseline rather than deleting the
@@ -77,10 +81,12 @@ public final class EquipmentBaselineService {
             EquipmentTier itemTier
     ) {
         Objects.requireNonNull(itemTier, "Equipment tier cannot be null");
-        if (itemTier == EquipmentTier.LATENT) {
-            return evaluateWithBaseline(profileId, AscendanceTiers.DORMANT, latentBaseline());
-        }
-        return evaluateAtTier(playerData, profileId, itemTier.ascendanceTier());
+        EquipmentBaselineResult base = itemTier == EquipmentTier.LATENT
+                ? evaluateWithBaseline(profileId, AscendanceTiers.DORMANT, latentBaseline())
+                : evaluateAtTier(playerData, profileId, itemTier.ascendanceTier());
+        if (!profileId.equals(EquipmentProfiles.SHIELD.id())) return base;
+        return new EquipmentBaselineResult(base.tier(), base.profile(), base.tierBaseline(),
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, EquipmentShieldService.nativeDurability(itemTier));
     }
 
     public static EquipmentBaselineResult evaluateAtTier(
@@ -126,6 +132,11 @@ public final class EquipmentBaselineService {
     ) {
         EquipmentProfileDefinition profile = EquipmentProfileRegistry.get(profileId)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown equipment profile: " + profileId));
+        if (profileId.equals(EquipmentProfiles.SHIELD.id())) {
+            return new EquipmentBaselineResult(tier, profile, tierBaseline,
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    EquipmentShieldService.nativeDurability(EquipmentTier.fromAscendanceTier(tier)));
+        }
         return new EquipmentBaselineResult(
                 tier,
                 profile,

@@ -8,5 +8,7 @@ package com.mistaboom.essence_ascendance.equipment;
  */
 public enum EquipmentActivationType {
     HELD,
-    WORN
+    WORN,
+    /** An actively used, functional defensive conduit; never a generic held passive. */
+    GUARDING
 }

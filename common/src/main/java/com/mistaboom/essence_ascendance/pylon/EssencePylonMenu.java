@@ -47,7 +47,7 @@ public final class EssencePylonMenu extends AbstractContainerMenu {
         pylonContainer.startOpen(playerInventory.player);
 
         addSlot(
-                new Slot(pylonContainer, FOCUS_SLOT, 106, 32) {
+                new Slot(pylonContainer, FOCUS_SLOT, 107, 33) {
                     @Override
                     public boolean mayPlace(ItemStack stack) {
                         return serverPylon == null
@@ -68,8 +68,8 @@ public final class EssencePylonMenu extends AbstractContainerMenu {
                         new Slot(
                                 playerInventory,
                                 column + row * 9 + 9,
-                                34 + column * 18,
-                                176 + row * 18
+                                35 + column * 18,
+                                177 + row * 18
                         )
                 );
             }
@@ -80,8 +80,8 @@ public final class EssencePylonMenu extends AbstractContainerMenu {
                     new Slot(
                             playerInventory,
                             column,
-                            34 + column * 18,
-                            234
+                            35 + column * 18,
+                            235
                     )
             );
         }

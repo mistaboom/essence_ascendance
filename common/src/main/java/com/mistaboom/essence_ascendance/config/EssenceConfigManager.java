@@ -601,6 +601,7 @@ public final class EssenceConfigManager {
         }
         infuser.add("focus_upgrades", focusUpgrades);
         root.add("essence_infuser", infuser);
+        root.add("ascendance_shield", createShieldJson(ShieldBalanceSettings.defaults()));
 
         root.addProperty(
                 "preset",
@@ -914,6 +915,7 @@ public final class EssenceConfigManager {
         root.add("crucible_pylons", cruciblePylons);
 
         root.add("essence_infuser", createCompleteInfuserJson(InfuserBalanceSettings.defaults()));
+        root.add("ascendance_shield", createShieldJson(ShieldBalanceSettings.defaults()));
         root.add(
                 "latent_ore_worldgen",
                 createLatentOreWorldgenJson(LatentOreWorldgenSettings.defaults(), true)
@@ -1288,6 +1290,7 @@ public final class EssenceConfigManager {
                 pylonRadius,
                 maxActivePylons,
                 infuserBalance,
+                parseShieldBalance(root),
                 latentOreWorldgen,
                 balanceProfile,
                 milestones,
@@ -1297,6 +1300,45 @@ public final class EssenceConfigManager {
         );
     }
 
+
+    private static JsonObject createShieldJson(ShieldBalanceSettings settings) {
+        JsonObject result = new JsonObject();
+        result.addProperty("_comment", "Shield durability and block amplification follow completed item tier. Base reflection is fixed across tiers; Latent amplification is always 1. Investments use stat_max_bonus_overrides and existing holder/equipment tier limits.");
+        result.addProperty("innate_reflection_percent", settings.innateReflectionPercent());
+        result.addProperty("minimum_disable_ticks", settings.minimumDisableTicks());
+        JsonObject durability = new JsonObject();
+        JsonObject amplification = new JsonObject();
+        for (com.mistaboom.essence_ascendance.equipment.EquipmentTier tier :
+                com.mistaboom.essence_ascendance.equipment.EquipmentTier.values()) {
+            durability.addProperty(tier.serializedName(), settings.durability().get(tier));
+            if (tier != com.mistaboom.essence_ascendance.equipment.EquipmentTier.LATENT) {
+                amplification.addProperty(tier.serializedName(), settings.blockAmplification().get(tier));
+            }
+        }
+        result.add("durability", durability);
+        result.add("block_amplification", amplification);
+        return result;
+    }
+
+    private static ShieldBalanceSettings parseShieldBalance(JsonObject root) {
+        ShieldBalanceSettings defaults = ShieldBalanceSettings.defaults();
+        if (!root.has("ascendance_shield") || root.get("ascendance_shield").isJsonNull()) return defaults;
+        if (!root.get("ascendance_shield").isJsonObject()) {
+            throw new IllegalArgumentException("ascendance_shield must be an object");
+        }
+        JsonObject shield = root.getAsJsonObject("ascendance_shield");
+        JsonObject durability = shield.has("durability") ? shield.getAsJsonObject("durability") : new JsonObject();
+        JsonObject amplification = shield.has("block_amplification") ? shield.getAsJsonObject("block_amplification") : new JsonObject();
+        var points = new java.util.EnumMap<com.mistaboom.essence_ascendance.equipment.EquipmentTier, Integer>(com.mistaboom.essence_ascendance.equipment.EquipmentTier.class);
+        var multipliers = new java.util.EnumMap<com.mistaboom.essence_ascendance.equipment.EquipmentTier, Double>(com.mistaboom.essence_ascendance.equipment.EquipmentTier.class);
+        for (var tier : com.mistaboom.essence_ascendance.equipment.EquipmentTier.values()) {
+            points.put(tier, readInt(durability, tier.serializedName(), defaults.durability().get(tier)));
+            multipliers.put(tier, readDouble(amplification, tier.serializedName(), defaults.blockAmplification().get(tier)));
+        }
+        return new ShieldBalanceSettings(
+                readDouble(shield, "innate_reflection_percent", defaults.innateReflectionPercent()),
+                readInt(shield, "minimum_disable_ticks", defaults.minimumDisableTicks()), points, multipliers);
+    }
 
     private static LatentOreWorldgenSettings parseLatentOreWorldgen(
             JsonObject root
@@ -2691,6 +2733,7 @@ public final class EssenceConfigManager {
                 6.0D,
                 8,
                 InfuserBalanceSettings.defaults(),
+                ShieldBalanceSettings.defaults(),
                 LatentOreWorldgenSettings.defaults(),
                 BalanceProfiles.VANILLA,
                 milestones,

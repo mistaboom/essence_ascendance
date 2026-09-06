@@ -121,7 +121,9 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
 
         container.startOpen(playerInventory.player);
 
-        addSlot(new Slot(container, EssenceInfuserBlockEntity.INPUT_SLOT, 64, 60) {
+        // Slot coordinates are the 16px item origin, two pixels inside a 20px frame.
+        // Keep rendering and hit targets aligned by moving the real menu slots.
+        addSlot(new Slot(container, EssenceInfuserBlockEntity.INPUT_SLOT, 65, 61) {
             @Override
             public boolean mayPlace(ItemStack stack) {
                 return EssenceInfuserBlockEntity.isValidWorkpiece(stack);
@@ -132,13 +134,13 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
                 return EssenceInfuserBlockEntity.workpieceStackLimit(stack);
             }
         });
-        addSlot(new Slot(container, EssenceInfuserBlockEntity.OUTPUT_SLOT, 148, 60) {
+        addSlot(new Slot(container, EssenceInfuserBlockEntity.OUTPUT_SLOT, 149, 61) {
             @Override
             public boolean mayPlace(ItemStack stack) {
                 return false;
             }
         });
-        addSlot(new Slot(container, EssenceInfuserBlockEntity.FOCUS_SLOT, 106, 24) {
+        addSlot(new Slot(container, EssenceInfuserBlockEntity.FOCUS_SLOT, 107, 25) {
             @Override
             public boolean mayPlace(ItemStack stack) {
                 return com.mistaboom.essence_ascendance.pylon.EssencePylonContent.isFocus(stack);
@@ -149,7 +151,7 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
                 return 1;
             }
         });
-        addSlot(new Slot(container, EssenceInfuserBlockEntity.COMPONENT_SLOT, 40, 60) {
+        addSlot(new Slot(container, EssenceInfuserBlockEntity.COMPONENT_SLOT, 41, 61) {
             @Override
             public boolean mayPlace(ItemStack stack) {
                 if (!isActive()) {
@@ -183,8 +185,8 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
                 addSlot(new Slot(
                         playerInventory,
                         column + row * 9 + 9,
-                        34 + column * 18,
-                        256 + row * 18
+                        35 + column * 18,
+                        257 + row * 18
                 ));
             }
         }
@@ -192,8 +194,8 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
             addSlot(new Slot(
                     playerInventory,
                     column,
-                    34 + column * 18,
-                    314
+                    35 + column * 18,
+                    315
             ));
         }
 

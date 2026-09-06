@@ -79,7 +79,8 @@ public final class EssenceAscendanceClient {
                 AscendanceItems.ASCENDANCE_HELMET.get(),
                 AscendanceItems.ASCENDANCE_CHESTPLATE.get(),
                 AscendanceItems.ASCENDANCE_LEGGINGS.get(),
-                AscendanceItems.ASCENDANCE_BOOTS.get()
+                AscendanceItems.ASCENDANCE_BOOTS.get(),
+                AscendanceItems.ASCENDANCE_SHIELD.get()
         };
 
         for (Item item : tierVisualItems) {
@@ -90,6 +91,12 @@ public final class EssenceAscendanceClient {
                             EquipmentTierVisuals.modelPropertyValue(stack)
             );
         }
+
+        registrar.register(AscendanceItems.ASCENDANCE_SHIELD.get(),
+                ResourceLocation.fromNamespaceAndPath("minecraft", "blocking"),
+                (stack, level, entity, seed) -> entity != null && entity.getUseItem() == stack
+                        && com.mistaboom.essence_ascendance.equipment.EquipmentShieldService.isUsingShield(entity)
+                        ? 1.0F : 0.0F);
 
         Item[] essentiumVisualItems = {
                 EssenceInfuserContent.ESSENTIUM_NUGGET.get(),

@@ -77,7 +77,7 @@ public final class EssencePylonScreen
         int y = topPos;
 
         MachineScreenUi.panel(graphics, x, y, imageWidth, imageHeight);
-        MachineScreenUi.inputSlot(graphics, x + 105, y + 31);
+        MachineScreenUi.inputSlot(graphics, x, y, menu.getSlot(EssencePylonMenu.FOCUS_SLOT));
         MachineScreenUi.inset(graphics, x + 10, y + 58, 210, 34);
         MachineScreenUi.inset(graphics, x + 32, y + 174, 166, 80);
     }

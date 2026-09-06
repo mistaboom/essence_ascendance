@@ -87,6 +87,7 @@ public record EquipmentInfusionRecipe(
         if (stack.is(AscendanceItems.ASCENDANCE_AXE.get())) return "axe";
         if (stack.is(AscendanceItems.ASCENDANCE_SHOVEL.get())) return "shovel";
         if (stack.is(AscendanceItems.ASCENDANCE_HOE.get())) return "hoe";
+        if (stack.is(AscendanceItems.ASCENDANCE_SHIELD.get())) return "shield";
         throw new IllegalArgumentException("Unsupported Ascendance equipment workpiece");
     }
 

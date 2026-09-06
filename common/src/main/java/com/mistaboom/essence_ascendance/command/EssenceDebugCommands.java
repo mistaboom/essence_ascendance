@@ -22,6 +22,8 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineProperty;
 import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineResult;
 import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentDamageService;
+import com.mistaboom.essence_ascendance.equipment.EquipmentShieldService;
+import com.mistaboom.essence_ascendance.equipment.ShieldMath;
 import com.mistaboom.essence_ascendance.equipment.EquipmentGatheringService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentMobilityService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfileDefinition;
@@ -102,6 +104,7 @@ final class EssenceDebugCommands {
                 .then(Commands.literal("baselines").executes(context -> showBaselines(context.getSource())))
                 .then(Commands.literal("offense").executes(context -> showOffense(context.getSource())))
                 .then(Commands.literal("defense").executes(context -> showDefense(context.getSource())))
+                .then(Commands.literal("shield").executes(context -> showShield(context.getSource())))
                 .then(Commands.literal("vitality").executes(context -> showVitality(context.getSource())))
                 .then(Commands.literal("mobility").executes(context -> showMobility(context.getSource())))
                 .then(Commands.literal("gathering").executes(context -> showGathering(context.getSource())))
@@ -125,11 +128,51 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.section("Gameplay categories"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug offense", "melee, ranged, magic, knockback, reflection"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug defense", "all resistance stats and last incoming-damage/status events"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug shield", "held/block context and disjoint blocked/health-loss retaliation measurements"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug vitality", "health, regeneration, healing, hunger, breath"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug mobility", "movement, swimming, jumping, stepping, flight"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug gathering", "mining, Fortune, Looting, reach, XP gain"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug utility", "Luck, sneak speed, durability efficiency"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.muted("Stat investment/scaling/applicability is intentionally centralized at /essence stat <stat>."));
+        return 1;
+    }
+
+    private static int showShield(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Ascendance Shield"));
+        EquipmentShieldService.Context held = EquipmentShieldService.heldContext(player);
+        EquipmentShieldService.Context blocking = EquipmentShieldService.blockingContext(player);
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Selection", "main-hand functional shield first, otherwise offhand; no stacking"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Guarding", Boolean.toString(blocking != null)));
+        if (held == null) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.muted("No functional held Ascendance shield; Fractured shields provide no blocking/reflection."));
+        } else {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Item tier / investment tier",
+                    held.itemTier().serializedName() + " / " + held.effectiveTier().serializedName()));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Native durability", Integer.toString(held.nativeDurability())));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Base / shield investment / armor investment",
+                    held.innateReflectionPercent() + "% / " + held.investedReflectionPercent() + "% / "
+                            + EquipmentDamageService.armorReflectionPercent(player) + "%"));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Ordinary held reflection",
+                    held.ordinaryReflectionPercent(EquipmentDamageService.armorReflectionPercent(player)) + "% of health lost"));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("On-block (item-tier multiplier / total)",
+                    "x" + held.amplification() + "; " + held.blockedReflectionPercent() + "% of final blocked damage"));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Disable after a normal 100-tick guard break",
+                    ShieldMath.disableTicks(100, held.guardRecoveryPercent(), EssenceConfigManager.get().shieldBalance().minimumDisableTicks()) + " ticks"));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Shield slowdown removed / input multiplier",
+                    held.guardedMovementPercent() + "% / " + ShieldMath.movementMultiplier(held.guardedMovementPercent())));
+        }
+        EquipmentDamageService.lastReflection(player).ifPresent(last -> {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.section("Last incoming hit (before target mitigation)"));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Blocked / actual health lost",
+                    last.blockedDamage() + " / " + last.actualHealthLost()));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Ordinary / block portions",
+                    last.ordinaryReflectedDamage() + " / " + last.blockReflectedDamage()));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Active block shield base / invested / multiplier",
+                    last.innatePercent() + "% / " + last.shieldInvestedPercent() + "% / x" + last.amplification()));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Requested retaliation",
+                    Float.toString(last.requestedRetaliationDamage()) + " (not the target's actual health loss)"));
+        });
         return 1;
     }
 

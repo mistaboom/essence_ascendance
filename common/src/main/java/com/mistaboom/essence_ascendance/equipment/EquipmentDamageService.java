@@ -10,6 +10,9 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 
 import java.util.Map;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import net.minecraft.world.entity.player.Player;
 import java.util.Optional;
 import java.util.WeakHashMap;
 
@@ -28,8 +31,9 @@ import java.util.WeakHashMap;
  *   FALL -> EXPLOSION -> FIRE -> MAGIC -> RANGED -> MELEE -> NONE
  *
  * Damage Reflection is calculated from actual health lost after Minecraft's
- * normal armor/enchantment/absorption pipeline. It is limited to direct living
- * attackers and uses a recursion guard so reflection can never reflect itself.
+ * normal armor/enchantment/absorption pipeline. Armor-only retaliation retains its direct-attacker rule. A functional
+ * held shield also handles responsible projectile shooters. A single recursion
+ * guard protects ordinary AND successfully blocked reflection.
  */
 public final class EquipmentDamageService {
 
@@ -88,83 +92,175 @@ public final class EquipmentDamageService {
         return resolvedDamage;
     }
 
-    public static void reflectAfterDamage(
-            ServerPlayer victim,
-            DamageSource source,
-            float actualHealthDamage
-    ) {
-        if (isReflectionInProgress()) {
+    private static final Map<ServerPlayer, Deque<ReflectionFrame>> REFLECTION_FRAMES = new WeakHashMap<>();
+    private static final Map<ServerPlayer, Deque<HealthSample>> HEALTH_SAMPLES = new WeakHashMap<>();
+    private static final Map<ServerPlayer, ReflectionEvaluation> LAST_REFLECTION = new WeakHashMap<>();
+
+    /** Loader wrappers pair this with endDamage in a finally block, including cancellations/exceptions. */
+    public static void beginDamage(ServerPlayer player, DamageSource source) {
+        REFLECTION_FRAMES.computeIfAbsent(player, ignored -> new ArrayDeque<>())
+                .push(new ReflectionFrame(source, isReflectionInProgress()));
+    }
+
+    public static void captureBlockingShield(ServerPlayer player, DamageSource source) {
+        ReflectionFrame frame = frame(player, source);
+        if (frame != null && !frame.suppressed) {
+            frame.shield = EquipmentShieldService.blockingContext(player);
+        }
+    }
+
+    /** Receives only the authoritative stopped portion, NEVER the shield durability cost. */
+    public static void recordBlockedDamage(ServerPlayer player, DamageSource source, float stoppedDamage) {
+        ReflectionFrame frame = frame(player, source);
+        if (frame != null && !frame.suppressed && frame.shield != null
+                && Float.isFinite(stoppedDamage) && stoppedDamage > 0) {
+            frame.blockedDamage = stoppedDamage;
+        }
+    }
+
+    /** Successful normal completion of the native block path; raising alone never calls this. */
+    public static void commitBlock(ServerPlayer player, DamageSource source) {
+        ReflectionFrame frame = frame(player, source);
+        if (frame != null) frame.blockCompleted = true;
+    }
+
+    public static void beginHealthMeasurement(ServerPlayer player, DamageSource source) {
+        HEALTH_SAMPLES.computeIfAbsent(player, ignored -> new ArrayDeque<>())
+                .push(new HealthSample(source, player.getHealth()));
+    }
+
+    public static void endHealthMeasurement(ServerPlayer player) {
+        Deque<HealthSample> samples = HEALTH_SAMPLES.get(player);
+        if (samples == null || samples.isEmpty()) return;
+        HealthSample sample = samples.pop();
+        float totalLoss = Math.max(0, sample.healthBefore - player.getHealth());
+        float ownLoss = Math.max(0, totalLoss - sample.nestedLoss);
+        if (!samples.isEmpty()) samples.peek().nestedLoss += totalLoss;
+        else HEALTH_SAMPLES.remove(player);
+        reflectAfterDamage(player, sample.source, ownLoss);
+    }
+
+    public static void reflectAfterDamage(ServerPlayer victim, DamageSource source, float actualHealthDamage) {
+        if (isReflectionInProgress() || !Float.isFinite(actualHealthDamage) || actualHealthDamage <= 0) return;
+        DamageStatState stats = evaluateStats(victim);
+        boolean hasShield = EquipmentShieldService.heldContext(victim) != null;
+        double ordinary = hasShield || source.isDirect()
+                ? ShieldMath.reflectedPortion(actualHealthDamage, stats.damageReflectionPercent()) : 0;
+        ReflectionFrame frame = frame(victim, source);
+        if (frame != null) {
+            if (!frame.suppressed) {
+                frame.healthLost += actualHealthDamage;
+                frame.ordinaryDamage += ordinary;
+                frame.ordinaryPercent = stats.damageReflectionPercent();
+            }
+        } else {
+            // Retain the existing service entrypoint for direct, standalone post-damage callers.
+            float reflected = applyReflection(victim, source, ordinary);
+            recordDamageDiagnostic(victim, source, actualHealthDamage, stats.damageReflectionPercent(), reflected);
+        }
+    }
+
+    public static void endDamage(ServerPlayer victim, DamageSource source, boolean returnedNormally) {
+        Deque<ReflectionFrame> frames = REFLECTION_FRAMES.get(victim);
+        if (frames == null || frames.isEmpty()) return;
+        ReflectionFrame frame = frames.pop();
+        if (frames.isEmpty()) REFLECTION_FRAMES.remove(victim);
+        if (!returnedNormally) {
+            // Discard probes on exceptional unwinding; never retain a previous attack's measurement.
+            HEALTH_SAMPLES.remove(victim);
             return;
         }
-
-        DamageStatState stats = evaluateStats(victim);
-        float reflectedDamage = 0.0F;
-
-        if (Float.isFinite(actualHealthDamage)
-                && actualHealthDamage > 0.0F
-                && stats.damageReflectionPercent() > EPSILON
-                && source.isDirect()) {
-
-            Entity causingEntity = source.getEntity();
-
-            if (causingEntity instanceof LivingEntity attacker
-                    && attacker != victim
-                    && attacker.isAlive()) {
-
-                reflectedDamage = (float) Math.max(
-                        0.0,
-                        actualHealthDamage
-                                * stats.damageReflectionPercent()
-                                / 100.0
-                );
-
-                if (reflectedDamage > 0.0F) {
-                    int previousDepth = REFLECTION_DEPTH.get();
-                    REFLECTION_DEPTH.set(previousDepth + 1);
-
-                    try {
-                        attacker.hurt(
-                                victim.damageSources().thorns(victim),
-                                reflectedDamage
-                        );
-                    } finally {
-                        if (previousDepth == 0) {
-                            REFLECTION_DEPTH.remove();
-                        } else {
-                            REFLECTION_DEPTH.set(previousDepth);
-                        }
-                    }
-                }
-            }
-        }
-
-        DamageEvaluation incoming = LAST_DAMAGE.get(victim);
-
-        if (incoming == null) {
-            incoming = new DamageEvaluation(
-                    classify(source),
-                    -1.0F,
-                    -1.0F,
-                    0.0,
-                    -1.0F,
-                    stats.damageReflectionPercent(),
-                    0.0F
-            );
-        }
-
-        LAST_DAMAGE.put(
-                victim,
-                new DamageEvaluation(
-                        incoming.category(),
-                        incoming.incomingDamage(),
-                        incoming.resolvedIncomingDamage(),
-                        incoming.resistancePercent(),
-                        Math.max(0.0F, actualHealthDamage),
-                        stats.damageReflectionPercent(),
-                        reflectedDamage
-                )
-        );
+        if (frame.source != source || frame.suppressed) return;
+        float blocked = frame.blockCompleted ? frame.blockedDamage : 0;
+        double blockReflection = frame.shield == null ? 0
+                : ShieldMath.reflectedPortion(blocked, frame.shield.blockedReflectionPercent());
+        // Compute the two disjoint portions separately, then apply one normal defended hit.
+        // Two hurt() calls would incorrectly lose one portion to the attacker's invulnerability timer.
+        float reflected = applyReflection(victim, source, frame.ordinaryDamage + blockReflection);
+        recordDamageDiagnostic(victim, source, frame.healthLost, frame.ordinaryPercent, reflected);
+        LAST_REFLECTION.put(victim, new ReflectionEvaluation(blocked, frame.healthLost,
+                frame.ordinaryPercent, frame.shield == null ? 0 : frame.shield.innateReflectionPercent(),
+                frame.shield == null ? 0 : frame.shield.investedReflectionPercent(),
+                frame.shield == null ? 0 : frame.shield.amplification(),
+                frame.ordinaryDamage, blockReflection, reflected));
     }
+
+    private static float applyReflection(ServerPlayer victim, DamageSource source, double rawDamage) {
+        float reflected = ShieldMath.safeDamage(rawDamage);
+        Entity causingEntity = source.getEntity(); // A projectile's owner, not the direct projectile entity.
+        if (reflected <= 0 || isReflectionInProgress() || !(causingEntity instanceof LivingEntity attacker)
+                || attacker == victim || !attacker.isAlive() || attacker.isRemoved()
+                || attacker.level() != victim.level()) return 0;
+        if (attacker instanceof Player other && (!victim.server.isPvpAllowed()
+                || !victim.canHarmPlayer(other))) return 0;
+        if (victim.getTeam() != null && victim.isAlliedTo(attacker)
+                && !victim.getTeam().isAllowFriendlyFire()) return 0;
+        int previousDepth = REFLECTION_DEPTH.get();
+        REFLECTION_DEPTH.set(previousDepth + 1);
+        try {
+            // Existing thorns-style rules: normal attribution/mitigation, no original projectile payload,
+            // no player.attack(), melee/ranged bonuses, true damage or invulnerability reset.
+            attacker.hurt(victim.damageSources().thorns(victim), reflected);
+        } finally {
+            if (previousDepth == 0) REFLECTION_DEPTH.remove();
+            else REFLECTION_DEPTH.set(previousDepth);
+        }
+        return reflected; // Requested defended hit, not a claim about the target's final health loss.
+    }
+
+    private static ReflectionFrame frame(ServerPlayer player, DamageSource source) {
+        Deque<ReflectionFrame> frames = REFLECTION_FRAMES.get(player);
+        return frames == null || frames.isEmpty() || frames.peek().source != source ? null : frames.peek();
+    }
+
+    private static void recordDamageDiagnostic(ServerPlayer victim, DamageSource source, float healthDamage,
+                                              double ordinaryPercent, float reflected) {
+        DamageEvaluation previous = LAST_DAMAGE.get(victim);
+        LAST_DAMAGE.put(victim, new DamageEvaluation(classify(source),
+                previous == null ? -1 : previous.incomingDamage(),
+                previous == null ? -1 : previous.resolvedIncomingDamage(),
+                previous == null ? 0 : previous.resistancePercent(),
+                healthDamage, ordinaryPercent, reflected));
+    }
+
+    public static Optional<ReflectionEvaluation> lastReflection(ServerPlayer player) {
+        return Optional.ofNullable(LAST_REFLECTION.get(player));
+    }
+
+    public static double armorReflectionPercent(ServerPlayer player) {
+        return percent(EquipmentShieldService.playerData(player),
+                EquipmentStatResolver.evaluateWornArmor(player), EssenceStats.DAMAGE_REFLECTION);
+    }
+
+    private static final class ReflectionFrame {
+        final DamageSource source;
+        final boolean suppressed;
+        EquipmentShieldService.Context shield;
+        float blockedDamage;
+        float healthLost;
+        double ordinaryDamage;
+        double ordinaryPercent;
+        boolean blockCompleted;
+        ReflectionFrame(DamageSource source, boolean suppressed) {
+            this.source = source;
+            this.suppressed = suppressed;
+        }
+    }
+
+    private static final class HealthSample {
+        final DamageSource source;
+        final float healthBefore;
+        float nestedLoss;
+        HealthSample(DamageSource source, float healthBefore) {
+            this.source = source;
+            this.healthBefore = healthBefore;
+        }
+    }
+
+    public record ReflectionEvaluation(float blockedDamage, float actualHealthLost, double ordinaryPercent,
+                                       double innatePercent, double shieldInvestedPercent, double amplification,
+                                       double ordinaryReflectedDamage, double blockReflectedDamage,
+                                       float requestedRetaliationDamage) {}
 
     public static DamageStatState evaluateStats(ServerPlayer player) {
         PlayerEssenceData playerData =
@@ -175,6 +271,10 @@ public final class EquipmentDamageService {
         EquipmentStatState worn =
                 EquipmentStatResolver.evaluateWornArmor(player);
 
+        double reflection = percent(playerData, worn, EssenceStats.DAMAGE_REFLECTION);
+        EquipmentShieldService.Context shield = EquipmentShieldService.heldContext(player);
+        if (shield != null) reflection = shield.ordinaryReflectionPercent(reflection);
+
         return new DamageStatState(
                 percent(playerData, worn, EssenceStats.MELEE_RESISTANCE),
                 percent(playerData, worn, EssenceStats.RANGED_RESISTANCE),
@@ -182,7 +282,7 @@ public final class EquipmentDamageService {
                 percent(playerData, worn, EssenceStats.FALL_RESISTANCE),
                 percent(playerData, worn, EssenceStats.FIRE_RESISTANCE),
                 percent(playerData, worn, EssenceStats.EXPLOSION_RESISTANCE),
-                percent(playerData, worn, EssenceStats.DAMAGE_REFLECTION)
+                reflection
         );
     }
 
@@ -192,6 +292,9 @@ public final class EquipmentDamageService {
 
     public static void forget(ServerPlayer player) {
         LAST_DAMAGE.remove(player);
+        LAST_REFLECTION.remove(player);
+        REFLECTION_FRAMES.remove(player);
+        HEALTH_SAMPLES.remove(player);
     }
 
     public static DamageCategory classify(DamageSource source) {

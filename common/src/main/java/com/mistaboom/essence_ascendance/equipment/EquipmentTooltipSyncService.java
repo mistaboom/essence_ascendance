@@ -7,7 +7,6 @@ import com.mistaboom.essence_ascendance.progression.StatScalingService;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.EssenceStats;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
-import com.mistaboom.essence_ascendance.stat.StatUnit;
 import dev.architectury.networking.NetworkManager;
 import dev.architectury.platform.Platform;
 import dev.architectury.utils.Env;
@@ -25,7 +24,8 @@ import java.util.WeakHashMap;
 /*
  * Builds player-aware Ascendance equipment tooltip snapshots.
  *
- * Only current values are displayed. Tier ranges/ceilings remain available
+ * Current Stats contains native item-tier values only; slider contributions
+ * appear only in Essence Abilities. Tier ranges/ceilings remain available
  * through commands/debugging but are intentionally omitted from ordinary item
  * tooltips.
  */
@@ -113,7 +113,7 @@ public final class EquipmentTooltipSyncService {
                 EssenceSavedData.get(player.server).getPlayerData(player.getUUID());
 
         ArmorSetState armorSet = evaluateArmorSet(player);
-        List<EquipmentTooltipPayload.Entry> entries = new ArrayList<>(80);
+        List<EquipmentTooltipPayload.Entry> entries = new ArrayList<>(96);
 
         // Tooltip presentation is stack-tier aware. A single registered item can
         // exist at six completed equipment tiers, so synchronize one resolved
@@ -131,10 +131,12 @@ public final class EquipmentTooltipSyncService {
             entries.add(tool(data, EquipmentProfiles.AXE, "ascendance_axe", "Axe", itemTier));
             entries.add(tool(data, EquipmentProfiles.SHOVEL, "ascendance_shovel", "Shovel", itemTier));
             entries.add(tool(data, EquipmentProfiles.HOE, "ascendance_hoe", "Hoe", itemTier));
+            entries.add(shield(data, itemTier, false));
+            entries.add(shield(data, itemTier, true));
         }
 
-        // Fractured state is stack-specific, but its active gameplay baseline is
-        // always the mundane Latent baseline with no Essence abilities. One
+        // The existing non-shield families retain their mundane Latent fallback.
+        // Shield-specific per-tier Fractured entries above disable blocking/reflection. One
         // extra snapshot per equipment type is enough; the client keeps the
         // real completed tier identity line from the normal tier snapshot.
         entries.add(fractured(armor(data, armorSet, EquipmentSlot.HEAD, "Helmet", EquipmentTier.LATENT)));
@@ -150,6 +152,38 @@ public final class EquipmentTooltipSyncService {
         entries.add(fractured(tool(data, EquipmentProfiles.HOE, "ascendance_hoe", "Hoe", EquipmentTier.LATENT)));
 
         return new EquipmentTooltipPayload(entries);
+    }
+
+    private static EquipmentTooltipPayload.Entry shield(
+            PlayerEssenceData data, EquipmentTier itemTier, boolean fractured
+    ) {
+        EquipmentShieldService.Context context = EquipmentShieldService.resolve(data, itemTier, fractured);
+        List<EquipmentTooltipPayload.Line> lines = new ArrayList<>();
+        lines.add(identity(itemTier, "Shield"));
+        // Numeric durability belongs to vanilla's advanced tooltip (F3+H).
+        if (fractured) {
+            lines.add(stat("shield.fractured", ""));
+        } else {
+            lines.add(stat("shield.innate", number(context.innateReflectionPercent())));
+            lines.add(stat("shield.amplification", number(context.amplification())));
+            // Current Stats must not vary with allocations or other equipped items.
+            lines.add(stat("shield.blocked", number(context.nativeBlockedReflectionPercent())));
+            addShieldAbility(lines, "shield.invested", context.investedReflectionPercent());
+            addShieldAbility(lines, "shield.blocked_invested", context.investedBlockedReflectionPercent());
+            addShieldAbility(lines, "shield.guard_recovery", context.guardRecoveryPercent());
+            addShieldAbility(lines, "shield.guarded_movement", context.guardedMovementPercent());
+            addShieldAbility(lines, "shield.durability_efficiency", context.durabilityEfficiencyPercent());
+        }
+        String key = "essence_ascendance:ascendance_shield#" + itemTier.serializedName();
+        return new EquipmentTooltipPayload.Entry(key + (fractured ? "#fractured" : ""),
+                lines, fractured ? 0.0D : context.guardedMovementPercent());
+    }
+
+    private static void addShieldAbility(List<EquipmentTooltipPayload.Line> lines, String key, double value) {
+        if (value > EPSILON) {
+            lines.add(translated(EquipmentTooltipPayload.Group.ESSENCE,
+                    EquipmentTooltipPayload.Tone.ABILITY, key, number(value)));
+        }
     }
 
     private static EquipmentTooltipPayload.Entry armor(
@@ -214,30 +248,12 @@ public final class EquipmentTooltipSyncService {
                         itemTier
                 );
 
-        double damage =
-                percentCurrent(
-                        data,
-                        itemTier,
-                        EssenceStats.MELEE_DAMAGE,
-                        1.0,
-                        base.meleeDamage()
-                );
-
-        double speed =
-                percentCurrent(
-                        data,
-                        itemTier,
-                        EssenceStats.MELEE_ATTACK_SPEED,
-                        1.0,
-                        base.meleeAttackSpeed()
-                );
-
         List<EquipmentTooltipPayload.Line> lines =
                 new ArrayList<>();
 
         lines.add(identity(itemTier, "Melee Weapon"));
-        lines.add(stat("stat.attack_damage", number(damage)));
-        lines.add(stat("stat.attack_speed", number(speed)));
+        lines.add(stat("stat.attack_damage", number(base.meleeDamage())));
+        lines.add(stat("stat.attack_speed", number(base.meleeAttackSpeed())));
 
         addProfileAbilities(
                 lines,
@@ -266,30 +282,12 @@ public final class EquipmentTooltipSyncService {
                         itemTier
                 );
 
-        double damage =
-                percentCurrent(
-                        data,
-                        itemTier,
-                        EssenceStats.RANGED_DAMAGE,
-                        1.0,
-                        base.rangedDamage()
-                );
-
-        double drawSpeed =
-                percentCurrent(
-                        data,
-                        itemTier,
-                        EssenceStats.RANGED_ATTACK_SPEED,
-                        1.0,
-                        base.rangedAttackSpeed()
-                );
-
         List<EquipmentTooltipPayload.Line> lines =
                 new ArrayList<>();
 
         lines.add(identity(itemTier, "Ranged Weapon"));
-        lines.add(stat("stat.ranged_damage", number(damage)));
-        lines.add(stat("stat.draw_speed", number(drawSpeed)));
+        lines.add(stat("stat.ranged_damage", number(base.rangedDamage())));
+        lines.add(stat("stat.draw_speed", number(base.rangedAttackSpeed())));
 
         addProfileAbilities(
                 lines,
@@ -318,30 +316,12 @@ public final class EquipmentTooltipSyncService {
                         itemTier
                 );
 
-        double damage =
-                percentCurrent(
-                        data,
-                        itemTier,
-                        EssenceStats.MAGIC_DAMAGE,
-                        1.0,
-                        base.magicDamage()
-                );
-
-        double castSpeed =
-                percentCurrent(
-                        data,
-                        itemTier,
-                        EssenceStats.MAGIC_CAST_SPEED,
-                        1.0,
-                        base.magicCastSpeed()
-                );
-
         List<EquipmentTooltipPayload.Line> lines =
                 new ArrayList<>();
 
         lines.add(identity(itemTier, "Caster"));
-        lines.add(stat("stat.magic_damage", number(damage)));
-        lines.add(stat("stat.cast_speed", number(castSpeed)));
+        lines.add(stat("stat.magic_damage", number(base.magicDamage())));
+        lines.add(stat("stat.cast_speed", number(base.magicCastSpeed())));
 
         addProfileAbilities(
                 lines,
@@ -373,58 +353,13 @@ public final class EquipmentTooltipSyncService {
                         itemTier
                 );
 
-        double miningStrength =
-                profile.statStrength(
-                        EquipmentActivationType.HELD,
-                        EssenceStats.MINING_SPEED
-                );
-
-        double damageStrength =
-                profile.statStrength(
-                        EquipmentActivationType.HELD,
-                        EssenceStats.MELEE_DAMAGE
-                );
-
-        double speedStrength =
-                profile.statStrength(
-                        EquipmentActivationType.HELD,
-                        EssenceStats.MELEE_ATTACK_SPEED
-                );
-
-        double miningSpeed =
-                percentCurrent(
-                        data,
-                        itemTier,
-                        EssenceStats.MINING_SPEED,
-                        miningStrength,
-                        base.miningSpeed()
-                );
-
-        double damage =
-                percentCurrent(
-                        data,
-                        itemTier,
-                        EssenceStats.MELEE_DAMAGE,
-                        damageStrength,
-                        base.meleeDamage()
-                );
-
-        double attackSpeed =
-                percentCurrent(
-                        data,
-                        itemTier,
-                        EssenceStats.MELEE_ATTACK_SPEED,
-                        speedStrength,
-                        base.meleeAttackSpeed()
-                );
-
         List<EquipmentTooltipPayload.Line> lines =
                 new ArrayList<>();
 
         lines.add(identity(itemTier, label));
-        lines.add(stat("stat.mining_speed", number(miningSpeed)));
-        lines.add(stat("stat.attack_damage", number(damage)));
-        lines.add(stat("stat.attack_speed", number(attackSpeed)));
+        lines.add(stat("stat.mining_speed", number(base.miningSpeed())));
+        lines.add(stat("stat.attack_damage", number(base.meleeDamage())));
+        lines.add(stat("stat.attack_speed", number(base.meleeAttackSpeed())));
         lines.add(stat("stat.harvest_level", Integer.toString(base.harvestLevel())));
 
         addProfileAbilities(
@@ -463,8 +398,9 @@ public final class EquipmentTooltipSyncService {
                 continue;
             }
 
-            double strength =
-                    entry.getValue() * outerStrength;
+            // Durability protection belongs to this item, not its passive armor coverage.
+            double strength = entry.getValue() *
+                    (stat.id().equals(EssenceStats.DURABILITY_EFFICIENCY.id()) ? 1.0 : outerStrength);
 
             double resolved =
                     bonus(
@@ -535,16 +471,6 @@ public final class EquipmentTooltipSyncService {
                 stat,
                 effective.ascendanceTier()
         ) * strength;
-    }
-
-    private static double percentCurrent(
-            PlayerEssenceData data,
-            EquipmentTier itemTier,
-            StatDefinition stat,
-            double strength,
-            double base
-    ) {
-        return base * (1.0D + bonus(data, itemTier, stat, strength) / 100.0D);
     }
 
     private static EquipmentTooltipPayload.Line identity(

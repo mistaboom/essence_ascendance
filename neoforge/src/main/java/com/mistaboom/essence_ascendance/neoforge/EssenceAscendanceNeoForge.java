@@ -14,7 +14,6 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingHealEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.enchanting.GetEnchantmentLevelEvent;
@@ -31,16 +30,12 @@ public final class EssenceAscendanceNeoForge {
         );
 
         /*
-         * NeoForge exposes mutable incoming damage, post-damage health loss,
+         * NeoForge exposes mutable incoming damage
          * and mutable healing events. These listeners therefore remain thin
          * loader adapters into the common gameplay services.
          */
         NeoForge.EVENT_BUS.addListener(
                 EssenceAscendanceNeoForge::onIncomingDamage
-        );
-
-        NeoForge.EVENT_BUS.addListener(
-                EssenceAscendanceNeoForge::onDamagePost
         );
 
         NeoForge.EVENT_BUS.addListener(
@@ -93,20 +88,6 @@ public final class EssenceAscendanceNeoForge {
                         event.getSource(),
                         event.getAmount()
                 )
-        );
-    }
-
-    private static void onDamagePost(
-            LivingDamageEvent.Post event
-    ) {
-        if (!(event.getEntity() instanceof ServerPlayer player)) {
-            return;
-        }
-
-        EquipmentDamageService.reflectAfterDamage(
-                player,
-                event.getSource(),
-                event.getNewDamage()
         );
     }
 

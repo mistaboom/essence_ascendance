@@ -108,10 +108,14 @@ public final class EquipmentStatResolver {
         );
     }
 
-    /*
-     * Full passive armor state. Separate pieces add their configured coverage
-     * shares, so a complete qualifying set naturally reaches 1.0x.
-     */
+    /** Guard-only effects are queried explicitly; they never become generic held/worn passives. */
+    public static EquipmentStatState evaluateGuardingShield(LivingEntity entity) {
+        return EquipmentShieldService.isGuarding(entity)
+                ? evaluateItem(entity, entity.getUseItem(), EquipmentActivationType.GUARDING)
+                : EquipmentStatState.none();
+    }
+
+    /* Full passive armor state. Four qualifying pieces add their coverage shares to 1.0x. */
     public static EquipmentStatState evaluateWornArmor(LivingEntity entity) {
         Objects.requireNonNull(entity, "Entity cannot be null");
 

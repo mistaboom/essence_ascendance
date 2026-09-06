@@ -20,6 +20,7 @@ public final class EssenceServerConfig {
     private final double pylonRadius;
     private final int maxActivePylons;
     private final InfuserBalanceSettings infuserBalance;
+    private final ShieldBalanceSettings shieldBalance;
     private final LatentOreWorldgenSettings latentOreWorldgen;
     private final BalanceProfileDefinition balanceProfile;
     private final Map<ResourceLocation, MilestoneDefinition> milestones;
@@ -34,6 +35,7 @@ public final class EssenceServerConfig {
             double pylonRadius,
             int maxActivePylons,
             InfuserBalanceSettings infuserBalance,
+            ShieldBalanceSettings shieldBalance,
             LatentOreWorldgenSettings latentOreWorldgen,
             BalanceProfileDefinition balanceProfile,
             Map<ResourceLocation, MilestoneDefinition> milestones,
@@ -41,6 +43,7 @@ public final class EssenceServerConfig {
             Map<ResourceLocation, Double> statMaxBonuses,
             EquipmentBaselineConfig equipmentBaselineConfig
     ) {
+        this.shieldBalance = Objects.requireNonNull(shieldBalance, "Shield balance cannot be null");
         this.configVersion = configVersion;
         this.skillEssencesEnabled = skillEssencesEnabled;
         if (!(pylonRadius > 0.0D) || !Double.isFinite(pylonRadius)) {
@@ -130,6 +133,8 @@ public final class EssenceServerConfig {
     public int maxActivePylons() {
         return maxActivePylons;
     }
+
+    public ShieldBalanceSettings shieldBalance() { return shieldBalance; }
 
     public InfuserBalanceSettings infuserBalance() {
         return infuserBalance;

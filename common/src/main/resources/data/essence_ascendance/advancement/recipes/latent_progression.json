@@ -161,7 +161,8 @@
       "essence_ascendance:latent_ingot_from_smelting_raw_latent_ore",
       "essence_ascendance:latent_nugget_from_ingot",
       "essence_ascendance:raw_latent_ore_block",
-      "essence_ascendance:raw_latent_ore_from_block"
+      "essence_ascendance:raw_latent_ore_from_block",
+      "essence_ascendance:ascendance_shield"
     ]
   },
   "sends_telemetry_event": false

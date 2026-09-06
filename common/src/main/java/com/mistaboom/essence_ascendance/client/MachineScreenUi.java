@@ -3,6 +3,7 @@ package com.mistaboom.essence_ascendance.client;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.inventory.Slot;
 
 import java.util.List;
 
@@ -27,6 +28,9 @@ public final class MachineScreenUi {
     public static final int WARN = 0xFFE4C36A;
     public static final int BAD = 0xFFE27777;
 
+    private static final int ITEM_SLOT_SIZE = 20;
+    private static final int ITEM_SLOT_INSET = 2; // (20px frame - 16px item) / 2
+
     private MachineScreenUi() {
     }
 
@@ -47,12 +51,31 @@ public final class MachineScreenUi {
 
     /** Standard normal-machine input/socket treatment. */
     public static void inputSlot(GuiGraphics graphics, int x, int y) {
-        accentedInset(graphics, x, y, 20, 20);
+        accentedInset(graphics, x, y, ITEM_SLOT_SIZE, ITEM_SLOT_SIZE);
     }
 
     /** Standard normal-machine output treatment. */
     public static void outputSlot(GuiGraphics graphics, int x, int y) {
-        inset(graphics, x, y, 20, 20);
+        inset(graphics, x, y, ITEM_SLOT_SIZE, ITEM_SLOT_SIZE);
+    }
+
+    /** Draws a socket around the actual menu slot, not an independent guessed origin. */
+    public static void inputSlot(GuiGraphics graphics, int leftPos, int topPos, Slot slot) {
+        itemSlot(graphics, leftPos, topPos, slot, BORDER);
+    }
+
+    public static void outputSlot(GuiGraphics graphics, int leftPos, int topPos, Slot slot) {
+        itemSlot(graphics, leftPos, topPos, slot, DIVIDER);
+    }
+
+    /** Shared frame geometry, including unavailable-but-occupied Crucible lanes. */
+    public static void itemSlot(
+            GuiGraphics graphics, int leftPos, int topPos, Slot slot, int borderColor
+    ) {
+        int x = leftPos + slot.x - ITEM_SLOT_INSET;
+        int y = topPos + slot.y - ITEM_SLOT_INSET;
+        graphics.fill(x, y, x + ITEM_SLOT_SIZE, y + ITEM_SLOT_SIZE, PANEL_INNER);
+        outline(graphics, x, y, ITEM_SLOT_SIZE, ITEM_SLOT_SIZE, borderColor);
     }
 
     public static void progressBar(

@@ -239,6 +239,9 @@ public final class StatScalingDefaults {
                 "durability_efficiency",
                 50.0
         );
+
+        register("guard_recovery", 80.0);
+        register("guarded_movement", 100.0);
     }
 
 

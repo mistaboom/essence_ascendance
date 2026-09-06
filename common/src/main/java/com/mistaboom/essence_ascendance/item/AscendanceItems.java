@@ -235,6 +235,10 @@ public final class AscendanceItems {
             );
 
 
+    public static final RegistrySupplier<AscendanceShieldItem> ASCENDANCE_SHIELD =
+            ITEMS.register("ascendance_shield", () -> new AscendanceShieldItem(
+                    new Item.Properties().durability(336).fireResistant()));
+
     private AscendanceItems() {
     }
 
@@ -267,6 +271,7 @@ public final class AscendanceItems {
     public static void init() {
 
         ITEMS.register();
+        CreativeTabRegistry.append(CreativeModeTabs.COMBAT, ASCENDANCE_SHIELD);
 
 
         CreativeTabRegistry.append(

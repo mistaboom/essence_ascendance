@@ -473,8 +473,14 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     private int equipmentInfusionStatus(EquipmentInfusionRecipe recipe) {
         ItemStack workpiece = getItem(INPUT_SLOT);
         if (!EquipmentTierData.isAscendanceEquipment(workpiece)
+                || workpiece.getCount() != 1
                 || EquipmentTierData.tier(workpiece) != recipe.currentTier()) {
             return STATUS_INVALID_INPUT;
+        }
+        // Tier upgrades produce one individualized artifact. Do not spend more
+        // Essence while the output is occupied, or overwrite an earlier result.
+        if (!getItem(OUTPUT_SLOT).isEmpty()) {
+            return STATUS_OUTPUT_BLOCKED;
         }
         PlayerEssenceData data = ownerPlayerData();
         if (data == null) {
@@ -927,7 +933,10 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         PlayerEssenceData data = ownerPlayerData();
         ItemStack component = getItem(COMPONENT_SLOT);
         if (data == null
+                || !EquipmentTierData.isAscendanceEquipment(workpiece)
+                || workpiece.getCount() != 1
                 || EquipmentTierData.tier(workpiece) != recipe.currentTier()
+                || !getItem(OUTPUT_SLOT).isEmpty()
                 || !EquipmentInfusionData.requirementsMet(workpiece, recipe)
                 || !component.is(EssenceInfuserContent.ASCENDANCE_MATRIX.get())
                 || component.getCount() < recipe.matrixCount()) {
@@ -941,9 +950,16 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
                     "Failed to complete equipment infusion; retaining workpiece progress and Matrix", failure);
             return;
         }
+        if (!canAcceptOutput(completed)) {
+            return;
+        }
+        // Publish the fully staged result only after every completion check.
+        // Unused Matrices stay in their component slot; only the workpiece moves.
         component.shrink(recipe.matrixCount());
         if (component.isEmpty()) items.set(COMPONENT_SLOT, ItemStack.EMPTY);
-        items.set(INPUT_SLOT, completed);
+        items.set(INPUT_SLOT, ItemStack.EMPTY);
+        items.set(OUTPUT_SLOT, completed);
+        processingVisualActive = false;
         processingTicks = 0;
         focusThroughputRemainderTwentieths = 0;
         processingEnabled = false;
