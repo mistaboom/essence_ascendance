@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 /*
- * Synchronizes the authoritative resolved item -> Attribute Essence display
+ * Synchronizes the authoritative resolved item -> Essence display
  * table to clients.
  *
  * This deliberately sends resolved ITEM IDs rather than raw mapping rules:

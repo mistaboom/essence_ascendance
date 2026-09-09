@@ -225,6 +225,19 @@ public final class EquipmentAttributeService {
                 );
 
         /*
+         * A usable shield contributes Knockback Resistance only after it has
+         * genuinely reached Minecraft's blocking state. Merge by MAX so the
+         * player's one investment is never counted once through armor and a
+         * second time through the shield.
+         */
+        EquipmentStatState guarding =
+                EquipmentStatResolver.evaluateGuardingShield(player);
+        double knockbackApplicability = Math.max(
+                worn.strength(EssenceStats.KNOCKBACK_RESISTANCE),
+                guarding.strength(EssenceStats.KNOCKBACK_RESISTANCE)
+        );
+
+        /*
          * Passive worn effects plus the active main hand merge by MAX for the
          * same stat. This is especially important for Reach: a full Ascendance
          * armor set and an Ascendance tool must not double-dip one investment.
@@ -246,7 +259,7 @@ public final class EquipmentAttributeService {
                 fractionBonus(playerData, EssenceStats.MINING_SPEED, held.strength(EssenceStats.MINING_SPEED)),
                 EquipmentValueService.scaledBonus(playerData, EssenceStats.MAX_HEALTH, worn.strength(EssenceStats.MAX_HEALTH)) * HEALTH_POINTS_PER_HEART,
                 fractionBonus(playerData, EssenceStats.MOVEMENT_SPEED, worn.strength(EssenceStats.MOVEMENT_SPEED)),
-                fractionBonus(playerData, EssenceStats.KNOCKBACK_RESISTANCE, worn.strength(EssenceStats.KNOCKBACK_RESISTANCE)),
+                fractionBonus(playerData, EssenceStats.KNOCKBACK_RESISTANCE, knockbackApplicability),
                 fractionBonus(playerData, EssenceStats.SNEAK_SPEED, worn.strength(EssenceStats.SNEAK_SPEED)),
                 EquipmentValueService.scaledBonus(playerData, EssenceStats.STEP_HEIGHT, worn.strength(EssenceStats.STEP_HEIGHT)),
                 EquipmentValueService.scaledBonus(playerData, EssenceStats.REACH, active.strength(EssenceStats.REACH))

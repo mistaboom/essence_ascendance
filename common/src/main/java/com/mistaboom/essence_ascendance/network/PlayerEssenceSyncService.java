@@ -5,7 +5,6 @@ import com.mistaboom.essence_ascendance.config.EssenceServerConfig;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
-import com.mistaboom.essence_ascendance.essence.EssenceFamily;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.progression.AscendanceAdvancementDefinition;
 import com.mistaboom.essence_ascendance.progression.AscendanceEngine;
@@ -226,11 +225,6 @@ public final class PlayerEssenceSyncService {
 
         for (EssenceDefinition essence :
                 EssenceRegistry.values()) {
-
-            if (essence.family() == EssenceFamily.SKILL
-                    && !config.skillEssencesEnabled()) {
-                continue;
-            }
 
             balances.add(
                     new PlayerEssenceSyncPayload.EssenceBalance(

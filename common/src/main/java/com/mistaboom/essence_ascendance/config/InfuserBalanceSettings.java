@@ -119,7 +119,7 @@ public record InfuserBalanceSettings(
             }
             long minimumTotal = Math.multiplyExact(minimumPerAttributeEssence, 6L);
             if (totalEssenceRequired < minimumTotal) {
-                throw new IllegalArgumentException("Focus infusion total must cover all six Attribute Essence minimums");
+                throw new IllegalArgumentException("Focus infusion total must cover all six Essence minimums");
             }
         }
     }

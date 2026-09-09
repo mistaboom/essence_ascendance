@@ -7,72 +7,15 @@ import java.util.List;
 
 public final class EssenceCrucibleEssences {
 
-    /*
-     * Core Crucible processing/channeling currently operates on Attribute
-     * Essence only. Keep ORDERED as the compatibility alias used by the
-     * existing machine logic.
-     */
-    public static final List<EssenceDefinition> ATTRIBUTE_ORDERED = List.of(
-            EssenceTypes.OFFENSE,
-            EssenceTypes.DEFENSE,
-            EssenceTypes.VITALITY,
-            EssenceTypes.MOBILITY,
-            EssenceTypes.GATHERING,
-            EssenceTypes.UTILITY
-    );
-
     public static final List<EssenceDefinition> ORDERED =
-            ATTRIBUTE_ORDERED;
-
-    /*
-     * Skill Essence remains registered/persistent even while its presentation
-     * feature flag is disabled. This list is used only for optional UI/state
-     * presentation in the current core mod.
-     */
-    public static final List<EssenceDefinition> SKILL_ORDERED = List.of(
-            EssenceTypes.PYRE,
-            EssenceTypes.FLOW,
-            EssenceTypes.TERRA,
-            EssenceTypes.GALE,
-            EssenceTypes.BODY,
-            EssenceTypes.MIND,
-            EssenceTypes.SPIRIT,
-            EssenceTypes.RADIANCE,
-            EssenceTypes.VOID
-    );
-
-    public static final List<EssenceDefinition> ALL_ORDERED = List.of(
-            EssenceTypes.OFFENSE,
-            EssenceTypes.DEFENSE,
-            EssenceTypes.VITALITY,
-            EssenceTypes.MOBILITY,
-            EssenceTypes.GATHERING,
-            EssenceTypes.UTILITY,
-            EssenceTypes.PYRE,
-            EssenceTypes.FLOW,
-            EssenceTypes.TERRA,
-            EssenceTypes.GALE,
-            EssenceTypes.BODY,
-            EssenceTypes.MIND,
-            EssenceTypes.SPIRIT,
-            EssenceTypes.RADIANCE,
-            EssenceTypes.VOID
-    );
+            EssenceTypes.ORDERED;
 
     private EssenceCrucibleEssences() {
     }
 
-    public static List<EssenceDefinition> enabledOrdered(
-            boolean skillEssencesEnabled
-    ) {
-        return skillEssencesEnabled
-                ? ALL_ORDERED
-                : ATTRIBUTE_ORDERED;
-    }
-
     public static int indexOf(EssenceDefinition essence) {
-        for (int i = 0; i < ATTRIBUTE_ORDERED.size(); i++) {
-            if (ATTRIBUTE_ORDERED.get(i).id().equals(essence.id())) {
+        for (int i = 0; i < ORDERED.size(); i++) {
+            if (ORDERED.get(i).id().equals(essence.id())) {
                 return i;
             }
         }
@@ -91,18 +34,4 @@ public final class EssenceCrucibleEssences {
         };
     }
 
-    public static String skillShortName(int index) {
-        return switch (index) {
-            case 0 -> "Pyre";
-            case 1 -> "Flow";
-            case 2 -> "Terra";
-            case 3 -> "Gale";
-            case 4 -> "Body";
-            case 5 -> "Mind";
-            case 6 -> "Spirit";
-            case 7 -> "Radiance";
-            case 8 -> "Void";
-            default -> "Unknown";
-        };
-    }
 }

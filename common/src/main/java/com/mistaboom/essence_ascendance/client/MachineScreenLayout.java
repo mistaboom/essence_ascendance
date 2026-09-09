@@ -6,6 +6,8 @@ package com.mistaboom.essence_ascendance.client;
  */
 public final class MachineScreenLayout {
 
+    /** Standard width for the main panel used by normal machine screens. */
+    public static final int MAIN_PANEL_WIDTH = 230;
     /** Standard width for the Info side panel used by normal machines. */
     public static final int INFO_PANEL_WIDTH = 180;
     /** Gap between a machine's main panel and a side panel. */

@@ -3,7 +3,6 @@ package com.mistaboom.essence_ascendance.command;
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
-import com.mistaboom.essence_ascendance.essence.EssenceFamily;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTier;
 import com.mistaboom.essence_ascendance.progression.MilestoneDefinition;
@@ -234,13 +233,6 @@ final class EssenceCommandUtil {
         return EssenceText.command("bonus." + unit, number);
     }
 
-    static boolean isEssenceVisible(
-            EssenceDefinition essence
-    ) {
-        return essence.family() != EssenceFamily.SKILL
-                || EssenceConfigManager.get().skillEssencesEnabled();
-    }
-
     static EssenceDefinition resolveEssence(String input) throws CommandSyntaxException {
         ResourceLocation id = parseId(input);
         if (id == null) {
@@ -248,11 +240,6 @@ final class EssenceCommandUtil {
         }
         EssenceDefinition essence = EssenceRegistry.get(id)
                 .orElseThrow(() -> UNKNOWN_ESSENCE.create(input));
-
-        if (!isEssenceVisible(essence)) {
-            throw UNKNOWN_ESSENCE.create(input);
-        }
-
         return essence;
     }
 
@@ -317,10 +304,6 @@ final class EssenceCommandUtil {
     ) {
         String remaining = builder.getRemainingLowerCase();
         for (EssenceDefinition essence : EssenceRegistry.values()) {
-            if (!isEssenceVisible(essence)) {
-                continue;
-            }
-
             String name = essence.id().getPath();
             if (name.startsWith(remaining)) {
                 builder.suggest(name);

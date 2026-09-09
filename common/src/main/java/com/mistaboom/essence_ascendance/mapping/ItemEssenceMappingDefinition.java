@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Objects;
 
 /*
- * One datapack-defined item -> Attribute Essence mapping rule.
+ * One datapack-defined item -> Essence mapping rule.
  *
  * Exactly one selector is active:
  * - an explicit Item, or

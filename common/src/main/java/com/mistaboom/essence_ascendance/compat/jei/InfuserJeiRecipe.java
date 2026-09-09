@@ -2,7 +2,6 @@ package com.mistaboom.essence_ascendance.compat.jei;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
-import com.mistaboom.essence_ascendance.essence.EssenceFamily;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTier;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTierData;
@@ -241,12 +240,6 @@ public final class InfuserJeiRecipe {
 
     public boolean fracturedRepair() {
         return fracturedRepair;
-    }
-
-    public boolean isSkillEssentiumRecipe() {
-        return kind == Kind.ESSENTIUM
-                && targetEssence != null
-                && targetEssence.family() == EssenceFamily.SKILL;
     }
 
     public Optional<EssenceInfuserRecipe> resolve() {

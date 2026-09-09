@@ -19,7 +19,7 @@ public final class EssenceCrucibleMenu extends AbstractContainerMenu {
 
     /* Item origins centered inside the existing 20px input frames. */
     private static final int[] MACHINE_SLOT_X = {
-            142, 124, 160, 106, 178, 88, 196, 70, 214
+            107, 89, 125, 71, 143, 53, 161, 35, 179
     };
     private static final int MACHINE_SLOT_Y = 34;
 
@@ -121,7 +121,7 @@ public final class EssenceCrucibleMenu extends AbstractContainerMenu {
                         new Slot(
                                 playerInventory,
                                 column + row * 9 + 9,
-                                70 + column * 18,
+                                35 + column * 18,
                                 238 + row * 18
                         )
                 );
@@ -134,7 +134,7 @@ public final class EssenceCrucibleMenu extends AbstractContainerMenu {
                     new Slot(
                             playerInventory,
                             column,
-                            70 + column * 18,
+                            35 + column * 18,
                             296
                     )
             );

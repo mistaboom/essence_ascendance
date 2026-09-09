@@ -4,7 +4,6 @@ import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
-import com.mistaboom.essence_ascendance.essence.EssenceFamily;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -13,7 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
-/** Server-authoritative atomic Attribute Essence allocation/reallocation. */
+/** Server-authoritative atomic Essence allocation/reallocation. */
 public final class AscendanceAllocationService {
 
     private AscendanceAllocationService() {
@@ -94,12 +93,6 @@ public final class AscendanceAllocationService {
 
                 if (current != baseInvestment) {
                     return Result.stale();
-                }
-
-                if (stat.essenceType().family() != EssenceFamily.ATTRIBUTE) {
-                    return Result.invalid(
-                            "Only Attribute Essence can be allocated here."
-                    );
                 }
 
                 if (target < 0L) {

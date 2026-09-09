@@ -16,7 +16,6 @@ import java.util.Optional;
 public final class EssenceServerConfig {
 
     private final int configVersion;
-    private final boolean skillEssencesEnabled;
     private final double pylonRadius;
     private final int maxActivePylons;
     private final InfuserBalanceSettings infuserBalance;
@@ -31,7 +30,6 @@ public final class EssenceServerConfig {
 
     public EssenceServerConfig(
             int configVersion,
-            boolean skillEssencesEnabled,
             double pylonRadius,
             int maxActivePylons,
             InfuserBalanceSettings infuserBalance,
@@ -45,7 +43,6 @@ public final class EssenceServerConfig {
     ) {
         this.shieldBalance = Objects.requireNonNull(shieldBalance, "Shield balance cannot be null");
         this.configVersion = configVersion;
-        this.skillEssencesEnabled = skillEssencesEnabled;
         if (!(pylonRadius > 0.0D) || !Double.isFinite(pylonRadius)) {
             throw new IllegalArgumentException("Pylon radius must be finite and positive");
         }
@@ -120,10 +117,6 @@ public final class EssenceServerConfig {
 
     public int configVersion() {
         return configVersion;
-    }
-
-    public boolean skillEssencesEnabled() {
-        return skillEssencesEnabled;
     }
 
     public double pylonRadius() {

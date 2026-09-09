@@ -4,7 +4,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
-import com.mistaboom.essence_ascendance.essence.EssenceFamily;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -295,16 +294,6 @@ final class ItemEssenceMappingJson {
                                                             + "'"
                                             )
                             );
-
-            if (essence.family()
-                    != EssenceFamily.ATTRIBUTE) {
-                throw new IllegalArgumentException(
-                        "only Attribute Essence may be mapped by the core mod; '"
-                                + essenceId
-                                + "' is "
-                                + essence.family()
-                );
-            }
 
             long amount =
                     readExactLong(

@@ -21,7 +21,12 @@ public abstract class LocalPlayerShieldMovementMixin {
     private float essenceAscendance$shieldSlowdown(float vanillaMultiplier) {
         LocalPlayer player = (LocalPlayer) (Object) this;
         if (!EquipmentShieldService.isUsingShield(player)) return vanillaMultiplier;
+
+        // Guarded Movement never enables a sprinting shield charge.
         player.setSprinting(false);
-        return ShieldMath.movementMultiplier(EquipmentTooltipClientState.guardedMovementPercent(player.getUseItem()));
+        if (!EquipmentShieldService.isGuarding(player)) return vanillaMultiplier;
+
+        return ShieldMath.movementMultiplier(vanillaMultiplier,
+                EquipmentTooltipClientState.guardedMovementPercent(player.getUseItem()));
     }
 }

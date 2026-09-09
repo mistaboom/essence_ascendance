@@ -70,7 +70,6 @@ public final class EssentiumBlockUncompactingRecipe extends CustomRecipe {
         }
 
         EssentiumCarrierData.Value value = EssentiumCarrierData.readValidated(found)
-                .filter(EssentiumCarrierData::isEnabled)
                 .orElse(null);
         if (value == null
                 || value.amount() != EssentiumCarrierData.capacityFor(found, value.grade())) {

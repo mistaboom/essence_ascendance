@@ -2,7 +2,6 @@ package com.mistaboom.essence_ascendance.infuser;
 
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
-import com.mistaboom.essence_ascendance.essence.EssenceFamily;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
 import net.minecraft.core.component.DataComponents;
@@ -87,11 +86,6 @@ public final class EssentiumCarrierData {
                 && stack.getItem() instanceof EssentiumItem;
     }
 
-    public static boolean isEnabled(Value value) {
-        return value.essence().family() != EssenceFamily.SKILL
-                || EssenceConfigManager.get().skillEssencesEnabled();
-    }
-
     public static long capacityFor(
             ItemStack stack,
             EssenceFocusTier grade
@@ -136,6 +130,9 @@ public final class EssentiumCarrierData {
             EssenceDefinition essence,
             EssenceFocusTier grade
     ) {
+        if (!isSupportedEssence(essence)) {
+            return ItemStack.EMPTY;
+        }
         long capacity = capacityFor(item, grade);
         if (capacity <= 0L) {
             return ItemStack.EMPTY;
@@ -151,6 +148,7 @@ public final class EssentiumCarrierData {
                 || stack.isEmpty()
                 || !(stack.getItem() instanceof EssentiumItem)
                 || value == null
+                || !isSupportedEssence(value.essence())
                 || value.amount() <= 0L) {
             throw new IllegalArgumentException("Invalid Essentium carrier data");
         }
@@ -178,6 +176,13 @@ public final class EssentiumCarrierData {
             }
         }
         return null;
+    }
+
+    private static boolean isSupportedEssence(EssenceDefinition essence) {
+        return essence != null
+                && EssenceRegistry.get(essence.id())
+                .filter(essence::equals)
+                .isPresent();
     }
 
     public record Value(

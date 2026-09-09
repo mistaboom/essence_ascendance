@@ -4,14 +4,11 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mistaboom.essence_ascendance.equipment.EquipmentDamageService;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.neoforge.common.damagesource.DamageContainer;
 import net.neoforged.neoforge.event.entity.living.LivingShieldBlockEvent;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(LivingEntity.class)
 public abstract class LivingEntityShieldDamageMixin {
@@ -25,12 +22,14 @@ public abstract class LivingEntityShieldDamageMixin {
         }
         original.call(container, event);
         if (eligible && (Object) this instanceof ServerPlayer player) {
+            // DamageContainer now contains NeoForge's final, clamped blocked amount.
             EquipmentDamageService.recordBlockedDamage(player, container.getSource(), container.getBlockedDamage());
+            /*
+             * Commit at the authoritative block operation. The surrounding
+             * hurt method may subsequently return early because of vanilla's
+             * post-hit immunity, but that must not erase a completed block.
+             */
+            EquipmentDamageService.commitBlock(player, container.getSource());
         }
-    }
-
-    @Inject(method = "hurt", at = @At("TAIL"))
-    private void essenceAscendance$commitBlock(DamageSource source, float amount, CallbackInfoReturnable<Boolean> ci) {
-        if ((Object) this instanceof ServerPlayer player) EquipmentDamageService.commitBlock(player, source);
     }
 }

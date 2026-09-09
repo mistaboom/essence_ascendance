@@ -5,11 +5,7 @@ import com.mistaboom.essence_ascendance.client.AscendanceNexusScreen;
 import com.mistaboom.essence_ascendance.client.EssenceCrucibleScreen;
 import com.mistaboom.essence_ascendance.client.EssenceInfuserScreen;
 import com.mistaboom.essence_ascendance.client.EssencePylonScreen;
-import com.mistaboom.essence_ascendance.client.JeiCarrierVisibilityBridge;
-import com.mistaboom.essence_ascendance.client.JeiTooltipSearchRefreshBridge;
-import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
-import com.mistaboom.essence_ascendance.essence.EssenceFamily;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserContent;
 import com.mistaboom.essence_ascendance.infuser.EssentiumBlockCompactingRecipe;
@@ -22,7 +18,6 @@ import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
-import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.gui.handlers.IGuiContainerHandler;
 import mezz.jei.api.gui.ingredient.ICraftingGridHelper;
 import mezz.jei.api.ingredients.subtypes.ISubtypeInterpreter;
@@ -86,11 +81,6 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
                     "tag_recipes/block"
             );
 
-    private static boolean skillCarrierIngredientsPresent = false;
-    private static Boolean skillInfuserRecipesVisible = null;
-    private static List<InfuserJeiRecipe> infuserRecipes = List.of();
-    private static List<InfuserJeiRecipe> skillInfuserRecipes = List.of();
-
     private static final ISubtypeInterpreter<ItemStack> ESSENTIUM_SUBTYPE =
             new ISubtypeInterpreter<>() {
                 @Override
@@ -138,15 +128,11 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
 
     @Override
     public void registerExtraIngredients(IExtraIngredientRegistration registration) {
-        boolean skillVisible = configuredSkillEssenceVisibility();
-
         List<ItemStack> variants = new ArrayList<>();
-        variants.addAll(carrierVariants(EssentiumItem.CarrierForm.NUGGET, 1, skillVisible));
-        variants.addAll(carrierVariants(EssentiumItem.CarrierForm.INGOT, 1, skillVisible));
-        variants.addAll(carrierVariants(EssentiumItem.CarrierForm.BLOCK, 1, skillVisible));
+        variants.addAll(carrierVariants(EssentiumItem.CarrierForm.NUGGET, 1));
+        variants.addAll(carrierVariants(EssentiumItem.CarrierForm.INGOT, 1));
+        variants.addAll(carrierVariants(EssentiumItem.CarrierForm.BLOCK, 1));
         registration.addExtraItemStacks(variants);
-
-        skillCarrierIngredientsPresent = skillVisible;
     }
 
     @Override
@@ -160,14 +146,9 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
 
     @Override
     public void registerRecipes(IRecipeRegistration registration) {
-        infuserRecipes = InfuserJeiRecipe.createAll();
-        skillInfuserRecipes = infuserRecipes.stream()
-                .filter(InfuserJeiRecipe::isSkillEssentiumRecipe)
-                .toList();
-
         registration.addRecipes(
                 InfuserJeiCategory.RECIPE_TYPE,
-                infuserRecipes
+                InfuserJeiRecipe.createAll()
         );
     }
 
@@ -182,24 +163,6 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
     @Override
     public void onRuntimeAvailable(IJeiRuntime jeiRuntime) {
         hideTagInformationCategories(jeiRuntime);
-
-        JeiCarrierVisibilityBridge.installRuntimeListener(
-                visible -> synchronizeSkillJeiState(
-                        jeiRuntime,
-                        visible
-                )
-        );
-
-        synchronizeSkillJeiState(
-                jeiRuntime,
-                currentSkillEssenceVisibility()
-        );
-    }
-
-    @Override
-    public void onRuntimeUnavailable() {
-        JeiCarrierVisibilityBridge.clearRuntimeListener();
-        skillInfuserRecipesVisible = null;
     }
 
     @Override
@@ -316,18 +279,6 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
             EssentiumItem.CarrierForm form,
             int stackCount
     ) {
-        return carrierVariants(
-                form,
-                stackCount,
-                currentSkillEssenceVisibility()
-        );
-    }
-
-    private static List<ItemStack> carrierVariants(
-            EssentiumItem.CarrierForm form,
-            int stackCount,
-            boolean skillVisible
-    ) {
         EssentiumItem item = itemFor(form);
         if (item == null) {
             return List.of();
@@ -335,11 +286,6 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
 
         List<ItemStack> result = new ArrayList<>();
         for (EssenceDefinition essence : EssenceRegistry.values()) {
-            if (essence.family() == EssenceFamily.SKILL
-                    && !skillVisible) {
-                continue;
-            }
-
             for (EssenceFocusTier grade : EssenceFocusTier.values()) {
                 ItemStack stack = EssentiumCarrierData.createFull(
                         item,
@@ -356,19 +302,6 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
         return List.copyOf(result);
     }
 
-    private static boolean currentSkillEssenceVisibility() {
-        Boolean synchronizedVisibility =
-                JeiCarrierVisibilityBridge.skillEssencesVisible();
-
-        return synchronizedVisibility != null
-                ? synchronizedVisibility
-                : configuredSkillEssenceVisibility();
-    }
-
-    private static boolean configuredSkillEssenceVisibility() {
-        return EssenceConfigManager.get().skillEssencesEnabled();
-    }
-
     private static void hideTagInformationCategories(IJeiRuntime jeiRuntime) {
         hideRecipeCategoryIfPresent(jeiRuntime, JEI_ITEM_TAG_RECIPES);
         hideRecipeCategoryIfPresent(jeiRuntime, JEI_BLOCK_TAG_RECIPES);
@@ -383,113 +316,6 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
                 .ifPresent(recipeType ->
                         jeiRuntime.getRecipeManager().hideRecipeCategory(recipeType)
                 );
-    }
-
-    private static void synchronizeSkillCarrierIngredients(
-            IJeiRuntime jeiRuntime,
-            boolean shouldBePresent
-    ) {
-        if (skillCarrierIngredientsPresent == shouldBePresent) {
-            return;
-        }
-
-        List<ItemStack> skillVariants = skillCarrierVariants();
-        if (skillVariants.isEmpty()) {
-            skillCarrierIngredientsPresent = shouldBePresent;
-            return;
-        }
-
-        if (shouldBePresent) {
-            jeiRuntime.getIngredientManager().addIngredientsAtRuntime(
-                    VanillaTypes.ITEM_STACK,
-                    skillVariants
-            );
-        } else {
-            jeiRuntime.getIngredientManager().removeIngredientsAtRuntime(
-                    VanillaTypes.ITEM_STACK,
-                    skillVariants
-            );
-        }
-
-        skillCarrierIngredientsPresent = shouldBePresent;
-        JeiTooltipSearchRefreshBridge.requestRefresh();
-
-        EssenceAscendance.LOGGER.info(
-                "{} {} Skill-Essentium JEI carrier variants after server config sync",
-                shouldBePresent ? "Added" : "Removed",
-                skillVariants.size()
-        );
-    }
-
-    private static void synchronizeSkillJeiState(
-            IJeiRuntime jeiRuntime,
-            boolean shouldBePresent
-    ) {
-        synchronizeSkillCarrierIngredients(jeiRuntime, shouldBePresent);
-        synchronizeSkillInfuserRecipes(jeiRuntime, shouldBePresent);
-    }
-
-    private static void synchronizeSkillInfuserRecipes(
-            IJeiRuntime jeiRuntime,
-            boolean shouldBeVisible
-    ) {
-        if (skillInfuserRecipesVisible != null
-                && skillInfuserRecipesVisible == shouldBeVisible) {
-            return;
-        }
-        if (skillInfuserRecipes.isEmpty()) {
-            skillInfuserRecipesVisible = shouldBeVisible;
-            return;
-        }
-
-        if (shouldBeVisible) {
-            jeiRuntime.getRecipeManager().unhideRecipes(
-                    InfuserJeiCategory.RECIPE_TYPE,
-                    skillInfuserRecipes
-            );
-        } else {
-            jeiRuntime.getRecipeManager().hideRecipes(
-                    InfuserJeiCategory.RECIPE_TYPE,
-                    skillInfuserRecipes
-            );
-        }
-
-        skillInfuserRecipesVisible = shouldBeVisible;
-        EssenceAscendance.LOGGER.info(
-                "{} {} Skill-Essence Infuser JEI recipes after server config sync",
-                shouldBeVisible ? "Unhid" : "Hid",
-                skillInfuserRecipes.size()
-        );
-    }
-
-    private static List<ItemStack> skillCarrierVariants() {
-        List<ItemStack> result = new ArrayList<>();
-
-        for (EssentiumItem.CarrierForm form : EssentiumItem.CarrierForm.values()) {
-            EssentiumItem item = itemFor(form);
-            if (item == null) {
-                continue;
-            }
-
-            for (EssenceDefinition essence : EssenceRegistry.values()) {
-                if (essence.family() != EssenceFamily.SKILL) {
-                    continue;
-                }
-
-                for (EssenceFocusTier grade : EssenceFocusTier.values()) {
-                    ItemStack stack = EssentiumCarrierData.createFull(
-                            item,
-                            essence,
-                            grade
-                    );
-                    if (!stack.isEmpty()) {
-                        result.add(stack);
-                    }
-                }
-            }
-        }
-
-        return List.copyOf(result);
     }
 
     private static EssentiumItem itemFor(EssentiumItem.CarrierForm form) {

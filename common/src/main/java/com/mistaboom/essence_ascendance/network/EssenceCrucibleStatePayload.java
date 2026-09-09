@@ -15,23 +15,14 @@ public record EssenceCrucibleStatePayload(
         String accessMode,
         boolean allowed,
         boolean channeling,
+        boolean dissolving,
         String channelingPlayer,
-        boolean skillEssencesEnabled,
         long offense,
         long defense,
         long vitality,
         long mobility,
         long gathering,
         long utility,
-        long pyre,
-        long flow,
-        long terra,
-        long gale,
-        long body,
-        long mind,
-        long spirit,
-        long radiance,
-        long voidEssence,
         long total,
         long reservoirCapacity,
         long transferRatePerSecond,
@@ -46,7 +37,7 @@ public record EssenceCrucibleStatePayload(
         int simultaneousItemProcesses
 ) implements CustomPacketPayload {
 
-    public static final int CURRENT_SCHEMA_VERSION = 6;
+    public static final int CURRENT_SCHEMA_VERSION = 8;
     private static final int MAX_TEXT = 128;
 
     public static final Type<EssenceCrucibleStatePayload> TYPE =
@@ -79,20 +70,6 @@ public record EssenceCrucibleStatePayload(
         };
     }
 
-    public long[] skillEssenceAmounts() {
-        return new long[]{
-                pyre,
-                flow,
-                terra,
-                gale,
-                body,
-                mind,
-                spirit,
-                radiance,
-                voidEssence
-        };
-    }
-
     private static void write(
             RegistryFriendlyByteBuf buffer,
             EssenceCrucibleStatePayload payload
@@ -104,23 +81,14 @@ public record EssenceCrucibleStatePayload(
         buffer.writeUtf(payload.accessMode, MAX_TEXT);
         buffer.writeBoolean(payload.allowed);
         buffer.writeBoolean(payload.channeling);
+        buffer.writeBoolean(payload.dissolving);
         buffer.writeUtf(payload.channelingPlayer, MAX_TEXT);
-        buffer.writeBoolean(payload.skillEssencesEnabled);
         buffer.writeLong(payload.offense);
         buffer.writeLong(payload.defense);
         buffer.writeLong(payload.vitality);
         buffer.writeLong(payload.mobility);
         buffer.writeLong(payload.gathering);
         buffer.writeLong(payload.utility);
-        buffer.writeLong(payload.pyre);
-        buffer.writeLong(payload.flow);
-        buffer.writeLong(payload.terra);
-        buffer.writeLong(payload.gale);
-        buffer.writeLong(payload.body);
-        buffer.writeLong(payload.mind);
-        buffer.writeLong(payload.spirit);
-        buffer.writeLong(payload.radiance);
-        buffer.writeLong(payload.voidEssence);
         buffer.writeLong(payload.total);
         buffer.writeLong(payload.reservoirCapacity);
         buffer.writeLong(payload.transferRatePerSecond);
@@ -146,17 +114,8 @@ public record EssenceCrucibleStatePayload(
                 buffer.readUtf(MAX_TEXT),
                 buffer.readBoolean(),
                 buffer.readBoolean(),
-                buffer.readUtf(MAX_TEXT),
                 buffer.readBoolean(),
-                buffer.readLong(),
-                buffer.readLong(),
-                buffer.readLong(),
-                buffer.readLong(),
-                buffer.readLong(),
-                buffer.readLong(),
-                buffer.readLong(),
-                buffer.readLong(),
-                buffer.readLong(),
+                buffer.readUtf(MAX_TEXT),
                 buffer.readLong(),
                 buffer.readLong(),
                 buffer.readLong(),

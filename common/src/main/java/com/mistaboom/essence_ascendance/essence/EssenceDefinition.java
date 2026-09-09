@@ -4,7 +4,6 @@ import net.minecraft.resources.ResourceLocation;
 
 public record EssenceDefinition(
         ResourceLocation id,
-        String displayName,
-        EssenceFamily family
+        String displayName
 ) {
 }

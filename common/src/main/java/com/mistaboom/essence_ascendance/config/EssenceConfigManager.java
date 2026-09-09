@@ -39,7 +39,7 @@ import java.util.Map;
 public final class EssenceConfigManager {
 
     public static final int CURRENT_CONFIG_VERSION =
-            9;
+            11;
 
     private static final int MAX_REQUIREMENT_DEPTH =
             32;
@@ -511,15 +511,6 @@ public final class EssenceConfigManager {
                 CURRENT_CONFIG_VERSION
         );
 
-        root.addProperty(
-                "_skill_essence_comment",
-                "Skill Essence is future/expansion content. When false, Skill Essence stays registered and persisted but is hidden from player commands and interfaces."
-        );
-        root.addProperty(
-                "enable_skill_essences",
-                false
-        );
-
         JsonObject cruciblePylons = new JsonObject();
         cruciblePylons.addProperty(
                 "_comment",
@@ -581,7 +572,7 @@ public final class EssenceConfigManager {
         JsonObject focusUpgrades = new JsonObject();
         focusUpgrades.addProperty(
                 "_comment",
-                "Focus upgrades consume all six core Attribute Essences automatically. minimum_per_attribute_essence is required from EACH core Attribute Essence; total_essence_required may be satisfied by any mix after all six minimums are met."
+                "Focus upgrades consume all six core Essences automatically. minimum_per_attribute_essence is required from EACH core Essence; total_essence_required may be satisfied by any mix after all six minimums are met."
         );
         for (String targetTier : new String[]{
                 "dormant", "awakened", "resonant", "ascendant", "transcendent"
@@ -741,6 +732,33 @@ public final class EssenceConfigManager {
         boolean changed = false;
 
         /*
+         * v10 retires the experimental Skill Essence family. These fields no
+         * longer control runtime behavior, so remove them instead of leaving
+         * a misleading dead toggle in upgraded configurations.
+         */
+        if (root.remove("_skill_essence_comment") != null) {
+            changed = true;
+        }
+        if (root.remove("enable_skill_essences") != null) {
+            changed = true;
+        }
+
+        /*
+         * v11 splits the shield's old flat 20% native reflection into a 10%
+         * baseline plus a 0-5% completed-item-tier bonus. Preserve a genuinely
+         * customized legacy value as the new baseline, while translating the
+         * generated 20% default to the new 10% balance.
+         */
+        if (version <= 10) {
+            if (migrateV10ShieldBalance(root)) {
+                changed = true;
+            }
+            if (migrateV10DamageReflectionMaximum(root)) {
+                changed = true;
+            }
+        }
+
+        /*
          * v8 briefly auto-materialized the Latent Ore defaults into every
          * config. v9 returns to the mod's sparse override philosophy. If the
          * section is byte-for-byte equivalent to the v8 generated defaults,
@@ -756,6 +774,60 @@ public final class EssenceConfigManager {
             changed = true;
         }
 
+        return changed;
+    }
+
+    private static boolean migrateV10DamageReflectionMaximum(JsonObject root) {
+        JsonElement overridesElement = root.get("stat_max_bonus_overrides");
+        if (overridesElement == null || !overridesElement.isJsonObject()) {
+            return false;
+        }
+
+        JsonObject overrides = overridesElement.getAsJsonObject();
+        String key = EssenceAscendance.MOD_ID + ":damage_reflection";
+        JsonElement value = overrides.get(key);
+        if (value == null || !value.isJsonPrimitive()
+                || !value.getAsJsonPrimitive().isNumber()
+                || Double.compare(value.getAsDouble(), 25.0D) != 0) {
+            return false;
+        }
+
+        overrides.addProperty(key, 15.0D);
+        return true;
+    }
+
+    private static boolean migrateV10ShieldBalance(JsonObject root) {
+        JsonElement shieldElement = root.get("ascendance_shield");
+        if (shieldElement == null || !shieldElement.isJsonObject()) {
+            return false;
+        }
+
+        JsonObject shield = shieldElement.getAsJsonObject();
+        JsonElement legacyElement = shield.remove("innate_reflection_percent");
+        boolean changed = legacyElement != null;
+
+        if (!shield.has("base_reflection_percent")) {
+            double baseReflection = ShieldBalanceSettings.defaults().baseReflectionPercent();
+            if (legacyElement != null && legacyElement.isJsonPrimitive()
+                    && legacyElement.getAsJsonPrimitive().isNumber()) {
+                double legacyReflection = legacyElement.getAsDouble();
+                if (Double.isFinite(legacyReflection) && Double.compare(legacyReflection, 20.0D) != 0) {
+                    baseReflection = legacyReflection;
+                }
+            }
+            shield.addProperty("base_reflection_percent", baseReflection);
+            changed = true;
+        }
+
+        if (!shield.has("innate_reflection_bonus")) {
+            JsonObject reflectionBonus = new JsonObject();
+            ShieldBalanceSettings defaults = ShieldBalanceSettings.defaults();
+            for (var tier : com.mistaboom.essence_ascendance.equipment.EquipmentTier.values()) {
+                reflectionBonus.addProperty(tier.serializedName(), defaults.innateReflectionBonus().get(tier));
+            }
+            shield.add("innate_reflection_bonus", reflectionBonus);
+            changed = true;
+        }
         return changed;
     }
 
@@ -899,12 +971,6 @@ public final class EssenceConfigManager {
         );
         root.addProperty("config_version", CURRENT_CONFIG_VERSION);
 
-        root.addProperty(
-                "_skill_essence_comment",
-                "Skill Essence is future/expansion content. When false, Skill Essence stays registered and persisted but is hidden from player commands and interfaces."
-        );
-        root.addProperty("enable_skill_essences", false);
-
         JsonObject cruciblePylons = new JsonObject();
         cruciblePylons.addProperty(
                 "_comment",
@@ -1005,7 +1071,7 @@ public final class EssenceConfigManager {
         JsonObject focusUpgrades = new JsonObject();
         focusUpgrades.addProperty(
                 "_comment",
-                "minimum_per_attribute_essence is required from EACH of the six core Attribute Essences; the remainder of total_essence_required is flexible."
+                "minimum_per_attribute_essence is required from EACH of the six core Essences; the remainder of total_essence_required is flexible."
         );
         for (String targetTier : new String[]{
                 "dormant", "awakened", "resonant", "ascendant", "transcendent"
@@ -1028,7 +1094,7 @@ public final class EssenceConfigManager {
         JsonObject equipmentUpgrades = new JsonObject();
         equipmentUpgrades.addProperty(
                 "_comment",
-                "Equipment upgrades stream exact thematic Attribute Essence requirements. total_essence_required is divided by the per-equipment weights below; matrix_count is consumed atomically on completion."
+                "Equipment upgrades stream exact thematic Essence requirements. total_essence_required is divided by the per-equipment weights below; matrix_count is consumed atomically on completion."
         );
         for (String targetTier : new String[]{
                 "dormant", "awakened", "resonant", "ascendant", "transcendent"
@@ -1045,7 +1111,7 @@ public final class EssenceConfigManager {
         JsonObject equipmentWeights = new JsonObject();
         equipmentWeights.addProperty(
                 "_comment",
-                "Positive relative weights for the six core Attribute Essences. Skill Essences are not valid here."
+                "Positive relative weights for the six core Essences."
         );
         for (Map.Entry<String, Map<String, Integer>> equipment :
                 settings.equipmentEssenceWeights().entrySet()) {
@@ -1208,13 +1274,6 @@ public final class EssenceConfigManager {
         }
 
 
-        boolean skillEssencesEnabled =
-                readBoolean(
-                        root,
-                        "enable_skill_essences",
-                        false
-                );
-
         double pylonRadius = 6.0D;
         int maxActivePylons = 8;
         JsonElement pylonElement = root.get("crucible_pylons");
@@ -1286,7 +1345,6 @@ public final class EssenceConfigManager {
 
         return new EssenceServerConfig(
                 version,
-                skillEssencesEnabled,
                 pylonRadius,
                 maxActivePylons,
                 infuserBalance,
@@ -1303,19 +1361,22 @@ public final class EssenceConfigManager {
 
     private static JsonObject createShieldJson(ShieldBalanceSettings settings) {
         JsonObject result = new JsonObject();
-        result.addProperty("_comment", "Shield durability and block amplification follow completed item tier. Base reflection is fixed across tiers; Latent amplification is always 1. Investments use stat_max_bonus_overrides and existing holder/equipment tier limits.");
-        result.addProperty("innate_reflection_percent", settings.innateReflectionPercent());
+        result.addProperty("_comment", "Durability, innate reflection, and block amplification follow the shield item's completed tier. Reflection investment uses the lower of holder tier and equipment tier. Latent amplification is always 1. Investments use stat_max_bonus_overrides.");
+        result.addProperty("base_reflection_percent", settings.baseReflectionPercent());
         result.addProperty("minimum_disable_ticks", settings.minimumDisableTicks());
         JsonObject durability = new JsonObject();
+        JsonObject reflectionBonus = new JsonObject();
         JsonObject amplification = new JsonObject();
         for (com.mistaboom.essence_ascendance.equipment.EquipmentTier tier :
                 com.mistaboom.essence_ascendance.equipment.EquipmentTier.values()) {
             durability.addProperty(tier.serializedName(), settings.durability().get(tier));
+            reflectionBonus.addProperty(tier.serializedName(), settings.innateReflectionBonus().get(tier));
             if (tier != com.mistaboom.essence_ascendance.equipment.EquipmentTier.LATENT) {
                 amplification.addProperty(tier.serializedName(), settings.blockAmplification().get(tier));
             }
         }
         result.add("durability", durability);
+        result.add("innate_reflection_bonus", reflectionBonus);
         result.add("block_amplification", amplification);
         return result;
     }
@@ -1328,16 +1389,20 @@ public final class EssenceConfigManager {
         }
         JsonObject shield = root.getAsJsonObject("ascendance_shield");
         JsonObject durability = shield.has("durability") ? shield.getAsJsonObject("durability") : new JsonObject();
+        JsonObject reflectionBonus = shield.has("innate_reflection_bonus") ? shield.getAsJsonObject("innate_reflection_bonus") : new JsonObject();
         JsonObject amplification = shield.has("block_amplification") ? shield.getAsJsonObject("block_amplification") : new JsonObject();
         var points = new java.util.EnumMap<com.mistaboom.essence_ascendance.equipment.EquipmentTier, Integer>(com.mistaboom.essence_ascendance.equipment.EquipmentTier.class);
+        var innateBonuses = new java.util.EnumMap<com.mistaboom.essence_ascendance.equipment.EquipmentTier, Double>(com.mistaboom.essence_ascendance.equipment.EquipmentTier.class);
         var multipliers = new java.util.EnumMap<com.mistaboom.essence_ascendance.equipment.EquipmentTier, Double>(com.mistaboom.essence_ascendance.equipment.EquipmentTier.class);
         for (var tier : com.mistaboom.essence_ascendance.equipment.EquipmentTier.values()) {
             points.put(tier, readInt(durability, tier.serializedName(), defaults.durability().get(tier)));
+            innateBonuses.put(tier, readDouble(reflectionBonus, tier.serializedName(), defaults.innateReflectionBonus().get(tier)));
             multipliers.put(tier, readDouble(amplification, tier.serializedName(), defaults.blockAmplification().get(tier)));
         }
         return new ShieldBalanceSettings(
-                readDouble(shield, "innate_reflection_percent", defaults.innateReflectionPercent()),
-                readInt(shield, "minimum_disable_ticks", defaults.minimumDisableTicks()), points, multipliers);
+                readDouble(shield, "base_reflection_percent", defaults.baseReflectionPercent()),
+                readInt(shield, "minimum_disable_ticks", defaults.minimumDisableTicks()),
+                points, innateBonuses, multipliers);
     }
 
     private static LatentOreWorldgenSettings parseLatentOreWorldgen(
@@ -2729,7 +2794,6 @@ public final class EssenceConfigManager {
 
         return new EssenceServerConfig(
                 CURRENT_CONFIG_VERSION,
-                false,
                 6.0D,
                 8,
                 InfuserBalanceSettings.defaults(),

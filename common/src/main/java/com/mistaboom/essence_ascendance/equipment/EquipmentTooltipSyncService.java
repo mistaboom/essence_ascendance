@@ -24,10 +24,10 @@ import java.util.WeakHashMap;
 /*
  * Builds player-aware Ascendance equipment tooltip snapshots.
  *
- * Current Stats contains native item-tier values only; slider contributions
- * appear only in Essence Abilities. Tier ranges/ceilings remain available
- * through commands/debugging but are intentionally omitted from ordinary item
- * tooltips.
+ * Current Stats contains native item-tier values; slider contributions appear
+ * in Essence Abilities. Tier ranges, ceilings, and derived totals remain
+ * available through commands/debugging but are intentionally omitted from
+ * ordinary item tooltips.
  */
 public final class EquipmentTooltipSyncService {
 
@@ -162,27 +162,28 @@ public final class EquipmentTooltipSyncService {
         lines.add(identity(itemTier, "Shield"));
         // Numeric durability belongs to vanilla's advanced tooltip (F3+H).
         if (fractured) {
-            lines.add(stat("shield.fractured", ""));
+            lines.add(stat("shield.fractured"));
         } else {
-            lines.add(stat("shield.innate", number(context.innateReflectionPercent())));
-            lines.add(stat("shield.amplification", number(context.amplification())));
-            // Current Stats must not vary with allocations or other equipped items.
-            lines.add(stat("shield.blocked", number(context.nativeBlockedReflectionPercent())));
-            addShieldAbility(lines, "shield.invested", context.investedReflectionPercent());
-            addShieldAbility(lines, "shield.blocked_invested", context.investedBlockedReflectionPercent());
-            addShieldAbility(lines, "shield.guard_recovery", context.guardRecoveryPercent());
-            addShieldAbility(lines, "shield.guarded_movement", context.guardedMovementPercent());
-            addShieldAbility(lines, "shield.durability_efficiency", context.durabilityEfficiencyPercent());
+            lines.add(stat("shield.base_reflection", number(context.nativeReflectionPercent())));
+            lines.add(stat("shield.on_block_bonus", number(context.amplification())));
+            addShieldAbility(lines, EssenceStats.DAMAGE_REFLECTION, context.investedReflectionPercent());
+            addShieldAbility(lines, EssenceStats.GUARD_READINESS, context.guardReadinessPercent());
+            addShieldAbility(lines, EssenceStats.GUARDED_MOVEMENT, context.guardedMovementPercent());
+            addShieldAbility(lines, EssenceStats.KNOCKBACK_RESISTANCE, context.knockbackResistancePercent());
+            addShieldAbility(lines, EssenceStats.DURABILITY_EFFICIENCY, context.durabilityEfficiencyPercent());
         }
         String key = "essence_ascendance:ascendance_shield#" + itemTier.serializedName();
         return new EquipmentTooltipPayload.Entry(key + (fractured ? "#fractured" : ""),
                 lines, fractured ? 0.0D : context.guardedMovementPercent());
     }
 
-    private static void addShieldAbility(List<EquipmentTooltipPayload.Line> lines, String key, double value) {
+    private static void addShieldAbility(
+            List<EquipmentTooltipPayload.Line> lines,
+            StatDefinition stat,
+            double value
+    ) {
         if (value > EPSILON) {
-            lines.add(translated(EquipmentTooltipPayload.Group.ESSENCE,
-                    EquipmentTooltipPayload.Tone.ABILITY, key, number(value)));
+            lines.add(ability(stat, value));
         }
     }
 
@@ -487,13 +488,13 @@ public final class EquipmentTooltipSyncService {
 
     private static EquipmentTooltipPayload.Line stat(
             String key,
-            String value
+            String... values
     ) {
         return translated(
                 EquipmentTooltipPayload.Group.STATS,
                 EquipmentTooltipPayload.Tone.PRIMARY,
                 key,
-                value
+                values
         );
     }
 

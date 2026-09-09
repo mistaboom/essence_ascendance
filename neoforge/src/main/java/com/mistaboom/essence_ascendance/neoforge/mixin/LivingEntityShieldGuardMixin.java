@@ -12,7 +12,14 @@ public abstract class LivingEntityShieldGuardMixin {
     @Inject(method = "isBlocking", at = @At("HEAD"), cancellable = true)
     private void essenceAscendance$functionalGuard(CallbackInfoReturnable<Boolean> ci) {
         LivingEntity entity = (LivingEntity) (Object) this;
-        if (EquipmentShieldService.isShield(entity.getUseItem())
-                && !EquipmentShieldService.canGuard(entity, entity.getUseItem())) ci.setReturnValue(false);
+        if (!EquipmentShieldService.isShield(entity.getUseItem())) {
+            return;
+        }
+
+        ci.setReturnValue(
+                EquipmentShieldService.canGuard(entity, entity.getUseItem())
+                        && entity.getTicksUsingItem()
+                        >= EquipmentShieldService.raiseDelayTicks(entity, entity.getUseItem())
+        );
     }
 }

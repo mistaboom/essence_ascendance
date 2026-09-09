@@ -32,7 +32,7 @@ import java.util.Objects;
 /**
  * Fullscreen, data-driven progression shell for the Ascendance Nexus.
  *
- * Dragging an Attribute track stages a proposed reallocation locally, including
+ * Dragging an Essence track stages a proposed reallocation locally, including
  * an affordable-Essence ceiling. Released sliders remain staged and can refund
  * Essence back into their category budget. Pressing ALLOCATE sends one complete
  * staged plan to the server; the server validates and commits it atomically.
@@ -176,20 +176,12 @@ public final class AscendanceNexusScreen
         NexusCategoryView category =
                 categories.get(selectedCategoryIndex);
 
-        if (category.presentationType()
-                == NexusCategoryView.PresentationType.ATTRIBUTE_SLIDERS) {
-            renderAttributeCategory(
-                    graphics,
-                    category,
-                    mouseX,
-                    mouseY
-            );
-        } else {
-            renderPlaceholderCategory(
-                    graphics,
-                    category
-            );
-        }
+        renderEssenceCategory(
+                graphics,
+                category,
+                mouseX,
+                mouseY
+        );
     }
 
     @Override
@@ -1116,7 +1108,7 @@ public final class AscendanceNexusScreen
         );
     }
 
-    private void renderAttributeCategory(
+    private void renderEssenceCategory(
             GuiGraphics graphics,
             NexusCategoryView category,
             int mouseX,
@@ -1815,75 +1807,6 @@ public final class AscendanceNexusScreen
         );
     }
 
-    private void renderPlaceholderCategory(
-            GuiGraphics graphics,
-            NexusCategoryView category
-    ) {
-        ContentLayout layout =
-                contentLayout();
-
-        graphics.fill(
-                layout.left(),
-                layout.top(),
-                layout.right(),
-                layout.bottom(),
-                PANEL
-        );
-        outline(
-                graphics,
-                layout.left(),
-                layout.top(),
-                layout.width(),
-                layout.height(),
-                BORDER
-        );
-
-        renderCategoryTitle(
-                graphics,
-                EssenceText.essenceShort(category.essence()).getString(),
-                layout
-        );
-        renderAvailableGauge(
-                graphics,
-                category,
-                layout
-        );
-
-        int centerX =
-                (layout.tracksLeft() + layout.right()) / 2;
-        int centerY =
-                (layout.top() + layout.bottom()) / 2;
-
-        graphics.drawCenteredString(
-                font,
-                EssenceText.essence(category.essence()).getString(),
-                centerX,
-                centerY - 20,
-                TEXT
-        );
-        graphics.drawCenteredString(
-                font,
-                EssenceText.gui("nexus.placeholder.line1").getString(),
-                centerX,
-                centerY,
-                MUTED
-        );
-        graphics.drawCenteredString(
-                font,
-                EssenceText.gui("nexus.placeholder.line2").getString(),
-                centerX,
-                centerY + 13,
-                MUTED
-        );
-        graphics.drawCenteredString(
-                font,
-                EssenceText.gui("nexus.placeholder.line3").getString(),
-                centerX,
-                centerY + 26,
-                DIM
-        );
-    }
-
     @Override
     public boolean mouseClicked(
             double mouseX,
@@ -1945,15 +1868,6 @@ public final class AscendanceNexusScreen
 
         NexusCategoryView category =
                 categories.get(selectedCategoryIndex);
-
-        if (category.presentationType()
-                != NexusCategoryView.PresentationType.ATTRIBUTE_SLIDERS) {
-            return super.mouseClicked(
-                    mouseX,
-                    mouseY,
-                    button
-            );
-        }
 
         ContentLayout layout =
                 contentLayout();

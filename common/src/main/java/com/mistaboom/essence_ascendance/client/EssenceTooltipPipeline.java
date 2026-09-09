@@ -1,7 +1,6 @@
 package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.infuser.EssentiumCarrierData;
-import com.mistaboom.essence_ascendance.essence.EssenceFamily;
 import com.mistaboom.essence_ascendance.text.EssenceText;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -49,7 +48,6 @@ public final class EssenceTooltipPipeline {
 
         if (EssentiumCarrierData.isEssentium(stack)) {
             EssentiumCarrierData.read(stack)
-                    .filter(EssenceTooltipPipeline::isCarrierEssenceVisible)
                     .ifPresent(value -> {
                 tooltip.add(
                         Component.literal(" ")
@@ -76,11 +74,4 @@ public final class EssenceTooltipPipeline {
         );
     }
 
-    private static boolean isCarrierEssenceVisible(EssentiumCarrierData.Value value) {
-        if (value.essence().family() != EssenceFamily.SKILL) {
-            return true;
-        }
-        return ClientEssenceState.ready()
-                && ClientEssenceState.snapshot().availableEssence().containsKey(value.essence().id());
-    }
 }

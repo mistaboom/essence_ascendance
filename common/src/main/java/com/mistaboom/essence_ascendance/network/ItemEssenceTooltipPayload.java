@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Objects;
 
 /*
- * Server -> client chunk of the final resolved item -> Attribute Essence table.
+ * Server -> client chunk of the final resolved item -> Essence table.
  *
  * The server resolves config overrides, tag mappings, priorities, removals and
  * one-for-one replacements. The client receives only display-ready item IDs and
@@ -273,7 +273,7 @@ public record ItemEssenceTooltipPayload(
                 throw new IllegalArgumentException(
                         "An item cannot contain more than "
                                 + MAX_OUTPUTS_PER_ENTRY
-                                + " core Attribute Essence outputs"
+                                + " core Essence outputs"
                 );
             }
 

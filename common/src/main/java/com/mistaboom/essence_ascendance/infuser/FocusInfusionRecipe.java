@@ -52,7 +52,7 @@ public record FocusInfusionRecipe(
         );
         if (totalEssenceRequired < requiredMinimumTotal) {
             throw new IllegalArgumentException(
-                    "Focus infusion total must cover every Attribute Essence minimum"
+                    "Focus infusion total must cover every Essence minimum"
             );
         }
     }

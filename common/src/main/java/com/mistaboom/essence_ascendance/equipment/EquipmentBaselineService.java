@@ -69,7 +69,7 @@ public final class EquipmentBaselineService {
             );
         }
         // Native/mundane equipment capability belongs to the artifact itself.
-        // Player Ascendance only caps Attribute Essence channeling; it must not
+        // Player Ascendance only caps Essence channeling; it must not
         // drag armor, attack damage, mining speed, etc. back down to player tier.
         return evaluateAtTier(playerData, profileId, itemTier.ascendanceTier());
     }

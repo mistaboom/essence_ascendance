@@ -1,7 +1,6 @@
 package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.infuser.EssentiumCarrierData;
-import com.mistaboom.essence_ascendance.essence.EssenceFamily;
 import com.mistaboom.essence_ascendance.text.EssenceText;
 import net.minecraft.world.item.ItemStack;
 
@@ -39,7 +38,6 @@ public final class JeiTooltipSearchTerms {
 
         if (EssentiumCarrierData.isEssentium(stack)) {
             EssentiumCarrierData.read(stack)
-                    .filter(JeiTooltipSearchTerms::isCarrierEssenceVisible)
                     .ifPresent(value -> {
                 result.addAll(
                         ItemEssenceTooltipClientState.getDirectSearchTerms(
@@ -65,11 +63,4 @@ public final class JeiTooltipSearchTerms {
         );
     }
 
-    private static boolean isCarrierEssenceVisible(EssentiumCarrierData.Value value) {
-        if (value.essence().family() != EssenceFamily.SKILL) {
-            return true;
-        }
-        return ClientEssenceState.ready()
-                && ClientEssenceState.snapshot().availableEssence().containsKey(value.essence().id());
-    }
 }

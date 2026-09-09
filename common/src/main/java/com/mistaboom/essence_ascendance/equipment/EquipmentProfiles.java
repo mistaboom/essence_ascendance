@@ -138,12 +138,13 @@ public final class EquipmentProfiles {
             );
 
     public static final EquipmentProfileDefinition SHIELD = EquipmentProfileRegistry.register(
-            EquipmentProfileDefinition.builder(id("shield"), "Shield")
+            EquipmentProfileDefinition.builder(id("shield"), "Ascendance Shield")
                     .baseline(EquipmentBaselineProperty.DURABILITY)
                     .stat(EquipmentActivationType.HELD, EssenceStats.DAMAGE_REFLECTION)
                     .stat(EquipmentActivationType.HELD, EssenceStats.DURABILITY_EFFICIENCY)
-                    .stat(EquipmentActivationType.GUARDING, EssenceStats.GUARD_RECOVERY)
+                    .stat(EquipmentActivationType.GUARDING, EssenceStats.GUARD_READINESS)
                     .stat(EquipmentActivationType.GUARDING, EssenceStats.GUARDED_MOVEMENT)
+                    .stat(EquipmentActivationType.GUARDING, EssenceStats.KNOCKBACK_RESISTANCE)
                     .build());
 
     private EquipmentProfiles() {

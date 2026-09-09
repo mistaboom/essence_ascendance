@@ -8,12 +8,12 @@ public final class ShieldMath {
         return Double.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
     }
 
-    public static double ordinaryPercent(double innate, double shieldInvestment, double armorInvestment) {
-        return saturatedAdd(nonnegative(innate), Math.max(nonnegative(shieldInvestment), nonnegative(armorInvestment)));
+    public static double ordinaryPercent(double nativeReflection, double shieldInvestment, double armorInvestment) {
+        return saturatedAdd(nonnegative(nativeReflection), Math.max(nonnegative(shieldInvestment), nonnegative(armorInvestment)));
     }
 
-    public static double blockedPercent(double innate, double invested, double amplification) {
-        return saturatedMultiply(saturatedAdd(nonnegative(innate), nonnegative(invested)), nonnegative(amplification));
+    public static double blockedPercent(double nativeReflection, double invested, double amplification) {
+        return saturatedMultiply(saturatedAdd(nonnegative(nativeReflection), nonnegative(invested)), nonnegative(amplification));
     }
 
     public static double reflectedPortion(float amount, double reflectionPercent) {
@@ -40,8 +40,31 @@ public final class ShieldMath {
                 (int) Math.ceil(originalTicks * (1.0 - percent(recoveryPercent) / 100.0))));
     }
 
+    /**
+     * Converts Guard Readiness into Minecraft's whole-tick shield activation
+     * threshold. Ceiling matches the guard-break reducer and never grants a
+     * faster activation than the resolved percentage has actually earned.
+     */
+    public static int raiseDelayTicks(int originalTicks, double readinessPercent, int minimumTicks) {
+        if (originalTicks <= 0) return 0;
+        return disableTicks(originalTicks, readinessPercent, minimumTicks);
+    }
+
     public static float movementMultiplier(double slowdownRemovedPercent) {
-        return (float) (0.2 + 0.8 * percent(slowdownRemovedPercent) / 100.0);
+        return movementMultiplier(0.2F, slowdownRemovedPercent);
+    }
+
+    /**
+     * Removes a percentage of the shield's supplied slowdown rather than
+     * granting a second general movement-speed bonus. The result is always
+     * between the supplied blocking multiplier and ordinary (1x) movement.
+     */
+    public static float movementMultiplier(float blockingMultiplier, double slowdownRemovedPercent) {
+        float baseline = Float.isFinite(blockingMultiplier)
+                ? Math.max(0.0F, Math.min(1.0F, blockingMultiplier))
+                : 0.2F;
+        return (float) (baseline
+                + (1.0F - baseline) * percent(slowdownRemovedPercent) / 100.0D);
     }
 
     public static float safeDamage(double amount) {

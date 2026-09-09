@@ -16,24 +16,21 @@ import net.minecraft.world.entity.player.Inventory;
 import java.util.List;
 import java.util.Locale;
 
-/* Asset-free functional machine screen for the Crucible foundation tranche. */
+/* Shared-style normal machine screen for the Essence Crucible. */
 public final class EssenceCrucibleScreen
         extends AbstractContainerScreen<EssenceCrucibleMenu> {
 
-    private static final int PANEL = MachineScreenUi.PANEL;
-    private static final int PANEL_INNER = MachineScreenUi.PANEL_INNER;
     private static final int BORDER = MachineScreenUi.BORDER;
     private static final int TEXT = MachineScreenUi.TEXT;
     private static final int MUTED = MachineScreenUi.MUTED;
 
-    private static final int PANEL_MARGIN = 12;
-    private static final int PANEL_GAP = 12;
+    private static final int PANEL_MARGIN = 10;
     private static final int PANEL_Y = 72;
     private static final int PANEL_HEIGHT = 106;
-    private static final int TWO_COLUMN_WIDTH = 132;
-    private static final int FULL_PANEL_WIDTH = 276;
-    private static final int TOTAL_PANEL_Y = 182;
-    private static final int TOTAL_PANEL_HEIGHT = 17;
+    private static final int FULL_PANEL_WIDTH =
+            MachineScreenLayout.MAIN_PANEL_WIDTH - PANEL_MARGIN * 2;
+    private static final int STATUS_PANEL_Y = 182;
+    private static final int STATUS_PANEL_HEIGHT = 17;
 
     private static final int INFO_PANEL_WIDTH = MachineScreenLayout.INFO_PANEL_WIDTH;
     private static final int INFO_PANEL_HEIGHT = 198;
@@ -54,7 +51,7 @@ public final class EssenceCrucibleScreen
     private Button settingsCloseButton;
     private Button dissolutionModeButton;
     private final Button[] ventButtons =
-            new Button[EssenceCrucibleEssences.ALL_ORDERED.size()];
+            new Button[EssenceCrucibleEssences.ORDERED.size()];
     private boolean infoOpen;
     private boolean settingsOpen;
 
@@ -64,9 +61,9 @@ public final class EssenceCrucibleScreen
             Component title
     ) {
         super(menu, playerInventory, title);
-        imageWidth = 300;
+        imageWidth = MachineScreenLayout.MAIN_PANEL_WIDTH;
         imageHeight = 319;
-        inventoryLabelX = 69;
+        inventoryLabelX = 34;
         inventoryLabelY = 224;
     }
 
@@ -80,7 +77,7 @@ public final class EssenceCrucibleScreen
                                 button -> toggleChannel()
                         )
                         .bounds(
-                                leftPos + 70,
+                                leftPos + 35,
                                 topPos + 202,
                                 160,
                                 20
@@ -261,17 +258,14 @@ public final class EssenceCrucibleScreen
             return;
         }
 
-        List<EssenceDefinition> enabled =
-                EssenceCrucibleEssences.enabledOrdered(
-                        state.skillEssencesEnabled()
-                );
-        if (allEssenceIndex < 0 || allEssenceIndex >= enabled.size()) {
+        if (allEssenceIndex < 0
+                || allEssenceIndex >= EssenceCrucibleEssences.ORDERED.size()) {
             return;
         }
 
         EssenceCrucibleClientState.requestVent(
                 menu.containerId,
-                enabled.get(allEssenceIndex).id()
+                EssenceCrucibleEssences.ORDERED.get(allEssenceIndex).id()
         );
     }
 
@@ -436,7 +430,7 @@ public final class EssenceCrucibleScreen
                 EssenceCrucibleClientState.snapshotFor(menu.containerId);
 
         /* Visual dissolution progress replaces the old numeric text line. */
-        int barX = x + 105;
+        int barX = x + 70;
         int barY = y + 56;
         int barWidth = 90;
         int barHeight = 10;
@@ -450,44 +444,23 @@ public final class EssenceCrucibleScreen
                 state == null ? 1 : Math.max(1, state.dissolutionTicksPerItem())
         );
 
-        boolean showSkill =
-                state != null && state.skillEssencesEnabled();
-
-        int attributeWidth =
-                showSkill
-                        ? TWO_COLUMN_WIDTH
-                        : FULL_PANEL_WIDTH;
-
         MachineScreenUi.accentedInset(
                 graphics,
                 x + PANEL_MARGIN,
                 y + PANEL_Y,
-                attributeWidth,
+                FULL_PANEL_WIDTH,
                 PANEL_HEIGHT
         );
-
-        if (showSkill) {
-            int skillX = x + PANEL_MARGIN + TWO_COLUMN_WIDTH + PANEL_GAP;
-            MachineScreenUi.accentedInset(
-                    graphics,
-                    skillX,
-                    y + PANEL_Y,
-                    TWO_COLUMN_WIDTH,
-                    PANEL_HEIGHT
-            );
-        }
-
-        /* Enabled-family total/capacity stays independent of either column. */
         MachineScreenUi.accentedInset(
                 graphics,
                 x + PANEL_MARGIN,
-                y + TOTAL_PANEL_Y,
+                y + STATUS_PANEL_Y,
                 FULL_PANEL_WIDTH,
-                TOTAL_PANEL_HEIGHT
+                STATUS_PANEL_HEIGHT
         );
 
         /* Player inventory slot backing. */
-        MachineScreenUi.inset(graphics, x + 67, y + 235, 166, 80);
+        MachineScreenUi.inset(graphics, x + 32, y + 235, 166, 80);
 
     }
 
@@ -505,79 +478,56 @@ public final class EssenceCrucibleScreen
 
         if (state == null) {
             drawCentered(graphics, EssenceText.term("synchronizing"), 56, MUTED);
-            graphics.drawString(font, playerInventoryTitle, 69, 224, MUTED, false);
+            graphics.drawString(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, MUTED, false);
             return;
         }
 
-        boolean showSkill = state.skillEssencesEnabled();
-        int attributeRight =
-                showSkill
-                        ? PANEL_MARGIN + TWO_COLUMN_WIDTH - 6
-                        : PANEL_MARGIN + FULL_PANEL_WIDTH - 6;
+        int contentLeft = PANEL_MARGIN + 6;
+        int indentedLeft = contentLeft + 4;
+        int contentRight = PANEL_MARGIN + FULL_PANEL_WIDTH - 6;
 
-        /* Attribute Essence is the actual family name for the six core values. */
-        graphics.drawString(font, EssenceText.term("attribute_essence"), 18, 78, TEXT, false);
+        MachineScreenUi.sectionHeader(
+                graphics, font, EssenceText.term("essence"), contentLeft, 78
+        );
 
-        long[] attributeValues = state.essenceAmounts();
-        for (int i = 0; i < attributeValues.length; i++) {
+        long[] essenceValues = state.essenceAmounts();
+        for (int i = 0; i < essenceValues.length; i++) {
             int rowY = 92 + i * 12;
-            graphics.drawString(
-                    font,
-                    EssenceText.essenceShort(EssenceCrucibleEssences.ATTRIBUTE_ORDERED.get(i)),
-                    18,
-                    rowY,
-                    MUTED,
-                    false
-            );
-            drawRightAligned(
+            MachineScreenUi.row(
                     graphics,
-                    format(attributeValues[i]),
-                    attributeRight,
+                    font,
+                    EssenceText.essenceShort(EssenceCrucibleEssences.ORDERED.get(i)),
+                    format(essenceValues[i]),
+                    indentedLeft,
+                    contentRight,
                     rowY,
                     TEXT
             );
         }
 
-        if (showSkill) {
-            int skillLeft =
-                    PANEL_MARGIN + TWO_COLUMN_WIDTH + PANEL_GAP + 6;
-            int skillRight =
-                    PANEL_MARGIN + TWO_COLUMN_WIDTH + PANEL_GAP
-                            + TWO_COLUMN_WIDTH - 6;
-
-            graphics.drawString(font, EssenceText.term("skill_essence"), skillLeft, 78, TEXT, false);
-
-            long[] skillValues = state.skillEssenceAmounts();
-            for (int i = 0; i < skillValues.length; i++) {
-                int rowY = 92 + i * 9;
-                graphics.drawString(
-                        font,
-                        EssenceText.essenceShort(EssenceCrucibleEssences.SKILL_ORDERED.get(i)),
-                        skillLeft,
-                        rowY,
-                        MUTED,
-                        false
-                );
-                drawRightAligned(
-                        graphics,
-                        format(skillValues[i]),
-                        skillRight,
-                        rowY,
-                        TEXT
-                );
-            }
-        }
-
-        graphics.drawString(font, EssenceText.term("total_essence"), 18, 186, TEXT, false);
-        drawRightAligned(
+        MachineScreenUi.row(
                 graphics,
+                font,
+                EssenceText.term("total"),
                 format(state.total()) + " / " + format(state.reservoirCapacity()),
-                PANEL_MARGIN + FULL_PANEL_WIDTH - 6,
-                186,
+                indentedLeft,
+                contentRight,
+                166,
                 TEXT
         );
 
-        graphics.drawString(font, playerInventoryTitle, 69, 224, MUTED, false);
+        MachineScreenUi.row(
+                graphics,
+                font,
+                EssenceText.term("status"),
+                statusText(state),
+                contentLeft,
+                contentRight,
+                186,
+                statusColor(state)
+        );
+
+        graphics.drawString(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, MUTED, false);
     }
 
     private void renderVentPopup(
@@ -587,10 +537,6 @@ public final class EssenceCrucibleScreen
         int panelX = ventPanelX();
         int panelY = topPos + 4;
         long[] values = enabledEssenceValues(state);
-        List<EssenceDefinition> enabled =
-                EssenceCrucibleEssences.enabledOrdered(
-                        state.skillEssencesEnabled()
-                );
         int panelHeight = ventPanelHeight(state);
 
         MachineScreenUi.panel(
@@ -650,7 +596,7 @@ public final class EssenceCrucibleScreen
         int firstRowY = ventPanelFirstRowY(state);
         for (int i = 0; i < values.length; i++) {
             int rowY = firstRowY + i * VENT_ROW_HEIGHT;
-            Component name = displayName(enabled.get(i));
+            Component name = displayName(EssenceCrucibleEssences.ORDERED.get(i));
 
             graphics.drawString(
                     font,
@@ -802,16 +748,7 @@ public final class EssenceCrucibleScreen
     private long[] enabledEssenceValues(
             EssenceCrucibleStatePayload state
     ) {
-        long[] attribute = state.essenceAmounts();
-        if (!state.skillEssencesEnabled()) {
-            return attribute;
-        }
-
-        long[] skill = state.skillEssenceAmounts();
-        long[] combined = new long[attribute.length + skill.length];
-        System.arraycopy(attribute, 0, combined, 0, attribute.length);
-        System.arraycopy(skill, 0, combined, attribute.length, skill.length);
-        return combined;
+        return state.essenceAmounts();
     }
 
     private Component displayName(
@@ -879,6 +816,37 @@ public final class EssenceCrucibleScreen
         return EssenceText.gui("access_mode." + accessMode.toLowerCase(Locale.ROOT));
     }
 
+    private static Component statusText(EssenceCrucibleStatePayload state) {
+        String key;
+        if (!state.allowed()) {
+            key = "access_denied";
+        } else if (state.channeling() && state.dissolving()) {
+            key = "channeling_dissolving";
+        } else if (state.channeling()) {
+            key = "channeling";
+        } else if (state.dissolving()) {
+            key = "dissolving";
+        } else if (state.total() >= state.reservoirCapacity()) {
+            key = "reservoir_full";
+        } else {
+            key = "idle";
+        }
+        return EssenceText.gui("crucible.status." + key);
+    }
+
+    private static int statusColor(EssenceCrucibleStatePayload state) {
+        if (!state.allowed()) {
+            return MachineScreenUi.BAD;
+        }
+        if (state.channeling() || state.dissolving()) {
+            return MachineScreenUi.GOOD;
+        }
+        if (state.total() >= state.reservoirCapacity()) {
+            return MachineScreenUi.WARN;
+        }
+        return MachineScreenUi.MUTED;
+    }
+
     /**
      * Dynamic screen-space areas owned by an open machine popup. Optional
      * recipe-viewer integrations can use these bounds to keep mouse input from
@@ -927,23 +895,6 @@ public final class EssenceCrucibleScreen
                 font,
                 text,
                 (imageWidth - font.width(text)) / 2,
-                y,
-                color,
-                false
-        );
-    }
-
-    private void drawRightAligned(
-            GuiGraphics graphics,
-            String text,
-            int right,
-            int y,
-            int color
-    ) {
-        graphics.drawString(
-                font,
-                text,
-                right - font.width(text),
                 y,
                 color,
                 false

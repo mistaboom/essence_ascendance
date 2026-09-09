@@ -8,10 +8,9 @@ import net.minecraft.world.item.ItemStack;
 /**
  * Stable client-side visual slots for data-bearing Essentium carriers.
  *
- * The slot mapping is deliberately independent from whether an Essence is
- * currently enabled in gameplay.  All fifteen built-in Essence types have a
- * reserved value now, so future custom art can be dropped into the matching
- * resource folder without changing carrier data, recipes, or rendering code.
+ * The six built-in Essence types have stable slots, so future custom art can
+ * be dropped into the matching resource folder without changing carrier data,
+ * recipes, or rendering code.
  *
  * Slots use exact 1/32 increments.  That leaves room for additional future
  * built-in Essence visuals while keeping the current model predicates stable.
@@ -53,15 +52,6 @@ public final class EssentiumCarrierVisuals {
             case "mobility" -> 4;
             case "gathering" -> 5;
             case "utility" -> 6;
-            case "pyre" -> 7;
-            case "flow" -> 8;
-            case "terra" -> 9;
-            case "gale" -> 10;
-            case "body" -> 11;
-            case "mind" -> 12;
-            case "spirit" -> 13;
-            case "radiance" -> 14;
-            case "void" -> 15;
             default -> 0;
         };
     }

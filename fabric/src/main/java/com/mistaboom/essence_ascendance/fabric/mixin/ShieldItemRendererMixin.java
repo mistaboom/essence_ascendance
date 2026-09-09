@@ -14,7 +14,8 @@ import org.spongepowered.asm.mixin.injection.At;
 @Mixin(BlockEntityWithoutLevelRenderer.class)
 public abstract class ShieldItemRendererMixin {
     @WrapOperation(method = "renderByItem", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/world/item/ItemStack;is(Lnet/minecraft/world/item/Item;)Z"))
+            target = "Lnet/minecraft/world/item/ItemStack;is(Lnet/minecraft/world/item/Item;)Z",
+            ordinal = 0))
     private boolean essenceAscendance$vanillaShieldModel(ItemStack stack, Item item, Operation<Boolean> original) {
         return original.call(stack, item) || (item == Items.SHIELD && EquipmentShieldService.isShield(stack));
     }

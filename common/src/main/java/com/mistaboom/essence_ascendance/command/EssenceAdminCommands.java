@@ -312,14 +312,11 @@ final class EssenceAdminCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.section("Admin - Crucible reservoir"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command(
                 "/essence admin crucible clear",
-                "clear all currently enabled Essence from your shared Crucible reservoir"
+                "clear all Essence from your shared Crucible reservoir"
         ));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command(
                 "/essence admin crucible clear <essence>",
-                "clear one currently visible Essence from your shared Crucible reservoir"
-        ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
-                "Disabled Skill Essence remains preserved and hidden."
+                "clear one Essence from your shared Crucible reservoir"
         ));
         return 1;
     }
@@ -391,17 +388,13 @@ final class EssenceAdminCommands {
         int count = 0;
 
         for (EssenceDefinition essence : EssenceRegistry.values()) {
-            if (!EssenceCommandUtil.isEssenceVisible(essence)) {
-                continue;
-            }
-
             savedData.setEssence(player.getUUID(), essence, 0L);
             count++;
         }
 
         EssenceCommandUtil.send(source, EssenceCommandUtil.good(
                 "Cleared available balances for " + count
-                        + " enabled Essence types. Stat investments, Crucible storage, and disabled Essence data were preserved."
+                        + " Essence types. Stat investments and Crucible storage were preserved."
         ));
         return 1;
     }
@@ -411,15 +404,11 @@ final class EssenceAdminCommands {
     ) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         EssenceSavedData savedData = EssenceSavedData.get(source.getServer());
-        int visibleTypes = 0;
+        int essenceTypes = 0;
         int clearedTypes = 0;
 
         for (EssenceDefinition essence : EssenceRegistry.values()) {
-            if (!EssenceCommandUtil.isEssenceVisible(essence)) {
-                continue;
-            }
-
-            visibleTypes++;
+            essenceTypes++;
             long removed = savedData.removeCrucibleStored(
                     player.getUUID(),
                     essence,
@@ -432,8 +421,8 @@ final class EssenceAdminCommands {
 
         EssenceCommandUtil.send(source, EssenceCommandUtil.good(
                 "Cleared stored Crucible Essence from " + clearedTypes
-                        + " of " + visibleTypes
-                        + " enabled Essence types. Disabled Essence storage was preserved."
+                        + " of " + essenceTypes
+                        + " Essence types."
         ));
         return 1;
     }
@@ -667,7 +656,7 @@ final class EssenceAdminCommands {
         EssenceCommandUtil.send(
                 source,
                 EssenceCommandUtil.title(
-                        "Item → Attribute Essence Mappings"
+                        "Item → Essence Mappings"
                 )
         );
 
@@ -830,7 +819,7 @@ final class EssenceAdminCommands {
             EssenceCommandUtil.send(
                     source,
                     EssenceCommandUtil.good(
-                            "Installed item → Attribute Essence mapping generation " + report.generation()
+                            "Installed item → Essence mapping generation " + report.generation()
                                     + "; tooltip synchronization was requested."
                     )
             );
@@ -881,7 +870,6 @@ final class EssenceAdminCommands {
                     definition.outputs()
                             .entrySet()
                             .stream()
-                            .filter(entry -> EssenceCommandUtil.isEssenceVisible(entry.getKey()))
                             .sorted(
                                     java.util.Comparator.comparing(
                                             entry ->
@@ -941,10 +929,6 @@ final class EssenceAdminCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
                 "Balance profile",
                 config.balanceProfile().displayName() + " [" + config.balanceProfile().id() + "]"
-        ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Skill Essence",
-                config.skillEssencesEnabled() ? "ENABLED" : "DISABLED"
         ));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
                 "Crucible pylons",

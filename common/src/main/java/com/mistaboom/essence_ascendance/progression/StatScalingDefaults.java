@@ -71,12 +71,6 @@ public final class StatScalingDefaults {
                 100.0
         );
 
-        register(
-                "damage_reflection",
-                25.0
-        );
-
-
         /*
          * ========================================================
          * DEFENSE
@@ -121,6 +115,11 @@ public final class StatScalingDefaults {
         register(
                 "status_resistance",
                 30.0
+        );
+
+        register(
+                "damage_reflection",
+                15.0
         );
 
 

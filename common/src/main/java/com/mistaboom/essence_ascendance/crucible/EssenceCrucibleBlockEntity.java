@@ -174,12 +174,12 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
     }
 
     public long storedEssence(int index) {
-        if (index < 0 || index >= EssenceCrucibleEssences.ATTRIBUTE_ORDERED.size()) {
+        if (index < 0 || index >= EssenceCrucibleEssences.ORDERED.size()) {
             return 0L;
         }
 
         return storedEssence(
-                EssenceCrucibleEssences.ATTRIBUTE_ORDERED.get(index)
+                EssenceCrucibleEssences.ORDERED.get(index)
         );
     }
 
@@ -194,42 +194,23 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             return shared;
         }
 
-        /* Include not-yet-migrated legacy Attribute data so debug/UI never hides it. */
+        /* Include not-yet-migrated block-entity data so debug/UI never hides it. */
         return Math.addExact(shared, legacyStoredEssence[legacyIndex]);
     }
 
     public long[] storedEssenceSnapshot() {
         long[] snapshot =
-                new long[EssenceCrucibleEssences.ATTRIBUTE_ORDERED.size()];
+                new long[EssenceCrucibleEssences.ORDERED.size()];
         for (int i = 0; i < snapshot.length; i++) {
             snapshot[i] = storedEssence(i);
         }
         return snapshot;
     }
 
-    public long[] storedSkillEssenceSnapshot() {
-        long[] snapshot =
-                new long[EssenceCrucibleEssences.SKILL_ORDERED.size()];
-        for (int i = 0; i < snapshot.length; i++) {
-            snapshot[i] = storedEssence(
-                    EssenceCrucibleEssences.SKILL_ORDERED.get(i)
-            );
-        }
-        return snapshot;
-    }
-
-    /**
-     * Total of only the Essence families currently enabled for gameplay/UI.
-     * Disabled Skill Essence remains persisted but deliberately does not occupy
-     * visible capacity until that family is enabled again.
-     */
     public long totalStoredEssence() {
-        boolean skillEssencesEnabled =
-                EssenceConfigManager.get().skillEssencesEnabled();
-
         long total = 0L;
         for (EssenceDefinition essence :
-                EssenceCrucibleEssences.enabledOrdered(skillEssencesEnabled)) {
+                EssenceCrucibleEssences.ORDERED) {
             total = Math.addExact(total, storedEssence(essence));
         }
         return total;
@@ -247,6 +228,10 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
 
     public boolean isChanneling() {
         return channelingPlayerId != null;
+    }
+
+    public boolean isDissolving() {
+        return processingVisualActive;
     }
 
     public UUID channelingPlayerId() {
@@ -728,7 +713,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         long lowest = Long.MAX_VALUE;
         boolean found = false;
         for (EssenceDefinition essence : mapping.outputs().keySet()) {
-            if (!isDissolutionEssenceEnabled(essence)) {
+            if (!isDissolutionEssenceSupported(essence)) {
                 continue;
             }
             lowest = Math.min(lowest, storedEssence(essence));
@@ -746,7 +731,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         long highest = Long.MIN_VALUE;
         boolean found = false;
         for (EssenceDefinition essence : mapping.outputs().keySet()) {
-            if (!isDissolutionEssenceEnabled(essence)) {
+            if (!isDissolutionEssenceSupported(essence)) {
                 continue;
             }
             highest = Math.max(highest, storedEssence(essence));
@@ -807,7 +792,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         try {
             for (Map.Entry<EssenceDefinition, Long> output : mapping.outputs().entrySet()) {
                 if (output.getValue() <= 0L
-                        || !isDissolutionEssenceEnabled(output.getKey())) {
+                        || !isDissolutionEssenceSupported(output.getKey())) {
                     return 0L;
                 }
                 total = Math.addExact(total, output.getValue());
@@ -856,7 +841,6 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
 
         if (EssentiumCarrierData.isEssentium(stack)) {
             return EssentiumCarrierData.readValidated(stack)
-                    .filter(EssentiumCarrierData::isEnabled)
                     .map(value -> new ResolvedDissolution(
                             Map.of(value.essence(), value.amount())
                     ))
@@ -864,27 +848,19 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         }
 
         ItemEssenceMappingResult mapping =
-                resolvePositiveAttributeMapping(stack);
+                resolvePositiveEssenceMapping(stack);
         return mapping == null
                 ? null
                 : new ResolvedDissolution(mapping.outputs());
     }
 
-    private static boolean isDissolutionEssenceEnabled(EssenceDefinition essence) {
-        if (essence == null) {
-            return false;
-        }
-        if (EssenceCrucibleEssences.ATTRIBUTE_ORDERED.stream()
-                .anyMatch(candidate -> candidate.id().equals(essence.id()))) {
-            return true;
-        }
-        return EssenceConfigManager.get().skillEssencesEnabled()
-                && EssenceCrucibleEssences.SKILL_ORDERED.stream()
-                .anyMatch(candidate -> candidate.id().equals(essence.id()));
+    private static boolean isDissolutionEssenceSupported(EssenceDefinition essence) {
+        return essence != null
+                && EssenceCrucibleEssences.indexOf(essence) >= 0;
     }
 
 
-    public static ItemEssenceMappingResult resolvePositiveAttributeMapping(
+    public static ItemEssenceMappingResult resolvePositiveEssenceMapping(
             ItemStack stack
     ) {
         if (stack == null || stack.isEmpty()) {
@@ -975,11 +951,8 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         PlayerEssenceData playerData =
                 saved.getPlayerData(player.getUUID());
 
-        boolean skillEssencesEnabled =
-                EssenceConfigManager.get().skillEssencesEnabled();
-        var enabledEssences =
-                EssenceCrucibleEssences.enabledOrdered(skillEssencesEnabled);
-        int essenceCount = enabledEssences.size();
+        var essences = EssenceCrucibleEssences.ORDERED;
+        int essenceCount = essences.size();
         long remaining = budget;
         long movedTotal = 0L;
 
@@ -992,7 +965,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             int eligible = 0;
             for (int i = 0; i < essenceCount; i++) {
                 int index = (transferCursor + i) % essenceCount;
-                EssenceDefinition essence = enabledEssences.get(index);
+                EssenceDefinition essence = essences.get(index);
                 long stored = playerData.getCrucibleStored(essence);
                 long playerCurrent = playerData.getAvailable(essence);
                 if (stored > 0L && playerCurrent < Long.MAX_VALUE) {
@@ -1016,7 +989,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
 
             for (int i = 0; i < essenceCount && remaining > 0L; i++) {
                 int index = (transferCursor + i) % essenceCount;
-                EssenceDefinition essence = enabledEssences.get(index);
+                EssenceDefinition essence = essences.get(index);
                 long stored = playerData.getCrucibleStored(essence);
                 if (stored <= 0L) {
                     continue;

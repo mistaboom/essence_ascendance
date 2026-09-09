@@ -27,13 +27,13 @@ public abstract class ItemStackDurabilityMixin {
     private boolean essenceAscendance$fracturedBeforeServerDamage;
 
     @Inject(
-            method = "hurtAndBreak(ILnet/minecraft/server/level/ServerLevel;Lnet/minecraft/server/level/ServerPlayer;Ljava/util/function/Consumer;)V",
+            method = "hurtAndBreak(ILnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/LivingEntity;Ljava/util/function/Consumer;)V",
             at = @At("HEAD")
     )
     private void essenceAscendance$captureFractureStateBeforeDamage(
             int amount,
             ServerLevel level,
-            ServerPlayer player,
+            LivingEntity entity,
             Consumer<Item> onBreak,
             CallbackInfo ci
     ) {
@@ -42,26 +42,26 @@ public abstract class ItemStackDurabilityMixin {
     }
 
     @Inject(
-            method = "hurtAndBreak(ILnet/minecraft/server/level/ServerLevel;Lnet/minecraft/server/level/ServerPlayer;Ljava/util/function/Consumer;)V",
+            method = "hurtAndBreak(ILnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/LivingEntity;Ljava/util/function/Consumer;)V",
             at = @At("RETURN")
     )
     private void essenceAscendance$playBreakSoundWhenFractured(
             int amount,
             ServerLevel level,
-            ServerPlayer player,
+            LivingEntity entity,
             Consumer<Item> onBreak,
             CallbackInfo ci
     ) {
         ItemStack stack = (ItemStack) (Object) this;
         if (!essenceAscendance$fracturedBeforeServerDamage
                 && FracturedEquipmentData.isFractured(stack)
-                && player != null) {
+                && entity instanceof ServerPlayer player) {
             player.playSound(stack.getBreakingSound());
         }
     }
 
     @ModifyVariable(
-            method = "hurtAndBreak(ILnet/minecraft/server/level/ServerLevel;Lnet/minecraft/server/level/ServerPlayer;Ljava/util/function/Consumer;)V",
+            method = "hurtAndBreak(ILnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/LivingEntity;Ljava/util/function/Consumer;)V",
             at = @At("HEAD"),
             argsOnly = true,
             ordinal = 0
@@ -70,7 +70,7 @@ public abstract class ItemStackDurabilityMixin {
             int modifiedAmount,
             int originalAmount,
             ServerLevel level,
-            ServerPlayer player,
+            LivingEntity entity,
             Consumer<Item> onBreak
     ) {
         /*
@@ -79,7 +79,7 @@ public abstract class ItemStackDurabilityMixin {
          * Because the variable being modified is itself the target method's
          * first int argument, the amount therefore appears twice here:
          *
-         *   modifiedAmount, originalAmount, level, player, onBreak
+         *   modifiedAmount, originalAmount, level, entity, onBreak
          *
          * Use modifiedAmount as the current value so this remains composable
          * with any earlier transformer touching the same argument.
@@ -89,7 +89,7 @@ public abstract class ItemStackDurabilityMixin {
                 stack,
                 modifiedAmount
         );
-        if (modifiedAmount <= 0 || player == null) {
+        if (modifiedAmount <= 0 || !(entity instanceof ServerPlayer player)) {
             return modifiedAmount;
         }
 
@@ -115,7 +115,7 @@ public abstract class ItemStackDurabilityMixin {
         /*
          * Hand equipment is intentionally left unchanged at this outer
          * overload. Vanilla funnels ServerPlayer durability work into the
-         * server-level overload above, where HELD applicability is applied
+         * NeoForge's server-level LivingEntity overload above, where HELD applicability is applied
          * exactly once. Applying it here as well would double-scale
          * tools/weapons.
          */
@@ -142,7 +142,7 @@ public abstract class ItemStackDurabilityMixin {
     }
 
     @Redirect(
-            method = "hurtAndBreak(ILnet/minecraft/server/level/ServerLevel;Lnet/minecraft/server/level/ServerPlayer;Ljava/util/function/Consumer;)V",
+            method = "hurtAndBreak(ILnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/LivingEntity;Ljava/util/function/Consumer;)V",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/world/item/enchantment/EnchantmentHelper;processDurabilityChange(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/item/ItemStack;I)I"

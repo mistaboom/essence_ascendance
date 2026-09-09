@@ -36,60 +36,6 @@
         "essence_ascendance:essentium_essence": 0.1875
       },
       "model": "essence_ascendance:item/essentium/utility/ingot"
-    },
-    {
-      "predicate": {
-        "essence_ascendance:essentium_essence": 0.21875
-      },
-      "model": "essence_ascendance:item/essentium/pyre/ingot"
-    },
-    {
-      "predicate": {
-        "essence_ascendance:essentium_essence": 0.25
-      },
-      "model": "essence_ascendance:item/essentium/flow/ingot"
-    },
-    {
-      "predicate": {
-        "essence_ascendance:essentium_essence": 0.28125
-      },
-      "model": "essence_ascendance:item/essentium/terra/ingot"
-    },
-    {
-      "predicate": {
-        "essence_ascendance:essentium_essence": 0.3125
-      },
-      "model": "essence_ascendance:item/essentium/gale/ingot"
-    },
-    {
-      "predicate": {
-        "essence_ascendance:essentium_essence": 0.34375
-      },
-      "model": "essence_ascendance:item/essentium/body/ingot"
-    },
-    {
-      "predicate": {
-        "essence_ascendance:essentium_essence": 0.375
-      },
-      "model": "essence_ascendance:item/essentium/mind/ingot"
-    },
-    {
-      "predicate": {
-        "essence_ascendance:essentium_essence": 0.40625
-      },
-      "model": "essence_ascendance:item/essentium/spirit/ingot"
-    },
-    {
-      "predicate": {
-        "essence_ascendance:essentium_essence": 0.4375
-      },
-      "model": "essence_ascendance:item/essentium/radiance/ingot"
-    },
-    {
-      "predicate": {
-        "essence_ascendance:essentium_essence": 0.46875
-      },
-      "model": "essence_ascendance:item/essentium/void/ingot"
     }
   ]
 }

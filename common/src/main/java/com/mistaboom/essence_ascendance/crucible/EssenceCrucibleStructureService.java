@@ -27,7 +27,7 @@ public final class EssenceCrucibleStructureService {
     public static final EssenceCrucibleStructureStats BASE =
             new EssenceCrucibleStructureStats(
                     1,          // one visible input slot
-                    2_000_000L, // reservoir capacity per enabled Essence family
+                    2_000_000L, // shared six-Essence reservoir capacity
                     8.0D,       // player transfer range
                     10_000L,    // TOTAL Essence / second
                     20,         // ticks per dissolution cycle
@@ -169,13 +169,7 @@ public final class EssenceCrucibleStructureService {
     public static long effectiveReservoirCapacity(
             EssenceCrucibleStructureStats stats
     ) {
-        int enabledEssenceFamilies =
-                1 + (EssenceConfigManager.get().skillEssencesEnabled() ? 1 : 0);
-
-        return Math.multiplyExact(
-                stats.reservoirCapacity(),
-                (long) enabledEssenceFamilies
-        );
+        return stats.reservoirCapacity();
     }
 
     public static boolean allowsAutomationConnection(

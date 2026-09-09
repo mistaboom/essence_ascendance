@@ -116,7 +116,7 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug summary", "system/player diagnostic overview"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug equipment", "all active equipment profiles plus resolved stat applicability"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug item", "deep-dive the main-hand Ascendance item"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug mapping", "resolve the main-hand item to Attribute Essence"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug mapping", "resolve the main-hand item to Essence"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug valuation", "analyze current data on demand and compare with the saved/live mapping (may calculate)"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug valuation rebuild", "recalculate, save and install the generated baseline; later startups reuse the saved file"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug valuation export", "analyze/export current values and installed results; does not replace the saved baseline"));
@@ -126,8 +126,8 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug infuser", "inspect the Essence Infuser you are looking at"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug baselines", "player-tier baseline preset reference"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.section("Gameplay categories"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug offense", "melee, ranged, magic, knockback, reflection"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug defense", "all resistance stats and last incoming-damage/status events"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug offense", "melee, ranged, magic, and attack knockback"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug defense", "resistance/reflection stats and last incoming-damage/status events"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug shield", "held/block context and disjoint blocked/health-loss retaliation measurements"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug vitality", "health, regeneration, healing, hunger, breath"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug mobility", "movement, swimming, jumping, stepping, flight"));
@@ -150,17 +150,32 @@ final class EssenceDebugCommands {
             EssenceCommandUtil.send(source, EssenceCommandUtil.line("Item tier / investment tier",
                     held.itemTier().serializedName() + " / " + held.effectiveTier().serializedName()));
             EssenceCommandUtil.send(source, EssenceCommandUtil.line("Native durability", Integer.toString(held.nativeDurability())));
-            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Base / shield investment / armor investment",
-                    held.innateReflectionPercent() + "% / " + held.investedReflectionPercent() + "% / "
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Base + innate / shield investment / armor investment",
+                    held.baseReflectionPercent() + "% + " + held.innateReflectionBonusPercent() + "% / "
+                            + held.investedReflectionPercent() + "% / "
                             + EquipmentDamageService.armorReflectionPercent(player) + "%"));
             EssenceCommandUtil.send(source, EssenceCommandUtil.line("Ordinary held reflection",
                     held.ordinaryReflectionPercent(EquipmentDamageService.armorReflectionPercent(player)) + "% of health lost"));
             EssenceCommandUtil.send(source, EssenceCommandUtil.line("On-block (item-tier multiplier / total)",
                     "x" + held.amplification() + "; " + held.blockedReflectionPercent() + "% of final blocked damage"));
-            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Disable after a normal 100-tick guard break",
-                    ShieldMath.disableTicks(100, held.guardRecoveryPercent(), EssenceConfigManager.get().shieldBalance().minimumDisableTicks()) + " ticks"));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Guard Readiness",
+                    held.guardReadinessPercent() + "%"));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Raise delay / normal",
+                    ShieldMath.raiseDelayTicks(
+                            EquipmentShieldService.VANILLA_RAISE_DELAY_TICKS,
+                            held.guardReadinessPercent(),
+                            EquipmentShieldService.MINIMUM_RAISE_DELAY_TICKS
+                    ) + " / " + EquipmentShieldService.VANILLA_RAISE_DELAY_TICKS + " ticks"));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Axe disable / normal",
+                    ShieldMath.disableTicks(
+                            100,
+                            held.guardReadinessPercent(),
+                            EssenceConfigManager.get().shieldBalance().minimumDisableTicks()
+                    ) + " / 100 ticks"));
             EssenceCommandUtil.send(source, EssenceCommandUtil.line("Shield slowdown removed / input multiplier",
                     held.guardedMovementPercent() + "% / " + ShieldMath.movementMultiplier(held.guardedMovementPercent())));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Guarding knockback resistance",
+                    held.knockbackResistancePercent() + "% (merged with armor by maximum)"));
         }
         EquipmentDamageService.lastReflection(player).ifPresent(last -> {
             EssenceCommandUtil.send(source, EssenceCommandUtil.section("Last incoming hit (before target mitigation)"));
@@ -168,8 +183,8 @@ final class EssenceDebugCommands {
                     last.blockedDamage() + " / " + last.actualHealthLost()));
             EssenceCommandUtil.send(source, EssenceCommandUtil.line("Ordinary / block portions",
                     last.ordinaryReflectedDamage() + " / " + last.blockReflectedDamage()));
-            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Active block shield base / invested / multiplier",
-                    last.innatePercent() + "% / " + last.shieldInvestedPercent() + "% / x" + last.amplification()));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Active block shield native / invested / multiplier",
+                    last.nativePercent() + "% / " + last.shieldInvestedPercent() + "% / x" + last.amplification()));
             EssenceCommandUtil.send(source, EssenceCommandUtil.line("Requested retaliation",
                     Float.toString(last.requestedRetaliationDamage()) + " (not the target's actual health loss)"));
         });
@@ -658,7 +673,7 @@ final class EssenceDebugCommands {
 
         EssenceCommandUtil.send(
                 source,
-                EssenceCommandUtil.section("Proposed Attribute Essence routing")
+                EssenceCommandUtil.section("Proposed Essence routing")
         );
         shadow.routedEssence().entrySet().stream()
                 .sorted(
@@ -1054,22 +1069,9 @@ final class EssenceDebugCommands {
             return 1;
         }
 
-        boolean hasVisibleOutputs = result.outputs()
-                .keySet()
-                .stream()
-                .anyMatch(EssenceCommandUtil::isEssenceVisible);
-
-        if (!hasVisibleOutputs) {
-            EssenceCommandUtil.send(
-                    source,
-                    EssenceCommandUtil.muted("  No enabled Essence outputs.")
-            );
-        }
-
         result.outputs()
                 .entrySet()
                 .stream()
-                .filter(entry -> EssenceCommandUtil.isEssenceVisible(entry.getKey()))
                 .sorted(
                         Map.Entry.comparingByKey(
                                 java.util.Comparator.comparing(
@@ -1173,19 +1175,6 @@ final class EssenceDebugCommands {
                             EssenceCommandUtil.format(stored[i])
                     )
             );
-        }
-
-        if (EssenceConfigManager.get().skillEssencesEnabled()) {
-            long[] skillStored = crucible.storedSkillEssenceSnapshot();
-            for (int i = 0; i < skillStored.length; i++) {
-                EssenceCommandUtil.send(
-                        source,
-                        EssenceCommandUtil.line(
-                                EssenceCrucibleEssences.skillShortName(i),
-                                EssenceCommandUtil.format(skillStored[i])
-                        )
-                );
-            }
         }
 
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
@@ -1427,7 +1416,7 @@ final class EssenceDebugCommands {
                             : recipe.requiredInstalledTier().displayName()
             ));
             EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                    "Minimum / Attribute Essence",
+                    "Minimum / Essence",
                     EssenceCommandUtil.format(recipe.minimumPerAttributeEssence())
             ));
             EssenceCommandUtil.send(source, EssenceCommandUtil.line(
@@ -1539,7 +1528,6 @@ final class EssenceDebugCommands {
 
         StringBuilder text = new StringBuilder();
         result.outputs().entrySet().stream()
-                .filter(entry -> EssenceCommandUtil.isEssenceVisible(entry.getKey()))
                 .sorted(Map.Entry.comparingByKey(
                         java.util.Comparator.comparing(essence -> essence.id().toString())
                 ))
@@ -1551,9 +1539,7 @@ final class EssenceDebugCommands {
                             .append('=')
                             .append(entry.getValue());
                 });
-        return text.length() == 0
-                ? "NO VISIBLE OUTPUTS"
-                : text.toString();
+        return text.toString();
     }
 
 
@@ -1777,22 +1763,6 @@ final class EssenceDebugCommands {
             ));
         }
 
-        EquipmentDamageService.DamageStatState damage = EquipmentDamageService.evaluateStats(player);
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Damage reflection",
-                EssenceCommandUtil.formatDecimal(damage.damageReflectionPercent()) + "%"
-        ));
-        EquipmentDamageService.lastDamage(player).ifPresent(
-                last -> EssenceCommandUtil.send(
-                        source,
-                        EssenceCommandUtil.line(
-                                "Last reflected result",
-                                "health lost " + damageValue(last.actualHealthDamage())
-                                        + " | reflected " + damageValue(last.reflectedDamage())
-                                        + " @ " + EssenceCommandUtil.formatDecimal(last.reflectionPercent()) + "%"
-                        )
-                )
-        );
         return 1;
     }
 
@@ -1829,6 +1799,22 @@ final class EssenceDebugCommands {
                 "Knockback resistance",
                 EssenceCommandUtil.formatDecimal(player.getAttributeValue(Attributes.KNOCKBACK_RESISTANCE))
         ));
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Damage reflection",
+                EssenceCommandUtil.formatDecimal(stats.damageReflectionPercent()) + "%"
+        ));
+        EquipmentDamageService.lastDamage(player).ifPresent(
+                last -> EssenceCommandUtil.send(
+                        source,
+                        EssenceCommandUtil.line(
+                                "Last reflected result",
+                                "health lost " + damageValue(last.actualHealthDamage())
+                                        + " | reflected " + damageValue(last.reflectedDamage())
+                                        + " @ " + EssenceCommandUtil.formatDecimal(last.reflectionPercent()) + "%"
+                        )
+                )
+        );
 
         EquipmentDamageService.lastDamage(player).ifPresentOrElse(
                 last -> EssenceCommandUtil.send(

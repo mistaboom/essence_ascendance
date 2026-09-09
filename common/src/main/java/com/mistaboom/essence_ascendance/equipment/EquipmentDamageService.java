@@ -8,11 +8,11 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 
-import java.util.Map;
 import java.util.ArrayDeque;
 import java.util.Deque;
-import net.minecraft.world.entity.player.Player;
+import java.util.Map;
 import java.util.Optional;
 import java.util.WeakHashMap;
 
@@ -31,9 +31,11 @@ import java.util.WeakHashMap;
  *   FALL -> EXPLOSION -> FIRE -> MAGIC -> RANGED -> MELEE -> NONE
  *
  * Damage Reflection is calculated from actual health lost after Minecraft's
- * normal armor/enchantment/absorption pipeline. Armor-only retaliation retains its direct-attacker rule. A functional
- * held shield also handles responsible projectile shooters. A single recursion
- * guard protects ordinary AND successfully blocked reflection.
+ * normal armor/enchantment/absorption pipeline. Armor-only retaliation retains
+ * its direct-attacker rule. A functional held shield also handles responsible
+ * projectile shooters. A single recursion guard protects ordinary AND
+ * successfully blocked reflection without bypassing the retaliation target's
+ * own defensive equipment.
  */
 public final class EquipmentDamageService {
 
@@ -58,15 +60,14 @@ public final class EquipmentDamageService {
         }
 
         /*
-         * Reflected damage is intentionally not fed back through Ascendance
-         * resistance/reflection. Vanilla armor and other normal mechanics may
-         * still mitigate the thorns-style reflected hit.
+         * Reflection emission is suppressed separately. Do not return early
+         * here: the retaliation target keeps its ordinary Ascendance defenses
+         * just as it keeps vanilla armor/enchantment defenses.
          */
-        if (isReflectionInProgress()) {
-            return incomingDamage;
-        }
-
-        DamageStatState stats = evaluateStats(player);
+        ReflectionFrame frame = frame(player, source);
+        DamageStatState stats = frame != null
+                ? frame.preHitStats
+                : evaluateStats(player);
         DamageCategory category = classify(source);
         double resistancePercent = stats.resistanceFor(category);
         double clampedResistance = clamp(resistancePercent, 0.0, 100.0);
@@ -98,8 +99,15 @@ public final class EquipmentDamageService {
 
     /** Loader wrappers pair this with endDamage in a finally block, including cancellations/exceptions. */
     public static void beginDamage(ServerPlayer player, DamageSource source) {
+        DamageStatState preHitStats = evaluateStats(player);
+        boolean preHitHeldShield = EquipmentShieldService.heldContext(player) != null;
         REFLECTION_FRAMES.computeIfAbsent(player, ignored -> new ArrayDeque<>())
-                .push(new ReflectionFrame(source, isReflectionInProgress()));
+                .push(new ReflectionFrame(
+                        source,
+                        isReflectionInProgress(),
+                        preHitStats,
+                        preHitHeldShield
+                ));
     }
 
     public static void captureBlockingShield(ServerPlayer player, DamageSource source) {
@@ -142,11 +150,13 @@ public final class EquipmentDamageService {
 
     public static void reflectAfterDamage(ServerPlayer victim, DamageSource source, float actualHealthDamage) {
         if (isReflectionInProgress() || !Float.isFinite(actualHealthDamage) || actualHealthDamage <= 0) return;
-        DamageStatState stats = evaluateStats(victim);
-        boolean hasShield = EquipmentShieldService.heldContext(victim) != null;
+        ReflectionFrame frame = frame(victim, source);
+        DamageStatState stats = frame != null ? frame.preHitStats : evaluateStats(victim);
+        boolean hasShield = frame != null
+                ? frame.preHitHeldShield
+                : EquipmentShieldService.heldContext(victim) != null;
         double ordinary = hasShield || source.isDirect()
                 ? ShieldMath.reflectedPortion(actualHealthDamage, stats.damageReflectionPercent()) : 0;
-        ReflectionFrame frame = frame(victim, source);
         if (frame != null) {
             if (!frame.suppressed) {
                 frame.healthLost += actualHealthDamage;
@@ -160,17 +170,47 @@ public final class EquipmentDamageService {
         }
     }
 
+    /**
+     * Compatibility entrypoint for integrations that cannot expose the native
+     * hurt result. First-party loader hooks use the four-argument overload.
+     */
     public static void endDamage(ServerPlayer victim, DamageSource source, boolean returnedNormally) {
+        endDamage(victim, source, returnedNormally, true);
+    }
+
+    /**
+     * Closes one damage scope. A rejected/canceled hurt cannot retaliate;
+     * vanilla's false result for a fully blocked hit is distinguished by the
+     * authoritative block commit recorded inside LivingEntity#hurt.
+     */
+    public static void endDamage(
+            ServerPlayer victim,
+            DamageSource source,
+            boolean returnedNormally,
+            boolean damageAccepted
+    ) {
         Deque<ReflectionFrame> frames = REFLECTION_FRAMES.get(victim);
         if (frames == null || frames.isEmpty()) return;
         ReflectionFrame frame = frames.pop();
         if (frames.isEmpty()) REFLECTION_FRAMES.remove(victim);
         if (!returnedNormally) {
-            // Discard probes on exceptional unwinding; never retain a previous attack's measurement.
-            HEALTH_SAMPLES.remove(victim);
+            // Discard only this scope's unfinished probe; a nested failure must
+            // not erase an enclosing damage measurement for the same player.
+            discardHealthMeasurement(victim, source);
             return;
         }
         if (frame.source != source || frame.suppressed) return;
+
+        /*
+         * Vanilla returns false for a completely blocked hit even though its
+         * authoritative shield-damage operation completed. Treat that commit
+         * as success; a false return with no committed block is a rejected or
+         * canceled hit and cannot retaliate.
+         */
+        if (!damageAccepted && !frame.blockCompleted) {
+            discardHealthMeasurement(victim, source);
+            return;
+        }
         float blocked = frame.blockCompleted ? frame.blockedDamage : 0;
         double blockReflection = frame.shield == null ? 0
                 : ShieldMath.reflectedPortion(blocked, frame.shield.blockedReflectionPercent());
@@ -179,10 +219,25 @@ public final class EquipmentDamageService {
         float reflected = applyReflection(victim, source, frame.ordinaryDamage + blockReflection);
         recordDamageDiagnostic(victim, source, frame.healthLost, frame.ordinaryPercent, reflected);
         LAST_REFLECTION.put(victim, new ReflectionEvaluation(blocked, frame.healthLost,
-                frame.ordinaryPercent, frame.shield == null ? 0 : frame.shield.innateReflectionPercent(),
+                frame.ordinaryPercent, frame.shield == null ? 0 : frame.shield.nativeReflectionPercent(),
                 frame.shield == null ? 0 : frame.shield.investedReflectionPercent(),
                 frame.shield == null ? 0 : frame.shield.amplification(),
                 frame.ordinaryDamage, blockReflection, reflected));
+    }
+
+    private static void discardHealthMeasurement(ServerPlayer victim, DamageSource source) {
+        Deque<HealthSample> samples = HEALTH_SAMPLES.get(victim);
+        if (samples == null || samples.isEmpty() || samples.peek().source != source) return;
+
+        HealthSample discarded = samples.pop();
+        float totalLoss = Math.max(0, discarded.healthBefore - victim.getHealth());
+        if (!samples.isEmpty()) {
+            // If this was a failed nested call, exclude any health change it
+            // managed before unwinding from its enclosing call's reflection.
+            samples.peek().nestedLoss += totalLoss;
+        } else {
+            HEALTH_SAMPLES.remove(victim);
+        }
     }
 
     private static float applyReflection(ServerPlayer victim, DamageSource source, double rawDamage) {
@@ -235,15 +290,24 @@ public final class EquipmentDamageService {
     private static final class ReflectionFrame {
         final DamageSource source;
         final boolean suppressed;
+        final DamageStatState preHitStats;
+        final boolean preHitHeldShield;
         EquipmentShieldService.Context shield;
         float blockedDamage;
         float healthLost;
         double ordinaryDamage;
         double ordinaryPercent;
         boolean blockCompleted;
-        ReflectionFrame(DamageSource source, boolean suppressed) {
+        ReflectionFrame(
+                DamageSource source,
+                boolean suppressed,
+                DamageStatState preHitStats,
+                boolean preHitHeldShield
+        ) {
             this.source = source;
             this.suppressed = suppressed;
+            this.preHitStats = preHitStats;
+            this.preHitHeldShield = preHitHeldShield;
         }
     }
 
@@ -258,7 +322,7 @@ public final class EquipmentDamageService {
     }
 
     public record ReflectionEvaluation(float blockedDamage, float actualHealthLost, double ordinaryPercent,
-                                       double innatePercent, double shieldInvestedPercent, double amplification,
+                                       double nativePercent, double shieldInvestedPercent, double amplification,
                                        double ordinaryReflectedDamage, double blockReflectedDamage,
                                        float requestedRetaliationDamage) {}
 

@@ -14,7 +14,7 @@ import net.minecraft.world.item.ShieldItem;
 import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.level.Level;
 
-/** One evolving shield; vanilla still owns facing, raising delay and compatible shield use. */
+/** One evolving shield; vanilla still owns facing and compatible shield use. */
 public final class AscendanceShieldItem extends ShieldItem implements EquipmentProfileItem {
     public AscendanceShieldItem(Properties properties) { super(properties); }
 

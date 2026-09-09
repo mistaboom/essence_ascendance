@@ -3,146 +3,74 @@ package com.mistaboom.essence_ascendance.essence;
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import net.minecraft.resources.ResourceLocation;
 
-public final class EssenceTypes {
+import java.util.List;
 
-    /*
-     * ============================================================
-     * ATTRIBUTE ESSENCES
-     * ============================================================
-     */
+public final class EssenceTypes {
 
     public static final EssenceDefinition OFFENSE =
             register(
                     "offense",
-                    "Offense Essence",
-                    EssenceFamily.ATTRIBUTE
+                    "Offense Essence"
             );
 
     public static final EssenceDefinition DEFENSE =
             register(
                     "defense",
-                    "Defense Essence",
-                    EssenceFamily.ATTRIBUTE
+                    "Defense Essence"
             );
 
     public static final EssenceDefinition VITALITY =
             register(
                     "vitality",
-                    "Vitality Essence",
-                    EssenceFamily.ATTRIBUTE
+                    "Vitality Essence"
             );
 
     public static final EssenceDefinition MOBILITY =
             register(
                     "mobility",
-                    "Mobility Essence",
-                    EssenceFamily.ATTRIBUTE
+                    "Mobility Essence"
             );
 
     public static final EssenceDefinition GATHERING =
             register(
                     "gathering",
-                    "Gathering Essence",
-                    EssenceFamily.ATTRIBUTE
+                    "Gathering Essence"
             );
 
     public static final EssenceDefinition UTILITY =
             register(
                     "utility",
-                    "Utility Essence",
-                    EssenceFamily.ATTRIBUTE
+                    "Utility Essence"
             );
 
-
-    /*
-     * ============================================================
-     * SKILL ESSENCES
-     * ============================================================
-     */
-
-    public static final EssenceDefinition PYRE =
-            register(
-                    "pyre",
-                    "Pyre Essence",
-                    EssenceFamily.SKILL
-            );
-
-    public static final EssenceDefinition FLOW =
-            register(
-                    "flow",
-                    "Flow Essence",
-                    EssenceFamily.SKILL
-            );
-
-    public static final EssenceDefinition TERRA =
-            register(
-                    "terra",
-                    "Terra Essence",
-                    EssenceFamily.SKILL
-            );
-
-    public static final EssenceDefinition GALE =
-            register(
-                    "gale",
-                    "Gale Essence",
-                    EssenceFamily.SKILL
-            );
-
-    public static final EssenceDefinition BODY =
-            register(
-                    "body",
-                    "Body Essence",
-                    EssenceFamily.SKILL
-            );
-
-    public static final EssenceDefinition MIND =
-            register(
-                    "mind",
-                    "Mind Essence",
-                    EssenceFamily.SKILL
-            );
-
-    public static final EssenceDefinition SPIRIT =
-            register(
-                    "spirit",
-                    "Spirit Essence",
-                    EssenceFamily.SKILL
-            );
-
-    public static final EssenceDefinition RADIANCE =
-            register(
-                    "radiance",
-                    "Radiance Essence",
-                    EssenceFamily.SKILL
-            );
-
-    public static final EssenceDefinition VOID =
-            register(
-                    "void",
-                    "Void Essence",
-                    EssenceFamily.SKILL
-            );
+    /** Canonical order used by machines, synchronization, and presentation. */
+    public static final List<EssenceDefinition> ORDERED = List.of(
+            OFFENSE,
+            DEFENSE,
+            VITALITY,
+            MOBILITY,
+            GATHERING,
+            UTILITY
+    );
 
     private EssenceTypes() {
     }
 
     private static EssenceDefinition register(
             String path,
-            String displayName,
-            EssenceFamily family
+            String displayName
     ) {
-        return EssenceRegistry.register(
+        return new EssenceDefinition(
                 ResourceLocation.fromNamespaceAndPath(
                         EssenceAscendance.MOD_ID,
                         path
                 ),
-                displayName,
-                family
+                displayName
         );
     }
 
     public static void init() {
         // Calling this method forces Java to initialize this class,
-        // registering all built-in Essence types.
+        // creating all six built-in Essence types.
     }
 }

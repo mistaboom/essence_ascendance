@@ -177,14 +177,7 @@ public final class EssenceCrucibleNetworkService {
             return;
         }
 
-        boolean skillEssencesEnabled =
-                EssenceConfigManager.get().skillEssencesEnabled();
-        boolean enabled = EssenceCrucibleEssences
-                .enabledOrdered(skillEssencesEnabled)
-                .stream()
-                .anyMatch(candidate -> candidate.id().equals(essence.id()));
-        if (!enabled) {
-            /* Disabled families remain preserved and cannot be vented invisibly. */
+        if (EssenceCrucibleEssences.indexOf(essence) < 0) {
             return;
         }
 
@@ -306,12 +299,6 @@ public final class EssenceCrucibleNetworkService {
         long[] balances = crucible.storedEssenceSnapshot();
         EssenceCrucibleStructureStats stats = crucible.structureStats();
 
-        long[] skillBalances =
-                crucible.storedSkillEssenceSnapshot();
-
-        boolean skillEssencesEnabled =
-                EssenceConfigManager.get().skillEssencesEnabled();
-
         String channelingPlayer = "";
         if (crucible.channelingPlayerId() != null) {
             ServerPlayer active = player.server.getPlayerList()
@@ -329,23 +316,14 @@ public final class EssenceCrucibleNetworkService {
                 crucible.accessMode().serializedName(),
                 crucible.canPlayerUse(player),
                 crucible.isChanneling(),
+                crucible.isDissolving(),
                 channelingPlayer,
-                skillEssencesEnabled,
                 balances[0],
                 balances[1],
                 balances[2],
                 balances[3],
                 balances[4],
                 balances[5],
-                skillBalances[0],
-                skillBalances[1],
-                skillBalances[2],
-                skillBalances[3],
-                skillBalances[4],
-                skillBalances[5],
-                skillBalances[6],
-                skillBalances[7],
-                skillBalances[8],
                 crucible.totalStoredEssence(),
                 crucible.effectiveReservoirCapacity(),
                 stats.transferRatePerSecond(),

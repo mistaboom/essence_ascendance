@@ -25,7 +25,7 @@ import java.util.Set;
 import java.util.Map;
 
 /*
- * Client-only cache for the globally visible item -> Attribute Essence tooltip.
+ * Client-only cache for the globally visible item -> Essence tooltip.
  *
  * Presentation goal: ProjectE-style information density rather than another
  * large tooltip section.
@@ -84,7 +84,7 @@ public final class ItemEssenceTooltipClientState {
                 true;
 
         EssenceAscendance.LOGGER.info(
-                "Registered item Attribute Essence tooltip synchronization and display"
+                "Registered item Essence tooltip synchronization and display"
         );
     }
 

@@ -77,15 +77,6 @@ public final class EssenceStats {
                     StatUnit.PERCENT
             );
 
-    public static final StatDefinition DAMAGE_REFLECTION =
-            register(
-                    "damage_reflection",
-                    "Damage Reflection",
-                    StatCategory.OFFENSE,
-                    StatUnit.PERCENT
-            );
-
-
     /*
      * ============================================================
      * DEFENSE
@@ -152,6 +143,14 @@ public final class EssenceStats {
             register(
                     "status_resistance",
                     "Status Resistance",
+                    StatCategory.DEFENSE,
+                    StatUnit.PERCENT
+            );
+
+    public static final StatDefinition DAMAGE_REFLECTION =
+            register(
+                    "damage_reflection",
+                    "Damage Reflection",
                     StatCategory.DEFENSE,
                     StatUnit.PERCENT
             );
@@ -328,8 +327,17 @@ public final class EssenceStats {
             );
 
 
-    public static final StatDefinition GUARD_RECOVERY = register(
-            "guard_recovery", "Guard Recovery", StatCategory.DEFENSE, StatUnit.PERCENT);
+    /*
+     * Keep the persistent ID as guard_recovery so existing investments and
+     * configuration overrides remain valid. Guard Readiness is the clearer
+     * player-facing name now that the stat controls both raising and recovery.
+     */
+    public static final StatDefinition GUARD_READINESS = register(
+            "guard_recovery", "Guard Readiness", StatCategory.DEFENSE, StatUnit.PERCENT);
+
+    /** Source-compatibility alias for integrations using the original field name. */
+    @Deprecated
+    public static final StatDefinition GUARD_RECOVERY = GUARD_READINESS;
 
     public static final StatDefinition GUARDED_MOVEMENT = register(
             "guarded_movement", "Guarded Movement", StatCategory.MOBILITY, StatUnit.PERCENT);

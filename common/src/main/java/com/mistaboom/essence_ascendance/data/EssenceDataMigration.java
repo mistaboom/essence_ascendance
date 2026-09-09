@@ -7,7 +7,7 @@ import net.minecraft.nbt.Tag;
 public final class EssenceDataMigration {
 
     public static final int CURRENT_VERSION =
-            2;
+            3;
 
     public static final String DATA_VERSION_TAG =
             "data_version";
@@ -71,6 +71,19 @@ public final class EssenceDataMigration {
 
                     version =
                             2;
+
+                    migrated =
+                            true;
+                }
+
+
+                case 2 -> {
+                    migrateVersion2To3(
+                            root
+                    );
+
+                    version =
+                            3;
 
                     migrated =
                             true;
@@ -156,6 +169,18 @@ public final class EssenceDataMigration {
          *
          * Existing players simply begin with no internal milestone
          * entries, so no structural transformation is required.
+         */
+    }
+
+
+    private static void migrateVersion2To3(
+            CompoundTag root
+    ) {
+        /*
+         * Version 3 consolidates the runtime onto the six registered Essences.
+         * PlayerEssenceData performs registry-aware reads, ignoring retired or
+         * otherwise unknown IDs without converting or refunding them. Marking
+         * the save migrated makes the next write persist that normalized view.
          */
     }
 

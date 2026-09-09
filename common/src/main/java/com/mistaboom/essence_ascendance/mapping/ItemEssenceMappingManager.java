@@ -6,7 +6,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
-import com.mistaboom.essence_ascendance.essence.EssenceFamily;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.network.ItemEssenceTooltipSyncService;
 import com.mistaboom.essence_ascendance.valuation.GeneratedYieldEligibility;
@@ -170,17 +169,26 @@ public final class ItemEssenceMappingManager {
                 }
                 Set<ResourceLocation> cachedIds = new LinkedHashSet<>();
                 int missingItems = 0;
+                int ignoredEssenceOutputs = 0;
+                int emptyEntriesAfterFiltering = 0;
                 for (GeneratedMappingCache.Entry value : values) {
                     ResourceLocation itemId = ResourceLocation.parse(value.itemId());
                     cachedIds.add(itemId);
                     Map<EssenceDefinition, Long> outputs = new LinkedHashMap<>();
                     for (var output : value.outputs().entrySet()) {
-                        ResourceLocation essenceId = ResourceLocation.parse(output.getKey());
-                        EssenceDefinition essence = EssenceRegistry.get(essenceId).orElseThrow(
-                                () -> new IllegalArgumentException("Unknown cached Essence: " + essenceId));
-                        if (essence.family() != EssenceFamily.ATTRIBUTE)
-                            throw new IllegalArgumentException("Cached outputs must use Attribute Essences: " + essenceId);
+                        ResourceLocation essenceId = ResourceLocation.tryParse(output.getKey());
+                        EssenceDefinition essence = essenceId == null
+                                ? null
+                                : EssenceRegistry.get(essenceId).orElse(null);
+                        if (essence == null) {
+                            ignoredEssenceOutputs++;
+                            continue;
+                        }
                         outputs.put(essence, output.getValue());
+                    }
+                    if (outputs.isEmpty()) {
+                        emptyEntriesAfterFiltering++;
+                        continue;
                     }
                     Item item = BuiltInRegistries.ITEM.getOptional(itemId).orElse(null);
                     if (item == null || item == Items.AIR) { missingItems++; continue; }
@@ -200,6 +208,13 @@ public final class ItemEssenceMappingManager {
                     if (missingItems > 0 || newItems > 0) warnings.add("Saved procedural baseline: " + missingItems
                             + " cached items are no longer registered; " + newItems
                             + " registered items have no cached value. No automatic recalculation; use /essence debug valuation rebuild after pack changes.");
+                }
+                if (ignoredEssenceOutputs > 0) {
+                    warnings.add("Saved procedural baseline: ignored " + ignoredEssenceOutputs
+                            + " unknown/retired Essence output(s) without converting them; "
+                            + emptyEntriesAfterFiltering + " item entr"
+                            + (emptyEntriesAfterFiltering == 1 ? "y was" : "ies were")
+                            + " omitted because no supported outputs remained.");
                 }
                 ItemEssenceMappingRegistry.LoadSummary summary = new ItemEssenceMappingRegistry.LoadSummary(
                         generatedCount, removed, 0, configFiles, explicit.size(), warnings);

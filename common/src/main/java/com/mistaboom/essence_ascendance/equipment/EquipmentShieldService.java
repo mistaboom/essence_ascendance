@@ -16,9 +16,16 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemCooldowns;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.CustomData;
 
 /** Small shared shield context; no independent progression, ownership or combat system. */
 public final class EquipmentShieldService {
+    public static final int VANILLA_RAISE_DELAY_TICKS = 5;
+    public static final int MINIMUM_RAISE_DELAY_TICKS = 1;
+
+    private static final String RAISE_DELAY_TICKS_TAG =
+            "essence_ascendance_shield_raise_delay_ticks";
+
     private EquipmentShieldService() {}
 
     public static boolean isShield(ItemStack stack) {
@@ -65,20 +72,26 @@ public final class EquipmentShieldService {
 
     /**
      * Combat and S2C tooltips share this calculation, even while inspected/lowered.
-     * Durability and amplification belong to the completed item tier; only investments
-     * are limited by the lower of the holder's tier and the item's tier.
+     * Native durability, reflection, and successful-block amplification belong to
+     * the completed item tier. Invested bonuses are limited by the lower of the
+     * holder's tier and the item's completed tier.
      */
     public static Context resolve(PlayerEssenceData data, EquipmentTier itemTier, boolean fractured) {
         var settings = EssenceConfigManager.get().shieldBalance();
         EquipmentTier playerTier = EquipmentTier.fromAscendanceTier(data.getTier());
         EquipmentTier effective = itemTier.order() <= playerTier.order() ? itemTier : playerTier;
         int durability = settings.durability().get(itemTier);
-        if (fractured) return new Context(itemTier, effective, durability, false, 0, 0, 0, 0, 0, 0);
+        if (fractured) {
+            return new Context(itemTier, effective, durability, false,
+                    0, 0, 0, 0, 0, 0, 0, 0);
+        }
         double reflection = invested(data, effective, EssenceStats.DAMAGE_REFLECTION, EquipmentActivationType.HELD);
-        return new Context(itemTier, effective, durability, true, settings.innateReflectionPercent(), reflection,
+        return new Context(itemTier, effective, durability, true,
+                settings.baseReflectionPercent(), settings.innateReflectionBonus().get(itemTier), reflection,
                 settings.blockAmplification().get(itemTier),
-                ShieldMath.percent(invested(data, effective, EssenceStats.GUARD_RECOVERY, EquipmentActivationType.GUARDING)),
+                ShieldMath.percent(invested(data, effective, EssenceStats.GUARD_READINESS, EquipmentActivationType.GUARDING)),
                 ShieldMath.percent(invested(data, effective, EssenceStats.GUARDED_MOVEMENT, EquipmentActivationType.GUARDING)),
+                ShieldMath.percent(invested(data, effective, EssenceStats.KNOCKBACK_RESISTANCE, EquipmentActivationType.GUARDING)),
                 ShieldMath.percent(invested(data, effective, EssenceStats.DURABILITY_EFFICIENCY, EquipmentActivationType.HELD)));
     }
 
@@ -93,33 +106,105 @@ public final class EquipmentShieldService {
         return EssenceConfigManager.get().shieldBalance().durability().get(tier);
     }
 
+    /**
+     * The logical server resolves live progression. Player ItemStack data gives
+     * clients the same threshold without letting them calculate authority.
+     */
+    public static int raiseDelayTicks(LivingEntity holder, ItemStack stack) {
+        if (!functional(stack)) {
+            return VANILLA_RAISE_DELAY_TICKS;
+        }
+        if (holder instanceof ServerPlayer player) {
+            Context context = context(player, stack);
+            return ShieldMath.raiseDelayTicks(
+                    VANILLA_RAISE_DELAY_TICKS,
+                    context.guardReadinessPercent(),
+                    MINIMUM_RAISE_DELAY_TICKS
+            );
+        }
+        if (holder instanceof Player) {
+            return syncedRaiseDelayTicks(stack);
+        }
+        return VANILLA_RAISE_DELAY_TICKS;
+    }
+
+    /** Client-safe fallback remains vanilla until the first authoritative stack sync. */
+    public static int syncedRaiseDelayTicks(ItemStack stack) {
+        CustomData customData = stack == null
+                ? null
+                : stack.get(DataComponents.CUSTOM_DATA);
+        if (customData == null) {
+            return VANILLA_RAISE_DELAY_TICKS;
+        }
+
+        int ticks = customData.copyTag().getInt(RAISE_DELAY_TICKS_TAG);
+        return ticks >= MINIMUM_RAISE_DELAY_TICKS
+                && ticks <= VANILLA_RAISE_DELAY_TICKS
+                ? ticks
+                : VANILLA_RAISE_DELAY_TICKS;
+    }
+
+    /** Synchronize only held shields and mutate their data only when the value changes. */
+    public static void syncReadinessState(ServerPlayer holder) {
+        syncRaiseDelayTicks(holder, holder.getMainHandItem());
+        syncRaiseDelayTicks(holder, holder.getOffhandItem());
+    }
+
+    private static void syncRaiseDelayTicks(ServerPlayer holder, ItemStack stack) {
+        if (!isShield(stack)) {
+            return;
+        }
+
+        int resolvedTicks = raiseDelayTicks(holder, stack);
+        if (syncedRaiseDelayTicks(stack) == resolvedTicks) {
+            return;
+        }
+
+        CustomData.update(
+                DataComponents.CUSTOM_DATA,
+                stack,
+                tag -> tag.putInt(RAISE_DELAY_TICKS_TAG, resolvedTicks)
+        );
+    }
+
     /** Native max damage belongs to the artifact, including while Fractured. Preserve absolute wear/data. */
     public static void refreshNativeDurability(ItemStack stack) {
         if (!isShield(stack)) return;
         int maximum = nativeDurability(EquipmentTierData.tier(stack));
-        if (stack.getMaxDamage() == maximum) return;
         int damage = stack.getDamageValue();
-        stack.set(DataComponents.MAX_DAMAGE, maximum);
-        if (FracturedEquipmentData.isFractured(stack) || damage >= maximum) {
+        boolean fractured = FracturedEquipmentData.isFractured(stack) || damage >= maximum;
+
+        if (stack.getMaxDamage() != maximum) {
+            stack.set(DataComponents.MAX_DAMAGE, maximum);
+        }
+
+        // Also normalize corrupted/legacy stacks whose configured max already
+        // matches but whose damage reached it without passing the fracture hook.
+        if (fractured) {
             FracturedEquipmentData.markFractured(stack);
             stack.setDamageValue(Math.max(0, maximum - 1));
-        } else {
+        } else if (stack.getDamageValue() != damage) {
             stack.setDamageValue(Math.max(0, damage));
         }
     }
 
-    /** Called only at Player.disableShield's authoritative cooldown operation, before stopUsingItem. */
-    public static void applyDisableCooldown(Player holder, ItemCooldowns cooldowns, Item originalItem, int ticks) {
-        ItemStack active = holder.getUseItem();
-        if (isShield(active)) {
+    /** Called only for Player.disableShield's authoritative server-side cooldown operation. */
+    public static void applyDisableCooldown(
+            Player holder,
+            ItemStack disabledStack,
+            ItemCooldowns cooldowns,
+            Item originalItem,
+            int ticks
+    ) {
+        if (isShield(disabledStack)) {
             int duration = ticks;
-            if (holder instanceof ServerPlayer player && functional(active)) {
-                Context context = context(player, active);
-                duration = ShieldMath.disableTicks(ticks, context.guardRecoveryPercent(),
+            if (holder instanceof ServerPlayer player && functional(disabledStack)) {
+                Context context = context(player, disabledStack);
+                duration = ShieldMath.disableTicks(ticks, context.guardReadinessPercent(),
                         EssenceConfigManager.get().shieldBalance().minimumDisableTicks());
             }
             // One registered item means every tier/hand/slot/copy shares the same native player cooldown.
-            cooldowns.addCooldown(active.getItem(), duration);
+            cooldowns.addCooldown(disabledStack.getItem(), duration);
             // Switching to a vanilla shield must not bypass an Ascendance guard break.
             cooldowns.addCooldown(Items.SHIELD, duration);
         } else {
@@ -131,28 +216,39 @@ public final class EquipmentShieldService {
     }
 
     public static void tick(ServerPlayer holder) {
+        syncReadinessState(holder);
         if (!holder.isUsingItem() || !isShield(holder.getUseItem())) return;
         if (!canGuard(holder, holder.getUseItem())) holder.stopUsingItem();
         else holder.setSprinting(false);
     }
 
     public record Context(EquipmentTier itemTier, EquipmentTier effectiveTier, int nativeDurability,
-                          boolean functional, double innateReflectionPercent, double investedReflectionPercent,
+                          boolean functional, double baseReflectionPercent, double innateReflectionBonusPercent,
+                          double investedReflectionPercent,
                           double amplification, double guardRecoveryPercent, double guardedMovementPercent,
-                          double durabilityEfficiencyPercent) {
+                          double knockbackResistancePercent, double durabilityEfficiencyPercent) {
+        /** Player-facing name for the legacy-persisted guard_recovery value. */
+        public double guardReadinessPercent() {
+            return guardRecoveryPercent;
+        }
+
+        /** Total no-investment reflection supplied by this shield's completed tier. */
+        public double nativeReflectionPercent() {
+            return ShieldMath.ordinaryPercent(baseReflectionPercent, innateReflectionBonusPercent, 0);
+        }
         /** Native on-block reflection, independent of every player slider. */
         public double nativeBlockedReflectionPercent() {
-            return ShieldMath.blockedPercent(innateReflectionPercent, 0, amplification);
+            return ShieldMath.blockedPercent(nativeReflectionPercent(), 0, amplification);
         }
         /** Additional on-block reflection supplied by the applicable reflection investment. */
         public double investedBlockedReflectionPercent() {
             return ShieldMath.blockedPercent(0, investedReflectionPercent, amplification);
         }
         public double blockedReflectionPercent() {
-            return ShieldMath.blockedPercent(innateReflectionPercent, investedReflectionPercent, amplification);
+            return ShieldMath.blockedPercent(nativeReflectionPercent(), investedReflectionPercent, amplification);
         }
         public double ordinaryReflectionPercent(double armorReflectionPercent) {
-            return ShieldMath.ordinaryPercent(innateReflectionPercent, investedReflectionPercent, armorReflectionPercent);
+            return ShieldMath.ordinaryPercent(nativeReflectionPercent(), investedReflectionPercent, armorReflectionPercent);
         }
     }
 }

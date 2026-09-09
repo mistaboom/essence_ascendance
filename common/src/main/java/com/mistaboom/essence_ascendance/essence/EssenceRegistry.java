@@ -10,29 +10,30 @@ import java.util.Optional;
 
 public final class EssenceRegistry {
 
+    private static final int REQUIRED_ESSENCE_COUNT = 6;
+
     private static final Map<ResourceLocation, EssenceDefinition> ESSENCES =
-            new LinkedHashMap<>();
+            createRegistry();
 
     private EssenceRegistry() {
     }
 
-    public static EssenceDefinition register(
-            ResourceLocation id,
-            String displayName,
-            EssenceFamily family
-    ) {
-        if (ESSENCES.containsKey(id)) {
-            throw new IllegalArgumentException(
-                    "Duplicate Essence Ascendance essence ID: " + id
+    private static Map<ResourceLocation, EssenceDefinition> createRegistry() {
+        Map<ResourceLocation, EssenceDefinition> essences = new LinkedHashMap<>();
+        for (EssenceDefinition essence : EssenceTypes.ORDERED) {
+            EssenceDefinition duplicate = essences.put(essence.id(), essence);
+            if (duplicate != null) {
+                throw new IllegalStateException(
+                        "Duplicate Essence Ascendance essence ID: " + essence.id()
+                );
+            }
+        }
+        if (essences.size() != REQUIRED_ESSENCE_COUNT) {
+            throw new IllegalStateException(
+                    "Essence Ascendance requires exactly six core Essences"
             );
         }
-
-        EssenceDefinition essence =
-                new EssenceDefinition(id, displayName, family);
-
-        ESSENCES.put(id, essence);
-
-        return essence;
+        return Collections.unmodifiableMap(essences);
     }
 
     public static Optional<EssenceDefinition> get(ResourceLocation id) {
@@ -40,7 +41,7 @@ public final class EssenceRegistry {
     }
 
     public static Collection<EssenceDefinition> values() {
-        return Collections.unmodifiableCollection(ESSENCES.values());
+        return ESSENCES.values();
     }
 
     public static int size() {

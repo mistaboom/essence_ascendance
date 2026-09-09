@@ -8,7 +8,6 @@ import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleChannelService;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
-import com.mistaboom.essence_ascendance.essence.EssenceFamily;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTierData;
 import com.mistaboom.essence_ascendance.equipment.SoulboundEquipmentData;
@@ -424,9 +423,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         }
 
         EssenceDefinition source = sourceEssence();
-        if (source == null
-                || source.family() != EssenceFamily.ATTRIBUTE
-                || !isEnabled(source)) {
+        if (source == null) {
             return STATUS_INVALID_SELECTION;
         }
 
@@ -591,9 +588,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             return;
         }
         boolean repair = repairMode();
-        List<EssenceDefinition> enabled = repair
-                ? enabledAttributeEssences()
-                : enabledEssences();
+        List<EssenceDefinition> enabled = allEssences();
         if (enabled.isEmpty() || (!repair && enabled.size() < 2)) {
             return;
         }
@@ -627,9 +622,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     }
 
     private void normalizeSelections() {
-        List<EssenceDefinition> enabled = repairMode()
-                ? enabledAttributeEssences()
-                : enabledEssences();
+        List<EssenceDefinition> enabled = allEssences();
         if (enabled.isEmpty()) {
             return;
         }
@@ -667,9 +660,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         EssenceDefinition target = targetEssence();
         return source != null
                 && target != null
-                && !source.id().equals(target.id())
-                && isEnabled(source)
-                && isEnabled(target);
+                && !source.id().equals(target.id());
     }
 
     public static List<EssenceDefinition> allEssences() {
@@ -695,26 +686,6 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         return index >= 0 && index < all.size() ? all.get(index) : null;
     }
 
-    private static List<EssenceDefinition> enabledEssences() {
-        List<EssenceDefinition> result = new ArrayList<>();
-        for (EssenceDefinition essence : EssenceRegistry.values()) {
-            if (isEnabled(essence)) {
-                result.add(essence);
-            }
-        }
-        return result;
-    }
-
-    private static List<EssenceDefinition> enabledAttributeEssences() {
-        List<EssenceDefinition> result = new ArrayList<>();
-        for (EssenceDefinition essence : EssenceRegistry.values()) {
-            if (essence.family() == EssenceFamily.ATTRIBUTE && isEnabled(essence)) {
-                result.add(essence);
-            }
-        }
-        return result;
-    }
-
     private static boolean containsEssence(
             List<EssenceDefinition> essences,
             @Nullable ResourceLocation id
@@ -728,11 +699,6 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             }
         }
         return false;
-    }
-
-    private static boolean isEnabled(EssenceDefinition essence) {
-        return essence.family() != EssenceFamily.SKILL
-                || EssenceConfigManager.get().skillEssencesEnabled();
     }
 
     private void tickProcessing(ServerLevel serverLevel) {
@@ -801,9 +767,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         }
 
         EssenceDefinition source = sourceEssence();
-        if (source == null
-                || source.family() != EssenceFamily.ATTRIBUTE
-                || !isEnabled(source)) {
+        if (source == null) {
             return;
         }
 
@@ -1258,7 +1222,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         }
         for (var entry : requirements.minimumByEssence().entrySet()) {
             EssenceDefinition essence = EssenceRegistry.get(entry.getKey()).orElse(null);
-            if (essence == null || !isEnabled(essence) || entry.getValue() <= 0L) {
+            if (essence == null || entry.getValue() <= 0L) {
                 return false;
             }
         }

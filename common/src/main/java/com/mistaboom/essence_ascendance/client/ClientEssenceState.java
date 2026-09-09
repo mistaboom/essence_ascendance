@@ -2,7 +2,6 @@ package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
-import com.mistaboom.essence_ascendance.essence.EssenceFamily;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.network.PlayerEssenceSyncPayload;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
@@ -116,8 +115,6 @@ public final class ClientEssenceState {
     public static void clear() {
         snapshot =
                 Snapshot.empty();
-
-        JeiCarrierVisibilityBridge.clearSkillEssenceVisibility();
     }
 
     private static void accept(
@@ -168,23 +165,14 @@ public final class ClientEssenceState {
                             balance.essenceId()
                     );
 
-            if (essenceId != null) {
+            if (essenceId != null
+                    && EssenceRegistry.get(essenceId).isPresent()) {
                 balances.put(
                         essenceId,
                         balance.available()
                 );
             }
         }
-
-        boolean skillEssencesVisible =
-                EssenceRegistry.values()
-                        .stream()
-                        .filter(essence -> essence.family() == EssenceFamily.SKILL)
-                        .anyMatch(essence -> balances.containsKey(essence.id()));
-
-        JeiCarrierVisibilityBridge.setSkillEssencesVisible(
-                skillEssencesVisible
-        );
 
         Map<ResourceLocation, StatSnapshot> stats =
                 new LinkedHashMap<>();

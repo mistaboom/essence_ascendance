@@ -2,7 +2,6 @@ package com.mistaboom.essence_ascendance.client.nexus;
 
 import com.mistaboom.essence_ascendance.client.ClientEssenceState;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
-import com.mistaboom.essence_ascendance.essence.EssenceFamily;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
@@ -31,20 +30,12 @@ public final class NexusCategoryViewFactory {
                 continue;
             }
 
-            NexusCategoryView.PresentationType presentationType =
-                    essence.family() == EssenceFamily.ATTRIBUTE
-                            ? NexusCategoryView.PresentationType.ATTRIBUTE_SLIDERS
-                            : NexusCategoryView.PresentationType.PLACEHOLDER;
-
             List<NexusProgressionTrack> tracks =
-                    presentationType == NexusCategoryView.PresentationType.ATTRIBUTE_SLIDERS
-                            ? buildTracks(snapshot, essence)
-                            : List.of();
+                    buildTracks(snapshot, essence);
 
             categories.add(
                     new NexusCategoryView(
                             essence,
-                            presentationType,
                             snapshot.availableEssence().getOrDefault(
                                     essence.id(),
                                     0L

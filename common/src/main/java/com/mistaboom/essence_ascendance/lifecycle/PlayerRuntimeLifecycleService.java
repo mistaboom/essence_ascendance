@@ -5,6 +5,7 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentAttributeService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentDamageService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentGatheringService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentMobilityService;
+import com.mistaboom.essence_ascendance.equipment.EquipmentShieldService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTooltipSyncService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentVitalityService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentWeaponService;
@@ -121,6 +122,10 @@ public final class PlayerRuntimeLifecycleService {
         );
 
         EquipmentWeaponService.syncRangedVisualState(
+                player
+        );
+
+        EquipmentShieldService.syncReadinessState(
                 player
         );
 

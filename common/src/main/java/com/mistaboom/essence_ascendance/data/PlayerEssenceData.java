@@ -2,6 +2,8 @@ package com.mistaboom.essence_ascendance.data;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
+import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
+import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
@@ -15,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 
 public final class PlayerEssenceData {
 
@@ -875,7 +878,9 @@ public final class PlayerEssenceData {
                 root.getCompound(
                         AVAILABLE_TAG
                 ),
-                data.availableEssence
+                data.availableEssence,
+                id -> EssenceRegistry.get(id).isPresent(),
+                "Essence"
         );
 
 
@@ -892,7 +897,9 @@ public final class PlayerEssenceData {
                 root.getCompound(
                         CRUCIBLE_RESERVOIR_TAG
                 ),
-                data.crucibleReservoir
+                data.crucibleReservoir,
+                id -> EssenceRegistry.get(id).isPresent(),
+                "Crucible Essence"
         );
 
 
@@ -907,7 +914,9 @@ public final class PlayerEssenceData {
                 root.getCompound(
                         INVESTED_TAG
                 ),
-                data.investedEssence
+                data.investedEssence,
+                id -> EssenceStatRegistry.get(id).isPresent(),
+                "stat investment"
         );
 
 
@@ -972,7 +981,9 @@ public final class PlayerEssenceData {
 
     private static void readLongMap(
             CompoundTag tag,
-            Map<ResourceLocation, Long> target
+            Map<ResourceLocation, Long> target,
+            Predicate<ResourceLocation> supportedId,
+            String valueKind
     ) {
 
         for (String key :
@@ -990,6 +1001,15 @@ public final class PlayerEssenceData {
                         key
                 );
 
+                continue;
+            }
+
+            if (!supportedId.test(id)) {
+                EssenceAscendance.LOGGER.warn(
+                        "Ignoring unknown/retired {} ID '{}' in Essence Ascendance player data; no conversion or refund was applied",
+                        valueKind,
+                        id
+                );
                 continue;
             }
 

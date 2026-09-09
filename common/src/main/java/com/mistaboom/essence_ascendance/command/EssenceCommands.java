@@ -8,7 +8,6 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentProfileDefinition;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfileRegistry;
 import com.mistaboom.essence_ascendance.equipment.EquipmentStatResolver;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
-import com.mistaboom.essence_ascendance.essence.EssenceFamily;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.progression.AscendanceAttemptResult;
 import com.mistaboom.essence_ascendance.progression.AscendanceEngine;
@@ -179,9 +178,6 @@ public final class EssenceCommands {
         long totalAvailable = 0L;
 
         for (EssenceDefinition essence : EssenceRegistry.values()) {
-            if (!EssenceCommandUtil.isEssenceVisible(essence)) {
-                continue;
-            }
             totalAvailable = safeAdd(totalAvailable, data.getAvailable(essence));
         }
 
@@ -240,29 +236,15 @@ public final class EssenceCommands {
         PlayerEssenceData data = playerData(source, player);
 
         EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("balance.title")));
-        boolean skillEssencesEnabled =
-                EssenceConfigManager.get().skillEssencesEnabled();
-
-        for (EssenceFamily family : EssenceFamily.values()) {
-            if (family == EssenceFamily.SKILL
-                    && !skillEssencesEnabled) {
-                continue;
-            }
-
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.section(EssenceText.term("essence"))
+        );
+        for (EssenceDefinition essence : EssenceRegistry.values()) {
             EssenceCommandUtil.send(
                     source,
-                    EssenceCommandUtil.section(family == EssenceFamily.ATTRIBUTE ? EssenceText.term("attribute_essence") : EssenceText.term("skill_essence"))
+                    EssenceCommandUtil.line(EssenceText.essence(essence), EssenceCommandUtil.format(data.getAvailable(essence)))
             );
-            for (EssenceDefinition essence : EssenceRegistry.values()) {
-                if (essence.family() != family
-                        || !EssenceCommandUtil.isEssenceVisible(essence)) {
-                    continue;
-                }
-                EssenceCommandUtil.send(
-                        source,
-                        EssenceCommandUtil.line(EssenceText.essence(essence), EssenceCommandUtil.format(data.getAvailable(essence)))
-                );
-            }
         }
         return 1;
     }
@@ -274,10 +256,6 @@ public final class EssenceCommands {
 
         EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.essence(essence)));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.command("label.available"), EssenceCommandUtil.format(amount)));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                EssenceText.command("label.family"),
-                essence.family() == EssenceFamily.ATTRIBUTE ? EssenceText.command("family.attribute") : EssenceText.command("family.skill")
-        ));
         return 1;
     }
 

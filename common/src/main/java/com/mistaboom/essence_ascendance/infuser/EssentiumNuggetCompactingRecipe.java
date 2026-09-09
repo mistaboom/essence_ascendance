@@ -66,7 +66,6 @@ public final class EssentiumNuggetCompactingRecipe extends CustomRecipe {
             }
 
             EssentiumCarrierData.Value value = EssentiumCarrierData.readValidated(stack)
-                    .filter(EssentiumCarrierData::isEnabled)
                     .orElse(null);
             if (value == null
                     || value.amount() != EssentiumCarrierData.capacityFor(stack, value.grade())) {

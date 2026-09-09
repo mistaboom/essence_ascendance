@@ -9,13 +9,11 @@ import java.util.Objects;
 /** Data-driven category page model consumed by the fullscreen Nexus shell. */
 public record NexusCategoryView(
         EssenceDefinition essence,
-        PresentationType presentationType,
         long availableEssence,
         List<NexusProgressionTrack> tracks
 ) {
     public NexusCategoryView {
         Objects.requireNonNull(essence, "Nexus category Essence cannot be null");
-        Objects.requireNonNull(presentationType, "Nexus presentation type cannot be null");
         if (availableEssence < 0L) {
             throw new IllegalArgumentException("Available Essence cannot be negative");
         }
@@ -24,10 +22,5 @@ public record NexusCategoryView(
 
     public String shortDisplayName() {
         return EssenceText.essenceShort(essence).getString();
-    }
-
-    public enum PresentationType {
-        ATTRIBUTE_SLIDERS,
-        PLACEHOLDER
     }
 }
