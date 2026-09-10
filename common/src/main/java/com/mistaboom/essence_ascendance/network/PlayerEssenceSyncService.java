@@ -13,6 +13,7 @@ import com.mistaboom.essence_ascendance.progression.AscendanceProgressSnapshot;
 import com.mistaboom.essence_ascendance.progression.MilestoneDefinition;
 import com.mistaboom.essence_ascendance.progression.MilestoneProgress;
 import com.mistaboom.essence_ascendance.progression.MilestoneRequirement;
+import com.mistaboom.essence_ascendance.progression.PermanentMilestoneService;
 import com.mistaboom.essence_ascendance.progression.StatScalingResult;
 import com.mistaboom.essence_ascendance.progression.StatScalingService;
 import com.mistaboom.essence_ascendance.skill.SkillActivationPolicy;
@@ -86,7 +87,7 @@ public final class PlayerEssenceSyncService {
          */
         PlayerEvent.PLAYER_ADVANCEMENT.register(
                 (player, advancement) ->
-                        forceSync(player)
+                        milestoneStateChanged(player)
         );
 
         TickEvent.PLAYER_POST.register(
@@ -124,6 +125,17 @@ public final class PlayerEssenceSyncService {
                 player,
                 false
         );
+    }
+
+    /**
+     * Provider invalidation hook for milestone state that changes without a
+     * PlayerEssenceData revision. Custom providers should call this from their
+     * completion event so permanent skill gates are captured and synchronized.
+     */
+    public static void milestoneStateChanged(
+            ServerPlayer player
+    ) {
+        forceSync(player);
     }
 
     public static void forget(
@@ -173,11 +185,23 @@ public final class PlayerEssenceSyncService {
             return;
         }
 
+        /*
+         * Resolve through the same configurable provider path used by
+         * Ascendance, then latch newly completed permanent skill gates before
+         * building the revisioned client snapshot.
+         */
+        List<PermanentMilestoneService.Resolution> skillMilestones =
+                PermanentMilestoneService.captureCompleted(
+                        player,
+                        SkillRegistry.referencedPermanentMilestoneIds()
+                );
+
         PlayerEssenceSyncPayload payload =
                 buildPayload(
                         player,
                         playerData,
-                        config
+                        config,
+                        skillMilestones
                 );
 
         /*
@@ -220,7 +244,8 @@ public final class PlayerEssenceSyncService {
     private static PlayerEssenceSyncPayload buildPayload(
             ServerPlayer player,
             PlayerEssenceData playerData,
-            EssenceServerConfig config
+            EssenceServerConfig config,
+            List<PermanentMilestoneService.Resolution> resolvedSkillMilestones
     ) {
         List<PlayerEssenceSyncPayload.EssenceBalance> balances =
                 new ArrayList<>();
@@ -269,18 +294,22 @@ public final class PlayerEssenceSyncService {
                         .getCompletedMilestones()
                         .stream()
                         .filter(PlayerEssenceSyncService::transportSafeId)
-                        .sorted(
-                                Comparator
-                                        .comparing(
-                                                (ResourceLocation id) ->
-                                                        !SkillRegistry
-                                                                .referencedPermanentMilestoneIds()
-                                                                .contains(id)
-                                        )
-                                        .thenComparing(ResourceLocation::toString)
-                        )
+                        .sorted()
                         .map(ResourceLocation::toString)
                         .limit(PlayerEssenceSyncPayload.MAX_MILESTONES)
+                        .toList();
+
+        List<PlayerEssenceSyncPayload.MilestoneState> skillMilestones =
+                resolvedSkillMilestones
+                        .stream()
+                        .filter(resolution -> transportSafeId(resolution.milestoneId()))
+                        .limit(PlayerEssenceSyncPayload.MAX_MILESTONES)
+                        .map(resolution -> new PlayerEssenceSyncPayload.MilestoneState(
+                                resolution.milestoneId().toString(),
+                                transportSafeLabel(resolution.displayName()),
+                                resolution.resolvable(),
+                                resolution.complete()
+                        ))
                         .toList();
 
         List<PlayerEssenceSyncPayload.OwnedSkillState> ownedSkills =
@@ -365,6 +394,7 @@ public final class PlayerEssenceSyncService {
                 balances,
                 stats,
                 completedMilestones,
+                skillMilestones,
                 ownedSkills,
                 loadoutSelections,
                 completedAttunements,
@@ -384,6 +414,13 @@ public final class PlayerEssenceSyncService {
         return id != null
                 && id.toString().length()
                 <= PlayerEssenceSyncPayload.MAX_ID_LENGTH;
+    }
+
+    private static String transportSafeLabel(String label) {
+        if (label.length() <= PlayerEssenceSyncPayload.MAX_REQUIREMENT_LABEL_LENGTH) {
+            return label;
+        }
+        return label.substring(0, PlayerEssenceSyncPayload.MAX_REQUIREMENT_LABEL_LENGTH);
     }
 
     private static boolean knownLoadoutSelection(

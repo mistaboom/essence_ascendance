@@ -25,6 +25,7 @@ import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
 import com.mistaboom.essence_ascendance.progression.HarvestProgressionSafety;
 import com.mistaboom.essence_ascendance.progression.MilestoneDefinition;
 import com.mistaboom.essence_ascendance.progression.MilestoneProviders;
+import com.mistaboom.essence_ascendance.progression.PermanentMilestoneService;
 import com.mistaboom.essence_ascendance.progression.StatInvestmentLimit;
 import com.mistaboom.essence_ascendance.progression.TierInvestmentPolicy;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
@@ -693,10 +694,23 @@ final class EssenceAdminCommands {
         MilestoneDefinition milestone = EssenceConfigManager.get()
                 .getMilestone(requestedId)
                 .orElse(null);
+        boolean skillMilestone = EssenceCommandUtil
+                .knownSkillMilestoneIds()
+                .contains(requestedId);
         ResourceLocation storedId;
         String label;
 
-        if (milestone != null) {
+        if (skillMilestone) {
+            /*
+             * This is an explicit development override of the permanent
+             * definition ID. Normal gameplay still resolves the configured
+             * provider and target through MilestoneService.
+             */
+            storedId = requestedId;
+            label = milestone == null
+                    ? requestedId.toString()
+                    : milestone.displayName() + " [" + milestone.id() + "]";
+        } else if (milestone != null) {
             if (!milestone.providerId().equals(MilestoneProviders.INTERNAL)) {
                 EssenceCommandUtil.fail(
                         source,
@@ -713,30 +727,38 @@ final class EssenceAdminCommands {
             }
             label = milestone.displayName() + " [" + milestone.id() + "]";
         } else {
-            /*
-             * Skill milestone requirements are already internal, permanent
-             * flags. Accept only IDs actually referenced by the loaded catalog
-             * so a typo cannot silently create unrelated saved state.
-             */
-            if (!EssenceCommandUtil.knownSkillMilestoneIds().contains(requestedId)) {
-                EssenceCommandUtil.fail(
-                        source,
-                        "Unknown INTERNAL or skill milestone ID: " + requestedId
-                );
-                return 0;
-            }
-            storedId = requestedId;
-            label = requestedId.toString();
+            EssenceCommandUtil.fail(
+                    source,
+                    "Unknown INTERNAL or skill milestone ID: " + requestedId
+            );
+            return 0;
         }
 
         EssenceSavedData savedData = EssenceSavedData.get(player.server);
         boolean changed = complete
-                ? savedData.completeInternalMilestone(player.getUUID(), storedId)
-                : savedData.revokeInternalMilestone(player.getUUID(), storedId);
+                ? savedData.completeMilestone(player.getUUID(), storedId)
+                : savedData.revokeMilestone(player.getUUID(), storedId);
 
         PlayerRuntimeLifecycleService.refreshProgressionState(player);
 
-        Component state = complete
+        boolean effectiveComplete = skillMilestone
+                ? PermanentMilestoneService.resolveAll(
+                        player,
+                        java.util.List.of(requestedId)
+                ).get(0).complete()
+                : savedData.hasCompletedMilestone(player.getUUID(), storedId);
+
+        if (effectiveComplete != complete) {
+            EssenceCommandUtil.fail(
+                    source,
+                    "Milestone " + label
+                            + " remains COMPLETE because its configured provider is already complete. "
+                            + "Revoke or reset the provider's progress before clearing its permanent capture."
+            );
+            return 0;
+        }
+
+        Component state = effectiveComplete
                 ? EssenceCommandUtil.good("COMPLETE")
                 : EssenceCommandUtil.warn("INCOMPLETE");
         EssenceCommandUtil.send(

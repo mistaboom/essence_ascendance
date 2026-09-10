@@ -35,6 +35,7 @@
   "gui.essence_ascendance.nexus.skills.tooltip.requirement_met": "✓ Complete: %1$s",
   "gui.essence_ascendance.nexus.skills.tooltip.requirement_missing": "× Incomplete: %1$s",
   "gui.essence_ascendance.nexus.skills.tooltip.requirement_projected": "✓ Complete when applied: %1$s",
+  "gui.essence_ascendance.nexus.skills.tooltip.requirement_unavailable": "⚠ Unavailable (server milestone configuration): %1$s",
   "gui.essence_ascendance.nexus.skills.tooltip.requirements": "Requirements:",
   "gui.essence_ascendance.nexus.skills.tooltip.selected_detail": "Selected: %1$s → %2$s",
   "gui.essence_ascendance.nexus.skills.tooltip.state_details": "State (current → projected):",

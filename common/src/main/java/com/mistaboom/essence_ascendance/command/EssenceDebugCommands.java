@@ -49,6 +49,7 @@ import com.mistaboom.essence_ascendance.progression.MilestoneProgress;
 import com.mistaboom.essence_ascendance.progression.MilestoneProviders;
 import com.mistaboom.essence_ascendance.progression.MilestoneRequirement;
 import com.mistaboom.essence_ascendance.progression.MilestoneService;
+import com.mistaboom.essence_ascendance.progression.PermanentMilestoneService;
 import com.mistaboom.essence_ascendance.progression.StatInvestmentLimit;
 import com.mistaboom.essence_ascendance.progression.StatScalingResult;
 import com.mistaboom.essence_ascendance.progression.StatScalingService;
@@ -93,6 +94,7 @@ import net.minecraft.world.phys.HitResult;
 
 import java.io.IOException;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -193,7 +195,7 @@ final class EssenceDebugCommands {
                 .filter(id -> SkillRegistry.get(id).isPresent())
                 .count();
         Map<ResourceLocation, SkillEvaluationResult> evaluated =
-                SkillStateEvaluator.evaluateAll(committedSkillContext(data));
+                SkillStateEvaluator.evaluateAll(committedSkillContext(player, data));
         long effective = evaluated.values().stream()
                 .filter(SkillEvaluationResult::effective)
                 .count();
@@ -311,7 +313,7 @@ final class EssenceDebugCommands {
             return 1;
         }
 
-        SkillEvaluationContext evaluationContext = committedSkillContext(data);
+        SkillEvaluationContext evaluationContext = committedSkillContext(player, data);
         SkillEvaluationResult evaluation = SkillStateEvaluator.evaluate(
                 skillId,
                 evaluationContext
@@ -460,6 +462,7 @@ final class EssenceDebugCommands {
     }
 
     private static SkillEvaluationContext committedSkillContext(
+            ServerPlayer player,
             PlayerEssenceData data
     ) {
         Map<ResourceLocation, Long> bonusTotals = new LinkedHashMap<>();
@@ -473,12 +476,20 @@ final class EssenceDebugCommands {
             bonusTotals.put(essenceId, updated);
         }
 
+        Set<ResourceLocation> completedMilestones =
+                PermanentMilestoneService.completedIds(
+                        PermanentMilestoneService.resolveAll(
+                                player,
+                                SkillRegistry.referencedPermanentMilestoneIds()
+                        )
+                );
+
         return SkillEvaluationContext.committed(
                 data.getTierId(),
                 data.getOwnedSkills().keySet(),
                 data.getLoadoutSelections(),
                 data.getCompletedAttunements(),
-                data.getCompletedMilestones(),
+                completedMilestones,
                 Set.of(),
                 bonusTotals
         );
@@ -633,13 +644,36 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.line("Provider", milestone.providerId().toString()));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line("Target", milestone.target()));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Evaluated state",
+                "Provider state",
                 !progress.resolvable()
                         ? EssenceCommandUtil.bad("UNRESOLVED")
                         : progress.complete()
                         ? EssenceCommandUtil.good("COMPLETE")
                         : EssenceCommandUtil.warn("INCOMPLETE")
         ));
+
+        if (EssenceCommandUtil.knownSkillMilestoneIds().contains(milestone.id())) {
+            PermanentMilestoneService.Resolution permanent =
+                    PermanentMilestoneService.resolveAll(
+                                    player,
+                                    List.of(milestone.id())
+                            )
+                            .get(0);
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Permanent skill state",
+                    !permanent.resolvable()
+                            ? EssenceCommandUtil.bad("UNRESOLVED")
+                            : permanent.complete()
+                            ? EssenceCommandUtil.good("COMPLETE")
+                            : EssenceCommandUtil.warn("INCOMPLETE")
+            ));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Captured",
+                    permanent.captured()
+                            ? EssenceCommandUtil.good("YES")
+                            : EssenceCommandUtil.muted("NO")
+            ));
+        }
 
         if (milestone.providerId().equals(MilestoneProviders.INTERNAL)) {
             ResourceLocation targetId = ResourceLocation.tryParse(milestone.target());

@@ -52,6 +52,11 @@ public final class EssenceAscendance {
         AscendanceTiers.init();
         EssenceStats.init();
         BalanceProfiles.init();
+
+        /* Skill gates depend on these configurable milestone definitions. */
+        MilestoneProviders.init();
+        Milestones.init();
+
         Skills.init();
 
         /* Equipment profiles reference registered stats. */
@@ -69,8 +74,6 @@ public final class EssenceAscendance {
         AscendanceNexusContent.init();
         EssenceCrucibleGameplayEvents.init();
 
-        MilestoneProviders.init();
-        Milestones.init();
         AscendanceAdvancements.init();
 
         EssenceConfigManager.load();

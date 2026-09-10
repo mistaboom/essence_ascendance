@@ -668,7 +668,7 @@ public final class EssenceConfigManager {
 
         root.addProperty(
                 "_ascendance_requirements_comment",
-                "Ascension requirements are global config, not datapacks. Use milestone_overrides for world-objective definitions and advancement_overrides for tier-transition requirements."
+                "Ascension and skill world-progression requirements are global config, not datapacks. Use milestone_overrides for shared objective definitions and advancement_overrides for tier-transition requirements."
         );
 
         root.add(
@@ -1021,7 +1021,7 @@ public final class EssenceConfigManager {
 
         root.addProperty(
                 "_ascendance_requirements_comment",
-                "Ascension requirements are global config, not datapacks. The generated template materializes the current built-in milestone and transition definitions."
+                "Ascension and skill world-progression requirements are global config, not datapacks. The generated template materializes the shared built-in milestone definitions, including skill gates, and the tier transitions."
         );
         root.add("milestone_overrides", createCompleteMilestoneJson());
         root.add("advancement_overrides", createCompleteAdvancementJson());

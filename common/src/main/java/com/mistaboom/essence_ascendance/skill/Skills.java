@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.skill;
 
 import com.mistaboom.essence_ascendance.essence.EssenceTypes;
+import com.mistaboom.essence_ascendance.progression.Milestones;
 import com.mistaboom.essence_ascendance.skill.requirement.PermanentMilestoneRequirement;
 import com.mistaboom.essence_ascendance.skill.requirement.SkillRequirement;
 import com.mistaboom.essence_ascendance.tier.AscendanceTiers;
@@ -229,7 +230,7 @@ public final class Skills {
         skills.add(skill(SkillIds.ESSENCE_WINGS, essence, AscendanceTiers.ASCENDANT.id(),
                 SkillCostBand.KEYSTONE, 11)
                 .requires(SkillIds.IMPACT_CONTROL, SkillIds.FATIGUE_FLIGHT)
-                .requirements(milestone(SkillMilestones.SKY_LIMIT))
+                .requirements(milestone(Milestones.SKY_LIMIT.id()))
                 .group(SkillGroups.MOBILITY_FLIGHT_REPLACEMENT)
                 .replaces(SkillIds.FATIGUE_FLIGHT).hint(SkillLayoutHint.UPPER).build());
         skills.add(skill(SkillIds.FATIGUE_FLIGHT, essence, AscendanceTiers.RESONANT.id(),
@@ -242,7 +243,7 @@ public final class Skills {
         skills.add(skill(SkillIds.UNTETHERED_FLIGHT, essence, AscendanceTiers.TRANSCENDENT.id(),
                 SkillCostBand.KEYSTONE, 14)
                 .requires(SkillIds.FATIGUE_FLIGHT, SkillIds.IMPACT_CONTROL)
-                .requirements(milestone(SkillMilestones.SKY_LIMIT))
+                .requirements(milestone(Milestones.SKY_LIMIT.id()))
                 .group(SkillGroups.MOBILITY_FLIGHT_REPLACEMENT)
                 .replaces(SkillIds.FATIGUE_FLIGHT).hint(SkillLayoutHint.LOWER).build());
     }
@@ -317,22 +318,22 @@ public final class Skills {
                 .hint(SkillLayoutHint.LOWER).build());
         skills.add(skill(SkillIds.VILLAGE_PATRON, essence, AscendanceTiers.AWAKENED.id(),
                 SkillCostBand.FOUNDATION, 6)
-                .requirements(milestone(SkillMilestones.HERO_OF_THE_VILLAGE))
+                .requirements(milestone(Milestones.HERO_OF_THE_VILLAGE.id()))
                 .hint(SkillLayoutHint.CENTER).build());
         skills.add(skill(SkillIds.BONDED_COMPANION, essence, AscendanceTiers.RESONANT.id(),
                 SkillCostBand.ADVANCED, 7)
-                .requirements(milestone(SkillMilestones.BEST_FRIENDS_FOREVER))
+                .requirements(milestone(Milestones.BEST_FRIENDS_FOREVER.id()))
                 .hint(SkillLayoutHint.UPPER).build());
         skills.add(skill(SkillIds.POTION_DURATION, essence, AscendanceTiers.AWAKENED.id(),
                 SkillCostBand.FOUNDATION, 8)
-                .requirements(milestone(SkillMilestones.LOCAL_BREWERY))
+                .requirements(milestone(Milestones.LOCAL_BREWERY.id()))
                 .hint(SkillLayoutHint.CENTER).build());
         skills.add(skill(SkillIds.POTION_RELAY, essence, AscendanceTiers.RESONANT.id(),
                 SkillCostBand.ADVANCED, 9).requires(SkillIds.POTION_DURATION)
                 .hint(SkillLayoutHint.LOWER).build());
         skills.add(skill(SkillIds.SANCTUARY, essence, AscendanceTiers.TRANSCENDENT.id(),
                 SkillCostBand.KEYSTONE, 10).requires(SkillIds.WAYLIGHT)
-                .requirements(milestone(SkillMilestones.BEACON_ACTIVATION))
+                .requirements(milestone(Milestones.BEACON_ACTIVATION.id()))
                 .toggle().hint(SkillLayoutHint.UPPER).build());
         skills.add(skill(SkillIds.INDUSTRIOUS_PRESENCE, essence, AscendanceTiers.ASCENDANT.id(),
                 SkillCostBand.KEYSTONE, 11).toggle().hint(SkillLayoutHint.CENTER).build());
@@ -343,7 +344,7 @@ public final class Skills {
                 SkillCostBand.ADVANCED, 13).hint(SkillLayoutHint.LOWER).build());
         skills.add(skill(SkillIds.ENCHANTING_INSIGHT, essence, AscendanceTiers.RESONANT.id(),
                 SkillCostBand.ADVANCED, 14)
-                .requirements(milestone(SkillMilestones.ENCHANTER))
+                .requirements(milestone(Milestones.ENCHANTER.id()))
                 .hint(SkillLayoutHint.LOWER).build());
     }
 

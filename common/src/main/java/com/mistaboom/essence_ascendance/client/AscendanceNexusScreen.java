@@ -13,6 +13,7 @@ import com.mistaboom.essence_ascendance.network.AscendanceNexusTransactionPayloa
 import com.mistaboom.essence_ascendance.network.PlayerEssenceSyncPayload;
 import com.mistaboom.essence_ascendance.progression.StatScalingService;
 import com.mistaboom.essence_ascendance.skill.requirement.BonusInvestmentRequirement;
+import com.mistaboom.essence_ascendance.skill.requirement.PermanentMilestoneRequirement;
 import com.mistaboom.essence_ascendance.skill.requirement.SkillRequirement;
 import com.mistaboom.essence_ascendance.skill.SkillActivationPolicy;
 import com.mistaboom.essence_ascendance.skill.SkillChoiceGroup;
@@ -22,6 +23,7 @@ import com.mistaboom.essence_ascendance.skill.SkillEvaluationContext;
 import com.mistaboom.essence_ascendance.skill.SkillEvaluationResult;
 import com.mistaboom.essence_ascendance.skill.SkillPrerequisiteStatus;
 import com.mistaboom.essence_ascendance.skill.SkillRegistry;
+import com.mistaboom.essence_ascendance.skill.SkillRequirementKind;
 import com.mistaboom.essence_ascendance.skill.SkillRequirementStatus;
 import com.mistaboom.essence_ascendance.skill.SkillStateEvaluator;
 import com.mistaboom.essence_ascendance.stat.StatUnit;
@@ -6318,7 +6320,19 @@ public final class AscendanceNexusScreen
             components.add(EssenceText.gui("nexus.skills.tooltip.requirements"));
             for (com.mistaboom.essence_ascendance.skill.SkillRequirementStatus status :
                     evaluation.requirements()) {
-                String statusPath = status.authoritativeSatisfied()
+                ClientEssenceState.MilestoneSnapshot milestone =
+                        status.kind() == SkillRequirementKind.PERMANENT_MILESTONE
+                                ? milestoneRequirementState(
+                                        skill,
+                                        status.requirementId()
+                                )
+                                : null;
+                boolean unavailable = milestone != null
+                        ? !milestone.resolvable()
+                        : status.kind() == SkillRequirementKind.PERMANENT_MILESTONE;
+                String statusPath = unavailable
+                        ? "nexus.skills.tooltip.requirement_unavailable"
+                        : status.authoritativeSatisfied()
                         ? "nexus.skills.tooltip.requirement_met"
                         : status.projectedSatisfied()
                         ? "nexus.skills.tooltip.requirement_projected"
@@ -6470,6 +6484,21 @@ public final class AscendanceNexusScreen
         };
     }
 
+    private ClientEssenceState.MilestoneSnapshot milestoneRequirementState(
+            SkillDefinition skill,
+            ResourceLocation requirementId
+    ) {
+        for (SkillRequirement requirement : skill.requirements()) {
+            if (requirement.id().equals(requirementId)
+                    && requirement instanceof PermanentMilestoneRequirement milestone) {
+                return ClientEssenceState.snapshot()
+                        .skillMilestones()
+                        .get(milestone.milestoneId());
+            }
+        }
+        return null;
+    }
+
     private Component requirementDescription(
             SkillDefinition skill,
             ResourceLocation requirementId
@@ -6494,6 +6523,15 @@ public final class AscendanceNexusScreen
                         formatLong(bonus.minimumInvestment()),
                         essence
                 );
+            }
+            if (requirement instanceof PermanentMilestoneRequirement milestone) {
+                ClientEssenceState.MilestoneSnapshot state =
+                        ClientEssenceState.snapshot()
+                                .skillMilestones()
+                                .get(milestone.milestoneId());
+                if (state != null) {
+                    return Component.literal(state.displayName());
+                }
             }
             return Component.translatable(requirement.translationKey());
         }

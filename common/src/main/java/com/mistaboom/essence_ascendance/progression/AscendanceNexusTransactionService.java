@@ -16,6 +16,7 @@ import com.mistaboom.essence_ascendance.skill.SkillEvaluationContext;
 import com.mistaboom.essence_ascendance.skill.SkillPurchaseEligibility;
 import com.mistaboom.essence_ascendance.skill.SkillRegistry;
 import com.mistaboom.essence_ascendance.skill.SkillStateEvaluator;
+import com.mistaboom.essence_ascendance.skill.requirement.PermanentMilestoneRequirement;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
@@ -325,6 +326,20 @@ public final class AscendanceNexusTransactionService {
                 );
             }
 
+            List<PermanentMilestoneService.Resolution> milestoneResolutions =
+                    PermanentMilestoneService.resolveAll(
+                            player,
+                            SkillRegistry.referencedPermanentMilestoneIds()
+                    );
+            Set<ResourceLocation> completedMilestones =
+                    PermanentMilestoneService.completedIds(milestoneResolutions);
+            Map<ResourceLocation, PermanentMilestoneService.Resolution>
+                    milestonesById = new LinkedHashMap<>();
+            for (PermanentMilestoneService.Resolution resolution :
+                    milestoneResolutions) {
+                milestonesById.put(resolution.milestoneId(), resolution);
+            }
+
             SkillEvaluationContext skillContext = new SkillEvaluationContext(
                     playerData.getTierId(),
                     playerData.getOwnedSkills().keySet(),
@@ -332,7 +347,7 @@ public final class AscendanceNexusTransactionService {
                     playerData.getLoadoutSelections(),
                     targetLoadoutSelections,
                     playerData.getCompletedAttunements(),
-                    playerData.getCompletedMilestones(),
+                    completedMilestones,
                     Set.of(),
                     currentBonusByEssence,
                     projectedBonusByEssence
@@ -342,6 +357,20 @@ public final class AscendanceNexusTransactionService {
                     SkillRegistry.topologicalOrder(requestedPurchases);
 
             for (SkillDefinition skill : purchaseOrder) {
+                for (var requirement : skill.requirements()) {
+                    if (!(requirement instanceof PermanentMilestoneRequirement milestone)) {
+                        continue;
+                    }
+                    PermanentMilestoneService.Resolution resolution =
+                            milestonesById.get(milestone.milestoneId());
+                    if (resolution == null || !resolution.resolvable()) {
+                        return Result.failure(
+                                AscendanceNexusTransactionResultPayload.Status.CONFIGURATION_ERROR,
+                                playerData.nexusRevision()
+                        );
+                    }
+                }
+
                 SkillPurchaseEligibility eligibility =
                         SkillStateEvaluator.evaluatePurchaseEligibility(
                                 skill,

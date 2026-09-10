@@ -102,7 +102,7 @@ public final class ClientEssenceState {
         );
     }
 
-    public static boolean hasCompletedInternalMilestone(
+    public static boolean hasCompletedMilestone(
             ResourceLocation milestoneId
     ) {
         return snapshot
@@ -110,6 +110,13 @@ public final class ClientEssenceState {
                 .contains(
                         milestoneId
                 );
+    }
+
+    /** Compatibility name retained for existing client presentation callers. */
+    public static boolean hasCompletedInternalMilestone(
+            ResourceLocation milestoneId
+    ) {
+        return hasCompletedMilestone(milestoneId);
     }
 
     public static boolean ownsSkill(
@@ -248,21 +255,37 @@ public final class ClientEssenceState {
             );
         }
 
+        Map<ResourceLocation, MilestoneSnapshot> skillMilestones =
+                new LinkedHashMap<>();
         Set<ResourceLocation> completedMilestones =
                 new LinkedHashSet<>();
 
-        for (String rawId :
-                payload.completedMilestones()) {
-
-            ResourceLocation milestoneId =
-                    ResourceLocation.tryParse(
-                            rawId
-                    );
-
+        for (String rawId : payload.completedMilestones()) {
+            ResourceLocation milestoneId = ResourceLocation.tryParse(rawId);
             if (milestoneId != null) {
-                completedMilestones.add(
-                        milestoneId
-                );
+                completedMilestones.add(milestoneId);
+            }
+        }
+
+        for (PlayerEssenceSyncPayload.MilestoneState state :
+                payload.skillMilestones()) {
+            ResourceLocation milestoneId =
+                    ResourceLocation.tryParse(state.milestoneId());
+
+            if (milestoneId == null) {
+                continue;
+            }
+
+            MilestoneSnapshot milestone = new MilestoneSnapshot(
+                    milestoneId,
+                    state.displayName(),
+                    state.resolvable(),
+                    state.complete()
+            );
+            skillMilestones.put(milestoneId, milestone);
+
+            if (milestone.complete()) {
+                completedMilestones.add(milestoneId);
             }
         }
 
@@ -386,6 +409,9 @@ public final class ClientEssenceState {
                         Map.copyOf(
                                 stats
                         ),
+                        Map.copyOf(
+                                skillMilestones
+                        ),
                         Set.copyOf(
                                 completedMilestones
                         ),
@@ -432,6 +458,7 @@ public final class ClientEssenceState {
             ResourceLocation balanceProfileId,
             Map<ResourceLocation, Long> availableEssence,
             Map<ResourceLocation, StatSnapshot> stats,
+            Map<ResourceLocation, MilestoneSnapshot> skillMilestones,
             Set<ResourceLocation> completedMilestones,
             Map<ResourceLocation, SkillPurchaseSnapshot> ownedSkills,
             Map<ResourceLocation, ResourceLocation> loadoutSelections,
@@ -447,6 +474,11 @@ public final class ClientEssenceState {
             stats =
                     Map.copyOf(
                             stats
+                    );
+
+            skillMilestones =
+                    Map.copyOf(
+                            skillMilestones
                     );
 
             completedMilestones =
@@ -483,6 +515,7 @@ public final class ClientEssenceState {
                     null,
                     Map.of(),
                     Map.of(),
+                    Map.of(),
                     Set.of(),
                     Map.of(),
                     Map.of(),
@@ -496,6 +529,14 @@ public final class ClientEssenceState {
             ResourceLocation skillId,
             ResourceLocation essenceId,
             long paidCost
+    ) {
+    }
+
+    public record MilestoneSnapshot(
+            ResourceLocation milestoneId,
+            String displayName,
+            boolean resolvable,
+            boolean complete
     ) {
     }
 

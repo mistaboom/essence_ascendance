@@ -453,20 +453,55 @@ public final class EssenceSavedData extends SavedData {
 
     /*
      * ============================================================
-     * INTERNAL MILESTONES
+     * PERMANENT MILESTONE STATE
      * ============================================================
      */
+
+    public boolean hasCompletedMilestone(
+            UUID playerId,
+            ResourceLocation milestoneId
+    ) {
+        return getPlayerData(playerId).hasCompletedMilestone(milestoneId);
+    }
+
+
+    public boolean completeMilestone(
+            UUID playerId,
+            ResourceLocation milestoneId
+    ) {
+        PlayerEssenceData playerData = getPlayerData(playerId);
+        boolean changed = playerData.completeMilestone(milestoneId);
+
+        if (changed) {
+            setDirty();
+        }
+
+        return changed;
+    }
+
+
+    public boolean revokeMilestone(
+            UUID playerId,
+            ResourceLocation milestoneId
+    ) {
+        PlayerEssenceData playerData = getPlayerData(playerId);
+        boolean changed = playerData.revokeMilestone(milestoneId);
+
+        if (changed) {
+            setDirty();
+        }
+
+        return changed;
+    }
+
+
+    /* Provider compatibility helpers for existing internal milestones. */
 
     public boolean hasCompletedInternalMilestone(
             UUID playerId,
             ResourceLocation milestoneId
     ) {
-
-        return getPlayerData(
-                playerId
-        ).hasCompletedMilestone(
-                milestoneId
-        );
+        return hasCompletedMilestone(playerId, milestoneId);
     }
 
 
@@ -475,21 +510,7 @@ public final class EssenceSavedData extends SavedData {
             ResourceLocation milestoneId
     ) {
 
-        PlayerEssenceData playerData =
-                getPlayerData(
-                        playerId
-                );
-
-        boolean changed =
-                playerData.completeMilestone(
-                        milestoneId
-                );
-
-        if (changed) {
-            setDirty();
-        }
-
-        return changed;
+        return completeMilestone(playerId, milestoneId);
     }
 
 
@@ -498,21 +519,7 @@ public final class EssenceSavedData extends SavedData {
             ResourceLocation milestoneId
     ) {
 
-        PlayerEssenceData playerData =
-                getPlayerData(
-                        playerId
-                );
-
-        boolean changed =
-                playerData.revokeMilestone(
-                        milestoneId
-                );
-
-        if (changed) {
-            setDirty();
-        }
-
-        return changed;
+        return revokeMilestone(playerId, milestoneId);
     }
 
 

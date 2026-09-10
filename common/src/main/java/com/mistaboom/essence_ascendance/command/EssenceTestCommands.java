@@ -6,8 +6,13 @@ import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import com.mistaboom.essence_ascendance.equipment.EquipmentMobilityService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentStatResolver;
 import com.mistaboom.essence_ascendance.equipment.EquipmentStatState;
+import com.mistaboom.essence_ascendance.progression.MilestoneProgress;
+import com.mistaboom.essence_ascendance.progression.MilestoneRequirement;
+import com.mistaboom.essence_ascendance.progression.MilestoneService;
+import com.mistaboom.essence_ascendance.progression.PermanentMilestoneService;
 import com.mistaboom.essence_ascendance.progression.StatScalingResult;
 import com.mistaboom.essence_ascendance.progression.StatScalingService;
+import com.mistaboom.essence_ascendance.skill.SkillRegistry;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.EssenceStats;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
@@ -20,6 +25,9 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+
+import java.util.List;
+import java.util.Set;
 
 public final class EssenceTestCommands {
 
@@ -48,6 +56,10 @@ public final class EssenceTestCommands {
                 .then(
                         Commands.literal("activation")
                                 .executes(context -> testActivation(context.getSource()))
+                )
+                .then(
+                        Commands.literal("skill-milestones")
+                                .executes(context -> testSkillMilestones(context.getSource()))
                 );
     }
 
@@ -61,10 +73,128 @@ public final class EssenceTestCommands {
                 "/essence test activation",
                 "show which invested bonuses are active in the current worn/main-hand context"
         ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command(
+                "/essence test skill-milestones",
+                "validate every configurable permanent milestone gate referenced by the skill catalog"
+        ));
         EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
                 "These are diagnostic tests only; they do not alter progression or equipment."
         ));
         return 1;
+    }
+
+    private static int testSkillMilestones(
+            CommandSourceStack source
+    ) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        Set<ResourceLocation> referencedIds =
+                SkillRegistry.referencedPermanentMilestoneIds();
+        List<PermanentMilestoneService.Resolution> resolutions =
+                PermanentMilestoneService.resolveAll(player, referencedIds);
+        Set<ResourceLocation> completedIds =
+                PermanentMilestoneService.completedIds(resolutions);
+
+        int passed = 0;
+
+        EssenceCommandUtil.send(
+                source,
+                EssenceCommandUtil.title("Skill Milestone Integration Test")
+        );
+
+        for (PermanentMilestoneService.Resolution resolution : resolutions) {
+            /*
+             * Check the live provider separately. Permanent resolution stays
+             * valid after capture by design, even if a later override breaks.
+             */
+            MilestoneRequirement providerRequirement =
+                    MilestoneRequirement.milestone(resolution.milestoneId());
+            MilestoneProgress providerProgress;
+            try {
+                providerProgress = MilestoneService.evaluate(
+                        player,
+                        providerRequirement
+                );
+            } catch (RuntimeException exception) {
+                EssenceAscendance.LOGGER.error(
+                        "Skill milestone '{}' provider diagnostic failed",
+                        resolution.milestoneId(),
+                        exception
+                );
+                providerProgress = new MilestoneProgress(
+                        providerRequirement,
+                        false,
+                        false,
+                        List.of()
+                );
+            }
+
+            boolean completedProjectionMatches =
+                    completedIds.contains(resolution.milestoneId())
+                            == resolution.complete();
+            boolean rowPass = providerProgress.resolvable()
+                    && resolution.resolvable()
+                    && completedProjectionMatches;
+
+            if (rowPass) {
+                passed++;
+            }
+
+            String providerState = !providerProgress.resolvable()
+                    ? "UNRESOLVED"
+                    : providerProgress.complete()
+                    ? "COMPLETE"
+                    : "INCOMPLETE";
+            String permanentState = resolution.captured()
+                    ? "CAPTURED"
+                    : resolution.providerComplete()
+                    ? "PROVIDER COMPLETE"
+                    : "INCOMPLETE";
+
+            EssenceCommandUtil.send(
+                    source,
+                    Component.literal("  ")
+                            .append(rowPass
+                                    ? EssenceCommandUtil.good("PASS ")
+                                    : EssenceCommandUtil.bad("FAIL "))
+                            .append(Component.literal(resolution.displayName())
+                                    .withStyle(ChatFormatting.WHITE))
+                            .append(Component.literal(
+                                    " [" + resolution.milestoneId() + "]"
+                            ).withStyle(ChatFormatting.DARK_GRAY))
+                            .append(Component.literal(
+                                    " | provider=" + providerState
+                                            + " | permanent=" + permanentState
+                            ).withStyle(ChatFormatting.GRAY))
+            );
+        }
+
+        boolean coverageMatches = resolutions.size() == referencedIds.size();
+        boolean pass = coverageMatches && passed == referencedIds.size();
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Summary"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Resolvable catalog gates",
+                passed + " / " + referencedIds.size()
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Completed permanent gates",
+                Integer.toString(completedIds.size())
+        ));
+        EssenceCommandUtil.send(
+                source,
+                pass
+                        ? EssenceCommandUtil.good(
+                                "  PASS All referenced skill milestones use the configurable provider framework."
+                        )
+                        : EssenceCommandUtil.bad(
+                                "  FAIL One or more referenced skill milestones are unresolved or inconsistent."
+                        )
+        );
+        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
+                "  This diagnostic is read-only; it does not grant or capture milestone completion."
+        ));
+
+        return pass ? 1 : 0;
     }
 
     private static int testLuck(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {

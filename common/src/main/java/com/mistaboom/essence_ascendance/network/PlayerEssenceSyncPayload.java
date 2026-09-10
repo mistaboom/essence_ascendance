@@ -25,13 +25,14 @@ public record PlayerEssenceSyncPayload(
         List<EssenceBalance> essenceBalances,
         List<StatState> stats,
         List<String> completedMilestones,
+        List<MilestoneState> skillMilestones,
         List<OwnedSkillState> ownedSkills,
         List<LoadoutSelection> loadoutSelections,
         List<String> completedAttunements,
         ProgressState progress
 ) implements CustomPacketPayload {
 
-    public static final int CURRENT_SCHEMA_VERSION = 4;
+    public static final int CURRENT_SCHEMA_VERSION = 5;
 
     static final int MAX_ID_LENGTH = 128;
     private static final int MAX_ESSENCES = 128;
@@ -41,7 +42,7 @@ public record PlayerEssenceSyncPayload(
     static final int MAX_LOADOUT_SELECTIONS = 2048;
     static final int MAX_ATTUNEMENTS = 2048;
     public static final int MAX_WORLD_REQUIREMENT_LINES = 256;
-    private static final int MAX_REQUIREMENT_LABEL_LENGTH = 192;
+    static final int MAX_REQUIREMENT_LABEL_LENGTH = 192;
 
     public static final Type<PlayerEssenceSyncPayload> TYPE =
             new Type<>(
@@ -63,6 +64,7 @@ public record PlayerEssenceSyncPayload(
         Objects.requireNonNull(essenceBalances, "Essence balances cannot be null");
         Objects.requireNonNull(stats, "Stat states cannot be null");
         Objects.requireNonNull(completedMilestones, "Completed milestones cannot be null");
+        Objects.requireNonNull(skillMilestones, "Skill milestones cannot be null");
         Objects.requireNonNull(ownedSkills, "Owned skills cannot be null");
         Objects.requireNonNull(loadoutSelections, "Loadout selections cannot be null");
         Objects.requireNonNull(completedAttunements, "Completed Attunements cannot be null");
@@ -71,6 +73,7 @@ public record PlayerEssenceSyncPayload(
         essenceBalances = List.copyOf(essenceBalances);
         stats = List.copyOf(stats);
         completedMilestones = List.copyOf(completedMilestones);
+        skillMilestones = List.copyOf(skillMilestones);
         ownedSkills = List.copyOf(ownedSkills);
         loadoutSelections = List.copyOf(loadoutSelections);
         completedAttunements = List.copyOf(completedAttunements);
@@ -116,6 +119,14 @@ public record PlayerEssenceSyncPayload(
         buffer.writeVarInt(payload.completedMilestones.size());
         for (String milestoneId : payload.completedMilestones) {
             buffer.writeUtf(milestoneId, MAX_ID_LENGTH);
+        }
+
+        buffer.writeVarInt(payload.skillMilestones.size());
+        for (MilestoneState milestone : payload.skillMilestones) {
+            buffer.writeUtf(milestone.milestoneId(), MAX_ID_LENGTH);
+            buffer.writeUtf(milestone.displayName(), MAX_REQUIREMENT_LABEL_LENGTH);
+            buffer.writeBoolean(milestone.resolvable());
+            buffer.writeBoolean(milestone.complete());
         }
 
         buffer.writeVarInt(payload.ownedSkills.size());
@@ -216,19 +227,38 @@ public record PlayerEssenceSyncPayload(
             );
         }
 
-        int milestoneCount =
+        int completedMilestoneCount =
                 readBoundedCount(
                         buffer,
                         MAX_MILESTONES,
-                        "milestone"
+                        "completed milestone"
                 );
 
         List<String> completedMilestones =
-                new ArrayList<>(milestoneCount);
+                new ArrayList<>(completedMilestoneCount);
 
-        for (int i = 0; i < milestoneCount; i++) {
-            completedMilestones.add(
-                    buffer.readUtf(MAX_ID_LENGTH)
+        for (int i = 0; i < completedMilestoneCount; i++) {
+            completedMilestones.add(buffer.readUtf(MAX_ID_LENGTH));
+        }
+
+        int skillMilestoneCount =
+                readBoundedCount(
+                        buffer,
+                        MAX_MILESTONES,
+                        "skill milestone"
+                );
+
+        List<MilestoneState> skillMilestones =
+                new ArrayList<>(skillMilestoneCount);
+
+        for (int i = 0; i < skillMilestoneCount; i++) {
+            skillMilestones.add(
+                    new MilestoneState(
+                            buffer.readUtf(MAX_ID_LENGTH),
+                            buffer.readUtf(MAX_REQUIREMENT_LABEL_LENGTH),
+                            buffer.readBoolean(),
+                            buffer.readBoolean()
+                    )
             );
         }
 
@@ -365,6 +395,7 @@ public record PlayerEssenceSyncPayload(
                 essenceBalances,
                 stats,
                 completedMilestones,
+                skillMilestones,
                 ownedSkills,
                 loadoutSelections,
                 completedAttunements,
@@ -469,6 +500,26 @@ public record PlayerEssenceSyncPayload(
                         "Synchronized "
                                 + label
                                 + " must be finite and non-negative"
+                );
+            }
+        }
+    }
+
+    /** Server-resolved state for one configurable milestone referenced by skills. */
+    public record MilestoneState(
+            String milestoneId,
+            String displayName,
+            boolean resolvable,
+            boolean complete
+    ) {
+        public MilestoneState {
+            Objects.requireNonNull(milestoneId, "Milestone ID cannot be null");
+            if (displayName == null || displayName.isBlank()) {
+                throw new IllegalArgumentException("Milestone display name cannot be blank");
+            }
+            if (complete && !resolvable) {
+                throw new IllegalArgumentException(
+                        "A completed milestone must also be resolvable"
                 );
             }
         }

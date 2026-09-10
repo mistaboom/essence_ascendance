@@ -697,7 +697,10 @@ public final class PlayerEssenceData {
 
     /*
      * ============================================================
-     * INTERNAL MILESTONES
+     * PERMANENT MILESTONE STATE
+     *
+     * Internal-provider targets and captured configurable milestone IDs share
+     * this stable set. Provider evaluation decides which identity is queried.
      * ============================================================
      */
 
@@ -1139,7 +1142,7 @@ public final class PlayerEssenceData {
 
 
         /*
-         * Internal milestone completion
+         * Permanent milestone completion
          */
         CompoundTag milestoneTag =
                 new CompoundTag();
@@ -1361,7 +1364,7 @@ public final class PlayerEssenceData {
 
         /*
          * ========================================================
-         * INTERNAL MILESTONES
+         * PERMANENT MILESTONES
          * ========================================================
          *
          * Older saves do not contain this tag, so check for it

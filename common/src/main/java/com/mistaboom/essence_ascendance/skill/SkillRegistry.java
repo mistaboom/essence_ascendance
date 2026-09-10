@@ -4,6 +4,7 @@ import com.mistaboom.essence_ascendance.balance.BalanceProfileDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.essence.EssenceTypes;
+import com.mistaboom.essence_ascendance.progression.MilestoneRegistry;
 import com.mistaboom.essence_ascendance.skill.requirement.BonusInvestmentRequirement;
 import com.mistaboom.essence_ascendance.skill.requirement.DiscoveryRequirement;
 import com.mistaboom.essence_ascendance.skill.requirement.PermanentMilestoneRequirement;
@@ -358,6 +359,13 @@ public final class SkillRegistry {
                                         + " has a non-positive Bonus requirement"
                         );
                     }
+                } else if (requirement instanceof PermanentMilestoneRequirement milestone
+                        && MilestoneRegistry.get(milestone.milestoneId()).isEmpty()) {
+                    throw invalid(
+                            "Skill " + skill.id()
+                                    + " references an unregistered milestone "
+                                    + milestone.milestoneId()
+                    );
                 }
             }
 
