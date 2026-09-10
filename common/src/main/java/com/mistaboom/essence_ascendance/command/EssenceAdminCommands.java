@@ -203,6 +203,7 @@ final class EssenceAdminCommands {
                 )
                 .then(
                         Commands.literal("milestone")
+                                .executes(context -> showMilestoneHelp(context.getSource()))
                                 .then(
                                         Commands.literal("set")
                                                 .then(
@@ -216,6 +217,58 @@ final class EssenceAdminCommands {
                                                                                         BoolArgumentType.getBool(context, "complete")
                                                                                 ))
                                                                 )
+                                                )
+                                )
+                                .then(
+                                        Commands.literal("grant")
+                                                .then(
+                                                        Commands.argument("milestone", StringArgumentType.string())
+                                                                .suggests(EssenceCommandUtil::suggestDevelopmentMilestones)
+                                                                .executes(context -> setMilestone(
+                                                                        context.getSource(),
+                                                                        StringArgumentType.getString(context, "milestone"),
+                                                                        true
+                                                                ))
+                                                )
+                                )
+                                .then(
+                                        Commands.literal("revoke")
+                                                .then(
+                                                        Commands.argument("milestone", StringArgumentType.string())
+                                                                .suggests(EssenceCommandUtil::suggestDevelopmentMilestones)
+                                                                .executes(context -> setMilestone(
+                                                                        context.getSource(),
+                                                                        StringArgumentType.getString(context, "milestone"),
+                                                                        false
+                                                                ))
+                                                )
+                                )
+                )
+                .then(
+                        Commands.literal("attunement")
+                                .executes(context -> showAttunementHelp(context.getSource()))
+                                .then(
+                                        Commands.literal("grant")
+                                                .then(
+                                                        Commands.argument("attunement", StringArgumentType.string())
+                                                                .suggests(EssenceCommandUtil::suggestAttunements)
+                                                                .executes(context -> setAttunement(
+                                                                        context.getSource(),
+                                                                        StringArgumentType.getString(context, "attunement"),
+                                                                        true
+                                                                ))
+                                                )
+                                )
+                                .then(
+                                        Commands.literal("revoke")
+                                                .then(
+                                                        Commands.argument("attunement", StringArgumentType.string())
+                                                                .suggests(EssenceCommandUtil::suggestAttunements)
+                                                                .executes(context -> setAttunement(
+                                                                        context.getSource(),
+                                                                        StringArgumentType.getString(context, "attunement"),
+                                                                        false
+                                                                ))
                                                 )
                                 )
                 )
@@ -284,7 +337,9 @@ final class EssenceAdminCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin stats clear", "clear investments without clearing balances"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin tier set <tier>", "force your PLAYER Ascendance tier"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin itemtier set <tier>", "set the held Ascendance equipment/Essence Focus tier"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin milestone set <milestone> <true|false>", "set an INTERNAL milestone"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin milestone set <milestone> <true|false>", "set an internal progression milestone"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin milestone grant|revoke <milestone_id>", "change a configured INTERNAL or catalog skill milestone"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin attunement grant|revoke <attunement_id>", "change a known Player Attunement ID for development"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin mappings", "show item mapping status and config path"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin mappings reload", "load saved procedural defaults and explicit overrides; calculate only when the cache is absent"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin mappings list", "list the active mapping IDs/selectors"));
@@ -353,6 +408,38 @@ final class EssenceAdminCommands {
         ));
         EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
                 "Changing an item tier clears partial infusion progress on that item."
+        ));
+        return 1;
+    }
+
+    private static int showMilestoneHelp(CommandSourceStack source) {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Admin - Internal progression milestones"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command(
+                "/essence admin milestone grant <milestone_id>",
+                "grant a configured INTERNAL or catalog skill milestone"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command(
+                "/essence admin milestone revoke <milestone_id>",
+                "revoke a configured INTERNAL or catalog skill milestone"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
+                "The existing 'set <milestone_id> <true|false>' form remains available."
+        ));
+        return 1;
+    }
+
+    private static int showAttunementHelp(CommandSourceStack source) {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Admin - Player Attunements"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command(
+                "/essence admin attunement grant <attunement_id>",
+                "grant a known stable Attunement ID to yourself"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command(
+                "/essence admin attunement revoke <attunement_id>",
+                "revoke a known stable Attunement ID from yourself"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
+                "Development hook: unknown IDs are rejected to prevent persistent typo entries."
         ));
         return 1;
     }
@@ -602,27 +689,52 @@ final class EssenceAdminCommands {
             boolean complete
     ) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
-        MilestoneDefinition milestone = EssenceCommandUtil.resolveMilestone(milestoneName);
+        ResourceLocation requestedId = EssenceCommandUtil.resolveResourceId(milestoneName);
+        MilestoneDefinition milestone = EssenceConfigManager.get()
+                .getMilestone(requestedId)
+                .orElse(null);
+        ResourceLocation storedId;
+        String label;
 
-        if (!milestone.providerId().equals(MilestoneProviders.INTERNAL)) {
-            EssenceCommandUtil.fail(
-                    source,
-                    "Only INTERNAL milestones can be changed directly. "
-                            + milestone.id() + " uses " + milestone.providerId() + "."
-            );
-            return 0;
-        }
+        if (milestone != null) {
+            if (!milestone.providerId().equals(MilestoneProviders.INTERNAL)) {
+                EssenceCommandUtil.fail(
+                        source,
+                        "Only INTERNAL milestones can be changed directly. "
+                                + milestone.id() + " uses " + milestone.providerId() + "."
+                );
+                return 0;
+            }
 
-        ResourceLocation target = ResourceLocation.tryParse(milestone.target());
-        if (target == null) {
-            EssenceCommandUtil.fail(source, "Milestone has invalid internal target: " + milestone.target());
-            return 0;
+            storedId = ResourceLocation.tryParse(milestone.target());
+            if (storedId == null) {
+                EssenceCommandUtil.fail(source, "Milestone has invalid internal target: " + milestone.target());
+                return 0;
+            }
+            label = milestone.displayName() + " [" + milestone.id() + "]";
+        } else {
+            /*
+             * Skill milestone requirements are already internal, permanent
+             * flags. Accept only IDs actually referenced by the loaded catalog
+             * so a typo cannot silently create unrelated saved state.
+             */
+            if (!EssenceCommandUtil.knownSkillMilestoneIds().contains(requestedId)) {
+                EssenceCommandUtil.fail(
+                        source,
+                        "Unknown INTERNAL or skill milestone ID: " + requestedId
+                );
+                return 0;
+            }
+            storedId = requestedId;
+            label = requestedId.toString();
         }
 
         EssenceSavedData savedData = EssenceSavedData.get(player.server);
         boolean changed = complete
-                ? savedData.completeInternalMilestone(player.getUUID(), target)
-                : savedData.revokeInternalMilestone(player.getUUID(), target);
+                ? savedData.completeInternalMilestone(player.getUUID(), storedId)
+                : savedData.revokeInternalMilestone(player.getUUID(), storedId);
+
+        PlayerRuntimeLifecycleService.refreshProgressionState(player);
 
         Component state = complete
                 ? EssenceCommandUtil.good("COMPLETE")
@@ -631,7 +743,45 @@ final class EssenceAdminCommands {
                 source,
                 Component.literal("Milestone ")
                         .withStyle(ChatFormatting.GRAY)
-                        .append(Component.literal(milestone.displayName()).withStyle(ChatFormatting.WHITE))
+                        .append(Component.literal(label).withStyle(ChatFormatting.WHITE))
+                        .append(Component.literal(" is now ").withStyle(ChatFormatting.GRAY))
+                        .append(state)
+                        .append(Component.literal(changed ? "." : " (state was already set).").withStyle(ChatFormatting.GRAY))
+        );
+        return 1;
+    }
+
+    private static int setAttunement(
+            CommandSourceStack source,
+            String attunementName,
+            boolean granted
+    ) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        ResourceLocation attunementId = EssenceCommandUtil.resolveResourceId(attunementName);
+        if (!EssenceCommandUtil.knownAttunementIds().contains(attunementId)) {
+            EssenceCommandUtil.fail(source, "Unknown Player Attunement ID: " + attunementId);
+            return 0;
+        }
+        EssenceSavedData savedData = EssenceSavedData.get(player.server);
+        boolean changed = granted
+                ? savedData.grantAttunement(player.getUUID(), attunementId)
+                : savedData.revokeAttunement(player.getUUID(), attunementId);
+
+        /*
+         * Attunements may immediately change skill eligibility/effectiveness.
+         * Push the complete authoritative snapshot even when the requested
+         * state was already present so the development client is reconciled.
+         */
+        PlayerRuntimeLifecycleService.refreshProgressionState(player);
+
+        Component state = granted
+                ? EssenceCommandUtil.good("GRANTED")
+                : EssenceCommandUtil.warn("REVOKED");
+        EssenceCommandUtil.send(
+                source,
+                Component.literal("Player Attunement ")
+                        .withStyle(ChatFormatting.GRAY)
+                        .append(Component.literal(attunementId.toString()).withStyle(ChatFormatting.WHITE))
                         .append(Component.literal(" is now ").withStyle(ChatFormatting.GRAY))
                         .append(state)
                         .append(Component.literal(changed ? "." : " (state was already set).").withStyle(ChatFormatting.GRAY))

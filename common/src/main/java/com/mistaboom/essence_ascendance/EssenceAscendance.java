@@ -27,6 +27,8 @@ import com.mistaboom.essence_ascendance.progression.MilestoneRegistry;
 import com.mistaboom.essence_ascendance.progression.Milestones;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.EssenceStats;
+import com.mistaboom.essence_ascendance.skill.SkillRegistry;
+import com.mistaboom.essence_ascendance.skill.Skills;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
 import com.mistaboom.essence_ascendance.tier.AscendanceTiers;
 import com.mistaboom.essence_ascendance.worldgen.LatentOreWorldgen;
@@ -50,6 +52,7 @@ public final class EssenceAscendance {
         AscendanceTiers.init();
         EssenceStats.init();
         BalanceProfiles.init();
+        Skills.init();
 
         /* Equipment profiles reference registered stats. */
         EquipmentProfiles.init();
@@ -82,9 +85,10 @@ public final class EssenceAscendance {
         );
 
         LOGGER.info(
-                "Initializing Essence Ascendance with {} essence types, {} stats, {} tiers, {} balance profiles, {} equipment profiles, {} equipment stat providers, {} milestone providers, {} milestones, {} Ascendance advancement definitions, using balance profile {}",
+                "Initializing Essence Ascendance with {} essence types, {} stats, {} skills, {} tiers, {} balance profiles, {} equipment profiles, {} equipment stat providers, {} milestone providers, {} milestones, {} Ascendance advancement definitions, using balance profile {}",
                 EssenceRegistry.size(),
                 EssenceStatRegistry.size(),
+                SkillRegistry.size(),
                 AscendanceTierRegistry.size(),
                 BalanceProfileRegistry.size(),
                 EquipmentProfileRegistry.size(),

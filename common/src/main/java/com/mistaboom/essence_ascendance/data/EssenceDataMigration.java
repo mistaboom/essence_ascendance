@@ -7,7 +7,7 @@ import net.minecraft.nbt.Tag;
 public final class EssenceDataMigration {
 
     public static final int CURRENT_VERSION =
-            3;
+            4;
 
     public static final String DATA_VERSION_TAG =
             "data_version";
@@ -84,6 +84,19 @@ public final class EssenceDataMigration {
 
                     version =
                             3;
+
+                    migrated =
+                            true;
+                }
+
+
+                case 3 -> {
+                    migrateVersion3To4(
+                            root
+                    );
+
+                    version =
+                            4;
 
                     migrated =
                             true;
@@ -181,6 +194,18 @@ public final class EssenceDataMigration {
          * PlayerEssenceData performs registry-aware reads, ignoring retired or
          * otherwise unknown IDs without converting or refunding them. Marking
          * the save migrated makes the next write persist that normalized view.
+         */
+    }
+
+
+    private static void migrateVersion3To4(
+            CompoundTag root
+    ) {
+        /*
+         * Version 4 adds optional per-player skill purchases, loadout
+         * selections, permanent Player Attunements, and a persisted Nexus
+         * revision. Existing players naturally begin with empty collections
+         * and revision zero, so no structural transformation is required.
          */
     }
 

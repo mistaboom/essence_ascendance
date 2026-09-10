@@ -16,6 +16,8 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 
@@ -36,6 +38,24 @@ public final class PlayerEssenceData {
 
     private static final String COMPLETED_MILESTONES_TAG =
             "completed_milestones";
+
+    private static final String OWNED_SKILLS_TAG =
+            "owned_skills";
+
+    private static final String SKILL_PAID_ESSENCE_TAG =
+            "paid_essence";
+
+    private static final String SKILL_PAID_COST_TAG =
+            "paid_cost";
+
+    private static final String LOADOUT_SELECTIONS_TAG =
+            "loadout_selections";
+
+    private static final String COMPLETED_ATTUNEMENTS_TAG =
+            "completed_attunements";
+
+    private static final String NEXUS_REVISION_TAG =
+            "nexus_revision";
 
 
     private final Map<ResourceLocation, Long> availableEssence =
@@ -61,29 +81,54 @@ public final class PlayerEssenceData {
     private final Set<ResourceLocation> completedMilestones =
             new LinkedHashSet<>();
 
+    /*
+     * Permanent ownership receipts. The category/Essence paid is captured in
+     * each receipt so future refunds remain exact even if a definition changes.
+     * IDs are intentionally not registry-filtered during load: temporarily
+     * unavailable or removed skills must round-trip without reinterpretation.
+     */
+    private final Map<ResourceLocation, SkillPurchase> ownedSkills =
+            new LinkedHashMap<>();
+
+    /*
+     * Stable selection-slot/choice-group ID -> selected skill ID. A missing
+     * entry means that slot has no selection. Both sides remain raw IDs so
+     * data-driven and temporarily unknown definitions survive save/load.
+     */
+    private final Map<ResourceLocation, ResourceLocation> loadoutSelections =
+            new LinkedHashMap<>();
+
+    private final Set<ResourceLocation> completedAttunements =
+            new LinkedHashSet<>();
+
 
     private ResourceLocation currentTierId =
             AscendanceTiers.DORMANT.id();
 
 
     /*
-     * Runtime-only mutation revision used by server -> client synchronization.
-     *
-     * This value is deliberately NOT serialized. Its only purpose is to let
-     * runtime systems cheaply detect that a player's authoritative progression
-     * state changed.
+     * Persistent authoritative Nexus-state revision. Every mutation visible
+     * to the Nexus increments this value, allowing stale client transactions
+     * to be rejected across reconnects and server restarts as well as within a
+     * single session.
      */
-    private long revision = 0L;
+    private long nexusRevision = 0L;
 
 
     public long revision() {
-        return revision;
+        return nexusRevision;
+    }
+
+
+    public long nexusRevision() {
+        return nexusRevision;
     }
 
 
     private void bumpRevision() {
-        if (revision < Long.MAX_VALUE) {
-            revision++;
+        /* Preserve monotonic comparisons used by the legacy allocation path. */
+        if (nexusRevision < Long.MAX_VALUE) {
+            nexusRevision++;
         }
     }
 
@@ -660,7 +705,10 @@ public final class PlayerEssenceData {
             ResourceLocation milestoneId
     ) {
         return completedMilestones.contains(
-                milestoneId
+                Objects.requireNonNull(
+                        milestoneId,
+                        "Milestone ID cannot be null"
+                )
         );
     }
 
@@ -668,6 +716,11 @@ public final class PlayerEssenceData {
     public boolean completeMilestone(
             ResourceLocation milestoneId
     ) {
+        Objects.requireNonNull(
+                milestoneId,
+                "Milestone ID cannot be null"
+        );
+
         boolean changed =
                 completedMilestones.add(
                         milestoneId
@@ -684,6 +737,11 @@ public final class PlayerEssenceData {
     public boolean revokeMilestone(
             ResourceLocation milestoneId
     ) {
+        Objects.requireNonNull(
+                milestoneId,
+                "Milestone ID cannot be null"
+        );
+
         boolean changed =
                 completedMilestones.remove(
                         milestoneId
@@ -701,6 +759,297 @@ public final class PlayerEssenceData {
         return Collections.unmodifiableSet(
                 completedMilestones
         );
+    }
+
+
+    /*
+     * ============================================================
+     * PERMANENT SKILL OWNERSHIP
+     * ============================================================
+     */
+
+    public boolean ownsSkill(
+            ResourceLocation skillId
+    ) {
+        return ownedSkills.containsKey(
+                Objects.requireNonNull(skillId, "Skill ID cannot be null")
+        );
+    }
+
+
+    public Optional<SkillPurchase> getSkillPurchase(
+            ResourceLocation skillId
+    ) {
+        return Optional.ofNullable(
+                ownedSkills.get(
+                        Objects.requireNonNull(skillId, "Skill ID cannot be null")
+                )
+        );
+    }
+
+
+    public Map<ResourceLocation, SkillPurchase> getOwnedSkills() {
+        return Collections.unmodifiableMap(
+                ownedSkills
+        );
+    }
+
+
+    /**
+     * Records a first-time permanent purchase without spending Essence.
+     * Spending and eligibility validation belong to the server transaction
+     * service; this method preserves the original receipt and refuses to
+     * overwrite it.
+     */
+    public boolean recordSkillPurchase(
+            ResourceLocation skillId,
+            SkillPurchase purchase
+    ) {
+        Objects.requireNonNull(skillId, "Skill ID cannot be null");
+        Objects.requireNonNull(purchase, "Skill purchase cannot be null");
+
+        if (ownedSkills.containsKey(skillId)) {
+            return false;
+        }
+
+        ownedSkills.put(
+                skillId,
+                purchase
+        );
+
+        bumpRevision();
+        return true;
+    }
+
+
+    /*
+     * ============================================================
+     * FREE LOADOUT / CHOICE SELECTIONS
+     * ============================================================
+     */
+
+    public Optional<ResourceLocation> getLoadoutSelection(
+            ResourceLocation selectionId
+    ) {
+        return Optional.ofNullable(
+                loadoutSelections.get(
+                        Objects.requireNonNull(
+                                selectionId,
+                                "Loadout selection ID cannot be null"
+                        )
+                )
+        );
+    }
+
+
+    public Map<ResourceLocation, ResourceLocation> getLoadoutSelections() {
+        return Collections.unmodifiableMap(
+                loadoutSelections
+        );
+    }
+
+
+    public boolean setLoadoutSelection(
+            ResourceLocation selectionId,
+            ResourceLocation skillId
+    ) {
+        Objects.requireNonNull(
+                selectionId,
+                "Loadout selection ID cannot be null"
+        );
+        Objects.requireNonNull(
+                skillId,
+                "Selected skill ID cannot be null"
+        );
+
+        ResourceLocation previous =
+                loadoutSelections.put(
+                        selectionId,
+                        skillId
+                );
+
+        if (skillId.equals(previous)) {
+            return false;
+        }
+
+        bumpRevision();
+        return true;
+    }
+
+
+    public boolean clearLoadoutSelection(
+            ResourceLocation selectionId
+    ) {
+        Objects.requireNonNull(
+                selectionId,
+                "Loadout selection ID cannot be null"
+        );
+
+        if (loadoutSelections.remove(selectionId) == null) {
+            return false;
+        }
+
+        bumpRevision();
+        return true;
+    }
+
+
+    /*
+     * ============================================================
+     * PERMANENT PLAYER ATTUNEMENTS
+     * ============================================================
+     */
+
+    public boolean hasAttunement(
+            ResourceLocation attunementId
+    ) {
+        return completedAttunements.contains(
+                Objects.requireNonNull(
+                        attunementId,
+                        "Attunement ID cannot be null"
+                )
+        );
+    }
+
+
+    public Set<ResourceLocation> getCompletedAttunements() {
+        return Collections.unmodifiableSet(
+                completedAttunements
+        );
+    }
+
+
+    public boolean grantAttunement(
+            ResourceLocation attunementId
+    ) {
+        Objects.requireNonNull(
+                attunementId,
+                "Attunement ID cannot be null"
+        );
+
+        boolean changed =
+                completedAttunements.add(
+                        attunementId
+                );
+
+        if (changed) {
+            bumpRevision();
+        }
+
+        return changed;
+    }
+
+
+    public boolean revokeAttunement(
+            ResourceLocation attunementId
+    ) {
+        Objects.requireNonNull(
+                attunementId,
+                "Attunement ID cannot be null"
+        );
+
+        boolean changed =
+                completedAttunements.remove(
+                        attunementId
+                );
+
+        if (changed) {
+            bumpRevision();
+        }
+
+        return changed;
+    }
+
+
+    /*
+     * ============================================================
+     * ATOMIC NEXUS STATE APPLICATION
+     * ============================================================
+     */
+
+    /**
+     * Replaces one fully validated projected Nexus state in a single revision.
+     *
+     * <p>All arguments are complete target maps, not deltas. Callers must start
+     * from the current getters so raw unknown IDs are retained. Permanent skill
+     * receipts may only be added; an existing receipt cannot be removed or
+     * rewritten by a normal Nexus transaction.</p>
+     */
+    public boolean applyNexusTransaction(
+            Map<ResourceLocation, Long> targetInvestments,
+            Map<ResourceLocation, Long> targetAvailable,
+            Map<ResourceLocation, SkillPurchase> targetOwnedSkills,
+            Map<ResourceLocation, ResourceLocation> targetLoadoutSelections,
+            ResourceLocation targetTierId
+    ) {
+        Map<ResourceLocation, Long> normalizedInvestments =
+                normalizeLongTargets(
+                        targetInvestments,
+                        "stat investment"
+                );
+
+        Map<ResourceLocation, Long> normalizedAvailable =
+                normalizeLongTargets(
+                        targetAvailable,
+                        "available Essence"
+                );
+
+        Map<ResourceLocation, SkillPurchase> normalizedOwnedSkills =
+                copySkillPurchases(
+                        targetOwnedSkills
+                );
+
+        Map<ResourceLocation, ResourceLocation> normalizedLoadoutSelections =
+                copyLoadoutSelections(
+                        targetLoadoutSelections
+                );
+
+        ResourceLocation normalizedTierId =
+                Objects.requireNonNull(
+                        targetTierId,
+                        "Target tier ID cannot be null"
+                );
+
+        for (Map.Entry<ResourceLocation, SkillPurchase> existing :
+                ownedSkills.entrySet()) {
+            if (!existing.getValue().equals(
+                    normalizedOwnedSkills.get(existing.getKey())
+            )) {
+                throw new IllegalArgumentException(
+                        "A Nexus transaction cannot remove or rewrite permanent skill purchase '"
+                                + existing.getKey()
+                                + "'"
+                );
+            }
+        }
+
+        boolean changed =
+                !investedEssence.equals(normalizedInvestments)
+                        || !availableEssence.equals(normalizedAvailable)
+                        || !ownedSkills.equals(normalizedOwnedSkills)
+                        || !loadoutSelections.equals(normalizedLoadoutSelections)
+                        || !currentTierId.equals(normalizedTierId);
+
+        if (!changed) {
+            return false;
+        }
+
+        investedEssence.clear();
+        investedEssence.putAll(normalizedInvestments);
+
+        availableEssence.clear();
+        availableEssence.putAll(normalizedAvailable);
+
+        ownedSkills.clear();
+        ownedSkills.putAll(normalizedOwnedSkills);
+
+        loadoutSelections.clear();
+        loadoutSelections.putAll(normalizedLoadoutSelections);
+
+        currentTierId = normalizedTierId;
+
+        bumpRevision();
+        return true;
     }
 
 
@@ -810,6 +1159,78 @@ public final class PlayerEssenceData {
         );
 
 
+        /*
+         * Permanent owned skills and their exact original costs
+         */
+        CompoundTag ownedSkillsTag =
+                new CompoundTag();
+
+        for (Map.Entry<ResourceLocation, SkillPurchase> entry :
+                ownedSkills.entrySet()) {
+            CompoundTag purchaseTag =
+                    new CompoundTag();
+
+            purchaseTag.putString(
+                    SKILL_PAID_ESSENCE_TAG,
+                    entry.getValue().essenceId().toString()
+            );
+
+            purchaseTag.putLong(
+                    SKILL_PAID_COST_TAG,
+                    entry.getValue().paidCost()
+            );
+
+            ownedSkillsTag.put(
+                    entry.getKey().toString(),
+                    purchaseTag
+            );
+        }
+
+        root.put(
+                OWNED_SKILLS_TAG,
+                ownedSkillsTag
+        );
+
+
+        /*
+         * Free loadout / choice selections
+         */
+        CompoundTag loadoutTag =
+                new CompoundTag();
+
+        for (Map.Entry<ResourceLocation, ResourceLocation> entry :
+                loadoutSelections.entrySet()) {
+            loadoutTag.putString(
+                    entry.getKey().toString(),
+                    entry.getValue().toString()
+            );
+        }
+
+        root.put(
+                LOADOUT_SELECTIONS_TAG,
+                loadoutTag
+        );
+
+
+        /*
+         * Permanent Player Attunements
+         */
+        writeIdSet(
+                root,
+                COMPLETED_ATTUNEMENTS_TAG,
+                completedAttunements
+        );
+
+
+        /*
+         * Persisted optimistic-concurrency token for Nexus transactions
+         */
+        root.putLong(
+                NEXUS_REVISION_TAG,
+                nexusRevision
+        );
+
+
         return root;
     }
 
@@ -820,6 +1241,24 @@ public final class PlayerEssenceData {
 
         PlayerEssenceData data =
                 new PlayerEssenceData();
+
+
+        /*
+         * ========================================================
+         * NEXUS REVISION
+         * ========================================================
+         */
+
+        if (root.contains(
+                NEXUS_REVISION_TAG,
+                Tag.TAG_LONG
+        )) {
+            data.nexusRevision =
+                    Math.max(
+                            0L,
+                            root.getLong(NEXUS_REVISION_TAG)
+                    );
+        }
 
 
         /*
@@ -969,6 +1408,151 @@ public final class PlayerEssenceData {
         }
 
 
+        /*
+         * ========================================================
+         * PERMANENT OWNED SKILLS
+         * ========================================================
+         *
+         * Do not consult the current skill registry here. A temporarily
+         * missing or retired valid ID must round-trip untouched.
+         */
+
+        if (root.contains(
+                OWNED_SKILLS_TAG,
+                Tag.TAG_COMPOUND
+        )) {
+            CompoundTag ownedSkillsTag =
+                    root.getCompound(
+                            OWNED_SKILLS_TAG
+                    );
+
+            for (String key :
+                    ownedSkillsTag.getAllKeys()) {
+                ResourceLocation skillId =
+                        ResourceLocation.tryParse(
+                                key
+                        );
+
+                if (skillId == null
+                        || !ownedSkillsTag.contains(key, Tag.TAG_COMPOUND)) {
+                    EssenceAscendance.LOGGER.warn(
+                            "Ignoring malformed owned skill entry '{}' in Essence Ascendance player data",
+                            key
+                    );
+                    continue;
+                }
+
+                CompoundTag purchaseTag =
+                        ownedSkillsTag.getCompound(
+                                key
+                        );
+
+                if (!purchaseTag.contains(
+                        SKILL_PAID_ESSENCE_TAG,
+                        Tag.TAG_STRING
+                ) || !purchaseTag.contains(
+                        SKILL_PAID_COST_TAG,
+                        Tag.TAG_LONG
+                )) {
+                    EssenceAscendance.LOGGER.warn(
+                            "Ignoring incomplete purchase receipt for owned skill '{}' in Essence Ascendance player data",
+                            skillId
+                    );
+                    continue;
+                }
+
+                ResourceLocation paidEssenceId =
+                        ResourceLocation.tryParse(
+                                purchaseTag.getString(
+                                        SKILL_PAID_ESSENCE_TAG
+                                )
+                        );
+
+                long paidCost =
+                        purchaseTag.getLong(
+                                SKILL_PAID_COST_TAG
+                        );
+
+                if (paidEssenceId == null
+                        || paidCost < 0L) {
+                    EssenceAscendance.LOGGER.warn(
+                            "Ignoring malformed purchase receipt for owned skill '{}' in Essence Ascendance player data",
+                            skillId
+                    );
+                    continue;
+                }
+
+                data.ownedSkills.put(
+                        skillId,
+                        new SkillPurchase(
+                                paidEssenceId,
+                                paidCost
+                        )
+                );
+            }
+        }
+
+
+        /*
+         * ========================================================
+         * LOADOUT / CHOICE SELECTIONS
+         * ========================================================
+         */
+
+        if (root.contains(
+                LOADOUT_SELECTIONS_TAG,
+                Tag.TAG_COMPOUND
+        )) {
+            CompoundTag loadoutTag =
+                    root.getCompound(
+                            LOADOUT_SELECTIONS_TAG
+                    );
+
+            for (String key :
+                    loadoutTag.getAllKeys()) {
+                ResourceLocation selectionId =
+                        ResourceLocation.tryParse(
+                                key
+                        );
+
+                ResourceLocation skillId =
+                        ResourceLocation.tryParse(
+                                loadoutTag.getString(
+                                        key
+                                )
+                        );
+
+                if (selectionId == null
+                        || skillId == null) {
+                    EssenceAscendance.LOGGER.warn(
+                            "Ignoring malformed loadout selection '{}' in Essence Ascendance player data",
+                            key
+                    );
+                    continue;
+                }
+
+                data.loadoutSelections.put(
+                        selectionId,
+                        skillId
+                );
+            }
+        }
+
+
+        /*
+         * ========================================================
+         * PERMANENT PLAYER ATTUNEMENTS
+         * ========================================================
+         */
+
+        readIdSet(
+                root,
+                COMPLETED_ATTUNEMENTS_TAG,
+                data.completedAttunements,
+                "Player Attunement"
+        );
+
+
         return data;
     }
 
@@ -978,6 +1562,173 @@ public final class PlayerEssenceData {
      * NBT HELPERS
      * ============================================================
      */
+
+    private static Map<ResourceLocation, Long> normalizeLongTargets(
+            Map<ResourceLocation, Long> source,
+            String valueKind
+    ) {
+        Objects.requireNonNull(
+                source,
+                "Target " + valueKind + " map cannot be null"
+        );
+
+        Map<ResourceLocation, Long> copy =
+                new LinkedHashMap<>();
+
+        for (Map.Entry<ResourceLocation, Long> entry :
+                source.entrySet()) {
+            ResourceLocation id =
+                    Objects.requireNonNull(
+                            entry.getKey(),
+                            "Target " + valueKind + " ID cannot be null"
+                    );
+
+            Long value =
+                    Objects.requireNonNull(
+                            entry.getValue(),
+                            "Target " + valueKind + " value cannot be null"
+                    );
+
+            if (value < 0L) {
+                throw new IllegalArgumentException(
+                        "Target " + valueKind + " cannot be negative"
+                );
+            }
+
+            if (value > 0L) {
+                copy.put(
+                        id,
+                        value
+                );
+            }
+        }
+
+        return copy;
+    }
+
+
+    private static Map<ResourceLocation, SkillPurchase> copySkillPurchases(
+            Map<ResourceLocation, SkillPurchase> source
+    ) {
+        Objects.requireNonNull(
+                source,
+                "Target owned-skill map cannot be null"
+        );
+
+        Map<ResourceLocation, SkillPurchase> copy =
+                new LinkedHashMap<>();
+
+        for (Map.Entry<ResourceLocation, SkillPurchase> entry :
+                source.entrySet()) {
+            copy.put(
+                    Objects.requireNonNull(
+                            entry.getKey(),
+                            "Owned skill ID cannot be null"
+                    ),
+                    Objects.requireNonNull(
+                            entry.getValue(),
+                            "Skill purchase receipt cannot be null"
+                    )
+            );
+        }
+
+        return copy;
+    }
+
+
+    private static Map<ResourceLocation, ResourceLocation> copyLoadoutSelections(
+            Map<ResourceLocation, ResourceLocation> source
+    ) {
+        Objects.requireNonNull(
+                source,
+                "Target loadout selection map cannot be null"
+        );
+
+        Map<ResourceLocation, ResourceLocation> copy =
+                new LinkedHashMap<>();
+
+        for (Map.Entry<ResourceLocation, ResourceLocation> entry :
+                source.entrySet()) {
+            copy.put(
+                    Objects.requireNonNull(
+                            entry.getKey(),
+                            "Loadout selection ID cannot be null"
+                    ),
+                    Objects.requireNonNull(
+                            entry.getValue(),
+                            "Selected skill ID cannot be null"
+                    )
+            );
+        }
+
+        return copy;
+    }
+
+
+    private static void writeIdSet(
+            CompoundTag root,
+            String tagName,
+            Set<ResourceLocation> values
+    ) {
+        CompoundTag valuesTag =
+                new CompoundTag();
+
+        for (ResourceLocation id :
+                values) {
+            valuesTag.putBoolean(
+                    id.toString(),
+                    true
+            );
+        }
+
+        root.put(
+                tagName,
+                valuesTag
+        );
+    }
+
+
+    private static void readIdSet(
+            CompoundTag root,
+            String tagName,
+            Set<ResourceLocation> target,
+            String valueKind
+    ) {
+        if (!root.contains(
+                tagName,
+                Tag.TAG_COMPOUND
+        )) {
+            return;
+        }
+
+        CompoundTag valuesTag =
+                root.getCompound(
+                        tagName
+                );
+
+        for (String key :
+                valuesTag.getAllKeys()) {
+            ResourceLocation id =
+                    ResourceLocation.tryParse(
+                            key
+                    );
+
+            if (id == null) {
+                EssenceAscendance.LOGGER.warn(
+                        "Ignoring invalid {} ID '{}' in Essence Ascendance player data",
+                        valueKind,
+                        key
+                );
+                continue;
+            }
+
+            if (valuesTag.getBoolean(key)) {
+                target.add(
+                        id
+                );
+            }
+        }
+    }
 
     private static void readLongMap(
             CompoundTag tag,

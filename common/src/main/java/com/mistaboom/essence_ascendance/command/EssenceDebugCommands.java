@@ -4,6 +4,7 @@ import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.config.EssenceServerConfig;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
+import com.mistaboom.essence_ascendance.data.SkillPurchase;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleBlockEntity;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleChannelService;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleEssences;
@@ -43,10 +44,26 @@ import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingResult;
 import com.mistaboom.essence_ascendance.progression.AscendanceEngine;
 import com.mistaboom.essence_ascendance.progression.AscendanceEvaluationResult;
 import com.mistaboom.essence_ascendance.progression.CategoryDevelopment;
+import com.mistaboom.essence_ascendance.progression.MilestoneDefinition;
+import com.mistaboom.essence_ascendance.progression.MilestoneProgress;
+import com.mistaboom.essence_ascendance.progression.MilestoneProviders;
+import com.mistaboom.essence_ascendance.progression.MilestoneRequirement;
+import com.mistaboom.essence_ascendance.progression.MilestoneService;
 import com.mistaboom.essence_ascendance.progression.StatInvestmentLimit;
 import com.mistaboom.essence_ascendance.progression.StatScalingResult;
 import com.mistaboom.essence_ascendance.progression.StatScalingService;
 import com.mistaboom.essence_ascendance.progression.TierInvestmentPolicy;
+import com.mistaboom.essence_ascendance.skill.SkillDefinition;
+import com.mistaboom.essence_ascendance.skill.SkillEvaluationContext;
+import com.mistaboom.essence_ascendance.skill.SkillEvaluationResult;
+import com.mistaboom.essence_ascendance.skill.SkillRegistry;
+import com.mistaboom.essence_ascendance.skill.SkillRequirementStatus;
+import com.mistaboom.essence_ascendance.skill.SkillStateEvaluator;
+import com.mistaboom.essence_ascendance.skill.requirement.BonusInvestmentRequirement;
+import com.mistaboom.essence_ascendance.skill.requirement.DiscoveryRequirement;
+import com.mistaboom.essence_ascendance.skill.requirement.PermanentMilestoneRequirement;
+import com.mistaboom.essence_ascendance.skill.requirement.PlayerAttunementRequirement;
+import com.mistaboom.essence_ascendance.skill.requirement.SkillRequirement;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.EssenceStats;
 import com.mistaboom.essence_ascendance.stat.StatCategory;
@@ -57,6 +74,7 @@ import com.mistaboom.essence_ascendance.valuation.ShadowValuationEngine;
 import com.mistaboom.essence_ascendance.valuation.ShadowValuationResult;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -74,8 +92,10 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 final class EssenceDebugCommands {
 
@@ -102,6 +122,31 @@ final class EssenceDebugCommands {
                 .then(Commands.literal("pylon").executes(context -> showPylon(context.getSource())))
                 .then(Commands.literal("infuser").executes(context -> showInfuser(context.getSource())))
                 .then(Commands.literal("baselines").executes(context -> showBaselines(context.getSource())))
+                .then(Commands.literal("skills")
+                        .executes(context -> showSkills(context.getSource())))
+                .then(Commands.literal("skill")
+                        .then(Commands.argument("skill", StringArgumentType.string())
+                                .suggests(EssenceCommandUtil::suggestSkills)
+                                .executes(context -> showSkill(
+                                        context.getSource(),
+                                        StringArgumentType.getString(context, "skill")
+                                ))))
+                .then(Commands.literal("attunements")
+                        .executes(context -> showAttunements(context.getSource()))
+                        .then(Commands.argument("attunement", StringArgumentType.string())
+                                .suggests(EssenceCommandUtil::suggestAttunements)
+                                .executes(context -> showAttunement(
+                                        context.getSource(),
+                                        StringArgumentType.getString(context, "attunement")
+                                ))))
+                .then(Commands.literal("milestone")
+                        .executes(context -> showStoredMilestones(context.getSource()))
+                        .then(Commands.argument("milestone", StringArgumentType.string())
+                                .suggests(EssenceCommandUtil::suggestDevelopmentMilestones)
+                                .executes(context -> showMilestone(
+                                        context.getSource(),
+                                        StringArgumentType.getString(context, "milestone")
+                                ))))
                 .then(Commands.literal("offense").executes(context -> showOffense(context.getSource())))
                 .then(Commands.literal("defense").executes(context -> showDefense(context.getSource())))
                 .then(Commands.literal("shield").executes(context -> showShield(context.getSource())))
@@ -125,6 +170,10 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug pylon", "inspect the Essence Pylon you are looking at"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug infuser", "inspect the Essence Infuser you are looking at"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug baselines", "player-tier baseline preset reference"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug skills", "inspect authoritative owned-skill receipts and loadout selections"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug skill <skill_id>", "inspect one catalog definition and its saved player state"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug attunements [attunement_id]", "inspect authoritative raw Player Attunement state"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug milestone [milestone_id]", "inspect saved milestone flags or one configured milestone"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.section("Gameplay categories"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug offense", "melee, ranged, magic, and attack knockback"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug defense", "resistance/reflection stats and last incoming-damage/status events"));
@@ -134,6 +183,478 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug gathering", "mining, Fortune, Looting, reach, XP gain"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug utility", "Luck, sneak speed, durability efficiency"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.muted("Stat investment/scaling/applicability is intentionally centralized at /essence stat <stat>."));
+        return 1;
+    }
+
+    private static int showSkills(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        PlayerEssenceData data = playerData(player);
+        long knownOwned = data.getOwnedSkills().keySet().stream()
+                .filter(id -> SkillRegistry.get(id).isPresent())
+                .count();
+        Map<ResourceLocation, SkillEvaluationResult> evaluated =
+                SkillStateEvaluator.evaluateAll(committedSkillContext(data));
+        long effective = evaluated.values().stream()
+                .filter(SkillEvaluationResult::effective)
+                .count();
+        long suspended = evaluated.values().stream()
+                .filter(SkillEvaluationResult::suspended)
+                .count();
+        long replaced = evaluated.values().stream()
+                .filter(SkillEvaluationResult::replaced)
+                .count();
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Skill Framework State"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Catalog",
+                SkillRegistry.size() + " definitions; version " + SkillRegistry.catalogVersion()
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Owned receipts",
+                data.getOwnedSkills().size() + " total; " + knownOwned + " known"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Loadout selections",
+                Integer.toString(data.getLoadoutSelections().size())
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Evaluated",
+                effective + " effective; " + suspended + " suspended; "
+                        + replaced + " replaced"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Nexus revision",
+                Long.toString(data.nexusRevision())
+        ));
+
+        if (data.getOwnedSkills().isEmpty()) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.muted("  No owned skills."));
+        } else {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.section("Permanent purchase receipts"));
+            data.getOwnedSkills().entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey())
+                    .forEach(entry -> {
+                        SkillPurchase purchase = entry.getValue();
+                        String known = SkillRegistry.get(entry.getKey()).isPresent()
+                                ? "KNOWN"
+                                : "UNKNOWN DEFINITION";
+                        EssenceCommandUtil.send(
+                                source,
+                                EssenceCommandUtil.line(
+                                        entry.getKey().toString(),
+                                        EssenceCommandUtil.format(purchase.paidCost()) + " "
+                                                + purchase.essenceId() + " [" + known + "]"
+                                )
+                        );
+                    });
+        }
+
+        if (!data.getLoadoutSelections().isEmpty()) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.section("Saved loadout selections"));
+            data.getLoadoutSelections().entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey())
+                    .forEach(entry -> EssenceCommandUtil.send(
+                            source,
+                            EssenceCommandUtil.line(
+                                    entry.getKey().toString(),
+                                    entry.getValue().toString()
+                            )
+                    ));
+        }
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
+                "Use /essence debug skill <skill_id> for catalog metadata and requirement state."
+        ));
+        return 1;
+    }
+
+    private static int showSkill(
+            CommandSourceStack source,
+            String skillName
+    ) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        PlayerEssenceData data = playerData(player);
+        ResourceLocation skillId = EssenceCommandUtil.resolveResourceId(skillName);
+        SkillDefinition skill = SkillRegistry.get(skillId).orElse(null);
+        SkillPurchase purchase = data.getSkillPurchase(skillId).orElse(null);
+
+        if (skill == null && purchase == null) {
+            EssenceCommandUtil.fail(source, "Unknown skill ID: " + skillId);
+            return 0;
+        }
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Skill Debug"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("ID", EssenceCommandUtil.muted(skillId.toString())));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Owned",
+                purchase == null
+                        ? EssenceCommandUtil.warn("NO")
+                        : EssenceCommandUtil.good("YES")
+        ));
+
+        if (purchase != null) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Purchase receipt",
+                    EssenceCommandUtil.format(purchase.paidCost()) + " " + purchase.essenceId()
+            ));
+        }
+
+        if (skill == null) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Definition",
+                    EssenceCommandUtil.bad("UNKNOWN; RAW SAVED RECEIPT PRESERVED")
+            ));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Nexus revision",
+                    Long.toString(data.nexusRevision())
+            ));
+            return 1;
+        }
+
+        SkillEvaluationContext evaluationContext = committedSkillContext(data);
+        SkillEvaluationResult evaluation = SkillStateEvaluator.evaluate(
+                skillId,
+                evaluationContext
+        );
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Name key", skill.nameTranslationKey()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Description key", skill.descriptionTranslationKey()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Essence", skill.essenceId().toString()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Required tier", skill.requiredTierId().toString()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Derived cost",
+                EssenceCommandUtil.format(skill.cost(EssenceConfigManager.get().balanceProfile()))
+                        + " [" + skill.costBand().name() + ", "
+                        + skill.costBand().percentage() + "%]"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Activation", skill.activationPolicy().name()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Display",
+                "order " + skill.displayOrder() + ", hint " + skill.layoutHint().name()
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Evaluated state",
+                evaluation.displayState().name()
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Purchase gates",
+                "tier=" + evaluation.purchaseEligibility().tierSatisfied()
+                        + ", prerequisites=" + evaluation.purchaseEligibility().prerequisitesSatisfied()
+                        + ", requirements=" + evaluation.purchaseEligibility().requirementsSatisfied()
+                        + ", eligible=" + evaluation.eligibleToPurchase()
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Activation state",
+                "selected=" + evaluation.selected()
+                        + ", effective=" + evaluation.effective()
+                        + ", suspended=" + evaluation.suspended()
+                        + ", replaced=" + evaluation.replaced()
+                        + ", fallback=" + evaluation.fallbackActive()
+        ));
+        if (!evaluation.replacedBy().isEmpty()) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Replaced by",
+                    evaluation.replacedBy().toString()
+            ));
+        }
+        if (!evaluation.inactivePrerequisites().isEmpty()) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Inactive prerequisite effects",
+                    evaluation.inactivePrerequisites().toString()
+            ));
+        }
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Immediate prerequisites"));
+        if (evaluation.prerequisites().isEmpty()) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.muted("  NONE"));
+        } else {
+            for (var prerequisite : evaluation.prerequisites()) {
+                EssenceCommandUtil.send(
+                        source,
+                        Component.literal("  " + prerequisite.skillId() + " ")
+                                .withStyle(ChatFormatting.WHITE)
+                                .append(prerequisite.authoritativeOwned()
+                                        ? EssenceCommandUtil.good("OWNED")
+                                        : EssenceCommandUtil.warn("MISSING"))
+                );
+            }
+        }
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Additional requirements"));
+        if (skill.requirements().isEmpty()) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.muted("  NONE"));
+        } else {
+            for (int index = 0; index < skill.requirements().size(); index++) {
+                showSkillRequirement(
+                        source,
+                        evaluationContext.authoritativeBonusTotals(),
+                        skill.requirements().get(index),
+                        evaluation.requirements().get(index)
+                );
+            }
+        }
+
+        if (skill.choiceGroupId().isPresent()) {
+            ResourceLocation groupId = skill.choiceGroupId().orElseThrow();
+            String selected = data.getLoadoutSelection(groupId)
+                    .map(ResourceLocation::toString)
+                    .orElse("NONE");
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Choice group",
+                    groupId + " -> " + selected
+            ));
+        } else {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Choice group", "NONE"));
+        }
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Replaces",
+                skill.replacementTargetId()
+                        .map(ResourceLocation::toString)
+                        .orElse("NONE")
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Nexus revision",
+                Long.toString(data.nexusRevision())
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
+                "This reports definition and authoritative saved state; skill gameplay effects are not implemented."
+        ));
+        return 1;
+    }
+
+    private static void showSkillRequirement(
+            CommandSourceStack source,
+            Map<ResourceLocation, Long> bonusTotals,
+            SkillRequirement requirement,
+            SkillRequirementStatus status
+    ) {
+        String details;
+
+        if (requirement instanceof PlayerAttunementRequirement attunement) {
+            details = "PLAYER_ATTUNEMENT " + attunement.attunementId();
+        } else if (requirement instanceof PermanentMilestoneRequirement milestone) {
+            details = "PERMANENT_MILESTONE " + milestone.milestoneId();
+        } else if (requirement instanceof BonusInvestmentRequirement bonus) {
+            long current = bonusTotals.getOrDefault(bonus.essenceId(), 0L);
+            details = "BONUS_INVESTMENT " + bonus.essenceId() + " >= "
+                    + EssenceCommandUtil.format(bonus.minimumInvestment())
+                    + " (current allocated " + EssenceCommandUtil.format(current) + ")";
+        } else if (requirement instanceof DiscoveryRequirement discovery) {
+            details = "DISCOVERY " + discovery.discoveryId();
+        } else {
+            details = requirement.kind().name() + " " + requirement.id();
+        }
+
+        if (status.live()) {
+            details += " [LIVE]";
+        }
+
+        EssenceCommandUtil.send(
+                source,
+                Component.literal("  " + details + " ").withStyle(ChatFormatting.WHITE)
+                        .append(status.authoritativeSatisfied()
+                                ? EssenceCommandUtil.good("SATISFIED")
+                                : EssenceCommandUtil.warn("MISSING"))
+        );
+    }
+
+    private static SkillEvaluationContext committedSkillContext(
+            PlayerEssenceData data
+    ) {
+        Map<ResourceLocation, Long> bonusTotals = new LinkedHashMap<>();
+        for (StatDefinition stat : EssenceStatRegistry.values()) {
+            ResourceLocation essenceId = stat.essenceType().id();
+            long current = bonusTotals.getOrDefault(essenceId, 0L);
+            long amount = Math.max(0L, data.getInvested(stat));
+            long updated = amount > Long.MAX_VALUE - current
+                    ? Long.MAX_VALUE
+                    : current + amount;
+            bonusTotals.put(essenceId, updated);
+        }
+
+        return SkillEvaluationContext.committed(
+                data.getTierId(),
+                data.getOwnedSkills().keySet(),
+                data.getLoadoutSelections(),
+                data.getCompletedAttunements(),
+                data.getCompletedMilestones(),
+                Set.of(),
+                bonusTotals
+        );
+    }
+
+    private static int showAttunements(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        PlayerEssenceData data = playerData(player);
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Player Attunements"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Completed",
+                data.getCompletedAttunements().size() + " raw stable IDs"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Known development IDs",
+                Integer.toString(SkillRegistry.knownAttunementIds().size())
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Nexus revision",
+                Long.toString(data.nexusRevision())
+        ));
+
+        if (data.getCompletedAttunements().isEmpty()) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.muted("  NONE"));
+            return 1;
+        }
+
+        data.getCompletedAttunements().stream()
+                .sorted()
+                .forEach(id -> EssenceCommandUtil.send(
+                        source,
+                        Component.literal("  " + id + " ").withStyle(ChatFormatting.WHITE)
+                                .append(SkillRegistry.knownAttunementIds().contains(id)
+                                        ? EssenceCommandUtil.good("KNOWN")
+                                        : EssenceCommandUtil.warn("UNREGISTERED/PRESERVED"))
+                ));
+        return 1;
+    }
+
+    private static int showAttunement(
+            CommandSourceStack source,
+            String attunementName
+    ) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        PlayerEssenceData data = playerData(player);
+        ResourceLocation attunementId = EssenceCommandUtil.resolveResourceId(attunementName);
+        boolean completed = data.hasAttunement(attunementId);
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Player Attunement"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("ID", EssenceCommandUtil.muted(attunementId.toString())));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Catalog identity",
+                SkillRegistry.knownAttunementIds().contains(attunementId)
+                        ? EssenceCommandUtil.good("KNOWN")
+                        : EssenceCommandUtil.warn("UNREGISTERED/FORWARD-COMPATIBLE")
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Saved state",
+                completed
+                        ? EssenceCommandUtil.good("GRANTED")
+                        : EssenceCommandUtil.warn("NOT GRANTED")
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Nexus revision",
+                Long.toString(data.nexusRevision())
+        ));
+        return 1;
+    }
+
+    private static int showStoredMilestones(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        PlayerEssenceData data = playerData(player);
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Saved Milestone Flags"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Completed",
+                data.getCompletedMilestones().size() + " raw stable IDs"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Configured definitions",
+                Integer.toString(EssenceConfigManager.get().milestones().size())
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Skill requirement IDs",
+                Integer.toString(EssenceCommandUtil.knownSkillMilestoneIds().size())
+        ));
+
+        if (data.getCompletedMilestones().isEmpty()) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.muted("  NONE"));
+            return 1;
+        }
+
+        data.getCompletedMilestones().stream()
+                .sorted()
+                .forEach(id -> EssenceCommandUtil.send(
+                        source,
+                        Component.literal("  " + id).withStyle(ChatFormatting.WHITE)
+                ));
+        return 1;
+    }
+
+    private static int showMilestone(
+            CommandSourceStack source,
+            String milestoneName
+    ) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        PlayerEssenceData data = playerData(player);
+        ResourceLocation requestedId = EssenceCommandUtil.resolveResourceId(milestoneName);
+        MilestoneDefinition milestone = EssenceConfigManager.get()
+                .getMilestone(requestedId)
+                .orElse(null);
+
+        if (milestone == null) {
+            boolean knownSkillMilestone = EssenceCommandUtil
+                    .knownSkillMilestoneIds()
+                    .contains(requestedId);
+            boolean stored = data.hasCompletedMilestone(requestedId);
+            if (!knownSkillMilestone && !stored) {
+                EssenceCommandUtil.fail(source, "Unknown milestone ID: " + requestedId);
+                return 0;
+            }
+
+            EssenceCommandUtil.send(source, EssenceCommandUtil.title("Milestone Debug"));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("ID", EssenceCommandUtil.muted(requestedId.toString())));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Source",
+                    knownSkillMilestone
+                            ? "permanent skill requirement"
+                            : "unknown preserved saved flag"
+            ));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Saved state",
+                    stored
+                            ? EssenceCommandUtil.good("PRESENT")
+                            : EssenceCommandUtil.warn("ABSENT")
+            ));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Nexus revision",
+                    Long.toString(data.nexusRevision())
+            ));
+            return 1;
+        }
+
+        MilestoneProgress progress = MilestoneService.evaluate(
+                player,
+                MilestoneRequirement.milestone(milestone.id())
+        );
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Milestone Debug"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("ID", EssenceCommandUtil.muted(milestone.id().toString())));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Provider", milestone.providerId().toString()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Target", milestone.target()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Evaluated state",
+                !progress.resolvable()
+                        ? EssenceCommandUtil.bad("UNRESOLVED")
+                        : progress.complete()
+                        ? EssenceCommandUtil.good("COMPLETE")
+                        : EssenceCommandUtil.warn("INCOMPLETE")
+        ));
+
+        if (milestone.providerId().equals(MilestoneProviders.INTERNAL)) {
+            ResourceLocation targetId = ResourceLocation.tryParse(milestone.target());
+            Component storedState = targetId == null
+                    ? EssenceCommandUtil.bad("INVALID TARGET ID")
+                    : data.hasCompletedMilestone(targetId)
+                    ? EssenceCommandUtil.good("PRESENT")
+                    : EssenceCommandUtil.warn("ABSENT");
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line("Saved internal target", storedState));
+        }
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Nexus revision",
+                Long.toString(data.nexusRevision())
+        ));
         return 1;
     }
 

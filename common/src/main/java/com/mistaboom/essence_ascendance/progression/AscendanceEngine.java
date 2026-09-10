@@ -10,9 +10,11 @@ import com.mistaboom.essence_ascendance.stat.StatCategory;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.EnumSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -48,6 +50,67 @@ public final class AscendanceEngine {
                 savedData.getPlayerData(
                         player.getUUID()
                 );
+
+
+        return evaluate(
+                player,
+                playerData,
+                null
+        );
+    }
+
+
+    /**
+     * Evaluates the next Ascension against a proposed final Bonus allocation
+     * without mutating authoritative player data.
+     *
+     * <p>Skill costs are intentionally absent: only Bonus investment counts
+     * toward Ascension depth and breadth. Missing known stat IDs fall back to
+     * their current stored investment so non-Nexus callers may project a
+     * focused subset safely.</p>
+     */
+    public static AscendanceEvaluationResult evaluateProjected(
+            ServerPlayer player,
+            Map<ResourceLocation, Long> projectedInvestments
+    ) {
+        Objects.requireNonNull(
+                player,
+                "Player cannot be null"
+        );
+        Objects.requireNonNull(
+                projectedInvestments,
+                "Projected investments cannot be null"
+        );
+
+        for (Map.Entry<ResourceLocation, Long> entry :
+                projectedInvestments.entrySet()) {
+            if (entry.getKey() == null
+                    || entry.getValue() == null
+                    || entry.getValue() < 0L) {
+                throw new IllegalArgumentException(
+                        "Projected investments must have non-null IDs and non-negative values"
+                );
+            }
+        }
+
+        PlayerEssenceData playerData =
+                EssenceSavedData
+                        .get(player.server)
+                        .getPlayerData(player.getUUID());
+
+        return evaluate(
+                player,
+                playerData,
+                Map.copyOf(projectedInvestments)
+        );
+    }
+
+
+    private static AscendanceEvaluationResult evaluate(
+            ServerPlayer player,
+            PlayerEssenceData playerData,
+            Map<ResourceLocation, Long> projectedInvestments
+    ) {
 
 
         AscendanceTierDefinition currentTier =
@@ -158,7 +221,8 @@ public final class AscendanceEngine {
                             playerData,
                             currentTier,
                             nextTier,
-                            advancement
+                            advancement,
+                            projectedInvestments
                     );
 
 
@@ -326,7 +390,8 @@ public final class AscendanceEngine {
             PlayerEssenceData playerData,
             AscendanceTierDefinition currentTier,
             AscendanceTierDefinition nextTier,
-            AscendanceAdvancementDefinition advancement
+            AscendanceAdvancementDefinition advancement,
+            Map<ResourceLocation, Long> projectedInvestments
     ) {
 
         BalanceProfileDefinition balanceProfile =
@@ -376,18 +441,41 @@ public final class AscendanceEngine {
         for (StatDefinition stat :
                 EssenceStatRegistry.values()) {
 
-            StatInvestmentLimit limit =
-                    StatProgressionService
-                            .getInvestmentLimit(
-                                    playerData,
-                                    stat
+            long storedInvestment =
+                    projectedInvestments == null
+                            ? playerData.getInvested(stat)
+                            : projectedInvestments.getOrDefault(
+                                    stat.id(),
+                                    playerData.getInvested(stat)
                             );
+
+
+            long investmentCap =
+                    balanceProfile.getInvestmentCap(
+                            currentTier,
+                            stat
+                    );
+
+
+            if (investmentCap < 0L) {
+                throw new IllegalStateException(
+                        "Resolved negative investment cap for stat "
+                                + stat.id()
+                );
+            }
+
+
+            long effectiveInvestment =
+                    Math.min(
+                            storedInvestment,
+                            investmentCap
+                    );
 
 
             totalEffectiveInvestment =
                     Math.addExact(
                             totalEffectiveInvestment,
-                            limit.effectiveInvestment()
+                            effectiveInvestment
                     );
 
 
@@ -396,18 +484,18 @@ public final class AscendanceEngine {
              * and therefore cannot count toward Breadth.
              */
 
-            if (limit.investmentCap() <= 0L) {
+            if (investmentCap <= 0L) {
                 continue;
             }
 
 
             long developedThreshold =
                     advancement.getDevelopedThreshold(
-                            limit.investmentCap()
+                            investmentCap
                     );
 
 
-            if (limit.effectiveInvestment()
+            if (effectiveInvestment
                     >= developedThreshold) {
 
                 developedStats++;

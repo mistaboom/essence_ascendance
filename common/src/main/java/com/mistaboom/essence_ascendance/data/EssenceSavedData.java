@@ -298,6 +298,110 @@ public final class EssenceSavedData extends SavedData {
     }
 
 
+    /**
+     * Applies one prevalidated complete Nexus projection atomically and marks
+     * the world data dirty only when the authoritative state changed.
+     */
+    public boolean applyNexusTransaction(
+            UUID playerId,
+            Map<ResourceLocation, Long> targetInvestments,
+            Map<ResourceLocation, Long> targetAvailable,
+            Map<ResourceLocation, SkillPurchase> targetOwnedSkills,
+            Map<ResourceLocation, ResourceLocation> targetLoadoutSelections,
+            ResourceLocation targetTierId
+    ) {
+        PlayerEssenceData playerData =
+                getPlayerData(
+                        playerId
+                );
+
+        boolean changed =
+                playerData.applyNexusTransaction(
+                        targetInvestments,
+                        targetAvailable,
+                        targetOwnedSkills,
+                        targetLoadoutSelections,
+                        targetTierId
+                );
+
+        if (changed) {
+            setDirty();
+        }
+
+        return changed;
+    }
+
+
+    public boolean recordSkillPurchase(
+            UUID playerId,
+            ResourceLocation skillId,
+            SkillPurchase purchase
+    ) {
+        PlayerEssenceData playerData =
+                getPlayerData(
+                        playerId
+                );
+
+        boolean changed =
+                playerData.recordSkillPurchase(
+                        skillId,
+                        purchase
+                );
+
+        if (changed) {
+            setDirty();
+        }
+
+        return changed;
+    }
+
+
+    public boolean setLoadoutSelection(
+            UUID playerId,
+            ResourceLocation selectionId,
+            ResourceLocation skillId
+    ) {
+        PlayerEssenceData playerData =
+                getPlayerData(
+                        playerId
+                );
+
+        boolean changed =
+                playerData.setLoadoutSelection(
+                        selectionId,
+                        skillId
+                );
+
+        if (changed) {
+            setDirty();
+        }
+
+        return changed;
+    }
+
+
+    public boolean clearLoadoutSelection(
+            UUID playerId,
+            ResourceLocation selectionId
+    ) {
+        PlayerEssenceData playerData =
+                getPlayerData(
+                        playerId
+                );
+
+        boolean changed =
+                playerData.clearLoadoutSelection(
+                        selectionId
+                );
+
+        if (changed) {
+            setDirty();
+        }
+
+        return changed;
+    }
+
+
     public void clearAll(
             UUID playerId
     ) {
@@ -402,6 +506,68 @@ public final class EssenceSavedData extends SavedData {
         boolean changed =
                 playerData.revokeMilestone(
                         milestoneId
+                );
+
+        if (changed) {
+            setDirty();
+        }
+
+        return changed;
+    }
+
+
+    /*
+     * ============================================================
+     * PERMANENT PLAYER ATTUNEMENTS
+     * ============================================================
+     */
+
+    public boolean hasAttunement(
+            UUID playerId,
+            ResourceLocation attunementId
+    ) {
+        return getPlayerData(
+                playerId
+        ).hasAttunement(
+                attunementId
+        );
+    }
+
+
+    public boolean grantAttunement(
+            UUID playerId,
+            ResourceLocation attunementId
+    ) {
+        PlayerEssenceData playerData =
+                getPlayerData(
+                        playerId
+                );
+
+        boolean changed =
+                playerData.grantAttunement(
+                        attunementId
+                );
+
+        if (changed) {
+            setDirty();
+        }
+
+        return changed;
+    }
+
+
+    public boolean revokeAttunement(
+            UUID playerId,
+            ResourceLocation attunementId
+    ) {
+        PlayerEssenceData playerData =
+                getPlayerData(
+                        playerId
+                );
+
+        boolean changed =
+                playerData.revokeAttunement(
+                        attunementId
                 );
 
         if (changed) {

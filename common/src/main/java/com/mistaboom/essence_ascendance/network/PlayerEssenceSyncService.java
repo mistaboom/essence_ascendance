@@ -15,6 +15,8 @@ import com.mistaboom.essence_ascendance.progression.MilestoneProgress;
 import com.mistaboom.essence_ascendance.progression.MilestoneRequirement;
 import com.mistaboom.essence_ascendance.progression.StatScalingResult;
 import com.mistaboom.essence_ascendance.progression.StatScalingService;
+import com.mistaboom.essence_ascendance.skill.SkillActivationPolicy;
+import com.mistaboom.essence_ascendance.skill.SkillRegistry;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
 import dev.architectury.event.events.common.PlayerEvent;
@@ -266,13 +268,96 @@ public final class PlayerEssenceSyncService {
                 playerData
                         .getCompletedMilestones()
                         .stream()
+                        .filter(PlayerEssenceSyncService::transportSafeId)
+                        .sorted(
+                                Comparator
+                                        .comparing(
+                                                (ResourceLocation id) ->
+                                                        !SkillRegistry
+                                                                .referencedPermanentMilestoneIds()
+                                                                .contains(id)
+                                        )
+                                        .thenComparing(ResourceLocation::toString)
+                        )
                         .map(ResourceLocation::toString)
-                        .sorted()
+                        .limit(PlayerEssenceSyncPayload.MAX_MILESTONES)
+                        .toList();
+
+        List<PlayerEssenceSyncPayload.OwnedSkillState> ownedSkills =
+                playerData
+                        .getOwnedSkills()
+                        .entrySet()
+                        .stream()
+                        .filter(entry -> transportSafeId(entry.getKey())
+                                && transportSafeId(entry.getValue().essenceId()))
+                        .sorted(
+                                Comparator
+                                        .comparing(
+                                                (Map.Entry<ResourceLocation, ?> entry) ->
+                                                        SkillRegistry.get(entry.getKey()).isEmpty()
+                                        )
+                                        .thenComparing(entry -> entry.getKey().toString())
+                        )
+                        .limit(PlayerEssenceSyncPayload.MAX_OWNED_SKILLS)
+                        .map(
+                                entry ->
+                                        new PlayerEssenceSyncPayload.OwnedSkillState(
+                                                entry.getKey().toString(),
+                                                entry.getValue()
+                                                        .essenceId()
+                                                        .toString(),
+                                                entry.getValue().paidCost()
+                                        )
+                        )
+                        .toList();
+
+        List<PlayerEssenceSyncPayload.LoadoutSelection> loadoutSelections =
+                playerData
+                        .getLoadoutSelections()
+                        .entrySet()
+                        .stream()
+                        .filter(entry -> transportSafeId(entry.getKey())
+                                && transportSafeId(entry.getValue()))
+                        .sorted(
+                                Comparator
+                                        .comparing(
+                                                (Map.Entry<ResourceLocation, ResourceLocation> entry) ->
+                                                        !knownLoadoutSelection(entry)
+                                        )
+                                        .thenComparing(entry -> entry.getKey().toString())
+                        )
+                        .limit(PlayerEssenceSyncPayload.MAX_LOADOUT_SELECTIONS)
+                        .map(
+                                entry ->
+                                        new PlayerEssenceSyncPayload.LoadoutSelection(
+                                                entry.getKey().toString(),
+                                                entry.getValue().toString()
+                                        )
+                        )
+                        .toList();
+
+        List<String> completedAttunements =
+                playerData
+                        .getCompletedAttunements()
+                        .stream()
+                        .filter(PlayerEssenceSyncService::transportSafeId)
+                        .sorted(
+                                Comparator
+                                        .comparing(
+                                                (ResourceLocation id) ->
+                                                        !SkillRegistry
+                                                                .knownAttunementIds()
+                                                                .contains(id)
+                                        )
+                                        .thenComparing(ResourceLocation::toString)
+                        )
+                        .map(ResourceLocation::toString)
+                        .limit(PlayerEssenceSyncPayload.MAX_ATTUNEMENTS)
                         .toList();
 
         return new PlayerEssenceSyncPayload(
                 PlayerEssenceSyncPayload.CURRENT_SCHEMA_VERSION,
-                playerData.revision(),
+                playerData.nexusRevision(),
                 playerData.getTierId().toString(),
                 config.balanceProfile()
                         .id()
@@ -280,10 +365,43 @@ public final class PlayerEssenceSyncService {
                 balances,
                 stats,
                 completedMilestones,
+                ownedSkills,
+                loadoutSelections,
+                completedAttunements,
                 buildProgress(
                         player
                 )
         );
+    }
+
+    /*
+     * Saved identities are intentionally unbounded and registry-agnostic so
+     * unknown future data round-trips unchanged. The wire snapshot remains
+     * bounded: pathological-but-valid IDs are omitted from presentation only,
+     * never removed from authoritative SavedData.
+     */
+    private static boolean transportSafeId(ResourceLocation id) {
+        return id != null
+                && id.toString().length()
+                <= PlayerEssenceSyncPayload.MAX_ID_LENGTH;
+    }
+
+    private static boolean knownLoadoutSelection(
+            Map.Entry<ResourceLocation, ResourceLocation> entry
+    ) {
+        return SkillRegistry.choiceGroup(entry.getKey())
+                .map(group -> group.memberIds().contains(entry.getValue()))
+                .orElseGet(
+                        () -> SkillRegistry.get(entry.getKey())
+                                .filter(definition ->
+                                        definition.activationPolicy()
+                                                == SkillActivationPolicy.TOGGLE
+                                                || definition.activationPolicy()
+                                                == SkillActivationPolicy.AUTOMATIC)
+                                .map(definition ->
+                                        definition.id().equals(entry.getValue()))
+                                .orElse(false)
+                );
     }
 
     private static PlayerEssenceSyncPayload.ProgressState buildProgress(

@@ -25,15 +25,21 @@ public record PlayerEssenceSyncPayload(
         List<EssenceBalance> essenceBalances,
         List<StatState> stats,
         List<String> completedMilestones,
+        List<OwnedSkillState> ownedSkills,
+        List<LoadoutSelection> loadoutSelections,
+        List<String> completedAttunements,
         ProgressState progress
 ) implements CustomPacketPayload {
 
-    public static final int CURRENT_SCHEMA_VERSION = 2;
+    public static final int CURRENT_SCHEMA_VERSION = 4;
 
-    private static final int MAX_ID_LENGTH = 128;
+    static final int MAX_ID_LENGTH = 128;
     private static final int MAX_ESSENCES = 128;
     private static final int MAX_STATS = 256;
-    private static final int MAX_MILESTONES = 256;
+    static final int MAX_MILESTONES = 2048;
+    static final int MAX_OWNED_SKILLS = 4096;
+    static final int MAX_LOADOUT_SELECTIONS = 2048;
+    static final int MAX_ATTUNEMENTS = 2048;
     public static final int MAX_WORLD_REQUIREMENT_LINES = 256;
     private static final int MAX_REQUIREMENT_LABEL_LENGTH = 192;
 
@@ -57,11 +63,22 @@ public record PlayerEssenceSyncPayload(
         Objects.requireNonNull(essenceBalances, "Essence balances cannot be null");
         Objects.requireNonNull(stats, "Stat states cannot be null");
         Objects.requireNonNull(completedMilestones, "Completed milestones cannot be null");
+        Objects.requireNonNull(ownedSkills, "Owned skills cannot be null");
+        Objects.requireNonNull(loadoutSelections, "Loadout selections cannot be null");
+        Objects.requireNonNull(completedAttunements, "Completed Attunements cannot be null");
         Objects.requireNonNull(progress, "Progress state cannot be null");
 
         essenceBalances = List.copyOf(essenceBalances);
         stats = List.copyOf(stats);
         completedMilestones = List.copyOf(completedMilestones);
+        ownedSkills = List.copyOf(ownedSkills);
+        loadoutSelections = List.copyOf(loadoutSelections);
+        completedAttunements = List.copyOf(completedAttunements);
+    }
+
+    /** The synchronized player revision is the persisted Nexus revision. */
+    public long nexusRevision() {
+        return playerRevision;
     }
 
     @Override
@@ -99,6 +116,24 @@ public record PlayerEssenceSyncPayload(
         buffer.writeVarInt(payload.completedMilestones.size());
         for (String milestoneId : payload.completedMilestones) {
             buffer.writeUtf(milestoneId, MAX_ID_LENGTH);
+        }
+
+        buffer.writeVarInt(payload.ownedSkills.size());
+        for (OwnedSkillState skill : payload.ownedSkills) {
+            buffer.writeUtf(skill.skillId(), MAX_ID_LENGTH);
+            buffer.writeUtf(skill.paidEssenceId(), MAX_ID_LENGTH);
+            buffer.writeLong(skill.paidCost());
+        }
+
+        buffer.writeVarInt(payload.loadoutSelections.size());
+        for (LoadoutSelection selection : payload.loadoutSelections) {
+            buffer.writeUtf(selection.selectionId(), MAX_ID_LENGTH);
+            buffer.writeUtf(selection.skillId(), MAX_ID_LENGTH);
+        }
+
+        buffer.writeVarInt(payload.completedAttunements.size());
+        for (String attunementId : payload.completedAttunements) {
+            buffer.writeUtf(attunementId, MAX_ID_LENGTH);
         }
 
         buffer.writeByte(payload.progress.status().ordinal());
@@ -197,6 +232,61 @@ public record PlayerEssenceSyncPayload(
             );
         }
 
+        int ownedSkillCount =
+                readBoundedCount(
+                        buffer,
+                        MAX_OWNED_SKILLS,
+                        "owned skill"
+                );
+
+        List<OwnedSkillState> ownedSkills =
+                new ArrayList<>(ownedSkillCount);
+
+        for (int i = 0; i < ownedSkillCount; i++) {
+            ownedSkills.add(
+                    new OwnedSkillState(
+                            buffer.readUtf(MAX_ID_LENGTH),
+                            buffer.readUtf(MAX_ID_LENGTH),
+                            buffer.readLong()
+                    )
+            );
+        }
+
+        int loadoutSelectionCount =
+                readBoundedCount(
+                        buffer,
+                        MAX_LOADOUT_SELECTIONS,
+                        "loadout selection"
+                );
+
+        List<LoadoutSelection> loadoutSelections =
+                new ArrayList<>(loadoutSelectionCount);
+
+        for (int i = 0; i < loadoutSelectionCount; i++) {
+            loadoutSelections.add(
+                    new LoadoutSelection(
+                            buffer.readUtf(MAX_ID_LENGTH),
+                            buffer.readUtf(MAX_ID_LENGTH)
+                    )
+            );
+        }
+
+        int attunementCount =
+                readBoundedCount(
+                        buffer,
+                        MAX_ATTUNEMENTS,
+                        "Player Attunement"
+                );
+
+        List<String> completedAttunements =
+                new ArrayList<>(attunementCount);
+
+        for (int i = 0; i < attunementCount; i++) {
+            completedAttunements.add(
+                    buffer.readUtf(MAX_ID_LENGTH)
+            );
+        }
+
         int statusOrdinal =
                 buffer.readUnsignedByte();
 
@@ -275,6 +365,9 @@ public record PlayerEssenceSyncPayload(
                 essenceBalances,
                 stats,
                 completedMilestones,
+                ownedSkills,
+                loadoutSelections,
+                completedAttunements,
                 progress
         );
     }
@@ -378,6 +471,45 @@ public record PlayerEssenceSyncPayload(
                                 + " must be finite and non-negative"
                 );
             }
+        }
+    }
+
+    public record OwnedSkillState(
+            String skillId,
+            String paidEssenceId,
+            long paidCost
+    ) {
+        public OwnedSkillState {
+            Objects.requireNonNull(
+                    skillId,
+                    "Owned skill ID cannot be null"
+            );
+            Objects.requireNonNull(
+                    paidEssenceId,
+                    "Paid Essence ID cannot be null"
+            );
+
+            if (paidCost < 0L) {
+                throw new IllegalArgumentException(
+                        "Paid skill cost cannot be negative"
+                );
+            }
+        }
+    }
+
+    public record LoadoutSelection(
+            String selectionId,
+            String skillId
+    ) {
+        public LoadoutSelection {
+            Objects.requireNonNull(
+                    selectionId,
+                    "Loadout selection ID cannot be null"
+            );
+            Objects.requireNonNull(
+                    skillId,
+                    "Selected skill ID cannot be null"
+            );
         }
     }
 

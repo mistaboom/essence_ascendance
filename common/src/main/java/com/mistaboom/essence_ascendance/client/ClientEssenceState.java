@@ -112,6 +112,50 @@ public final class ClientEssenceState {
                 );
     }
 
+    public static boolean ownsSkill(
+            ResourceLocation skillId
+    ) {
+        return snapshot
+                .ownedSkills()
+                .containsKey(
+                        skillId
+                );
+    }
+
+    public static Optional<SkillPurchaseSnapshot> skillPurchase(
+            ResourceLocation skillId
+    ) {
+        return Optional.ofNullable(
+                snapshot
+                        .ownedSkills()
+                        .get(
+                                skillId
+                        )
+        );
+    }
+
+    public static Optional<ResourceLocation> loadoutSelection(
+            ResourceLocation selectionId
+    ) {
+        return Optional.ofNullable(
+                snapshot
+                        .loadoutSelections()
+                        .get(
+                                selectionId
+                        )
+        );
+    }
+
+    public static boolean hasAttunement(
+            ResourceLocation attunementId
+    ) {
+        return snapshot
+                .completedAttunements()
+                .contains(
+                        attunementId
+                );
+    }
+
     public static void clear() {
         snapshot =
                 Snapshot.empty();
@@ -222,6 +266,77 @@ public final class ClientEssenceState {
             }
         }
 
+        Map<ResourceLocation, SkillPurchaseSnapshot> ownedSkills =
+                new LinkedHashMap<>();
+
+        for (PlayerEssenceSyncPayload.OwnedSkillState state :
+                payload.ownedSkills()) {
+            ResourceLocation skillId =
+                    ResourceLocation.tryParse(
+                            state.skillId()
+                    );
+
+            ResourceLocation paidEssenceId =
+                    ResourceLocation.tryParse(
+                            state.paidEssenceId()
+                    );
+
+            if (skillId == null
+                    || paidEssenceId == null) {
+                continue;
+            }
+
+            ownedSkills.put(
+                    skillId,
+                    new SkillPurchaseSnapshot(
+                            skillId,
+                            paidEssenceId,
+                            state.paidCost()
+                    )
+            );
+        }
+
+        Map<ResourceLocation, ResourceLocation> loadoutSelections =
+                new LinkedHashMap<>();
+
+        for (PlayerEssenceSyncPayload.LoadoutSelection selection :
+                payload.loadoutSelections()) {
+            ResourceLocation selectionId =
+                    ResourceLocation.tryParse(
+                            selection.selectionId()
+                    );
+
+            ResourceLocation skillId =
+                    ResourceLocation.tryParse(
+                            selection.skillId()
+                    );
+
+            if (selectionId != null
+                    && skillId != null) {
+                loadoutSelections.put(
+                        selectionId,
+                        skillId
+                );
+            }
+        }
+
+        Set<ResourceLocation> completedAttunements =
+                new LinkedHashSet<>();
+
+        for (String rawId :
+                payload.completedAttunements()) {
+            ResourceLocation attunementId =
+                    ResourceLocation.tryParse(
+                            rawId
+                    );
+
+            if (attunementId != null) {
+                completedAttunements.add(
+                        attunementId
+                );
+            }
+        }
+
         List<WorldRequirementSnapshot> worldRequirements =
                 payload.progress()
                         .worldRequirements()
@@ -274,6 +389,15 @@ public final class ClientEssenceState {
                         Set.copyOf(
                                 completedMilestones
                         ),
+                        Map.copyOf(
+                                ownedSkills
+                        ),
+                        Map.copyOf(
+                                loadoutSelections
+                        ),
+                        Set.copyOf(
+                                completedAttunements
+                        ),
                         progress
                 );
 
@@ -309,6 +433,9 @@ public final class ClientEssenceState {
             Map<ResourceLocation, Long> availableEssence,
             Map<ResourceLocation, StatSnapshot> stats,
             Set<ResourceLocation> completedMilestones,
+            Map<ResourceLocation, SkillPurchaseSnapshot> ownedSkills,
+            Map<ResourceLocation, ResourceLocation> loadoutSelections,
+            Set<ResourceLocation> completedAttunements,
             ProgressSnapshot progress
     ) {
         public Snapshot {
@@ -326,6 +453,26 @@ public final class ClientEssenceState {
                     Set.copyOf(
                             completedMilestones
                     );
+
+            ownedSkills =
+                    Map.copyOf(
+                            ownedSkills
+                    );
+
+            loadoutSelections =
+                    Map.copyOf(
+                            loadoutSelections
+                    );
+
+            completedAttunements =
+                    Set.copyOf(
+                            completedAttunements
+                    );
+        }
+
+        /** The synchronized player revision is the persisted Nexus revision. */
+        public long nexusRevision() {
+            return playerRevision;
         }
 
         private static Snapshot empty() {
@@ -337,9 +484,19 @@ public final class ClientEssenceState {
                     Map.of(),
                     Map.of(),
                     Set.of(),
+                    Map.of(),
+                    Map.of(),
+                    Set.of(),
                     ProgressSnapshot.empty()
             );
         }
+    }
+
+    public record SkillPurchaseSnapshot(
+            ResourceLocation skillId,
+            ResourceLocation essenceId,
+            long paidCost
+    ) {
     }
 
     public record StatSnapshot(

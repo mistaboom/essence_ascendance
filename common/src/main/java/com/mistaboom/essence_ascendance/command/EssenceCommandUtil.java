@@ -6,6 +6,8 @@ import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTier;
 import com.mistaboom.essence_ascendance.progression.MilestoneDefinition;
+import com.mistaboom.essence_ascendance.skill.SkillDefinition;
+import com.mistaboom.essence_ascendance.skill.SkillRegistry;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.StatCategory;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
@@ -24,6 +26,8 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.Locale;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 final class EssenceCommandUtil {
@@ -63,6 +67,12 @@ final class EssenceCommandUtil {
     private static final DynamicCommandExceptionType UNKNOWN_MILESTONE =
             new DynamicCommandExceptionType(
                     value -> EssenceText.command("error.unknown_milestone", value)
+                            .withStyle(ChatFormatting.RED)
+            );
+
+    private static final DynamicCommandExceptionType INVALID_RESOURCE_ID =
+            new DynamicCommandExceptionType(
+                    value -> Component.literal("Invalid namespaced resource ID: " + value)
                             .withStyle(ChatFormatting.RED)
             );
 
@@ -291,7 +301,31 @@ final class EssenceCommandUtil {
                 .orElseThrow(() -> UNKNOWN_MILESTONE.create(input));
     }
 
+    /*
+     * Persistent development state may contain forward-compatible IDs without
+     * a current definition. Validate syntax without translating the ID; each
+     * command decides separately whether its mutation requires a known ID.
+     */
+    static ResourceLocation resolveResourceId(String input) throws CommandSyntaxException {
+        ResourceLocation id = parseId(input);
+        if (id == null) {
+            throw INVALID_RESOURCE_ID.create(input);
+        }
+        return id;
+    }
+
+    static Set<ResourceLocation> knownSkillMilestoneIds() {
+        return SkillRegistry.referencedPermanentMilestoneIds();
+    }
+
+    static Set<ResourceLocation> knownAttunementIds() {
+        return SkillRegistry.knownAttunementIds();
+    }
+
     static ResourceLocation parseId(String input) {
+        if (input == null || input.isBlank()) {
+            return null;
+        }
         String fullId = input.contains(":")
                 ? input
                 : EssenceAscendance.MOD_ID + ":" + input;
@@ -373,13 +407,72 @@ final class EssenceCommandUtil {
             SuggestionsBuilder builder
     ) {
         String remaining = builder.getRemainingLowerCase();
+        Set<String> suggestions = new LinkedHashSet<>();
         for (MilestoneDefinition milestone : EssenceConfigManager.get().milestones().values()) {
             ResourceLocation id = milestone.id();
             String suggestion = id.getNamespace().equals(EssenceAscendance.MOD_ID)
                     ? id.getPath()
                     : "\"" + id + "\"";
-            if (suggestion.toLowerCase(Locale.ROOT).startsWith(remaining)) {
-                builder.suggest(suggestion);
+            suggestions.add(suggestion);
+        }
+        suggestions.stream()
+                .filter(value -> value.toLowerCase(Locale.ROOT).startsWith(remaining))
+                .forEach(builder::suggest);
+        return builder.buildFuture();
+    }
+
+    static CompletableFuture<Suggestions> suggestDevelopmentMilestones(
+            CommandContext<CommandSourceStack> context,
+            SuggestionsBuilder builder
+    ) {
+        String remaining = builder.getRemainingLowerCase();
+        Set<String> suggestions = new LinkedHashSet<>();
+        for (MilestoneDefinition milestone : EssenceConfigManager.get().milestones().values()) {
+            ResourceLocation id = milestone.id();
+            suggestions.add(id.getNamespace().equals(EssenceAscendance.MOD_ID)
+                    ? id.getPath()
+                    : "\"" + id + "\"");
+        }
+        for (ResourceLocation id : knownSkillMilestoneIds()) {
+            suggestions.add(id.getNamespace().equals(EssenceAscendance.MOD_ID)
+                    ? id.getPath()
+                    : "\"" + id + "\"");
+        }
+        suggestions.stream()
+                .filter(value -> value.toLowerCase(Locale.ROOT).startsWith(remaining))
+                .forEach(builder::suggest);
+        return builder.buildFuture();
+    }
+
+    static CompletableFuture<Suggestions> suggestSkills(
+            CommandContext<CommandSourceStack> context,
+            SuggestionsBuilder builder
+    ) {
+        String remaining = builder.getRemainingLowerCase();
+        for (SkillDefinition skill : SkillRegistry.values()) {
+            String path = skill.id().getPath();
+            String fullId = skill.id().toString();
+            if (path.startsWith(remaining)) {
+                builder.suggest(path);
+            } else if (fullId.startsWith(remaining)) {
+                builder.suggest("\"" + fullId + "\"");
+            }
+        }
+        return builder.buildFuture();
+    }
+
+    static CompletableFuture<Suggestions> suggestAttunements(
+            CommandContext<CommandSourceStack> context,
+            SuggestionsBuilder builder
+    ) {
+        String remaining = builder.getRemainingLowerCase();
+        for (ResourceLocation id : knownAttunementIds()) {
+            String path = id.getPath();
+            String fullId = id.toString();
+            if (path.startsWith(remaining)) {
+                builder.suggest(path);
+            } else if (fullId.startsWith(remaining)) {
+                builder.suggest("\"" + fullId + "\"");
             }
         }
         return builder.buildFuture();
