@@ -3,6 +3,7 @@ package com.mistaboom.essence_ascendance.equipment;
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
+import com.mistaboom.essence_ascendance.network.VanillaPlayerAttributeSyncService;
 import com.mistaboom.essence_ascendance.stat.EssenceStats;
 import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceLocation;
@@ -15,6 +16,8 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -90,109 +93,111 @@ public final class EquipmentAttributeService {
             return;
         }
 
-        apply(
+        List<Holder<Attribute>> changed = new ArrayList<>();
+
+        if (apply(
                 player,
                 Attributes.ARMOR,
                 ARMOR_ID,
                 desired.armor(),
                 AttributeModifier.Operation.ADD_VALUE
-        );
+        )) changed.add(Attributes.ARMOR);
 
-        apply(
+        if (apply(
                 player,
                 Attributes.ARMOR_TOUGHNESS,
                 TOUGHNESS_ID,
                 desired.toughness(),
                 AttributeModifier.Operation.ADD_VALUE
-        );
+        )) changed.add(Attributes.ARMOR_TOUGHNESS);
 
-        apply(
+        if (apply(
                 player,
                 Attributes.ATTACK_DAMAGE,
                 MELEE_DAMAGE_ID,
                 desired.meleeDamageModifier(),
                 AttributeModifier.Operation.ADD_VALUE
-        );
+        )) changed.add(Attributes.ATTACK_DAMAGE);
 
-        apply(
+        if (apply(
                 player,
                 Attributes.ATTACK_SPEED,
                 MELEE_ATTACK_SPEED_ID,
                 desired.meleeAttackSpeedModifier(),
                 AttributeModifier.Operation.ADD_VALUE
-        );
+        )) changed.add(Attributes.ATTACK_SPEED);
 
-        apply(
+        if (apply(
                 player,
                 Attributes.ATTACK_KNOCKBACK,
                 ATTACK_KNOCKBACK_ID,
                 desired.attackKnockback(),
                 AttributeModifier.Operation.ADD_VALUE
-        );
+        )) changed.add(Attributes.ATTACK_KNOCKBACK);
 
-        apply(
+        if (apply(
                 player,
                 Attributes.BLOCK_BREAK_SPEED,
                 MINING_SPEED_ID,
                 desired.miningSpeedFraction(),
                 AttributeModifier.Operation.ADD_MULTIPLIED_BASE
-        );
+        )) changed.add(Attributes.BLOCK_BREAK_SPEED);
 
-        apply(
+        if (apply(
                 player,
                 Attributes.MAX_HEALTH,
                 MAX_HEALTH_ID,
                 desired.maxHealthPoints(),
                 AttributeModifier.Operation.ADD_VALUE
-        );
+        )) changed.add(Attributes.MAX_HEALTH);
 
-        apply(
+        if (apply(
                 player,
                 Attributes.MOVEMENT_SPEED,
                 MOVEMENT_SPEED_ID,
                 desired.movementSpeedFraction(),
                 AttributeModifier.Operation.ADD_MULTIPLIED_BASE
-        );
+        )) changed.add(Attributes.MOVEMENT_SPEED);
 
-        apply(
+        if (apply(
                 player,
                 Attributes.KNOCKBACK_RESISTANCE,
                 KNOCKBACK_RESISTANCE_ID,
                 desired.knockbackResistance(),
                 AttributeModifier.Operation.ADD_VALUE
-        );
+        )) changed.add(Attributes.KNOCKBACK_RESISTANCE);
 
-        apply(
+        if (apply(
                 player,
                 Attributes.SNEAKING_SPEED,
                 SNEAK_SPEED_ID,
                 desired.sneakSpeedFraction(),
                 AttributeModifier.Operation.ADD_MULTIPLIED_BASE
-        );
+        )) changed.add(Attributes.SNEAKING_SPEED);
 
-        apply(
+        if (apply(
                 player,
                 Attributes.STEP_HEIGHT,
                 STEP_HEIGHT_ID,
                 desired.stepHeightBlocks(),
                 AttributeModifier.Operation.ADD_VALUE
-        );
+        )) changed.add(Attributes.STEP_HEIGHT);
 
-        apply(
+        if (apply(
                 player,
                 Attributes.BLOCK_INTERACTION_RANGE,
                 BLOCK_REACH_ID,
                 desired.reachBlocks(),
                 AttributeModifier.Operation.ADD_VALUE
-        );
+        )) changed.add(Attributes.BLOCK_INTERACTION_RANGE);
 
-        apply(
+        if (apply(
                 player,
                 Attributes.ENTITY_INTERACTION_RANGE,
                 ENTITY_REACH_ID,
                 desired.reachBlocks(),
                 AttributeModifier.Operation.ADD_VALUE
-        );
+        )) changed.add(Attributes.ENTITY_INTERACTION_RANGE);
 
         LAST_APPLIED.put(player, desired);
 
@@ -203,6 +208,8 @@ public final class EquipmentAttributeService {
         if (player.getHealth() > player.getMaxHealth()) {
             player.setHealth(player.getMaxHealth());
         }
+
+        VanillaPlayerAttributeSyncService.syncOwner(player, changed);
     }
 
     public static AppliedState evaluate(ServerPlayer player) {
@@ -286,19 +293,21 @@ public final class EquipmentAttributeService {
     public static void resetTransientState(ServerPlayer player) {
         LAST_APPLIED.remove(player);
 
-        remove(player, Attributes.ARMOR, ARMOR_ID);
-        remove(player, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_ID);
-        remove(player, Attributes.ATTACK_DAMAGE, MELEE_DAMAGE_ID);
-        remove(player, Attributes.ATTACK_SPEED, MELEE_ATTACK_SPEED_ID);
-        remove(player, Attributes.ATTACK_KNOCKBACK, ATTACK_KNOCKBACK_ID);
-        remove(player, Attributes.BLOCK_BREAK_SPEED, MINING_SPEED_ID);
-        remove(player, Attributes.MAX_HEALTH, MAX_HEALTH_ID);
-        remove(player, Attributes.MOVEMENT_SPEED, MOVEMENT_SPEED_ID);
-        remove(player, Attributes.KNOCKBACK_RESISTANCE, KNOCKBACK_RESISTANCE_ID);
-        remove(player, Attributes.SNEAKING_SPEED, SNEAK_SPEED_ID);
-        remove(player, Attributes.STEP_HEIGHT, STEP_HEIGHT_ID);
-        remove(player, Attributes.BLOCK_INTERACTION_RANGE, BLOCK_REACH_ID);
-        remove(player, Attributes.ENTITY_INTERACTION_RANGE, ENTITY_REACH_ID);
+        List<Holder<Attribute>> changed = new ArrayList<>();
+        if (remove(player, Attributes.ARMOR, ARMOR_ID)) changed.add(Attributes.ARMOR);
+        if (remove(player, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_ID)) changed.add(Attributes.ARMOR_TOUGHNESS);
+        if (remove(player, Attributes.ATTACK_DAMAGE, MELEE_DAMAGE_ID)) changed.add(Attributes.ATTACK_DAMAGE);
+        if (remove(player, Attributes.ATTACK_SPEED, MELEE_ATTACK_SPEED_ID)) changed.add(Attributes.ATTACK_SPEED);
+        if (remove(player, Attributes.ATTACK_KNOCKBACK, ATTACK_KNOCKBACK_ID)) changed.add(Attributes.ATTACK_KNOCKBACK);
+        if (remove(player, Attributes.BLOCK_BREAK_SPEED, MINING_SPEED_ID)) changed.add(Attributes.BLOCK_BREAK_SPEED);
+        if (remove(player, Attributes.MAX_HEALTH, MAX_HEALTH_ID)) changed.add(Attributes.MAX_HEALTH);
+        if (remove(player, Attributes.MOVEMENT_SPEED, MOVEMENT_SPEED_ID)) changed.add(Attributes.MOVEMENT_SPEED);
+        if (remove(player, Attributes.KNOCKBACK_RESISTANCE, KNOCKBACK_RESISTANCE_ID)) changed.add(Attributes.KNOCKBACK_RESISTANCE);
+        if (remove(player, Attributes.SNEAKING_SPEED, SNEAK_SPEED_ID)) changed.add(Attributes.SNEAKING_SPEED);
+        if (remove(player, Attributes.STEP_HEIGHT, STEP_HEIGHT_ID)) changed.add(Attributes.STEP_HEIGHT);
+        if (remove(player, Attributes.BLOCK_INTERACTION_RANGE, BLOCK_REACH_ID)) changed.add(Attributes.BLOCK_INTERACTION_RANGE);
+        if (remove(player, Attributes.ENTITY_INTERACTION_RANGE, ENTITY_REACH_ID)) changed.add(Attributes.ENTITY_INTERACTION_RANGE);
+        VanillaPlayerAttributeSyncService.syncOwner(player, changed);
     }
 
     private static ArmorBaseline resolveArmorBaseline(
@@ -393,18 +402,20 @@ public final class EquipmentAttributeService {
         ) / 100.0;
     }
 
-    private static void remove(
+    private static boolean remove(
             ServerPlayer player,
             Holder<Attribute> attribute,
             ResourceLocation modifierId
     ) {
         AttributeInstance instance = player.getAttribute(attribute);
-        if (instance != null) {
+        if (instance != null && instance.hasModifier(modifierId)) {
             instance.removeModifier(modifierId);
+            return true;
         }
+        return false;
     }
 
-    private static void apply(
+    private static boolean apply(
             ServerPlayer player,
             Holder<Attribute> attribute,
             ResourceLocation modifierId,
@@ -413,21 +424,25 @@ public final class EquipmentAttributeService {
     ) {
         AttributeInstance instance = player.getAttribute(attribute);
         if (instance == null) {
-            return;
+            return false;
         }
 
+        AttributeModifier previous = instance.getModifier(modifierId);
         if (Math.abs(amount) <= EPSILON) {
-            instance.removeModifier(modifierId);
-            return;
+            if (previous != null) {
+                instance.removeModifier(modifierId);
+                return true;
+            }
+            return false;
         }
 
-        instance.addOrUpdateTransientModifier(
-                new AttributeModifier(
-                        modifierId,
-                        amount,
-                        operation
-                )
-        );
+        if (previous != null && previous.operation() == operation
+                && Math.abs(previous.amount() - amount) <= EPSILON) {
+            return false;
+        }
+
+        instance.addOrUpdateTransientModifier(new AttributeModifier(modifierId, amount, operation));
+        return true;
     }
 
     private static boolean modifierPresenceMatches(

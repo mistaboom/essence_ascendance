@@ -1,8 +1,8 @@
 package com.mistaboom.essence_ascendance.valuation;
 
 /** Economic confidence cannot be manufactured by semantic/progression hints. */
-final class ShadowValuationConfidence {
-    private ShadowValuationConfidence() { }
+final class ProceduralValuationConfidence {
+    private ProceduralValuationConfidence() { }
 
     static double bound(double proposed, boolean knownAcquisition) {
         if (!Double.isFinite(proposed)) return 0.10;

@@ -10,7 +10,12 @@
     "ItemStackDurabilityMixin",
     "PlayerShieldMixin",
     "LivingEntityShieldGuardMixin",
-    "LivingEntityShieldDamageMixin"
+    "LivingEntityShieldDamageMixin",
+    "PlayerSkillCombatMixin",
+    "LivingEntitySkillCombatMixin",
+    "ServerSkillSwingMixin",
+    "ServerPlayerSkillDeathMixin",
+    "EntitySkillRemovalMixin"
   ],
   "client": [
     "ItemInHandRendererMixin",
@@ -20,7 +25,9 @@
     "JeiIngredientFilterMixin",
     "AscendanceArmorItemClientMixin",
     "LocalPlayerShieldMovementMixin",
-    "ShieldItemRendererMixin"
+    "ShieldItemRendererMixin",
+    "SkillEffectHudMixin",
+    "VanillaAttackIndicatorMixin"
   ],
   "injectors": {
     "defaultRequire": 1

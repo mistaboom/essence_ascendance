@@ -26,7 +26,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Generic, dependency-free progression inference for the shadow valuation model.
+ * Generic, dependency-free progression inference for the procedural valuation model.
  *
  * <p>The index consumes the final loaded advancement JSON, so mod/datapack
  * overrides participate automatically. Evidence is deliberately trigger-aware:
@@ -35,7 +35,7 @@ import java.util.Set;
  * advancement. Likewise, entity progression requires a specific kill/summon
  * target instead of a giant checklist such as "kill every mob".</p>
  */
-final class ShadowProgressionIndex {
+final class ProceduralProgressionIndex {
 
     private static final String ADVANCEMENT_PREFIX = "advancement/";
     private static final int MAX_ENTITY_REFERENCES_PER_ADVANCEMENT = 4;
@@ -48,7 +48,7 @@ final class ShadowProgressionIndex {
     private final Map<ResourceLocation, ProgressionEvidence> lootTableEvidence;
     private final Summary summary;
 
-    private ShadowProgressionIndex(
+    private ProceduralProgressionIndex(
             Map<Item, ProgressionEvidence> itemEvidence,
             Map<Block, ProgressionEvidence> blockEvidence,
             Map<ResourceLocation, ProgressionEvidence> entityEvidence,
@@ -66,7 +66,7 @@ final class ShadowProgressionIndex {
         this.summary = summary;
     }
 
-    static ShadowProgressionIndex build(MinecraftServer server) {
+    static ProceduralProgressionIndex build(MinecraftServer server) {
         Map<ResourceLocation, AdvancementNode> nodes = loadAdvancements(server);
         if (nodes.isEmpty()) {
             return empty();
@@ -190,7 +190,7 @@ final class ShadowProgressionIndex {
                 summary.lootTableReferenceCount()
         );
 
-        return new ShadowProgressionIndex(
+        return new ProceduralProgressionIndex(
                 frozenItems,
                 frozenBlocks,
                 frozenEntities,
@@ -201,8 +201,8 @@ final class ShadowProgressionIndex {
         );
     }
 
-    static ShadowProgressionIndex empty() {
-        return new ShadowProgressionIndex(
+    static ProceduralProgressionIndex empty() {
+        return new ProceduralProgressionIndex(
                 Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(),
                 new Summary(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         );
@@ -641,7 +641,7 @@ final class ShadowProgressionIndex {
             if (!present()) {
                 return 1.0;
             }
-            return 1.0 + score * (ShadowValuationSettings.ADVANCEMENT_PROGRESSION_MAX_MULTIPLIER - 1.0);
+            return 1.0 + score * (ProceduralValuationSettings.ADVANCEMENT_PROGRESSION_MAX_MULTIPLIER - 1.0);
         }
 
         static ProgressionEvidence max(ProgressionEvidence first, ProgressionEvidence second) {
@@ -701,7 +701,7 @@ final class ShadowProgressionIndex {
             confidence = Math.max(confidence, clamp01(candidateConfidence));
             count++;
             if (source != null && !source.isBlank()
-                    && examples.size() < ShadowValuationSettings.MAX_PROGRESSION_EVIDENCE_EXAMPLES
+                    && examples.size() < ProceduralValuationSettings.MAX_PROGRESSION_EVIDENCE_EXAMPLES
                     && !examples.contains(source)) {
                 examples.add(source);
             }

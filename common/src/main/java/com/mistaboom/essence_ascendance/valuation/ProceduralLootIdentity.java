@@ -3,8 +3,8 @@ package com.mistaboom.essence_ascendance.valuation;
 import java.util.function.Predicate;
 
 /** Path ancestry is a provenance hint, never permission to invent an entity. */
-final class ShadowLootIdentity {
-    private ShadowLootIdentity() { }
+final class ProceduralLootIdentity {
+    private ProceduralLootIdentity() { }
 
     static String registeredEntityPath(String tablePath, Predicate<String> registered) {
         if (tablePath == null || !tablePath.startsWith("entities/")) return null;

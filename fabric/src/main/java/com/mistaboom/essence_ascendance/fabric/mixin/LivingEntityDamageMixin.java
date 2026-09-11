@@ -14,6 +14,7 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 public abstract class LivingEntityDamageMixin {
     @ModifyVariable(method = "hurt", at = @At("HEAD"), argsOnly = true, ordinal = 0)
     private float essenceAscendance$modifyIncomingDamage(float amount, DamageSource source, float originalAmount) {
+        amount = EquipmentDamageService.modifyOutgoingSkillDamage((LivingEntity) (Object) this, source, amount);
         return (Object) this instanceof ServerPlayer player
                 ? EquipmentDamageService.modifyIncomingDamage(player, source, amount) : amount;
     }

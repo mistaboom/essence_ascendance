@@ -41,9 +41,9 @@ import java.util.Set;
  * Immutable runtime indexes over the currently loaded recipes plus block,
  * entity, container/chest, and fishing loot tables. Building this once keeps individual
  * /essence debug valuation calls cheap enough to use interactively while tuning
- * the shadow model.
+ * the procedural model.
  */
-final class ShadowValuationIndex {
+final class ProceduralValuationIndex {
 
     private static final String LOOT_TABLE_PREFIX = "loot_table/";
 
@@ -55,12 +55,12 @@ final class ShadowValuationIndex {
     private final Map<Item, List<FishingLootSource>> fishingLootSourcesByItem;
     private final Map<Item, List<Item>> conservationGroups;
     private final Map<Item, List<ConservationEdge>> conservationEdges;
-    private final ShadowNaturalBlockIndex naturalBlockIndex;
-    private final ShadowTradeIndex tradeIndex;
-    private final ShadowProgressionIndex progressionIndex;
+    private final ProceduralNaturalBlockIndex naturalBlockIndex;
+    private final ProceduralTradeIndex tradeIndex;
+    private final ProceduralProgressionIndex progressionIndex;
     private final Summary summary;
 
-    private ShadowValuationIndex(
+    private ProceduralValuationIndex(
             Map<Item, List<RecipeModel>> recipesByOutput,
             Map<Item, List<RecipeUse>> recipesByIngredient,
             Map<Item, List<DropSource>> dropSourcesByItem,
@@ -69,9 +69,9 @@ final class ShadowValuationIndex {
             Map<Item, List<FishingLootSource>> fishingLootSourcesByItem,
             Map<Item, List<Item>> conservationGroups,
             Map<Item, List<ConservationEdge>> conservationEdges,
-            ShadowNaturalBlockIndex naturalBlockIndex,
-            ShadowTradeIndex tradeIndex,
-            ShadowProgressionIndex progressionIndex,
+            ProceduralNaturalBlockIndex naturalBlockIndex,
+            ProceduralTradeIndex tradeIndex,
+            ProceduralProgressionIndex progressionIndex,
             Summary summary
     ) {
         this.recipesByOutput = freezeLists(recipesByOutput);
@@ -84,11 +84,11 @@ final class ShadowValuationIndex {
         this.conservationEdges = freezeLists(conservationEdges);
         this.naturalBlockIndex = naturalBlockIndex;
         this.tradeIndex = tradeIndex;
-        this.progressionIndex = progressionIndex == null ? ShadowProgressionIndex.empty() : progressionIndex;
+        this.progressionIndex = progressionIndex == null ? ProceduralProgressionIndex.empty() : progressionIndex;
         this.summary = summary;
     }
 
-    static ShadowValuationIndex build(MinecraftServer server) {
+    static ProceduralValuationIndex build(MinecraftServer server) {
         Map<Item, List<RecipeModel>> byOutput = new IdentityHashMap<>();
         Map<Item, List<RecipeUse>> byIngredient = new IdentityHashMap<>();
         Map<Item, List<DropSource>> drops = new IdentityHashMap<>();
@@ -175,7 +175,7 @@ final class ShadowValuationIndex {
         recipeCount += smithingFallbacks.recipeCount();
         ingredientLinks += smithingFallbacks.ingredientLinks();
 
-        ShadowNaturalBlockIndex naturalBlockIndex = ShadowNaturalBlockIndex.build(server);
+        ProceduralNaturalBlockIndex naturalBlockIndex = ProceduralNaturalBlockIndex.build(server);
         // Positive runtime interaction relationships (no hand-authored item prices).
         for (RecipeModel model : ProceduralInteractionRecipes.discover(server, naturalBlockIndex)) {
             byOutput.computeIfAbsent(model.outputItem(), ignored -> new ArrayList<>()).add(model);
@@ -190,9 +190,9 @@ final class ShadowValuationIndex {
 
         Map<Item, List<ConservationEdge>> conservationEdges = buildConservationEdges(byOutput);
         Map<Item, List<Item>> conservationGroups = buildConservationGroups(conservationEdges);
-        ShadowStructureIndex structureIndex = ShadowStructureIndex.build(server);
-        ShadowMobSpawnIndex mobSpawnIndex = ShadowMobSpawnIndex.build(server, structureIndex);
-        ShadowTradeIndex tradeIndex = ShadowTradeIndex.build(server);
+        ProceduralStructureIndex structureIndex = ProceduralStructureIndex.build(server);
+        ProceduralMobSpawnIndex mobSpawnIndex = ProceduralMobSpawnIndex.build(server, structureIndex);
+        ProceduralTradeIndex tradeIndex = ProceduralTradeIndex.build(server);
 
         int lootTablesScanned = scanEntityLootTables(server, drops, mobSpawnIndex);
         addVanillaHardcodedEntitySources(drops, mobSpawnIndex);
@@ -204,8 +204,8 @@ final class ShadowValuationIndex {
         int containerLootLinks = containerLoot.values().stream().mapToInt(List::size).sum();
         int fishingLootTablesScanned = scanFishingLootTables(server, fishingLoot);
         int fishingLootLinks = fishingLoot.values().stream().mapToInt(List::size).sum();
-        ShadowProgressionIndex progressionIndex = ShadowProgressionIndex.build(server);
-        ShadowProgressionIndex.Summary progressionSummary = progressionIndex.summary();
+        ProceduralProgressionIndex progressionIndex = ProceduralProgressionIndex.build(server);
+        ProceduralProgressionIndex.Summary progressionSummary = progressionIndex.summary();
 
         byOutput.values().forEach(list -> list.sort(Comparator.comparing(model -> model.id().toString())));
         byIngredient.values().forEach(list -> list.sort(Comparator.comparing(use -> use.recipe().id().toString())));
@@ -257,7 +257,7 @@ final class ShadowValuationIndex {
                 summary.tradeOfferCount()
         );
 
-        return new ShadowValuationIndex(
+        return new ProceduralValuationIndex(
                 byOutput,
                 byIngredient,
                 drops,
@@ -300,18 +300,18 @@ final class ShadowValuationIndex {
         return naturalBlockIndex == null ? List.of() : naturalBlockIndex.signals(blockId);
     }
 
-    ShadowConservationMath.Plan<Item> conservationPlan(Item item) {
+    ProceduralConservationMath.Plan<Item> conservationPlan(Item item) {
         List<Item> members = conservationGroup(item);
-        List<ShadowConservationMath.Edge<Item>> edges = new ArrayList<>();
+        List<ProceduralConservationMath.Edge<Item>> edges = new ArrayList<>();
         for (Item member : members) {
             for (ConservationEdge edge : conservationEdges.getOrDefault(member, List.of())) {
-                edges.add(new ShadowConservationMath.Edge<>(member, edge.target(), edge.numerator(), edge.denominator()));
+                edges.add(new ProceduralConservationMath.Edge<>(member, edge.target(), edge.numerator(), edge.denominator()));
             }
         }
-        return ShadowConservationMath.plan(members, edges, ShadowValuationSettings.MAX_VALUE);
+        return ProceduralConservationMath.plan(members, edges, ProceduralValuationSettings.MAX_VALUE);
     }
 
-    List<ShadowTradeIndex.TradeSource> tradeSources(Item item) {
+    List<ProceduralTradeIndex.TradeSource> tradeSources(Item item) {
         return tradeIndex == null ? List.of() : tradeIndex.sources(item);
     }
 
@@ -358,27 +358,27 @@ final class ShadowValuationIndex {
         return Double.NaN;
     }
 
-    ShadowProgressionIndex.ProgressionEvidence progressionForItem(Item item) {
+    ProceduralProgressionIndex.ProgressionEvidence progressionForItem(Item item) {
         return progressionIndex.forItem(item);
     }
 
-    ShadowProgressionIndex.ProgressionEvidence progressionForBlock(Block block) {
+    ProceduralProgressionIndex.ProgressionEvidence progressionForBlock(Block block) {
         return progressionIndex.forBlock(block);
     }
 
-    ShadowProgressionIndex.ProgressionEvidence progressionForEntity(ResourceLocation entityId) {
+    ProceduralProgressionIndex.ProgressionEvidence progressionForEntity(ResourceLocation entityId) {
         return progressionIndex.forEntity(entityId);
     }
 
-    ShadowProgressionIndex.ProgressionEvidence progressionForRecipe(ResourceLocation recipeId) {
+    ProceduralProgressionIndex.ProgressionEvidence progressionForRecipe(ResourceLocation recipeId) {
         return progressionIndex.forRecipe(recipeId);
     }
 
-    ShadowProgressionIndex.ProgressionEvidence progressionForLootTable(ResourceLocation lootTableId) {
+    ProceduralProgressionIndex.ProgressionEvidence progressionForLootTable(ResourceLocation lootTableId) {
         return progressionIndex.forLootTable(lootTableId);
     }
 
-    ShadowProgressionIndex.ProgressionEvidence progressionForDimension(ResourceLocation dimensionId) {
+    ProceduralProgressionIndex.ProgressionEvidence progressionForDimension(ResourceLocation dimensionId) {
         return progressionIndex.forDimension(dimensionId);
     }
 
@@ -628,7 +628,7 @@ final class ShadowValuationIndex {
 
     private static void addVanillaHardcodedEntitySources(
             Map<Item, List<DropSource>> output,
-            ShadowMobSpawnIndex mobSpawnIndex
+            ProceduralMobSpawnIndex mobSpawnIndex
     ) {
         addHardcodedEntityDrop(
                 output,
@@ -637,7 +637,7 @@ final class ShadowValuationIndex {
                 ResourceLocation.fromNamespaceAndPath("minecraft", "wither"),
                 1.0,
                 1.0,
-                ShadowValuationSettings.PLAYER_SUMMONED_BOSS_MULTIPLIER,
+                ProceduralValuationSettings.PLAYER_SUMMONED_BOSS_MULTIPLIER,
                 true,
                 false,
                 List.of(
@@ -652,7 +652,7 @@ final class ShadowValuationIndex {
                 ResourceLocation.fromNamespaceAndPath("minecraft", "ender_dragon"),
                 1.0,
                 1.0,
-                ShadowValuationSettings.UNIQUE_FIRST_KILL_MULTIPLIER,
+                ProceduralValuationSettings.UNIQUE_FIRST_KILL_MULTIPLIER,
                 true,
                 false,
                 List.of(
@@ -679,7 +679,7 @@ final class ShadowValuationIndex {
 
     private static void addHardcodedEntityDrop(
             Map<Item, List<DropSource>> output,
-            ShadowMobSpawnIndex mobSpawnIndex,
+            ProceduralMobSpawnIndex mobSpawnIndex,
             ResourceLocation itemId,
             ResourceLocation entityId,
             double chance,
@@ -694,8 +694,8 @@ final class ShadowValuationIndex {
             return;
         }
         MobStats stats = mobStats(entityId);
-        ShadowMobSpawnIndex.SpawnAvailability spawnAvailability = mobSpawnIndex == null
-                ? ShadowMobSpawnIndex.SpawnAvailability.UNKNOWN
+        ProceduralMobSpawnIndex.SpawnAvailability spawnAvailability = mobSpawnIndex == null
+                ? ProceduralMobSpawnIndex.SpawnAvailability.UNKNOWN
                 : mobSpawnIndex.forEntity(entityId);
         List<String> signals = new ArrayList<>(spawnAvailability.signals());
         signals.addAll(extraSignals);
@@ -717,7 +717,7 @@ final class ShadowValuationIndex {
 
     private static void addVanillaFixedStructureSources(
             Map<Item, List<ContainerLootSource>> output,
-            ShadowStructureIndex structureIndex
+            ProceduralStructureIndex structureIndex
     ) {
         Item elytra = BuiltInRegistries.ITEM.getOptional(
                 ResourceLocation.fromNamespaceAndPath("minecraft", "elytra")
@@ -727,12 +727,12 @@ final class ShadowValuationIndex {
         }
 
         ResourceLocation proxyLootTable = ResourceLocation.fromNamespaceAndPath("minecraft", "chests/end_city_treasure");
-        ShadowStructureIndex.ContainerOccurrence occurrence = structureIndex == null
-                ? new ShadowStructureIndex.ContainerOccurrence(null, 1.0, 1.0, false, 0, List.of())
+        ProceduralStructureIndex.ContainerOccurrence occurrence = structureIndex == null
+                ? new ProceduralStructureIndex.ContainerOccurrence(null, 1.0, 1.0, false, 0, List.of())
                 : structureIndex.forLootTable(proxyLootTable);
         double structureMultiplier = occurrence.structureFrequencyKnown()
                 ? occurrence.structureFrequencyMultiplier()
-                : ShadowValuationSettings.UNKNOWN_STRUCTURE_FREQUENCY_MULTIPLIER;
+                : ProceduralValuationSettings.UNKNOWN_STRUCTURE_FREQUENCY_MULTIPLIER;
         List<String> signals = new ArrayList<>();
         signals.add("fixed End City ship item-frame treasure rather than random chest loot");
         signals.addAll(occurrence.signals());
@@ -746,9 +746,9 @@ final class ShadowValuationIndex {
                 1.0,
                 0,
                 "FIXED_TREASURE",
-                ShadowValuationResult.ProgressionBand.END,
-                ShadowValuationSettings.END_MULTIPLIER
-                        * ShadowValuationSettings.FIXED_STRUCTURE_TREASURE_MULTIPLIER
+                ProceduralValuationResult.ProgressionBand.END,
+                ProceduralValuationSettings.END_MULTIPLIER
+                        * ProceduralValuationSettings.FIXED_STRUCTURE_TREASURE_MULTIPLIER
                         * structureMultiplier,
                 occurrence.structureFrequencyKnown(),
                 occurrence.structureId(),
@@ -761,7 +761,7 @@ final class ShadowValuationIndex {
     private static int scanContainerLootTables(
             MinecraftServer server,
             Map<Item, List<ContainerLootSource>> output,
-            ShadowStructureIndex structureIndex
+            ProceduralStructureIndex structureIndex
     ) {
         Map<ResourceLocation, Resource> resources;
         try {
@@ -813,7 +813,7 @@ final class ShadowValuationIndex {
                 signals.add("loaded archaeology loot: brush/excavation access; not renewable chest farming");
                 signals.add("brushing context modeled; exact suspicious-block density is not derived");
                 context = new ContainerContext(context.progressionBand(),
-                        context.contextMultiplier() * ShadowValuationSettings.ARCHAEOLOGY_SOURCE_MULTIPLIER,
+                        context.contextMultiplier() * ProceduralValuationSettings.ARCHAEOLOGY_SOURCE_MULTIPLIER,
                         context.tierLabel(), context.structureFrequencyKnown(), context.structureId(),
                         context.templateReferenceCount(), List.copyOf(signals));
             }
@@ -936,19 +936,19 @@ final class ShadowValuationIndex {
 
     private static FishingContext fishingContext(ResourceLocation tableId) {
         String path = tableId.getPath().toLowerCase(Locale.ROOT);
-        ShadowValuationResult.ProgressionBand progression =
-                ShadowValuationResult.ProgressionBand.OVERWORLD;
-        double multiplier = ShadowValuationSettings.FISHING_SOURCE_MULTIPLIER;
+        ProceduralValuationResult.ProgressionBand progression =
+                ProceduralValuationResult.ProgressionBand.OVERWORLD;
+        double multiplier = ProceduralValuationSettings.FISHING_SOURCE_MULTIPLIER;
         List<String> signals = new ArrayList<>();
         signals.add("data-driven repeatable fishing loot root");
 
         if (path.contains("nether") || path.contains("lava")) {
-            progression = ShadowValuationResult.ProgressionBand.NETHER;
-            multiplier *= ShadowValuationSettings.NETHER_MULTIPLIER;
+            progression = ProceduralValuationResult.ProgressionBand.NETHER;
+            multiplier *= ProceduralValuationSettings.NETHER_MULTIPLIER;
             signals.add("Nether/lava fishing context");
         } else if (path.contains("end/" ) || path.contains("/end/") || path.contains("end_fishing")) {
-            progression = ShadowValuationResult.ProgressionBand.END;
-            multiplier *= ShadowValuationSettings.END_MULTIPLIER;
+            progression = ProceduralValuationResult.ProgressionBand.END;
+            multiplier *= ProceduralValuationSettings.END_MULTIPLIER;
             signals.add("End fishing context");
         }
 
@@ -1232,47 +1232,47 @@ final class ShadowValuationIndex {
                 .merge(occurrenceChance, expectedCount, complexConditions);
     }
 
-    private static ContainerContext containerContext(ResourceLocation lootTableId, ShadowStructureIndex structureIndex) {
+    private static ContainerContext containerContext(ResourceLocation lootTableId, ProceduralStructureIndex structureIndex) {
         String path = lootTableId.getPath().toLowerCase(Locale.ROOT);
-        ShadowValuationResult.ProgressionBand progression =
-                ShadowValuationResult.ProgressionBand.OVERWORLD;
-        double tierMultiplier = ShadowValuationSettings.CONTAINER_STANDARD_MULTIPLIER;
+        ProceduralValuationResult.ProgressionBand progression =
+                ProceduralValuationResult.ProgressionBand.OVERWORLD;
+        double tierMultiplier = ProceduralValuationSettings.CONTAINER_STANDARD_MULTIPLIER;
         String tier = "STANDARD";
         List<String> signals = new ArrayList<>();
 
         if (path.contains("end_city")) {
-            progression = ShadowValuationResult.ProgressionBand.END;
-            tierMultiplier = ShadowValuationSettings.CONTAINER_LATE_GAME_MULTIPLIER;
+            progression = ProceduralValuationResult.ProgressionBand.END;
+            tierMultiplier = ProceduralValuationSettings.CONTAINER_LATE_GAME_MULTIPLIER;
             tier = "LATE_GAME";
             signals.add("end-city treasure context");
         } else if (path.contains("bastion_treasure")) {
-            progression = ShadowValuationResult.ProgressionBand.NETHER;
-            tierMultiplier = ShadowValuationSettings.CONTAINER_TREASURE_MULTIPLIER;
+            progression = ProceduralValuationResult.ProgressionBand.NETHER;
+            tierMultiplier = ProceduralValuationSettings.CONTAINER_TREASURE_MULTIPLIER;
             tier = "TREASURE";
             signals.add("bastion treasure context");
         } else if (path.contains("bastion")) {
-            progression = ShadowValuationResult.ProgressionBand.NETHER;
-            tierMultiplier = ShadowValuationSettings.CONTAINER_RARE_MULTIPLIER;
+            progression = ProceduralValuationResult.ProgressionBand.NETHER;
+            tierMultiplier = ProceduralValuationSettings.CONTAINER_RARE_MULTIPLIER;
             tier = "RARE";
             signals.add("bastion context");
         } else if (path.contains("nether_bridge") || path.contains("fortress")) {
-            progression = ShadowValuationResult.ProgressionBand.NETHER;
-            tierMultiplier = ShadowValuationSettings.CONTAINER_EXPLORATION_MULTIPLIER;
+            progression = ProceduralValuationResult.ProgressionBand.NETHER;
+            tierMultiplier = ProceduralValuationSettings.CONTAINER_EXPLORATION_MULTIPLIER;
             tier = "EXPLORATION";
             signals.add("Nether fortress context");
         } else if (path.contains("ancient_city")) {
-            tierMultiplier = ShadowValuationSettings.CONTAINER_LATE_GAME_MULTIPLIER;
+            tierMultiplier = ProceduralValuationSettings.CONTAINER_LATE_GAME_MULTIPLIER;
             tier = "LATE_GAME";
             signals.add("ancient-city context");
         } else if (path.contains("stronghold")
                 || path.contains("woodland_mansion")
                 || path.contains("trial_chambers")
                 || path.contains("trial_chamber")) {
-            tierMultiplier = ShadowValuationSettings.CONTAINER_RARE_MULTIPLIER;
+            tierMultiplier = ProceduralValuationSettings.CONTAINER_RARE_MULTIPLIER;
             tier = "RARE";
             signals.add("advanced structure context");
         } else if (path.contains("buried_treasure") || path.contains("rare")) {
-            tierMultiplier = ShadowValuationSettings.CONTAINER_RARE_MULTIPLIER;
+            tierMultiplier = ProceduralValuationSettings.CONTAINER_RARE_MULTIPLIER;
             tier = "RARE";
             signals.add("rare/treasure context");
         } else if (path.contains("simple_dungeon")
@@ -1284,40 +1284,40 @@ final class ShadowValuationIndex {
                 || path.contains("ruined_portal")
                 || path.contains("igloo")
                 || path.contains("dungeon")) {
-            tierMultiplier = ShadowValuationSettings.CONTAINER_EXPLORATION_MULTIPLIER;
+            tierMultiplier = ProceduralValuationSettings.CONTAINER_EXPLORATION_MULTIPLIER;
             tier = "EXPLORATION";
             signals.add("exploration structure context");
         } else if (path.contains("village")
                 || path.contains("supply")
                 || path.contains("starter")
                 || path.contains("common")) {
-            tierMultiplier = ShadowValuationSettings.CONTAINER_COMMON_MULTIPLIER;
+            tierMultiplier = ProceduralValuationSettings.CONTAINER_COMMON_MULTIPLIER;
             tier = "COMMON";
             signals.add("common/supply container context");
         } else if (path.contains("boss") || path.contains("legendary")) {
-            tierMultiplier = ShadowValuationSettings.CONTAINER_TREASURE_MULTIPLIER;
+            tierMultiplier = ProceduralValuationSettings.CONTAINER_TREASURE_MULTIPLIER;
             tier = "TREASURE";
             signals.add("boss/legendary container identity");
         } else if (path.contains("treasure") || path.contains("vault")) {
-            tierMultiplier = ShadowValuationSettings.CONTAINER_RARE_MULTIPLIER;
+            tierMultiplier = ProceduralValuationSettings.CONTAINER_RARE_MULTIPLIER;
             tier = "RARE";
             signals.add("treasure/vault container identity");
         }
 
-        if (progression == ShadowValuationResult.ProgressionBand.OVERWORLD) {
+        if (progression == ProceduralValuationResult.ProgressionBand.OVERWORLD) {
             if (path.contains("nether") || path.contains("bastion")) {
-                progression = ShadowValuationResult.ProgressionBand.NETHER;
+                progression = ProceduralValuationResult.ProgressionBand.NETHER;
                 signals.add("Nether identity heuristic");
             } else if (path.contains("end_") || path.startsWith("end/")) {
-                progression = ShadowValuationResult.ProgressionBand.END;
+                progression = ProceduralValuationResult.ProgressionBand.END;
                 signals.add("End identity heuristic");
             }
         }
 
         double progressionMultiplier = switch (progression) {
-            case NETHER -> ShadowValuationSettings.NETHER_MULTIPLIER;
-            case END -> ShadowValuationSettings.END_MULTIPLIER;
-            case BOSS_SCALE -> ShadowValuationSettings.BOSS_SCALE_MULTIPLIER;
+            case NETHER -> ProceduralValuationSettings.NETHER_MULTIPLIER;
+            case END -> ProceduralValuationSettings.END_MULTIPLIER;
+            case BOSS_SCALE -> ProceduralValuationSettings.BOSS_SCALE_MULTIPLIER;
             case OVERWORLD -> 1.0;
         };
 
@@ -1326,8 +1326,8 @@ final class ShadowValuationIndex {
             signals.add("modded container; neutral tier because progression is not derivable");
         }
 
-        ShadowStructureIndex.ContainerOccurrence occurrence = structureIndex == null
-                ? new ShadowStructureIndex.ContainerOccurrence(null, 1.0, 1.0, false, 0, List.of())
+        ProceduralStructureIndex.ContainerOccurrence occurrence = structureIndex == null
+                ? new ProceduralStructureIndex.ContainerOccurrence(null, 1.0, 1.0, false, 0, List.of())
                 : structureIndex.forLootTable(lootTableId);
         signals.addAll(occurrence.signals());
 
@@ -1336,7 +1336,7 @@ final class ShadowValuationIndex {
                 && (path.startsWith("chests/") || path.contains("/chests/")
                 || path.startsWith("containers/") || path.contains("/containers/")
                 || path.startsWith("archaeology/"))) {
-            occurrenceMultiplier *= ShadowValuationSettings.UNKNOWN_STRUCTURE_FREQUENCY_MULTIPLIER;
+            occurrenceMultiplier *= ProceduralValuationSettings.UNKNOWN_STRUCTURE_FREQUENCY_MULTIPLIER;
             signals.add("structure frequency not derivable; conservative unknown-frequency premium applied");
         }
 
@@ -1354,7 +1354,7 @@ final class ShadowValuationIndex {
     private static int scanEntityLootTables(
             MinecraftServer server,
             Map<Item, List<DropSource>> output,
-            ShadowMobSpawnIndex mobSpawnIndex
+            ProceduralMobSpawnIndex mobSpawnIndex
     ) {
         Map<ResourceLocation, JsonObject> tables = new LinkedHashMap<>();
         try {
@@ -1376,7 +1376,7 @@ final class ShadowValuationIndex {
         }
         int scanned = 0;
         for (ResourceLocation tableId : tables.keySet().stream().sorted().toList()) {
-            String entityPath = ShadowLootIdentity.registeredEntityPath(tableId.getPath(), path ->
+            String entityPath = ProceduralLootIdentity.registeredEntityPath(tableId.getPath(), path ->
                     BuiltInRegistries.ENTITY_TYPE.getOptional(
                             ResourceLocation.fromNamespaceAndPath(tableId.getNamespace(), path)).isPresent());
             if (entityPath == null) continue;
@@ -1385,8 +1385,8 @@ final class ShadowValuationIndex {
             List<String> signals = new ArrayList<>();
             signals.add("entity loot table " + tableId + " belongs to registered entity " + entityId);
             if (variant) signals.add("nested/variant selection frequency unresolved; parent identity is not variant spawn probability");
-            ShadowMobSpawnIndex.SpawnAvailability availability = mobSpawnIndex == null
-                    ? ShadowMobSpawnIndex.SpawnAvailability.UNKNOWN : mobSpawnIndex.forEntity(entityId);
+            ProceduralMobSpawnIndex.SpawnAvailability availability = mobSpawnIndex == null
+                    ? ProceduralMobSpawnIndex.SpawnAvailability.UNKNOWN : mobSpawnIndex.forEntity(entityId);
             Set<ResourceLocation> visiting = new HashSet<>();
             visiting.add(tableId);
             try {
@@ -1423,52 +1423,52 @@ final class ShadowValuationIndex {
 
     private static BlockSourceStats blockSourceStats(ResourceLocation blockId, Block block) {
         BlockState state = block.defaultBlockState();
-        ShadowValuationResult.ProgressionBand progression =
-                ShadowValuationResult.ProgressionBand.OVERWORLD;
+        ProceduralValuationResult.ProgressionBand progression =
+                ProceduralValuationResult.ProgressionBand.OVERWORLD;
         double sourceMultiplier = 1.0;
         List<String> signals = new ArrayList<>();
 
-        if (state.is(ShadowValuationTags.BLOCK_ORES_IN_NETHERRACK)) {
-            progression = ShadowValuationResult.ProgressionBand.NETHER;
-            sourceMultiplier *= ShadowValuationSettings.NETHER_MULTIPLIER;
+        if (state.is(ProceduralValuationTags.BLOCK_ORES_IN_NETHERRACK)) {
+            progression = ProceduralValuationResult.ProgressionBand.NETHER;
+            sourceMultiplier *= ProceduralValuationSettings.NETHER_MULTIPLIER;
             signals.add("netherrack ore");
-        } else if (state.is(ShadowValuationTags.BLOCK_ORES_IN_END_STONE)) {
-            progression = ShadowValuationResult.ProgressionBand.END;
-            sourceMultiplier *= ShadowValuationSettings.END_MULTIPLIER;
+        } else if (state.is(ProceduralValuationTags.BLOCK_ORES_IN_END_STONE)) {
+            progression = ProceduralValuationResult.ProgressionBand.END;
+            sourceMultiplier *= ProceduralValuationSettings.END_MULTIPLIER;
             signals.add("end-stone ore");
         }
 
-        if (state.is(ShadowValuationTags.BLOCK_ORES_IN_DEEPSLATE)) {
-            sourceMultiplier *= ShadowValuationSettings.DEEPSLATE_MULTIPLIER;
+        if (state.is(ProceduralValuationTags.BLOCK_ORES_IN_DEEPSLATE)) {
+            sourceMultiplier *= ProceduralValuationSettings.DEEPSLATE_MULTIPLIER;
             signals.add("deepslate");
         }
 
-        if (state.is(ShadowValuationTags.BLOCK_ORE_RATE_DENSE)) {
-            sourceMultiplier *= ShadowValuationSettings.ORE_RATE_DENSE_MULTIPLIER;
+        if (state.is(ProceduralValuationTags.BLOCK_ORE_RATE_DENSE)) {
+            sourceMultiplier *= ProceduralValuationSettings.ORE_RATE_DENSE_MULTIPLIER;
             signals.add("dense ore rate");
-        } else if (state.is(ShadowValuationTags.BLOCK_ORE_RATE_SPARSE)) {
-            sourceMultiplier *= ShadowValuationSettings.ORE_RATE_SPARSE_MULTIPLIER;
+        } else if (state.is(ProceduralValuationTags.BLOCK_ORE_RATE_SPARSE)) {
+            sourceMultiplier *= ProceduralValuationSettings.ORE_RATE_SPARSE_MULTIPLIER;
             signals.add("sparse ore rate");
-        } else if (state.is(ShadowValuationTags.BLOCK_ORE_RATE_SINGULAR)) {
+        } else if (state.is(ProceduralValuationTags.BLOCK_ORE_RATE_SINGULAR)) {
             signals.add("singular ore rate");
         }
 
-        if (state.is(ShadowValuationTags.NEEDS_DIAMOND_TOOL)) {
-            sourceMultiplier *= ShadowValuationSettings.NEEDS_DIAMOND_TOOL_MULTIPLIER;
+        if (state.is(ProceduralValuationTags.NEEDS_DIAMOND_TOOL)) {
+            sourceMultiplier *= ProceduralValuationSettings.NEEDS_DIAMOND_TOOL_MULTIPLIER;
             signals.add("diamond-tier harvest");
-        } else if (state.is(ShadowValuationTags.NEEDS_IRON_TOOL)) {
-            sourceMultiplier *= ShadowValuationSettings.NEEDS_IRON_TOOL_MULTIPLIER;
+        } else if (state.is(ProceduralValuationTags.NEEDS_IRON_TOOL)) {
+            sourceMultiplier *= ProceduralValuationSettings.NEEDS_IRON_TOOL_MULTIPLIER;
             signals.add("iron-tier harvest");
-        } else if (state.is(ShadowValuationTags.NEEDS_STONE_TOOL)) {
-            sourceMultiplier *= ShadowValuationSettings.NEEDS_STONE_TOOL_MULTIPLIER;
+        } else if (state.is(ProceduralValuationTags.NEEDS_STONE_TOOL)) {
+            sourceMultiplier *= ProceduralValuationSettings.NEEDS_STONE_TOOL_MULTIPLIER;
             signals.add("stone-tier harvest");
         }
 
-        boolean oreLike = state.is(ShadowValuationTags.BLOCK_ORES)
-                || state.is(ShadowValuationTags.BLOCK_ORES_IN_STONE)
-                || state.is(ShadowValuationTags.BLOCK_ORES_IN_DEEPSLATE)
-                || state.is(ShadowValuationTags.BLOCK_ORES_IN_NETHERRACK)
-                || state.is(ShadowValuationTags.BLOCK_ORES_IN_END_STONE)
+        boolean oreLike = state.is(ProceduralValuationTags.BLOCK_ORES)
+                || state.is(ProceduralValuationTags.BLOCK_ORES_IN_STONE)
+                || state.is(ProceduralValuationTags.BLOCK_ORES_IN_DEEPSLATE)
+                || state.is(ProceduralValuationTags.BLOCK_ORES_IN_NETHERRACK)
+                || state.is(ProceduralValuationTags.BLOCK_ORES_IN_END_STONE)
                 || blockId.getPath().contains("ancient_debris");
 
         return new BlockSourceStats(
@@ -1483,7 +1483,7 @@ final class ShadowValuationIndex {
             JsonElement element,
             ResourceLocation entityId,
             MobStats stats,
-            ShadowMobSpawnIndex.SpawnAvailability spawnAvailability,
+            ProceduralMobSpawnIndex.SpawnAvailability spawnAvailability,
             double inheritedChance,
             double inheritedCount,
             int complexConditionCount,
@@ -1999,7 +1999,7 @@ final class ShadowValuationIndex {
             double estimatedChance,
             double expectedCount,
             int complexConditionCount,
-            ShadowValuationResult.ProgressionBand progressionBand,
+            ProceduralValuationResult.ProgressionBand progressionBand,
             double sourceMultiplier,
             boolean oreLike,
             List<String> signals,
@@ -2012,7 +2012,7 @@ final class ShadowValuationIndex {
     }
 
     private record BlockSourceStats(
-            ShadowValuationResult.ProgressionBand progressionBand,
+            ProceduralValuationResult.ProgressionBand progressionBand,
             double sourceMultiplier,
             boolean oreLike,
             List<String> signals
@@ -2025,7 +2025,7 @@ final class ShadowValuationIndex {
             double expectedCount,
             int complexConditionCount,
             String tierLabel,
-            ShadowValuationResult.ProgressionBand progressionBand,
+            ProceduralValuationResult.ProgressionBand progressionBand,
             double contextMultiplier,
             boolean structureFrequencyKnown,
             ResourceLocation structureId,
@@ -2043,7 +2043,7 @@ final class ShadowValuationIndex {
             double estimatedChance,
             double expectedCount,
             int complexConditionCount,
-            ShadowValuationResult.ProgressionBand progressionBand,
+            ProceduralValuationResult.ProgressionBand progressionBand,
             double contextMultiplier,
             List<String> signals
     ) {
@@ -2053,7 +2053,7 @@ final class ShadowValuationIndex {
     }
 
     private record FishingContext(
-            ShadowValuationResult.ProgressionBand progressionBand,
+            ProceduralValuationResult.ProgressionBand progressionBand,
             double contextMultiplier,
             List<String> signals
     ) {
@@ -2063,7 +2063,7 @@ final class ShadowValuationIndex {
     }
 
     private record ContainerContext(
-            ShadowValuationResult.ProgressionBand progressionBand,
+            ProceduralValuationResult.ProgressionBand progressionBand,
             double contextMultiplier,
             String tierLabel,
             boolean structureFrequencyKnown,

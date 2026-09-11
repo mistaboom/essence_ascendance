@@ -4,17 +4,24 @@ import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import com.mistaboom.essence_ascendance.stat.EssenceStats;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
+import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.phys.HitResult;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Map;
 import java.util.Optional;
 import java.util.WeakHashMap;
+import java.util.function.BooleanSupplier;
 
 /*
  * Server-authoritative application layer for event-driven Ascendance damage
@@ -46,6 +53,273 @@ public final class EquipmentDamageService {
 
     private static final ThreadLocal<Integer> REFLECTION_DEPTH =
             ThreadLocal.withInitial(() -> 0);
+
+    /* All scopes are server-thread-only, bounded to the native call and closed
+     * in finally. No context or combat input is persisted on items/entities. */
+    private static final ThreadLocal<PrimarySkillAttack> PRIMARY_SKILL_ATTACK = new ThreadLocal<>();
+    private static final ThreadLocal<CasterSkillDamage> CASTER_SKILL_DAMAGE = new ThreadLocal<>();
+    private static final ThreadLocal<CasterSkillDamage> SWEEP_SKILL_DAMAGE = new ThreadLocal<>();
+    private static final ThreadLocal<PrimarySkillHitProbe> PRIMARY_SKILL_HIT_PROBE = new ThreadLocal<>();
+    private static final ThreadLocal<Deque<SkillHealthSample>> SKILL_HEALTH_SAMPLES =
+            ThreadLocal.withInitial(ArrayDeque::new);
+    private static final ThreadLocal<Integer> SECONDARY_SKILL_DEPTH = ThreadLocal.withInitial(() -> 0);
+    private static final ThreadLocal<Deque<SkillDamageFrame>> SKILL_DAMAGE_FRAMES =
+            ThreadLocal.withInitial(ArrayDeque::new);
+    private static final Map<ServerPlayer, Deque<Long>> EXPECTED_MAIN_SWINGS = new WeakHashMap<>();
+    private static final int SWING_MATCH_TICKS = 2;
+
+    /** Native Player.attack scope, including its cancellation/early-return paths. */
+    public static void runPrimarySkillAttack(ServerPlayer player, Entity target, Runnable action) {
+        if (PRIMARY_SKILL_ATTACK.get() != null || isReflectionInProgress() || SECONDARY_SKILL_DEPTH.get() > 0) {
+            withSecondarySkillDamage(action);
+            return;
+        }
+        rememberMainSwing(player);
+        long token = SkillEffectRuntime.beginPrimaryAttack(player, target);
+        PRIMARY_SKILL_ATTACK.set(new PrimarySkillAttack(player, target));
+        try {
+            action.run();
+        } finally {
+            try {
+                SkillEffectRuntime.finishPrimaryAttack(player, token);
+            } finally {
+                PRIMARY_SKILL_ATTACK.remove();
+            }
+        }
+    }
+
+    /** Wrap only Player.attack's Entity.hurt invocation, never its sweep loop. */
+    public static boolean observePrimarySkillHit(Entity target, DamageSource source, BooleanSupplier action) {
+        LivingEntity living = target instanceof LivingEntity entity ? entity : null;
+        PrimarySkillAttack attack = PRIMARY_SKILL_ATTACK.get();
+        if (living == null || attack == null || !isPrimarySkillMelee(attack.player, living, source)) {
+            return action.getAsBoolean();
+        }
+        PrimarySkillHitProbe previous = PRIMARY_SKILL_HIT_PROBE.get();
+        PrimarySkillHitProbe probe = new PrimarySkillHitProbe(living, source);
+        PRIMARY_SKILL_HIT_PROBE.set(probe);
+        try {
+            boolean accepted = action.getAsBoolean();
+            if (accepted && probe.damaged) SkillEffectRuntime.onPrimaryMeleeSuccess(attack.player, living);
+            return accepted;
+        } finally {
+            if (previous == null) PRIMARY_SKILL_HIT_PROBE.remove();
+            else PRIMARY_SKILL_HIT_PROBE.set(previous);
+        }
+    }
+
+    /** Measures the mitigated native health/absorption write before hurt() can
+     * activate a Totem and heal the target. Nested damage has its own sample and
+     * is subtracted from its enclosing sample, not credited to the primary hit. */
+    public static void observeSkillHealthDamage(LivingEntity target, DamageSource source, Runnable action) {
+        if (target.level().isClientSide) {
+            action.run();
+            return;
+        }
+        Deque<SkillHealthSample> samples = SKILL_HEALTH_SAMPLES.get();
+        SkillHealthSample sample = new SkillHealthSample(target, healthAndAbsorption(target));
+        samples.push(sample);
+        boolean completed = false;
+        try {
+            action.run();
+            completed = true;
+        } finally {
+            samples.pop();
+            double totalLoss = Math.max(0.0, sample.before - healthAndAbsorption(target));
+            for (SkillHealthSample parent : samples) {
+                if (parent.target == target) {
+                    parent.nestedLoss += totalLoss;
+                    break;
+                }
+            }
+            if (samples.isEmpty()) SKILL_HEALTH_SAMPLES.remove();
+            PrimarySkillHitProbe probe = PRIMARY_SKILL_HIT_PROBE.get();
+            SkillDamageFrame frame = SKILL_DAMAGE_FRAMES.get().peek();
+            if (completed && Double.isFinite(totalLoss) && totalLoss > sample.nestedLoss
+                    && probe != null && probe.target == target && probe.source == source
+                    && frame != null && !frame.nested && frame.target == target && frame.source == source
+                    && !isReflectionInProgress() && SECONDARY_SKILL_DEPTH.get() == 0) {
+                probe.damaged = true;
+            }
+        }
+    }
+
+    private static double healthAndAbsorption(LivingEntity target) {
+        return (double) target.getHealth() + target.getAbsorptionAmount();
+    }
+
+    /** Only the actual native sweep call gets this scope. It is ordinary melee
+     * for Desperation/kill credit, but never a primary hit for Frenzy/Armor Crack. */
+    public static boolean observeNativeSkillSweep(ServerPlayer player, LivingEntity target,
+                                                 DamageSource source, BooleanSupplier action) {
+        PrimarySkillAttack attack = PRIMARY_SKILL_ATTACK.get();
+        if (attack == null || attack.player != player) return action.getAsBoolean();
+        CasterSkillDamage previous = SWEEP_SKILL_DAMAGE.get();
+        SWEEP_SKILL_DAMAGE.set(new CasterSkillDamage(player, target, source));
+        try {
+            return action.getAsBoolean();
+        } finally {
+            if (previous == null) SWEEP_SKILL_DAMAGE.remove();
+            else SWEEP_SKILL_DAMAGE.set(previous);
+        }
+    }
+
+    /** Wrap native LivingEntity.hurt on each loader; rejects nested damage effects. */
+    public static boolean withSkillDamageFrame(LivingEntity target, DamageSource source, BooleanSupplier action) {
+        if (target.level().isClientSide) return action.getAsBoolean();
+        Deque<SkillDamageFrame> frames = SKILL_DAMAGE_FRAMES.get();
+        frames.push(new SkillDamageFrame(target, source, !frames.isEmpty()));
+        try {
+            return action.getAsBoolean();
+        } finally {
+            frames.pop();
+            if (frames.isEmpty()) SKILL_DAMAGE_FRAMES.remove();
+        }
+    }
+
+    /** Equipment/enchantments supply native outgoing damage first; skill
+     * percentages apply once before target equipment resistance and vanilla
+     * armor, toughness, enchantments and absorption. No extra hurt call. */
+    public static float modifyOutgoingSkillDamage(LivingEntity target, DamageSource source, float amount) {
+        Deque<SkillDamageFrame> frames = SKILL_DAMAGE_FRAMES.get();
+        SkillDamageFrame frame = frames.peek();
+        if (frame == null || frame.target != target || frame.source != source || frame.modified) return amount;
+        frame.modified = true;
+        return SkillEffectRuntime.modifyOutgoingDamage(target, source, amount);
+    }
+
+    /** Exact authoritative sources accepted by this batch; unknown damage fails closed. */
+    public static ServerPlayer skillDamagePlayer(LivingEntity target, DamageSource source) {
+        if (target.level().isClientSide || isReflectionInProgress() || SECONDARY_SKILL_DEPTH.get() > 0
+                || source.is(DamageTypeTags.IS_EXPLOSION)
+                || !(source.getEntity() instanceof ServerPlayer player) || !canSkillHarm(player, target)) return null;
+        SkillDamageFrame frame = SKILL_DAMAGE_FRAMES.get().peek();
+        if (frame != null && (frame.nested || frame.target != target || frame.source != source)) return null;
+        if (isPrimarySkillMelee(player, target, source)) return player;
+        CasterSkillDamage sweep = SWEEP_SKILL_DAMAGE.get();
+        if (sweep != null && sweep.player == player && sweep.target == target && sweep.source == source
+                && source.is(DamageTypes.PLAYER_ATTACK) && source.getDirectEntity() == player) return player;
+        Entity direct = source.getDirectEntity();
+        if (direct instanceof Projectile projectile && projectile.getOwner() == player
+                && source.is(DamageTypeTags.IS_PROJECTILE)) return player;
+        CasterSkillDamage cast = CASTER_SKILL_DAMAGE.get();
+        return cast != null && cast.player == player && cast.target == target && cast.source == source
+                ? player : null;
+    }
+
+    public static boolean isPrimarySkillMelee(ServerPlayer player, LivingEntity target, DamageSource source) {
+        PrimarySkillAttack attack = PRIMARY_SKILL_ATTACK.get();
+        return !isReflectionInProgress() && SECONDARY_SKILL_DEPTH.get() == 0
+                && SWEEP_SKILL_DAMAGE.get() == null
+                && attack != null && attack.player == player && attack.target == target
+                && source.is(DamageTypes.PLAYER_ATTACK) && source.getDirectEntity() == player
+                && source.getEntity() == player;
+    }
+
+    /** Future chain/lightning/shard effects must run their damage inside this scope. */
+    public static void withSecondarySkillDamage(Runnable action) {
+        int previous = SECONDARY_SKILL_DEPTH.get();
+        SECONDARY_SKILL_DEPTH.set(previous + 1);
+        try {
+            action.run();
+        } finally {
+            if (previous == 0) SECONDARY_SKILL_DEPTH.remove();
+            else SECONDARY_SKILL_DEPTH.set(previous);
+        }
+    }
+
+    /** The actual neutral hitscan Caster path is the only synthetic magic allowed. */
+    public static boolean hurtWithCasterContext(ServerPlayer player, Entity target, float amount) {
+        if (!canSkillHarm(player, target)) return false;
+        DamageSource source = player.damageSources().indirectMagic(player, player);
+        CasterSkillDamage previous = CASTER_SKILL_DAMAGE.get();
+        CASTER_SKILL_DAMAGE.set(new CasterSkillDamage(player, target, source));
+        try {
+            return target.hurt(source, amount);
+        } finally {
+            if (previous == null) CASTER_SKILL_DAMAGE.remove();
+            else CASTER_SKILL_DAMAGE.set(previous);
+        }
+    }
+
+    private static boolean canSkillHarm(ServerPlayer player, Entity target) {
+        if (target == player || target.level() != player.level() || !player.isAlive() || player.isSpectator()) return false;
+        if (target instanceof Player other && (!player.server.isPvpAllowed() || !player.canHarmPlayer(other))) return false;
+        return player.getTeam() == null || !player.isAlliedTo(target) || player.getTeam().isAllowFriendlyFire();
+    }
+
+    /** Called only after the server processes a native main-hand swing packet.
+     * A matched attack animation carries no success assertion. Unmatched air
+     * swings break the chain, while authoritative block ray hits are mining. */
+    public static void onServerSkillSwing(ServerPlayer player, InteractionHand hand) {
+        if (hand != InteractionHand.MAIN_HAND || !player.isAlive() || player.isSpectator()) return;
+        tickSkillInput(player);
+        Deque<Long> expected = EXPECTED_MAIN_SWINGS.get(player);
+        if (expected != null && !expected.isEmpty()) {
+            expected.removeFirst();
+            if (expected.isEmpty()) EXPECTED_MAIN_SWINGS.remove(player);
+            return;
+        }
+        if (player.isUsingItem()) return;
+        HitResult block = player.pick(player.blockInteractionRange(), 0.0F, false);
+        if (block.getType() == HitResult.Type.BLOCK) return;
+        SkillEffectRuntime.onAirSwing(player);
+    }
+
+    public static void rememberMainSwing(ServerPlayer player) {
+        tickSkillInput(player);
+        Deque<Long> expected = EXPECTED_MAIN_SWINGS.computeIfAbsent(player, ignored -> new ArrayDeque<>());
+        if (expected.size() >= 16) expected.removeFirst();
+        expected.addLast(player.serverLevel().getGameTime());
+    }
+
+    public static void tickSkillInput(ServerPlayer player) {
+        Deque<Long> expected = EXPECTED_MAIN_SWINGS.get(player);
+        if (expected == null) return;
+        long tick = player.serverLevel().getGameTime();
+        while (!expected.isEmpty() && tick - expected.peekFirst() > SWING_MATCH_TICKS) expected.removeFirst();
+        if (expected.isEmpty()) EXPECTED_MAIN_SWINGS.remove(player);
+    }
+
+    public static void forgetSkillInput(ServerPlayer player) {
+        EXPECTED_MAIN_SWINGS.remove(player);
+    }
+
+    public static void clearSkillInput() {
+        EXPECTED_MAIN_SWINGS.clear();
+    }
+
+    private record PrimarySkillAttack(ServerPlayer player, Entity target) {}
+    private record CasterSkillDamage(ServerPlayer player, Entity target, DamageSource source) {}
+    private static final class PrimarySkillHitProbe {
+        final LivingEntity target;
+        final DamageSource source;
+        boolean damaged;
+        PrimarySkillHitProbe(LivingEntity target, DamageSource source) {
+            this.target = target;
+            this.source = source;
+        }
+    }
+    private static final class SkillHealthSample {
+        final LivingEntity target;
+        final double before;
+        double nestedLoss;
+        SkillHealthSample(LivingEntity target, double before) {
+            this.target = target;
+            this.before = before;
+        }
+    }
+    private static final class SkillDamageFrame {
+        final LivingEntity target;
+        final DamageSource source;
+        final boolean nested;
+        boolean modified;
+        SkillDamageFrame(LivingEntity target, DamageSource source, boolean nested) {
+            this.target = target;
+            this.source = source;
+            this.nested = nested;
+        }
+    }
 
     private EquipmentDamageService() {
     }
@@ -355,6 +629,7 @@ public final class EquipmentDamageService {
     }
 
     public static void forget(ServerPlayer player) {
+        forgetSkillInput(player);
         LAST_DAMAGE.remove(player);
         LAST_REFLECTION.remove(player);
         REFLECTION_FRAMES.remove(player);

@@ -27,7 +27,7 @@ public final class GeneratedYieldEligibility {
         public boolean eligible() { return status == Status.ELIGIBLE; }
     }
 
-    public static Decision decide(ItemStack stack, ShadowValuationResult result,
+    public static Decision decide(ItemStack stack, ProceduralValuationResult result,
                                   boolean allowByConfig, boolean denyByConfig) {
         return decide(stack, result.itemId(), result.totalValue(), result.modeledAcquisition(),
                 result.conservationStatus(), allowByConfig, denyByConfig);

@@ -225,13 +225,8 @@ public final class EquipmentShieldService {
     public record Context(EquipmentTier itemTier, EquipmentTier effectiveTier, int nativeDurability,
                           boolean functional, double baseReflectionPercent, double innateReflectionBonusPercent,
                           double investedReflectionPercent,
-                          double amplification, double guardRecoveryPercent, double guardedMovementPercent,
+                          double amplification, double guardReadinessPercent, double guardedMovementPercent,
                           double knockbackResistancePercent, double durabilityEfficiencyPercent) {
-        /** Player-facing name for the legacy-persisted guard_recovery value. */
-        public double guardReadinessPercent() {
-            return guardRecoveryPercent;
-        }
-
         /** Total no-investment reflection supplied by this shield's completed tier. */
         public double nativeReflectionPercent() {
             return ShieldMath.ordinaryPercent(baseReflectionPercent, innateReflectionBonusPercent, 0);

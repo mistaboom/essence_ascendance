@@ -22,25 +22,25 @@ import java.util.Map;
  * ordinary ambient mobs. This is intentionally a soft acquisition modifier;
  * it does not attempt to model farms or exact spawn-cap mechanics.
  */
-final class ShadowMobSpawnIndex {
+final class ProceduralMobSpawnIndex {
 
     private final Map<ResourceLocation, MutableSpawnStats> stats;
     private final int biomeCount;
-    private final ShadowStructureIndex structureIndex;
+    private final ProceduralStructureIndex structureIndex;
 
-    private ShadowMobSpawnIndex(
+    private ProceduralMobSpawnIndex(
             Map<ResourceLocation, MutableSpawnStats> stats,
             int biomeCount,
-            ShadowStructureIndex structureIndex
+            ProceduralStructureIndex structureIndex
     ) {
         this.stats = Map.copyOf(stats);
         this.biomeCount = biomeCount;
         this.structureIndex = structureIndex;
     }
 
-    static ShadowMobSpawnIndex build(
+    static ProceduralMobSpawnIndex build(
             MinecraftServer server,
-            ShadowStructureIndex structureIndex
+            ProceduralStructureIndex structureIndex
     ) {
         Map<ResourceLocation, Resource> resources;
         try {
@@ -53,7 +53,7 @@ final class ShadowMobSpawnIndex {
                     "Procedural valuation could not enumerate biome spawn data: {}",
                     exception.getMessage()
             );
-            return new ShadowMobSpawnIndex(Map.of(), 0, structureIndex);
+            return new ProceduralMobSpawnIndex(Map.of(), 0, structureIndex);
         }
 
         Map<ResourceLocation, MutableSpawnStats> stats = new LinkedHashMap<>();
@@ -113,11 +113,11 @@ final class ShadowMobSpawnIndex {
                 biomes,
                 stats.size()
         );
-        return new ShadowMobSpawnIndex(stats, biomes, structureIndex);
+        return new ProceduralMobSpawnIndex(stats, biomes, structureIndex);
     }
 
     SpawnAvailability forEntity(ResourceLocation entityId) {
-        ShadowStructureIndex.StructureSpawnOccurrence structureSpawn =
+        ProceduralStructureIndex.StructureSpawnOccurrence structureSpawn =
                 structureIndex == null ? null : structureIndex.forEntitySpawn(entityId);
 
         if (biomeCount <= 0) {
@@ -133,7 +133,7 @@ final class ShadowMobSpawnIndex {
                 return fromStructure(structureSpawn);
             }
             return new SpawnAvailability(
-                    ShadowValuationSettings.NON_BIOME_SPAWN_MULTIPLIER,
+                    ProceduralValuationSettings.NON_BIOME_SPAWN_MULTIPLIER,
                     true,
                     0,
                     0.0,
@@ -150,8 +150,8 @@ final class ShadowMobSpawnIndex {
                 * Math.pow(100.0 / Math.max(1.0, averageWeight), 0.10)
                 / Math.pow(Math.max(1.0, averagePack), 0.08);
         biomeMultiplier = Math.max(
-                ShadowValuationSettings.MOB_SPAWN_RARITY_MIN_MULTIPLIER,
-                Math.min(ShadowValuationSettings.MOB_SPAWN_RARITY_MAX_MULTIPLIER, biomeMultiplier)
+                ProceduralValuationSettings.MOB_SPAWN_RARITY_MIN_MULTIPLIER,
+                Math.min(ProceduralValuationSettings.MOB_SPAWN_RARITY_MAX_MULTIPLIER, biomeMultiplier)
         );
 
         List<String> signals = new ArrayList<>();
@@ -164,9 +164,9 @@ final class ShadowMobSpawnIndex {
             structureSignals.add("structure path easier than biome-spawn estimate");
             return new SpawnAvailability(
                     Math.max(
-                            ShadowValuationSettings.MOB_SPAWN_RARITY_MIN_MULTIPLIER,
+                            ProceduralValuationSettings.MOB_SPAWN_RARITY_MIN_MULTIPLIER,
                             Math.min(
-                                    ShadowValuationSettings.MOB_SPAWN_RARITY_MAX_MULTIPLIER,
+                                    ProceduralValuationSettings.MOB_SPAWN_RARITY_MAX_MULTIPLIER,
                                     structureSpawn.multiplier()
                             )
                     ),
@@ -193,12 +193,12 @@ final class ShadowMobSpawnIndex {
     }
 
     private static SpawnAvailability fromStructure(
-            ShadowStructureIndex.StructureSpawnOccurrence structureSpawn
+            ProceduralStructureIndex.StructureSpawnOccurrence structureSpawn
     ) {
         double multiplier = Math.max(
-                ShadowValuationSettings.MOB_SPAWN_RARITY_MIN_MULTIPLIER,
+                ProceduralValuationSettings.MOB_SPAWN_RARITY_MIN_MULTIPLIER,
                 Math.min(
-                        ShadowValuationSettings.MOB_SPAWN_RARITY_MAX_MULTIPLIER,
+                        ProceduralValuationSettings.MOB_SPAWN_RARITY_MAX_MULTIPLIER,
                         structureSpawn.multiplier()
                 )
         );

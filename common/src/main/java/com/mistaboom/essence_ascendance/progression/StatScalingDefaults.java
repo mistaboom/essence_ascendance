@@ -239,7 +239,7 @@ public final class StatScalingDefaults {
                 50.0
         );
 
-        register("guard_recovery", 80.0);
+        register("guard_readiness", 80.0);
         register("guarded_movement", 100.0);
     }
 

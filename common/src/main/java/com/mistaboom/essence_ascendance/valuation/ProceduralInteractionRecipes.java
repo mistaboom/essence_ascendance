@@ -44,8 +44,8 @@ import java.util.Map;
 final class ProceduralInteractionRecipes {
     private ProceduralInteractionRecipes() { }
 
-    static List<ShadowValuationIndex.RecipeModel> discover(MinecraftServer server, ShadowNaturalBlockIndex natural) {
-        Map<ResourceLocation, ShadowValuationIndex.RecipeModel> result = new LinkedHashMap<>();
+    static List<ProceduralValuationIndex.RecipeModel> discover(MinecraftServer server, ProceduralNaturalBlockIndex natural) {
+        Map<ResourceLocation, ProceduralValuationIndex.RecipeModel> result = new LinkedHashMap<>();
         readStrippingMap(result);
         for (Block block : BuiltInRegistries.BLOCK) {
             if (block instanceof WeatheringCopper) {
@@ -70,7 +70,7 @@ final class ProceduralInteractionRecipes {
         return result.values().stream().sorted(Comparator.comparing(model -> model.id().toString())).toList();
     }
 
-    private static void readStrippingMap(Map<ResourceLocation, ShadowValuationIndex.RecipeModel> result) {
+    private static void readStrippingMap(Map<ResourceLocation, ProceduralValuationIndex.RecipeModel> result) {
         for (Field field : AxeItem.class.getDeclaredFields()) {
             if (!Modifier.isStatic(field.getModifiers()) || !Map.class.isAssignableFrom(field.getType())) continue;
             try {
@@ -87,7 +87,7 @@ final class ProceduralInteractionRecipes {
     }
 
     private static void discoverColoring(MinecraftServer server,
-                                         Map<ResourceLocation, ShadowValuationIndex.RecipeModel> result) {
+                                         Map<ResourceLocation, ProceduralValuationIndex.RecipeModel> result) {
         List<Item> boxes = BuiltInRegistries.ITEM.stream().filter(item -> item instanceof BlockItem bi
                 && bi.getBlock() instanceof ShulkerBoxBlock).toList();
         List<Item> dyes = BuiltInRegistries.ITEM.stream().filter(item -> item instanceof DyeItem).toList();
@@ -111,16 +111,16 @@ final class ProceduralInteractionRecipes {
                 }
                 for (Map.Entry<Item, List<Item>> entry : validInputs.entrySet()) {
                     ResourceLocation id = id("special_coloring", dye, entry.getKey());
-                    result.put(id, new ShadowValuationIndex.RecipeModel(id, RecipeType.CRAFTING, entry.getKey(), 1,
-                            List.of(new ShadowValuationIndex.IngredientChoice(entry.getValue()),
-                                    new ShadowValuationIndex.IngredientChoice(List.of(dye)))));
+                    result.put(id, new ProceduralValuationIndex.RecipeModel(id, RecipeType.CRAFTING, entry.getKey(), 1,
+                            List.of(new ProceduralValuationIndex.IngredientChoice(entry.getValue()),
+                                    new ProceduralValuationIndex.IngredientChoice(List.of(dye)))));
                 }
             }
         }
     }
 
-    private static void discoverBucketFilling(ShadowNaturalBlockIndex natural,
-                                             Map<ResourceLocation, ShadowValuationIndex.RecipeModel> result) {
+    private static void discoverBucketFilling(ProceduralNaturalBlockIndex natural,
+                                             Map<ResourceLocation, ProceduralValuationIndex.RecipeModel> result) {
         if (natural == null) return;
         for (Item item : BuiltInRegistries.ITEM) {
             // Only the known vanilla bucket behavior. Mob buckets, custom filled
@@ -150,12 +150,12 @@ final class ProceduralInteractionRecipes {
         }
     }
 
-    private static void add(Map<ResourceLocation, ShadowValuationIndex.RecipeModel> result,
+    private static void add(Map<ResourceLocation, ProceduralValuationIndex.RecipeModel> result,
                             String mechanic, Item from, Item to) {
         if (from == Items.AIR || to == Items.AIR || from == to) return;
         ResourceLocation id = id(mechanic, from, to);
-        result.put(id, new ShadowValuationIndex.RecipeModel(id, RecipeType.CRAFTING, to, 1,
-                List.of(new ShadowValuationIndex.IngredientChoice(List.of(from)))));
+        result.put(id, new ProceduralValuationIndex.RecipeModel(id, RecipeType.CRAFTING, to, 1,
+                List.of(new ProceduralValuationIndex.IngredientChoice(List.of(from)))));
     }
 
     private static ResourceLocation id(String mechanic, Item from, Item to) {

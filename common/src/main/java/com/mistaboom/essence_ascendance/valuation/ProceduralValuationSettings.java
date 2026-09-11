@@ -1,7 +1,7 @@
 package com.mistaboom.essence_ascendance.valuation;
 
 /*
- * Central tuning values for the procedural Item -> Essence valuation shadow
+ * Central tuning values for the procedural Item -> Essence valuation
  * engine.
  *
  * These values define the shared procedural analysis used by generated defaults.
@@ -16,7 +16,7 @@ package com.mistaboom.essence_ascendance.valuation;
  * expose these values through the normal global configuration model after the
  * shape of the algorithm settles.
  */
-public final class ShadowValuationSettings {
+public final class ProceduralValuationSettings {
 
     public static final long MAX_VALUE = 2_000_000_000L;
     public static final int MAX_RECIPE_DEPTH = 10;
@@ -189,6 +189,6 @@ public final class ShadowValuationSettings {
     public static final double ADVANCEMENT_PROGRESSION_MAX_MULTIPLIER = 1.55;
     public static final int MAX_PROGRESSION_EVIDENCE_EXAMPLES = 4;
 
-    private ShadowValuationSettings() {
+    private ProceduralValuationSettings() {
     }
 }

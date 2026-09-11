@@ -307,6 +307,10 @@ public final class EssenceConfigManager {
         return current;
     }
 
+    public static SkillEffectBalanceSettings skillEffects() {
+        return get().skillEffects();
+    }
+
 
     public static Path getConfigPath() {
         return Platform
@@ -593,6 +597,7 @@ public final class EssenceConfigManager {
         infuser.add("focus_upgrades", focusUpgrades);
         root.add("essence_infuser", infuser);
         root.add("ascendance_shield", createShieldJson(ShieldBalanceSettings.defaults()));
+        root.add("skill_effects", createSkillEffectsJson(SkillEffectBalanceSettings.defaults()));
 
         root.addProperty(
                 "preset",
@@ -982,6 +987,7 @@ public final class EssenceConfigManager {
 
         root.add("essence_infuser", createCompleteInfuserJson(InfuserBalanceSettings.defaults()));
         root.add("ascendance_shield", createShieldJson(ShieldBalanceSettings.defaults()));
+        root.add("skill_effects", createSkillEffectsJson(SkillEffectBalanceSettings.defaults()));
         root.add(
                 "latent_ore_worldgen",
                 createLatentOreWorldgenJson(LatentOreWorldgenSettings.defaults(), true)
@@ -1349,6 +1355,7 @@ public final class EssenceConfigManager {
                 maxActivePylons,
                 infuserBalance,
                 parseShieldBalance(root),
+                parseSkillEffects(root),
                 latentOreWorldgen,
                 balanceProfile,
                 milestones,
@@ -1358,6 +1365,118 @@ public final class EssenceConfigManager {
         );
     }
 
+
+    private static JsonObject createSkillEffectsJson(SkillEffectBalanceSettings settings) {
+        JsonObject result = new JsonObject();
+        result.addProperty("_comment", "All skill-effect values are provisional, not final balance. Missing sections or fields use built-in defaults. Percent fields use 4.0 for 4%, health thresholds use fractions, and 20 ticks equal one second. Stack limits: 0-100; durations: 1-72000 ticks; per-stack percent bonuses: 0-100; defense reduction: 0-1024; maximum Desperation bonus: 0-1000%.");
+        JsonObject offense = new JsonObject();
+        JsonObject stances = new JsonObject();
+
+        var frenzySettings = settings.frenzy();
+        JsonObject frenzy = new JsonObject();
+        frenzy.addProperty("_comment", "Provisional. Each successful primary melee hit earns a stack for subsequent hits; missing or pausing clears the chain. max_stacks=0 prevents stacking.");
+        frenzy.addProperty("max_stacks", frenzySettings.maxStacks());
+        frenzy.addProperty("chain_timeout_ticks", frenzySettings.chainTimeoutTicks());
+        frenzy.addProperty("damage_bonus_percent_per_stack", frenzySettings.damageBonusPercentPerStack());
+        frenzy.addProperty("attack_speed_bonus_percent_per_stack", frenzySettings.attackSpeedBonusPercentPerStack());
+        stances.add("frenzy", frenzy);
+
+        var crackSettings = settings.armorCrack();
+        JsonObject crack = new JsonObject();
+        crack.addProperty("_comment", "Provisional. Reduction is flat Armor/Armor Toughness per same-target primary hit, applied to later hits. Requires effective Armor Crack and Frenzy. max_stacks=0 prevents stacking.");
+        crack.addProperty("max_stacks", crackSettings.maxStacks());
+        crack.addProperty("stack_timeout_ticks", crackSettings.stackTimeoutTicks());
+        crack.addProperty("armor_reduction_per_stack", crackSettings.armorReductionPerStack());
+        crack.addProperty("toughness_reduction_per_stack", crackSettings.toughnessReductionPerStack());
+        stances.add("armor_crack", crack);
+
+        JsonObject desperation = new JsonObject();
+        desperation.addProperty("_comment", "Provisional. Outgoing damage bonus scales linearly with missing normal health; absorption does not affect the curve.");
+        desperation.addProperty("max_damage_bonus_percent", settings.desperation().maxDamageBonusPercent());
+        stances.add("desperation", desperation);
+
+        var rushSettings = settings.deathRush();
+        JsonObject rush = new JsonObject();
+        rush.addProperty("_comment", "Provisional. Kills qualify strictly below kill_health_threshold. Qualifying kills at or below near_death_health_threshold refresh every stack. Thresholds must be within 0-1 and near-death cannot exceed kill eligibility. Other kills never refresh existing stacks; healing leaves earned stacks to expire. Bow and cast bonuses use the current Ascendance weapon paths. max_stacks=0 prevents stacking.");
+        rush.addProperty("kill_health_threshold", rushSettings.killHealthThreshold());
+        rush.addProperty("near_death_health_threshold", rushSettings.nearDeathHealthThreshold());
+        rush.addProperty("max_stacks", rushSettings.maxStacks());
+        rush.addProperty("stack_duration_ticks", rushSettings.stackDurationTicks());
+        rush.addProperty("attack_speed_bonus_percent_per_stack", rushSettings.attackSpeedBonusPercentPerStack());
+        rush.addProperty("bow_draw_speed_bonus_percent_per_stack", rushSettings.bowDrawSpeedBonusPercentPerStack());
+        rush.addProperty("cast_speed_bonus_percent_per_stack", rushSettings.castSpeedBonusPercentPerStack());
+        stances.add("death_rush", rush);
+        offense.add("combat_stances", stances);
+        result.add("offense", offense);
+        return result;
+    }
+
+    private static SkillEffectBalanceSettings parseSkillEffects(JsonObject root) {
+        SkillEffectBalanceSettings defaults = SkillEffectBalanceSettings.defaults();
+        JsonObject effects = skillSettingsObject(root, "skill_effects");
+        JsonObject offense = skillSettingsObject(effects, "offense");
+        JsonObject stances = skillSettingsObject(offense, "combat_stances");
+        JsonObject frenzy = skillSettingsObject(stances, "frenzy");
+        JsonObject crack = skillSettingsObject(stances, "armor_crack");
+        JsonObject desperation = skillSettingsObject(stances, "desperation");
+        JsonObject rush = skillSettingsObject(stances, "death_rush");
+        var f = defaults.frenzy();
+        var a = defaults.armorCrack();
+        var d = defaults.deathRush();
+        return new SkillEffectBalanceSettings(
+                new SkillEffectBalanceSettings.Frenzy(
+                        readSkillSettingInt(frenzy, "max_stacks", f.maxStacks()),
+                        readSkillSettingInt(frenzy, "chain_timeout_ticks", f.chainTimeoutTicks()),
+                        readSkillSettingDouble(frenzy, "damage_bonus_percent_per_stack", f.damageBonusPercentPerStack()),
+                        readSkillSettingDouble(frenzy, "attack_speed_bonus_percent_per_stack", f.attackSpeedBonusPercentPerStack())),
+                new SkillEffectBalanceSettings.ArmorCrack(
+                        readSkillSettingInt(crack, "max_stacks", a.maxStacks()),
+                        readSkillSettingInt(crack, "stack_timeout_ticks", a.stackTimeoutTicks()),
+                        readSkillSettingDouble(crack, "armor_reduction_per_stack", a.armorReductionPerStack()),
+                        readSkillSettingDouble(crack, "toughness_reduction_per_stack", a.toughnessReductionPerStack())),
+                new SkillEffectBalanceSettings.Desperation(
+                        readSkillSettingDouble(desperation, "max_damage_bonus_percent", defaults.desperation().maxDamageBonusPercent())),
+                new SkillEffectBalanceSettings.DeathRush(
+                        readSkillSettingDouble(rush, "kill_health_threshold", d.killHealthThreshold()),
+                        readSkillSettingDouble(rush, "near_death_health_threshold", d.nearDeathHealthThreshold()),
+                        readSkillSettingInt(rush, "max_stacks", d.maxStacks()),
+                        readSkillSettingInt(rush, "stack_duration_ticks", d.stackDurationTicks()),
+                        readSkillSettingDouble(rush, "attack_speed_bonus_percent_per_stack", d.attackSpeedBonusPercentPerStack()),
+                        readSkillSettingDouble(rush, "bow_draw_speed_bonus_percent_per_stack", d.bowDrawSpeedBonusPercentPerStack()),
+                        readSkillSettingDouble(rush, "cast_speed_bonus_percent_per_stack", d.castSpeedBonusPercentPerStack()))
+        );
+    }
+
+    /** Absent values remain sparse overrides; malformed supplied values fail validation. */
+    private static JsonObject skillSettingsObject(JsonObject parent, String key) {
+        JsonElement value = parent.get(key);
+        if (value == null || value.isJsonNull()) return new JsonObject();
+        if (!value.isJsonObject()) {
+            throw new IllegalArgumentException("Skill-effect setting '" + key + "' must be an object");
+        }
+        return value.getAsJsonObject();
+    }
+
+    private static double readSkillSettingDouble(JsonObject parent, String key, double fallback) {
+        JsonElement value = parent.get(key);
+        if (value == null) return fallback;
+        if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) {
+            throw new IllegalArgumentException("Skill-effect setting '" + key + "' must be numeric");
+        }
+        double result = value.getAsDouble();
+        if (!Double.isFinite(result)) {
+            throw new IllegalArgumentException("Skill-effect setting '" + key + "' must be finite");
+        }
+        return result;
+    }
+
+    private static int readSkillSettingInt(JsonObject parent, String key, int fallback) {
+        double value = readSkillSettingDouble(parent, key, fallback);
+        if (value != Math.rint(value) || value < Integer.MIN_VALUE || value > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("Skill-effect setting '" + key + "' must be an integer");
+        }
+        return (int) value;
+    }
 
     private static JsonObject createShieldJson(ShieldBalanceSettings settings) {
         JsonObject result = new JsonObject();
@@ -1835,12 +1954,6 @@ public final class EssenceConfigManager {
         if (equipmentWeightObject != null) {
             for (String equipmentKey : defaults.equipmentEssenceWeights().keySet()) {
                 JsonObject configured = getObject(equipmentWeightObject, equipmentKey);
-                // Backward-compatible read for sparse configs made before the
-                // magic weapon was renamed Ascendance Caster. New templates
-                // always emit the canonical magic_caster key.
-                if (configured == null && equipmentKey.equals("magic_caster")) {
-                    configured = getObject(equipmentWeightObject, "magic_weapon");
-                }
                 if (configured == null) continue;
                 LinkedHashMap<String, Integer> configuredWeights = new LinkedHashMap<>();
                 for (String essenceKey : new String[]{
@@ -2798,6 +2911,7 @@ public final class EssenceConfigManager {
                 8,
                 InfuserBalanceSettings.defaults(),
                 ShieldBalanceSettings.defaults(),
+                SkillEffectBalanceSettings.defaults(),
                 LatentOreWorldgenSettings.defaults(),
                 BalanceProfiles.VANILLA,
                 milestones,

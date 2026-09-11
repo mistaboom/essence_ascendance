@@ -13,6 +13,7 @@ import com.mistaboom.essence_ascendance.progression.PermanentMilestoneService;
 import com.mistaboom.essence_ascendance.progression.StatScalingResult;
 import com.mistaboom.essence_ascendance.progression.StatScalingService;
 import com.mistaboom.essence_ascendance.skill.SkillRegistry;
+import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.EssenceStats;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
@@ -60,6 +61,10 @@ public final class EssenceTestCommands {
                 .then(
                         Commands.literal("skill-milestones")
                                 .executes(context -> testSkillMilestones(context.getSource()))
+                )
+                .then(
+                        Commands.literal("skill-effects")
+                                .executes(context -> testSkillEffects(context.getSource()))
                 );
     }
 
@@ -77,10 +82,42 @@ public final class EssenceTestCommands {
                 "/essence test skill-milestones",
                 "validate every configurable permanent milestone gate referenced by the skill catalog"
         ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command(
+                "/essence test skill-effects",
+                "validate effect registrations, catalog relationships, provisional tuning, and pure combat math"
+        ));
         EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
                 "These are diagnostic tests only; they do not alter progression or equipment."
         ));
         return 1;
+    }
+
+    private static int testSkillEffects(CommandSourceStack source) {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Skill Effect Invariants"));
+        List<String> failures;
+        try {
+            failures = SkillEffectRuntime.validateInvariants();
+        } catch (RuntimeException exception) {
+            EssenceAscendance.LOGGER.error("Skill effect invariant diagnostic failed", exception);
+            failures = List.of("Diagnostic could not complete: " + exception.getMessage());
+        }
+
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Implemented IDs", SkillEffectRuntime.implementedIds().toString()
+        ));
+        if (failures.isEmpty()) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.good(
+                    "  PASS Scoped registrations, relationships, config, stack/health/timer math, and persistent-data boundary."
+            ));
+        } else {
+            for (String failure : failures) {
+                EssenceCommandUtil.send(source, EssenceCommandUtil.bad("  FAIL " + failure));
+            }
+        }
+        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
+                "  Pure diagnostics only: no combat is simulated and no player progression is changed."
+        ));
+        return failures.isEmpty() ? 1 : 0;
     }
 
     private static int testSkillMilestones(

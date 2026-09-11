@@ -78,17 +78,12 @@ public final class EssenceAscendanceNeoForge {
     private static void onIncomingDamage(
             LivingIncomingDamageEvent event
     ) {
-        if (!(event.getEntity() instanceof ServerPlayer player)) {
-            return;
+        float amount = EquipmentDamageService.modifyOutgoingSkillDamage(
+                event.getEntity(), event.getSource(), event.getAmount());
+        if (event.getEntity() instanceof ServerPlayer player) {
+            amount = EquipmentDamageService.modifyIncomingDamage(player, event.getSource(), amount);
         }
-
-        event.setAmount(
-                EquipmentDamageService.modifyIncomingDamage(
-                        player,
-                        event.getSource(),
-                        event.getAmount()
-                )
-        );
+        event.setAmount(amount);
     }
 
     private static void onGetEnchantmentLevel(

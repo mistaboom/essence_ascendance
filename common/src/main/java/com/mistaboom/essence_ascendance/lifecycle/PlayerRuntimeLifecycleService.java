@@ -11,6 +11,9 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentVitalityService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentWeaponService;
 import com.mistaboom.essence_ascendance.network.EssenceCrucibleNetworkService;
 import com.mistaboom.essence_ascendance.network.PlayerEssenceSyncService;
+import com.mistaboom.essence_ascendance.skill.CommittedSkillService;
+import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
+import dev.architectury.event.events.common.LifecycleEvent;
 import dev.architectury.event.events.common.PlayerEvent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -52,6 +55,12 @@ public final class PlayerRuntimeLifecycleService {
                 PlayerRuntimeLifecycleService::forget
         );
 
+        LifecycleEvent.SERVER_STOPPED.register(server -> {
+            SkillEffectRuntime.clearAll();
+            EquipmentDamageService.clearSkillInput();
+            CommittedSkillService.invalidateAll();
+        });
+
         initialized = true;
     }
 
@@ -74,16 +83,20 @@ public final class PlayerRuntimeLifecycleService {
     /*
      * Reconcile every connected player after a server-wide balance/config
      * change. Config changes do NOT represent a player-identity transition, so
-     * preserve legitimate fractional runtime carry and simply recalculate the
-     * current authoritative state immediately.
+     * preserve existing equipment fractional carry. Skill combat timers and
+     * modifiers reset so no value calculated under old tuning remains active.
      */
     public static void refreshAll(
             MinecraftServer server
     ) {
+        CommittedSkillService.invalidateAll();
         for (ServerPlayer player :
                 server.getPlayerList()
                         .getPlayers()) {
 
+            // Skill timers/modifiers use provisional tuning; discard old
+            // combat state before applying a newly loaded configuration.
+            SkillEffectRuntime.reset(player);
             refreshCurrentState(
                     player
             );
@@ -102,10 +115,27 @@ public final class PlayerRuntimeLifecycleService {
         refreshCurrentState(player);
     }
 
+    /**
+     * Provider completion may happen while building a progression snapshot.
+     * Refresh just skill gameplay here to avoid recursive network sends.
+     */
+    public static void refreshSkillState(ServerPlayer player) {
+        CommittedSkillService.invalidate(player);
+        SkillEffectRuntime.refresh(player);
+    }
+
+    /** Called by the authoritative death-completion hook, after cancellation. */
+    public static void onDeath(ServerPlayer player) {
+        SkillEffectRuntime.reset(player);
+        EquipmentDamageService.forgetSkillInput(player);
+        CommittedSkillService.forget(player);
+    }
+
 
     private static void refreshCurrentState(
             ServerPlayer player
     ) {
+        refreshSkillState(player);
         /*
          * Reapply the state that should be visible/usable immediately.
          *
@@ -153,6 +183,8 @@ public final class PlayerRuntimeLifecycleService {
     private static void resetRuntime(
             ServerPlayer player
     ) {
+        SkillEffectRuntime.reset(player);
+        CommittedSkillService.forget(player);
         EquipmentAttributeService.resetTransientState(
                 player
         );
@@ -207,6 +239,8 @@ public final class PlayerRuntimeLifecycleService {
     public static void forget(
             ServerPlayer player
     ) {
+        SkillEffectRuntime.forget(player);
+        CommittedSkillService.forget(player);
         EquipmentAttributeService.forget(
                 player
         );

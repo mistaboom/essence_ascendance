@@ -327,17 +327,9 @@ public final class EssenceStats {
             );
 
 
-    /*
-     * Keep the persistent ID as guard_recovery so existing investments and
-     * configuration overrides remain valid. Guard Readiness is the clearer
-     * player-facing name now that the stat controls both raising and recovery.
-     */
+    /** Controls both shield raising and recovery. */
     public static final StatDefinition GUARD_READINESS = register(
-            "guard_recovery", "Guard Readiness", StatCategory.DEFENSE, StatUnit.PERCENT);
-
-    /** Source-compatibility alias for integrations using the original field name. */
-    @Deprecated
-    public static final StatDefinition GUARD_RECOVERY = GUARD_READINESS;
+            "guard_readiness", "Guard Readiness", StatCategory.DEFENSE, StatUnit.PERCENT);
 
     public static final StatDefinition GUARDED_MOVEMENT = register(
             "guarded_movement", "Guarded Movement", StatCategory.MOBILITY, StatUnit.PERCENT);

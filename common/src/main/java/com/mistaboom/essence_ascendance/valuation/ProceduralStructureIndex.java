@@ -36,7 +36,7 @@ import java.util.zip.GZIPInputStream;
  * The NBT scan intentionally uses only standard Java gzip/string handling; no
  * loader-specific or unstable structure-template APIs are required.</p>
  */
-final class ShadowStructureIndex {
+final class ProceduralStructureIndex {
 
     private static final Pattern LOOT_TABLE_STRING = Pattern.compile(
             "([a-z0-9_.-]+):((?:chests|containers|archaeology)/[a-z0-9_./-]+)"
@@ -57,7 +57,7 @@ final class ShadowStructureIndex {
     private final int structureTemplateCount;
     private final int structureDefinitionCount;
 
-    private ShadowStructureIndex(
+    private ProceduralStructureIndex(
             Map<ResourceLocation, StructureOccurrence> structures,
             Map<ResourceLocation, Integer> templateLootReferences,
             Map<ResourceLocation, List<String>> templateExamples,
@@ -75,7 +75,7 @@ final class ShadowStructureIndex {
         this.structureDefinitionCount = structureDefinitionCount;
     }
 
-    static ShadowStructureIndex build(MinecraftServer server) {
+    static ProceduralStructureIndex build(MinecraftServer server) {
         Map<ResourceLocation, StructureOccurrence> structures = new LinkedHashMap<>();
         int structureSets = scanStructureSets(server, structures);
 
@@ -96,7 +96,7 @@ final class ShadowStructureIndex {
                 templateReferences.size()
         );
 
-        return new ShadowStructureIndex(
+        return new ProceduralStructureIndex(
                 structures,
                 templateReferences,
                 templateExamples,
@@ -112,7 +112,7 @@ final class ShadowStructureIndex {
         double densityMultiplier = templateRefs <= 1
                 ? 1.0
                 : Math.max(
-                        ShadowValuationSettings.CONTAINER_TEMPLATE_DENSITY_MIN_MULTIPLIER,
+                        ProceduralValuationSettings.CONTAINER_TEMPLATE_DENSITY_MIN_MULTIPLIER,
                         1.0 / Math.pow(templateRefs, 0.18)
                 );
 
@@ -262,7 +262,7 @@ final class ShadowStructureIndex {
                     output.merge(
                             structure.structureId(),
                             occurrence,
-                            ShadowStructureIndex::easierOccurrence
+                            ProceduralStructureIndex::easierOccurrence
                     );
                 }
                 scanned++;
@@ -293,13 +293,13 @@ final class ShadowStructureIndex {
             double frequency = Math.max(0.000001, readDouble(placement, "frequency", 1.0));
             double effectiveArea = spacing * spacing
                     / Math.max(0.000001, structureShare * frequency);
-            double referenceArea = ShadowValuationSettings.STRUCTURE_REFERENCE_SPACING
-                    * ShadowValuationSettings.STRUCTURE_REFERENCE_SPACING;
+            double referenceArea = ProceduralValuationSettings.STRUCTURE_REFERENCE_SPACING
+                    * ProceduralValuationSettings.STRUCTURE_REFERENCE_SPACING;
             double multiplier = Math.sqrt(effectiveArea / referenceArea);
             multiplier = clamp(
                     multiplier,
-                    ShadowValuationSettings.STRUCTURE_FREQUENCY_MIN_MULTIPLIER,
-                    ShadowValuationSettings.STRUCTURE_FREQUENCY_MAX_MULTIPLIER
+                    ProceduralValuationSettings.STRUCTURE_FREQUENCY_MIN_MULTIPLIER,
+                    ProceduralValuationSettings.STRUCTURE_FREQUENCY_MAX_MULTIPLIER
             );
             String reduction = readString(placement, "frequency_reduction_method");
             signals.add("random-spread spacing " + format(spacing)
@@ -318,8 +318,8 @@ final class ShadowStructureIndex {
                     / Math.sqrt(Math.max(0.000001, structureShare));
             multiplier = clamp(
                     multiplier,
-                    ShadowValuationSettings.STRUCTURE_FREQUENCY_MIN_MULTIPLIER,
-                    ShadowValuationSettings.STRUCTURE_FREQUENCY_MAX_MULTIPLIER
+                    ProceduralValuationSettings.STRUCTURE_FREQUENCY_MIN_MULTIPLIER,
+                    ProceduralValuationSettings.STRUCTURE_FREQUENCY_MAX_MULTIPLIER
             );
             signals.add("concentric-rings distance " + format(distance)
                     + ", count " + format(count)
@@ -364,7 +364,7 @@ final class ShadowStructureIndex {
 
                 StructureOccurrence occurrence = structures.get(structureId);
                 double structureMultiplier = occurrence == null
-                        ? ShadowValuationSettings.UNKNOWN_STRUCTURE_FREQUENCY_MULTIPLIER
+                        ? ProceduralValuationSettings.UNKNOWN_STRUCTURE_FREQUENCY_MULTIPLIER
                         : occurrence.frequencyMultiplier();
                 boolean frequencyKnown = occurrence != null && occurrence.frequencyKnown();
 
@@ -445,7 +445,7 @@ final class ShadowStructureIndex {
                         output.merge(
                                 spawn.entityId(),
                                 candidate,
-                                ShadowStructureIndex::easierStructureSpawn
+                                ProceduralStructureIndex::easierStructureSpawn
                         );
                     }
                 }

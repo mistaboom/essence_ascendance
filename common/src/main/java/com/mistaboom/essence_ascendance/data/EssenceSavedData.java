@@ -355,6 +355,18 @@ public final class EssenceSavedData extends SavedData {
         return changed;
     }
 
+    public int grantAllSkillsForAdmin(UUID playerId, Iterable<com.mistaboom.essence_ascendance.skill.SkillDefinition> definitions) {
+        int granted = getPlayerData(playerId).grantAllSkillsForAdmin(definitions);
+        if (granted > 0) setDirty();
+        return granted;
+    }
+
+    public int clearAllSkillsForAdmin(UUID playerId) {
+        int removed = getPlayerData(playerId).clearAllSkillsForAdmin();
+        setDirty();
+        return removed;
+    }
+
 
     public boolean setLoadoutSelection(
             UUID playerId,

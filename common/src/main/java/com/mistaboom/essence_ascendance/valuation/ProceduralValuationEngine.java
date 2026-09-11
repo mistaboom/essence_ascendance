@@ -48,23 +48,23 @@ import java.util.Optional;
 import java.util.Set;
 
 /*
- * Shared procedural economic analysis. Historical Shadow* names remain to keep
- * source/API churn small; generated defaults now consume the same cached results.
+ * Shared procedural economic analysis. Generated defaults and diagnostics
+ * consume the same cached results.
  * Explicit mapping overrides and dissolution eligibility remain separate layers.
  * No normalization to legacy yields or later progression/machine costs occurs.
  */
-public final class ShadowValuationEngine {
+public final class ProceduralValuationEngine {
 
     private static final Object INDEX_LOCK = new Object();
 
     private static volatile MinecraftServer indexedServer;
-    private static volatile ShadowValuationIndex index;
-    private static volatile List<ShadowValuationResult> cachedResults;
+    private static volatile ProceduralValuationIndex index;
+    private static volatile List<ProceduralValuationResult> cachedResults;
 
-    private ShadowValuationEngine() {
+    private ProceduralValuationEngine() {
     }
 
-    public static ShadowValuationResult evaluate(
+    public static ProceduralValuationResult evaluate(
             MinecraftServer server,
             ItemStack stack
     ) {
@@ -81,16 +81,16 @@ public final class ShadowValuationEngine {
     }
 
     /** One deterministic generation shared by diagnostics and generated defaults. */
-    public static List<ShadowValuationResult> evaluateAll(MinecraftServer server) {
+    public static List<ProceduralValuationResult> evaluateAll(MinecraftServer server) {
         if (server == null) throw new IllegalArgumentException("Server cannot be null");
         synchronized (INDEX_LOCK) {
-            ShadowValuationIndex snapshot = ensureIndex(server);
+            ProceduralValuationIndex snapshot = ensureIndex(server);
             if (cachedResults != null) return cachedResults;
             EvaluationContext context = new EvaluationContext(snapshot);
             List<Item> items = BuiltInRegistries.ITEM.stream().filter(item -> item != Items.AIR)
                     .sorted(Comparator.comparing(item -> BuiltInRegistries.ITEM.getKey(item).toString())).toList();
             solveAcquisitionGraph(items, context);
-            List<ShadowValuationResult> complete = items.stream()
+            List<ProceduralValuationResult> complete = items.stream()
                     .map(item -> evaluateItem(snapshot, item, context)).toList();
             cachedResults = complete;
             return complete;
@@ -115,7 +115,7 @@ public final class ShadowValuationEngine {
         context.solving = true;
         Map<Item, EvaluationNode> previous = new IdentityHashMap<>();
         boolean converged = false;
-        for (int pass = 0; pass < ShadowValuationSettings.MAX_GRAPH_PASSES; pass++) {
+        for (int pass = 0; pass < ProceduralValuationSettings.MAX_GRAPH_PASSES; pass++) {
             context.previous = previous;
             Map<Item, EvaluationNode> next = new IdentityHashMap<>();
             for (Item item : items) {
@@ -147,7 +147,7 @@ public final class ShadowValuationEngine {
         context.solving = false;
         context.activeRoot = null;
         if (!converged) throw new IllegalStateException("Acquisition graph did not converge after "
-                + ShadowValuationSettings.MAX_GRAPH_PASSES + " passes; live generation was NOT replaced");
+                + ProceduralValuationSettings.MAX_GRAPH_PASSES + " passes; live generation was NOT replaced");
         context.memo().putAll(previous);
         context.conservationMemo().putAll(previous);
         context.solved = true;
@@ -174,7 +174,7 @@ public final class ShadowValuationEngine {
             List<Item> family = context.index().conservationGroup(item);
             seen.addAll(family);
             if (family.size() < 2) continue;
-            ShadowConservationMath.Plan<Item> plan = context.index().conservationPlan(item);
+            ProceduralConservationMath.Plan<Item> plan = context.index().conservationPlan(item);
             if (!plan.valid()) continue; // Exact payout policy rejects this family later.
             Item anchor = null;
             double bestUnit = Double.POSITIVE_INFINITY;
@@ -211,8 +211,8 @@ public final class ShadowValuationEngine {
         }
     }
 
-    private static ShadowValuationResult evaluateItem(
-            ShadowValuationIndex snapshot,
+    private static ProceduralValuationResult evaluateItem(
+            ProceduralValuationIndex snapshot,
             Item item,
             EvaluationContext context
     ) {
@@ -264,7 +264,7 @@ public final class ShadowValuationEngine {
                             + format(downstreamMultiplier)
             );
         }
-        ShadowValuationResult.RoutingDiagnostics diagnostics = routing.diagnostics();
+        ProceduralValuationResult.RoutingDiagnostics diagnostics = routing.diagnostics();
         if (!diagnostics.nameHints().isEmpty()) {
             factors.add("Nomenclature hint [" + diagnostics.nameHintSource() + "]: "
                     + String.join("/", diagnostics.nameHints())
@@ -296,11 +296,11 @@ public final class ShadowValuationEngine {
         if (!directRouting(item, context).structured().isEmpty()) {
             confidence += 0.08;
         }
-        confidence = ShadowValuationConfidence.bound(confidence, modeledAcquisition);
+        confidence = ProceduralValuationConfidence.bound(confidence, modeledAcquisition);
         if (!modeledAcquisition) factors.add("Economic confidence capped LOW: acquisition is unresolved; "
                 + "classification, downstream uses and advancements cannot certify its price");
 
-        return new ShadowValuationResult(
+        return new ProceduralValuationResult(
                 BuiltInRegistries.ITEM.getKey(item),
                 finalValue,
                 node.intrinsicValue(),
@@ -325,7 +325,7 @@ public final class ShadowValuationEngine {
                 factors,
                 diagnostics,
                 modeledAcquisition,
-                (int) snapshot.containerLootSources(item).stream().filter(ShadowValuationIndex.ContainerLootSource::archaeology).count(),
+                (int) snapshot.containerLootSources(item).stream().filter(ProceduralValuationIndex.ContainerLootSource::archaeology).count(),
                 familyPayout == null ? "not_applicable" : familyPayout.status()
         );
     }
@@ -335,7 +335,7 @@ public final class ShadowValuationEngine {
         if (family.size() < 2) return null;
         FamilyPayout cached = context.familyPayoutMemo().get(item);
         if (cached != null) return cached;
-        ShadowConservationMath.Plan<Item> plan = context.index().conservationPlan(item);
+        ProceduralConservationMath.Plan<Item> plan = context.index().conservationPlan(item);
         if (!plan.valid()) {
             FamilyPayout rejected = new FamilyPayout(0, Map.of(), false, "invalid_family",
                     "Conservation payout withheld: " + plan.problem() + "; no guessed positive payout");
@@ -361,8 +361,8 @@ public final class ShadowValuationEngine {
                 perUnit = Math.min(perUnit, (double) local.acquisitionValue() / units);
             }
         }
-        long unitValue = ShadowConservationMath.unitPayout(perUnit * demand, maximumUnits,
-                ShadowValuationSettings.MAX_VALUE);
+        long unitValue = ProceduralConservationMath.unitPayout(perUnit * demand, maximumUnits,
+                ProceduralValuationSettings.MAX_VALUE);
         Item first = family.getFirst();
         RouteWeights shared = resolveRouting(first, locals.get(first), context.index(), context).weights();
         Map<EssenceDefinition, Long> primitiveRoute = allocate(unitValue, shared);
@@ -421,7 +421,7 @@ public final class ShadowValuationEngine {
             EvaluationContext context,
             EvaluationNode original
     ) {
-        ShadowValuationIndex index = context.index();
+        ProceduralValuationIndex index = context.index();
         List<Item> group = index.conservationGroup(target);
         if (group.size() <= 1) {
             return original;
@@ -507,7 +507,7 @@ public final class ShadowValuationEngine {
                 original.intrinsicValue(),
                 normalizedValue,
                 bestSource == target ? original.recipeChoice() : Optional.empty(),
-                ShadowValuationResult.ProgressionBand.max(
+                ProceduralValuationResult.ProgressionBand.max(
                         original.progressionBand(),
                         bestNode.progressionBand()
                 ),
@@ -523,7 +523,7 @@ public final class ShadowValuationEngine {
 
     private static double conservationDownstreamMultiplier(
             Item item,
-            ShadowValuationIndex index,
+            ProceduralValuationIndex index,
             DownstreamInfo own
     ) {
         double multiplier = own.multiplier();
@@ -538,7 +538,7 @@ public final class ShadowValuationEngine {
 
     public static IndexSummary rebuild(MinecraftServer server) {
         synchronized (INDEX_LOCK) {
-            ShadowValuationIndex built = ShadowValuationIndex.build(server);
+            ProceduralValuationIndex built = ProceduralValuationIndex.build(server);
             indexedServer = server;
             index = built;
             cachedResults = null;
@@ -550,7 +550,7 @@ public final class ShadowValuationEngine {
         return toPublicSummary(ensureIndex(server).summary());
     }
 
-    private static IndexSummary toPublicSummary(ShadowValuationIndex.Summary summary) {
+    private static IndexSummary toPublicSummary(ProceduralValuationIndex.Summary summary) {
         return new IndexSummary(
                 summary.recipeCount(),
                 summary.skippedRecipeCount(),
@@ -577,14 +577,14 @@ public final class ShadowValuationEngine {
         );
     }
 
-    private static ShadowValuationIndex ensureIndex(MinecraftServer server) {
-        ShadowValuationIndex current = index;
+    private static ProceduralValuationIndex ensureIndex(MinecraftServer server) {
+        ProceduralValuationIndex current = index;
         if (current != null && indexedServer == server) {
             return current;
         }
         synchronized (INDEX_LOCK) {
             if (index == null || indexedServer != server) {
-                ShadowValuationIndex built = ShadowValuationIndex.build(server);
+                ProceduralValuationIndex built = ProceduralValuationIndex.build(server);
                 indexedServer = server;
                 index = built;
                 cachedResults = null;
@@ -614,7 +614,7 @@ public final class ShadowValuationEngine {
 
         Intrinsic intrinsic = intrinsic(item);
 
-        if ((!context.solving && depth >= ShadowValuationSettings.MAX_RECIPE_DEPTH) || visiting.contains(item)) {
+        if ((!context.solving && depth >= ProceduralValuationSettings.MAX_RECIPE_DEPTH) || visiting.contains(item)) {
             return new EvaluationNode(
                     intrinsic.value(),
                     intrinsic.value(),
@@ -641,7 +641,7 @@ public final class ShadowValuationEngine {
         List<RecipeCandidate> recipeCandidates = new ArrayList<>();
         boolean contextSensitive = directSource.contextSensitive();
 
-        for (ShadowValuationIndex.RecipeModel recipe : context.index().recipesProducing(item)) {
+        for (ProceduralValuationIndex.RecipeModel recipe : context.index().recipesProducing(item)) {
             if (context.index().isReversibleTransform(recipe)) continue;
             RecipeAttempt attempt = evaluateRecipe(
                     recipe,
@@ -672,8 +672,8 @@ public final class ShadowValuationEngine {
 
         double acquisition;
         boolean knownAcquisition;
-        Optional<ShadowValuationResult.RecipeChoice> recipeChoice = Optional.empty();
-        ShadowValuationResult.ProgressionBand progression = directSource.progressionBand();
+        Optional<ProceduralValuationResult.RecipeChoice> recipeChoice = Optional.empty();
+        ProceduralValuationResult.ProgressionBand progression = directSource.progressionBand();
         double confidence = directSource.confidence();
         double inferredProgressionScore = directSource.inferredProgressionScore();
         int progressionEvidenceCount = directSource.progressionEvidenceCount();
@@ -683,7 +683,7 @@ public final class ShadowValuationEngine {
         factors.addAll(directSource.factors());
 
         if (cheapestRecipe != null) {
-            progression = ShadowValuationResult.ProgressionBand.max(
+            progression = ProceduralValuationResult.ProgressionBand.max(
                     progression,
                     cheapestRecipe.progressionBand()
             );
@@ -753,7 +753,7 @@ public final class ShadowValuationEngine {
             );
         }
 
-        ShadowProgressionIndex.ProgressionEvidence itemProgression =
+        ProceduralProgressionIndex.ProgressionEvidence itemProgression =
                 context.index().progressionForItem(item);
         if (itemProgression.present()) {
             double pathMultiplier = progressionMultiplier(inferredProgressionScore);
@@ -793,13 +793,13 @@ public final class ShadowValuationEngine {
         }
 
         long acquisitionFloor = recipeChoice
-                .filter(ShadowValuationResult.RecipeChoice::reversibleTransform)
+                .filter(ProceduralValuationResult.RecipeChoice::reversibleTransform)
                 .isPresent()
                 ? 1L
                 : intrinsic.floorValue();
         long acquisitionValue = clampValue(Math.max(acquisitionFloor, acquisition));
         int resolvedDepth = recipeChoice
-                .map(ShadowValuationResult.RecipeChoice::depth)
+                .map(ProceduralValuationResult.RecipeChoice::depth)
                 .orElse(0);
         boolean resolvedContextSensitive = !context.solving && contextSensitive;
         Set<Item> resultDependencies = new LinkedHashSet<>(selectedDependencies);
@@ -809,7 +809,7 @@ public final class ShadowValuationEngine {
                 acquisitionValue,
                 recipeChoice,
                 progression,
-                ShadowValuationConfidence.bound(confidence, knownAcquisition),
+                ProceduralValuationConfidence.bound(confidence, knownAcquisition),
                 resolvedDepth,
                 knownAcquisition,
                 resolvedContextSensitive,
@@ -829,7 +829,7 @@ public final class ShadowValuationEngine {
     }
 
     private static RecipeAttempt evaluateRecipe(
-            ShadowValuationIndex.RecipeModel recipe,
+            ProceduralValuationIndex.RecipeModel recipe,
             EvaluationContext context,
             Set<Item> visiting,
             int parentDepth
@@ -845,10 +845,10 @@ public final class ShadowValuationEngine {
         int maxChainDepth = 0;
         double confidence = 0.91;
         boolean allIngredientsKnown = true;
-        ShadowValuationResult.ProgressionBand progression =
-                ShadowValuationResult.ProgressionBand.OVERWORLD;
+        ProceduralValuationResult.ProgressionBand progression =
+                ProceduralValuationResult.ProgressionBand.OVERWORLD;
 
-        for (ShadowValuationIndex.IngredientChoice ingredient : recipe.ingredients()) {
+        for (ProceduralValuationIndex.IngredientChoice ingredient : recipe.ingredients()) {
             IngredientSelection selection = chooseIngredientCandidate(
                     ingredient.alternatives(),
                     context,
@@ -888,17 +888,17 @@ public final class ShadowValuationEngine {
             dependencies.add(chosen);
             ingredientTotal += child.acquisitionValue();
             uniqueChosen.add(chosen);
-            if (child.acquisitionValue() <= ShadowValuationSettings.EASY_INGREDIENT_THRESHOLD) {
+            if (child.acquisitionValue() <= ProceduralValuationSettings.EASY_INGREDIENT_THRESHOLD) {
                 easy++;
             }
-            if (child.acquisitionValue() >= ShadowValuationSettings.RARE_INGREDIENT_THRESHOLD) {
+            if (child.acquisitionValue() >= ProceduralValuationSettings.RARE_INGREDIENT_THRESHOLD) {
                 rare++;
             }
             ResourceLocation chosenId = BuiltInRegistries.ITEM.getKey(chosen);
             if (chosenId != null && !"minecraft".equals(chosenId.getNamespace())) {
                 modSpecific++;
             }
-            progression = ShadowValuationResult.ProgressionBand.max(
+            progression = ProceduralValuationResult.ProgressionBand.max(
                     progression,
                     child.progressionBand()
             );
@@ -916,16 +916,16 @@ public final class ShadowValuationEngine {
         double complexityMultiplier = 1.0;
         if (!reversible) {
             complexityMultiplier += Math.min(
-                    ShadowValuationSettings.UNIQUE_INGREDIENT_CAP,
+                    ProceduralValuationSettings.UNIQUE_INGREDIENT_CAP,
                     Math.max(0, uniqueChosen.size() - 1)
-                            * ShadowValuationSettings.UNIQUE_INGREDIENT_STEP
+                            * ProceduralValuationSettings.UNIQUE_INGREDIENT_STEP
             );
             // Ingredient rarity and mod namespace are diagnostic only here.
             // Their acquisition cost is already present in ingredientTotal, so
             // multiplying them again would double-count scarcity/progression.
             complexityMultiplier += Math.min(
-                    ShadowValuationSettings.RECIPE_DEPTH_CAP,
-                    maxChainDepth * ShadowValuationSettings.RECIPE_DEPTH_STEP
+                    ProceduralValuationSettings.RECIPE_DEPTH_CAP,
+                    maxChainDepth * ProceduralValuationSettings.RECIPE_DEPTH_STEP
             );
         }
 
@@ -934,7 +934,7 @@ public final class ShadowValuationEngine {
                 * complexityMultiplier
                 / Math.max(1, recipe.outputCount());
 
-        ShadowProgressionIndex.ProgressionEvidence recipeProgression =
+        ProceduralProgressionIndex.ProgressionEvidence recipeProgression =
                 context.index().progressionForRecipe(recipe.id());
         if (recipeProgression.present()) {
             perOutput *= recipeProgression.multiplier();
@@ -953,7 +953,7 @@ public final class ShadowValuationEngine {
                 reversible,
                 allIngredientsKnown,
                 progression,
-                ShadowValuationConfidence.bound(Math.min(0.91, confidence + 0.10), allIngredientsKnown),
+                ProceduralValuationConfidence.bound(Math.min(0.91, confidence + 0.10), allIngredientsKnown),
                 recipeProgression.score(),
                 recipeProgression.evidenceCount(),
                 Set.copyOf(dependencies)
@@ -1019,7 +1019,7 @@ public final class ShadowValuationEngine {
             int depth,
             Intrinsic intrinsic
     ) {
-        ShadowValuationIndex index = context.index();
+        ProceduralValuationIndex index = context.index();
         double value = intrinsic.value();
         ItemStack stack = new ItemStack(item);
         boolean oreSource = isRecognizedOreSource(item, stack);
@@ -1028,47 +1028,47 @@ public final class ShadowValuationEngine {
         boolean contextSensitive = false;
         Set<Item> dependencies = Set.of();
         double confidence = intrinsic.confidence();
-        ShadowValuationResult.ProgressionBand progression = intrinsic.progressionBand();
-        ShadowProgressionIndex.ProgressionEvidence selectedProgression =
-                ShadowProgressionIndex.ProgressionEvidence.NONE;
+        ProceduralValuationResult.ProgressionBand progression = intrinsic.progressionBand();
+        ProceduralProgressionIndex.ProgressionEvidence selectedProgression =
+                ProceduralProgressionIndex.ProgressionEvidence.NONE;
         List<String> factors = new ArrayList<>();
 
-        if (oreSource && stack.is(ShadowValuationTags.ORE_RATE_DENSE)) {
-            value *= ShadowValuationSettings.ORE_RATE_DENSE_MULTIPLIER;
+        if (oreSource && stack.is(ProceduralValuationTags.ORE_RATE_DENSE)) {
+            value *= ProceduralValuationSettings.ORE_RATE_DENSE_MULTIPLIER;
             confidence += 0.05;
-            factors.add("Ore yield rate: dense -> x" + format(ShadowValuationSettings.ORE_RATE_DENSE_MULTIPLIER));
-        } else if (oreSource && stack.is(ShadowValuationTags.ORE_RATE_SPARSE)) {
-            value *= ShadowValuationSettings.ORE_RATE_SPARSE_MULTIPLIER;
+            factors.add("Ore yield rate: dense -> x" + format(ProceduralValuationSettings.ORE_RATE_DENSE_MULTIPLIER));
+        } else if (oreSource && stack.is(ProceduralValuationTags.ORE_RATE_SPARSE)) {
+            value *= ProceduralValuationSettings.ORE_RATE_SPARSE_MULTIPLIER;
             confidence += 0.05;
-            factors.add("Ore yield rate: sparse -> x" + format(ShadowValuationSettings.ORE_RATE_SPARSE_MULTIPLIER));
-        } else if (oreSource && stack.is(ShadowValuationTags.ORE_RATE_SINGULAR)) {
+            factors.add("Ore yield rate: sparse -> x" + format(ProceduralValuationSettings.ORE_RATE_SPARSE_MULTIPLIER));
+        } else if (oreSource && stack.is(ProceduralValuationTags.ORE_RATE_SINGULAR)) {
             confidence += 0.04;
             factors.add("Ore yield rate: singular");
         }
 
         if (oreSource && item instanceof BlockItem blockItem) {
             Block block = blockItem.getBlock();
-            if (block.defaultBlockState().is(ShadowValuationTags.NEEDS_DIAMOND_TOOL)) {
-                value *= ShadowValuationSettings.NEEDS_DIAMOND_TOOL_MULTIPLIER;
+            if (block.defaultBlockState().is(ProceduralValuationTags.NEEDS_DIAMOND_TOOL)) {
+                value *= ProceduralValuationSettings.NEEDS_DIAMOND_TOOL_MULTIPLIER;
                 confidence += 0.06;
-                factors.add("Harvest gate: diamond-tier tool -> x" + format(ShadowValuationSettings.NEEDS_DIAMOND_TOOL_MULTIPLIER));
-            } else if (block.defaultBlockState().is(ShadowValuationTags.NEEDS_IRON_TOOL)) {
-                value *= ShadowValuationSettings.NEEDS_IRON_TOOL_MULTIPLIER;
+                factors.add("Harvest gate: diamond-tier tool -> x" + format(ProceduralValuationSettings.NEEDS_DIAMOND_TOOL_MULTIPLIER));
+            } else if (block.defaultBlockState().is(ProceduralValuationTags.NEEDS_IRON_TOOL)) {
+                value *= ProceduralValuationSettings.NEEDS_IRON_TOOL_MULTIPLIER;
                 confidence += 0.06;
-                factors.add("Harvest gate: iron-tier tool -> x" + format(ShadowValuationSettings.NEEDS_IRON_TOOL_MULTIPLIER));
-            } else if (block.defaultBlockState().is(ShadowValuationTags.NEEDS_STONE_TOOL)) {
-                value *= ShadowValuationSettings.NEEDS_STONE_TOOL_MULTIPLIER;
+                factors.add("Harvest gate: iron-tier tool -> x" + format(ProceduralValuationSettings.NEEDS_IRON_TOOL_MULTIPLIER));
+            } else if (block.defaultBlockState().is(ProceduralValuationTags.NEEDS_STONE_TOOL)) {
+                value *= ProceduralValuationSettings.NEEDS_STONE_TOOL_MULTIPLIER;
                 confidence += 0.05;
-                factors.add("Harvest gate: stone-tier tool -> x" + format(ShadowValuationSettings.NEEDS_STONE_TOOL_MULTIPLIER));
+                factors.add("Harvest gate: stone-tier tool -> x" + format(ProceduralValuationSettings.NEEDS_STONE_TOOL_MULTIPLIER));
             }
         }
 
         List<BlockDropPath> blockPaths = index.blockDropSources(item).stream()
                 .map(source -> {
                     Block sourceBlock = BuiltInRegistries.BLOCK.getOptional(source.blockId()).orElse(null);
-                    ShadowProgressionIndex.ProgressionEvidence sourceProgression =
+                    ProceduralProgressionIndex.ProgressionEvidence sourceProgression =
                             sourceBlock == null
-                                    ? ShadowProgressionIndex.ProgressionEvidence.NONE
+                                    ? ProceduralProgressionIndex.ProgressionEvidence.NONE
                                     : index.progressionForBlock(sourceBlock);
                     return evaluateBlockDropPath(
                             intrinsic.value(),
@@ -1091,10 +1091,10 @@ public final class ShadowValuationEngine {
                 contextSensitive |= !selectedBlock.prerequisiteKnown();
                 known = reliable;
                 conditionalFallbackSelected = !reliable;
-                ShadowValuationIndex.BlockDropSource source = selectedBlock.source();
+                ProceduralValuationIndex.BlockDropSource source = selectedBlock.source();
                 selectedProgression = selectedBlock.progressionEvidence();
                 confidence = intrinsic.confidence() + (reliable ? 0.18 : 0.04);
-                progression = ShadowValuationResult.ProgressionBand.max(
+                progression = ProceduralValuationResult.ProgressionBand.max(
                         progression,
                         source.progressionBand()
                 );
@@ -1138,7 +1138,7 @@ public final class ShadowValuationEngine {
 
         List<DropPath> dropPaths = index.dropSources(item).stream()
                 .map(source -> evaluateDropPath(
-                        Math.max(intrinsic.value(), ShadowValuationSettings.MOB_DROP_BASE),
+                        Math.max(intrinsic.value(), ProceduralValuationSettings.MOB_DROP_BASE),
                         source,
                         index.progressionForEntity(source.entityId())
                 ))
@@ -1154,10 +1154,10 @@ public final class ShadowValuationEngine {
                 dependencies = Set.of();
                 known = reliable;
                 conditionalFallbackSelected = !reliable;
-                ShadowValuationIndex.DropSource source = selectedDrop.source();
+                ProceduralValuationIndex.DropSource source = selectedDrop.source();
                 selectedProgression = selectedDrop.progressionEvidence();
                 confidence = intrinsic.confidence() + (reliable ? 0.17 : 0.04);
-                progression = ShadowValuationResult.ProgressionBand.max(
+                progression = ProceduralValuationResult.ProgressionBand.max(
                         progression,
                         selectedDrop.progressionBand()
                 );
@@ -1205,7 +1205,7 @@ public final class ShadowValuationEngine {
 
         List<ContainerLootPath> containerPaths = index.containerLootSources(item).stream()
                 .map(source -> evaluateContainerLootPath(
-                        Math.max(intrinsic.value(), ShadowValuationSettings.CONTAINER_LOOT_BASE),
+                        Math.max(intrinsic.value(), ProceduralValuationSettings.CONTAINER_LOOT_BASE),
                         intrinsic.progressionBand(),
                         source,
                         index.progressionForLootTable(source.lootTableId())
@@ -1222,10 +1222,10 @@ public final class ShadowValuationEngine {
                 dependencies = Set.of();
                 known = reliable;
                 conditionalFallbackSelected = !reliable;
-                ShadowValuationIndex.ContainerLootSource source = selectedContainer.source();
+                ProceduralValuationIndex.ContainerLootSource source = selectedContainer.source();
                 selectedProgression = selectedContainer.progressionEvidence();
                 confidence = intrinsic.confidence() + (reliable ? 0.16 : 0.04);
-                progression = ShadowValuationResult.ProgressionBand.max(
+                progression = ProceduralValuationResult.ProgressionBand.max(
                         progression,
                         source.progressionBand()
                 );
@@ -1275,7 +1275,7 @@ public final class ShadowValuationEngine {
 
         List<FishingLootPath> fishingPaths = index.fishingLootSources(item).stream()
                 .map(source -> evaluateFishingLootPath(
-                        Math.max(intrinsic.value(), ShadowValuationSettings.FISHING_LOOT_BASE),
+                        Math.max(intrinsic.value(), ProceduralValuationSettings.FISHING_LOOT_BASE),
                         intrinsic.progressionBand(),
                         source,
                         index.progressionForLootTable(source.lootTableId())
@@ -1292,10 +1292,10 @@ public final class ShadowValuationEngine {
                 dependencies = Set.of();
                 known = reliable;
                 conditionalFallbackSelected = !reliable;
-                ShadowValuationIndex.FishingLootSource source = selectedFishing.source();
+                ProceduralValuationIndex.FishingLootSource source = selectedFishing.source();
                 selectedProgression = selectedFishing.progressionEvidence();
                 confidence = intrinsic.confidence() + (reliable ? 0.19 : 0.04);
-                progression = ShadowValuationResult.ProgressionBand.max(
+                progression = ProceduralValuationResult.ProgressionBand.max(
                         progression,
                         source.progressionBand()
                 );
@@ -1330,7 +1330,7 @@ public final class ShadowValuationEngine {
         }
 
         List<TradePath> tradePaths = new ArrayList<>();
-        for (ShadowTradeIndex.TradeSource source : index.tradeSources(item)) {
+        for (ProceduralTradeIndex.TradeSource source : index.tradeSources(item)) {
             TradeAttempt attempt = evaluateTradePath(
                     source,
                     context,
@@ -1354,7 +1354,7 @@ public final class ShadowValuationEngine {
                 known = reliable;
                 conditionalFallbackSelected = !reliable;
                 confidence = Math.max(intrinsic.confidence(), selectedTrade.confidence());
-                progression = ShadowValuationResult.ProgressionBand.max(
+                progression = ProceduralValuationResult.ProgressionBand.max(
                         progression,
                         selectedTrade.progressionBand()
                 );
@@ -1362,9 +1362,9 @@ public final class ShadowValuationEngine {
                 // advancement evidence from a previously considered block/mob/container
                 // source into the selected trade path. Trade-cost progression is already
                 // propagated through the recursively valued cost items.
-                selectedProgression = ShadowProgressionIndex.ProgressionEvidence.NONE;
+                selectedProgression = ProceduralProgressionIndex.ProgressionEvidence.NONE;
 
-                ShadowTradeIndex.TradeSource source = selectedTrade.source();
+                ProceduralTradeIndex.TradeSource source = selectedTrade.source();
                 ResourceLocation costAId = source.costA().isEmpty()
                         ? null
                         : BuiltInRegistries.ITEM.getKey(source.costA().getItem());
@@ -1431,7 +1431,7 @@ public final class ShadowValuationEngine {
     }
 
     private static TradeAttempt evaluateTradePath(
-            ShadowTradeIndex.TradeSource source,
+            ProceduralTradeIndex.TradeSource source,
             EvaluationContext context,
             Set<Item> visiting,
             int depth
@@ -1441,8 +1441,8 @@ public final class ShadowValuationEngine {
         boolean contextSensitive = false;
         double confidence = 0.84;
         Set<Item> dependencies = new LinkedHashSet<>();
-        ShadowValuationResult.ProgressionBand progression =
-                ShadowValuationResult.ProgressionBand.OVERWORLD;
+        ProceduralValuationResult.ProgressionBand progression =
+                ProceduralValuationResult.ProgressionBand.OVERWORLD;
 
         for (ItemStack cost : List.of(source.costA(), source.costB())) {
             if (cost == null || cost.isEmpty()) {
@@ -1471,7 +1471,7 @@ public final class ShadowValuationEngine {
             costTotal += child.acquisitionValue() * Math.max(1, cost.getCount());
             fullyModeled &= child.knownAcquisition();
             confidence = Math.min(confidence, child.confidence());
-            progression = ShadowValuationResult.ProgressionBand.max(
+            progression = ProceduralValuationResult.ProgressionBand.max(
                     progression,
                     child.progressionBand()
             );
@@ -1482,24 +1482,24 @@ public final class ShadowValuationEngine {
         }
 
         double levelMultiplier = Math.min(
-                ShadowValuationSettings.TRADE_LEVEL_MAX_MULTIPLIER,
-                1.0 + Math.max(0, source.level() - 1) * ShadowValuationSettings.TRADE_LEVEL_STEP
+                ProceduralValuationSettings.TRADE_LEVEL_MAX_MULTIPLIER,
+                1.0 + Math.max(0, source.level() - 1) * ProceduralValuationSettings.TRADE_LEVEL_STEP
         );
         double listingRatio = Math.max(
                 1.0,
                 source.listingPoolSize() / 2.0
         );
         double listingMultiplier = Math.min(
-                ShadowValuationSettings.TRADE_LISTING_RARITY_MAX_MULTIPLIER,
-                Math.pow(listingRatio, ShadowValuationSettings.TRADE_LISTING_RARITY_EXPONENT)
+                ProceduralValuationSettings.TRADE_LISTING_RARITY_MAX_MULTIPLIER,
+                Math.pow(listingRatio, ProceduralValuationSettings.TRADE_LISTING_RARITY_EXPONENT)
         );
         double stockMultiplier = Math.min(
-                ShadowValuationSettings.TRADE_LOW_STOCK_MAX_MULTIPLIER,
+                ProceduralValuationSettings.TRADE_LOW_STOCK_MAX_MULTIPLIER,
                 Math.pow(12.0 / Math.max(1.0, source.maxUses()), 0.08)
         );
         stockMultiplier = Math.max(1.0, stockMultiplier);
         double traderMultiplier = source.wandering()
-                ? ShadowValuationSettings.WANDERING_TRADER_MULTIPLIER
+                ? ProceduralValuationSettings.WANDERING_TRADER_MULTIPLIER
                 : 1.0;
 
         double perOutput = costTotal
@@ -1519,7 +1519,7 @@ public final class ShadowValuationEngine {
                         traderMultiplier,
                         fullyModeled,
                         progression,
-                        ShadowValuationConfidence.bound(Math.min(0.92, confidence + 0.08), fullyModeled),
+                        ProceduralValuationConfidence.bound(Math.min(0.92, confidence + 0.08), fullyModeled),
                         Set.copyOf(dependencies)
                 ),
                 contextSensitive
@@ -1572,21 +1572,21 @@ public final class ShadowValuationEngine {
     }
 
     private static boolean isRecognizedOreSource(Item item, ItemStack stack) {
-        if (stack.is(ShadowValuationTags.ORES)
-                || stack.is(ShadowValuationTags.ORES_IN_STONE)
-                || stack.is(ShadowValuationTags.ORES_IN_DEEPSLATE)
-                || stack.is(ShadowValuationTags.ORES_IN_NETHERRACK)
-                || stack.is(ShadowValuationTags.ORES_IN_END_STONE)) {
+        if (stack.is(ProceduralValuationTags.ORES)
+                || stack.is(ProceduralValuationTags.ORES_IN_STONE)
+                || stack.is(ProceduralValuationTags.ORES_IN_DEEPSLATE)
+                || stack.is(ProceduralValuationTags.ORES_IN_NETHERRACK)
+                || stack.is(ProceduralValuationTags.ORES_IN_END_STONE)) {
             return true;
         }
 
         if (item instanceof BlockItem blockItem) {
             Block block = blockItem.getBlock();
-            if (block.defaultBlockState().is(ShadowValuationTags.BLOCK_ORES)
-                    || block.defaultBlockState().is(ShadowValuationTags.BLOCK_ORES_IN_STONE)
-                    || block.defaultBlockState().is(ShadowValuationTags.BLOCK_ORES_IN_DEEPSLATE)
-                    || block.defaultBlockState().is(ShadowValuationTags.BLOCK_ORES_IN_NETHERRACK)
-                    || block.defaultBlockState().is(ShadowValuationTags.BLOCK_ORES_IN_END_STONE)) {
+            if (block.defaultBlockState().is(ProceduralValuationTags.BLOCK_ORES)
+                    || block.defaultBlockState().is(ProceduralValuationTags.BLOCK_ORES_IN_STONE)
+                    || block.defaultBlockState().is(ProceduralValuationTags.BLOCK_ORES_IN_DEEPSLATE)
+                    || block.defaultBlockState().is(ProceduralValuationTags.BLOCK_ORES_IN_NETHERRACK)
+                    || block.defaultBlockState().is(ProceduralValuationTags.BLOCK_ORES_IN_END_STONE)) {
                 return true;
             }
         }
@@ -1597,17 +1597,17 @@ public final class ShadowValuationEngine {
 
     private static BlockDropPath evaluateBlockDropPath(
             double baseValue,
-            ShadowValuationResult.ProgressionBand intrinsicProgression,
-            ShadowValuationIndex.BlockDropSource source,
-            ShadowProgressionIndex.ProgressionEvidence progressionEvidence,
+            ProceduralValuationResult.ProgressionBand intrinsicProgression,
+            ProceduralValuationIndex.BlockDropSource source,
+            ProceduralProgressionIndex.ProgressionEvidence progressionEvidence,
             EvaluationContext context, Set<Item> visiting, int depth
     ) {
         double sourceMultiplier = source.sourceMultiplier();
         if (intrinsicProgression.rank() >= source.progressionBand().rank()) {
-            if (source.progressionBand() == ShadowValuationResult.ProgressionBand.NETHER) {
-                sourceMultiplier /= ShadowValuationSettings.NETHER_MULTIPLIER;
-            } else if (source.progressionBand() == ShadowValuationResult.ProgressionBand.END) {
-                sourceMultiplier /= ShadowValuationSettings.END_MULTIPLIER;
+            if (source.progressionBand() == ProceduralValuationResult.ProgressionBand.NETHER) {
+                sourceMultiplier /= ProceduralValuationSettings.NETHER_MULTIPLIER;
+            } else if (source.progressionBand() == ProceduralValuationResult.ProgressionBand.END) {
+                sourceMultiplier /= ProceduralValuationSettings.END_MULTIPLIER;
             }
         }
 
@@ -1627,7 +1627,7 @@ public final class ShadowValuationEngine {
             // Non-damageable reusable tools have no modeled wear, but still require acquisition.
             reusableWear = durability > 0 ? (double) tool.acquisitionValue() / durability : 0.0;
         }
-        if (source.silkTouchRequired()) sourceMultiplier *= ShadowValuationSettings.SILK_TOUCH_HARVEST_MULTIPLIER;
+        if (source.silkTouchRequired()) sourceMultiplier *= ProceduralValuationSettings.SILK_TOUCH_HARVEST_MULTIPLIER;
         return new BlockDropPath(
                 source,
                 baseValue * sourceMultiplier * rarityMultiplier * quantityMultiplier
@@ -1643,32 +1643,32 @@ public final class ShadowValuationEngine {
 
     private static DropPath evaluateDropPath(
             double baseValue,
-            ShadowValuationIndex.DropSource source,
-            ShadowProgressionIndex.ProgressionEvidence progressionEvidence
+            ProceduralValuationIndex.DropSource source,
+            ProceduralProgressionIndex.ProgressionEvidence progressionEvidence
     ) {
         double difficultyMultiplier = 1.0 + Math.min(
-                ShadowValuationSettings.MOB_DIFFICULTY_MAX_MULTIPLIER - 1.0,
+                ProceduralValuationSettings.MOB_DIFFICULTY_MAX_MULTIPLIER - 1.0,
                 Math.log1p(Math.max(0.0, source.difficultyScore())) * 0.34
         );
         double rarityMultiplier = probabilityRarityMultiplier(source.estimatedChance());
         double quantityMultiplier = quantityMultiplier(source.expectedCount());
         double bossMultiplier = source.bossScale()
-                ? ShadowValuationSettings.BOSS_SCALE_MULTIPLIER
+                ? ProceduralValuationSettings.BOSS_SCALE_MULTIPLIER
                 : 1.0;
         double spawnMultiplier = Math.max(0.10, source.spawnAvailabilityMultiplier());
         double specialMultiplier = Math.max(0.10, source.specialSourceMultiplier());
         double conditionMultiplier = unresolvedConditionMultiplier(source.complexConditionCount());
 
         String entityPath = source.entityId().getPath().toLowerCase(Locale.ROOT);
-        ShadowValuationResult.ProgressionBand progression;
+        ProceduralValuationResult.ProgressionBand progression;
         if (source.bossScale()) {
-            progression = ShadowValuationResult.ProgressionBand.BOSS_SCALE;
+            progression = ProceduralValuationResult.ProgressionBand.BOSS_SCALE;
         } else if (looksNetherMob(entityPath)) {
-            progression = ShadowValuationResult.ProgressionBand.NETHER;
+            progression = ProceduralValuationResult.ProgressionBand.NETHER;
         } else if (looksEndMob(entityPath)) {
-            progression = ShadowValuationResult.ProgressionBand.END;
+            progression = ProceduralValuationResult.ProgressionBand.END;
         } else {
-            progression = ShadowValuationResult.ProgressionBand.OVERWORLD;
+            progression = ProceduralValuationResult.ProgressionBand.OVERWORLD;
         }
 
         return new DropPath(
@@ -1695,16 +1695,16 @@ public final class ShadowValuationEngine {
 
     private static ContainerLootPath evaluateContainerLootPath(
             double baseValue,
-            ShadowValuationResult.ProgressionBand intrinsicProgression,
-            ShadowValuationIndex.ContainerLootSource source,
-            ShadowProgressionIndex.ProgressionEvidence progressionEvidence
+            ProceduralValuationResult.ProgressionBand intrinsicProgression,
+            ProceduralValuationIndex.ContainerLootSource source,
+            ProceduralProgressionIndex.ProgressionEvidence progressionEvidence
     ) {
         double contextMultiplier = source.contextMultiplier();
         if (intrinsicProgression.rank() >= source.progressionBand().rank()) {
-            if (source.progressionBand() == ShadowValuationResult.ProgressionBand.NETHER) {
-                contextMultiplier /= ShadowValuationSettings.NETHER_MULTIPLIER;
-            } else if (source.progressionBand() == ShadowValuationResult.ProgressionBand.END) {
-                contextMultiplier /= ShadowValuationSettings.END_MULTIPLIER;
+            if (source.progressionBand() == ProceduralValuationResult.ProgressionBand.NETHER) {
+                contextMultiplier /= ProceduralValuationSettings.NETHER_MULTIPLIER;
+            } else if (source.progressionBand() == ProceduralValuationResult.ProgressionBand.END) {
+                contextMultiplier /= ProceduralValuationSettings.END_MULTIPLIER;
             }
         }
 
@@ -1726,16 +1726,16 @@ public final class ShadowValuationEngine {
 
     private static FishingLootPath evaluateFishingLootPath(
             double baseValue,
-            ShadowValuationResult.ProgressionBand intrinsicProgression,
-            ShadowValuationIndex.FishingLootSource source,
-            ShadowProgressionIndex.ProgressionEvidence progressionEvidence
+            ProceduralValuationResult.ProgressionBand intrinsicProgression,
+            ProceduralValuationIndex.FishingLootSource source,
+            ProceduralProgressionIndex.ProgressionEvidence progressionEvidence
     ) {
         double contextMultiplier = source.contextMultiplier();
         if (intrinsicProgression.rank() >= source.progressionBand().rank()) {
-            if (source.progressionBand() == ShadowValuationResult.ProgressionBand.NETHER) {
-                contextMultiplier /= ShadowValuationSettings.NETHER_MULTIPLIER;
-            } else if (source.progressionBand() == ShadowValuationResult.ProgressionBand.END) {
-                contextMultiplier /= ShadowValuationSettings.END_MULTIPLIER;
+            if (source.progressionBand() == ProceduralValuationResult.ProgressionBand.NETHER) {
+                contextMultiplier /= ProceduralValuationSettings.NETHER_MULTIPLIER;
+            } else if (source.progressionBand() == ProceduralValuationResult.ProgressionBand.END) {
+                contextMultiplier /= ProceduralValuationSettings.END_MULTIPLIER;
             }
         }
 
@@ -1758,14 +1758,14 @@ public final class ShadowValuationEngine {
     private static double probabilityRarityMultiplier(double estimatedChance) {
         double chance = Math.max(0.000001, Math.min(1.0, estimatedChance));
         return Math.min(
-                ShadowValuationSettings.DROP_RARITY_MAX_MULTIPLIER,
-                Math.pow(1.0 / chance, ShadowValuationSettings.DROP_RARITY_EXPONENT)
+                ProceduralValuationSettings.DROP_RARITY_MAX_MULTIPLIER,
+                Math.pow(1.0 / chance, ProceduralValuationSettings.DROP_RARITY_EXPONENT)
         );
     }
 
     private static double quantityMultiplier(double expectedCount) {
         return Math.max(
-                ShadowValuationSettings.DROP_QUANTITY_MIN_MULTIPLIER,
+                ProceduralValuationSettings.DROP_QUANTITY_MIN_MULTIPLIER,
                 1.0 / Math.sqrt(Math.max(1.0, expectedCount))
         );
     }
@@ -1775,46 +1775,46 @@ public final class ShadowValuationEngine {
             return 1.0;
         }
         return Math.pow(
-                ShadowValuationSettings.UNRESOLVED_SOURCE_CONDITION_MULTIPLIER,
+                ProceduralValuationSettings.UNRESOLVED_SOURCE_CONDITION_MULTIPLIER,
                 Math.min(4, complexConditionCount)
         );
     }
 
-    private static Renewability renewability(Item item, ShadowValuationIndex index) {
+    private static Renewability renewability(Item item, ProceduralValuationIndex index) {
         ItemStack stack = new ItemStack(item);
         Renewability best = Renewability.NONE;
 
-        if (stack.is(ShadowValuationTags.CROPS)) {
+        if (stack.is(ProceduralValuationTags.CROPS)) {
             best = strongerRenewability(best, new Renewability(
-                    ShadowValuationSettings.CROP_RENEWABLE_REMAINDER,
+                    ProceduralValuationSettings.CROP_RENEWABLE_REMAINDER,
                     0.12,
                     "growable crop"
             ));
         }
-        if (stack.is(ShadowValuationTags.SEEDS)) {
+        if (stack.is(ProceduralValuationTags.SEEDS)) {
             best = strongerRenewability(best, new Renewability(
-                    ShadowValuationSettings.SEED_RENEWABLE_REMAINDER,
+                    ProceduralValuationSettings.SEED_RENEWABLE_REMAINDER,
                     0.10,
                     "replantable seed"
             ));
         }
-        if (stack.is(ShadowValuationTags.SAPLINGS)) {
+        if (stack.is(ProceduralValuationTags.SAPLINGS)) {
             best = strongerRenewability(best, new Renewability(
-                    ShadowValuationSettings.SAPLING_RENEWABLE_REMAINDER,
+                    ProceduralValuationSettings.SAPLING_RENEWABLE_REMAINDER,
                     0.10,
                     "renewable sapling"
             ));
         }
-        if (stack.is(ShadowValuationTags.LOGS)) {
+        if (stack.is(ProceduralValuationTags.LOGS)) {
             best = strongerRenewability(best, new Renewability(
-                    ShadowValuationSettings.LOG_RENEWABLE_REMAINDER,
+                    ProceduralValuationSettings.LOG_RENEWABLE_REMAINDER,
                     0.09,
                     "tree-grown log"
             ));
         }
-        if (stack.is(ShadowValuationTags.LEAVES)) {
+        if (stack.is(ProceduralValuationTags.LEAVES)) {
             best = strongerRenewability(best, new Renewability(
-                    ShadowValuationSettings.LEAF_RENEWABLE_REMAINDER,
+                    ProceduralValuationSettings.LEAF_RENEWABLE_REMAINDER,
                     0.08,
                     "tree-grown leaves"
             ));
@@ -1823,22 +1823,22 @@ public final class ShadowValuationEngine {
         if (index != null) {
             double bestRepeatableMobChance = index.dropSources(item).stream()
                     .filter(source -> source.complexConditionCount() == 0)
-                    .filter(ShadowValuationIndex.DropSource::repeatableSpawn)
+                    .filter(ProceduralValuationIndex.DropSource::repeatableSpawn)
                     .filter(source -> !source.bossScale())
                     .filter(source -> source.specialSourceMultiplier() <= 1.000001)
-                    .mapToDouble(ShadowValuationIndex.DropSource::estimatedChance)
+                    .mapToDouble(ProceduralValuationIndex.DropSource::estimatedChance)
                     .max()
                     .orElse(0.0);
             if (bestRepeatableMobChance > 0.0) {
                 double remainder;
                 if (bestRepeatableMobChance >= 0.50) {
-                    remainder = ShadowValuationSettings.COMMON_MOB_DROP_RENEWABLE_REMAINDER;
+                    remainder = ProceduralValuationSettings.COMMON_MOB_DROP_RENEWABLE_REMAINDER;
                 } else if (bestRepeatableMobChance >= 0.10) {
-                    remainder = ShadowValuationSettings.UNCOMMON_MOB_DROP_RENEWABLE_REMAINDER;
+                    remainder = ProceduralValuationSettings.UNCOMMON_MOB_DROP_RENEWABLE_REMAINDER;
                 } else if (bestRepeatableMobChance >= 0.025) {
-                    remainder = ShadowValuationSettings.RARE_MOB_DROP_RENEWABLE_REMAINDER;
+                    remainder = ProceduralValuationSettings.RARE_MOB_DROP_RENEWABLE_REMAINDER;
                 } else {
-                    remainder = ShadowValuationSettings.VERY_RARE_MOB_DROP_RENEWABLE_REMAINDER;
+                    remainder = ProceduralValuationSettings.VERY_RARE_MOB_DROP_RENEWABLE_REMAINDER;
                 }
                 best = strongerRenewability(best, new Renewability(
                         remainder,
@@ -1852,7 +1852,7 @@ public final class ShadowValuationEngine {
                     .anyMatch(source -> source.complexConditionCount() == 0);
             if (reliableFishing) {
                 best = strongerRenewability(best, new Renewability(
-                        ShadowValuationSettings.FISHING_RENEWABLE_REMAINDER,
+                        ProceduralValuationSettings.FISHING_RENEWABLE_REMAINDER,
                         0.11,
                         "repeatable fishing loot"
                 ));
@@ -1877,93 +1877,93 @@ public final class ShadowValuationEngine {
 
     private static double progressionMultiplier(double score) {
         double clamped = Math.max(0.0, Math.min(1.0, score));
-        return 1.0 + clamped * (ShadowValuationSettings.ADVANCEMENT_PROGRESSION_MAX_MULTIPLIER - 1.0);
+        return 1.0 + clamped * (ProceduralValuationSettings.ADVANCEMENT_PROGRESSION_MAX_MULTIPLIER - 1.0);
     }
 
     private static Intrinsic intrinsic(Item item) {
         ItemStack stack = new ItemStack(item);
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
-        long base = ShadowValuationSettings.DEFAULT_BASE;
+        long base = ProceduralValuationSettings.DEFAULT_BASE;
         boolean recognized = false;
         boolean explicitProgression = false;
         double confidence = 0.24;
         List<String> factors = new ArrayList<>();
 
         if (isRecognizedOreSource(item, stack)) {
-            base = Math.max(base, ShadowValuationSettings.ORE_BASE);
+            base = Math.max(base, ProceduralValuationSettings.ORE_BASE);
             recognized = true;
             confidence += 0.22;
             factors.add("Bucket: c:ores/source ore -> Gathering-biased resource baseline");
         }
-        if (stack.is(ShadowValuationTags.RAW_MATERIALS)) {
-            base = Math.max(base, ShadowValuationSettings.RAW_MATERIAL_BASE);
+        if (stack.is(ProceduralValuationTags.RAW_MATERIALS)) {
+            base = Math.max(base, ProceduralValuationSettings.RAW_MATERIAL_BASE);
             recognized = true;
             confidence += 0.20;
             factors.add("Bucket: c:raw_materials");
         }
-        if (stack.is(ShadowValuationTags.INGOTS)) {
-            base = Math.max(base, ShadowValuationSettings.INGOT_BASE);
+        if (stack.is(ProceduralValuationTags.INGOTS)) {
+            base = Math.max(base, ProceduralValuationSettings.INGOT_BASE);
             recognized = true;
             confidence += 0.18;
             factors.add("Bucket: c:ingots");
         }
-        if (stack.is(ShadowValuationTags.GEMS)) {
-            base = Math.max(base, ShadowValuationSettings.GEM_BASE);
+        if (stack.is(ProceduralValuationTags.GEMS)) {
+            base = Math.max(base, ProceduralValuationSettings.GEM_BASE);
             recognized = true;
             confidence += 0.18;
             factors.add("Bucket: c:gems");
         }
-        if (stack.is(ShadowValuationTags.NUGGETS)) {
-            base = Math.max(base, ShadowValuationSettings.NUGGET_BASE);
+        if (stack.is(ProceduralValuationTags.NUGGETS)) {
+            base = Math.max(base, ProceduralValuationSettings.NUGGET_BASE);
             recognized = true;
             confidence += 0.16;
             factors.add("Bucket: c:nuggets");
         }
-        if (stack.is(ShadowValuationTags.STORAGE_BLOCKS)) {
-            base = Math.max(base, ShadowValuationSettings.STORAGE_BLOCK_BASE);
+        if (stack.is(ProceduralValuationTags.STORAGE_BLOCKS)) {
+            base = Math.max(base, ProceduralValuationSettings.STORAGE_BLOCK_BASE);
             recognized = true;
             confidence += 0.16;
             factors.add("Bucket: c:storage_blocks");
         }
-        if (stack.is(ShadowValuationTags.FOODS) || stack.has(DataComponents.FOOD)) {
-            base = Math.max(base, ShadowValuationSettings.FOOD_BASE);
+        if (stack.is(ProceduralValuationTags.FOODS) || stack.has(DataComponents.FOOD)) {
+            base = Math.max(base, ProceduralValuationSettings.FOOD_BASE);
             recognized = true;
             confidence += 0.14;
             factors.add("Bucket: food tag/component");
         }
-        if (stack.is(ShadowValuationTags.MINING_TOOLS) || item instanceof DiggerItem
+        if (stack.is(ProceduralValuationTags.MINING_TOOLS) || item instanceof DiggerItem
                 || item instanceof ShearsItem || item instanceof BrushItem || item instanceof FishingRodItem) {
-            base = Math.max(base, ShadowValuationSettings.TOOL_BASE);
+            base = Math.max(base, ProceduralValuationSettings.TOOL_BASE);
             recognized = true;
             confidence += 0.18;
             factors.add("Bucket: harvesting tool tag/runtime class");
         }
-        if (stack.is(ShadowValuationTags.MELEE_WEAPONS)) {
-            base = Math.max(base, ShadowValuationSettings.WEAPON_BASE);
+        if (stack.is(ProceduralValuationTags.MELEE_WEAPONS)) {
+            base = Math.max(base, ProceduralValuationSettings.WEAPON_BASE);
             recognized = true;
             confidence += 0.18;
             factors.add("Bucket: c:tools/melee_weapon");
         }
-        if (stack.is(ShadowValuationTags.RANGED_WEAPONS)) {
-            base = Math.max(base, ShadowValuationSettings.WEAPON_BASE);
+        if (stack.is(ProceduralValuationTags.RANGED_WEAPONS)) {
+            base = Math.max(base, ProceduralValuationSettings.WEAPON_BASE);
             recognized = true;
             confidence += 0.18;
             factors.add("Bucket: c:tools/ranged_weapon");
         }
-        if (stack.is(ShadowValuationTags.ARMORS) || item instanceof ArmorItem || item instanceof ShieldItem) {
-            base = Math.max(base, ShadowValuationSettings.ARMOR_BASE);
+        if (stack.is(ProceduralValuationTags.ARMORS) || item instanceof ArmorItem || item instanceof ShieldItem) {
+            base = Math.max(base, ProceduralValuationSettings.ARMOR_BASE);
             recognized = true;
             confidence += 0.18;
             factors.add("Bucket: armor/equipment");
         }
-        if (stack.is(ShadowValuationTags.REDSTONE_DUSTS)) {
-            base = Math.max(base, ShadowValuationSettings.REDSTONE_BASE);
+        if (stack.is(ProceduralValuationTags.REDSTONE_DUSTS)) {
+            base = Math.max(base, ProceduralValuationSettings.REDSTONE_BASE);
             recognized = true;
             confidence += 0.14;
             factors.add("Bucket: redstone/automation material");
         }
         if (item instanceof BlockItem && !recognized) {
-            base = Math.max(base, ShadowValuationSettings.BLOCK_BASE);
+            base = Math.max(base, ProceduralValuationSettings.BLOCK_BASE);
             confidence += 0.05;
             factors.add("Shape: block item baseline");
         }
@@ -1972,7 +1972,7 @@ public final class ShadowValuationEngine {
                 || item instanceof BowItem
                 || item instanceof CrossbowItem
                 || item instanceof TridentItem || item instanceof MaceItem || item instanceof ArrowItem) {
-            base = Math.max(base, ShadowValuationSettings.WEAPON_BASE);
+            base = Math.max(base, ProceduralValuationSettings.WEAPON_BASE);
             recognized = true;
             confidence += 0.10;
             factors.add("Shape: weapon class");
@@ -1981,7 +1981,7 @@ public final class ShadowValuationEngine {
         if (item instanceof BoatItem || item instanceof MinecartItem || item instanceof ElytraItem
                 || item instanceof EnderpearlItem || item instanceof FireworkRocketItem
                 || (item instanceof BlockItem blockItem && blockItem.getBlock() instanceof BaseRailBlock)) {
-            base = Math.max(base, ShadowValuationSettings.TRANSPORT_BASE);
+            base = Math.max(base, ProceduralValuationSettings.TRANSPORT_BASE);
             recognized = true;
             confidence += 0.10;
             factors.add("Shape: transport/propulsion runtime class");
@@ -2002,53 +2002,53 @@ public final class ShadowValuationEngine {
             factors.add("Vanilla rarity: " + stack.getRarity() + " -> x" + format(rarityMultiplier));
         }
 
-        ShadowValuationResult.ProgressionBand progression =
-                ShadowValuationResult.ProgressionBand.OVERWORLD;
+        ProceduralValuationResult.ProgressionBand progression =
+                ProceduralValuationResult.ProgressionBand.OVERWORLD;
 
-        boolean netherrackOre = stack.is(ShadowValuationTags.ORES_IN_NETHERRACK);
-        boolean endOre = stack.is(ShadowValuationTags.ORES_IN_END_STONE);
-        boolean deepslateOre = stack.is(ShadowValuationTags.ORES_IN_DEEPSLATE);
+        boolean netherrackOre = stack.is(ProceduralValuationTags.ORES_IN_NETHERRACK);
+        boolean endOre = stack.is(ProceduralValuationTags.ORES_IN_END_STONE);
+        boolean deepslateOre = stack.is(ProceduralValuationTags.ORES_IN_DEEPSLATE);
 
         if (item instanceof BlockItem blockItem) {
             Block block = blockItem.getBlock();
-            netherrackOre |= block.defaultBlockState().is(ShadowValuationTags.BLOCK_ORES_IN_NETHERRACK);
-            endOre |= block.defaultBlockState().is(ShadowValuationTags.BLOCK_ORES_IN_END_STONE);
-            deepslateOre |= block.defaultBlockState().is(ShadowValuationTags.BLOCK_ORES_IN_DEEPSLATE);
+            netherrackOre |= block.defaultBlockState().is(ProceduralValuationTags.BLOCK_ORES_IN_NETHERRACK);
+            endOre |= block.defaultBlockState().is(ProceduralValuationTags.BLOCK_ORES_IN_END_STONE);
+            deepslateOre |= block.defaultBlockState().is(ProceduralValuationTags.BLOCK_ORES_IN_DEEPSLATE);
         }
 
         if (netherrackOre || looksNetherNative(path)) {
-            base = clampValue(base * ShadowValuationSettings.NETHER_MULTIPLIER);
-            progression = ShadowValuationResult.ProgressionBand.NETHER;
+            base = clampValue(base * ProceduralValuationSettings.NETHER_MULTIPLIER);
+            progression = ProceduralValuationResult.ProgressionBand.NETHER;
             explicitProgression = true;
             confidence += netherrackOre ? 0.15 : 0.05;
             factors.add(
                     netherrackOre
                             ? "Progression/source: c:ores_in_ground/netherrack -> Nether x"
-                            + format(ShadowValuationSettings.NETHER_MULTIPLIER)
+                            + format(ProceduralValuationSettings.NETHER_MULTIPLIER)
                             : "Progression/source: Nether-native identity heuristic -> x"
-                            + format(ShadowValuationSettings.NETHER_MULTIPLIER)
+                            + format(ProceduralValuationSettings.NETHER_MULTIPLIER)
             );
         }
 
         if (endOre || looksEndNative(path)) {
-            base = clampValue(base * ShadowValuationSettings.END_MULTIPLIER);
-            progression = ShadowValuationResult.ProgressionBand.END;
+            base = clampValue(base * ProceduralValuationSettings.END_MULTIPLIER);
+            progression = ProceduralValuationResult.ProgressionBand.END;
             explicitProgression = true;
             confidence += endOre ? 0.15 : 0.05;
             factors.add(
                     endOre
                             ? "Progression/source: c:ores_in_ground/end_stone -> End x"
-                            + format(ShadowValuationSettings.END_MULTIPLIER)
+                            + format(ProceduralValuationSettings.END_MULTIPLIER)
                             : "Progression/source: End-native identity heuristic -> x"
-                            + format(ShadowValuationSettings.END_MULTIPLIER)
+                            + format(ProceduralValuationSettings.END_MULTIPLIER)
             );
         }
 
         if (deepslateOre) {
-            base = clampValue(base * ShadowValuationSettings.DEEPSLATE_MULTIPLIER);
+            base = clampValue(base * ProceduralValuationSettings.DEEPSLATE_MULTIPLIER);
             explicitProgression = true;
             confidence += 0.05;
-            factors.add("Acquisition depth: deepslate ore -> x" + format(ShadowValuationSettings.DEEPSLATE_MULTIPLIER));
+            factors.add("Acquisition depth: deepslate ore -> x" + format(ProceduralValuationSettings.DEEPSLATE_MULTIPLIER));
         }
 
         long floor = Math.max(1L, Math.round(base * 0.70));
@@ -2076,13 +2076,13 @@ public final class ShadowValuationEngine {
         RouteWeights structured = new RouteWeights();
         List<String> signals = new ArrayList<>();
 
-        if (isRecognizedOreSource(item, stack) || stack.is(ShadowValuationTags.RAW_MATERIALS)) {
+        if (isRecognizedOreSource(item, stack) || stack.is(ProceduralValuationTags.RAW_MATERIALS)) {
             structured.add(EssenceTypes.GATHERING, 7.0);
             signals.add("resource/ore");
         }
-        if (stack.is(ShadowValuationTags.MINING_TOOLS)
-                || stack.is(ShadowValuationTags.AXES) || stack.is(ShadowValuationTags.PICKAXES)
-                || stack.is(ShadowValuationTags.SHOVELS) || stack.is(ShadowValuationTags.HOES)
+        if (stack.is(ProceduralValuationTags.MINING_TOOLS)
+                || stack.is(ProceduralValuationTags.AXES) || stack.is(ProceduralValuationTags.PICKAXES)
+                || stack.is(ProceduralValuationTags.SHOVELS) || stack.is(ProceduralValuationTags.HOES)
                 || item instanceof DiggerItem || item instanceof ShearsItem || item instanceof BrushItem) {
             structured.add(EssenceTypes.GATHERING, 7.0);
             signals.add("harvesting_tool");
@@ -2096,26 +2096,26 @@ public final class ShadowValuationEngine {
             structured.add(EssenceTypes.VITALITY, 1.0);
             signals.add("shield");
         }
-        if (stack.is(ShadowValuationTags.MELEE_WEAPONS) || stack.is(ShadowValuationTags.SWORDS)
+        if (stack.is(ProceduralValuationTags.MELEE_WEAPONS) || stack.is(ProceduralValuationTags.SWORDS)
                 || item instanceof SwordItem || item instanceof TridentItem || item instanceof MaceItem) {
             structured.add(EssenceTypes.OFFENSE, 7.0);
             signals.add("melee_weapon");
         }
-        if (stack.is(ShadowValuationTags.RANGED_WEAPONS) || stack.is(ShadowValuationTags.ARROWS)
+        if (stack.is(ProceduralValuationTags.RANGED_WEAPONS) || stack.is(ProceduralValuationTags.ARROWS)
                 || item instanceof BowItem || item instanceof CrossbowItem || item instanceof ArrowItem) {
             structured.add(EssenceTypes.OFFENSE, 7.0);
             signals.add("ranged_weapon/projectile");
         }
-        if (stack.is(ShadowValuationTags.ARMORS) || item instanceof ArmorItem) {
+        if (stack.is(ProceduralValuationTags.ARMORS) || item instanceof ArmorItem) {
             structured.add(EssenceTypes.DEFENSE, 7.0);
             structured.add(EssenceTypes.VITALITY, 2.0);
             signals.add("armor");
         }
-        if (stack.is(ShadowValuationTags.FOODS) || stack.has(DataComponents.FOOD)) {
+        if (stack.is(ProceduralValuationTags.FOODS) || stack.has(DataComponents.FOOD)) {
             structured.add(EssenceTypes.VITALITY, 8.0);
             signals.add("food_tag/component");
         }
-        if (stack.is(ShadowValuationTags.REDSTONE_DUSTS)) {
+        if (stack.is(ProceduralValuationTags.REDSTONE_DUSTS)) {
             structured.add(EssenceTypes.UTILITY, 7.0);
             signals.add("redstone_material");
         }
@@ -2131,7 +2131,7 @@ public final class ShadowValuationEngine {
             signals.add("firework_propulsion/display");
         }
         Block block = item instanceof BlockItem blockItem ? blockItem.getBlock() : null;
-        if (block != null && block.defaultBlockState().is(ShadowValuationTags.CLIMBABLE)) {
+        if (block != null && block.defaultBlockState().is(ProceduralValuationTags.CLIMBABLE)) {
             structured.add(EssenceTypes.MOBILITY, 7.0);
             signals.add("climbable_block");
         }
@@ -2139,7 +2139,7 @@ public final class ShadowValuationEngine {
             structured.add(EssenceTypes.MOBILITY, 8.0);
             signals.add("rail_block");
         }
-        if (stack.is(ShadowValuationTags.BEDS) || block instanceof BedBlock
+        if (stack.is(ProceduralValuationTags.BEDS) || block instanceof BedBlock
                 || block instanceof RespawnAnchorBlock) {
             structured.add(EssenceTypes.VITALITY, 7.0);
             structured.add(EssenceTypes.MOBILITY, 2.0);
@@ -2150,31 +2150,31 @@ public final class ShadowValuationEngine {
             structured.add(EssenceTypes.GATHERING, 2.0);
             signals.add("explosive/demolition_block");
         }
-        if (stack.is(ShadowValuationTags.WOOL) || stack.is(ShadowValuationTags.WOOL_CARPETS)) {
+        if (stack.is(ProceduralValuationTags.WOOL) || stack.is(ProceduralValuationTags.WOOL_CARPETS)) {
             structured.add(EssenceTypes.DEFENSE, 3.0);
             structured.add(EssenceTypes.VITALITY, 2.0);
             structured.add(EssenceTypes.UTILITY, 1.0);
             signals.add("protective/comfort_textile");
         }
-        if (stack.is(ShadowValuationTags.FENCES) || stack.is(ShadowValuationTags.FENCE_GATES)
-                || stack.is(ShadowValuationTags.WALLS) || stack.is(ShadowValuationTags.DOORS)
-                || stack.is(ShadowValuationTags.TRAPDOORS)) {
+        if (stack.is(ProceduralValuationTags.FENCES) || stack.is(ProceduralValuationTags.FENCE_GATES)
+                || stack.is(ProceduralValuationTags.WALLS) || stack.is(ProceduralValuationTags.DOORS)
+                || stack.is(ProceduralValuationTags.TRAPDOORS)) {
             structured.add(EssenceTypes.DEFENSE, 6.0);
             structured.add(EssenceTypes.UTILITY, 2.0);
             signals.add("physical_barrier");
         }
-        if (stack.is(ShadowValuationTags.CROPS) || stack.is(ShadowValuationTags.SEEDS)
-                || stack.is(ShadowValuationTags.SAPLINGS)) {
+        if (stack.is(ProceduralValuationTags.CROPS) || stack.is(ProceduralValuationTags.SEEDS)
+                || stack.is(ProceduralValuationTags.SAPLINGS)) {
             structured.add(EssenceTypes.GATHERING, 4.0);
             structured.add(EssenceTypes.VITALITY, 3.0);
             signals.add("cultivation_material");
         }
-        if (item instanceof BoneMealItem || stack.is(ShadowValuationTags.FERTILIZERS)) {
+        if (item instanceof BoneMealItem || stack.is(ProceduralValuationTags.FERTILIZERS)) {
             structured.add(EssenceTypes.GATHERING, 7.0);
             structured.add(EssenceTypes.VITALITY, 1.0);
             signals.add("fertilizer_item/tag");
         }
-        if (stack.is(ShadowValuationTags.FLOWERS) || stack.is(ShadowValuationTags.LEAVES)) {
+        if (stack.is(ProceduralValuationTags.FLOWERS) || stack.is(ProceduralValuationTags.LEAVES)) {
             structured.add(EssenceTypes.VITALITY, 3.0);
             structured.add(EssenceTypes.GATHERING, 2.0);
             structured.add(EssenceTypes.UTILITY, 1.0);
@@ -2182,7 +2182,7 @@ public final class ShadowValuationEngine {
         }
 
         ResourceLocation id = BuiltInRegistries.ITEM.getKey(item);
-        ShadowItemNomenclature.Analysis name = ShadowItemNomenclature.analyze(
+        ProceduralItemNomenclature.Analysis name = ProceduralItemNomenclature.analyze(
                 id == null ? "" : id.toString(), item.getDescriptionId());
         RouteWeights hints = new RouteWeights();
         hints.add(EssenceTypes.OFFENSE, name.offense());
@@ -2193,8 +2193,8 @@ public final class ShadowValuationEngine {
         hints.add(EssenceTypes.UTILITY, name.utility());
         RouteWeights combined = structured.copy();
         double nameBudget = structured.isEmpty()
-                ? ShadowValuationSettings.ROUTING_NAME_WEIGHT_WITHOUT_STRUCTURED
-                : ShadowValuationSettings.ROUTING_NAME_WEIGHT_WITH_STRUCTURED;
+                ? ProceduralValuationSettings.ROUTING_NAME_WEIGHT_WITHOUT_STRUCTURED
+                : ProceduralValuationSettings.ROUTING_NAME_WEIGHT_WITH_STRUCTURED;
         combined.addNormalized(hints, Math.min(nameBudget, hints.totalWeight()));
         DirectRouting result = new DirectRouting(structured, combined, name, List.copyOf(signals));
         context.directRouteMemo().put(item, result);
@@ -2208,7 +2208,7 @@ public final class ShadowValuationEngine {
      * including source context, rather than just sharing part of the vector.
      */
     private static RoutingResolution resolveRouting(
-            Item item, EvaluationNode node, ShadowValuationIndex snapshot, EvaluationContext context
+            Item item, EvaluationNode node, ProceduralValuationIndex snapshot, EvaluationContext context
     ) {
         RoutingResolution cached = context.resolvedRouteMemo().get(item);
         if (cached != null) {
@@ -2243,7 +2243,7 @@ public final class ShadowValuationEngine {
         }
         RouteWeights route = new RouteWeights();
         if (conserved) {
-            route.addNormalized(semantics, ShadowValuationSettings.ROUTING_CONSERVATION_WEIGHT);
+            route.addNormalized(semantics, ProceduralValuationSettings.ROUTING_CONSERVATION_WEIGHT);
         } else {
             route.add(semantics);
         }
@@ -2262,15 +2262,15 @@ public final class ShadowValuationEngine {
                 composition.addNormalized(recipeCompositionRoute(member, memberNode, snapshot, context), 1.0);
             }
             hasComposition = !composition.isEmpty();
-            route.addNormalized(composition, ShadowValuationSettings.ROUTING_COMPOSITION_WEIGHT);
+            route.addNormalized(composition, ProceduralValuationSettings.ROUTING_COMPOSITION_WEIGHT);
         }
         boolean neutral = route.isEmpty();
         if (neutral) {
             addNeutralRoute(route);
         }
         route.addNormalized(sources, neutral
-                ? ShadowValuationSettings.ROUTING_ACQUISITION_WEIGHT_WITHOUT_DIRECT
-                : ShadowValuationSettings.ROUTING_ACQUISITION_WEIGHT_WITH_DIRECT);
+                ? ProceduralValuationSettings.ROUTING_ACQUISITION_WEIGHT_WITHOUT_DIRECT
+                : ProceduralValuationSettings.ROUTING_ACQUISITION_WEIGHT_WITH_DIRECT);
 
         List<String> evidence = new ArrayList<>();
         if (hasStructured) evidence.add("structured_function");
@@ -2280,16 +2280,16 @@ public final class ShadowValuationEngine {
         if (conserved) evidence.add("conservation_family");
         if (neutral) evidence.add("neutral_fallback");
         if (!sources.isEmpty()) evidence.add("weak_acquisition_context");
-        ShadowValuationResult.ConfidenceBand confidence = hasStructured
-                ? ShadowValuationResult.ConfidenceBand.HIGH
+        ProceduralValuationResult.ConfidenceBand confidence = hasStructured
+                ? ProceduralValuationResult.ConfidenceBand.HIGH
                 : (hasDownstream || hasComposition)
-                ? ShadowValuationResult.ConfidenceBand.MEDIUM
-                : ShadowValuationResult.ConfidenceBand.LOW;
+                ? ProceduralValuationResult.ConfidenceBand.MEDIUM
+                : ProceduralValuationResult.ConfidenceBand.LOW;
         // Cache each form's own lexical diagnostics but one identical final
         // weight vector. No new route recursion is introduced by this cache.
         for (Item member : family) {
-            ShadowItemNomenclature.Analysis name = directRouting(member, context).nomenclature();
-            ShadowValuationResult.RoutingDiagnostics diagnostics = new ShadowValuationResult.RoutingDiagnostics(
+            ProceduralItemNomenclature.Analysis name = directRouting(member, context).nomenclature();
+            ProceduralValuationResult.RoutingDiagnostics diagnostics = new ProceduralValuationResult.RoutingDiagnostics(
                     evidence, confidence, name.source(), name.matches(), List.copyOf(structuredSignals));
             context.resolvedRouteMemo().put(member, new RoutingResolution(route.copy(), diagnostics));
         }
@@ -2298,7 +2298,7 @@ public final class ShadowValuationEngine {
 
     private static RouteWeights semanticRoute(
             Item item,
-            ShadowValuationIndex index,
+            ProceduralValuationIndex index,
             EvaluationContext context,
             Set<Item> visiting,
             int depth
@@ -2313,22 +2313,22 @@ public final class ShadowValuationEngine {
 
         RouteWeights direct = directRoute(item, context);
         RouteWeights route = direct.copy();
-        if (depth >= ShadowValuationSettings.MAX_ROUTING_DEPTH || !visiting.add(item)) {
+        if (depth >= ProceduralValuationSettings.MAX_ROUTING_DEPTH || !visiting.add(item)) {
             return route;
         }
 
         RouteWeights downstream = new RouteWeights();
         LinkedHashSet<ResourceLocation> seenRecipes = new LinkedHashSet<>();
-        List<ShadowValuationIndex.RecipeUse> uses = new ArrayList<>(index.recipesUsing(item));
-        uses.sort(Comparator.comparing((ShadowValuationIndex.RecipeUse use) -> use.recipe().id().toString()));
+        List<ProceduralValuationIndex.RecipeUse> uses = new ArrayList<>(index.recipesUsing(item));
+        uses.sort(Comparator.comparing((ProceduralValuationIndex.RecipeUse use) -> use.recipe().id().toString()));
 
         int considered = 0;
-        for (ShadowValuationIndex.RecipeUse use : uses) {
-            ShadowValuationIndex.RecipeModel recipe = use.recipe();
+        for (ProceduralValuationIndex.RecipeUse use : uses) {
+            ProceduralValuationIndex.RecipeModel recipe = use.recipe();
             if (index.isReversibleTransform(recipe) || !seenRecipes.add(recipe.id())) {
                 continue;
             }
-            if (++considered > ShadowValuationSettings.MAX_ROUTING_DOWNSTREAM_RECIPES) {
+            if (++considered > ProceduralValuationSettings.MAX_ROUTING_DOWNSTREAM_RECIPES) {
                 break;
             }
 
@@ -2338,7 +2338,7 @@ public final class ShadowValuationEngine {
             }
 
             RouteWeights outputRoute = directRoute(output, context);
-            if (outputRoute.isEmpty() && depth + 1 < ShadowValuationSettings.MAX_ROUTING_DEPTH) {
+            if (outputRoute.isEmpty() && depth + 1 < ProceduralValuationSettings.MAX_ROUTING_DEPTH) {
                 outputRoute = semanticRoute(
                         output,
                         index,
@@ -2361,8 +2361,8 @@ public final class ShadowValuationEngine {
             route.addNormalized(
                     downstream,
                     direct.isEmpty()
-                            ? ShadowValuationSettings.ROUTING_DOWNSTREAM_WEIGHT_WITHOUT_DIRECT
-                            : ShadowValuationSettings.ROUTING_DOWNSTREAM_WEIGHT_WITH_DIRECT
+                            ? ProceduralValuationSettings.ROUTING_DOWNSTREAM_WEIGHT_WITHOUT_DIRECT
+                            : ProceduralValuationSettings.ROUTING_DOWNSTREAM_WEIGHT_WITH_DIRECT
             );
         }
 
@@ -2375,7 +2375,7 @@ public final class ShadowValuationEngine {
     private static RouteWeights recipeCompositionRoute(
             Item target,
             EvaluationNode node,
-            ShadowValuationIndex index,
+            ProceduralValuationIndex index,
             EvaluationContext context
     ) {
         if (node.recipeChoice().isEmpty() || node.recipeChoice().get().reversibleTransform()) {
@@ -2383,7 +2383,7 @@ public final class ShadowValuationEngine {
         }
 
         ResourceLocation chosenRecipeId = node.recipeChoice().get().recipeId();
-        ShadowValuationIndex.RecipeModel chosenRecipe = index.recipesProducing(target).stream()
+        ProceduralValuationIndex.RecipeModel chosenRecipe = index.recipesProducing(target).stream()
                 .filter(recipe -> recipe.id().equals(chosenRecipeId))
                 .findFirst()
                 .orElse(null);
@@ -2395,11 +2395,11 @@ public final class ShadowValuationEngine {
         Set<Item> visiting = new LinkedHashSet<>();
         visiting.add(target);
 
-        for (ShadowValuationIndex.IngredientChoice ingredient : chosenRecipe.ingredients()) {
+        for (ProceduralValuationIndex.IngredientChoice ingredient : chosenRecipe.ingredients()) {
             RouteWeights alternatives = new RouteWeights();
             int considered = 0;
             for (Item alternative : ingredient.alternatives()) {
-                if (++considered > ShadowValuationSettings.MAX_ROUTING_ALTERNATIVES_PER_INGREDIENT) {
+                if (++considered > ProceduralValuationSettings.MAX_ROUTING_ALTERNATIVES_PER_INGREDIENT) {
                     break;
                 }
                 RouteWeights alternativeRoute = semanticRoute(
@@ -2425,12 +2425,12 @@ public final class ShadowValuationEngine {
         route.add(EssenceTypes.UTILITY, 1.0);
     }
 
-    private static RouteWeights acquisitionRoute(Item item, ShadowValuationIndex index) {
+    private static RouteWeights acquisitionRoute(Item item, ProceduralValuationIndex index) {
         RouteWeights route = new RouteWeights();
 
         boolean bossScale = index.dropSources(item).stream()
                 .anyMatch(source -> source.bossScale()
-                        || source.specialSourceMultiplier() >= ShadowValuationSettings.PLAYER_SUMMONED_BOSS_MULTIPLIER);
+                        || source.specialSourceMultiplier() >= ProceduralValuationSettings.PLAYER_SUMMONED_BOSS_MULTIPLIER);
         if (bossScale) {
             route.add(EssenceTypes.OFFENSE, 3.0);
             route.add(EssenceTypes.DEFENSE, 1.2);
@@ -2439,7 +2439,7 @@ public final class ShadowValuationEngine {
         }
 
         boolean endContainer = index.containerLootSources(item).stream()
-                .anyMatch(source -> source.progressionBand() == ShadowValuationResult.ProgressionBand.END);
+                .anyMatch(source -> source.progressionBand() == ProceduralValuationResult.ProgressionBand.END);
         if (endContainer) {
             route.add(EssenceTypes.MOBILITY, 0.8);
             route.add(EssenceTypes.UTILITY, 1.2);
@@ -2466,9 +2466,9 @@ public final class ShadowValuationEngine {
 
     private static DownstreamInfo downstreamInfo(
             Item item,
-            ShadowValuationIndex index
+            ProceduralValuationIndex index
     ) {
-        List<ShadowValuationIndex.RecipeUse> uses = index.recipesUsing(item);
+        List<ProceduralValuationIndex.RecipeUse> uses = index.recipesUsing(item);
         if (uses.isEmpty()) {
             return DownstreamInfo.EMPTY;
         }
@@ -2479,8 +2479,8 @@ public final class ShadowValuationEngine {
         int crossMod = 0;
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
 
-        for (ShadowValuationIndex.RecipeUse use : uses) {
-            ShadowValuationIndex.RecipeModel recipe = use.recipe();
+        for (ProceduralValuationIndex.RecipeUse use : uses) {
+            ProceduralValuationIndex.RecipeModel recipe = use.recipe();
             // Storage/compression recipes are conservation transforms, not
             // meaningful downstream demand. Counting them here would reward
             // ingots/nuggets/blocks simply for being reversible.
@@ -2492,13 +2492,13 @@ public final class ShadowValuationEngine {
             }
 
             ResourceLocation outputId = BuiltInRegistries.ITEM.getKey(recipe.outputItem());
-            if (outputId != null && examples.size() < ShadowValuationSettings.MAX_DOWNSTREAM_EXAMPLES) {
+            if (outputId != null && examples.size() < ProceduralValuationSettings.MAX_DOWNSTREAM_EXAMPLES) {
                 examples.add(outputId);
             }
 
             Intrinsic outputIntrinsic = intrinsic(recipe.outputItem());
 
-            if (outputIntrinsic.value() >= ShadowValuationSettings.RARE_INGREDIENT_THRESHOLD
+            if (outputIntrinsic.value() >= ProceduralValuationSettings.RARE_INGREDIENT_THRESHOLD
                     || isProgressionOutput(recipe.outputItem())) {
                 significant++;
             }
@@ -2512,11 +2512,11 @@ public final class ShadowValuationEngine {
 
         int count = uniqueRecipes.size();
         double multiplier = 1.0
-                + count * ShadowValuationSettings.DOWNSTREAM_USE_STEP
-                + significant * ShadowValuationSettings.DOWNSTREAM_SIGNIFICANT_STEP
-                + crossMod * ShadowValuationSettings.DOWNSTREAM_CROSS_MOD_STEP;
+                + count * ProceduralValuationSettings.DOWNSTREAM_USE_STEP
+                + significant * ProceduralValuationSettings.DOWNSTREAM_SIGNIFICANT_STEP
+                + crossMod * ProceduralValuationSettings.DOWNSTREAM_CROSS_MOD_STEP;
         multiplier = Math.min(
-                ShadowValuationSettings.DOWNSTREAM_MAX_MULTIPLIER,
+                ProceduralValuationSettings.DOWNSTREAM_MAX_MULTIPLIER,
                 multiplier
         );
 
@@ -2531,10 +2531,10 @@ public final class ShadowValuationEngine {
 
     private static boolean isProgressionOutput(Item item) {
         ItemStack stack = new ItemStack(item);
-        return stack.is(ShadowValuationTags.ARMORS)
-                || stack.is(ShadowValuationTags.MINING_TOOLS)
-                || stack.is(ShadowValuationTags.MELEE_WEAPONS)
-                || stack.is(ShadowValuationTags.RANGED_WEAPONS)
+        return stack.is(ProceduralValuationTags.ARMORS)
+                || stack.is(ProceduralValuationTags.MINING_TOOLS)
+                || stack.is(ProceduralValuationTags.MELEE_WEAPONS)
+                || stack.is(ProceduralValuationTags.RANGED_WEAPONS)
                 || item instanceof ArmorItem
                 || item instanceof SwordItem
                 || item instanceof BowItem
@@ -2580,27 +2580,27 @@ public final class ShadowValuationEngine {
 
     private static double processMultiplier(RecipeType<?> type) {
         if (type == RecipeType.CRAFTING) {
-            return ShadowValuationSettings.CRAFTING_PROCESS_MULTIPLIER;
+            return ProceduralValuationSettings.CRAFTING_PROCESS_MULTIPLIER;
         }
         if (type == RecipeType.SMELTING) {
-            return ShadowValuationSettings.SMELTING_PROCESS_MULTIPLIER;
+            return ProceduralValuationSettings.SMELTING_PROCESS_MULTIPLIER;
         }
         if (type == RecipeType.BLASTING) {
-            return ShadowValuationSettings.BLASTING_PROCESS_MULTIPLIER;
+            return ProceduralValuationSettings.BLASTING_PROCESS_MULTIPLIER;
         }
         if (type == RecipeType.SMOKING) {
-            return ShadowValuationSettings.SMOKING_PROCESS_MULTIPLIER;
+            return ProceduralValuationSettings.SMOKING_PROCESS_MULTIPLIER;
         }
         if (type == RecipeType.CAMPFIRE_COOKING) {
-            return ShadowValuationSettings.CAMPFIRE_PROCESS_MULTIPLIER;
+            return ProceduralValuationSettings.CAMPFIRE_PROCESS_MULTIPLIER;
         }
         if (type == RecipeType.STONECUTTING) {
-            return ShadowValuationSettings.STONECUTTING_PROCESS_MULTIPLIER;
+            return ProceduralValuationSettings.STONECUTTING_PROCESS_MULTIPLIER;
         }
         if (type == RecipeType.SMITHING) {
-            return ShadowValuationSettings.SMITHING_PROCESS_MULTIPLIER;
+            return ProceduralValuationSettings.SMITHING_PROCESS_MULTIPLIER;
         }
-        return ShadowValuationSettings.UNKNOWN_PROCESS_MULTIPLIER;
+        return ProceduralValuationSettings.UNKNOWN_PROCESS_MULTIPLIER;
     }
 
     private static String recipeTypeName(RecipeType<?> type) {
@@ -2630,13 +2630,13 @@ public final class ShadowValuationEngine {
 
     private static double rarityMultiplier(Rarity rarity) {
         if (rarity == Rarity.UNCOMMON) {
-            return ShadowValuationSettings.UNCOMMON_MULTIPLIER;
+            return ProceduralValuationSettings.UNCOMMON_MULTIPLIER;
         }
         if (rarity == Rarity.RARE) {
-            return ShadowValuationSettings.RARE_MULTIPLIER;
+            return ProceduralValuationSettings.RARE_MULTIPLIER;
         }
         if (rarity == Rarity.EPIC) {
-            return ShadowValuationSettings.EPIC_MULTIPLIER;
+            return ProceduralValuationSettings.EPIC_MULTIPLIER;
         }
         return 1.0;
     }
@@ -2690,7 +2690,7 @@ public final class ShadowValuationEngine {
         return Math.max(
                 1L,
                 Math.min(
-                        ShadowValuationSettings.MAX_VALUE,
+                        ProceduralValuationSettings.MAX_VALUE,
                         Math.round(value)
                 )
         );
@@ -2709,7 +2709,7 @@ public final class ShadowValuationEngine {
     }
 
     private static final class EvaluationContext {
-        private final ShadowValuationIndex index;
+        private final ProceduralValuationIndex index;
         private final Map<Item, EvaluationNode> memo = new IdentityHashMap<>();
         private final Map<Item, RouteWeights> routeMemo = new IdentityHashMap<>();
         private final Map<Item, DirectRouting> directRouteMemo = new IdentityHashMap<>();
@@ -2720,8 +2720,8 @@ public final class ShadowValuationEngine {
         private Map<Item, EvaluationNode> previous = Map.of();
         private boolean solving, solved;
         private Item activeRoot;
-        EvaluationContext(ShadowValuationIndex index) { this.index = index; }
-        ShadowValuationIndex index() { return index; }
+        EvaluationContext(ProceduralValuationIndex index) { this.index = index; }
+        ProceduralValuationIndex index() { return index; }
         Map<Item, EvaluationNode> memo() { return memo; }
         Map<Item, RouteWeights> routeMemo() { return routeMemo; }
         Map<Item, DirectRouting> directRouteMemo() { return directRouteMemo; }
@@ -2737,22 +2737,22 @@ public final class ShadowValuationEngine {
     private record DirectRouting(
             RouteWeights structured,
             RouteWeights combined,
-            ShadowItemNomenclature.Analysis nomenclature,
+            ProceduralItemNomenclature.Analysis nomenclature,
             List<String> signals
     ) {
     }
 
     private record RoutingResolution(
             RouteWeights weights,
-            ShadowValuationResult.RoutingDiagnostics diagnostics
+            ProceduralValuationResult.RoutingDiagnostics diagnostics
     ) {
     }
 
     private record EvaluationNode(
             long intrinsicValue,
             long acquisitionValue,
-            Optional<ShadowValuationResult.RecipeChoice> recipeChoice,
-            ShadowValuationResult.ProgressionBand progressionBand,
+            Optional<ProceduralValuationResult.RecipeChoice> recipeChoice,
+            ProceduralValuationResult.ProgressionBand progressionBand,
             double confidence,
             int recipeDepth,
             boolean knownAcquisition,
@@ -2763,8 +2763,8 @@ public final class ShadowValuationEngine {
             Set<Item> dependencies
     ) {
         EvaluationNode(long intrinsicValue, long acquisitionValue,
-                       Optional<ShadowValuationResult.RecipeChoice> recipeChoice,
-                       ShadowValuationResult.ProgressionBand progressionBand, double confidence,
+                       Optional<ProceduralValuationResult.RecipeChoice> recipeChoice,
+                       ProceduralValuationResult.ProgressionBand progressionBand, double confidence,
                        int recipeDepth, boolean knownAcquisition, boolean contextSensitive,
                        double inferredProgressionScore, int progressionEvidenceCount, List<String> factors) {
             this(intrinsicValue, acquisitionValue, recipeChoice, progressionBand, confidence, recipeDepth,
@@ -2778,7 +2778,7 @@ public final class ShadowValuationEngine {
             long floorValue,
             boolean recognizedBucket,
             boolean explicitProgressionSignal,
-            ShadowValuationResult.ProgressionBand progressionBand,
+            ProceduralValuationResult.ProgressionBand progressionBand,
             double confidence,
             List<String> factors
     ) {
@@ -2787,7 +2787,7 @@ public final class ShadowValuationEngine {
     private record DirectSource(
             double value,
             boolean knownAcquisition,
-            ShadowValuationResult.ProgressionBand progressionBand,
+            ProceduralValuationResult.ProgressionBand progressionBand,
             double confidence,
             double inferredProgressionScore,
             int progressionEvidenceCount,
@@ -2798,13 +2798,13 @@ public final class ShadowValuationEngine {
     }
 
     private record BlockDropPath(
-            ShadowValuationIndex.BlockDropSource source,
+            ProceduralValuationIndex.BlockDropSource source,
             double value,
             double sourceMultiplier,
             double rarityMultiplier,
             double quantityMultiplier,
             double conditionMultiplier,
-            ShadowProgressionIndex.ProgressionEvidence progressionEvidence,
+            ProceduralProgressionIndex.ProgressionEvidence progressionEvidence,
             boolean prerequisiteKnown,
             double reusableWear,
             Set<Item> dependencies
@@ -2813,7 +2813,7 @@ public final class ShadowValuationEngine {
     }
 
     private record DropPath(
-            ShadowValuationIndex.DropSource source,
+            ProceduralValuationIndex.DropSource source,
             double value,
             double difficultyMultiplier,
             double rarityMultiplier,
@@ -2821,30 +2821,30 @@ public final class ShadowValuationEngine {
             double spawnMultiplier,
             double specialMultiplier,
             double conditionMultiplier,
-            ShadowValuationResult.ProgressionBand progressionBand,
-            ShadowProgressionIndex.ProgressionEvidence progressionEvidence
+            ProceduralValuationResult.ProgressionBand progressionBand,
+            ProceduralProgressionIndex.ProgressionEvidence progressionEvidence
     ) {
     }
 
     private record ContainerLootPath(
-            ShadowValuationIndex.ContainerLootSource source,
+            ProceduralValuationIndex.ContainerLootSource source,
             double value,
             double contextMultiplier,
             double rarityMultiplier,
             double quantityMultiplier,
             double conditionMultiplier,
-            ShadowProgressionIndex.ProgressionEvidence progressionEvidence
+            ProceduralProgressionIndex.ProgressionEvidence progressionEvidence
     ) {
     }
 
     private record FishingLootPath(
-            ShadowValuationIndex.FishingLootSource source,
+            ProceduralValuationIndex.FishingLootSource source,
             double value,
             double contextMultiplier,
             double rarityMultiplier,
             double quantityMultiplier,
             double conditionMultiplier,
-            ShadowProgressionIndex.ProgressionEvidence progressionEvidence
+            ProceduralProgressionIndex.ProgressionEvidence progressionEvidence
     ) {
     }
 
@@ -2855,14 +2855,14 @@ public final class ShadowValuationEngine {
     }
 
     private record TradePath(
-            ShadowTradeIndex.TradeSource source,
+            ProceduralTradeIndex.TradeSource source,
             double value,
             double levelMultiplier,
             double listingMultiplier,
             double stockMultiplier,
             double traderMultiplier,
             boolean fullyModeledCosts,
-            ShadowValuationResult.ProgressionBand progressionBand,
+            ProceduralValuationResult.ProgressionBand progressionBand,
             double confidence,
             Set<Item> dependencies
     ) {
@@ -2891,7 +2891,7 @@ public final class ShadowValuationEngine {
     }
 
     private record RecipeCandidate(
-            ShadowValuationIndex.RecipeModel recipe,
+            ProceduralValuationIndex.RecipeModel recipe,
             long value,
             int ingredientSlots,
             int uniqueIngredients,
@@ -2901,14 +2901,14 @@ public final class ShadowValuationEngine {
             int depth,
             boolean reversible,
             boolean fullyModeledIngredients,
-            ShadowValuationResult.ProgressionBand progressionBand,
+            ProceduralValuationResult.ProgressionBand progressionBand,
             double confidence,
             double inferredProgressionScore,
             int progressionEvidenceCount,
             Set<Item> dependencies
     ) {
-        ShadowValuationResult.RecipeChoice toChoice() {
-            return new ShadowValuationResult.RecipeChoice(
+        ProceduralValuationResult.RecipeChoice toChoice() {
+            return new ProceduralValuationResult.RecipeChoice(
                     recipe.id(),
                     recipeTypeName(recipe.type()),
                     value,

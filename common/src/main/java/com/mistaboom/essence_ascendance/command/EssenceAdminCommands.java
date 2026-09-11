@@ -30,6 +30,9 @@ import com.mistaboom.essence_ascendance.progression.StatInvestmentLimit;
 import com.mistaboom.essence_ascendance.progression.TierInvestmentPolicy;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
+import com.mistaboom.essence_ascendance.skill.SkillDefinition;
+import com.mistaboom.essence_ascendance.skill.SkillRegistry;
+import com.mistaboom.essence_ascendance.skill.SkillStateEvaluator;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
@@ -46,6 +49,8 @@ import net.minecraft.world.item.ItemStack;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 
 final class EssenceAdminCommands {
 
@@ -246,6 +251,19 @@ final class EssenceAdminCommands {
                                 )
                 )
                 .then(
+                        Commands.literal("skills")
+                                .executes(context -> showSkillsHelp(context.getSource()))
+                                .then(Commands.literal("grant_all")
+                                        .executes(context -> grantAllSkills(context.getSource())))
+                                .then(Commands.literal("clear")
+                                        .executes(context -> clearAllSkills(context.getSource())))
+                                .then(Commands.literal("activate")
+                                        .then(Commands.argument("skill", StringArgumentType.string())
+                                                .suggests(EssenceCommandUtil::suggestSkills)
+                                                .executes(context -> activateSkill(context.getSource(),
+                                                        StringArgumentType.getString(context, "skill")))))
+                )
+                .then(
                         Commands.literal("attunement")
                                 .executes(context -> showAttunementHelp(context.getSource()))
                                 .then(
@@ -336,6 +354,9 @@ final class EssenceAdminCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin stat clear <stat>", "clear one stat investment"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin stats max", "max every stat to the current tier caps"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin stats clear", "clear investments without clearing balances"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin skills grant_all", "grant every current catalog skill at zero cost"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin skills activate <skill>", "select the skill's required combat/loadout branch"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin skills clear", "remove all skill receipts and selections"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin tier set <tier>", "force your PLAYER Ascendance tier"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin itemtier set <tier>", "set the held Ascendance equipment/Essence Focus tier"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin milestone set <milestone> <true|false>", "set an internal progression milestone"));
@@ -410,6 +431,15 @@ final class EssenceAdminCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
                 "Changing an item tier clears partial infusion progress on that item."
         ));
+        return 1;
+    }
+
+    private static int showSkillsHelp(CommandSourceStack source) {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Admin - Skill testing"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin skills grant_all", "grant the current 90-skill catalog for free"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin skills activate <skill>", "apply every required selectable branch for an owned skill"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin skills clear", "clear all receipts and loadout selections"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.muted("Live tier, milestone, stat, discovery, and attunement requirements still decide effectiveness."));
         return 1;
     }
 
@@ -770,6 +800,50 @@ final class EssenceAdminCommands {
                         .append(state)
                         .append(Component.literal(changed ? "." : " (state was already set).").withStyle(ChatFormatting.GRAY))
         );
+        return 1;
+    }
+
+    private static int grantAllSkills(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        int granted = EssenceSavedData.get(source.getServer()).grantAllSkillsForAdmin(player.getUUID(), SkillRegistry.values());
+        PlayerRuntimeLifecycleService.refreshProgressionState(player);
+        EssenceCommandUtil.send(source, EssenceCommandUtil.good("Granted " + granted + " new current-catalog skill receipts at zero cost."));
+        return 1;
+    }
+
+    private static int clearAllSkills(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        int removed = EssenceSavedData.get(source.getServer()).clearAllSkillsForAdmin(player.getUUID());
+        PlayerRuntimeLifecycleService.refreshProgressionState(player);
+        EssenceCommandUtil.send(source, EssenceCommandUtil.good("Cleared " + removed + " skill receipts and all loadout selections."));
+        return 1;
+    }
+
+    private static int activateSkill(CommandSourceStack source, String skillName) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        ResourceLocation id = EssenceCommandUtil.resolveResourceId(skillName);
+        SkillDefinition skill = SkillRegistry.get(id).orElse(null);
+        if (skill == null) {
+            EssenceCommandUtil.fail(source, "Unknown current catalog skill: " + id);
+            return 0;
+        }
+        EssenceSavedData savedData = EssenceSavedData.get(source.getServer());
+        PlayerEssenceData data = savedData.getPlayerData(player.getUUID());
+        if (!data.ownsSkill(id)) {
+            EssenceCommandUtil.fail(source, "You do not own " + id + ". Use /essence admin skills grant_all first.");
+            return 0;
+        }
+        var plan = SkillStateEvaluator.activationPlan(id, new LinkedHashSet<>(data.getOwnedSkills().keySet()),
+                new LinkedHashMap<>(data.getLoadoutSelections())).orElse(null);
+        if (plan == null) {
+            EssenceCommandUtil.fail(source, "No valid activation plan exists for " + id + ". Check its owned prerequisites.");
+            return 0;
+        }
+        for (ResourceLocation suppression : plan.automaticSuppressionsToClear()) savedData.clearLoadoutSelection(player.getUUID(), suppression);
+        for (var assignment : plan.selectableAssignments().entrySet())
+            savedData.setLoadoutSelection(player.getUUID(), assignment.getKey(), assignment.getValue());
+        PlayerRuntimeLifecycleService.refreshProgressionState(player);
+        EssenceCommandUtil.send(source, EssenceCommandUtil.good("Activated the loadout branch required by " + id + "."));
         return 1;
     }
 

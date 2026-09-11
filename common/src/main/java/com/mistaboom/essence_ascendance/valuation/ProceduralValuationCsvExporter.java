@@ -26,18 +26,18 @@ import java.util.stream.Collectors;
 
 /** Exports the shared internal economic analysis plus live-resolution diagnostics.
  * Live values are reported only for verification; they NEVER feed economic analysis.
- * Historical shadow_valuation filename retained for existing CSV comparisons. */
-public final class ShadowValuationCsvExporter {
+ * Files use the procedural_valuation prefix. */
+public final class ProceduralValuationCsvExporter {
 
     private static final DateTimeFormatter FILE_TIMESTAMP =
             DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS", Locale.ROOT);
 
-    private ShadowValuationCsvExporter() {
+    private ProceduralValuationCsvExporter() {
     }
 
     public static ExportReport export(MinecraftServer server) throws IOException {
         long started = System.nanoTime();
-        List<ShadowValuationResult> results = ShadowValuationEngine.evaluateAll(server);
+        List<ProceduralValuationResult> results = ProceduralValuationEngine.evaluateAll(server);
 
         Path directory = Platform.getConfigFolder()
                 .resolve(EssenceAscendance.MOD_ID)
@@ -45,14 +45,14 @@ public final class ShadowValuationCsvExporter {
         Files.createDirectories(directory);
 
         String timestamp = FILE_TIMESTAMP.format(LocalDateTime.now());
-        Path output = directory.resolve("shadow_valuation_" + timestamp + ".csv");
+        Path output = directory.resolve("procedural_valuation_" + timestamp + ".csv");
 
         try (BufferedWriter writer = Files.newBufferedWriter(
                 output,
                 StandardCharsets.UTF_8
         )) {
             writeHeader(writer);
-            for (ShadowValuationResult result : results) {
+            for (ProceduralValuationResult result : results) {
                 writeRow(writer, result);
             }
         }
@@ -128,14 +128,14 @@ public final class ShadowValuationCsvExporter {
 
     private static void writeRow(
             BufferedWriter writer,
-            ShadowValuationResult result
+            ProceduralValuationResult result
     ) throws IOException {
         GeneratedYieldEligibility.Decision eligibility = ItemEssenceMappingManager.generatedDecision(result);
         ItemEssenceMappingResult live = ItemEssenceMappingRegistry.resolve(
                 new ItemStack(BuiltInRegistries.ITEM.getOptional(result.itemId()).orElseThrow()));
         long liveTotal = 0;
         for (long amount : live.outputs().values()) liveTotal = Math.addExact(liveTotal, amount);
-        Optional<ShadowValuationResult.RecipeChoice> recipe = result.recipeChoice();
+        Optional<ProceduralValuationResult.RecipeChoice> recipe = result.recipeChoice();
         long total = result.totalValue();
         Map<EssenceDefinition, Long> routed = result.routedEssence();
 
@@ -174,7 +174,7 @@ public final class ShadowValuationCsvExporter {
                 Integer.toString(result.sourceFishingCount()),
                 Integer.toString(result.sourceTradeCount()),
                 recipe.map(choice -> choice.recipeId().toString()).orElse(""),
-                recipe.map(ShadowValuationResult.RecipeChoice::recipeType).orElse(""),
+                recipe.map(ProceduralValuationResult.RecipeChoice::recipeType).orElse(""),
                 recipe.map(choice -> Long.toString(choice.valuePerOutput())).orElse(""),
                 recipe.map(choice -> Integer.toString(choice.outputCount())).orElse(""),
                 recipe.map(choice -> Integer.toString(choice.ingredientSlots())).orElse(""),

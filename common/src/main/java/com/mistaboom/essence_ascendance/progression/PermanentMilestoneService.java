@@ -5,6 +5,7 @@ import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.config.EssenceServerConfig;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
+import com.mistaboom.essence_ascendance.lifecycle.PlayerRuntimeLifecycleService;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -76,6 +77,7 @@ public final class PermanentMilestoneService {
         EssenceServerConfig config = EssenceConfigManager.get();
         Set<ResourceLocation> uniqueIds = new LinkedHashSet<>(milestoneIds);
         List<Resolution> resolutions = new ArrayList<>(uniqueIds.size());
+        boolean changed = false;
 
         for (ResourceLocation milestoneId : uniqueIds) {
             Objects.requireNonNull(
@@ -133,7 +135,7 @@ public final class PermanentMilestoneService {
                     && providerProgress.complete();
 
             if (capture && !captured && providerComplete) {
-                savedData.completeMilestone(player.getUUID(), milestoneId);
+                changed |= savedData.completeMilestone(player.getUUID(), milestoneId);
                 captured = true;
             }
 
@@ -153,6 +155,9 @@ public final class PermanentMilestoneService {
             );
         }
 
+        if (changed) {
+            PlayerRuntimeLifecycleService.refreshSkillState(player);
+        }
         return List.copyOf(resolutions);
     }
 

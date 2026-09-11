@@ -29,16 +29,16 @@ import java.util.Map;
 
 /**
  * Loader-neutral snapshot of the villager/wandering-trader offer factories that
- * are visible through vanilla's final trade tables at shadow-index build time.
+ * are visible through vanilla's final trade tables at procedural-index build time.
  *
  * <p>Fabric's trade helper mutates these vanilla tables, so Fabric-added trades
  * are naturally visible here. NeoForge rebuilds trade lists during tag reload;
  * vanilla-visible results are still indexed, while loader-specific event-only
  * additions remain best-effort until a later optional adapter can feed them
  * into this same model. Nothing in this class is authoritative gameplay logic;
- * it only supplies additional shadow acquisition paths.</p>
+ * it only supplies additional procedural acquisition paths.</p>
  */
-final class ShadowTradeIndex {
+final class ProceduralTradeIndex {
 
     private static final int SAMPLES_PER_LISTING = 4;
 
@@ -47,7 +47,7 @@ final class ShadowTradeIndex {
     private final int listingCount;
     private final int offerCount;
 
-    private ShadowTradeIndex(
+    private ProceduralTradeIndex(
             Map<Item, List<TradeSource>> sourcesByOutput,
             int professionTableCount,
             int listingCount,
@@ -61,7 +61,7 @@ final class ShadowTradeIndex {
         this.offerCount = offerCount;
     }
 
-    static ShadowTradeIndex build(MinecraftServer server) {
+    static ProceduralTradeIndex build(MinecraftServer server) {
         Map<Item, List<TradeSource>> output = new IdentityHashMap<>();
         ServerLevel level = server.overworld();
         int professionTables = 0;
@@ -173,7 +173,7 @@ final class ShadowTradeIndex {
                 output.size()
         );
 
-        return new ShadowTradeIndex(output, professionTables, listings, offers);
+        return new ProceduralTradeIndex(output, professionTables, listings, offers);
     }
 
     List<TradeSource> sources(Item item) {

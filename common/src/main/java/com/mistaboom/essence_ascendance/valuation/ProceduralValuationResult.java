@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-public record ShadowValuationResult(
+public record ProceduralValuationResult(
         ResourceLocation itemId,
         long totalValue,
         long intrinsicValue,
@@ -36,7 +36,7 @@ public record ShadowValuationResult(
         String conservationStatus
 ) {
 
-    public ShadowValuationResult {
+    public ProceduralValuationResult {
         recipeChoice = recipeChoice == null ? Optional.empty() : recipeChoice;
         routedEssence = Map.copyOf(routedEssence);
         downstreamExamples = List.copyOf(downstreamExamples);

@@ -68,6 +68,7 @@ public final class EssenceAscendanceClient {
         EssencePylonClientState.init();
         EquipmentTooltipClientState.init();
         ItemEssenceTooltipClientState.init();
+        SkillEffectHudClientState.init();
 
         Item[] tierVisualItems = {
                 AscendanceItems.ASCENDANCE_MELEE_WEAPON.get(),

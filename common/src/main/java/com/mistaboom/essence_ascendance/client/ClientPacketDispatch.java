@@ -30,6 +30,7 @@ public final class ClientPacketDispatch {
         ItemEssenceTooltipClientState.clear();
         EssenceCrucibleClientState.clear();
         EssencePylonClientState.clear();
+        SkillEffectHudClientState.clear();
     }
 
     private ClientPacketDispatch() {

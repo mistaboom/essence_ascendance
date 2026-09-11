@@ -55,11 +55,12 @@ import com.mistaboom.essence_ascendance.progression.StatScalingResult;
 import com.mistaboom.essence_ascendance.progression.StatScalingService;
 import com.mistaboom.essence_ascendance.progression.TierInvestmentPolicy;
 import com.mistaboom.essence_ascendance.skill.SkillDefinition;
+import com.mistaboom.essence_ascendance.skill.CommittedSkillService;
 import com.mistaboom.essence_ascendance.skill.SkillEvaluationContext;
 import com.mistaboom.essence_ascendance.skill.SkillEvaluationResult;
 import com.mistaboom.essence_ascendance.skill.SkillRegistry;
 import com.mistaboom.essence_ascendance.skill.SkillRequirementStatus;
-import com.mistaboom.essence_ascendance.skill.SkillStateEvaluator;
+import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import com.mistaboom.essence_ascendance.skill.requirement.BonusInvestmentRequirement;
 import com.mistaboom.essence_ascendance.skill.requirement.DiscoveryRequirement;
 import com.mistaboom.essence_ascendance.skill.requirement.PermanentMilestoneRequirement;
@@ -69,10 +70,10 @@ import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.EssenceStats;
 import com.mistaboom.essence_ascendance.stat.StatCategory;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
-import com.mistaboom.essence_ascendance.valuation.ShadowValuationCsvExporter;
+import com.mistaboom.essence_ascendance.valuation.ProceduralValuationCsvExporter;
 import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingManager;
-import com.mistaboom.essence_ascendance.valuation.ShadowValuationEngine;
-import com.mistaboom.essence_ascendance.valuation.ShadowValuationResult;
+import com.mistaboom.essence_ascendance.valuation.ProceduralValuationEngine;
+import com.mistaboom.essence_ascendance.valuation.ProceduralValuationResult;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -93,11 +94,9 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 
 import java.io.IOException;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 final class EssenceDebugCommands {
 
@@ -114,11 +113,11 @@ final class EssenceDebugCommands {
                 .then(Commands.literal("item").executes(context -> showItem(context.getSource())))
                 .then(Commands.literal("mapping").executes(context -> showItemMapping(context.getSource())))
                 .then(Commands.literal("valuation")
-                        .executes(context -> showShadowValuation(context.getSource()))
+                        .executes(context -> showProceduralValuation(context.getSource()))
                         .then(Commands.literal("rebuild")
-                                .executes(context -> rebuildShadowValuation(context.getSource())))
+                                .executes(context -> rebuildProceduralValuation(context.getSource())))
                         .then(Commands.literal("export")
-                                .executes(context -> exportShadowValuation(context.getSource()))))
+                                .executes(context -> exportProceduralValuation(context.getSource()))))
                 .then(Commands.literal("mappings").executes(context -> showMappingRegistry(context.getSource())))
                 .then(Commands.literal("crucible").executes(context -> showCrucible(context.getSource())))
                 .then(Commands.literal("pylon").executes(context -> showPylon(context.getSource())))
@@ -195,7 +194,7 @@ final class EssenceDebugCommands {
                 .filter(id -> SkillRegistry.get(id).isPresent())
                 .count();
         Map<ResourceLocation, SkillEvaluationResult> evaluated =
-                SkillStateEvaluator.evaluateAll(committedSkillContext(player, data));
+                CommittedSkillService.evaluations(player);
         long effective = evaluated.values().stream()
                 .filter(SkillEvaluationResult::effective)
                 .count();
@@ -210,6 +209,12 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
                 "Catalog",
                 SkillRegistry.size() + " definitions; version " + SkillRegistry.catalogVersion()
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Gameplay implementations",
+                SkillEffectRuntime.implementedIds().size() + " implemented; "
+                        + (SkillRegistry.size() - SkillEffectRuntime.implementedIds().size())
+                        + " deferred"
         ));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
                 "Owned receipts",
@@ -313,11 +318,8 @@ final class EssenceDebugCommands {
             return 1;
         }
 
-        SkillEvaluationContext evaluationContext = committedSkillContext(player, data);
-        SkillEvaluationResult evaluation = SkillStateEvaluator.evaluate(
-                skillId,
-                evaluationContext
-        );
+        SkillEvaluationContext evaluationContext = CommittedSkillService.context(player);
+        SkillEvaluationResult evaluation = CommittedSkillService.evaluation(player, skillId);
 
         EssenceCommandUtil.send(source, EssenceCommandUtil.line("Name key", skill.nameTranslationKey()));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line("Description key", skill.descriptionTranslationKey()));
@@ -419,9 +421,19 @@ final class EssenceDebugCommands {
                 "Nexus revision",
                 Long.toString(data.nexusRevision())
         ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
-                "This reports definition and authoritative saved state; skill gameplay effects are not implemented."
-        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Gameplay runtime"));
+        if (SkillEffectRuntime.isImplemented(skillId)) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Implementation", EssenceCommandUtil.good("IMPLEMENTED; PROVISIONAL BALANCE")
+            ));
+            for (String line : SkillEffectRuntime.debugLines(player, skillId)) {
+                EssenceCommandUtil.send(source, EssenceCommandUtil.muted("  " + line));
+            }
+        } else {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    "Implementation", EssenceCommandUtil.warn("DEFERRED; FRAMEWORK STATE ONLY")
+            ));
+        }
         return 1;
     }
 
@@ -458,40 +470,6 @@ final class EssenceDebugCommands {
                         .append(status.authoritativeSatisfied()
                                 ? EssenceCommandUtil.good("SATISFIED")
                                 : EssenceCommandUtil.warn("MISSING"))
-        );
-    }
-
-    private static SkillEvaluationContext committedSkillContext(
-            ServerPlayer player,
-            PlayerEssenceData data
-    ) {
-        Map<ResourceLocation, Long> bonusTotals = new LinkedHashMap<>();
-        for (StatDefinition stat : EssenceStatRegistry.values()) {
-            ResourceLocation essenceId = stat.essenceType().id();
-            long current = bonusTotals.getOrDefault(essenceId, 0L);
-            long amount = Math.max(0L, data.getInvested(stat));
-            long updated = amount > Long.MAX_VALUE - current
-                    ? Long.MAX_VALUE
-                    : current + amount;
-            bonusTotals.put(essenceId, updated);
-        }
-
-        Set<ResourceLocation> completedMilestones =
-                PermanentMilestoneService.completedIds(
-                        PermanentMilestoneService.resolveAll(
-                                player,
-                                SkillRegistry.referencedPermanentMilestoneIds()
-                        )
-                );
-
-        return SkillEvaluationContext.committed(
-                data.getTierId(),
-                data.getOwnedSkills().keySet(),
-                data.getLoadoutSelections(),
-                data.getCompletedAttunements(),
-                completedMilestones,
-                Set.of(),
-                bonusTotals
         );
     }
 
@@ -1049,7 +1027,7 @@ final class EssenceDebugCommands {
     }
 
 
-    private static int showShadowValuation(
+    private static int showProceduralValuation(
             CommandSourceStack source
     ) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
@@ -1070,7 +1048,7 @@ final class EssenceDebugCommands {
 
         EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
                 "Analyzing current loaded data on demand; this may calculate. Saved mappings are not replaced."));
-        ShadowValuationResult shadow = ShadowValuationEngine.evaluate(
+        ProceduralValuationResult valuation = ProceduralValuationEngine.evaluate(
                 source.getServer(),
                 stack
         );
@@ -1078,27 +1056,27 @@ final class EssenceDebugCommands {
                 source,
                 EssenceCommandUtil.warn("  Current economic analysis may differ from the saved baseline. This command does not change live payouts.")
         );
-        var eligibility = ItemEssenceMappingManager.generatedDecision(shadow);
+        var eligibility = ItemEssenceMappingManager.generatedDecision(valuation);
         EssenceCommandUtil.send(source, EssenceCommandUtil.line("Generated eligibility",
                 eligibility.status().name() + " — " + eligibility.reason()));
         var live = ItemEssenceMappingRegistry.resolve(stack);
         long liveTotal = 0;
         for (long amount : live.outputs().values()) liveTotal = Math.addExact(liveTotal, amount);
         EssenceCommandUtil.send(source, EssenceCommandUtil.line("Live item mapping",
-                ItemEssenceMappingRegistry.source(shadow.itemId()) + " / " + liveTotal
+                ItemEssenceMappingRegistry.source(valuation.itemId()) + " / " + liveTotal
                         + " (Essentium component recovery is separate)"));
         EssenceCommandUtil.send(
                 source,
                 EssenceCommandUtil.line(
                         "Item",
-                        stack.getHoverName().getString() + " [" + shadow.itemId() + "]"
+                        stack.getHoverName().getString() + " [" + valuation.itemId() + "]"
                 )
         );
         EssenceCommandUtil.send(
                 source,
                 EssenceCommandUtil.line(
                         "Internal total",
-                        EssenceCommandUtil.format(shadow.totalValue())
+                        EssenceCommandUtil.format(valuation.totalValue())
                 )
         );
         EssenceCommandUtil.send(
@@ -1112,9 +1090,9 @@ final class EssenceDebugCommands {
                 source,
                 EssenceCommandUtil.line(
                         "Confidence",
-                        shadow.confidenceBand().name()
+                        valuation.confidenceBand().name()
                                 + " ("
-                                + String.format(Locale.ROOT, "%.0f%%", shadow.confidence() * 100.0)
+                                + String.format(Locale.ROOT, "%.0f%%", valuation.confidence() * 100.0)
                                 + ")"
                 )
         );
@@ -1122,23 +1100,23 @@ final class EssenceDebugCommands {
                 source,
                 EssenceCommandUtil.line(
                         "Renewability",
-                        "x" + String.format(Locale.ROOT, "%.3f", shadow.renewabilityMultiplier())
+                        "x" + String.format(Locale.ROOT, "%.3f", valuation.renewabilityMultiplier())
                 )
         );
         EssenceCommandUtil.send(
                 source,
                 EssenceCommandUtil.line(
                         "Progression signal",
-                        shadow.progressionBand().name()
+                        valuation.progressionBand().name()
                 )
         );
         EssenceCommandUtil.send(
                 source,
                 EssenceCommandUtil.line(
                         "Advancement progression",
-                        String.format(Locale.ROOT, "%.1f%%", shadow.inferredProgressionScore() * 100.0)
+                        String.format(Locale.ROOT, "%.1f%%", valuation.inferredProgressionScore() * 100.0)
                                 + " / "
-                                + shadow.progressionEvidenceCount()
+                                + valuation.progressionEvidenceCount()
                                 + " evidence ref(s)"
                 )
         );
@@ -1146,9 +1124,9 @@ final class EssenceDebugCommands {
                 source,
                 EssenceCommandUtil.line(
                         "Recipe graph",
-                        shadow.producingRecipeCount()
+                        valuation.producingRecipeCount()
                                 + " producing / "
-                                + shadow.downstreamRecipeCount()
+                                + valuation.downstreamRecipeCount()
                                 + " downstream"
                 )
         );
@@ -1156,31 +1134,31 @@ final class EssenceDebugCommands {
                 source,
                 EssenceCommandUtil.line(
                         "Downstream demand",
-                        shadow.significantDownstreamRecipeCount()
+                        valuation.significantDownstreamRecipeCount()
                                 + " significant / "
-                                + shadow.crossModDownstreamRecipeCount()
+                                + valuation.crossModDownstreamRecipeCount()
                                 + " cross-mod | x"
-                                + String.format(Locale.ROOT, "%.3f", shadow.downstreamMultiplier())
+                                + String.format(Locale.ROOT, "%.3f", valuation.downstreamMultiplier())
                 )
         );
         EssenceCommandUtil.send(
                 source,
                 EssenceCommandUtil.line(
                         "Direct sources",
-                        shadow.sourceBlockCount()
+                        valuation.sourceBlockCount()
                                 + " block / "
-                                + shadow.sourceEntityCount()
+                                + valuation.sourceEntityCount()
                                 + " entity / "
-                                + shadow.sourceContainerCount()
+                                + valuation.sourceContainerCount()
                                 + " container / "
-                                + shadow.sourceFishingCount()
+                                + valuation.sourceFishingCount()
                                 + " fishing / "
-                                + shadow.sourceTradeCount()
+                                + valuation.sourceTradeCount()
                                 + " trade"
                 )
         );
 
-        shadow.recipeChoice().ifPresent(choice -> {
+        valuation.recipeChoice().ifPresent(choice -> {
             EssenceCommandUtil.send(
                     source,
                     EssenceCommandUtil.section("Chosen recipe path")
@@ -1230,16 +1208,16 @@ final class EssenceDebugCommands {
                 source,
                 EssenceCommandUtil.section("Proposed Essence routing")
         );
-        shadow.routedEssence().entrySet().stream()
+        valuation.routedEssence().entrySet().stream()
                 .sorted(
                         Map.Entry.<EssenceDefinition, Long>comparingByValue()
                                 .reversed()
                                 .thenComparing(entry -> entry.getKey().id().toString())
                 )
                 .forEach(entry -> {
-                    double fraction = shadow.totalValue() <= 0L
+                    double fraction = valuation.totalValue() <= 0L
                             ? 0.0
-                            : (double) entry.getValue() / shadow.totalValue();
+                            : (double) entry.getValue() / valuation.totalValue();
                     EssenceCommandUtil.send(
                             source,
                             EssenceCommandUtil.muted(
@@ -1254,12 +1232,12 @@ final class EssenceDebugCommands {
                     );
                 });
 
-        if (!shadow.downstreamExamples().isEmpty()) {
+        if (!valuation.downstreamExamples().isEmpty()) {
             EssenceCommandUtil.send(
                     source,
                     EssenceCommandUtil.section("Example downstream outputs")
             );
-            for (ResourceLocation output : shadow.downstreamExamples()) {
+            for (ResourceLocation output : valuation.downstreamExamples()) {
                 EssenceCommandUtil.send(
                         source,
                         EssenceCommandUtil.muted("  " + output)
@@ -1271,7 +1249,7 @@ final class EssenceDebugCommands {
                 source,
                 EssenceCommandUtil.section("Valuation factors")
         );
-        for (String factor : shadow.factors()) {
+        for (String factor : valuation.factors()) {
             EssenceCommandUtil.send(
                     source,
                     EssenceCommandUtil.muted("  " + factor)
@@ -1288,7 +1266,7 @@ final class EssenceDebugCommands {
         return 1;
     }
 
-    private static int rebuildShadowValuation(
+    private static int rebuildProceduralValuation(
             CommandSourceStack source
     ) {
         ItemEssenceMappingRegistry.ReloadReport report = ItemEssenceMappingManager.rebuild();
@@ -1308,7 +1286,7 @@ final class EssenceDebugCommands {
         }
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
                 "Saved generated baseline", ItemEssenceMappingManager.generatedCachePath().toString()));
-        ShadowValuationEngine.IndexSummary summary = ShadowValuationEngine.summary(source.getServer());
+        ProceduralValuationEngine.IndexSummary summary = ProceduralValuationEngine.summary(source.getServer());
 
         EssenceCommandUtil.send(
                 source,
@@ -1418,7 +1396,7 @@ final class EssenceDebugCommands {
         return 1;
     }
 
-    private static int exportShadowValuation(
+    private static int exportProceduralValuation(
             CommandSourceStack source
     ) {
         EssenceCommandUtil.send(
@@ -1433,8 +1411,8 @@ final class EssenceDebugCommands {
         );
 
         try {
-            ShadowValuationCsvExporter.ExportReport report =
-                    ShadowValuationCsvExporter.export(source.getServer());
+            ProceduralValuationCsvExporter.ExportReport report =
+                    ProceduralValuationCsvExporter.export(source.getServer());
 
             EssenceCommandUtil.send(
                     source,

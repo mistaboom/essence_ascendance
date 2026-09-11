@@ -7,13 +7,13 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 
 /*
- * Loader-neutral tag keys used by the shadow valuation engine.
+ * Loader-neutral tag keys used by the procedural valuation engine.
  *
  * The c: namespace is intentionally referenced by ID instead of importing a
  * Fabric- or NeoForge-specific convention-tag class. Both loaders can resolve
  * the same data tags while common gameplay code remains platform-neutral.
  */
-final class ShadowValuationTags {
+final class ProceduralValuationTags {
 
     static final TagKey<Item> ORES = item("c", "ores");
     static final TagKey<Item> RAW_MATERIALS = item("c", "raw_materials");
@@ -72,7 +72,7 @@ final class ShadowValuationTags {
     static final TagKey<Block> NEEDS_IRON_TOOL = block("minecraft", "needs_iron_tool");
     static final TagKey<Block> NEEDS_DIAMOND_TOOL = block("minecraft", "needs_diamond_tool");
 
-    private ShadowValuationTags() {
+    private ProceduralValuationTags() {
     }
 
     private static TagKey<Item> item(String namespace, String path) {

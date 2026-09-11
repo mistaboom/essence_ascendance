@@ -7,6 +7,8 @@ import com.mistaboom.essence_ascendance.network.EssenceCrucibleNetworkService;
 import com.mistaboom.essence_ascendance.network.EssencePylonNetworkService;
 import com.mistaboom.essence_ascendance.network.ItemEssenceTooltipSyncService;
 import com.mistaboom.essence_ascendance.network.PlayerEssenceSyncService;
+import com.mistaboom.essence_ascendance.network.SkillEffectHudSyncService;
+import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import dev.architectury.event.events.common.TickEvent;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -35,12 +37,15 @@ public final class EquipmentGameplayEvents {
         EssencePylonNetworkService.init();
         ItemEssenceTooltipSyncService.init();
         PlayerEssenceSyncService.init();
+        SkillEffectHudSyncService.init();
         EquipmentTooltipSyncService.init();
         PlayerRuntimeLifecycleService.init();
         SoulboundEquipmentService.init();
 
         TickEvent.PLAYER_POST.register(player -> {
             if (player instanceof ServerPlayer serverPlayer) {
+                SkillEffectRuntime.tick(serverPlayer);
+                EquipmentDamageService.tickSkillInput(serverPlayer);
                 EquipmentShieldService.tick(serverPlayer);
                 EquipmentAttributeService.sync(serverPlayer);
                 EquipmentMobilityService.sync(serverPlayer);
@@ -48,6 +53,9 @@ public final class EquipmentGameplayEvents {
                 EquipmentWeaponService.syncRangedVisualState(serverPlayer);
                 EquipmentGatheringService.sync(serverPlayer);
                 EquipmentTooltipSyncService.sync(serverPlayer);
+                // Send after the authoritative gameplay pass so the HUD sees
+                // the same resolved state used by combat this tick.
+                SkillEffectHudSyncService.syncIfNeeded(serverPlayer);
             }
         });
 

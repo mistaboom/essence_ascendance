@@ -3,6 +3,7 @@ package com.mistaboom.essence_ascendance.equipment;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import com.mistaboom.essence_ascendance.stat.EssenceStats;
+import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
@@ -103,7 +104,7 @@ public final class EquipmentWeaponService {
                 EssenceStats.RANGED_ATTACK_SPEED,
                 held.strength(EssenceStats.RANGED_ATTACK_SPEED),
                 baseline.rangedAttackSpeed()
-        );
+        ) * SkillEffectRuntime.bowDrawSpeedMultiplier(player);
 
         double projectileSpeedPercent = EquipmentValueService.scaledBonus(
                 playerData,
@@ -158,7 +159,7 @@ public final class EquipmentWeaponService {
                 EssenceStats.MAGIC_CAST_SPEED,
                 held.strength(EssenceStats.MAGIC_CAST_SPEED),
                 baseline.magicCastSpeed()
-        );
+        ) * SkillEffectRuntime.casterSpeedMultiplier(player);
 
         return new MagicState(
                 baseline.magicDamage(),
@@ -439,10 +440,10 @@ public final class EquipmentWeaponService {
             targetName = target.getDisplayName().getString();
             targetDistance = start.distanceTo(target.position());
 
-            damaged = target.hurt(
-                    player.damageSources().indirectMagic(player, player),
-                    (float) state.finalDamage()
-            );
+            // This is the real first-party hitscan execution, so attribute it
+            // explicitly instead of treating arbitrary synthetic magic as a cast.
+            damaged = EquipmentDamageService.hurtWithCasterContext(
+                    player, target, (float) state.finalDamage());
         }
 
         player.getCooldowns().addCooldown(

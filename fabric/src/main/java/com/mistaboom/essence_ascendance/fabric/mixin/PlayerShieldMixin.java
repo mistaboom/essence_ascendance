@@ -58,7 +58,7 @@ public abstract class PlayerShieldMixin {
 
     @WrapOperation(method = "disableShield", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/world/item/ItemCooldowns;addCooldown(Lnet/minecraft/world/item/Item;I)V"))
-    private void essenceAscendance$guardRecovery(ItemCooldowns cooldowns, Item item, int ticks, Operation<Void> original) {
+    private void essenceAscendance$guardReadiness(ItemCooldowns cooldowns, Item item, int ticks, Operation<Void> original) {
         Player player = (Player) (Object) this;
         boolean ascendanceShield = EquipmentShieldService.isShield(essenceAscendance$disabledShield);
 

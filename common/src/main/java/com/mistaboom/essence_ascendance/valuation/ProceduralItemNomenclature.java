@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
  * for opaque registry names. Neither mod namespaces nor translated display text
  * are evidence. In particular, an anvil-renamed item cannot influence valuation.
  */
-final class ShadowItemNomenclature {
+final class ProceduralItemNomenclature {
     private static final Pattern CAMEL_BOUNDARY = Pattern.compile("([a-z0-9])([A-Z])");
     private static final Pattern SEPARATORS = Pattern.compile("[^a-z]+");
     // Remove only a color-modifying occurrence; a later actual light/lamp remains.
@@ -39,7 +39,7 @@ final class ShadowItemNomenclature {
             "drill", "glider", "boots", "sickle", "scythe", "hatchet", "hammer"
     );
 
-    private ShadowItemNomenclature() {
+    private ProceduralItemNomenclature() {
     }
 
     static Analysis analyze(String registryId) {

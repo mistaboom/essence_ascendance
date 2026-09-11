@@ -7,8 +7,8 @@ import java.util.List;
 import java.util.Map;
 
 /** Exact rational constraints for reversible recipes, independent of Minecraft. */
-final class ShadowConservationMath {
-    private ShadowConservationMath() { }
+final class ProceduralConservationMath {
+    private ProceduralConservationMath() { }
 
     record Edge<T>(T source, T target, long numerator, long denominator) { }
     record Plan<T>(Map<T, Long> units, String problem) {

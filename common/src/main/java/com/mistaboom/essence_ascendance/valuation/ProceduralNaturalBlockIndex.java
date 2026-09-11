@@ -25,17 +25,17 @@ import java.util.Set;
  * relationship before this index can admit a self-drop acquisition path.
  * Loader-only features with no data representation remain unknown, not free.
  */
-final class ShadowNaturalBlockIndex {
+final class ProceduralNaturalBlockIndex {
     private static final int MAX_DEPTH = 48;
     private final Map<ResourceLocation, List<String>> evidence;
 
-    private ShadowNaturalBlockIndex(Map<ResourceLocation, List<String>> evidence) {
+    private ProceduralNaturalBlockIndex(Map<ResourceLocation, List<String>> evidence) {
         Map<ResourceLocation, List<String>> copy = new LinkedHashMap<>();
         evidence.forEach((id, signals) -> copy.put(id, List.copyOf(signals)));
         this.evidence = Map.copyOf(copy);
     }
 
-    static ShadowNaturalBlockIndex build(MinecraftServer server) {
+    static ProceduralNaturalBlockIndex build(MinecraftServer server) {
         Map<ResourceLocation, JsonObject> biomes = load(server, "worldgen/biome/");
         Map<ResourceLocation, JsonObject> placed = load(server, "worldgen/placed_feature/");
         Map<ResourceLocation, JsonObject> configured = load(server, "worldgen/configured_feature/");
@@ -44,7 +44,7 @@ final class ShadowNaturalBlockIndex {
     }
 
     // Package-visible for deterministic fixture tests; no world access or generation.
-    static ShadowNaturalBlockIndex fromData(
+    static ProceduralNaturalBlockIndex fromData(
             Map<ResourceLocation, JsonObject> biomes,
             Map<ResourceLocation, JsonObject> placed,
             Map<ResourceLocation, JsonObject> configured,
@@ -59,7 +59,7 @@ final class ShadowNaturalBlockIndex {
             scan.states(entry.getValue().get("default_fluid"), source, 0);
             scan.states(entry.getValue().get("surface_rule"), source, 0);
         });
-        return new ShadowNaturalBlockIndex(scan.evidence);
+        return new ProceduralNaturalBlockIndex(scan.evidence);
     }
 
     boolean contains(ResourceLocation blockId) { return evidence.containsKey(blockId); }

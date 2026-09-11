@@ -5,6 +5,7 @@ import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
+import com.mistaboom.essence_ascendance.skill.SkillDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
 import com.mistaboom.essence_ascendance.tier.AscendanceTiers;
@@ -822,6 +823,31 @@ public final class PlayerEssenceData {
 
         bumpRevision();
         return true;
+    }
+
+    /** Development-only bulk mutation: grants the current catalog at zero cost in one revision. */
+    public int grantAllSkillsForAdmin(Iterable<SkillDefinition> definitions) {
+        Objects.requireNonNull(definitions, "Skill definitions cannot be null");
+        int granted = 0;
+        for (SkillDefinition definition : definitions) {
+            Objects.requireNonNull(definition, "Skill definition cannot be null");
+            if (!ownedSkills.containsKey(definition.id())) {
+                ownedSkills.put(definition.id(), new SkillPurchase(definition.essenceId(), 0L));
+                granted++;
+            }
+        }
+        if (granted > 0) bumpRevision();
+        return granted;
+    }
+
+    /** Development-only reset of both ownership receipts and their selections. */
+    public int clearAllSkillsForAdmin() {
+        int removed = ownedSkills.size();
+        if (removed == 0 && loadoutSelections.isEmpty()) return 0;
+        ownedSkills.clear();
+        loadoutSelections.clear();
+        bumpRevision();
+        return removed;
     }
 
 

@@ -9,8 +9,8 @@ import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.network.ItemEssenceTooltipSyncService;
 import com.mistaboom.essence_ascendance.valuation.GeneratedYieldEligibility;
-import com.mistaboom.essence_ascendance.valuation.ShadowValuationEngine;
-import com.mistaboom.essence_ascendance.valuation.ShadowValuationResult;
+import com.mistaboom.essence_ascendance.valuation.ProceduralValuationEngine;
+import com.mistaboom.essence_ascendance.valuation.ProceduralValuationResult;
 import dev.architectury.event.events.common.LifecycleEvent;
 import dev.architectury.event.events.common.TickEvent;
 import dev.architectury.platform.Platform;
@@ -69,7 +69,7 @@ public final class ItemEssenceMappingManager {
                 observedRecipes = null;
                 activeSettings = ConfigSettings.defaults();
                 ItemEssenceMappingRegistry.clear();
-                ShadowValuationEngine.clear();
+                ProceduralValuationEngine.clear();
             }
         });
         // A successful vanilla /reload swaps the server's resource/recipe holders.
@@ -83,7 +83,7 @@ public final class ItemEssenceMappingManager {
                 observedResources = server.getResourceManager();
                 observedRecipes = server.getRecipeManager();
                 // Explicit diagnostics must not reuse analysis of the old data.
-                ShadowValuationEngine.clear();
+                ProceduralValuationEngine.clear();
                 reload();
             }
         });
@@ -107,7 +107,7 @@ public final class ItemEssenceMappingManager {
                 "generated/" + itemId.getNamespace() + "/" + itemId.getPath());
     }
 
-    public static GeneratedYieldEligibility.Decision generatedDecision(ShadowValuationResult result) {
+    public static GeneratedYieldEligibility.Decision generatedDecision(ProceduralValuationResult result) {
         Item item = BuiltInRegistries.ITEM.getOptional(result.itemId()).orElse(null);
         if (item == null) return new GeneratedYieldEligibility.Decision(GeneratedYieldEligibility.Status.EXCLUDED, "unregistered");
         ItemStack stack = new ItemStack(item);
@@ -152,8 +152,8 @@ public final class ItemEssenceMappingManager {
                             SharedConstants.getCurrentVersion().getName(), forceRegeneration, () -> {
                                 EssenceAscendance.LOGGER.info("Calculating procedural mappings for {}; saved baseline will be replaced only after validation",
                                         generatedCachePath());
-                                ShadowValuationEngine.rebuild(activeServer);
-                                return ShadowValuationEngine.evaluateAll(activeServer).stream().map(value -> {
+                                ProceduralValuationEngine.rebuild(activeServer);
+                                return ProceduralValuationEngine.evaluateAll(activeServer).stream().map(value -> {
                                     Map<String, Long> outputs = new LinkedHashMap<>();
                                     value.routedEssence().forEach((essence, amount) -> outputs.put(essence.id().toString(), amount));
                                     return new GeneratedMappingCache.Entry(value.itemId().toString(), value.totalValue(),
@@ -164,7 +164,7 @@ public final class ItemEssenceMappingManager {
                 } else {
                     // The emergency off switch must work even with a bad cache.
                     // Do not read, generate, overwrite or delete the saved baseline.
-                    ShadowValuationEngine.clear();
+                    ProceduralValuationEngine.clear();
                     values = List.of();
                 }
                 Set<ResourceLocation> cachedIds = new LinkedHashSet<>();

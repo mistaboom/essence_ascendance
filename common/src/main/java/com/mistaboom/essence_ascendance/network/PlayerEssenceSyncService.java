@@ -6,6 +6,7 @@ import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
+import com.mistaboom.essence_ascendance.lifecycle.PlayerRuntimeLifecycleService;
 import com.mistaboom.essence_ascendance.progression.AscendanceAdvancementDefinition;
 import com.mistaboom.essence_ascendance.progression.AscendanceEngine;
 import com.mistaboom.essence_ascendance.progression.AscendanceEvaluationResult;
@@ -135,6 +136,9 @@ public final class PlayerEssenceSyncService {
     public static void milestoneStateChanged(
             ServerPlayer player
     ) {
+        // Providers can change without a saved revision; gameplay must refresh
+        // even if this player's network snapshot cannot be delivered yet.
+        PlayerRuntimeLifecycleService.refreshSkillState(player);
         forceSync(player);
     }
 
