@@ -16,7 +16,7 @@ import java.lang.ref.WeakReference;
 import java.util.List;
 import java.util.UUID;
 
-/** The only four gameplay implementations in this batch; no catalog metadata is duplicated. */
+/** Combat Stance handlers; no catalog metadata is duplicated. */
 final class OffenseCombatStanceEffects {
     private static final ResourceLocation FRENZY_SPEED = id("skill/frenzy/attack_speed");
     private static final ResourceLocation RUSH_SPEED = id("skill/death_rush/attack_speed");
@@ -109,11 +109,11 @@ final class OffenseCombatStanceEffects {
         }
 
         @Override public double damageMultiplier(SkillEffectRuntime.Context context, LivingEntity target,
-                                                 DamageSource source, boolean primaryMelee) {
+                                                 DamageSource source, AttackCategory primaryCategory) {
             // Stacks still come only from accepted primary melee hits. Once
             // earned, the damage bonus applies to melee/tools, bow shots, and
             // the Ascendance Caster's first-party damage route.
-            if (primaryMelee && !context.matchesPrimaryTarget(target)) return 1.0;
+            if (primaryCategory == AttackCategory.MELEE && !context.matchesPrimaryTarget(target)) return 1.0;
             TimedStackState state = context.existingState(id());
             var settings = context.settings().frenzy();
             return SkillEffectMath.stackMultiplier(state == null ? 0 : state.count(),
@@ -229,7 +229,7 @@ final class OffenseCombatStanceEffects {
         }
 
         @Override public double damageMultiplier(SkillEffectRuntime.Context context, LivingEntity target,
-                                                 DamageSource source, boolean primaryMelee) {
+                                                 DamageSource source, AttackCategory primaryCategory) {
             return SkillEffectMath.desperationMultiplier(context.player().getHealth(), context.player().getMaxHealth(),
                     context.settings().desperation().maxDamageBonusPercent());
         }

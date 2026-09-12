@@ -26,6 +26,8 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentDamageService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentShieldService;
 import com.mistaboom.essence_ascendance.equipment.ShieldMath;
 import com.mistaboom.essence_ascendance.equipment.EquipmentGatheringService;
+import com.mistaboom.essence_ascendance.equipment.MenuCostModificationService;
+import com.mistaboom.essence_ascendance.equipment.PlayerAttributedBlockHarvestService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentMobilityService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfileDefinition;
 import com.mistaboom.essence_ascendance.equipment.EquipmentProfileItem;
@@ -181,8 +183,8 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug shield", "held/block context and disjoint blocked/health-loss retaliation measurements"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug vitality", "health, regeneration, healing, hunger, breath"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug mobility", "movement, swimming, jumping, stepping, flight"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug gathering", "mining, Fortune, Looting, reach, XP gain"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug utility", "Luck, sneak speed, durability efficiency"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug gathering", "mining, Fortune, Looting, crop yield, XP gain"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug utility", "Luck, sneak speed, durability, reach, and menu efficiencies"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.muted("Stat investment/scaling/applicability is intentionally centralized at /essence stat <stat>."));
         return 1;
     }
@@ -2519,11 +2521,8 @@ final class EssenceDebugCommands {
                         + " Essence levels -> virtual " + gathering.lootingVirtualLevel()
         ));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Reach",
-                "+" + EssenceCommandUtil.formatDecimal(attributes.reachBlocks()) + " blocks"
-                        + " | actual block/entity "
-                        + EssenceCommandUtil.formatDecimal(player.getAttributeValue(Attributes.BLOCK_INTERACTION_RANGE)) + "/"
-                        + EssenceCommandUtil.formatDecimal(player.getAttributeValue(Attributes.ENTITY_INTERACTION_RANGE))
+                "Crop yield",
+                "+" + EssenceCommandUtil.formatDecimal(gathering.cropYieldPercent()) + "%"
         ));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
                 "Experience gain",
@@ -2555,6 +2554,18 @@ final class EssenceDebugCommands {
                 ),
                 () -> EssenceCommandUtil.send(source, EssenceCommandUtil.muted("  Last XP gain: NONE RECORDED"))
         );
+        PlayerAttributedBlockHarvestService.lastCropHarvest(player).ifPresentOrElse(
+                harvest -> EssenceCommandUtil.send(
+                        source,
+                        EssenceCommandUtil.line(
+                                "Last crop harvest",
+                                harvest.blockDescriptionId() + " | base " + harvest.eligibleBaseUnits()
+                                        + " + bonus " + harvest.additionalUnits()
+                                        + " | +" + EssenceCommandUtil.formatDecimal(harvest.bonusPercent()) + "%"
+                        )
+                ),
+                () -> EssenceCommandUtil.send(source, EssenceCommandUtil.muted("  Last crop harvest: NONE RECORDED"))
+        );
         return 1;
     }
 
@@ -2583,6 +2594,21 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
                 "Main-hand durability efficiency",
                 EssenceCommandUtil.formatDecimal(gathering.durabilityEfficiencyPercent()) + "%"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Reach",
+                "+" + EssenceCommandUtil.formatDecimal(attributes.reachBlocks()) + " blocks"
+                        + " | actual block/entity "
+                        + EssenceCommandUtil.formatDecimal(player.getAttributeValue(Attributes.BLOCK_INTERACTION_RANGE)) + "/"
+                        + EssenceCommandUtil.formatDecimal(player.getAttributeValue(Attributes.ENTITY_INTERACTION_RANGE))
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Anvil efficiency",
+                EssenceCommandUtil.formatDecimal(MenuCostModificationService.anvilEfficiencyPercent(player)) + "%"
+        ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                "Enchanting efficiency",
+                EssenceCommandUtil.formatDecimal(MenuCostModificationService.enchantingEfficiencyPercent(player)) + "%"
         ));
 
         for (EquipmentSlot slot : EquipmentStatResolver.armorSlots()) {
@@ -2616,6 +2642,19 @@ final class EssenceDebugCommands {
                         )
                 ),
                 () -> EssenceCommandUtil.send(source, EssenceCommandUtil.muted("  Last durability event: NONE RECORDED"))
+        );
+        MenuCostModificationService.lastMenuCost(player).ifPresentOrElse(
+                cost -> EssenceCommandUtil.send(
+                        source,
+                        EssenceCommandUtil.line(
+                                "Last efficient menu cost",
+                                cost.channelId().getPath() + " | " + cost.baseCost()
+                                        + " -> " + cost.resolvedCost()
+                                        + " | " + EssenceCommandUtil.formatDecimal(cost.efficiencyPercent()) + "% efficient"
+                                        + " | carry " + EssenceCommandUtil.formatDecimal(cost.fractionalCarry())
+                        )
+                ),
+                () -> EssenceCommandUtil.send(source, EssenceCommandUtil.muted("  Last efficient menu cost: NONE RECORDED"))
         );
         return 1;
     }

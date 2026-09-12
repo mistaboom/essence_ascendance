@@ -28,7 +28,18 @@ final class SkillEffectHudDiagnostics {
                 List.of(), SkillEffectHudEntry.Meter.progress(0.5));
         SkillEffectHudEntry future = SkillEffectHudEntry.skill(SkillIds.NATURES_BOON, true, 0xFF00FF00,
                 SkillEffectHudEntry.Text.literal("TEST"), List.of(), SkillEffectHudEntry.Meter.none());
-        SkillEffectHudSnapshot source = new SkillEffectHudSnapshot(100L, 12, dimension, List.of(one, two, future));
+        SkillEffectHudEntry heat = SkillEffectHudEntry.skill(SkillIds.KINDLING, true, 0xFFFF6A2B,
+                SkillEffectHudEntry.Text.translated("hud.essence_ascendance.heat", "3", "5"),
+                List.of(SkillEffectHudEntry.Text.literal("Zombie")), SkillEffectHudEntry.Meter.progress(0.6));
+        SkillEffectHudEntry chill = SkillEffectHudEntry.skill(SkillIds.FROSTBITE, true, 0xFF72D9FF,
+                SkillEffectHudEntry.Text.translated("hud.essence_ascendance.chill", "4", "5"),
+                List.of(SkillEffectHudEntry.Text.literal("Skeleton")), SkillEffectHudEntry.Meter.progress(0.8));
+        SkillEffectHudEntry charge = SkillEffectHudEntry.skill(SkillIds.STATIC_CHARGE, true, 0xFFFFE45C,
+                SkillEffectHudEntry.Text.literal("100.0/100.0"),
+                List.of(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.next_confirmed_attack")),
+                SkillEffectHudEntry.Meter.progress(1.0));
+        SkillEffectHudSnapshot source = new SkillEffectHudSnapshot(100L, 12, dimension,
+                List.of(one, two, future, heat, chill, charge));
         RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), RegistryAccess.EMPTY);
         try {
             SkillEffectHudPayload.CODEC.encode(buffer, new SkillEffectHudPayload(source));

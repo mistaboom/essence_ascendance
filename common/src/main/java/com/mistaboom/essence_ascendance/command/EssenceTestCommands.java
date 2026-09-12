@@ -107,7 +107,7 @@ public final class EssenceTestCommands {
         ));
         if (failures.isEmpty()) {
             EssenceCommandUtil.send(source, EssenceCommandUtil.good(
-                    "  PASS Scoped registrations, relationships, config, stack/health/timer math, and persistent-data boundary."
+                    "  PASS Registrations, relationships, elemental budgets, HUD codecs, config, combat math, and persistent-data boundary."
             ));
         } else {
             for (String failure : failures) {

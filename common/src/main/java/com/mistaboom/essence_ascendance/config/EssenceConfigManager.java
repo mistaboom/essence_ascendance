@@ -39,7 +39,7 @@ import java.util.Map;
 public final class EssenceConfigManager {
 
     public static final int CURRENT_CONFIG_VERSION =
-            11;
+            12;
 
     private static final int MAX_REQUIREMENT_DEPTH =
             32;
@@ -764,6 +764,16 @@ public final class EssenceConfigManager {
         }
 
         /*
+         * v12 adds attack-scaled Kindling pulses and changes the generated
+         * Static Charge sprint rate from 20 seconds to 5 seconds. Only the old
+         * exact generated sprint value is migrated; genuine custom values are
+         * preserved.
+         */
+        if (version <= 11 && migrateV11ElementalBalance(root)) {
+            changed = true;
+        }
+
+        /*
          * v8 briefly auto-materialized the Latent Ore defaults into every
          * config. v9 returns to the mod's sparse override philosophy. If the
          * section is byte-for-byte equivalent to the v8 generated defaults,
@@ -779,6 +789,38 @@ public final class EssenceConfigManager {
             changed = true;
         }
 
+        return changed;
+    }
+
+    private static boolean migrateV11ElementalBalance(JsonObject root) {
+        JsonElement effectsElement = root.get("skill_effects");
+        if (effectsElement == null || !effectsElement.isJsonObject()) return false;
+        JsonElement offenseElement = effectsElement.getAsJsonObject().get("offense");
+        if (offenseElement == null || !offenseElement.isJsonObject()) return false;
+        JsonElement elementalElement = offenseElement.getAsJsonObject().get("elemental_imbuement");
+        if (elementalElement == null || !elementalElement.isJsonObject()) return false;
+
+        JsonObject elemental = elementalElement.getAsJsonObject();
+        boolean changed = false;
+        JsonElement kindlingElement = elemental.get("kindling");
+        if (kindlingElement != null && kindlingElement.isJsonObject()) {
+            JsonObject kindling = kindlingElement.getAsJsonObject();
+            if (!kindling.has("burning_damage_percent_per_second")) {
+                kindling.addProperty("burning_damage_percent_per_second", 20.0D);
+                changed = true;
+            }
+        }
+
+        JsonElement staticElement = elemental.get("static_charge");
+        if (staticElement != null && staticElement.isJsonObject()) {
+            JsonObject staticCharge = staticElement.getAsJsonObject();
+            JsonElement sprint = staticCharge.get("sprint_per_tick");
+            if (sprint != null && sprint.isJsonPrimitive() && sprint.getAsJsonPrimitive().isNumber()
+                    && Double.compare(sprint.getAsDouble(), 0.25D) == 0) {
+                staticCharge.addProperty("sprint_per_tick", 1.0D);
+                changed = true;
+            }
+        }
         return changed;
     }
 
@@ -1368,7 +1410,7 @@ public final class EssenceConfigManager {
 
     private static JsonObject createSkillEffectsJson(SkillEffectBalanceSettings settings) {
         JsonObject result = new JsonObject();
-        result.addProperty("_comment", "All skill-effect values are provisional, not final balance. Missing sections or fields use built-in defaults. Percent fields use 4.0 for 4%, health thresholds use fractions, and 20 ticks equal one second. Stack limits: 0-100; durations: 1-72000 ticks; per-stack percent bonuses: 0-100; defense reduction: 0-1024; maximum Desperation bonus: 0-1000%.");
+        result.addProperty("_comment", "All skill-effect values are provisional, not final balance. Missing sections or fields use built-in defaults. Percent fields use 4.0 for 4%, fractional slows use 0.4 for 40%, health thresholds use fractions, and 20 ticks equal one second. Every field is validated when the server config loads or reloads.");
         JsonObject offense = new JsonObject();
         JsonObject stances = new JsonObject();
 
@@ -1407,6 +1449,71 @@ public final class EssenceConfigManager {
         rush.addProperty("cast_speed_bonus_percent_per_stack", rushSettings.castSpeedBonusPercentPerStack());
         stances.add("death_rush", rush);
         offense.add("combat_stances", stances);
+
+        JsonObject elemental = new JsonObject();
+        var kindlingSettings = settings.kindling();
+        JsonObject kindling = new JsonObject();
+        kindling.addProperty("_comment", "Heat is source-owned. Confirmed primary melee, projectile, and Ascendance Caster hits add Heat. Once burning, later confirmed hits refresh the condition and its pulse damage. Pulse damage is a percentage of the latest triggering hit's measured health/absorption loss. Burning amplification applies only to that owner's qualifying primary attacks.");
+        kindling.addProperty("max_heat", kindlingSettings.maxHeat());
+        kindling.addProperty("heat_per_hit", kindlingSettings.heatPerHit());
+        kindling.addProperty("heat_expiry_ticks", kindlingSettings.heatExpiryTicks());
+        kindling.addProperty("ignition_duration_ticks", kindlingSettings.ignitionDurationTicks());
+        kindling.addProperty("burning_damage_percent_per_second", kindlingSettings.burningDamagePercentPerSecond());
+        kindling.addProperty("burning_damage_amplification_percent", kindlingSettings.burningDamageAmplificationPercent());
+        elemental.add("kindling", kindling);
+
+        var combustionSettings = settings.combustion();
+        JsonObject combustion = new JsonObject();
+        combustion.addProperty("_comment", "Terrain-safe direct entity damage. Each root has a generation cap, total target budget, deterministic distance ordering, and visited-target protection.");
+        combustion.addProperty("damage", combustionSettings.damage());
+        combustion.addProperty("radius", combustionSettings.radius());
+        combustion.addProperty("targets_per_burst", combustionSettings.targetsPerBurst());
+        combustion.addProperty("maximum_generation", combustionSettings.maximumGeneration());
+        combustion.addProperty("root_target_budget", combustionSettings.rootTargetBudget());
+        combustion.addProperty("generation_damage_falloff", combustionSettings.generationDamageFalloff());
+        combustion.addProperty("seeded_ignition_ticks", combustionSettings.seededIgnitionTicks());
+        elemental.add("combustion", combustion);
+
+        var frostbiteSettings = settings.frostbite();
+        JsonObject frostbite = new JsonObject();
+        frostbite.addProperty("_comment", "Chill is source-owned. Slow values are fractions of movement speed and use owner-namespaced transient modifiers.");
+        frostbite.addProperty("max_chill", frostbiteSettings.maxChill());
+        frostbite.addProperty("chill_per_hit", frostbiteSettings.chillPerHit());
+        frostbite.addProperty("chill_expiry_ticks", frostbiteSettings.chillExpiryTicks());
+        frostbite.addProperty("slow_per_stack", frostbiteSettings.slowPerStack());
+        frostbite.addProperty("maximum_progressive_slow", frostbiteSettings.maximumProgressiveSlow());
+        frostbite.addProperty("freeze_duration_ticks", frostbiteSettings.freezeDurationTicks());
+        frostbite.addProperty("frozen_slow", frostbiteSettings.frozenSlow());
+        elemental.add("frostbite", frostbite);
+
+        var shatterSettings = settings.shatter();
+        JsonObject shatter = new JsonObject();
+        shatter.addProperty("shard_damage", shatterSettings.shardDamage());
+        shatter.addProperty("radius", shatterSettings.radius());
+        shatter.addProperty("maximum_targets", shatterSettings.maximumTargets());
+        elemental.add("shatter", shatter);
+
+        var staticSettings = settings.staticCharge();
+        JsonObject staticCharge = new JsonObject();
+        staticCharge.addProperty("_comment", "Server tick accumulation. A takeoff with positive vertical velocity grants jump_charge once; continuous sprint/fall/fly/glide uses one highest-priority mode per tick. Partial charge decays after the idle grace; full charge is preserved until a confirmed hit.");
+        staticCharge.addProperty("maximum_charge", staticSettings.maximumCharge());
+        staticCharge.addProperty("sprint_per_tick", staticSettings.sprintPerTick());
+        staticCharge.addProperty("jump_charge", staticSettings.jumpCharge());
+        staticCharge.addProperty("fall_per_tick", staticSettings.fallPerTick());
+        staticCharge.addProperty("flight_per_tick", staticSettings.flightPerTick());
+        staticCharge.addProperty("glide_per_tick", staticSettings.glidePerTick());
+        staticCharge.addProperty("idle_grace_ticks", staticSettings.idleGraceTicks());
+        staticCharge.addProperty("decay_per_tick", staticSettings.decayPerTick());
+        staticCharge.addProperty("lightning_damage", staticSettings.lightningDamage());
+        elemental.add("static_charge", staticCharge);
+
+        var chainSettings = settings.chainStrike();
+        JsonObject chain = new JsonObject();
+        chain.addProperty("maximum_jumps", chainSettings.maximumJumps());
+        chain.addProperty("radius", chainSettings.radius());
+        chain.addProperty("damage_falloff", chainSettings.damageFalloff());
+        elemental.add("chain_strike", chain);
+        offense.add("elemental_imbuement", elemental);
         result.add("offense", offense);
         return result;
     }
@@ -1420,9 +1527,22 @@ public final class EssenceConfigManager {
         JsonObject crack = skillSettingsObject(stances, "armor_crack");
         JsonObject desperation = skillSettingsObject(stances, "desperation");
         JsonObject rush = skillSettingsObject(stances, "death_rush");
+        JsonObject elemental = skillSettingsObject(offense, "elemental_imbuement");
+        JsonObject kindling = skillSettingsObject(elemental, "kindling");
+        JsonObject combustion = skillSettingsObject(elemental, "combustion");
+        JsonObject frostbite = skillSettingsObject(elemental, "frostbite");
+        JsonObject shatter = skillSettingsObject(elemental, "shatter");
+        JsonObject staticCharge = skillSettingsObject(elemental, "static_charge");
+        JsonObject chainStrike = skillSettingsObject(elemental, "chain_strike");
         var f = defaults.frenzy();
         var a = defaults.armorCrack();
         var d = defaults.deathRush();
+        var k = defaults.kindling();
+        var c = defaults.combustion();
+        var fz = defaults.frostbite();
+        var sh = defaults.shatter();
+        var sc = defaults.staticCharge();
+        var cs = defaults.chainStrike();
         return new SkillEffectBalanceSettings(
                 new SkillEffectBalanceSettings.Frenzy(
                         readSkillSettingInt(frenzy, "max_stacks", f.maxStacks()),
@@ -1443,7 +1563,49 @@ public final class EssenceConfigManager {
                         readSkillSettingInt(rush, "stack_duration_ticks", d.stackDurationTicks()),
                         readSkillSettingDouble(rush, "attack_speed_bonus_percent_per_stack", d.attackSpeedBonusPercentPerStack()),
                         readSkillSettingDouble(rush, "bow_draw_speed_bonus_percent_per_stack", d.bowDrawSpeedBonusPercentPerStack()),
-                        readSkillSettingDouble(rush, "cast_speed_bonus_percent_per_stack", d.castSpeedBonusPercentPerStack()))
+                        readSkillSettingDouble(rush, "cast_speed_bonus_percent_per_stack", d.castSpeedBonusPercentPerStack())),
+                new SkillEffectBalanceSettings.Kindling(
+                        readSkillSettingInt(kindling, "max_heat", k.maxHeat()),
+                        readSkillSettingInt(kindling, "heat_per_hit", k.heatPerHit()),
+                        readSkillSettingInt(kindling, "heat_expiry_ticks", k.heatExpiryTicks()),
+                        readSkillSettingInt(kindling, "ignition_duration_ticks", k.ignitionDurationTicks()),
+                        readSkillSettingDouble(kindling, "burning_damage_percent_per_second",
+                                k.burningDamagePercentPerSecond()),
+                        readSkillSettingDouble(kindling, "burning_damage_amplification_percent", k.burningDamageAmplificationPercent())),
+                new SkillEffectBalanceSettings.Combustion(
+                        readSkillSettingDouble(combustion, "damage", c.damage()),
+                        readSkillSettingDouble(combustion, "radius", c.radius()),
+                        readSkillSettingInt(combustion, "targets_per_burst", c.targetsPerBurst()),
+                        readSkillSettingInt(combustion, "maximum_generation", c.maximumGeneration()),
+                        readSkillSettingInt(combustion, "root_target_budget", c.rootTargetBudget()),
+                        readSkillSettingDouble(combustion, "generation_damage_falloff", c.generationDamageFalloff()),
+                        readSkillSettingInt(combustion, "seeded_ignition_ticks", c.seededIgnitionTicks())),
+                new SkillEffectBalanceSettings.Frostbite(
+                        readSkillSettingInt(frostbite, "max_chill", fz.maxChill()),
+                        readSkillSettingInt(frostbite, "chill_per_hit", fz.chillPerHit()),
+                        readSkillSettingInt(frostbite, "chill_expiry_ticks", fz.chillExpiryTicks()),
+                        readSkillSettingDouble(frostbite, "slow_per_stack", fz.slowPerStack()),
+                        readSkillSettingDouble(frostbite, "maximum_progressive_slow", fz.maximumProgressiveSlow()),
+                        readSkillSettingInt(frostbite, "freeze_duration_ticks", fz.freezeDurationTicks()),
+                        readSkillSettingDouble(frostbite, "frozen_slow", fz.frozenSlow())),
+                new SkillEffectBalanceSettings.Shatter(
+                        readSkillSettingDouble(shatter, "shard_damage", sh.shardDamage()),
+                        readSkillSettingDouble(shatter, "radius", sh.radius()),
+                        readSkillSettingInt(shatter, "maximum_targets", sh.maximumTargets())),
+                new SkillEffectBalanceSettings.StaticCharge(
+                        readSkillSettingDouble(staticCharge, "maximum_charge", sc.maximumCharge()),
+                        readSkillSettingDouble(staticCharge, "sprint_per_tick", sc.sprintPerTick()),
+                        readSkillSettingDouble(staticCharge, "jump_charge", sc.jumpCharge()),
+                        readSkillSettingDouble(staticCharge, "fall_per_tick", sc.fallPerTick()),
+                        readSkillSettingDouble(staticCharge, "flight_per_tick", sc.flightPerTick()),
+                        readSkillSettingDouble(staticCharge, "glide_per_tick", sc.glidePerTick()),
+                        readSkillSettingInt(staticCharge, "idle_grace_ticks", sc.idleGraceTicks()),
+                        readSkillSettingDouble(staticCharge, "decay_per_tick", sc.decayPerTick()),
+                        readSkillSettingDouble(staticCharge, "lightning_damage", sc.lightningDamage())),
+                new SkillEffectBalanceSettings.ChainStrike(
+                        readSkillSettingInt(chainStrike, "maximum_jumps", cs.maximumJumps()),
+                        readSkillSettingDouble(chainStrike, "radius", cs.radius()),
+                        readSkillSettingDouble(chainStrike, "damage_falloff", cs.damageFalloff()))
         );
     }
 

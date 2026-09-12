@@ -27,6 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  *   fortune
  *   looting
+ *   crop_yield
  *   experience_gain
  *   durability_efficiency
  *
@@ -668,6 +669,7 @@ public final class EquipmentGatheringService {
                 toVirtualLevel(fortuneLevels),
                 lootingLevels,
                 toVirtualLevel(lootingLevels),
+                PlayerAttributedBlockHarvestService.cropYieldPercent(player),
                 experienceGainPercent(player),
                 durabilityPercent
         );
@@ -729,6 +731,10 @@ public final class EquipmentGatheringService {
         LAST_EXPERIENCE.remove(playerId);
         LAST_DURABILITY.remove(playerId);
         LAST_ENCHANTMENT_QUERY.remove(playerId);
+        PlayerAttributedBlockHarvestService.forget(entity);
+        if (entity instanceof ServerPlayer player) {
+            MenuCostModificationService.forget(player);
+        }
     }
 
     private static PlayerEssenceData playerData(ServerPlayer player) {
@@ -773,6 +779,7 @@ public final class EquipmentGatheringService {
             int fortuneVirtualLevel,
             double lootingEarnedLevels,
             int lootingVirtualLevel,
+            double cropYieldPercent,
             double experienceGainPercent,
             double durabilityEfficiencyPercent
     ) {

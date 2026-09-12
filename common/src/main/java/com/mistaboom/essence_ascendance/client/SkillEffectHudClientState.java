@@ -16,7 +16,8 @@ import java.util.Map;
 
 /** Skill-agnostic presentation cache; server omissions hide disabled/suspended effects immediately. */
 public final class SkillEffectHudClientState {
-    private static final EffectHudVisibility<ResourceLocation> VISIBILITY = new EffectHudVisibility<>(20L);
+    private static final EffectHudVisibility<ResourceLocation> VISIBILITY = new EffectHudVisibility<>(60L);
+    private static final Map<ResourceLocation, SkillEffectHudEntry> DISPLAY_ENTRIES = new LinkedHashMap<>();
     private static SkillEffectHudSnapshot snapshot;
     private static LocalPlayer receiptPlayer;
     private static ClientLevel receiptLevel;
@@ -38,6 +39,7 @@ public final class SkillEffectHudClientState {
         receiptLevel = null;
         receiptTime = 0L;
         VISIBILITY.clear();
+        DISPLAY_ENTRIES.clear();
     }
 
     public static List<SkillEffectHudEntry> visibleEntries() {
@@ -46,7 +48,10 @@ public final class SkillEffectHudClientState {
         if (snapshot == null || minecraft.player == null || minecraft.level == null
                 || !minecraft.player.isAlive()) return List.of();
         long now = minecraft.level.getGameTime();
-        return snapshot.entries().stream().filter(entry -> VISIBILITY.visible(entry.id(), now)).toList();
+        return snapshot.entries().stream()
+                .filter(entry -> VISIBILITY.visible(entry.id(), now))
+                .map(entry -> DISPLAY_ENTRIES.getOrDefault(entry.id(), entry))
+                .toList();
     }
 
     public static long estimatedServerGameTime() {
@@ -63,7 +68,13 @@ public final class SkillEffectHudClientState {
         if (receiptPlayer != minecraft.player || receiptLevel != minecraft.level) clear();
         long now = minecraft.level.getGameTime();
         Map<ResourceLocation, Boolean> entries = new LinkedHashMap<>();
-        for (SkillEffectHudEntry entry : payload.snapshot().entries()) entries.put(entry.id(), entry.active());
+        for (SkillEffectHudEntry entry : payload.snapshot().entries()) {
+            entries.put(entry.id(), entry.active());
+            if (entry.active() || !DISPLAY_ENTRIES.containsKey(entry.id())) {
+                DISPLAY_ENTRIES.put(entry.id(), entry);
+            }
+        }
+        DISPLAY_ENTRIES.keySet().retainAll(entries.keySet());
         VISIBILITY.replace(entries, now);
         snapshot = payload.snapshot();
         receiptPlayer = minecraft.player;

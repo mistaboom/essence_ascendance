@@ -3,11 +3,12 @@ package com.mistaboom.essence_ascendance.data;
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.resources.ResourceLocation;
 
 public final class EssenceDataMigration {
 
     public static final int CURRENT_VERSION =
-            4;
+            5;
 
     public static final String DATA_VERSION_TAG =
             "data_version";
@@ -97,6 +98,19 @@ public final class EssenceDataMigration {
 
                     version =
                             4;
+
+                    migrated =
+                            true;
+                }
+
+
+                case 4 -> {
+                    migrateVersion4To5(
+                            root
+                    );
+
+                    version =
+                            5;
 
                     migrated =
                             true;
@@ -207,6 +221,49 @@ public final class EssenceDataMigration {
          * revision. Existing players naturally begin with empty collections
          * and revision zero, so no structural transformation is required.
          */
+    }
+
+
+    private static void migrateVersion4To5(
+            CompoundTag root
+    ) {
+        /*
+         * Reach moved from Gathering to Utility without changing its stable
+         * stat ID. Leaving old investments in place would silently turn
+         * Gathering Essence into Utility Essence when a player de-allocates
+         * the stat. Refund and clear only that investment during the schema
+         * transition, preserving the exact original Essence category.
+         *
+         * Version 5 also permits optional fractional resource-cost carry in
+         * player data. Older players naturally begin without those entries.
+         */
+        StatCategoryMigrationService.RefundResult refund =
+                StatCategoryMigrationService.refundInvestmentToOriginalEssence(
+                        root,
+                        ResourceLocation.fromNamespaceAndPath(
+                                EssenceAscendance.MOD_ID,
+                                "reach"
+                        ),
+                        ResourceLocation.fromNamespaceAndPath(
+                                EssenceAscendance.MOD_ID,
+                                "gathering"
+                        )
+                );
+
+        if (refund.affectedPlayers() > 0) {
+            EssenceAscendance.LOGGER.info(
+                    "Refunded {} Gathering Essence from legacy Reach investments for {} player(s)",
+                    refund.totalRefunded(),
+                    refund.affectedPlayers()
+            );
+        }
+
+        if (refund.totalUnrefunded() > 0L) {
+            EssenceAscendance.LOGGER.warn(
+                    "Could not refund {} legacy Reach investment because affected Gathering Essence balances reached Long.MAX_VALUE",
+                    refund.totalUnrefunded()
+            );
+        }
     }
 
 

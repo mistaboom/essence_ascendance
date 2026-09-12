@@ -26,6 +26,7 @@ import com.mistaboom.essence_ascendance.skill.SkillRegistry;
 import com.mistaboom.essence_ascendance.skill.SkillRequirementKind;
 import com.mistaboom.essence_ascendance.skill.SkillRequirementStatus;
 import com.mistaboom.essence_ascendance.skill.SkillStateEvaluator;
+import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.StatUnit;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
@@ -6815,86 +6816,58 @@ public final class AscendanceNexusScreen
         }
 
         if (draft.hasChanges(snapshot)) {
-            lines.add(
-                    EssenceText.gui(
-                            "nexus.action.pending_counts",
-                            draft.bonusChangeCount(snapshot),
-                            draft.purchaseCount(),
-                            draft.loadoutChangeCount(snapshot)
-                    )
-            );
-            Map<ResourceLocation, ResourceLocation> statEssences = statEssenceIds();
-            for (NexusCategoryView category : categories()) {
-                ResourceLocation essenceId = category.essence().id();
-                long projected = draft.projectedAvailable(
-                        essenceId,
-                        snapshot,
-                        statEssences
-                );
-                lines.add(
-                        EssenceText.gui(
-                                "nexus.action.pending_category",
-                                EssenceText.essenceShort(category.essence()),
-                                bonusChangeCountForEssence(
-                                        essenceId,
-                                        snapshot,
-                                        statEssences
-                                ),
-                                purchaseCountForEssence(essenceId),
-                                loadoutChangeCountForEssence(
-                                        essenceId,
-                                        snapshot
-                                )
-                        )
-                );
-                lines.add(
-                        EssenceText.gui(
-                                "nexus.action.projected_balance",
-                                EssenceText.essenceShort(category.essence()),
-                                formatLong(projected)
-                        )
-                );
-            }
+            appendPendingChangeLines(lines, snapshot);
         }
 
         graphics.renderComponentTooltip(font, lines, mouseX, mouseY);
     }
 
-    private int bonusChangeCountForEssence(
-            ResourceLocation essenceId,
-            ClientEssenceState.Snapshot snapshot,
-            Map<ResourceLocation, ResourceLocation> statEssences
-    ) {
-        int count = 0;
-        for (ResourceLocation statId : draft.changedBonusIds(snapshot)) {
-            if (essenceId.equals(statEssences.get(statId))) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    private int purchaseCountForEssence(ResourceLocation essenceId) {
-        int count = 0;
-        for (NexusDraft.SkillPurchaseDraft purchase : draft.stagedPurchases()) {
-            if (essenceId.equals(purchase.essenceId())) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    private int loadoutChangeCountForEssence(
-            ResourceLocation essenceId,
+    private void appendPendingChangeLines(
+            List<Component> lines,
             ClientEssenceState.Snapshot snapshot
     ) {
+        lines.add(EssenceText.gui("nexus.action.pending_header"));
+
+        for (ResourceLocation statId : draft.changedBonusIds(snapshot)) {
+            ClientEssenceState.StatSnapshot state = snapshot.stats().get(statId);
+            if (state == null) {
+                continue;
+            }
+
+            Component statName = EssenceStatRegistry.get(statId)
+                    .map(stat -> (Component) EssenceText.stat(stat))
+                    .orElseGet(() -> Component.literal(statId.getPath()));
+            lines.add(
+                    EssenceText.gui(
+                            "nexus.action.pending_bonus",
+                            statName,
+                            formatLong(state.storedInvestment()),
+                            formatLong(draft.bonusTarget(statId, snapshot))
+                    )
+            );
+        }
+
+        for (NexusDraft.SkillPurchaseDraft purchase : draft.stagedPurchases()) {
+            NexusCategoryView category = categoryForEssence(purchase.essenceId());
+            Component essenceName = category == null
+                    ? Component.literal(purchase.essenceId().getPath())
+                    : EssenceText.essenceShort(category.essence());
+            lines.add(
+                    EssenceText.gui(
+                            "nexus.action.pending_purchase",
+                            skillName(purchase.skillId()),
+                            formatLong(purchase.projectedCost()),
+                            essenceName
+                    )
+            );
+        }
+
         Map<ResourceLocation, ResourceLocation> projected =
                 draft.finalLoadouts(snapshot);
         Set<ResourceLocation> slots = new java.util.LinkedHashSet<>();
         slots.addAll(snapshot.loadoutSelections().keySet());
         slots.addAll(projected.keySet());
 
-        int count = 0;
         for (ResourceLocation slotId : slots) {
             ResourceLocation committedSkill =
                     snapshot.loadoutSelections().get(slotId);
@@ -6903,17 +6876,20 @@ public final class AscendanceNexusScreen
                 continue;
             }
 
-            ResourceLocation representative = projectedSkill != null
-                    ? projectedSkill
-                    : committedSkill;
-            SkillDefinition skill = representative == null
-                    ? null
-                    : SkillRegistry.get(representative).orElse(null);
-            if (skill != null && essenceId.equals(skill.essenceId())) {
-                count++;
-            }
+            Component from = committedSkill == null
+                    ? EssenceText.gui("nexus.action.pending_none")
+                    : skillName(committedSkill);
+            Component to = projectedSkill == null
+                    ? EssenceText.gui("nexus.action.pending_none")
+                    : skillName(projectedSkill);
+            lines.add(
+                    EssenceText.gui(
+                            "nexus.action.pending_loadout",
+                            from,
+                            to
+                    )
+            );
         }
-        return count;
     }
 
     private Component ascensionActionStatus(

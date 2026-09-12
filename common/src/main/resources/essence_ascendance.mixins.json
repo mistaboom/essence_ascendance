@@ -4,8 +4,16 @@
   "compatibilityLevel": "JAVA_21",
   "minVersion": "0.8",
   "client": [
+    "AnvilScreenCostMixin",
+    "EnchantmentScreenCostMixin"
   ],
   "mixins": [
+    "AbstractContainerMenuAccessor",
+    "BlockCropYieldMixin",
+    "AnvilMenuEfficiencyMixin",
+    "EnchantmentMenuEfficiencyMixin",
+    "PlayerMenuCostMixin",
+    "ItemStackMenuCostMixin"
   ],
   "injectors": {
     "defaultRequire": 1

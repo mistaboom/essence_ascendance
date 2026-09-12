@@ -208,8 +208,8 @@ public final class StatScalingDefaults {
         );
 
         register(
-                "reach",
-                4.0
+                "crop_yield",
+                100.0
         );
 
         register(
@@ -236,6 +236,21 @@ public final class StatScalingDefaults {
 
         register(
                 "durability_efficiency",
+                50.0
+        );
+
+        register(
+                "reach",
+                4.0
+        );
+
+        register(
+                "anvil_efficiency",
+                50.0
+        );
+
+        register(
+                "enchanting_efficiency",
                 50.0
         );
 

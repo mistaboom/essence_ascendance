@@ -66,7 +66,7 @@ public final class SkillEffectHudOverlay {
         Font font = Minecraft.getInstance().font;
         graphics.fill(x, y, x + WIDTH, y + height(entry), BACKGROUND);
         graphics.fill(x, y, x + 3, y + height(entry), entry.accent());
-        String badge = fit(resolve(entry.badge()), 48);
+        String badge = fit(resolve(entry.badge()), 68);
         int badgeX = x + WIDTH - 7 - font.width(badge);
         String title = fit(resolve(entry.title()).toUpperCase(Locale.ROOT), badgeX - x - 12);
         graphics.drawString(font, title, x + 7, y + 4, TEXT, false);

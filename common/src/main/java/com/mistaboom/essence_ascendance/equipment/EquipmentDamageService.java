@@ -5,6 +5,7 @@ import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import com.mistaboom.essence_ascendance.stat.EssenceStats;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
+import com.mistaboom.essence_ascendance.skill.effect.AttackCategory;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.InteractionHand;
@@ -100,7 +101,9 @@ public final class EquipmentDamageService {
         PRIMARY_SKILL_HIT_PROBE.set(probe);
         try {
             boolean accepted = action.getAsBoolean();
-            if (accepted && probe.damaged) SkillEffectRuntime.onPrimaryMeleeSuccess(attack.player, living);
+            if (accepted && probe.damaged) {
+                SkillEffectRuntime.onPrimaryMeleeSuccess(attack.player, living, source, probe.damageDealt);
+            }
             return accepted;
         } finally {
             if (previous == null) PRIMARY_SKILL_HIT_PROBE.remove();
@@ -135,11 +138,24 @@ public final class EquipmentDamageService {
             if (samples.isEmpty()) SKILL_HEALTH_SAMPLES.remove();
             PrimarySkillHitProbe probe = PRIMARY_SKILL_HIT_PROBE.get();
             SkillDamageFrame frame = SKILL_DAMAGE_FRAMES.get().peek();
-            if (completed && Double.isFinite(totalLoss) && totalLoss > sample.nestedLoss
-                    && probe != null && probe.target == target && probe.source == source
+            double ownLoss = Math.max(0.0, totalLoss - sample.nestedLoss);
+            boolean realDamage = completed && Double.isFinite(ownLoss) && ownLoss > 0.0
                     && frame != null && !frame.nested && frame.target == target && frame.source == source
-                    && !isReflectionInProgress() && SECONDARY_SKILL_DEPTH.get() == 0) {
-                probe.damaged = true;
+                    && !isReflectionInProgress() && SECONDARY_SKILL_DEPTH.get() == 0;
+            if (realDamage) {
+                AttackCategory category = primaryAttackCategory(target, source);
+                if (category == AttackCategory.MELEE) {
+                    if (probe != null && probe.target == target && probe.source == source) {
+                        probe.damaged = true;
+                        probe.damageDealt = ownLoss;
+                    }
+                } else if (category != null && !frame.primaryReported) {
+                    frame.primaryReported = true;
+                    ServerPlayer player = skillDamagePlayer(target, source);
+                    if (player != null) {
+                        SkillEffectRuntime.onPrimaryAttackSuccess(player, target, category, source, ownLoss);
+                    }
+                }
             }
         }
     }
@@ -216,6 +232,26 @@ public final class EquipmentDamageService {
                 && source.getEntity() == player;
     }
 
+    /** Null means the source is not a qualifying first-party primary attack. */
+    public static AttackCategory primaryAttackCategory(ServerPlayer player, LivingEntity target,
+                                                       DamageSource source) {
+        if (isPrimarySkillMelee(player, target, source)) return AttackCategory.MELEE;
+        if (isReflectionInProgress() || SECONDARY_SKILL_DEPTH.get() > 0) return null;
+        CasterSkillDamage cast = CASTER_SKILL_DAMAGE.get();
+        if (cast != null && cast.player == player && cast.target == target && cast.source == source) {
+            return AttackCategory.CASTER;
+        }
+        Entity direct = source.getDirectEntity();
+        if (direct instanceof Projectile projectile && projectile.getOwner() == player
+                && source.is(DamageTypeTags.IS_PROJECTILE)) return AttackCategory.RANGED;
+        return null;
+    }
+
+    public static AttackCategory primaryAttackCategory(LivingEntity target, DamageSource source) {
+        ServerPlayer player = skillDamagePlayer(target, source);
+        return player == null ? null : primaryAttackCategory(player, target, source);
+    }
+
     /** Future chain/lightning/shard effects must run their damage inside this scope. */
     public static void withSecondarySkillDamage(Runnable action) {
         int previous = SECONDARY_SKILL_DEPTH.get();
@@ -242,8 +278,9 @@ public final class EquipmentDamageService {
         }
     }
 
-    private static boolean canSkillHarm(ServerPlayer player, Entity target) {
-        if (target == player || target.level() != player.level() || !player.isAlive() || player.isSpectator()) return false;
+    public static boolean canSkillHarm(ServerPlayer player, Entity target) {
+        if (target == player || target.level() != player.level() || !player.isAlive() || player.isSpectator()
+                || target.isRemoved() || !(target instanceof LivingEntity)) return false;
         if (target instanceof Player other && (!player.server.isPvpAllowed() || !player.canHarmPlayer(other))) return false;
         return player.getTeam() == null || !player.isAlliedTo(target) || player.getTeam().isAllowFriendlyFire();
     }
@@ -295,6 +332,7 @@ public final class EquipmentDamageService {
         final LivingEntity target;
         final DamageSource source;
         boolean damaged;
+        double damageDealt;
         PrimarySkillHitProbe(LivingEntity target, DamageSource source) {
             this.target = target;
             this.source = source;
@@ -314,6 +352,7 @@ public final class EquipmentDamageService {
         final DamageSource source;
         final boolean nested;
         boolean modified;
+        boolean primaryReported;
         SkillDamageFrame(LivingEntity target, DamageSource source, boolean nested) {
             this.target = target;
             this.source = source;

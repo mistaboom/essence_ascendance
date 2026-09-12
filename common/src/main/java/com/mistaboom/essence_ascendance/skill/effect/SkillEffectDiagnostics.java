@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.DoubleConsumer;
 import java.util.function.IntConsumer;
 
@@ -43,6 +44,7 @@ final class SkillEffectDiagnostics {
         configuration(failures);
         arithmetic(failures);
         timedStacks(failures);
+        elementalFoundation(failures);
         hudVisibility(failures);
         persistentDataSchema(failures);
         return List.copyOf(failures);
@@ -50,7 +52,8 @@ final class SkillEffectDiagnostics {
 
     private static void registrations(List<String> failures) {
         Set<ResourceLocation> expected = Set.of(SkillIds.FRENZY, SkillIds.ARMOR_CRACK,
-                SkillIds.DESPERATION, SkillIds.DEATH_RUSH);
+                SkillIds.DESPERATION, SkillIds.DEATH_RUSH, SkillIds.KINDLING, SkillIds.COMBUSTION,
+                SkillIds.FROSTBITE, SkillIds.SHATTER, SkillIds.STATIC_CHARGE, SkillIds.CHAIN_STRIKE);
         List<SkillEffectHandler> actual = List.copyOf(SkillEffectRegistry.handlers());
         Set<ResourceLocation> seen = new HashSet<>();
         check(failures, SkillEffectRegistry.implementedIds().containsAll(expected),
@@ -91,12 +94,30 @@ final class SkillEffectDiagnostics {
                 List.of(), SkillGroups.OFFENSE_COMBAT_STANCE, SkillActivationPolicy.SELECTABLE);
         definition(failures, SkillIds.DEATH_RUSH, AscendanceTiers.ASCENDANT.id(), SkillCostBand.KEYSTONE,
                 List.of(SkillIds.DESPERATION), null, SkillActivationPolicy.AUTOMATIC);
+        definition(failures, SkillIds.KINDLING, AscendanceTiers.DORMANT.id(), SkillCostBand.FOUNDATION,
+                List.of(), SkillGroups.OFFENSE_ELEMENTAL_IMBUEMENT, SkillActivationPolicy.SELECTABLE);
+        definition(failures, SkillIds.COMBUSTION, AscendanceTiers.AWAKENED.id(), SkillCostBand.ADVANCED,
+                List.of(SkillIds.KINDLING), null, SkillActivationPolicy.AUTOMATIC);
+        definition(failures, SkillIds.FROSTBITE, AscendanceTiers.DORMANT.id(), SkillCostBand.FOUNDATION,
+                List.of(), SkillGroups.OFFENSE_ELEMENTAL_IMBUEMENT, SkillActivationPolicy.SELECTABLE);
+        definition(failures, SkillIds.SHATTER, AscendanceTiers.AWAKENED.id(), SkillCostBand.ADVANCED,
+                List.of(SkillIds.FROSTBITE), null, SkillActivationPolicy.AUTOMATIC);
+        definition(failures, SkillIds.STATIC_CHARGE, AscendanceTiers.DORMANT.id(), SkillCostBand.FOUNDATION,
+                List.of(), SkillGroups.OFFENSE_ELEMENTAL_IMBUEMENT, SkillActivationPolicy.SELECTABLE);
+        definition(failures, SkillIds.CHAIN_STRIKE, AscendanceTiers.AWAKENED.id(), SkillCostBand.ADVANCED,
+                List.of(SkillIds.STATIC_CHARGE), null, SkillActivationPolicy.AUTOMATIC);
         var group = SkillRegistry.choiceGroup(SkillGroups.OFFENSE_COMBAT_STANCE);
         check(failures, group.isPresent(), "Combat stance choice group is missing.");
         group.ifPresent(value -> check(failures,
                 value.memberIds().size() == 2
                         && Set.copyOf(value.memberIds()).equals(Set.of(SkillIds.FRENZY, SkillIds.DESPERATION)),
                 "Combat stance choice group must contain exactly Frenzy and Desperation."));
+        var elemental = SkillRegistry.choiceGroup(SkillGroups.OFFENSE_ELEMENTAL_IMBUEMENT);
+        check(failures, elemental.isPresent(), "Elemental Imbuement choice group is missing.");
+        elemental.ifPresent(value -> check(failures,
+                value.memberIds().size() == 3 && Set.copyOf(value.memberIds()).equals(
+                        Set.of(SkillIds.KINDLING, SkillIds.FROSTBITE, SkillIds.STATIC_CHARGE)),
+                "Elemental Imbuement choice group must contain exactly Kindling, Frostbite, and Static Charge."));
     }
 
     private static void definition(List<String> failures, ResourceLocation id, ResourceLocation tier,
@@ -154,6 +175,25 @@ final class SkillEffectDiagnostics {
                 value -> new SkillEffectBalanceSettings.DeathRush(0.5, 0.2, 5, 160, 5, value, 5));
         decimalBounds(failures, "Death Rush cast speed", 100,
                 value -> new SkillEffectBalanceSettings.DeathRush(0.5, 0.2, 5, 160, 5, 5, value));
+
+        rejects(failures, "Kindling Heat cap validation",
+                () -> new SkillEffectBalanceSettings.Kindling(101, 1, 100, 100, 20, 10));
+        rejects(failures, "Kindling duration validation",
+                () -> new SkillEffectBalanceSettings.Kindling(5, 1, 0, 100, 20, 10));
+        rejects(failures, "Kindling burn scaling validation",
+                () -> new SkillEffectBalanceSettings.Kindling(5, 1, 100, 100, Double.NaN, 10));
+        rejects(failures, "Combustion radius validation",
+                () -> new SkillEffectBalanceSettings.Combustion(3, 65, 6, 2, 18, 0.75, 80));
+        rejects(failures, "Combustion falloff validation",
+                () -> new SkillEffectBalanceSettings.Combustion(3, 4, 6, 2, 18, 1.01, 80));
+        rejects(failures, "Frostbite slow validation",
+                () -> new SkillEffectBalanceSettings.Frostbite(5, 1, 100, 1, 0.4, 80, 0.95));
+        rejects(failures, "Shatter target-budget validation",
+                () -> new SkillEffectBalanceSettings.Shatter(3, 5, 101));
+        rejects(failures, "Static Charge cap validation",
+                () -> new SkillEffectBalanceSettings.StaticCharge(0, 0.25, 4, 0.5, 0.35, 0.6, 40, 0.5, 4));
+        rejects(failures, "Chain Strike jump validation",
+                () -> new SkillEffectBalanceSettings.ChainStrike(101, 6, 0.75));
     }
 
     private static void arithmetic(List<String> failures) {
@@ -271,8 +311,46 @@ final class SkillEffectDiagnostics {
                 "Shorter future grants must sort timers without refreshing existing independent stacks.");
     }
 
+    private static void elementalFoundation(List<String> failures) {
+        check(failures, Set.of(AttackCategory.values()).equals(
+                        Set.of(AttackCategory.MELEE, AttackCategory.RANGED, AttackCategory.CASTER)),
+                "Primary attack categories must cover melee, ranged, and Caster exactly.");
+        check(failures, Set.of(SourceOwnedBuildupState.ExpiryPolicy.values()).equals(Set.of(
+                        SourceOwnedBuildupState.ExpiryPolicy.SHARED_WINDOW,
+                        SourceOwnedBuildupState.ExpiryPolicy.INDEPENDENT_STACKS)),
+                "Target buildup must retain explicit shared and independent expiry policies.");
+
+        UUID first = UUID.randomUUID();
+        UUID second = UUID.randomUUID();
+        PropagationBudget root = new PropagationBudget(2, 2);
+        root.seed(first);
+        check(failures, !root.tryVisit(first, 0), "A seeded propagation target must not be revisited.");
+        check(failures, root.tryVisit(second, 1), "A valid unvisited propagation target must be accepted.");
+        check(failures, !root.tryVisit(UUID.randomUUID(), 3), "Propagation must reject generations past its cap.");
+        check(failures, root.tryVisit(UUID.randomUUID(), 2), "Propagation must accept its exact generation boundary.");
+        check(failures, !root.tryVisit(UUID.randomUUID(), 2) && root.affectedTargets() == 2,
+                "Propagation must stop at its per-root target budget.");
+
+        var defaults = SkillEffectBalanceSettings.defaults();
+        near(failures, defaults.kindling().burningDamageAmplificationPercent(), 10.0,
+                "Default burning amplification");
+        near(failures, defaults.kindling().burningDamagePercentPerSecond(), 20.0,
+                "Default attack-scaled burning damage");
+        near(failures, defaults.frostbite().slowPerStack() * defaults.frostbite().maxChill(), 0.40,
+                "Default progressive Chill cap");
+        near(failures, defaults.staticCharge().maximumCharge(), 100.0, "Default Static Charge cap");
+        near(failures, defaults.staticCharge().sprintPerTick(), 1.0,
+                "Default five-second sprint charge rate");
+        near(failures, defaults.staticCharge().lightningDamage(), 4.0, "Default lightning damage");
+        check(failures, defaults.combustion().rootTargetBudget()
+                        >= defaults.combustion().targetsPerBurst(),
+                "Combustion root budget must allow at least one complete burst.");
+        check(failures, defaults.chainStrike().maximumJumps() == 3,
+                "Default Chain Strike traversal must remain bounded to three jumps.");
+    }
+
     private static void hudVisibility(List<String> failures) {
-        EffectHudVisibility<String> visibility = new EffectHudVisibility<>(20L);
+        EffectHudVisibility<String> visibility = new EffectHudVisibility<>(60L);
         visibility.replace(Map.of("effect", false), 100L);
         check(failures, !visibility.visible("effect", 100L),
                 "Initially default HUD entries must remain hidden.");
@@ -282,11 +360,11 @@ final class SkillEffectDiagnostics {
                 "Active HUD entries must stay visible without periodic packets.");
         visibility.replace(Map.of("effect", false), 10_000L);
         check(failures, visibility.visible("effect", 10_000L)
-                        && visibility.visible("effect", 10_019L),
+                        && visibility.visible("effect", 10_059L),
                 "Default grace must start at the active-to-default transition.");
         visibility.replace(Map.of("effect", false), 10_005L);
-        check(failures, !visibility.visible("effect", 10_020L),
-                "Repeated default packets must not extend the exact 20-tick grace.");
+        check(failures, !visibility.visible("effect", 10_060L),
+                "Repeated default packets must not extend the exact 60-tick grace.");
         visibility.replace(Map.of("effect", true), 10_030L);
         visibility.replace(Map.of(), 10_031L);
         check(failures, !visibility.visible("effect", 10_031L),

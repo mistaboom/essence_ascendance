@@ -86,10 +86,31 @@ public final class SkillEffectRuntime {
     }
 
     /** The adapter supplies only an accepted primary hurt with observed health/absorption loss. */
-    public static void onPrimaryMeleeSuccess(ServerPlayer player, LivingEntity target) {
+    public static void onPrimaryMeleeSuccess(ServerPlayer player, LivingEntity target,
+                                             DamageSource source, double damageDealt) {
         PlayerRuntime runtime = PLAYERS.get(player.getUUID());
         Attempt attempt = runtime == null ? null : runtime.attempt;
-        if (attempt != null && !attempt.success && attempt.matches(target)) attempt.success = true;
+        if (attempt != null && !attempt.success && attempt.matches(target)) {
+            attempt.success = true;
+            attempt.source = source;
+            attempt.damageDealt = damageDealt;
+        }
+    }
+
+    /** Projectile and Caster adapters call this only after observed native damage. */
+    public static void onPrimaryAttackSuccess(ServerPlayer player, LivingEntity target,
+                                              AttackCategory category, DamageSource source,
+                                              double damageDealt) {
+        if (category == AttackCategory.MELEE) return;
+        PlayerRuntime runtime = PLAYERS.get(player.getUUID());
+        if (runtime == null || runtime.player.get() != player) return;
+        // Outgoing-damage classification called current() immediately before
+        // this health write. Avoid another reconciliation here because a
+        // lethal projectile/Caster hit has set health to zero but its native
+        // death callback still needs to consume burning/frozen conditions.
+        Context context = new Context(player, runtime);
+        dispatchSuccessfulAttack(context,
+                AttackResultContext.primary(player, target, category, source, damageDealt));
     }
 
     /** Newly earned stacks are committed after Player.attack, so they cannot affect the earning hit. */
@@ -105,10 +126,10 @@ public final class SkillEffectRuntime {
                 || !attempt.effectiveAtStart.equals(context.runtime.effective)) return;
         runtime.attempt = null;
         Entity target = attempt.target.get();
-        if (attempt.success && target instanceof LivingEntity living && player.isAlive()) {
-            for (SkillEffectHandler handler : SkillEffectRegistry.handlers()) {
-                if (context.isEffective(handler.id())) handler.primaryHit(context, living);
-            }
+        if (attempt.success && attempt.source != null && target instanceof LivingEntity living && player.isAlive()) {
+            dispatchSuccessfulAttack(context,
+                    AttackResultContext.primary(player, living, AttackCategory.MELEE,
+                            attempt.source, attempt.damageDealt));
         } else dispatchMiss(context);
     }
 
@@ -128,26 +149,38 @@ public final class SkillEffectRuntime {
         ServerPlayer player = EquipmentDamageService.skillDamagePlayer(target, source);
         if (player == null || !player.isAlive()) return amount;
         Context context = current(player);
-        boolean primary = EquipmentDamageService.isPrimarySkillMelee(player, target, source);
+        AttackCategory primary = EquipmentDamageService.primaryAttackCategory(player, target, source);
         double multiplier = 1.0;
+        double flatBonus = 0.0;
         for (SkillEffectHandler handler : SkillEffectRegistry.handlers()) {
             if (context.isEffective(handler.id())) {
                 multiplier *= SkillEffectMath.clamp(
                         handler.damageMultiplier(context, target, source, primary), 0.0, 100_001.0);
+                flatBonus += SkillEffectMath.clamp(
+                        handler.flatPrimaryDamageBonus(context, target, source, primary), 0.0, Float.MAX_VALUE);
             }
         }
-        return (float) Math.min(Float.MAX_VALUE, amount * multiplier);
+        return (float) Math.min(Float.MAX_VALUE, amount * multiplier + flatBonus);
     }
 
     /** Native confirmed death, while its authoritative source/caster scope still exists. */
     public static void onLivingDeath(LivingEntity victim, DamageSource source) {
-        onEntityRemoved(victim);
-        ServerPlayer player = EquipmentDamageService.skillDamagePlayer(victim, source);
-        if (player == null || !player.isAlive() || player == victim) return;
-        Context context = current(player);
-        for (SkillEffectHandler handler : SkillEffectRegistry.handlers()) {
-            if (context.isEffective(handler.id())) handler.kill(context, victim);
+        SkillProcDamageService.ProcContext proc = SkillProcDamageService.current();
+        ServerPlayer attributed = proc == null
+                ? EquipmentDamageService.skillDamagePlayer(victim, source) : proc.owner();
+        SkillDeathContext death = new SkillDeathContext(victim, source, attributed, proc);
+        for (PlayerRuntime runtime : List.copyOf(PLAYERS.values())) {
+            ServerPlayer player = runtime.player.get();
+            if (player == null || !player.isAlive() || player == victim) continue;
+            // Do not run ordinary reconciliation before death handlers: a dead
+            // target must retain its still-timed burning/frozen record long
+            // enough for Combustion or Shatter to consume it exactly once.
+            Context context = new Context(player, runtime);
+            for (SkillEffectHandler handler : SkillEffectRegistry.handlers()) {
+                if (context.isEffective(handler.id())) handler.deathObserved(context, death);
+            }
         }
+        onEntityRemoved(victim);
     }
 
     /** Unload/death cleanup supplements weak references and the owner-tick identity check. */
@@ -275,6 +308,12 @@ public final class SkillEffectRuntime {
         }
     }
 
+    private static void dispatchSuccessfulAttack(Context context, AttackResultContext result) {
+        for (SkillEffectHandler handler : SkillEffectRegistry.handlers()) {
+            if (context.isEffective(handler.id())) handler.successfulAttack(context, result);
+        }
+    }
+
     public static final class Context {
         private final ServerPlayer player;
         private final PlayerRuntime runtime;
@@ -329,6 +368,8 @@ public final class SkillEffectRuntime {
         final long startedAt;
         final Set<ResourceLocation> effectiveAtStart;
         boolean success;
+        DamageSource source;
+        double damageDealt;
 
         Attempt(long token, Entity target, long startedAt, Set<ResourceLocation> effectiveAtStart) {
             this.token = token;

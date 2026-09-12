@@ -429,6 +429,22 @@ public final class EssenceSavedData extends SavedData {
     }
 
 
+    /** Persists sub-unit accounting used by server-authoritative menu costs. */
+    public boolean setFractionalResourceCostCarry(
+            UUID playerId,
+            net.minecraft.resources.ResourceLocation channelId,
+            double carry
+    ) {
+        boolean changed = getPlayerData(playerId)
+                .setFractionalResourceCostCarry(channelId, carry);
+
+        if (changed) {
+            setDirty();
+        }
+        return changed;
+    }
+
+
     /*
      * ============================================================
      * ASCENDANCE TIER

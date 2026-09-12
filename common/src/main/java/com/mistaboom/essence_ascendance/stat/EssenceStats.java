@@ -279,12 +279,12 @@ public final class EssenceStats {
                     StatUnit.LEVELS
             );
 
-    public static final StatDefinition REACH =
+    public static final StatDefinition CROP_YIELD =
             register(
-                    "reach",
-                    "Reach",
+                    "crop_yield",
+                    "Crop Yield",
                     StatCategory.GATHERING,
-                    StatUnit.BLOCKS
+                    StatUnit.PERCENT
             );
 
     public static final StatDefinition EXPERIENCE_GAIN =
@@ -322,6 +322,35 @@ public final class EssenceStats {
             register(
                     "durability_efficiency",
                     "Durability Efficiency",
+                    StatCategory.UTILITY,
+                    StatUnit.PERCENT
+            );
+
+    /*
+     * Keep the stable reach ID while changing both its category and its
+     * required Essence. EssenceDataMigration handles investments made before
+     * this move so old Gathering Essence cannot be converted through refunds.
+     */
+    public static final StatDefinition REACH =
+            register(
+                    "reach",
+                    "Reach",
+                    StatCategory.UTILITY,
+                    StatUnit.BLOCKS
+            );
+
+    public static final StatDefinition ANVIL_EFFICIENCY =
+            register(
+                    "anvil_efficiency",
+                    "Anvil Efficiency",
+                    StatCategory.UTILITY,
+                    StatUnit.PERCENT
+            );
+
+    public static final StatDefinition ENCHANTING_EFFICIENCY =
+            register(
+                    "enchanting_efficiency",
+                    "Enchanting Efficiency",
                     StatCategory.UTILITY,
                     StatUnit.PERCENT
             );

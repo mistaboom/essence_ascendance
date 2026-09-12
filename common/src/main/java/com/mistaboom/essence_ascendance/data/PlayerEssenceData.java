@@ -58,6 +58,9 @@ public final class PlayerEssenceData {
     private static final String NEXUS_REVISION_TAG =
             "nexus_revision";
 
+    private static final String FRACTIONAL_RESOURCE_COST_CARRY_TAG =
+            "fractional_resource_cost_carry";
+
 
     private final Map<ResourceLocation, Long> availableEssence =
             new LinkedHashMap<>();
@@ -101,6 +104,16 @@ public final class PlayerEssenceData {
 
     private final Set<ResourceLocation> completedAttunements =
             new LinkedHashSet<>();
+
+    /*
+     * Sub-unit accounting for percentage reductions applied to integer menu
+     * costs. Keys are stable cost-channel IDs rather than menu classes, which
+     * lets every resource-cost consumer share the same persistence format.
+     * This state is deliberately not part of the Nexus revision: it changes
+     * only when gameplay consumes a resource and is never edited in the UI.
+     */
+    private final Map<ResourceLocation, Double> fractionalResourceCostCarry =
+            new LinkedHashMap<>();
 
 
     private ResourceLocation currentTierId =
@@ -992,6 +1005,59 @@ public final class PlayerEssenceData {
 
     /*
      * ============================================================
+     * FRACTIONAL RESOURCE-COST ACCOUNTING
+     * ============================================================
+     */
+
+    public double getFractionalResourceCostCarry(
+            ResourceLocation channelId
+    ) {
+        return fractionalResourceCostCarry.getOrDefault(
+                Objects.requireNonNull(channelId, "Cost channel ID cannot be null"),
+                0.0D
+        );
+    }
+
+
+    public Map<ResourceLocation, Double> getAllFractionalResourceCostCarry() {
+        return Collections.unmodifiableMap(
+                fractionalResourceCostCarry
+        );
+    }
+
+
+    /**
+     * Updates one committed resource-cost carry without changing the Nexus
+     * optimistic-concurrency revision.
+     */
+    public boolean setFractionalResourceCostCarry(
+            ResourceLocation channelId,
+            double carry
+    ) {
+        Objects.requireNonNull(channelId, "Cost channel ID cannot be null");
+        if (!Double.isFinite(carry) || carry < 0.0D || carry >= 1.0D) {
+            throw new IllegalArgumentException(
+                    "Fractional resource-cost carry must be finite and in [0, 1)"
+            );
+        }
+
+        double normalized = carry < 1.0E-9D ? 0.0D : carry;
+        double previous = getFractionalResourceCostCarry(channelId);
+        if (Double.compare(previous, normalized) == 0) {
+            return false;
+        }
+
+        if (normalized == 0.0D) {
+            fractionalResourceCostCarry.remove(channelId);
+        } else {
+            fractionalResourceCostCarry.put(channelId, normalized);
+        }
+        return true;
+    }
+
+
+    /*
+     * ============================================================
      * ATOMIC NEXUS STATE APPLICATION
      * ============================================================
      */
@@ -1248,6 +1314,26 @@ public final class PlayerEssenceData {
                 root,
                 COMPLETED_ATTUNEMENTS_TAG,
                 completedAttunements
+        );
+
+
+        /*
+         * Fractional resource-cost accounting
+         */
+        CompoundTag resourceCostCarryTag =
+                new CompoundTag();
+
+        for (Map.Entry<ResourceLocation, Double> entry :
+                fractionalResourceCostCarry.entrySet()) {
+            resourceCostCarryTag.putDouble(
+                    entry.getKey().toString(),
+                    entry.getValue()
+            );
+        }
+
+        root.put(
+                FRACTIONAL_RESOURCE_COST_CARRY_TAG,
+                resourceCostCarryTag
         );
 
 
@@ -1580,6 +1666,43 @@ public final class PlayerEssenceData {
                 data.completedAttunements,
                 "Player Attunement"
         );
+
+
+        /*
+         * ========================================================
+         * FRACTIONAL RESOURCE-COST ACCOUNTING
+         * ========================================================
+         */
+
+        if (root.contains(
+                FRACTIONAL_RESOURCE_COST_CARRY_TAG,
+                Tag.TAG_COMPOUND
+        )) {
+            CompoundTag carryTag = root.getCompound(
+                    FRACTIONAL_RESOURCE_COST_CARRY_TAG
+            );
+
+            for (String key : carryTag.getAllKeys()) {
+                ResourceLocation channelId = ResourceLocation.tryParse(key);
+                double carry = carryTag.getDouble(key);
+
+                if (channelId == null
+                        || !Double.isFinite(carry)
+                        || carry <= 0.0D
+                        || carry >= 1.0D) {
+                    EssenceAscendance.LOGGER.warn(
+                            "Ignoring invalid fractional resource-cost carry '{}' in Essence Ascendance player data",
+                            key
+                    );
+                    continue;
+                }
+
+                data.fractionalResourceCostCarry.put(
+                        channelId,
+                        carry
+                );
+            }
+        }
 
 
         return data;

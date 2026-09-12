@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.equipment;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.stat.EssenceStats;
+import com.mistaboom.essence_ascendance.stat.StatDefinition;
 import net.minecraft.resources.ResourceLocation;
 
 public final class EquipmentProfiles {
@@ -39,6 +40,8 @@ public final class EquipmentProfiles {
                             .stat(EquipmentActivationType.WORN, EssenceStats.LUCK)
                             .stat(EquipmentActivationType.WORN, EssenceStats.SNEAK_SPEED)
                             .stat(EquipmentActivationType.WORN, EssenceStats.DURABILITY_EFFICIENCY)
+                            .stat(EquipmentActivationType.WORN, EssenceStats.ANVIL_EFFICIENCY)
+                            .stat(EquipmentActivationType.WORN, EssenceStats.ENCHANTING_EFFICIENCY)
                             .build()
             );
 
@@ -99,10 +102,9 @@ public final class EquipmentProfiles {
      * ASCENDANCE TOOLS
      * ============================================================
      *
-     * All four tools receive the same player-stat applicability.
-     * Their inherent combat character is expressed only through independent
-     * archetype baseline multipliers below. This keeps "does this stat apply?"
-     * separate from "what kind of tool is this?".
+     * All four tools receive the shared tool-stat applicability below. A
+     * profile may also declare role-specific held stats, keeping those
+     * capabilities in the same registry-driven tooltip/runtime source.
      */
 
     public static final EquipmentProfileDefinition PICKAXE =
@@ -118,7 +120,8 @@ public final class EquipmentProfiles {
                     "axe",
                     "Ascendance Axe",
                     1.10,
-                    0.70
+                    0.70,
+                    EssenceStats.CROP_YIELD
             );
 
     public static final EquipmentProfileDefinition SHOVEL =
@@ -134,7 +137,8 @@ public final class EquipmentProfiles {
                     "hoe",
                     "Ascendance Hoe",
                     0.40,
-                    1.20
+                    1.20,
+                    EssenceStats.CROP_YIELD
             );
 
     public static final EquipmentProfileDefinition SHIELD = EquipmentProfileRegistry.register(
@@ -155,9 +159,10 @@ public final class EquipmentProfiles {
             String path,
             String displayName,
             double meleeDamageMultiplier,
-            double meleeAttackSpeedMultiplier
+            double meleeAttackSpeedMultiplier,
+            StatDefinition... additionalHeldStats
     ) {
-        return EquipmentProfileRegistry.register(
+        EquipmentProfileDefinition.Builder builder =
                 EquipmentProfileDefinition.builder(
                                 id(path),
                                 displayName
@@ -180,9 +185,13 @@ public final class EquipmentProfiles {
                         .stat(EquipmentActivationType.HELD, EssenceStats.MELEE_ATTACK_SPEED)
                         .stat(EquipmentActivationType.HELD, EssenceStats.ATTACK_KNOCKBACK)
                         .stat(EquipmentActivationType.HELD, EssenceStats.LOOTING)
-                        .stat(EquipmentActivationType.HELD, EssenceStats.DURABILITY_EFFICIENCY)
-                        .build()
-        );
+                        .stat(EquipmentActivationType.HELD, EssenceStats.DURABILITY_EFFICIENCY);
+
+        for (StatDefinition stat : additionalHeldStats) {
+            builder.stat(EquipmentActivationType.HELD, stat);
+        }
+
+        return EquipmentProfileRegistry.register(builder.build());
     }
 
     private static ResourceLocation id(String path) {
