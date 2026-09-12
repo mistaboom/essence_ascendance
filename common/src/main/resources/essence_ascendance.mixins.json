@@ -5,7 +5,10 @@
   "minVersion": "0.8",
   "client": [
     "AnvilScreenCostMixin",
-    "EnchantmentScreenCostMixin"
+    "EnchantmentScreenCostMixin",
+    "CasterAttackIndicatorMixin",
+    "CasterCooldownOverlayMixin",
+    "CasterUseInputMixin"
   ],
   "mixins": [
     "AbstractContainerMenuAccessor",
@@ -13,7 +16,11 @@
     "AnvilMenuEfficiencyMixin",
     "EnchantmentMenuEfficiencyMixin",
     "PlayerMenuCostMixin",
-    "ItemStackMenuCostMixin"
+    "ItemStackMenuCostMixin",
+    "ProjectileNativeAccess",
+    "ProjectileStateMixin",
+    "ArrowProjectilePathMixin",
+    "LivingEntityProjectileShieldMixin"
   ],
   "injectors": {
     "defaultRequire": 1

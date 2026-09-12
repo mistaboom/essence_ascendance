@@ -47,17 +47,22 @@ public final class PlayerRuntimeLifecycleService {
         );
 
         PlayerEvent.CHANGE_DIMENSION.register(
-                (player, oldLevel, newLevel) ->
-                        refresh(player)
+                (player, oldLevel, newLevel) -> {
+                    com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.forgetOwner(player);
+                    refresh(player);
+                }
         );
 
         PlayerEvent.PLAYER_QUIT.register(
                 PlayerRuntimeLifecycleService::forget
         );
 
+        LifecycleEvent.SERVER_STARTING.register(server -> com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.serverStarting());
+        LifecycleEvent.SERVER_STOPPING.register(server -> com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.serverStopping());
         LifecycleEvent.SERVER_STOPPED.register(server -> {
             SkillEffectRuntime.clearAll();
             EquipmentDamageService.clearSkillInput();
+            com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.clearDiagnostics();
             CommittedSkillService.invalidateAll();
         });
 
@@ -126,6 +131,7 @@ public final class PlayerRuntimeLifecycleService {
 
     /** Called by the authoritative death-completion hook, after cancellation. */
     public static void onDeath(ServerPlayer player) {
+        com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.forgetOwner(player);
         SkillEffectRuntime.reset(player);
         EquipmentDamageService.forgetSkillInput(player);
         CommittedSkillService.forget(player);
@@ -151,7 +157,7 @@ public final class PlayerRuntimeLifecycleService {
                 player
         );
 
-        EquipmentWeaponService.syncRangedVisualState(
+        EquipmentWeaponService.syncWeaponVisualState(
                 player
         );
 
@@ -239,6 +245,7 @@ public final class PlayerRuntimeLifecycleService {
     public static void forget(
             ServerPlayer player
     ) {
+        com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.forgetOwner(player);
         SkillEffectRuntime.forget(player);
         CommittedSkillService.forget(player);
         EquipmentAttributeService.forget(

@@ -6,6 +6,7 @@
     "minecraft:dragon_breath",
     "minecraft:sonic_boom",
     "minecraft:wither",
-    "minecraft:wither_skull"
+    "minecraft:wither_skull",
+    "essence_ascendance:magic_bolt"
   ]
 }

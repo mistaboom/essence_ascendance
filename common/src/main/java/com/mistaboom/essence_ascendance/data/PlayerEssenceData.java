@@ -24,6 +24,11 @@ import java.util.function.Predicate;
 
 public final class PlayerEssenceData {
 
+    // Persistent owner identity invalidates even projectiles stored in unloaded chunks.
+    private java.util.UUID projectileLife = java.util.UUID.randomUUID();
+    public java.util.UUID projectileLife() { return projectileLife; }
+    public void invalidateProjectiles() { projectileLife = java.util.UUID.randomUUID(); }
+
     private static final String AVAILABLE_TAG =
             "available";
 
@@ -1158,6 +1163,7 @@ public final class PlayerEssenceData {
 
         CompoundTag root =
                 new CompoundTag();
+        root.putUUID("projectile_life", projectileLife);
 
 
         /*
@@ -1356,6 +1362,7 @@ public final class PlayerEssenceData {
 
         PlayerEssenceData data =
                 new PlayerEssenceData();
+        if (root.hasUUID("projectile_life")) data.projectileLife = root.getUUID("projectile_life");
 
 
         /*

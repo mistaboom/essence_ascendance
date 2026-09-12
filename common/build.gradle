@@ -23,3 +23,7 @@ dependencies {
     def jeiVersion = rootProject.findProperty('jei_version') ?: '19.43.0.395'
     compileOnly "mezz.jei:jei-1.21.1-common-api:${jeiVersion}"
 }
+
+loom {
+    accessWidenerPath = file("src/main/resources/essence_ascendance.accesswidener")
+}

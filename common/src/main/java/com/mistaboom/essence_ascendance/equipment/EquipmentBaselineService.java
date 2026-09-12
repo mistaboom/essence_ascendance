@@ -160,7 +160,7 @@ public final class EquipmentBaselineService {
                 15.0D, 0.0D,
                 6.0D, 1.6D,
                 6.0D, 1.0D,
-                5.0D, 1.0D,
+                3.0D, 20.0D / 12.0D,
                 6.0D,
                 2,
                 250

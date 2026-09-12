@@ -15,6 +15,8 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
+import com.mistaboom.essence_ascendance.projectile.MagicBoltEntity;
+import com.mistaboom.essence_ascendance.projectile.ProjectileRuntime;
 import net.minecraft.world.phys.HitResult;
 
 import java.util.ArrayDeque;
@@ -58,8 +60,7 @@ public final class EquipmentDamageService {
     /* All scopes are server-thread-only, bounded to the native call and closed
      * in finally. No context or combat input is persisted on items/entities. */
     private static final ThreadLocal<PrimarySkillAttack> PRIMARY_SKILL_ATTACK = new ThreadLocal<>();
-    private static final ThreadLocal<CasterSkillDamage> CASTER_SKILL_DAMAGE = new ThreadLocal<>();
-    private static final ThreadLocal<CasterSkillDamage> SWEEP_SKILL_DAMAGE = new ThreadLocal<>();
+    private static final ThreadLocal<SweepSkillDamage> SWEEP_SKILL_DAMAGE = new ThreadLocal<>();
     private static final ThreadLocal<PrimarySkillHitProbe> PRIMARY_SKILL_HIT_PROBE = new ThreadLocal<>();
     private static final ThreadLocal<Deque<SkillHealthSample>> SKILL_HEALTH_SAMPLES =
             ThreadLocal.withInitial(ArrayDeque::new);
@@ -143,6 +144,7 @@ public final class EquipmentDamageService {
                     && frame != null && !frame.nested && frame.target == target && frame.source == source
                     && !isReflectionInProgress() && SECONDARY_SKILL_DEPTH.get() == 0;
             if (realDamage) {
+                ProjectileRuntime.confirmedDamage(target, source, ownLoss);
                 AttackCategory category = primaryAttackCategory(target, source);
                 if (category == AttackCategory.MELEE) {
                     if (probe != null && probe.target == target && probe.source == source) {
@@ -170,8 +172,8 @@ public final class EquipmentDamageService {
                                                  DamageSource source, BooleanSupplier action) {
         PrimarySkillAttack attack = PRIMARY_SKILL_ATTACK.get();
         if (attack == null || attack.player != player) return action.getAsBoolean();
-        CasterSkillDamage previous = SWEEP_SKILL_DAMAGE.get();
-        SWEEP_SKILL_DAMAGE.set(new CasterSkillDamage(player, target, source));
+        SweepSkillDamage previous = SWEEP_SKILL_DAMAGE.get();
+        SWEEP_SKILL_DAMAGE.set(new SweepSkillDamage(player, target, source));
         try {
             return action.getAsBoolean();
         } finally {
@@ -212,15 +214,13 @@ public final class EquipmentDamageService {
         SkillDamageFrame frame = SKILL_DAMAGE_FRAMES.get().peek();
         if (frame != null && (frame.nested || frame.target != target || frame.source != source)) return null;
         if (isPrimarySkillMelee(player, target, source)) return player;
-        CasterSkillDamage sweep = SWEEP_SKILL_DAMAGE.get();
+        SweepSkillDamage sweep = SWEEP_SKILL_DAMAGE.get();
         if (sweep != null && sweep.player == player && sweep.target == target && sweep.source == source
                 && source.is(DamageTypes.PLAYER_ATTACK) && source.getDirectEntity() == player) return player;
         Entity direct = source.getDirectEntity();
-        if (direct instanceof Projectile projectile && projectile.getOwner() == player
+        if (direct instanceof Projectile projectile && !ProjectileRuntime.secondary(projectile) && projectile.getOwner() == player
                 && source.is(DamageTypeTags.IS_PROJECTILE)) return player;
-        CasterSkillDamage cast = CASTER_SKILL_DAMAGE.get();
-        return cast != null && cast.player == player && cast.target == target && cast.source == source
-                ? player : null;
+        return null;
     }
 
     public static boolean isPrimarySkillMelee(ServerPlayer player, LivingEntity target, DamageSource source) {
@@ -237,12 +237,9 @@ public final class EquipmentDamageService {
                                                        DamageSource source) {
         if (isPrimarySkillMelee(player, target, source)) return AttackCategory.MELEE;
         if (isReflectionInProgress() || SECONDARY_SKILL_DEPTH.get() > 0) return null;
-        CasterSkillDamage cast = CASTER_SKILL_DAMAGE.get();
-        if (cast != null && cast.player == player && cast.target == target && cast.source == source) {
-            return AttackCategory.CASTER;
-        }
         Entity direct = source.getDirectEntity();
-        if (direct instanceof Projectile projectile && projectile.getOwner() == player
+        if (direct instanceof MagicBoltEntity bolt && bolt.getOwner() == player) return AttackCategory.CASTER;
+        if (direct instanceof Projectile projectile && !ProjectileRuntime.secondary(projectile) && projectile.getOwner() == player
                 && source.is(DamageTypeTags.IS_PROJECTILE)) return AttackCategory.RANGED;
         return null;
     }
@@ -264,19 +261,7 @@ public final class EquipmentDamageService {
         }
     }
 
-    /** The actual neutral hitscan Caster path is the only synthetic magic allowed. */
-    public static boolean hurtWithCasterContext(ServerPlayer player, Entity target, float amount) {
-        if (!canSkillHarm(player, target)) return false;
-        DamageSource source = player.damageSources().indirectMagic(player, player);
-        CasterSkillDamage previous = CASTER_SKILL_DAMAGE.get();
-        CASTER_SKILL_DAMAGE.set(new CasterSkillDamage(player, target, source));
-        try {
-            return target.hurt(source, amount);
-        } finally {
-            if (previous == null) CASTER_SKILL_DAMAGE.remove();
-            else CASTER_SKILL_DAMAGE.set(previous);
-        }
-    }
+    public static boolean isSecondarySkillDamage() { return SECONDARY_SKILL_DEPTH.get() > 0; }
 
     public static boolean canSkillHarm(ServerPlayer player, Entity target) {
         if (target == player || target.level() != player.level() || !player.isAlive() || player.isSpectator()
@@ -327,7 +312,7 @@ public final class EquipmentDamageService {
     }
 
     private record PrimarySkillAttack(ServerPlayer player, Entity target) {}
-    private record CasterSkillDamage(ServerPlayer player, Entity target, DamageSource source) {}
+    private record SweepSkillDamage(ServerPlayer player, Entity target, DamageSource source) {}
     private static final class PrimarySkillHitProbe {
         final LivingEntity target;
         final DamageSource source;

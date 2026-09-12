@@ -150,6 +150,7 @@ final class EssenceDebugCommands {
                                         context.getSource(),
                                         StringArgumentType.getString(context, "milestone")
                                 ))))
+                .then(Commands.literal("projectiles").executes(context -> showProjectiles(context.getSource())))
                 .then(Commands.literal("offense").executes(context -> showOffense(context.getSource())))
                 .then(Commands.literal("defense").executes(context -> showDefense(context.getSource())))
                 .then(Commands.literal("shield").executes(context -> showShield(context.getSource())))
@@ -994,6 +995,15 @@ final class EssenceDebugCommands {
         );
     }
 
+    private static int showProjectiles(CommandSourceStack source) throws CommandSyntaxException {
+        var lines = com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.diagnostics(source.getPlayerOrException());
+        if (lines.isEmpty()) EssenceCommandUtil.send(source,
+                Component.translatable("command.essence_ascendance.projectiles.none"));
+        for (String line : lines) EssenceCommandUtil.send(source,
+                Component.translatable("command.essence_ascendance.projectiles.state", line));
+        return lines.size();
+    }
+
     private static void showMagicRuntime(CommandSourceStack source, ServerPlayer player, ItemStack stack) {
         EquipmentWeaponService.MagicState state = EquipmentWeaponService.evaluateMagic(player, stack);
         EssenceCommandUtil.send(source, EssenceCommandUtil.section("Magic runtime"));
@@ -1008,20 +1018,21 @@ final class EssenceDebugCommands {
                         + state.castTicks() + " tick cooldown)"
         ));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Neutral range",
-                EssenceCommandUtil.formatDecimal(EquipmentWeaponService.MAGIC_RANGE_BLOCKS) + " blocks"
+                "Projectile range",
+                EssenceCommandUtil.formatDecimal(EssenceConfigManager.skillEffects().projectiles().caster().range()) + " blocks"
         ));
 
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Bolt speed",
+                EssenceCommandUtil.formatDecimal(EssenceConfigManager.skillEffects().projectiles().caster().speed()) + " blocks/tick"));
         EquipmentWeaponService.lastMagicCast(player).ifPresentOrElse(
                 cast -> EssenceCommandUtil.send(
                         source,
                         EssenceCommandUtil.line(
                                 "Last cast",
                                 (cast.castPerformed() ? "CAST" : "BLOCKED")
-                                        + " | target " + cast.targetName()
-                                        + " | distance " + EssenceCommandUtil.formatDecimal(cast.targetDistance())
+                                        + " | " + cast.status() + " | entity #" + cast.projectileId()
                                         + " | attempted damage " + EssenceCommandUtil.formatDecimal(cast.attemptedDamage())
-                                        + " | applied " + (cast.damageApplied() ? "YES" : "NO")
+                                        + " | launch only; impacts resolve in flight"
                         )
                 ),
                 () -> EssenceCommandUtil.send(source, EssenceCommandUtil.muted("  Last cast: NONE RECORDED"))

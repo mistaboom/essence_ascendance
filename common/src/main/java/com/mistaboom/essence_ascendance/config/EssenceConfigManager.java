@@ -1514,8 +1514,60 @@ public final class EssenceConfigManager {
         chain.addProperty("damage_falloff", chainSettings.damageFalloff());
         elemental.add("chain_strike", chain);
         offense.add("elemental_imbuement", elemental);
+        offense.add("projectiles", createProjectileSettings(settings.projectiles()));
         result.add("offense", offense);
         return result;
+    }
+
+    private static JsonObject createProjectileSettings(ProjectileBalanceSettings settings) {
+        JsonObject result = new JsonObject();
+        result.addProperty("_comment", "Launch snapshots. Multipliers 0.75/0.80 retain 75%/80% damage. piercing_shield_damage_multiplier applies once only to a hit bypassing an active supported shield, in addition to enemy penetration falloff; it does not spend an extra penetration. Set it to 0 to disable skill shield bypass. Finite unsafe values clamp to safety bounds. Arrow speed is native; caster speed comes only from this profile. maximum_impacts never cuts native arrow piercing. Damage/rate remain equipment tier baselines.");
+        JsonObject arrow = createProjectileProfile(settings.arrow());
+        arrow.remove("speed"); // Native launch velocity belongs to the bow/enchantments.
+        result.add("arrow", arrow);
+        result.add("caster", createProjectileProfile(settings.caster()));
+        result.addProperty("ricochets", settings.ricochets());
+        result.addProperty("ricochet_radius", settings.ricochetRadius());
+        result.addProperty("ricochet_damage_multiplier", settings.ricochetDamageMultiplier());
+        result.addProperty("penetrations", settings.penetrations());
+        result.addProperty("piercing_damage_multiplier", settings.piercingDamageMultiplier());
+        result.addProperty("piercing_shield_damage_multiplier", settings.piercingShieldDamageMultiplier());
+        result.addProperty("maximum_impacts", settings.maximumImpacts());
+        result.addProperty("maximum_speed", settings.maximumSpeed());
+        return result;
+    }
+    private static JsonObject createProjectileProfile(ProjectileBalanceSettings.Profile settings) {
+        JsonObject result = new JsonObject();
+        result.addProperty("range", settings.range());
+        result.addProperty("speed", settings.speed());
+        result.addProperty("lifetime_ticks", settings.lifetimeTicks());
+        result.addProperty("acquisition_range", settings.acquisitionRange());
+        result.addProperty("acquisition_cone_degrees", settings.acquisitionConeDegrees());
+        result.addProperty("turn_degrees_per_tick", settings.turnDegreesPerTick());
+        return result;
+    }
+    private static ProjectileBalanceSettings parseProjectileSettings(JsonObject object) {
+        var d = ProjectileBalanceSettings.defaults();
+        return new ProjectileBalanceSettings(
+                parseProjectileProfile(skillSettingsObject(object, "arrow"), d.arrow()),
+                parseProjectileProfile(skillSettingsObject(object, "caster"), d.caster()),
+                readSkillSettingInt(object, "ricochets", d.ricochets()),
+                readSkillSettingDouble(object, "ricochet_radius", d.ricochetRadius()),
+                readSkillSettingDouble(object, "ricochet_damage_multiplier", d.ricochetDamageMultiplier()),
+                readSkillSettingInt(object, "penetrations", d.penetrations()),
+                readSkillSettingDouble(object, "piercing_damage_multiplier", d.piercingDamageMultiplier()),
+                readSkillSettingDouble(object, "piercing_shield_damage_multiplier", d.piercingShieldDamageMultiplier()),
+                readSkillSettingInt(object, "maximum_impacts", d.maximumImpacts()),
+                readSkillSettingDouble(object, "maximum_speed", d.maximumSpeed()));
+    }
+    private static ProjectileBalanceSettings.Profile parseProjectileProfile(JsonObject object, ProjectileBalanceSettings.Profile d) {
+        return new ProjectileBalanceSettings.Profile(
+                readSkillSettingDouble(object, "range", d.range()),
+                readSkillSettingDouble(object, "speed", d.speed()),
+                readSkillSettingInt(object, "lifetime_ticks", d.lifetimeTicks()),
+                readSkillSettingDouble(object, "acquisition_range", d.acquisitionRange()),
+                readSkillSettingDouble(object, "acquisition_cone_degrees", d.acquisitionConeDegrees()),
+                readSkillSettingDouble(object, "turn_degrees_per_tick", d.turnDegreesPerTick()));
     }
 
     private static SkillEffectBalanceSettings parseSkillEffects(JsonObject root) {
@@ -1605,7 +1657,8 @@ public final class EssenceConfigManager {
                 new SkillEffectBalanceSettings.ChainStrike(
                         readSkillSettingInt(chainStrike, "maximum_jumps", cs.maximumJumps()),
                         readSkillSettingDouble(chainStrike, "radius", cs.radius()),
-                        readSkillSettingDouble(chainStrike, "damage_falloff", cs.damageFalloff()))
+                        readSkillSettingDouble(chainStrike, "damage_falloff", cs.damageFalloff())),
+                parseProjectileSettings(skillSettingsObject(offense, "projectiles"))
         );
     }
 

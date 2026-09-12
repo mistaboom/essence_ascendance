@@ -316,7 +316,7 @@ final class OffenseElementalImbuementEffects {
         @Override public double flatPrimaryDamageBonus(SkillEffectRuntime.Context context, LivingEntity target,
                                                        DamageSource source, AttackCategory primaryCategory) {
             StaticChargeState state = context.existingState(id());
-            return primaryCategory != null && state != null
+            return primaryCategory != null && com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.canDischarge(source) && state != null
                     && state.full(context.settings().staticCharge().maximumCharge())
                     ? context.settings().staticCharge().lightningDamage() : 0.0;
         }
@@ -324,7 +324,9 @@ final class OffenseElementalImbuementEffects {
         @Override public void successfulAttack(SkillEffectRuntime.Context context, AttackResultContext result) {
             StaticChargeState state = context.existingState(id());
             var settings = context.settings().staticCharge();
-            if (state == null || !state.consumeIfFull(settings.maximumCharge(), context.now())) return;
+            if (state == null || !com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.canDischarge(result.source())
+                    || !state.consumeIfFull(settings.maximumCharge(), context.now())) return;
+            com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.discharged(result.source());
             SkillProcDamageService.particles(context.player(), result.target(), ParticleTypes.ELECTRIC_SPARK,
                     14, 0.30, 0.03);
             if (context.isEffective(SkillIds.CHAIN_STRIKE)) {

@@ -38,6 +38,7 @@ dependencies {
 }
 
 loom {
+    accessWidenerPath = project(":common").file("src/main/resources/essence_ascendance.accesswidener")
     runs {
         client {
             programArg "--username"
@@ -54,6 +55,10 @@ loom {
 processResources {
     inputs.property 'version', project.version
 
+    // Fabric resolves the declared access widener inside this mod's resource root.
+    // Pointing Loom at common's source file alone does not copy it for dev launches.
+    from(loom.accessWidenerPath)
+
     filesMatching('fabric.mod.json') {
         expand version: inputs.properties.version
     }
@@ -62,6 +67,11 @@ processResources {
 shadowJar {
     configurations = [project.configurations.shadowBundle]
     archiveClassifier = 'dev-shadow'
+
+    // common also contributes this same file when bundled into the production jar.
+    filesMatching('essence_ascendance.accesswidener') {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
 }
 
 remapJar {

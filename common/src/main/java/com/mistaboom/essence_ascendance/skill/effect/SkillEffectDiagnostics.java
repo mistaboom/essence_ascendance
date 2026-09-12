@@ -39,6 +39,7 @@ final class SkillEffectDiagnostics {
     static List<String> validate() {
         List<String> failures = new ArrayList<>();
         SkillEffectHudDiagnostics.validate(failures);
+        failures.addAll(com.mistaboom.essence_ascendance.projectile.ProjectileDiagnostics.validate());
         registrations(failures);
         catalog(failures);
         configuration(failures);
@@ -386,7 +387,7 @@ final class SkillEffectDiagnostics {
         String id = ResourceLocation.class.getTypeName();
         String balances = "java.util.Map<" + id + ", java.lang.Long>";
         String ids = "java.util.Set<" + id + ">";
-        Map<String, String> expected = Map.of(
+        Map<String, String> expected = new HashMap<>(Map.of(
                 "availableEssence", balances,
                 "investedEssence", balances,
                 "crucibleReservoir", balances,
@@ -395,7 +396,9 @@ final class SkillEffectDiagnostics {
                 "loadoutSelections", "java.util.Map<" + id + ", " + id + ">",
                 "completedAttunements", ids,
                 "currentTierId", id,
-                "nexusRevision", "long");
+                "nexusRevision", "long"));
+        expected.put("projectileLife", "java.util.UUID");
+        expected.put("fractionalResourceCostCarry", "java.util.Map<" + id + ", java.lang.Double>");
         Map<String, String> actual = new HashMap<>();
         for (var field : PlayerEssenceData.class.getDeclaredFields()) {
             if (!Modifier.isStatic(field.getModifiers()) && !field.isSynthetic()) {

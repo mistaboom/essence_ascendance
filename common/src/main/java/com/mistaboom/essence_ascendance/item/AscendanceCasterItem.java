@@ -16,14 +16,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.TooltipFlag;
 import java.util.List;
 
-/*
- * Native Ascendance caster.
- *
- * This tranche intentionally starts with one neutral, universal magic action:
- * right-click performs a server-authoritative hitscan cast. Later spell/Essence
- * systems can replace or expand the presentation while continuing to consume
- * the same authoritative magic damage/cast-speed values.
- */
+/** Semi-automatic magic projectile weapon. Native use/release packets latch each press. */
 public final class AscendanceCasterItem
         extends Item
         implements EquipmentProfileItem {
@@ -57,9 +50,9 @@ public final class AscendanceCasterItem
     ) {
         ItemStack stack = player.getItemInHand(hand);
 
-        if (player.getCooldowns().isOnCooldown(this)) {
-            return InteractionResultHolder.fail(stack);
-        }
+        // Latch even a cooldown-rejected press. Holding the button never queues another cast.
+        player.startUsingItem(hand);
+        if (player.getCooldowns().isOnCooldown(this)) return InteractionResultHolder.consume(stack);
 
         if (player instanceof ServerPlayer serverPlayer) {
             EquipmentWeaponService.castMagic(
@@ -67,13 +60,21 @@ public final class AscendanceCasterItem
                     hand,
                     stack
             );
+        } else if (level.isClientSide) {
+            // Predict only the native recovery meter, never a bolt, particle or successful hit.
+            // Server cooldown packets reconcile this with the actual accepted launch.
+            int ticks = EquipmentWeaponService.syncedMagicCastTicks(stack);
+            if (ticks > 0) player.getCooldowns().addCooldown(this, ticks);
         }
 
-        return InteractionResultHolder.sidedSuccess(
-                stack,
-                level.isClientSide
-        );
+        return InteractionResultHolder.consume(stack);
     }
+
+    @Override
+    public int getUseDuration(ItemStack stack, net.minecraft.world.entity.LivingEntity entity) { return 72000; }
+
+    @Override
+    public net.minecraft.world.item.UseAnim getUseAnimation(ItemStack stack) { return net.minecraft.world.item.UseAnim.NONE; }
 
     @Override
     public void appendHoverText(

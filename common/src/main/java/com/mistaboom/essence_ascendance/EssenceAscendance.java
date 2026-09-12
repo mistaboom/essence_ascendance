@@ -67,6 +67,7 @@ public final class EssenceAscendance {
         /* Native item registrations come after equipment definitions. */
         AscendanceArmorMaterials.init();
         AscendanceItems.init();
+        com.mistaboom.essence_ascendance.projectile.ProjectileContent.init();
         EssenceCrucibleContent.init();
         EssencePylonContent.init();
         EssenceInfuserContent.init();

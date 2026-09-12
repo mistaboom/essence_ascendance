@@ -50,7 +50,7 @@ public final class EquipmentGameplayEvents {
                 EquipmentAttributeService.sync(serverPlayer);
                 EquipmentMobilityService.sync(serverPlayer);
                 EquipmentVitalityService.tick(serverPlayer);
-                EquipmentWeaponService.syncRangedVisualState(serverPlayer);
+                EquipmentWeaponService.syncWeaponVisualState(serverPlayer);
                 EquipmentGatheringService.sync(serverPlayer);
                 EquipmentTooltipSyncService.sync(serverPlayer);
                 // Send after the authoritative gameplay pass so the HUD sees

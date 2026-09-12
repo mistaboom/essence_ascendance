@@ -126,7 +126,7 @@ public final class EquipmentTooltipSyncService {
             entries.add(armor(data, armorSet, EquipmentSlot.FEET, "Boots", itemTier));
             entries.add(melee(data, itemTier));
             entries.add(ranged(data, itemTier));
-            entries.add(magic(data, itemTier));
+            entries.add(magic(player, data, itemTier));
             entries.add(tool(data, EquipmentProfiles.PICKAXE, "ascendance_pickaxe", "Pickaxe", itemTier));
             entries.add(tool(data, EquipmentProfiles.AXE, "ascendance_axe", "Axe", itemTier));
             entries.add(tool(data, EquipmentProfiles.SHOVEL, "ascendance_shovel", "Shovel", itemTier));
@@ -145,7 +145,7 @@ public final class EquipmentTooltipSyncService {
         entries.add(fractured(armor(data, armorSet, EquipmentSlot.FEET, "Boots", EquipmentTier.LATENT)));
         entries.add(fractured(melee(data, EquipmentTier.LATENT)));
         entries.add(fractured(ranged(data, EquipmentTier.LATENT)));
-        entries.add(fractured(magic(data, EquipmentTier.LATENT)));
+        entries.add(fractured(magic(player, data, EquipmentTier.LATENT)));
         entries.add(fractured(tool(data, EquipmentProfiles.PICKAXE, "ascendance_pickaxe", "Pickaxe", EquipmentTier.LATENT)));
         entries.add(fractured(tool(data, EquipmentProfiles.AXE, "ascendance_axe", "Axe", EquipmentTier.LATENT)));
         entries.add(fractured(tool(data, EquipmentProfiles.SHOVEL, "ascendance_shovel", "Shovel", EquipmentTier.LATENT)));
@@ -307,6 +307,7 @@ public final class EquipmentTooltipSyncService {
     }
 
     private static EquipmentTooltipPayload.Entry magic(
+            ServerPlayer player,
             PlayerEssenceData data,
             EquipmentTier itemTier
     ) {
@@ -321,8 +322,19 @@ public final class EquipmentTooltipSyncService {
                 new ArrayList<>();
 
         lines.add(identity(itemTier, "Caster"));
-        lines.add(stat("stat.magic_damage", number(base.magicDamage())));
-        lines.add(stat("stat.cast_speed", number(base.magicCastSpeed())));
+        var weights = EquipmentProfiles.MAGIC_CASTER.statApplicability(EquipmentActivationType.HELD);
+        double damage = base.magicDamage() * (1 + bonus(data, itemTier, EssenceStats.MAGIC_DAMAGE,
+                weights.getOrDefault(EssenceStats.MAGIC_DAMAGE.id(), 0.0)) / 100);
+        double speed = base.magicCastSpeed() * (1 + bonus(data, itemTier, EssenceStats.MAGIC_CAST_SPEED,
+                weights.getOrDefault(EssenceStats.MAGIC_CAST_SPEED.id(), 0.0)) / 100)
+                * com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime.casterSpeedMultiplier(player);
+        int cooldown = Math.max(1, (int) Math.round(20 / speed));
+        lines.add(stat("stat.magic_damage", number(damage)));
+        lines.add(stat("stat.cast_speed", number(20.0 / cooldown)));
+        lines.add(stat("stat.cast_cooldown", Integer.toString(cooldown)));
+        var projectileProfile = com.mistaboom.essence_ascendance.config.EssenceConfigManager.skillEffects().projectiles().caster();
+        lines.add(stat("stat.bolt_range", number(projectileProfile.range())));
+        lines.add(stat("caster_projectile"));
 
         addProfileAbilities(
                 lines,

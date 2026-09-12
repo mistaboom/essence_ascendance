@@ -219,7 +219,7 @@
   "skill.essence_ascendance.pain_purge": "Pain Purge",
   "skill.essence_ascendance.pain_purge.description": "Eating food or drinking a healing potion removes part of the unpaid delayed-damage queue before restoring current health.",
   "skill.essence_ascendance.piercing_projectile": "Piercing Projectile",
-  "skill.essence_ascendance.piercing_projectile.description": "Ranged and magical projectiles pass through several enemies, losing some damage after each penetration.",
+  "skill.essence_ascendance.piercing_projectile.description": "Ranged and magical projectiles pierce shields at reduced damage and pass through several enemies, losing damage after each penetration.",
   "skill.essence_ascendance.pocket_nets": "Pocket Nets",
   "skill.essence_ascendance.pocket_nets.description": "Rarely grants fishing drops while swimming.",
   "skill.essence_ascendance.potion_duration": "Potion Duration",
@@ -822,5 +822,13 @@
   "tooltip.essence_ascendance.equipment.shield.durability": "Durability: %1$s",
   "tooltip.essence_ascendance.equipment.shield.base_reflection": "Base Damage Reflection: %1$s%%",
   "tooltip.essence_ascendance.equipment.shield.on_block_bonus": "On-Block Bonus: x%1$s",
-  "tooltip.essence_ascendance.equipment.shield.fractured": "Blocking / Reflection: Disabled"
+  "tooltip.essence_ascendance.equipment.shield.fractured": "Blocking / Reflection: Disabled",
+  "entity.essence_ascendance.magic_bolt": "Ascendance Magic Bolt",
+  "death.attack.essence_ascendance.magic_bolt": "%1$s was struck by %2$s’s magic bolt",
+  "death.attack.essence_ascendance.magic_bolt.item": "%1$s was struck by %2$s’s magic bolt using %3$s",
+  "command.essence_ascendance.projectiles.none": "No recent projectile snapshots for this player.",
+  "command.essence_ascendance.projectiles.state": "%s",
+  "tooltip.essence_ascendance.equipment.stat.bolt_range": "Bolt Range: %s blocks",
+  "tooltip.essence_ascendance.equipment.caster_projectile": "One bolt per click; no gravity or ammunition.",
+  "tooltip.essence_ascendance.equipment.stat.cast_cooldown": "Cast Cooldown: %s ticks"
 }

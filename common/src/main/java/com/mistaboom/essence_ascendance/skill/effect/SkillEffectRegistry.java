@@ -13,9 +13,9 @@ import java.util.Set;
 /** Only completed implementations are registered. Construction rejects catalog drift. */
 public final class SkillEffectRegistry {
     private static final Map<ResourceLocation, SkillEffectHandler> HANDLERS =
-            validated(java.util.stream.Stream.concat(
-                    OffenseCombatStanceEffects.handlers().stream(),
-                    OffenseElementalImbuementEffects.handlers().stream()).toList());
+            validated(java.util.stream.Stream.of(OffenseCombatStanceEffects.handlers(),
+                    OffenseElementalImbuementEffects.handlers(), OffenseProjectileEffects.handlers())
+                    .flatMap(Collection::stream).toList());
 
     private SkillEffectRegistry() { }
 

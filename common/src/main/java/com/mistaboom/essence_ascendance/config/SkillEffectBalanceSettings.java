@@ -17,7 +17,8 @@ public record SkillEffectBalanceSettings(
         Frostbite frostbite,
         Shatter shatter,
         StaticCharge staticCharge,
-        ChainStrike chainStrike
+        ChainStrike chainStrike,
+        ProjectileBalanceSettings projectiles
 ) {
     public SkillEffectBalanceSettings {
         Objects.requireNonNull(frenzy, "Frenzy balance cannot be null");
@@ -30,6 +31,7 @@ public record SkillEffectBalanceSettings(
         Objects.requireNonNull(shatter, "Shatter balance cannot be null");
         Objects.requireNonNull(staticCharge, "Static Charge balance cannot be null");
         Objects.requireNonNull(chainStrike, "Chain Strike balance cannot be null");
+        Objects.requireNonNull(projectiles, "Projectile balance cannot be null");
     }
 
     public record Frenzy(
@@ -200,7 +202,8 @@ public record SkillEffectBalanceSettings(
                 new Frostbite(5, 1, 100, 0.08, 0.40, 80, 0.95),
                 new Shatter(3.0, 5.0, 6),
                 new StaticCharge(100.0, 1.0, 4.0, 0.50, 0.35, 0.60, 40, 0.50, 4.0),
-                new ChainStrike(3, 6.0, 0.75)
+                new ChainStrike(3, 6.0, 0.75),
+                ProjectileBalanceSettings.defaults()
         );
     }
 

@@ -12,13 +12,10 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.entity.projectile.Projectile;
-import net.minecraft.world.entity.projectile.ProjectileUtil;
+import com.mistaboom.essence_ascendance.projectile.MagicBoltEntity;
+import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.EntityHitResult;
-import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.Vec3;
 
 import java.util.Map;
 import java.util.Optional;
@@ -44,18 +41,16 @@ import java.util.WeakHashMap;
  *
  * MAGIC
  * -----
- * The native Ascendance Caster performs a deliberately simple neutral hitscan cast.
- * It requires no custom entity registration and gives the magic baseline/stat
- * pipeline a real gameplay target before spell families are designed later.
+ * The Caster snapshots Magic Damage and its own projectile profile into a real bolt.
+ * Its cast rate remains independent of ranged stats and Bow Projectile Speed.
  */
 public final class EquipmentWeaponService {
-
-    public static final double MAGIC_RANGE_BLOCKS = 24.0;
 
     public static final int VANILLA_BOW_FULL_DRAW_TICKS = 20;
 
     private static final String RANGED_FULL_DRAW_TICKS_TAG =
             "essence_ascendance_ranged_full_draw_ticks";
+    private static final String MAGIC_CAST_TICKS_TAG = "essence_ascendance_magic_cast_ticks";
 
     private static final double VANILLA_BOW_FULL_SPEED = 3.0;
     private static final double VANILLA_ARROW_BASE_DAMAGE = 2.0;
@@ -171,7 +166,7 @@ public final class EquipmentWeaponService {
     }
 
     /*
-     * Keep the resolved full-draw duration on the concrete held ItemStack.
+     * Keep resolved bow draw / caster recovery durations on the held ItemStack.
      * ItemStack components are synchronized by Minecraft, which gives the
      * client-side model predicate the one small piece of authoritative state
      * it needs without introducing a separate networking protocol.
@@ -179,25 +174,20 @@ public final class EquipmentWeaponService {
      * CUSTOM_DATA is updated rather than replaced so unrelated namespaced
      * custom data remains intact.
      */
-    public static void syncRangedVisualState(ServerPlayer player) {
-        syncRangedVisualState(player, player.getMainHandItem());
-        syncRangedVisualState(player, player.getOffhandItem());
+    public static void syncWeaponVisualState(ServerPlayer player) {
+        syncWeaponVisualState(player, player.getMainHandItem());
+        syncWeaponVisualState(player, player.getOffhandItem());
     }
 
-    private static void syncRangedVisualState(
+    private static void syncWeaponVisualState(
             ServerPlayer player,
             ItemStack stack
     ) {
-        if (stack.isEmpty()
-                || !(stack.getItem() instanceof EquipmentProfileItem profileItem)
-                || !profileItem.equipmentProfileId().equals(
-                EquipmentProfiles.RANGED_WEAPON.id()
-        )) {
-            return;
-        }
-
-        int resolvedTicks = evaluateRanged(player, stack).fullDrawTicks();
-        int currentTicks = syncedRangedFullDrawTicks(stack);
+        if (stack.isEmpty() || !(stack.getItem() instanceof EquipmentProfileItem profileItem)) return;
+        boolean magic = profileItem.equipmentProfileId().equals(EquipmentProfiles.MAGIC_CASTER.id());
+        if (!magic && !profileItem.equipmentProfileId().equals(EquipmentProfiles.RANGED_WEAPON.id())) return;
+        int resolvedTicks = magic ? evaluateMagic(player, stack).castTicks() : evaluateRanged(player, stack).fullDrawTicks();
+        int currentTicks = magic ? syncedMagicCastTicks(stack) : syncedRangedFullDrawTicks(stack);
 
         if (currentTicks == resolvedTicks) {
             return;
@@ -207,10 +197,16 @@ public final class EquipmentWeaponService {
                 DataComponents.CUSTOM_DATA,
                 stack,
                 tag -> tag.putInt(
-                        RANGED_FULL_DRAW_TICKS_TAG,
+                        magic ? MAGIC_CAST_TICKS_TAG : RANGED_FULL_DRAW_TICKS_TAG,
                         resolvedTicks
                 )
         );
+    }
+
+    /** Client prediction only; a fresh unsynchronized stack waits for the native server cooldown packet. */
+    public static int syncedMagicCastTicks(ItemStack stack) {
+        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        return data == null ? 0 : Math.max(0, data.copyTag().getInt(MAGIC_CAST_TICKS_TAG));
     }
 
     /*
@@ -382,9 +378,8 @@ public final class EquipmentWeaponService {
         if (player.getCooldowns().isOnCooldown(stack.getItem())) {
             MagicCastEvaluation evaluation = new MagicCastEvaluation(
                     false,
-                    false,
                     "COOLDOWN",
-                    0.0,
+                    -1,
                     state.finalDamage(),
                     state.castTicks()
             );
@@ -392,64 +387,27 @@ public final class EquipmentWeaponService {
             return evaluation;
         }
 
-        Vec3 start = player.getEyePosition();
-        Vec3 look = player.getLookAngle();
-
-        HitResult blockHit = player.pick(
-                MAGIC_RANGE_BLOCKS,
-                0.0F,
-                false
-        );
-
-        double rayDistance = blockHit.getType() == HitResult.Type.MISS
-                ? MAGIC_RANGE_BLOCKS
-                : Math.min(
-                        MAGIC_RANGE_BLOCKS,
-                        start.distanceTo(blockHit.getLocation())
-                );
-
-        Vec3 direction = look.scale(rayDistance);
-        Vec3 end = start.add(direction);
-
-        AABB searchBox = player
-                .getBoundingBox()
-                .expandTowards(direction)
-                .inflate(1.0D);
-
-        EntityHitResult entityHit = ProjectileUtil.getEntityHitResult(
-                player,
-                start,
-                end,
-                searchBox,
-                entity -> entity != player
-                        && entity.isAlive()
-                        && entity.isPickable()
-                        && !entity.isSpectator(),
-                rayDistance * rayDistance
-        );
-
-        Entity target = entityHit == null
-                ? null
-                : entityHit.getEntity();
-
-        boolean damaged = false;
-        String targetName = "MISS";
-        double targetDistance = rayDistance;
-
-        if (target != null) {
-            targetName = target.getDisplayName().getString();
-            targetDistance = start.distanceTo(target.position());
-
-            // This is the real first-party hitscan execution, so attribute it
-            // explicitly instead of treating arbitrary synthetic magic as a cast.
-            damaged = EquipmentDamageService.hurtWithCasterContext(
-                    player, target, (float) state.finalDamage());
+        var profile = EssenceConfigManager.skillEffects().projectiles().caster();
+        MagicBoltEntity bolt = new MagicBoltEntity(player, state.finalDamage(), profile.speed());
+        boolean spawned = player.serverLevel().addFreshEntity(bolt);
+        if (!spawned) {
+            // Clear a locally predicted timer when the server could not actually create the shot.
+            player.getCooldowns().removeCooldown(stack.getItem());
+            MagicCastEvaluation evaluation = new MagicCastEvaluation(false, "SPAWN_REJECTED", -1,
+                    state.finalDamage(), state.castTicks());
+            LAST_MAGIC_CAST.put(player, evaluation);
+            return evaluation;
         }
+        player.serverLevel().playSound(null, player.getX(), player.getY(), player.getZ(),
+                net.minecraft.sounds.SoundEvents.AMETHYST_BLOCK_CHIME,
+                net.minecraft.sounds.SoundSource.PLAYERS, 0.6F, 1.6F);
 
         player.getCooldowns().addCooldown(
                 stack.getItem(),
                 state.castTicks()
         );
+        // One native hand animation per accepted cast, including the shooter's own client.
+        player.swing(hand, true);
 
         stack.hurtAndBreak(
                 1,
@@ -459,9 +417,8 @@ public final class EquipmentWeaponService {
 
         MagicCastEvaluation evaluation = new MagicCastEvaluation(
                 true,
-                damaged,
-                targetName,
-                targetDistance,
+                "LAUNCHED",
+                bolt.getId(),
                 state.finalDamage(),
                 state.castTicks()
         );
@@ -560,9 +517,8 @@ public final class EquipmentWeaponService {
 
     public record MagicCastEvaluation(
             boolean castPerformed,
-            boolean damageApplied,
-            String targetName,
-            double targetDistance,
+            String status,
+            int projectileId,
             double attemptedDamage,
             int cooldownTicks
     ) {

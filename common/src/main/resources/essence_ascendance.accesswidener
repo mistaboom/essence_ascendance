@@ -1,0 +1,3 @@
+accessWidener v2 named
+# Base constructor used by the first-party bolt and the shared native arrow tick bridge.
+accessible method net/minecraft/world/entity/projectile/Projectile <init> (Lnet/minecraft/world/entity/EntityType;Lnet/minecraft/world/level/Level;)V
