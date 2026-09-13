@@ -26,7 +26,7 @@ public record AscendanceNexusTransactionPayload(
         String baseTierId,
         String baseBalanceProfileId,
         List<BonusTarget> bonusTargets,
-        List<String> skillPurchases,
+        List<SkillRankTarget> skillPurchases,
         List<LoadoutSelection> loadoutSelections,
         boolean ascend
 ) implements CustomPacketPayload {
@@ -80,9 +80,7 @@ public record AscendanceNexusTransactionPayload(
         skillPurchases = List.copyOf(skillPurchases);
         loadoutSelections = List.copyOf(loadoutSelections);
 
-        for (String skillId : skillPurchases) {
-            requireId(skillId, "Skill ID", false);
-        }
+        for (SkillRankTarget target : skillPurchases) Objects.requireNonNull(target);
     }
 
     @Override
@@ -107,8 +105,9 @@ public record AscendanceNexusTransactionPayload(
         }
 
         buffer.writeVarInt(payload.skillPurchases().size());
-        for (String skillId : payload.skillPurchases()) {
-            buffer.writeUtf(skillId, MAX_ID_LENGTH);
+        for (SkillRankTarget target : payload.skillPurchases()) {
+            buffer.writeUtf(target.skillId(), MAX_ID_LENGTH);
+            buffer.writeVarInt(target.targetRank());
         }
 
         buffer.writeVarInt(payload.loadoutSelections().size());
@@ -149,9 +148,9 @@ public record AscendanceNexusTransactionPayload(
                 MAX_SKILL_PURCHASES,
                 "skill purchase"
         );
-        List<String> purchases = new ArrayList<>(purchaseCount);
+        List<SkillRankTarget> purchases = new ArrayList<>(purchaseCount);
         for (int i = 0; i < purchaseCount; i++) {
-            purchases.add(buffer.readUtf(MAX_ID_LENGTH));
+            purchases.add(new SkillRankTarget(buffer.readUtf(MAX_ID_LENGTH), buffer.readVarInt()));
         }
 
         int selectionCount = readBoundedCount(
@@ -208,6 +207,14 @@ public record AscendanceNexusTransactionPayload(
             );
         }
         return value;
+    }
+
+    /** A final target rank; zero requests a refund only if the catalog explicitly permits it. */
+    public record SkillRankTarget(String skillId, int targetRank) {
+        public SkillRankTarget {
+            requireId(skillId, "Skill ID", false);
+            if (targetRank < 0 || targetRank > 64) throw new IllegalArgumentException("Invalid requested skill rank");
+        }
     }
 
     public record BonusTarget(

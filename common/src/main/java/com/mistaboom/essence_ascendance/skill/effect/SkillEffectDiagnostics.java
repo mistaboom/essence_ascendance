@@ -412,7 +412,7 @@ final class SkillEffectDiagnostics {
         var receipt = SkillPurchase.class.getRecordComponents();
         check(failures, receipt != null && receipt.length == 2
                         && receipt[0].getName().equals("essenceId") && receipt[0].getType() == ResourceLocation.class
-                        && receipt[1].getName().equals("paidCost") && receipt[1].getType() == long.class,
+                        && receipt[1].getName().equals("paidCosts") && receipt[1].getType() == List.class,
                 "Persistent purchase receipt schema changed; review for transient combat state.");
     }
 

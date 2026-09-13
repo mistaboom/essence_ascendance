@@ -1,5 +1,7 @@
 package com.mistaboom.essence_ascendance.equipment;
 
+import com.mistaboom.essence_ascendance.balance.economy.FractionalAmountService;
+
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.ItemStack;
 
@@ -59,10 +61,11 @@ public final class PercentageBonusYieldService {
                 continue;
             }
 
+            FractionalAmountService.Split split = FractionalAmountService.split(expected);
             long extra = expected >= Long.MAX_VALUE
                     ? Long.MAX_VALUE
-                    : (long) Math.floor(expected);
-            double remainder = expected - Math.floor(expected);
+                    : (long) split.whole();
+            double remainder = split.remainder();
             if (remainder > 0.0D && random.nextDouble() < remainder
                     && extra < Long.MAX_VALUE) {
                 extra++;

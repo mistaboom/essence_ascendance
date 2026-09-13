@@ -1,0 +1,181 @@
+# Essence Ascendance: factual pack corrections
+# Inputs apply only during generation, then become part of generated_balance.json.
+# Run /essence debug balance rebuild after editing. Never use generated JSON as an editor.
+# Ordinary startup uses the existing valid profile and warns if this file changed.
+# Inspect reports/ CSV tables to find IDs and generated values; those files are
+# read-only views. Full evidence remains in generated_balance.json and diagnostics/.
+# Player unlock thresholds are visible in reports/ascension.csv. Their runtime
+# totalInvestmentMultiplier multiplies the current tier's generated budget.
+# Existing exact overrides can change that multiplier; thresholds must stay
+# positive and strictly increasing, with no skipped tier or known mining cycle.
+# Optional breadth requirements must fit the registered stats and categories.
+schema_version = 1
+
+# Add one [[fact]] table per correction. All examples below are commented out.
+# Every fact needs kind and selector. Give it a short unique id for diagnostics.
+# kind: item, block, item_tag, block_tag, recipe, recipe_family, source, enemy,
+#       provider, capability. Use actual registry/provider identifiers as selectors.
+# Exact item/block/enemy IDs and tags are preferred over per-mod conditionals.
+# priority: integer -100000..100000, default 1000; larger priority wins.
+# Conflicting equal-priority evidence is resolved deterministically and reported.
+# confidence: 0..1; describe how certain you are, not the power you want.
+# reason: plain-language explanation recorded in provenance.
+#
+# Supported factual fields:
+# stage = "entry" | "early" | "mid" | "late" | "apex"
+# availability = "finite" | "renewable_manual" | "renewable_automated" |
+#                "effectively_infinite" | "unknown" | "administrative"
+# automation = "none" | "player_gated" | "bounded" | "scalable" |
+#              "passive" | "infinite" | "unknown"
+# classification = descriptive source/resource class; enemy classes are exactly
+#                  "routine", "elite", "boss", "apex", "unknown".
+#                  Use administrative=true to exclude a test/admin enemy.
+# slot = "head" | "chest" | "legs" | "feet" | "offhand" | "mainhand_melee" |
+#        "mainhand_bow" | "mainhand_crossbow" | "mainhand_caster" | "mainhand_tool"
+#        "body" records non-player equipment and is excluded from player frontiers.
+# A custom item whose equipment behavior is not exposed by default components
+# needs an explicit slot plus measurable axes (damage, armor, mining_speed, etc.).
+# The item must still be registered and have a reachable acquisition route.
+# Enemy types without measured default hostile attributes need include_reference=true,
+# explicit stage and confidence>0, plus positive health. classification is optional;
+# "unknown" is retained when omitted and does not set routine/boss damage budgets.
+# Flags (true/false): attainable, disabled, creative_only, administrative, joke,
+# quest_gated, include_reference, renewable, passive_generation, flight,
+# vein_mining, area_mining.
+# Nonnegative numbers: resource_value, throughput, health, armor, damage,
+# attack_speed, toughness, mining_speed, harvest_level, durability, enchantability,
+# startup_cost, marginal_cost, parallelizability, processing_time, output_count.
+# output_count must be a positive whole number no greater than 2147483647;
+# use probability separately for fractional expected recipe outputs.
+# Numbers in 0..1: confidence, probability, player_attention.
+# String arrays: capabilities, dependencies, acquisition_sources.
+# Other strings: dimension, gate, reason.
+# throughput is evidence in units/second; processing_time is in server ticks
+# (20 ticks/second). resource_value is opportunity value, not a final dissolution
+# yield. Recipe probabilities describe expected output chances.
+# startup_cost and marginal_cost use the same normalized opportunity-value units
+# as resource_value. Startup cost is a one-time setup burden, never a consumed
+# input credited again for every output. parallelizability is relative to one
+# producer (1 = one producer); player_attention is 0 for passive output and 1
+# for continuous player action. Leave unknown rates/costs omitted.
+# Unsupported/unused facts are visible in diagnostics rather than silently treated
+# as exact knowledge of a third-party machine, quest system or boss mechanic.
+#
+# Unknown keys, duplicate IDs, bad types, and contradictions stop regeneration.
+# Examples: disabled=true with attainable=true; creative_only=true with
+# include_reference=true; effectively_infinite availability with renewable=false.
+
+# Effectively unlimited cobblestone from the beginning (enable only if true here).
+# [[fact]]
+# id = "early_bulk_stone"
+# kind = "item"
+# selector = "minecraft:cobblestone"
+# stage = "entry"
+# availability = "effectively_infinite"
+# automation = "scalable"
+# renewable = true
+# confidence = 1.0
+# reason = "The pack provides an inexpensive cobblestone generator at entry."
+
+# A registered test armor item must not influence external reference populations.
+# [[fact]]
+# id = "exclude_test_armor"
+# kind = "item"
+# selector = "examplemod:debug_chestplate"
+# attainable = false
+# administrative = true
+# include_reference = false
+# reason = "Registered for debugging and deliberately unobtainable."
+
+# Classify a whole resource tag instead of maintaining hundreds of item rows.
+# [[fact]]
+# id = "renewable_gems"
+# kind = "item_tag"
+# selector = "examplepack:renewable_gems"
+# renewable = true
+# automation = "passive"
+# stage = "mid"
+# reason = "Our midgame generator passively supplies this tag."
+
+# A flight item exists but the pack gates access until late progression.
+# [[fact]]
+# id = "late_flight"
+# kind = "item"
+# selector = "examplemod:flight_ring"
+# flight = true
+# capabilities = ["flight"]
+# stage = "late"
+# quest_gated = true
+# gate = "examplepack:flight_unlock"
+# reason = "Quest progression prevents earlier access."
+
+# Recipe family = registered recipe type. This also represents pack-disabled or
+# KubeJS/datapack-modified recipe facts without a hard dependency on those mods.
+# [[fact]]
+# id = "disabled_machine_family"
+# kind = "recipe_family"
+# selector = "examplemod:creative_processing"
+# disabled = true
+# reason = "All recipes in this registered family are disabled by pack design."
+
+# A hidden 3x3 tool capability needs explicit evidence if attributes cannot show it.
+# [[fact]]
+# id = "area_tool"
+# kind = "item"
+# selector = "examplemod:excavator"
+# area_mining = true
+# capabilities = ["area_mining"]
+# stage = "mid"
+# reason = "Breaks a 3x3 area per active player action."
+
+# An ordinary Item can implement a custom weapon without exposing vanilla attributes.
+# [[fact]]
+# id = "custom_caster"
+# kind = "item"
+# selector = "examplemod:spell_focus"
+# slot = "mainhand_caster"
+# damage = 30.0
+# attack_speed = 0.5
+# confidence = 0.9
+# reason = "Measured unmodified casts deal 30 damage once every two seconds."
+
+# Enemy classification can distinguish a true apex encounter from routine mobs.
+# [[fact]]
+# id = "apex_encounter"
+# kind = "enemy"
+# selector = "examplemod:final_boss"
+# classification = "apex"
+# stage = "apex"
+# include_reference = true
+# health = 500.0
+# confidence = 1.0
+# reason = "Intended final encounter; its shield requires an integration provider."
+
+# Provider priority is itself a reusable correction; use an actual provider ID.
+# [[fact]]
+# id = "trust_pack_adapter"
+# kind = "provider"
+# selector = "examplepack:machine_sources"
+# priority = 2000
+# reason = "This adapter knows the pack's modified machine recipes."
+
+# ADVANCED ESCAPE HATCH: exact generated runtime fields, applied during generation.
+# This is a separate input, never a second live runtime authority.
+# Keys are quoted JSON Pointers into the candidate profile. Use / between object
+# fields; inside a key encode literal ~ as ~0 and / as ~1. Array indices are zero-based.
+# Values may be numbers, booleans, strings or arrays of primitive values.
+# Only supported existing runtime paths are accepted by the generator; unknown
+# paths, unsafe profile metadata changes and invalid results fail the rebuild.
+# Read the generated profile to locate a field, then place the override HERE.
+# General policy preferences belong in essence_ascendance.toml; factual errors
+# should normally be corrected using [[fact]]. Exact values deliberately stop
+# that field from adapting automatically to a changed pack.
+# Generated item dissolution routes accept only nonnegative whole Essence.
+# Fractional exact yield overrides fail with the offending pointer; they are
+# never silently rounded. Recipe conservation may still reduce a requested yield.
+# Runtime equipment/stat overrides must respect their documented unit precision.
+[exact]
+# "/runtime/statMaxBonuses/essence_ascendance:melee_damage" = 12.0
+# "/runtime/equipment/essence_ascendance:transcendent/fullSetArmor" = 24.0
+# "/runtime/infuser/repair/essencePerDurability" = 1
+# "/economy/resources/examplemod:crystal/routedYields/essence_ascendance:utility" = 12

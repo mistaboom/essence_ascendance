@@ -3,7 +3,7 @@
   "category": "misc",
   "pattern": [
     "LAL",
-    "ADA",
+    "AAA",
     "LAL"
   ],
   "key": {
@@ -12,9 +12,6 @@
     },
     "A": {
       "item": "minecraft:amethyst_shard"
-    },
-    "D": {
-      "item": "minecraft:diamond"
     }
   },
   "result": {

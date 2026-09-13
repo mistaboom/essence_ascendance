@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.mapping;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
+import com.mistaboom.essence_ascendance.balance.economy.FractionalAmountService;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -9,21 +10,15 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Atomically published, pre-resolved generation. Explicit rules beat the generated
- * baseline even at a lower numeric priority. Priority/tied addition remains
- * unchanged WITHIN the explicit layer; empty winning output blocks the baseline.
- * Tags resolve only while staging a generation, so a rejected reload cannot mix
- * old numbers with newly changed tag membership. No graph evaluation on ticks.
+/** Atomically published exact yields and derived whole-number command projections.
+ * All factual and exact overrides are resolved and conservation-checked during
+ * generation; no runtime selector or priority layer can bypass the profile.
  */
 public final class ItemEssenceMappingRegistry {
-    private static final Comparator<ItemEssenceMappingDefinition> ORDER = Comparator
-            .comparingInt(ItemEssenceMappingDefinition::priority).reversed()
-            .thenComparing(definition -> definition.id().toString());
     private static volatile State state = State.empty();
     private static volatile ReloadReport lastReload = ReloadReport.notLoaded();
     private ItemEssenceMappingRegistry() { }
@@ -34,69 +29,55 @@ public final class ItemEssenceMappingRegistry {
         return state.resolved().getOrDefault(id, unmapped(id));
     }
 
+    /** Exact generated dissolution amounts in millionths of Essence. */
+    public static Map<EssenceDefinition, Long> resolveDissolution(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return Map.of();
+        return state.microYields().getOrDefault(BuiltInRegistries.ITEM.getKey(stack.getItem()), Map.of());
+    }
+
+    /** Build both exact gameplay and display projections before one atomic publish. */
+    public static synchronized void installResolved(
+            Map<ResourceLocation, Map<EssenceDefinition, Long>> microYields,
+            LoadSummary summary, Runnable beforePublish) {
+        Map<ResourceLocation, ItemEssenceMappingResult> resolved = new LinkedHashMap<>();
+        Map<ResourceLocation, Map<EssenceDefinition, Long>> exact = new LinkedHashMap<>();
+        Map<ResourceLocation, String> origins = new LinkedHashMap<>();
+        List<ItemEssenceMappingDefinition> definitions = new ArrayList<>();
+        microYields.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
+            ResourceLocation id = entry.getKey();
+            if (!BuiltInRegistries.ITEM.containsKey(id)) throw new IllegalArgumentException("Unknown generated item " + id);
+            Map<EssenceDefinition, Long> floors = new LinkedHashMap<>();
+            Map<EssenceDefinition, Long> positive = new LinkedHashMap<>();
+            long total = 0;
+            for (Map.Entry<EssenceDefinition, Long> output : entry.getValue().entrySet()) {
+                if (output.getKey() == null || output.getValue() < 0) throw new IllegalArgumentException("Invalid generated route " + id);
+                total = Math.addExact(total, output.getValue());
+                if (output.getValue() > 0) positive.put(output.getKey(), output.getValue());
+                long whole = output.getValue() / FractionalAmountService.SCALE;
+                if (whole > 0) floors.put(output.getKey(), whole);
+            }
+            ResourceLocation ruleId = ResourceLocation.fromNamespaceAndPath("essence_ascendance", "generated/" + id.getNamespace() + "/" + id.getPath());
+            definitions.add(new ItemEssenceMappingDefinition(ruleId, 0,
+                    ItemEssenceMappingDefinition.SelectorType.ITEM, id, BuiltInRegistries.ITEM.get(id), null, floors));
+            resolved.put(id, new ItemEssenceMappingResult(id, List.of(ruleId), List.of(ruleId), 0, floors));
+            exact.put(id, Map.copyOf(positive));
+            origins.put(id, positive.isEmpty() ? "generated_block" : "generated_balance");
+        });
+        long next = Math.addExact(state.generation(), 1);
+        State candidate = new State(next, List.copyOf(definitions), Map.copyOf(resolved), Map.copyOf(origins), Map.copyOf(exact));
+        ReloadReport report = new ReloadReport(true, next, definitions.size(), 0, 0, 0, 0,
+                definitions.size(), definitions.size(), 0, summary.warnings(), List.of());
+        beforePublish.run();
+        state = candidate;
+        lastReload = report;
+    }
+
     public static String source(ResourceLocation itemId) {
         return state.origins().getOrDefault(itemId, "none");
     }
     public static List<ItemEssenceMappingDefinition> definitions() { return state.definitions(); }
     public static ReloadReport lastReload() { return lastReload; }
     public static long generation() { return state.generation(); }
-
-    static synchronized void install(List<ItemEssenceMappingDefinition> explicit,
-                                     Map<ResourceLocation, ItemEssenceMappingDefinition> generated,
-                                     LoadSummary summary, Runnable beforePublish) {
-        List<ItemEssenceMappingDefinition> ordered = explicit.stream().sorted(ORDER).toList();
-        Map<ResourceLocation, ItemEssenceMappingResult> resolved = new LinkedHashMap<>();
-        Map<ResourceLocation, String> origins = new LinkedHashMap<>();
-        for (Item item : BuiltInRegistries.ITEM) {
-            if (item == Items.AIR) continue;
-            ResourceLocation id = BuiltInRegistries.ITEM.getKey(item);
-            ItemStack stack = new ItemStack(item);
-            List<ItemEssenceMappingDefinition> matches = ordered.stream().filter(rule -> rule.matches(stack)).toList();
-            if (!matches.isEmpty()) {
-                resolved.put(id, resolveRules(id, matches));
-                origins.put(id, resolved.get(id).outputs().isEmpty() ? "explicit_block" : "explicit");
-            } else if (generated.containsKey(id)) {
-                resolved.put(id, resolveRules(id, List.of(generated.get(id))));
-                origins.put(id, "procedural");
-            }
-        }
-        List<ItemEssenceMappingDefinition> all = new ArrayList<>(ordered);
-        all.addAll(generated.values());
-        all.sort(ORDER);
-        long next = Math.addExact(state.generation(), 1L);
-        State complete = new State(next, List.copyOf(all), Map.copyOf(resolved), Map.copyOf(origins));
-        ReloadReport report = new ReloadReport(true, next, summary.bundledDefaultCount(), summary.removedDefaultCount(),
-                summary.replacedDefaultCount(), summary.configFileCount(), summary.configMappingCount(), all.size(),
-                countItemRules(all), all.size() - countItemRules(all), summary.warnings(), List.of());
-        // Persist a newly calculated cache only after ALL merged-table validation.
-        // A failed write/rename cannot replace either the live table or its report.
-        beforePublish.run();
-        state = complete;
-        lastReload = report;
-        EssenceAscendance.LOGGER.info("Installed Essence mapping generation {}: {} generated defaults, {} explicit rules, {} resolved items",
-                next, generated.size(), explicit.size(), resolved.size());
-        summary.warnings().forEach(warning -> EssenceAscendance.LOGGER.warn("Essence mappings: {}", warning));
-    }
-
-    private static ItemEssenceMappingResult resolveRules(ResourceLocation itemId,
-                                                        List<ItemEssenceMappingDefinition> matches) {
-        int priority = matches.getFirst().priority();
-        List<ResourceLocation> applied = new ArrayList<>();
-        Map<EssenceDefinition, Long> outputs = new LinkedHashMap<>();
-        for (ItemEssenceMappingDefinition rule : matches) {
-            if (rule.priority() != priority) break;
-            applied.add(rule.id());
-            rule.outputs().forEach((essence, amount) -> {
-                if (amount < 0) throw new IllegalArgumentException("Negative output in " + rule.id());
-                if (amount > 0) outputs.merge(essence, amount, Math::addExact);
-            });
-        }
-        // Also check the complete multi-Essence total before publication.
-        long total = 0L;
-        for (long amount : outputs.values()) total = Math.addExact(total, amount);
-        return new ItemEssenceMappingResult(itemId, matches.stream().map(ItemEssenceMappingDefinition::id).toList(),
-                applied, priority, outputs);
-    }
 
     static synchronized void rejectReload(LoadSummary summary, List<String> errors) {
         lastReload = new ReloadReport(false, state.generation(), summary.bundledDefaultCount(), summary.removedDefaultCount(),
@@ -119,9 +100,10 @@ public final class ItemEssenceMappingRegistry {
     }
     private record State(long generation, List<ItemEssenceMappingDefinition> definitions,
                          Map<ResourceLocation, ItemEssenceMappingResult> resolved,
-                         Map<ResourceLocation, String> origins) {
+                         Map<ResourceLocation, String> origins,
+                         Map<ResourceLocation, Map<EssenceDefinition, Long>> microYields) {
         static State empty() { return empty(0L); }
-        static State empty(long generation) { return new State(generation, List.of(), Map.of(), Map.of()); }
+        static State empty(long generation) { return new State(generation, List.of(), Map.of(), Map.of(), Map.of()); }
     }
 
     public record LoadSummary(

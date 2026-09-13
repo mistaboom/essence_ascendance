@@ -58,7 +58,7 @@ public final class ProjectileRuntime {
         var state = new ProjectileState(source, OffenseProjectileEffects.selectedPath(effective), owner.getUUID(),
                 com.mistaboom.essence_ascendance.data.EssenceSavedData.get(owner.server).getPlayerData(owner.getUUID()).projectileLife(),
                 owner.level().dimension().location(), owner.level().getGameTime(),
-                EssenceConfigManager.skillEffects().projectiles(),
+                com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime.resolvedSettings(owner).projectiles(),
                 projectile instanceof AbstractArrow arrow ? Math.max(0, arrow.getPierceLevel()) : 0);
         state.payload = ProjectileImpactEffects.snapshot(owner, effective);
         access.essenceAscendance$state(state);

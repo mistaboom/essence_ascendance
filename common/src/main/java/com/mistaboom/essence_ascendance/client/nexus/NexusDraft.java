@@ -123,14 +123,16 @@ public final class NexusDraft {
     public void stagePurchase(
             ResourceLocation skillId,
             ResourceLocation essenceId,
-            long projectedCost
+            long projectedCost,
+            int targetRank
     ) {
         purchases.put(
                 skillId,
                 new SkillPurchaseDraft(
                         skillId,
                         essenceId,
-                        Math.max(0L, projectedCost)
+                        Math.max(0L, projectedCost),
+                        targetRank
                 )
         );
     }
@@ -149,6 +151,13 @@ public final class NexusDraft {
 
     public List<SkillPurchaseDraft> stagedPurchases() {
         return List.copyOf(purchases.values());
+    }
+
+    public Map<ResourceLocation, Integer> projectedRanks(ClientEssenceState.Snapshot snapshot) {
+        Map<ResourceLocation, Integer> ranks = new LinkedHashMap<>();
+        snapshot.ownedSkills().forEach((id, receipt) -> ranks.put(id, receipt.rank()));
+        purchases.forEach((id, purchase) -> ranks.put(id, purchase.targetRank()));
+        return Map.copyOf(ranks);
     }
 
     public boolean willOwn(
@@ -439,11 +448,13 @@ public final class NexusDraft {
     public record SkillPurchaseDraft(
             ResourceLocation skillId,
             ResourceLocation essenceId,
-            long projectedCost
+            long projectedCost,
+            int targetRank
     ) {
         public SkillPurchaseDraft {
             Objects.requireNonNull(skillId, "Skill ID cannot be null");
             Objects.requireNonNull(essenceId, "Essence ID cannot be null");
+            if (targetRank < 1 || targetRank > 64) throw new IllegalArgumentException("Invalid staged rank");
             if (projectedCost < 0L) {
                 throw new IllegalArgumentException("Projected cost cannot be negative");
             }

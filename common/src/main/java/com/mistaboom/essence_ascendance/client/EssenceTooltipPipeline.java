@@ -47,7 +47,9 @@ public final class EssenceTooltipPipeline {
         );
 
         if (EssentiumCarrierData.isEssentium(stack)) {
-            EssentiumCarrierData.read(stack)
+            EssentiumCarrierData.readValidated(stack)
+                    .filter(value -> value.amount() <= Long.MAX_VALUE
+                            / com.mistaboom.essence_ascendance.balance.economy.FractionalAmountService.SCALE)
                     .ifPresent(value -> {
                 tooltip.add(
                         Component.literal(" ")
@@ -57,9 +59,9 @@ public final class EssenceTooltipPipeline {
                                         ChatFormatting.BOLD
                                 )
                 );
-                ItemEssenceTooltipClientState.appendDirectEssenceTooltip(
+                ItemEssenceTooltipClientState.appendDirectEssenceTooltipMicros(
                         value.essence().id(),
-                        value.amount(),
+                        EssentiumCarrierData.extractionYieldMicroUnits(value),
                         tooltip
                 );
             });

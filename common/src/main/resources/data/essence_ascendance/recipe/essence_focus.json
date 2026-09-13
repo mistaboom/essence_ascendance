@@ -8,16 +8,13 @@
     "A": {
       "item": "minecraft:amethyst_shard"
     },
-    "E": {
-      "item": "minecraft:emerald"
-    },
-    "D": {
-      "item": "minecraft:diamond"
+    "G": {
+      "item": "minecraft:glass"
     }
   },
   "pattern": [
     "LAL",
-    "EDE",
+    "GAG",
     "LAL"
   ],
   "result": {

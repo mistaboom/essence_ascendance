@@ -24,6 +24,7 @@ public final class ClientPacketDispatch {
     }
 
     private static void clearPresentation() {
+        RuntimeBalanceClientState.clear();
         ClientEssenceState.clear();
         AscendanceNexusTransactionClientState.clear();
         EquipmentTooltipClientState.clear();

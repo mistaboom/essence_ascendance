@@ -53,6 +53,7 @@ final class ProceduralValuationIndex {
     private final Map<Item, List<BlockDropSource>> blockDropSourcesByItem;
     private final Map<Item, List<ContainerLootSource>> containerLootSourcesByItem;
     private final Map<Item, List<FishingLootSource>> fishingLootSourcesByItem;
+    private final Map<Item, List<BiologicalSource>> biologicalSourcesByItem;
     private final Map<Item, List<Item>> conservationGroups;
     private final Map<Item, List<ConservationEdge>> conservationEdges;
     private final ProceduralNaturalBlockIndex naturalBlockIndex;
@@ -67,6 +68,7 @@ final class ProceduralValuationIndex {
             Map<Item, List<BlockDropSource>> blockDropSourcesByItem,
             Map<Item, List<ContainerLootSource>> containerLootSourcesByItem,
             Map<Item, List<FishingLootSource>> fishingLootSourcesByItem,
+            Map<Item, List<BiologicalSource>> biologicalSourcesByItem,
             Map<Item, List<Item>> conservationGroups,
             Map<Item, List<ConservationEdge>> conservationEdges,
             ProceduralNaturalBlockIndex naturalBlockIndex,
@@ -80,6 +82,7 @@ final class ProceduralValuationIndex {
         this.blockDropSourcesByItem = freezeLists(blockDropSourcesByItem);
         this.containerLootSourcesByItem = freezeLists(containerLootSourcesByItem);
         this.fishingLootSourcesByItem = freezeLists(fishingLootSourcesByItem);
+        this.biologicalSourcesByItem = freezeLists(biologicalSourcesByItem);
         this.conservationGroups = freezeLists(conservationGroups);
         this.conservationEdges = freezeLists(conservationEdges);
         this.naturalBlockIndex = naturalBlockIndex;
@@ -103,10 +106,11 @@ final class ProceduralValuationIndex {
 
         for (RecipeHolder<?> holder : server.getRecipeManager().getRecipes()) {
             Recipe<?> recipe = holder.value();
+            if (!ValuationGenerationInputs.recipeAllowed(holder.id(), recipe.getType())) continue;
 
             try {
                 ItemStack result = recipe.getResultItem(server.registryAccess());
-                if (result == null || result.isEmpty() || result.is(Items.AIR)) {
+                if (result == null || result.isEmpty() || result.is(Items.AIR) || !ValuationGenerationInputs.itemAllowed(result.getItem())) {
                     skippedRecipes++;
                     continue;
                 }
@@ -119,7 +123,7 @@ final class ProceduralValuationIndex {
 
                     LinkedHashSet<Item> alternatives = new LinkedHashSet<>();
                     for (ItemStack candidate : ingredient.getItems()) {
-                        if (candidate != null && !candidate.isEmpty() && !candidate.is(Items.AIR)) {
+                        if (candidate != null && !candidate.isEmpty() && !candidate.is(Items.AIR) && ValuationGenerationInputs.itemAllowed(candidate.getItem())) {
                             alternatives.add(candidate.getItem());
                         }
                     }
@@ -138,7 +142,7 @@ final class ProceduralValuationIndex {
                         holder.id(),
                         recipe.getType(),
                         result.getItem(),
-                        Math.max(1, result.getCount()),
+                        ValuationGenerationInputs.outputCount(holder.id(), recipe.getType(), Math.max(1, result.getCount())),
                         List.copyOf(ingredients)
                 );
 
@@ -178,6 +182,7 @@ final class ProceduralValuationIndex {
         ProceduralNaturalBlockIndex naturalBlockIndex = ProceduralNaturalBlockIndex.build(server);
         // Positive runtime interaction relationships (no hand-authored item prices).
         for (RecipeModel model : ProceduralInteractionRecipes.discover(server, naturalBlockIndex)) {
+            if (!ValuationGenerationInputs.recipeAllowed(model.id(), model.type()) || !ValuationGenerationInputs.itemAllowed(model.outputItem())) continue;
             byOutput.computeIfAbsent(model.outputItem(), ignored -> new ArrayList<>()).add(model);
             for (IngredientChoice ingredient : model.ingredients()) {
                 for (Item candidate : ingredient.alternatives()) {
@@ -192,6 +197,7 @@ final class ProceduralValuationIndex {
         Map<Item, List<Item>> conservationGroups = buildConservationGroups(conservationEdges);
         ProceduralStructureIndex structureIndex = ProceduralStructureIndex.build(server);
         ProceduralMobSpawnIndex mobSpawnIndex = ProceduralMobSpawnIndex.build(server, structureIndex);
+        Map<Item, List<BiologicalSource>> biologicalSources = biologicalSources(mobSpawnIndex);
         ProceduralTradeIndex tradeIndex = ProceduralTradeIndex.build(server);
 
         int lootTablesScanned = scanEntityLootTables(server, drops, mobSpawnIndex);
@@ -264,6 +270,7 @@ final class ProceduralValuationIndex {
                 blockDrops,
                 containerLoot,
                 fishingLoot,
+                biologicalSources,
                 conservationGroups,
                 conservationEdges,
                 naturalBlockIndex,
@@ -282,12 +289,32 @@ final class ProceduralValuationIndex {
     }
 
     List<DropSource> dropSources(Item item) {
-        return dropSourcesByItem.getOrDefault(item, List.of());
+        return dropSourcesByItem.getOrDefault(item, List.of()).stream()
+                .filter(source -> ValuationGenerationInputs.sourceAllowed(source.entityId().toString())).toList();
+    }
+
+    List<BiologicalSource> biologicalSources(Item item) {
+        return biologicalSourcesByItem.getOrDefault(item, List.of()).stream()
+                .filter(source -> ValuationGenerationInputs.sourceAllowed(source.event().id().toString())
+                        && ValuationGenerationInputs.sourceAllowed(source.event().producerId().toString())).toList();
+    }
+
+    static Map<Item, List<BiologicalSource>> biologicalSources(ProceduralMobSpawnIndex spawnIndex) {
+        Map<Item, List<BiologicalSource>> result = new IdentityHashMap<>();
+        for (BiologicalAcquisitionSources.Source event : BiologicalAcquisitionSources.all()) {
+            if (!ValuationGenerationInputs.itemAllowed(event.output())) continue;
+            var spawn = spawnIndex == null ? ProceduralMobSpawnIndex.SpawnAvailability.UNKNOWN
+                    : spawnIndex.forEntity(event.producerId());
+            result.computeIfAbsent(event.output(), ignored -> new ArrayList<>())
+                    .add(new BiologicalSource(event, spawn.multiplier(), spawn.signals()));
+        }
+        return freezeLists(result);
     }
 
     List<BlockDropSource> blockDropSources(Item item) {
         return blockDropSourcesByItem.getOrDefault(item, List.of()).stream()
                 .filter(source -> {
+                    if (!ValuationGenerationInputs.sourceAllowed(source.blockId().toString())) return false;
                     Block sourceBlock = BuiltInRegistries.BLOCK.getOptional(source.blockId()).orElse(null);
                     if (sourceBlock == null) return false;
                     return sourceBlock.asItem() != item
@@ -312,15 +339,18 @@ final class ProceduralValuationIndex {
     }
 
     List<ProceduralTradeIndex.TradeSource> tradeSources(Item item) {
-        return tradeIndex == null ? List.of() : tradeIndex.sources(item);
+        return tradeIndex == null ? List.of() : tradeIndex.sources(item).stream()
+                .filter(source -> ValuationGenerationInputs.sourceAllowed(source.traderId().toString())).toList();
     }
 
     List<ContainerLootSource> containerLootSources(Item item) {
-        return containerLootSourcesByItem.getOrDefault(item, List.of());
+        return containerLootSourcesByItem.getOrDefault(item, List.of()).stream()
+                .filter(source -> ValuationGenerationInputs.sourceAllowed(source.lootTableId().toString())).toList();
     }
 
     List<FishingLootSource> fishingLootSources(Item item) {
-        return fishingLootSourcesByItem.getOrDefault(item, List.of());
+        return fishingLootSourcesByItem.getOrDefault(item, List.of()).stream()
+                .filter(source -> ValuationGenerationInputs.sourceAllowed(source.lootTableId().toString())).toList();
     }
 
     List<Item> conservationGroup(Item item) {
@@ -455,9 +485,10 @@ final class ProceduralValuationIndex {
                 if (type == null || !type.endsWith("smithing_transform")) {
                     continue;
                 }
+                if (!ValuationGenerationInputs.recipeAllowed(recipeId, RecipeType.SMITHING)) continue;
 
                 Item outputItem = readRecipeResultItem(root.get("result"));
-                if (outputItem == null || outputItem == Items.AIR) {
+                if (outputItem == null || outputItem == Items.AIR || !ValuationGenerationInputs.itemAllowed(outputItem)) {
                     continue;
                 }
                 int outputCount = readRecipeResultCount(root.get("result"));
@@ -477,7 +508,7 @@ final class ProceduralValuationIndex {
                         recipeId,
                         RecipeType.SMITHING,
                         outputItem,
-                        Math.max(1, outputCount),
+                        ValuationGenerationInputs.outputCount(recipeId, RecipeType.SMITHING, Math.max(1, outputCount)),
                         List.copyOf(ingredients)
                 );
                 byOutput.computeIfAbsent(outputItem, ignored -> new ArrayList<>()).add(model);
@@ -1992,6 +2023,11 @@ final class ProceduralValuationIndex {
             double armorFactor = 1.0 + Math.max(0.0, armor) / 40.0;
             return healthFactor * offenseFactor * armorFactor;
         }
+    }
+
+    record BiologicalSource(BiologicalAcquisitionSources.Source event, double spawnMultiplier,
+                            List<String> spawnSignals) {
+        BiologicalSource { spawnSignals = List.copyOf(spawnSignals); }
     }
 
     record BlockDropSource(

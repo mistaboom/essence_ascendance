@@ -69,38 +69,6 @@ public final class AscendanceNexusNetworkService {
                         )
         );
 
-        /*
-         * Retain the old wire IDs for one transition period, but never let
-         * them bypass the unified projected validator/atomic commit path.
-         */
-        NetworkManager.registerReceiver(
-                NetworkManager.Side.C2S,
-                AscendanceAllocationPayload.TYPE,
-                AscendanceAllocationPayload.CODEC,
-                (payload, context) ->
-                        context.queue(
-                                () -> {
-                                    if (context.getPlayer() instanceof ServerPlayer player) {
-                                        handleLegacyAllocationRequest(player, payload);
-                                    }
-                                }
-                        )
-        );
-
-        NetworkManager.registerReceiver(
-                NetworkManager.Side.C2S,
-                AscendanceAscendPayload.TYPE,
-                AscendanceAscendPayload.CODEC,
-                (payload, context) ->
-                        context.queue(
-                                () -> {
-                                    if (context.getPlayer() instanceof ServerPlayer player) {
-                                        handleLegacyAscendRequest(player, payload);
-                                    }
-                                }
-                        )
-        );
-
         initialized = true;
 
         EssenceAscendance.LOGGER.info(
@@ -179,10 +147,10 @@ public final class AscendanceNexusNetworkService {
             }
         }
 
-        Set<ResourceLocation> purchases = new LinkedHashSet<>();
-        for (String encodedSkillId : payload.skillPurchases()) {
-            ResourceLocation skillId = ResourceLocation.tryParse(encodedSkillId);
-            if (skillId == null || !purchases.add(skillId)) {
+        Map<ResourceLocation, Integer> purchases = new LinkedHashMap<>();
+        for (var rankTarget : payload.skillPurchases()) {
+            ResourceLocation skillId = ResourceLocation.tryParse(rankTarget.skillId());
+            if (skillId == null || purchases.putIfAbsent(skillId, rankTarget.targetRank()) != null) {
                 finishInvalidProposal(
                         player,
                         payload,
@@ -310,171 +278,6 @@ public final class AscendanceNexusNetworkService {
         }
     }
 
-    private static void handleLegacyAllocationRequest(
-            ServerPlayer player,
-            AscendanceAllocationPayload payload
-    ) {
-        if (!validNexusMenu(player, payload.menuId())) {
-            reject(
-                    player,
-                    EssenceText.gui("nexus.reject.invalid_menu"),
-                    false
-            );
-            return;
-        }
-
-        if (!beginRequest(player)) {
-            reject(
-                    player,
-                    resultMessage(
-                            AscendanceNexusTransactionResultPayload.Status.RATE_LIMITED
-                    ),
-                    true
-            );
-            return;
-        }
-
-        if (payload.targets().isEmpty()
-                || payload.targets().size() > AscendanceAllocationPayload.MAX_TARGETS) {
-            reject(
-                    player,
-                    EssenceText.gui("nexus.reject.invalid_allocation"),
-                    true
-            );
-            return;
-        }
-
-        ResourceLocation baseTierId = ResourceLocation.tryParse(payload.baseTierId());
-        ResourceLocation baseProfileId =
-                ResourceLocation.tryParse(payload.baseBalanceProfileId());
-        if (baseTierId == null || baseProfileId == null) {
-            reject(
-                    player,
-                    EssenceText.gui("nexus.reject.invalid_context"),
-                    true
-            );
-            return;
-        }
-
-        PlayerEssenceData playerData = playerData(player);
-        Map<ResourceLocation, Long> completeTargets = currentKnownBonusTargets(playerData);
-        Set<ResourceLocation> touched = new LinkedHashSet<>();
-
-        for (AscendanceAllocationPayload.Target target : payload.targets()) {
-            ResourceLocation statId = ResourceLocation.tryParse(target.statId());
-            StatDefinition stat = statId == null
-                    ? null
-                    : EssenceStatRegistry.get(statId).orElse(null);
-
-            if (stat == null || !touched.add(statId)) {
-                reject(
-                        player,
-                        stat == null
-                                ? EssenceText.gui("nexus.reject.unknown_stat")
-                                : EssenceText.gui("nexus.reject.duplicate_stat"),
-                        true
-                );
-                return;
-            }
-
-            if (playerData.getInvested(stat) != target.baseInvestment()) {
-                reject(
-                        player,
-                        resultMessage(
-                                AscendanceNexusTransactionResultPayload.Status.STALE
-                        ),
-                        true
-                );
-                return;
-            }
-
-            completeTargets.put(statId, target.targetInvestment());
-        }
-
-        AscendanceNexusTransactionService.Result result =
-                AscendanceNexusTransactionService.apply(
-                        player,
-                        payload.basePlayerRevision(),
-                        baseTierId,
-                        baseProfileId,
-                        completeTargets,
-                        Set.of(),
-                        Map.of(),
-                        false
-                );
-
-        finishLegacy(player, result, false);
-    }
-
-    private static void handleLegacyAscendRequest(
-            ServerPlayer player,
-            AscendanceAscendPayload payload
-    ) {
-        if (!validNexusMenu(player, payload.menuId())) {
-            reject(
-                    player,
-                    EssenceText.gui("nexus.reject.ascend_invalid_menu"),
-                    false
-            );
-            return;
-        }
-
-        if (!beginRequest(player)) {
-            reject(
-                    player,
-                    resultMessage(
-                            AscendanceNexusTransactionResultPayload.Status.RATE_LIMITED
-                    ),
-                    true
-            );
-            return;
-        }
-
-        ResourceLocation baseTierId = ResourceLocation.tryParse(payload.baseTierId());
-        PlayerEssenceData playerData = playerData(player);
-        if (baseTierId == null || !playerData.getTierId().equals(baseTierId)) {
-            reject(
-                    player,
-                    EssenceText.gui("nexus.reject.progression_changed"),
-                    true
-            );
-            return;
-        }
-
-        AscendanceNexusTransactionService.Result result =
-                AscendanceNexusTransactionService.apply(
-                        player,
-                        playerData.nexusRevision(),
-                        baseTierId,
-                        EssenceConfigManager.get().balanceProfile().id(),
-                        currentKnownBonusTargets(playerData),
-                        Set.of(),
-                        Map.of(),
-                        true
-                );
-
-        finishLegacy(player, result, true);
-    }
-
-    private static void finishLegacy(
-            ServerPlayer player,
-            AscendanceNexusTransactionService.Result result,
-            boolean ascendRequest
-    ) {
-        if (!result.accepted()) {
-            reject(player, resultMessage(result.status()), true);
-            return;
-        }
-
-        PlayerRuntimeLifecycleService.refreshProgressionState(player);
-        player.closeContainer();
-        if (ascendRequest) {
-            AscendanceTierFeedback.play(player);
-        } else {
-            AscendanceAllocationFeedback.play(player);
-        }
-    }
-
     private static boolean validNexusMenu(
             ServerPlayer player,
             int menuId
@@ -492,16 +295,6 @@ public final class AscendanceNexusNetworkService {
 
     private static long currentRevision(ServerPlayer player) {
         return playerData(player).nexusRevision();
-    }
-
-    private static Map<ResourceLocation, Long> currentKnownBonusTargets(
-            PlayerEssenceData playerData
-    ) {
-        Map<ResourceLocation, Long> targets = new LinkedHashMap<>();
-        for (StatDefinition stat : EssenceStatRegistry.values()) {
-            targets.put(stat.id(), playerData.getInvested(stat));
-        }
-        return targets;
     }
 
     private static boolean beginRequest(ServerPlayer player) {
@@ -531,7 +324,7 @@ public final class AscendanceNexusNetworkService {
             case CAP_EXCEEDED -> "A staged Bonus investment exceeds its current tier cap.";
             case INSUFFICIENT_ESSENCE -> "There is not enough unallocated Essence for these changes.";
             case UNKNOWN_SKILL -> "The staged proposal contains an unknown skill.";
-            case SKILL_ALREADY_OWNED -> "A staged skill is already owned.";
+            case SKILL_MAX_RANK -> "A staged skill exceeds its maximum rank.";
             case SKILL_TIER_REQUIRED -> "Your current Ascendance tier cannot purchase a staged skill.";
             case SKILL_PREREQUISITE_REQUIRED -> "A staged skill prerequisite is not owned or staged.";
             case SKILL_REQUIREMENT_INCOMPLETE -> "A staged skill requirement is incomplete in the final proposal.";

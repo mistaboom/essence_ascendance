@@ -41,6 +41,10 @@ public final class CommittedSkillService {
         return state(player).effectiveIds().contains(skillId);
     }
 
+    public static int effectiveRank(ServerPlayer player, ResourceLocation skillId) {
+        return isEffective(player, skillId) ? state(player).context().authoritativeRank(skillId) : 0;
+    }
+
     public static Set<ResourceLocation> effectiveIds(ServerPlayer player) {
         return state(player).effectiveIds();
     }
@@ -124,7 +128,7 @@ public final class CommittedSkillService {
         );
         return SkillEvaluationContext.committed(
                 data.getTierId(),
-                data.getOwnedSkills().keySet(),
+                data.getSkillRanks(),
                 data.getLoadoutSelections(),
                 data.getCompletedAttunements(),
                 completedMilestones,

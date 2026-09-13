@@ -183,7 +183,7 @@ public final class PlayerEssenceSyncService {
         if (!force
                 && previous != null
                 && previous.playerRevision()
-                == playerData.revision()
+                == playerData.nexusRevision()
                 && previous.configReference()
                 == config) {
             return;
@@ -221,7 +221,7 @@ public final class PlayerEssenceSyncService {
             LAST_SENT.put(
                     player,
                     new LastSentState(
-                            playerData.revision(),
+                            playerData.nexusRevision(),
                             config,
                             payload
                     )
@@ -238,7 +238,7 @@ public final class PlayerEssenceSyncService {
         LAST_SENT.put(
                 player,
                 new LastSentState(
-                        playerData.revision(),
+                        playerData.nexusRevision(),
                         config,
                         payload
                 )
@@ -339,7 +339,7 @@ public final class PlayerEssenceSyncService {
                                                 entry.getValue()
                                                         .essenceId()
                                                         .toString(),
-                                                entry.getValue().paidCost()
+                                                entry.getValue().paidCosts()
                                         )
                         )
                         .toList();

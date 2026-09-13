@@ -119,7 +119,7 @@ public final class EssencePylonContent {
     public static EssencePylonContribution contribution(ItemStack stack) {
         EssenceFocusTier tier = focusTier(stack);
         return tier == null
-                ? EssenceFocusTier.EMPTY_PYLON
+                ? EssenceFocusTier.emptyContribution()
                 : tier.contribution();
     }
 

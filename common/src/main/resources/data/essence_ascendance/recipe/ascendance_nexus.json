@@ -2,16 +2,16 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "pattern": [
-    "ADA",
+    "AGA",
     "CLC",
-    "OEO"
+    "LBL"
   ],
   "key": {
     "A": {
       "item": "minecraft:amethyst_shard"
     },
-    "D": {
-      "item": "minecraft:diamond"
+    "G": {
+      "item": "minecraft:glass"
     },
     "C": {
       "item": "essence_ascendance:channelstone"
@@ -19,11 +19,8 @@
     "L": {
       "item": "essence_ascendance:latent_ingot"
     },
-    "O": {
-      "item": "minecraft:obsidian"
-    },
-    "E": {
-      "item": "minecraft:enchanting_table"
+    "B": {
+      "item": "minecraft:book"
     }
   },
   "result": {

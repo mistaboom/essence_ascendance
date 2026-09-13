@@ -1,7 +1,6 @@
 package com.mistaboom.essence_ascendance;
 
 import com.mistaboom.essence_ascendance.balance.BalanceProfileRegistry;
-import com.mistaboom.essence_ascendance.balance.BalanceProfiles;
 import com.mistaboom.essence_ascendance.command.EssenceCommands;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleContent;
@@ -51,7 +50,6 @@ public final class EssenceAscendance {
         EssenceTypes.init();
         AscendanceTiers.init();
         EssenceStats.init();
-        BalanceProfiles.init();
 
         /* Skill gates depend on these configurable milestone definitions. */
         MilestoneProviders.init();

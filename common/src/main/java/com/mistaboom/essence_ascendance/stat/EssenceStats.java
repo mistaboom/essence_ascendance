@@ -326,11 +326,7 @@ public final class EssenceStats {
                     StatUnit.PERCENT
             );
 
-    /*
-     * Keep the stable reach ID while changing both its category and its
-     * required Essence. EssenceDataMigration handles investments made before
-     * this move so old Gathering Essence cannot be converted through refunds.
-     */
+    /** Reach consumes Utility Essence, including de-allocation refunds. */
     public static final StatDefinition REACH =
             register(
                     "reach",

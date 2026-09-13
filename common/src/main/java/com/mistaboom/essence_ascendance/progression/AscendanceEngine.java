@@ -2,9 +2,11 @@ package com.mistaboom.essence_ascendance.progression;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.balance.BalanceProfileDefinition;
+import com.mistaboom.essence_ascendance.balance.runtime.RuntimeAscensionPolicy;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
+import com.mistaboom.essence_ascendance.data.SkillPurchase;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.StatCategory;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
@@ -55,6 +57,8 @@ public final class AscendanceEngine {
         return evaluate(
                 player,
                 playerData,
+                null,
+                null,
                 null
         );
     }
@@ -64,10 +68,10 @@ public final class AscendanceEngine {
      * Evaluates the next Ascension against a proposed final Bonus allocation
      * without mutating authoritative player data.
      *
-     * <p>Skill costs are intentionally absent: only Bonus investment counts
-     * toward Ascension depth and breadth. Missing known stat IDs fall back to
-     * their current stored investment so non-Nexus callers may project a
-     * focused subset safely.</p>
+     * <p>For a legacy profile only Bonus investment counts toward depth and
+     * breadth. Under Essence qualification, a Bonus transfer cannot change
+     * the qualifying total, so this focused projection retains the current
+     * total. Missing known stat IDs retain their stored investment.</p>
      */
     public static AscendanceEvaluationResult evaluateProjected(
             ServerPlayer player,
@@ -101,15 +105,42 @@ public final class AscendanceEngine {
         return evaluate(
                 player,
                 playerData,
-                Map.copyOf(projectedInvestments)
+                Map.copyOf(projectedInvestments),
+                null,
+                null
         );
+    }
+
+
+    /**
+     * Evaluates a complete, already affordability-checked transaction target.
+     * Available balances and paid skill receipts must be from the same final
+     * state as Bonus investments, so a pending purchase or refund counts once.
+     * This method never mutates any supplied map or authoritative player data.
+     */
+    public static AscendanceEvaluationResult evaluateProjected(
+            ServerPlayer player,
+            Map<ResourceLocation, Long> projectedAvailable,
+            Map<ResourceLocation, Long> projectedInvestments,
+            Map<ResourceLocation, SkillPurchase> projectedOwnedSkills
+    ) {
+        Objects.requireNonNull(player, "Player cannot be null");
+        Map<ResourceLocation, Long> available = Map.copyOf(projectedAvailable);
+        Map<ResourceLocation, Long> investments = Map.copyOf(projectedInvestments);
+        Map<ResourceLocation, SkillPurchase> skills = Map.copyOf(projectedOwnedSkills);
+        AscensionEssenceAccounting.total(available, investments, skills.values());
+        PlayerEssenceData playerData = EssenceSavedData.get(player.server)
+                .getPlayerData(player.getUUID());
+        return evaluate(player, playerData, investments, available, skills);
     }
 
 
     private static AscendanceEvaluationResult evaluate(
             ServerPlayer player,
             PlayerEssenceData playerData,
-            Map<ResourceLocation, Long> projectedInvestments
+            Map<ResourceLocation, Long> projectedInvestments,
+            Map<ResourceLocation, Long> projectedAvailable,
+            Map<ResourceLocation, SkillPurchase> projectedOwnedSkills
     ) {
 
 
@@ -222,7 +253,9 @@ public final class AscendanceEngine {
                             currentTier,
                             nextTier,
                             advancement,
-                            projectedInvestments
+                            projectedInvestments,
+                            projectedAvailable,
+                            projectedOwnedSkills
                     );
 
 
@@ -362,7 +395,7 @@ public final class AscendanceEngine {
         /*
          * No Essence is consumed by Ascension.
          *
-         * Investment represents qualification, not currency paid
+         * The resolved progress represents qualification, not currency paid
          * during the tier transition.
          */
 
@@ -381,7 +414,7 @@ public final class AscendanceEngine {
 
     /*
      * ============================================================
-     * DEPTH + BREADTH CALCULATION
+     * QUALIFICATION + OPTIONAL CUSTOM REQUIREMENTS
      * ============================================================
      */
 
@@ -391,7 +424,9 @@ public final class AscendanceEngine {
             AscendanceTierDefinition currentTier,
             AscendanceTierDefinition nextTier,
             AscendanceAdvancementDefinition advancement,
-            Map<ResourceLocation, Long> projectedInvestments
+            Map<ResourceLocation, Long> projectedInvestments,
+            Map<ResourceLocation, Long> projectedAvailable,
+            Map<ResourceLocation, SkillPurchase> projectedOwnedSkills
     ) {
 
         BalanceProfileDefinition balanceProfile =
@@ -424,8 +459,18 @@ public final class AscendanceEngine {
                 );
 
 
-        long totalEffectiveInvestment =
-                0L;
+        boolean essenceQualification = RuntimeAscensionPolicy.usesEssenceQualification(
+                EssenceConfigManager.runtime());
+
+        // A focused Bonus preview can move money but cannot change the total.
+        // Only the complete validated Nexus target supplies replacement balances.
+        long totalEffectiveInvestment = essenceQualification
+                ? AscensionEssenceAccounting.total(
+                        projectedAvailable == null ? playerData.getAllAvailable() : projectedAvailable,
+                        projectedAvailable == null ? playerData.getAllInvested() : projectedInvestments,
+                        projectedOwnedSkills == null ? playerData.getOwnedSkills().values()
+                                : projectedOwnedSkills.values())
+                : 0L;
 
 
         int developedStats =
@@ -472,11 +517,13 @@ public final class AscendanceEngine {
                     );
 
 
-            totalEffectiveInvestment =
-                    Math.addExact(
-                            totalEffectiveInvestment,
-                            effectiveInvestment
-                    );
+            if (!essenceQualification) {
+                // Preserve cached legacy profiles' exact cap-limited depth rule.
+                totalEffectiveInvestment = Math.addExact(
+                        totalEffectiveInvestment,
+                        effectiveInvestment
+                );
+            }
 
 
             /*

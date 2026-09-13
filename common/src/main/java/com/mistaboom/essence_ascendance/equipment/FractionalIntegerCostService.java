@@ -1,5 +1,7 @@
 package com.mistaboom.essence_ascendance.equipment;
 
+import com.mistaboom.essence_ascendance.balance.economy.FractionalAmountService;
+
 /** Pure arithmetic for carrying percentage reductions across integer costs. */
 public final class FractionalIntegerCostService {
 
@@ -33,7 +35,7 @@ public final class FractionalIntegerCostService {
 
         double exactCost = baseCost * (1.0D - reductionPercent / 100.0D)
                 + previousCarry;
-        int resolvedCost = (int) Math.floor(exactCost + EPSILON);
+        int resolvedCost = (int) FractionalAmountService.split(exactCost + EPSILON).whole();
         resolvedCost = Math.max(minimumCost, Math.min(baseCost, resolvedCost));
 
         double nextCarry;

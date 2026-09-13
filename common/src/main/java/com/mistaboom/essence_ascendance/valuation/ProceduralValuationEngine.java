@@ -105,6 +105,18 @@ public final class ProceduralValuationEngine {
         }
     }
 
+    public static void prepareGeneration(com.mistaboom.essence_ascendance.balance.config.BalanceOverrides overrides) {
+        synchronized (INDEX_LOCK) {
+            clear();
+            ValuationGenerationInputs.configure(overrides);
+        }
+    }
+
+    /** Shared generation adapters reuse this snapshot instead of rescanning loaded pack data. */
+    static ProceduralValuationIndex generationIndex(MinecraftServer server) {
+        synchronized (INDEX_LOCK) { return ensureIndex(server); }
+    }
+
     /* Synchronous relaxation over complete previous-round snapshots, not a DFS
      * cache whose first answer depends on the active recursion stack. Every input
      * alternative is visited. Each chosen path carries its acquisition ancestry;
@@ -272,10 +284,12 @@ public final class ProceduralValuationEngine {
         }
         factors.add("Essence routing: " + String.join(" + ", diagnostics.evidence())
                 + "; routing confidence " + diagnostics.confidence().name());
-        if (diagnostics.evidence().contains("neutral_fallback")) {
-            factors.add("Essence routing: no functional evidence found; neutral six-Essence fallback"
+        if (diagnostics.evidence().contains("utility_fallback")) {
+            factors.add("Essence routing: no functional evidence found; a single Utility fallback"
                     + " used before any weak acquisition-context vote");
         }
+        factors.add("Essence routing: at most two dominant categories; a secondary category must carry"
+                + " at least 25% of the strongest semantic vote; reversible forms share this selection");
 
         double confidence = node.confidence();
         // Confidence should reflect whether acquisition itself is actually
@@ -599,6 +613,11 @@ public final class ProceduralValuationEngine {
             Set<Item> visiting,
             int depth
     ) {
+        if (!ValuationGenerationInputs.itemAllowed(item)) {
+            Intrinsic base = intrinsic(item);
+            return new EvaluationNode(base.value(), base.value(), Optional.empty(), base.progressionBand(),
+                    1.0, 0, false, false, 0, 0, List.of("Acquisition excluded by factual generation override"), Set.of(item));
+        }
         if (context.solving && !visiting.isEmpty()) {
             EvaluationNode input = context.previous.get(item);
             if (input != null && !input.dependencies().contains(context.activeRoot)) return input;
@@ -638,6 +657,16 @@ public final class ProceduralValuationEngine {
                 depth,
                 intrinsic
         );
+        Double correctedValue = ValuationGenerationInputs.economicValue(item);
+        if (ValuationGenerationInputs.declaresSource(item) || correctedValue != null) {
+            double value = correctedValue == null ? directSource.value() : correctedValue;
+            directSource = new DirectSource(value,
+                    directSource.knownAcquisition() || ValuationGenerationInputs.declaresSource(item),
+                    directSource.progressionBand(), ValuationGenerationInputs.confidence(item),
+                    ValuationGenerationInputs.progression(item, directSource.inferredProgressionScore()),
+                    directSource.progressionEvidenceCount(), false,
+                    List.of("Factual source/economic override applied before recipe graph relaxation"), Set.of(item));
+        }
         List<RecipeCandidate> recipeCandidates = new ArrayList<>();
         boolean contextSensitive = directSource.contextSensitive();
 
@@ -683,16 +712,12 @@ public final class ProceduralValuationEngine {
         factors.addAll(directSource.factors());
 
         if (cheapestRecipe != null) {
-            progression = ProceduralValuationResult.ProgressionBand.max(
-                    progression,
-                    cheapestRecipe.progressionBand()
-            );
-
             boolean directIsKnown = directSource.knownAcquisition();
             boolean recipeIsKnown = cheapestRecipe.fullyModeledIngredients();
             if ((!directIsKnown && (recipeIsKnown || cheapestReliableRecipe == null))
                     || (recipeIsKnown && cheapestRecipe.value() <= directSource.value())) {
                 acquisition = cheapestRecipe.value();
+                progression = cheapestRecipe.progressionBand();
                 knownAcquisition = recipeIsKnown;
                 recipeChoice = Optional.of(cheapestRecipe.toChoice());
                 selectedDependencies = cheapestRecipe.dependencies();
@@ -778,6 +803,7 @@ public final class ProceduralValuationEngine {
             }
         }
 
+        inferredProgressionScore = ValuationGenerationInputs.progression(item, inferredProgressionScore);
         Renewability renewability = renewability(item, context.index());
         if (renewability.multiplier() < 0.999999) {
             double floor = Math.max(1.0, intrinsic.floorValue());
@@ -797,7 +823,7 @@ public final class ProceduralValuationEngine {
                 .isPresent()
                 ? 1L
                 : intrinsic.floorValue();
-        long acquisitionValue = clampValue(Math.max(acquisitionFloor, acquisition));
+        long acquisitionValue = correctedValue == null ? clampValue(Math.max(acquisitionFloor, acquisition)) : clampValue(correctedValue);
         int resolvedDepth = recipeChoice
                 .map(ProceduralValuationResult.RecipeChoice::depth)
                 .orElse(0);
@@ -1133,6 +1159,50 @@ public final class ProceduralValuationEngine {
                 if (!reliable) {
                     factors.add("Conditional block source is diagnostic fallback only; it cannot undercut a fully modeled recipe/source");
                 }
+            }
+        }
+
+        for (var biological : index.biologicalSources(item)) {
+            var event = biological.event();
+            boolean requirementsKnown = true;
+            boolean requirementsSensitive = false;
+            double prerequisiteCost = 0;
+            Set<Item> requiredItems = new LinkedHashSet<>();
+            double sourceConfidence = event.confidence();
+            for (var requirement : event.requirements()) {
+                EvaluationNode prerequisite = evaluateNode(requirement.item(), context, visiting, depth + 1);
+                requirementsKnown &= prerequisite.knownAcquisition();
+                requirementsSensitive |= prerequisite.contextSensitive();
+                sourceConfidence = Math.min(sourceConfidence, prerequisite.confidence());
+                requiredItems.add(requirement.item());
+                requiredItems.addAll(prerequisite.dependencies());
+                if (requirement.consumed()) prerequisiteCost += prerequisite.acquisitionValue() * requirement.count();
+                else if (requirement.durabilityWear() > 0) {
+                    int durability = new ItemStack(requirement.item()).getMaxDamage();
+                    if (durability <= 0) requirementsKnown = false;
+                    else prerequisiteCost += prerequisite.acquisitionValue() * requirement.count()
+                            * requirement.durabilityWear() / durability;
+                }
+            }
+            // Nonlethal production uses the existing material opportunity scale
+            // and producer access. Combat stats do not price an animal's growth.
+            contextSensitive |= requirementsSensitive;
+            var producerProgression = index.progressionForEntity(event.producerId());
+            double candidate = biologicalAcquisitionValue(intrinsic.value(), biological.spawnMultiplier(),
+                    event.count(), prerequisiteCost) * producerProgression.multiplier();
+            if (requirementsKnown && !requirementsSensitive && (!known || candidate < value)) {
+                value = candidate;
+                known = true;
+                conditionalFallbackSelected = false;
+                dependencies = Set.copyOf(requiredItems);
+                confidence = sourceConfidence;
+                selectedProgression = producerProgression;
+                factors.add("Biological production source: " + event.id() + " | " + event.count()
+                        + " per completed event; producer " + event.producerId());
+                factors.add(event.reason());
+                if (!biological.spawnSignals().isEmpty())
+                    factors.add("Producer access: " + String.join("; ", biological.spawnSignals()));
+                if (!event.requirements().isEmpty()) factors.add("Consumed containers and reusable-tool wear charged; all prerequisites must be obtainable");
             }
         }
 
@@ -1821,6 +1891,11 @@ public final class ProceduralValuationEngine {
         }
 
         if (index != null) {
+            if (!index.biologicalSources(item).isEmpty()) {
+                best = strongerRenewability(best, new Renewability(
+                        ProceduralValuationSettings.COMMON_MOB_DROP_RENEWABLE_REMAINDER,
+                        0.0, "repeatable biological production; qualitative farm pressure, not a measured rate"));
+            }
             double bestRepeatableMobChance = index.dropSources(item).stream()
                     .filter(source -> source.complexConditionCount() == 0)
                     .filter(ProceduralValuationIndex.DropSource::repeatableSpawn)
@@ -2264,13 +2339,14 @@ public final class ProceduralValuationEngine {
             hasComposition = !composition.isEmpty();
             route.addNormalized(composition, ProceduralValuationSettings.ROUTING_COMPOSITION_WEIGHT);
         }
-        boolean neutral = route.isEmpty();
-        if (neutral) {
-            addNeutralRoute(route);
+        boolean fallback = route.isEmpty();
+        if (fallback) {
+            addFallbackRoute(route);
         }
-        route.addNormalized(sources, neutral
+        route.addNormalized(sources, fallback
                 ? ProceduralValuationSettings.ROUTING_ACQUISITION_WEIGHT_WITHOUT_DIRECT
                 : ProceduralValuationSettings.ROUTING_ACQUISITION_WEIGHT_WITH_DIRECT);
+        route.retainDominant();
 
         List<String> evidence = new ArrayList<>();
         if (hasStructured) evidence.add("structured_function");
@@ -2278,8 +2354,9 @@ public final class ProceduralValuationEngine {
         if (hasDownstream) evidence.add("downstream_recipes");
         if (hasComposition) evidence.add("recipe_composition");
         if (conserved) evidence.add("conservation_family");
-        if (neutral) evidence.add("neutral_fallback");
+        if (fallback) evidence.add("utility_fallback");
         if (!sources.isEmpty()) evidence.add("weak_acquisition_context");
+        evidence.add("dominant_categories");
         ProceduralValuationResult.ConfidenceBand confidence = hasStructured
                 ? ProceduralValuationResult.ConfidenceBand.HIGH
                 : (hasDownstream || hasComposition)
@@ -2416,12 +2493,7 @@ public final class ProceduralValuationEngine {
         return composition;
     }
 
-    private static void addNeutralRoute(RouteWeights route) {
-        route.add(EssenceTypes.OFFENSE, 1.0);
-        route.add(EssenceTypes.DEFENSE, 1.0);
-        route.add(EssenceTypes.VITALITY, 1.0);
-        route.add(EssenceTypes.MOBILITY, 1.0);
-        route.add(EssenceTypes.GATHERING, 1.0);
+    private static void addFallbackRoute(RouteWeights route) {
         route.add(EssenceTypes.UTILITY, 1.0);
     }
 
@@ -2549,7 +2621,7 @@ public final class ProceduralValuationEngine {
         RouteWeights effective = route;
         if (effective.isEmpty()) {
             effective = new RouteWeights();
-            addNeutralRoute(effective);
+            addFallbackRoute(effective);
         }
         double weightTotal = effective.totalWeight();
         List<AllocationShare> shares = new ArrayList<>();
@@ -2681,6 +2753,15 @@ public final class ProceduralValuationEngine {
         return path.contains("endermite")
                 || path.contains("shulker")
                 || path.contains("ender_dragon");
+    }
+
+    static double biologicalAcquisitionValue(double materialValue, double accessMultiplier,
+                                             int eventOutput, double inputAndWearCost) {
+        if (!Double.isFinite(materialValue) || materialValue < 0
+                || !Double.isFinite(accessMultiplier) || accessMultiplier <= 0 || eventOutput <= 0
+                || !Double.isFinite(inputAndWearCost) || inputAndWearCost < 0)
+            throw new IllegalArgumentException("Invalid biological acquisition evidence");
+        return (materialValue * accessMultiplier + inputAndWearCost) / eventOutput;
     }
 
     private static long clampValue(double value) {
@@ -3005,6 +3086,13 @@ public final class ProceduralValuationEngine {
             RouteWeights copy = new RouteWeights();
             copy.add(this);
             return copy;
+        }
+
+        void retainDominant() {
+            Map<EssenceDefinition, Double> selected = EssenceRoutingPolicy.dominant(values,
+                    essence -> essence.id().toString());
+            values.clear();
+            values.putAll(selected);
         }
 
         boolean isEmpty() {

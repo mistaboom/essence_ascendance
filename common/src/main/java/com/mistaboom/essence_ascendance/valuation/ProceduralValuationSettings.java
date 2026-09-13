@@ -100,9 +100,10 @@ public final class ProceduralValuationSettings {
      * direct semantic identity (weapon, armor, mining tool, food, etc.) remains
      * strongest. Refined materials/components infer their identity from the
      * things they are used to make; acquisition context is only a small vote.
-     * This prevents the old generic Gathering/Utility fallback from dominating
-     * large modpacks while still allowing unknown modded components to learn
-     * useful routing from their recipe graph.
+     * The final reversible-family route keeps at most two dominant categories,
+     * so incidental votes do not turn general materials into every Essence.
+     * Items with no functional evidence use a single Utility fallback; unknown
+     * modded components can still learn useful routing from their recipe graph.
      */
     public static final double ROUTING_DOWNSTREAM_WEIGHT_WITHOUT_DIRECT = 4.0;
     public static final double ROUTING_DOWNSTREAM_WEIGHT_WITH_DIRECT = 1.25;

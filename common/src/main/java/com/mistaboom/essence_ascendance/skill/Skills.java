@@ -439,7 +439,8 @@ public final class Skills {
                     replacementTarget,
                     activationPolicy,
                     displayOrder,
-                    layoutHint
+                    layoutHint,
+                    SkillRankPolicy.singlePurchase()
             );
         }
     }

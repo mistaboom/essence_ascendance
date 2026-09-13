@@ -32,7 +32,7 @@ public record PlayerEssenceSyncPayload(
         ProgressState progress
 ) implements CustomPacketPayload {
 
-    public static final int CURRENT_SCHEMA_VERSION = 5;
+    public static final int CURRENT_SCHEMA_VERSION = 6;
 
     static final int MAX_ID_LENGTH = 128;
     private static final int MAX_ESSENCES = 128;
@@ -133,7 +133,8 @@ public record PlayerEssenceSyncPayload(
         for (OwnedSkillState skill : payload.ownedSkills) {
             buffer.writeUtf(skill.skillId(), MAX_ID_LENGTH);
             buffer.writeUtf(skill.paidEssenceId(), MAX_ID_LENGTH);
-            buffer.writeLong(skill.paidCost());
+            buffer.writeVarInt(skill.paidCosts().size());
+            for (long cost : skill.paidCosts()) buffer.writeLong(cost);
         }
 
         buffer.writeVarInt(payload.loadoutSelections.size());
@@ -273,13 +274,12 @@ public record PlayerEssenceSyncPayload(
                 new ArrayList<>(ownedSkillCount);
 
         for (int i = 0; i < ownedSkillCount; i++) {
-            ownedSkills.add(
-                    new OwnedSkillState(
-                            buffer.readUtf(MAX_ID_LENGTH),
-                            buffer.readUtf(MAX_ID_LENGTH),
-                            buffer.readLong()
-                    )
-            );
+            String skillId = buffer.readUtf(MAX_ID_LENGTH);
+            String essenceId = buffer.readUtf(MAX_ID_LENGTH);
+            int ranks = readBoundedCount(buffer, 64, "skill rank");
+            List<Long> receipts = new ArrayList<>(ranks);
+            for (int rank = 0; rank < ranks; rank++) receipts.add(buffer.readLong());
+            ownedSkills.add(new OwnedSkillState(skillId, essenceId, receipts));
         }
 
         int loadoutSelectionCount =
@@ -525,26 +525,23 @@ public record PlayerEssenceSyncPayload(
         }
     }
 
-    public record OwnedSkillState(
-            String skillId,
-            String paidEssenceId,
-            long paidCost
-    ) {
+    public record OwnedSkillState(String skillId, String paidEssenceId, List<Long> paidCosts) {
         public OwnedSkillState {
-            Objects.requireNonNull(
-                    skillId,
-                    "Owned skill ID cannot be null"
-            );
-            Objects.requireNonNull(
-                    paidEssenceId,
-                    "Paid Essence ID cannot be null"
-            );
-
-            if (paidCost < 0L) {
-                throw new IllegalArgumentException(
-                        "Paid skill cost cannot be negative"
-                );
+            Objects.requireNonNull(skillId, "Owned skill ID cannot be null");
+            Objects.requireNonNull(paidEssenceId, "Paid Essence ID cannot be null");
+            paidCosts = List.copyOf(paidCosts);
+            if (paidCosts.isEmpty() || paidCosts.size() > 64) throw new IllegalArgumentException("Invalid skill rank");
+            long total = 0L;
+            for (long cost : paidCosts) {
+                if (cost < 0L) throw new IllegalArgumentException("Invalid skill receipt");
+                total = Math.addExact(total, cost);
             }
+        }
+        public int rank() { return paidCosts.size(); }
+        public long paidCost() {
+            long total = 0L;
+            for (long cost : paidCosts) total = Math.addExact(total, cost);
+            return total;
         }
     }
 

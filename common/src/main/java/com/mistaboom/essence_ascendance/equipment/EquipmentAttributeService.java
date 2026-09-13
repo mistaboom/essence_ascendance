@@ -329,9 +329,8 @@ public final class EquipmentAttributeService {
                     EquipmentProfiles.ARMOR.id(),
                     stack
             );
-            double weight = ArmorStatWeights.weightFor(slot);
-            armor += baseline.armor() * weight;
-            toughness += baseline.toughness() * weight;
+            armor += baseline.armorForSlot(slot);
+            toughness += baseline.toughnessForSlot(slot);
         }
 
         return found ? new ArmorBaseline(armor, toughness) : ArmorBaseline.NONE;

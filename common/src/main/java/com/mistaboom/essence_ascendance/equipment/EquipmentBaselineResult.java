@@ -28,11 +28,11 @@ public record EquipmentBaselineResult(
     }
 
     public double armorForSlot(EquipmentSlot slot) {
-        return armor * ArmorStatWeights.weightFor(slot);
+        return EquipmentBaselineService.quantizationEnabled()?ArmorStatWeights.physicalPointsForSlot(armor,slot):armor*ArmorStatWeights.weightFor(slot);
     }
 
     public double toughnessForSlot(EquipmentSlot slot) {
-        return toughness * ArmorStatWeights.weightFor(slot);
+        return EquipmentBaselineService.quantizationEnabled()?ArmorStatWeights.physicalPointsForSlot(toughness,slot):toughness*ArmorStatWeights.weightFor(slot);
     }
 
     public int rangedDrawTicks() {

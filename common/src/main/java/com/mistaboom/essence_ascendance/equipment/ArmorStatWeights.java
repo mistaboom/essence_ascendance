@@ -56,4 +56,29 @@ public final class ArmorStatWeights {
     public static Map<EquipmentSlot, Double> values() {
         return WEIGHTS;
     }
+
+    /** Whole physical points, with deterministic largest-remainder allocation preserving the full-set total. */
+    public static double physicalPointsForSlot(double fullSetPoints,EquipmentSlot requested) {
+        if(!WEIGHTS.containsKey(requested)||fullSetPoints<=0)return 0;
+        if(!Double.isFinite(fullSetPoints))throw new IllegalArgumentException("Physical armor points must be finite");
+        // Exact input-double conversion avoids both long saturation and multi-point
+        // floating multiplication errors at very large provider-supplied frontiers.
+        var total=new java.math.BigDecimal(fullSetPoints).setScale(0,java.math.RoundingMode.HALF_UP).toBigIntegerExact();
+        var allocated=java.math.BigInteger.ZERO;
+        Map<EquipmentSlot,java.math.BigInteger> whole=new EnumMap<>(EquipmentSlot.class);
+        Map<EquipmentSlot,java.math.BigDecimal> remainder=new EnumMap<>(EquipmentSlot.class);
+        for(var entry:WEIGHTS.entrySet()) {
+            var quota=new java.math.BigDecimal(total).multiply(java.math.BigDecimal.valueOf(entry.getValue()));
+            var points=quota.setScale(0,java.math.RoundingMode.FLOOR).toBigIntegerExact();
+            whole.put(entry.getKey(),points);allocated=allocated.add(points);
+            remainder.put(entry.getKey(),quota.subtract(new java.math.BigDecimal(points)));
+        }
+        var priority=WEIGHTS.keySet().stream().sorted(java.util.Comparator
+                .comparing((EquipmentSlot slot)->remainder.get(slot)).reversed()
+                .thenComparing(EquipmentSlot::getName)).toList();
+        int remaining=total.subtract(allocated).intValueExact();
+        if(remaining<0||remaining>=priority.size())throw new IllegalStateException("Physical armor coverage weights must sum to one");
+        for(int i=0;i<remaining;i++)whole.merge(priority.get(i),java.math.BigInteger.ONE,java.math.BigInteger::add);
+        return whole.get(requested).doubleValue();
+    }
 }

@@ -6,7 +6,8 @@ import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingRegistry;
-import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingResult;
+import com.mistaboom.essence_ascendance.balance.economy.FractionalAmountService;
+import com.mistaboom.essence_ascendance.balance.economy.FractionalLedgerSavedData;
 import com.mistaboom.essence_ascendance.infuser.EssentiumCarrierData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -14,7 +15,6 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -30,7 +30,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -49,21 +48,12 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
     private static final String ACCESS_MODE_TAG = "access_mode";
     private static final String PROCESSING_TICKS_TAG = "processing_ticks";
     private static final String DISSOLUTION_MODE_TAG = "dissolution_mode";
-    private static final String RESERVOIR_TAG = "reservoir";
 
     /* Number of full dissolution cycles Smart Round Robin gives a blocked lane. */
     private static final int SMART_ROUND_ROBIN_WAIT_CYCLES = 3;
 
     private final NonNullList<ItemStack> items =
             NonNullList.withSize(MAX_INPUT_SLOTS, ItemStack.EMPTY);
-
-    /*
-     * One-time migration buffer for worlds saved by the first Crucible tranche,
-     * where reservoir Essence lived inside each block entity. New storage is
-     * player-owned in PlayerEssenceData.
-     */
-    private final long[] legacyStoredEssence =
-            new long[EssenceCrucibleEssences.ORDERED.size()];
 
     private UUID ownerId;
     private String ownerName = "";
@@ -107,7 +97,6 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             EssenceCrucibleBlockEntity crucible
     ) {
         crucible.processingVisualActive = false;
-        crucible.migrateLegacyReservoirIfNeeded();
         crucible.tickDissolution();
         crucible.tickChanneling();
         crucible.tickPylonSupportParticles(level);
@@ -115,7 +104,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
 
     public EssenceCrucibleStructureSnapshot structureSnapshot() {
         if (level == null) {
-            return EssenceCrucibleStructureService.BASE_SNAPSHOT;
+            return EssenceCrucibleStructureService.baseSnapshot();
         }
 
         long gameTime = level.getGameTime();
@@ -189,13 +178,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
                 ? 0L
                 : ownerData.getCrucibleStored(essence);
 
-        int legacyIndex = EssenceCrucibleEssences.indexOf(essence);
-        if (legacyIndex < 0) {
-            return shared;
-        }
-
-        /* Include not-yet-migrated block-entity data so debug/UI never hides it. */
-        return Math.addExact(shared, legacyStoredEssence[legacyIndex]);
+        return shared;
     }
 
     public long[] storedEssenceSnapshot() {
@@ -303,47 +286,6 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         return EssenceSavedData
                 .get(serverLevel.getServer())
                 .getPlayerData(ownerId);
-    }
-
-    private boolean hasLegacyReservoir() {
-        for (long amount : legacyStoredEssence) {
-            if (amount > 0L) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private void migrateLegacyReservoirIfNeeded() {
-        if (!(level instanceof ServerLevel serverLevel)
-                || ownerId == null
-                || !hasLegacyReservoir()) {
-            return;
-        }
-
-        EssenceSavedData saved =
-                EssenceSavedData.get(serverLevel.getServer());
-
-        /*
-         * Preserve every previously stored point, even if several old
-         * Crucibles temporarily put this owner above the new shared cap.
-         * Over-cap state is allowed to drain, but new dissolution pauses.
-         */
-        for (int i = 0; i < legacyStoredEssence.length; i++) {
-            long amount = legacyStoredEssence[i];
-            if (amount <= 0L) {
-                continue;
-            }
-
-            saved.addCrucibleStored(
-                    ownerId,
-                    EssenceCrucibleEssences.ORDERED.get(i),
-                    amount
-            );
-            legacyStoredEssence[i] = 0L;
-        }
-
-        setChanged();
     }
 
     public EssenceCrucibleDissolutionMode dissolutionMode() {
@@ -500,6 +442,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             saved.addCrucibleStored(ownerId, output.getKey(), output.getValue());
         }
 
+        FractionalLedgerSavedData.get(serverLevel.getServer()).commit(ownerId, plan.nextCarry());
         processingTicks = 0;
         resetSmartRoundRobinWait();
         dissolutionSlotCursor = activeSlots <= 1
@@ -576,97 +519,66 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
     }
 
     private DissolutionPlan buildEvenDissolutionPlan(
-            List<DissolutionCandidate> candidates,
-            int maxItems,
-            long room,
-            int[] consumeCounts,
-            Map<EssenceDefinition, Long> outputs
-    ) {
-        int candidateCount = candidates.size();
-        int baseShare = maxItems / candidateCount;
-        int remainder = maxItems % candidateCount;
+            List<DissolutionCandidate> candidates, int maxItems, long room,
+            int[] consumeCounts, Map<EssenceDefinition, Long> outputs) {
+        Map<String, Long> carry = new LinkedHashMap<>(fractionalCarry());
         int totalItems = 0;
-
-        /* First pass: give every candidate its even share in priority order. */
-        for (int i = 0; i < candidateCount; i++) {
-            int requested = baseShare + (i < remainder ? 1 : 0);
-            if (requested <= 0) {
-                continue;
-            }
-
+        int baseShare = maxItems / candidates.size();
+        int remainder = maxItems % candidates.size();
+        for (int i = 0; i < candidates.size(); i++) {
             DissolutionCandidate candidate = candidates.get(i);
-            long perItemTotal = mappingOutputTotal(candidate.mapping());
-            if (perItemTotal <= 0L) {
-                continue;
+            int requested = baseShare + (i < remainder ? 1 : 0);
+            for (int n = 0; n < requested; n++) {
+                long credited = addPlannedItem(candidate, room, consumeCounts, outputs, carry);
+                if (credited < 0) break;
+                room -= credited;
+                totalItems++;
             }
-
-            int added = addPlannedItemsFromSlot(
-                    candidate.slot(),
-                    candidate.mapping(),
-                    requested,
-                    room,
-                    consumeCounts,
-                    outputs
-            );
-            if (added < 0) {
-                return new DissolutionPlan(new int[MAX_INPUT_SLOTS], Map.of(), 0);
-            }
-
-            totalItems += added;
-            room -= perItemTotal * added;
         }
-
-        /*
-         * Redistribute unused batch capacity one item at a time. The candidate
-         * order is the selected mode's priority order, so Lowest/Highest Stored
-         * naturally receive first claim on limited reservoir room while Skip
-         * Round Robin behaves like the historical first-available scheduler.
-         */
         while (totalItems < maxItems) {
-            boolean addedThisPass = false;
-
+            boolean progressed = false;
             for (DissolutionCandidate candidate : candidates) {
-                if (totalItems >= maxItems) {
-                    break;
-                }
-
-                int slot = candidate.slot();
-                ItemStack stack = items.get(slot);
-                if (consumeCounts[slot] >= stack.getCount()) {
-                    continue;
-                }
-
-                long perItemTotal = mappingOutputTotal(candidate.mapping());
-                if (perItemTotal <= 0L || perItemTotal > room) {
-                    continue;
-                }
-
-                int added = addPlannedItemsFromSlot(
-                        slot,
-                        candidate.mapping(),
-                        1,
-                        room,
-                        consumeCounts,
-                        outputs
-                );
-                if (added < 0) {
-                    return new DissolutionPlan(new int[MAX_INPUT_SLOTS], Map.of(), 0);
-                }
-                if (added == 0) {
-                    continue;
-                }
-
-                totalItems += added;
-                room -= perItemTotal;
-                addedThisPass = true;
+                if (totalItems >= maxItems) break;
+                long credited = addPlannedItem(candidate, room, consumeCounts, outputs, carry);
+                if (credited < 0) continue;
+                room -= credited;
+                totalItems++;
+                progressed = true;
             }
-
-            if (!addedThisPass) {
-                break;
-            }
+            if (!progressed) break;
         }
+        return new DissolutionPlan(consumeCounts, outputs, totalItems, Map.copyOf(carry));
+    }
 
-        return new DissolutionPlan(consumeCounts, outputs, totalItems);
+    private Map<String, Long> fractionalCarry() {
+        return ownerId != null && level instanceof ServerLevel serverLevel
+                ? FractionalLedgerSavedData.get(serverLevel.getServer()).snapshot(ownerId) : Map.of();
+    }
+
+    /** Preview one item without touching persistent state; zero-whole yields still accumulate. */
+    private long addPlannedItem(DissolutionCandidate candidate, long room, int[] consumeCounts,
+                                Map<EssenceDefinition, Long> outputs, Map<String, Long> carry) {
+        int slot = candidate.slot();
+        if (consumeCounts[slot] >= items.get(slot).getCount()) return -1;
+        Map<EssenceDefinition, Long> credit = new LinkedHashMap<>();
+        Map<String, Long> next = new LinkedHashMap<>();
+        long total = 0;
+        try {
+            for (Map.Entry<EssenceDefinition, Long> output : candidate.mapping().outputs().entrySet()) {
+                String key = "dissolution/" + output.getKey().id();
+                FractionalAmountService.Resolution result = FractionalAmountService.accumulate(
+                        output.getValue(), 1, carry.getOrDefault(key, 0L));
+                total = Math.addExact(total, result.wholeAmount());
+                credit.put(output.getKey(), result.wholeAmount());
+                next.put(key, result.nextCarry());
+                Math.addExact(outputs.getOrDefault(output.getKey(), 0L), result.wholeAmount());
+            }
+        } catch (ArithmeticException invalid) { return -1; }
+        if (total > room) return -1;
+        credit.forEach((essence, amount) -> { if (amount > 0) outputs.merge(essence, amount, Math::addExact); });
+        carry.putAll(next);
+        consumeCounts[slot]++;
+        return total;
     }
 
     /**
@@ -749,57 +661,16 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
     private record RoundRobinCapacityBlock(int slot) {
     }
 
-    /**
-     * Adds up to {@code requested} copies of one mapped stack to an in-memory
-     * atomic dissolution plan. Returns -1 on arithmetic overflow.
-     */
-    private int addPlannedItemsFromSlot(
-            int slot,
-            ResolvedDissolution mapping,
-            int requested,
-            long room,
-            int[] consumeCounts,
-            Map<EssenceDefinition, Long> outputs
-    ) {
-        ItemStack stack = items.get(slot);
-        int available = Math.max(0, stack.getCount() - consumeCounts[slot]);
-        long perItemTotal = mappingOutputTotal(mapping);
-        if (available <= 0 || requested <= 0 || perItemTotal <= 0L) {
-            return 0;
-        }
-
-        int byRoom = (int) Math.min(Integer.MAX_VALUE, room / perItemTotal);
-        int count = Math.min(requested, Math.min(available, byRoom));
-        if (count <= 0) {
-            return 0;
-        }
-
-        try {
-            for (Map.Entry<EssenceDefinition, Long> output : mapping.outputs().entrySet()) {
-                long amount = Math.multiplyExact(output.getValue(), (long) count);
-                outputs.merge(output.getKey(), amount, Math::addExact);
-            }
-            consumeCounts[slot] = Math.addExact(consumeCounts[slot], count);
-        } catch (ArithmeticException overflow) {
-            return -1;
-        }
-
-        return count;
-    }
-
     private long mappingOutputTotal(ResolvedDissolution mapping) {
         long total = 0L;
+        Map<String, Long> carry = fractionalCarry();
         try {
             for (Map.Entry<EssenceDefinition, Long> output : mapping.outputs().entrySet()) {
-                if (output.getValue() <= 0L
-                        || !isDissolutionEssenceSupported(output.getKey())) {
-                    return 0L;
-                }
-                total = Math.addExact(total, output.getValue());
+                if (output.getValue() <= 0 || !isDissolutionEssenceSupported(output.getKey())) return 0;
+                total = Math.addExact(total, FractionalAmountService.accumulate(output.getValue(), 1,
+                        carry.getOrDefault("dissolution/" + output.getKey().id(), 0L)).wholeAmount());
             }
-        } catch (ArithmeticException overflow) {
-            return 0L;
-        }
+        } catch (ArithmeticException invalid) { return 0; }
         return total;
     }
 
@@ -825,8 +696,12 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
     private record DissolutionPlan(
             int[] consumeCounts,
             Map<EssenceDefinition, Long> outputs,
-            int totalItems
+            int totalItems,
+            Map<String, Long> nextCarry
     ) {
+        private DissolutionPlan(int[] consumeCounts, Map<EssenceDefinition, Long> outputs, int totalItems) {
+            this(consumeCounts, outputs, totalItems, Map.of());
+        }
     }
 
     private record ResolvedDissolution(
@@ -841,17 +716,15 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
 
         if (EssentiumCarrierData.isEssentium(stack)) {
             return EssentiumCarrierData.readValidated(stack)
+                    .filter(value -> value.amount() <= Long.MAX_VALUE / FractionalAmountService.SCALE)
                     .map(value -> new ResolvedDissolution(
-                            Map.of(value.essence(), value.amount())
+                            Map.of(value.essence(), EssentiumCarrierData.extractionYieldMicroUnits(value))
                     ))
                     .orElse(null);
         }
 
-        ItemEssenceMappingResult mapping =
-                resolvePositiveEssenceMapping(stack);
-        return mapping == null
-                ? null
-                : new ResolvedDissolution(mapping.outputs());
+        Map<EssenceDefinition, Long> mapping = ItemEssenceMappingRegistry.resolveDissolution(stack);
+        return mapping.isEmpty() ? null : new ResolvedDissolution(mapping);
     }
 
     private static boolean isDissolutionEssenceSupported(EssenceDefinition essence) {
@@ -859,30 +732,6 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
                 && EssenceCrucibleEssences.indexOf(essence) >= 0;
     }
 
-
-    public static ItemEssenceMappingResult resolvePositiveEssenceMapping(
-            ItemStack stack
-    ) {
-        if (stack == null || stack.isEmpty()) {
-            return null;
-        }
-
-        ItemEssenceMappingResult result =
-                ItemEssenceMappingRegistry.resolve(stack);
-
-        if (!result.mapped() || result.outputs().isEmpty()) {
-            return null;
-        }
-
-        for (Map.Entry<EssenceDefinition, Long> output : result.outputs().entrySet()) {
-            if (output.getValue() <= 0L
-                    || EssenceCrucibleEssences.indexOf(output.getKey()) < 0) {
-                return null;
-            }
-        }
-
-        return result;
-    }
 
     public static boolean isValidNewInput(ItemStack stack) {
         return resolveDissolution(stack) != null;
@@ -1154,20 +1003,6 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         tag.putInt(PROCESSING_TICKS_TAG, processingTicks);
         tag.putString(DISSOLUTION_MODE_TAG, dissolutionMode.serializedName());
 
-        /*
-         * New saves do not write normal reservoir data to the block. Keep only
-         * an unbound/unmigrated legacy buffer if one still exists.
-         */
-        if (hasLegacyReservoir()) {
-            CompoundTag reservoir = new CompoundTag();
-            for (int i = 0; i < legacyStoredEssence.length; i++) {
-                reservoir.putLong(
-                        EssenceCrucibleEssences.ORDERED.get(i).id().getPath(),
-                        legacyStoredEssence[i]
-                );
-            }
-            tag.put(RESERVOIR_TAG, reservoir);
-        }
     }
 
     @Override
@@ -1191,19 +1026,6 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         );
         dissolutionSlotCursor = 0;
         resetSmartRoundRobinWait();
-
-        Arrays.fill(legacyStoredEssence, 0L);
-        if (tag.contains(RESERVOIR_TAG, Tag.TAG_COMPOUND)) {
-            CompoundTag reservoir = tag.getCompound(RESERVOIR_TAG);
-            for (int i = 0; i < legacyStoredEssence.length; i++) {
-                legacyStoredEssence[i] = Math.max(
-                        0L,
-                        reservoir.getLong(
-                                EssenceCrucibleEssences.ORDERED.get(i).id().getPath()
-                        )
-                );
-            }
-        }
 
         /* Active channel state deliberately does not survive save/reload. */
         channelingPlayerId = null;

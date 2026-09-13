@@ -15,6 +15,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.ShearsItem;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.CocoaBlock;
+import net.minecraft.world.level.block.CaveVines;
 import net.minecraft.world.level.block.CropBlock;
 import net.minecraft.world.level.block.DoublePlantBlock;
 import net.minecraft.world.level.block.NetherWartBlock;
@@ -116,7 +117,7 @@ final class ProceduralBlockHarvest {
         return p.getName(state.getValue(p));
     }
 
-    private static Set<String> supportedProperties(Block block) {
+    static Set<String> supportedProperties(Block block) {
         Set<String> result = new LinkedHashSet<>();
         // These runtime classes implement ordinary growth. Do not assume that arbitrary
         // properties such as energy, honey_level, charges or a mod's stage are free.
@@ -124,6 +125,10 @@ final class ProceduralBlockHarvest {
                 || block instanceof SweetBerryBushBlock || block instanceof StemBlock || block instanceof PitcherCropBlock)
             result.add("age");
         if (block instanceof DoublePlantBlock) result.add("half");
+        // The CaveVines runtime capability produces berries during vine growth
+        // and supports bonemeal. The engine harvest removes the berries again;
+        // this is a reachable biological state, not an arbitrary boolean gate.
+        if (block instanceof CaveVines) result.add(CaveVines.BERRIES.getName());
         // The runtime flower-bed class implements this count state. Do NOT whitelist
         // any unrelated block merely because it declares a property with this name.
         if (block instanceof PinkPetalsBlock) result.add(PinkPetalsBlock.AMOUNT.getName());

@@ -111,10 +111,7 @@ public final class StatScalingService {
 
         double currentTierMaximumBonus =
                 transcendentMaximumBonus
-                        * tierFraction(
-                        currentTierIndex,
-                        tiers.size()
-                );
+                        * EssenceConfigManager.get().balanceProfile().tierFraction(currentTier, currentTierIndex, tiers.size());
 
 
         double progression =
@@ -238,10 +235,7 @@ public final class StatScalingService {
         }
 
         double maximumProgression =
-                tierFraction(
-                        currentTierIndex,
-                        tiers.size()
-                );
+                balanceProfile.tierFraction(currentTier, currentTierIndex, tiers.size());
         double requestedProgression =
                 Math.max(
                         0.0,
@@ -277,10 +271,7 @@ public final class StatScalingService {
             }
 
             double currentFraction =
-                    tierFraction(
-                            i,
-                            tiers.size()
-                    );
+                    balanceProfile.tierFraction(tier, i, tiers.size());
 
             if (currentCap == 0L) {
                 continue;
@@ -294,7 +285,7 @@ public final class StatScalingService {
                 double segment =
                         (requestedProgression - previousFraction)
                                 / (currentFraction - previousFraction);
-                segment = clamp01(segment);
+                segment = Math.pow(clamp01(segment), 1.0 / balanceProfile.investmentExponent());
 
                 return Math.max(
                         previousCap,
@@ -398,10 +389,7 @@ public final class StatScalingService {
 
 
             double currentFraction =
-                    tierFraction(
-                            i,
-                            tiers.size()
-                    );
+                    balanceProfile.tierFraction(tier, i, tiers.size());
 
 
             /*
@@ -453,9 +441,7 @@ public final class StatScalingService {
 
 
                 segmentProgress =
-                        clamp01(
-                                segmentProgress
-                        );
+                        Math.pow(clamp01(segmentProgress), balanceProfile.investmentExponent());
 
 
                 return lerp(
@@ -687,19 +673,6 @@ public final class StatScalingService {
 
 
         return -1;
-    }
-
-
-    private static double tierFraction(
-            int tierIndex,
-            int tierCount
-    ) {
-
-        return (
-                tierIndex
-                        + 1
-        )
-                / (double) tierCount;
     }
 
 

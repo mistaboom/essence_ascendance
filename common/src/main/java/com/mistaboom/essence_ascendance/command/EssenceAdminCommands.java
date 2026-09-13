@@ -2,7 +2,6 @@ package com.mistaboom.essence_ascendance.command;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.balance.BalanceProfileDefinition;
-import com.mistaboom.essence_ascendance.balance.BalanceProfiles;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.lifecycle.PlayerRuntimeLifecycleService;
 import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingDefinition;
@@ -303,39 +302,8 @@ final class EssenceAdminCommands {
                                                 .executes(context -> listMappings(context.getSource()))
                                 )
                 )
-                .then(
-                        Commands.literal("config")
-                                .executes(context -> showConfig(context.getSource()))
-                                .then(
-                                        Commands.literal("reload")
-                                                .executes(context -> reloadConfig(context.getSource()))
-                                )
-                                .then(
-                                        Commands.literal("template")
-                                                .executes(context -> showConfigTemplateHelp(context.getSource()))
-                                                .then(
-                                                        Commands.literal("vanilla")
-                                                                .executes(context -> writeConfigTemplate(
-                                                                        context.getSource(),
-                                                                        BalanceProfiles.VANILLA
-                                                                ))
-                                                )
-                                                .then(
-                                                        Commands.literal("vanilla_plus")
-                                                                .executes(context -> writeConfigTemplate(
-                                                                        context.getSource(),
-                                                                        BalanceProfiles.VANILLA_PLUS
-                                                                ))
-                                                )
-                                                .then(
-                                                        Commands.literal("modded")
-                                                                .executes(context -> writeConfigTemplate(
-                                                                        context.getSource(),
-                                                                        BalanceProfiles.MODDED
-                                                                ))
-                                                )
-                                )
-                )
+                .then(Commands.literal("config")
+                        .executes(context -> showConfig(context.getSource())))
                 .then(
                         Commands.literal("reset")
                                 .executes(context -> resetAll(context.getSource()))
@@ -362,12 +330,10 @@ final class EssenceAdminCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin milestone set <milestone> <true|false>", "set an internal progression milestone"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin milestone grant|revoke <milestone_id>", "change a configured INTERNAL or catalog skill milestone"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin attunement grant|revoke <attunement_id>", "change a known Player Attunement ID for development"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin mappings", "show item mapping status and config path"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin mappings", "show generated dissolution mapping status"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin mappings reload", "load saved procedural defaults and explicit overrides; calculate only when the cache is absent"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin mappings list", "list the active mapping IDs/selectors"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin config", "show the loaded server configuration"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin config reload", "reload configuration and show the result"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin config template <vanilla|vanilla_plus|modded>", "generate a complete preset template beside the live config"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin reset", "clear all balances and investments"));
         return 1;
     }
@@ -532,7 +498,9 @@ final class EssenceAdminCommands {
                     essence,
                     Long.MAX_VALUE
             );
-            if (removed > 0L) {
+            boolean clearedCarry = com.mistaboom.essence_ascendance.balance.economy.FractionalLedgerSavedData
+                    .get(source.getServer()).clear(player.getUUID(), "dissolution/" + essence.id());
+            if (removed > 0L || clearedCarry) {
                 clearedTypes++;
             }
         }
@@ -558,6 +526,9 @@ final class EssenceAdminCommands {
                         essence,
                         Long.MAX_VALUE
                 );
+
+        com.mistaboom.essence_ascendance.balance.economy.FractionalLedgerSavedData
+                .get(source.getServer()).clear(player.getUUID(), "dissolution/" + essence.id());
 
         EssenceCommandUtil.send(source, EssenceCommandUtil.good(
                 "Cleared " + EssenceCommandUtil.format(removed) + " "
@@ -888,6 +859,8 @@ final class EssenceAdminCommands {
     private static int resetAll(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         EssenceSavedData.get(source.getServer()).clearAll(player.getUUID());
+        com.mistaboom.essence_ascendance.balance.economy.FractionalLedgerSavedData.get(source.getServer())
+                .clear(player.getUUID());
         EssenceCommandUtil.send(source, EssenceCommandUtil.good("Reset all Essence balances and stat investments."));
         return 1;
     }
@@ -922,7 +895,7 @@ final class EssenceAdminCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
                 "Generated cache", ItemEssenceMappingManager.generatedCachePath().toAbsolutePath().toString()));
         EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
-                "Saved baseline is reused; /essence debug valuation rebuild recalculates and replaces it."));
+                "Saved baseline is reused; /essence debug balance rebuild recalculates and replaces it."));
 
         EssenceCommandUtil.send(
                 source,
@@ -1208,82 +1181,6 @@ final class EssenceAdminCommands {
             );
         }
         return 1;
-    }
-
-    private static int showConfigTemplateHelp(CommandSourceStack source) {
-        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Config templates"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
-                "Generates a complete preset-specific JSON template beside the live config. The active config is never replaced."
-        ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command(
-                "/essence admin config template vanilla",
-                "generate the Vanilla preset template"
-        ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command(
-                "/essence admin config template vanilla_plus",
-                "generate the Vanilla+ preset template"
-        ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command(
-                "/essence admin config template modded",
-                "generate the Modded preset template"
-        ));
-        return 1;
-    }
-
-    private static int writeConfigTemplate(
-            CommandSourceStack source,
-            BalanceProfileDefinition preset
-    ) {
-        try {
-            Path path = EssenceConfigManager.writePresetTemplate(preset);
-            EssenceCommandUtil.send(
-                    source,
-                    EssenceCommandUtil.good(
-                            "Generated complete " + preset.displayName()
-                                    + " config template."
-                    )
-            );
-            EssenceCommandUtil.send(
-                    source,
-                    EssenceCommandUtil.line(
-                            "Template",
-                            EssenceCommandUtil.muted(path.toAbsolutePath().toString())
-                    )
-            );
-            EssenceCommandUtil.send(
-                    source,
-                    EssenceCommandUtil.muted(
-                            "The live config was not changed. Copy/rename the template when you are ready to use it."
-                    )
-            );
-            return 1;
-        } catch (IOException | RuntimeException exception) {
-            EssenceAscendance.LOGGER.error(
-                    "Could not generate Essence Ascendance {} config template",
-                    preset.id(),
-                    exception
-            );
-            EssenceCommandUtil.fail(
-                    source,
-                    "Could not generate the config template: " + exception.getMessage()
-            );
-            return 0;
-        }
-    }
-
-    private static int reloadConfig(CommandSourceStack source) {
-        EssenceConfigManager.reload();
-
-        /*
-         * Recalculate every connected player's gameplay modifiers and client
-         * snapshots immediately against the newly loaded server configuration.
-         */
-        PlayerRuntimeLifecycleService.refreshAll(
-                source.getServer()
-        );
-
-        EssenceCommandUtil.send(source, EssenceCommandUtil.good("Reloaded Essence Ascendance configuration."));
-        return showConfig(source);
     }
 
     private static PlayerEssenceData playerData(CommandSourceStack source, ServerPlayer player) {

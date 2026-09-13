@@ -163,6 +163,7 @@ final class ProceduralTradeIndex {
                         .thenComparingInt(source -> source.costA().getCount())
                         .thenComparing(source -> source.costB().isEmpty() ? "" : source.costB().getItem().toString())
                         .thenComparingInt(source -> source.costB().getCount())
+                        .thenComparingInt(TradeSource::maxUses)
         ));
 
         EssenceAscendance.LOGGER.info(
@@ -211,7 +212,7 @@ final class ProceduralTradeIndex {
                         ^ ((long) level << 20)
                         ^ (long) sample * 0x9E3779B97F4A7C15L;
                 MerchantOffer offer = factory.getOffer(trader, RandomSource.create(seed));
-                if (offer == null) {
+                if (offer == null || offer.getMaxUses() <= 0) {
                     continue;
                 }
 
@@ -237,7 +238,7 @@ final class ProceduralTradeIndex {
                         Math.max(1, level),
                         wandering,
                         Math.max(1, listingPoolSize),
-                        Math.max(1, offer.getMaxUses()),
+                        offer.getMaxUses(),
                         factory.getClass().getName()
                 );
                 unique.putIfAbsent(source.identityKey(), source);
@@ -268,6 +269,7 @@ final class ProceduralTradeIndex {
             String listingClass
     ) {
         TradeSource {
+            if (maxUses <= 0) throw new IllegalArgumentException("A sampled trade must have positive finite stock");
             costA = costA == null ? ItemStack.EMPTY : costA.copy();
             costB = costB == null ? ItemStack.EMPTY : costB.copy();
         }
@@ -279,7 +281,8 @@ final class ProceduralTradeIndex {
                     + "|" + stackKey(costB)
                     + "|" + traderId
                     + "|" + level
-                    + "|" + wandering;
+                    + "|" + wandering
+                    + "|stock=" + maxUses;
         }
 
         private static String stackKey(ItemStack stack) {

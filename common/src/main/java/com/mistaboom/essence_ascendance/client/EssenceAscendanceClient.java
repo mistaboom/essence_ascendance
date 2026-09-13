@@ -65,6 +65,7 @@ public final class EssenceAscendanceClient {
                 com.mistaboom.essence_ascendance.projectile.ProjectileContent.MAGIC_BOLT,
                 context -> new net.minecraft.client.renderer.entity.ThrownItemRenderer<>(context, 0.35F, true));
         ClientPacketDispatch.init();
+        RuntimeBalanceClientState.init();
         ClientEssenceState.init();
         AscendanceNexusTransactionClientState.init();
         EssenceCrucibleClientState.init();

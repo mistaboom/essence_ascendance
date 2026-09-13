@@ -47,22 +47,9 @@ public final class EssenceInfuserBalance {
 
     /** Returns 0 when the calculation cannot be represented safely. */
     public static long requiredSource(long targetAmount, int efficiencyBasisPoints) {
-        if (targetAmount <= 0L
-                || efficiencyBasisPoints <= 0
-                || efficiencyBasisPoints >= EFFICIENCY_SCALE) {
-            return 0L;
-        }
-        if (targetAmount > Long.MAX_VALUE / EFFICIENCY_SCALE) {
-            return 0L;
-        }
-
-        long numerator = targetAmount * EFFICIENCY_SCALE;
-        long quotient = numerator / efficiencyBasisPoints;
-        long remainder = numerator % efficiencyBasisPoints;
-        if (remainder == 0L) {
-            return quotient;
-        }
-        return quotient == Long.MAX_VALUE ? 0L : quotient + 1L;
+        if (efficiencyBasisPoints >= EFFICIENCY_SCALE) return 0;
+        return com.mistaboom.essence_ascendance.balance.economy.FractionalAmountService.requiredForEfficiency(
+                targetAmount, efficiencyBasisPoints);
     }
 
     /**

@@ -253,6 +253,9 @@ public final class SkillEffectRuntime {
 
     public static List<String> validateInvariants() { return SkillEffectDiagnostics.validate(); }
 
+    /** Launch snapshots and all effect handlers share the same resolved rank-adjusted values. */
+    public static SkillEffectBalanceSettings resolvedSettings(ServerPlayer player) { return current(player).settings(); }
+
     private static Context current(ServerPlayer player) {
         PlayerRuntime runtime = PLAYERS.get(player.getUUID());
         if (runtime != null && runtime.player.get() != player) {
@@ -268,12 +271,27 @@ public final class SkillEffectRuntime {
             PLAYERS.put(player.getUUID(), runtime);
         }
         Context context = new Context(player, runtime);
-        if (runtime.settings != settings) {
-            clear(context);
-            runtime.settings = settings;
-        }
         Set<ResourceLocation> effective = player.isAlive() && !player.isRemoved()
                 ? CommittedSkillService.effectiveIds(player) : Set.of();
+        Map<ResourceLocation, Integer> ranks = new java.util.TreeMap<>();
+        if (!effective.isEmpty()) {
+            var committed = CommittedSkillService.context(player);
+            effective.forEach(id -> ranks.put(id, committed.authoritativeRank(id)));
+        }
+        if (runtime.baseSettings != settings || !runtime.ranks.equals(ranks)) {
+            if (runtime.baseSettings != settings) clear(context);
+            else for (var entry : ranks.entrySet()) {
+                Integer previousRank = runtime.ranks.get(entry.getKey());
+                if (previousRank != null && !previousRank.equals(entry.getValue())) {
+                    SkillEffectHandler handler = SkillEffectRegistry.get(entry.getKey());
+                    if (handler != null) handler.deactivate(context);
+                    runtime.attempt = null;
+                }
+            }
+            runtime.baseSettings = settings;
+            runtime.ranks = Map.copyOf(ranks);
+            runtime.settings = com.mistaboom.essence_ascendance.skill.balance.SkillRankEffectScaling.apply(settings, ranks);
+        }
         if (!runtime.effective.equals(effective)) {
             // No in-flight hit may be attributed to a changed effective loadout.
             // This applies equally to future branches without naming any skill.
@@ -327,6 +345,10 @@ public final class SkillEffectRuntime {
         public long now() { return player.level().getGameTime(); }
         public SkillEffectBalanceSettings settings() { return runtime.settings; }
         public boolean isEffective(ResourceLocation id) { return runtime.effective.contains(id); }
+        public int rank(ResourceLocation id) { return runtime.ranks.getOrDefault(id, 0); }
+        public double effectScale(ResourceLocation id) {
+            return rank(id) == 0 ? 0.0 : com.mistaboom.essence_ascendance.skill.balance.SkillRankEffectScaling.factor(id, rank(id));
+        }
 
         @SuppressWarnings("unchecked")
         public <T extends SkillEffectState> T state(ResourceLocation id, Supplier<T> factory) {
@@ -352,12 +374,15 @@ public final class SkillEffectRuntime {
         final WeakReference<ServerPlayer> player;
         final Map<ResourceLocation, SkillEffectState> states = new HashMap<>();
         Set<ResourceLocation> effective = Set.of();
+        SkillEffectBalanceSettings baseSettings;
         SkillEffectBalanceSettings settings;
+        Map<ResourceLocation, Integer> ranks = Map.of();
         Attempt attempt;
         long lastGameplayTick = Long.MIN_VALUE;
 
         PlayerRuntime(ServerPlayer player, SkillEffectBalanceSettings settings) {
             this.player = new WeakReference<>(player);
+            this.baseSettings = settings;
             this.settings = settings;
         }
     }

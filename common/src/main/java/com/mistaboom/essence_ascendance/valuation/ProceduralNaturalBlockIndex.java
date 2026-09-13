@@ -132,8 +132,49 @@ final class ProceduralNaturalBlockIndex {
                 ResourceLocation id = ResourceLocation.tryParse(element.getAsString());
                 if (id != null && seenConfigured.add(id)) configured(configured.get(id), "configured feature " + id, depth + 1);
             } else if (element.isJsonObject()) {
-                states(element.getAsJsonObject().get("config"), source, depth + 1);
+                JsonObject feature = element.getAsJsonObject();
+                if (zeroOccurrence(feature)) return;
+                JsonElement config = feature.get("config");
+                if (config != null && config.isJsonObject() && !zeroOccurrence(config.getAsJsonObject())
+                        && isType(feature, "minecraft:tree")) {
+                    treeDecorators(config.getAsJsonObject().get("decorators"), source);
+                }
+                states(config, source, depth + 1);
             }
+        }
+
+        private void treeDecorators(JsonElement element, String source) {
+            if (element == null || !element.isJsonArray()) return;
+            for (JsonElement child : element.getAsJsonArray()) {
+                if (!child.isJsonObject()) continue;
+                JsonObject decorator = child.getAsJsonObject();
+                // CocoaDecorator's codec contains only probability; its placement
+                // implementation supplies Blocks.COCOA rather than a serialized
+                // block state. Interpret this known feature/decorator combination,
+                // never an arbitrary decorator with a similar name or field.
+                if (!zeroOccurrence(decorator) && isType(decorator, "minecraft:cocoa")
+                        && positiveProbability(decorator.get("probability"))) {
+                    addEvidence(ResourceLocation.parse("minecraft:cocoa"),
+                            source + " via minecraft:cocoa tree decorator");
+                }
+            }
+        }
+
+        private boolean isType(JsonObject object, String expected) {
+            JsonElement type = object.get("type");
+            return type != null && type.isJsonPrimitive() && type.getAsJsonPrimitive().isString()
+                    && ResourceLocation.parse(expected).equals(ResourceLocation.tryParse(type.getAsString()));
+        }
+
+        private boolean positiveProbability(JsonElement value) {
+            if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) return false;
+            double probability = value.getAsDouble();
+            return Double.isFinite(probability) && probability > 0.0 && probability <= 1.0;
+        }
+
+        private void addEvidence(ResourceLocation id, String source) {
+            List<String> signals = evidence.computeIfAbsent(id, ignored -> new ArrayList<>());
+            if (signals.size() < 3 && !signals.contains(source)) signals.add(source);
         }
 
         private boolean zeroOccurrence(JsonObject object) {
@@ -158,10 +199,7 @@ final class ProceduralNaturalBlockIndex {
             JsonElement name = object.get("Name");
             if (name != null && name.isJsonPrimitive() && name.getAsJsonPrimitive().isString()) {
                 ResourceLocation id = ResourceLocation.tryParse(name.getAsString());
-                if (id != null) {
-                    List<String> signals = evidence.computeIfAbsent(id, ignored -> new ArrayList<>());
-                    if (signals.size() < 3 && !signals.contains(source)) signals.add(source);
-                }
+                if (id != null) addEvidence(id, source);
             }
             for (Map.Entry<String, JsonElement> entry : object.entrySet()) {
                 String key = entry.getKey();

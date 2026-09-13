@@ -156,22 +156,35 @@ public final class EquipmentBaselineService {
     }
 
     private static EquipmentBaselineConfig.TierBaseline latentBaseline() {
-        return new EquipmentBaselineConfig.TierBaseline(
-                15.0D, 0.0D,
-                6.0D, 1.6D,
-                6.0D, 1.0D,
-                3.0D, 20.0D / 12.0D,
-                6.0D,
-                2,
-                250
-        );
+        return java.util.Objects.requireNonNull(EssenceConfigManager.get().equipmentBaselineConfig().tierBaselines().get(
+                net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("essence_ascendance", "latent")),
+                "Generated profile is missing the Latent equipment chassis");
     }
 
-    private static double multiply(
+    public static double resolvedValue(
             double base,
             EquipmentProfileDefinition profile,
             EquipmentBaselineProperty property
     ) {
-        return base * profile.baselineMultiplier(property);
+        double raw=base * profile.baselineMultiplier(property);
+        if(!Double.isFinite(raw))throw new IllegalArgumentException("Equipment archetype value exceeds finite gameplay arithmetic");
+        if(raw<=0)return 0;
+        return switch(property) {
+            case MELEE_ATTACK_SPEED,RANGED_ATTACK_SPEED,MAGIC_CAST_SPEED -> Math.max(.1,rounded(raw,1));
+            case MELEE_DAMAGE,RANGED_DAMAGE,MAGIC_DAMAGE,MINING_SPEED,DURABILITY -> Math.max(1,rounded(raw,0));
+            case ARMOR,TOUGHNESS -> rounded(raw,0);
+        };
+    }
+
+    private static double rounded(double value,int decimals) {
+        return java.math.BigDecimal.valueOf(value).setScale(decimals,java.math.RoundingMode.HALF_UP).doubleValue();
+    }
+
+    private static double multiply(double base,EquipmentProfileDefinition profile,EquipmentBaselineProperty property) {
+        return quantizationEnabled()?resolvedValue(base,profile,property):base*profile.baselineMultiplier(property);
+    }
+
+    public static boolean quantizationEnabled() {
+        return EssenceConfigManager.runtime().composition().getOrDefault("equipment_quantization",0.0)==1.0;
     }
 }

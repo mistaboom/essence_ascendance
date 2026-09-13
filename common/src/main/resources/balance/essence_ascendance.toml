@@ -1,0 +1,129 @@
+# Essence Ascendance: pack-maker balance intent
+# These are GENERATOR INPUTS. The server runs from essence_ascendance/generated_balance.json.
+# Edit this file, then run /essence debug balance rebuild as an operator to apply changes.
+# A normal restart or datapack reload warns about changed inputs but does not regenerate.
+# Existing valid generated data remains active if a rebuild fails.
+# Do not edit generated_balance.json; inspect reports/balance_report.md for its values.
+# Sort/filter reports/*.csv in a spreadsheet; these exports do not change gameplay.
+# Full troubleshooting evidence stays in the generated JSON and diagnostics/.
+#
+# Omitted keys use the documented vanilla-like defaults. Unknown keys are errors.
+# Supported TOML: these named tables, decimal numbers, booleans, quoted strings.
+# Advanced facts additionally support [[fact]] and arrays of primitive values.
+# Inline tables, dates, dotted bare keys, hexadecimal numbers and multiline strings
+# are intentionally unsupported. Use quoted keys for exact JSON Pointer overrides.
+schema_version = 1
+
+[power]
+# Overall desired position relative to attainable external pack references.
+# Base equipment is normalized to Transcendent pack-reference parity; this
+# control still sets added-power headroom for Nexus/skills and combined builds.
+# Range 0.1..4.0; default 1.0. 1.2 asks for stronger Ascendance contributions.
+# This is not a percentage of the single strongest registered item.
+overall = 1.0
+# Relative emphasis within the detected progression bands, each 0.1..4.0.
+# Raising early helps the first meaningful investments; lowering apex reins in
+# complete endgame builds. These are relative positions, so early may exceed late.
+early = 0.8
+mid = 0.9
+late = 1.0
+apex = 1.1
+
+[progression]
+# Player ascension uses the next generated tier budget, rounded up to a whole
+# multiple of the current tier budget. Increasing length or cost_pressure below
+# therefore raises both the economic journey and its qualification thresholds.
+# Saved Essence + allocated Bonuses + actual paid skill receipts qualify; any
+# combination of the six Essences works. No extra Essence is consumed on ascend.
+# Defaults have no boss/mineral checklist or mandatory stat/category breadth.
+# Compare thresholds and harvest levels in reports/ascension.csv.
+# Intended journey length relative to the generated pack economy.
+# Range 0.1..10.0; 1.0 is the baseline, 2.0 asks for a longer investment journey.
+length = 1.0
+# Separate affordability pressure, 0.1..10.0. 0.75 makes generated costs cheaper.
+# Prefer correcting a wrong resource fact in balance_overrides.toml before using
+# this to compensate for a valuation bug. This does not alter resource facts.
+cost_pressure = 1.0
+
+[generation]
+# Explicit encounter-duration assumptions, in seconds, rather than hidden stat targets.
+# Routine/boss health divided by these windows supplies encounter DPS pressure.
+routine_seconds = 4.0
+boss_seconds = 40.0
+# Duration used for sustained-survival and recovery checks.
+survival_seconds = 10.0
+# Cost = observed median resource payout * entry effort * growth^band
+#        * progression.length * progression.cost_pressure.
+# These are effort ratios; no fixed currency total or per-tier weapon table.
+entry_resource_effort = 80.0
+effort_growth = 3.5
+
+[builds]
+# Minimum emphasis on meaningful partial participation, 0.1..1.0; default 0.65.
+# Higher values support players concentrating on equipment, Nexus or skills.
+# Combined-build accounting still constrains multiplicative interactions.
+partial_viability = 0.65
+# Strength of multiplicative-composition safeguards, 0..1; default 0.75.
+# Higher values leave less headroom for stacked multipliers. Zero relaxes this
+# policy but does not disable numeric validity, rank or economy invariants.
+composition_safeguard = 0.75
+
+[budget]
+# Split added Ascendance power among the three systems. Equipment keeps an
+# ordinary pack-equivalent baseline before these shares add its upgrade power.
+# Each share must be 0.01..0.98; all three MUST sum to 1.0.
+# Example: equipment=0.5, nexus=0.3, skills=0.2 favors evolving equipment.
+equipment = 0.40
+nexus = 0.35
+skills = 0.25
+
+[economy]
+# Response to cheap, scalable or unattended production, 0..1; default 0.65.
+# Higher pressure lowers extractable Essence from automated supply relative to
+# an item's broader opportunity value. Resource facts remain independently visible.
+# Legitimate stock/restock-limited trading is a productive source, not an
+# instantaneous material conversion. Its bounded allowance never increases
+# the ordinary proposed item yield. Cheap bulk inputs can earn Essence through
+# a developed trading hall even when their direct dissolution yield is zero.
+automation_pressure = 0.65
+# Extra pressure on renewable/abundant bulk resources. Effectively infinite
+# sources have zero generated dissolution under balanced/conservative; this
+# penalty also applies to them when abundance_aware permits positive yields.
+# Range 0..1; default 0.60. Facts classify the resource; this chooses the response.
+bulk_resource_penalty = 0.60
+# Additional pressure on cross-Essence flexibility, 0..0.95; default 0.10.
+# This is a generation policy input, not one loss percentage applied to every
+# carrier, repair, dissolution and conversion transaction.
+conversion_loss_pressure = 0.10
+
+[policies]
+# Flight: preserve_progression (default), match_pack, restrict.
+# preserve_progression retains existing milestone prerequisites;
+# match_pack adjusts relative mobility emphasis using discovered pack capabilities;
+# restrict reduces flight-oriented budget without bypassing prerequisite checks.
+flight = "preserve_progression"
+# Mining: preserve_progression (default), match_pack, restrict.
+# Applies to vein/area mining capability budgets, not just tool mining speed.
+# Automatic discovery may be incomplete; declare hidden capabilities in overrides.
+# Tool harvest levels advance from Latent level 0 by at least one per tier until
+# the pack maximum. Larger level ranges are spread across all equipment tiers.
+# This discrete progression is independent of physical-stat curve shaping.
+mining = "preserve_progression"
+# Resources: conservative, balanced (default), abundance_aware.
+# Balanced and conservative give no generated dissolution to sources explicitly
+# identified as effectively infinite (for example a cobblestone generator).
+# Conservative adds caution around renewable supply; abundance_aware permits
+# discounted positive infinite-source yields. Conservation applies to all three.
+resources = "balanced"
+# Outliers: exclude_unsupported (default), winsorize, include_attainable.
+# exclude_unsupported removes extremes unsupported by the rest of a reference
+# population; winsorize caps their influence instead. include_attainable admits
+# extremes where acquisition is supported. Disabled/creative-only facts still exclude.
+outliers = "exclude_unsupported"
+
+[diagnostics]
+# Confidence below this value is highlighted for pack-maker review; range 0..1.
+warning_confidence = 0.60
+# Expanded evidence and explanations during explicit regeneration. Compact report
+# and stable CSV diagnostics remain available when false.
+expanded = true

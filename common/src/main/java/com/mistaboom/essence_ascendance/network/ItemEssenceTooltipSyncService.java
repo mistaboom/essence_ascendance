@@ -252,23 +252,18 @@ public final class ItemEssenceTooltipSyncService {
                             item
                     );
 
-            ItemEssenceMappingResult result =
-                    ItemEssenceMappingRegistry.resolve(
-                            stack
-                    );
+            Map<EssenceDefinition, Long> exactOutputs = ItemEssenceMappingRegistry.resolveDissolution(stack);
 
             /*
              * A winning empty-output mapping means "blocked/no Essence".
              * It should therefore have no tooltip line.
              */
-            if (!result.mapped()
-                    || result.outputs()
-                            .isEmpty()) {
+            if (exactOutputs.isEmpty()) {
                 continue;
             }
 
             List<ItemEssenceTooltipPayload.Output> outputs =
-                    result.outputs()
+                    exactOutputs
                             .entrySet()
                             .stream()
                             .sorted(

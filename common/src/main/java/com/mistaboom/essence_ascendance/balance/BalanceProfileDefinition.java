@@ -14,6 +14,9 @@ public final class BalanceProfileDefinition {
 
     private final String displayName;
 
+    private final Map<ResourceLocation, Double> tierFractions;
+    private final double investmentExponent;
+
     /*
      * Default maximum invested Essence for each Ascendance tier.
      *
@@ -51,6 +54,17 @@ public final class BalanceProfileDefinition {
                     Map<ResourceLocation, Long>
                     > statOverrides
     ) {
+        this(id, displayName, defaultTierCaps, statOverrides, Map.of(), 1.0);
+    }
+
+    public BalanceProfileDefinition(ResourceLocation id, String displayName,
+            Map<ResourceLocation, Long> defaultTierCaps,
+            Map<ResourceLocation, Map<ResourceLocation, Long>> statOverrides,
+            Map<ResourceLocation, Double> tierFractions, double investmentExponent) {
+        this.tierFractions = Collections.unmodifiableMap(new LinkedHashMap<>(tierFractions));
+        if (!Double.isFinite(investmentExponent) || investmentExponent <= 0 || investmentExponent > 1)
+            throw new IllegalArgumentException("Investment exponent must be in (0, 1]");
+        this.investmentExponent = investmentExponent;
         this.id =
                 id;
 
@@ -101,6 +115,12 @@ public final class BalanceProfileDefinition {
 
     public String displayName() {
         return displayName;
+    }
+
+    public Map<ResourceLocation, Double> tierFractions() { return tierFractions; }
+    public double investmentExponent() { return investmentExponent; }
+    public double tierFraction(AscendanceTierDefinition tier, int index, int count) {
+        return tierFractions.getOrDefault(tier.id(), (index + 1.0) / count);
     }
 
 

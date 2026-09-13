@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.command;
 
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
+import com.mistaboom.essence_ascendance.balance.runtime.RuntimeAscensionPolicy;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import com.mistaboom.essence_ascendance.equipment.EquipmentActivationType;
@@ -465,6 +466,8 @@ public final class EssenceCommands {
         }
 
         AscendanceProgressSnapshot progress = evaluation.progress();
+        boolean essenceQualification = RuntimeAscensionPolicy.usesEssenceQualification(
+                EssenceConfigManager.runtime());
         String worldState = !progress.worldProgress().resolvable()
                 ? "unresolved"
                 : progress.worldProgress().complete() ? "complete" : "incomplete";
@@ -475,26 +478,37 @@ public final class EssenceCommands {
                 EssenceText.command("value.transition", EssenceText.ascendanceTier(evaluation.currentTier()), EssenceText.ascendanceTier(evaluation.nextTier()))
         ));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                EssenceText.command("label.investment_depth"),
+                EssenceText.command(essenceQualification
+                        ? "label.saved_and_invested_essence" : "label.investment_depth"),
                 EssenceCommandUtil.format(progress.effectiveInvestment()) + " / "
                         + EssenceCommandUtil.format(progress.requiredInvestment())
         ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                EssenceText.command("label.developed_stats"),
-                progress.developedStats() + " / " + progress.requiredDevelopedStats()
-        ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                EssenceText.command("label.represented_categories"),
-                progress.representedCategories() + " / " + progress.requiredRepresentedCategories()
-        ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                EssenceText.command("label.world_progression"),
-                "complete".equals(worldState)
-                        ? EssenceCommandUtil.good(EssenceText.command("state.complete"))
-                        : "unresolved".equals(worldState)
-                        ? EssenceCommandUtil.bad(EssenceText.command("state.unresolved"))
-                        : EssenceCommandUtil.warn(EssenceText.command("state.incomplete"))
-        ));
+        if (essenceQualification) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.muted(EssenceText.command("progress.qualification_counts")));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.muted(EssenceText.command("progress.qualification_transfers")));
+        }
+        if (progress.requiredDevelopedStats() > 0) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    EssenceText.command("label.developed_stats"),
+                    progress.developedStats() + " / " + progress.requiredDevelopedStats()
+            ));
+        }
+        if (progress.requiredRepresentedCategories() > 0) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    EssenceText.command("label.represented_categories"),
+                    progress.representedCategories() + " / " + progress.requiredRepresentedCategories()
+            ));
+        }
+        if (!(progress.worldProgress().requirement() instanceof MilestoneRequirement.Always)) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    EssenceText.command("label.world_progression"),
+                    "complete".equals(worldState)
+                            ? EssenceCommandUtil.good(EssenceText.command("state.complete"))
+                            : "unresolved".equals(worldState)
+                            ? EssenceCommandUtil.bad(EssenceText.command("state.unresolved"))
+                            : EssenceCommandUtil.warn(EssenceText.command("state.incomplete"))
+            ));
+        }
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
                 EssenceText.command("label.ready_to_ascend"),
                 progress.readyToAscend() ? EssenceCommandUtil.good(EssenceText.command("state.yes")) : EssenceCommandUtil.warn(EssenceText.command("state.no"))

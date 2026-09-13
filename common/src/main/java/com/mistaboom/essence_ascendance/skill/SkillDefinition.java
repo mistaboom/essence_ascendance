@@ -24,7 +24,8 @@ public record SkillDefinition(
         ResourceLocation replacementTarget,
         SkillActivationPolicy activationPolicy,
         int displayOrder,
-        SkillLayoutHint layoutHint
+        SkillLayoutHint layoutHint,
+        SkillRankPolicy rankPolicy
 ) {
     public SkillDefinition {
         Objects.requireNonNull(id, "Skill ID cannot be null");
@@ -33,6 +34,7 @@ public record SkillDefinition(
         Objects.requireNonNull(costBand, "Skill cost band cannot be null");
         Objects.requireNonNull(activationPolicy, "Activation policy cannot be null");
         Objects.requireNonNull(layoutHint, "Layout hint cannot be null");
+        Objects.requireNonNull(rankPolicy, "Rank policy cannot be null");
 
         if (nameTranslationKey == null || nameTranslationKey.isBlank()) {
             throw new IllegalArgumentException("Skill name translation key cannot be blank");
@@ -60,6 +62,11 @@ public record SkillDefinition(
             throw new IllegalArgumentException("Requirements cannot contain null entries");
         }
 
+        Set<ResourceLocation> requirementIds = new HashSet<>();
+        for (SkillRequirement requirement : requirements) {
+            if (!requirementIds.add(requirement.id())) throw new IllegalArgumentException("Duplicate skill requirement ID");
+        }
+
         Set<ResourceLocation> distinctPrerequisites = new HashSet<>(prerequisites);
         if (distinctPrerequisites.size() != prerequisites.size()) {
             throw new IllegalArgumentException(
@@ -85,6 +92,46 @@ public record SkillDefinition(
     }
 
     public long cost(BalanceProfileDefinition profile) {
-        return costBand.cost(profile, requiredTierId);
+        return cost(profile, 1);
+    }
+
+    public long cost(BalanceProfileDefinition profile, int targetRank) {
+        if (targetRank < 1 || targetRank > maximumRank()) throw new IllegalArgumentException("Skill maximum rank exceeded");
+        return com.mistaboom.essence_ascendance.skill.balance.SkillBalanceRuntime.require(id.toString(), targetRank).cost();
+    }
+
+    public int maximumRank() { return rankPolicy.maximumRank(); }
+
+    /** Later ranks inherit earlier gates unless the same requirement identity is explicitly refined. */
+    public ResourceLocation requiredTierId(int rank) {
+        ResourceLocation result = requiredTierId;
+        int order = com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry.get(result).orElseThrow().order();
+        for (int value = 1; value <= rank; value++) {
+            var gates = rankPolicy.rankGates().get(value);
+            if (gates == null || gates.requiredTierId() == null) continue;
+            int candidateOrder = com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry.get(gates.requiredTierId()).orElseThrow().order();
+            if (candidateOrder > order) { result = gates.requiredTierId(); order = candidateOrder; }
+        }
+        return result;
+    }
+
+    public java.util.Map<ResourceLocation, Integer> prerequisiteRanks(int rank) {
+        java.util.Map<ResourceLocation, Integer> values = new java.util.TreeMap<>();
+        prerequisites.forEach(id -> values.put(id, 1));
+        for (int current = 1; current <= rank; current++) {
+            var gates = rankPolicy.rankGates().get(current);
+            if (gates != null) gates.prerequisites().forEach((id, required) -> values.merge(id, required, Math::max));
+        }
+        return java.util.Collections.unmodifiableMap(values);
+    }
+
+    public List<SkillRequirement> requirements(int rank) {
+        java.util.Map<ResourceLocation, SkillRequirement> values = new java.util.LinkedHashMap<>();
+        requirements.forEach(requirement -> values.put(requirement.id(), requirement));
+        for (int current = 1; current <= rank; current++) {
+            var gates = rankPolicy.rankGates().get(current);
+            if (gates != null) gates.requirements().forEach(requirement -> values.put(requirement.id(), requirement));
+        }
+        return List.copyOf(values.values());
     }
 }

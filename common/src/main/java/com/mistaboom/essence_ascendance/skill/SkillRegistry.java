@@ -34,9 +34,7 @@ import java.util.Set;
  */
 public final class SkillRegistry {
 
-    public static final int CATALOG_VERSION = 1;
-    public static final int REQUIRED_SKILL_COUNT = 90;
-    public static final int REQUIRED_SKILLS_PER_ESSENCE = 15;
+    public static final int CATALOG_VERSION = 2;
 
     private static final Catalog CATALOG = createCatalog();
 
@@ -157,7 +155,7 @@ public final class SkillRegistry {
 
     /** Catalog construction already ran every validation; this is an explicit startup hook. */
     public static void validate() {
-        if (CATALOG.orderedSkills().size() != REQUIRED_SKILL_COUNT) {
+        if (CATALOG.orderedSkills().isEmpty()) {
             throw new IllegalStateException("Skill catalog validation was not completed");
         }
     }
@@ -191,13 +189,6 @@ public final class SkillRegistry {
             mutableByEssence.get(skill.essenceId()).add(skill);
         }
 
-        if (byId.size() != REQUIRED_SKILL_COUNT) {
-            throw invalid(
-                    "Expected exactly " + REQUIRED_SKILL_COUNT + " skills but found "
-                            + byId.size()
-            );
-        }
-
         Map<ResourceLocation, List<SkillDefinition>> byEssence = new LinkedHashMap<>();
         for (EssenceDefinition essence : EssenceTypes.ORDERED) {
             List<SkillDefinition> definitions = mutableByEssence.get(essence.id());
@@ -206,6 +197,17 @@ public final class SkillRegistry {
             byEssence.put(essence.id(), List.copyOf(definitions));
         }
 
+        for (SkillDefinition skill : byId.values()) {
+            for (int rank = 1; rank <= skill.maximumRank(); rank++) {
+                if (AscendanceTierRegistry.get(skill.requiredTierId(rank)).isEmpty())
+                    throw invalid("Unknown rank tier for " + skill.id());
+                for (var prerequisite : skill.prerequisiteRanks(rank).entrySet()) {
+                    SkillDefinition parent = byId.get(prerequisite.getKey());
+                    if (parent == null || prerequisite.getValue() > parent.maximumRank())
+                        throw invalid("Unreachable prerequisite rank for " + skill.id());
+                }
+            }
+        }
         validateSkillReferences(byId);
         validatePrerequisiteGraph(byId);
         validateReplacementGraph(byId);
@@ -215,7 +217,7 @@ public final class SkillRegistry {
         validateReplacementChoices(byId);
         validateCostBands();
 
-        List<SkillDefinition> ordered = new ArrayList<>(REQUIRED_SKILL_COUNT);
+        List<SkillDefinition> ordered = new ArrayList<>(byId.size());
         for (EssenceDefinition essence : EssenceTypes.ORDERED) {
             ordered.addAll(byEssence.get(essence.id()));
         }
@@ -224,7 +226,7 @@ public final class SkillRegistry {
         Set<ResourceLocation> permanentMilestones = new LinkedHashSet<>();
         Set<ResourceLocation> discoveries = new LinkedHashSet<>();
         for (SkillDefinition skill : ordered) {
-            for (SkillRequirement requirement : skill.requirements()) {
+            for (SkillRequirement requirement : allRankRequirements(skill)) {
                 if (requirement instanceof PlayerAttunementRequirement attunement) {
                     attunements.add(attunement.attunementId());
                 } else if (requirement instanceof PermanentMilestoneRequirement milestone) {
@@ -250,13 +252,6 @@ public final class SkillRegistry {
             ResourceLocation essenceId,
             List<SkillDefinition> definitions
     ) {
-        if (definitions.size() != REQUIRED_SKILLS_PER_ESSENCE) {
-            throw invalid(
-                    "Expected " + REQUIRED_SKILLS_PER_ESSENCE + " skills for "
-                            + essenceId + " but found " + definitions.size()
-            );
-        }
-
         Set<Integer> displayOrders = new HashSet<>();
         Set<String> nameKeys = new HashSet<>();
         Set<String> descriptionKeys = new HashSet<>();
@@ -280,9 +275,21 @@ public final class SkillRegistry {
         }
     }
 
+    private static List<SkillRequirement> allRankRequirements(SkillDefinition skill) {
+        java.util.LinkedHashSet<SkillRequirement> requirements = new java.util.LinkedHashSet<>();
+        for (int rank = 1; rank <= skill.maximumRank(); rank++) requirements.addAll(skill.requirements(rank));
+        return List.copyOf(requirements);
+    }
+
+    private static List<ResourceLocation> allPrerequisites(SkillDefinition skill) {
+        java.util.LinkedHashSet<ResourceLocation> ids = new java.util.LinkedHashSet<>(skill.prerequisites());
+        for (int rank = 1; rank <= skill.maximumRank(); rank++) ids.addAll(skill.prerequisiteRanks(rank).keySet());
+        return List.copyOf(ids);
+    }
+
     private static void validateSkillReferences(Map<ResourceLocation, SkillDefinition> byId) {
         for (SkillDefinition skill : byId.values()) {
-            for (ResourceLocation prerequisiteId : skill.prerequisites()) {
+            for (ResourceLocation prerequisiteId : allPrerequisites(skill)) {
                 SkillDefinition prerequisite = byId.get(prerequisiteId);
                 if (prerequisite == null) {
                     throw invalid(
@@ -337,14 +344,7 @@ public final class SkillRegistry {
                 }
             }
 
-            Set<ResourceLocation> requirementIds = new HashSet<>();
-            for (SkillRequirement requirement : skill.requirements()) {
-                if (!requirementIds.add(requirement.id())) {
-                    throw invalid(
-                            "Skill " + skill.id() + " repeats requirement ID "
-                                    + requirement.id()
-                    );
-                }
+            for (SkillRequirement requirement : allRankRequirements(skill)) {
                 if (requirement instanceof BonusInvestmentRequirement bonus) {
                     if (EssenceRegistry.get(bonus.essenceId()).isEmpty()) {
                         throw invalid(
@@ -489,7 +489,7 @@ public final class SkillRegistry {
     ) {
         validateAcyclicGraph(
                 byId,
-                skill -> skill.prerequisites(),
+                SkillRegistry::allPrerequisites,
                 "prerequisite"
         );
     }
@@ -584,7 +584,7 @@ public final class SkillRegistry {
             return;
         }
         SkillDefinition skill = require(id);
-        for (ResourceLocation prerequisite : skill.prerequisites()) {
+        for (ResourceLocation prerequisite : allPrerequisites(skill)) {
             if (requested.contains(prerequisite)) {
                 addTopologically(prerequisite, requested, visited, ordered);
             }

@@ -275,27 +275,7 @@ public final class EssenceSavedData extends SavedData {
     }
 
 
-    /** Apply one prevalidated Nexus allocation/reallocation atomically. */
-    public boolean applyAllocationTargets(
-            UUID playerId,
-            Map<StatDefinition, Long> targetInvestments,
-            Map<EssenceDefinition, Long> targetAvailable
-    ) {
-        PlayerEssenceData playerData =
-                getPlayerData(playerId);
 
-        boolean changed =
-                playerData.applyAllocationTargets(
-                        targetInvestments,
-                        targetAvailable
-                );
-
-        if (changed) {
-            setDirty();
-        }
-
-        return changed;
-    }
 
 
     /**
@@ -625,9 +605,7 @@ public final class EssenceSavedData extends SavedData {
             HolderLookup.Provider registries
     ) {
 
-        EssenceDataMigration.writeCurrentVersion(
-                root
-        );
+        root.putInt("data_version", 6);
 
 
         CompoundTag playersTag =
@@ -659,22 +637,17 @@ public final class EssenceSavedData extends SavedData {
             HolderLookup.Provider provider
     ) {
 
-        EssenceDataMigration.MigrationResult migration =
-                EssenceDataMigration.migrate(
-                        root
-                );
-
-
-        CompoundTag migratedRoot =
-                migration.root();
-
+        if (root.getInt("data_version") != 6) {
+            throw new IllegalStateException("Essence Ascendance development save schema is incompatible. "
+                    + "Recreate the test world; pre-release save migration is unsupported.");
+        }
 
         EssenceSavedData data =
                 new EssenceSavedData();
 
 
         CompoundTag playersTag =
-                migratedRoot.getCompound(
+                root.getCompound(
                         PLAYERS_TAG
                 );
 
@@ -714,9 +687,6 @@ public final class EssenceSavedData extends SavedData {
         }
 
 
-        if (migration.migrated()) {
-            data.setDirty();
-        }
 
 
         return data;

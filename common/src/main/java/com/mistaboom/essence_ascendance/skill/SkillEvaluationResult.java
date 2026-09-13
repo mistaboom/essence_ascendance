@@ -13,6 +13,8 @@ import java.util.Set;
 public record SkillEvaluationResult(
         SkillDefinition definition,
         SkillPurchaseEligibility purchaseEligibility,
+        int currentRank,
+        int projectedRank,
         boolean owned,
         boolean projectedOwned,
         boolean staged,
@@ -58,7 +60,7 @@ public record SkillEvaluationResult(
 
     /** True when every projected purchase gate is met and the skill is not committed. */
     public boolean eligibleToPurchase() {
-        return !owned && purchaseEligibility.satisfied();
+        return currentRank < definition.maximumRank() && purchaseEligibility.satisfied();
     }
 
     public List<SkillPrerequisiteStatus> prerequisites() {

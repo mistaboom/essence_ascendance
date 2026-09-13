@@ -3,7 +3,7 @@
   "category": "equipment",
   "pattern": [
     " A ",
-    "LDL",
+    "LLL",
     " L "
   ],
   "key": {
@@ -12,9 +12,6 @@
     },
     "A": {
       "item": "minecraft:amethyst_shard"
-    },
-    "D": {
-      "item": "minecraft:diamond"
     }
   },
   "result": {

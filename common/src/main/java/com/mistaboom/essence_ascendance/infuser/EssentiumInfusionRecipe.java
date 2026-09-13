@@ -99,6 +99,11 @@ public record EssentiumInfusionRecipe(
                 targetCapacity,
                 context.profile().efficiencyBasisPoints()
         );
+        if (source != null && context.targetEssence() != null && !source.equals(context.targetEssence())) {
+            int conversion = com.mistaboom.essence_ascendance.config.EssenceConfigManager.get()
+                    .infuserBalance().conversionEfficiencyBasisPoints();
+            if (conversion < 10_000) sourceRequired = EssenceInfuserBalance.requiredSource(sourceRequired, conversion);
+        }
         if (source == null || sourceRequired <= 0L) {
             return EssenceInfusionRequirements.none();
         }

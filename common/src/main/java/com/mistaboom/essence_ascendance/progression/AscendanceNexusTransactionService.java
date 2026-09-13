@@ -47,7 +47,7 @@ public final class AscendanceNexusTransactionService {
             ResourceLocation baseTierId,
             ResourceLocation baseBalanceProfileId,
             Map<ResourceLocation, Long> finalBonusTargets,
-            Set<ResourceLocation> requestedPurchases,
+            Map<ResourceLocation, Integer> requestedPurchases,
             Map<ResourceLocation, Optional<ResourceLocation>> loadoutChanges,
             boolean ascend
     ) {
@@ -137,6 +137,7 @@ public final class AscendanceNexusTransactionService {
         Map<ResourceLocation, Long> bonusSpending = new LinkedHashMap<>();
         Map<ResourceLocation, Long> bonusRefunds = new LinkedHashMap<>();
         Map<ResourceLocation, Long> skillSpending = new LinkedHashMap<>();
+        Map<ResourceLocation, Long> skillRefunds = new LinkedHashMap<>();
         Map<ResourceLocation, Long> currentBonusByEssence = new LinkedHashMap<>();
         Map<ResourceLocation, Long> projectedBonusByEssence = new LinkedHashMap<>();
 
@@ -201,32 +202,50 @@ public final class AscendanceNexusTransactionService {
                 );
             }
 
-            Set<ResourceLocation> finalOwnedIds =
-                    new LinkedHashSet<>(targetOwnedSkills.keySet());
-            finalOwnedIds.addAll(requestedPurchases);
-
-            for (ResourceLocation skillId : requestedPurchases) {
-                if (skillId == null) {
-                    return Result.failure(
-                            AscendanceNexusTransactionResultPayload.Status.INVALID_PROPOSAL,
-                            playerData.nexusRevision()
-                    );
+            Map<ResourceLocation, Integer> finalRanks = new LinkedHashMap<>(playerData.getSkillRanks());
+            for (var request : requestedPurchases.entrySet()) {
+                ResourceLocation skillId = request.getKey();
+                Integer targetRank = request.getValue();
+                SkillDefinition skill = skillId == null ? null : SkillRegistry.get(skillId).orElse(null);
+                if (skill == null || targetRank == null || targetRank < 0) {
+                    return Result.failure(AscendanceNexusTransactionResultPayload.Status.INVALID_PROPOSAL,
+                            playerData.nexusRevision());
                 }
-
-                SkillDefinition skill =
-                        SkillRegistry.get(skillId).orElse(null);
-                if (skill == null) {
-                    return Result.failure(
-                            AscendanceNexusTransactionResultPayload.Status.UNKNOWN_SKILL,
-                            playerData.nexusRevision()
-                    );
+                if (targetRank > skill.maximumRank()) {
+                    return Result.failure(AscendanceNexusTransactionResultPayload.Status.SKILL_MAX_RANK,
+                            playerData.nexusRevision());
                 }
+                int currentRank = playerData.skillRank(skillId);
+                if (targetRank == currentRank) {
+                    return Result.failure(AscendanceNexusTransactionResultPayload.Status.INVALID_PROPOSAL,
+                            playerData.nexusRevision());
+                }
+                if (targetRank < currentRank) {
+                    if (skill.rankPolicy().refundRule()
+                            != com.mistaboom.essence_ascendance.skill.SkillRankPolicy.RefundRule.EXACT_PAID) {
+                        return Result.failure(AscendanceNexusTransactionResultPayload.Status.INVALID_PROPOSAL,
+                                playerData.nexusRevision());
+                    }
+                    SkillPurchase paid = playerData.getSkillPurchase(skillId).orElseThrow();
+                    mergeExact(skillRefunds, paid.essenceId(), paid.refundAbove(targetRank));
+                    if (targetRank == 0) targetOwnedSkills.remove(skillId);
+                    else targetOwnedSkills.put(skillId, paid.retain(targetRank));
+                }
+                if (targetRank == 0) finalRanks.remove(skillId);
+                else finalRanks.put(skillId, targetRank);
+            }
+            Set<ResourceLocation> finalOwnedIds = finalRanks.keySet();
+            targetLoadoutSelections.entrySet().removeIf(entry -> !finalOwnedIds.contains(entry.getValue()));
 
-                if (playerData.ownsSkill(skillId)) {
-                    return Result.failure(
-                            AscendanceNexusTransactionResultPayload.Status.SKILL_ALREADY_OWNED,
-                            playerData.nexusRevision()
-                    );
+            // A refund must retain every paid descendant's rank prerequisites. Refund the child first.
+            for (var owned : finalRanks.entrySet()) {
+                SkillDefinition skill = SkillRegistry.get(owned.getKey()).orElse(null);
+                if (skill == null) continue;
+                for (var prerequisite : skill.prerequisiteRanks(owned.getValue()).entrySet()) {
+                    if (finalRanks.getOrDefault(prerequisite.getKey(), 0) < prerequisite.getValue()) {
+                        return Result.failure(AscendanceNexusTransactionResultPayload.Status.SKILL_PREREQUISITE_REQUIRED,
+                                playerData.nexusRevision());
+                    }
                 }
             }
 
@@ -342,8 +361,8 @@ public final class AscendanceNexusTransactionService {
 
             SkillEvaluationContext skillContext = new SkillEvaluationContext(
                     playerData.getTierId(),
-                    playerData.getOwnedSkills().keySet(),
-                    finalOwnedIds,
+                    playerData.getSkillRanks(),
+                    finalRanks,
                     playerData.getLoadoutSelections(),
                     targetLoadoutSelections,
                     playerData.getCompletedAttunements(),
@@ -354,76 +373,47 @@ public final class AscendanceNexusTransactionService {
             );
 
             List<SkillDefinition> purchaseOrder =
-                    SkillRegistry.topologicalOrder(requestedPurchases);
+                    SkillRegistry.topologicalOrder(requestedPurchases.keySet());
 
             for (SkillDefinition skill : purchaseOrder) {
-                for (var requirement : skill.requirements()) {
-                    if (!(requirement instanceof PermanentMilestoneRequirement milestone)) {
-                        continue;
+                int currentRank = playerData.skillRank(skill.id());
+                int targetRank = requestedPurchases.get(skill.id());
+                for (int rank = currentRank + 1; rank <= targetRank; rank++) {
+                    for (var requirement : skill.requirements(rank)) {
+                        if (!(requirement instanceof PermanentMilestoneRequirement milestone)) continue;
+                        PermanentMilestoneService.Resolution resolution = milestonesById.get(milestone.milestoneId());
+                        if (resolution == null || !resolution.resolvable()) {
+                            return Result.failure(AscendanceNexusTransactionResultPayload.Status.CONFIGURATION_ERROR,
+                                    playerData.nexusRevision());
+                        }
                     }
-                    PermanentMilestoneService.Resolution resolution =
-                            milestonesById.get(milestone.milestoneId());
-                    if (resolution == null || !resolution.resolvable()) {
-                        return Result.failure(
-                                AscendanceNexusTransactionResultPayload.Status.CONFIGURATION_ERROR,
-                                playerData.nexusRevision()
-                        );
+                    SkillPurchaseEligibility eligibility = SkillStateEvaluator.evaluatePurchaseEligibility(skill, skillContext, rank);
+                    if (!eligibility.tierSatisfied()) return Result.failure(
+                            AscendanceNexusTransactionResultPayload.Status.SKILL_TIER_REQUIRED, playerData.nexusRevision());
+                    if (!eligibility.prerequisitesSatisfied()) return Result.failure(
+                            AscendanceNexusTransactionResultPayload.Status.SKILL_PREREQUISITE_REQUIRED, playerData.nexusRevision());
+                    if (!eligibility.requirementsSatisfied()) return Result.failure(
+                            AscendanceNexusTransactionResultPayload.Status.SKILL_REQUIREMENT_INCOMPLETE, playerData.nexusRevision());
+                    EssenceDefinition essence = EssenceRegistry.get(skill.essenceId()).orElse(null);
+                    if (essence == null) return Result.failure(
+                            AscendanceNexusTransactionResultPayload.Status.CONFIGURATION_ERROR, playerData.nexusRevision());
+                    long cost = skill.cost(balanceProfile, rank);
+                    mergeExact(skillSpending, essence.id(), cost);
+                    SkillPurchase previous = targetOwnedSkills.get(skill.id());
+                    if (previous != null && !previous.essenceId().equals(essence.id())) {
+                        return Result.failure(AscendanceNexusTransactionResultPayload.Status.CONFIGURATION_ERROR,
+                                playerData.nexusRevision());
                     }
+                    targetOwnedSkills.put(skill.id(), previous == null
+                            ? new SkillPurchase(essence.id(), cost) : previous.append(cost));
                 }
-
-                SkillPurchaseEligibility eligibility =
-                        SkillStateEvaluator.evaluatePurchaseEligibility(
-                                skill,
-                                skillContext
-                        );
-
-                if (!eligibility.tierSatisfied()) {
-                    return Result.failure(
-                            AscendanceNexusTransactionResultPayload.Status.SKILL_TIER_REQUIRED,
-                            playerData.nexusRevision()
-                    );
-                }
-                if (!eligibility.prerequisitesSatisfied()) {
-                    return Result.failure(
-                            AscendanceNexusTransactionResultPayload.Status.SKILL_PREREQUISITE_REQUIRED,
-                            playerData.nexusRevision()
-                    );
-                }
-                if (!eligibility.requirementsSatisfied()) {
-                    return Result.failure(
-                            AscendanceNexusTransactionResultPayload.Status.SKILL_REQUIREMENT_INCOMPLETE,
-                            playerData.nexusRevision()
-                    );
-                }
-
-                EssenceDefinition essence =
-                        EssenceRegistry.get(skill.essenceId()).orElse(null);
-                if (essence == null) {
-                    return Result.failure(
-                            AscendanceNexusTransactionResultPayload.Status.CONFIGURATION_ERROR,
-                            playerData.nexusRevision()
-                    );
-                }
-
-                long cost = skill.cost(balanceProfile);
-                if (cost < 0L) {
-                    return Result.failure(
-                            AscendanceNexusTransactionResultPayload.Status.CONFIGURATION_ERROR,
-                            playerData.nexusRevision()
-                    );
-                }
-
-                mergeExact(skillSpending, essence.id(), cost);
-                targetOwnedSkills.put(
-                        skill.id(),
-                        new SkillPurchase(essence.id(), cost)
-                );
             }
 
             for (EssenceDefinition essence : EssenceRegistry.values()) {
                 long budget = Math.addExact(
                         playerData.getAvailable(essence),
-                        bonusRefunds.getOrDefault(essence.id(), 0L)
+                        Math.addExact(bonusRefunds.getOrDefault(essence.id(), 0L),
+                                skillRefunds.getOrDefault(essence.id(), 0L))
                 );
                 long totalSpending = Math.addExact(
                         bonusSpending.getOrDefault(essence.id(), 0L),
@@ -466,7 +456,9 @@ public final class AscendanceNexusTransactionService {
             try {
                 evaluation = AscendanceEngine.evaluateProjected(
                         player,
-                        targetInvestments
+                        targetAvailable,
+                        targetInvestments,
+                        targetOwnedSkills
                 );
             } catch (RuntimeException exception) {
                 EssenceAscendance.LOGGER.error(

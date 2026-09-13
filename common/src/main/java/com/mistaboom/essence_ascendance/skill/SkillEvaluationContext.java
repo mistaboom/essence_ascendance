@@ -17,8 +17,8 @@ import java.util.Set;
  */
 public record SkillEvaluationContext(
         ResourceLocation currentTierId,
-        Set<ResourceLocation> authoritativeOwnedSkillIds,
-        Set<ResourceLocation> projectedOwnedSkillIds,
+        Map<ResourceLocation, Integer> authoritativeRanks,
+        Map<ResourceLocation, Integer> projectedRanks,
         Map<ResourceLocation, ResourceLocation> authoritativeLoadoutSelections,
         Map<ResourceLocation, ResourceLocation> projectedLoadoutSelections,
         Set<ResourceLocation> completedAttunements,
@@ -29,14 +29,8 @@ public record SkillEvaluationContext(
 ) {
     public SkillEvaluationContext {
         Objects.requireNonNull(currentTierId, "Current tier ID cannot be null");
-        authoritativeOwnedSkillIds = Set.copyOf(Objects.requireNonNull(
-                authoritativeOwnedSkillIds,
-                "Authoritative owned-skill IDs cannot be null"
-        ));
-        projectedOwnedSkillIds = Set.copyOf(Objects.requireNonNull(
-                projectedOwnedSkillIds,
-                "Projected owned-skill IDs cannot be null"
-        ));
+        authoritativeRanks = copyRanks(authoritativeRanks);
+        projectedRanks = copyRanks(projectedRanks);
         authoritativeLoadoutSelections = Map.copyOf(Objects.requireNonNull(
                 authoritativeLoadoutSelections,
                 "Authoritative loadout selections cannot be null"
@@ -66,11 +60,7 @@ public record SkillEvaluationContext(
                 "Projected Bonus totals"
         );
 
-        if (!projectedOwnedSkillIds.containsAll(authoritativeOwnedSkillIds)) {
-            throw new IllegalArgumentException(
-                    "A Nexus projection cannot remove permanent skill ownership"
-            );
-        }
+
     }
 
     /**
@@ -79,7 +69,7 @@ public record SkillEvaluationContext(
      */
     public static SkillEvaluationContext committed(
             ResourceLocation currentTierId,
-            Set<ResourceLocation> ownedSkillIds,
+            Map<ResourceLocation, Integer> ownedRanks,
             Map<ResourceLocation, ResourceLocation> loadoutSelections,
             Set<ResourceLocation> completedAttunements,
             Set<ResourceLocation> completedMilestones,
@@ -88,8 +78,8 @@ public record SkillEvaluationContext(
     ) {
         return new SkillEvaluationContext(
                 currentTierId,
-                ownedSkillIds,
-                ownedSkillIds,
+                ownedRanks,
+                ownedRanks,
                 loadoutSelections,
                 loadoutSelections,
                 completedAttunements,
@@ -101,9 +91,21 @@ public record SkillEvaluationContext(
     }
 
     public boolean hasProjectedChanges() {
-        return !authoritativeOwnedSkillIds.equals(projectedOwnedSkillIds)
+        return !authoritativeRanks.equals(projectedRanks)
                 || !authoritativeLoadoutSelections.equals(projectedLoadoutSelections)
                 || !authoritativeBonusTotals.equals(projectedBonusTotals);
+    }
+
+    public Set<ResourceLocation> authoritativeOwnedSkillIds() { return authoritativeRanks.keySet(); }
+    public Set<ResourceLocation> projectedOwnedSkillIds() { return projectedRanks.keySet(); }
+    public int authoritativeRank(ResourceLocation id) { return authoritativeRanks.getOrDefault(id, 0); }
+    public int projectedRank(ResourceLocation id) { return projectedRanks.getOrDefault(id, 0); }
+    private static Map<ResourceLocation, Integer> copyRanks(Map<ResourceLocation, Integer> ranks) {
+        ranks.forEach((id, rank) -> {
+            if (id == null || rank == null || rank < 1 || rank > 64)
+                throw new IllegalArgumentException("Invalid skill rank state");
+        });
+        return Map.copyOf(ranks);
     }
 
     private static Map<ResourceLocation, Long> copyNonNegativeTotals(

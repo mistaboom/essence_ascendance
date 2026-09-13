@@ -36,7 +36,7 @@ public record ItemEssenceTooltipPayload(
             new Type<>(
                     ResourceLocation.fromNamespaceAndPath(
                             EssenceAscendance.MOD_ID,
-                            "item_essence_tooltips"
+                            "item_essence_tooltips_v2"
                     )
             );
 
@@ -136,7 +136,7 @@ public record ItemEssenceTooltipPayload(
                 );
 
                 buffer.writeLong(
-                        output.amount()
+                        output.microUnits()
                 );
             }
         }
@@ -286,7 +286,7 @@ public record ItemEssenceTooltipPayload(
 
     public record Output(
             String essenceId,
-            long amount
+            long microUnits
     ) {
         public Output {
             Objects.requireNonNull(
@@ -294,7 +294,7 @@ public record ItemEssenceTooltipPayload(
                     "Tooltip Essence ID cannot be null"
             );
 
-            if (amount <= 0L) {
+            if (microUnits <= 0) {
                 throw new IllegalArgumentException(
                         "Tooltip Essence amount must be positive"
                 );

@@ -314,7 +314,7 @@ public final class ClientEssenceState {
                     new SkillPurchaseSnapshot(
                             skillId,
                             paidEssenceId,
-                            state.paidCost()
+                            state.paidCosts()
                     )
             );
         }
@@ -528,8 +528,15 @@ public final class ClientEssenceState {
     public record SkillPurchaseSnapshot(
             ResourceLocation skillId,
             ResourceLocation essenceId,
-            long paidCost
+            java.util.List<Long> paidCosts
     ) {
+        public SkillPurchaseSnapshot { paidCosts = java.util.List.copyOf(paidCosts); }
+        public int rank() { return paidCosts.size(); }
+        public long paidCost() {
+            long total = 0L;
+            for (long cost : paidCosts) total = Math.addExact(total, cost);
+            return total;
+        }
     }
 
     public record MilestoneSnapshot(

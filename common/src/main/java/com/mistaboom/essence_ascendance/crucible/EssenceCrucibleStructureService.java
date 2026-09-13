@@ -24,21 +24,8 @@ public final class EssenceCrucibleStructureService {
     public static final int MAX_SUPPORTED_ACTIVE_PYLONS = 8;
     public static final int MAX_INPUT_SLOTS = 1 + MAX_SUPPORTED_ACTIVE_PYLONS;
 
-    public static final EssenceCrucibleStructureStats BASE =
-            new EssenceCrucibleStructureStats(
-                    1,          // one visible input slot
-                    2_000_000L, // shared six-Essence reservoir capacity
-                    8.0D,       // player transfer range
-                    10_000L,    // TOTAL Essence / second
-                    20,         // ticks per dissolution cycle
-                    1,          // items processed per cycle
-                    6,          // all six block faces accept automation
-                    1,          // Crucible -> player stream
-                    0           // active pylon count
-            );
-
-    public static final EssenceCrucibleStructureSnapshot BASE_SNAPSHOT =
-            new EssenceCrucibleStructureSnapshot(BASE, List.of());
+    public static EssenceCrucibleStructureStats base() { return EssenceConfigManager.runtime().crucible(); }
+    public static EssenceCrucibleStructureSnapshot baseSnapshot() { return new EssenceCrucibleStructureSnapshot(base(), List.of()); }
 
     private EssenceCrucibleStructureService() {
     }
@@ -58,13 +45,13 @@ public final class EssenceCrucibleStructureService {
                 || !(level.getBlockEntity(cruciblePos)
                         instanceof EssenceCrucibleBlockEntity crucible)
                 || crucible.ownerId() == null) {
-            return BASE_SNAPSHOT;
+            return baseSnapshot();
         }
 
         double radius = EssenceConfigManager.get().pylonRadius();
         int maxActive = EssenceConfigManager.get().maxActivePylons();
         if (maxActive <= 0) {
-            return BASE_SNAPSHOT;
+            return baseSnapshot();
         }
 
         int scan = (int) Math.ceil(radius);
@@ -103,14 +90,14 @@ public final class EssenceCrucibleStructureService {
 
         int activeCount = Math.min(maxActive, candidates.size());
         if (activeCount == 0) {
-            return BASE_SNAPSHOT;
+            return baseSnapshot();
         }
 
-        long reservoirCapacity = BASE.reservoirCapacity();
-        double transferRange = BASE.transferRange();
-        long transferRate = BASE.transferRatePerSecond();
+        long reservoirCapacity = base().reservoirCapacity();
+        double transferRange = base().transferRange();
+        long transferRate = base().transferRatePerSecond();
         double dissolutionSpeedBonus = 0.0D;
-        int simultaneousProcesses = BASE.simultaneousItemProcesses();
+        int simultaneousProcesses = base().simultaneousItemProcesses();
         List<EssenceCrucibleStructureSnapshot.ActivePylon> activePylons =
                 new ArrayList<>(activeCount);
 
@@ -145,20 +132,20 @@ public final class EssenceCrucibleStructureService {
         int dissolutionTicks = Math.max(
                 1,
                 (int) Math.ceil(
-                        BASE.dissolutionTicksPerItem()
+                        base().dissolutionTicksPerItem()
                                 / (1.0D + dissolutionSpeedBonus)
                 )
         );
 
         EssenceCrucibleStructureStats stats =
                 new EssenceCrucibleStructureStats(
-                        Math.min(MAX_INPUT_SLOTS, BASE.usableItemSlots() + activeCount),
+                        Math.min(MAX_INPUT_SLOTS, base().usableItemSlots() + activeCount),
                         reservoirCapacity,
                         transferRange,
                         transferRate,
                         dissolutionTicks,
                         simultaneousProcesses,
-                        BASE.automationConnectionPorts(),
+                        base().automationConnectionPorts(),
                         1 + activeCount,
                         activeCount
                 );

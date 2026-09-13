@@ -43,6 +43,14 @@ public final class BalanceProfileRegistry {
     }
 
 
+    /** A generated profile replaces the prior runtime registry entry atomically. */
+    public static synchronized void installRuntime(BalanceProfileDefinition profile) {
+        PROFILES.clear();
+        PROFILES.put(profile.id(), profile);
+    }
+
+    public static synchronized void clearRuntime() { PROFILES.clear(); }
+
     public static Optional<BalanceProfileDefinition> get(
             ResourceLocation id
     ) {

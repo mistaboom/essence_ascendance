@@ -44,6 +44,8 @@ import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingDefinition;
 import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingRegistry;
 import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingResult;
 import com.mistaboom.essence_ascendance.progression.AscendanceEngine;
+import com.mistaboom.essence_ascendance.balance.runtime.RuntimeAscensionPolicy;
+import com.mistaboom.essence_ascendance.text.EssenceText;
 import com.mistaboom.essence_ascendance.progression.AscendanceEvaluationResult;
 import com.mistaboom.essence_ascendance.progression.CategoryDevelopment;
 import com.mistaboom.essence_ascendance.progression.MilestoneDefinition;
@@ -72,10 +74,7 @@ import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.EssenceStats;
 import com.mistaboom.essence_ascendance.stat.StatCategory;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
-import com.mistaboom.essence_ascendance.valuation.ProceduralValuationCsvExporter;
 import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingManager;
-import com.mistaboom.essence_ascendance.valuation.ProceduralValuationEngine;
-import com.mistaboom.essence_ascendance.valuation.ProceduralValuationResult;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -114,12 +113,7 @@ final class EssenceDebugCommands {
                 .then(Commands.literal("equipment").executes(context -> showEquipment(context.getSource())))
                 .then(Commands.literal("item").executes(context -> showItem(context.getSource())))
                 .then(Commands.literal("mapping").executes(context -> showItemMapping(context.getSource())))
-                .then(Commands.literal("valuation")
-                        .executes(context -> showProceduralValuation(context.getSource()))
-                        .then(Commands.literal("rebuild")
-                                .executes(context -> rebuildProceduralValuation(context.getSource())))
-                        .then(Commands.literal("export")
-                                .executes(context -> exportProceduralValuation(context.getSource()))))
+                .then(EssenceBalanceCommands.build())
                 .then(Commands.literal("mappings").executes(context -> showMappingRegistry(context.getSource())))
                 .then(Commands.literal("crucible").executes(context -> showCrucible(context.getSource())))
                 .then(Commands.literal("pylon").executes(context -> showPylon(context.getSource())))
@@ -166,9 +160,6 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug equipment", "all active equipment profiles plus resolved stat applicability"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug item", "deep-dive the main-hand Ascendance item"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug mapping", "resolve the main-hand item to Essence"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug valuation", "analyze current data on demand and compare with the saved/live mapping (may calculate)"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug valuation rebuild", "recalculate, save and install the generated baseline; later startups reuse the saved file"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug valuation export", "analyze/export current values and installed results; does not replace the saved baseline"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug mappings", "mapping registry/reload summary"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug crucible", "inspect the Essence Crucible you are looking at"));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug pylon", "inspect the Essence Pylon you are looking at"));
@@ -252,7 +243,7 @@ final class EssenceDebugCommands {
                                 source,
                                 EssenceCommandUtil.line(
                                         entry.getKey().toString(),
-                                        EssenceCommandUtil.format(purchase.paidCost()) + " "
+                                        "rank " + purchase.rank() + ": " + EssenceCommandUtil.format(purchase.paidCost()) + " "
                                                 + purchase.essenceId() + " [" + known + "]"
                                 )
                         );
@@ -305,7 +296,7 @@ final class EssenceDebugCommands {
         if (purchase != null) {
             EssenceCommandUtil.send(source, EssenceCommandUtil.line(
                     "Purchase receipt",
-                    EssenceCommandUtil.format(purchase.paidCost()) + " " + purchase.essenceId()
+                    "rank " + purchase.rank() + ", paid " + purchase.paidCosts() + " " + purchase.essenceId()
             ));
         }
 
@@ -331,9 +322,11 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
                 "Derived cost",
                 EssenceCommandUtil.format(skill.cost(EssenceConfigManager.get().balanceProfile()))
-                        + " [" + skill.costBand().name() + ", "
-                        + skill.costBand().percentage() + "%]"
+                        + " [generated rank 1]"
         ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Ranks",
+                data.skillRank(skillId) + "/" + skill.maximumRank() + "; projection "
+                        + skill.rankPolicy().projectionRanks() + "; refunds " + skill.rankPolicy().refundRule()));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line("Activation", skill.activationPolicy().name()));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
                 "Display",
@@ -746,7 +739,7 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.line("Player", player.getGameProfile().getName()));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line("Tier", data.getTier().displayName()));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Investment",
+                "Bonus investment",
                 EssenceCommandUtil.format(effective) + " / " + EssenceCommandUtil.format(capacity)
                         + " effective (" + EssenceCommandUtil.format(stored) + " stored)"
         ));
@@ -776,6 +769,15 @@ final class EssenceDebugCommands {
             );
             case MAX_TIER -> EssenceCommandUtil.send(source, EssenceCommandUtil.line("Next tier", EssenceCommandUtil.good("MAX TIER")));
             case CONFIGURATION_ERROR -> EssenceCommandUtil.send(source, EssenceCommandUtil.line("Next tier", EssenceCommandUtil.bad("CONFIGURATION ERROR")));
+        }
+
+        if (evaluation.status() == AscendanceEvaluationResult.Status.AVAILABLE
+                && RuntimeAscensionPolicy.usesEssenceQualification(EssenceConfigManager.runtime())) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    EssenceText.command("label.saved_and_invested_essence"),
+                    EssenceCommandUtil.format(evaluation.progress().effectiveInvestment()) + " / "
+                            + EssenceCommandUtil.format(evaluation.progress().requiredInvestment())
+            ));
         }
 
         return 1;
@@ -1040,433 +1042,11 @@ final class EssenceDebugCommands {
     }
 
 
-    private static int showProceduralValuation(
-            CommandSourceStack source
-    ) throws CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
-        ItemStack stack = player.getMainHandItem();
 
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.title("Procedural Essence Valuation")
-        );
 
-        if (stack.isEmpty()) {
-            EssenceCommandUtil.send(
-                    source,
-                    EssenceCommandUtil.muted("Hold an item in your main hand.")
-            );
-            return 0;
-        }
 
-        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
-                "Analyzing current loaded data on demand; this may calculate. Saved mappings are not replaced."));
-        ProceduralValuationResult valuation = ProceduralValuationEngine.evaluate(
-                source.getServer(),
-                stack
-        );
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.warn("  Current economic analysis may differ from the saved baseline. This command does not change live payouts.")
-        );
-        var eligibility = ItemEssenceMappingManager.generatedDecision(valuation);
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Generated eligibility",
-                eligibility.status().name() + " — " + eligibility.reason()));
-        var live = ItemEssenceMappingRegistry.resolve(stack);
-        long liveTotal = 0;
-        for (long amount : live.outputs().values()) liveTotal = Math.addExact(liveTotal, amount);
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line("Live item mapping",
-                ItemEssenceMappingRegistry.source(valuation.itemId()) + " / " + liveTotal
-                        + " (Essentium component recovery is separate)"));
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.line(
-                        "Item",
-                        stack.getHoverName().getString() + " [" + valuation.itemId() + "]"
-                )
-        );
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.line(
-                        "Internal total",
-                        EssenceCommandUtil.format(valuation.totalValue())
-                )
-        );
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.line(
-                        "Scale",
-                        "FOUNDATIONAL / UNNORMALIZED (no legacy mapping target)"
-                )
-        );
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.line(
-                        "Confidence",
-                        valuation.confidenceBand().name()
-                                + " ("
-                                + String.format(Locale.ROOT, "%.0f%%", valuation.confidence() * 100.0)
-                                + ")"
-                )
-        );
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.line(
-                        "Renewability",
-                        "x" + String.format(Locale.ROOT, "%.3f", valuation.renewabilityMultiplier())
-                )
-        );
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.line(
-                        "Progression signal",
-                        valuation.progressionBand().name()
-                )
-        );
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.line(
-                        "Advancement progression",
-                        String.format(Locale.ROOT, "%.1f%%", valuation.inferredProgressionScore() * 100.0)
-                                + " / "
-                                + valuation.progressionEvidenceCount()
-                                + " evidence ref(s)"
-                )
-        );
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.line(
-                        "Recipe graph",
-                        valuation.producingRecipeCount()
-                                + " producing / "
-                                + valuation.downstreamRecipeCount()
-                                + " downstream"
-                )
-        );
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.line(
-                        "Downstream demand",
-                        valuation.significantDownstreamRecipeCount()
-                                + " significant / "
-                                + valuation.crossModDownstreamRecipeCount()
-                                + " cross-mod | x"
-                                + String.format(Locale.ROOT, "%.3f", valuation.downstreamMultiplier())
-                )
-        );
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.line(
-                        "Direct sources",
-                        valuation.sourceBlockCount()
-                                + " block / "
-                                + valuation.sourceEntityCount()
-                                + " entity / "
-                                + valuation.sourceContainerCount()
-                                + " container / "
-                                + valuation.sourceFishingCount()
-                                + " fishing / "
-                                + valuation.sourceTradeCount()
-                                + " trade"
-                )
-        );
 
-        valuation.recipeChoice().ifPresent(choice -> {
-            EssenceCommandUtil.send(
-                    source,
-                    EssenceCommandUtil.section("Chosen recipe path")
-            );
-            EssenceCommandUtil.send(
-                    source,
-                    EssenceCommandUtil.line("Recipe", choice.recipeId().toString())
-            );
-            EssenceCommandUtil.send(
-                    source,
-                    EssenceCommandUtil.line(
-                            "Type / value",
-                            choice.recipeType()
-                                    + " / "
-                                    + EssenceCommandUtil.format(choice.valuePerOutput())
-                                    + " per output"
-                    )
-            );
-            EssenceCommandUtil.send(
-                    source,
-                    EssenceCommandUtil.line(
-                            "Ingredients",
-                            choice.ingredientSlots()
-                                    + " slots / "
-                                    + choice.uniqueChosenIngredients()
-                                    + " unique / "
-                                    + choice.easyChosenIngredients()
-                                    + " easy / "
-                                    + choice.rareChosenIngredients()
-                                    + " rare / "
-                                    + choice.modSpecificChosenIngredients()
-                                    + " mod-specific"
-                    )
-            );
-            EssenceCommandUtil.send(
-                    source,
-                    EssenceCommandUtil.line(
-                            "Depth / transform",
-                            choice.depth()
-                                    + " / "
-                                    + (choice.reversibleTransform() ? "REVERSIBLE" : "PROCESSING")
-                    )
-            );
-        });
 
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.section("Proposed Essence routing")
-        );
-        valuation.routedEssence().entrySet().stream()
-                .sorted(
-                        Map.Entry.<EssenceDefinition, Long>comparingByValue()
-                                .reversed()
-                                .thenComparing(entry -> entry.getKey().id().toString())
-                )
-                .forEach(entry -> {
-                    double fraction = valuation.totalValue() <= 0L
-                            ? 0.0
-                            : (double) entry.getValue() / valuation.totalValue();
-                    EssenceCommandUtil.send(
-                            source,
-                            EssenceCommandUtil.muted(
-                                    "  "
-                                            + entry.getKey().id().getPath()
-                                            + " = "
-                                            + EssenceCommandUtil.format(entry.getValue())
-                                            + " ("
-                                            + String.format(Locale.ROOT, "%.1f%%", fraction * 100.0)
-                                            + ")"
-                            )
-                    );
-                });
-
-        if (!valuation.downstreamExamples().isEmpty()) {
-            EssenceCommandUtil.send(
-                    source,
-                    EssenceCommandUtil.section("Example downstream outputs")
-            );
-            for (ResourceLocation output : valuation.downstreamExamples()) {
-                EssenceCommandUtil.send(
-                        source,
-                        EssenceCommandUtil.muted("  " + output)
-                );
-            }
-        }
-
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.section("Valuation factors")
-        );
-        for (String factor : valuation.factors()) {
-            EssenceCommandUtil.send(
-                    source,
-                    EssenceCommandUtil.muted("  " + factor)
-            );
-        }
-
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.muted(
-                        "Installed mapping totals are not economic-analysis targets; /essence debug mapping shows the resolved payout separately."
-                )
-        );
-
-        return 1;
-    }
-
-    private static int rebuildProceduralValuation(
-            CommandSourceStack source
-    ) {
-        ItemEssenceMappingRegistry.ReloadReport report = ItemEssenceMappingManager.rebuild();
-        if (!report.successful()) {
-            EssenceCommandUtil.send(source, EssenceCommandUtil.bad(
-                    "Procedural rebuild rejected; mapping generation " + report.generation()
-                            + " is unchanged. The saved cache was not replaced."));
-            for (String error : report.errors()) EssenceCommandUtil.send(source, EssenceCommandUtil.bad(error));
-            return 0;
-        }
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Installed mapping generation", Long.toString(report.generation())));
-        if (!ItemEssenceMappingManager.proceduralDefaultsEnabled()) {
-            EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
-                    "Procedural defaults are disabled: explicit rules reloaded; no calculation and no cache replacement."));
-            return 1;
-        }
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Saved generated baseline", ItemEssenceMappingManager.generatedCachePath().toString()));
-        ProceduralValuationEngine.IndexSummary summary = ProceduralValuationEngine.summary(source.getServer());
-
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.title("Procedural Mapping Rebuild Complete")
-        );
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.line(
-                        "Recipes",
-                        summary.recipeCount() + " indexed / " + summary.skippedRecipeCount() + " skipped"
-                )
-        );
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.line(
-                        "Recipe links",
-                        summary.outputItemCount()
-                                + " outputs / "
-                                + summary.ingredientLinkCount()
-                                + " ingredient links"
-                )
-        );
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.line(
-                        "Entity loot",
-                        summary.entityLootTableCount()
-                                + " tables / "
-                                + summary.dropSourceLinkCount()
-                                + " item-source links"
-                )
-        );
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.line(
-                        "Block loot",
-                        summary.blockLootTableCount()
-                                + " tables / "
-                                + summary.blockDropSourceLinkCount()
-                                + " item-source links"
-                )
-        );
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.line(
-                        "Container loot",
-                        summary.containerLootTableCount()
-                                + " tables / "
-                                + summary.containerLootSourceLinkCount()
-                                + " item-source links"
-                )
-        );
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.line(
-                        "Fishing loot",
-                        summary.fishingLootTableCount()
-                                + " root tables / "
-                                + summary.fishingLootSourceLinkCount()
-                                + " item-source links"
-                )
-        );
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.line(
-                        "Trades",
-                        summary.tradeListingCount()
-                                + " listings / "
-                                + summary.tradeOfferCount()
-                                + " sampled offers / "
-                                + summary.tradeProfessionTableCount()
-                                + " profession-level tables"
-                )
-        );
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.line(
-                        "Advancements",
-                        summary.consideredAdvancementCount()
-                                + "/"
-                                + summary.advancementCount()
-                                + " considered / "
-                                + summary.advancementTreeCount()
-                                + " trees / "
-                                + summary.advancementReferenceCount()
-                                + " progression refs"
-                )
-        );
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.line(
-                        "Advancement refs",
-                        summary.advancementItemReferenceCount()
-                                + " items / "
-                                + summary.advancementEntityReferenceCount()
-                                + " entities / "
-                                + summary.advancementDimensionReferenceCount()
-                                + " dimensions"
-                )
-        );
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.muted(
-                        "Generated baseline saved; defaults and explicit overrides installed as one new live generation."
-                )
-        );
-        return 1;
-    }
-
-    private static int exportProceduralValuation(
-            CommandSourceStack source
-    ) {
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.title("Procedural Valuation CSV Export")
-        );
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.muted(
-                        "Analyzing current loaded data and exporting it with installed live results; this may calculate but does not replace the cache or install a generation..."
-                )
-        );
-
-        try {
-            ProceduralValuationCsvExporter.ExportReport report =
-                    ProceduralValuationCsvExporter.export(source.getServer());
-
-            EssenceCommandUtil.send(
-                    source,
-                    EssenceCommandUtil.line(
-                            "Items",
-                            Integer.toString(report.itemCount())
-                    )
-            );
-            EssenceCommandUtil.send(
-                    source,
-                    EssenceCommandUtil.line(
-                            "Elapsed",
-                            String.format(
-                                    Locale.ROOT,
-                                    "%.2f sec",
-                                    report.elapsedMillis() / 1000.0
-                            )
-                    )
-            );
-            EssenceCommandUtil.send(
-                    source,
-                    EssenceCommandUtil.line(
-                            "CSV",
-                            report.path().toString()
-                    )
-            );
-            EssenceCommandUtil.send(
-                    source,
-                    EssenceCommandUtil.muted(
-                            "Analysis may differ from the saved baseline; live columns show installed results. Export did not replace the cache."
-                    )
-            );
-            return 1;
-        } catch (IOException | RuntimeException exception) {
-            EssenceCommandUtil.fail(
-                    source,
-                    "CSV export failed: " + exception.getMessage()
-            );
-            return 0;
-        }
-    }
 
     private static int showItemMapping(
             CommandSourceStack source

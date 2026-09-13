@@ -78,7 +78,7 @@ public final class SkillStateEvaluator {
 
         EvaluationFrame authoritative = evaluateFrame(
                 byId,
-                context.authoritativeOwnedSkillIds(),
+                context.authoritativeRanks(),
                 context.authoritativeLoadoutSelections(),
                 context.authoritativeBonusTotals(),
                 context,
@@ -86,7 +86,7 @@ public final class SkillStateEvaluator {
         );
         EvaluationFrame projected = evaluateFrame(
                 byId,
-                context.projectedOwnedSkillIds(),
+                context.projectedRanks(),
                 context.projectedLoadoutSelections(),
                 context.projectedBonusTotals(),
                 context,
@@ -94,7 +94,7 @@ public final class SkillStateEvaluator {
         );
         EvaluationFrame bonusOnlyProjection = evaluateFrame(
                 byId,
-                context.authoritativeOwnedSkillIds(),
+                context.authoritativeRanks(),
                 context.authoritativeLoadoutSelections(),
                 context.projectedBonusTotals(),
                 context,
@@ -120,9 +120,11 @@ public final class SkillStateEvaluator {
                     new SkillEvaluationResult(
                             definition,
                             evaluatePurchaseEligibility(definition, context),
+                            context.authoritativeRank(skillId),
+                            context.projectedRank(skillId),
                             owned,
                             projectedOwned,
-                            projectedOwned && !owned,
+                            context.projectedRank(skillId) > context.authoritativeRank(skillId),
                             authoritative.selected().contains(skillId),
                             projected.selected().contains(skillId),
                             authoritative.effective().contains(skillId),
@@ -154,17 +156,27 @@ public final class SkillStateEvaluator {
         Objects.requireNonNull(definition, "Skill definition cannot be null");
         Objects.requireNonNull(context, "Skill evaluation context cannot be null");
 
+        return evaluatePurchaseEligibility(definition, context,
+                Math.min(definition.maximumRank(), context.authoritativeRank(definition.id()) + 1));
+    }
+
+    public static SkillPurchaseEligibility evaluatePurchaseEligibility(
+            SkillDefinition definition, SkillEvaluationContext context, int targetRank
+    ) {
+        if (targetRank < 1 || targetRank > definition.maximumRank())
+            throw new IllegalArgumentException("Skill rank outside catalog policy");
         boolean tierSatisfied = tierSatisfied(
                 context.currentTierId(),
-                definition.requiredTierId()
+                definition.requiredTierId(targetRank)
         );
         List<SkillPrerequisiteStatus> prerequisiteStatuses = definition
-                .prerequisites()
-                .stream()
-                .map(prerequisiteId -> new SkillPrerequisiteStatus(
-                        prerequisiteId,
-                        context.authoritativeOwnedSkillIds().contains(prerequisiteId),
-                        context.projectedOwnedSkillIds().contains(prerequisiteId)
+                .prerequisiteRanks(targetRank)
+                .entrySet().stream()
+                .map(entry -> new SkillPrerequisiteStatus(
+                        entry.getKey(),
+                        entry.getValue(),
+                        context.authoritativeRank(entry.getKey()),
+                        context.projectedRank(entry.getKey())
                 ))
                 .toList();
         boolean prerequisitesSatisfied = prerequisiteStatuses
@@ -172,7 +184,7 @@ public final class SkillStateEvaluator {
                 .allMatch(SkillPrerequisiteStatus::projectedOwned);
 
         List<SkillRequirementStatus> requirementStatuses = definition
-                .requirements()
+                .requirements(targetRank)
                 .stream()
                 .map(requirement -> requirementStatus(requirement, context))
                 .toList();
@@ -254,10 +266,24 @@ public final class SkillStateEvaluator {
             Set<ResourceLocation> projectedOwnedSkillIds,
             Map<ResourceLocation, ResourceLocation> projectedLoadoutSelections
     ) {
+        Map<ResourceLocation, Integer> ranks = new LinkedHashMap<>();
+        projectedOwnedSkillIds.forEach(id -> ranks.put(id, 1));
+        return activationPlan(definitions, skillId, ranks, projectedLoadoutSelections);
+    }
+
+    public static Optional<ActivationPlan> activationPlan(ResourceLocation skillId,
+            Map<ResourceLocation, Integer> projectedRanks,
+            Map<ResourceLocation, ResourceLocation> projectedLoadoutSelections) {
+        return activationPlan(SkillRegistry.values(), skillId, projectedRanks, projectedLoadoutSelections);
+    }
+
+    public static Optional<ActivationPlan> activationPlan(Collection<SkillDefinition> definitions,
+            ResourceLocation skillId, Map<ResourceLocation, Integer> projectedRanks,
+            Map<ResourceLocation, ResourceLocation> projectedLoadoutSelections) {
         Objects.requireNonNull(definitions, "Skill definitions cannot be null");
         Objects.requireNonNull(skillId, "Skill ID cannot be null");
         Objects.requireNonNull(
-                projectedOwnedSkillIds,
+                projectedRanks,
                 "Projected owned skill IDs cannot be null"
         );
         Objects.requireNonNull(
@@ -286,7 +312,7 @@ public final class SkillStateEvaluator {
                 skillId,
                 true,
                 byId,
-                projectedOwnedSkillIds,
+                projectedRanks,
                 projectedLoadoutSelections,
                 selections,
                 automaticSuppressionsToClear,
@@ -305,7 +331,7 @@ public final class SkillStateEvaluator {
             ResourceLocation skillId,
             boolean root,
             Map<ResourceLocation, SkillDefinition> definitions,
-            Set<ResourceLocation> projectedOwnedSkillIds,
+            Map<ResourceLocation, Integer> projectedRanks,
             Map<ResourceLocation, ResourceLocation> projectedLoadoutSelections,
             Map<ResourceLocation, ResourceLocation> selections,
             Set<ResourceLocation> automaticSuppressionsToClear,
@@ -316,7 +342,7 @@ public final class SkillStateEvaluator {
             return true;
         }
         SkillDefinition definition = definitions.get(skillId);
-        if (definition == null || !projectedOwnedSkillIds.contains(skillId)) {
+        if (definition == null || projectedRanks.getOrDefault(skillId, 0) <= 0) {
             return false;
         }
         if (!visiting.add(skillId)) {
@@ -345,8 +371,9 @@ public final class SkillStateEvaluator {
             return false;
         }
 
-        for (ResourceLocation prerequisiteId : definition.prerequisites()) {
-            if (!projectedOwnedSkillIds.contains(prerequisiteId)) {
+        for (var prerequisite : definition.prerequisiteRanks(projectedRanks.get(skillId)).entrySet()) {
+            ResourceLocation prerequisiteId = prerequisite.getKey();
+            if (projectedRanks.getOrDefault(prerequisiteId, 0) < prerequisite.getValue()) {
                 return false;
             }
             if (prerequisiteId.equals(definition.replacementTarget())) {
@@ -356,7 +383,7 @@ public final class SkillStateEvaluator {
                     prerequisiteId,
                     false,
                     definitions,
-                    projectedOwnedSkillIds,
+                    projectedRanks,
                     projectedLoadoutSelections,
                     selections,
                     automaticSuppressionsToClear,
@@ -391,12 +418,13 @@ public final class SkillStateEvaluator {
 
     private static EvaluationFrame evaluateFrame(
             Map<ResourceLocation, SkillDefinition> definitions,
-            Set<ResourceLocation> ownedIds,
+            Map<ResourceLocation, Integer> ownedRanks,
             Map<ResourceLocation, ResourceLocation> selections,
             Map<ResourceLocation, Long> bonusTotals,
             SkillEvaluationContext context,
             boolean projected
     ) {
+        Set<ResourceLocation> ownedIds = ownedRanks.keySet();
         Set<ResourceLocation> selected = new LinkedHashSet<>();
         Set<ResourceLocation> automaticActivation = new LinkedHashSet<>();
         Set<ResourceLocation> suppressedAutomatic = new LinkedHashSet<>();
@@ -417,12 +445,10 @@ public final class SkillStateEvaluator {
                     automaticActivation.add(definition.id());
                 }
             }
-            if (liveRequirementsSatisfied(definition, bonusTotals, context)) {
+            if (liveRequirementsSatisfied(definition, ownedRanks.get(definition.id()), bonusTotals, context)) {
                 liveSatisfied.add(definition.id());
             }
-            if (!projected
-                    || context.authoritativeOwnedSkillIds().contains(definition.id())
-                    || evaluatePurchaseEligibility(definition, context).satisfied()) {
+            if (!projected || projectedRanksEligible(definition, ownedRanks.get(definition.id()), context)) {
                 activatableOwnedIds.add(definition.id());
             }
         }
@@ -450,7 +476,7 @@ public final class SkillStateEvaluator {
 
         for (int pass = 0; pass <= definitions.size() + 2; pass++) {
             Map<ResourceLocation, Set<ResourceLocation>> nextInactivePrerequisites =
-                    inactivePrerequisites(definitions, ownedIds, effective);
+                    inactivePrerequisites(definitions, ownedRanks, effective);
             Set<ResourceLocation> otherwiseEffectiveReplacements = new LinkedHashSet<>();
             for (SkillDefinition definition : definitions.values()) {
                 if (definition.replacementTarget() != null
@@ -541,21 +567,32 @@ public final class SkillStateEvaluator {
         );
     }
 
+    private static boolean projectedRanksEligible(SkillDefinition definition, int targetRank,
+                                                   SkillEvaluationContext context) {
+        int currentRank = context.authoritativeRank(definition.id());
+        for (int rank = currentRank + 1; rank <= targetRank; rank++) {
+            if (rank > definition.maximumRank() || !evaluatePurchaseEligibility(definition, context, rank).satisfied())
+                return false;
+        }
+        return true;
+    }
+
     private static Map<ResourceLocation, Set<ResourceLocation>> inactivePrerequisites(
             Map<ResourceLocation, SkillDefinition> definitions,
-            Set<ResourceLocation> ownedIds,
+            Map<ResourceLocation, Integer> ownedRanks,
             Set<ResourceLocation> effectiveIds
     ) {
         Map<ResourceLocation, Set<ResourceLocation>> inactive = new LinkedHashMap<>();
         for (SkillDefinition definition : definitions.values()) {
-            if (!ownedIds.contains(definition.id())) {
+            if (!ownedRanks.containsKey(definition.id())) {
                 continue;
             }
-            for (ResourceLocation prerequisiteId : definition.prerequisites()) {
+            for (var prerequisite : definition.prerequisiteRanks(ownedRanks.get(definition.id())).entrySet()) {
+                ResourceLocation prerequisiteId = prerequisite.getKey();
                 boolean replacementTarget = prerequisiteId.equals(
                         definition.replacementTarget()
                 );
-                if (!ownedIds.contains(prerequisiteId)
+                if (ownedRanks.getOrDefault(prerequisiteId, 0) < prerequisite.getValue()
                         || (!replacementTarget && !effectiveIds.contains(prerequisiteId))) {
                     inactive.computeIfAbsent(
                             definition.id(),
@@ -641,8 +678,7 @@ public final class SkillStateEvaluator {
     }
 
     /**
-     * Automatic skills use an opt-out marker so older saves, which have no
-     * entry, retain their original active-by-default behavior.
+     * Automatic skills are active by default; a self-selection explicitly suppresses them.
      */
     public static boolean isAutomaticSuppressed(
             SkillDefinition definition,
@@ -656,10 +692,11 @@ public final class SkillStateEvaluator {
 
     private static boolean liveRequirementsSatisfied(
             SkillDefinition definition,
+            int rank,
             Map<ResourceLocation, Long> bonusTotals,
             SkillEvaluationContext context
     ) {
-        for (SkillRequirement requirement : definition.requirements()) {
+        for (SkillRequirement requirement : definition.requirements(rank)) {
             if (requirement.live()
                     && !requirementSatisfied(requirement, bonusTotals, context)) {
                 return false;

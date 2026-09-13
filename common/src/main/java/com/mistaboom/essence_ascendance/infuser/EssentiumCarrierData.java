@@ -86,6 +86,12 @@ public final class EssentiumCarrierData {
                 && stack.getItem() instanceof EssentiumItem;
     }
 
+    /** Face-value storage survives compression; only extraction pays this distinct loss. */
+    public static long extractionYieldMicroUnits(Value carrier) {
+        return com.mistaboom.essence_ascendance.balance.economy.FractionalAmountService.yieldForEfficiencyUnits(
+                carrier.amount(), EssenceConfigManager.get().infuserBalance().carrierExtractionEfficiencyBasisPoints());
+    }
+
     public static long capacityFor(
             ItemStack stack,
             EssenceFocusTier grade

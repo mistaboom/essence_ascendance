@@ -18,7 +18,9 @@ public record InfuserBalanceSettings(
         Map<String, FocusUpgradeSettings> focusUpgrades,
         Map<String, EquipmentUpgradeSettings> equipmentUpgrades,
         Map<String, Map<String, Integer>> equipmentEssenceWeights,
-        RepairSettings repair
+        RepairSettings repair,
+        int conversionEfficiencyBasisPoints,
+        int carrierExtractionEfficiencyBasisPoints
 ) {
     private static final String[] TIERS = {
             "dormant", "awakened", "resonant", "ascendant", "transcendent"
@@ -29,6 +31,8 @@ public record InfuserBalanceSettings(
     };
 
     public InfuserBalanceSettings {
+        new com.mistaboom.essence_ascendance.balance.economy.EconomyProcessingPolicy(
+                conversionEfficiencyBasisPoints, carrierExtractionEfficiencyBasisPoints);
         if (!(linkRange > 0.0D) || !Double.isFinite(linkRange)) {
             throw new IllegalArgumentException("Infuser link range must be finite and positive");
         }
@@ -80,6 +84,17 @@ public record InfuserBalanceSettings(
         equipmentEssenceWeights = Collections.unmodifiableMap(copiedWeights);
 
         Objects.requireNonNull(repair, "Infuser repair settings cannot be null");
+    }
+
+    /** Bootstrap construction; generated runtime copies the canonical economy policy. */
+    public InfuserBalanceSettings(double linkRange, int noFocusEfficiencyBasisPoints,
+            long noFocusInfusionThroughputPerSecond, Map<String, GradeSettings> grades,
+            Map<String, FocusUpgradeSettings> focusUpgrades, Map<String, EquipmentUpgradeSettings> equipmentUpgrades,
+            Map<String, Map<String, Integer>> equipmentEssenceWeights, RepairSettings repair) {
+        this(linkRange, noFocusEfficiencyBasisPoints, noFocusInfusionThroughputPerSecond, grades, focusUpgrades,
+                equipmentUpgrades, equipmentEssenceWeights, repair,
+                com.mistaboom.essence_ascendance.balance.economy.EconomyProcessingPolicy.defaults().conversionEfficiencyBasisPoints(),
+                com.mistaboom.essence_ascendance.balance.economy.EconomyProcessingPolicy.defaults().carrierExtractionEfficiencyBasisPoints());
     }
 
     public GradeSettings grade(String serializedGrade) {
@@ -155,28 +170,8 @@ public record InfuserBalanceSettings(
         }
     }
 
-    public static InfuserBalanceSettings defaults() {
-        Map<String, GradeSettings> grades = new LinkedHashMap<>();
-        grades.put("dormant", new GradeSettings(100_008L, 5_500, 12_500L));
-        grades.put("awakened", new GradeSettings(250_002L, 6_200, 38_462L));
-        grades.put("resonant", new GradeSettings(500_004L, 7_000, 100_000L));
-        grades.put("ascendant", new GradeSettings(1_000_008L, 8_000, 250_000L));
-        grades.put("transcendent", new GradeSettings(2_000_007L, 9_000, 666_667L));
-
-        Map<String, FocusUpgradeSettings> focusUpgrades = new LinkedHashMap<>();
-        focusUpgrades.put("dormant", new FocusUpgradeSettings(15_000L, 300_000L));
-        focusUpgrades.put("awakened", new FocusUpgradeSettings(50_000L, 1_000_000L));
-        focusUpgrades.put("resonant", new FocusUpgradeSettings(150_000L, 3_000_000L));
-        focusUpgrades.put("ascendant", new FocusUpgradeSettings(400_000L, 8_000_000L));
-        focusUpgrades.put("transcendent", new FocusUpgradeSettings(1_000_000L, 20_000_000L));
-
-        Map<String, EquipmentUpgradeSettings> equipmentUpgrades = new LinkedHashMap<>();
-        equipmentUpgrades.put("dormant", new EquipmentUpgradeSettings(50_000L, 1));
-        equipmentUpgrades.put("awakened", new EquipmentUpgradeSettings(200_000L, 1));
-        equipmentUpgrades.put("resonant", new EquipmentUpgradeSettings(1_000_000L, 2));
-        equipmentUpgrades.put("ascendant", new EquipmentUpgradeSettings(5_000_000L, 3));
-        equipmentUpgrades.put("transcendent", new EquipmentUpgradeSettings(20_000_000L, 4));
-
+    /** Semantic category distribution; generated economy supplies every final cost. */
+    public static Map<String, Map<String, Integer>> defaultEquipmentEssenceWeights() {
         Map<String, Map<String, Integer>> equipmentWeights = new LinkedHashMap<>();
         equipmentWeights.put("helmet", weights("defense", 5, "utility", 4, "vitality", 1));
         equipmentWeights.put("chestplate", weights("defense", 6, "vitality", 4));
@@ -191,16 +186,7 @@ public record InfuserBalanceSettings(
         equipmentWeights.put("hoe", weights("gathering", 7, "utility", 3));
         equipmentWeights.put("shield", weights("defense", 5, "offense", 3, "mobility", 2));
 
-        return new InfuserBalanceSettings(
-                8.0D,
-                5_000,
-                10_000L,
-                grades,
-                focusUpgrades,
-                equipmentUpgrades,
-                equipmentWeights,
-                new RepairSettings(25L, 1)
-        );
+        return Collections.unmodifiableMap(equipmentWeights);
     }
 
     private static Map<String, Integer> weights(Object... values) {
@@ -208,6 +194,6 @@ public record InfuserBalanceSettings(
         for (int i = 0; i < values.length; i += 2) {
             result.put((String) values[i], (Integer) values[i + 1]);
         }
-        return result;
+        return Collections.unmodifiableMap(result);
     }
 }

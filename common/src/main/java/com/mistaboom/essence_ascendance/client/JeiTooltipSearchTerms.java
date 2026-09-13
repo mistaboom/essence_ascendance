@@ -37,12 +37,14 @@ public final class JeiTooltipSearchTerms {
         );
 
         if (EssentiumCarrierData.isEssentium(stack)) {
-            EssentiumCarrierData.read(stack)
+            EssentiumCarrierData.readValidated(stack)
+                    .filter(value -> value.amount() <= Long.MAX_VALUE
+                            / com.mistaboom.essence_ascendance.balance.economy.FractionalAmountService.SCALE)
                     .ifPresent(value -> {
                 result.addAll(
-                        ItemEssenceTooltipClientState.getDirectSearchTerms(
+                        ItemEssenceTooltipClientState.getDirectSearchTermsMicros(
                                 value.essence().id(),
-                                value.amount()
+                                EssentiumCarrierData.extractionYieldMicroUnits(value)
                         )
                 );
                 result.add(EssenceText.term("tier").getString().toLowerCase(java.util.Locale.ROOT));

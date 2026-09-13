@@ -46,13 +46,13 @@ public final class PlayerEssenceData {
             "completed_milestones";
 
     private static final String OWNED_SKILLS_TAG =
-            "owned_skills";
+            "skill_ranks";
 
     private static final String SKILL_PAID_ESSENCE_TAG =
             "paid_essence";
 
-    private static final String SKILL_PAID_COST_TAG =
-            "paid_cost";
+    private static final String SKILL_RANK_COSTS_TAG =
+            "rank_paid_costs";
 
     private static final String LOADOUT_SELECTIONS_TAG =
             "loadout_selections";
@@ -134,9 +134,7 @@ public final class PlayerEssenceData {
     private long nexusRevision = 0L;
 
 
-    public long revision() {
-        return nexusRevision;
-    }
+
 
 
     public long nexusRevision() {
@@ -145,7 +143,7 @@ public final class PlayerEssenceData {
 
 
     private void bumpRevision() {
-        /* Preserve monotonic comparisons used by the legacy allocation path. */
+        /* Saturation never permits an old transaction revision to become current again. */
         if (nexusRevision < Long.MAX_VALUE) {
             nexusRevision++;
         }
@@ -551,91 +549,6 @@ public final class PlayerEssenceData {
     }
 
 
-    /**
-     * Applies a prevalidated allocation transaction in one mutation revision.
-     *
-     * The caller is responsible for validating tier caps and Essence budgets
-     * before invoking this method. Keeping the map replacement here lets a
-     * multi-stat Nexus allocation become visible atomically to synchronization
-     * and save-data consumers instead of as a sequence of partial investments.
-     */
-    public boolean applyAllocationTargets(
-            Map<StatDefinition, Long> targetInvestments,
-            Map<EssenceDefinition, Long> targetAvailable
-    ) {
-        if (targetInvestments == null || targetAvailable == null) {
-            throw new IllegalArgumentException(
-                    "Allocation target maps cannot be null"
-            );
-        }
-
-        boolean changed = false;
-
-        for (Map.Entry<StatDefinition, Long> entry :
-                targetInvestments.entrySet()) {
-            StatDefinition stat = entry.getKey();
-            Long amount = entry.getValue();
-
-            if (stat == null || amount == null || amount < 0L) {
-                throw new IllegalArgumentException(
-                        "Invalid stat allocation target"
-                );
-            }
-
-            if (getInvested(stat) != amount) {
-                changed = true;
-            }
-        }
-
-        for (Map.Entry<EssenceDefinition, Long> entry :
-                targetAvailable.entrySet()) {
-            EssenceDefinition essence = entry.getKey();
-            Long amount = entry.getValue();
-
-            if (essence == null || amount == null || amount < 0L) {
-                throw new IllegalArgumentException(
-                        "Invalid available Essence target"
-                );
-            }
-
-            if (getAvailable(essence) != amount) {
-                changed = true;
-            }
-        }
-
-        if (!changed) {
-            return false;
-        }
-
-        for (Map.Entry<EssenceDefinition, Long> entry :
-                targetAvailable.entrySet()) {
-            EssenceDefinition essence = entry.getKey();
-            long amount = entry.getValue();
-
-            if (amount == 0L) {
-                availableEssence.remove(essence.id());
-            } else {
-                availableEssence.put(essence.id(), amount);
-            }
-        }
-
-        for (Map.Entry<StatDefinition, Long> entry :
-                targetInvestments.entrySet()) {
-            StatDefinition stat = entry.getKey();
-            long amount = entry.getValue();
-
-            if (amount == 0L) {
-                investedEssence.remove(stat.id());
-            } else {
-                investedEssence.put(stat.id(), amount);
-            }
-        }
-
-        bumpRevision();
-        return true;
-    }
-
-
     public void clearAvailable() {
         if (availableEssence.isEmpty()) {
             return;
@@ -798,6 +711,17 @@ public final class PlayerEssenceData {
         );
     }
 
+
+    public int skillRank(ResourceLocation skillId) {
+        SkillPurchase purchase = ownedSkills.get(Objects.requireNonNull(skillId));
+        return purchase == null ? 0 : purchase.rank();
+    }
+
+    public Map<ResourceLocation, Integer> getSkillRanks() {
+        Map<ResourceLocation, Integer> result = new LinkedHashMap<>();
+        ownedSkills.forEach((id, purchase) -> result.put(id, purchase.rank()));
+        return Collections.unmodifiableMap(result);
+    }
 
     public Optional<SkillPurchase> getSkillPurchase(
             ResourceLocation skillId
@@ -1110,16 +1034,21 @@ public final class PlayerEssenceData {
                         "Target tier ID cannot be null"
                 );
 
-        for (Map.Entry<ResourceLocation, SkillPurchase> existing :
-                ownedSkills.entrySet()) {
-            if (!existing.getValue().equals(
-                    normalizedOwnedSkills.get(existing.getKey())
-            )) {
-                throw new IllegalArgumentException(
-                        "A Nexus transaction cannot remove or rewrite permanent skill purchase '"
-                                + existing.getKey()
-                                + "'"
-                );
+        for (var existing : ownedSkills.entrySet()) {
+            SkillPurchase previous = existing.getValue();
+            SkillPurchase replacement = normalizedOwnedSkills.get(existing.getKey());
+            int retainedRank = replacement == null ? 0 : Math.min(previous.rank(), replacement.rank());
+            if (replacement != null && (!previous.essenceId().equals(replacement.essenceId())
+                    || !previous.paidCosts().subList(0, retainedRank)
+                    .equals(replacement.paidCosts().subList(0, retainedRank)))) {
+                throw new IllegalArgumentException("A Nexus transaction cannot rewrite paid rank receipts");
+            }
+            if (replacement == null || replacement.rank() < previous.rank()) {
+                var definition = com.mistaboom.essence_ascendance.skill.SkillRegistry.require(existing.getKey());
+                if (definition.rankPolicy().refundRule()
+                        != com.mistaboom.essence_ascendance.skill.SkillRankPolicy.RefundRule.EXACT_PAID) {
+                    throw new IllegalArgumentException("This skill does not permit rank refunds");
+                }
             }
         }
 
@@ -1276,9 +1205,9 @@ public final class PlayerEssenceData {
                     entry.getValue().essenceId().toString()
             );
 
-            purchaseTag.putLong(
-                    SKILL_PAID_COST_TAG,
-                    entry.getValue().paidCost()
+            purchaseTag.putLongArray(
+                    SKILL_RANK_COSTS_TAG,
+                    entry.getValue().paidCosts().stream().mapToLong(Long::longValue).toArray()
             );
 
             ownedSkillsTag.put(
@@ -1573,8 +1502,8 @@ public final class PlayerEssenceData {
                         SKILL_PAID_ESSENCE_TAG,
                         Tag.TAG_STRING
                 ) || !purchaseTag.contains(
-                        SKILL_PAID_COST_TAG,
-                        Tag.TAG_LONG
+                        SKILL_RANK_COSTS_TAG,
+                        Tag.TAG_LONG_ARRAY
                 )) {
                     EssenceAscendance.LOGGER.warn(
                             "Ignoring incomplete purchase receipt for owned skill '{}' in Essence Ascendance player data",
@@ -1590,27 +1519,12 @@ public final class PlayerEssenceData {
                                 )
                         );
 
-                long paidCost =
-                        purchaseTag.getLong(
-                                SKILL_PAID_COST_TAG
-                        );
-
-                if (paidEssenceId == null
-                        || paidCost < 0L) {
-                    EssenceAscendance.LOGGER.warn(
-                            "Ignoring malformed purchase receipt for owned skill '{}' in Essence Ascendance player data",
-                            skillId
-                    );
-                    continue;
+                long[] rankCosts = purchaseTag.getLongArray(SKILL_RANK_COSTS_TAG);
+                if (paidEssenceId == null || rankCosts.length == 0 || rankCosts.length > SkillPurchase.MAX_RANKS) {
+                    throw new IllegalArgumentException("Malformed rank receipt for " + skillId);
                 }
-
-                data.ownedSkills.put(
-                        skillId,
-                        new SkillPurchase(
-                                paidEssenceId,
-                                paidCost
-                        )
-                );
+                data.ownedSkills.put(skillId, new SkillPurchase(paidEssenceId,
+                        java.util.Arrays.stream(rankCosts).boxed().toList()));
             }
         }
 

@@ -1,12 +1,15 @@
 package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
+import com.mistaboom.essence_ascendance.balance.economy.FractionalAmountService;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.text.EssenceText;
 import com.mistaboom.essence_ascendance.network.ItemEssenceTooltipPayload;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -31,17 +34,15 @@ import java.util.Map;
  * large tooltip section.
  *
  * Example:
- *   Essence: 20 Offense
+ *   Essence: 20 Off
  *
  * Multiple outputs remain compact:
- *   Essence: 8 Offense • 3 Utility
+ *   Essence: 8 Off • 3 Util
  *
- * Extremely broad mappings can use a second continuation line after three
- * outputs instead of making the tooltip excessively wide.
+ * Lines wrap by rendered width, keeping each amount/name pair together. Full
+ * Essence names remain available to JEI's search index when names are abbreviated.
  */
 public final class ItemEssenceTooltipClientState {
-
-    private static final int OUTPUTS_PER_LINE = 3;
 
     private static volatile Map<ResourceLocation, List<DisplayOutput>>
             OUTPUTS_BY_ITEM = Map.of();
@@ -153,7 +154,7 @@ public final class ItemEssenceTooltipClientState {
                             );
 
                     if (essenceId == null
-                            || output.amount()
+                            || output.microUnits()
                             <= 0L) {
                         rejectPending();
                         return;
@@ -162,7 +163,7 @@ public final class ItemEssenceTooltipClientState {
                     outputs.add(
                             new DisplayOutput(
                                     essenceId,
-                                    output.amount()
+                                    output.microUnits()
                             )
                     );
                 }
@@ -224,57 +225,7 @@ public final class ItemEssenceTooltipClientState {
             return;
         }
 
-        for (int from = 0;
-             from < outputs.size();
-             from += OUTPUTS_PER_LINE) {
-
-            int to =
-                    Math.min(
-                            outputs.size(),
-                            from
-                                    + OUTPUTS_PER_LINE
-                    );
-
-            MutableComponent line =
-                    (from == 0
-                            ? EssenceText.tooltip("essence_prefix")
-                            : Component.literal("         "))
-                            .withStyle(ChatFormatting.DARK_GRAY);
-
-            for (int index = from;
-                 index < to;
-                 index++) {
-
-                if (index > from) {
-                    line.append(
-                            Component.literal(
-                                            " \u2022 "
-                                    )
-                                    .withStyle(
-                                            ChatFormatting.DARK_GRAY
-                                    )
-                    );
-                }
-
-                DisplayOutput output =
-                        outputs.get(
-                                index
-                        );
-
-                line.append(
-                        EssenceText.tooltip(
-                                        "essence_amount",
-                                        formatAmount(output.amount()),
-                                        shortNameComponent(output.essenceId())
-                                )
-                                .withStyle(colorFor(output.essenceId()))
-                );
-            }
-
-            tooltip.add(
-                    line
-            );
-        }
+        appendOutputs(outputs, tooltip);
     }
 
 
@@ -291,45 +242,62 @@ public final class ItemEssenceTooltipClientState {
      */
     public static void appendDirectEssenceTooltip(
             ResourceLocation essenceId,
-            long amount,
+            double amount,
             List<Component> tooltip
     ) {
         if (essenceId == null || amount <= 0L || tooltip == null) {
             return;
         }
+        appendDirectEssenceTooltipMicros(essenceId, FractionalAmountService.units(amount), tooltip);
+    }
 
-        MutableComponent line =
-                EssenceText.tooltip("essence_prefix")
-                        .withStyle(ChatFormatting.DARK_GRAY);
-        line.append(
-                EssenceText.tooltip(
-                                "essence_amount",
-                                formatAmount(amount),
-                                shortNameComponent(essenceId)
-                        )
-                        .withStyle(colorFor(essenceId))
-        );
-        tooltip.add(line);
+    public static void appendDirectEssenceTooltipMicros(ResourceLocation essenceId, long microUnits,
+                                                       List<Component> tooltip) {
+        if (essenceId == null || microUnits <= 0 || tooltip == null) return;
+        appendOutputs(List.of(new DisplayOutput(essenceId, microUnits)), tooltip);
+    }
+
+    private static void appendOutputs(List<DisplayOutput> outputs, List<Component> tooltip) {
+        Minecraft client = Minecraft.getInstance();
+        Font font = client.font;
+        int existingWidth = tooltip.stream().mapToInt(font::width).max().orElse(0);
+        int maximumWidth = TooltipLayout.compactWidth(existingWidth, client.getWindow().getGuiScaledWidth());
+        Component prefix = EssenceText.tooltip("essence_prefix").withStyle(ChatFormatting.DARK_GRAY);
+        Component continuation = Component.literal("  ").withStyle(ChatFormatting.DARK_GRAY);
+        Component separator = Component.literal(" \u2022 ").withStyle(ChatFormatting.DARK_GRAY);
+        List<Component> tokens = outputs.stream().map(output -> (Component) EssenceText.tooltip(
+                        "essence_amount", EssenceYieldFormat.formatMicros(output.microUnits()),
+                        compactNameComponent(output.essenceId())).withStyle(colorFor(output.essenceId())))
+                .toList();
+        List<List<Component>> rows = TooltipLayout.wrapTokens(tokens, font::width,
+                font.width(prefix), font.width(continuation), font.width(separator), maximumWidth);
+        for (int index = 0; index < rows.size(); index++) {
+            MutableComponent line = (index == 0 ? prefix : continuation).copy();
+            List<Component> row = rows.get(index);
+            for (int tokenIndex = 0; tokenIndex < row.size(); tokenIndex++) {
+                if (tokenIndex > 0) line.append(separator.copy());
+                line.append(row.get(tokenIndex));
+            }
+            tooltip.add(line);
+        }
     }
 
     public static Set<String> getDirectSearchTerms(
             ResourceLocation essenceId,
-            long amount
+            double amount
     ) {
         if (essenceId == null || amount <= 0L) {
             return Set.of();
         }
+        return getDirectSearchTermsMicros(essenceId, FractionalAmountService.units(amount));
+    }
+
+    public static Set<String> getDirectSearchTermsMicros(ResourceLocation essenceId, long microUnits) {
+        if (essenceId == null || microUnits <= 0) return Set.of();
         Set<String> result = new LinkedHashSet<>();
         result.add("essence");
-        result.add(Long.toString(amount));
-        for (String word : shortName(essenceId)
-                .toLowerCase(Locale.ROOT)
-                .trim()
-                .split("\\s+")) {
-            if (!word.isBlank()) {
-                result.add(word);
-            }
-        }
+        result.add(EssenceYieldFormat.formatMicros(microUnits));
+        addNameSearchTerms(result, essenceId);
         return Set.copyOf(result);
     }
 
@@ -369,31 +337,12 @@ public final class ItemEssenceTooltipClientState {
                 outputs) {
 
             result.add(
-                    Long.toString(
-                            output.amount()
+                    EssenceYieldFormat.formatMicros(
+                            output.microUnits()
                     )
             );
 
-            String name =
-                    shortName(
-                            output.essenceId()
-                    );
-
-            for (String word :
-                    name.toLowerCase(
-                                    Locale.ROOT
-                            )
-                            .trim()
-                            .split(
-                                    "\\s+"
-                            )) {
-
-                if (!word.isBlank()) {
-                    result.add(
-                            word
-                    );
-                }
-            }
+            addNameSearchTerms(result, output.essenceId());
         }
 
         return Set.copyOf(
@@ -412,13 +361,31 @@ public final class ItemEssenceTooltipClientState {
         return Component.literal(titleCase(essenceId.getPath()));
     }
 
-    private static String shortName(
-            ResourceLocation essenceId
-    ) {
-        return shortNameComponent(essenceId).getString();
+    private static Component compactNameComponent(ResourceLocation essenceId) {
+        String abbreviation = essenceId.getNamespace().equals(EssenceAscendance.MOD_ID)
+                ? switch (essenceId.getPath()) {
+                    case "offense" -> "Off";
+                    case "defense" -> "Def";
+                    case "vitality" -> "Vit";
+                    case "mobility" -> "Mob";
+                    case "gathering" -> "Gath";
+                    case "utility" -> "Util";
+                    default -> null;
+                } : null;
+        if (abbreviation == null) return shortNameComponent(essenceId);
+        return Component.translatableWithFallback(
+                "tooltip.essence_ascendance.essence_abbreviation." + essenceId.getPath(), abbreviation);
     }
 
-    private static ChatFormatting colorFor(
+    private static void addNameSearchTerms(Set<String> result, ResourceLocation essenceId) {
+        for (Component name : List.of(compactNameComponent(essenceId), shortNameComponent(essenceId))) {
+            for (String word : name.getString().toLowerCase(Locale.ROOT).trim().split("\\s+")) {
+                if (!word.isBlank()) result.add(word);
+            }
+        }
+    }
+
+    static ChatFormatting colorFor(
             ResourceLocation essenceId
     ) {
         return switch (essenceId.getPath()) {
@@ -430,16 +397,6 @@ public final class ItemEssenceTooltipClientState {
             case "utility" -> ChatFormatting.GOLD;
             default -> ChatFormatting.GRAY;
         };
-    }
-
-    private static String formatAmount(
-            long amount
-    ) {
-        return String.format(
-                java.util.Locale.ROOT,
-                "%,d",
-                amount
-        );
     }
 
     private static String titleCase(
@@ -513,7 +470,7 @@ public final class ItemEssenceTooltipClientState {
 
     private record DisplayOutput(
             ResourceLocation essenceId,
-            long amount
+            long microUnits
     ) {
     }
 }

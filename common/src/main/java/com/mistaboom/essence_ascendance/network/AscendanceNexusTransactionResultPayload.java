@@ -91,7 +91,7 @@ public record AscendanceNexusTransactionResultPayload(
         CAP_EXCEEDED,
         INSUFFICIENT_ESSENCE,
         UNKNOWN_SKILL,
-        SKILL_ALREADY_OWNED,
+        SKILL_MAX_RANK,
         SKILL_TIER_REQUIRED,
         SKILL_PREREQUISITE_REQUIRED,
         SKILL_REQUIREMENT_INCOMPLETE,

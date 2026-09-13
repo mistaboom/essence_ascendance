@@ -27,3 +27,50 @@ dependencies {
 loom {
     accessWidenerPath = file("src/main/resources/essence_ascendance.accesswidener")
 }
+
+// Executable invariant suites use the real mapped Minecraft classpath and add no test library.
+def balanceInvariantMains = [
+        balanceConfigInvariants: 'com.mistaboom.essence_ascendance.balance.config.BalanceConfigTest',
+        balanceDocumentInvariants: 'com.mistaboom.essence_ascendance.balance.generated.BalanceDocumentTest',
+        balanceReportInvariants: 'com.mistaboom.essence_ascendance.balance.generated.BalanceReportsTest',
+        balanceReportLayoutInvariants: 'com.mistaboom.essence_ascendance.balance.generated.BalanceReportLayoutTest',
+        balanceEvidenceInvariants: 'com.mistaboom.essence_ascendance.balance.engine.BalanceEvidenceSelfTest',
+        balanceProviderInvariants: 'com.mistaboom.essence_ascendance.balance.engine.ProviderReferenceTest',
+        balanceCompositionInvariants: 'com.mistaboom.essence_ascendance.balance.engine.BuildCompositionTest',
+        balanceEconomyInvariants: 'com.mistaboom.essence_ascendance.balance.economy.EconomyInvariantTest',
+        balanceTradeInvariants: 'com.mistaboom.essence_ascendance.valuation.TradeGraphTest',
+        balanceBiologicalSourceInvariants: 'com.mistaboom.essence_ascendance.valuation.BiologicalSourceEvidenceTest',
+        balanceNaturalBlockInvariants: 'com.mistaboom.essence_ascendance.valuation.NaturalBlockEvidenceTest',
+        balanceFractionalLedgerInvariants: 'com.mistaboom.essence_ascendance.balance.economy.FractionalLedgerTest',
+        balanceTooltipInvariants: 'com.mistaboom.essence_ascendance.client.EssenceYieldFormatTest',
+        balanceTooltipPresentationInvariants: 'com.mistaboom.essence_ascendance.client.TooltipPresentationTest',
+        balanceRankInvariants: 'com.mistaboom.essence_ascendance.skill.SkillRankCurveTest',
+        balanceLedgerInvariants: 'com.mistaboom.essence_ascendance.skill.balance.SkillRankLedgerTest',
+        balanceIntegrationInvariants: 'com.mistaboom.essence_ascendance.balance.generated.GeneratedBalanceIntegrationTest',
+        balanceLoadoutInvariants: 'com.mistaboom.essence_ascendance.skill.balance.SkillLoadoutProjectionTest',
+        balanceRuntimeInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceTest',
+        balanceAscensionPolicyInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.RuntimeAscensionPolicyTest',
+        balanceAscensionAccountingInvariants: 'com.mistaboom.essence_ascendance.progression.AscensionEssenceAccountingTest',
+        balanceLifecycleInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.RuntimeLifecycleTest'
+]
+balanceInvariantMains.each { taskName, className ->
+    tasks.register(taskName, JavaExec) {
+        group = 'verification'
+        description = "Runs ${className.tokenize('.').last()} against the mapped game dependencies."
+        dependsOn tasks.named('testClasses')
+        classpath = sourceSets.test.runtimeClasspath
+        mainClass = className
+    }
+}
+tasks.register('balanceInvariants') {
+    group = 'verification'
+    description = 'Runs deterministic balance, economy, rank and profile invariants.'
+    dependsOn balanceInvariantMains.keySet()
+}
+tasks.named('check') { dependsOn tasks.named('balanceInvariants') }
+
+// These test sources are executable main programs, so framework discovery is empty.
+// The JavaExec invariant tasks above remain required by check and fail on any error.
+tasks.named('test', Test) {
+    failOnNoDiscoveredTests = false
+}
