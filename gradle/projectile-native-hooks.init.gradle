@@ -1,0 +1,35 @@
+// Explicit no-world loader test: gradlew -I gradle/projectile-native-hooks.init.gradle :fabric:runServer
+// The test-only entrypoint exits with the assertion result; --initSettings is a second guard against world access.
+allprojects { p ->
+    p.afterEvaluate {
+        if (p.path == ':fabric') {
+            def fixtureMetadata = p.rootProject.file('build/projectile-hook-metadata')
+            def hookJar = p.tasks.register('projectileHookFixtureJar', Jar) {
+                dependsOn(p.rootProject.project(':common').tasks.named('testClasses'))
+                archiveFileName = 'projectile-hook-fixture.jar'
+                destinationDirectory = p.rootProject.layout.buildDirectory
+                from(p.rootProject.project(':common').sourceSets.test.output) {
+                    include 'com/mistaboom/essence_ascendance/projectile/ProjectileNativeHookTest*.class'
+                    include 'com/mistaboom/essence_ascendance/projectile/ProjectileNativeInterceptionTest*.class'
+                }
+                from(fixtureMetadata)
+                doFirst {
+                    fixtureMetadata.mkdirs()
+                    new File(fixtureMetadata, 'fabric.mod.json').text = '''{"schemaVersion":1,"id":"essence_projectile_hook_test","version":"1","environment":"server","entrypoints":{"server":["com.mistaboom.essence_ascendance.projectile.ProjectileNativeHookTest::runAndExit"]},"depends":{"essence_ascendance":"*"}}'''
+                }
+            }
+            p.tasks.named('runServer').configure { t ->
+                def testRun = p.rootProject.file('build/projectile-native-hooks-run').canonicalFile
+                t.internalRunDir.set(testRun)
+                t.args('--initSettings', '--nogui')
+                t.jvmArgs('-Dfabric.addMods=' + p.rootProject.file('build/projectile-hook-fixture.jar').canonicalPath,
+                        '-Dessence.projectile.nativeHookTest=true')
+                t.dependsOn(hookJar)
+                t.doFirst {
+                    if (t.internalRunDir.asFile.get().canonicalFile != testRun) throw new GradleException('Unexpected hook test directory')
+                    testRun.mkdirs()
+                }
+            }
+        }
+    }
+}

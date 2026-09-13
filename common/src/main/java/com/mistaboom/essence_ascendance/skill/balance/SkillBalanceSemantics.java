@@ -157,10 +157,10 @@ public final class SkillBalanceSemantics {
                 .condition("Aligned targets or a blocking shield; reduced penetrating damage; adapter-ready bypass"));
         all.add(skill(SkillIds.EXPLOSIVE_PAYLOAD, area(AREA_DAMAGE, .6, 3))
                 .projectiles().actions(Action.ATTACK).availability(.65, .85).area(3)
-                .condition("Planned impact explosion affecting nearby creatures, not terrain"));
+                .condition("Confirmed hostile creature impacts; bounded per-shot payload budget composes with selected path; safe creature-only secondary damage"));
         all.add(skill(SkillIds.ROOTING_PAYLOAD, flat(CROWD_CONTROL, .6))
                 .projectiles().actions(Action.ATTACK).availability(.55, .85).timing(0, 2)
-                .condition("Planned movement bind; targets retain ability to attack"));
+                .condition("Confirmed victim only; bounded root duration and refresh window; translation suppressed while attacks remain available"));
     }
 
     private static void defense(List<Builder> all) {
@@ -184,12 +184,12 @@ public final class SkillBalanceSemantics {
                 .condition("Requires reflection and nearby hostiles; reduced secondary damage"));
         all.add(skill(SkillIds.INTERCEPTOR, flat(BLOCKING, .55))
                 .equipment(Equipment.MELEE_WEAPON).actions(Action.SWING).availability(.4, .6).risk(.2).range(3)
-                .condition("Weapon swing must intersect an incoming hostile projectile"));
+                .condition("Ready ordinary server melee swing must intersect supported hostile projectile in the forward weapon arc; no speculative prevention credit"));
         all.add(skill(SkillIds.TRAJECTORY_THEFT, flat(REFLECTION, .55), flat(DELIVERY_RELIABILITY, .2))
                 .equipment(Equipment.MELEE_WEAPON).actions(Action.SWING).availability(.35, .6).range(24)
-                .condition("Interceptor hit redirects projectile; does not add a second destruction reward"));
+                .condition("Interceptor redirects once to valid crosshair creature then responsible source; defender owns native damage, original path and payload are cleared; no speculative activity"));
         all.add(skill(SkillIds.PROJECTILE_DRAG_FIELD, flat(AVOIDANCE, .45))
-                .availability(.5, .9).area(5).condition("Nearby hostile projectiles only; buys reaction time"));
+                .availability(.5, .9).area(5).condition("Supported approaching hostile projectiles; strongest field wins, bounded reference speed restores on exit; avoidance only"));
         all.add(skill(SkillIds.EVASIVE_CURRENT, flat(AVOIDANCE, .55))
                 .actions(Action.MOVE).availability(.6, .85).risk(.15)
                 .condition("Continuous movement builds evasion; stopping or being hit drains it"));

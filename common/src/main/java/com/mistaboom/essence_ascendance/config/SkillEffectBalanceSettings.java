@@ -189,6 +189,7 @@ public record SkillEffectBalanceSettings(
                 staticCharge.glidePerTick(), staticCharge.idleGraceTicks(), staticCharge.decayPerTick(),
                 staticCharge.lightningDamage());
         new ChainStrike(chainStrike.maximumJumps(), chainStrike.radius(), chainStrike.damageFalloff());
+        projectiles.validate();
     }
 
     public static SkillEffectBalanceSettings defaults() {

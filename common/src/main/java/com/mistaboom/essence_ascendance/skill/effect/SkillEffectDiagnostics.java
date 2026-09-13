@@ -54,7 +54,10 @@ final class SkillEffectDiagnostics {
     private static void registrations(List<String> failures) {
         Set<ResourceLocation> expected = Set.of(SkillIds.FRENZY, SkillIds.ARMOR_CRACK,
                 SkillIds.DESPERATION, SkillIds.DEATH_RUSH, SkillIds.KINDLING, SkillIds.COMBUSTION,
-                SkillIds.FROSTBITE, SkillIds.SHATTER, SkillIds.STATIC_CHARGE, SkillIds.CHAIN_STRIKE);
+                SkillIds.FROSTBITE, SkillIds.SHATTER, SkillIds.STATIC_CHARGE, SkillIds.CHAIN_STRIKE,
+                SkillIds.HOMING_PROJECTILE, SkillIds.RICOCHET, SkillIds.PIERCING_PROJECTILE,
+                SkillIds.EXPLOSIVE_PAYLOAD, SkillIds.ROOTING_PAYLOAD, SkillIds.PROJECTILE_DRAG_FIELD,
+                SkillIds.INTERCEPTOR, SkillIds.TRAJECTORY_THEFT);
         List<SkillEffectHandler> actual = List.copyOf(SkillEffectRegistry.handlers());
         Set<ResourceLocation> seen = new HashSet<>();
         check(failures, SkillEffectRegistry.implementedIds().containsAll(expected),
@@ -398,6 +401,7 @@ final class SkillEffectDiagnostics {
                 "currentTierId", id,
                 "nexusRevision", "long"));
         expected.put("projectileLife", "java.util.UUID");
+        expected.put("dormantGuidebookReceived", "boolean");
         expected.put("fractionalResourceCostCarry", "java.util.Map<" + id + ", java.lang.Double>");
         Map<String, String> actual = new HashMap<>();
         for (var field : PlayerEssenceData.class.getDeclaredFields()) {

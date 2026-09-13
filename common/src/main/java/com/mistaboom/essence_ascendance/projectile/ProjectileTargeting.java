@@ -62,10 +62,43 @@ public final class ProjectileTargeting {
                                 target.getBoundingBox().getCenter().distanceToSqr(origin))
                         .thenComparing(Entity::getUUID)).orElse(null);
     }
+    /** Exact aim wins; otherwise a hostile near the swing aim line is selected so the projectile itself can occupy the crosshair. */
+    public static LivingEntity crosshair(Projectile projectile, ServerPlayer owner, double range, double cone, Set<UUID> excluded) {
+        Vec3 origin = owner.getEyePosition(), direction = owner.getLookAngle().normalize();
+        var block = owner.level().clip(new ClipContext(origin, origin.add(direction.scale(range)), ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, owner));
+        Vec3 end = block.getLocation();
+        LivingEntity aimed = owner.serverLevel().getEntitiesOfClass(LivingEntity.class, new AABB(origin, end).inflate(1),
+                        target -> target != owner && target.isAlive() && !target.isRemoved() && !target.isSpectator()
+                                && ProjectileCollision.contact(target.getBoundingBox().inflate(target.getPickRadius()), origin, end).isPresent())
+                .stream().min(Comparator.<LivingEntity>comparingDouble(target -> ProjectileCollision.contact(
+                                target.getBoundingBox().inflate(target.getPickRadius()), origin, end).orElseThrow().distanceToSqr(origin))
+                        .thenComparing(Entity::getUUID)).orElse(null);
+        // An allied or otherwise ineligible creature actually under the crosshair still blocks assistance behind it.
+        if (aimed != null) return canHarm(owner, aimed) && !owner.isAlliedTo(aimed) && !excluded.contains(aimed.getUUID())
+                && visible(projectile, projectile.position(), aimed.getBoundingBox().getCenter()) ? aimed : null;
+        double rangeSqr = range * range;
+        double cosine = Math.cos(Math.toRadians(cone));
+        return owner.serverLevel().getEntitiesOfClass(LivingEntity.class, new AABB(origin, origin).inflate(range),
+                        target -> target != owner && hostile(owner, target) && !excluded.contains(target.getUUID())
+                                && target.getBoundingBox().getCenter().distanceToSqr(origin) <= rangeSqr
+                                && target.getBoundingBox().getCenter().distanceToSqr(projectile.position()) <= rangeSqr
+                                && aimDot(origin, direction, target.getBoundingBox().getCenter()) >= cosine
+                                && visible(projectile, origin, target.getBoundingBox().getCenter())
+                                && visible(projectile, projectile.position(), target.getBoundingBox().getCenter()))
+                .stream().min(Comparator.<LivingEntity>comparingDouble(target ->
+                                1 - aimDot(origin, direction, target.getBoundingBox().getCenter()))
+                        .thenComparingDouble(target -> target.getBoundingBox().getCenter().distanceToSqr(projectile.position()))
+                        .thenComparing(Entity::getUUID)).orElse(null);
+    }
+    static double aimDot(Vec3 origin, Vec3 direction, Vec3 target) {
+        Vec3 delta = target.subtract(origin);
+        return delta.lengthSqr() < 0.000001 ? -1 : delta.normalize().dot(direction.normalize());
+    }
     public static void steer(Projectile projectile, ServerPlayer owner, ProjectileState state) {
         if (state.target == null) return;
         Entity entity = owner.serverLevel().getEntity(state.target);
-        if (!(entity instanceof LivingEntity target) || !hostile(owner, target)
+        if (!(entity instanceof LivingEntity target) || !(state.redirected
+                ? canHarm(owner, target) && !owner.isAlliedTo(target) : hostile(owner, target))
                 || state.visited.contains(target.getUUID())
                 || !visible(projectile, projectile.position(), target.getBoundingBox().getCenter())) {
             state.target = null; // Acquire once; losing a lock never starts a target oscillation.

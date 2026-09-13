@@ -56,6 +56,10 @@ def balanceInvariantMains = [
         attunementPresentationInvariants: 'com.mistaboom.essence_ascendance.client.nexus.NexusAttunementPresentationTest',
         attunementNetworkInvariants: 'com.mistaboom.essence_ascendance.network.AttunementSnapshotCodecTest',
         attunementAdapterInvariants: 'com.mistaboom.essence_ascendance.attunement.AttunementAdapterTest',
+        projectileSkillBatchInvariants: 'com.mistaboom.essence_ascendance.skill.effect.ProjectileSkillBatchTest',
+        balanceProjectileInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.ProjectileBalanceTest',
+        projectilePayloadInvariants: 'com.mistaboom.essence_ascendance.projectile.ProjectilePayloadTest',
+        projectileControlInvariants: 'com.mistaboom.essence_ascendance.projectile.ProjectileControlTest',
         balanceLifecycleInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.RuntimeLifecycleTest'
 ]
 balanceInvariantMains.each { taskName, className ->
@@ -78,6 +82,21 @@ tasks.register('balanceInvariants') {
     dependsOn balanceInvariantMains.keySet()
 }
 tasks.named('check') { dependsOn tasks.named('balanceInvariants') }
+
+// Explicit development refresh from verified saved pack evidence. It never opens a world.
+tasks.register('regenerateSavedBalance', JavaExec) {
+    group = 'verification'
+    description = 'Regenerates and validates a profile from saved evidence without opening a Minecraft world.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.mistaboom.essence_ascendance.balance.generated.SavedEvidenceRegenerationTool'
+    doFirst {
+        if (!rootProject.hasProperty('savedBalanceConfig') || !rootProject.hasProperty('savedBalanceOutput'))
+            throw new GradleException('Supply -PsavedBalanceConfig and -PsavedBalanceOutput')
+        args rootProject.file(rootProject.property('savedBalanceConfig')).absolutePath,
+                rootProject.file(rootProject.property('savedBalanceOutput')).absolutePath
+    }
+}
 
 // These test sources are executable main programs, so framework discovery is empty.
 // The JavaExec invariant tasks above remain required by check and fail on any error.

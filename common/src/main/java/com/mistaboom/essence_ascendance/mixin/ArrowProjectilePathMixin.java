@@ -13,16 +13,30 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.EntityHitResult;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /** Only opted-in, skill-managed arrows use the shared sweep. Unmodified bows keep the whole native tick. */
 @Mixin(AbstractArrow.class)
-public abstract class ArrowProjectilePathMixin extends Projectile {
+public abstract class ArrowProjectilePathMixin extends Projectile implements com.mistaboom.essence_ascendance.projectile.ProjectileStateAccess {
+    @Unique private static final EntityDataAccessor<Float> essenceAscendance$flightScale =
+            SynchedEntityData.defineId(AbstractArrow.class, EntityDataSerializers.FLOAT);
+    @Override public float essenceAscendance$flightScale() { return getEntityData().get(essenceAscendance$flightScale); }
+    @Override public void essenceAscendance$flightScale(float scale) { getEntityData().set(essenceAscendance$flightScale, scale); }
+    @Inject(method = "defineSynchedData", at = @At("RETURN"))
+    private void essenceAscendance$defineFlightScale(SynchedEntityData.Builder builder, CallbackInfo ci) {
+        builder.define(essenceAscendance$flightScale, 1.0F);
+    }
     @Shadow protected boolean inGround;
     @Shadow private IntOpenHashSet piercingIgnoreEntityIds;
     @Shadow protected abstract float getWaterInertia();
+    @Override public boolean essenceAscendance$embedded() { return inGround; }
+    @Override public int[] essenceAscendance$nativeHitIds() { return piercingIgnoreEntityIds == null ? new int[0] : piercingIgnoreEntityIds.toIntArray(); }
     protected ArrowProjectilePathMixin(EntityType<? extends Projectile> type, Level level) { super(type, level); }
 
     @Inject(method = "tick", at = @At("HEAD"), cancellable = true)
@@ -37,11 +51,21 @@ public abstract class ArrowProjectilePathMixin extends Projectile {
         if (isInWaterOrRain() || level().getBlockState(blockPosition()).is(net.minecraft.world.level.block.Blocks.POWDER_SNOW)) clearFire();
         ProjectileRuntime.move(this);
         if (!isRemoved() && !inGround) {
-            setDeltaMovement(getDeltaMovement().scale(isInWater() ? getWaterInertia() : 0.99));
+            var physicsInput = getDeltaMovement();
+            double inertia = isInWater() ? getWaterInertia() : 0.99F;
+            setDeltaMovement(physicsInput.scale(inertia));
             applyGravity();
+            com.mistaboom.essence_ascendance.projectile.ProjectileControlService.afterNativePhysics(this, physicsInput, inertia);
             checkInsideBlocks();
         }
         ci.cancel();
+    }
+
+    @Inject(method = "tick", at = @At("RETURN"))
+    private void essenceAscendance$slowNativePhysics(CallbackInfo ci) {
+        if (!ProjectileRuntime.managed(this) && !inGround)
+            com.mistaboom.essence_ascendance.projectile.ProjectileControlService.afterNativeArrowFlight(this,
+                    isInWater() ? getWaterInertia() : 0.99F);
     }
 
     @Inject(method = "onHitEntity", at = @At("HEAD"), cancellable = true)

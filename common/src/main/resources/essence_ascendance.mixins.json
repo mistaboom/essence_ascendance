@@ -34,6 +34,10 @@
     "ItemStackMenuCostMixin",
     "ProjectileNativeAccess",
     "ProjectileStateMixin",
+    "ProjectileUseInputMixin",
+    "ProjectileMiningAccess",
+    "ImmobilizedEntityMixin",
+    "ImmobilizedPlayerConnectionMixin",
     "ArrowProjectilePathMixin",
     "LivingEntityProjectileShieldMixin"
   ],

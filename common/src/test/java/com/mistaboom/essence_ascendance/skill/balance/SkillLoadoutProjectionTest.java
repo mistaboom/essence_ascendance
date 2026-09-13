@@ -67,13 +67,17 @@ public final class SkillLoadoutProjectionTest {
             check(!active.contains(SkillIds.DEATH_RUSH) || active.contains(SkillIds.DESPERATION), "Desperation descendants inherit its active branch");
             check(count(active, SkillIds.KINDLING, SkillIds.FROSTBITE, SkillIds.STATIC_CHARGE) <= 1, "One elemental branch");
             check(count(active, SkillIds.HOMING_PROJECTILE, SkillIds.RICOCHET, SkillIds.PIERCING_PROJECTILE) <= 1, "One projectile path");
+            check(count(active, SkillIds.EXPLOSIVE_PAYLOAD, SkillIds.ROOTING_PAYLOAD) <= 1, "One independent projectile payload");
             for (var pressure : scenario.axisPressure().entrySet())
                 check(pressure.getValue() <= original.conservativeUpperBounds().get(pressure.getKey()) + 1e-9,
                         "Conservative bound contains every concrete reachable build");
         }
         var current = project(offense, ranks(offense, 1), false);
-        check(current.scenarios().stream().noneMatch(s -> s.activeRanks().containsKey(SkillIds.EXPLOSIVE_PAYLOAD)),
-                "Unimplemented mechanics are excluded from current-build demand");
+        check(current.scenarios().stream().anyMatch(s -> s.activeRanks().containsKey(SkillIds.EXPLOSIVE_PAYLOAD)),
+                "Implemented payloads contribute to current-build demand");
+        var currentDefense = project(category("defense"), ranks(category("defense"), 1), false);
+        check(currentDefense.scenarios().stream().noneMatch(s -> s.activeRanks().containsKey(SkillIds.GUARDED_ADVANCE)),
+                "The next unimplemented defense branch stays excluded from current-build demand");
         check(original.scenarios().stream().anyMatch(s -> s.activeRanks().containsKey(SkillIds.EXPLOSIVE_PAYLOAD)),
                 "Future catalog pressure can be projected without enabling effects");
     }

@@ -75,6 +75,39 @@ public final class SkillRankEffectScaling {
             p.projectiles = projectile(v, v.arrow(), v.caster(), v.ricochetDamageMultiplier(),
                     retained(v.piercingDamageMultiplier(), f), retained(v.piercingShieldDamageMultiplier(), f));
         });
+        register(SkillIds.EXPLOSIVE_PAYLOAD, (p, f) -> {
+            var v = p.projectiles.payload();
+            p.projectiles = withPayload(p.projectiles, new ProjectileBalanceSettings.Payload(v.triggerBudget(),
+                    v.explosiveRadius(), scale(v.explosiveDamageScale(), f, 4), v.rootDurationTicks(),
+                    v.rootMaxDurationTicks(), v.rootMovementTolerance(), v.particleCount()));
+        });
+        register(SkillIds.ROOTING_PAYLOAD, (p, f) -> {
+            var v = p.projectiles.payload();
+            p.projectiles = withPayload(p.projectiles, new ProjectileBalanceSettings.Payload(v.triggerBudget(),
+                    v.explosiveRadius(), v.explosiveDamageScale(), (int) scale(v.rootDurationTicks(), f, 200),
+                    (int) scale(v.rootMaxDurationTicks(), f, 400), v.rootMovementTolerance(), v.particleCount()));
+        });
+        register(SkillIds.PROJECTILE_DRAG_FIELD, (p, f) -> {
+            var v = p.projectiles.control();
+            p.projectiles = withControl(p.projectiles, new ProjectileBalanceSettings.Control(v.outerRadius(), v.innerRadius(),
+                    Math.max(.05, v.minimumSpeedFactor() / f), v.responseExponent(), v.scanCadenceTicks(),
+                    v.swingRange(), v.swingRadius(), v.swingHalfAngleDegrees(), v.readinessThreshold(), v.swingBudget(),
+                    v.theftSpeedMultiplier(), v.theftTargetRange(), v.theftAimConeDegrees(), v.theftTurnDegreesPerTick(), v.redirectBudget()));
+        });
+        register(SkillIds.INTERCEPTOR, (p, f) -> {
+            var v = p.projectiles.control();
+            p.projectiles = withControl(p.projectiles, new ProjectileBalanceSettings.Control(v.outerRadius(), v.innerRadius(),
+                    v.minimumSpeedFactor(), v.responseExponent(), v.scanCadenceTicks(), v.swingRange(),
+                    scale(v.swingRadius(), f, 2), v.swingHalfAngleDegrees(), v.readinessThreshold(), v.swingBudget(),
+                    v.theftSpeedMultiplier(), v.theftTargetRange(), v.theftAimConeDegrees(), v.theftTurnDegreesPerTick(), v.redirectBudget()));
+        });
+        register(SkillIds.TRAJECTORY_THEFT, (p, f) -> {
+            var v = p.projectiles.control();
+            p.projectiles = withControl(p.projectiles, new ProjectileBalanceSettings.Control(v.outerRadius(), v.innerRadius(),
+                    v.minimumSpeedFactor(), v.responseExponent(), v.scanCadenceTicks(), v.swingRange(), v.swingRadius(),
+                    v.swingHalfAngleDegrees(), v.readinessThreshold(), v.swingBudget(), scale(v.theftSpeedMultiplier(), f, 2),
+                    v.theftTargetRange(), v.theftAimConeDegrees(), scale(v.theftTurnDegreesPerTick(), f, 45), v.redirectBudget()));
+        });
     }
     private SkillRankEffectScaling() { }
 
@@ -111,7 +144,17 @@ public final class SkillRankEffectScaling {
     private static ProjectileBalanceSettings projectile(ProjectileBalanceSettings v, ProjectileBalanceSettings.Profile arrow,
             ProjectileBalanceSettings.Profile caster, double ricochet, double piercing, double shield) {
         return new ProjectileBalanceSettings(arrow, caster, v.ricochets(), v.ricochetRadius(), ricochet,
-                v.penetrations(), piercing, shield, v.maximumImpacts(), v.maximumSpeed());
+                v.penetrations(), piercing, shield, v.maximumImpacts(), v.maximumSpeed(), v.payload(), v.control());
+    }
+    private static ProjectileBalanceSettings withPayload(ProjectileBalanceSettings v, ProjectileBalanceSettings.Payload payload) {
+        return new ProjectileBalanceSettings(v.arrow(), v.caster(), v.ricochets(), v.ricochetRadius(), v.ricochetDamageMultiplier(),
+                v.penetrations(), v.piercingDamageMultiplier(), v.piercingShieldDamageMultiplier(),
+                v.maximumImpacts(), v.maximumSpeed(), payload, v.control());
+    }
+    private static ProjectileBalanceSettings withControl(ProjectileBalanceSettings v, ProjectileBalanceSettings.Control control) {
+        return new ProjectileBalanceSettings(v.arrow(), v.caster(), v.ricochets(), v.ricochetRadius(), v.ricochetDamageMultiplier(),
+                v.penetrations(), v.piercingDamageMultiplier(), v.piercingShieldDamageMultiplier(),
+                v.maximumImpacts(), v.maximumSpeed(), v.payload(), control);
     }
 
     public static final class Parameters {

@@ -32,7 +32,7 @@ import java.util.Map;
 
 /** Server-thread transaction: collect, construct, validate, persist, publish, then synchronize. */
 public final class GeneratedBalanceService {
-    private static final String GENERATION_REVISION = "attunement-effort-history-9";
+    static final String GENERATION_REVISION = "projectile-control-swing-order-13";
     private static final String DISSOLUTION_ACCOUNTING = "whole_essence_v1";
     private static volatile Active active;
     private static volatile boolean resourcesChanged;
@@ -92,6 +92,7 @@ public final class GeneratedBalanceService {
             validation.addProperty("economy", "passed");
             validation.addProperty("serialization", "passed");
             validation.addProperty("attunement", "multiple unrestricted base methods, positive rates, bounded policy, complete adjacent chapter topology passed");
+            validation.addProperty("projectiles", "validated independent path/payload and bounded control policy; native gameplay remains manual");
             validation.addProperty("liveGameplay", "not performed by generator");
             JsonObject document = new JsonObject();
             document.add("metadata", metadata);
@@ -158,7 +159,7 @@ public final class GeneratedBalanceService {
         }
     }
 
-    private static JsonObject skillDiagnostics(RuntimeBalanceDefinition runtime) {
+    static JsonObject skillDiagnostics(RuntimeBalanceDefinition runtime) {
         var catalog = com.mistaboom.essence_ascendance.skill.SkillRegistry.values();
         var serializer = new com.google.gson.GsonBuilder().disableHtmlEscaping()
                 // Set iteration can differ between JVM launches. Canonicalize only
@@ -176,6 +177,7 @@ public final class GeneratedBalanceService {
         JsonObject result = new JsonObject();
         result.addProperty("curveSource", "/runtime/skillCurves");
         result.addProperty("rankPolicy", "Current maximum ranks remain one; future ranks are projections, not new effects");
+        result.add("projectilePolicy", projectilePolicy());
         result.add("semantics", serializer.toJsonTree(catalog.stream().map(skill ->
                 com.mistaboom.essence_ascendance.skill.balance.SkillBalanceSemantics.require(skill.id())).toList()));
         JsonObject projections = new JsonObject();
@@ -201,6 +203,21 @@ public final class GeneratedBalanceService {
         if (runtime.generationAnalysis() != null)
             result.add("combinedBuilds", serializer.toJsonTree(runtime.generationAnalysis()));
         return result;
+    }
+
+    static JsonObject projectilePolicy() {
+        JsonObject policy = new JsonObject();
+        policy.addProperty("tuning", "/runtime/effects/projectiles; exact TOML overrides; launch payload snapshots survive configuration reload");
+        policy.addProperty("choices", "One path plus one independently selected payload; every eligible distinct confirmed victim may consume one bounded payload trigger");
+        policy.addProperty("explosion", "Creature-only eligible secondary damage; shared Combustion target bound; no terrain, fire, self/allied damage or recursive payload activation");
+        policy.addProperty("root", "Confirmed victim only; translation suppression preserves attacks; bounded refresh window and expiry; no speculative Attunement activity");
+        policy.addProperty("hostility", "Explicit damaging adapter, valid responsible source and team/PvP eligibility; ownerless damaging shots handled by the shared ownership policy");
+        policy.addProperty("drag", "Twelve-block viscous pocket in all directions; strongest field uses local time for velocity, squared time for gravity and fractional inertia; native entity data synchronizes client arrow physics; exit restores valid reference motion");
+        policy.addProperty("interceptor", "Ready ordinary server melee swing evaluated before ServerPlayer.swing resets attack strength; initial left clicks through arrows check interception before mining; forward volume, per-swing deduplication and finite budget; held mining and right clicks excluded");
+        policy.addProperty("theft", "Exact crosshair or hostile aim-cone assistance before responsible source; full launch-speed floor plus melee impulse and persisted homing; otherwise safe destruction; one transfer, original offensive path/payload cleared");
+        policy.addProperty("attunement", "Only confirmed damage/defeat contributes through registered outcome metadata; slowing, rooting or interception alone awards nothing; no per-action caps");
+        policy.addProperty("adapters", "Vanilla arrows, spectral arrows and real Caster bolts; unknown projectile classes require explicit opt-in; absent optional mods need no class loading");
+        return policy;
     }
 
     public static Active decode(BalanceDocument document) {
@@ -232,7 +249,7 @@ public final class GeneratedBalanceService {
         List<String> changes = new ArrayList<>();
         if (!metadata.has("generatorRevision")
                 || !GENERATION_REVISION.equals(metadata.get("generatorRevision").getAsString()))
-            changes.add("Balance generator updated; use /essence admin balance rebuild to install the current Category Attunement policy");
+            changes.add("Balance generator updated; use /essence admin balance rebuild to install the current runtime policy");
         if (!metadata.getAsJsonObject("environment").get("digest").getAsString().equals(current.digest()))
             changes.add("Pack identity changed; use /essence admin balance rebuild");
         try {

@@ -447,7 +447,8 @@ public final class AttunementGameplay {
         DamageFrame(LivingEntity target, DamageSource source, float requested, String root) {
             this.target = target; this.source = source; this.requested = Float.isFinite(requested) ? requested : 0;
             this.root = root; this.owner = owner(source); this.reflected = EquipmentDamageService.isReflectionInProgress()
-                    || source.is(net.minecraft.world.damagesource.DamageTypes.THORNS);
+                    || source.is(net.minecraft.world.damagesource.DamageTypes.THORNS)
+                    || SkillProcDamageService.current() != null && SkillProcDamageService.current().kind().reflectedOutcome();
             this.exhaustionBefore = target instanceof ServerPlayer player ? player.getFoodData().getExhaustionLevel() : 0;
         }
     }

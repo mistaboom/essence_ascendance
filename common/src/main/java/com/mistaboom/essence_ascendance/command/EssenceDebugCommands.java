@@ -1022,11 +1022,14 @@ final class EssenceDebugCommands {
     }
 
     private static int showProjectiles(CommandSourceStack source) throws CommandSyntaxException {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section(
+                Component.translatable("command.essence_ascendance.projectiles.heading")));
         var lines = com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.diagnostics(source.getPlayerOrException());
         if (lines.isEmpty()) EssenceCommandUtil.send(source,
-                Component.translatable("command.essence_ascendance.projectiles.none"));
+                EssenceCommandUtil.muted(Component.translatable("command.essence_ascendance.projectiles.none")));
         for (String line : lines) EssenceCommandUtil.send(source,
-                Component.translatable("command.essence_ascendance.projectiles.state", line));
+                EssenceCommandUtil.line(Component.translatable("command.essence_ascendance.projectiles.state_label"),
+                        Component.translatable("command.essence_ascendance.projectiles.state", line)));
         return lines.size();
     }
 

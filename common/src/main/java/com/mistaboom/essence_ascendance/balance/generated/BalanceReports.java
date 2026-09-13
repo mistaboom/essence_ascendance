@@ -42,6 +42,9 @@ public final class BalanceReports {
         runtimeTables(tables, current);
         ascension(tables, current);
         attunement(tables, current.runtime().attunement());
+        var projectileRules = tables.table("projectile_policy.csv", "contract", "rule");
+        if (skills.has("projectilePolicy")) skills.getAsJsonObject("projectilePolicy").entrySet().stream()
+                .sorted(Map.Entry.comparingByKey()).forEach(entry -> projectileRules.row(entry.getKey(), entry.getValue().getAsString()));
         Path reports = BalanceReportLayout.reports(folder), diagnostics = BalanceReportLayout.diagnostics(folder);
         tables.write(reports, diagnostics);
         BalanceProfileStore.writeAtomically(reports.resolve("balance_report.md"), report(current, previous, generationMillis, skills));
@@ -118,6 +121,12 @@ public final class BalanceReports {
         combatSummary(out, skills);
         out.append("\nThe complete runtime curve table is in `curves.csv`. Bonus investment uses the same generated concave interpolation in the server and Nexus previews. Cost caps are generated from progression and resource supply; exact refunds use paid receipts, not a later profile's prices.\n\n");
         skillSummary(out, current, skills);
+        if (skills.has("projectilePolicy")) {
+            out.append("## Projectile payload and control policy\n\nResolved tuning is exported as scalar exact paths in `runtime_parameters.csv`; the contracts below are also in `projectile_policy.csv`.\n\n| Contract | Rule |\n|---|---|\n");
+            skills.getAsJsonObject("projectilePolicy").entrySet().stream().sorted(Map.Entry.comparingByKey())
+                    .forEach(entry -> row(out, entry.getKey(), entry.getValue().getAsString()));
+            out.append('\n');
+        }
         out.append("## Exclusions, capabilities and uncertainty\n\n| Subject | Classification | Reason |\n|---|---|---|\n");
         evidence.equipment().stream().filter(item -> !item.included() || !item.capabilities().isEmpty())
                 .forEach(item -> row(out, item.itemId(), item.included() ? "capability" : "excluded", item.reason() + " " + item.capabilities()));

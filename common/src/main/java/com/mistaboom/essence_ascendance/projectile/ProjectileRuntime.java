@@ -51,16 +51,18 @@ public final class ProjectileRuntime {
         access.essenceAscendance$launchChecked(true);
         access.essenceAscendance$secondary(EquipmentDamageService.isSecondarySkillDamage() || EquipmentDamageService.isReflectionInProgress());
         ProjectileSource source = ProjectileAdapters.source(projectile);
-        if (source == ProjectileSource.UNSUPPORTED || access.essenceAscendance$secondary()
-                || !(projectile.getOwner() instanceof ServerPlayer owner)
-                || !validOwner(owner, projectile)) return;
-        var effective = CommittedSkillService.effectiveIds(owner);
-        var state = new ProjectileState(source, OffenseProjectileEffects.selectedPath(effective), owner.getUUID(),
-                com.mistaboom.essence_ascendance.data.EssenceSavedData.get(owner.server).getPlayerData(owner.getUUID()).projectileLife(),
-                owner.level().dimension().location(), owner.level().getGameTime(),
-                com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime.resolvedSettings(owner).projectiles(),
+        if (!ProjectileAdapters.damaging(projectile) || access.essenceAscendance$secondary()) return;
+        ServerPlayer owner = projectile.getOwner() instanceof ServerPlayer player && validOwner(player, projectile) ? player : null;
+        var effective = owner == null ? java.util.Set.<ResourceLocation>of() : CommittedSkillService.effectiveIds(owner);
+        var state = new ProjectileState(source, OffenseProjectileEffects.selectedPath(effective),
+                projectile.getOwner() == null ? projectile.getUUID() : projectile.getOwner().getUUID(),
+                owner == null ? new java.util.UUID(0, 0) : com.mistaboom.essence_ascendance.data.EssenceSavedData.get(owner.server)
+                        .getPlayerData(owner.getUUID()).projectileLife(),
+                projectile.level().dimension().location(), projectile.level().getGameTime(),
+                owner == null ? EssenceConfigManager.skillEffects().projectiles()
+                        : com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime.resolvedSettings(owner).projectiles(),
                 projectile instanceof AbstractArrow arrow ? Math.max(0, arrow.getPierceLevel()) : 0);
-        state.payload = ProjectileImpactEffects.snapshot(owner, effective);
+        if (owner != null) state.payload = ProjectileImpactEffects.snapshot(owner, effective);
         access.essenceAscendance$state(state);
         if (state.managed()) remember(projectile, state);
         if (state.path == ProjectilePath.HOMING) {
@@ -75,10 +77,23 @@ public final class ProjectileRuntime {
                 && owner.server.getPlayerList().getPlayer(owner.getUUID()) == owner;
     }
     private static ServerPlayer owner(Projectile projectile, ProjectileState state) {
-        return projectile.getOwner() instanceof ServerPlayer player && player.getUUID().equals(state.owner)
-                && state.dimension.equals(projectile.level().dimension().location()) && validOwner(player, projectile)
-                && state.ownerLife.equals(com.mistaboom.essence_ascendance.data.EssenceSavedData.get(player.server)
-                        .getPlayerData(player.getUUID()).projectileLife()) ? player : null;
+        return projectile.getOwner() instanceof ServerPlayer player && ProjectileLifecycle.ownerMatches(state, player.getUUID(),
+                com.mistaboom.essence_ascendance.data.EssenceSavedData.get(player.server).getPlayerData(player.getUUID()).projectileLife(),
+                projectile.level().dimension().location(), validOwner(player, projectile)) ? player : null;
+    }
+    public static boolean validOwnership(Projectile projectile, ProjectileState state) {
+        if (!state.dimension.equals(projectile.level().dimension().location()) || state.ended) return false;
+        if (projectile.getOwner() instanceof ServerPlayer) return owner(projectile, state) != null;
+        return !state.managed() && projectile.getOwner() != null && projectile.getOwner().isAlive()
+                && !projectile.getOwner().isRemoved() && projectile.getOwner().level() == projectile.level()
+                && state.owner.equals(projectile.getOwner().getUUID());
+    }
+    /** Bookkeeping only for ordinary native flight; stealing never renews its already-spent range or age. */
+    public static void observeNativeFlight(Projectile projectile) {
+        var state = state(projectile);
+        if (projectile.level().isClientSide || state == null || state.managed() || !ProjectileAdapters.inFlight(projectile)) return;
+        state.remainingTicks = Math.max(0, state.remainingTicks - 1);
+        state.remainingRange = Math.max(0, state.remainingRange - projectile.getDeltaMovement().length());
     }
     private static boolean finite(Vec3 value) { return Double.isFinite(value.x) && Double.isFinite(value.y) && Double.isFinite(value.z); }
 
@@ -87,12 +102,12 @@ public final class ProjectileRuntime {
         ProjectileState state = state(projectile);
         if (projectile.level().isClientSide || state == null || state.ended) return;
         ServerPlayer owner = owner(projectile, state);
-        long age = projectile.level().getGameTime() - state.launchedAt;
-        if (owner == null || age < 0 || age >= state.profile.lifetimeTicks() || state.remainingTicks-- <= 0
-                || ProjectileAdapters.source(projectile) != state.source || !finite(projectile.position())) {
+        if (!ProjectileLifecycle.accepts(state, projectile.level().dimension().location(), projectile.level().getGameTime(),
+                ProjectileAdapters.source(projectile), owner != null) || !finite(projectile.position())) {
             stop(projectile, state); return;
         }
-        if (state.path == ProjectilePath.HOMING) ProjectileTargeting.steer(projectile, owner, state);
+        state.remainingTicks--;
+        if (state.path == ProjectilePath.HOMING || state.redirected) ProjectileTargeting.steer(projectile, owner, state);
         double speed = projectile.getDeltaMovement().length();
         if (!finite(projectile.getDeltaMovement()) || speed < EPSILON || speed > state.maximumSpeed) {
             stop(projectile, state); return;
@@ -176,7 +191,15 @@ public final class ProjectileRuntime {
     @FunctionalInterface public interface DamageCall { boolean hurt(float amount); }
     public static boolean damage(Entity target, DamageSource source, float amount, DamageCall nativeDamage) {
         ImpactProbe probe = IMPACT.get();
-        if (probe == null || source.getDirectEntity() != probe.projectile || target != probe.victim) return nativeDamage.hurt(amount);
+        if (probe == null || source.getDirectEntity() != probe.projectile || target != probe.victim) {
+            boolean accepted = nativeDamage.hurt(amount);
+            if (accepted && target instanceof LivingEntity && source.getDirectEntity() instanceof Projectile projectile) {
+                var nativeState = state(projectile);
+                if (nativeState != null && !nativeState.managed() && nativeState.visit(target.getUUID()) && nativeState.nativePenetrations > 0)
+                    nativeState.nativePenetrations--;
+            }
+            return accepted;
+        }
         if (probe.damageAttempted) return false;
         probe.damageAttempted = true;
         // Resolve native shielding before exposing the bypass scope; otherwise detection would query itself.
@@ -187,7 +210,15 @@ public final class ProjectileRuntime {
         probe.defenses = defenses;
         probe.defenseSource = source;
         try {
-            boolean accepted = nativeDamage.hurt(scaled);
+            boolean accepted;
+            if (probe.state.redirected && probe.projectile.getOwner() instanceof ServerPlayer defender) {
+                var budget = new com.mistaboom.essence_ascendance.skill.effect.PropagationBudget(0, 1);
+                budget.tryVisit(probe.victim.getUUID(), 0);
+                accepted = com.mistaboom.essence_ascendance.skill.effect.SkillProcDamageService.withAttributedDamage(defender,
+                        com.mistaboom.essence_ascendance.skill.SkillIds.TRAJECTORY_THEFT,
+                        com.mistaboom.essence_ascendance.skill.effect.SkillProcDamageService.DamageKind.REDIRECTED_PROJECTILE,
+                        budget, 0, () -> nativeDamage.hurt(scaled));
+            } else accepted = nativeDamage.hurt(scaled);
             probe.accepted = accepted;
             return accepted;
         } finally {
@@ -232,6 +263,7 @@ public final class ProjectileRuntime {
             for (Projectile projectile : remove) stop(projectile, state(projectile));
         }
         RECENT.remove(owner);
+        ProjectileControlService.forget(owner);
     }
 
     private static void remember(Projectile projectile, ProjectileState state) {
@@ -241,14 +273,32 @@ public final class ProjectileRuntime {
                 + String.format(java.util.Locale.ROOT, "%.2f", state.remainingRange) + " | ticks=" + state.remainingTicks
                 + " | visited=" + state.visited.size() + " | ricochets=" + state.ricochets
                 + " | penetrations=" + state.nativePenetrations + "+" + state.skillPenetrations
-                + " | damage x" + state.damageMultiplier + " | ended=" + state.ended);
+                + " | damage x" + state.damageMultiplier + " | payload=" + state.payload
+                + " | payload triggers=" + state.remainingPayloadTriggers() + " | redirected=" + state.redirected
+                + " | redirects=" + (((ProjectileStateAccess) projectile).essenceAscendance$control() == null ? "unspent"
+                : ((ProjectileStateAccess) projectile).essenceAscendance$control().remainingRedirects)
+                + " | ended=" + state.ended);
         while (recent.size() > 8) recent.remove(recent.keySet().iterator().next());
     }
     public static List<String> diagnostics(ServerPlayer player) {
         var recent = RECENT.get(player);
-        return recent == null ? List.of() : List.copyOf(recent.values());
+        var lines = new ArrayList<String>();
+        var effective = CommittedSkillService.effectiveIds(player);
+        lines.add("Current selection: path=" + OffenseProjectileEffects.selectedPath(effective)
+                + "; payload=" + ProjectileImpactEffects.selectedPayload(effective)
+                + "; in-flight selections and tuning stay launch-snapshotted");
+        lines.addAll(ProjectileAdapters.diagnostics());
+        if (recent != null) lines.addAll(recent.values());
+        lines.addAll(ProjectileControlService.diagnostics(player));
+        lines.addAll(com.mistaboom.essence_ascendance.skill.effect.SafeCreatureAreaService.diagnostics(player));
+        lines.addAll(com.mistaboom.essence_ascendance.skill.effect.ImmobilizationController.diagnostics(player));
+        return List.copyOf(lines);
     }
-    public static void clearDiagnostics() { RECENT.clear(); }
+    public static void clearDiagnostics() {
+        RECENT.clear(); ProjectileControlService.clear();
+        com.mistaboom.essence_ascendance.skill.effect.SafeCreatureAreaService.clearDiagnostics();
+        com.mistaboom.essence_ascendance.skill.effect.ImmobilizationController.clear();
+    }
     private static final class ImpactProbe {
         final Projectile projectile; final LivingEntity victim; final ProjectileState state;
         boolean damageAttempted, accepted; double confirmedDamage;

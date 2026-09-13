@@ -110,7 +110,7 @@ public final class RuntimeBuildScenarios {
                 "Offense, defense and healing are calibrated independently. Survival or recovery limits cannot reduce weapon damage, attack speed or offensive skill effects. Only actual currently purchasable ranks enter live numeric calibration.",
                 "External equipment starts from the engine's raw player health; observed armor and toughness are applied once using the band's incoming enemy hit. Armor-adjusted frontier effective health is not treated as raw health.",
                 "Parity profiles normalize each original physical axis curve once at Transcendent, then round to its gameplay unit. Armor compares physically wearable armor/toughness pairs; weapon families retain their own winning damage/cadence pairing. When a caster family is absent, the observed ranged DPS supplies the existing faster, lighter caster ratio; absent ranged evidence falls back explicitly to melee.",
-                "Armor penetration uses an explicit conservative armor-pressure allowance. Homing reliability, shields, immunity, flight and gathering capabilities retain separate semantic budgets; this combat model does not pretend they are raw DPS.",
+                "Armor penetration uses an explicit conservative armor-pressure allowance. Homing reliability, roots, drag fields, interception, theft, shields, immunity, flight and gathering capabilities retain separate semantic budgets; no speculative prevented damage or Attunement activity is modeled.",
                 "Equipment-focused and stat-focused scenarios are balance projections with required equipment access; actual applicability, ownership, live requirements and worn-slot coverage remain enforced by gameplay."));
     }
     static double equipmentValue(RuntimeBalanceDefinition runtime,double base,EquipmentProfileDefinition profile,EquipmentBaselineProperty property) {
@@ -143,6 +143,25 @@ public final class RuntimeBuildScenarios {
         if(active.contains(SkillIds.CHAIN_STRIKE)) {double retained=s.chainStrike().damageFalloff();for(int i=0;i<s.chainStrike().maximumJumps();i++){area+=s.staticCharge().lightningDamage()/5/rate/hit*retained;retained*=s.chainStrike().damageFalloff();}}
         if(active.contains(SkillIds.RICOCHET)) {double retained=s.projectiles().ricochetDamageMultiplier();for(int i=0;i<s.projectiles().ricochets();i++){area+=retained;retained*=s.projectiles().ricochetDamageMultiplier();}}
         if(active.contains(SkillIds.PIERCING_PROJECTILE)) {double retained=s.projectiles().piercingDamageMultiplier();for(int i=0;i<s.projectiles().penetrations();i++){area+=retained;retained*=s.projectiles().piercingDamageMultiplier();}}
+        area += projectilePayloadArea(s, active);
         return new BuildComposition.Modifier(flat,damage,speed,burst,area,0,0,0,0,0,0,0);
+    }
+    static double projectilePayloadArea(SkillEffectBalanceSettings s, Set<ResourceLocation> active) {
+        double area = 0;
+        if(active.contains(SkillIds.EXPLOSIVE_PAYLOAD)) {
+            // Share the safe-area target bound with Combustion. Payload may compose
+            // with path continuation, but only a bounded number of confirmed victims.
+            int contacts = 1;
+            double retention = 1;
+            if(active.contains(SkillIds.RICOCHET)) { contacts += s.projectiles().ricochets(); retention = s.projectiles().ricochetDamageMultiplier(); }
+            if(active.contains(SkillIds.PIERCING_PROJECTILE)) { contacts += s.projectiles().penetrations(); retention = s.projectiles().piercingDamageMultiplier(); }
+            contacts = Math.min(contacts, s.projectiles().payloadTriggerBudget());
+            double contactDamage = 1;
+            for (int contact = 0; contact < contacts; contact++) {
+                area += contactDamage * s.projectiles().explosiveDamageScale() * s.combustion().targetsPerBurst();
+                contactDamage *= retention;
+            }
+        }
+        return area;
     }
 }

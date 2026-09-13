@@ -76,6 +76,7 @@ public final class EquipmentDamageService {
             withSecondarySkillDamage(action);
             return;
         }
+        boolean intercepted = com.mistaboom.essence_ascendance.projectile.ProjectileInterceptionService.attack(player);
         rememberMainSwing(player);
         long token = SkillEffectRuntime.beginPrimaryAttack(player, target);
         PRIMARY_SKILL_ATTACK.set(new PrimarySkillAttack(player, target));
@@ -83,6 +84,7 @@ public final class EquipmentDamageService {
         try {
             action.run();
         } finally {
+            if (intercepted) player.resetAttackStrengthTicker();
             try {
                 SkillEffectRuntime.finishPrimaryAttack(player, token);
             } finally {
@@ -145,11 +147,14 @@ public final class EquipmentDamageService {
             double ownLoss = Math.max(0.0, totalLoss - sample.nestedLoss);
             if (completed) com.mistaboom.essence_ascendance.attunement.AttunementGameplay.damageMeasured(
                     target, source, ownLoss, Math.min(ownLoss, Math.max(0, healthBefore - target.getHealth())));
+            // The exact direct-projectile probe also observes sanitized returned shots. Their
+            // secondary scope suppresses offensive procs, not measured native collision success.
+            if (completed && Double.isFinite(ownLoss) && ownLoss > 0 && !isReflectionInProgress())
+                ProjectileRuntime.confirmedDamage(target, source, ownLoss);
             boolean realDamage = completed && Double.isFinite(ownLoss) && ownLoss > 0.0
                     && frame != null && !frame.nested && frame.target == target && frame.source == source
                     && !isReflectionInProgress() && SECONDARY_SKILL_DEPTH.get() == 0;
             if (realDamage) {
-                ProjectileRuntime.confirmedDamage(target, source, ownLoss);
                 AttackCategory category = primaryAttackCategory(target, source);
                 if (category == AttackCategory.MELEE) {
                     if (probe != null && probe.target == target && probe.source == source) {
@@ -223,6 +228,8 @@ public final class EquipmentDamageService {
         if (sweep != null && sweep.player == player && sweep.target == target && sweep.source == source
                 && source.is(DamageTypes.PLAYER_ATTACK) && source.getDirectEntity() == player) return player;
         Entity direct = source.getDirectEntity();
+        if (direct instanceof Projectile projectile && ProjectileRuntime.state(projectile) != null
+                && ProjectileRuntime.state(projectile).redirected) return null;
         if (direct instanceof Projectile projectile && !ProjectileRuntime.secondary(projectile) && projectile.getOwner() == player
                 && source.is(DamageTypeTags.IS_PROJECTILE)) return player;
         return null;
@@ -280,6 +287,7 @@ public final class EquipmentDamageService {
      * swings break the chain, while authoritative block ray hits are mining. */
     public static void onServerSkillSwing(ServerPlayer player, InteractionHand hand) {
         if (hand != InteractionHand.MAIN_HAND || !player.isAlive() || player.isSpectator()) return;
+        // Projectile interception runs before ServerPlayer.swing consumes native attack readiness.
         tickSkillInput(player);
         Deque<Long> expected = EXPECTED_MAIN_SWINGS.get(player);
         if (expected != null && !expected.isEmpty()) {

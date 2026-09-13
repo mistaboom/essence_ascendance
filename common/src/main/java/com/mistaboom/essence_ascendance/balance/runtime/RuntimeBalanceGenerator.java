@@ -359,6 +359,10 @@ public final class RuntimeBalanceGenerator {
                 "kindling.burningDamagePercentPerSecond","kindling.burningDamageAmplificationPercent","combustion.damage","shatter.shardDamage","staticCharge.lightningDamage")) {
             String[] bits=path.split("\\.");JsonObject parent=tree.getAsJsonObject(bits[0]);parent.addProperty(bits[1],parent.get(bits[1]).getAsDouble()*scale);
         }
+        // Secondary payload damage uses the same generated power and composition guard.
+        // Control timing and targeting remain identity/avoidance policy, never invented DPS.
+        JsonObject payload = tree.getAsJsonObject("projectiles").getAsJsonObject("payload");
+        payload.addProperty("explosiveDamageScale", payload.get("explosiveDamageScale").getAsDouble() * scale);
     }
 
 }

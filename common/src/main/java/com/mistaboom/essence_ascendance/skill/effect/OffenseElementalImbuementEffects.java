@@ -160,15 +160,13 @@ final class OffenseElementalImbuementEffects {
             root.seed(death.victim().getUUID());
             if (!root.canContinue(generation)) return;
             double damage = settings.damage() * Math.pow(settings.generationDamageFalloff(), generation);
-            for (LivingEntity target : SkillTargetingService.nearby(context.player(), death.victim(),
-                    settings.radius(), root.visitedIds(), settings.targetsPerBurst())) {
-                if (!root.tryVisit(target.getUUID(), generation)) continue;
+            SafeCreatureAreaService.burst(context.player(), death.victim().getBoundingBox().getCenter(),
+                    settings.radius(), settings.targetsPerBurst(), (float) damage, id(),
+                    SkillProcDamageService.DamageKind.COMBUSTION, root, generation, target -> {
                 state.ignite(target, context.now(), settings.seededIgnitionTicks(), damage,
                         context.settings().kindling().burningDamagePercentPerSecond());
                 SkillProcDamageService.particles(context.player(), target, ParticleTypes.FLAME, 10, 0.35, 0.02);
-                SkillProcDamageService.hurt(context.player(), target, (float) damage,
-                        SkillProcDamageService.DamageKind.COMBUSTION, id(), root, generation);
-            }
+            });
         }
 
         @Override public List<String> debugLines(SkillEffectRuntime.Context context) {

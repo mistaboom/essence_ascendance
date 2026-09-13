@@ -14,7 +14,8 @@ import java.util.Set;
 public final class SkillEffectRegistry {
     private static final Map<ResourceLocation, SkillEffectHandler> HANDLERS =
             validated(java.util.stream.Stream.of(OffenseCombatStanceEffects.handlers(),
-                    OffenseElementalImbuementEffects.handlers(), OffenseProjectileEffects.handlers())
+                    OffenseElementalImbuementEffects.handlers(), OffenseProjectileEffects.handlers(),
+                    DefenseProjectileEffects.handlers())
                     .flatMap(Collection::stream).toList());
 
     private SkillEffectRegistry() { }

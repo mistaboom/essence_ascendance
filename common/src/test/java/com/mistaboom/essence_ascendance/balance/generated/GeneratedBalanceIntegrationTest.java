@@ -96,6 +96,7 @@ public final class GeneratedBalanceIntegrationTest {
                 .getAsJsonObject("minecraft:diamond").addProperty("economicValue", 999), "Resealed evidence mutation escaped digest validation");
         reject(document, root -> root.getAsJsonObject("evidence").remove("capabilities"), "Missing evidence collection was accepted");
         verifyNumericReportExport(decoded);
+        verifySavedEvidenceRegeneration(document, settings, overrides);
 
         output(FileDescriptor.out).println("GeneratedBalanceIntegrationTest: " + checks
                 + " complete-profile codec, digest, generation determinism, strict-runtime and economy-policy checks PASS");
@@ -191,7 +192,7 @@ public final class GeneratedBalanceIntegrationTest {
                     "warnings.csv", "equipment_capabilities.csv", "build_skill_ranks.csv", "build_selections.csv", "build_category_pressure.csv",
                     "combat_assumptions.csv", "evidence.csv", "evidence_dependencies.csv", "runtime_parameters.csv", "generated_equipment.csv",
                     "attunement_targets.csv", "attunement_breadth.csv", "attunement_methods.csv", "attunement_calibration.csv",
-                    "attunement_investment.csv", "attunement_repetition.csv", "attunement_reachability.csv"))
+                    "attunement_investment.csv", "attunement_repetition.csv", "attunement_reachability.csv", "projectile_policy.csv"))
                 check(Files.isRegularFile(reports.resolve(name)) && Files.size(reports.resolve(name)) > 0,
                         "Complete profile report export omitted " + name);
             for (String name : List.of("pack_metadata.json", "report_text.json"))
@@ -275,6 +276,15 @@ public final class GeneratedBalanceIntegrationTest {
             check(!report.contains("This saved profile has no combined-build numeric analysis"),
                     "Human report fell back to illustrative policy formulas despite saved numeric cases");
             check(!report.matches("(?s).*\\b(?:NaN|Infinity)\\b.*"), "Human report contains unexpected nonfinite values");
+            check(report.contains("Projectile payload and control policy"), "Human report omitted projectile interaction policy");
+            var policyRows = csv(Files.readString(reports.resolve("projectile_policy.csv")));
+            check(policyRows.size() == skills.getAsJsonObject("projectilePolicy").size() + 1, "Projectile policy export lost contracts");
+            var savedExports = new TreeMap<Path, String>();
+            try (var paths = Files.walk(folder)) {
+                for (Path path : paths.filter(Files::isRegularFile).toList()) savedExports.put(path, Files.readString(path));
+            }
+            BalanceReports.export(decoded, null, folder, 0);
+            for (var entry : savedExports.entrySet()) check(Files.readString(entry.getKey()).equals(entry.getValue()), "Repeated saved profile report changed " + entry.getKey());
         } finally {
             try (var paths = Files.walk(folder)) {
                 for (Path path : paths.sorted(java.util.Comparator.reverseOrder()).toList()) Files.deleteIfExists(path);
@@ -395,6 +405,52 @@ public final class GeneratedBalanceIntegrationTest {
         try { GeneratedBalanceService.decode(BalanceDocument.seal(changed)); }
         catch (RuntimeException expected) { checks++; return; }
         throw new AssertionError(failure);
+    }
+
+    private static void verifySavedEvidenceRegeneration(BalanceDocument original, BalanceSettings settings, BalanceOverrides overrides) throws Exception {
+        var inputs = new com.mistaboom.essence_ascendance.balance.config.BalanceInputs(settings, overrides, "fixture-settings", "fixture-overrides");
+        try { SavedEvidenceRegenerator.regenerate(original, inputs); throw new AssertionError("Offline rebuild accepted obsolete fractional accounting evidence"); }
+        catch (IllegalArgumentException expected) { checks++; }
+        // The legacy codec fixture intentionally tests fractional accounting. Build
+        // a separate coherent whole-unit fixture for the current replay contract.
+        var fixtureEvidence = BalanceDocument.GSON.fromJson(original.section("evidence"), PackEvidence.class);
+        var fixtureEconomy = BalanceDocument.GSON.fromJson(original.section("economy"), EconomyProfile.class);
+        var wholeResources = new TreeMap<String, EconomyProfile.ResourceValue>();
+        fixtureEconomy.resources().forEach((id, value) -> {
+            var routes = new TreeMap<String, Double>();
+            value.routedYields().forEach((essence, amount) -> routes.put(essence, Math.floor(amount)));
+            wholeResources.put(id, new EconomyProfile.ResourceValue(value.economicValue(),
+                    DissolutionYield.of(routes.values().stream().mapToDouble(Double::doubleValue).sum()), routes, value.warnings()));
+        });
+        var wholeEconomy = new EconomyProfile(wholeResources, List.of(), List.of(), fixtureEconomy.warnings(),
+                fixtureEconomy.solverPasses(), fixtureEconomy.processingPolicy());
+        original = document(fixtureEvidence, wholeEconomy, RuntimeBalanceDefinition.generate(fixtureEvidence, wholeEconomy, settings, overrides), settings, overrides);
+        String originalText = original.text();
+        // An obsolete runtime cannot be loaded, but its validated evidence may be
+        // used by the same current generator without any runtime migration branch.
+        JsonObject old = JsonParser.parseString(original.text()).getAsJsonObject();
+        old.getAsJsonObject("runtime").getAsJsonObject("effects").getAsJsonObject("projectiles").remove("payload");
+        old.getAsJsonObject("runtime").getAsJsonObject("effects").getAsJsonObject("projectiles").remove("control");
+        old.getAsJsonObject("metadata").addProperty("generatorRevision", "old-test-runtime");
+        var evidenceSource = BalanceDocument.seal(old);
+        try { GeneratedBalanceService.decode(evidenceSource); throw new AssertionError("Old projectile runtime silently migrated"); }
+        catch (RuntimeException expected) { checks++; }
+        var regenerated = SavedEvidenceRegenerator.regenerate(evidenceSource, inputs);
+        var repeated = SavedEvidenceRegenerator.regenerate(evidenceSource, inputs);
+        check(regenerated.document().text().equals(repeated.document().text()), "Saved evidence regeneration is nondeterministic");
+        check(original.text().equals(originalText), "Saved-evidence operation mutated original document");
+        for (String section : List.of("settings", "overrides", "evidence", "economy"))
+            check(regenerated.document().section(section).equals(original.section(section)), "Offline rebuild altered " + section);
+        check(regenerated.runtime().toJson().get("attunement").equals(original.section("runtime").get("attunement")), "Offline rebuild changed Attunement");
+        check(regenerated.document().section("metadata").get("generatorRevision").getAsString().equals(GeneratedBalanceService.GENERATION_REVISION), "Replay reused stale generator revision");
+        check(regenerated.document().section("skills").getAsJsonObject("projectilePolicy").has("attunement"), "Replay omitted projectile participation policy");
+        var changedInputs = new com.mistaboom.essence_ascendance.balance.config.BalanceInputs(settings,
+                new BalanceOverrides(List.of(), Map.of("/runtime/effects/projectiles/control/redirectBudget", 0L)), "changed", "changed");
+        try { SavedEvidenceRegenerator.regenerate(evidenceSource, changedInputs); throw new AssertionError("Changed inputs reused stale saved evidence"); }
+        catch (IllegalArgumentException expected) { checks++; }
+        old.getAsJsonObject("metadata").addProperty("evidenceDigest", "incorrect");
+        try { SavedEvidenceRegenerator.regenerate(BalanceDocument.seal(old), inputs); throw new AssertionError("Bad evidence digest accepted by replay"); }
+        catch (IllegalArgumentException expected) { checks++; }
     }
     private static void check(boolean value, String failure) { checks++; if (!value) throw new AssertionError(failure); }
     private static PrintStream output(FileDescriptor descriptor) { return new PrintStream(new FileOutputStream(descriptor)); }

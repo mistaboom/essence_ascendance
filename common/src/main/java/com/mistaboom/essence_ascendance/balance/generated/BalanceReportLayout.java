@@ -78,6 +78,7 @@ public final class BalanceReportLayout {
 
                   curves.csv                      Nexus investment and skill rank samples.
                   runtime_parameters.csv          All scalar runtime values and exact paths.
+                  projectile_policy.csv           Payload, ownership and defensive control contracts.
                 Curve cost_scope distinguishes individual rank prices from active-rank
                 build totals, which exclude inactive prerequisites and other investments.
                 Runtime json_pointer values can be used in commented TOML exact overrides.

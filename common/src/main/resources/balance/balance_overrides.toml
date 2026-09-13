@@ -179,3 +179,43 @@ schema_version = 1
 # "/runtime/equipment/essence_ascendance:transcendent/fullSetArmor" = 24.0
 # "/runtime/infuser/repair/essencePerDurability" = 1
 # "/economy/resources/examplemod:crystal/routedYields/essence_ascendance:utility" = 12
+
+# SKILL EFFECTS / PROJECTILES. These are resolved runtime fields, shared by arrows,
+# spectral arrows, Ascendance Bow shots, real Caster bolts and explicit adapters.
+# Values below are illustrative seed values; read runtime_parameters.csv for the
+# actual generated values (damage follows the existing skill/composition budget).
+# Rebuild applies control policy to new defensive interactions; offensive path and
+# payload tuning already snapshotted on in-flight projectiles remains unchanged.
+# Path and payload are independent choices. Each unique eligible confirmed victim
+# may consume one payload trigger, including later Ricochet/Piercing victims.
+# "/runtime/effects/projectiles/payload/triggerBudget" = 3 # 0..32; per projectile
+# "/runtime/effects/projectiles/payload/explosiveRadius" = 4.0 # 0..32 blocks
+# "/runtime/effects/projectiles/payload/explosiveDamageScale" = 0.25 # 0..4 of confirmed primary damage
+# Explosion target cap reuses /runtime/effects/combustion/targetsPerBurst.
+# No terrain effects, ignition, self/allied damage or recursive payload activation.
+# Root affects the confirmed victim only; no separate redundant area-radius knob.
+# "/runtime/effects/projectiles/payload/rootDurationTicks" = 40 # 1..200 ticks
+# "/runtime/effects/projectiles/payload/rootMaxDurationTicks" = 80 # duration..400; total refresh window
+# "/runtime/effects/projectiles/payload/rootMovementTolerance" = 0.0625 # 0.001..1 block
+# "/runtime/effects/projectiles/payload/particleCount" = 8 # 0..64, shared restrained payload feedback
+# Strongest eligible field wins; factors never multiply across fields or ticks.
+# Radius must be strictly greater than innerRadius. Scan candidate budget shares
+# the existing maximumImpacts field; no per-player all-loaded-entity scans.
+# "/runtime/effects/projectiles/control/outerRadius" = 12.0 # 0.5..32 blocks
+# "/runtime/effects/projectiles/control/innerRadius" = 3.0 # 0..<outerRadius
+# "/runtime/effects/projectiles/control/minimumSpeedFactor" = 0.125 # 0.05..1; never stops flight
+# "/runtime/effects/projectiles/control/responseExponent" = 0.75 # 0.25..8; early, obvious viscous response
+# "/runtime/effects/projectiles/control/scanCadenceTicks" = 2 # 1..20
+# "/runtime/effects/projectiles/control/swingRange" = 3.0 # 0.5..8 blocks
+# "/runtime/effects/projectiles/control/swingRadius" = 0.5 # 0.01..2 blocks
+# "/runtime/effects/projectiles/control/swingHalfAngleDegrees" = 35.0 # 1..80; full arc is twice this
+# "/runtime/effects/projectiles/control/readinessThreshold" = 0.9 # 0..1 attack strength
+# "/runtime/effects/projectiles/control/swingBudget" = 16 # 1..64 successful interceptions per ordinary swing
+# "/runtime/effects/projectiles/control/theftSpeedMultiplier" = 1.25 # 0.1..2; applied after restoring at least full launch speed
+# "/runtime/effects/projectiles/control/theftTargetRange" = 20.0 # 1..128 blocks
+# "/runtime/effects/projectiles/control/theftAimConeDegrees" = 45.0 # 0..60; hostile aim assistance around the swung-at projectile
+# "/runtime/effects/projectiles/control/theftTurnDegreesPerTick" = 18.0 # 0..45; persisted redirected homing
+# "/runtime/effects/projectiles/control/redirectBudget" = 1 # 0..1; ownership can transfer at most once
+# Theft clears inherited offensive skill state; only confirmed redirected damage
+# can contribute through the existing skill outcome contract. Slow/root/intercept
+# alone never fabricate damage or Attunement progress. No per-action cap is added.

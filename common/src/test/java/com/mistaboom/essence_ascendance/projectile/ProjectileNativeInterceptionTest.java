@@ -1,0 +1,312 @@
+package com.mistaboom.essence_ascendance.projectile;
+
+import com.google.common.collect.ImmutableList;
+import com.mistaboom.essence_ascendance.config.ProjectileBalanceSettings;
+import com.mistaboom.essence_ascendance.data.EssenceSavedData;
+import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
+import com.mistaboom.essence_ascendance.skill.CommittedSkillService;
+import com.mistaboom.essence_ascendance.skill.SkillIds;
+import com.mistaboom.essence_ascendance.skill.SkillRegistry;
+import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
+import com.mistaboom.essence_ascendance.tier.AscendanceTiers;
+import com.mojang.authlib.GameProfile;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.Holder;
+import net.minecraft.core.particles.ParticleOptions;
+import net.minecraft.network.protocol.game.ServerboundSwingPacket;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.ServerScoreboard;
+import net.minecraft.server.dedicated.DedicatedPlayerList;
+import net.minecraft.server.dedicated.DedicatedServer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerPlayerGameMode;
+import net.minecraft.server.network.ServerGamePacketListenerImpl;
+import net.minecraft.server.players.PlayerList;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Pose;
+import net.minecraft.world.entity.ai.attributes.AttributeMap;
+import net.minecraft.world.entity.player.Abilities;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.AbstractArrow;
+import net.minecraft.world.entity.projectile.Arrow;
+import net.minecraft.world.entity.projectile.SpectralArrow;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.entity.EntityInLevelCallback;
+import net.minecraft.world.level.entity.EntityTypeTest;
+import net.minecraft.world.level.storage.DimensionDataStorage;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
+
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.function.Predicate;
+
+/**
+ * Loader-only regression through the transformed packet handler and the real ServerPlayer.swing override.
+ * Only world storage, entity enumeration, AIR clipping and cosmetic output are in-memory fixtures.
+ * No world constructor, chunk, disk storage or network connection is opened.
+ */
+public final class ProjectileNativeInterceptionTest {
+    private static int assertions;
+    private static Object allocator;
+    private static Method allocate;
+
+    private ProjectileNativeInterceptionTest() { }
+
+    public static void run() {
+        if (!Boolean.getBoolean("essence.projectile.nativeHookTest")) throw new IllegalStateException("Explicit native hook test flag required");
+        try {
+            var field = Class.forName("sun.misc.Unsafe").getDeclaredField("theUnsafe");
+            field.setAccessible(true);
+            allocator = field.get(null);
+            allocate = allocator.getClass().getMethod("allocateInstance", Class.class);
+            for (var arrowType : List.of(Arrow.class, SpectralArrow.class)) {
+                var fixture = new Fixture();
+                AbstractArrow shot = fixture.arrow(arrowType);
+                check(ProjectileOwnership.resolve(shot, fixture.player).hostile(), "Ownerless native damaging arrow is eligible");
+                check(fixture.player.getAttackStrengthScale(0) == 1, "Native attack readiness starts fully charged");
+                fixture.packet(InteractionHand.MAIN_HAND);
+                check(shot.isRemoved(), arrowType.getSimpleName() + " is destroyed by the actual ready main-hand packet");
+                check(fixture.player.getAttackStrengthScale(0) == 0, "Native ServerPlayer.swing still resets readiness after interception");
+
+                shot = fixture.arrow(arrowType);
+                fixture.advance(1, 0);
+                fixture.packet(InteractionHand.MAIN_HAND);
+                check(!shot.isRemoved(), "An unready packet cannot intercept");
+                fixture.advance(1, 100);
+                fixture.packet(InteractionHand.OFF_HAND);
+                check(!shot.isRemoved(), "Off-hand animation cannot intercept");
+                fixture.advance(1, 100);
+                fixture.packet(InteractionHand.MAIN_HAND);
+                check(shot.isRemoved(), "The next fully charged main-hand packet intercepts the same surviving shot");
+
+                fixture.enableTheft();
+                ServerPlayer source = fixture.player(new Vec3(0, 0, 4), "source");
+                shot = fixture.arrow(arrowType);
+                ProjectileOwnership.transferNative(shot, source);
+                var sourceLife = fixture.saved.getPlayerData(source.getUUID()).projectileLife();
+                ((ProjectileStateAccess) shot).essenceAscendance$state(new ProjectileState(
+                        ProjectileSource.RANGED_PHYSICAL, ProjectilePath.NONE, source.getUUID(), sourceLife,
+                        Level.OVERWORLD.location(), fixture.level.tick, ProjectileBalanceSettings.defaults(), 0));
+                shot.pickup = AbstractArrow.Pickup.DISALLOWED;
+                var control = ProjectileControlService.state(shot);
+                control.dragFactor = 0.125;
+                ((ProjectileStateAccess) shot).essenceAscendance$flightScale(0.125F);
+                fixture.advance(1, 100);
+                fixture.packet(InteractionHand.MAIN_HAND);
+                var redirected = ProjectileRuntime.state(shot);
+                check(!shot.isRemoved() && shot.getOwner() == fixture.player, "Theft transfers the existing native arrow to the defender");
+                check(redirected != null && redirected.redirected && source.getUUID().equals(redirected.target),
+                        "Theft acquires the responsible source as a real homing target");
+                check(shot.getDeltaMovement().z > 3 && shot.getDeltaMovement().dot(new Vec3(0, 0, -1)) < 0,
+                        "The packet reverses incoming flight with a useful native velocity");
+                check(control.dragFactor == 1 && ((ProjectileStateAccess) shot).essenceAscendance$flightScale() == 1,
+                        "Theft releases synchronized drag physics");
+                check(shot.pickup == AbstractArrow.Pickup.DISALLOWED, "Changing native owner preserves noncollectable ammunition");
+                fixture.close();
+            }
+            System.out.println("Projectile native interception passed: " + assertions
+                    + " (actual handleAnimate, ServerPlayer.swing, committed skills, Arrow/SpectralArrow destruction and theft; no world)");
+        } catch (ReflectiveOperationException failure) {
+            throw new AssertionError("Native interception fixture initialization failed", failure);
+        }
+    }
+
+    private static final class Fixture {
+        final DedicatedServer server;
+        final MemoryLevel level;
+        final EssenceSavedData saved = new EssenceSavedData();
+        final Map<UUID, ServerPlayer> players = new HashMap<>();
+        final ServerPlayer player;
+        final ServerGamePacketListenerImpl listener;
+
+        Fixture() throws ReflectiveOperationException {
+            server = instance(DedicatedServer.class);
+            set(MinecraftServer.class, server, "serverThread", Thread.currentThread());
+            set(MinecraftServer.class, server, "pvp", true);
+            level = instance(MemoryLevel.class);
+            level.entities = new ArrayList<>();
+            level.tick = 100;
+            level.memoryServer = server;
+            level.scoreboard = new ServerScoreboard(server);
+            level.storage = instance(DimensionDataStorage.class);
+            set(DimensionDataStorage.class, level.storage, "cache", new HashMap<>(Map.of("essence_ascendance_players", saved)));
+            set(Level.class, level, "dimension", Level.OVERWORLD);
+            set(Level.class, level, "random", RandomSource.create(0));
+            set(Level.class, level, "threadSafeRandom", RandomSource.create(0));
+            set(MinecraftServer.class, server, "levels", Map.of(Level.OVERWORLD, level));
+            var list = instance(DedicatedPlayerList.class);
+            set(PlayerList.class, list, "playersByUUID", players);
+            set(MinecraftServer.class, server, "playerList", list);
+            player = player(Vec3.ZERO, "defender");
+            PlayerEssenceData data = saved.getPlayerData(player.getUUID());
+            data.setTier(AscendanceTiers.TRANSCENDENT);
+            data.grantAllSkillsForAdmin(List.of(SkillRegistry.require(SkillIds.PROJECTILE_DRAG_FIELD), SkillRegistry.require(SkillIds.INTERCEPTOR)));
+            // Keep unrelated configured providers out of this in-memory fixture; completion still uses real saved receipts and evaluation.
+            SkillRegistry.referencedPermanentMilestoneIds().forEach(data::completeMilestone);
+            check(CommittedSkillService.effectiveIds(player).containsAll(List.of(SkillIds.PROJECTILE_DRAG_FIELD, SkillIds.INTERCEPTOR)),
+                    "The production committed evaluator enables Interceptor and its prerequisite");
+            listener = instance(ServerGamePacketListenerImpl.class);
+            set(ServerGamePacketListenerImpl.class, listener, "player", player);
+            player.connection = listener;
+        }
+
+        ServerPlayer player(Vec3 position, String name) throws ReflectiveOperationException {
+            ServerPlayer entity = instance(ServerPlayer.class);
+            initializeEntity(entity, EntityType.PLAYER, level, position, new AABB(position.x - 0.3, position.y,
+                    position.z - 0.3, position.x + 0.3, position.y + 1.8, position.z + 0.3));
+            set(Entity.class, entity, "eyeHeight", 1.62F);
+            set(ServerPlayer.class, entity, "server", server);
+            set(Player.class, entity, "abilities", new Abilities());
+            set(Player.class, entity, "inventory", new Inventory(entity));
+            set(Player.class, entity, "gameProfile", new GameProfile(entity.getUUID(), name));
+            set(LivingEntity.class, entity, "attributes", new AttributeMap(Player.createAttributes().build()));
+            set(LivingEntity.class, entity, "activeEffects", new HashMap<>());
+            set(LivingEntity.class, entity, "attackStrengthTicker", 100);
+            // An animation already in progress skips only the cosmetic tracker broadcast. The native override still resets the ticker.
+            set(LivingEntity.class, entity, "swinging", true);
+            set(LivingEntity.class, entity, "swingTime", 0);
+            defineData(entity, Player.class);
+            var gameMode = new ServerPlayerGameMode(entity);
+            set(ServerPlayerGameMode.class, gameMode, "gameModeForPlayer", GameType.SURVIVAL);
+            set(ServerPlayer.class, entity, "gameMode", gameMode);
+            players.put(entity.getUUID(), entity);
+            level.entities.add(entity);
+            return entity;
+        }
+
+        AbstractArrow arrow(Class<? extends AbstractArrow> type) throws ReflectiveOperationException {
+            AbstractArrow arrow = instance(type);
+            Vec3 position = player.getEyePosition().add(0, 0, 1.5);
+            initializeEntity(arrow, type == Arrow.class ? EntityType.ARROW : EntityType.SPECTRAL_ARROW, level,
+                    position, new AABB(position.x - 0.25, position.y, position.z - 0.25,
+                            position.x + 0.25, position.y + 0.5, position.z + 0.25));
+            defineData(arrow, type == Arrow.class ? Arrow.class : AbstractArrow.class);
+            arrow.setDeltaMovement(0, 0, -0.2);
+            arrow.pickup = AbstractArrow.Pickup.DISALLOWED;
+            level.entities.add(arrow);
+            return arrow;
+        }
+
+        void packet(InteractionHand hand) {
+            listener.handleAnimate(new ServerboundSwingPacket(hand));
+        }
+
+        void advance(int ticks, int readinessTicks) throws ReflectiveOperationException {
+            level.tick += ticks;
+            set(LivingEntity.class, player, "attackStrengthTicker", readinessTicks);
+        }
+
+        void enableTheft() {
+            saved.getPlayerData(player.getUUID()).grantAllSkillsForAdmin(List.of(SkillRegistry.require(SkillIds.TRAJECTORY_THEFT)));
+            check(CommittedSkillService.effectiveIds(player).contains(SkillIds.TRAJECTORY_THEFT), "Production evaluator enables Theft after its real purchase");
+        }
+
+        void close() {
+            CommittedSkillService.forget(player);
+            ProjectileControlService.forget(player);
+            SkillEffectRuntime.forget(player);
+            com.mistaboom.essence_ascendance.equipment.EquipmentDamageService.forgetSkillInput(player);
+        }
+    }
+
+    /** A storage boundary only: every intercepted entity, native input method and gameplay decision stays real. */
+    private static final class MemoryLevel extends ServerLevel {
+        List<Entity> entities;
+        long tick;
+        MinecraftServer memoryServer;
+        DimensionDataStorage storage;
+        ServerScoreboard scoreboard;
+
+        private MemoryLevel() {
+            super(null, null, null, null, Level.OVERWORLD, null, null, false, 0, List.of(), false, null);
+            throw new AssertionError("World constructors must never run in this fixture");
+        }
+
+        @Override public MinecraftServer getServer() { return memoryServer; }
+        @Override public long getGameTime() { return tick; }
+        @Override public DimensionDataStorage getDataStorage() { return storage; }
+        @Override public ServerScoreboard getScoreboard() { return scoreboard; }
+        @Override public Entity getEntity(int id) { return entities.stream().filter(entity -> entity.getId() == id).findFirst().orElse(null); }
+        @Override public Entity getEntity(UUID id) { return entities.stream().filter(entity -> entity.getUUID().equals(id)).findFirst().orElse(null); }
+        @Override public <T extends Entity> List<T> getEntities(EntityTypeTest<Entity, T> type, AABB box, Predicate<? super T> predicate) {
+            List<T> result = new ArrayList<>();
+            for (Entity entity : entities) {
+                T candidate = type.tryCast(entity);
+                if (candidate != null && !candidate.isRemoved() && candidate.getBoundingBox().intersects(box) && predicate.test(candidate)) result.add(candidate);
+            }
+            return result;
+        }
+        @Override public BlockHitResult clip(ClipContext context) {
+            return BlockHitResult.miss(context.getTo(), Direction.getNearest(context.getTo().subtract(context.getFrom())), BlockPos.containing(context.getTo()));
+        }
+        @Override public <T extends ParticleOptions> int sendParticles(T particle, double x, double y, double z, int count,
+                double dx, double dy, double dz, double speed) { return 0; }
+        @Override public void playSeededSound(Player player, double x, double y, double z, Holder<SoundEvent> sound,
+                SoundSource source, float volume, float pitch, long seed) { }
+        @Override public void playSeededSound(Player player, Entity entity, Holder<SoundEvent> sound,
+                SoundSource source, float volume, float pitch, long seed) { }
+    }
+
+    private static void initializeEntity(Entity entity, EntityType<?> type, Level level, Vec3 position, AABB bounds)
+            throws ReflectiveOperationException {
+        set(Entity.class, entity, "level", level);
+        set(Entity.class, entity, "type", type);
+        set(Entity.class, entity, "uuid", UUID.randomUUID());
+        set(Entity.class, entity, "stringUUID", entity.getUUID().toString());
+        set(Entity.class, entity, "id", entity.getUUID().hashCode());
+        set(Entity.class, entity, "position", position);
+        set(Entity.class, entity, "blockPosition", BlockPos.containing(position));
+        set(Entity.class, entity, "bb", bounds);
+        set(Entity.class, entity, "deltaMovement", Vec3.ZERO);
+        set(Entity.class, entity, "passengers", ImmutableList.of());
+        set(Entity.class, entity, "levelCallback", EntityInLevelCallback.NULL);
+        set(Entity.class, entity, "random", RandomSource.create(0));
+        entity.xo = position.x; entity.yo = position.y; entity.zo = position.z;
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static void defineData(Entity entity, Class<?> nativeClass) throws ReflectiveOperationException {
+        var builder = new SynchedEntityData.Builder(entity);
+        var defaults = Map.<String, Object>of("DATA_SHARED_FLAGS_ID", (byte) 0, "DATA_AIR_SUPPLY_ID", 300,
+                "DATA_CUSTOM_NAME", Optional.empty(), "DATA_CUSTOM_NAME_VISIBLE", false, "DATA_SILENT", false,
+                "DATA_NO_GRAVITY", false, "DATA_POSE", Pose.STANDING, "DATA_TICKS_FROZEN", 0);
+        for (var entry : defaults.entrySet()) {
+            var field = Entity.class.getDeclaredField(entry.getKey()); field.setAccessible(true);
+            builder.define((EntityDataAccessor) field.get(null), entry.getValue());
+        }
+        Method define = nativeClass.getDeclaredMethod("defineSynchedData", SynchedEntityData.Builder.class);
+        define.setAccessible(true); define.invoke(entity, builder);
+        set(Entity.class, entity, "entityData", builder.build());
+    }
+
+    private static <T> T instance(Class<T> type) throws ReflectiveOperationException {
+        return type.cast(allocate.invoke(allocator, type));
+    }
+    private static void set(Class<?> owner, Object target, String name, Object value) throws ReflectiveOperationException {
+        var field = owner.getDeclaredField(name); field.setAccessible(true); field.set(target, value);
+    }
+    private static void check(boolean condition, String message) {
+        assertions++;
+        if (!condition) throw new AssertionError(message);
+    }
+}

@@ -25,7 +25,8 @@ public final class ProjectileState {
     public double remainingRange, damageMultiplier = 1;
     public int remainingTicks, ricochets, nativePenetrations, skillPenetrations;
     public UUID target;
-    public boolean chargeDischarged, ended;
+    public boolean chargeDischarged, ended, redirected;
+    public final Set<UUID> payloadVictims = new LinkedHashSet<>();
     public ProjectileImpactEffects.Snapshot payload;
 
     public ProjectileState(ProjectileSource source, ProjectilePath path, UUID owner, UUID ownerLife,
@@ -44,7 +45,23 @@ public final class ProjectileState {
         skillPenetrations = path == ProjectilePath.PIERCING ? settings.penetrations() : 0;
     }
 
-    public boolean managed() { return source == ProjectileSource.ASCENDANCE_MAGIC || path != ProjectilePath.NONE || payload != null; }
+    public boolean managed() { return source == ProjectileSource.ASCENDANCE_MAGIC || path != ProjectilePath.NONE || payload != null || redirected; }
+    public int remainingPayloadTriggers() { return payload == null ? 0 : Math.max(0, payload.triggerBudget() - payloadVictims.size()); }
+    public boolean claimPayloadImpact(UUID victim, double confirmedDamage) {
+        return victim != null && visited.contains(victim) && Double.isFinite(confirmedDamage) && confirmedDamage > 0
+                && remainingPayloadTriggers() > 0 && payloadVictims.add(victim);
+    }
+
+    /** Transfer responsibility without granting either player's selected offensive skills or resetting native budgets. */
+    public ProjectileState transferTo(UUID defender, UUID defenderLife, double theftTurnDegreesPerTick) {
+        CompoundTag tag = save();
+        tag.putUUID("Owner", defender); tag.putUUID("OwnerLife", defenderLife);
+        tag.putString("Path", ProjectilePath.NONE.name()); tag.remove("Payload"); tag.remove("PayloadVictims");
+        tag.remove("Target"); tag.putDouble("Turn", Math.max(profile.turnDegreesPerTick(), theftTurnDegreesPerTick));
+        tag.putInt("Ricochets", 0); tag.putInt("SkillPenetrations", 0);
+        tag.putBoolean("ChargeDischarged", true); tag.putBoolean("Redirected", true);
+        return load(tag);
+    }
     public boolean visit(UUID id) { return visited.size() < maximumImpacts && visited.add(id); }
     public boolean canContinue() { return visited.size() < maximumImpacts && damageMultiplier > 0.000001 && remainingRange > 0.000001; }
 
@@ -78,44 +95,67 @@ public final class ProjectileState {
         tag.putInt("RemainingTicks", remainingTicks); tag.putDouble("Multiplier", damageMultiplier);
         tag.putInt("Ricochets", ricochets); tag.putInt("NativePenetrations", nativePenetrations);
         tag.putInt("SkillPenetrations", skillPenetrations); tag.putBoolean("ChargeDischarged", chargeDischarged);
-        tag.putBoolean("Ended", ended);
+        tag.putBoolean("Ended", ended); tag.putBoolean("Redirected", redirected);
         if (target != null) tag.putUUID("Target", target);
         ListTag ids = new ListTag(); visited.forEach(id -> ids.add(StringTag.valueOf(id.toString())));
         tag.put("Visited", ids);
         if (payload != null) tag.put("Payload", payload.save());
+        ListTag payloadIds = new ListTag(); payloadVictims.forEach(id -> payloadIds.add(StringTag.valueOf(id.toString())));
+        tag.put("PayloadVictims", payloadIds);
         return tag;
     }
 
     /** Corrupt snapshots fail closed. Loading never consults the player's current loadout. */
     public static ProjectileState load(CompoundTag tag) {
         try {
-            var profile = new ProjectileBalanceSettings.Profile(tag.getDouble("Range"), tag.getDouble("Speed"),
-                    tag.getInt("Lifetime"), tag.getDouble("AcquireRange"), tag.getDouble("Cone"), tag.getDouble("Turn"));
-            var settings = new ProjectileBalanceSettings(profile, profile, tag.getInt("Ricochets"),
-                    tag.getDouble("RicochetRadius"), tag.getDouble("RicochetFalloff"),
-                    tag.getInt("SkillPenetrations"), tag.getDouble("PiercingFalloff"),
-                    tag.getDouble("PiercingShieldMultiplier"),
-                    tag.getInt("MaximumImpacts"), tag.getDouble("MaximumSpeed"));
-            ProjectileState state = new ProjectileState(ProjectileSource.valueOf(tag.getString("Source")),
-                    ProjectilePath.valueOf(tag.getString("Path")), tag.getUUID("Owner"), tag.getUUID("OwnerLife"),
-                    ResourceLocation.parse(tag.getString("Dimension")), tag.getLong("LaunchedAt"),
-                    settings, tag.getInt("NativePenetrations"));
+            ProjectileState state = new ProjectileState(tag);
             state.remainingRange = tag.getDouble("RemainingRange"); state.remainingTicks = tag.getInt("RemainingTicks");
             state.damageMultiplier = tag.getDouble("Multiplier"); state.ended = tag.getBoolean("Ended");
             state.chargeDischarged = tag.getBoolean("ChargeDischarged");
+            state.redirected = tag.getBoolean("Redirected");
             if (tag.hasUUID("Target")) state.target = tag.getUUID("Target");
             ListTag ids = tag.getList("Visited", Tag.TAG_STRING);
             if (ids.size() > state.maximumImpacts) return null;
-            for (int i = 0; i < ids.size(); i++) state.visited.add(UUID.fromString(ids.getString(i)));
+            for (int i = 0; i < ids.size(); i++) if (!state.visited.add(UUID.fromString(ids.getString(i)))) return null;
             if (tag.contains("Payload")) {
                 state.payload = ProjectileImpactEffects.Snapshot.load(tag.getCompound("Payload"));
                 if (state.payload == null) return null;
             }
-            if (!Double.isFinite(state.remainingRange) || state.remainingRange < 0 || state.remainingRange > profile.range()
+            ListTag payloadIds = tag.getList("PayloadVictims", Tag.TAG_STRING);
+            if (payloadIds.size() > (state.payload == null ? 0 : state.payload.triggerBudget())) return null;
+            for (int i = 0; i < payloadIds.size(); i++)
+                if (!state.payloadVictims.add(UUID.fromString(payloadIds.getString(i)))) return null;
+            if (!state.visited.containsAll(state.payloadVictims) || state.redirected && (state.path != ProjectilePath.NONE
+                    || state.payload != null || state.ricochets != 0 || state.skillPenetrations != 0 || !state.chargeDischarged)
+                    || state.target != null && state.path != ProjectilePath.HOMING && !state.redirected) return null;
+            if (!Double.isFinite(state.remainingRange) || state.remainingRange < 0 || state.remainingRange > state.profile.range()
                     || !Double.isFinite(state.damageMultiplier) || state.damageMultiplier <= 0 || state.damageMultiplier > 1
-                    || state.remainingTicks < 0 || state.remainingTicks > profile.lifetimeTicks()
+                    || state.remainingTicks < 0 || state.remainingTicks > state.profile.lifetimeTicks()
                     || state.source == ProjectileSource.UNSUPPORTED || state.source == ProjectileSource.SECONDARY) return null;
             return state;
         } catch (IllegalArgumentException exception) { return null; }
+    }
+
+    /** Reads only immutable persisted launch values, never live configuration or a current loadout. */
+    private ProjectileState(CompoundTag tag) {
+        source = ProjectileSource.valueOf(tag.getString("Source")); path = ProjectilePath.valueOf(tag.getString("Path"));
+        owner = tag.getUUID("Owner"); ownerLife = tag.getUUID("OwnerLife");
+        dimension = ResourceLocation.parse(tag.getString("Dimension")); launchedAt = tag.getLong("LaunchedAt");
+        profile = new ProjectileBalanceSettings.Profile(valid(tag.getDouble("Range"), 1, 512), valid(tag.getDouble("Speed"), 0.1, 16),
+                (int) valid(tag.getInt("Lifetime"), 1, 2400), valid(tag.getDouble("AcquireRange"), 0, tag.getDouble("Range")),
+                valid(tag.getDouble("Cone"), 0, 30), valid(tag.getDouble("Turn"), 0, 45));
+        maximumSpeed = valid(tag.getDouble("MaximumSpeed"), 0.1, 16);
+        ricochetRadius = valid(tag.getDouble("RicochetRadius"), 0, 32);
+        ricochetFalloff = valid(tag.getDouble("RicochetFalloff"), 0, 1);
+        piercingFalloff = valid(tag.getDouble("PiercingFalloff"), 0, 1);
+        piercingShieldMultiplier = valid(tag.getDouble("PiercingShieldMultiplier"), 0, 1);
+        maximumImpacts = (int) valid(tag.getInt("MaximumImpacts"), 1, 256);
+        ricochets = (int) valid(tag.getInt("Ricochets"), 0, 16);
+        nativePenetrations = (int) valid(tag.getInt("NativePenetrations"), 0, 127);
+        skillPenetrations = (int) valid(tag.getInt("SkillPenetrations"), 0, 32);
+    }
+    private static double valid(double value, double minimum, double maximum) {
+        if (!Double.isFinite(value) || value < minimum || value > maximum) throw new IllegalArgumentException("Invalid projectile snapshot");
+        return value;
     }
 }
