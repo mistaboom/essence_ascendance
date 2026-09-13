@@ -27,7 +27,7 @@ import java.util.function.DoubleConsumer;
 import java.util.function.IntConsumer;
 
 /**
- * Read-only checks for /essence test skill-effects. No player, world, runtime
+ * Read-only checks for /essence test skills effects. No player, world, runtime
  * context, damage event, attribute mutation or progression transaction is created.
  * These checks cover registration, catalog metadata, pure arithmetic and the
  * declared persistent-data schema; they do not simulate combat or prove every
@@ -394,7 +394,7 @@ final class SkillEffectDiagnostics {
                 "completedMilestones", ids,
                 "ownedSkills", "java.util.Map<" + id + ", " + SkillPurchase.class.getTypeName() + ">",
                 "loadoutSelections", "java.util.Map<" + id + ", " + id + ">",
-                "completedAttunements", ids,
+                "attunement", "com.mistaboom.essence_ascendance.attunement.AttunementLedger",
                 "currentTierId", id,
                 "nexusRevision", "long"));
         expected.put("projectileLife", "java.util.UUID");

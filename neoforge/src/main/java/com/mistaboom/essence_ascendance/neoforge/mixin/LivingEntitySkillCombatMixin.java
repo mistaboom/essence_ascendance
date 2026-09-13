@@ -40,8 +40,9 @@ public abstract class LivingEntitySkillCombatMixin {
     @WrapMethod(method = "hurt")
     private boolean essenceAscendance$skillDamageScope(DamageSource source, float amount,
                                                        Operation<Boolean> original) {
-        return EquipmentDamageService.withSkillDamageFrame((LivingEntity) (Object) this, source,
-                () -> original.call(source, amount));
+        return com.mistaboom.essence_ascendance.attunement.AttunementGameplay.damage((LivingEntity) (Object) this, source, amount,
+                () -> EquipmentDamageService.withSkillDamageFrame((LivingEntity) (Object) this, source,
+                        () -> original.call(source, amount)));
     }
 
     @WrapMethod(method = "die")
@@ -52,6 +53,7 @@ public abstract class LivingEntitySkillCombatMixin {
         // The common death event is cancelable. Only a completed native death
         // transition can grant a kill, and duplicate die calls cannot grant twice.
         if (!entity.level().isClientSide && !alreadyDead && dead) {
+            com.mistaboom.essence_ascendance.attunement.AttunementGameplay.defeated(entity, source);
             SkillEffectRuntime.onLivingDeath(entity, source);
             if (entity instanceof ServerPlayer player) PlayerRuntimeLifecycleService.onDeath(player);
         }

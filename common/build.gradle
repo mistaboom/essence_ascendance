@@ -50,7 +50,12 @@ def balanceInvariantMains = [
         balanceLoadoutInvariants: 'com.mistaboom.essence_ascendance.skill.balance.SkillLoadoutProjectionTest',
         balanceRuntimeInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceTest',
         balanceAscensionPolicyInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.RuntimeAscensionPolicyTest',
-        balanceAscensionAccountingInvariants: 'com.mistaboom.essence_ascendance.progression.AscensionEssenceAccountingTest',
+        attunementAccountingTest: 'com.mistaboom.essence_ascendance.attunement.AttunementAccountingTest',
+        essenceCommandInvariants: 'com.mistaboom.essence_ascendance.command.EssenceCommandTest',
+        dormantGuidebookInvariants: 'com.mistaboom.essence_ascendance.progression.DormantGuidebookTest',
+        attunementPresentationInvariants: 'com.mistaboom.essence_ascendance.client.nexus.NexusAttunementPresentationTest',
+        attunementNetworkInvariants: 'com.mistaboom.essence_ascendance.network.AttunementSnapshotCodecTest',
+        attunementAdapterInvariants: 'com.mistaboom.essence_ascendance.attunement.AttunementAdapterTest',
         balanceLifecycleInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.RuntimeLifecycleTest'
 ]
 balanceInvariantMains.each { taskName, className ->
@@ -60,6 +65,11 @@ balanceInvariantMains.each { taskName, className ->
         dependsOn tasks.named('testClasses')
         classpath = sourceSets.test.runtimeClasspath
         mainClass = className
+        if (taskName == 'balanceAscensionPolicyInvariants' && rootProject.hasProperty('attunementReplayProfile')) {
+            // Optional read-only integration replay of a real saved evidence profile; output stays in build/.
+            args rootProject.file(rootProject.property('attunementReplayProfile')).absolutePath,
+                    rootProject.layout.buildDirectory.file('attunement-calibration-replay.txt').get().asFile.absolutePath
+        }
     }
 }
 tasks.register('balanceInvariants') {

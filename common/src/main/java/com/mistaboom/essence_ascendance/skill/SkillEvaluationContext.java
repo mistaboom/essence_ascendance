@@ -21,7 +21,6 @@ public record SkillEvaluationContext(
         Map<ResourceLocation, Integer> projectedRanks,
         Map<ResourceLocation, ResourceLocation> authoritativeLoadoutSelections,
         Map<ResourceLocation, ResourceLocation> projectedLoadoutSelections,
-        Set<ResourceLocation> completedAttunements,
         Set<ResourceLocation> completedMilestones,
         Set<ResourceLocation> completedDiscoveries,
         Map<ResourceLocation, Long> authoritativeBonusTotals,
@@ -38,10 +37,6 @@ public record SkillEvaluationContext(
         projectedLoadoutSelections = Map.copyOf(Objects.requireNonNull(
                 projectedLoadoutSelections,
                 "Projected loadout selections cannot be null"
-        ));
-        completedAttunements = Set.copyOf(Objects.requireNonNull(
-                completedAttunements,
-                "Completed attunements cannot be null"
         ));
         completedMilestones = Set.copyOf(Objects.requireNonNull(
                 completedMilestones,
@@ -71,7 +66,6 @@ public record SkillEvaluationContext(
             ResourceLocation currentTierId,
             Map<ResourceLocation, Integer> ownedRanks,
             Map<ResourceLocation, ResourceLocation> loadoutSelections,
-            Set<ResourceLocation> completedAttunements,
             Set<ResourceLocation> completedMilestones,
             Set<ResourceLocation> completedDiscoveries,
             Map<ResourceLocation, Long> bonusTotals
@@ -82,7 +76,6 @@ public record SkillEvaluationContext(
                 ownedRanks,
                 loadoutSelections,
                 loadoutSelections,
-                completedAttunements,
                 completedMilestones,
                 completedDiscoveries,
                 bonusTotals,

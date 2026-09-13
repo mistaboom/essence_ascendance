@@ -1,7 +1,6 @@
 package com.mistaboom.essence_ascendance.skill;
 
 public enum SkillRequirementKind {
-    PLAYER_ATTUNEMENT,
     PERMANENT_MILESTONE,
     BONUS_INVESTMENT,
     DISCOVERY;

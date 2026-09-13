@@ -25,7 +25,7 @@ public final class BalanceReportLayout {
                 EDITABLE INPUTS
                   ../essence_ascendance.toml  Commented balance policy settings.
                   balance_overrides.toml     Commented factual and exact-value overrides.
-                Edit the TOML inputs, then run /essence debug balance rebuild.
+                Edit the TOML inputs, then run /essence admin balance rebuild.
                 Existing input files are never replaced with bundled defaults.
 
                 SAVED RUNTIME CONFIGURATION
@@ -54,15 +54,27 @@ public final class BalanceReportLayout {
                   equipment.csv                   External equipment reference axes.
                   equipment_capabilities.csv      One capability per reference item.
                   generated_equipment.csv         Ascendance baseline stats per tier.
-                  ascension.csv                   Player tier thresholds and harvest access.
+                  ascension.csv                   Player chapters and harvest access.
                 External equipment and its capabilities join by item_id, slot and stage.
                 Generated armor/toughness columns represent the whole baseline set.
                 Archetype tradeoffs and purchased effects are applied separately.
-                New generated player unlocks count available Essence, allocated Bonuses
-                and actual paid skill receipts. Any category can qualify. Moving Essence
-                among these pools does not create progress; ascension adds no extra fee.
-                Unchanneled Crucible reservoirs and consumed gear/crafting costs do not
-                count. Completed player tier unlocks remain permanent after spending.
+                Player unlocks complete Category Attunement seals through gameplay.
+                Current Bonus allocations and actual paid owned-skill receipts accelerate
+                future credit only. Wallet and ordinary equipment value do not count.
+                No currency is consumed and completed player tiers remain permanent.
+
+                  attunement_targets.csv          One category target per chapter.
+                  attunement_breadth.csv           Required/optional seals per chapter.
+                  attunement_methods.csv          Registered method metadata and units.
+                  attunement_calibration.csv      Activity rates/references per chapter.
+                  attunement_pacing.csv           Raw and repeated-source amounts per seal.
+                  attunement_investment.csv       Category acceleration references/bounds.
+                  attunement_repetition.csv       Shared repetition, variety, history, no-cap policy.
+                  attunement_reachability.csv     Zero-investment registration/rate checks.
+                Join chapter tables by chapter_id, category rows additionally by category_id,
+                and method definitions/calibration by activity_id. Targets mix methods;
+                no method is individually mandatory. Runtime parameters retain every
+                assumption and calibration reference; live adapter validation is separate.
 
                   curves.csv                      Nexus investment and skill rank samples.
                   runtime_parameters.csv          All scalar runtime values and exact paths.
@@ -100,8 +112,8 @@ public final class BalanceReportLayout {
                 and logs/latest.log. The saved profile contains the full analysis evidence.
 
                 REFRESH
-                  /essence debug balance export   Refresh reports from the saved profile.
-                  /essence debug balance rebuild  Recalculate and install a new profile.
+                  /essence admin balance export   Refresh reports from the saved profile.
+                  /essence admin balance rebuild  Recalculate and install a new profile.
                   /essence debug balance validate Check the installed profile.
                 Exporting does not rerun analysis or change gameplay values.
                 """);

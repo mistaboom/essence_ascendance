@@ -36,8 +36,6 @@ public final class NexusDraft {
             baseOwnedSkills = new LinkedHashMap<>();
     private final Map<ResourceLocation, ResourceLocation> baseLoadouts =
             new LinkedHashMap<>();
-    private final Set<ResourceLocation> baseAttunements =
-            new LinkedHashSet<>();
     private final Set<ResourceLocation> baseMilestones =
             new LinkedHashSet<>();
 
@@ -88,7 +86,6 @@ public final class NexusDraft {
         baseInvestmentCaps.clear();
         baseOwnedSkills.clear();
         baseLoadouts.clear();
-        baseAttunements.clear();
         baseMilestones.clear();
         if (snapshot.ready()) {
             captureBaseline(snapshot);
@@ -395,8 +392,6 @@ public final class NexusDraft {
         baseOwnedSkills.putAll(snapshot.ownedSkills());
         baseLoadouts.clear();
         baseLoadouts.putAll(snapshot.loadoutSelections());
-        baseAttunements.clear();
-        baseAttunements.addAll(snapshot.completedAttunements());
         baseMilestones.clear();
         baseMilestones.addAll(snapshot.completedMilestones());
     }
@@ -406,7 +401,6 @@ public final class NexusDraft {
                 || !Objects.equals(baseProfileId, snapshot.balanceProfileId())
                 || !baseOwnedSkills.equals(snapshot.ownedSkills())
                 || !baseLoadouts.equals(snapshot.loadoutSelections())
-                || !baseAttunements.equals(snapshot.completedAttunements())
                 || !baseMilestones.equals(snapshot.completedMilestones())
                 || baseStoredInvestments.size() != snapshot.stats().size()
                 || baseInvestmentCaps.size() != snapshot.stats().size()) {

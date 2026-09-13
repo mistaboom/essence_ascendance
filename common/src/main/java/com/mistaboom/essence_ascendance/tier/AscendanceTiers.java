@@ -5,39 +5,52 @@ import net.minecraft.resources.ResourceLocation;
 
 public final class AscendanceTiers {
 
+    public static final AscendanceTierDefinition LATENT =
+            register(
+                    "latent",
+                    "Latent",
+                    0,
+                    false
+            );
+
     public static final AscendanceTierDefinition DORMANT =
             register(
                     "dormant",
                     "Dormant",
-                    0
+                    1,
+                    true
             );
 
     public static final AscendanceTierDefinition AWAKENED =
             register(
                     "awakened",
                     "Awakened",
-                    1
+                    2,
+                    true
             );
 
     public static final AscendanceTierDefinition RESONANT =
             register(
                     "resonant",
                     "Resonant",
-                    2
+                    3,
+                    true
             );
 
     public static final AscendanceTierDefinition ASCENDANT =
             register(
                     "ascendant",
                     "Ascendant",
-                    3
+                    4,
+                    true
             );
 
     public static final AscendanceTierDefinition TRANSCENDENT =
             register(
                     "transcendent",
                     "Transcendent",
-                    4
+                    5,
+                    true
             );
 
     private AscendanceTiers() {
@@ -46,7 +59,8 @@ public final class AscendanceTiers {
     private static AscendanceTierDefinition register(
             String path,
             String displayName,
-            int order
+            int order,
+            boolean grantsPower
     ) {
         return AscendanceTierRegistry.register(
                 ResourceLocation.fromNamespaceAndPath(
@@ -54,7 +68,8 @@ public final class AscendanceTiers {
                         path
                 ),
                 displayName,
-                order
+                order,
+                grantsPower
         );
     }
 

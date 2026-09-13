@@ -98,6 +98,28 @@ public final class RuntimeBalanceTest {
         check(RuntimeValueQuantization.down(10.9,.5)==10.5,"Health does not use half-heart endpoints");
         check(RuntimeReferencePolicy.playerHit()==net.minecraft.world.entity.player.Player.createAttributes().build()
                 .getValue(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE),"Bootstrap is not based on actual player attributes");
+        check(!RuntimeReferencePolicy.usingBootstrapReferences(), "Provisional reference scope leaked into real generation");
+        RuntimeReferencePolicy.withBootstrapReferences(() -> {
+            check(RuntimeReferencePolicy.usingBootstrapReferences(), "Bootstrap did not enter its registration-safe scope");
+            check(RuntimeReferencePolicy.playerHealth()==net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH.value().getDefaultValue()
+                    && RuntimeReferencePolicy.playerRate()==net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_SPEED.value().getDefaultValue()
+                    && RuntimeReferencePolicy.playerHit()==1.0, "Pre-registry fallback differs from vanilla player baseline");
+            RuntimeReferencePolicy.withBootstrapReferences(() -> {
+                check(RuntimeReferencePolicy.usingBootstrapReferences(), "Nested bootstrap lost its reference scope");
+                return null;
+            });
+            check(RuntimeReferencePolicy.usingBootstrapReferences(), "Nested bootstrap cleared its parent scope");
+            return null;
+        });
+        rejected(() -> RuntimeReferencePolicy.withBootstrapReferences(() -> {
+            throw new IllegalArgumentException("intentional bootstrap failure");
+        }), "Bootstrap suppressed its failure");
+        check(!RuntimeReferencePolicy.usingBootstrapReferences(), "Failed bootstrap leaked provisional player references");
+        var registeredPlayer=net.minecraft.world.entity.player.Player.createAttributes().build();
+        check(RuntimeReferencePolicy.playerHealth()==registeredPlayer.getValue(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH)
+                && RuntimeReferencePolicy.playerHit()==registeredPlayer.getValue(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE)
+                && RuntimeReferencePolicy.playerRate()==registeredPlayer.getValue(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_SPEED),
+                "Real generation no longer reads registered player attributes");
         var floatNoisy=new PackEvidence(Map.of(),List.of(),List.of(),Map.of(ProgressionBand.ENTRY,
                 Map.of(CapabilityAxis.ATTACK_RATE,1.5999999046325684)),List.of(),List.of(),Map.of());
         check(RuntimeReferencePolicy.required(floatNoisy,ProgressionBand.APEX,CapabilityAxis.ATTACK_RATE)==1.6,

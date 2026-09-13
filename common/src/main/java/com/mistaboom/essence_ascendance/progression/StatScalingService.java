@@ -313,9 +313,9 @@ public final class StatScalingService {
      * CONTINUOUS PROGRESSION CURVE
      * ============================================================
      *
-     * Example with five tiers:
+     * Example with five powered tiers and a zero-cap Latent onboarding tier:
      *
-     * 0 Essence       -> 0%
+     * Latent          -> 0%
      * Dormant cap     -> 20%
      * Awakened cap    -> 40%
      * Resonant cap    -> 60%

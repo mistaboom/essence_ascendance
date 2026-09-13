@@ -77,6 +77,7 @@ public final class GeneratedBalanceIntegrationTest {
 
         reject(document, root -> root.remove("runtime"), "Missing runtime section was accepted");
         reject(document, root -> root.getAsJsonObject("runtime").remove("configVersion"), "Missing runtime schema field was accepted");
+        reject(document, root -> root.getAsJsonObject("runtime").remove("attunement"), "Old runtime silently installed new Attunement policy without rebuild");
         reject(document, root -> root.getAsJsonObject("runtime").addProperty("unregisteredRuntimeField", 1), "Unknown runtime field was accepted");
         reject(document, root -> root.getAsJsonObject("runtime").getAsJsonObject("statMaxBonuses")
                 .remove(EssenceStats.MELEE_DAMAGE.id().toString()), "Missing registered stat value was accepted");
@@ -188,11 +189,31 @@ public final class GeneratedBalanceIntegrationTest {
             for (String name : List.of("balance_report.md", "valuation.csv", "equipment.csv", "curves.csv",
                     "builds.csv", "combat_builds.csv", "invariants.csv", "valuation_sources.csv", "valuation_source_dependencies.csv",
                     "warnings.csv", "equipment_capabilities.csv", "build_skill_ranks.csv", "build_selections.csv", "build_category_pressure.csv",
-                    "combat_assumptions.csv", "evidence.csv", "evidence_dependencies.csv", "runtime_parameters.csv", "generated_equipment.csv"))
+                    "combat_assumptions.csv", "evidence.csv", "evidence_dependencies.csv", "runtime_parameters.csv", "generated_equipment.csv",
+                    "attunement_targets.csv", "attunement_breadth.csv", "attunement_methods.csv", "attunement_calibration.csv",
+                    "attunement_investment.csv", "attunement_repetition.csv", "attunement_reachability.csv"))
                 check(Files.isRegularFile(reports.resolve(name)) && Files.size(reports.resolve(name)) > 0,
                         "Complete profile report export omitted " + name);
             for (String name : List.of("pack_metadata.json", "report_text.json"))
                 check(Files.isRegularFile(folder.resolve("diagnostics").resolve(name)), "Missing detailed diagnostic " + name);
+            var attunement = decoded.runtime().attunement();
+            List<List<String>> targets = csv(Files.readString(reports.resolve("attunement_targets.csv")));
+            check(targets.size() - 1 == attunement.chapters().values().stream().mapToInt(chapter -> chapter.categories().size()).sum(), "Attunement category report lost rows");
+            List<List<String>> breadth = csv(Files.readString(reports.resolve("attunement_breadth.csv")));
+            check(breadth.size() - 1 == attunement.chapters().size(), "Attunement breadth report lost chapters");
+            List<List<String>> methods = csv(Files.readString(reports.resolve("attunement_methods.csv")));
+            check(methods.size() - 1 == attunement.methods().size(), "Attunement methods report lost registered methods");
+            List<List<String>> calibration = csv(Files.readString(reports.resolve("attunement_calibration.csv")));
+            check(calibration.size() - 1 == attunement.chapters().size() * attunement.methods().size(), "Attunement rates report lost chapter/method rows");
+            Map<String, com.mistaboom.essence_ascendance.attunement.AttunementProfile.Chapter> chapters = new TreeMap<>();
+            attunement.chapters().values().forEach(chapter -> chapters.put(chapter.id(), chapter));
+            for (var line : calibration.subList(1, calibration.size())) {
+                var chapter = chapters.get(cell(line, calibration.getFirst(), "chapter_id"));
+                var method = attunement.methods().get(cell(line, calibration.getFirst(), "activity_id"));
+                check(chapter != null && method != null, "Attunement report has a dangling chapter or method join");
+                check(chapter.categories().containsKey(cell(line, calibration.getFirst(), "category_id")), "Attunement report has a dangling category join");
+                close(csvNumber(line, calibration.getFirst(), "contribution_per_unit"), chapter.activities().get(method.activityId()).contributionPerUnit(), "CSV calibration differs from authoritative rate");
+            }
             try (var paths = Files.list(reports)) {
                 for (Path path : paths.filter(value -> value.toString().endsWith(".csv")).toList()) {
                     List<List<String>> table = csv(Files.readString(path));

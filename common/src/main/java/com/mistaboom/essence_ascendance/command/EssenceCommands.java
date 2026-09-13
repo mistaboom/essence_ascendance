@@ -1,7 +1,6 @@
 package com.mistaboom.essence_ascendance.command;
 
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
-import com.mistaboom.essence_ascendance.balance.runtime.RuntimeAscensionPolicy;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import com.mistaboom.essence_ascendance.equipment.EquipmentActivationType;
@@ -13,7 +12,6 @@ import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.progression.AscendanceAttemptResult;
 import com.mistaboom.essence_ascendance.progression.AscendanceEngine;
 import com.mistaboom.essence_ascendance.progression.AscendanceEvaluationResult;
-import com.mistaboom.essence_ascendance.progression.AscendanceProgressSnapshot;
 import com.mistaboom.essence_ascendance.progression.MilestoneDefinition;
 import com.mistaboom.essence_ascendance.progression.MilestoneProgress;
 import com.mistaboom.essence_ascendance.progression.MilestoneRequirement;
@@ -31,6 +29,7 @@ import com.mistaboom.essence_ascendance.text.EssenceText;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
@@ -47,25 +46,10 @@ public final class EssenceCommands {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(
                 Commands.literal("essence")
-                        .executes(context -> showStatus(context.getSource()))
+                        .executes(context -> showHelp(context.getSource()))
                         .then(
                                 Commands.literal("help")
                                         .executes(context -> showHelp(context.getSource()))
-                                        .then(
-                                                Commands.literal("admin")
-                                                        .requires(source -> source.hasPermission(EssenceCommandUtil.ADMIN_PERMISSION))
-                                                        .executes(context -> EssenceAdminCommands.showHelp(context.getSource()))
-                                        )
-                                        .then(
-                                                Commands.literal("debug")
-                                                        .requires(source -> source.hasPermission(EssenceCommandUtil.ADMIN_PERMISSION))
-                                                        .executes(context -> EssenceDebugCommands.showHelp(context.getSource()))
-                                        )
-                                        .then(
-                                                Commands.literal("test")
-                                                        .requires(source -> source.hasPermission(EssenceCommandUtil.ADMIN_PERMISSION))
-                                                        .executes(context -> EssenceTestCommands.showHelp(context.getSource()))
-                                        )
                         )
                         .then(
                                 Commands.literal("status")
@@ -75,7 +59,7 @@ public final class EssenceCommands {
                                 Commands.literal("balance")
                                         .executes(context -> showAllBalances(context.getSource()))
                                         .then(
-                                                Commands.argument("essence", StringArgumentType.word())
+                                                Commands.argument("essence", StringArgumentType.string())
                                                         .suggests(EssenceCommandUtil::suggestEssences)
                                                         .executes(context -> showBalance(
                                                                 context.getSource(),
@@ -83,50 +67,8 @@ public final class EssenceCommands {
                                                         ))
                                         )
                         )
-                        .then(
-                                Commands.literal("stats")
-                                        .executes(context -> showAllStats(context.getSource()))
-                                        .then(
-                                                Commands.argument("category", StringArgumentType.word())
-                                                        .suggests(EssenceCommandUtil::suggestCategories)
-                                                        .executes(context -> showStats(
-                                                                context.getSource(),
-                                                                EssenceCommandUtil.resolveCategory(
-                                                                        StringArgumentType.getString(context, "category")
-                                                                )
-                                                        ))
-                                        )
-                        )
-                        .then(
-                                Commands.literal("stat")
-                                        .then(
-                                                Commands.argument("stat", StringArgumentType.word())
-                                                        .suggests(EssenceCommandUtil::suggestStats)
-                                                        .executes(context -> showStat(
-                                                                context.getSource(),
-                                                                StringArgumentType.getString(context, "stat")
-                                                        ))
-                                        )
-                        )
-                        .then(
-                                Commands.literal("invest")
-                                        .then(
-                                                Commands.argument("stat", StringArgumentType.word())
-                                                        .suggests(EssenceCommandUtil::suggestStats)
-                                                        .then(
-                                                                Commands.argument("amount", LongArgumentType.longArg(1))
-                                                                        .executes(context -> invest(
-                                                                                context.getSource(),
-                                                                                StringArgumentType.getString(context, "stat"),
-                                                                                LongArgumentType.getLong(context, "amount")
-                                                                        ))
-                                                        )
-                                        )
-                        )
-                        .then(
-                                Commands.literal("progress")
-                                        .executes(context -> showAscendanceProgress(context.getSource()))
-                        )
+                        .then(bonuses())
+                        .then(AttunementCommands.player())
                         .then(
                                 Commands.literal("ascend")
                                         .executes(context -> ascend(context.getSource()))
@@ -149,15 +91,44 @@ public final class EssenceCommands {
         );
     }
 
+    private static LiteralArgumentBuilder<CommandSourceStack> bonuses() {
+        return Commands.literal("bonuses")
+                .executes(context -> showBonusHelp(context.getSource()))
+                .then(Commands.literal("help").executes(context -> showBonusHelp(context.getSource())))
+                .then(Commands.literal("list")
+                        .executes(context -> showStatOverview(context.getSource()))
+                        .then(Commands.literal("all").executes(context -> showAllStats(context.getSource())))
+                        .then(Commands.argument("category", StringArgumentType.word())
+                                .suggests(EssenceCommandUtil::suggestCategories)
+                                .executes(context -> showStats(context.getSource(),
+                                        EssenceCommandUtil.resolveCategory(StringArgumentType.getString(context, "category"))))))
+                .then(Commands.literal("show")
+                        .then(Commands.argument("stat", StringArgumentType.string())
+                                .suggests(EssenceCommandUtil::suggestStats)
+                                .executes(context -> showStat(context.getSource(), StringArgumentType.getString(context, "stat")))))
+                .then(Commands.literal("invest")
+                        .then(Commands.argument("stat", StringArgumentType.string())
+                                .suggests(EssenceCommandUtil::suggestStats)
+                                .then(Commands.argument("amount", LongArgumentType.longArg(1))
+                                        .executes(context -> invest(context.getSource(),
+                                                StringArgumentType.getString(context, "stat"), LongArgumentType.getLong(context, "amount"))))));
+    }
+
+    private static int showBonusHelp(CommandSourceStack source) {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("bonuses.help.title")));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence bonuses list [category|all]", EssenceText.command("help.stats")));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence bonuses show <stat>", EssenceText.command("help.stat")));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence bonuses invest <stat> <amount>", EssenceText.command("help.invest")));
+        return 1;
+    }
+
     private static int showHelp(CommandSourceStack source) {
         EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("help.title")));
         EssenceCommandUtil.send(source, EssenceCommandUtil.section(EssenceText.command("help.player")));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence", EssenceText.command("help.overview")));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence status", EssenceText.command("help.overview")));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence balance [essence]", EssenceText.command("help.balance")));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence stats [category]", EssenceText.command("help.stats")));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence stat <stat>", EssenceText.command("help.stat")));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence invest <stat> <amount>", EssenceText.command("help.invest")));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence progress", EssenceText.command("help.progress")));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence bonuses", EssenceText.command("bonuses.help.overview")));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence attunement [category]", EssenceText.command("attunement.help")));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence ascend", EssenceText.command("help.ascend")));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence milestones [milestone]", EssenceText.command("help.milestones")));
 
@@ -203,6 +174,9 @@ public final class EssenceCommands {
                 EssenceText.command("label.investment"),
                 EssenceText.command("value.investment", EssenceCommandUtil.format(effective), EssenceCommandUtil.format(capacity), EssenceCommandUtil.format(stored))
         ));
+        if (!data.getTier().grantsPower()) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.warn(EssenceText.command("state.bonuses_locked")));
+        }
 
         AscendanceEvaluationResult evaluation = AscendanceEngine.evaluate(player);
         switch (evaluation.status()) {
@@ -257,6 +231,36 @@ public final class EssenceCommands {
 
         EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.essence(essence)));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.command("label.available"), EssenceCommandUtil.format(amount)));
+        return 1;
+    }
+
+    private static int showStatOverview(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        PlayerEssenceData data = playerData(source, player);
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("stats.title")));
+        if (!data.getTier().grantsPower()) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.warn(EssenceText.command("state.bonuses_locked")));
+        }
+        for (StatCategory category : StatCategory.values()) {
+            long effective = 0L;
+            long capacity = 0L;
+            int count = 0;
+            for (StatDefinition stat : EssenceStatRegistry.values()) {
+                if (stat.category() != category) continue;
+                StatInvestmentLimit limit = TierInvestmentPolicy.evaluate(data, stat);
+                effective = safeAdd(effective, limit.effectiveInvestment());
+                capacity = safeAdd(capacity, limit.investmentCap());
+                count++;
+            }
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
+                    EssenceText.category(category).withStyle(EssenceCommandUtil.categoryColor(category)),
+                    EssenceText.command("stats.category_summary", count,
+                            EssenceCommandUtil.format(effective), EssenceCommandUtil.format(capacity))));
+        }
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence bonuses list <category>",
+                EssenceText.command("stats.category_hint")));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence bonuses list all",
+                EssenceText.command("stats.all_hint")));
         return 1;
     }
 
@@ -387,6 +391,10 @@ public final class EssenceCommands {
     private static int invest(CommandSourceStack source, String statName, long amount) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         StatDefinition stat = EssenceCommandUtil.resolveStat(statName);
+        if (!playerData(source, player).getTier().grantsPower()) {
+            EssenceCommandUtil.fail(source, EssenceText.command("state.bonuses_locked"));
+            return 0;
+        }
         StatInvestmentResult result = StatProgressionService.invest(player, stat, amount);
 
         if (result.success()) {
@@ -449,72 +457,7 @@ public final class EssenceCommands {
         return 0;
     }
 
-    private static int showAscendanceProgress(CommandSourceStack source) throws CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
-        AscendanceEvaluationResult evaluation = AscendanceEngine.evaluate(player);
 
-        if (evaluation.status() == AscendanceEvaluationResult.Status.MAX_TIER) {
-            EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("progress.title")));
-            EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.command("label.current_tier"), EssenceText.ascendanceTier(evaluation.currentTier())));
-            EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.command("label.next_tier"), EssenceCommandUtil.good(EssenceText.command("state.max_tier"))));
-            return 1;
-        }
-
-        if (evaluation.status() == AscendanceEvaluationResult.Status.CONFIGURATION_ERROR) {
-            EssenceCommandUtil.fail(source, EssenceText.command("error.progress_config"));
-            return 0;
-        }
-
-        AscendanceProgressSnapshot progress = evaluation.progress();
-        boolean essenceQualification = RuntimeAscensionPolicy.usesEssenceQualification(
-                EssenceConfigManager.runtime());
-        String worldState = !progress.worldProgress().resolvable()
-                ? "unresolved"
-                : progress.worldProgress().complete() ? "complete" : "incomplete";
-
-        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("progress.title")));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                EssenceText.command("label.transition"),
-                EssenceText.command("value.transition", EssenceText.ascendanceTier(evaluation.currentTier()), EssenceText.ascendanceTier(evaluation.nextTier()))
-        ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                EssenceText.command(essenceQualification
-                        ? "label.saved_and_invested_essence" : "label.investment_depth"),
-                EssenceCommandUtil.format(progress.effectiveInvestment()) + " / "
-                        + EssenceCommandUtil.format(progress.requiredInvestment())
-        ));
-        if (essenceQualification) {
-            EssenceCommandUtil.send(source, EssenceCommandUtil.muted(EssenceText.command("progress.qualification_counts")));
-            EssenceCommandUtil.send(source, EssenceCommandUtil.muted(EssenceText.command("progress.qualification_transfers")));
-        }
-        if (progress.requiredDevelopedStats() > 0) {
-            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                    EssenceText.command("label.developed_stats"),
-                    progress.developedStats() + " / " + progress.requiredDevelopedStats()
-            ));
-        }
-        if (progress.requiredRepresentedCategories() > 0) {
-            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                    EssenceText.command("label.represented_categories"),
-                    progress.representedCategories() + " / " + progress.requiredRepresentedCategories()
-            ));
-        }
-        if (!(progress.worldProgress().requirement() instanceof MilestoneRequirement.Always)) {
-            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                    EssenceText.command("label.world_progression"),
-                    "complete".equals(worldState)
-                            ? EssenceCommandUtil.good(EssenceText.command("state.complete"))
-                            : "unresolved".equals(worldState)
-                            ? EssenceCommandUtil.bad(EssenceText.command("state.unresolved"))
-                            : EssenceCommandUtil.warn(EssenceText.command("state.incomplete"))
-            ));
-        }
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                EssenceText.command("label.ready_to_ascend"),
-                progress.readyToAscend() ? EssenceCommandUtil.good(EssenceText.command("state.yes")) : EssenceCommandUtil.warn(EssenceText.command("state.no"))
-        ));
-        return 1;
-    }
 
     private static int ascend(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
@@ -555,7 +498,7 @@ public final class EssenceCommands {
         ServerPlayer player = source.getPlayerOrException();
         EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("milestones.title")));
 
-        for (MilestoneDefinition milestone : com.mistaboom.essence_ascendance.config.EssenceConfigManager.get().milestones().values()) {
+        for (MilestoneDefinition milestone : EssenceConfigManager.get().milestones().values()) {
             MilestoneProgress progress = evaluateMilestone(player, milestone);
             Component state = !progress.resolvable()
                     ? EssenceCommandUtil.bad(EssenceText.command("state.unresolved"))

@@ -13,7 +13,7 @@ public record BalanceSettings(
         double automationPressure, double bulkResourcePenalty, double conversionLossPressure,
         double compositionSafeguard, FlightPolicy flightPolicy, MiningPolicy miningPolicy,
         ResourcePolicy resourcePolicy, OutlierPolicy outlierPolicy,
-        double warningConfidence, boolean expandedDiagnostics, RuntimeGenerationPolicy generation
+        double warningConfidence, boolean expandedDiagnostics, RuntimeGenerationPolicy generation, AttunementPolicy attunement
 ) {
     public enum FlightPolicy { PRESERVE_PROGRESSION, MATCH_PACK, RESTRICT }
     public enum MiningPolicy { PRESERVE_PROGRESSION, MATCH_PACK, RESTRICT }
@@ -28,12 +28,14 @@ public record BalanceSettings(
             "budget", Set.of("equipment", "nexus", "skills"),
             "economy", Set.of("automation_pressure", "bulk_resource_penalty", "conversion_loss_pressure"),
             "generation", Set.of("routine_seconds", "boss_seconds", "survival_seconds", "entry_resource_effort", "effort_growth"),
+            "attunement", Set.of("pace", "maximum_acceleration", "repetition_floor", "variety_strength", "history_window", "early_effort_fraction", "onboarding_effort_fraction", "breadth_exponent"),
             "policies", Set.of("flight", "mining", "resources", "outliers"),
             "diagnostics", Set.of("warning_confidence", "expanded")
     );
 
     public BalanceSettings {
         if(generation==null)generation=RuntimeGenerationPolicy.defaults();
+        if(attunement==null)attunement=AttunementPolicy.defaults();
         range("power.overall", overallPower, 0.1, 4.0);
         range("power.early", earlyPower, 0.1, 4.0);
         range("power.mid", midPower, 0.1, 4.0);
@@ -69,7 +71,20 @@ public record BalanceSettings(
         this(overallPower,earlyPower,midPower,latePower,apexPower,progressionLength,costPressure,partialBuildViability,
                 equipmentShare,nexusShare,skillShare,automationPressure,bulkResourcePenalty,conversionLossPressure,
                 compositionSafeguard,flightPolicy,miningPolicy,resourcePolicy,outlierPolicy,warningConfidence,
-                expandedDiagnostics,RuntimeGenerationPolicy.defaults());
+                expandedDiagnostics,RuntimeGenerationPolicy.defaults(),AttunementPolicy.defaults());
+    }
+
+    public BalanceSettings(double overallPower,double earlyPower,double midPower,double latePower,double apexPower,
+                           double progressionLength,double costPressure,double partialBuildViability,
+                           double equipmentShare,double nexusShare,double skillShare,double automationPressure,
+                           double bulkResourcePenalty,double conversionLossPressure,double compositionSafeguard,
+                           FlightPolicy flightPolicy,MiningPolicy miningPolicy,ResourcePolicy resourcePolicy,
+                           OutlierPolicy outlierPolicy,double warningConfidence,boolean expandedDiagnostics,
+                           RuntimeGenerationPolicy generation) {
+        this(overallPower,earlyPower,midPower,latePower,apexPower,progressionLength,costPressure,partialBuildViability,
+                equipmentShare,nexusShare,skillShare,automationPressure,bulkResourcePenalty,conversionLossPressure,
+                compositionSafeguard,flightPolicy,miningPolicy,resourcePolicy,outlierPolicy,warningConfidence,
+                expandedDiagnostics,generation,AttunementPolicy.defaults());
     }
 
     public static BalanceSettings defaults() {
@@ -87,7 +102,7 @@ public record BalanceSettings(
         for (BalanceToml.Table table : BalanceToml.parse(toml, source)) {
             if (table.array() || !KEYS.containsKey(table.name())) {
                 throw BalanceToml.error(source, table.line(), "Unknown settings table '" + table.name()
-                        + "'; expected power, progression, builds, budget, economy, generation, policies or diagnostics");
+                        + "'; expected power, progression, builds, budget, economy, generation, attunement, policies or diagnostics");
             }
             BalanceToml.requireKeys(table, KEYS.get(table.name()), source);
             tableLines.put(table.name(), table.line());
@@ -112,7 +127,15 @@ public record BalanceSettings(
                             read.number("generation.boss_seconds",d.generation.bossEncounterSeconds()),
                             read.number("generation.survival_seconds",d.generation.survivalWindowSeconds()),
                             read.number("generation.entry_resource_effort",d.generation.entryResourceEffort()),
-                            read.number("generation.effort_growth",d.generation.effortGrowth())));
+                            read.number("generation.effort_growth",d.generation.effortGrowth())),
+                    new AttunementPolicy(read.number("attunement.pace",d.attunement.pace()),
+                            read.number("attunement.maximum_acceleration",d.attunement.maximumAcceleration()),
+                            read.number("attunement.repetition_floor",d.attunement.repetitionFloor()),
+                            read.number("attunement.variety_strength",d.attunement.varietyStrength()),
+                            read.integer("attunement.history_window",d.attunement.historyWindow()),
+                            read.number("attunement.early_effort_fraction",d.attunement.earlyEffortFraction()),
+                            read.number("attunement.onboarding_effort_fraction",d.attunement.onboardingEffortFraction()),
+                            read.number("attunement.breadth_exponent",d.attunement.breadthExponent())));
         } catch (BalanceConfigException exception) {
             throw exception;
         } catch (IllegalArgumentException exception) {
@@ -152,6 +175,14 @@ public record BalanceSettings(
             if (value == null) return fallback;
             if (!(value.value() instanceof Boolean flag)) throw BalanceToml.error(source, value.line(), key + " must be true or false");
             return flag;
+        }
+
+        int integer(String key, int fallback) {
+            BalanceToml.Value value = values.get(key);
+            if (value == null) return fallback;
+            if (!(value.value() instanceof Long number) || number < Integer.MIN_VALUE || number > Integer.MAX_VALUE)
+                throw BalanceToml.error(source, value.line(), key + " must be a whole integer");
+            return number.intValue();
         }
 
         <E extends Enum<E>> E policy(String key, E fallback, Class<E> type) {

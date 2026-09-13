@@ -5,6 +5,7 @@ import net.minecraft.resources.ResourceLocation;
 public record AscendanceTierDefinition(
         ResourceLocation id,
         String displayName,
-        int order
+        int order,
+        boolean grantsPower
 ) {
 }

@@ -159,7 +159,7 @@ public final class PlayerAttributedBlockHarvestService {
         );
     }
 
-    private static boolean isEligibleMatureCrop(BlockState state) {
+    public static boolean isEligibleMatureCrop(BlockState state) {
         if (state == null || state.is(CROP_YIELD_EXCLUDED)) {
             return false;
         }
@@ -194,6 +194,14 @@ public final class PlayerAttributedBlockHarvestService {
 
         /* A mod/datapack author may explicitly opt in an age-less crop. */
         return explicit;
+    }
+
+    /** Immature or explicitly excluded crops must not fall through to resource-block credit. */
+    public static boolean isCrop(BlockState state) {
+        return state != null && (state.is(CROP_YIELD_EXCLUDED) || state.is(CROP_YIELD_ELIGIBLE)
+                || state.is(BlockTags.CROPS) || state.is(COMMON_CROPS)
+                || state.getBlock() instanceof CropBlock || state.getBlock() instanceof StemBlock
+                || state.getBlock() instanceof AttachedStemBlock);
     }
 
     private static boolean hasSilkTouch(ItemStack tool) {

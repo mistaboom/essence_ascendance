@@ -130,7 +130,6 @@ public final class CommittedSkillService {
                 data.getTierId(),
                 data.getSkillRanks(),
                 data.getLoadoutSelections(),
-                data.getCompletedAttunements(),
                 completedMilestones,
                 Set.of(),
                 bonusTotals

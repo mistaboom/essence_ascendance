@@ -33,7 +33,7 @@ public final class RuntimeBuildScenarios {
             moderateRanks.put(skill.id(),skill.prerequisites().isEmpty()?1:0);
         }
         Map<ResourceLocation,List<SkillLoadoutProjection.Scenario>> full=new LinkedHashMap<>(),moderate=new LinkedHashMap<>();
-        for(var tier:AscendanceTierRegistry.values()) {
+        for(var tier:AscendanceTierRegistry.powerTiers()) {
             full.put(tier.id(),SkillLoadoutProjection.project(SkillRegistry.values(),tier.id(),fullRanks,(id,rank)->1,Map.of(),false).scenarios());
             moderate.put(tier.id(),SkillLoadoutProjection.project(SkillRegistry.values(),tier.id(),moderateRanks,(id,rank)->1,Map.of(),false).scenarios());
         }
@@ -46,7 +46,7 @@ public final class RuntimeBuildScenarios {
         List<Case> result=new ArrayList<>(); double attenuation=1;
         boolean parity=runtime.composition().getOrDefault("equipment_apex_parity",0.0)==1.0;
         int bandIndex=0;
-        for(var tier:AscendanceTierRegistry.values().stream().sorted(Comparator.comparingInt(AscendanceTierDefinition::order)).toList()) {
+        for(var tier:AscendanceTierRegistry.powerTiers().stream().sorted(Comparator.comparingInt(AscendanceTierDefinition::order)).toList()) {
             ProgressionBand band=ProgressionBand.at(bandIndex++);
             double relative=settings.overallPower()*switch(band){case ENTRY,EARLY->settings.earlyPower();case MID->settings.midPower();case LATE->settings.latePower();case APEX->settings.apexPower();};
             double rate=RuntimeReferencePolicy.required(evidence,band,CapabilityAxis.ATTACK_RATE);

@@ -23,6 +23,22 @@ public final class RuntimeLifecycleTest {
         com.mistaboom.essence_ascendance.equipment.EquipmentProfiles.init();
         AscendanceAdvancements.init();
         var server = RuntimeBalanceDefinition.bootstrap();
+        var provisionalPlayer = new com.mistaboom.essence_ascendance.data.PlayerEssenceData();
+        provisionalPlayer.attunement().chapter("preserved_earned_chapter");
+        var beforeProvisional = provisionalPlayer.save();
+        check(!EssenceConfigManager.authoritativeReady(), "A bootstrap became authoritative without validated installation");
+        EssenceConfigManager.runtime(); // Force the provisional object to exist, as it does during loader startup.
+        check(com.mistaboom.essence_ascendance.attunement.AttunementService.snapshot(provisionalPlayer).categories().isEmpty(),
+                "Provisional balance exposed live Attunement readiness");
+        check(AscendanceEngine.evaluate(provisionalPlayer, EssenceConfigManager.serverRuntime()).status()
+                        == AscendanceEvaluationResult.Status.CONFIGURATION_ERROR,
+                "Provisional balance allowed player Ascension");
+        check(provisionalPlayer.save().equals(beforeProvisional), "Unavailable profile reset or changed the earned chapter");
+        var maximumWithoutProfile = new com.mistaboom.essence_ascendance.data.PlayerEssenceData();
+        maximumWithoutProfile.setTier(AscendanceTiers.TRANSCENDENT);
+        check(AscendanceEngine.evaluate(maximumWithoutProfile, null).status() == AscendanceEvaluationResult.Status.CONFIGURATION_ERROR
+                        && !com.mistaboom.essence_ascendance.attunement.AttunementService.snapshot(maximumWithoutProfile).maximumTier(),
+                "Missing authoritative profile was misreported as a completed constellation");
         String advancement = AscendanceAdvancements.DORMANT_TO_AWAKENED.id().toString();
         String milestone = Milestones.OBTAIN_DIAMONDS.id().toString();
 
@@ -47,6 +63,8 @@ public final class RuntimeLifecycleTest {
         EssenceConfigManager.installClient(serverOnlyProvider);
         check(EssenceConfigManager.clientRuntime() == serverOnlyProvider,
                 "Client preview required a server-only milestone provider implementation");
+        check(com.mistaboom.essence_ascendance.attunement.AttunementService.snapshot(provisionalPlayer).categories().isEmpty(),
+                "A client-only preview became server Attunement authority");
         EssenceConfigManager.clearClient();
         rejected(serverOnlyProvider::validateServerReferences, "Unknown milestone provider accepted on server");
         check(server.toJson().equals(RuntimeBalanceDefinition.fromJson(server.toJson()).toJson()),
@@ -81,7 +99,28 @@ public final class RuntimeLifecycleTest {
         rejected(()->EssenceConfigManager.install(null), "Null runtime install accepted");
         rejected(()->EssenceConfigManager.install(serverOnlyProvider), "Server installed unknown milestone provider");
         check(EssenceConfigManager.runtime() == server, "Failed installation replaced active profile");
+        var activePlayer = new com.mistaboom.essence_ascendance.data.PlayerEssenceData();
+        check(AscendanceEngine.evaluate(activePlayer, EssenceConfigManager.serverRuntime()).status() == AscendanceEvaluationResult.Status.AVAILABLE
+                        && !com.mistaboom.essence_ascendance.attunement.AttunementService.snapshot(activePlayer).categories().isEmpty(),
+                "Failed replacement disabled the valid last-known-good Attunement profile");
+        var activeChapter = server.attunement().chapter(activePlayer.getTierId().toString());
+        for (var category : activeChapter.categories().keySet().stream().limit(activeChapter.requiredCategories()).toList()) {
+            var activity = com.mistaboom.essence_ascendance.attunement.AttunementActivityRegistry.values().stream()
+                    .filter(a -> a.categoryId().equals(category)).findFirst().orElseThrow();
+            for (int i = 0; activePlayer.attunement().progress(category) < com.mistaboom.essence_ascendance.attunement.AttunementLedger.SCALE; i++)
+                activePlayer.attunement().contribute("confirmed:" + category + ":" + i,
+                        com.mistaboom.essence_ascendance.attunement.AttunementEvent.Outcome.eligible(activity.id(), "test:observed", Double.MAX_VALUE),
+                        activeChapter, server.attunement().policy(), 0);
+        }
+        check(AscendanceEngine.evaluate(activePlayer, EssenceConfigManager.serverRuntime()).progress().readyToAscend(),
+                "Installed authoritative profile could not accept earned seals");
+        var savedEarned = activePlayer.save();
+
         EssenceConfigManager.reset();
+        check(!com.mistaboom.essence_ascendance.attunement.AttunementService.snapshot(activePlayer).ready()
+                        && AscendanceEngine.evaluate(activePlayer, EssenceConfigManager.serverRuntime()).status() == AscendanceEvaluationResult.Status.CONFIGURATION_ERROR,
+                "Cleared authority retained stale Ascension readiness");
+        check(activePlayer.save().equals(savedEarned), "Losing profile authority erased earned seals");
         check(!EssenceConfigManager.authoritativeReady() && !SkillBalanceRuntime.ready(),
                 "Stopped server leaked runtime or skill prices");
         check(EssenceConfigManager.runtime() != server, "Stopped server retained authoritative object as bootstrap");

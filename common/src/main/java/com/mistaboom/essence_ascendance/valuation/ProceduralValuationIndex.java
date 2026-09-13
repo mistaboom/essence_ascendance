@@ -40,7 +40,7 @@ import java.util.Set;
 /*
  * Immutable runtime indexes over the currently loaded recipes plus block,
  * entity, container/chest, and fishing loot tables. Building this once keeps individual
- * /essence debug valuation calls cheap enough to use interactively while tuning
+ * /essence debug balance item calls cheap enough to use interactively while tuning
  * the procedural model.
  */
 final class ProceduralValuationIndex {

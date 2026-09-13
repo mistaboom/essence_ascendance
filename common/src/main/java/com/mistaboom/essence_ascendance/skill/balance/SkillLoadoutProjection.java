@@ -9,7 +9,6 @@ import com.mistaboom.essence_ascendance.skill.SkillStateEvaluator;
 import com.mistaboom.essence_ascendance.skill.requirement.BonusInvestmentRequirement;
 import com.mistaboom.essence_ascendance.skill.requirement.DiscoveryRequirement;
 import com.mistaboom.essence_ascendance.skill.requirement.PermanentMilestoneRequirement;
-import com.mistaboom.essence_ascendance.skill.requirement.PlayerAttunementRequirement;
 import com.mistaboom.essence_ascendance.skill.requirement.SkillRequirement;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
 import net.minecraft.resources.ResourceLocation;
@@ -100,7 +99,7 @@ public final class SkillLoadoutProjection {
     }
 
     /**
-     * Potential after the tier's declared milestones/attunements/investment gates
+     * Potential after the tier's declared milestones/investment gates
      * are met. It does not claim these gates are met by every player at that tier.
      * A rankScale greater than one models future repeat ranks without enabling them.
      */
@@ -268,7 +267,7 @@ public final class SkillLoadoutProjection {
         Map<ResourceLocation, List<ResourceLocation>> groups = new TreeMap<>(IDS);
         Map<ResourceLocation, Integer> ranks = new TreeMap<>(IDS);
         Map<ResourceLocation, ResourceLocation> toggles = new TreeMap<>(IDS);
-        Set<ResourceLocation> attunements = new TreeSet<>(IDS), milestones = new TreeSet<>(IDS), discoveries = new TreeSet<>(IDS);
+        Set<ResourceLocation> milestones = new TreeSet<>(IDS), discoveries = new TreeSet<>(IDS);
         Map<ResourceLocation, Long> investment = new TreeMap<>(IDS);
         for (SkillDefinition definition : component) {
             int rank = allRanks.get(definition.id());
@@ -280,8 +279,7 @@ public final class SkillLoadoutProjection {
             if (definition.activationPolicy() == SkillActivationPolicy.TOGGLE) toggles.put(definition.id(), definition.id());
             for (int r = 1; r <= rank; r++) {
                 for (SkillRequirement requirement : definition.requirements(r)) {
-                    if (requirement instanceof PlayerAttunementRequirement gate) attunements.add(gate.attunementId());
-                    else if (requirement instanceof PermanentMilestoneRequirement gate) milestones.add(gate.milestoneId());
+                    if (requirement instanceof PermanentMilestoneRequirement gate) milestones.add(gate.milestoneId());
                     else if (requirement instanceof DiscoveryRequirement gate) discoveries.add(gate.discoveryId());
                     else if (requirement instanceof BonusInvestmentRequirement gate)
                         investment.merge(gate.essenceId(), gate.minimumInvestment(), Math::max);
@@ -306,8 +304,7 @@ public final class SkillLoadoutProjection {
         }
         List<Candidate> result = new ArrayList<>();
         for (Map<ResourceLocation, ResourceLocation> selected : selections) {
-            SkillEvaluationContext context = SkillEvaluationContext.committed(tierId, ranks, selected,
-                    attunements, milestones, discoveries, investment);
+            SkillEvaluationContext context = SkillEvaluationContext.committed(tierId, ranks, selected, milestones, discoveries, investment);
             Set<ResourceLocation> active = new TreeSet<>(IDS);
             Map<ResourceLocation, SkillEvaluationResult> evaluated = SkillStateEvaluator.evaluateAll(component, context);
             evaluated.forEach((id, state) -> { if (state.effective()) active.add(id); });

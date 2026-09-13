@@ -15,5 +15,6 @@ abstract class SkillEffectHudMixin {
     private void essenceAscendance$renderSkillEffectHud(GuiGraphics graphics, DeltaTracker deltaTracker,
                                                          CallbackInfo callback) {
         SkillEffectHudOverlay.render(graphics);
+        com.mistaboom.essence_ascendance.client.AscensionAnimation.render(graphics);
     }
 }

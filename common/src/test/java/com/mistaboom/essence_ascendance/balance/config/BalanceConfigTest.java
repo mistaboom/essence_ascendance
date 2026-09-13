@@ -37,6 +37,12 @@ public final class BalanceConfigTest {
         check(settings.flightPolicy() == BalanceSettings.FlightPolicy.MATCH_PACK, "Literal policy string supported");
         check(settings.miningPolicy() == BalanceSettings.MiningPolicy.RESTRICT, "Policy parsed");
         check(settings.equipmentShare() == BalanceSettings.defaults().equipmentShare(), "Omitted controls keep declared defaults");
+        BalanceSettings attunement = BalanceSettings.parse("[attunement]\npace=1.5\nrepetition_floor=0.2\nhistory_window=128", "attunement.toml");
+        check(attunement.attunement().pace() == 1.5 && attunement.attunement().repetitionFloor() == .2
+                && attunement.attunement().historyWindow() == 128, "Attunement controls use existing TOML parser");
+        check(attunement.attunement().earlyEffortFraction() == BalanceSettings.defaults().attunement().earlyEffortFraction()
+                && attunement.attunement().onboardingEffortFraction() == BalanceSettings.defaults().attunement().onboardingEffortFraction(),
+                "Omitted Attunement effort controls lost deterministic defaults");
     }
 
     private static void actionableFailures() {
@@ -53,6 +59,13 @@ public final class BalanceConfigTest {
         rejected("Quote keys", () -> BalanceSettings.parse("power.overall=1.0", "bad.toml"));
         rejected("Unsupported value", () -> BalanceSettings.parse("[power]\noverall=0x2", "bad.toml"));
         rejected("Unsupported value", () -> BalanceSettings.parse("[power]\noverall=01", "bad.toml"));
+        rejected("bad.toml:2", () -> BalanceSettings.parse("[attunement]\nrepetition_floor=0", "bad.toml"));
+        rejected("Unknown key", () -> BalanceSettings.parse("[attunement]\nevent_cap_fraction=1", "bad.toml"));
+        rejected("must be between", () -> BalanceSettings.parse("[attunement]\nearly_effort_fraction=1.1", "bad.toml"));
+        rejected("must be between", () -> BalanceSettings.parse("[attunement]\nonboarding_effort_fraction=0", "bad.toml"));
+        rejected("must be between", () -> BalanceSettings.parse("[attunement]\nhistory_window=100000", "bad.toml"));
+        rejected("whole integer", () -> BalanceSettings.parse("[attunement]\nhistory_window=64.0", "bad.toml"));
+        rejected("must be between", () -> BalanceSettings.parse("[attunement]\nmaximum_acceleration=-1", "bad.toml"));
     }
 
     private static void factsAndExactValues() {

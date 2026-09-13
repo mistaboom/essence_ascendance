@@ -30,20 +30,14 @@ final class EssenceBalanceCommands {
     private EssenceBalanceCommands() { }
     static LiteralArgumentBuilder<CommandSourceStack> build() {
         var root = Commands.literal("balance").requires(source -> source.hasPermission(EssenceCommandUtil.ADMIN_PERMISSION))
-                .executes(context -> guarded(context.getSource(), () -> summary(context.getSource())))
+                .executes(context -> showHelp(context.getSource(), false))
+                .then(Commands.literal("help").executes(context -> showHelp(context.getSource(), false)))
                 .then(Commands.literal("summary").executes(context -> guarded(context.getSource(), () -> summary(context.getSource()))))
                 .then(Commands.literal("fingerprint").executes(context -> guarded(context.getSource(), () -> fingerprint(context.getSource()))))
                 .then(Commands.literal("validate").executes(context -> guarded(context.getSource(), () -> validate(context.getSource()))))
-                .then(Commands.literal("rebuild").executes(context -> rebuild(context.getSource())))
-                .then(Commands.literal("export").executes(context -> guarded(context.getSource(), () -> {
-                    GeneratedBalanceService.export();
-                    tell(context.getSource(), "exported", GeneratedBalanceService.directory().resolve("reports").toString());
-                    EssenceCommandUtil.send(context.getSource(), EssenceCommandUtil.command("README_REPORTS.txt", "file guide and troubleshooting locations"));
-                    return 1;
-                })))
                 .then(Commands.literal("cost").then(Commands.argument("path", StringArgumentType.string())
                         .executes(context -> guarded(context.getSource(), () -> cost(context.getSource(), StringArgumentType.getString(context,"path"))))))
-                .then(Commands.literal("stat").then(Commands.argument("id", StringArgumentType.string())
+                .then(Commands.literal("bonus").then(Commands.argument("id", StringArgumentType.string())
                         .suggests(EssenceCommandUtil::suggestStats)
                         .executes(context -> guarded(context.getSource(), () -> stat(context.getSource(), StringArgumentType.getString(context,"id"))))))
                 .then(Commands.literal("skill").then(Commands.argument("id", StringArgumentType.string())
@@ -51,28 +45,58 @@ final class EssenceBalanceCommands {
                         .executes(context -> guarded(context.getSource(), () -> skill(context.getSource(), StringArgumentType.getString(context,"id"),1)))
                         .then(Commands.argument("rank",IntegerArgumentType.integer(1,1000))
                                 .executes(context -> guarded(context.getSource(), () -> skill(context.getSource(),StringArgumentType.getString(context,"id"),IntegerArgumentType.getInteger(context,"rank")))))));
-        for (String kind : new String[]{"item","resource","equipment","progression","source"}) {
-            root.then(Commands.literal(kind)
-                    .executes(context -> guarded(context.getSource(), () -> explain(context.getSource(),kind,
+        root.then(Commands.literal("item")
+                    .executes(context -> guarded(context.getSource(), () -> explain(context.getSource(),
                             BuiltInRegistries.ITEM.getKey(context.getSource().getPlayerOrException().getMainHandItem().getItem()).toString())))
                     .then(Commands.argument("id",StringArgumentType.string())
-                            .executes(context -> guarded(context.getSource(), () -> explain(context.getSource(),kind,StringArgumentType.getString(context,"id"))))));
-        }
+                            .executes(context -> guarded(context.getSource(), () -> explain(context.getSource(),StringArgumentType.getString(context,"id"))))));
         return root;
+    }
+
+    static LiteralArgumentBuilder<CommandSourceStack> admin() {
+        return Commands.literal("balance")
+                .requires(source -> source.hasPermission(EssenceCommandUtil.ADMIN_PERMISSION))
+                .executes(context -> showHelp(context.getSource(), true))
+                .then(Commands.literal("help").executes(context -> showHelp(context.getSource(), true)))
+                .then(Commands.literal("rebuild").executes(context -> rebuild(context.getSource())))
+                .then(Commands.literal("export").executes(context -> guarded(context.getSource(), () -> {
+                    GeneratedBalanceService.export();
+                    tell(context.getSource(), "exported", GeneratedBalanceService.directory().resolve("reports").toString());
+                    EssenceCommandUtil.send(context.getSource(), EssenceCommandUtil.line("README_REPORTS.txt",
+                            EssenceText.command("balance.help.report_guide")));
+                    return 1;
+                })));
+    }
+
+    private static int showHelp(CommandSourceStack source, boolean administration) {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command(
+                administration ? "balance.help.admin_title" : "debug.balance.title")));
+        if (administration) {
+            help(source, "/essence admin balance rebuild", "rebuild");
+            help(source, "/essence admin balance export", "export");
+        } else {
+            help(source, "/essence debug balance summary", "summary");
+            help(source, "/essence debug balance fingerprint", "fingerprint");
+            help(source, "/essence debug balance validate", "validate");
+            help(source, "/essence debug balance item [id]", "item");
+            help(source, "/essence debug balance bonus <bonus>", "bonus");
+            help(source, "/essence debug balance skill <skill> [rank]", "skill");
+            help(source, "/essence debug balance cost <path>", "cost");
+        }
+        return 1;
+    }
+
+    private static void help(CommandSourceStack source, String syntax, String key) {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command(syntax, EssenceText.command("balance.help." + key)));
     }
     private static int summary(CommandSourceStack source) {
         var profile = GeneratedBalanceService.active();
-        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("balance.title")));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("debug.balance.title")));
         line(source,"Profile",profile.document().integrity().substring(0,16)+" / "+BalanceDocument.GENERATOR);
         line(source,"Resources / equipment / enemies",profile.economy().resources().size()+" / "+profile.evidence().equipment().size()+" / "+profile.evidence().enemies().size());
         line(source,"Curves",profile.runtime().config().statMaxBonuses().size()+" stats; "+profile.runtime().skillCurves().size()+" skills");
         line(source,"Conservation",profile.economy().invariants().size()+" paths passed; "+profile.economy().solverPasses()+" bounded solver passes");
         line(source,"Last load",GeneratedBalanceService.lastLoadMillis()+" ms");
-        section(source, "Diagnostics: /essence debug balance");
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("summary | fingerprint | validate", "inspect the installed profile"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("item | resource | equipment | progression | source", "explain an item or the held item"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("stat | skill | cost", "inspect a generated value"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("rebuild | export", "regenerate balance or save diagnostics"));
         return fingerprint(source);
     }
     private static int fingerprint(CommandSourceStack source) {
@@ -86,7 +110,7 @@ final class EssenceBalanceCommands {
         var disk=BalanceProfileStore.read(GeneratedBalanceService.profilePath());
         GeneratedBalanceService.decode(disk);
         if(!disk.integrity().equals(GeneratedBalanceService.active().document().integrity()))
-            throw new IllegalArgumentException("Saved profile differs from active snapshot; use an explicit reload or rebuild");
+            throw new IllegalArgumentException("Saved profile differs from active snapshot; use /essence admin mappings reload or /essence admin balance rebuild");
         tell(source,"valid");return 1;
     }
     private static int rebuild(CommandSourceStack source) {
@@ -97,7 +121,7 @@ final class EssenceBalanceCommands {
         }
         tell(source,"rebuilt",result.activeMappingCount());return 1;
     }
-    private static int explain(CommandSourceStack source,String kind,String id) {
+    private static int explain(CommandSourceStack source,String id) {
         var active=GeneratedBalanceService.active();
         var resource=active.evidence().resources().get(id);
         if(resource==null)throw new IllegalArgumentException("No saved evidence for "+id);
@@ -122,7 +146,7 @@ final class EssenceBalanceCommands {
         }
         section(source, "Evidence");
         resource.sources().stream().limit(4).forEach(entry->line(source,"Source",entry.kind()+" / "+entry.stage()+" / "+entry.reason()));
-        if(kind.equals("equipment")||kind.equals("item"))active.evidence().equipment().stream().filter(entry->entry.itemId().equals(id))
+        active.evidence().equipment().stream().filter(entry->entry.itemId().equals(id))
                 .limit(4).forEach(entry -> {
                     section(source, "Equipment: " + entry.slot());
                     line(source,"Reference", EssenceCommandUtil.status(entry.included(), "INCLUDED", "EXCLUDED"));

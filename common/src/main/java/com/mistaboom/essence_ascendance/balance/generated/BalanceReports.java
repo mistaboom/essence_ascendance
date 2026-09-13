@@ -1,5 +1,7 @@
 package com.mistaboom.essence_ascendance.balance.generated;
 
+import net.minecraft.resources.ResourceLocation;
+
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mistaboom.essence_ascendance.balance.engine.CapabilityAxis;
@@ -39,6 +41,7 @@ public final class BalanceReports {
         evidence(tables, current);
         runtimeTables(tables, current);
         ascension(tables, current);
+        attunement(tables, current.runtime().attunement());
         Path reports = BalanceReportLayout.reports(folder), diagnostics = BalanceReportLayout.diagnostics(folder);
         tables.write(reports, diagnostics);
         BalanceProfileStore.writeAtomically(reports.resolve("balance_report.md"), report(current, previous, generationMillis, skills));
@@ -52,7 +55,7 @@ public final class BalanceReports {
         StringBuilder out = new StringBuilder("# Essence Ascendance pack balance\n\n");
         out.append("Generator: `").append(BalanceDocument.GENERATOR).append("`  \nProfile integrity: `").append(doc.integrity())
                 .append("`  \nPack fingerprint: `").append(environment.get("digest").getAsString()).append("`\n\n")
-                .append("This report explains the saved server profile. Edit the commented TOML inputs, then run `/essence debug balance rebuild`. The generated JSON is inspection-only.\n\n")
+                .append("This report explains the saved server profile. Edit the commented TOML inputs, then run `/essence admin balance rebuild`. The generated JSON is inspection-only.\n\n")
                 .append("## Environment and confidence boundary\n\n")
                 .append("Minecraft ").append(environment.get("minecraft").getAsString()).append("; loader ")
                 .append(environment.get("loader").getAsString()).append(".\n\n")
@@ -108,10 +111,10 @@ public final class BalanceReports {
         current.runtime().composition().forEach((key, value) -> row(out,
                 key + (Set.of("combined_damage_multiplier", "combined_defense_multiplier").contains(key) ? " (illustrative only)" : ""), number(value)));
         out.append("\n## Player tier unlocks\n\n");
-        if (com.mistaboom.essence_ascendance.balance.runtime.RuntimeAscensionPolicy.usesEssenceQualification(current.runtime()))
-            out.append("Ascension qualification counts saved available Essence, stored Bonus investments and actual paid skill receipts. Any mix of the six Essences qualifies. Purchases and refunds transfer the same value between these pools; they do not create progress. Ascending consumes no additional Essence. Unchanneled Crucible reservoirs and consumed equipment/crafting expenses are excluded. Completed tiers remain unlocked after spending.\n\n")
-                    .append("Default thresholds follow the next generated tier budget, rounded up to a whole multiple of the current tier budget, and increase through the chain. Default unlocks require no mineral, boss or prescribed Bonus breadth. `ascension.csv` exposes exact thresholds, optional configured requirements and harvest levels.\n\n");
-        else out.append("This cached profile uses the earlier effective-Bonus investment and configured milestone rules. `ascension.csv` shows those installed requirements; an explicit rebuild applies the new generated qualification policy.\n\n");
+        out.append("Player-tier Ascension completes Category Attunement seals through confirmed gameplay. It consumes no Essence and requires no wallet balance, investment, skill, equipment family, or world milestone. Earned tiers are permanent. Current category Bonus allocations and actual historical paid skill receipts only accelerate future eligible activity.\n\n")
+                .append("`attunement_breadth.csv` resolves increasing optional-category breadth; `attunement_targets.csv` joins it by chapter_id. `attunement_pacing.csv` compares raw and sustained single-source amounts per seal, with no investment or variety. Repetition measures reference work, never callback count; diversification restores efficiency. Reachability distinguishes registered base methods from stage-accessible acquisition estimates. Estimates do not impose gates, and opaque quests, world generators or scripted recipes require pack evidence. Exploration discoveries reset each chapter and remain optional.\n\n")
+                .append("### Attunement calibration assumptions\n\n");
+        current.runtime().attunement().assumptions().forEach(assumption -> out.append("- ").append(assumption).append('\n'));
         combatSummary(out, skills);
         out.append("\nThe complete runtime curve table is in `curves.csv`. Bonus investment uses the same generated concave interpolation in the server and Nexus previews. Cost caps are generated from progression and resource supply; exact refunds use paid receipts, not a later profile's prices.\n\n");
         skillSummary(out, current, skills);
@@ -252,7 +255,7 @@ public final class BalanceReports {
 
     private static void skillSummary(StringBuilder out, GeneratedBalanceService.Active current, JsonObject skills) {
         out.append("### Skill ranks and reachable builds\n\n")
-                .append("Current projections include implemented effects at purchasable ranks. Future-catalog projections also include planned effects and repeated-rank estimates; they do not enable those effects. All projections assume the declared milestones, attunements and required investments have been completed.\n\n")
+                .append("Current projections include implemented effects at purchasable ranks. Future-catalog projections also include planned effects and repeated-rank estimates; they do not enable those effects. All projections assume the declared skill milestones and required investments have been completed.\n\n")
                 .append("Skills combine within actual equipment contexts and legal prerequisite, replacement and exclusive-choice relationships. Axis pressures are dimensionless modeling estimates, not measured damage. An envelope takes each axis's maximum across different scenarios; its columns are not one simultaneously achievable build.\n\n")
                 .append("| Tier | Catalog | Scenarios | Evaluated component states | Largest axis-envelope values |\n|---|---|---:|---:|---|\n");
         for (var entry : projections(skills)) {
@@ -488,8 +491,7 @@ public final class BalanceReports {
         properties.forEach(property -> columns.add(property.replaceAll("([a-z0-9])([A-Z])", "$1_$2").toLowerCase(Locale.ROOT)));
         var generated = tables.table("generated_equipment.csv", columns.toArray(String[]::new));
         Map<String, Integer> orders = new TreeMap<>();
-        orders.put("essence_ascendance:latent", 0);
-        AscendanceTierRegistry.values().forEach(tier -> orders.put(tier.id().toString(), tier.order() + 1));
+        AscendanceTierRegistry.values().forEach(tier -> orders.put(tier.id().toString(), tier.order()));
         equipment.entrySet().stream().sorted(Comparator.comparingInt(entry -> orders.getOrDefault(entry.getKey(), Integer.MAX_VALUE))).forEach(entry -> {
             JsonObject baseline = entry.getValue().getAsJsonObject();
             List<String> values = new ArrayList<>(List.of(entry.getKey(), Integer.toString(orders.getOrDefault(entry.getKey(), Integer.MAX_VALUE))));
@@ -503,22 +505,58 @@ public final class BalanceReports {
                 "required_essence", "current_tier_budget", "next_tier_budget", "current_harvest_level", "next_harvest_level",
                 "required_developed_stats", "required_categories", "world_gate", "runtime_json_pointer");
         var config = current.runtime().config();
-        String mode = com.mistaboom.essence_ascendance.balance.runtime.RuntimeAscensionPolicy.usesEssenceQualification(current.runtime())
-                ? "saved_plus_bonus_plus_paid_skills" : "effective_bonus_investment";
+        String mode = "category_attunement";
         config.advancements().values().stream().sorted(Comparator.comparingInt(a -> AscendanceTierRegistry.get(a.fromTierId()).orElseThrow().order()))
                 .forEach(a -> {
                     var from = AscendanceTierRegistry.get(a.fromTierId()).orElseThrow();
                     var to = AscendanceTierRegistry.get(a.toTierId()).orElseThrow();
                     long cap = config.balanceProfile().getDefaultInvestmentCap(from);
                     out.row(a.id().toString(), from.id().toString(), to.id().toString(), mode,
-                            Long.toString(a.getRequiredInvestment(cap)), Long.toString(cap),
+                            "0", Long.toString(cap),
                             Long.toString(config.balanceProfile().getDefaultInvestmentCap(to)),
                             Integer.toString(config.equipmentBaselineConfig().baselineFor(from).harvestLevel()),
                             Integer.toString(config.equipmentBaselineConfig().baselineFor(to).harvestLevel()),
-                            Integer.toString(a.minimumDevelopedStats()), Integer.toString(a.minimumRepresentedCategories()),
+                            "0", Integer.toString(current.runtime().attunement().chapter(from.id().toString()).requiredCategories()),
                             a.worldRequirement() instanceof com.mistaboom.essence_ascendance.progression.MilestoneRequirement.Always ? "none" : "configured_milestones",
                             "/runtime/advancements/" + a.id().toString().replace("~", "~0").replace("/", "~1"));
                 });
+    }
+    static void attunement(SpreadsheetReports tables, com.mistaboom.essence_ascendance.attunement.AttunementProfile profile) {
+        var targets = tables.table("attunement_targets.csv", "chapter_id", "from_tier", "to_tier", "category_id", "target", "investment_reference");
+        var breadth = tables.table("attunement_breadth.csv", "chapter_id", "from_tier", "to_tier", "registered_categories", "required_categories", "optional_categories");
+        var methods = tables.table("attunement_methods.csv", "activity_id", "category_id", "calibration_family", "units", "label_key", "description_key", "base_game_accessible");
+        var calibration = tables.table("attunement_calibration.csv", "chapter_id", "category_id", "activity_id", "units", "reference_units", "contribution_per_unit", "stage_accessible", "explanation");
+        var pacing = tables.table("attunement_pacing.csv", "chapter_id", "category_id", "activity_id", "units", "stage_accessible", "raw_units_per_seal", "single_source_units_per_seal", "single_source_efficiency", "fresh_reference_percent", "floor_reference_percent");
+        var investment = tables.table("attunement_investment.csv", "chapter_id", "category_id", "investment_reference", "curve_exponent", "fraction_cap", "maximum_added_multiplier", "base_multiplier", "maximum_multiplier", "bonus_allocations", "historical_owned_skill_receipts", "wallet_counts", "equipment_counts");
+        var repetition = tables.table("attunement_repetition.csv", "policy_id", "repetition_floor", "maximum_variety_bonus", "history_window", "history_units", "variety_measure", "per_action_cap");
+        var reachable = tables.table("attunement_reachability.csv", "chapter_id", "category_id", "base_methods", "positive_rate_methods", "stage_accessible_methods", "effective_accessible_methods", "scarcity_multiplier", "zero_investment_reachable", "repetition_floor_positive", "required_skill", "required_world_gate", "validation_scope");
+        for (var method : profile.methods().values()) methods.row(method.activityId(), method.categoryId(), method.calibrationFamily(), method.units(),
+                method.labelKey(), method.descriptionKey(), Boolean.toString(method.baseGameAccessible()));
+        var policy = profile.policy();
+        repetition.row("shared_recent_history", number(policy.repetitionFloor()), number(policy.varietyStrength()), Integer.toString(policy.historyWindow()), "generated_reference_outcomes", "weighted_source_diversity", "none");
+        for (var chapter : profile.chapters().values()) {
+            breadth.row(chapter.id(), chapter.fromTierId(), chapter.toTierId(), Integer.toString(chapter.categories().size()), Integer.toString(chapter.requiredCategories()), Integer.toString(chapter.categories().size() - chapter.requiredCategories()));
+            for (var category : chapter.categories().values()) {
+                targets.row(chapter.id(), chapter.fromTierId(), chapter.toTierId(), category.categoryId(), Long.toString(category.target()), Long.toString(category.investmentReference()));
+                investment.row(chapter.id(), category.categoryId(), Long.toString(category.investmentReference()), "0.5", "1", number(policy.maximumAcceleration()), "1", number(1 + policy.maximumAcceleration()), "true", "true", "false", "false");
+                long base = profile.methods().values().stream().filter(method -> method.categoryId().equals(category.categoryId()) && method.baseGameAccessible()).count();
+                long positive = chapter.activities().values().stream().filter(rate -> rate.categoryId().equals(category.categoryId()) && rate.contributionPerUnit() > 0).count();
+                long accessible = chapter.activities().values().stream().filter(rate -> rate.categoryId().equals(category.categoryId()) && rate.stageAccessible()).count();
+                String referenceSuffix = ResourceLocation.parse(category.categoryId()).getPath() + "_" + ResourceLocation.parse(chapter.fromTierId()).getPath();
+                reachable.row(chapter.id(), category.categoryId(), Long.toString(base), Long.toString(positive), Long.toString(accessible),
+                        number(profile.references().getOrDefault("effective_methods_" + referenceSuffix, (double) accessible)),
+                        number(profile.references().getOrDefault("accessibility_gain_" + referenceSuffix, 1.0)),
+                        Boolean.toString(accessible > 0), Boolean.toString(policy.repetitionFloor() > 0), "none", "none", "acquisition_stage_and_opportunity_estimate; live_adapter_acceptance_separate");
+            }
+            for (var rate : chapter.activities().values()) {
+                calibration.row(chapter.id(), rate.categoryId(), rate.activityId(), rate.units(), number(rate.referenceUnits()), number(rate.contributionPerUnit()), Boolean.toString(rate.stageAccessible()), rate.evidence());
+                var category = chapter.categories().get(rate.categoryId());
+                double raw = com.mistaboom.essence_ascendance.attunement.AttunementPacing.rawUnits(rate, category);
+                double repeated = com.mistaboom.essence_ascendance.attunement.AttunementPacing.repeatedUnits(rate, category, policy);
+                double referencePercent = rate.referenceUnits() / raw * 100;
+                pacing.row(chapter.id(), rate.categoryId(), rate.activityId(), rate.units(), Boolean.toString(rate.stageAccessible()), number(raw), number(repeated), number(raw / repeated), number(referencePercent), number(referencePercent * policy.repetitionFloor()));
+            }
+        }
     }
     private static void flattenRuntime(SpreadsheetReports.Table out, List<String> path, JsonElement value) {
         if (value.isJsonObject()) value.getAsJsonObject().entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {

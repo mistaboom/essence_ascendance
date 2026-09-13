@@ -106,7 +106,7 @@ public final class SkillLoadoutProjectionTest {
     private static void equipmentAndDelivery() {
         var frenzy = definition(SkillIds.FRENZY);
         SkillEvaluationContext context = SkillEvaluationContext.committed(AscendanceTiers.TRANSCENDENT.id(),
-                Map.of(frenzy.id(), 1), Map.of(frenzy.choiceGroup(), frenzy.id()), Set.of(), Set.of(), Set.of(), Map.of());
+                Map.of(frenzy.id(), 1), Map.of(frenzy.choiceGroup(), frenzy.id()), Set.of(), Set.of(), Map.of());
         double previous = -1;
         for (var equipment : SkillLoadoutProjection.representativeEquipment().subList(0, 3)) {
             var scenario = SkillLoadoutProjection.evaluate(List.of(frenzy), context, (id, rank) -> 1, equipment);
@@ -157,7 +157,7 @@ public final class SkillLoadoutProjectionTest {
                 "A later rank retains the strongest earlier tier gate");
         var stagedWithoutTier = new SkillEvaluationContext(AscendanceTiers.AWAKENED.id(),
                 Map.of(momentum.id(), 2, rush.id(), 1), Map.of(momentum.id(), 2, rush.id(), 2),
-                Map.of(), Map.of(), Set.of(), Set.of(), Set.of(), Map.of(rush.essenceId(), 100L), Map.of(rush.essenceId(), 100L));
+                Map.of(), Map.of(), Set.of(), Set.of(), Map.of(rush.essenceId(), 100L), Map.of(rush.essenceId(), 100L));
         var stagedResult = com.mistaboom.essence_ascendance.skill.SkillStateEvaluator.evaluateAll(catalog, stagedWithoutTier).get(rush.id());
         check(stagedResult.effective() && !stagedResult.projectedEffective(),
                 "Owning rank one does not bypass a staged rank-two tier gate");
@@ -168,7 +168,7 @@ public final class SkillLoadoutProjectionTest {
                 Map.of(momentum.id(), 2, rush.id(), 2), Map.of()).isPresent(),
                 "Automatic activation planning accepts a sufficient parent rank");
         var noInvestment = SkillEvaluationContext.committed(AscendanceTiers.TRANSCENDENT.id(),
-                Map.of(momentum.id(), 2, rush.id(), 3), Map.of(), Set.of(), Set.of(), Set.of(), Map.of());
+                Map.of(momentum.id(), 2, rush.id(), 3), Map.of(), Set.of(), Set.of(), Map.of());
         var suspended = SkillLoadoutProjection.evaluate(catalog, noInvestment, (id, rank) -> Math.sqrt(rank),
                 SkillLoadoutProjection.representativeEquipment().getFirst());
         check(!suspended.activeRanks().containsKey(rush.id()), "Rank three retains the live investment requirement from rank two");

@@ -298,6 +298,17 @@ public final class PackEvidenceCollector {
             Map<CapabilityAxis, Double> axes = new EnumMap<>(CapabilityAxis.class);
             axes.put(CapabilityAxis.EFFECTIVE_HEALTH, health); axes.put(CapabilityAxis.ARMOR, armor); axes.put(CapabilityAxis.TOUGHNESS, toughness);
             axes.put(CapabilityAxis.BURST_DAMAGE, damage); axes.put(CapabilityAxis.GROUND_SPEED, base(attributes, Attributes.MOVEMENT_SPEED, .25));
+            // A disposable entity is never added to the world or ticked. Query the native reward
+            // instead of inventing an XP-to-health exchange rate for progression calibration.
+            if (context.server() != null) try {
+                var sample = type.create(context.server().overworld());
+                if (sample instanceof LivingEntity sampled) {
+                    double experience = sampled.getExperienceReward(context.server().overworld(), null);
+                    if (experience > 0) axes.put(CapabilityAxis.EXPERIENCE, experience);
+                }
+            } catch (RuntimeException unsupported) {
+                sink.warn("No native XP observation for " + id + "; Attunement reports the generated fallback");
+            }
             boolean vanilla = id.getNamespace().equals("minecraft");
             List<String> unknown = vanilla ? List.of("Attack cadence, equipment rolls and encounter frequency not inferred from base attributes")
                     : List.of("Dynamic phases, shields, immunities, regeneration and attack cadence require a provider");

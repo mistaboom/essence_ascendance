@@ -15,13 +15,21 @@ import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
 import com.mistaboom.essence_ascendance.text.EssenceText;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.Command;
+import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.server.level.ServerPlayer;
+import com.mistaboom.essence_ascendance.lifecycle.PlayerRuntimeLifecycleService;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
 
@@ -72,11 +80,35 @@ final class EssenceCommandUtil {
 
     private static final DynamicCommandExceptionType INVALID_RESOURCE_ID =
             new DynamicCommandExceptionType(
-                    value -> Component.literal("Invalid namespaced resource ID: " + value)
+                    value -> EssenceText.command("error.invalid_resource_id", value)
                             .withStyle(ChatFormatting.RED)
             );
 
     private EssenceCommandUtil() {
+    }
+
+    /** A single optional trailing player argument for every operator player/item edit. */
+    static <T extends ArgumentBuilder<CommandSourceStack, T>> T withPlayerTarget(
+            T node, Command<CommandSourceStack> action) {
+        return node.executes(context -> runForPlayer(context, action))
+                .then(Commands.argument("target", EntityArgument.player())
+                        .executes(context -> runForPlayer(context, action)));
+    }
+
+    static ServerPlayer targetPlayer(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        return context.getNodes().stream().anyMatch(node -> node.getNode().getName().equals("target"))
+                ? EntityArgument.getPlayer(context, "target") : context.getSource().getPlayerOrException();
+    }
+
+    private static int runForPlayer(CommandContext<CommandSourceStack> context,
+            Command<CommandSourceStack> action) throws CommandSyntaxException {
+        var source = context.getSource();
+        var player = targetPlayer(context);
+        send(source, line(EssenceText.command("label.player"), player.getDisplayName()));
+        // withEntity changes the operated player, preserving the sender/output and permission level.
+        int result = action.run(context.copyFor(source.withEntity(player)));
+        if (result > 0) PlayerRuntimeLifecycleService.refreshProgressionState(player);
+        return result;
     }
 
     static void send(CommandSourceStack source, Component component) {
@@ -160,8 +192,12 @@ final class EssenceCommandUtil {
     }
 
     static MutableComponent line(Component label, Component value) {
+        MutableComponent styledLabel = label.copy();
+        if (styledLabel.getStyle().getColor() == null) {
+            styledLabel.withStyle(ChatFormatting.GRAY);
+        }
         return Component.literal("  ")
-                .append(label.copy().withStyle(ChatFormatting.GRAY))
+                .append(styledLabel)
                 .append(Component.literal(": ").withStyle(ChatFormatting.GRAY))
                 .append(value);
     }
@@ -171,10 +207,32 @@ final class EssenceCommandUtil {
     }
 
     static MutableComponent command(String command, Component description) {
+        MutableComponent syntax = Component.literal(command).withStyle(ChatFormatting.YELLOW);
+        if (command.startsWith("/")) {
+            syntax = suggest(syntax, command);
+        }
         return Component.literal("  ")
-                .append(Component.literal(command).withStyle(ChatFormatting.YELLOW))
+                .append(syntax)
                 .append(Component.literal(" - ").withStyle(ChatFormatting.GRAY))
                 .append(description.copy().withStyle(ChatFormatting.GRAY));
+    }
+
+    static MutableComponent suggest(Component label, String command) {
+        return label.copy().withStyle(style -> style
+                .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, commandSuggestion(command)))
+                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                        EssenceText.command("help.click_to_suggest"))));
+    }
+
+    /** Fill only the concrete prefix; help notation is never pasted into chat. */
+    static String commandSuggestion(String syntax) {
+        int end = syntax.length();
+        for (char marker : new char[]{'<', '[', '|'}) {
+            int index = syntax.indexOf(marker);
+            if (index >= 0) end = Math.min(end, index);
+        }
+        String prefix = syntax.substring(0, end).stripTrailing();
+        return end < syntax.length() ? prefix + " " : prefix;
     }
 
     static MutableComponent status(boolean good, Component yes, Component no) {
@@ -202,6 +260,12 @@ final class EssenceCommandUtil {
 
     static String format(long value) {
         return String.format(Locale.ROOT, "%,d", value);
+    }
+
+    static long saturatingAdd(long left, long right) {
+        if (right > 0 && left > Long.MAX_VALUE - right) return Long.MAX_VALUE;
+        if (right < 0 && left < Long.MIN_VALUE - right) return Long.MIN_VALUE;
+        return left + right;
     }
 
     static String formatDecimal(double value) {
@@ -318,9 +382,7 @@ final class EssenceCommandUtil {
         return SkillRegistry.referencedPermanentMilestoneIds();
     }
 
-    static Set<ResourceLocation> knownAttunementIds() {
-        return SkillRegistry.knownAttunementIds();
-    }
+
 
     static ResourceLocation parseId(String input) {
         if (input == null || input.isBlank()) {
@@ -336,39 +398,33 @@ final class EssenceCommandUtil {
             CommandContext<CommandSourceStack> context,
             SuggestionsBuilder builder
     ) {
-        String remaining = builder.getRemainingLowerCase();
-        for (EssenceDefinition essence : EssenceRegistry.values()) {
-            String name = essence.id().getPath();
-            if (name.startsWith(remaining)) {
-                builder.suggest(name);
-            }
-        }
-        return builder.buildFuture();
+        return suggestRegistryIds(builder, EssenceRegistry.values().stream().map(EssenceDefinition::id).toList());
     }
 
     static CompletableFuture<Suggestions> suggestStats(
             CommandContext<CommandSourceStack> context,
             SuggestionsBuilder builder
     ) {
-        String remaining = builder.getRemainingLowerCase();
-        for (StatDefinition stat : EssenceStatRegistry.values()) {
-            String name = stat.id().getPath();
-            if (name.startsWith(remaining)) {
-                builder.suggest(name);
-            }
-        }
-        return builder.buildFuture();
+        return suggestRegistryIds(builder, EssenceStatRegistry.values().stream().map(StatDefinition::id).toList());
     }
 
     static CompletableFuture<Suggestions> suggestTiers(
             CommandContext<CommandSourceStack> context,
             SuggestionsBuilder builder
     ) {
+        return suggestRegistryIds(builder, AscendanceTierRegistry.values().stream().map(AscendanceTierDefinition::id).toList());
+    }
+
+    static CompletableFuture<Suggestions> suggestRegistryIds(SuggestionsBuilder builder,
+            Iterable<ResourceLocation> ids) {
         String remaining = builder.getRemainingLowerCase();
-        for (AscendanceTierDefinition tier : AscendanceTierRegistry.values()) {
-            String name = tier.id().getPath();
-            if (name.startsWith(remaining)) {
-                builder.suggest(name);
+        boolean qualified = remaining.startsWith("\"") || remaining.contains(":");
+        String prefix = remaining.startsWith("\"") ? remaining.substring(1) : remaining;
+        for (var id : ids) {
+            if (!qualified && id.getNamespace().equals(EssenceAscendance.MOD_ID)) {
+                if (id.getPath().startsWith(prefix)) builder.suggest(id.getPath());
+            } else if (id.toString().startsWith(prefix) || (!qualified && id.getPath().startsWith(prefix))) {
+                builder.suggest("\"" + id + "\"");
             }
         }
         return builder.buildFuture();
@@ -403,78 +459,24 @@ final class EssenceCommandUtil {
     }
 
     static CompletableFuture<Suggestions> suggestMilestones(
-            CommandContext<CommandSourceStack> context,
-            SuggestionsBuilder builder
-    ) {
-        String remaining = builder.getRemainingLowerCase();
-        Set<String> suggestions = new LinkedHashSet<>();
-        for (MilestoneDefinition milestone : EssenceConfigManager.get().milestones().values()) {
-            ResourceLocation id = milestone.id();
-            String suggestion = id.getNamespace().equals(EssenceAscendance.MOD_ID)
-                    ? id.getPath()
-                    : "\"" + id + "\"";
-            suggestions.add(suggestion);
-        }
-        suggestions.stream()
-                .filter(value -> value.toLowerCase(Locale.ROOT).startsWith(remaining))
-                .forEach(builder::suggest);
-        return builder.buildFuture();
+            CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
+        return suggestRegistryIds(builder, EssenceConfigManager.get().milestones().values().stream()
+                .map(MilestoneDefinition::id).toList());
     }
 
     static CompletableFuture<Suggestions> suggestDevelopmentMilestones(
-            CommandContext<CommandSourceStack> context,
-            SuggestionsBuilder builder
-    ) {
-        String remaining = builder.getRemainingLowerCase();
-        Set<String> suggestions = new LinkedHashSet<>();
-        for (MilestoneDefinition milestone : EssenceConfigManager.get().milestones().values()) {
-            ResourceLocation id = milestone.id();
-            suggestions.add(id.getNamespace().equals(EssenceAscendance.MOD_ID)
-                    ? id.getPath()
-                    : "\"" + id + "\"");
-        }
-        for (ResourceLocation id : knownSkillMilestoneIds()) {
-            suggestions.add(id.getNamespace().equals(EssenceAscendance.MOD_ID)
-                    ? id.getPath()
-                    : "\"" + id + "\"");
-        }
-        suggestions.stream()
-                .filter(value -> value.toLowerCase(Locale.ROOT).startsWith(remaining))
-                .forEach(builder::suggest);
-        return builder.buildFuture();
+            CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
+        Set<ResourceLocation> ids = new LinkedHashSet<>(knownSkillMilestoneIds());
+        EssenceConfigManager.get().milestones().values().forEach(milestone -> ids.add(milestone.id()));
+        return suggestRegistryIds(builder, ids);
     }
 
     static CompletableFuture<Suggestions> suggestSkills(
-            CommandContext<CommandSourceStack> context,
-            SuggestionsBuilder builder
-    ) {
-        String remaining = builder.getRemainingLowerCase();
-        for (SkillDefinition skill : SkillRegistry.values()) {
-            String path = skill.id().getPath();
-            String fullId = skill.id().toString();
-            if (path.startsWith(remaining)) {
-                builder.suggest(path);
-            } else if (fullId.startsWith(remaining)) {
-                builder.suggest("\"" + fullId + "\"");
-            }
-        }
-        return builder.buildFuture();
+            CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
+        return suggestRegistryIds(builder, SkillRegistry.values().stream().map(SkillDefinition::id).toList());
     }
 
-    static CompletableFuture<Suggestions> suggestAttunements(
-            CommandContext<CommandSourceStack> context,
-            SuggestionsBuilder builder
-    ) {
-        String remaining = builder.getRemainingLowerCase();
-        for (ResourceLocation id : knownAttunementIds()) {
-            String path = id.getPath();
-            String fullId = id.toString();
-            if (path.startsWith(remaining)) {
-                builder.suggest(path);
-            } else if (fullId.startsWith(remaining)) {
-                builder.suggest("\"" + fullId + "\"");
-            }
-        }
-        return builder.buildFuture();
+    static String commandId(ResourceLocation id) {
+        return id.getNamespace().equals(EssenceAscendance.MOD_ID) ? id.getPath() : "\"" + id + "\"";
     }
 }

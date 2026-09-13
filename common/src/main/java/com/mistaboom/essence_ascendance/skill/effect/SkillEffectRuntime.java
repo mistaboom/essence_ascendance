@@ -30,6 +30,13 @@ public final class SkillEffectRuntime {
 
     private SkillEffectRuntime() { }
 
+    /** Common extension point for registered effects reporting measured, completed native outcomes.
+     * Reuse the native action identity to deduplicate an effect and its ordinary adapter. */
+    public static void reportOutcome(ServerPlayer player,
+                                    com.mistaboom.essence_ascendance.attunement.AttunementEvent outcome) {
+        com.mistaboom.essence_ascendance.attunement.AttunementService.submit(player, outcome);
+    }
+
     public static Set<ResourceLocation> implementedIds() { return SkillEffectRegistry.implementedIds(); }
     public static boolean isImplemented(ResourceLocation id) { return SkillEffectRegistry.isImplemented(id); }
 

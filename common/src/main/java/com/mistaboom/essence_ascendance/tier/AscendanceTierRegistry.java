@@ -21,6 +21,15 @@ public final class AscendanceTierRegistry {
             String displayName,
             int order
     ) {
+        return register(id, displayName, order, true);
+    }
+
+    public static AscendanceTierDefinition register(
+            ResourceLocation id,
+            String displayName,
+            int order,
+            boolean grantsPower
+    ) {
         if (TIERS.containsKey(id)) {
             throw new IllegalArgumentException(
                     "Duplicate Ascendance tier ID: " + id
@@ -41,7 +50,8 @@ public final class AscendanceTierRegistry {
                 new AscendanceTierDefinition(
                         id,
                         displayName,
-                        order
+                        order,
+                        grantsPower
                 );
 
         TIERS.put(id, tier);
@@ -57,6 +67,11 @@ public final class AscendanceTierRegistry {
 
     public static Collection<AscendanceTierDefinition> values() {
         return Collections.unmodifiableCollection(TIERS.values());
+    }
+
+    /** Tiers that expose Bonus, skill, and generated player-power curves. */
+    public static Collection<AscendanceTierDefinition> powerTiers() {
+        return TIERS.values().stream().filter(AscendanceTierDefinition::grantsPower).toList();
     }
 
     public static int size() {

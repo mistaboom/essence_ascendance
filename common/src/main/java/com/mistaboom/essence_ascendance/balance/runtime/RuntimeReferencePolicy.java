@@ -18,9 +18,26 @@ final class RuntimeReferencePolicy {
     static final double SHIELD_INNATE_REFLECTION_RATIO = .10;
     static final double SHIELD_TIER_REFLECTION_GROWTH_RATIO = .5;
     static final double SHIELD_BLOCK_HEADROOM_RATIO = 4;
-    static double playerHealth() { return Player.createAttributes().build().getValue(Attributes.MAX_HEALTH); }
-    static double playerHit() { return Player.createAttributes().build().getValue(Attributes.ATTACK_DAMAGE); }
-    static double playerRate() { return Player.createAttributes().build().getValue(Attributes.ATTACK_SPEED); }
+    /* NeoForge adds deferred holders (including swim_speed) to LivingEntity.createLivingAttributes.
+     * Its full Player factory cannot run from the mod constructor before those holders bind.
+     * Restrict the vanilla fallback to the disposable pre-world placeholder; real generation still
+     * reads the complete registered Player supplier and never caches these provisional references. */
+    private static final ThreadLocal<Boolean> BOOTSTRAP_REFERENCES = new ThreadLocal<>();
+    // Player.createAttributes explicitly overrides attack damage to 1, unlike the Attribute default.
+    private static final double BOOTSTRAP_PLAYER_HIT = 1.0;
+    static boolean usingBootstrapReferences() { return Boolean.TRUE.equals(BOOTSTRAP_REFERENCES.get()); }
+    static <T> T withBootstrapReferences(java.util.function.Supplier<T> work) {
+        boolean nested = usingBootstrapReferences();
+        BOOTSTRAP_REFERENCES.set(true);
+        try { return work.get(); }
+        finally { if (nested) BOOTSTRAP_REFERENCES.set(true); else BOOTSTRAP_REFERENCES.remove(); }
+    }
+    static double playerHealth() { return usingBootstrapReferences() ? Attributes.MAX_HEALTH.value().getDefaultValue()
+            : Player.createAttributes().build().getValue(Attributes.MAX_HEALTH); }
+    static double playerHit() { return usingBootstrapReferences() ? BOOTSTRAP_PLAYER_HIT
+            : Player.createAttributes().build().getValue(Attributes.ATTACK_DAMAGE); }
+    static double playerRate() { return usingBootstrapReferences() ? Attributes.ATTACK_SPEED.value().getDefaultValue()
+            : Player.createAttributes().build().getValue(Attributes.ATTACK_SPEED); }
     static double observed(PackEvidence evidence, ProgressionBand band, CapabilityAxis axis, double absent) {
         for (int i=band.ordinal(); i>=0; i--) {
             Double value=evidence.frontiers().getOrDefault(ProgressionBand.at(i),Map.of()).get(axis);
@@ -128,6 +145,6 @@ final class RuntimeReferencePolicy {
         Map<ProgressionBand,Map<CapabilityAxis,Double>> bands=new EnumMap<>(ProgressionBand.class);
         for(var band:ProgressionBand.values())bands.put(band,player);
         return new PackEvidence(Map.of(),List.of(),List.of(),bands,List.of(),
-                List.of("Temporary player-baseline bootstrap; not a generated pack reference"),Map.of("bootstrap_placeholder",1L));
+                List.of("Temporary vanilla player-baseline bootstrap before loader attributes bind; not a generated pack reference"),Map.of("bootstrap_placeholder",1L));
     }
 }

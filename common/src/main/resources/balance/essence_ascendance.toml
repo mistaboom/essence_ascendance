@@ -1,6 +1,6 @@
 # Essence Ascendance: pack-maker balance intent
 # These are GENERATOR INPUTS. The server runs from essence_ascendance/generated_balance.json.
-# Edit this file, then run /essence debug balance rebuild as an operator to apply changes.
+# Edit this file, then run /essence admin balance rebuild as an operator to apply changes.
 # A normal restart or datapack reload warns about changed inputs but does not regenerate.
 # Existing valid generated data remains active if a rebuild fails.
 # Do not edit generated_balance.json; inspect reports/balance_report.md for its values.
@@ -30,13 +30,11 @@ late = 1.0
 apex = 1.1
 
 [progression]
-# Player ascension uses the next generated tier budget, rounded up to a whole
-# multiple of the current tier budget. Increasing length or cost_pressure below
-# therefore raises both the economic journey and its qualification thresholds.
-# Saved Essence + allocated Bonuses + actual paid skill receipts qualify; any
-# combination of the six Essences works. No extra Essence is consumed on ascend.
-# Defaults have no boss/mineral checklist or mandatory stat/category breadth.
-# Compare thresholds and harvest levels in reports/ascension.csv.
+# Player ascension completes Category Attunement seals through eligible gameplay.
+# Length scales the activity journey; cost pressure changes generated investment
+# references and costs. No wallet amount, skill or item is required to ascend.
+# Current Bonus allocations and historical paid skill receipts accelerate future
+# activity only. Compare generated targets and breadth in reports/attunement_*.csv.
 # Intended journey length relative to the generated pack economy.
 # Range 0.1..10.0; 1.0 is the baseline, 2.0 asks for a longer investment journey.
 length = 1.0
@@ -57,6 +55,36 @@ survival_seconds = 10.0
 # These are effort ratios; no fixed currency total or per-tier weapon table.
 entry_resource_effort = 80.0
 effort_growth = 3.5
+
+[attunement]
+# Contribution speed relative to the generated activity journey. Range 0.1..10;
+# default 1.0. Higher values complete seals faster without changing Essence costs.
+pace = 1.0
+# Added multiplier at the generated current-tier category investment reference.
+# Range 0..4; default 1 gives at most 2x. Zero investment always earns base credit.
+maximum_acceleration = 1.0
+# Minimum efficiency of a legitimate repeated source. Range 0.01..1; default
+# 0.15 keeps farms productive while encouraging variety. Never disables farms.
+repetition_floor = 0.15
+# Maximum extra efficiency for varied recent sources. Range 0..1; default 0.25.
+# Higher values favor changing activities; this is bounded and never mandatory.
+variety_strength = 0.25
+# Recent source exposure in generated reference outcomes, integer 8..256; default 64.
+# Larger windows soften repetition longer. Distance, health and XP amounts advance
+# this window; network packets and individual orb/healing callbacks do not.
+# Every seal keeps independent bounded history. Two substantial sources can earn variety.
+history_window = 64
+# Effort multiplier for Dormant's first powered chapter. Range 0.1..1; default
+# 0.75 makes the opening chapter 25% shorter, then generation eases to 1.0 by
+# the final chapter. Legitimate outcomes have no per-action progress ceiling.
+early_effort_fraction = 0.75
+# Effort multiplier for the automatic Latent onboarding chapter. Range 0.1..1;
+# default 0.50 lets ordinary play reach Dormant before a Nexus is crafted.
+onboarding_effort_fraction = 0.50
+# Shape of increasing category breadth, range 0.25..4; default 1.0 produces
+# ceil((categoryCount-1)*transitionPosition/transitionCount). Smaller values ask
+# for broader early participation; final progression leaves one category optional.
+breadth_exponent = 1.0
 
 [builds]
 # Minimum emphasis on meaningful partial participation, 0.1..1.0; default 0.65.

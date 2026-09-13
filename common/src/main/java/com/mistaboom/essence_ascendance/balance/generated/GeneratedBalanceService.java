@@ -32,7 +32,7 @@ import java.util.Map;
 
 /** Server-thread transaction: collect, construct, validate, persist, publish, then synchronize. */
 public final class GeneratedBalanceService {
-    private static final String GENERATION_REVISION = "economic-ascension-and-accessible-starters-6";
+    private static final String GENERATION_REVISION = "attunement-effort-history-9";
     private static final String DISSOLUTION_ACCOUNTING = "whole_essence_v1";
     private static volatile Active active;
     private static volatile boolean resourcesChanged;
@@ -91,6 +91,7 @@ public final class GeneratedBalanceService {
             validation.addProperty("runtime", "passed");
             validation.addProperty("economy", "passed");
             validation.addProperty("serialization", "passed");
+            validation.addProperty("attunement", "multiple unrestricted base methods, positive rates, bounded policy, complete adjacent chapter topology passed");
             validation.addProperty("liveGameplay", "not performed by generator");
             JsonObject document = new JsonObject();
             document.add("metadata", metadata);
@@ -145,7 +146,7 @@ public final class GeneratedBalanceService {
             try { BalanceReports.export(candidate, previous, directory(), lastGenerationMillis); }
             catch (IOException | RuntimeException error) {
                 // Diagnostics are derived output; failure cannot invalidate an already committed profile.
-                EssenceAscendance.LOGGER.error("Profile installed, but balance diagnostics could not be written. Use /essence debug balance export", error);
+                EssenceAscendance.LOGGER.error("Profile installed, but balance diagnostics could not be written. Use /essence admin balance export", error);
             }
         }
         try {
@@ -182,7 +183,7 @@ public final class GeneratedBalanceService {
                 new java.util.EnumMap<>(com.mistaboom.essence_ascendance.balance.engine.CapabilityAxis.class);
         for (var axis : com.mistaboom.essence_ascendance.balance.engine.CapabilityAxis.values())
             budgets.put(axis, 1 + 2 * runtime.composition().get("skill_share") + runtime.composition().get("partial_viability"));
-        for (var tier : com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry.values()) {
+        for (var tier : com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry.powerTiers()) {
             for (boolean future : new boolean[]{false, true}) {
                 Map<ResourceLocation, Integer> ranks = new java.util.TreeMap<>(java.util.Comparator.comparing(ResourceLocation::toString));
                 catalog.forEach(skill -> {
@@ -231,9 +232,9 @@ public final class GeneratedBalanceService {
         List<String> changes = new ArrayList<>();
         if (!metadata.has("generatorRevision")
                 || !GENERATION_REVISION.equals(metadata.get("generatorRevision").getAsString()))
-            changes.add("Balance generator updated; use /essence debug balance rebuild to replace obsolete mining/boss ascension gates with generated Essence qualification");
+            changes.add("Balance generator updated; use /essence admin balance rebuild to install the current Category Attunement policy");
         if (!metadata.getAsJsonObject("environment").get("digest").getAsString().equals(current.digest()))
-            changes.add("Pack identity changed; use /essence debug balance rebuild");
+            changes.add("Pack identity changed; use /essence admin balance rebuild");
         try {
             if (!metadata.get("settingsFingerprint").getAsString().equals(BalanceInputs.fingerprint(BalanceInputs.settingsPath(Platform.getConfigFolder()))))
                 changes.add("Friendly TOML changed; current generated values remain active until explicit rebuild");

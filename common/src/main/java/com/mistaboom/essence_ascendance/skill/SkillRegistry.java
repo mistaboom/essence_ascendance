@@ -8,7 +8,6 @@ import com.mistaboom.essence_ascendance.progression.MilestoneRegistry;
 import com.mistaboom.essence_ascendance.skill.requirement.BonusInvestmentRequirement;
 import com.mistaboom.essence_ascendance.skill.requirement.DiscoveryRequirement;
 import com.mistaboom.essence_ascendance.skill.requirement.PermanentMilestoneRequirement;
-import com.mistaboom.essence_ascendance.skill.requirement.PlayerAttunementRequirement;
 import com.mistaboom.essence_ascendance.skill.requirement.SkillRequirement;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
@@ -74,18 +73,10 @@ public final class SkillRegistry {
         return CATALOG.choiceGroupsById().values();
     }
 
-    public static Set<ResourceLocation> referencedAttunementIds() {
-        return CATALOG.attunementIds();
-    }
 
-    /**
-     * Includes provisional Attunement identities even when no current skill
-     * definition is gated by them. This lets permission-gated development
-     * tools validate IDs without freezing candidate sacrifice mappings.
-     */
-    public static Set<ResourceLocation> knownAttunementIds() {
-        return Set.copyOf(SkillAttunements.values());
-    }
+
+
+
 
     public static Set<ResourceLocation> referencedPermanentMilestoneIds() {
         return CATALOG.permanentMilestoneIds();
@@ -222,14 +213,11 @@ public final class SkillRegistry {
             ordered.addAll(byEssence.get(essence.id()));
         }
 
-        Set<ResourceLocation> attunements = new LinkedHashSet<>();
         Set<ResourceLocation> permanentMilestones = new LinkedHashSet<>();
         Set<ResourceLocation> discoveries = new LinkedHashSet<>();
         for (SkillDefinition skill : ordered) {
             for (SkillRequirement requirement : allRankRequirements(skill)) {
-                if (requirement instanceof PlayerAttunementRequirement attunement) {
-                    attunements.add(attunement.attunementId());
-                } else if (requirement instanceof PermanentMilestoneRequirement milestone) {
+                if (requirement instanceof PermanentMilestoneRequirement milestone) {
                     permanentMilestones.add(milestone.milestoneId());
                 } else if (requirement instanceof DiscoveryRequirement discovery) {
                     discoveries.add(discovery.discoveryId());
@@ -242,7 +230,6 @@ public final class SkillRegistry {
                 Collections.unmodifiableMap(byEssence),
                 List.copyOf(ordered),
                 Collections.unmodifiableMap(choiceGroups),
-                Collections.unmodifiableSet(attunements),
                 Collections.unmodifiableSet(permanentMilestones),
                 Collections.unmodifiableSet(discoveries)
         );
@@ -601,7 +588,6 @@ public final class SkillRegistry {
             Map<ResourceLocation, List<SkillDefinition>> skillsByEssence,
             List<SkillDefinition> orderedSkills,
             Map<ResourceLocation, SkillChoiceGroup> choiceGroupsById,
-            Set<ResourceLocation> attunementIds,
             Set<ResourceLocation> permanentMilestoneIds,
             Set<ResourceLocation> discoveryIds
     ) {

@@ -7,6 +7,7 @@ import com.mistaboom.essence_ascendance.balance.config.BalanceSettings;
 import com.mistaboom.essence_ascendance.balance.config.BalanceOverrides;
 import com.mistaboom.essence_ascendance.balance.engine.PackEvidence;
 import com.mistaboom.essence_ascendance.balance.economy.EconomyProfile;
+import com.mistaboom.essence_ascendance.attunement.AttunementProfile;
 import com.mistaboom.essence_ascendance.config.*;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleStructureStats;
 import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineConfig;
@@ -33,16 +34,23 @@ public final class RuntimeBalanceDefinition {
     private final Map<String, SkillBalanceRuntime.ResolvedSkill> skillCurves;
     private final Map<String, Double> composition;
     private final RuntimeBuildScenarios.Analysis generationAnalysis;
+    private final AttunementProfile attunement;
 
     public RuntimeBalanceDefinition(EssenceServerConfig config, EssenceCrucibleStructureStats crucible,
             Map<String, EssencePylonContribution> pylons,
             Map<String, SkillBalanceRuntime.ResolvedSkill> skillCurves, Map<String, Double> composition) {
-        this(config,crucible,pylons,skillCurves,composition,null);
+        this(config,crucible,pylons,skillCurves,composition,AttunementGenerator.bootstrap(config.balanceProfile()),null);
+    }
+    public RuntimeBalanceDefinition(EssenceServerConfig config, EssenceCrucibleStructureStats crucible,
+            Map<String, EssencePylonContribution> pylons, Map<String, SkillBalanceRuntime.ResolvedSkill> skillCurves,
+            Map<String, Double> composition, AttunementProfile attunement) {
+        this(config,crucible,pylons,skillCurves,composition,attunement,null);
     }
     private RuntimeBalanceDefinition(EssenceServerConfig config, EssenceCrucibleStructureStats crucible,
             Map<String, EssencePylonContribution> pylons, Map<String,SkillBalanceRuntime.ResolvedSkill> skillCurves,
-            Map<String,Double> composition, RuntimeBuildScenarios.Analysis generationAnalysis) {
+            Map<String,Double> composition, AttunementProfile attunement, RuntimeBuildScenarios.Analysis generationAnalysis) {
         this.generationAnalysis=generationAnalysis;
+        this.attunement=Objects.requireNonNull(attunement, "Missing Category Attunement calibration; explicitly rebuild generated balance");
         this.config = Objects.requireNonNull(config);
         this.crucible = Objects.requireNonNull(crucible);
         this.pylons = Collections.unmodifiableMap(new TreeMap<>(pylons));
@@ -52,13 +60,14 @@ public final class RuntimeBalanceDefinition {
     }
     public RuntimeBuildScenarios.Analysis generationAnalysis() { return generationAnalysis; }
     public RuntimeBalanceDefinition withAnalysis(RuntimeBuildScenarios.Analysis analysis) {
-        return new RuntimeBalanceDefinition(config,crucible,pylons,skillCurves,composition,analysis);
+        return new RuntimeBalanceDefinition(config,crucible,pylons,skillCurves,composition,attunement,analysis);
     }
     public EssenceServerConfig config() { return config; }
     public EssenceCrucibleStructureStats crucible() { return crucible; }
     public Map<String, EssencePylonContribution> pylons() { return pylons; }
     public Map<String, SkillBalanceRuntime.ResolvedSkill> skillCurves() { return skillCurves; }
     public Map<String, Double> composition() { return composition; }
+    public AttunementProfile attunement() { return attunement; }
     public EssencePylonContribution pylon(String tier) {
         EssencePylonContribution result = pylons.get(tier);
         if (result == null) throw new IllegalArgumentException("Missing generated pylon tier " + tier);
@@ -86,7 +95,6 @@ public final class RuntimeBalanceDefinition {
         SkillBalanceRuntime.validate(skillCurves);
         var profile = config.balanceProfile();
         var validEquipment = new HashSet<ResourceLocation>();
-        validEquipment.add(ResourceLocation.fromNamespaceAndPath("essence_ascendance", "latent"));
         long previous = 0;
         double fraction = 0;
         var tiers = AscendanceTierRegistry.values().stream().sorted(Comparator.comparingInt(t -> t.order())).toList();
@@ -96,12 +104,18 @@ public final class RuntimeBalanceDefinition {
         for (var tier : tiers) {
             validEquipment.add(tier.id());
             long cap = profile.getDefaultInvestmentCap(tier);
-            if (cap <= previous || cap > Long.MAX_VALUE / 10000) throw new IllegalArgumentException("Tier caps must strictly increase within safe accounting limits");
-            previous = cap;
             Double next = profile.tierFractions().get(tier.id());
-            if (next == null || !Double.isFinite(next) || next <= fraction || next > 1)
-                throw new IllegalArgumentException("Missing/non-monotonic generated tier fraction " + tier.id());
-            fraction = next;
+            if (!tier.grantsPower()) {
+                if (cap != 0 || next == null || next != 0)
+                    throw new IllegalArgumentException("Non-powered tiers must have zero Bonus cap and power fraction: " + tier.id());
+            } else {
+                if (cap <= previous || cap > Long.MAX_VALUE / 10000)
+                    throw new IllegalArgumentException("Powered tier caps must strictly increase within safe accounting limits");
+                if (next == null || !Double.isFinite(next) || next <= fraction || next > 1)
+                    throw new IllegalArgumentException("Missing/non-monotonic generated tier fraction " + tier.id());
+                previous = cap;
+                fraction = next;
+            }
             var baseline = config.equipmentBaselineConfig().baselineFor(tier);
             if (previousEquipment != null) {
                 for (var property : com.mistaboom.essence_ascendance.equipment.EquipmentBaselineProperty.values())
@@ -126,8 +140,12 @@ public final class RuntimeBalanceDefinition {
             long last = 0;
             for (var tier : tiers) {
                 long cap = profile.getInvestmentCap(tier, stat);
-                if (cap <= last || cap > Long.MAX_VALUE / 10000) throw new IllegalArgumentException("Invalid generated investment curve " + stat.id());
-                last = cap;
+                if (!tier.grantsPower()) {
+                    if (cap != 0) throw new IllegalArgumentException("Non-powered tier grants Bonus investment for " + stat.id());
+                } else {
+                    if (cap <= last || cap > Long.MAX_VALUE / 10000) throw new IllegalArgumentException("Invalid generated investment curve " + stat.id());
+                    last = cap;
+                }
             }
         }
         if (!config.statMaxBonuses().keySet().equals(statIds) || !profile.statOverrides().keySet().equals(statIds))
@@ -224,7 +242,7 @@ public final class RuntimeBalanceDefinition {
                 new WorldgenWire(worldgen.overworld(), worldgen.nether(), worldgen.end(), worldgen.customDimensions()),
                 new ProfileWire(profile.id(), profile.displayName(), profile.defaultTierCaps(), profile.statOverrides(), profile.tierFractions(), profile.investmentExponent()),
                 config.milestones(), config.advancements(), config.statMaxBonuses(), config.equipmentBaselineConfig().tierBaselines(),
-                crucible, pylons, skillCurves, composition);
+                crucible, pylons, skillCurves, composition, attunement);
         return JSON.toJsonTree(wire).getAsJsonObject();
     }
     /** Strict round trip rejects unknown/missing fields and silent clamping by value records. */
@@ -237,7 +255,8 @@ public final class RuntimeBalanceDefinition {
         var config = new EssenceServerConfig(wire.configVersion, wire.pylonRadius, wire.maxActivePylons,
                 wire.infuser, wire.shield, wire.effects, new LatentOreWorldgenSettings(w.overworld,w.nether,w.end,w.customDimensions),
                 profile, wire.milestones, wire.advancements, wire.statMaxBonuses, new EquipmentBaselineConfig(wire.equipment));
-        var result = new RuntimeBalanceDefinition(config, wire.crucible, wire.pylons, wire.skillCurves, wire.composition);
+        var result = new RuntimeBalanceDefinition(config, wire.crucible, wire.pylons, wire.skillCurves, wire.composition,
+                Objects.requireNonNull(wire.attunement, "Missing Category Attunement calibration; use /essence admin balance rebuild"));
         if (!result.toJson().equals(json)) throw new IllegalArgumentException("Runtime profile has missing, unknown, or out-of-range fields; rebuild it instead of editing generated JSON");
         return result;
     }
@@ -246,7 +265,7 @@ public final class RuntimeBalanceDefinition {
             Map<ResourceLocation,MilestoneDefinition> milestones, Map<ResourceLocation,AscendanceAdvancementDefinition> advancements,
             Map<ResourceLocation,Double> statMaxBonuses, Map<ResourceLocation,EquipmentBaselineConfig.TierBaseline> equipment,
             EssenceCrucibleStructureStats crucible, Map<String,EssencePylonContribution> pylons,
-            Map<String,SkillBalanceRuntime.ResolvedSkill> skillCurves, Map<String,Double> composition) {}
+            Map<String,SkillBalanceRuntime.ResolvedSkill> skillCurves, Map<String,Double> composition, AttunementProfile attunement) {}
     private record ProfileWire(ResourceLocation id, String displayName, Map<ResourceLocation,Long> defaultTierCaps,
             Map<ResourceLocation,Map<ResourceLocation,Long>> statOverrides, Map<ResourceLocation,Double> tierFractions, double investmentExponent) {}
     private record WorldgenWire(LatentOreWorldgenSettings.DimensionSettings overworld, LatentOreWorldgenSettings.DimensionSettings nether,

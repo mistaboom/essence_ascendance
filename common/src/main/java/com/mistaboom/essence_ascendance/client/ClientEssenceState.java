@@ -1,10 +1,12 @@
 package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
+import com.mistaboom.essence_ascendance.attunement.AttunementSnapshot;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.network.PlayerEssenceSyncPayload;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
+import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.resources.ResourceLocation;
 
@@ -13,6 +15,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Objects;
 import java.util.Set;
 
 /*
@@ -151,16 +154,6 @@ public final class ClientEssenceState {
                                 selectionId
                         )
         );
-    }
-
-    public static boolean hasAttunement(
-            ResourceLocation attunementId
-    ) {
-        return snapshot
-                .completedAttunements()
-                .contains(
-                        attunementId
-                );
     }
 
     public static void clear() {
@@ -343,23 +336,6 @@ public final class ClientEssenceState {
             }
         }
 
-        Set<ResourceLocation> completedAttunements =
-                new LinkedHashSet<>();
-
-        for (String rawId :
-                payload.completedAttunements()) {
-            ResourceLocation attunementId =
-                    ResourceLocation.tryParse(
-                            rawId
-                    );
-
-            if (attunementId != null) {
-                completedAttunements.add(
-                        attunementId
-                );
-            }
-        }
-
         List<WorldRequirementSnapshot> worldRequirements =
                 payload.progress()
                         .worldRequirements()
@@ -394,8 +370,14 @@ public final class ClientEssenceState {
                         payload.progress().readyToAscend()
                 );
 
-        boolean firstSnapshot =
-                !snapshot.ready();
+        Snapshot previousSnapshot = snapshot;
+        boolean firstSnapshot = !previousSnapshot.ready();
+        boolean automaticOnboardingPromotion = previousSnapshot.ready()
+                && !Objects.equals(previousSnapshot.tierId(), tierId)
+                && AscendanceTierRegistry.get(previousSnapshot.tierId())
+                        .map(tier -> !tier.grantsPower()).orElse(false)
+                && AscendanceTierRegistry.get(tierId)
+                        .map(tier -> tier.grantsPower()).orElse(false);
 
         snapshot =
                 new Snapshot(
@@ -421,9 +403,7 @@ public final class ClientEssenceState {
                         Map.copyOf(
                                 loadoutSelections
                         ),
-                        Set.copyOf(
-                                completedAttunements
-                        ),
+                        payload.attunement(),
                         progress
                 );
 
@@ -435,6 +415,9 @@ public final class ClientEssenceState {
                     balances.size(),
                     stats.size()
             );
+        }
+        if (automaticOnboardingPromotion) {
+            AscensionAnimation.confirmed(tierId);
         }
     }
 
@@ -462,7 +445,7 @@ public final class ClientEssenceState {
             Set<ResourceLocation> completedMilestones,
             Map<ResourceLocation, SkillPurchaseSnapshot> ownedSkills,
             Map<ResourceLocation, ResourceLocation> loadoutSelections,
-            Set<ResourceLocation> completedAttunements,
+            AttunementSnapshot attunement,
             ProgressSnapshot progress
     ) {
         public Snapshot {
@@ -496,10 +479,7 @@ public final class ClientEssenceState {
                             loadoutSelections
                     );
 
-            completedAttunements =
-                    Set.copyOf(
-                            completedAttunements
-                    );
+
         }
 
         /** The synchronized player revision is the persisted Nexus revision. */
@@ -519,7 +499,7 @@ public final class ClientEssenceState {
                     Set.of(),
                     Map.of(),
                     Map.of(),
-                    Set.of(),
+                    AttunementSnapshot.empty(),
                     ProgressSnapshot.empty()
             );
         }

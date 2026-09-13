@@ -7,6 +7,8 @@ import net.minecraft.resources.ResourceLocation;
 
 /** Stable transition identifiers. RuntimeAscensionPolicy supplies generated qualification amounts. */
 public final class AscendanceAdvancements {
+    public static final AscendanceAdvancementDefinition LATENT_TO_DORMANT =
+            register(AscendanceTiers.LATENT, AscendanceTiers.DORMANT);
     public static final AscendanceAdvancementDefinition DORMANT_TO_AWAKENED =
             register(AscendanceTiers.DORMANT, AscendanceTiers.AWAKENED);
     public static final AscendanceAdvancementDefinition AWAKENED_TO_RESONANT =

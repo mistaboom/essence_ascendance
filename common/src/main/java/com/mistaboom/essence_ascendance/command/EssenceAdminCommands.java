@@ -1,6 +1,8 @@
 package com.mistaboom.essence_ascendance.command;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
+import com.mistaboom.essence_ascendance.attunement.AttunementGameplay;
+import com.mistaboom.essence_ascendance.text.EssenceText;
 import com.mistaboom.essence_ascendance.balance.BalanceProfileDefinition;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.lifecycle.PlayerRuntimeLifecycleService;
@@ -33,7 +35,6 @@ import com.mistaboom.essence_ascendance.skill.SkillDefinition;
 import com.mistaboom.essence_ascendance.skill.SkillRegistry;
 import com.mistaboom.essence_ascendance.skill.SkillStateEvaluator;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
-import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -56,391 +57,214 @@ final class EssenceAdminCommands {
     private EssenceAdminCommands() {
     }
 
+    private static final String ADMIN = "/essence admin ";
+    private static final String PLAYER = ADMIN + "player ";
+
     static LiteralArgumentBuilder<CommandSourceStack> build() {
-        return Commands.literal("admin")
+        return group("admin", EssenceAdminCommands::showHelp)
                 .requires(source -> source.hasPermission(EssenceCommandUtil.ADMIN_PERMISSION))
-                .executes(context -> showHelp(context.getSource()))
-                .then(
-                        Commands.literal("help")
-                                .executes(context -> showHelp(context.getSource()))
-                )
-                .then(
-                        Commands.literal("essence")
-                                .executes(context -> showEssenceHelp(context.getSource()))
-                                .then(
-                                        Commands.literal("give")
-                                                .then(
-                                                        Commands.argument("essence", StringArgumentType.word())
-                                                                .suggests(EssenceCommandUtil::suggestEssences)
-                                                                .then(
-                                                                        Commands.argument("amount", LongArgumentType.longArg(1))
-                                                                                .executes(context -> giveEssence(
-                                                                                        context.getSource(),
-                                                                                        StringArgumentType.getString(context, "essence"),
-                                                                                        LongArgumentType.getLong(context, "amount")
-                                                                                ))
-                                                                )
-                                                )
-                                )
-                                .then(
-                                        Commands.literal("set")
-                                                .then(
-                                                        Commands.argument("essence", StringArgumentType.word())
-                                                                .suggests(EssenceCommandUtil::suggestEssences)
-                                                                .then(
-                                                                        Commands.argument("amount", LongArgumentType.longArg(0))
-                                                                                .executes(context -> setEssence(
-                                                                                        context.getSource(),
-                                                                                        StringArgumentType.getString(context, "essence"),
-                                                                                        LongArgumentType.getLong(context, "amount")
-                                                                                ))
-                                                                )
-                                                )
-                                )
-                )
-                .then(
-                        Commands.literal("essences")
-                                .executes(context -> showEssencesHelp(context.getSource()))
-                                .then(
-                                        Commands.literal("clear")
-                                                .executes(context -> clearAllEssences(context.getSource()))
-                                )
-                )
-                .then(
-                        Commands.literal("crucible")
-                                .executes(context -> showCrucibleHelp(context.getSource()))
-                                .then(
-                                        Commands.literal("clear")
-                                                .executes(context -> clearAllCrucibleEssences(context.getSource()))
-                                                .then(
-                                                        Commands.argument("essence", StringArgumentType.word())
-                                                                .suggests(EssenceCommandUtil::suggestEssences)
-                                                                .executes(context -> clearCrucibleEssence(
-                                                                        context.getSource(),
-                                                                        StringArgumentType.getString(context, "essence")
-                                                                ))
-                                                )
-                                )
-                )
-                .then(
-                        Commands.literal("stat")
-                                .executes(context -> showStatHelp(context.getSource()))
-                                .then(
-                                        Commands.literal("set")
-                                                .then(
-                                                        Commands.argument("stat", StringArgumentType.word())
-                                                                .suggests(EssenceCommandUtil::suggestStats)
-                                                                .then(
-                                                                        Commands.argument("amount", LongArgumentType.longArg(0))
-                                                                                .executes(context -> setStat(
-                                                                                        context.getSource(),
-                                                                                        StringArgumentType.getString(context, "stat"),
-                                                                                        LongArgumentType.getLong(context, "amount")
-                                                                                ))
-                                                                )
-                                                )
-                                )
-                                .then(
-                                        Commands.literal("max")
-                                                .then(
-                                                        Commands.argument("stat", StringArgumentType.word())
-                                                                .suggests(EssenceCommandUtil::suggestStats)
-                                                                .executes(context -> maxStat(
-                                                                        context.getSource(),
-                                                                        StringArgumentType.getString(context, "stat")
-                                                                ))
-                                                )
-                                )
-                                .then(
-                                        Commands.literal("clear")
-                                                .then(
-                                                        Commands.argument("stat", StringArgumentType.word())
-                                                                .suggests(EssenceCommandUtil::suggestStats)
-                                                                .executes(context -> setStat(
-                                                                        context.getSource(),
-                                                                        StringArgumentType.getString(context, "stat"),
-                                                                        0L
-                                                                ))
-                                                )
-                                )
-                )
-                .then(
-                        Commands.literal("stats")
-                                .executes(context -> showStatsHelp(context.getSource()))
-                                .then(
-                                        Commands.literal("max")
-                                                .executes(context -> maxAllStats(context.getSource()))
-                                )
-                                .then(
-                                        Commands.literal("clear")
-                                                .executes(context -> clearAllStats(context.getSource()))
-                                )
-                )
-                .then(
-                        Commands.literal("tier")
-                                .executes(context -> showPlayerTierHelp(context.getSource()))
-                                .then(
-                                        Commands.literal("set")
-                                                .then(
-                                                        Commands.argument("tier", StringArgumentType.word())
-                                                                .suggests(EssenceCommandUtil::suggestTiers)
-                                                                .executes(context -> setTier(
-                                                                        context.getSource(),
-                                                                        StringArgumentType.getString(context, "tier")
-                                                                ))
-                                                )
-                                )
-                )
-                .then(
-                        Commands.literal("itemtier")
-                                .executes(context -> showItemTierHelp(context.getSource()))
-                                .then(
-                                        Commands.literal("set")
-                                                .then(
-                                                        Commands.argument("tier", StringArgumentType.word())
-                                                                .suggests(EssenceCommandUtil::suggestItemTiers)
-                                                                .executes(context -> setHeldItemTier(
-                                                                        context.getSource(),
-                                                                        StringArgumentType.getString(context, "tier")
-                                                                ))
-                                                )
-                                )
-                )
-                .then(
-                        Commands.literal("milestone")
-                                .executes(context -> showMilestoneHelp(context.getSource()))
-                                .then(
-                                        Commands.literal("set")
-                                                .then(
-                                                        Commands.argument("milestone", StringArgumentType.string())
-                                                                .suggests(EssenceCommandUtil::suggestMilestones)
-                                                                .then(
-                                                                        Commands.argument("complete", BoolArgumentType.bool())
-                                                                                .executes(context -> setMilestone(
-                                                                                        context.getSource(),
-                                                                                        StringArgumentType.getString(context, "milestone"),
-                                                                                        BoolArgumentType.getBool(context, "complete")
-                                                                                ))
-                                                                )
-                                                )
-                                )
-                                .then(
-                                        Commands.literal("grant")
-                                                .then(
-                                                        Commands.argument("milestone", StringArgumentType.string())
-                                                                .suggests(EssenceCommandUtil::suggestDevelopmentMilestones)
-                                                                .executes(context -> setMilestone(
-                                                                        context.getSource(),
-                                                                        StringArgumentType.getString(context, "milestone"),
-                                                                        true
-                                                                ))
-                                                )
-                                )
-                                .then(
-                                        Commands.literal("revoke")
-                                                .then(
-                                                        Commands.argument("milestone", StringArgumentType.string())
-                                                                .suggests(EssenceCommandUtil::suggestDevelopmentMilestones)
-                                                                .executes(context -> setMilestone(
-                                                                        context.getSource(),
-                                                                        StringArgumentType.getString(context, "milestone"),
-                                                                        false
-                                                                ))
-                                                )
-                                )
-                )
-                .then(
-                        Commands.literal("skills")
-                                .executes(context -> showSkillsHelp(context.getSource()))
-                                .then(Commands.literal("grant_all")
-                                        .executes(context -> grantAllSkills(context.getSource())))
-                                .then(Commands.literal("clear")
-                                        .executes(context -> clearAllSkills(context.getSource())))
-                                .then(Commands.literal("activate")
-                                        .then(Commands.argument("skill", StringArgumentType.string())
-                                                .suggests(EssenceCommandUtil::suggestSkills)
-                                                .executes(context -> activateSkill(context.getSource(),
-                                                        StringArgumentType.getString(context, "skill")))))
-                )
-                .then(
-                        Commands.literal("attunement")
-                                .executes(context -> showAttunementHelp(context.getSource()))
-                                .then(
-                                        Commands.literal("grant")
-                                                .then(
-                                                        Commands.argument("attunement", StringArgumentType.string())
-                                                                .suggests(EssenceCommandUtil::suggestAttunements)
-                                                                .executes(context -> setAttunement(
-                                                                        context.getSource(),
-                                                                        StringArgumentType.getString(context, "attunement"),
-                                                                        true
-                                                                ))
-                                                )
-                                )
-                                .then(
-                                        Commands.literal("revoke")
-                                                .then(
-                                                        Commands.argument("attunement", StringArgumentType.string())
-                                                                .suggests(EssenceCommandUtil::suggestAttunements)
-                                                                .executes(context -> setAttunement(
-                                                                        context.getSource(),
-                                                                        StringArgumentType.getString(context, "attunement"),
-                                                                        false
-                                                                ))
-                                                )
-                                )
-                )
-                .then(
-                        Commands.literal("mappings")
-                                .executes(context -> showMappings(context.getSource()))
-                                .then(
-                                        Commands.literal("reload")
-                                                .executes(context -> reloadMappings(context.getSource()))
-                                )
-                                .then(
-                                        Commands.literal("list")
-                                                .executes(context -> listMappings(context.getSource()))
-                                )
-                )
-                .then(Commands.literal("config")
-                        .executes(context -> showConfig(context.getSource())))
-                .then(
-                        Commands.literal("reset")
-                                .executes(context -> resetAll(context.getSource()))
-                );
+                .then(playerCommands())
+                .then(group("item", EssenceAdminCommands::showItemTierHelp)
+                        .then(group("tier", EssenceAdminCommands::showItemTierHelp)
+                                .then(group("set", EssenceAdminCommands::showItemTierHelp)
+                                        .then(target(Commands.argument("tier", StringArgumentType.string())
+                                                        .suggests(EssenceCommandUtil::suggestItemTiers),
+                                                c -> setHeldItemTier(c.getSource(), word(c, "tier")))))))
+                .then(EssenceBalanceCommands.admin())
+                .then(group("mappings", EssenceAdminCommands::showMappingsHelp)
+                        .then(Commands.literal("reload").executes(c -> reloadMappings(c.getSource()))))
+                .then(Commands.literal("config").executes(c -> showConfig(c.getSource())));
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> playerCommands() {
+        return group("player", EssenceAdminCommands::showPlayerHelp)
+                .then(target(Commands.literal("reset"), c -> resetAll(c.getSource())))
+                .then(group("tier", EssenceAdminCommands::showPlayerTierHelp)
+                        .then(group("set", EssenceAdminCommands::showPlayerTierHelp)
+                                .then(target(Commands.argument("tier", StringArgumentType.string()).suggests(EssenceCommandUtil::suggestTiers),
+                                        c -> setTier(c.getSource(), word(c, "tier"))))))
+                .then(AttunementCommands.admin())
+                .then(essenceCommands())
+                .then(bonusCommands())
+                .then(skillCommands())
+                .then(milestoneCommands())
+                .then(group("crucible", EssenceAdminCommands::showCrucibleHelp)
+                        .then(group("clear", EssenceAdminCommands::showCrucibleHelp)
+                                .then(target(Commands.literal("all"), c -> clearAllCrucibleEssences(c.getSource())))
+                                .then(target(Commands.argument("essence", StringArgumentType.string()).suggests(EssenceCommandUtil::suggestEssences),
+                                        c -> clearCrucibleEssence(c.getSource(), word(c, "essence"))))))
+                .then(group("guide", EssenceAdminCommands::showGuideHelp)
+                        .then(target(Commands.literal("give"), c -> giveGuide(c.getSource()))));
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> essenceCommands() {
+        return group("essence", EssenceAdminCommands::showEssenceHelp)
+                .then(group("give", EssenceAdminCommands::showEssenceHelp)
+                        .then(Commands.argument("essence", StringArgumentType.string()).suggests(EssenceCommandUtil::suggestEssences)
+                                .then(target(Commands.argument("amount", LongArgumentType.longArg(1)),
+                                        c -> giveEssence(c.getSource(), word(c, "essence"), LongArgumentType.getLong(c, "amount"))))))
+                .then(group("set", EssenceAdminCommands::showEssenceHelp)
+                        .then(Commands.argument("essence", StringArgumentType.string()).suggests(EssenceCommandUtil::suggestEssences)
+                                .then(target(Commands.argument("amount", LongArgumentType.longArg(0)),
+                                        c -> setEssence(c.getSource(), word(c, "essence"), LongArgumentType.getLong(c, "amount"))))))
+                .then(group("clear", EssenceAdminCommands::showEssenceHelp)
+                        .then(target(Commands.literal("all"), c -> clearAllEssences(c.getSource())))
+                        .then(target(Commands.argument("essence", StringArgumentType.string()).suggests(EssenceCommandUtil::suggestEssences),
+                                c -> setEssence(c.getSource(), word(c, "essence"), 0L))));
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> bonusCommands() {
+        return group("bonuses", EssenceAdminCommands::showBonusHelp)
+                .then(group("set", EssenceAdminCommands::showBonusHelp)
+                        .then(Commands.argument("bonus", StringArgumentType.string()).suggests(EssenceCommandUtil::suggestStats)
+                                .then(target(Commands.argument("amount", LongArgumentType.longArg(0)),
+                                        c -> setStat(c.getSource(), word(c, "bonus"), LongArgumentType.getLong(c, "amount"))))))
+                .then(group("max", EssenceAdminCommands::showBonusHelp)
+                        .then(target(Commands.literal("all"), c -> maxAllStats(c.getSource())))
+                        .then(target(Commands.argument("bonus", StringArgumentType.string()).suggests(EssenceCommandUtil::suggestStats),
+                                c -> maxStat(c.getSource(), word(c, "bonus")))))
+                .then(group("clear", EssenceAdminCommands::showBonusHelp)
+                        .then(target(Commands.literal("all"), c -> clearAllStats(c.getSource())))
+                        .then(target(Commands.argument("bonus", StringArgumentType.string()).suggests(EssenceCommandUtil::suggestStats),
+                                c -> setStat(c.getSource(), word(c, "bonus"), 0L))));
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> skillCommands() {
+        return group("skills", EssenceAdminCommands::showSkillsHelp)
+                .then(group("grant", EssenceAdminCommands::showSkillsHelp)
+                        .then(target(Commands.literal("all"), c -> grantAllSkills(c.getSource())))
+                        .then(target(Commands.argument("skill", StringArgumentType.string()).suggests(EssenceCommandUtil::suggestSkills),
+                                c -> grantSkill(c.getSource(), word(c, "skill")))))
+                .then(group("clear", EssenceAdminCommands::showSkillsHelp)
+                        .then(target(Commands.literal("all"), c -> clearAllSkills(c.getSource()))))
+                .then(group("activate", EssenceAdminCommands::showSkillsHelp)
+                        .then(target(Commands.argument("skill", StringArgumentType.string()).suggests(EssenceCommandUtil::suggestSkills),
+                                c -> activateSkill(c.getSource(), word(c, "skill")))));
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> milestoneCommands() {
+        var root = group("milestones", EssenceAdminCommands::showMilestoneHelp);
+        for (String verb : java.util.List.of("grant", "revoke")) root.then(group(verb, EssenceAdminCommands::showMilestoneHelp)
+                .then(target(Commands.argument("milestone", StringArgumentType.string()).suggests(EssenceCommandUtil::suggestDevelopmentMilestones),
+                        c -> setMilestone(c.getSource(), word(c, "milestone"), verb.equals("grant")))));
+        return root;
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> group(String name,
+            java.util.function.ToIntFunction<CommandSourceStack> help) {
+        return Commands.literal(name).executes(c -> help.applyAsInt(c.getSource()))
+                .then(Commands.literal("help").executes(c -> help.applyAsInt(c.getSource())));
+    }
+
+    private static <T extends com.mojang.brigadier.builder.ArgumentBuilder<CommandSourceStack, T>> T target(
+            T node, com.mojang.brigadier.Command<CommandSourceStack> action) {
+        return EssenceCommandUtil.withPlayerTarget(node, action);
+    }
+
+    private static String word(com.mojang.brigadier.context.CommandContext<CommandSourceStack> context, String name) {
+        return StringArgumentType.getString(context, name);
     }
 
     static int showHelp(CommandSourceStack source) {
-        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Essence Admin Commands"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin essence give <essence> <amount>", "add available Essence"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin essence set <essence> <amount>", "set an available Essence balance"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin essences clear", "clear all available Essence balances"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin crucible clear", "clear stored Crucible Essence"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin crucible clear <essence>", "clear one stored Crucible Essence"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin stat set <stat> <amount>", "set stored investment directly"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin stat max <stat>", "set one stat exactly to its current tier cap"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin stat clear <stat>", "clear one stat investment"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin stats max", "max every stat to the current tier caps"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin stats clear", "clear investments without clearing balances"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin skills grant_all", "grant every current catalog skill at zero cost"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin skills activate <skill>", "select the skill's required combat/loadout branch"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin skills clear", "remove all skill receipts and selections"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin tier set <tier>", "force your PLAYER Ascendance tier"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin itemtier set <tier>", "set the held Ascendance equipment/Essence Focus tier"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin milestone set <milestone> <true|false>", "set an internal progression milestone"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin milestone grant|revoke <milestone_id>", "change a configured INTERNAL or catalog skill milestone"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin attunement grant|revoke <attunement_id>", "change a known Player Attunement ID for development"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin mappings", "show generated dissolution mapping status"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin mappings reload", "load saved procedural defaults and explicit overrides; calculate only when the cache is absent"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin mappings list", "list the active mapping IDs/selectors"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin config", "show the loaded server configuration"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin reset", "clear all balances and investments"));
-        return 1;
+        return menu(source, "title", new String[][] {
+                {ADMIN + "player", "player"}, {ADMIN + "item", "item"},
+                {ADMIN + "balance", "balance"}, {ADMIN + "mappings", "mappings"}, {ADMIN + "config", "config"}});
+    }
+
+    private static int showPlayerHelp(CommandSourceStack source) {
+        int result = menu(source, "player_title", new String[][] {
+                {PLAYER + "tier", "tier"}, {PLAYER + "attunement", "attunement"},
+                {PLAYER + "essence", "essence"}, {PLAYER + "bonuses", "stat"},
+                {PLAYER + "skills", "skills"}, {PLAYER + "milestones", "milestone"},
+                {PLAYER + "crucible", "crucible"}, {PLAYER + "guide", "guide"}, {PLAYER + "reset [player]", "reset"}});
+        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(EssenceText.command("admin.help.target")));
+        return result;
     }
 
     private static int showEssenceHelp(CommandSourceStack source) {
-        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Admin - Essence balances"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin essence give <essence> <amount>", "add to a balance"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin essence set <essence> <amount>", "replace a balance"));
-        return 1;
-    }
-
-    private static int showEssencesHelp(CommandSourceStack source) {
-        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Admin - All Essence balances"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin essences clear", "clear all available Essence balances while preserving investments and Crucible storage"));
-        return 1;
+        return menu(source, "essence_title", new String[][] {
+                {PLAYER + "essence give <essence> <amount> [player]", "essence_give"},
+                {PLAYER + "essence set <essence> <amount> [player]", "essence_set"},
+                {PLAYER + "essence clear <essence|all> [player]", "essence_clear"}});
     }
 
     private static int showCrucibleHelp(CommandSourceStack source) {
-        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Admin - Crucible reservoir"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command(
-                "/essence admin crucible clear",
-                "clear all Essence from your shared Crucible reservoir"
-        ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command(
-                "/essence admin crucible clear <essence>",
-                "clear one Essence from your shared Crucible reservoir"
-        ));
-        return 1;
+        return menu(source, "crucible_title", new String[][] {
+                {PLAYER + "crucible clear <essence|all> [player]", "crucible"}});
     }
 
-    private static int showStatHelp(CommandSourceStack source) {
-        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Admin - One stat"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin stat set <stat> <amount>", "set stored investment directly"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin stat max <stat>", "set to the exact current cap"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin stat clear <stat>", "set stored investment to zero"));
-        return 1;
-    }
-
-    private static int showStatsHelp(CommandSourceStack source) {
-        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Admin - All stats"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin stats max", "set every stat to its current cap"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin stats clear", "clear every stat while preserving Essence balances"));
-        return 1;
+    private static int showBonusHelp(CommandSourceStack source) {
+        return menu(source, "bonuses_title", new String[][] {
+                {PLAYER + "bonuses set <bonus> <amount> [player]", "bonus_set"},
+                {PLAYER + "bonuses max <bonus|all> [player]", "bonus_max"},
+                {PLAYER + "bonuses clear <bonus|all> [player]", "bonus_clear"}});
     }
 
     private static int showPlayerTierHelp(CommandSourceStack source) {
-        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Admin - Player Ascendance Tier"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command(
-                "/essence admin tier set <dormant|awakened|resonant|ascendant|transcendent>",
-                "force YOUR player progression tier; this does not change held item tiers"
-        ));
-        return 1;
+        return menu(source, "tier_title", new String[][] {
+                {PLAYER + "tier set <tier> [player]", "tier_set"}});
     }
 
     private static int showItemTierHelp(CommandSourceStack source) {
-        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Admin - Held Item Tier"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command(
-                "/essence admin itemtier set <latent|dormant|awakened|resonant|ascendant|transcendent>",
-                "set the completed tier of held Ascendance equipment or an Essence Focus"
-        ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
-                "Changing an item tier clears partial infusion progress on that item."
-        ));
-        return 1;
+        int result = menu(source, "item_title", new String[][] {
+                {ADMIN + "item tier set <tier> [player]", "item_set"}});
+        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(EssenceText.command("admin.help.item_scope")));
+        return result;
     }
 
     private static int showSkillsHelp(CommandSourceStack source) {
-        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Admin - Skill testing"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin skills grant_all", "grant the current 90-skill catalog for free"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin skills activate <skill>", "apply every required selectable branch for an owned skill"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence admin skills clear", "clear all receipts and loadout selections"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.muted("Live tier, milestone, stat, discovery, and attunement requirements still decide effectiveness."));
-        return 1;
+        int result = menu(source, "skills_title", new String[][] {
+                {PLAYER + "skills grant <skill|all> [player]", "skills_grant"},
+                {PLAYER + "skills activate <skill> [player]", "skills_activate"},
+                {PLAYER + "skills clear all [player]", "skills_clear"}});
+        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(EssenceText.command("admin.help.skills_scope")));
+        return result;
     }
 
     private static int showMilestoneHelp(CommandSourceStack source) {
-        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Admin - Internal progression milestones"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command(
-                "/essence admin milestone grant <milestone_id>",
-                "grant a configured INTERNAL or catalog skill milestone"
-        ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command(
-                "/essence admin milestone revoke <milestone_id>",
-                "revoke a configured INTERNAL or catalog skill milestone"
-        ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
-                "The existing 'set <milestone_id> <true|false>' form remains available."
-        ));
+        return menu(source, "milestones_title", new String[][] {
+                {PLAYER + "milestones grant <milestone> [player]", "milestone_grant"},
+                {PLAYER + "milestones revoke <milestone> [player]", "milestone_revoke"}});
+    }
+
+    private static int showGuideHelp(CommandSourceStack source) {
+        return menu(source, "guide_title", new String[][] {{PLAYER + "guide give [player]", "guide_give"}});
+    }
+
+    private static int showMappingsHelp(CommandSourceStack source) {
+        return menu(source, "mappings_title", new String[][] {
+                {"/essence debug mappings status", "mappings_status"}, {"/essence debug mappings list", "mappings_list"},
+                {ADMIN + "mappings reload", "mappings_reload"}});
+    }
+
+    private static int menu(CommandSourceStack source, String title, String[][] rows) {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("admin.help." + title)));
+        for (String[] row : rows) EssenceCommandUtil.send(source,
+                EssenceCommandUtil.command(row[0], EssenceText.command("admin.help." + row[1])));
         return 1;
     }
 
-    private static int showAttunementHelp(CommandSourceStack source) {
-        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Admin - Player Attunements"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command(
-                "/essence admin attunement grant <attunement_id>",
-                "grant a known stable Attunement ID to yourself"
-        ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command(
-                "/essence admin attunement revoke <attunement_id>",
-                "revoke a known stable Attunement ID from yourself"
-        ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
-                "Development hook: unknown IDs are rejected to prevent persistent typo entries."
-        ));
+    private static int giveGuide(CommandSourceStack source) throws CommandSyntaxException {
+        var result = com.mistaboom.essence_ascendance.progression.DormantGuidebookService.giveForAdmin(source.getPlayerOrException());
+        if (result == com.mistaboom.essence_ascendance.progression.DormantGuidebookService.DeliveryResult.FAILED) {
+            EssenceCommandUtil.fail(source, EssenceText.command("admin.guide.failed"));
+            return 0;
+        }
+        EssenceCommandUtil.send(source, EssenceCommandUtil.good(EssenceText.command(
+                result == com.mistaboom.essence_ascendance.progression.DormantGuidebookService.DeliveryResult.DROPPED
+                        ? "admin.guide.dropped" : "admin.guide.given")));
         return 1;
     }
 
+    private static int grantSkill(CommandSourceStack source, String name) throws CommandSyntaxException {
+        var id = EssenceCommandUtil.resolveResourceId(name);
+        var skill = SkillRegistry.get(id).orElse(null);
+        if (skill == null) { EssenceCommandUtil.fail(source, EssenceText.command("error.unknown_skill", id)); return 0; }
+        var player = source.getPlayerOrException();
+        int count = EssenceSavedData.get(source.getServer()).grantAllSkillsForAdmin(player.getUUID(), java.util.List.of(skill));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.good(EssenceText.command("admin.skills.granted", count, id)));
+        return 1;
+    }
     private static int giveEssence(CommandSourceStack source, String essenceName, long amount) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         EssenceDefinition essence = EssenceCommandUtil.resolveEssence(essenceName);
@@ -478,7 +302,7 @@ final class EssenceAdminCommands {
 
         EssenceCommandUtil.send(source, EssenceCommandUtil.good(
                 "Cleared available balances for " + count
-                        + " Essence types. Stat investments and Crucible storage were preserved."
+                        + " Essence types. Bonus investments and Crucible storage were preserved."
         ));
         return 1;
     }
@@ -533,7 +357,7 @@ final class EssenceAdminCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.good(
                 "Cleared " + EssenceCommandUtil.format(removed) + " "
                         + essence.displayName()
-                        + " from your shared Crucible reservoir."
+                        + " from the shared Crucible reservoir."
         ));
         return 1;
     }
@@ -580,7 +404,7 @@ final class EssenceAdminCommands {
         }
 
         EssenceCommandUtil.send(source, EssenceCommandUtil.good(
-                "Maxed " + count + " stats to their current tier caps."
+                "Maxed " + count + " Bonuses to their current tier caps."
         ));
         EssenceCommandUtil.send(source, EssenceCommandUtil.muted("This does not consume available Essence; it is an admin/testing operation."));
         return 1;
@@ -597,7 +421,7 @@ final class EssenceAdminCommands {
         }
 
         EssenceCommandUtil.send(source, EssenceCommandUtil.good(
-                "Cleared investments for " + count + " stats. Available Essence balances were preserved."
+                "Cleared investments for " + count + " Bonuses. Available Essence balances were preserved."
         ));
         return 1;
     }
@@ -606,6 +430,7 @@ final class EssenceAdminCommands {
         ServerPlayer player = source.getPlayerOrException();
         AscendanceTierDefinition tier = EssenceCommandUtil.resolveTier(tierName);
         EssenceSavedData.get(source.getServer()).setTier(player.getUUID(), tier);
+        AttunementGameplay.forget(player);
         PlayerRuntimeLifecycleService.refreshProgressionState(player);
 
         EssenceCommandUtil.send(source, EssenceCommandUtil.good(
@@ -801,7 +626,7 @@ final class EssenceAdminCommands {
         EssenceSavedData savedData = EssenceSavedData.get(source.getServer());
         PlayerEssenceData data = savedData.getPlayerData(player.getUUID());
         if (!data.ownsSkill(id)) {
-            EssenceCommandUtil.fail(source, "You do not own " + id + ". Use /essence admin skills grant_all first.");
+            EssenceCommandUtil.fail(source, "This player does not own " + id + ". Use /essence admin player skills grant all first.");
             return 0;
         }
         var plan = SkillStateEvaluator.activationPlan(id, new LinkedHashSet<>(data.getOwnedSkills().keySet()),
@@ -818,55 +643,25 @@ final class EssenceAdminCommands {
         return 1;
     }
 
-    private static int setAttunement(
-            CommandSourceStack source,
-            String attunementName,
-            boolean granted
-    ) throws CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
-        ResourceLocation attunementId = EssenceCommandUtil.resolveResourceId(attunementName);
-        if (!EssenceCommandUtil.knownAttunementIds().contains(attunementId)) {
-            EssenceCommandUtil.fail(source, "Unknown Player Attunement ID: " + attunementId);
-            return 0;
-        }
-        EssenceSavedData savedData = EssenceSavedData.get(player.server);
-        boolean changed = granted
-                ? savedData.grantAttunement(player.getUUID(), attunementId)
-                : savedData.revokeAttunement(player.getUUID(), attunementId);
 
-        /*
-         * Attunements may immediately change skill eligibility/effectiveness.
-         * Push the complete authoritative snapshot even when the requested
-         * state was already present so the development client is reconciled.
-         */
-        PlayerRuntimeLifecycleService.refreshProgressionState(player);
-
-        Component state = granted
-                ? EssenceCommandUtil.good("GRANTED")
-                : EssenceCommandUtil.warn("REVOKED");
-        EssenceCommandUtil.send(
-                source,
-                Component.literal("Player Attunement ")
-                        .withStyle(ChatFormatting.GRAY)
-                        .append(Component.literal(attunementId.toString()).withStyle(ChatFormatting.WHITE))
-                        .append(Component.literal(" is now ").withStyle(ChatFormatting.GRAY))
-                        .append(state)
-                        .append(Component.literal(changed ? "." : " (state was already set).").withStyle(ChatFormatting.GRAY))
-        );
-        return 1;
-    }
 
     private static int resetAll(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
-        EssenceSavedData.get(source.getServer()).clearAll(player.getUUID());
+        EssenceSavedData saved = EssenceSavedData.get(source.getServer());
+        saved.getPlayerData(player.getUUID()).resetProgressionForAdmin();
+        saved.setDirty();
         com.mistaboom.essence_ascendance.balance.economy.FractionalLedgerSavedData.get(source.getServer())
                 .clear(player.getUUID());
-        EssenceCommandUtil.send(source, EssenceCommandUtil.good("Reset all Essence balances and stat investments."));
+        AttunementGameplay.forget(player);
+        PlayerRuntimeLifecycleService.refreshProgressionState(player);
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("admin.reset.title")));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.good(EssenceText.command("admin.reset.done")));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(EssenceText.command("admin.reset.scope")));
         return 1;
     }
 
 
-    private static int showMappings(
+    static int showMappings(
             CommandSourceStack source
     ) {
         ItemEssenceMappingRegistry.ReloadReport report =
@@ -895,7 +690,7 @@ final class EssenceAdminCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
                 "Generated cache", ItemEssenceMappingManager.generatedCachePath().toAbsolutePath().toString()));
         EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
-                "Saved baseline is reused; /essence debug balance rebuild recalculates and replaces it."));
+                "Saved baseline is reused; /essence admin balance rebuild recalculates and replaces it."));
 
         EssenceCommandUtil.send(
                 source,
@@ -1059,7 +854,7 @@ final class EssenceAdminCommands {
     }
 
 
-    private static int listMappings(
+    static int listMappings(
             CommandSourceStack source
     ) {
         EssenceCommandUtil.send(

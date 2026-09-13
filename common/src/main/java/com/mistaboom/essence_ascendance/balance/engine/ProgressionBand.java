@@ -1,6 +1,6 @@
 package com.mistaboom.essence_ascendance.balance.engine;
 
-/** External acquisition bands; ordinal order deliberately matches the five Ascendance tiers. */
+/** External acquisition bands; ordinal order deliberately matches the five powered Ascendance tiers. */
 public enum ProgressionBand {
     ENTRY, EARLY, MID, LATE, APEX;
 

@@ -4,4 +4,5 @@ package com.mistaboom.essence_ascendance.equipment;
 public interface AnvilMenuCostView {
 
     int essenceAscendance$displayCost();
+    default int essenceAscendance$originalCost() { return essenceAscendance$displayCost(); }
 }

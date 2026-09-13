@@ -34,6 +34,53 @@ public final class MachineScreenUi {
     private MachineScreenUi() {
     }
 
+    /** Shared integer drawing primitives for crystals, activity glyphs and future machine feedback. */
+    public static void beam(GuiGraphics graphics, int x1, int y1, int x2, int y2, int color) {
+        int steps = Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1));
+        if (steps == 0) { graphics.fill(x1, y1, x1 + 1, y1 + 1, color); return; }
+        for (int i = 0; i <= steps; i++) {
+            int x = x1 + (int) Math.round((x2 - x1) * (double) i / steps);
+            int y = y1 + (int) Math.round((y2 - y1) * (double) i / steps);
+            graphics.fill(x, y, x + 1, y + 1, color);
+        }
+    }
+
+    public static void orbit(GuiGraphics graphics, int x, int y, double rx, double ry,
+                             int sides, double rotation, int color) {
+        int segments = Math.clamp(sides, 3, 96);
+        for (int i = 0; i < segments; i++) {
+            double a = rotation + Math.PI * 2 * i / segments;
+            double b = rotation + Math.PI * 2 * (i + 1) / segments;
+            beam(graphics, x + (int) Math.round(Math.cos(a) * rx), y + (int) Math.round(Math.sin(a) * ry),
+                    x + (int) Math.round(Math.cos(b) * rx), y + (int) Math.round(Math.sin(b) * ry), color);
+        }
+    }
+
+    public static int opacity(int color, int alpha) {
+        return Math.clamp(alpha, 0, 255) << 24 | color & 0xFFFFFF;
+    }
+
+    /** A rising faceted diamond, with a bright edge and a darker opposing face. */
+    public static void crystal(GuiGraphics graphics, int x, int y, int radius, double fraction, int color) {
+        int r = Math.max(1, radius);
+        double bounded = Math.clamp(fraction, 0, 1);
+        int fillTop = y + r - (int) Math.ceil(2 * r * bounded);
+        for (int dy = -r; dy <= r; dy++) {
+            int half = r - Math.abs(dy);
+            int rowColor = y + dy >= fillTop ? opacity(color, 215) : 0xFF292733;
+            graphics.fill(x - half, y + dy, x + 1, y + dy + 1, rowColor);
+            graphics.fill(x + 1, y + dy, x + half + 1, y + dy + 1,
+                    y + dy >= fillTop ? opacity(color, 120) : 0xFF201E29);
+        }
+        beam(graphics, x, y - r, x + r, y, color);
+        beam(graphics, x + r, y, x, y + r, color);
+        beam(graphics, x, y + r, x - r, y, color);
+        beam(graphics, x - r, y, x, y - r, color);
+        beam(graphics, x, y - r, x, y + r, opacity(0xFFF0EDF4, 105));
+        beam(graphics, x - r, y, x, y + r / 3, opacity(0xFFF0EDF4, 85));
+        beam(graphics, x, y + r / 3, x + r, y, opacity(0xFFF0EDF4, 85));
+    }
+
     public static void panel(GuiGraphics graphics, int x, int y, int width, int height) {
         graphics.fill(x, y, x + width, y + height, PANEL);
         outline(graphics, x, y, width, height, BORDER);

@@ -8,7 +8,7 @@ import java.util.Locale;
 
 /** Stored progression tier for one evolving Ascendance equipment ItemStack. */
 public enum EquipmentTier {
-    LATENT("latent", "Latent", -1, null),
+    LATENT("latent", "Latent", -1, AscendanceTiers.LATENT),
     DORMANT("dormant", "Dormant", 0, AscendanceTiers.DORMANT),
     AWAKENED("awakened", "Awakened", 1, AscendanceTiers.AWAKENED),
     RESONANT("resonant", "Resonant", 2, AscendanceTiers.RESONANT),
@@ -48,12 +48,12 @@ public enum EquipmentTier {
     }
 
     public static EquipmentTier fromAscendanceTier(AscendanceTierDefinition tier) {
-        if (tier == null) return DORMANT;
+        if (tier == null) return LATENT;
         for (EquipmentTier equipmentTier : values()) {
             if (equipmentTier.ascendanceTier != null && equipmentTier.ascendanceTier.id().equals(tier.id())) {
                 return equipmentTier;
             }
         }
-        return DORMANT;
+        return LATENT;
     }
 }

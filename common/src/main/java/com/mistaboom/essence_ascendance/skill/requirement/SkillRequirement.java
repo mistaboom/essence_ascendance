@@ -8,7 +8,6 @@ import net.minecraft.resources.ResourceLocation;
  * server-authoritative and operates on a final projected Nexus transaction.
  */
 public sealed interface SkillRequirement permits
-        PlayerAttunementRequirement,
         PermanentMilestoneRequirement,
         BonusInvestmentRequirement,
         DiscoveryRequirement {

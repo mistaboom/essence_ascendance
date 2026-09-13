@@ -59,7 +59,7 @@ public final class NexusSkillTreeLayout {
 
     public static Layout build(List<SkillDefinition> definitions) {
         List<AscendanceTierDefinition> tiers =
-                new ArrayList<>(AscendanceTierRegistry.values());
+                new ArrayList<>(AscendanceTierRegistry.powerTiers());
         tiers.sort(Comparator.comparingInt(AscendanceTierDefinition::order));
 
         Map<ResourceLocation, Integer> tierColumns = new LinkedHashMap<>();

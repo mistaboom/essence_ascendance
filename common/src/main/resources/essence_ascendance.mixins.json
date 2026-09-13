@@ -4,6 +4,7 @@
   "compatibilityLevel": "JAVA_21",
   "minVersion": "0.8",
   "client": [
+    "AttunementMovementInputMixin",
     "AnvilScreenCostMixin",
     "EnchantmentScreenCostMixin",
     "CasterAttackIndicatorMixin",
@@ -11,6 +12,19 @@
     "CasterUseInputMixin"
   ],
   "mixins": [
+    "AttunementLivingMixin",
+    "AttunementPlayerMixin",
+    "AttunementFoodMixin",
+    "AttunementMovementMixin",
+    "AttunementHarvestMixin",
+    "AttunementBlockDropMixin",
+    "AttunementFishingMixin",
+    "AttunementMenuMixin",
+    "AttunementEnchantMixin",
+    "AttunementBrewingMenuAccess",
+    "AttunementBrewingMixin",
+    "AttunementBrewingInventoryMixin",
+    "AttunementMendingMixin",
     "AbstractContainerMenuAccessor",
     "BlockCropYieldMixin",
     "FallingBlockPortalConservationMixin",

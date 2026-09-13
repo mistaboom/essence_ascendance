@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-/** Pure checks included in /essence test skill-effects. These do not claim live collision or loader acceptance. */
+/** Pure checks included in /essence test skills effects. These do not claim live collision or loader acceptance. */
 public final class ProjectileDiagnostics {
     private ProjectileDiagnostics() { }
     public static List<String> validate() {

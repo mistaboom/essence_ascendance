@@ -79,6 +79,7 @@ public final class EquipmentDamageService {
         rememberMainSwing(player);
         long token = SkillEffectRuntime.beginPrimaryAttack(player, target);
         PRIMARY_SKILL_ATTACK.set(new PrimarySkillAttack(player, target));
+        var exertion = com.mistaboom.essence_ascendance.attunement.AttunementGameplay.beginExertion(player, "combat");
         try {
             action.run();
         } finally {
@@ -86,6 +87,7 @@ public final class EquipmentDamageService {
                 SkillEffectRuntime.finishPrimaryAttack(player, token);
             } finally {
                 PRIMARY_SKILL_ATTACK.remove();
+                com.mistaboom.essence_ascendance.attunement.AttunementGameplay.endExertion(exertion);
             }
         }
     }
@@ -122,6 +124,7 @@ public final class EquipmentDamageService {
         }
         Deque<SkillHealthSample> samples = SKILL_HEALTH_SAMPLES.get();
         SkillHealthSample sample = new SkillHealthSample(target, healthAndAbsorption(target));
+        double healthBefore = target.getHealth();
         samples.push(sample);
         boolean completed = false;
         try {
@@ -140,6 +143,8 @@ public final class EquipmentDamageService {
             PrimarySkillHitProbe probe = PRIMARY_SKILL_HIT_PROBE.get();
             SkillDamageFrame frame = SKILL_DAMAGE_FRAMES.get().peek();
             double ownLoss = Math.max(0.0, totalLoss - sample.nestedLoss);
+            if (completed) com.mistaboom.essence_ascendance.attunement.AttunementGameplay.damageMeasured(
+                    target, source, ownLoss, Math.min(ownLoss, Math.max(0, healthBefore - target.getHealth())));
             boolean realDamage = completed && Double.isFinite(ownLoss) && ownLoss > 0.0
                     && frame != null && !frame.nested && frame.target == target && frame.source == source
                     && !isReflectionInProgress() && SECONDARY_SKILL_DEPTH.get() == 0;
@@ -375,6 +380,8 @@ public final class EquipmentDamageService {
                 incomingDamage * (1.0 - clampedResistance / 100.0)
         );
 
+        com.mistaboom.essence_ascendance.attunement.AttunementGameplay.prevented(player, source, incomingDamage, resolvedDamage);
+
         LAST_DAMAGE.put(
                 player,
                 new DamageEvaluation(
@@ -417,6 +424,7 @@ public final class EquipmentDamageService {
 
     /** Receives only the authoritative stopped portion, NEVER the shield durability cost. */
     public static void recordBlockedDamage(ServerPlayer player, DamageSource source, float stoppedDamage) {
+        com.mistaboom.essence_ascendance.attunement.AttunementGameplay.blocked(player, source, stoppedDamage);
         ReflectionFrame frame = frame(player, source);
         if (frame != null && !frame.suppressed && frame.shield != null
                 && Float.isFinite(stoppedDamage) && stoppedDamage > 0) {

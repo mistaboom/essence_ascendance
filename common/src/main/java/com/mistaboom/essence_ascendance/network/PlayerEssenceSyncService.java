@@ -369,25 +369,6 @@ public final class PlayerEssenceSyncService {
                         )
                         .toList();
 
-        List<String> completedAttunements =
-                playerData
-                        .getCompletedAttunements()
-                        .stream()
-                        .filter(PlayerEssenceSyncService::transportSafeId)
-                        .sorted(
-                                Comparator
-                                        .comparing(
-                                                (ResourceLocation id) ->
-                                                        !SkillRegistry
-                                                                .knownAttunementIds()
-                                                                .contains(id)
-                                        )
-                                        .thenComparing(ResourceLocation::toString)
-                        )
-                        .map(ResourceLocation::toString)
-                        .limit(PlayerEssenceSyncPayload.MAX_ATTUNEMENTS)
-                        .toList();
-
         return new PlayerEssenceSyncPayload(
                 PlayerEssenceSyncPayload.CURRENT_SCHEMA_VERSION,
                 playerData.nexusRevision(),
@@ -401,7 +382,7 @@ public final class PlayerEssenceSyncService {
                 skillMilestones,
                 ownedSkills,
                 loadoutSelections,
-                completedAttunements,
+                com.mistaboom.essence_ascendance.attunement.AttunementService.snapshot(playerData),
                 buildProgress(
                         player
                 )

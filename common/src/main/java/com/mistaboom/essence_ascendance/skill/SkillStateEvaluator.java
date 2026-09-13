@@ -3,7 +3,6 @@ package com.mistaboom.essence_ascendance.skill;
 import com.mistaboom.essence_ascendance.skill.requirement.BonusInvestmentRequirement;
 import com.mistaboom.essence_ascendance.skill.requirement.DiscoveryRequirement;
 import com.mistaboom.essence_ascendance.skill.requirement.PermanentMilestoneRequirement;
-import com.mistaboom.essence_ascendance.skill.requirement.PlayerAttunementRequirement;
 import com.mistaboom.essence_ascendance.skill.requirement.SkillRequirement;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
@@ -732,9 +731,6 @@ public final class SkillStateEvaluator {
             Map<ResourceLocation, Long> bonusTotals,
             SkillEvaluationContext context
     ) {
-        if (requirement instanceof PlayerAttunementRequirement attunement) {
-            return context.completedAttunements().contains(attunement.attunementId());
-        }
         if (requirement instanceof PermanentMilestoneRequirement milestone) {
             return context.completedMilestones().contains(milestone.milestoneId());
         }

@@ -38,6 +38,7 @@ public final class EquipmentGameplayEvents {
         ItemEssenceTooltipSyncService.init();
         PlayerEssenceSyncService.init();
         SkillEffectHudSyncService.init();
+        com.mistaboom.essence_ascendance.network.AttunementMovementIntentService.init();
         EquipmentTooltipSyncService.init();
         PlayerRuntimeLifecycleService.init();
         SoulboundEquipmentService.init();
@@ -52,6 +53,7 @@ public final class EquipmentGameplayEvents {
                 EquipmentVitalityService.tick(serverPlayer);
                 EquipmentWeaponService.syncWeaponVisualState(serverPlayer);
                 EquipmentGatheringService.sync(serverPlayer);
+                com.mistaboom.essence_ascendance.attunement.AttunementGameplay.tick(serverPlayer);
                 EquipmentTooltipSyncService.sync(serverPlayer);
                 // Send after the authoritative gameplay pass so the HUD sees
                 // the same resolved state used by combat this tick.

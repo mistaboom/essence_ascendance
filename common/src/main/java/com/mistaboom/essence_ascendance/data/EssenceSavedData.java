@@ -533,64 +533,17 @@ public final class EssenceSavedData extends SavedData {
 
     /*
      * ============================================================
-     * PERMANENT PLAYER ATTUNEMENTS
+     * CATEGORY ATTUNEMENT
      * ============================================================
      */
 
-    public boolean hasAttunement(
-            UUID playerId,
-            ResourceLocation attunementId
-    ) {
-        return getPlayerData(
-                playerId
-        ).hasAttunement(
-                attunementId
-        );
-    }
 
 
-    public boolean grantAttunement(
-            UUID playerId,
-            ResourceLocation attunementId
-    ) {
-        PlayerEssenceData playerData =
-                getPlayerData(
-                        playerId
-                );
-
-        boolean changed =
-                playerData.grantAttunement(
-                        attunementId
-                );
-
-        if (changed) {
-            setDirty();
-        }
-
-        return changed;
-    }
 
 
-    public boolean revokeAttunement(
-            UUID playerId,
-            ResourceLocation attunementId
-    ) {
-        PlayerEssenceData playerData =
-                getPlayerData(
-                        playerId
-                );
 
-        boolean changed =
-                playerData.revokeAttunement(
-                        attunementId
-                );
 
-        if (changed) {
-            setDirty();
-        }
 
-        return changed;
-    }
 
 
     /*

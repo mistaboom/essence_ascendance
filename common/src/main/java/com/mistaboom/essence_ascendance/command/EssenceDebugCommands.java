@@ -44,7 +44,6 @@ import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingDefinition;
 import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingRegistry;
 import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingResult;
 import com.mistaboom.essence_ascendance.progression.AscendanceEngine;
-import com.mistaboom.essence_ascendance.balance.runtime.RuntimeAscensionPolicy;
 import com.mistaboom.essence_ascendance.text.EssenceText;
 import com.mistaboom.essence_ascendance.progression.AscendanceEvaluationResult;
 import com.mistaboom.essence_ascendance.progression.CategoryDevelopment;
@@ -68,21 +67,23 @@ import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import com.mistaboom.essence_ascendance.skill.requirement.BonusInvestmentRequirement;
 import com.mistaboom.essence_ascendance.skill.requirement.DiscoveryRequirement;
 import com.mistaboom.essence_ascendance.skill.requirement.PermanentMilestoneRequirement;
-import com.mistaboom.essence_ascendance.skill.requirement.PlayerAttunementRequirement;
 import com.mistaboom.essence_ascendance.skill.requirement.SkillRequirement;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.EssenceStats;
 import com.mistaboom.essence_ascendance.stat.StatCategory;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
-import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingManager;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.builder.ArgumentBuilder;
+import com.mojang.brigadier.Command;
+import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -94,7 +95,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -107,81 +107,169 @@ final class EssenceDebugCommands {
     static LiteralArgumentBuilder<CommandSourceStack> build() {
         return Commands.literal("debug")
                 .requires(source -> source.hasPermission(EssenceCommandUtil.ADMIN_PERMISSION))
-                .executes(context -> showSummary(context.getSource()))
+                .executes(context -> showHelp(context.getSource()))
                 .then(Commands.literal("help").executes(context -> showHelp(context.getSource())))
-                .then(Commands.literal("summary").executes(context -> showSummary(context.getSource())))
-                .then(Commands.literal("equipment").executes(context -> showEquipment(context.getSource())))
-                .then(Commands.literal("item").executes(context -> showItem(context.getSource())))
-                .then(Commands.literal("mapping").executes(context -> showItemMapping(context.getSource())))
+                .then(playerBranch())
+                .then(Commands.literal("item")
+                        .executes(context -> showItemHelp(context.getSource()))
+                        .then(Commands.literal("help").executes(context -> showItemHelp(context.getSource())))
+                        .then(Commands.literal("inspect").executes(context -> showItem(context.getSource())))
+                        .then(Commands.literal("mapping").executes(context -> showItemMapping(context.getSource())))
+                        .then(Commands.literal("baselines").executes(context -> showBaselines(context.getSource()))))
+                .then(Commands.literal("machine")
+                        .executes(context -> showMachineHelp(context.getSource()))
+                        .then(Commands.literal("help").executes(context -> showMachineHelp(context.getSource())))
+                        .then(Commands.literal("crucible").executes(context -> showCrucible(context.getSource())))
+                        .then(Commands.literal("pylon").executes(context -> showPylon(context.getSource())))
+                        .then(Commands.literal("infuser").executes(context -> showInfuser(context.getSource()))))
                 .then(EssenceBalanceCommands.build())
-                .then(Commands.literal("mappings").executes(context -> showMappingRegistry(context.getSource())))
-                .then(Commands.literal("crucible").executes(context -> showCrucible(context.getSource())))
-                .then(Commands.literal("pylon").executes(context -> showPylon(context.getSource())))
-                .then(Commands.literal("infuser").executes(context -> showInfuser(context.getSource())))
-                .then(Commands.literal("baselines").executes(context -> showBaselines(context.getSource())))
+                .then(Commands.literal("mappings")
+                        .executes(context -> showMappingHelp(context.getSource()))
+                        .then(Commands.literal("help").executes(context -> showMappingHelp(context.getSource())))
+                        .then(Commands.literal("status").executes(context -> EssenceAdminCommands.showMappings(context.getSource())))
+                        .then(Commands.literal("list").executes(context -> EssenceAdminCommands.listMappings(context.getSource()))));
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> playerBranch() {
+        return Commands.literal("player")
+                .executes(context -> showPlayerHelp(context.getSource()))
+                .then(Commands.literal("help").executes(context -> showPlayerHelp(context.getSource())))
+                .then(viewTarget(Commands.literal("summary"), context -> showSummary(context.getSource())))
+                .then(viewTarget(Commands.literal("equipment"), context -> showEquipment(context.getSource())))
+                .then(AttunementCommands.debug())
                 .then(Commands.literal("skills")
-                        .executes(context -> showSkills(context.getSource())))
-                .then(Commands.literal("skill")
-                        .then(Commands.argument("skill", StringArgumentType.string())
-                                .suggests(EssenceCommandUtil::suggestSkills)
-                                .executes(context -> showSkill(
-                                        context.getSource(),
-                                        StringArgumentType.getString(context, "skill")
-                                ))))
-                .then(Commands.literal("attunements")
-                        .executes(context -> showAttunements(context.getSource()))
-                        .then(Commands.argument("attunement", StringArgumentType.string())
-                                .suggests(EssenceCommandUtil::suggestAttunements)
-                                .executes(context -> showAttunement(
-                                        context.getSource(),
-                                        StringArgumentType.getString(context, "attunement")
-                                ))))
-                .then(Commands.literal("milestone")
-                        .executes(context -> showStoredMilestones(context.getSource()))
-                        .then(Commands.argument("milestone", StringArgumentType.string())
-                                .suggests(EssenceCommandUtil::suggestDevelopmentMilestones)
-                                .executes(context -> showMilestone(
-                                        context.getSource(),
-                                        StringArgumentType.getString(context, "milestone")
-                                ))))
-                .then(Commands.literal("projectiles").executes(context -> showProjectiles(context.getSource())))
-                .then(Commands.literal("offense").executes(context -> showOffense(context.getSource())))
-                .then(Commands.literal("defense").executes(context -> showDefense(context.getSource())))
-                .then(Commands.literal("shield").executes(context -> showShield(context.getSource())))
-                .then(Commands.literal("vitality").executes(context -> showVitality(context.getSource())))
-                .then(Commands.literal("mobility").executes(context -> showMobility(context.getSource())))
-                .then(Commands.literal("gathering").executes(context -> showGathering(context.getSource())))
-                .then(Commands.literal("utility").executes(context -> showUtility(context.getSource())));
+                        .executes(context -> showSkillHelp(context.getSource()))
+                        .then(Commands.literal("help").executes(context -> showSkillHelp(context.getSource())))
+                        .then(viewTarget(Commands.literal("summary"), context -> showSkills(context.getSource(), "summary")))
+                        .then(viewTarget(Commands.literal("owned"), context -> showSkills(context.getSource(), "owned")))
+                        .then(viewTarget(Commands.literal("loadout"), context -> showSkills(context.getSource(), "loadout")))
+                        .then(Commands.literal("show")
+                                .then(viewTarget(Commands.argument("skill", StringArgumentType.string())
+                                                .suggests(EssenceCommandUtil::suggestSkills),
+                                        context -> showSkill(context.getSource(), StringArgumentType.getString(context, "skill"))))))
+                .then(Commands.literal("milestones")
+                        .executes(context -> showMilestoneHelp(context.getSource()))
+                        .then(Commands.literal("help").executes(context -> showMilestoneHelp(context.getSource())))
+                        .then(viewTarget(Commands.literal("list"), context -> showStoredMilestones(context.getSource())))
+                        .then(Commands.literal("show")
+                                .then(viewTarget(Commands.argument("milestone", StringArgumentType.string())
+                                                .suggests(EssenceCommandUtil::suggestDevelopmentMilestones),
+                                        context -> showMilestone(context.getSource(), StringArgumentType.getString(context, "milestone"))))))
+                .then(Commands.literal("gameplay")
+                        .executes(context -> showGameplayHelp(context.getSource()))
+                        .then(Commands.literal("help").executes(context -> showGameplayHelp(context.getSource())))
+                        .then(viewTarget(Commands.literal("shield"), context -> showShield(context.getSource())))
+                        .then(viewTarget(Commands.literal("projectiles"), context -> showProjectiles(context.getSource())))
+                        .then(viewTarget(Commands.argument("category", StringArgumentType.word())
+                                        .suggests(EssenceCommandUtil::suggestCategories),
+                                context -> showGameplay(context.getSource(),
+                                        EssenceCommandUtil.resolveCategory(StringArgumentType.getString(context, "category"))))));
+    }
+
+    /** Diagnostic targeting changes only the read context, with no progression refresh or mutation. */
+    private static <T extends ArgumentBuilder<CommandSourceStack, T>> T viewTarget(
+            T node, Command<CommandSourceStack> view) {
+        return node.executes(context -> runView(context, view))
+                .then(Commands.argument("target", EntityArgument.player())
+                        .executes(context -> runView(context, view)));
+    }
+
+    private static int runView(CommandContext<CommandSourceStack> context, Command<CommandSourceStack> view)
+            throws CommandSyntaxException {
+        var player = EssenceCommandUtil.targetPlayer(context);
+        EssenceCommandUtil.send(context.getSource(), EssenceCommandUtil.line(EssenceText.command("label.player"), player.getDisplayName()));
+        return view.run(context.copyFor(context.getSource().withEntity(player)));
     }
 
     static int showHelp(CommandSourceStack source) {
-        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Essence Debug Commands"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug summary", "system/player diagnostic overview"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug equipment", "all active equipment profiles plus resolved stat applicability"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug item", "deep-dive the main-hand Ascendance item"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug mapping", "resolve the main-hand item to Essence"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug mappings", "mapping registry/reload summary"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug crucible", "inspect the Essence Crucible you are looking at"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug pylon", "inspect the Essence Pylon you are looking at"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug infuser", "inspect the Essence Infuser you are looking at"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug baselines", "player-tier baseline preset reference"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug skills", "inspect authoritative owned-skill receipts and loadout selections"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug skill <skill_id>", "inspect one catalog definition and its saved player state"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug attunements [attunement_id]", "inspect authoritative raw Player Attunement state"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug milestone [milestone_id]", "inspect saved milestone flags or one configured milestone"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Gameplay categories"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug offense", "melee, ranged, magic, and attack knockback"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug defense", "resistance/reflection stats and last incoming-damage/status events"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug shield", "held/block context and disjoint blocked/health-loss retaliation measurements"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug vitality", "health, regeneration, healing, hunger, breath"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug mobility", "movement, swimming, jumping, stepping, flight"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug gathering", "mining, Fortune, Looting, crop yield, XP gain"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug utility", "Luck, sneak speed, durability, reach, and menu efficiencies"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.muted("Stat investment/scaling/applicability is intentionally centralized at /essence stat <stat>."));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("debug.help.title")));
+        help(source, "player", "player_group");
+        help(source, "item", "item_group");
+        help(source, "machine", "machine_group");
+        help(source, "balance", "balance");
+        help(source, "mappings", "mappings");
         return 1;
     }
 
-    private static int showSkills(CommandSourceStack source) throws CommandSyntaxException {
+    private static int showPlayerHelp(CommandSourceStack source) {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("debug.help.player")));
+        help(source, "player summary [player]", "summary");
+        help(source, "player attunement", "attunement");
+        help(source, "player skills", "skills");
+        help(source, "player milestones", "milestone");
+        help(source, "player equipment [player]", "equipment");
+        help(source, "player gameplay", "gameplay");
+        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(EssenceText.command("debug.help.stat_hint")));
+        return 1;
+    }
+
+    private static int showItemHelp(CommandSourceStack source) {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("debug.item.title")));
+        help(source, "item inspect", "item");
+        help(source, "item mapping", "mapping");
+        help(source, "item baselines", "baselines");
+        return 1;
+    }
+
+    private static int showMachineHelp(CommandSourceStack source) {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("debug.machine.title")));
+        help(source, "machine crucible", "crucible");
+        help(source, "machine pylon", "pylon");
+        help(source, "machine infuser", "infuser");
+        return 1;
+    }
+
+    private static int showMappingHelp(CommandSourceStack source) {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("admin.help.mappings_title")));
+        help(source, "mappings status", "mappings.status");
+        help(source, "mappings list", "mappings.list");
+        return 1;
+    }
+
+    private static int showSkillHelp(CommandSourceStack source) {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("debug.skills.title")));
+        help(source, "player skills summary [player]", "skills");
+        help(source, "player skills owned [player]", "skills.owned");
+        help(source, "player skills loadout [player]", "skills.loadout");
+        help(source, "player skills show <skill> [player]", "skills.detail");
+        return 1;
+    }
+
+    private static int showMilestoneHelp(CommandSourceStack source) {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("debug.milestones.title")));
+        help(source, "player milestones list [player]", "milestones.list");
+        help(source, "player milestones show <milestone> [player]", "milestones.show");
+        return 1;
+    }
+
+    private static void help(CommandSourceStack source, String syntax, String key) {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug " + syntax,
+                EssenceText.command("debug.help." + key)));
+    }
+
+    private static int showGameplayHelp(CommandSourceStack source) {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("debug.gameplay.title")));
+        for (StatCategory category : StatCategory.values()) {
+            String key = category.name().toLowerCase(Locale.ROOT);
+            help(source, "player gameplay " + key + " [player]", "gameplay." + key);
+        }
+        help(source, "player gameplay shield [player]", "gameplay.shield");
+        help(source, "player gameplay projectiles [player]", "gameplay.projectiles");
+        return 1;
+    }
+
+    private static int showGameplay(CommandSourceStack source, StatCategory category) throws CommandSyntaxException {
+        return switch (category) {
+            case OFFENSE -> showOffense(source);
+            case DEFENSE -> showDefense(source);
+            case VITALITY -> showVitality(source);
+            case MOBILITY -> showMobility(source);
+            case GATHERING -> showGathering(source);
+            case UTILITY -> showUtility(source);
+        };
+    }
+
+    private static int showSkills(CommandSourceStack source, String view) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         PlayerEssenceData data = playerData(player);
         long knownOwned = data.getOwnedSkills().keySet().stream()
@@ -228,44 +316,51 @@ final class EssenceDebugCommands {
                 Long.toString(data.nexusRevision())
         ));
 
-        if (data.getOwnedSkills().isEmpty()) {
-            EssenceCommandUtil.send(source, EssenceCommandUtil.muted("  No owned skills."));
-        } else {
-            EssenceCommandUtil.send(source, EssenceCommandUtil.section("Permanent purchase receipts"));
-            data.getOwnedSkills().entrySet().stream()
-                    .sorted(Map.Entry.comparingByKey())
-                    .forEach(entry -> {
-                        SkillPurchase purchase = entry.getValue();
-                        String known = SkillRegistry.get(entry.getKey()).isPresent()
-                                ? "KNOWN"
-                                : "UNKNOWN DEFINITION";
-                        EssenceCommandUtil.send(
+        if (view.equals("owned")) {
+            if (data.getOwnedSkills().isEmpty()) {
+                EssenceCommandUtil.send(source, EssenceCommandUtil.muted("  No owned skills."));
+            } else {
+                EssenceCommandUtil.send(source, EssenceCommandUtil.section("Permanent purchase receipts"));
+                data.getOwnedSkills().entrySet().stream()
+                        .sorted(Map.Entry.comparingByKey())
+                        .forEach(entry -> {
+                            SkillPurchase purchase = entry.getValue();
+                            String known = SkillRegistry.get(entry.getKey()).isPresent()
+                                    ? "KNOWN"
+                                    : "UNKNOWN DEFINITION";
+                            EssenceCommandUtil.send(
+                                    source,
+                                    EssenceCommandUtil.command(
+                                            "/essence debug player skills show " + StringArgumentType.escapeIfRequired(entry.getKey().toString())
+                                                    + " " + player.getGameProfile().getName(),
+                                            "rank " + purchase.rank() + ": " + EssenceCommandUtil.format(purchase.paidCost()) + " "
+                                                    + purchase.essenceId() + " [" + known + "]"
+                                    )
+                            );
+                        });
+            }
+        }
+
+        if (view.equals("loadout")) {
+            if (!data.getLoadoutSelections().isEmpty()) {
+                EssenceCommandUtil.send(source, EssenceCommandUtil.section("Saved loadout selections"));
+                data.getLoadoutSelections().entrySet().stream()
+                        .sorted(Map.Entry.comparingByKey())
+                        .forEach(entry -> EssenceCommandUtil.send(
                                 source,
                                 EssenceCommandUtil.line(
                                         entry.getKey().toString(),
-                                        "rank " + purchase.rank() + ": " + EssenceCommandUtil.format(purchase.paidCost()) + " "
-                                                + purchase.essenceId() + " [" + known + "]"
+                                        entry.getValue().toString()
                                 )
-                        );
-                    });
+                        ));
+            } else {
+                EssenceCommandUtil.send(source, EssenceCommandUtil.muted(EssenceText.command("debug.skills.empty_loadout")));
+            }
         }
 
-        if (!data.getLoadoutSelections().isEmpty()) {
-            EssenceCommandUtil.send(source, EssenceCommandUtil.section("Saved loadout selections"));
-            data.getLoadoutSelections().entrySet().stream()
-                    .sorted(Map.Entry.comparingByKey())
-                    .forEach(entry -> EssenceCommandUtil.send(
-                            source,
-                            EssenceCommandUtil.line(
-                                    entry.getKey().toString(),
-                                    entry.getValue().toString()
-                            )
-                    ));
-        }
-
-        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
-                "Use /essence debug skill <skill_id> for catalog metadata and requirement state."
-        ));
+        String target = player.getGameProfile().getName();
+        help(source, "player skills owned " + target, "skills.owned");
+        help(source, "player skills loadout " + target, "skills.loadout");
         return 1;
     }
 
@@ -441,9 +536,7 @@ final class EssenceDebugCommands {
     ) {
         String details;
 
-        if (requirement instanceof PlayerAttunementRequirement attunement) {
-            details = "PLAYER_ATTUNEMENT " + attunement.attunementId();
-        } else if (requirement instanceof PermanentMilestoneRequirement milestone) {
+        if (requirement instanceof PermanentMilestoneRequirement milestone) {
             details = "PERMANENT_MILESTONE " + milestone.milestoneId();
         } else if (requirement instanceof BonusInvestmentRequirement bonus) {
             long current = bonusTotals.getOrDefault(bonus.essenceId(), 0L);
@@ -469,70 +562,9 @@ final class EssenceDebugCommands {
         );
     }
 
-    private static int showAttunements(CommandSourceStack source) throws CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
-        PlayerEssenceData data = playerData(player);
 
-        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Player Attunements"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Completed",
-                data.getCompletedAttunements().size() + " raw stable IDs"
-        ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Known development IDs",
-                Integer.toString(SkillRegistry.knownAttunementIds().size())
-        ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Nexus revision",
-                Long.toString(data.nexusRevision())
-        ));
 
-        if (data.getCompletedAttunements().isEmpty()) {
-            EssenceCommandUtil.send(source, EssenceCommandUtil.muted("  NONE"));
-            return 1;
-        }
 
-        data.getCompletedAttunements().stream()
-                .sorted()
-                .forEach(id -> EssenceCommandUtil.send(
-                        source,
-                        Component.literal("  " + id + " ").withStyle(ChatFormatting.WHITE)
-                                .append(SkillRegistry.knownAttunementIds().contains(id)
-                                        ? EssenceCommandUtil.good("KNOWN")
-                                        : EssenceCommandUtil.warn("UNREGISTERED/PRESERVED"))
-                ));
-        return 1;
-    }
-
-    private static int showAttunement(
-            CommandSourceStack source,
-            String attunementName
-    ) throws CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
-        PlayerEssenceData data = playerData(player);
-        ResourceLocation attunementId = EssenceCommandUtil.resolveResourceId(attunementName);
-        boolean completed = data.hasAttunement(attunementId);
-
-        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Player Attunement"));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line("ID", EssenceCommandUtil.muted(attunementId.toString())));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Catalog identity",
-                SkillRegistry.knownAttunementIds().contains(attunementId)
-                        ? EssenceCommandUtil.good("KNOWN")
-                        : EssenceCommandUtil.warn("UNREGISTERED/FORWARD-COMPATIBLE")
-        ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Saved state",
-                completed
-                        ? EssenceCommandUtil.good("GRANTED")
-                        : EssenceCommandUtil.warn("NOT GRANTED")
-        ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Nexus revision",
-                Long.toString(data.nexusRevision())
-        ));
-        return 1;
-    }
 
     private static int showStoredMilestones(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
@@ -729,9 +761,9 @@ final class EssenceDebugCommands {
         long capacity = 0L;
         for (StatDefinition stat : EssenceStatRegistry.values()) {
             StatInvestmentLimit limit = TierInvestmentPolicy.evaluate(data, stat);
-            stored = Math.addExact(stored, limit.storedInvestment());
-            effective = Math.addExact(effective, limit.effectiveInvestment());
-            capacity = Math.addExact(capacity, limit.investmentCap());
+            stored = EssenceCommandUtil.saturatingAdd(stored, limit.storedInvestment());
+            effective = EssenceCommandUtil.saturatingAdd(effective, limit.effectiveInvestment());
+            capacity = EssenceCommandUtil.saturatingAdd(capacity, limit.investmentCap());
         }
 
         EssenceServerConfig config = EssenceConfigManager.get();
@@ -771,15 +803,7 @@ final class EssenceDebugCommands {
             case CONFIGURATION_ERROR -> EssenceCommandUtil.send(source, EssenceCommandUtil.line("Next tier", EssenceCommandUtil.bad("CONFIGURATION ERROR")));
         }
 
-        if (evaluation.status() == AscendanceEvaluationResult.Status.AVAILABLE
-                && RuntimeAscensionPolicy.usesEssenceQualification(EssenceConfigManager.runtime())) {
-            EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                    EssenceText.command("label.saved_and_invested_essence"),
-                    EssenceCommandUtil.format(evaluation.progress().effectiveInvestment()) + " / "
-                            + EssenceCommandUtil.format(evaluation.progress().requiredInvestment())
-            ));
-        }
-
+        help(source, "player attunement summary " + player.getGameProfile().getName(), "attunement");
         return 1;
     }
 
@@ -1669,140 +1693,6 @@ final class EssenceDebugCommands {
     }
 
 
-    private static int showMappingRegistry(
-            CommandSourceStack source
-    ) {
-        ItemEssenceMappingRegistry.ReloadReport report =
-                ItemEssenceMappingRegistry.lastReload();
-
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.title(
-                        "Item → Essence Mapping Registry"
-                )
-        );
-
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.line(
-                        "Last reload",
-                        report.successful()
-                                ? EssenceCommandUtil.good(
-                                        "SUCCESS"
-                                )
-                                : EssenceCommandUtil.bad(
-                                        "REJECTED / NOT LOADED"
-                                )
-                )
-        );
-
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.line(
-                        "Generation",
-                        Long.toString(
-                                report.generation()
-                        )
-                )
-        );
-
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.line(
-                        "Generated defaults",
-                        Integer.toString(
-                                report.bundledDefaultCount()
-                        )
-                )
-        );
-
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.line(
-                        "Default changes",
-                        report.removedDefaultCount()
-                                + " removed, "
-                                + report.replacedDefaultCount()
-                                + " replaced"
-                )
-        );
-
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.line(
-                        "Config",
-                        report.configMappingCount()
-                                + " mapping(s) / "
-                                + report.configFileCount()
-                                + " file(s)"
-                )
-        );
-
-        EssenceCommandUtil.send(
-                source,
-                EssenceCommandUtil.line(
-                        "Active mappings",
-                        report.activeMappingCount()
-                                + " ("
-                                + report.explicitItemRuleCount()
-                                + " item, "
-                                + report.tagRuleCount()
-                                + " tag)"
-                )
-        );
-
-        if (!report.warnings()
-                .isEmpty()) {
-
-            EssenceCommandUtil.send(
-                    source,
-                    EssenceCommandUtil.section(
-                            "Last load warnings"
-                    )
-            );
-
-            for (String warning :
-                    report.warnings()) {
-
-                EssenceCommandUtil.send(
-                        source,
-                        EssenceCommandUtil.warn(
-                                "  "
-                                        + warning
-                        )
-                );
-            }
-        }
-
-        if (!report.errors()
-                .isEmpty()) {
-
-            EssenceCommandUtil.send(
-                    source,
-                    EssenceCommandUtil.section(
-                            "Last reload errors"
-                    )
-            );
-
-            for (String error :
-                    report.errors()) {
-
-                EssenceCommandUtil.send(
-                        source,
-                        EssenceCommandUtil.bad(
-                                "  "
-                                        + error
-                        )
-                );
-            }
-        }
-
-        return report.successful()
-                ? 1
-                : 0;
-    }
-
-
     private static int showBaselines(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         PlayerEssenceData data = playerData(player);
@@ -1813,7 +1703,7 @@ final class EssenceDebugCommands {
                 "Reference only: real Ascendance equipment uses its own item tier for native stats."
         ));
         EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
-                "Use /essence admin itemtier set <tier> while holding an item to test another item tier."
+                "Use /essence admin item tier set <tier> while holding an item to test another item tier."
         ));
 
         for (EquipmentProfileDefinition profile : EquipmentProfileRegistry.values()) {

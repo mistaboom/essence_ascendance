@@ -15,8 +15,8 @@ import com.mistaboom.essence_ascendance.progression.StatScalingService;
 import com.mistaboom.essence_ascendance.skill.SkillRegistry;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
-import com.mistaboom.essence_ascendance.stat.EssenceStats;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
+import com.mistaboom.essence_ascendance.text.EssenceText;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
@@ -59,35 +59,41 @@ public final class EssenceTestCommands {
                                 .executes(context -> testActivation(context.getSource()))
                 )
                 .then(
-                        Commands.literal("skill-milestones")
-                                .executes(context -> testSkillMilestones(context.getSource()))
-                )
-                .then(
-                        Commands.literal("skill-effects")
-                                .executes(context -> testSkillEffects(context.getSource()))
+                        Commands.literal("skills")
+                                .executes(context -> showSkillHelp(context.getSource()))
+                                .then(Commands.literal("help")
+                                        .executes(context -> showSkillHelp(context.getSource())))
+                                .then(Commands.literal("milestones")
+                                        .executes(context -> testSkillMilestones(context.getSource())))
+                                .then(Commands.literal("effects")
+                                        .executes(context -> testSkillEffects(context.getSource())))
                 );
     }
 
     static int showHelp(CommandSourceStack source) {
-        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Essence Test Commands"));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("test.help.title")));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command(
                 "/essence test luck",
-                "deterministically validate the Essence -> vanilla Luck attribute pipeline"
+                EssenceText.command("test.help.luck")
         ));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command(
                 "/essence test activation",
-                "show which invested bonuses are active in the current worn/main-hand context"
+                EssenceText.command("test.help.activation")
+        ));
+        showSkillHelp(source);
+        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(EssenceText.command("test.help.scope")));
+        return 1;
+    }
+
+    private static int showSkillHelp(CommandSourceStack source) {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section(EssenceText.command("test.help.skills")));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command(
+                "/essence test skills milestones",
+                EssenceText.command("test.help.milestones")
         ));
         EssenceCommandUtil.send(source, EssenceCommandUtil.command(
-                "/essence test skill-milestones",
-                "validate every configurable permanent milestone gate referenced by the skill catalog"
-        ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.command(
-                "/essence test skill-effects",
-                "validate effect registrations, catalog relationships, provisional tuning, and pure combat math"
-        ));
-        EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
-                "These are diagnostic tests only; they do not alter progression or equipment."
+                "/essence test skills effects",
+                EssenceText.command("test.help.effects")
         ));
         return 1;
     }
@@ -103,7 +109,7 @@ public final class EssenceTestCommands {
         }
 
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                "Implemented IDs", SkillEffectRuntime.implementedIds().toString()
+                "Implemented skills", Integer.toString(SkillEffectRuntime.implementedIds().size())
         ));
         if (failures.isEmpty()) {
             EssenceCommandUtil.send(source, EssenceCommandUtil.good(
@@ -300,7 +306,7 @@ public final class EssenceTestCommands {
                     "  NOTE: This is a zero-bonus validation. To test a nonzero modifier, wear qualifying Ascendance armor and invest Luck."
             ));
             EssenceCommandUtil.send(source, EssenceCommandUtil.muted(
-                    "  Fast player setup: /essence admin tier set transcendent, then /essence admin stat max luck"
+                    "  Fast player setup: /essence admin player tier set transcendent, then /essence admin player bonuses max luck"
             ));
         }
 

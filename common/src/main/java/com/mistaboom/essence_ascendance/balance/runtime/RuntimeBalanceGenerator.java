@@ -23,13 +23,16 @@ public final class RuntimeBalanceGenerator {
     private RuntimeBalanceGenerator() {}
     private static final Gson JSON = new GsonBuilder().disableHtmlEscaping().create();
     public static RuntimeBalanceDefinition bootstrap() {
-        return generate(RuntimeReferencePolicy.bootstrapEvidence(), BalanceSettings.defaults(), null);
+        return RuntimeReferencePolicy.withBootstrapReferences(() ->
+                generate(RuntimeReferencePolicy.bootstrapEvidence(), BalanceSettings.defaults(), null));
     }
     public static RuntimeBalanceDefinition generate(PackEvidence evidence, BalanceSettings settings, BalanceOverrides overrides) {
         return generate(evidence, null, settings, overrides);
     }
     public static RuntimeBalanceDefinition generate(PackEvidence evidence, EconomyProfile economy, BalanceSettings settings, BalanceOverrides overrides) {
-        var tiers = AscendanceTierRegistry.values().stream().sorted(Comparator.comparingInt(AscendanceTierDefinition::order)).toList();
+        var allTiers = AscendanceTierRegistry.values().stream().sorted(Comparator.comparingInt(AscendanceTierDefinition::order)).toList();
+        var tiers = allTiers.stream().filter(AscendanceTierDefinition::grantsPower).toList();
+        if (tiers.isEmpty()) throw new IllegalArgumentException("At least one powered Ascendance tier must be registered");
         Map<String,Double> categoryFactors=new TreeMap<>();
         for(var essence:com.mistaboom.essence_ascendance.essence.EssenceRegistry.values())
             categoryFactors.put(essence.id().toString(),categoryFactor(evidence,economy,essence.id().toString()));
@@ -58,6 +61,10 @@ public final class RuntimeBalanceGenerator {
         double[] weights = new double[tiers.size()];
         for (int i=0;i<weights.length;i++) { weights[i]=bandPower(settings,ProgressionBand.at(i)); fractionWeight+=weights[i]; }
         double cumulativeFraction=0;
+        for (var tier : allTiers) if (!tier.grantsPower()) {
+            caps.put(tier.id(), 0L);
+            fractions.put(tier.id(), 0.0);
+        }
         for (int i=0;i<tiers.size();i++) {
             var tier=tiers.get(i); var band=ProgressionBand.at(i);
             double power=settings.overallPower()*bandPower(settings,band);
@@ -115,11 +122,12 @@ public final class RuntimeBalanceGenerator {
             upgrades.put(tier.id().getPath(),new InfuserBalanceSettings.EquipmentUpgradeSettings(positiveLong(cap*(2.5+i*.5)),Math.max(1,(i+1)/2)));
             pylons.put(tier.id().getPath(),new EssencePylonContribution(positiveLong(cap*12),1+i*.6,positiveLong(cap/4.0),.20+i*.25,i+1));
         }
-        var dormant=equipment.get(tiers.get(0).id());
-        equipment.put(ResourceLocation.fromNamespaceAndPath(EssenceAscendance.MOD_ID,"latent"),new EquipmentBaselineConfig.TierBaseline(
-                dormant.fullSetArmor()*RuntimeReferencePolicy.LATENT_CAPABILITY_RATIO,0,dormant.meleeDamage()*RuntimeReferencePolicy.LATENT_CAPABILITY_RATIO,dormant.meleeAttackSpeed(),
-                dormant.rangedDamage()*RuntimeReferencePolicy.LATENT_CAPABILITY_RATIO,dormant.rangedAttackSpeed(),dormant.magicDamage()*RuntimeReferencePolicy.LATENT_CAPABILITY_RATIO,dormant.magicCastSpeed(),
-                Math.max(1,dormant.miningSpeed()*RuntimeReferencePolicy.LATENT_CAPABILITY_RATIO),dormant.harvestLevel(),Math.max(1,(int)(dormant.durability()*RuntimeReferencePolicy.LATENT_DURABILITY_RATIO))));
+        var dormant=equipment.get(tiers.getFirst().id());
+        for (var tier : allTiers) if (!tier.grantsPower())
+            equipment.put(tier.id(),new EquipmentBaselineConfig.TierBaseline(
+                    dormant.fullSetArmor()*RuntimeReferencePolicy.LATENT_CAPABILITY_RATIO,0,dormant.meleeDamage()*RuntimeReferencePolicy.LATENT_CAPABILITY_RATIO,dormant.meleeAttackSpeed(),
+                    dormant.rangedDamage()*RuntimeReferencePolicy.LATENT_CAPABILITY_RATIO,dormant.rangedAttackSpeed(),dormant.magicDamage()*RuntimeReferencePolicy.LATENT_CAPABILITY_RATIO,dormant.magicCastSpeed(),
+                    Math.max(1,dormant.miningSpeed()*RuntimeReferencePolicy.LATENT_CAPABILITY_RATIO),dormant.harvestLevel(),Math.max(1,(int)(dormant.durability()*RuntimeReferencePolicy.LATENT_DURABILITY_RATIO))));
         // Preserve physical stat curves. A single multiplier per axis anchors
         // Transcendent to attainable pack equipment before final unit rounding;
         // discrete harvest access advances separately with each equipment infusion.
@@ -149,14 +157,19 @@ public final class RuntimeBalanceGenerator {
             double categorySupply=categoryFactors.get(stat.essenceType().id().toString());
             double utilityBreadth=categorySupply*switch(stat.unit()) {case HEARTS,HEARTS_PER_SECOND -> 1.3; case LEVELS,BLOCKS -> 1.2; default -> 1.0;};
             long priorStatCap=0;
-            for(var entry:caps.entrySet()) {
-                priorStatCap=Math.max(priorStatCap+1,positiveLong(entry.getValue()*utilityBreadth));
-                costs.put(entry.getKey(),priorStatCap);
+            for(var tier : allTiers) {
+                long tierCap = caps.get(tier.id());
+                if (!tier.grantsPower()) {
+                    costs.put(tier.id(), 0L);
+                    continue;
+                }
+                priorStatCap=Math.max(priorStatCap+1,positiveLong(tierCap*utilityBreadth));
+                costs.put(tier.id(),priorStatCap);
             }
             statCaps.put(stat.id(),costs);
         }
         var profile=new BalanceProfileDefinition(ResourceLocation.fromNamespaceAndPath(EssenceAscendance.MOD_ID,"generated"),"Generated Pack Balance",caps,statCaps,fractions,.72+.20*settings.compositionSafeguard());
-        long entry=caps.values().iterator().next();
+        long entry=caps.get(tiers.getFirst().id());
         pylons.put("empty",new EssencePylonContribution(positiveLong(entry*6.0),.5,positiveLong(entry/8.0),.1,0));
         var infuser=new InfuserBalanceSettings(8,Math.clamp((int)(5000-settings.conversionLossPressure()*2500),100,9000),
                 positiveLong(entry/3.0),grades,focuses,upgrades,InfuserBalanceSettings.defaultEquipmentEssenceWeights(),
@@ -175,7 +188,6 @@ public final class RuntimeBalanceGenerator {
         var crucible=new EssenceCrucibleStructureStats(1,positiveLong(entry*48.0),8,positiveLong(entry/2.0),20,1,6,1,0);
         Map<String,Double> composition=new TreeMap<>(encounterBudgets);
         composition.put("equipment_quantization",1.0);
-        composition.put(RuntimeAscensionPolicy.COMPOSITION_KEY,1.0);
         composition.put("equipment_share",settings.equipmentShare()); composition.put("nexus_share",settings.nexusShare());composition.put("skill_share",settings.skillShare());
         composition.put("partial_viability",participation); composition.put("composition_safeguard",settings.compositionSafeguard());
         composition.put("equipment_standalone_factor",equipmentScale);composition.put("nexus_standalone_factor",bonusScale);composition.put("skills_standalone_factor",skillScale);
@@ -200,7 +212,8 @@ public final class RuntimeBalanceGenerator {
             curves.put(skill.id().toString(),new com.mistaboom.essence_ascendance.skill.balance.SkillBalanceRuntime.ResolvedSkill(curve.maximumRank(),
                     curve.ranks().stream().map(r->new com.mistaboom.essence_ascendance.skill.balance.SkillBalanceRuntime.ResolvedRank(r.rank(),positiveLong(r.cost()*resolvedCostFactor),r.powerMultiplier())).toList()));
         }
-        var runtime=RuntimeValueQuantization.apply(new RuntimeBalanceDefinition(config,crucible,pylons,curves,composition));
+        var attunement=AttunementGenerator.generate(evidence,economy,settings,profile);
+        var runtime=RuntimeValueQuantization.apply(new RuntimeBalanceDefinition(config,crucible,pylons,curves,composition,attunement));
         RuntimeBuildScenarios.Plan compositionPlan=economy==null?null:RuntimeBuildScenarios.plan();
         double compositionScale=1;
         if(compositionPlan!=null) {

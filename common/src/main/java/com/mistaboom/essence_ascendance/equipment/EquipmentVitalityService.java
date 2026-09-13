@@ -296,6 +296,9 @@ public final class EquipmentVitalityService {
                             )
                     );
 
+                    com.mistaboom.essence_ascendance.attunement.AttunementGameplay.effectShortened(
+                            player, instance, originalDuration, currentDuration);
+
                     runtime.lastStatusEffect =
                             new StatusEffectEvaluation(
                                     instance.getDescriptionId(),

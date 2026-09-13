@@ -27,7 +27,7 @@ public final class SkillBalanceGenerator {
         Map<ResourceLocation, Integer> firstRanks = new TreeMap<>();
         SkillRegistry.values().forEach(skill -> firstRanks.put(skill.id(), 1));
         double attenuation = 1.0;
-        for (var tier : com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry.values()) {
+        for (var tier : com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry.powerTiers()) {
             for (var targetRanks : java.util.List.of(firstRanks, stressRanks)) {
                 var projection = SkillLoadoutProjection.project(SkillRegistry.values(), tier.id(),
                         targetRanks, (id, rank) -> SkillRegistry.require(id).rankPolicy().curve().power(rank) * requestedScale,

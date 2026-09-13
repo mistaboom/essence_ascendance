@@ -39,7 +39,7 @@ public final class BalanceDocument {
         JsonObject root = parsed.getAsJsonObject();
         if (!root.has("schema") || root.get("schema").getAsInt() != SCHEMA
                 || !root.has("generator") || !GENERATOR.equals(root.get("generator").getAsString())) {
-            throw new IllegalArgumentException("Incompatible development balance profile; delete it or run /essence debug balance rebuild. No migration is supported");
+            throw new IllegalArgumentException("Incompatible development balance profile; delete it or run /essence admin balance rebuild. No migration is supported");
         }
         for (String key : SECTIONS) {
             if (!root.has(key) || !root.get(key).isJsonObject())

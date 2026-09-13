@@ -104,6 +104,10 @@ public abstract class AnvilMenuEfficiencyMixin implements AnvilMenuCostView {
         return essenceAscendance$displayCost[0];
     }
 
+    @Override public int essenceAscendance$originalCost() {
+        return essenceAscendance$experienceQuote == null ? cost.get() : essenceAscendance$experienceQuote.baseCost();
+    }
+
     @Inject(method = "mayPickup", at = @At("RETURN"), cancellable = true)
     private void essenceAscendance$allowSynchronizedZeroCostResult(
             Player player,

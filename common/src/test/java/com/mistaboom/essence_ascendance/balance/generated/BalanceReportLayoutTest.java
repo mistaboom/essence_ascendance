@@ -31,7 +31,9 @@ public final class BalanceReportLayoutTest {
             for (String name : protectedNames)
                 require(Files.readString(root.resolve(name)).equals("preserve " + name), "Unrelated or authoritative file changed: " + name);
             require(Files.readString(root.resolve("equipment.csv/notes.txt")).equals("directory must not move"), "Unexpected directory traversed");
-            require(Files.readString(root.resolve("README_REPORTS.txt")).contains("/essence debug balance export"), "File guide missing");
+            String guide = Files.readString(root.resolve("README_REPORTS.txt"));
+            require(guide.contains("/essence admin balance export"), "Current report-export command missing from file guide");
+            require(!guide.contains("/essence debug balance export"), "Retired report-export alias advertised in file guide");
 
             BalanceReportLayout.finishExport(root);
             require(!Files.exists(archives.resolve("export-3")), "Repeat export created an empty archive");

@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.network;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
+import com.mistaboom.essence_ascendance.attunement.AttunementSnapshot;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -28,11 +29,11 @@ public record PlayerEssenceSyncPayload(
         List<MilestoneState> skillMilestones,
         List<OwnedSkillState> ownedSkills,
         List<LoadoutSelection> loadoutSelections,
-        List<String> completedAttunements,
+        AttunementSnapshot attunement,
         ProgressState progress
 ) implements CustomPacketPayload {
 
-    public static final int CURRENT_SCHEMA_VERSION = 6;
+    public static final int CURRENT_SCHEMA_VERSION = 8;
 
     static final int MAX_ID_LENGTH = 128;
     private static final int MAX_ESSENCES = 128;
@@ -40,7 +41,6 @@ public record PlayerEssenceSyncPayload(
     static final int MAX_MILESTONES = 2048;
     static final int MAX_OWNED_SKILLS = 4096;
     static final int MAX_LOADOUT_SELECTIONS = 2048;
-    static final int MAX_ATTUNEMENTS = 2048;
     public static final int MAX_WORLD_REQUIREMENT_LINES = 256;
     static final int MAX_REQUIREMENT_LABEL_LENGTH = 192;
 
@@ -67,7 +67,7 @@ public record PlayerEssenceSyncPayload(
         Objects.requireNonNull(skillMilestones, "Skill milestones cannot be null");
         Objects.requireNonNull(ownedSkills, "Owned skills cannot be null");
         Objects.requireNonNull(loadoutSelections, "Loadout selections cannot be null");
-        Objects.requireNonNull(completedAttunements, "Completed Attunements cannot be null");
+        Objects.requireNonNull(attunement, "Attunement cannot be null");
         Objects.requireNonNull(progress, "Progress state cannot be null");
 
         essenceBalances = List.copyOf(essenceBalances);
@@ -76,7 +76,6 @@ public record PlayerEssenceSyncPayload(
         skillMilestones = List.copyOf(skillMilestones);
         ownedSkills = List.copyOf(ownedSkills);
         loadoutSelections = List.copyOf(loadoutSelections);
-        completedAttunements = List.copyOf(completedAttunements);
     }
 
     /** The synchronized player revision is the persisted Nexus revision. */
@@ -143,10 +142,7 @@ public record PlayerEssenceSyncPayload(
             buffer.writeUtf(selection.skillId(), MAX_ID_LENGTH);
         }
 
-        buffer.writeVarInt(payload.completedAttunements.size());
-        for (String attunementId : payload.completedAttunements) {
-            buffer.writeUtf(attunementId, MAX_ID_LENGTH);
-        }
+        AttunementSnapshotCodec.write(buffer, payload.attunement);
 
         buffer.writeByte(payload.progress.status().ordinal());
         buffer.writeUtf(payload.progress.nextTierId(), MAX_ID_LENGTH);
@@ -301,21 +297,7 @@ public record PlayerEssenceSyncPayload(
             );
         }
 
-        int attunementCount =
-                readBoundedCount(
-                        buffer,
-                        MAX_ATTUNEMENTS,
-                        "Player Attunement"
-                );
-
-        List<String> completedAttunements =
-                new ArrayList<>(attunementCount);
-
-        for (int i = 0; i < attunementCount; i++) {
-            completedAttunements.add(
-                    buffer.readUtf(MAX_ID_LENGTH)
-            );
-        }
+        AttunementSnapshot attunement = AttunementSnapshotCodec.read(buffer);
 
         int statusOrdinal =
                 buffer.readUnsignedByte();
@@ -398,7 +380,7 @@ public record PlayerEssenceSyncPayload(
                 skillMilestones,
                 ownedSkills,
                 loadoutSelections,
-                completedAttunements,
+                attunement,
                 progress
         );
     }

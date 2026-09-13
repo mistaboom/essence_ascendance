@@ -55,7 +55,7 @@ public final class EquipmentBaselineService {
         if (FracturedEquipmentData.isFractured(stack)) {
             return evaluateWithBaseline(
                     profileId,
-                    AscendanceTiers.DORMANT,
+                    AscendanceTiers.LATENT,
                     latentBaseline()
             );
         }
@@ -64,7 +64,7 @@ public final class EquipmentBaselineService {
         if (itemTier == EquipmentTier.LATENT) {
             return evaluateWithBaseline(
                     profileId,
-                    AscendanceTiers.DORMANT,
+                    AscendanceTiers.LATENT,
                     latentBaseline()
             );
         }
@@ -82,7 +82,7 @@ public final class EquipmentBaselineService {
     ) {
         Objects.requireNonNull(itemTier, "Equipment tier cannot be null");
         EquipmentBaselineResult base = itemTier == EquipmentTier.LATENT
-                ? evaluateWithBaseline(profileId, AscendanceTiers.DORMANT, latentBaseline())
+                ? evaluateWithBaseline(profileId, AscendanceTiers.LATENT, latentBaseline())
                 : evaluateAtTier(playerData, profileId, itemTier.ascendanceTier());
         if (!profileId.equals(EquipmentProfiles.SHIELD.id())) return base;
         return new EquipmentBaselineResult(base.tier(), base.profile(), base.tierBaseline(),

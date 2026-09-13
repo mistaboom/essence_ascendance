@@ -365,7 +365,6 @@ public final class AscendanceNexusTransactionService {
                     finalRanks,
                     playerData.getLoadoutSelections(),
                     targetLoadoutSelections,
-                    playerData.getCompletedAttunements(),
                     completedMilestones,
                     Set.of(),
                     currentBonusByEssence,
@@ -552,6 +551,7 @@ public final class AscendanceNexusTransactionService {
             );
         }
 
+        if (ascend) com.mistaboom.essence_ascendance.attunement.AttunementGameplay.forget(player);
         return Result.success(
                 playerData.nexusRevision(),
                 ascend

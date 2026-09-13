@@ -41,7 +41,7 @@ public final class ItemEssenceMappingManager {
                 observedRecipes = server.getRecipeManager();
                 ProceduralValuationEngine.clear();
                 GeneratedBalanceService.markResourcesChanged();
-                EssenceAscendance.LOGGER.warn("Server resources reloaded. Existing generated balance remains active; use /essence debug balance rebuild to analyze changed recipes, tags or loot.");
+                EssenceAscendance.LOGGER.warn("Server resources reloaded. Existing generated balance remains active; use /essence admin balance rebuild to analyze changed recipes, tags or loot.");
             }
         });
     }

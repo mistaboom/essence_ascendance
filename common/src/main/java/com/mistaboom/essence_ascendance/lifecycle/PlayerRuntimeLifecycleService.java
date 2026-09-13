@@ -11,6 +11,7 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentVitalityService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentWeaponService;
 import com.mistaboom.essence_ascendance.network.EssenceCrucibleNetworkService;
 import com.mistaboom.essence_ascendance.network.PlayerEssenceSyncService;
+import com.mistaboom.essence_ascendance.progression.DormantGuidebookService;
 import com.mistaboom.essence_ascendance.skill.CommittedSkillService;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import dev.architectury.event.events.common.LifecycleEvent;
@@ -60,6 +61,7 @@ public final class PlayerRuntimeLifecycleService {
         LifecycleEvent.SERVER_STARTING.register(server -> com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.serverStarting());
         LifecycleEvent.SERVER_STOPPING.register(server -> com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.serverStopping());
         LifecycleEvent.SERVER_STOPPED.register(server -> {
+            com.mistaboom.essence_ascendance.attunement.AttunementGameplay.clearAll();
             SkillEffectRuntime.clearAll();
             EquipmentDamageService.clearSkillInput();
             com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.clearDiagnostics();
@@ -131,6 +133,7 @@ public final class PlayerRuntimeLifecycleService {
 
     /** Called by the authoritative death-completion hook, after cancellation. */
     public static void onDeath(ServerPlayer player) {
+        com.mistaboom.essence_ascendance.attunement.AttunementGameplay.forget(player);
         com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.forgetOwner(player);
         SkillEffectRuntime.reset(player);
         EquipmentDamageService.forgetSkillInput(player);
@@ -141,6 +144,7 @@ public final class PlayerRuntimeLifecycleService {
     private static void refreshCurrentState(
             ServerPlayer player
     ) {
+        DormantGuidebookService.deliverIfEligible(player);
         refreshSkillState(player);
         /*
          * Reapply the state that should be visible/usable immediately.
@@ -189,6 +193,7 @@ public final class PlayerRuntimeLifecycleService {
     private static void resetRuntime(
             ServerPlayer player
     ) {
+        com.mistaboom.essence_ascendance.attunement.AttunementGameplay.forget(player);
         SkillEffectRuntime.reset(player);
         CommittedSkillService.forget(player);
         EquipmentAttributeService.resetTransientState(
@@ -245,6 +250,7 @@ public final class PlayerRuntimeLifecycleService {
     public static void forget(
             ServerPlayer player
     ) {
+        com.mistaboom.essence_ascendance.attunement.AttunementGameplay.forget(player);
         com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.forgetOwner(player);
         SkillEffectRuntime.forget(player);
         CommittedSkillService.forget(player);

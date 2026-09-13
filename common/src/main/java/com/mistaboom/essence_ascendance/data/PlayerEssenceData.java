@@ -42,6 +42,11 @@ public final class PlayerEssenceData {
     private static final String TIER_TAG =
             "tier";
 
+    private static final String DORMANT_GUIDEBOOK_RECEIVED_TAG =
+            "dormant_guidebook_received";
+
+    private boolean dormantGuidebookReceived;
+
     private static final String COMPLETED_MILESTONES_TAG =
             "completed_milestones";
 
@@ -57,10 +62,7 @@ public final class PlayerEssenceData {
     private static final String LOADOUT_SELECTIONS_TAG =
             "loadout_selections";
 
-    private static final String COMPLETED_ATTUNEMENTS_TAG =
-            "completed_attunements";
-
-    private static final String NEXUS_REVISION_TAG =
+private static final String NEXUS_REVISION_TAG =
             "nexus_revision";
 
     private static final String FRACTIONAL_RESOURCE_COST_CARRY_TAG =
@@ -107,8 +109,10 @@ public final class PlayerEssenceData {
     private final Map<ResourceLocation, ResourceLocation> loadoutSelections =
             new LinkedHashMap<>();
 
-    private final Set<ResourceLocation> completedAttunements =
-            new LinkedHashSet<>();
+    private com.mistaboom.essence_ascendance.attunement.AttunementLedger attunement =
+            new com.mistaboom.essence_ascendance.attunement.AttunementLedger();
+
+    public com.mistaboom.essence_ascendance.attunement.AttunementLedger attunement() { return attunement; }
 
     /*
      * Sub-unit accounting for percentage reductions applied to integer menu
@@ -122,7 +126,7 @@ public final class PlayerEssenceData {
 
 
     private ResourceLocation currentTierId =
-            AscendanceTiers.DORMANT.id();
+            AscendanceTiers.LATENT.id();
 
 
     /*
@@ -588,6 +592,37 @@ public final class PlayerEssenceData {
         bumpRevision();
     }
 
+    /**
+     * Start progression from Latent for operator testing, including the
+     * onboarding reward. Physical inventory and equipment accounting remain.
+     */
+    public void resetProgressionForAdmin() {
+        availableEssence.clear();
+        investedEssence.clear();
+        crucibleReservoir.clear();
+        ownedSkills.clear();
+        loadoutSelections.clear();
+        completedMilestones.clear();
+        attunement = new com.mistaboom.essence_ascendance.attunement.AttunementLedger();
+        currentTierId = AscendanceTiers.LATENT.id();
+        dormantGuidebookReceived = false;
+        bumpRevision();
+    }
+
+    /** Invalidate open Nexus drafts after a direct operator edit of earned seals. */
+    public void markAttunementChangedForAdmin() {
+        bumpRevision();
+    }
+
+    public boolean hasReceivedDormantGuidebook() {
+        return dormantGuidebookReceived;
+    }
+
+    /** Normal tier changes preserve this receipt; a full operator progression reset rearms it. */
+    public void markDormantGuidebookReceived() {
+        dormantGuidebookReceived = true;
+    }
+
 
     /*
      * ============================================================
@@ -601,7 +636,7 @@ public final class PlayerEssenceData {
                         currentTierId
                 )
                 .orElse(
-                        AscendanceTiers.DORMANT
+                        AscendanceTiers.LATENT
                 );
     }
 
@@ -622,6 +657,7 @@ public final class PlayerEssenceData {
 
         currentTierId =
                 tier.id();
+        attunement.chapter("");
 
         bumpRevision();
     }
@@ -867,69 +903,20 @@ public final class PlayerEssenceData {
 
     /*
      * ============================================================
-     * PERMANENT PLAYER ATTUNEMENTS
+     * CATEGORY ATTUNEMENT
      * ============================================================
      */
 
-    public boolean hasAttunement(
-            ResourceLocation attunementId
-    ) {
-        return completedAttunements.contains(
-                Objects.requireNonNull(
-                        attunementId,
-                        "Attunement ID cannot be null"
-                )
-        );
-    }
 
 
-    public Set<ResourceLocation> getCompletedAttunements() {
-        return Collections.unmodifiableSet(
-                completedAttunements
-        );
-    }
 
 
-    public boolean grantAttunement(
-            ResourceLocation attunementId
-    ) {
-        Objects.requireNonNull(
-                attunementId,
-                "Attunement ID cannot be null"
-        );
-
-        boolean changed =
-                completedAttunements.add(
-                        attunementId
-                );
-
-        if (changed) {
-            bumpRevision();
-        }
-
-        return changed;
-    }
 
 
-    public boolean revokeAttunement(
-            ResourceLocation attunementId
-    ) {
-        Objects.requireNonNull(
-                attunementId,
-                "Attunement ID cannot be null"
-        );
 
-        boolean changed =
-                completedAttunements.remove(
-                        attunementId
-                );
 
-        if (changed) {
-            bumpRevision();
-        }
 
-        return changed;
-    }
+
 
 
     /*
@@ -1075,6 +1062,7 @@ public final class PlayerEssenceData {
         loadoutSelections.clear();
         loadoutSelections.putAll(normalizedLoadoutSelections);
 
+        if (!currentTierId.equals(normalizedTierId)) attunement.chapter("");
         currentTierId = normalizedTierId;
 
         bumpRevision();
@@ -1093,6 +1081,7 @@ public final class PlayerEssenceData {
         CompoundTag root =
                 new CompoundTag();
         root.putUUID("projectile_life", projectileLife);
+        root.putBoolean(DORMANT_GUIDEBOOK_RECEIVED_TAG, dormantGuidebookReceived);
 
 
         /*
@@ -1242,14 +1231,7 @@ public final class PlayerEssenceData {
         );
 
 
-        /*
-         * Permanent Player Attunements
-         */
-        writeIdSet(
-                root,
-                COMPLETED_ATTUNEMENTS_TAG,
-                completedAttunements
-        );
+        root.put("category_attunement", attunement.save());
 
 
         /*
@@ -1292,6 +1274,7 @@ public final class PlayerEssenceData {
         PlayerEssenceData data =
                 new PlayerEssenceData();
         if (root.hasUUID("projectile_life")) data.projectileLife = root.getUUID("projectile_life");
+        data.dormantGuidebookReceived = root.getBoolean(DORMANT_GUIDEBOOK_RECEIVED_TAG);
 
 
         /*
@@ -1340,7 +1323,7 @@ public final class PlayerEssenceData {
                         .isEmpty()) {
 
                     EssenceAscendance.LOGGER.warn(
-                            "Unknown Ascendance tier '{}' in saved player data. Preserving the ID and treating the player as Dormant until the tier becomes available.",
+                            "Unknown Ascendance tier '{}' in saved player data. Preserving the ID and treating the player as Latent until the tier becomes available.",
                             tierId
                     );
                 }
@@ -1348,12 +1331,12 @@ public final class PlayerEssenceData {
             } else {
 
                 EssenceAscendance.LOGGER.warn(
-                        "Invalid Ascendance tier ID '{}' in saved player data; defaulting to Dormant",
+                        "Invalid Ascendance tier ID '{}' in saved player data; defaulting to Latent",
                         savedTier
                 );
 
                 data.currentTierId =
-                        AscendanceTiers.DORMANT.id();
+                        AscendanceTiers.LATENT.id();
             }
         }
 
@@ -1575,18 +1558,7 @@ public final class PlayerEssenceData {
         }
 
 
-        /*
-         * ========================================================
-         * PERMANENT PLAYER ATTUNEMENTS
-         * ========================================================
-         */
-
-        readIdSet(
-                root,
-                COMPLETED_ATTUNEMENTS_TAG,
-                data.completedAttunements,
-                "Player Attunement"
-        );
+        data.attunement = com.mistaboom.essence_ascendance.attunement.AttunementLedger.load(root.getCompound("category_attunement"));
 
 
         /*
@@ -1738,70 +1710,10 @@ public final class PlayerEssenceData {
     }
 
 
-    private static void writeIdSet(
-            CompoundTag root,
-            String tagName,
-            Set<ResourceLocation> values
-    ) {
-        CompoundTag valuesTag =
-                new CompoundTag();
-
-        for (ResourceLocation id :
-                values) {
-            valuesTag.putBoolean(
-                    id.toString(),
-                    true
-            );
-        }
-
-        root.put(
-                tagName,
-                valuesTag
-        );
-    }
 
 
-    private static void readIdSet(
-            CompoundTag root,
-            String tagName,
-            Set<ResourceLocation> target,
-            String valueKind
-    ) {
-        if (!root.contains(
-                tagName,
-                Tag.TAG_COMPOUND
-        )) {
-            return;
-        }
 
-        CompoundTag valuesTag =
-                root.getCompound(
-                        tagName
-                );
 
-        for (String key :
-                valuesTag.getAllKeys()) {
-            ResourceLocation id =
-                    ResourceLocation.tryParse(
-                            key
-                    );
-
-            if (id == null) {
-                EssenceAscendance.LOGGER.warn(
-                        "Ignoring invalid {} ID '{}' in Essence Ascendance player data",
-                        valueKind,
-                        key
-                );
-                continue;
-            }
-
-            if (valuesTag.getBoolean(key)) {
-                target.add(
-                        id
-                );
-            }
-        }
-    }
 
     private static void readLongMap(
             CompoundTag tag,

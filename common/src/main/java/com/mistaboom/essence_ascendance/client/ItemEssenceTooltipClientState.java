@@ -361,15 +361,15 @@ public final class ItemEssenceTooltipClientState {
         return Component.literal(titleCase(essenceId.getPath()));
     }
 
-    private static Component compactNameComponent(ResourceLocation essenceId) {
+    static Component compactNameComponent(ResourceLocation essenceId) {
         String abbreviation = essenceId.getNamespace().equals(EssenceAscendance.MOD_ID)
                 ? switch (essenceId.getPath()) {
                     case "offense" -> "Off";
                     case "defense" -> "Def";
                     case "vitality" -> "Vit";
                     case "mobility" -> "Mob";
-                    case "gathering" -> "Gath";
-                    case "utility" -> "Util";
+                    case "gathering" -> "Gat";
+                    case "utility" -> "Uti";
                     default -> null;
                 } : null;
         if (abbreviation == null) return shortNameComponent(essenceId);
