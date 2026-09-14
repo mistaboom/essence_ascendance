@@ -203,13 +203,35 @@ public final class NativePostureOutcomeTest {
                         "A successful real zombie dodge prevents damage, spends half charge and says Dodged on the regular card");
             } else {
                 failures++;
-                check(accepted&&p.getHealth()<20&&result.meter()==0&&card.active()&&card.meter().fraction()==0
-                                &&card.lines().equals(List.of(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.posture.evasive","0.0"))),
-                        "A failed real zombie roll immediately displays zero chance instead of retaining the pre-hit full card");
+                check(accepted&&p.getHealth()<20&&result.meter()==.875&&card.active()&&card.meter().fraction()==.875
+                                &&card.lines().equals(List.of(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.posture.evasive","17.5"))),
+                        "A failed real zombie roll immediately displays retained seven-eighths charge and 17.5 percent chance");
+                for(int recovery=1;recovery<SkillEffectRuntime.resolvedSettings(p).posture().movement().forcedMotionQuietTicks();recovery++) {
+                    if(p.hurtTime>0)p.hurtTime--;
+                    evasiveStep(f);
+                }
+                close(PostureService.snapshot(p).meter(),.875,"Actual native hurt recovery holds the retained charge while movement input continues");
             }
         }
         check(successes>0&&failures>0,"Seeded production RNG against two zombies covers both successes and failures: "+successes+" / "+failures);
         System.out.println("Two-zombie Evasive outcomes: "+successes+" dodges / "+failures+" damaging hits (24 full-meter native attacks, production RNG)");
+        chargeEvasive(f);p.invulnerableTime=0;
+        int sustainedDodges=0;
+        for(int tick=1;tick<=600;tick++) {
+            if(p.hurtTime>0)p.hurtTime--;
+            if(p.invulnerableTime>0)p.invulnerableTime--;
+            evasiveStep(f);
+            if(tick%20!=0)continue;
+            var zombie=zombies.get((tick/20)%2);zombie.setPos(p.getX(),p.getY(),p.getZ()+1);p.setHealth(20);
+            double before=PostureService.snapshot(p).meter();
+            zombie.doHurtTarget(p);
+            var result=PostureService.snapshot(p);
+            if(result.incoming().dodged())sustainedDodges++;
+            close(result.meter(),Math.max(0,before-(result.incoming().dodged()?.5:.125)),
+                    "Sustained native combat debits only the actual outcome, with no artificial charge reset between attacks");
+        }
+        check(sustainedDodges>0,"Continuous movement between two zombies retains enough charge for repeated native dodge rolls");
+        System.out.println("Sustained two-zombie Evasive outcomes: "+sustainedDodges+" dodges in 30 attacks (no recharge/reset between attacks)");
     }
     private static net.minecraft.world.entity.monster.Zombie zombie(ProjectileNativeInterceptionTest.Fixture f) throws ReflectiveOperationException {
         var zombie=ProjectileNativeInterceptionTest.instance(net.minecraft.world.entity.monster.Zombie.class);

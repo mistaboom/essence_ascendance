@@ -33,6 +33,8 @@ public final class PostureStatusBalanceTest {
         var runtime = RuntimeBalanceDefinition.bootstrap();
         check(runtime.toJson().equals(RuntimeBalanceDefinition.bootstrap().toJson()), "Generation must be deterministic");
         check(runtime.toJson().equals(RuntimeBalanceDefinition.fromJson(runtime.toJson()).toJson()), "Strict JSON round trip");
+        near(runtime.config().skillEffects().posture().evasive().hitDrainFraction(),.125,"Generated damaging-hit debit keeps seven eighths of a full meter");
+        near(runtime.config().skillEffects().posture().evasive().successDrainFraction(),.5,"Generated dodge debit is four times the damaging-hit debit");
         for (String section : List.of("posture", "status")) {
             reject(runtime, j -> j.getAsJsonObject("effects").remove(section));
             reject(runtime, j -> j.getAsJsonObject("effects").getAsJsonObject(section).addProperty("fakePower", 1));
@@ -50,10 +52,14 @@ public final class PostureStatusBalanceTest {
         reject(runtime, j -> field(j, "posture", "adaptive").addProperty("resistancePerStack", .76));
         reject(runtime, j -> field(j, "status", null).addProperty("mirrorCooldownTicks", 19));
         var inputs = BalanceOverrides.parse("[exact]\n\"/runtime/effects/posture/evasive/buildTicks\" = 100\n"
+                + "\"/runtime/effects/posture/evasive/hitDrainFraction\" = 0.25\n"
+                + "\"/runtime/effects/posture/evasive/successDrainFraction\" = 1.0\n"
                 + "\"/runtime/effects/status/mirrorCooldownTicks\" = 500\n", "posture-status.toml");
         var changed = RuntimeReferencePolicy.withBootstrapReferences(() -> RuntimeBalanceDefinition.generate(
                 RuntimeReferencePolicy.bootstrapEvidence(), BalanceSettings.defaults(), inputs));
         check(changed.config().skillEffects().posture().evasive().buildTicks() == 100, "Posture exact TOML consumer");
+        near(changed.config().skillEffects().posture().evasive().hitDrainFraction(),.25,"Explicit pack-maker hit debit overrides the new default");
+        near(changed.config().skillEffects().posture().evasive().successDrainFraction(),1,"Explicit pack-maker dodge debit remains supported");
         check(changed.config().skillEffects().status().mirrorCooldownTicks() == 500, "Status exact TOML consumer");
         check(!changed.config().balanceProfile().id().equals(runtime.config().balanceProfile().id()), "Content identity must change");
         check(changed.toJson().get("attunement").equals(runtime.toJson().get("attunement")), "Tuning does not change Attunement");

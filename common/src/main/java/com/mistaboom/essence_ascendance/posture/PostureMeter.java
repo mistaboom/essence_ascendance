@@ -7,7 +7,7 @@ public final class PostureMeter {
     public enum Choice { NONE, EVASIVE, BULWARK, ADAPTIVE }
     private Choice choice = Choice.NONE;
     private double meter;
-    private long lastTick = Long.MIN_VALUE, lastHit = Long.MIN_VALUE, expiresAt;
+    private long lastTick = Long.MIN_VALUE, lastHit = Long.MIN_VALUE, expiresAt, hitRecoveryUntil;
     private int stableTicks, stacks;
     private boolean still;
     private String damageType = "", reason = "inactive";
@@ -21,7 +21,7 @@ public final class PostureMeter {
     public void select(Choice next) { if (choice != next) { clear("selection_changed"); choice = next; } }
     public void clear(String why) {
         meter = 0; stacks = 0; damageType = ""; expiresAt = 0; stableTicks = 0; still = false;
-        lastTick = Long.MIN_VALUE; lastHit = Long.MIN_VALUE; reason = why;
+        lastTick = Long.MIN_VALUE; lastHit = Long.MIN_VALUE; hitRecoveryUntil = 0; reason = why;
     }
     public void expire(long now) {
         if (choice == Choice.ADAPTIVE && stacks > 0 && now >= expiresAt) {
@@ -46,10 +46,13 @@ public final class PostureMeter {
         stableTicks = stable ? Math.min(motion.stableTicks(), stableTicks + 1) : 0;
         still = stableTicks >= motion.stableTicks();
         if (choice == Choice.EVASIVE) {
-            boolean build = intentional && !forced && validMode && displacement >= motion.minimumDisplacement();
+            // A damaging hit already paid its debit. While the player is trying to move,
+            // its bounded recovery/knockback interval holds charge instead of applying extra drain.
+            boolean recovering = intentional && hitRecoveryUntil > 0 && now < hitRecoveryUntil;
+            boolean build = !recovering && intentional && !forced && validMode && displacement >= motion.minimumDisplacement();
             boolean waiting = !build && waitingForMovementSample && intentional && !forced && validMode;
-            meter = bound(meter + (build ? 1.0 / settings.evasive().buildTicks() : waiting ? 0 : -1.0 / settings.evasive().drainTicks()));
-            reason = build ? "intentional_movement" : waiting ? "waiting_for_movement_sample" : forced ? "forced_motion" : !validMode ? "unsupported_movement_mode" : "movement_stopped";
+            meter = bound(meter + (build ? 1.0 / settings.evasive().buildTicks() : recovering || waiting ? 0 : -1.0 / settings.evasive().drainTicks()));
+            reason = build ? "intentional_movement" : recovering ? "damage_recovery" : waiting ? "waiting_for_movement_sample" : forced ? "forced_motion" : !validMode ? "unsupported_movement_mode" : "movement_stopped";
         } else if (choice == Choice.BULWARK) {
             boolean build = still && facingThreat;
             meter = bound(meter + (build ? 1.0 / settings.bulwark().buildTicks() : -1.0 / settings.bulwark().drainTicks()));
@@ -73,6 +76,7 @@ public final class PostureMeter {
         lastHit = event;
         if (choice == Choice.EVASIVE && (dodged || loss)) {
             meter = bound(meter - (dodged ? settings.evasive().successDrainFraction() : settings.evasive().hitDrainFraction()));
+            if (loss && !dodged) hitRecoveryUntil = now + settings.movement().forcedMotionQuietTicks();
             reason = dodged ? "dodge_consumed_meter" : "taken_hit_drained_meter"; return true;
         }
         if (choice == Choice.ADAPTIVE && loss && !identity.isBlank()) {

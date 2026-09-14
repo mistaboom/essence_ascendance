@@ -49,7 +49,8 @@ public final class PostureMeterTest {
         close(evade.meter(),.4,"Actual forced movement still drains during movement sample grace");
         evade.tick(104,0,0,true,false,false,false,settings,true);
         close(evade.meter(),.35,"Unsupported movement still drains during movement sample grace");
-        evade.hit(2,101,"mod:physical",true,true,false,settings);check(evade.meter()==0,"Actual taken hit drains configured meter");
+        evade.hit(2,105,"mod:physical",true,true,false,settings);close(evade.meter(),.225,"Actual taken hit spends one eighth of the full meter");
+        evasiveRetention(settings);
         var adapt=new PostureMeter();adapt.select(PostureMeter.Choice.ADAPTIVE);
         adapt.hit(99,1,"mod:nested",false,true,false,settings);
         check(adapt.adaptation("mod:alpha",1,settings.adaptive())==0,"First exact registry type is unmitigated");
@@ -79,6 +80,34 @@ public final class PostureMeterTest {
         boolean rejected=false;try{new PostureBalanceSettings.Evasive(80,20,Double.NaN,.5,1);}catch(IllegalArgumentException ex){rejected=true;}
         check(rejected,"Nonfinite config rejected");
         System.out.println("PostureMeterTest: "+checks+" deterministic checks passed");
+    }
+    private static void evasiveRetention(PostureBalanceSettings settings) {
+        var meter=new PostureMeter();meter.select(PostureMeter.Choice.EVASIVE);
+        for(int t=1;t<=80;t++)meter.tick(t,.1,0,true,false,true,false,settings);
+        meter.hit(1,81,"minecraft:mob_attack",true,true,false,settings);
+        close(meter.meter(),.875,"A full meter retains seven eighths after a damaging hit");
+        for(int t=81;t<91;t++)meter.tick(t,.1,0,true,true,false,false,settings);
+        close(meter.meter(),.875,"Trying to move through hit recovery and airborne knockback neither drains twice nor builds charge");
+        check(meter.reason().equals("damage_recovery"),"Paused hit recovery is explicit in diagnostics");
+        meter.tick(91,.1,0,true,false,true,false,settings);
+        close(meter.meter(),.8875,"Normal intentional movement resumes buildup at the exact recovery expiry");
+        meter.hit(2,92,"minecraft:mob_attack",true,true,false,settings);
+        meter.tick(92,0,0,false,true,false,false,settings);
+        close(meter.meter(),.7125,"Voluntarily stopping still drains during recovery");
+        for(int t=93;t<102;t++)meter.tick(t,0,0,true,true,false,false,settings);
+        check(!meter.hit(2,101,"minecraft:mob_attack",true,true,false,settings),"Duplicate completion cannot debit or refresh recovery");
+        meter.tick(102,0,0,true,true,false,false,settings);
+        close(meter.meter(),.6625,"Unrelated force after recovery expires resumes drain even after duplicate completion");
+        meter.hit(3,103,"minecraft:mob_attack",true,false,true,settings);
+        close(meter.meter(),.1625,"A successful dodge spends four times the damaging-hit debit");
+        meter.hit(4,104,"minecraft:mob_attack",true,false,true,settings);
+        close(meter.meter(),0,"A dodge spends the entire remaining meter when below half charge without underflow");
+        var repeated=new PostureMeter();repeated.select(PostureMeter.Choice.EVASIVE);
+        for(int t=1;t<=80;t++)repeated.tick(t,.1,0,true,false,true,false,settings);
+        for(int hit=1;hit<=8;hit++) {
+            repeated.hit(hit,80+hit,"minecraft:mob_attack",true,true,false,settings);
+            close(repeated.meter(),1-hit*.125,"Each distinct damaging hit spends exactly one eighth of full charge");
+        }
     }
     private static void close(double a,double b,String message){check(Math.abs(a-b)<1e-9,message);}
     private static void check(boolean pass,String message){checks++;if(!pass)throw new AssertionError(message);}

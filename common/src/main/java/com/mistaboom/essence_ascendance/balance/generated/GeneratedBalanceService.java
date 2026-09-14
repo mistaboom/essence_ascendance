@@ -32,7 +32,7 @@ import java.util.Map;
 
 /** Server-thread transaction: collect, construct, validate, persist, publish, then synchronize. */
 public final class GeneratedBalanceService {
-    static final String GENERATION_REVISION = "defensive-posture-status-16";
+    static final String GENERATION_REVISION = "evasive-retention-17";
     private static final String DISSOLUTION_ACCOUNTING = "whole_essence_v1";
     private static volatile Active active;
     private static volatile boolean resourcesChanged;
@@ -230,7 +230,7 @@ public final class GeneratedBalanceService {
         policy.addProperty("tuning", "/runtime/effects/posture and /runtime/effects/status; existing commented exact TOML, validated bounds, required schema fields and content fingerprint; no separate configuration");
         policy.addProperty("choices", "One Evasive/Bulwark/Adaptive posture and one independent Mirror/Pure State status choice. Switching, lost effectiveness or lifecycle discontinuity resets transient state");
         policy.addProperty("movement", "Ordinary input must correlate with measured server movement. Crouch, grounded motion, intentional swimming/climbing/flight and legitimate guarded movement qualify; mounts, idle falling, forced motion, teleports and correction do not. Finite stillness and turning hysteresis reject jitter");
-        policy.addProperty("evasive", "Bounded chance at full posture; one server roll for hostile living-owned nonfire/nonexplosive projectiles or direct physical damage. Direct armor-bypassing or witch-resistant magic, unavoidable/admin/environmental damage and secondaries do not roll. Success, taken hits and stopping drain meter; no fabricated block, reflection or guard reward");
+        policy.addProperty("evasive", "Bounded chance at full posture; one server roll for hostile living-owned nonfire/nonexplosive projectiles or direct physical damage. Direct armor-bypassing or witch-resistant magic, unavoidable/admin/environmental damage and secondaries do not roll. Success and actual taken hits each pay their configured full-meter debit once. Intentional hit recovery holds charge for the forced-motion quiet interval without buildup; stopping still drains. No fabricated block, reflection or guard reward");
         policy.addProperty("bulwark", "Build while stationary facing bounded valid visible hostile threats. Resistance requires frontal responsible living source. Full-meter threshold suppresses only correlated incoming knockback; loss of stance releases immunity");
         policy.addProperty("adaptive", "One exact DamageType registry ID with bounded stacks/window. First eligible hit seeds; repeated hits reach generated threshold; type switch reseeds before its mitigation. Rejected, zero and secondary damage never build stacks");
         policy.addProperty("incoming_order", "Native incoming event identity; Evasive decision; existing equipment resistance then posture resistance; native shield/armor/toughness/enchantment/Resistance/absorption and actual loss; confirmed guard/reflection/counter outcomes. A dodge is not a block. Prevention and correlated knockback are measured once");

@@ -51,7 +51,7 @@ public record PostureBalanceSettings(Movement movement, Evasive evasive, Bulwark
     }
     public static PostureBalanceSettings defaults() {
         return new PostureBalanceSettings(new Movement(.01, .003, .015, 3, 1, 3, 3, 10, 10),
-                new Evasive(80, 20, .2, .5, 1), new Bulwark(80, 20, 12, 60, .2, 1, 32),
+                new Evasive(80, 20, .2, .5, .125), new Bulwark(80, 20, 12, 60, .2, 1, 32),
                 new Adaptive(120, 5, 2, .05));
     }
     public void validate() { new PostureBalanceSettings(movement, evasive, bulwark, adaptive); }
