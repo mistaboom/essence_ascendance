@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.balance;
 
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
+import com.mistaboom.essence_ascendance.balance.runtime.BonusTrackDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
 import net.minecraft.resources.ResourceLocation;
 
@@ -16,6 +17,7 @@ public final class BalanceProfileDefinition {
 
     private final Map<ResourceLocation, Double> tierFractions;
     private final double investmentExponent;
+    private final Map<ResourceLocation, BonusTrackDefinition> bonusTracks;
 
     /*
      * Default maximum invested Essence for each Ascendance tier.
@@ -61,6 +63,15 @@ public final class BalanceProfileDefinition {
             Map<ResourceLocation, Long> defaultTierCaps,
             Map<ResourceLocation, Map<ResourceLocation, Long>> statOverrides,
             Map<ResourceLocation, Double> tierFractions, double investmentExponent) {
+        this(id, displayName, defaultTierCaps, statOverrides, tierFractions, investmentExponent, Map.of());
+    }
+
+    public BalanceProfileDefinition(ResourceLocation id, String displayName,
+            Map<ResourceLocation, Long> defaultTierCaps,
+            Map<ResourceLocation, Map<ResourceLocation, Long>> statOverrides,
+            Map<ResourceLocation, Double> tierFractions, double investmentExponent,
+            Map<ResourceLocation, BonusTrackDefinition> bonusTracks) {
+        this.bonusTracks = Collections.unmodifiableMap(new java.util.TreeMap<>(bonusTracks));
         this.tierFractions = Collections.unmodifiableMap(new LinkedHashMap<>(tierFractions));
         if (!Double.isFinite(investmentExponent) || investmentExponent <= 0 || investmentExponent > 1)
             throw new IllegalArgumentException("Investment exponent must be in (0, 1]");
@@ -119,6 +130,8 @@ public final class BalanceProfileDefinition {
 
     public Map<ResourceLocation, Double> tierFractions() { return tierFractions; }
     public double investmentExponent() { return investmentExponent; }
+    public Map<ResourceLocation, BonusTrackDefinition> bonusTracks() { return bonusTracks; }
+    public BonusTrackDefinition bonusTrack(ResourceLocation statId) { return bonusTracks.get(statId); }
     public double tierFraction(AscendanceTierDefinition tier, int index, int count) {
         return tierFractions.getOrDefault(tier.id(), (index + 1.0) / count);
     }
@@ -136,6 +149,8 @@ public final class BalanceProfileDefinition {
             AscendanceTierDefinition tier,
             StatDefinition stat
     ) {
+        BonusTrackDefinition track = bonusTracks.get(stat.id());
+        if (track != null) return track.checkpoint(tier.id()).cumulativeCap();
         Map<ResourceLocation, Long> statCaps =
                 statOverrides.get(
                         stat.id()

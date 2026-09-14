@@ -38,8 +38,14 @@ public final class RuntimeValueQuantization {
                 row.addProperty(field,Math.max(.1,physical(row.get(field).getAsDouble(),.1,parity)));
         }
         JsonObject bonuses=json.getAsJsonObject("statMaxBonuses");
-        for(var stat:EssenceStatRegistry.values())
-            bonuses.addProperty(stat.id().toString(),down(bonuses.get(stat.id().toString()).getAsDouble(),statStep(stat.unit())));
+        for(var stat:EssenceStatRegistry.values()) {
+            var track=json.getAsJsonObject("balanceProfile").getAsJsonObject("bonusTracks").getAsJsonObject(stat.id().toString());
+            // Native collision-derived completion retains its exact additive value even with a continuous slider.
+            // Rounding .899999976 down to .8 would discard the measured completion boundary.
+            if (!track.getAsJsonObject("inputs").has("native_base_step_height"))
+                bonuses.addProperty(stat.id().toString(),down(bonuses.get(stat.id().toString()).getAsDouble(),statStep(stat.unit())));
+        }
+        BonusTrackGenerator.synchronizeMaxima(json);
         JsonObject shield=json.getAsJsonObject("shield");
         shield.addProperty("baseReflectionPercent",down(shield.get("baseReflectionPercent").getAsDouble(),1));
         for(var entry:shield.getAsJsonObject("innateReflectionBonus").entrySet())entry.setValue(new com.google.gson.JsonPrimitive(down(entry.getValue().getAsDouble(),1)));

@@ -37,8 +37,9 @@ public final class SavedEvidenceRegenerationTool {
         if (!first.document().section("evidence").equals(original.section("evidence"))
                 || !first.document().section("economy").equals(original.section("economy")))
             throw new AssertionError("Offline runtime rebuild altered authoritative saved evidence/economy");
-        if (!first.document().section("runtime").get("attunement").equals(original.section("runtime").get("attunement")))
-            throw new AssertionError("Skill batch unexpectedly retuned Category Attunement");
+        // Bonus prices and normalized development references are regenerated together.
+        // Historical player skill receipts are world data and are never opened here.
+        first.runtime().validate();
         if (!settingsBytes.equals(Files.readString(BalanceInputs.settingsPath(config)))
                 || !overridesBytes.equals(Files.readString(BalanceInputs.overridesPath(config))))
             throw new AssertionError("Human inputs changed during replay");
@@ -48,7 +49,7 @@ public final class SavedEvidenceRegenerationTool {
                 BalanceDocument.GSON.toJson(comparison(original, first.document())) + "\n");
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println(
                 "SavedEvidenceRegenerationTool PASS: deterministic current runtime installed in " + output
-                + "; integrity=" + first.document().integrity() + "; saved evidence/economy/Attunement and human inputs unchanged; no world opened");
+                + "; integrity=" + first.document().integrity() + "; saved evidence/economy and human inputs unchanged; Bonus tracks and Attunement regenerated; no world opened");
     }
 
     /** Compare raw validated evidence documents; no discarded runtime-schema adapter is needed. */

@@ -5,6 +5,7 @@ import com.mistaboom.essence_ascendance.attunement.AttunementSnapshot;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.network.PlayerEssenceSyncPayload;
+import com.mistaboom.essence_ascendance.network.BonusTrackSnapshot;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
 import dev.architectury.networking.NetworkManager;
@@ -235,16 +236,7 @@ public final class ClientEssenceState {
 
             stats.put(
                     statId,
-                    new StatSnapshot(
-                            statId,
-                            state.storedInvestment(),
-                            state.effectiveInvestment(),
-                            state.currentInvestmentCap(),
-                            state.progression(),
-                            state.currentTierMaximumBonus(),
-                            state.transcendentMaximumBonus(),
-                            state.scaledBonus()
-                    )
+                    StatSnapshot.from(state)
             );
         }
 
@@ -535,8 +527,15 @@ public final class ClientEssenceState {
             double progression,
             double currentTierMaximumBonus,
             double transcendentMaximumBonus,
-            double scaledBonus
+            double scaledBonus,
+            BonusTrackSnapshot track
     ) {
+        public StatSnapshot { Objects.requireNonNull(track, "Missing synchronized Bonus track"); }
+        public static StatSnapshot from(PlayerEssenceSyncPayload.StatState state) {
+            return new StatSnapshot(ResourceLocation.parse(state.statId()), state.storedInvestment(), state.effectiveInvestment(),
+                    state.currentInvestmentCap(), state.progression(), state.currentTierMaximumBonus(),
+                    state.transcendentMaximumBonus(), state.scaledBonus(), state.track());
+        }
     }
 
     public record ProgressSnapshot(

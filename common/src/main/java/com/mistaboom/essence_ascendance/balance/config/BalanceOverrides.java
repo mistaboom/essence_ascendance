@@ -45,7 +45,7 @@ public record BalanceOverrides(List<FactOverride> facts, Map<String, Object> exa
     }
 
     private static final Set<String> FLAGS = Set.of("attainable", "disabled", "creative_only", "administrative", "joke",
-            "quest_gated", "include_reference", "renewable", "passive_generation", "flight", "vein_mining", "area_mining");
+            "quest_gated", "include_reference", "renewable", "passive_generation", "flight", "flying_speed_compatible", "vein_mining", "area_mining");
     private static final Set<String> NUMBERS = Set.of("confidence", "resource_value", "throughput", "health", "armor", "damage",
             "attack_speed", "toughness", "mining_speed", "harvest_level", "durability", "enchantability", "startup_cost",
             "marginal_cost", "parallelizability", "player_attention", "processing_time", "output_count", "probability");

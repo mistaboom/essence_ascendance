@@ -35,6 +35,7 @@ public final class BalanceReports {
         valuation(tables, current);
         equipment(tables, current);
         curves(tables, current, skills);
+        bonusTracks(tables, current);
         builds(tables, current, skills);
         combatBuilds(tables, skills);
         invariants(tables, current);
@@ -55,7 +56,9 @@ public final class BalanceReports {
         tables.write(reports, diagnostics);
         BalanceProfileStore.writeAtomically(reports.resolve("balance_report.md"), report(current, previous, generationMillis, skills));
         BalanceProfileStore.writeAtomically(diagnostics.resolve("pack_metadata.json"), BalanceDocument.GSON.toJson(current.document().section("metadata")) + "\n");
-        BalanceReportLayout.finishExport(folder);
+        BalanceProfileStore.writeAtomically(diagnostics.resolve("bonus_tracks.json"), BalanceDocument.GSON.toJson(
+                com.mistaboom.essence_ascendance.balance.runtime.BonusTrackGenerator.diagnostics(current.runtime())) + "\n");
+        BalanceReportLayout.finishExport(folder, current.document().integrity());
     }
     private static String report(GeneratedBalanceService.Active current, GeneratedBalanceService.Active previous, long millis, JsonObject skills) {
         var doc = current.document();
@@ -120,12 +123,12 @@ public final class BalanceReports {
         current.runtime().composition().forEach((key, value) -> row(out,
                 key + (Set.of("combined_damage_multiplier", "combined_defense_multiplier").contains(key) ? " (illustrative only)" : ""), number(value)));
         out.append("\n## Player tier unlocks\n\n");
-        out.append("Player-tier Ascension completes Category Attunement seals through confirmed gameplay. It consumes no Essence and requires no wallet balance, investment, skill, equipment family, or world milestone. Earned tiers are permanent. Current category Bonus allocations and actual historical paid skill receipts only accelerate future eligible activity.\n\n")
+        out.append("Player-tier Ascension completes Category Attunement seals through confirmed gameplay. It consumes no Essence and requires no wallet balance, investment, skill, equipment family, or world milestone. Earned tiers are permanent. Normalized resolved Bonus development and actual historical paid skill receipts only accelerate future eligible activity. Bonus development weights realized effect by intrinsic generated power independently of its price; skill spending retains historical paid receipts.\n\n")
                 .append("`attunement_breadth.csv` resolves increasing optional-category breadth; `attunement_targets.csv` joins it by chapter_id. `attunement_pacing.csv` compares raw and sustained single-source amounts per seal, with no investment or variety. Repetition measures reference work, never callback count; diversification restores efficiency. Reachability distinguishes registered base methods from stage-accessible acquisition estimates. Estimates do not impose gates, and opaque quests, world generators or scripted recipes require pack evidence. Exploration discoveries reset each chapter and remain optional.\n\n")
                 .append("### Attunement calibration assumptions\n\n");
         current.runtime().attunement().assumptions().forEach(assumption -> out.append("- ").append(assumption).append('\n'));
         combatSummary(out, skills);
-        out.append("\nThe complete runtime curve table is in `curves.csv`. Bonus investment uses the same generated concave interpolation in the server and Nexus previews. Cost caps are generated from progression and resource supply; exact refunds use paid receipts, not a later profile's prices.\n\n");
+        out.append("\nThe complete runtime curve table is in `curves.csv`. Bonus investment uses the same generated concave interpolation in the server and Nexus previews. Each Bonus has its own applicability, effect checkpoints and adjacent economic segment costs, resolved from native marginal utility, breadth, alternatives and composition headroom. bonus_tracks.csv contains the complete per-tier review data. Bonus refunds are exact differences between final allocated targets; skill refunds retain historical paid receipts.\n\n");
         skillSummary(out, current, skills);
         if (skills.has("projectilePolicy")) {
             out.append("## Projectile payload and control policy\n\nResolved tuning is exported as scalar exact paths in `runtime_parameters.csv`; the contracts below are also in `projectile_policy.csv`.\n\n| Contract | Rule |\n|---|---|\n");
@@ -272,6 +275,28 @@ public final class BalanceReports {
                                 scenario.get("equipmentContext").getAsString(), "", "reachable_projection", "active_ranks_excluding_inactive_prerequisites"));
             }
         }
+    }
+
+    private static void bonusTracks(SpreadsheetReports tables, GeneratedBalanceService.Active current) {
+        var out=tables.table("bonus_tracks.csv", "stat_id", "category", "unit", "maximum_effect", "applicability",
+                "start_tier", "completion_tier", "tier_id", "available", "purchasable", "cumulative_cap", "segment_cost",
+                "effect_fraction", "effect", "investment_exponent", "purchase_style", "snap_points",
+                "marginal_power", "native_response", "breadth", "environment_alternatives", "useful_span",
+                "composition_headroom", "category_supply", "confidence", "compatibility_requirements", "fallback", "source", "evidence", "inputs");
+        current.runtime().config().balanceProfile().bonusTracks().values().forEach(track -> {
+            for(var point:track.checkpoints()) out.row(track.statId().toString(),track.category().name(),track.unit().name(),
+                    number(track.maximumEffect()),track.applicability().name(),track.startTier().toString(),track.completionTier().toString(),
+                    point.tierId().toString(),Boolean.toString(point.available()),Boolean.toString(point.purchasable()),
+                    Long.toString(point.cumulativeCap()),Long.toString(point.segmentCost()),number(point.effectFraction()),
+                    number(track.maximumEffect()*point.effectFraction()),number(track.investmentExponent()),track.purchaseStyle().name(),
+                    track.snapPoints().toString(),number(track.inputs().getOrDefault("marginal_power",0.0)),
+                    number(track.inputs().getOrDefault("native_response",0.0)),number(track.inputs().getOrDefault("breadth",0.0)),
+                    number(track.inputs().getOrDefault("environment_alternatives",0.0)),number(track.inputs().getOrDefault("useful_span",0.0)),
+                    number(track.inputs().getOrDefault("composition_headroom",0.0)),number(track.inputs().getOrDefault("category_supply",0.0)),
+                    number(track.confidence()),String.join("; ",track.compatibilityRequirements()),
+                    track.source().contains("fallback")||track.source().contains("conservative") ? track.source() : "none",track.source(),
+                    String.join("; ",track.evidence()),track.inputs().toString());
+        });
     }
 
     private static void skillSummary(StringBuilder out, GeneratedBalanceService.Active current, JsonObject skills) {
@@ -563,7 +588,7 @@ public final class BalanceReports {
         var methods = tables.table("attunement_methods.csv", "activity_id", "category_id", "calibration_family", "units", "label_key", "description_key", "base_game_accessible");
         var calibration = tables.table("attunement_calibration.csv", "chapter_id", "category_id", "activity_id", "units", "reference_units", "contribution_per_unit", "stage_accessible", "explanation");
         var pacing = tables.table("attunement_pacing.csv", "chapter_id", "category_id", "activity_id", "units", "stage_accessible", "raw_units_per_seal", "single_source_units_per_seal", "single_source_efficiency", "fresh_reference_percent", "floor_reference_percent");
-        var investment = tables.table("attunement_investment.csv", "chapter_id", "category_id", "investment_reference", "curve_exponent", "fraction_cap", "maximum_added_multiplier", "base_multiplier", "maximum_multiplier", "bonus_allocations", "historical_owned_skill_receipts", "wallet_counts", "equipment_counts");
+        var investment = tables.table("attunement_investment.csv", "chapter_id", "category_id", "investment_reference", "curve_exponent", "fraction_cap", "maximum_added_multiplier", "base_multiplier", "maximum_multiplier", "normalized_bonus_development", "historical_owned_skill_receipts", "wallet_counts", "equipment_counts");
         var repetition = tables.table("attunement_repetition.csv", "policy_id", "repetition_floor", "maximum_variety_bonus", "history_window", "history_units", "variety_measure", "per_action_cap");
         var reachable = tables.table("attunement_reachability.csv", "chapter_id", "category_id", "base_methods", "positive_rate_methods", "stage_accessible_methods", "effective_accessible_methods", "scarcity_multiplier", "zero_investment_reachable", "repetition_floor_positive", "required_skill", "required_world_gate", "validation_scope");
         for (var method : profile.methods().values()) methods.row(method.activityId(), method.categoryId(), method.calibrationFamily(), method.units(),

@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.client;
 
+import com.mistaboom.essence_ascendance.visual.AscendancePalette;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
@@ -20,7 +21,7 @@ public final class MachineScreenUi {
 
     public static final int PANEL = 0xFF20242B;
     public static final int PANEL_INNER = 0xFF2D333D;
-    public static final int BORDER = 0xFF8A70B5;
+    public static final int BORDER = AscendancePalette.opaque(AscendancePalette.AWAKENED.primaryRgb());
     public static final int DIVIDER = 0xFF535B68;
     public static final int TEXT = 0xFFE9E9EF;
     public static final int MUTED = 0xFFAEB4C0;
@@ -67,10 +68,10 @@ public final class MachineScreenUi {
         int fillTop = y + r - (int) Math.ceil(2 * r * bounded);
         for (int dy = -r; dy <= r; dy++) {
             int half = r - Math.abs(dy);
-            int rowColor = y + dy >= fillTop ? opacity(color, 215) : 0xFF292733;
+            int rowColor = y + dy >= fillTop ? opacity(color, 215) : PANEL_INNER;
             graphics.fill(x - half, y + dy, x + 1, y + dy + 1, rowColor);
             graphics.fill(x + 1, y + dy, x + half + 1, y + dy + 1,
-                    y + dy >= fillTop ? opacity(color, 120) : 0xFF201E29);
+                    y + dy >= fillTop ? opacity(color, 120) : PANEL);
         }
         beam(graphics, x, y - r, x + r, y, color);
         beam(graphics, x + r, y, x, y + r, color);

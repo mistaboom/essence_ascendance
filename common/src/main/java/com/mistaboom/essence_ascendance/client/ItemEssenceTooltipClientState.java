@@ -5,6 +5,7 @@ import com.mistaboom.essence_ascendance.balance.economy.FractionalAmountService;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.text.EssenceText;
+import com.mistaboom.essence_ascendance.visual.AscendancePalette;
 import com.mistaboom.essence_ascendance.network.ItemEssenceTooltipPayload;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.ChatFormatting;
@@ -13,6 +14,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -267,7 +269,7 @@ public final class ItemEssenceTooltipClientState {
         Component separator = Component.literal(" \u2022 ").withStyle(ChatFormatting.DARK_GRAY);
         List<Component> tokens = outputs.stream().map(output -> (Component) EssenceText.tooltip(
                         "essence_amount", EssenceYieldFormat.formatMicros(output.microUnits()),
-                        compactNameComponent(output.essenceId())).withStyle(colorFor(output.essenceId())))
+                        compactNameComponent(output.essenceId())).withStyle(style -> style.withColor(colorFor(output.essenceId()))))
                 .toList();
         List<List<Component>> rows = TooltipLayout.wrapTokens(tokens, font::width,
                 font.width(prefix), font.width(continuation), font.width(separator), maximumWidth);
@@ -385,18 +387,10 @@ public final class ItemEssenceTooltipClientState {
         }
     }
 
-    static ChatFormatting colorFor(
+    static TextColor colorFor(
             ResourceLocation essenceId
     ) {
-        return switch (essenceId.getPath()) {
-            case "offense" -> ChatFormatting.RED;
-            case "defense" -> ChatFormatting.BLUE;
-            case "vitality" -> ChatFormatting.DARK_RED;
-            case "mobility" -> ChatFormatting.AQUA;
-            case "gathering" -> ChatFormatting.GREEN;
-            case "utility" -> ChatFormatting.GOLD;
-            default -> ChatFormatting.GRAY;
-        };
+        return TextColor.fromRgb(AscendancePalette.categoryRgb(essenceId));
     }
 
     private static String titleCase(

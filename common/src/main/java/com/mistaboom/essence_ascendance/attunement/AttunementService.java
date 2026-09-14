@@ -8,7 +8,8 @@ import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.network.PlayerEssenceSyncService;
 import com.mistaboom.essence_ascendance.progression.AscendanceAttemptResult;
 import com.mistaboom.essence_ascendance.progression.AscendanceEngine;
-import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
+import com.mistaboom.essence_ascendance.progression.BonusDevelopment;
+import com.mistaboom.essence_ascendance.balance.BalanceProfileDefinition;
 import net.minecraft.server.level.ServerPlayer;
 import java.util.*;
 
@@ -74,9 +75,10 @@ public final class AttunementService {
         }
     }
     public static long investment(PlayerEssenceData data, String categoryId) {
-        long total = 0;
-        for (var stat : EssenceStatRegistry.values()) if (stat.essenceType().id().toString().equals(categoryId))
-            total = saturatedAdd(total, data.getInvested(stat));
+        return investment(data, categoryId, EssenceConfigManager.get().balanceProfile());
+    }
+    public static long investment(PlayerEssenceData data, String categoryId, BalanceProfileDefinition profile) {
+        long total = BonusDevelopment.equivalentInvestment(data, categoryId, profile);
         // Historical receipt category and paid values remain authoritative even if a skill is later repriced.
         for (SkillPurchase purchase : data.getOwnedSkills().values()) if (purchase.essenceId().toString().equals(categoryId))
             for (long cost : purchase.paidCosts()) total = saturatedAdd(total, cost);

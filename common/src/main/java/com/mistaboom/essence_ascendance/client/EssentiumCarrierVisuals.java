@@ -2,6 +2,8 @@ package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.infuser.EssentiumCarrierData;
+import com.mistaboom.essence_ascendance.equipment.EquipmentTier;
+import com.mistaboom.essence_ascendance.visual.AscendancePalette;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
@@ -26,6 +28,26 @@ public final class EssentiumCarrierVisuals {
     private static final float SLOT_SCALE = 1.0F / 32.0F;
 
     private EssentiumCarrierVisuals() {
+    }
+
+    /** Future carrier body layers share armor's exact grey tier primary. Existing vanilla models are placeholders. */
+    public static int primaryRgb(EssentiumCarrierData.Value value) {
+        return AscendancePalette.tierPrimaryRgb(EquipmentTier.fromSerializedName(value.grade().serializedName()));
+    }
+
+    /** Infused ingot inlays carry Essence identity; they do not use armor's tier metal accent. */
+    public static int accentRgb(EssentiumCarrierData.Value value) {
+        return AscendancePalette.categoryRgb(value.essence());
+    }
+
+    public static int primaryRgb(ItemStack stack) {
+        return EssentiumCarrierData.read(stack).map(EssentiumCarrierVisuals::primaryRgb)
+                .orElse(AscendancePalette.LATENT.primaryRgb());
+    }
+
+    public static int accentRgb(ItemStack stack) {
+        return EssentiumCarrierData.read(stack).map(EssentiumCarrierVisuals::accentRgb)
+                .orElse(AscendancePalette.LATENT.metalRgb());
     }
 
     /**

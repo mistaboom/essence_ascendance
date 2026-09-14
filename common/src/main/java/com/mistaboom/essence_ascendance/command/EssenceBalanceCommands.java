@@ -9,6 +9,7 @@ import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.skill.SkillRegistry;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.text.EssenceText;
+import com.mistaboom.essence_ascendance.visual.AscendancePalette;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -141,7 +142,7 @@ final class EssenceBalanceCommands {
                 Component label = EssenceRegistry.get(essenceId).<Component>map(EssenceText::essenceShort)
                         .orElseGet(() -> Component.literal(essence));
                 EssenceCommandUtil.send(source, EssenceCommandUtil.line(label,
-                        Component.literal(number(amount)).withStyle(essenceColor(essenceId))));
+                        Component.literal(number(amount)).withStyle(style -> style.withColor(AscendancePalette.categoryRgb(essenceId)))));
             });
         }
         section(source, "Evidence");
@@ -167,11 +168,18 @@ final class EssenceBalanceCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.stat(stat)));
         line(source,"ID",stat.id().toString());
         line(source,"Total maximum bonus",EssenceCommandUtil.formatBonusComponent(stat, config.statMaxBonus(stat)));
-        line(source,"Investment exponent",number(config.balanceProfile().investmentExponent()));
+        var track = java.util.Objects.requireNonNull(config.balanceProfile().bonusTrack(stat.id()), "Missing resolved Bonus; rebuild balance");
+        line(source,"Investment exponent",number(track.investmentExponent()));
+        line(source,"Purchase style",track.purchaseStyle().name());
+        line(source,"Applicability",track.applicability().name());
         section(source,"Tier limits");
-        for(var tier:AscendanceTierRegistry.values())line(source,EssenceText.ascendanceTier(tier).getString(),
-                fields("Investment cap", EssenceCommandUtil.format(config.balanceProfile().getInvestmentCap(tier,stat)),
-                        "power", EssenceCommandUtil.formatProgress(config.balanceProfile().tierFractions().get(tier.id()))));
+        for(var point:track.checkpoints()) {
+            var tier = AscendanceTierRegistry.get(point.tierId()).orElseThrow();
+            line(source,EssenceText.ascendanceTier(tier).getString(),
+                    fields("Cumulative / segment", EssenceCommandUtil.format(point.cumulativeCap()) + " / "
+                                    + EssenceCommandUtil.format(point.segmentCost()),
+                            "effect", EssenceCommandUtil.formatBonus(stat, track.maximumEffect() * point.effectFraction())));
+        }
         return 1;
     }
     private static int skill(CommandSourceStack source,String id,int rank) {
@@ -223,17 +231,6 @@ final class EssenceBalanceCommands {
     }
     private static String number(double value) {
         return new DecimalFormat("#,##0.######", DecimalFormatSymbols.getInstance(Locale.ROOT)).format(value);
-    }
-    private static ChatFormatting essenceColor(ResourceLocation id) {
-        return switch (id.getPath()) {
-            case "offense" -> ChatFormatting.RED;
-            case "defense" -> ChatFormatting.BLUE;
-            case "vitality" -> ChatFormatting.GREEN;
-            case "mobility" -> ChatFormatting.AQUA;
-            case "gathering" -> ChatFormatting.GOLD;
-            case "utility" -> ChatFormatting.LIGHT_PURPLE;
-            default -> ChatFormatting.WHITE;
-        };
     }
     private static void tell(CommandSourceStack source,String key,Object... args) {
         ChatFormatting color = switch (key) {

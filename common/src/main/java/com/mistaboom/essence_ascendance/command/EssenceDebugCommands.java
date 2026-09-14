@@ -859,7 +859,7 @@ final class EssenceDebugCommands {
                     EssenceCommandUtil.send(
                             source,
                             Component.literal(EssenceCommandUtil.categoryName(category))
-                                    .withStyle(EssenceCommandUtil.categoryColor(category), ChatFormatting.BOLD)
+                                    .withStyle(style -> style.withColor(EssenceCommandUtil.categoryColor(category)).withBold(true))
                     );
                     headingShown = true;
                 }
@@ -2172,7 +2172,7 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(
                 source,
                 Component.literal(EssenceCommandUtil.categoryName(category) + " Debug")
-                        .withStyle(EssenceCommandUtil.categoryColor(category), ChatFormatting.BOLD)
+                        .withStyle(style -> style.withColor(EssenceCommandUtil.categoryColor(category)).withBold(true))
         );
 
         PlayerEssenceData data = playerData(player);

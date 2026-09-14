@@ -34,6 +34,8 @@ public final class SavedEvidenceRegenerator {
         validation.addProperty("runtime", "passed");
         validation.addProperty("economy", "passed; saved production evidence retained");
         validation.addProperty("serialization", "passed");
+        validation.addProperty("bonuses", "validated per-track effect/cost checkpoints, applicability, purchase semantics and normalized Attunement; saved evidence replay does not recollect opaque capabilities");
+        validation.add("bonusTracks", com.mistaboom.essence_ascendance.balance.runtime.BonusTrackGenerator.diagnostics(runtime));
         validation.addProperty("projectiles", "validated independent path/payload and bounded control policy; native gameplay remains manual");
         validation.addProperty("guard", "validated guard mobility, reflection and counterattack bounds; live gameplay remains manual");
         validation.addProperty("postureStatus", "validated generated posture mitigation and binary harmful-status capability; conditional native gameplay remains manual");

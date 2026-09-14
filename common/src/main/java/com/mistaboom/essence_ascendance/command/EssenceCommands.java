@@ -253,7 +253,7 @@ public final class EssenceCommands {
                 count++;
             }
             EssenceCommandUtil.send(source, EssenceCommandUtil.line(
-                    EssenceText.category(category).withStyle(EssenceCommandUtil.categoryColor(category)),
+                    EssenceText.category(category).withStyle(style -> style.withColor(EssenceCommandUtil.categoryColor(category))),
                     EssenceText.command("stats.category_summary", count,
                             EssenceCommandUtil.format(effective), EssenceCommandUtil.format(capacity))));
         }
@@ -294,7 +294,7 @@ public final class EssenceCommands {
         if (includeHeading) {
             EssenceCommandUtil.send(
                     source,
-                    EssenceText.category(category).withStyle(EssenceCommandUtil.categoryColor(category), ChatFormatting.BOLD)
+                    EssenceText.category(category).withStyle(style -> style.withColor(EssenceCommandUtil.categoryColor(category)).withBold(true))
             );
         }
 
@@ -330,7 +330,7 @@ public final class EssenceCommands {
 
         EssenceCommandUtil.send(
                 source,
-                EssenceText.stat(stat).withStyle(EssenceCommandUtil.categoryColor(stat.category()), ChatFormatting.BOLD)
+                EssenceText.stat(stat).withStyle(style -> style.withColor(EssenceCommandUtil.categoryColor(stat.category())).withBold(true))
         );
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.command("label.id"), EssenceCommandUtil.muted(stat.id().toString())));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(EssenceText.command("label.category"), EssenceText.category(stat.category())));

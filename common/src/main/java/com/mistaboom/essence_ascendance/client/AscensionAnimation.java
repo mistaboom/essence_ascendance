@@ -3,6 +3,7 @@ package com.mistaboom.essence_ascendance.client;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.text.EssenceText;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
+import com.mistaboom.essence_ascendance.visual.AscendancePalette;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
@@ -50,13 +51,12 @@ public final class AscensionAnimation {
             double angle = Math.PI * 2 * i / categories.size() + age * 0.6;
             int x = cx + (int) (Math.cos(angle) * radius * 1.4);
             int y = cy + (int) (Math.sin(angle) * radius * 0.6);
-            Integer rgb = ItemEssenceTooltipClientState.colorFor(categories.get(i).id()).getColor();
-            int color = MachineScreenUi.opacity(rgb == null ? 0xFFA58AC6 : rgb, alpha);
+            int color = MachineScreenUi.opacity(AscendancePalette.categoryRgb(categories.get(i).id()), alpha);
             MachineScreenUi.orbit(graphics, x, y, 3, 4, 4, age, color);
             MachineScreenUi.beam(graphics, x, y, cx, cy, MachineScreenUi.opacity(color, alpha / 3));
         }
         MachineScreenUi.orbit(graphics, cx, cy, radius * 1.6, radius * 0.65, 48, age,
-                MachineScreenUi.opacity(0xFFA58AC6, alpha / 2));
+                MachineScreenUi.opacity(AscendancePalette.tierMetalRgb(tier), alpha / 2));
         var tierName = AscendanceTierRegistry.get(tier).map(EssenceText::ascendanceTier)
                 .orElseGet(() -> EssenceText.gui("nexus.attunement.title"));
         var title = EssenceText.gui("nexus.attunement.ascended", tierName);
@@ -65,7 +65,7 @@ public final class AscensionAnimation {
         graphics.pose().translate(cx, cy - 4, 0);
         graphics.pose().scale(scale, scale, 1);
         graphics.drawCenteredString(client.font, title, 0, 0,
-                MachineScreenUi.opacity(0xFFF0EDF4, Math.max(8, (int) (fade * 255))));
+                MachineScreenUi.opacity(AscendancePalette.tierMetalRgb(tier), Math.max(8, (int) (fade * 255))));
         graphics.pose().popPose();
     }
 }

@@ -1,10 +1,16 @@
 package com.mistaboom.essence_ascendance.balance.generated;
 
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonToken;
+
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
 import java.util.List;
 
 /** Locations for derived exports; authoritative JSON and editable TOML stay in place. */
@@ -18,7 +24,9 @@ public final class BalanceReportLayout {
     public static Path diagnostics(Path folder) { return folder.resolve("diagnostics"); }
 
     /** Invoke only after every new export has been written successfully. */
-    public static void finishExport(Path folder) throws IOException {
+    public static void finishExport(Path folder, String currentIntegrity) throws IOException {
+        if (currentIntegrity == null || currentIntegrity.isBlank())
+            throw new IllegalArgumentException("Current installed profile integrity is required for report export");
         BalanceProfileStore.writeAtomically(folder.resolve("README_REPORTS.txt"), """
                 ESSENCE ASCENDANCE FILE GUIDE
 
@@ -59,7 +67,7 @@ public final class BalanceReportLayout {
                 Generated armor/toughness columns represent the whole baseline set.
                 Archetype tradeoffs and purchased effects are applied separately.
                 Player unlocks complete Category Attunement seals through gameplay.
-                Current Bonus allocations and actual paid owned-skill receipts accelerate
+                Normalized Bonus development and actual paid owned-skill receipts accelerate
                 future credit only. Wallet and ordinary equipment value do not count.
                 No currency is consumed and completed player tiers remain permanent.
 
@@ -77,6 +85,7 @@ public final class BalanceReportLayout {
                 assumption and calibration reference; live adapter validation is separate.
 
                   curves.csv                      Nexus investment and skill rank samples.
+                  bonus_tracks.csv                Per-Bonus tiers, effects, exact segment costs and evidence.
                   runtime_parameters.csv          All scalar runtime values and exact paths.
                   projectile_policy.csv           Payload, ownership and defensive control contracts.
                   guard_policy.csv                Guard, perfect-block, reflection and counterattack contracts.
@@ -109,9 +118,12 @@ public final class BalanceReportLayout {
 
                 TROUBLESHOOTING
                   diagnostics/               Machine-readable export metadata and details.
-                  diagnostics/legacy_reports/ Previous root exports, if any, archived safely.
+                  diagnostics/bonus_tracks.json  Structured Bonus resolution, provenance and uncertainty.
+                  diagnostics/generation_comparison.json  Replay comparison for this profile, if available.
+                  diagnostics/legacy_reports/ Previous exports and stale comparisons, archived safely.
                 Long text is retained in diagnostics instead of oversized spreadsheet cells.
                 Legacy reports are historical; use reports/ for the current export.
+                Comparisons with a different currentIntegrity are preserved only in the archive.
                 To send diagnostics, include this entire folder, ../essence_ascendance.toml
                 and logs/latest.log. The saved profile contains the full analysis evidence.
 
@@ -121,12 +133,14 @@ public final class BalanceReportLayout {
                   /essence debug balance validate Check the installed profile.
                 Exporting does not rerun analysis or change gameplay values.
                 """);
-        archiveLegacyExports(folder);
+        archiveLegacyExports(folder, currentIntegrity);
     }
 
-    private static void archiveLegacyExports(Path folder) throws IOException {
-        List<Path> oldFiles = LEGACY_EXPORTS.stream().map(folder::resolve)
-                .filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)).toList();
+    private static void archiveLegacyExports(Path folder, String currentIntegrity) throws IOException {
+        List<Path> oldFiles = new ArrayList<>(LEGACY_EXPORTS.stream().map(folder::resolve)
+                .filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)).toList());
+        Path comparison = diagnostics(folder).resolve("generation_comparison.json");
+        if (hasStaleComparison(comparison, currentIntegrity)) oldFiles.add(comparison);
         if (oldFiles.isEmpty()) return;
         Path parent = diagnostics(folder).resolve("legacy_reports");
         Files.createDirectories(parent);
@@ -138,5 +152,33 @@ public final class BalanceReportLayout {
         }
         // No replacement or recursive traversal: only these exact, generated files move.
         for (Path source : oldFiles) Files.move(source, archive.resolve(source.getFileName()));
+    }
+
+    private static boolean hasStaleComparison(Path comparison, String currentIntegrity) throws IOException {
+        BasicFileAttributes attributes;
+        try { attributes = Files.readAttributes(comparison, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS); }
+        catch (NoSuchFileException absent) { return false; }
+        if (!attributes.isRegularFile())
+            throw new IOException("Generation comparison is not a regular file: " + comparison);
+        // Parse the whole document strictly before trusting its identity. Unreadable or malformed
+        // comparisons are historical too; moving the original preserves every byte for inspection.
+        try (JsonReader reader = new JsonReader(Files.newBufferedReader(comparison))) {
+            reader.setLenient(false);
+            reader.beginObject();
+            String identity = null;
+            boolean seenIdentity = false, duplicateIdentity = false;
+            while (reader.hasNext()) {
+                if (reader.nextName().equals("currentIntegrity")) {
+                    duplicateIdentity |= seenIdentity;
+                    seenIdentity = true;
+                    if (reader.peek() == JsonToken.STRING) identity = reader.nextString();
+                    else reader.skipValue();
+                } else reader.skipValue();
+            }
+            reader.endObject();
+            return reader.peek() != JsonToken.END_DOCUMENT || duplicateIdentity || !currentIntegrity.equals(identity);
+        } catch (IOException | IllegalStateException unreadableOrMalformed) {
+            return true;
+        }
     }
 }

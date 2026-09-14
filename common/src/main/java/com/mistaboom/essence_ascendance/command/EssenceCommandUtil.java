@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.command;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
+import com.mistaboom.essence_ascendance.visual.AscendancePalette;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
@@ -243,15 +244,8 @@ final class EssenceCommandUtil {
         return status(good, Component.literal(yes), Component.literal(no));
     }
 
-    static ChatFormatting categoryColor(StatCategory category) {
-        return switch (category) {
-            case OFFENSE -> ChatFormatting.RED;
-            case DEFENSE -> ChatFormatting.BLUE;
-            case VITALITY -> ChatFormatting.GREEN;
-            case MOBILITY -> ChatFormatting.AQUA;
-            case GATHERING -> ChatFormatting.GOLD;
-            case UTILITY -> ChatFormatting.LIGHT_PURPLE;
-        };
+    static int categoryColor(StatCategory category) {
+        return AscendancePalette.categoryRgb(category);
     }
 
     static String categoryName(StatCategory category) {

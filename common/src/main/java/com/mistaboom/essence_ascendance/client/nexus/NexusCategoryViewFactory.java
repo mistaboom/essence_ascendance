@@ -5,6 +5,7 @@ import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
+import com.mistaboom.essence_ascendance.progression.BonusTrackCurve;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -71,7 +72,14 @@ public final class NexusCategoryViewFactory {
                     new NexusProgressionTrack(
                             stat,
                             state,
-                            List.of()
+                            state.track().snapPoints().stream()
+                                    .filter(fraction -> fraction > 0)
+                                    .map(fraction -> {
+                                        long cost = BonusTrackCurve.investmentForProgression(state.track().checkpoints(),
+                                                state.track().investmentExponent(), fraction, state.track().completionTier());
+                                        return new NexusMilestoneView(cost, fraction,
+                                                state.effectiveInvestment() >= cost);
+                                    }).toList()
                     )
             );
         }

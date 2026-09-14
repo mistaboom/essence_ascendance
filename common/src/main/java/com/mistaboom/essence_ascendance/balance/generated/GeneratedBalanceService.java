@@ -32,7 +32,7 @@ import java.util.Map;
 
 /** Server-thread transaction: collect, construct, validate, persist, publish, then synchronize. */
 public final class GeneratedBalanceService {
-    static final String GENERATION_REVISION = "evasive-retention-17";
+    static final String GENERATION_REVISION = "smooth-bonus-tracks-19";
     private static final String DISSOLUTION_ACCOUNTING = "whole_essence_v1";
     private static volatile Active active;
     private static volatile boolean resourcesChanged;
@@ -96,6 +96,7 @@ public final class GeneratedBalanceService {
             validation.addProperty("guard", "validated guard mobility, reflection and counterattack bounds; live gameplay remains manual");
             validation.addProperty("postureStatus", "validated generated posture mitigation and binary harmful-status capability; conditional native gameplay remains manual");
             validation.addProperty("liveGameplay", "not performed by generator");
+            validation.add("bonusTracks", com.mistaboom.essence_ascendance.balance.runtime.BonusTrackGenerator.diagnostics(runtime));
             JsonObject document = new JsonObject();
             document.add("metadata", metadata);
             document.add("settings", BalanceDocument.GSON.toJsonTree(inputs.settings()));
@@ -265,6 +266,10 @@ public final class GeneratedBalanceService {
     }
 
     public static Active decode(BalanceDocument document) {
+        JsonObject revision = document.section("metadata");
+        if (!revision.has("generatorRevision")
+                || !GENERATION_REVISION.equals(revision.get("generatorRevision").getAsString()))
+            throw new IllegalArgumentException("Generated balance revision changed; explicitly rebuild with /essence admin balance rebuild. No legacy runtime migration is supported");
         PackEvidence evidence = BalanceDocument.GSON.fromJson(document.section("evidence"), PackEvidence.class);
         EconomyProfile economy = BalanceDocument.GSON.fromJson(document.section("economy"), EconomyProfile.class);
         RuntimeBalanceDefinition runtime = RuntimeBalanceDefinition.fromJson(document.section("runtime"));

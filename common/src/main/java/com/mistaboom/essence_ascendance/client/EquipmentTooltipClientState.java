@@ -11,6 +11,7 @@ import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.text.EssenceText;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.ChatFormatting;
+import com.mistaboom.essence_ascendance.visual.AscendancePalette;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -386,16 +387,19 @@ public final class EquipmentTooltipClientState {
         Component base = Component.literal(indent).append(translated);
 
         return switch (line.tone()) {
-            case TIER ->
-                    base.copy().withStyle(
-                            ChatFormatting.LIGHT_PURPLE,
-                            ChatFormatting.BOLD
-                    );
+            case TIER -> base.copy().withStyle(style -> style.withColor(tierRgb(line)).withBold(true));
             case PRIMARY -> base.copy().withStyle(ChatFormatting.WHITE);
             case ABILITY -> base.copy().withStyle(ChatFormatting.AQUA);
             case SET_BONUS -> base.copy().withStyle(ChatFormatting.GOLD);
             case MUTED -> base.copy().withStyle(ChatFormatting.GRAY);
         };
+    }
+
+    private static int tierRgb(EquipmentTooltipPayload.Line line) {
+        String prefix = "@equipment_tier:";
+        return line.arguments().stream().filter(argument -> argument.startsWith(prefix)).findFirst()
+                .map(argument -> AscendancePalette.tierMetalRgb(EquipmentTier.fromSerializedName(argument.substring(prefix.length()))))
+                .orElse(AscendancePalette.LATENT.metalRgb());
     }
 
     private static Object decodeTooltipArgument(String argument) {

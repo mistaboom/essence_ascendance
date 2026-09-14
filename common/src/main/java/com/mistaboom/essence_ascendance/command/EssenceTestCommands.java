@@ -351,9 +351,7 @@ public final class EssenceTestCommands {
                         source,
                         Component.literal("  ACTIVE ")
                                 .withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD)
-                                .append(Component.literal(stat.displayName()).withStyle(
-                                        EssenceCommandUtil.categoryColor(stat.category())
-                                ))
+                                .append(Component.literal(stat.displayName()).withStyle(style -> style.withColor(EssenceCommandUtil.categoryColor(stat.category()))))
                                 .append(Component.literal(
                                         " | bonus " + EssenceCommandUtil.formatBonus(stat, bonus)
                                                 + " | strength " + EssenceCommandUtil.formatStrength(strength)
@@ -366,9 +364,7 @@ public final class EssenceTestCommands {
                         source,
                         Component.literal("  INACTIVE ")
                                 .withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD)
-                                .append(Component.literal(stat.displayName()).withStyle(
-                                        EssenceCommandUtil.categoryColor(stat.category())
-                                ))
+                                .append(Component.literal(stat.displayName()).withStyle(style -> style.withColor(EssenceCommandUtil.categoryColor(stat.category()))))
                                 .append(Component.literal(
                                         " | earned " + EssenceCommandUtil.formatBonus(stat, bonus)
                                                 + " | no active equipment applicability"

@@ -7,7 +7,7 @@ import com.mistaboom.essence_ascendance.balance.config.BalanceSettings;
 import com.mistaboom.essence_ascendance.balance.economy.EconomyProfile;
 import com.mistaboom.essence_ascendance.balance.engine.*;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
-import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
+import com.mistaboom.essence_ascendance.progression.BonusDevelopment;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
 import net.minecraft.SharedConstants;
@@ -80,7 +80,7 @@ public final class AttunementGenerator {
         assumptions.add("Target effort reuses entry resource effort, current-to-next budget growth and the generated investment exponent. Latent onboarding uses the configured onboarding fraction; the first powered chapter uses the early effort fraction and eases procedurally to full effort at the final chapter. Contribution units are a fixed 1024 accounting scale, not Essence or a required event count.");
         assumptions.add("Eligible root actions have no per-action progress ceiling. Large legitimate outcomes retain their full calibrated value up to the remaining seal progress; repeated sources instead diminish through recent-history efficiency with a nonzero configured floor.");
         assumptions.add("Targets convert existing resource effort to survival windows using routine/survival duration. Each category mixes methods freely. Scarce routes receive sqrt(base routes / effective accessible routes) compensation. Workstation opportunity is its reachable stage plus min(1, current material reference * sqrt(current/entry budget) / station acquisition value); innate routes contribute one. Thus an expensive technically craftable station is not counted like free XP. Unknown access contributes zero. These pack-derived estimates are never player gates; missing quest/world evidence remains a reporting boundary.");
-        assumptions.add("Investment gain = 1 + maximumAcceleration * sqrt(min(1, (current Bonus allocation + actual paid receipts of owned category skills) / category investment reference)). Wallet and equipment value are excluded. Respecs affect future gain only; normalized earned progress is retained.");
+        assumptions.add("Investment gain = 1 + maximumAcceleration * sqrt(min(1, normalized Bonus development + historical paid category skill receipts / category reference)). Bonus development is realized generated marginal power divided by available generated power at the current tier; raw Bonus prices are excluded. The neutral category reference is the default tier budget times registered category stat count, independent of individual track prices. Historical owned-skill receipts retain their actual paid amounts and receipt category. Wallet and equipment value are excluded. Respecs affect future gain only; normalized earned progress is retained.");
         assumptions.add("Incoming damage uses routine enemy burst times survival/routine encounter windows. Enemy health and damage use the existing robust percentile; absent routine enemy observations use ordinary player health/hit and are reported by chapter.");
         assumptions.add("Confirmed enemy outcomes retain actual health units and receive bounded live attack/armor threat weighting: sqrt((1+attack/reference_damage)*(1+armor/reference_armor)/2), capped at 2. Absent positive armor observations use the vanilla 20-point protection reference; this weights activity and does not modify combat.");
         assumptions.add("XP uses observed routine enemy experience rewards where available. Missing XP observations use sqrt(entry resource effort) as an explicitly dimensionless opportunity proxy, independent of player health; reports mark that fallback. Material and harvest references use positive reachable external generated values.");
@@ -139,9 +139,8 @@ public final class AttunementGenerator {
             references.put("effort_fraction_" + suffix, effortFraction);
             var resolvedCategories = new TreeMap<String, AttunementProfile.Category>();
             for (var category : categories) {
-                var stats = EssenceStatRegistry.values().stream().filter(stat -> stat.essenceType().equals(category)).toList();
-                double investment = stats.stream().mapToDouble(stat -> budget.getInvestmentCap(from, stat)).sum();
-                if (investment <= 0) investment = currentBudget;
+                long investment = BonusDevelopment.reference(budget, from, category.id().toString());
+                references.put("bonus_development_reference_" + category.id().getPath() + "_" + suffix, (double) investment);
                 long baseCount = activities.stream().filter(a -> a.categoryId().equals(category.id().toString()) && a.baseGameAccessible()).count();
                 long accessible = activities.stream().filter(a -> a.categoryId().equals(category.id().toString()) && accessible(a, evidence, band)).count();
                 double effective = activities.stream().filter(a -> a.categoryId().equals(category.id().toString()))
@@ -149,7 +148,7 @@ public final class AttunementGenerator {
                 references.put("accessible_methods_" + category.id().getPath() + "_" + suffix, (double) Math.max(1, accessible));
                 references.put("effective_methods_" + category.id().getPath() + "_" + suffix, Math.max(1, effective));
                 references.put("accessibility_gain_" + category.id().getPath() + "_" + suffix, Math.sqrt(baseCount / Math.max(1, effective)));
-                resolvedCategories.put(category.id().toString(), new AttunementProfile.Category(category.id().toString(), target, boundedLong(investment)));
+                resolvedCategories.put(category.id().toString(), new AttunementProfile.Category(category.id().toString(), target, investment));
             }
             var rates = new TreeMap<String, AttunementProfile.Rate>();
             for (var activity : activities) {

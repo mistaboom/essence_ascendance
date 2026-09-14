@@ -397,7 +397,8 @@ public final class PackEvidenceCollector {
             case "damage" -> "axis.BURST_DAMAGE"; case "attack_speed" -> "axis.ATTACK_RATE";
             case "mining_speed" -> "axis.MINING_SPEED"; case "harvest_level" -> "axis.HARVEST_LEVEL";
             case "durability" -> "axis.DURABILITY";
-            case "flight" -> "axis.FLIGHT"; case "area_mining" -> "axis.AREA_MINING"; case "vein_mining" -> "axis.VEIN_MINING";
+            case "flight" -> "axis.FLIGHT"; case "flying_speed_compatible" -> "axis.ABILITIES_FLYING_SPEED";
+            case "area_mining" -> "axis.AREA_MINING"; case "vein_mining" -> "axis.VEIN_MINING";
             default -> key;
         };
     }
@@ -588,6 +589,12 @@ public final class PackEvidenceCollector {
                     resource == null ? "APEX" : resource.stage().name()));
             Map<CapabilityAxis, Double> axes = resolvedAxes(sink, subject, id, Map.of());
             double confidence = sink.number(subject, id, "confidence", resource == null ? .6 : resource.confidence());
+            // Both flight and its speed contract must be reliable; a confident acquisition fact
+            // cannot launder an uncertain provider mechanism claim.
+            for (var axis : List.of(CapabilityAxis.FLIGHT, CapabilityAxis.ABILITIES_FLYING_SPEED)) {
+                EvidenceFact claim = sink.get(subject, id, "axis." + axis.name());
+                if (claim != null) confidence = Math.min(confidence, claim.confidence());
+            }
             capabilities.add(new CapabilityEvidence(id, stage, axes, reachable, confidence,
                     sink.text(subject, id, "reason", "Transformative capability from registered evidence; default unknown global access is apex")));
         });

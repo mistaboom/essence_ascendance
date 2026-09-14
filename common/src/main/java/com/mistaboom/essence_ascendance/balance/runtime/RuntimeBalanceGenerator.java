@@ -151,26 +151,19 @@ public final class RuntimeBalanceGenerator {
             if (stat.id().getPath().equals("mining_speed") && settings.miningPolicy()==BalanceSettings.MiningPolicy.RESTRICT) value*=.5;
             if (stat.id().getPath().equals("flight_speed")) {
                 if(settings.flightPolicy()==BalanceSettings.FlightPolicy.RESTRICT) value=0;
-                else if(settings.flightPolicy()==BalanceSettings.FlightPolicy.MATCH_PACK)
-                    value*=Math.sqrt(Math.max(1,evidence.reference(ProgressionBand.APEX,CapabilityAxis.FLIGHT,0)+1));
+                // FLIGHT is a binary access axis, never a speed measurement or maximum-effect multiplier.
             }
             bonuses.put(stat.id(),Math.min(1_000_000,value));
-            Map<ResourceLocation,Long> costs=new LinkedHashMap<>();
-            double categorySupply=categoryFactors.get(stat.essenceType().id().toString());
-            double utilityBreadth=categorySupply*switch(stat.unit()) {case HEARTS,HEARTS_PER_SECOND -> 1.3; case LEVELS,BLOCKS -> 1.2; default -> 1.0;};
-            long priorStatCap=0;
-            for(var tier : allTiers) {
-                long tierCap = caps.get(tier.id());
-                if (!tier.grantsPower()) {
-                    costs.put(tier.id(), 0L);
-                    continue;
-                }
-                priorStatCap=Math.max(priorStatCap+1,positiveLong(tierCap*utilityBreadth));
-                costs.put(tier.id(),priorStatCap);
-            }
-            statCaps.put(stat.id(),costs);
         }
-        var profile=new BalanceProfileDefinition(ResourceLocation.fromNamespaceAndPath(EssenceAscendance.MOD_ID,"generated"),"Generated Pack Balance",caps,statCaps,fractions,.72+.20*settings.compositionSafeguard());
+        double exponent=.72+.20*settings.compositionSafeguard();
+        var tracks=BonusTrackGenerator.resolve(evidence,settings,caps,fractions,bonuses,categoryFactors,exponent);
+        tracks.forEach((id,track)-> {
+            bonuses.put(id,track.maximumEffect());
+            Map<ResourceLocation,Long> costs=new LinkedHashMap<>();
+            track.checkpoints().forEach(point->costs.put(point.tierId(),point.cumulativeCap()));
+            statCaps.put(id,costs);
+        });
+        var profile=new BalanceProfileDefinition(ResourceLocation.fromNamespaceAndPath(EssenceAscendance.MOD_ID,"generated"),"Generated Pack Balance",caps,statCaps,fractions,exponent,tracks);
         long entry=caps.get(tiers.getFirst().id());
         pylons.put("empty",new EssencePylonContribution(positiveLong(entry*6.0),.5,positiveLong(entry/8.0),.1,0));
         var infuser=new InfuserBalanceSettings(8,Math.clamp((int)(5000-settings.conversionLossPressure()*2500),100,9000),
@@ -258,11 +251,24 @@ public final class RuntimeBalanceGenerator {
             runtime=RuntimeBalanceDefinition.fromJson(ranked);
             RuntimeBuildScenarios.analyze(runtime,evidence,settings,compositionPlan).requireSafe();
         }
+        runtime=resolveFinalTracks(runtime,evidence,settings,categoryFactors);
         if(overrides!=null&&!overrides.exactValues().isEmpty()) {
             JsonObject json=runtime.toJson();
             overrides.exactValues().forEach((path,value)->{if(path.startsWith("/runtime/")) applyExact(json,path.substring("/runtime/".length()),value);});
+            BonusTrackGenerator.synchronizeExactOverrides(json,overrides.exactValues());
             RuntimeValueQuantization.requireExactValuesOnGrid(json);
             runtime=RuntimeBalanceDefinition.fromJson(json);
+            if (overrides.exactValues().keySet().stream().anyMatch(path -> path.startsWith("/runtime/statMaxBonuses/")
+                    || (path.startsWith("/runtime/balanceProfile/bonusTracks/") && path.endsWith("/maximumEffect")))) {
+                // Exact native effects change intrinsic utility. Resolve prices from that final effect, then
+                // reapply any separately requested exact cost overrides so those remain authoritative.
+                runtime=resolveFinalTracks(runtime,evidence,settings,categoryFactors);
+                JsonObject resolved=runtime.toJson();
+                overrides.exactValues().forEach((path,value)->{if(path.startsWith("/runtime/")) applyExact(resolved,path.substring("/runtime/".length()),value);});
+                BonusTrackGenerator.synchronizeExactOverrides(resolved,overrides.exactValues());
+                RuntimeValueQuantization.requireExactValuesOnGrid(resolved);
+                runtime=RuntimeBalanceDefinition.fromJson(resolved);
+            }
         }
         if(compositionPlan!=null) {
             RuntimeBuildScenarios.analyze(runtime,evidence,settings,firstRankPlan).requireSafe();
@@ -271,6 +277,22 @@ public final class RuntimeBalanceGenerator {
             runtime=runtime.withAnalysis(new RuntimeBuildScenarios.Analysis(compositionScale,finalAnalysis.cases(),finalAnalysis.assumptions()));
         }
         return runtime.withContentIdentity();
+    }
+
+    private static RuntimeBalanceDefinition resolveFinalTracks(RuntimeBalanceDefinition runtime,PackEvidence evidence,
+            BalanceSettings settings,Map<String,Double> categoryFactors) {
+        var profile=runtime.config().balanceProfile();
+        var tracks=BonusTrackGenerator.resolve(evidence,settings,profile.defaultTierCaps(),profile.tierFractions(),
+                runtime.config().statMaxBonuses(),categoryFactors,profile.investmentExponent());
+        JsonObject json=runtime.toJson();
+        json.getAsJsonObject("balanceProfile").add("bonusTracks",BonusTrackGenerator.toJson(tracks));
+        for(var entry:tracks.entrySet()) {
+            JsonObject caps=new JsonObject();
+            entry.getValue().checkpoints().forEach(point->caps.addProperty(point.tierId().toString(),point.cumulativeCap()));
+            json.getAsJsonObject("balanceProfile").getAsJsonObject("statOverrides").add(entry.getKey().toString(),caps);
+            json.getAsJsonObject("statMaxBonuses").addProperty(entry.getKey().toString(),entry.getValue().maximumEffect());
+        }
+        return RuntimeBalanceDefinition.fromJson(json);
     }
 
     private static RuntimeBalanceDefinition restorePostureRankOne(RuntimeBalanceDefinition current,

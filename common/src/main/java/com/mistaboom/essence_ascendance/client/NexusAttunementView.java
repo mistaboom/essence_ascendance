@@ -6,6 +6,7 @@ import com.mistaboom.essence_ascendance.client.nexus.NexusConstellationLayout;
 import com.mistaboom.essence_ascendance.client.nexus.NexusNavigationState;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.text.EssenceText;
+import com.mistaboom.essence_ascendance.visual.AscendancePalette;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -67,7 +68,7 @@ public final class NexusAttunementView {
                 int sx = left + Math.floorMod(i * 127 + 29, this.width);
                 int sy = top + Math.floorMod(i * 73 + 17, this.height);
                 int alpha = 18 + (int) (15 * (1 + Math.sin(time / 31 + i)));
-                graphics.fill(sx, sy, sx + 1, sy + 1, MachineScreenUi.opacity(0xFFC3A8DF, alpha));
+                graphics.fill(sx, sy, sx + 1, sy + 1, MachineScreenUi.opacity(0xFFC3C3CA, alpha));
             }
             for (var node : layout.nodes()) {
                 var category = state.categories().get(node.index());
@@ -82,13 +83,15 @@ public final class NexusAttunementView {
                     MachineScreenUi.crystal(graphics, px, py, 2, 1, color);
                 }
             }
-            int centralColor = ready ? COMPLETE : 0xFFA58AC6;
+            int centralColor = AscendancePalette.tierPrimaryArgb(ClientEssenceState.snapshot().tierId());
+            int centralMetal = AscendancePalette.tierMetalArgb(ClientEssenceState.snapshot().tierId());
             MachineScreenUi.orbit(graphics, cx, cy, centerRadius + 4, centerRadius + 4,
-                    12, time / 240, MachineScreenUi.opacity(centralColor, ready ? 115 : 50));
+                    12, time / 240, MachineScreenUi.opacity(centralMetal, ready ? 170 : 100));
             MachineScreenUi.crystal(graphics, cx, cy, centerRadius,
                     maximum ? 1 : state.completedCategories() / (double) Math.max(1, state.requiredCategories()), centralColor);
             // Tier names remain inside the medallion and scale to the allocated central width.
-            centeredFit(graphics, font, currentTier, cx, cy - 11, centerRadius * 2 - 2, MUTED);
+            centeredFit(graphics, font, currentTier, cx, cy - 11, centerRadius * 2 - 2,
+                    AscendancePalette.tierMetalArgb(ClientEssenceState.snapshot().tierId()));
             centeredFit(graphics, font, maximum ? EssenceText.gui("nexus.maximum") : Component.literal("↓"),
                     cx, cy - 1, centerRadius * 2 - 2, TEXT);
             centeredFit(graphics, font, maximum ? currentTier : nextTier, cx, cy + 9,
@@ -136,7 +139,7 @@ public final class NexusAttunementView {
                 if (focus) hovered = overview(category, maximum);
             }
             if (layout.medallionContains(mouseX, mouseY) || focusedIndex == state.categories().size()) {
-                hovered = new SemanticTooltip().title(EssenceText.gui("nexus.attunement.title"), centralColor)
+                hovered = new SemanticTooltip().title(EssenceText.gui("nexus.attunement.title"), centralMetal)
                         .description(maximum ? EssenceText.gui("nexus.maximum_achieved")
                                 : EssenceText.gui("nexus.attunement.seals", state.completedCategories(), state.requiredCategories()))
                         .hint(EssenceText.gui(ready && !maximum ? "nexus.ready_to_ascend" : "nexus.attunement.choice"));
@@ -156,7 +159,7 @@ public final class NexusAttunementView {
 
     private void renderDetail(GuiGraphics graphics, Font font, AttunementSnapshot.Category category) {
         int headerHeight = font.lineHeight + 14;
-        MachineScreenUi.outline(graphics, left + 3, top + 1, Math.min(width - 6, 112), headerHeight, 0xFFA58AC6);
+        MachineScreenUi.outline(graphics, left + 3, top + 1, Math.min(width - 6, 112), headerHeight, color(category));
         graphics.drawString(font, EssenceText.gui("nexus.attunement.back"), left + 8, top + 6, TEXT, false);
         List<FormattedCharSequence> lines = detail(category).wrap(font, Math.max(1, width - 28));
         int lineHeight = font.lineHeight + 3;
@@ -264,8 +267,7 @@ public final class NexusAttunementView {
     private static int acceleration(AttunementSnapshot.Category c) { return Math.max(0, (int) Math.round((c.investmentMultiplier() - 1) * 100)); }
     private static int color(AttunementSnapshot.Category category) {
         ResourceLocation id = ResourceLocation.tryParse(category.categoryId());
-        Integer color = id == null ? null : ItemEssenceTooltipClientState.colorFor(id).getColor();
-        return color == null ? MUTED : 0xFF000000 | color;
+        return id == null ? MUTED : AscendancePalette.categoryArgb(id);
     }
     private static Component categoryName(AttunementSnapshot.Category category) {
         ResourceLocation id = ResourceLocation.tryParse(category.categoryId());

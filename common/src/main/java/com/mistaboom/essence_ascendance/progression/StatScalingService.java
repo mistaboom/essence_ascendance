@@ -111,15 +111,14 @@ public final class StatScalingService {
 
         double currentTierMaximumBonus =
                 transcendentMaximumBonus
-                        * EssenceConfigManager.get().balanceProfile().tierFraction(currentTier, currentTierIndex, tiers.size());
+                        * maximumProgression(stat, currentTier, EssenceConfigManager.get().balanceProfile());
 
 
         double progression =
-                calculateProgression(
+                realizedProgressionForInvestment(
                         stat,
                         investmentLimit.effectiveInvestment(),
-                        currentTierIndex,
-                        tiers,
+                        currentTier,
                         EssenceConfigManager
                                 .get()
                                 .balanceProfile()
@@ -156,7 +155,7 @@ public final class StatScalingService {
         BalanceProfileDefinition profile = EssenceConfigManager.get().balanceProfile();
         long cap = profile.getInvestmentCap(tier, stat);
         long effectiveInvestment = Math.min(playerData.getInvested(stat), cap);
-        double progression = progressionForInvestment(stat, effectiveInvestment, tier, profile);
+        double progression = realizedProgressionForInvestment(stat, effectiveInvestment, tier, profile);
         return EssenceConfigManager.get().statMaxBonus(stat) * progression;
     }
 
@@ -180,6 +179,10 @@ public final class StatScalingService {
         Objects.requireNonNull(stat, "Stat cannot be null");
         Objects.requireNonNull(currentTier, "Current tier cannot be null");
         Objects.requireNonNull(balanceProfile, "Balance profile cannot be null");
+
+        var resolved = balanceProfile.bonusTrack(stat.id());
+        if (resolved != null) return BonusTrackCurve.progressionForInvestment(resolved.checkpoints(),
+                resolved.investmentExponent(), effectiveInvestment, currentTier.id());
 
         List<AscendanceTierDefinition> tiers =
                 orderedTiers();
@@ -217,6 +220,10 @@ public final class StatScalingService {
         Objects.requireNonNull(stat, "Stat cannot be null");
         Objects.requireNonNull(currentTier, "Current tier cannot be null");
         Objects.requireNonNull(balanceProfile, "Balance profile cannot be null");
+
+        var resolved = balanceProfile.bonusTrack(stat.id());
+        if (resolved != null) return BonusTrackCurve.investmentForProgression(resolved.checkpoints(),
+                resolved.investmentExponent(), progression, currentTier.id());
 
         List<AscendanceTierDefinition> tiers =
                 orderedTiers();
@@ -337,6 +344,10 @@ public final class StatScalingService {
             List<AscendanceTierDefinition> tiers,
             BalanceProfileDefinition balanceProfile
     ) {
+
+        var resolved = balanceProfile.bonusTrack(stat.id());
+        if (resolved != null) return BonusTrackCurve.progressionForInvestment(resolved.checkpoints(),
+                resolved.investmentExponent(), effectiveInvestment, tiers.get(currentTierIndex).id());
 
         long previousCap =
                 0L;
@@ -478,14 +489,9 @@ public final class StatScalingService {
      * CATEGORY DEVELOPMENT
      * ============================================================
      *
-     * This is deliberately a CURRENT-TIER saturation metric.
-     *
-     * Example:
-     *
-     * Defense effective investment: 40,000
-     * Defense current capacity:     80,000
-     *
-     * development = 0.50
+     * This is a current-tier generated-power saturation metric.
+     * Stored investment and capacity remain exact accounting totals;
+     * development weights realized effects by price-independent generated power.
      *
      * It may decrease when a player Ascends because their available
      * development space just increased. Stored progression is not
@@ -585,25 +591,8 @@ public final class StatScalingService {
         }
 
 
-        double development;
-
-        if (currentCapacity <= 0L) {
-
-            development =
-                    0.0;
-
-        } else {
-
-            development =
-                    effectiveInvestment
-                            / (double) currentCapacity;
-
-
-            development =
-                    clamp01(
-                            development
-                    );
-        }
+        double development = BonusDevelopment.fraction(playerData, category,
+                EssenceConfigManager.get().balanceProfile());
 
 
         return new CategoryDevelopment(
@@ -621,6 +610,28 @@ public final class StatScalingService {
      * TIER CURVE HELPERS
      * ============================================================
      */
+
+    public static double realizedProgressionForInvestment(StatDefinition stat, long investment,
+                                                           AscendanceTierDefinition tier,
+                                                           BalanceProfileDefinition profile) {
+        var resolved = profile.bonusTrack(stat.id());
+        if (resolved != null && resolved.purchaseStyle()
+                == com.mistaboom.essence_ascendance.balance.runtime.BonusTrackDefinition.PurchaseStyle.THRESHOLD)
+            return BonusTrackCurve.realizedProgressionForInvestment(resolved.checkpoints(),
+                    resolved.investmentExponent(), resolved.snapPoints(), investment, tier.id());
+        return progressionForInvestment(stat, investment, tier, profile);
+    }
+
+    public static double maximumProgression(StatDefinition stat, AscendanceTierDefinition tier,
+                                             BalanceProfileDefinition profile) {
+        var resolved = profile.bonusTrack(stat.id());
+        if (resolved != null) return BonusTrackCurve.maximumProgression(resolved.checkpoints(), tier.id());
+        if (profile.getInvestmentCap(tier, stat) == 0) return 0;
+        var tiers = orderedTiers();
+        int index = findTierIndex(tiers, tier);
+        if (index < 0) throw new IllegalArgumentException("Tier is not registered: " + tier.id());
+        return profile.tierFraction(tier, index, tiers.size());
+    }
 
     private static List<AscendanceTierDefinition> orderedTiers() {
 

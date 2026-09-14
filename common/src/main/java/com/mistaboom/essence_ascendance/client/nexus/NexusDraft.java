@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.client.nexus;
 
 import com.mistaboom.essence_ascendance.client.ClientEssenceState;
+import com.mistaboom.essence_ascendance.network.BonusTrackSnapshot;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.ArrayList;
@@ -32,6 +33,8 @@ public final class NexusDraft {
             new LinkedHashMap<>();
     private final Map<ResourceLocation, Long> baseInvestmentCaps =
             new LinkedHashMap<>();
+    private final Map<ResourceLocation, BonusTrackSnapshot> baseTracks = new LinkedHashMap<>();
+    private final Map<ResourceLocation, Double> baseMaximumEffects = new LinkedHashMap<>();
     private final Map<ResourceLocation, ClientEssenceState.SkillPurchaseSnapshot>
             baseOwnedSkills = new LinkedHashMap<>();
     private final Map<ResourceLocation, ResourceLocation> baseLoadouts =
@@ -84,6 +87,8 @@ public final class NexusDraft {
         baseProfileId = null;
         baseStoredInvestments.clear();
         baseInvestmentCaps.clear();
+        baseTracks.clear();
+        baseMaximumEffects.clear();
         baseOwnedSkills.clear();
         baseLoadouts.clear();
         baseMilestones.clear();
@@ -377,6 +382,8 @@ public final class NexusDraft {
         baseProfileId = snapshot.balanceProfileId();
         baseStoredInvestments.clear();
         baseInvestmentCaps.clear();
+        baseTracks.clear();
+        baseMaximumEffects.clear();
         for (Map.Entry<ResourceLocation, ClientEssenceState.StatSnapshot> entry :
                 snapshot.stats().entrySet()) {
             baseStoredInvestments.put(
@@ -387,6 +394,8 @@ public final class NexusDraft {
                     entry.getKey(),
                     entry.getValue().currentInvestmentCap()
             );
+            baseTracks.put(entry.getKey(), entry.getValue().track());
+            baseMaximumEffects.put(entry.getKey(), entry.getValue().transcendentMaximumBonus());
         }
         baseOwnedSkills.clear();
         baseOwnedSkills.putAll(snapshot.ownedSkills());
@@ -415,7 +424,8 @@ public final class NexusDraft {
             ) || !Objects.equals(
                     baseInvestmentCaps.get(entry.getKey()),
                     entry.getValue().currentInvestmentCap()
-            )) {
+            ) || !Objects.equals(baseTracks.get(entry.getKey()), entry.getValue().track())
+                    || !Objects.equals(baseMaximumEffects.get(entry.getKey()), entry.getValue().transcendentMaximumBonus())) {
                 return false;
             }
         }

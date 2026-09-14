@@ -39,8 +39,15 @@ apex = 1.1
 # Player ascension completes Category Attunement seals through eligible gameplay.
 # Length scales the activity journey; cost pressure changes generated investment
 # references and costs. No wallet amount, skill or item is required to ascend.
-# Current Bonus allocations and historical paid skill receipts accelerate future
-# activity only. Compare generated targets and breadth in reports/attunement_*.csv.
+# Normalized resolved Bonus development and historical paid skill receipts
+# accelerate future activity only. Bonus prices do not determine development credit.
+# Compare generated targets and breadth in reports/attunement_*.csv.
+# Bonus costs preserve the nonuniform category economy and nonlinear tier segments.
+# Per-track utility, compatible capability routes, native thresholds and build
+# headroom resolve prices, start/completion tiers and effects during generation.
+# Every Bonus slider purchases continuously. Native thresholds inform valuation
+# and useful checkpoints; they do not restrict targets or snap Step Height purchases.
+# Review reports/bonus_tracks.csv and diagnostics/ for the resolved reasoning.
 # Intended journey length relative to the generated pack economy.
 # Range 0.1..10.0; 1.0 is the baseline, 2.0 asks for a longer investment journey.
 length = 1.0
@@ -66,7 +73,7 @@ effort_growth = 3.5
 # Contribution speed relative to the generated activity journey. Range 0.1..10;
 # default 1.0. Higher values complete seals faster without changing Essence costs.
 pace = 1.0
-# Added multiplier at the generated current-tier category investment reference.
+# Added multiplier at the generated current-tier category development reference.
 # Range 0..4; default 1 gives at most 2x. Zero investment always earns base credit.
 maximum_acceleration = 1.0
 # Minimum efficiency of a legitimate repeated source. Range 0.01..1; default

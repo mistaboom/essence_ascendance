@@ -218,6 +218,13 @@ public final class StatProgressionService {
             );
         }
 
+        if (!TierInvestmentPolicy.validTarget(stat, playerData.getTier(),
+                com.mistaboom.essence_ascendance.config.EssenceConfigManager.get().balanceProfile(),
+                limit.storedInvestment(), requestedTotal)) {
+            return result(StatInvestmentResult.Status.INVALID_AMOUNT, stat, amount, availableBefore,
+                    limit.storedInvestment(), limit.investmentCap());
+        }
+
 
         /*
          * --------------------------------------------------------

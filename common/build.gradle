@@ -30,6 +30,11 @@ loom {
 
 // Executable invariant suites use the real mapped Minecraft classpath and add no test library.
 def balanceInvariantMains = [
+        bonusTrackProgressionInvariants: 'com.mistaboom.essence_ascendance.progression.BonusTrackProgressionTest',
+        bonusTrackGeneratorInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.BonusTrackGeneratorTest',
+        nativeBonusMechanicsInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.NativeBonusMechanicsTest',
+        bonusTrackSnapshotInvariants: 'com.mistaboom.essence_ascendance.network.BonusTrackSnapshotCodecTest',
+        bonusTrackPresentationInvariants: 'com.mistaboom.essence_ascendance.client.nexus.NexusBonusPresentationTest',
         defenseCompletionInvariants: 'com.mistaboom.essence_ascendance.skill.effect.DefenseCompletionTest',
         postureStatusBalanceInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.PostureStatusBalanceTest',
         postureMeterInvariants: 'com.mistaboom.essence_ascendance.posture.PostureMeterTest',
@@ -107,6 +112,20 @@ tasks.register('regenerateSavedBalance', JavaExec) {
             throw new GradleException('Supply -PsavedBalanceConfig and -PsavedBalanceOutput')
         args rootProject.file(rootProject.property('savedBalanceConfig')).absolutePath,
                 rootProject.file(rootProject.property('savedBalanceOutput')).absolutePath
+    }
+}
+
+// Refresh only derived reports from an already validated saved profile; inputs stay byte-identical.
+tasks.register('exportSavedBalance', JavaExec) {
+    group = 'verification'
+    description = 'Exports reports from the saved profile without regeneration or opening a Minecraft world.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.mistaboom.essence_ascendance.balance.generated.ExportSavedBalanceTool'
+    doFirst {
+        if (!rootProject.hasProperty('balanceConfigDir'))
+            throw new GradleException('Supply -PbalanceConfigDir with the existing Minecraft config directory')
+        args rootProject.file(rootProject.property('balanceConfigDir')).absolutePath
     }
 }
 

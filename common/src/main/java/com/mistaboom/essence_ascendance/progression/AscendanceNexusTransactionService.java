@@ -17,8 +17,6 @@ import com.mistaboom.essence_ascendance.skill.SkillPurchaseEligibility;
 import com.mistaboom.essence_ascendance.skill.SkillRegistry;
 import com.mistaboom.essence_ascendance.skill.SkillStateEvaluator;
 import com.mistaboom.essence_ascendance.skill.requirement.PermanentMilestoneRequirement;
-import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
-import com.mistaboom.essence_ascendance.stat.StatDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -98,33 +96,6 @@ public final class AscendanceNexusTransactionService {
             );
         }
 
-        /* A complete proposal contains exactly one target for every live stat. */
-        if (finalBonusTargets.size() != EssenceStatRegistry.size()) {
-            return Result.failure(
-                    AscendanceNexusTransactionResultPayload.Status.INCOMPLETE_BONUS_STATE,
-                    playerData.nexusRevision()
-            );
-        }
-
-        for (Map.Entry<ResourceLocation, Long> entry :
-                finalBonusTargets.entrySet()) {
-            if (entry.getKey() == null
-                    || entry.getValue() == null
-                    || entry.getValue() < 0L) {
-                return Result.failure(
-                        AscendanceNexusTransactionResultPayload.Status.INVALID_PROPOSAL,
-                        playerData.nexusRevision()
-                );
-            }
-
-            if (EssenceStatRegistry.get(entry.getKey()).isEmpty()) {
-                return Result.failure(
-                        AscendanceNexusTransactionResultPayload.Status.UNKNOWN_STAT,
-                        playerData.nexusRevision()
-                );
-            }
-        }
-
         Map<ResourceLocation, Long> targetInvestments =
                 new LinkedHashMap<>(playerData.getAllInvested());
         Map<ResourceLocation, Long> targetAvailable =
@@ -134,74 +105,18 @@ public final class AscendanceNexusTransactionService {
         Map<ResourceLocation, ResourceLocation> targetLoadoutSelections =
                 new LinkedHashMap<>(playerData.getLoadoutSelections());
 
-        Map<ResourceLocation, Long> bonusSpending = new LinkedHashMap<>();
-        Map<ResourceLocation, Long> bonusRefunds = new LinkedHashMap<>();
         Map<ResourceLocation, Long> skillSpending = new LinkedHashMap<>();
         Map<ResourceLocation, Long> skillRefunds = new LinkedHashMap<>();
         Map<ResourceLocation, Long> currentBonusByEssence = new LinkedHashMap<>();
         Map<ResourceLocation, Long> projectedBonusByEssence = new LinkedHashMap<>();
 
         try {
-            for (StatDefinition stat : EssenceStatRegistry.values()) {
-                Long boxedTarget = finalBonusTargets.get(stat.id());
-                if (boxedTarget == null) {
-                    return Result.failure(
-                            AscendanceNexusTransactionResultPayload.Status.INCOMPLETE_BONUS_STATE,
-                            playerData.nexusRevision()
-                    );
-                }
-
-                long target = boxedTarget;
-                long current = playerData.getInvested(stat);
-                long cap = balanceProfile.getInvestmentCap(
-                        playerData.getTier(),
-                        stat
-                );
-
-                if (cap < 0L) {
-                    return Result.failure(
-                            AscendanceNexusTransactionResultPayload.Status.CONFIGURATION_ERROR,
-                            playerData.nexusRevision()
-                    );
-                }
-
-                /* Existing over-cap storage may remain or be reduced, never raised. */
-                if (target > cap && target > current) {
-                    return Result.failure(
-                            AscendanceNexusTransactionResultPayload.Status.CAP_EXCEEDED,
-                            playerData.nexusRevision()
-                    );
-                }
-
-                putOrRemove(targetInvestments, stat.id(), target);
-
-                if (target > current) {
-                    mergeExact(
-                            bonusSpending,
-                            stat.essenceType().id(),
-                            target - current
-                    );
-                } else if (target < current) {
-                    mergeExact(
-                            bonusRefunds,
-                            stat.essenceType().id(),
-                            current - target
-                    );
-                }
-
-                /* Live skill thresholds use allocated Bonus, not effective cap. */
-                mergeExact(
-                        currentBonusByEssence,
-                        stat.essenceType().id(),
-                        current
-                );
-                mergeExact(
-                        projectedBonusByEssence,
-                        stat.essenceType().id(),
-                        target
-                );
-            }
-
+            BonusTransactionPlan.Result bonusResult = BonusTransactionPlan.resolve(playerData, balanceProfile, finalBonusTargets);
+            if (!bonusResult.accepted()) return Result.failure(bonusResult.status(), playerData.nexusRevision());
+            BonusTransactionPlan.Plan bonusPlan = bonusResult.plan();
+            targetInvestments.clear(); targetInvestments.putAll(bonusPlan.investments());
+            currentBonusByEssence.putAll(bonusPlan.currentCategoryTotals());
+            projectedBonusByEssence.putAll(bonusPlan.targetCategoryTotals());
             Map<ResourceLocation, Integer> finalRanks = new LinkedHashMap<>(playerData.getSkillRanks());
             for (var request : requestedPurchases.entrySet()) {
                 ResourceLocation skillId = request.getKey();
@@ -408,30 +323,9 @@ public final class AscendanceNexusTransactionService {
                 }
             }
 
-            for (EssenceDefinition essence : EssenceRegistry.values()) {
-                long budget = Math.addExact(
-                        playerData.getAvailable(essence),
-                        Math.addExact(bonusRefunds.getOrDefault(essence.id(), 0L),
-                                skillRefunds.getOrDefault(essence.id(), 0L))
-                );
-                long totalSpending = Math.addExact(
-                        bonusSpending.getOrDefault(essence.id(), 0L),
-                        skillSpending.getOrDefault(essence.id(), 0L)
-                );
-
-                if (totalSpending > budget) {
-                    return Result.failure(
-                            AscendanceNexusTransactionResultPayload.Status.INSUFFICIENT_ESSENCE,
-                            playerData.nexusRevision()
-                    );
-                }
-
-                putOrRemove(
-                        targetAvailable,
-                        essence.id(),
-                        budget - totalSpending
-                );
-            }
+            BonusTransactionPlan.Settlement settlement = bonusPlan.settle(playerData.getAllAvailable(), skillRefunds, skillSpending);
+            if (!settlement.accepted()) return Result.failure(settlement.status(), playerData.nexusRevision());
+            targetAvailable.clear(); targetAvailable.putAll(settlement.balances());
         } catch (ArithmeticException exception) {
             return Result.failure(
                     AscendanceNexusTransactionResultPayload.Status.INVALID_PROPOSAL,
@@ -614,18 +508,6 @@ public final class AscendanceNexusTransactionService {
                 id,
                 Math.addExact(values.getOrDefault(id, 0L), amount)
         );
-    }
-
-    private static void putOrRemove(
-            Map<ResourceLocation, Long> values,
-            ResourceLocation id,
-            long amount
-    ) {
-        if (amount == 0L) {
-            values.remove(id);
-        } else {
-            values.put(id, amount);
-        }
     }
 
     public record Result(

@@ -25,6 +25,7 @@ public final class TooltipPresentationTest {
         scrolling();
         styles();
         codec();
+        AscendancePaletteTest.main(args);
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println("TooltipPresentationTest: " + assertions
                 + " token wrapping, bounded scroll, semantic styling and exact payload assertions passed");
     }

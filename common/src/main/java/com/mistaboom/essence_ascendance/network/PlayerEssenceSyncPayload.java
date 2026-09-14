@@ -33,7 +33,7 @@ public record PlayerEssenceSyncPayload(
         ProgressState progress
 ) implements CustomPacketPayload {
 
-    public static final int CURRENT_SCHEMA_VERSION = 8;
+    public static final int CURRENT_SCHEMA_VERSION = 9;
 
     static final int MAX_ID_LENGTH = 128;
     private static final int MAX_ESSENCES = 128;
@@ -113,6 +113,7 @@ public record PlayerEssenceSyncPayload(
             buffer.writeDouble(stat.currentTierMaximumBonus());
             buffer.writeDouble(stat.transcendentMaximumBonus());
             buffer.writeDouble(stat.scaledBonus());
+            BonusTrackSnapshot.write(buffer, stat.track());
         }
 
         buffer.writeVarInt(payload.completedMilestones.size());
@@ -219,7 +220,8 @@ public record PlayerEssenceSyncPayload(
                             buffer.readDouble(),
                             buffer.readDouble(),
                             buffer.readDouble(),
-                            buffer.readDouble()
+                            buffer.readDouble(),
+                            BonusTrackSnapshot.read(buffer)
                     )
             );
         }
@@ -432,9 +434,11 @@ public record PlayerEssenceSyncPayload(
             double progression,
             double currentTierMaximumBonus,
             double transcendentMaximumBonus,
-            double scaledBonus
+            double scaledBonus,
+            BonusTrackSnapshot track
     ) {
         public StatState {
+            Objects.requireNonNull(track, "Resolved Bonus track cannot be null");
             Objects.requireNonNull(
                     statId,
                     "Stat ID cannot be null"

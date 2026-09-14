@@ -1,6 +1,8 @@
 package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.client.nexus.NexusCategoryView;
+import com.mistaboom.essence_ascendance.client.nexus.NexusBonusTrackLayout;
+import com.mistaboom.essence_ascendance.client.nexus.NexusAscendanceAction;
 import com.mistaboom.essence_ascendance.client.nexus.NexusCategoryViewFactory;
 import com.mistaboom.essence_ascendance.client.nexus.NexusDraft;
 import com.mistaboom.essence_ascendance.client.nexus.NexusMode;
@@ -12,7 +14,8 @@ import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.nexus.AscendanceNexusMenu;
 import com.mistaboom.essence_ascendance.network.AscendanceNexusTransactionPayload;
 import com.mistaboom.essence_ascendance.network.PlayerEssenceSyncPayload;
-import com.mistaboom.essence_ascendance.progression.StatScalingService;
+import com.mistaboom.essence_ascendance.progression.BonusTrackCurve;
+import com.mistaboom.essence_ascendance.visual.AscendancePalette;
 import com.mistaboom.essence_ascendance.skill.requirement.BonusInvestmentRequirement;
 import com.mistaboom.essence_ascendance.skill.requirement.PermanentMilestoneRequirement;
 import com.mistaboom.essence_ascendance.skill.requirement.SkillRequirement;
@@ -68,24 +71,20 @@ import java.util.concurrent.atomic.AtomicLong;
 public final class AscendanceNexusScreen
         extends AbstractContainerScreen<AscendanceNexusMenu> {
 
-    private static final int BACKGROUND_TOP = 0xFF15131D;
-    private static final int BACKGROUND_BOTTOM = 0xFF292432;
-    private static final int PANEL = 0xCC1C1B25;
-    private static final int PANEL_INNER = 0xCC292733;
-    private static final int BORDER = 0xFF77658E;
-    private static final int BORDER_BRIGHT = 0xFFA58AC6;
+    private static final int BACKGROUND_TOP = 0xFF151518;
+    private static final int BACKGROUND_BOTTOM = 0xFF29292D;
+    private static final int PANEL = 0xCC1C1C20;
+    private static final int PANEL_INNER = 0xCC29292D;
+    private static final int BORDER = 0xFF777780;
+    private static final int BORDER_BRIGHT = 0xFFA5A5AD;
     private static final int TEXT = 0xFFF0EDF4;
     private static final int MUTED = 0xFFB6AFBF;
     private static final int DIM = 0xFF7F7889;
-    private static final int TRACK = 0xFF494352;
-    private static final int TRACK_LOCKED = 0xFF24212B;
-    private static final int TRACK_LOCKED_TICK = 0xFF62596D;
-    private static final int TIER_CAP = 0xFFE0BB70;
-    private static final int TRACK_FILL = 0xFF9E80C0;
-    private static final int TRACK_PREVIEW = 0xFFC3A8DF;
-    private static final int TIER_LINE = 0x665F5969;
-    private static final int LOCKED = 0x552F2B35;
-    private static final int GAUGE_FILL = 0xFF7B62A2;
+    private static final int TRACK = 0xFF49494F;
+    private static final int TRACK_LOCKED = 0xFF242428;
+    private static final int TRACK_LOCKED_TICK = 0xFF626269;
+    private static final int TIER_LINE = 0x66606068;
+    private static final int LOCKED = 0x552F2F34;
     private static final int COMPLETE = 0xFF78C69A;
     private static final int INCOMPLETE = 0xFFD1B36A;
     private static final int ERROR = 0xFFD47A7A;
@@ -113,7 +112,7 @@ public final class AscendanceNexusScreen
     private static final int TRACK_KNOB_HEIGHT = 7;
     private static final int TRACK_HIT_PADDING = 4;
     private static final int ALLOCATE_BUTTON_WIDTH = 104;
-    private static final int ASCEND_BUTTON_WIDTH = 84;
+    private static final int ASCEND_BUTTON_WIDTH = ALLOCATE_BUTTON_WIDTH;
     private static final int BOTTOM_CONTROL_HEIGHT = 16;
     private static final int BOTTOM_CONTROL_GAP = 5;
     private static final int GAUGE_TEXT_GAP = 4;
@@ -518,6 +517,7 @@ public final class AscendanceNexusScreen
 
             boolean selected =
                     i == selectedCategoryIndex;
+            int accent = AscendancePalette.categoryArgb(category.essence().id());
 
             graphics.fill(
                     x,
@@ -533,8 +533,10 @@ public final class AscendanceNexusScreen
                     layout.y(),
                     layout.tabWidth(),
                     TAB_HEIGHT,
-                    selected ? BORDER_BRIGHT : BORDER
+                    selected ? accent : MachineScreenUi.opacity(accent, 120)
             );
+            if (selected) graphics.fill(x + 2, layout.y() + TAB_HEIGHT - 3,
+                    x + layout.tabWidth() - 2, layout.y() + TAB_HEIGHT - 1, accent);
 
             String tabName =
                     trimToWidth(
@@ -547,7 +549,7 @@ public final class AscendanceNexusScreen
                     tabName,
                     x + layout.tabWidth() / 2,
                     layout.y() + 6,
-                    selected ? TEXT : MUTED
+                    accent
             );
 
             x += layout.tabWidth() + TAB_GAP;
@@ -686,12 +688,7 @@ public final class AscendanceNexusScreen
             int mouseX,
             int mouseY
     ) {
-        boolean staged =
-                hasStagedChanges();
-        boolean projectedReady = attunementReady();
-        boolean enabled =
-                pendingRequestId < 0L
-                        && (staged || projectedReady);
+        NexusAscendanceAction action = ascendanceAction();
         int buttonY =
                 layout.bottom()
                         - BOTTOM_CONTROL_HEIGHT
@@ -701,18 +698,33 @@ public final class AscendanceNexusScreen
 
         if (layout.sectionHeight() >= 28) {
             String status;
-            if (staged) {
-                status = EssenceText.gui("nexus.pending_before_ascending").getString();
+            int statusColor;
+            if (transactionFeedback != null) {
+                status = transactionFeedback.getString();
+                statusColor = ERROR;
+            } else if (action.kind() == NexusAscendanceAction.Kind.APPLYING) {
+                status = EssenceText.gui("nexus.transaction.waiting").getString();
+                statusColor = INCOMPLETE;
+            } else if (action.kind() == NexusAscendanceAction.Kind.DISCARD_DRAFT) {
+                status = EssenceText.gui("nexus.draft.outdated").getString();
+                statusColor = ERROR;
+            } else if (action.kind() == NexusAscendanceAction.Kind.APPLY_CHANGES) {
+                status = EssenceText.gui("nexus.pending_ready_to_apply").getString();
+                statusColor = COMPLETE;
             } else if (progress.status()
                     == PlayerEssenceSyncPayload.ProgressStatus.MAX_TIER) {
                 status = EssenceText.gui("nexus.maximum").getString();
+                statusColor = MUTED;
             } else if (progress.status()
                     == PlayerEssenceSyncPayload.ProgressStatus.CONFIGURATION_ERROR) {
                 status = EssenceText.gui("nexus.unavailable").getString();
-            } else if (projectedReady) {
+                statusColor = MUTED;
+            } else if (action.enabled()) {
                 status = EssenceText.gui("nexus.ready_to_ascend").getString();
+                statusColor = COMPLETE;
             } else {
                 status = EssenceText.gui("nexus.requirements_incomplete").getString();
+                statusColor = MUTED;
             }
             graphics.drawCenteredString(
                     font,
@@ -722,7 +734,7 @@ public final class AscendanceNexusScreen
                     ),
                     (layout.left() + layout.right()) / 2,
                     layout.middleBottom() + 3,
-                    enabled ? COMPLETE : MUTED
+                    statusColor
             );
         }
 
@@ -730,7 +742,7 @@ public final class AscendanceNexusScreen
                 graphics,
                 buttonX,
                 buttonY,
-                enabled,
+                action,
                 inside(
                         mouseX,
                         mouseY,
@@ -746,9 +758,10 @@ public final class AscendanceNexusScreen
             GuiGraphics graphics,
             int x,
             int y,
-            boolean enabled,
+            NexusAscendanceAction action,
             boolean hovered
     ) {
+        boolean enabled = action.enabled();
         graphics.fill(
                 x,
                 y,
@@ -770,7 +783,10 @@ public final class AscendanceNexusScreen
         );
         graphics.drawCenteredString(
                 font,
-                EssenceText.gui("nexus.ascend").getString(),
+                trimToWidth(
+                        ascendanceActionLabel(action).getString(),
+                        ASCEND_BUTTON_WIDTH - 6
+                ),
                 x + ASCEND_BUTTON_WIDTH / 2,
                 y + Math.max(
                         2,
@@ -778,6 +794,28 @@ public final class AscendanceNexusScreen
                 ),
                 enabled ? TEXT : DIM
         );
+    }
+
+    private NexusAscendanceAction ascendanceAction() {
+        ClientEssenceState.Snapshot snapshot = ClientEssenceState.snapshot();
+        return NexusAscendanceAction.resolve(
+                snapshot.progress().status(),
+                attunementReady(),
+                draft.hasChanges(snapshot),
+                draft.invalidated(),
+                pendingRequestId >= 0L
+        );
+    }
+
+    private Component ascendanceActionLabel(NexusAscendanceAction action) {
+        return switch (action.kind()) {
+            case APPLYING -> EssenceText.gui("nexus.action.applying");
+            case DISCARD_DRAFT -> EssenceText.gui("nexus.discard_draft_short");
+            case APPLY_CHANGES -> EssenceText.gui("nexus.apply_changes");
+            case ASCEND -> EssenceText.gui("nexus.ascend");
+            case MAXIMUM_TIER -> EssenceText.gui("nexus.maximum_tier");
+            case UNAVAILABLE -> EssenceText.gui("nexus.unavailable");
+        };
     }
 
     private void renderAscensionConfigurationError(
@@ -833,7 +871,7 @@ public final class AscendanceNexusScreen
 
         renderCategoryTitle(
                 graphics,
-                EssenceText.essenceShort(category.essence()).getString(),
+                category,
                 layout
         );
         renderAvailableGauge(
@@ -885,7 +923,7 @@ public final class AscendanceNexusScreen
 
         renderCategoryTitle(
                 graphics,
-                EssenceText.essenceShort(category.essence()).getString(),
+                category,
                 layout
         );
         renderAvailableGauge(graphics, category, layout);
@@ -2995,11 +3033,11 @@ public final class AscendanceNexusScreen
 
     private void renderCategoryTitle(
             GuiGraphics graphics,
-            String name,
+            NexusCategoryView category,
             ContentLayout layout
     ) {
         String value =
-                name.toUpperCase(Locale.ROOT);
+                EssenceText.essenceShort(category.essence()).getString().toUpperCase(Locale.ROOT);
 
         /*
          * Slightly enlarge the category heading without changing the fixed
@@ -3039,7 +3077,7 @@ public final class AscendanceNexusScreen
                 rendered,
                 0,
                 0,
-                TEXT
+                AscendancePalette.categoryArgb(category.essence().id())
         );
         graphics.pose().popPose();
     }
@@ -3122,7 +3160,7 @@ public final class AscendanceNexusScreen
                 innerBottom - fillHeight,
                 right - 3,
                 innerBottom,
-                GAUGE_FILL
+                AscendancePalette.categoryArgb(category.essence().id())
         );
 
         graphics.drawCenteredString(
@@ -3152,25 +3190,13 @@ public final class AscendanceNexusScreen
         int trackHeight =
                 layout.trackBottom() - layout.trackTop();
 
-        /*
-         * Server-generated tier fractions position both guides and slider ceilings.
-         * Put the category's highest actual stat cap beside each boundary.
-         * Every category uses one number; individual slider readouts retain
-         * their exact caps when the generated profile varies costs by stat.
-         *
-         * There is intentionally no 0 label at the bottom and no final cap at
-         * the top: those endpoints are already represented by the slider's
-         * allocation/current-cap readouts. Only the four internal tier caps are
-         * shown here (Dormant through Ascendant in the built-in five-tier set).
-         */
-        ClientEssenceState.Snapshot snapshot =
-                ClientEssenceState.snapshot();
-        BalanceProfileDefinition profile =
-                currentBalanceProfile(snapshot);
+        if (category.tracks().isEmpty()) return;
+        var resolved = category.tracks().getFirst().state().track();
+        var geometry = new NexusBonusTrackLayout(resolved, layout.trackTop(), layout.trackBottom());
 
-        for (int boundary = 1; boundary < tiers.size(); boundary++) {
-            double fraction = profile == null ? boundary / (double) tiers.size()
-                    : profile.tierFraction(tiers.get(boundary - 1), boundary - 1, tiers.size());
+        for (int boundary = 0; boundary < resolved.checkpoints().size(); boundary++) {
+            double fraction = resolved.tierPositions().get(boundary);
+            if (fraction <= 0) continue;
             int y =
                     layout.trackBottom()
                             - (int) Math.round(trackHeight * fraction);
@@ -3183,28 +3209,16 @@ public final class AscendanceNexusScreen
                     TIER_LINE
             );
 
-            if (profile != null) {
-                AscendanceTierDefinition completedTier =
-                        tiers.get(boundary - 1);
-                long tierCap = category.tracks().stream()
-                        .mapToLong(track -> profile.getInvestmentCap(completedTier, track.stat()))
-                        .max()
-                        .orElse(profile.getDefaultInvestmentCap(completedTier));
-
-                int tierLabelWidth =
-                        Math.max(
-                                1,
-                                layout.right() - layout.tracksRight() - 6
-                        );
-
-                graphics.drawCenteredString(
-                        font,
-                        formatLongForWidth(tierCap, tierLabelWidth),
-                        (layout.tracksRight() + layout.right()) / 2,
-                        y - font.lineHeight / 2,
-                        MUTED
-                );
-            }
+            int tierLabelWidth = Math.max(1, layout.right() - layout.tracksRight() - 6);
+            String label = tierDisplayName(resolved.checkpoints().get(boundary).tierId());
+            float labelScale = Math.min(1, tierLabelWidth / (float) Math.max(1, font.width(label)));
+            graphics.pose().pushPose();
+            graphics.pose().translate((layout.tracksRight() + layout.right()) / 2.0F,
+                    geometry.bandCenterY(boundary) - font.lineHeight * labelScale / 2.0F, 0);
+            graphics.pose().scale(labelScale, labelScale, 1);
+            graphics.drawCenteredString(font, label, 0, 0,
+                    AscendancePalette.tierMetalArgb(resolved.checkpoints().get(boundary).tierId()));
+            graphics.pose().popPose();
         }
     }
 
@@ -3341,6 +3355,11 @@ public final class AscendanceNexusScreen
     ) {
         int centerX =
                 left + trackWidth / 2;
+        var resolved = track.state().track();
+        boolean available = resolved.available();
+        int accent = AscendancePalette.categoryArgb(track.stat().essenceType().id());
+        var geometry = track.layout(layout.trackTop(), layout.trackBottom());
+        int capColor = AscendancePalette.tierMetalArgb(geometry.capUnlockTier(ClientEssenceState.snapshot().tierId()));
 
         String[] nameLines =
                 wrapTwoLines(
@@ -3353,7 +3372,7 @@ public final class AscendanceNexusScreen
                 nameLines[0],
                 centerX,
                 layout.middleTop() + 3,
-                TEXT
+                available ? accent : DIM
         );
         if (!nameLines[1].isBlank()) {
             graphics.drawCenteredString(
@@ -3361,7 +3380,7 @@ public final class AscendanceNexusScreen
                     nameLines[1],
                     centerX,
                     layout.middleTop() + 13,
-                    TEXT
+                    available ? accent : DIM
             );
         }
 
@@ -3371,49 +3390,53 @@ public final class AscendanceNexusScreen
                 trimToWidth(cap, trackWidth - 2),
                 centerX,
                 layout.trackTop() - 11,
-                TIER_CAP
+                capColor
         );
 
         int top = layout.trackTop();
         int bottom = layout.trackBottom();
-        int height = bottom - top;
         int railLeft = centerX - 3;
         int railRight = centerX + 3;
+        int startY = geometry.startY();
+        int completionY = geometry.completionY();
+        double maximumProgress = BonusTrackCurve.maximumProgression(resolved.checkpoints(), ClientEssenceState.snapshot().tierId());
+        int ceilingY = geometry.yForEffect(maximumProgress);
 
-        double tierCeiling =
-                currentTierCeiling();
-        int ceilingY = bottom - (int) Math.round(height * tierCeiling);
-
-        if (tierCeiling < 1.0) {
-            graphics.fill(
-                    left + 4,
-                    top,
-                    left + trackWidth - 4,
-                    ceilingY,
-                    LOCKED
-            );
-        }
-
-        graphics.fill(
-                railLeft,
-                top,
-                railRight,
-                bottom,
-                TRACK
-        );
-
-        // The rail itself shows the locked range, even when the faint panel
-        // background is hard to distinguish. Ticks also distinguish it by shape.
-        if (ceilingY > top) {
-            graphics.fill(railLeft, top, railRight, ceilingY, TRACK_LOCKED);
-            for (int y = top + 2; y < ceilingY - 1; y += 6) {
-                graphics.fill(railLeft, y, railRight, y + 1, TRACK_LOCKED_TICK);
+        if (available) {
+            // A rail occupies only this Bonus's useful span. No continuation implies later purchases.
+            graphics.fill(railLeft - 1, completionY, railRight + 1, startY, 0xFF1A1A1E);
+            graphics.fill(railLeft, completionY, railRight, startY, TRACK);
+            if (ceilingY > completionY) {
+                graphics.fill(railLeft, completionY, railRight, ceilingY, TRACK_LOCKED);
+                for (int y = completionY + 2; y < ceilingY - 1; y += 6)
+                    graphics.fill(railLeft, y, railRight, y + 1, TRACK_LOCKED_TICK);
             }
+            for (int i = 0; i < resolved.checkpoints().size(); i++) {
+                var checkpoint = resolved.checkpoints().get(i);
+                if (!checkpoint.purchasable() || checkpoint.tierId().equals(resolved.completionTier())) continue;
+                int y = geometry.yForPosition(resolved.tierPositions().get(i));
+                graphics.fill(railLeft - 2, y, railRight + 2, y + 1,
+                        AscendancePalette.tierMetalArgb(geometry.boundaryUnlockTier(i)));
+            }
+            // Wider than the knob so the unlocking tier remains visible at zero/full investment.
+            int startColor = AscendancePalette.tierMetalArgb(resolved.startTier());
+            int completionColor = AscendancePalette.tierMetalArgb(resolved.completionTier());
+            graphics.fill(railLeft - 7, startY, railRight + 7, startY + 1, startColor);
+            graphics.fill(railLeft - 7, startY - 3, railLeft - 5, startY + 1, startColor);
+            graphics.fill(railRight + 5, startY - 3, railRight + 7, startY + 1, startColor);
+            graphics.fill(railLeft - 7, completionY - 1, railRight + 7, completionY + 1, completionColor);
+            graphics.fill(railLeft - 7, completionY + 3, railRight + 7, completionY + 4, completionColor);
+            graphics.fill(railLeft - 7, completionY, railLeft - 5, completionY + 4, completionColor);
+            graphics.fill(railRight + 5, completionY, railRight + 7, completionY + 4, completionColor);
+            if (track.state().currentInvestmentCap() > 0) {
+                graphics.fill(left + 5, ceilingY, left + trackWidth - 5, ceilingY + 1, capColor);
+                graphics.fill(railLeft - 4, ceilingY - 2, railLeft - 2, ceilingY + 3, capColor);
+                graphics.fill(railRight + 2, ceilingY - 2, railRight + 4, ceilingY + 3, capColor);
+            }
+        } else {
+            for (int y = top + 2; y < bottom; y += 7)
+                graphics.fill(centerX - 2, y, centerX + 2, y + 1, TRACK_LOCKED_TICK);
         }
-
-        graphics.fill(left + 5, ceilingY, left + trackWidth - 5, ceilingY + 1, TIER_CAP);
-        graphics.fill(railLeft - 4, ceilingY - 2, railLeft - 2, ceilingY + 3, TIER_CAP);
-        graphics.fill(railRight + 2, ceilingY - 2, railRight + 4, ceilingY + 3, TIER_CAP);
 
         long stagedTarget =
                 stagedInvestment(track);
@@ -3426,16 +3449,19 @@ public final class AscendanceNexusScreen
                 stagedProgression(track, stagedTarget);
         progress = clamp01(progress);
 
-        int knobY =
-                bottom - (int) Math.round(height * progress);
+        int knobY = geometry.yForEffect(progress);
+        int currentY = geometry.yForEffect(stagedProgression(track, track.state().storedInvestment()));
+        int fill = accent;
 
         graphics.fill(
                 railLeft,
                 knobY,
                 railRight,
-                bottom,
-                changed || dragging ? TRACK_PREVIEW : TRACK_FILL
+                startY,
+                available ? fill : TRACK_LOCKED
         );
+
+        if (changed) graphics.fill(railLeft - 3, currentY, railRight + 3, currentY + 1, accent);
 
         int knobWidth = 14;
         graphics.fill(
@@ -3443,8 +3469,11 @@ public final class AscendanceNexusScreen
                 knobY - TRACK_KNOB_HEIGHT / 2,
                 centerX + knobWidth / 2,
                 knobY + (TRACK_KNOB_HEIGHT + 1) / 2,
-                changed || dragging ? TRACK_PREVIEW : BORDER_BRIGHT
+                !available || track.state().currentInvestmentCap() == 0 ? DIM : fill
         );
+        graphics.fill(centerX - 4, knobY, centerX + 4, knobY + 1, 0xAAFFFFFF);
+        if (changed || dragging) outline(graphics, centerX - knobWidth / 2 - 1,
+                knobY - TRACK_KNOB_HEIGHT / 2 - 1, knobWidth + 2, TRACK_KNOB_HEIGHT + 2, 0xBBFFFFFF);
 
         int hitTop =
                 top - TRACK_HIT_PADDING;
@@ -3469,33 +3498,18 @@ public final class AscendanceNexusScreen
                     hitTop,
                     Math.max(1, trackWidth - 2),
                     Math.max(1, hitBottom - hitTop),
-                    0x668E7AA7
+                    (accent & 0x00FFFFFF) | 0x66000000
             );
         }
 
-        String investment =
-                formatLong(stagedTarget);
-
-        graphics.drawCenteredString(
-                font,
-                investment,
-                centerX,
-                bottom + 8,
-                changed || dragging ? TEXT : MUTED
-        );
-
-        String bonus =
-                formatBonus(
-                        track.stat().unit(),
-                        stagedScaledBonus(track, stagedTarget)
-                );
-        graphics.drawCenteredString(
-                font,
-                trimToWidth(bonus, trackWidth - 2),
-                centerX,
-                bottom + 19,
-                TEXT
-        );
+        String bonus = compactBonus(resolved.unit(), stagedScaledBonus(track, stagedTarget));
+        float bonusScale = Math.min(1.0F, Math.max(.7F, (trackWidth - 2.0F) / Math.max(1, font.width(bonus))));
+        graphics.pose().pushPose();
+        graphics.pose().translate(centerX, bottom + 9, 0);
+        graphics.pose().scale(bonusScale, bonusScale, 1);
+        graphics.drawCenteredString(font, trimToWidth(bonus, (int) ((trackWidth - 2) / bonusScale)),
+                0, 0, available ? TEXT : DIM);
+        graphics.pose().popPose();
     }
 
     private void renderTrackTooltip(
@@ -3505,20 +3519,46 @@ public final class AscendanceNexusScreen
             int mouseY
     ) {
         ClientEssenceState.Snapshot snapshot = ClientEssenceState.snapshot();
-        BalanceProfileDefinition profile = currentBalanceProfile(snapshot);
-        List<AscendanceTierDefinition> tiers = orderedTiers();
-        List<Component> lines = new ArrayList<>();
-        lines.add(EssenceText.stat(track.stat()));
-        lines.add(EssenceText.gui("nexus.track.current_tier", tierDisplayName(snapshot.tierId())));
-        lines.add(EssenceText.gui("nexus.track.tier_cap", formatLong(track.state().currentInvestmentCap())));
-        if (profile != null && !tiers.isEmpty()) {
-            long totalCap = profile.getInvestmentCap(tiers.getLast(), track.stat());
-            lines.add(EssenceText.gui("nexus.track.total_cap", formatLong(totalCap)));
+        var resolved = track.state().track();
+        long target = stagedInvestment(track);
+        long delta = target - track.state().storedInvestment();
+        int accent = AscendancePalette.categoryRgb(track.stat().essenceType().id());
+        SemanticTooltip tooltip = new SemanticTooltip().title(EssenceText.stat(track.stat()), accent);
+        if (!resolved.available()) tooltip.requirement(EssenceText.gui("nexus.track.unavailable"), SemanticTooltip.State.UNAVAILABLE);
+        tooltip.field(EssenceText.gui("nexus.track.effect_preview",
+                SemanticTooltip.value(formatBonus(resolved.unit(), track.state().scaledBonus())),
+                SemanticTooltip.value(formatBonus(resolved.unit(), stagedScaledBonus(track, target)))
+                        .copy().withStyle(style -> style.withColor(accent).withBold(delta != 0))));
+        tooltip.field(EssenceText.gui("nexus.track.investment_preview", SemanticTooltip.value(formatLong(track.state().storedInvestment())),
+                SemanticTooltip.value(formatLong(target)),
+                SemanticTooltip.value((delta > 0 ? "+" : "") + formatLong(delta)).copy()
+                        .withStyle(delta < 0 ? ChatFormatting.GREEN : delta > 0 ? ChatFormatting.AQUA : ChatFormatting.WHITE)));
+        tooltip.gap();
+        tooltip.field(EssenceText.gui("nexus.track.current_tier", tierNameComponent(snapshot.tierId()).copy()
+                .withStyle(style -> style.withColor(AscendancePalette.tierMetalRgb(snapshot.tierId())))));
+        tooltip.field(EssenceText.gui("nexus.track.tier_cap", SemanticTooltip.value(formatLong(track.state().currentInvestmentCap()))));
+        if (resolved.available()) {
+            ResourceLocation capTier = track.layout(0, 100).capUnlockTier(snapshot.tierId());
+            boolean completeRange = BonusTrackCurve.maximumProgression(resolved.checkpoints(), snapshot.tierId()) >= 1;
+            tooltip.field(EssenceText.gui(completeRange ? "nexus.track.cap_complete" : "nexus.track.cap_unlock",
+                    tierNameComponent(capTier).copy().withStyle(style -> style.withColor(AscendancePalette.tierMetalRgb(capTier)))));
         }
-        if (currentTierCeiling() < 1.0) {
-            lines.add(EssenceText.gui("nexus.track.locked_hint"));
+        tooltip.field(EssenceText.gui("nexus.track.total_cap", SemanticTooltip.value(formatLong(resolved.checkpoints().getLast().cumulativeCap()))));
+        tooltip.gap().section(EssenceText.gui("nexus.track.checkpoints"));
+        for (var checkpoint : resolved.checkpoints()) {
+            if (checkpoint.segmentCost() == 0) continue;
+            tooltip.detail(EssenceText.gui("nexus.track.checkpoint", tierNameComponent(checkpoint.tierId()).copy()
+                            .withStyle(style -> style.withColor(AscendancePalette.tierMetalRgb(checkpoint.tierId()))),
+                    SemanticTooltip.value(formatLong(checkpoint.cumulativeCap())),
+                    SemanticTooltip.value(formatLong(checkpoint.segmentCost())),
+                    SemanticTooltip.value(formatBonus(resolved.unit(), track.state().transcendentMaximumBonus() * checkpoint.effectFraction()))
+                            .copy().withStyle(checkpoint.cumulativeCap() <= track.state().effectiveInvestment() ? ChatFormatting.GREEN
+                                    : checkpoint.cumulativeCap() <= target ? ChatFormatting.AQUA
+                                    : checkpoint.cumulativeCap() <= track.state().currentInvestmentCap() ? ChatFormatting.WHITE : ChatFormatting.DARK_GRAY)));
         }
-        graphics.renderComponentTooltip(font, lines, mouseX, mouseY);
+        if (track.state().storedInvestment() > track.state().currentInvestmentCap())
+            tooltip.gap().hint(EssenceText.gui("nexus.track.preserved", SemanticTooltip.value(formatLong(track.state().storedInvestment() - track.state().effectiveInvestment()))));
+        graphics.renderTooltip(font, tooltip.wrap(font, TooltipLayout.compactWidth(280, width)), mouseX, mouseY);
     }
 
     private void renderBottomControls(
@@ -4523,15 +4563,34 @@ public final class AscendanceNexusScreen
             return false;
         }
 
-        requestAscension();
+        activateAscendanceAction();
         return true;
     }
 
+    private void activateAscendanceAction() {
+        if (!ClientEssenceState.ready()) return;
+
+        NexusAscendanceAction action = ascendanceAction();
+        if (!action.enabled()) return;
+
+        switch (action.kind()) {
+            case DISCARD_DRAFT -> {
+                draft.clearAndCapture(ClientEssenceState.snapshot());
+                transactionFeedback = null;
+            }
+            case APPLY_CHANGES -> submitDraft(false, PendingCompletion.NONE);
+            case ASCEND -> submitDraft(true, PendingCompletion.NONE);
+            default -> {
+            }
+        }
+    }
+
     private void requestAscension() {
-        if (!ClientEssenceState.ready() || pendingRequestId >= 0L) return;
-        if (hasStagedChanges()) {
-            openAscendDecision();
-        } else if (attunementReady()) {
+        if (!ClientEssenceState.ready()) return;
+
+        NexusAscendanceAction action = ascendanceAction();
+        if (action.kind() == NexusAscendanceAction.Kind.ASCEND
+                && action.enabled()) {
             submitDraft(true, PendingCompletion.NONE);
         }
     }
@@ -4886,70 +4945,12 @@ public final class AscendanceNexusScreen
             NexusProgressionTrack track,
             ContentLayout layout
     ) {
-        long cap =
-                Math.max(
-                        0L,
-                        track.state().currentInvestmentCap()
-                );
-        double ceiling =
-                currentTierCeiling();
-
-        if (ceiling <= 0.0
-                || cap <= 0L) {
-            transactionFeedback = null;
-            draft.stageBonus(
-                    track.stat().id(),
-                    0L
-            );
-            return;
-        }
-
-        int height =
-                Math.max(1, layout.trackBottom() - layout.trackTop());
-        double requestedProgress =
-                Math.max(
-                        0.0,
-                        Math.min(
-                                ceiling,
-                                (layout.trackBottom() - mouseY) / height
-                        )
-                );
-
-        long requestedTarget =
-                stagedInvestmentForProgression(
-                        track,
-                        requestedProgress
-                );
-        requestedTarget =
-                Math.max(
-                        0L,
-                        Math.min(
-                                cap,
-                                requestedTarget
-                        )
-                );
-
-        long currentStaged =
-                stagedInvestment(track);
-
-        if (requestedTarget > currentStaged) {
-            long affordableTarget =
-                    safeAddNonNegative(
-                            currentStaged,
-                            stagedAvailableEssence(category)
-                    );
-            requestedTarget =
-                    Math.min(
-                            requestedTarget,
-                            Math.min(cap, affordableTarget)
-                    );
-        }
-
+        var tierId = ClientEssenceState.snapshot().tierId();
+        double requestedProgress = track.layout(layout.trackTop(), layout.trackBottom()).effectForY(mouseY);
+        long affordable = safeAddNonNegative(stagedInvestment(track), stagedAvailableEssence(category));
+        long target = track.dragTarget(requestedProgress, affordable, tierId);
         transactionFeedback = null;
-        draft.stageBonus(
-                track.stat().id(),
-                requestedTarget
-        );
+        draft.stageBonus(track.stat().id(), target);
     }
 
     private long stagedInvestment(
@@ -4989,30 +4990,7 @@ public final class AscendanceNexusScreen
             NexusProgressionTrack track,
             long stagedTarget
     ) {
-        ClientEssenceState.Snapshot snapshot =
-                ClientEssenceState.snapshot();
-        AscendanceTierDefinition tier =
-                currentTier(snapshot);
-        BalanceProfileDefinition profile =
-                currentBalanceProfile(snapshot);
-
-        if (tier == null
-                || profile == null) {
-            return track.state().progression();
-        }
-
-        long effectiveTarget =
-                Math.min(
-                        Math.max(0L, stagedTarget),
-                        Math.max(0L, track.state().currentInvestmentCap())
-                );
-
-        return StatScalingService.progressionForInvestment(
-                track.stat(),
-                effectiveTarget,
-                tier,
-                profile
-        );
+        return track.progression(stagedTarget, ClientEssenceState.snapshot().tierId());
     }
 
     private double stagedScaledBonus(
@@ -5024,52 +5002,6 @@ public final class AscendanceNexusScreen
                         track,
                         stagedTarget
                 );
-    }
-
-    private long stagedInvestmentForProgression(
-            NexusProgressionTrack track,
-            double progression
-    ) {
-        ClientEssenceState.Snapshot snapshot =
-                ClientEssenceState.snapshot();
-        AscendanceTierDefinition tier =
-                currentTier(snapshot);
-        BalanceProfileDefinition profile =
-                currentBalanceProfile(snapshot);
-
-        if (tier == null
-                || profile == null) {
-            double ceiling =
-                    Math.max(0.000001, currentTierCeiling());
-            return Math.round(
-                    track.state().currentInvestmentCap()
-                            * clamp01(progression / ceiling)
-            );
-        }
-
-        return StatScalingService.investmentForProgression(
-                track.stat(),
-                progression,
-                tier,
-                profile
-        );
-    }
-
-    private AscendanceTierDefinition currentTier(
-            ClientEssenceState.Snapshot snapshot
-    ) {
-        if (!snapshot.ready()
-                || snapshot.tierId() == null) {
-            return null;
-        }
-
-        for (AscendanceTierDefinition tier : orderedTiers()) {
-            if (tier.id().equals(snapshot.tierId())) {
-                return tier;
-            }
-        }
-
-        return null;
     }
 
     private BalanceProfileDefinition currentBalanceProfile(
@@ -5366,68 +5298,19 @@ public final class AscendanceNexusScreen
         );
     }
 
-    private int visibleTrackCount(
-            ContentLayout layout
-    ) {
-        int available =
-                Math.max(
-                        1,
-                        layout.tracksRight() - layout.tracksLeft()
-                );
-
-        /*
-         * contentLayout() already quantizes the center section to whole preferred
-         * columns. Deriving the visible count from that viewport therefore stays
-         * stable until the panel is actually wide enough for one more complete
-         * stat column.
-         */
-        return Math.max(
-                1,
-                (available + TRACK_GAP)
-                        / (TRACK_PREFERRED_WIDTH + TRACK_GAP)
-        );
+    private int visibleTrackCount(ContentLayout layout) {
+        return com.mistaboom.essence_ascendance.client.nexus.NexusBonusTrackLayout.visibleCount(
+                layout.tracksRight() - layout.tracksLeft(), Integer.MAX_VALUE, TRACK_PREFERRED_WIDTH, TRACK_GAP);
     }
 
-    private int effectiveVisibleTrackCount(
-            int trackCount,
-            ContentLayout layout
-    ) {
-        if (trackCount <= 0) {
-            return 1;
-        }
-
-        return Math.max(
-                1,
-                Math.min(
-                        trackCount,
-                        visibleTrackCount(layout)
-                )
-        );
+    private int effectiveVisibleTrackCount(int trackCount, ContentLayout layout) {
+        return com.mistaboom.essence_ascendance.client.nexus.NexusBonusTrackLayout.visibleCount(
+                layout.tracksRight() - layout.tracksLeft(), trackCount, TRACK_PREFERRED_WIDTH, TRACK_GAP);
     }
 
-    private int trackWidth(
-            int viewportWidth,
-            int visibleCount
-    ) {
-        int count = Math.max(1, visibleCount);
-        int usable =
-                Math.max(
-                        1,
-                        viewportWidth
-                                - TRACK_GAP * Math.max(0, count - 1)
-                );
-
-        /*
-         * Normal layouts use one fixed preferred width. Only a genuinely tiny
-         * viewport is allowed to compress a single track so it stays on-screen.
-         */
-        return Math.max(
-                1,
-                Math.min(
-                        TRACK_PREFERRED_WIDTH,
-                        usable / count
-                )
-        );
+    private int trackWidth(int viewportWidth, int visibleCount) {
+        return com.mistaboom.essence_ascendance.client.nexus.NexusBonusTrackLayout.trackWidth(
+                viewportWidth, visibleCount, TRACK_PREFERRED_WIDTH, TRACK_GAP);
     }
 
     private int trackContentLeft(
@@ -5458,30 +5341,6 @@ public final class AscendanceNexusScreen
                                 Math.max(0, trackCount - visibleCount)
                         )
                 );
-    }
-
-    private double currentTierCeiling() {
-        ClientEssenceState.Snapshot snapshot =
-                ClientEssenceState.snapshot();
-        List<AscendanceTierDefinition> tiers =
-                orderedTiers();
-
-        if (!snapshot.ready()
-                || snapshot.tierId() == null
-                || tiers.isEmpty()) {
-            return 1.0;
-        }
-
-        for (int i = 0; i < tiers.size(); i++) {
-            if (tiers.get(i).id().equals(snapshot.tierId())) {
-                BalanceProfileDefinition profile = currentBalanceProfile(snapshot);
-                return clamp01(profile == null ? (i + 1.0) / tiers.size()
-                        : profile.tierFraction(tiers.get(i), i, tiers.size()));
-            }
-        }
-
-        return AscendanceTierRegistry.get(snapshot.tierId())
-                .filter(tier -> !tier.grantsPower()).isPresent() ? 0.0 : 1.0;
     }
 
     private List<AscendanceTierDefinition> orderedTiers() {
@@ -5524,6 +5383,10 @@ public final class AscendanceNexusScreen
             case LEVELS -> EssenceText.gui("nexus.bonus.levels", number).getString();
             case FLAT -> EssenceText.gui("nexus.bonus.flat", number).getString();
         };
+    }
+
+    private String compactBonus(StatUnit unit, double value) {
+        return NexusProgressionTrack.effectLabel(unit, value);
     }
 
     private String formatDecimal(
@@ -5758,12 +5621,6 @@ public final class AscendanceNexusScreen
         };
     }
 
-    private void openAscendDecision() {
-        pendingDecision = PendingDecision.ASCEND;
-        pendingCompletion = PendingCompletion.NONE;
-        transactionFeedback = null;
-    }
-
     private void renderSkillTooltip(
             GuiGraphics graphics,
             ResourceLocation skillId,
@@ -5791,7 +5648,7 @@ public final class AscendanceNexusScreen
         // Every definition uses the same semantic styles; no individual skill IDs or layouts.
         SemanticTooltip tooltip = new SemanticTooltip();
         tooltip.title(Component.translatable(skill.nameTranslationKey()),
-                ItemEssenceTooltipClientState.colorFor(skill.essenceId()).getColor());
+                AscendancePalette.categoryRgb(skill.essenceId()));
         tooltip.description(Component.translatable(skill.descriptionTranslationKey()));
         tooltip.field(EssenceText.gui("nexus.skills.tooltip.rank",
                 SemanticTooltip.value(evaluation.currentRank()), SemanticTooltip.value(skill.maximumRank()),
@@ -5806,7 +5663,7 @@ public final class AscendanceNexusScreen
                         Component.literal(formatLong(cost)).withStyle(cost <= projectedBalance
                                 ? ChatFormatting.GREEN : ChatFormatting.RED),
                         EssenceText.essenceShort(category.essence())
-                                .withStyle(ItemEssenceTooltipClientState.colorFor(skill.essenceId()))
+                                .withStyle(style -> style.withColor(AscendancePalette.categoryRgb(skill.essenceId())))
                 )
         );
         tooltip.field(
@@ -6170,11 +6027,7 @@ public final class AscendanceNexusScreen
                 BORDER_BRIGHT
         );
 
-        String title = EssenceText.gui(
-                pendingDecision == PendingDecision.EXIT
-                        ? "nexus.modal.exit_title"
-                        : "nexus.modal.ascend_title"
-        ).getString();
+        String title = EssenceText.gui("nexus.modal.exit_title").getString();
         graphics.drawCenteredString(
                 font,
                 trimToWidth(title, layout.width() - 16),
@@ -6221,24 +6074,17 @@ public final class AscendanceNexusScreen
 
         boolean enabled = pendingRequestId < 0L && !draft.invalidated();
         ModalButtons buttons = modalButtons(layout);
-        String applyPath = pendingDecision == PendingDecision.EXIT
-                ? "nexus.modal.apply_exit"
-                : "nexus.modal.apply_ascend";
-        String discardPath = pendingDecision == PendingDecision.EXIT
-                ? "nexus.modal.discard_exit"
-                : "nexus.modal.discard_ascend";
-
         renderModalButton(
                 graphics,
                 buttons.apply(),
-                EssenceText.gui(applyPath).getString(),
+                EssenceText.gui("nexus.modal.apply_exit").getString(),
                 enabled,
                 buttons.apply().contains(mouseX, mouseY)
         );
         renderModalButton(
                 graphics,
                 buttons.discard(),
-                EssenceText.gui(discardPath).getString(),
+                EssenceText.gui("nexus.modal.discard_exit").getString(),
                 pendingRequestId < 0L,
                 buttons.discard().contains(mouseX, mouseY)
         );
@@ -6300,26 +6146,16 @@ public final class AscendanceNexusScreen
 
         if (buttons.apply().contains(mouseX, mouseY)) {
             if (!draft.invalidated()) {
-                submitDraft(
-                        pendingDecision == PendingDecision.ASCEND,
-                        pendingDecision == PendingDecision.EXIT
-                                ? PendingCompletion.EXIT
-                                : PendingCompletion.NONE
-                );
+                submitDraft(false, PendingCompletion.EXIT);
             }
             return true;
         }
 
         if (buttons.discard().contains(mouseX, mouseY)) {
-            PendingDecision decision = pendingDecision;
             draft.clearAndCapture(snapshot);
             transactionFeedback = null;
-            if (decision == PendingDecision.EXIT) {
-                pendingDecision = PendingDecision.NONE;
-                super.onClose();
-            } else {
-                submitDraft(true, PendingCompletion.NONE);
-            }
+            pendingDecision = PendingDecision.NONE;
+            super.onClose();
             return true;
         }
 
@@ -6396,9 +6232,15 @@ public final class AscendanceNexusScreen
         } else if (pendingRequestId >= 0L) {
             lines.add(EssenceText.gui("nexus.transaction.waiting"));
         } else if (mode == NexusMode.ASCENDANCE) {
-            lines.add(ascensionActionStatus(snapshot));
-            lines.add(EssenceText.gui("nexus.attunement.choice"));
-            lines.add(EssenceText.gui("nexus.attunement.no_payment"));
+            NexusAscendanceAction ascendanceActionState = ascendanceAction();
+            if (ascendanceActionState.kind()
+                    == NexusAscendanceAction.Kind.APPLY_CHANGES) {
+                lines.add(EssenceText.gui("nexus.action.apply_without_ascending"));
+            } else {
+                lines.add(ascensionActionStatus(snapshot));
+                lines.add(EssenceText.gui("nexus.attunement.choice"));
+                lines.add(EssenceText.gui("nexus.attunement.no_payment"));
+            }
         } else if (!draft.hasChanges(snapshot)) {
             lines.add(EssenceText.gui("nexus.action.no_changes"));
         }
@@ -6813,8 +6655,7 @@ public final class AscendanceNexusScreen
 
     private enum PendingDecision {
         NONE,
-        EXIT,
-        ASCEND
+        EXIT
     }
 
     private enum PendingCompletion {

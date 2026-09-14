@@ -137,18 +137,21 @@ public final class RuntimeBalanceDefinition {
             statIds.add(stat.id());
             double max = config.statMaxBonus(stat);
             if (!Double.isFinite(max) || max < 0 || max > 1_000_000) throw new IllegalArgumentException("Invalid generated stat maximum " + stat.id());
-            long last = 0;
-            for (var tier : tiers) {
-                long cap = profile.getInvestmentCap(tier, stat);
-                if (!tier.grantsPower()) {
-                    if (cap != 0) throw new IllegalArgumentException("Non-powered tier grants Bonus investment for " + stat.id());
-                } else {
-                    if (cap <= last || cap > Long.MAX_VALUE / 10000) throw new IllegalArgumentException("Invalid generated investment curve " + stat.id());
-                    last = cap;
-                }
+            var track=Objects.requireNonNull(profile.bonusTrack(stat.id()), "Missing resolved Bonus " + stat.id());
+            if (!track.statId().equals(stat.id()) || track.category()!=stat.category() || track.unit()!=stat.unit()
+                    || track.maximumEffect()!=max || !track.checkpoints().stream().map(BonusTrackDefinition.Checkpoint::tierId).toList()
+                            .equals(tiers.stream().map(t->t.id()).toList()))
+                throw new IllegalArgumentException("Inconsistent resolved Bonus identity/maximum/topology " + stat.id());
+            for(var tier:tiers) {
+                var point=track.checkpoint(tier.id());
+                if (!tier.grantsPower() && (point.cumulativeCap()!=0 || point.effectFraction()!=0 || point.available()))
+                    throw new IllegalArgumentException("Non-powered tier grants Bonus " + stat.id());
+                if(!Objects.equals(profile.statOverrides().getOrDefault(stat.id(),Map.of()).get(tier.id()),point.cumulativeCap()))
+                    throw new IllegalArgumentException("Bonus cap mirror differs from authoritative checkpoint " + stat.id());
             }
         }
-        if (!config.statMaxBonuses().keySet().equals(statIds) || !profile.statOverrides().keySet().equals(statIds))
+        if (!config.statMaxBonuses().keySet().equals(statIds) || !profile.statOverrides().keySet().equals(statIds)
+                || !profile.bonusTracks().keySet().equals(statIds))
             throw new IllegalArgumentException("Generated stat identifiers are incomplete or obsolete; rebuild profile");
         if (config.maxActivePylons() > 8 || config.pylonRadius() > 32)
             throw new IllegalArgumentException("Generated pylon scan exceeds supported capacity/radius");
@@ -240,7 +243,7 @@ public final class RuntimeBalanceDefinition {
         Wire wire = new Wire(config.configVersion(), config.pylonRadius(), config.maxActivePylons(),
                 config.infuserBalance(), config.shieldBalance(), config.skillEffects(),
                 new WorldgenWire(worldgen.overworld(), worldgen.nether(), worldgen.end(), worldgen.customDimensions()),
-                new ProfileWire(profile.id(), profile.displayName(), profile.defaultTierCaps(), profile.statOverrides(), profile.tierFractions(), profile.investmentExponent()),
+                new ProfileWire(profile.id(), profile.displayName(), profile.defaultTierCaps(), profile.statOverrides(), profile.tierFractions(), profile.investmentExponent(), profile.bonusTracks()),
                 config.milestones(), config.advancements(), config.statMaxBonuses(), config.equipmentBaselineConfig().tierBaselines(),
                 crucible, pylons, skillCurves, composition, attunement);
         return JSON.toJsonTree(wire).getAsJsonObject();
@@ -251,7 +254,7 @@ public final class RuntimeBalanceDefinition {
         Objects.requireNonNull(wire, "Missing runtime profile");
         ProfileWire p = Objects.requireNonNull(wire.balanceProfile);
         WorldgenWire w = Objects.requireNonNull(wire.worldgen);
-        var profile = new BalanceProfileDefinition(p.id, p.displayName, p.defaultTierCaps, p.statOverrides, p.tierFractions, p.investmentExponent);
+        var profile = new BalanceProfileDefinition(p.id, p.displayName, p.defaultTierCaps, p.statOverrides, p.tierFractions, p.investmentExponent, Objects.requireNonNull(p.bonusTracks, "Missing resolved Bonus tracks; explicitly rebuild generated balance"));
         var config = new EssenceServerConfig(wire.configVersion, wire.pylonRadius, wire.maxActivePylons,
                 wire.infuser, wire.shield, wire.effects, new LatentOreWorldgenSettings(w.overworld,w.nether,w.end,w.customDimensions),
                 profile, wire.milestones, wire.advancements, wire.statMaxBonuses, new EquipmentBaselineConfig(wire.equipment));
@@ -267,7 +270,8 @@ public final class RuntimeBalanceDefinition {
             EssenceCrucibleStructureStats crucible, Map<String,EssencePylonContribution> pylons,
             Map<String,SkillBalanceRuntime.ResolvedSkill> skillCurves, Map<String,Double> composition, AttunementProfile attunement) {}
     private record ProfileWire(ResourceLocation id, String displayName, Map<ResourceLocation,Long> defaultTierCaps,
-            Map<ResourceLocation,Map<ResourceLocation,Long>> statOverrides, Map<ResourceLocation,Double> tierFractions, double investmentExponent) {}
+            Map<ResourceLocation,Map<ResourceLocation,Long>> statOverrides, Map<ResourceLocation,Double> tierFractions, double investmentExponent,
+            Map<ResourceLocation,BonusTrackDefinition> bonusTracks) {}
     private record WorldgenWire(LatentOreWorldgenSettings.DimensionSettings overworld, LatentOreWorldgenSettings.DimensionSettings nether,
             LatentOreWorldgenSettings.DimensionSettings end, Map<String,LatentOreWorldgenSettings.CustomDimensionSettings> customDimensions) {}
     private static final class IdAdapter implements JsonSerializer<ResourceLocation>, JsonDeserializer<ResourceLocation> {

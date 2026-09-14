@@ -41,7 +41,15 @@ schema_version = 1
 # "unknown" is retained when omitted and does not set routine/boss damage budgets.
 # Flags (true/false): attainable, disabled, creative_only, administrative, joke,
 # quest_gated, include_reference, renewable, passive_generation, flight,
-# vein_mining, area_mining.
+# flying_speed_compatible, vein_mining, area_mining.
+# Flight Speed requires both flight=true and flying_speed_compatible=true for
+# the same reachable source. The second flag asserts a verified response to
+# Abilities#flyingSpeed, not Elytra velocity. Names and GLIDING are not evidence.
+# Set the actual acquisition stage, confidence and a factual implementation reason.
+# Providers use separate axis.FLIGHT and axis.ABILITIES_FLYING_SPEED claims.
+# Bonuses resolve permanent catalog access from this environment evidence, never
+# from a player's current inventory. See reports/bonus_tracks.csv and
+# diagnostics/bonus_tracks.json for compatibility decisions and fallbacks.
 # Nonnegative numbers: resource_value, throughput, health, armor, damage,
 # attack_speed, toughness, mining_speed, harvest_level, durability, enchantability,
 # startup_cost, marginal_cost, parallelizability, processing_time, output_count.

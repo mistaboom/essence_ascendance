@@ -4,6 +4,9 @@ import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
+import com.mistaboom.essence_ascendance.balance.BalanceProfileDefinition;
+import com.mistaboom.essence_ascendance.balance.runtime.BonusTrackDefinition;
+import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.Objects;
@@ -11,6 +14,20 @@ import java.util.Objects;
 public final class TierInvestmentPolicy {
 
     private TierInvestmentPolicy() {
+    }
+
+    /** Complete target validation; unchanged and reduced over-cap storage retain the existing demotion policy. */
+    public static boolean validTarget(StatDefinition stat, AscendanceTierDefinition tier,
+                                      BalanceProfileDefinition profile, long current, long target) {
+        if (current < 0 || target < 0) return false;
+        long cap = profile.getInvestmentCap(tier, stat);
+        if (cap < 0) throw new IllegalStateException("Negative Bonus cap for " + stat.id());
+        if (target > cap) return target <= current;
+        if (target == current) return true;
+        BonusTrackDefinition resolved = profile.bonusTrack(stat.id());
+        if (resolved == null || resolved.purchaseStyle() == BonusTrackDefinition.PurchaseStyle.CONTINUOUS) return true;
+        return BonusTrackCurve.isSnapInvestment(resolved.checkpoints(), resolved.investmentExponent(),
+                resolved.snapPoints(), target, tier.id());
     }
 
 

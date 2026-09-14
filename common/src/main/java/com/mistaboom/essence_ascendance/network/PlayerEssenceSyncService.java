@@ -288,7 +288,8 @@ public final class PlayerEssenceSyncService {
                             scaling.progression(),
                             scaling.currentTierMaximumBonus(),
                             scaling.transcendentMaximumBonus(),
-                            scaling.scaledBonus()
+                            scaling.scaledBonus(),
+                            BonusTrackSnapshot.from(config.balanceProfile().bonusTrack(stat.id()), config.balanceProfile())
                     )
             );
         }

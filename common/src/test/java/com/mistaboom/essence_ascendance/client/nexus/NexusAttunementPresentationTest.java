@@ -44,8 +44,39 @@ public final class NexusAttunementPresentationTest {
         check(handoff.ready(true, 8, "awakened"), "Confirmed and synchronized Ascension closes and animates");
         handoff.begin("awakened");
         check(!handoff.ready(true, 9, "resonant"), "Previous acknowledgement cannot authorize next chapter");
+        actionPriority();
         navigation();
         System.out.println("NexusAttunementPresentationTest: " + checks + " checks PASS");
+    }
+    private static void actionPriority() {
+        var available = com.mistaboom.essence_ascendance.network.PlayerEssenceSyncPayload.ProgressStatus.AVAILABLE;
+        var maxTier = com.mistaboom.essence_ascendance.network.PlayerEssenceSyncPayload.ProgressStatus.MAX_TIER;
+        var configurationError = com.mistaboom.essence_ascendance.network.PlayerEssenceSyncPayload.ProgressStatus.CONFIGURATION_ERROR;
+
+        var apply = NexusAscendanceAction.resolve(available, false, true, false, false);
+        check(apply.kind() == NexusAscendanceAction.Kind.APPLY_CHANGES && apply.enabled(),
+                "A valid draft is applied without requiring or attempting Ascension");
+        check(NexusAscendanceAction.resolve(available, true, true, false, false).kind()
+                        == NexusAscendanceAction.Kind.APPLY_CHANGES,
+                "Pending changes take priority even when Ascension is ready");
+        var incomplete = NexusAscendanceAction.resolve(available, false, false, false, false);
+        check(incomplete.kind() == NexusAscendanceAction.Kind.ASCEND && !incomplete.enabled(),
+                "Ascend remains disabled while requirements are incomplete and no draft exists");
+        var ascend = NexusAscendanceAction.resolve(available, true, false, false, false);
+        check(ascend.kind() == NexusAscendanceAction.Kind.ASCEND && ascend.enabled(),
+                "Ascend becomes available only for a clean draft with completed requirements");
+        check(NexusAscendanceAction.resolve(maxTier, true, false, false, false).kind()
+                        == NexusAscendanceAction.Kind.MAXIMUM_TIER,
+                "Maximum tier replaces the Ascend action");
+        check(NexusAscendanceAction.resolve(configurationError, true, false, false, false).kind()
+                        == NexusAscendanceAction.Kind.UNAVAILABLE,
+                "Configuration errors cannot expose Ascend");
+        check(NexusAscendanceAction.resolve(available, true, true, true, false).kind()
+                        == NexusAscendanceAction.Kind.DISCARD_DRAFT,
+                "An invalidated draft offers its safe discard recovery");
+        var applying = NexusAscendanceAction.resolve(available, true, true, false, true);
+        check(applying.kind() == NexusAscendanceAction.Kind.APPLYING && !applying.enabled(),
+                "A pending server request disables the shared action");
     }
     private static void navigation() {
         var firstPlayer = new java.util.UUID(4, 1);

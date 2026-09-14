@@ -52,6 +52,7 @@ public final class GeneratedBalanceIntegrationTest {
         check(document.text().equals(decoded.document().text()), "Complete document bytes changed on parse/decode");
         verifyWholeAccounting(document);
         check(runtime.toJson().equals(decoded.runtime().toJson()), "Resolved runtime changed across the document codec");
+        verifyGeneratedBonusViews(decoded.runtime());
         check(BalanceDocument.GSON.toJsonTree(economy).equals(BalanceDocument.GSON.toJsonTree(decoded.economy())),
                 "Economic values, fractional yields or processing policy changed on decode");
         check(evidence.equals(decoded.evidence()), "Typed evidence or provenance changed on decode");
@@ -78,6 +79,16 @@ public final class GeneratedBalanceIntegrationTest {
         reject(document, root -> root.remove("runtime"), "Missing runtime section was accepted");
         reject(document, root -> root.getAsJsonObject("runtime").remove("configVersion"), "Missing runtime schema field was accepted");
         reject(document, root -> root.getAsJsonObject("runtime").remove("attunement"), "Old runtime silently installed new Attunement policy without rebuild");
+        reject(document, root -> root.getAsJsonObject("runtime").getAsJsonObject("balanceProfile").remove("bonusTracks"), "Old runtime silently installed resolved Bonus tracks without rebuild");
+        reject(document, root -> root.getAsJsonObject("metadata").addProperty("generatorRevision", "obsolete"), "Obsolete generator revision did not require an explicit rebuild");
+        reject(document, root -> bonusTrack(root, EssenceStats.MOVEMENT_SPEED.id().toString())
+                .getAsJsonArray("checkpoints").get(1).getAsJsonObject().addProperty("segmentCost", 0),
+                "Inconsistent Bonus segment cost escaped full-document validation");
+        reject(document, root -> bonusTrack(root, EssenceStats.STEP_HEIGHT.id().toString())
+                .addProperty("purchaseStyle", "THRESHOLD"), "An explicitly threshold-only track without snap endpoints was accepted");
+        reject(document, root -> bonusTrack(root, EssenceStats.STEP_HEIGHT.id().toString())
+                .addProperty("completionTier", AscendanceTiers.TRANSCENDENT.id().toString()),
+                "Declared completion tier disagreed with resolved checkpoints");
         reject(document, root -> root.getAsJsonObject("runtime").addProperty("unregisteredRuntimeField", 1), "Unknown runtime field was accepted");
         reject(document, root -> root.getAsJsonObject("runtime").getAsJsonObject("statMaxBonuses")
                 .remove(EssenceStats.MELEE_DAMAGE.id().toString()), "Missing registered stat value was accepted");
@@ -385,6 +396,7 @@ public final class GeneratedBalanceIntegrationTest {
     private static BalanceDocument document(PackEvidence evidence, EconomyProfile economy, RuntimeBalanceDefinition runtime,
                                              BalanceSettings settings, BalanceOverrides overrides) throws Exception {
         JsonObject metadata = new JsonObject();
+        metadata.addProperty("generatorRevision", GeneratedBalanceService.GENERATION_REVISION);
         PackFingerprint environment = new PackFingerprint(BalanceDocument.hash("integration-fixture"),
                 Map.of("minecraft", "1.21.1", "essence_ascendance", "integration-fixture"), "1.21.1", "bootstrap_test",
                 List.of("vanilla"), BalanceDocument.hash("registered-items"), BalanceDocument.hash("synthetic-recipes"), BalanceDocument.hash("synthetic-tags"));
@@ -396,6 +408,7 @@ public final class GeneratedBalanceIntegrationTest {
         JsonObject validation = new JsonObject();
         validation.addProperty("runtime", "passed"); validation.addProperty("economy", "passed");
         validation.addProperty("serialization", "passed"); validation.addProperty("liveGameplay", "not performed by integration test");
+        validation.add("bonusTracks", com.mistaboom.essence_ascendance.balance.runtime.BonusTrackGenerator.diagnostics(runtime));
         JsonObject document = new JsonObject();
         document.add("metadata", metadata);
         document.add("settings", BalanceDocument.GSON.toJsonTree(settings));
@@ -416,6 +429,41 @@ public final class GeneratedBalanceIntegrationTest {
         try { GeneratedBalanceService.decode(BalanceDocument.seal(changed)); }
         catch (RuntimeException expected) { checks++; return; }
         throw new AssertionError(failure);
+    }
+
+    private static JsonObject bonusTrack(JsonObject root, String statId) {
+        return root.getAsJsonObject("runtime").getAsJsonObject("balanceProfile")
+                .getAsJsonObject("bonusTracks").getAsJsonObject(statId);
+    }
+
+    private static void verifyGeneratedBonusViews(RuntimeBalanceDefinition runtime) {
+        var profile = runtime.config().balanceProfile();
+        for (var track : profile.bonusTracks().values()) {
+            var view = com.mistaboom.essence_ascendance.network.BonusTrackSnapshot.from(track, profile);
+            check(view.checkpoints().equals(track.checkpoints()) && view.snapPoints().equals(track.snapPoints())
+                    && view.startTier().equals(track.startTier()) && view.completionTier().equals(track.completionTier()),
+                    "Generated Bonus facts diverged in synchronized presentation");
+            check(track.purchaseStyle() == com.mistaboom.essence_ascendance.balance.runtime.BonusTrackDefinition.PurchaseStyle.CONTINUOUS
+                            && track.snapPoints().isEmpty(), "Generated Bonus has a nonuniform threshold purchase restriction");
+            var geometry = new com.mistaboom.essence_ascendance.client.nexus.NexusBonusTrackLayout(view, 30, 230);
+            for (int index = 0; index < track.checkpoints().size(); index++) {
+                var point = track.checkpoints().get(index);
+                check(Math.abs(view.tierPositions().get(index) - index / (double)(track.checkpoints().size() - 1)) < 1e-12,
+                        "Display tier guide spacing inherited nonlinear effect or investment growth");
+                if (point.purchasable()) check(geometry.yForEffect(point.effectFraction())
+                                == geometry.yForPosition(view.tierPositions().get(index)),
+                        "Generated independent effect checkpoint missed its synchronized tier guide");
+            }
+            if (track.applicability() == com.mistaboom.essence_ascendance.balance.runtime.BonusTrackDefinition.Applicability.AVAILABLE
+                    && track.completionTier().equals(AscendanceTiers.TRANSCENDENT.id())) {
+                var previous = track.checkpoint(AscendanceTiers.ASCENDANT.id());
+                var last = track.checkpoint(AscendanceTiers.TRANSCENDENT.id());
+                check(last.cumulativeCap() > previous.cumulativeCap() && last.segmentCost() > 0,
+                        "Generated long Bonus has no Transcendent investment segment");
+                check(geometry.yForEffect(1) == 30 && geometry.yForEffect(previous.effectFraction()) > 30,
+                        "Generated Transcendent effect segment cannot occupy the top of its rail");
+            }
+        }
     }
 
     private static void verifySavedEvidenceRegeneration(BalanceDocument original, BalanceSettings settings, BalanceOverrides overrides) throws Exception {
@@ -443,6 +491,7 @@ public final class GeneratedBalanceIntegrationTest {
         old.getAsJsonObject("runtime").getAsJsonObject("effects").getAsJsonObject("projectiles").remove("payload");
         old.getAsJsonObject("runtime").getAsJsonObject("effects").getAsJsonObject("projectiles").remove("control");
         old.getAsJsonObject("runtime").getAsJsonObject("effects").remove("guard");
+        old.getAsJsonObject("runtime").getAsJsonObject("balanceProfile").remove("bonusTracks");
         old.getAsJsonObject("metadata").addProperty("generatorRevision", "old-test-runtime");
         var evidenceSource = BalanceDocument.seal(old);
         try { GeneratedBalanceService.decode(evidenceSource); throw new AssertionError("Old projectile runtime silently migrated"); }
