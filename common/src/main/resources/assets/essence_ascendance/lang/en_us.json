@@ -1052,6 +1052,7 @@
   "command.essence_ascendance.debug.gameplay.posture": "Defensive Posture",
   "command.essence_ascendance.debug.gameplay.status": "Harmful Status Defense",
   "hud.essence_ascendance.posture.evasive": "DODGE %s%%",
+  "hud.essence_ascendance.posture.dodged": "DODGED!",
   "hud.essence_ascendance.posture.bulwark": "STILL, FRONTAL: %s%%",
   "hud.essence_ascendance.posture.adaptive": "NEXT SAME TYPE %s%%",
   "hud.essence_ascendance.status.cooldown": "COOLDOWN",

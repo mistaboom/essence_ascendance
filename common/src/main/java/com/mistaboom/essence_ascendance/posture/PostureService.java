@@ -21,6 +21,7 @@ import java.util.*;
 
 /** One transient authoritative posture per player lifecycle, never persisted and never fed by HUD retention. */
 public final class PostureService {
+    public static final int DODGE_FEEDBACK_TICKS = 40;
     private static final Map<ServerPlayer, State> STATES = new WeakHashMap<>();
     private static long nextLifecycle;
     private PostureService() { }
@@ -37,7 +38,12 @@ public final class PostureService {
     public record Snapshot(UUID player, int entityId, long lifecycle, String dimension, ResourceLocation selected, boolean effective,
                            double meter, double maximum, String reason, long tick, long expiresAt,
                            boolean movementIntent, double displacement, double turnDegrees, String movement,
-                           ThreatFacingResolver.Result threat, int stacks, String damageType, Incoming incoming) { }
+                           ThreatFacingResolver.Result threat, int stacks, String damageType, Incoming incoming,
+                           long dodgeFeedbackUntil) {
+        public boolean recentDodge() {
+            return dodgeFeedbackUntil > 0 && tick >= dodgeFeedbackUntil - DODGE_FEEDBACK_TICKS && tick < dodgeFeedbackUntil;
+        }
+    }
     private static final class State {
         final PostureMeter meter = new PostureMeter();
         final long lifecycle = ++nextLifecycle;
@@ -45,7 +51,7 @@ public final class PostureService {
         ResourceLocation selected;
         Vec3 lastPosition;
         float yaw, pitch;
-        long sampleTick = Long.MIN_VALUE, forcedUntil, lastTick = Long.MIN_VALUE;
+        long sampleTick = Long.MIN_VALUE, forcedUntil, lastTick = Long.MIN_VALUE, dodgeFeedbackUntil;
         double packetDistance, packetTurn, displacement, turn;
         boolean intent;
         String motion = "no_server_movement", pendingMotion = "no_server_movement", forceReason = "none";
@@ -89,16 +95,24 @@ public final class PostureService {
         boolean unknownMotion = actual > movement.stillExitDisplacement() && state.packetDistance < movement.minimumDisplacement();
         if (actual > movement.maximumDisplacement()) {
             state.meter.clear("teleport_or_discontinuity"); state.forcedUntil = context.now() + movement.forcedMotionQuietTicks();
+            state.dodgeFeedbackUntil = 0;
             state.pendingMotion = "teleport_or_discontinuity"; state.forceReason = state.pendingMotion;
         }
         state.intent = AttunementGameplay.movementIntent(player, movement.intentTimeoutTicks());
-        boolean forced = context.now() < state.forcedUntil || unknownMotion || player.hurtTime > 0;
+        // Taking damage drains Evasive, but a hurt animation is not evidence that Bulwark moved.
+        // In particular, full Bulwark may have rejected the hit's actual knockback without a shield.
+        boolean recoveringFromHit = state.meter.choice() == PostureMeter.Choice.EVASIVE && player.hurtTime > 0;
+        double displacement = Math.max(state.displacement, actual);
+        // A push/velocity request may be canceled or stopped by terrain. Bulwark tests actual
+        // stillness; only Evasive needs the quiet interval before trusting motion as intentional.
+        boolean forced = unknownMotion || recoveringFromHit || context.now() < state.forcedUntil
+                && (state.meter.choice() != PostureMeter.Choice.BULWARK || displacement > movement.stillExitDisplacement());
         boolean supported = movementMode(player);
-        state.motion = forced ? (context.now() < state.forcedUntil ? state.forceReason : player.hurtTime > 0 ? "recent_native_hit" : "uncorroborated_displacement")
+        state.motion = forced ? (context.now() < state.forcedUntil ? state.forceReason : recoveringFromHit ? "recent_native_hit" : "uncorroborated_displacement")
                 : !supported ? "unsupported_movement_mode" : state.pendingMotion;
         state.threat = state.meter.choice() == PostureMeter.Choice.BULWARK
                 ? ThreatFacingResolver.resolve(player, settings.bulwark()) : ThreatFacingResolver.Result.none("not_bulwark");
-        state.meter.tick(context.now(), Math.max(state.displacement, actual), state.turn,
+        state.meter.tick(context.now(), displacement, state.turn,
                 state.intent, forced, supported, state.threat.facing(), settings);
         state.lastTick = context.now(); state.lastPosition = player.position(); state.yaw = player.getYRot(); state.pitch = player.getXRot();
         state.packetDistance = 0; state.packetTurn = 0; state.pendingMotion = "no_server_movement";
@@ -110,6 +124,7 @@ public final class PostureService {
         if (!dimension.equals(player.level().dimension().location().toString())) { forget(player); return; }
         Vec3 delta = player.position().subtract(before); double distance = delta.length();
         if (!Double.isFinite(distance) || distance > movement.maximumDisplacement()) {
+            state.dodgeFeedbackUntil = 0;
             state.meter.clear("packet_discontinuity"); forced(player, "packet_discontinuity"); return;
         }
         state.packetDistance = Math.min(movement.maximumDisplacement() + 1, state.packetDistance + distance);
@@ -189,7 +204,7 @@ public final class PostureService {
         if (state != null) state.incoming = result; return result;
     }
     private static boolean stableNow(ServerPlayer player, State state, PostureBalanceSettings settings) {
-        return state.meter.still() && state.forcedUntil <= player.level().getGameTime() && movementMode(player)
+        return state.meter.still() && movementMode(player)
                 && player.position().distanceTo(state.lastPosition) <= settings.movement().stillExitDisplacement()
                 && state.packetDistance <= settings.movement().stillExitDisplacement()
                 && state.packetTurn <= settings.movement().turnExitDegrees()
@@ -217,6 +232,7 @@ public final class PostureService {
         state.incoming = new Incoming(event.event(),event.tick(),event.lifecycle(),event.damageType(),event.posture(),event.source(),event.eligible(),event.chance(),event.roll(),event.dodged(),
                 event.resistance(),event.requestedPrevention(),actual || nativeBlock ? Math.max(0,confirmed) : 0,accepted,event.knockback(),
                 event.dodged() ? "confirmed_dodge" : !accepted && !nativeBlock ? "native_rejected" : event.decision());
+        if (changed && event.dodged()) state.dodgeFeedbackUntil = context.now() + DODGE_FEEDBACK_TICKS;
         if (changed && (event.dodged() || state.meter.choice() == PostureMeter.Choice.ADAPTIVE))
             feedback(player);
     }
@@ -241,15 +257,16 @@ public final class PostureService {
     public static Snapshot snapshot(ServerPlayer player) {
         var context = SkillEffectRuntime.context(player); State state = state(context);
         if (state == null) return new Snapshot(player.getUUID(),player.getId(),0,player.level().dimension().location().toString(),null,false,0,1,"ineffective",context.now(),0,
-                false,0,0,"inactive",ThreatFacingResolver.Result.none("inactive"),0,"",Incoming.empty());
+                false,0,0,"inactive",ThreatFacingResolver.Result.none("inactive"),0,"",Incoming.empty(),0);
         return new Snapshot(player.getUUID(),player.getId(),state.lifecycle,state.dimension,state.selected,true,state.meter.meter(),1,state.meter.reason(),context.now(),state.meter.expiresAt(),
-                state.intent,state.displacement,state.turn,state.motion,state.threat,state.meter.stacks(),state.meter.damageType(),state.incoming);
+                state.intent,state.displacement,state.turn,state.motion,state.threat,state.meter.stacks(),state.meter.damageType(),state.incoming,state.dodgeFeedbackUntil);
     }
     public static List<String> diagnostics(ServerPlayer player) {
         Snapshot s=snapshot(player);
         return List.of("Posture: player="+s.player()+" entity="+s.entityId()+" lifecycle="+s.lifecycle()+" dimension="+s.dimension()+" selected="+s.selected()+" effective="+s.effective(),
                 "  meter="+s.meter()+"/"+s.maximum()+" reason="+s.reason()+" tick="+s.tick()+" expires="+s.expiresAt(),
-                "  HUD combatRemainingTicks="+CombatHudActivity.remainingTicks(player)+" windowTicks="+CombatHudActivity.WINDOW_TICKS+" (presentation only)",
+                "  HUD combatRemainingTicks="+CombatHudActivity.remainingTicks(player)+" windowTicks="+CombatHudActivity.WINDOW_TICKS
+                        +" dodgeFeedbackUntil="+s.dodgeFeedbackUntil()+" recentDodge="+s.recentDodge()+" (presentation only)",
                 "  intent="+s.movementIntent()+" displacement="+s.displacement()+" turn="+s.turnDegrees()+" movement="+s.movement(),
                 "  threat="+s.threat(), "  adaptation="+s.damageType()+" stacks="+s.stacks(), "  incoming="+s.incoming());
     }

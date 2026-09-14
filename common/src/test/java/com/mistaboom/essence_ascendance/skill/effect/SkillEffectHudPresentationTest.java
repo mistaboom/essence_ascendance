@@ -118,9 +118,9 @@ public final class SkillEffectHudPresentationTest {
     private static void postureCards() {
         var settings = com.mistaboom.essence_ascendance.config.PostureBalanceSettings.defaults();
         for (var id : List.of(SkillIds.EVASIVE_CURRENT, SkillIds.BULWARK_STANCE, SkillIds.ADAPTIVE_GUARD)) {
-            var active = PostureHandler.card(id, .5, 3, 200, settings, true);
-            var empty = PostureHandler.card(id, 0, 0, 0, settings, true);
-            var peaceful = PostureHandler.card(id, .5, 3, 200, settings, false);
+            var active = PostureHandler.card(id, .5, 3, 200, settings, true, false);
+            var empty = PostureHandler.card(id, 0, 0, 0, settings, true, false);
+            var peaceful = PostureHandler.card(id, .5, 3, 200, settings, false, false);
             check(peaceful.active() == id.equals(SkillIds.ADAPTIVE_GUARD),
                     "Only adaptation can display outside recent mob/player combat");
             check(active.id().equals(id) && active.sourceSkill().equals(id), "Posture identity uses shared card contract");
@@ -152,10 +152,22 @@ public final class SkillEffectHudPresentationTest {
                 check(display.visibleEntries(269).equals(List.of(active)) && display.visibleEntries(270).isEmpty(),
                         "Combat expiry uses the shared close delay without extending combat");
             } else {
-                var firstHit = PostureHandler.card(id, 0, 1, 300, settings, false);
+                var firstHit = PostureHandler.card(id, 0, 1, 300, settings, false, false);
                 check(firstHit.active(), "The first adapting hit reveals the card even for environmental damage");
             }
         }
+        var dodged = PostureHandler.card(SkillIds.EVASIVE_CURRENT, 0, 0, 0, settings, true, true);
+        check(dodged.active() && dodged.badge().equals(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.posture.dodged")),
+                "Confirmed dodge visibly opens the card even when consuming the entire meter");
+        check(dodged.meter().equals(SkillEffectHudEntry.Meter.progress(0))
+                        && dodged.lines().equals(List.of(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.posture.evasive", "0.0"))),
+                "Dodge feedback preserves the actual remaining chance and grants no fake meter");
+        var depleted = PostureHandler.card(SkillIds.EVASIVE_CURRENT, 0, 0, 0, settings, true, false);
+        var dodgeDisplay = new SkillEffectHudPresentation();
+        dodgeDisplay.replace(List.of(dodged), 100);
+        dodgeDisplay.replace(List.of(depleted), 140);
+        check(dodgeDisplay.visibleEntries(199).equals(List.of(dodged)) && dodgeDisplay.visibleEntries(200).isEmpty(),
+                "A spent dodge uses ordinary closure after its short outcome indicator expires");
         check(com.mistaboom.essence_ascendance.status.StatusEffectHandlers.mirror() instanceof SkillEffectHudHandler,
                 "Mirror cooldown uses shared card handler");
         check(!(com.mistaboom.essence_ascendance.status.StatusEffectHandlers.pureState() instanceof SkillEffectHudHandler),

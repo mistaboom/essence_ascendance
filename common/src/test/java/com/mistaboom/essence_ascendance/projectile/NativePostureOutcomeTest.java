@@ -99,6 +99,10 @@ public final class NativePostureOutcomeTest {
         attacker.setPos(p.getX(),p.getY(),p.getZ()+2);
         check(PostureService.snapshot(p).meter()==1&&p.getDeltaMovement().y==0&&!PostureService.snapshot(p).movement().equals("server_velocity_acceleration"),
                 "Native ground contact cancelling downward gravity every tick permits Evasive charge from accepted motion evidence");
+        p.hurtTime=5; evasiveStep(f);
+        check(PostureService.snapshot(p).meter()<1&&PostureService.snapshot(p).movement().equals("recent_native_hit"),
+                "Evasive still rejects movement evidence during native hit recovery");
+        chargeEvasive(f);
         p.setDeltaMovement(new Vec3(0,.42,0));
         double beforeLift=PostureService.snapshot(p).meter();
         evasiveStep(f);
@@ -116,10 +120,17 @@ public final class NativePostureOutcomeTest {
         check(s.incoming().dodged()&&s.incoming().roll()==0&&rolls[0]==1,"Exactly one scoped deterministic native roll recorded: "+s.incoming()+" calls="+rolls[0]);
         check(!outcome.successfulBlock()&&!outcome.perfect()&&outcome.requestedReflection()==0&&outcome.wardExtension()==0,"Dodge cannot fabricate native block/perfect/reflection/Ward rewards");
         check(shield.getDamageValue()==durability&&p.getHealth()==20,"Dodge bypasses native shield durability and health write");
+        var dodgeHud=transmittedHud(f).entries().stream().filter(card->card.id().equals(SkillIds.EVASIVE_CURRENT)).findFirst().orElseThrow();
+        check(s.recentDodge()&&dodgeHud.active()&&dodgeHud.badge().equals(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.posture.dodged")),
+                "Confirmed native dodge reaches the real shared packet as an explicit DODGED badge");
         close(s.meter(),1-SkillEffectRuntime.resolvedSettings(p).posture().evasive().successDrainFraction(),"Native dodge drains once");
         long event=s.incoming().event();EquipmentDamageService.endDamage(p,source,true,false);
         check(PostureService.snapshot(p).incoming().event()==event,"Duplicate native completion cannot change dodge");
-        p.stopUsingItem();data.setLoadoutSelection(SkillGroups.DEFENSE_POSTURE,SkillIds.BULWARK_STANCE);SkillEffectRuntime.refresh(p);
+        p.stopUsingItem();p.setItemInHand(InteractionHand.OFF_HAND,ItemStack.EMPTY);p.setItemInHand(InteractionHand.MAIN_HAND,ItemStack.EMPTY);
+        data.setLoadoutSelection(SkillGroups.DEFENSE_POSTURE,SkillIds.BULWARK_STANCE);SkillEffectRuntime.refresh(p);
+        check(p.getMainHandItem().isEmpty()&&p.getOffhandItem().isEmpty()&&SkillEffectRuntime.context(p).isEffective(SkillIds.BULWARK_STANCE),
+                "Bulwark is effective with both hands empty and no shield equipped");
+        check(!PostureService.snapshot(p).recentDodge(),"Switching posture immediately clears previous dodge feedback");
         attacker.setPos(0,0,2);
         p.setPos(0,0,0);PostureService.forget(p);SkillEffectRuntime.refresh(p);p.setDeltaMovement(Vec3.ZERO);p.hurtTime=0;ProjectileNativeInterceptionTest.set(Entity.class,p,"onGround",true);
         var settings=SkillEffectRuntime.resolvedSettings(p).posture();
@@ -136,11 +147,62 @@ public final class NativePostureOutcomeTest {
         close(s.incoming().resistance(),settings.bulwark().maximumResistance(),"Full frontal meter applies generated resistance");
         check(outcome.attemptedKnockback().lengthSqr()>0&&outcome.acceptedKnockback().lengthSqr()==0,"Correlated actual native knockback attempt is fully rejected at threshold");
         check(s.incoming().knockback().contains("bulwark"),"Posture diagnostic retains exact correlated force decision");
+        check(p.hurtTime>0&&!outcome.successfulBlock()&&p.getHealth()<20,
+                "Unarmed Bulwark takes actual health damage and enters the native hurt animation without a shield block");
+        for(int tick=1;tick<=40;tick++) {
+            f.level.tick++;groundContact(f);PostureService.tick(SkillEffectRuntime.context(p));
+            close(PostureService.snapshot(p).meter(),1,"Standing unarmed Bulwark survives the hurt animation on tick "+tick);
+            if(p.hurtTime>0)p.hurtTime--;
+            if(tick%20==0) {
+                p.invulnerableTime=0;p.setHealth(20);check(p.hurt(source,4),"Repeated unblocked Bulwark hit is accepted");
+                close(PostureService.snapshot(p).incoming().resistance(),settings.bulwark().maximumResistance(),
+                        "Repeated frontal hits retain full Bulwark resistance without any shield");
+            }
+        }
+        var bulwarkHud=transmittedHud(f).entries().stream().filter(card->card.id().equals(SkillIds.BULWARK_STANCE)).findFirst().orElseThrow();
+        check(bulwarkHud.active()&&bulwarkHud.meter().equals(SkillEffectHudEntry.Meter.progress(1)),
+                "Unarmed Bulwark remains visible at full strength through repeated unblocked combat");
         p.setYRot(180);p.invulnerableTime=0;p.setHealth(20);p.hurt(source,4);
         check(PostureService.snapshot(p).incoming().resistance()==0,"Turning releases resistance immediately before next tick");
+        bulwarkHeldItemComparison(f,attacker);
         p.getAbilities().invulnerable=true;SkillEffectRuntime.refresh(p);check(!PostureService.snapshot(p).effective(),"Invalid defender lifecycle discards transient state");
         p.getAbilities().invulnerable=false;PostureService.forget(p);f.close();
         System.out.println("Native posture outcome checks passed: "+checks+" (actual transformed native damage/knockback; controlled movement/terrain, no world)");
+    }
+    private static void bulwarkHeldItemComparison(ProjectileNativeInterceptionTest.Fixture f, LivingEntity attacker) throws ReflectiveOperationException {
+        var p=f.player;var source=p.damageSources().playerAttack((net.minecraft.world.entity.player.Player)attacker);
+        var settings=SkillEffectRuntime.resolvedSettings(p).posture();
+        for(var held:List.of(ItemStack.EMPTY,new ItemStack(net.minecraft.world.item.Items.SHIELD),
+                new ItemStack(AscendanceItems.ASCENDANCE_SHIELD.get()))) {
+            p.stopUsingItem();p.setItemInHand(InteractionHand.MAIN_HAND,ItemStack.EMPTY);p.setItemInHand(InteractionHand.OFF_HAND,held);
+            p.setPos(0,0,0);attacker.setPos(0,0,2);p.setYRot(0);p.setXRot(0);p.hurtTime=0;p.setDeltaMovement(Vec3.ZERO);
+            ProjectileNativeInterceptionTest.set(Entity.class,p,"onGround",true);
+            PostureService.forget(p);SkillEffectRuntime.refresh(p);
+            com.mistaboom.essence_ascendance.skill.effect.CombatHudActivity.clear();
+            for(int tick=0;tick<settings.bulwark().buildTicks()+settings.movement().stableTicks();tick++) {
+                f.level.tick++;p.push(.05,0,0);
+                // Controlled blocked-translation boundary: actual native push/velocity hooks execute,
+                // then terrain cancels velocity without changing authoritative position.
+                groundContact(f);SkillEffectRuntime.tick(p);EquipmentShieldService.tick(p);
+            }
+            check(!p.isUsingItem()&&PostureService.snapshot(p).meter()==1,
+                    "Bulwark charges through stationary push attempts with a lowered held item: "+held);
+            var chargedHud=SkillEffectRuntime.hudSnapshot(p).entries().stream().filter(card->card.id().equals(SkillIds.BULWARK_STANCE)).findFirst().orElseThrow();
+            check(!chargedHud.active(),"Holding an item alone never creates combat or reveals the Bulwark card");
+            p.invulnerableTime=0;p.setHealth(20);check(p.hurt(source,4),"Unblocked native hit qualifies equally with a lowered held item: "+held);
+            close(PostureService.snapshot(p).incoming().resistance(),settings.bulwark().maximumResistance(),
+                    "Pending force with no displacement cannot invalidate incoming Bulwark protection");
+            f.level.tick++;groundContact(f);SkillEffectRuntime.tick(p);EquipmentShieldService.tick(p);
+            var combatHud=SkillEffectRuntime.hudSnapshot(p).entries().stream().filter(card->card.id().equals(SkillIds.BULWARK_STANCE)).findFirst().orElseThrow();
+            check(combatHud.active()&&combatHud.meter().fraction()==1&&!EquipmentDamageService.lastGuardOutcome(p).orElseThrow().successfulBlock(),
+                    "Empty hand, lowered vanilla shield and lowered Ascendance shield have identical active Bulwark cards");
+            Vec3 before=p.position();p.setPos(before.x+.1,before.y,before.z);
+            PostureService.moved(p,before,p.level().dimension().location().toString(),p.getYRot(),p.getXRot());
+            p.invulnerableTime=0;p.setHealth(20);p.hurt(source,4);
+            check(PostureService.snapshot(p).incoming().resistance()==0,
+                    "Actual displacement still releases Bulwark immediately, independent of the held item");
+        }
+        p.setItemInHand(InteractionHand.OFF_HAND,ItemStack.EMPTY);
     }
     private static void chargeEvasive(ProjectileNativeInterceptionTest.Fixture f) throws ReflectiveOperationException {
         var p=f.player;p.hurtTime=0;ProjectileNativeInterceptionTest.set(Entity.class,p,"onGround",true);p.setDeltaMovement(Vec3.ZERO);PostureService.forget(p);SkillEffectRuntime.refresh(p);

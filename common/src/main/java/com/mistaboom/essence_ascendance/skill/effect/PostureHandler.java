@@ -15,12 +15,12 @@ public record PostureHandler(ResourceLocation id) implements SkillEffectHudHandl
     @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
         var snapshot = PostureService.snapshot(context.player());
         return card(id, snapshot.meter(), snapshot.stacks(), snapshot.expiresAt(), context.settings().posture(),
-                CombatHudActivity.active(context.player()));
+                CombatHudActivity.active(context.player()), snapshot.recentDodge());
     }
 
     /** Shared card factories only; numerical presentation never feeds gameplay state. */
     static SkillEffectHudEntry card(ResourceLocation id, double meter, int stacks, long expiresAt,
-                                   PostureBalanceSettings settings, boolean inCombat) {
+                                   PostureBalanceSettings settings, boolean inCombat, boolean recentDodge) {
         if (id.equals(SkillIds.ADAPTIVE_GUARD)) {
             double resistance = stacks == 0 ? 0 : Math.max(0, Math.min(settings.adaptive().maximumStacks(), stacks + 1)
                     - settings.adaptive().minimumHits() + 1) * settings.adaptive().resistancePerStack();
@@ -30,9 +30,11 @@ public record PostureHandler(ResourceLocation id) implements SkillEffectHudHandl
                     "hud.essence_ascendance.guard.remaining", expiresAt);
         }
         boolean evasive = id.equals(SkillIds.EVASIVE_CURRENT);
+        boolean dodged = evasive && recentDodge;
         double maximum = evasive ? settings.evasive().maximumDodgeChance() : settings.bulwark().maximumResistance();
-        return SkillEffectHudCards.progress(id, inCombat && meter > 0, evasive ? 0xFF67CABB : 0xFF729ECC,
-                SkillEffectHudEntry.Text.translated("hud.essence_ascendance.percent", percent(meter)),
+        return SkillEffectHudCards.progress(id, dodged || inCombat && meter > 0, dodged ? 0xFF9AF0C2 : evasive ? 0xFF67CABB : 0xFF729ECC,
+                dodged ? SkillEffectHudEntry.Text.translated("hud.essence_ascendance.posture.dodged")
+                        : SkillEffectHudEntry.Text.translated("hud.essence_ascendance.percent", percent(meter)),
                 List.of(SkillEffectHudEntry.Text.translated(evasive ? "hud.essence_ascendance.posture.evasive"
                         : "hud.essence_ascendance.posture.bulwark", percent(meter * maximum))), meter);
     }

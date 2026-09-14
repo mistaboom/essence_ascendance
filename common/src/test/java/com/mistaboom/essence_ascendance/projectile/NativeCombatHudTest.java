@@ -125,6 +125,27 @@ public final class NativeCombatHudTest {
         check(!EquipmentDamageService.withPostureTestRoll(() -> 0, () -> p.hurt(source, 4)), "Actual native deterministic Evasive dodge causes no damage");
         check(CombatHudActivity.active(p) && !CombatHudActivity.active(other) && card(p, SkillIds.EVASIVE_CURRENT).active(),
                 "A confirmed native dodge reveals the defender's remaining meter without fabricating outgoing damage");
+        f.level.tick++;
+        check(!EquipmentDamageService.withPostureTestRoll(() -> 0, () -> p.hurt(source, 4))
+                        && PostureService.snapshot(p).meter() == 0,
+                "A second real dodge spends the final remaining meter");
+        var dodgeSnapshot = PostureService.snapshot(p);
+        check(card(p, SkillIds.EVASIVE_CURRENT).active()
+                        && card(p, SkillIds.EVASIVE_CURRENT).badge().equals(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.posture.dodged")),
+                "An empty-meter confirmed dodge still displays its outcome badge");
+        f.level.tick++;
+        PostureService.finish(p, dodgeSnapshot.incoming(), false, false, 0, 4);
+        check(PostureService.snapshot(p).dodgeFeedbackUntil() == dodgeSnapshot.dodgeFeedbackUntil(),
+                "Duplicate completion cannot extend the dodge indication");
+        p.hurt(source, 0);
+        check(!PostureService.snapshot(p).incoming().dodged() && PostureService.snapshot(p).recentDodge(),
+                "A subsequent rejected probe cannot overwrite the independently remembered confirmed dodge");
+        f.level.tick = dodgeSnapshot.dodgeFeedbackUntil() - 1;
+        check(card(p, SkillIds.EVASIVE_CURRENT).active(), "The confirmed dodge badge includes its last presentation tick");
+        f.level.tick++;
+        check(!PostureService.snapshot(p).recentDodge() && !card(p, SkillIds.EVASIVE_CURRENT).active()
+                        && PostureService.snapshot(p).meter() == 0,
+                "The two-second dodge indication expires without extending gameplay meter");
 
         CombatHudActivity.clear(); select(f, SkillIds.BULWARK_STANCE);
         p.setPos(0, 0, 0); other.setPos(0, 0, 2); p.setYRot(0); p.setXRot(0); ready(p);
