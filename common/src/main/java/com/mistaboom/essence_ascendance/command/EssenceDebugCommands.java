@@ -749,6 +749,9 @@ final class EssenceDebugCommands {
             EssenceCommandUtil.send(source, EssenceCommandUtil.line("Requested retaliation",
                     Float.toString(last.requestedRetaliationDamage()) + " (not the target's actual health loss)"));
         });
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section("Guard skills and confirmed outcomes"));
+        for (String line : com.mistaboom.essence_ascendance.guard.GuardDiagnostics.lines(player))
+            EssenceCommandUtil.send(source, EssenceCommandUtil.muted(line));
         return 1;
     }
 

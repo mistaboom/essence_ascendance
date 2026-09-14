@@ -39,7 +39,11 @@ public interface SkillEffectHandler {
     default double bowDrawSpeedMultiplier(SkillEffectRuntime.Context context) { return 1.0; }
     default double casterSpeedMultiplier(SkillEffectRuntime.Context context) { return 1.0; }
 
-    /** Called only while effective. Return default entries for grace, or omit for immediate hiding. */
+    /**
+     * Called only while effective. Prefer SkillEffectHudHandler for standard cards.
+     * Multi-card providers keep stable IDs and emit inactive entries after rewards
+     * end so the shared closing delay can run. Omission immediately removes a card.
+     */
     default List<SkillEffectHudEntry> hudEntries(SkillEffectRuntime.Context context) { return List.of(); }
 
     /** Called even when an implementation has already become ineffective. */

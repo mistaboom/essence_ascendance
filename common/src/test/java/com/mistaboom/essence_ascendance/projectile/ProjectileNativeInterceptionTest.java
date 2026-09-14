@@ -131,7 +131,7 @@ public final class ProjectileNativeInterceptionTest {
         }
     }
 
-    private static final class Fixture {
+    static final class Fixture {
         final DedicatedServer server;
         final MemoryLevel level;
         final EssenceSavedData saved = new EssenceSavedData();
@@ -140,6 +140,10 @@ public final class ProjectileNativeInterceptionTest {
         final ServerGamePacketListenerImpl listener;
 
         Fixture() throws ReflectiveOperationException {
+            this(ServerPlayer.class);
+        }
+
+        Fixture(Class<? extends ServerPlayer> playerClass) throws ReflectiveOperationException {
             server = instance(DedicatedServer.class);
             set(MinecraftServer.class, server, "serverThread", Thread.currentThread());
             set(MinecraftServer.class, server, "pvp", true);
@@ -156,8 +160,9 @@ public final class ProjectileNativeInterceptionTest {
             set(MinecraftServer.class, server, "levels", Map.of(Level.OVERWORLD, level));
             var list = instance(DedicatedPlayerList.class);
             set(PlayerList.class, list, "playersByUUID", players);
+            set(PlayerList.class, list, "players", new ArrayList<ServerPlayer>());
             set(MinecraftServer.class, server, "playerList", list);
-            player = player(Vec3.ZERO, "defender");
+            player = player(playerClass, Vec3.ZERO, "defender");
             PlayerEssenceData data = saved.getPlayerData(player.getUUID());
             data.setTier(AscendanceTiers.TRANSCENDENT);
             data.grantAllSkillsForAdmin(List.of(SkillRegistry.require(SkillIds.PROJECTILE_DRAG_FIELD), SkillRegistry.require(SkillIds.INTERCEPTOR)));
@@ -171,13 +176,20 @@ public final class ProjectileNativeInterceptionTest {
         }
 
         ServerPlayer player(Vec3 position, String name) throws ReflectiveOperationException {
-            ServerPlayer entity = instance(ServerPlayer.class);
+            return player(ServerPlayer.class, position, name);
+        }
+
+        <T extends ServerPlayer> T player(Class<T> playerClass, Vec3 position, String name) throws ReflectiveOperationException {
+            T entity = instance(playerClass);
             initializeEntity(entity, EntityType.PLAYER, level, position, new AABB(position.x - 0.3, position.y,
                     position.z - 0.3, position.x + 0.3, position.y + 1.8, position.z + 0.3));
             set(Entity.class, entity, "eyeHeight", 1.62F);
             set(ServerPlayer.class, entity, "server", server);
             set(Player.class, entity, "abilities", new Abilities());
             set(Player.class, entity, "inventory", new Inventory(entity));
+            set(Player.class, entity, "cooldowns", new net.minecraft.world.item.ItemCooldowns());
+            set(Player.class, entity, "foodData", new net.minecraft.world.food.FoodData());
+            set(LivingEntity.class, entity, "useItem", net.minecraft.world.item.ItemStack.EMPTY);
             set(Player.class, entity, "gameProfile", new GameProfile(entity.getUUID(), name));
             set(LivingEntity.class, entity, "attributes", new AttributeMap(Player.createAttributes().build()));
             set(LivingEntity.class, entity, "activeEffects", new HashMap<>());
@@ -186,6 +198,10 @@ public final class ProjectileNativeInterceptionTest {
             set(LivingEntity.class, entity, "swinging", true);
             set(LivingEntity.class, entity, "swingTime", 0);
             defineData(entity, Player.class);
+            entity.setHealth(entity.getMaxHealth());
+            set(LivingEntity.class, entity, "combatTracker", new net.minecraft.world.damagesource.CombatTracker(entity));
+            set(LivingEntity.class, entity, "lastClimbablePos", java.util.Optional.empty());
+            set(LivingEntity.class, entity, "walkAnimation", new net.minecraft.world.entity.WalkAnimationState());
             var gameMode = new ServerPlayerGameMode(entity);
             set(ServerPlayerGameMode.class, gameMode, "gameModeForPlayer", GameType.SURVIVAL);
             set(ServerPlayer.class, entity, "gameMode", gameMode);
@@ -230,12 +246,15 @@ public final class ProjectileNativeInterceptionTest {
     }
 
     /** A storage boundary only: every intercepted entity, native input method and gameplay decision stays real. */
-    private static final class MemoryLevel extends ServerLevel {
+    static final class MemoryLevel extends ServerLevel {
         List<Entity> entities;
         long tick;
         MinecraftServer memoryServer;
         DimensionDataStorage storage;
         ServerScoreboard scoreboard;
+        boolean occluded;
+        net.minecraft.core.RegistryAccess memoryRegistries;
+        net.minecraft.world.damagesource.DamageSources memoryDamageSources;
 
         private MemoryLevel() {
             super(null, null, null, null, Level.OVERWORLD, null, null, false, 0, List.of(), false, null);
@@ -246,8 +265,35 @@ public final class ProjectileNativeInterceptionTest {
         @Override public long getGameTime() { return tick; }
         @Override public DimensionDataStorage getDataStorage() { return storage; }
         @Override public ServerScoreboard getScoreboard() { return scoreboard; }
+        @Override public net.minecraft.world.Difficulty getDifficulty() { return net.minecraft.world.Difficulty.NORMAL; }
+        @Override public net.minecraft.world.level.GameRules getGameRules() { return new net.minecraft.world.level.GameRules(); }
+        @Override public net.minecraft.world.flag.FeatureFlagSet enabledFeatures() { return net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS; }
+        @Override public void broadcastEntityEvent(Entity entity, byte event) { }
+        @Override public void broadcastDamageEvent(Entity entity, net.minecraft.world.damagesource.DamageSource source) { }
+        @Override public net.minecraft.world.level.block.state.BlockState getBlockState(BlockPos position) {
+            return net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
+        }
+        @Override public net.minecraft.core.RegistryAccess registryAccess() {
+            return memoryRegistries == null ? super.registryAccess() : memoryRegistries;
+        }
+        @Override public net.minecraft.world.damagesource.DamageSources damageSources() {
+            return memoryDamageSources == null ? super.damageSources() : memoryDamageSources;
+        }
+        @Override public void gameEvent(Holder<net.minecraft.world.level.gameevent.GameEvent> event, Vec3 position,
+                                        net.minecraft.world.level.gameevent.GameEvent.Context context) { }
+        @Override public net.minecraft.world.level.border.WorldBorder getWorldBorder() {
+            return new net.minecraft.world.level.border.WorldBorder();
+        }
         @Override public Entity getEntity(int id) { return entities.stream().filter(entity -> entity.getId() == id).findFirst().orElse(null); }
         @Override public Entity getEntity(UUID id) { return entities.stream().filter(entity -> entity.getUUID().equals(id)).findFirst().orElse(null); }
+        @Override public net.minecraft.world.level.material.FluidState getFluidState(BlockPos position) {
+            return net.minecraft.world.level.block.Blocks.AIR.defaultBlockState().getFluidState();
+        }
+        @Override public boolean isInWorldBounds(BlockPos position) { return true; }
+        @Override public List<Entity> getEntities(Entity except, AABB box, Predicate<? super Entity> predicate) {
+            return entities.stream().filter(entity -> entity != except && !entity.isRemoved()
+                    && entity.getBoundingBox().intersects(box) && predicate.test(entity)).toList();
+        }
         @Override public <T extends Entity> List<T> getEntities(EntityTypeTest<Entity, T> type, AABB box, Predicate<? super T> predicate) {
             List<T> result = new ArrayList<>();
             for (Entity entity : entities) {
@@ -257,6 +303,8 @@ public final class ProjectileNativeInterceptionTest {
             return result;
         }
         @Override public BlockHitResult clip(ClipContext context) {
+            if (occluded) return new BlockHitResult(context.getFrom().lerp(context.getTo(), .5), Direction.NORTH,
+                    BlockPos.containing(context.getFrom().lerp(context.getTo(), .5)), false);
             return BlockHitResult.miss(context.getTo(), Direction.getNearest(context.getTo().subtract(context.getFrom())), BlockPos.containing(context.getTo()));
         }
         @Override public <T extends ParticleOptions> int sendParticles(T particle, double x, double y, double z, int count,
@@ -267,25 +315,28 @@ public final class ProjectileNativeInterceptionTest {
                 SoundSource source, float volume, float pitch, long seed) { }
     }
 
-    private static void initializeEntity(Entity entity, EntityType<?> type, Level level, Vec3 position, AABB bounds)
+    static void initializeEntity(Entity entity, EntityType<?> type, Level level, Vec3 position, AABB bounds)
             throws ReflectiveOperationException {
         set(Entity.class, entity, "level", level);
         set(Entity.class, entity, "type", type);
+        set(Entity.class, entity, "dimensions", type.getDimensions());
         set(Entity.class, entity, "uuid", UUID.randomUUID());
         set(Entity.class, entity, "stringUUID", entity.getUUID().toString());
         set(Entity.class, entity, "id", entity.getUUID().hashCode());
         set(Entity.class, entity, "position", position);
         set(Entity.class, entity, "blockPosition", BlockPos.containing(position));
+        set(Entity.class, entity, "chunkPosition", new net.minecraft.world.level.ChunkPos(BlockPos.containing(position)));
         set(Entity.class, entity, "bb", bounds);
         set(Entity.class, entity, "deltaMovement", Vec3.ZERO);
         set(Entity.class, entity, "passengers", ImmutableList.of());
         set(Entity.class, entity, "levelCallback", EntityInLevelCallback.NULL);
         set(Entity.class, entity, "random", RandomSource.create(0));
+        set(Entity.class, entity, "fluidHeight", new it.unimi.dsi.fastutil.objects.Object2DoubleOpenHashMap<>());
         entity.xo = position.x; entity.yo = position.y; entity.zo = position.z;
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
-    private static void defineData(Entity entity, Class<?> nativeClass) throws ReflectiveOperationException {
+    static void defineData(Entity entity, Class<?> nativeClass) throws ReflectiveOperationException {
         var builder = new SynchedEntityData.Builder(entity);
         var defaults = Map.<String, Object>of("DATA_SHARED_FLAGS_ID", (byte) 0, "DATA_AIR_SUPPLY_ID", 300,
                 "DATA_CUSTOM_NAME", Optional.empty(), "DATA_CUSTOM_NAME_VISIBLE", false, "DATA_SILENT", false,
@@ -299,10 +350,10 @@ public final class ProjectileNativeInterceptionTest {
         set(Entity.class, entity, "entityData", builder.build());
     }
 
-    private static <T> T instance(Class<T> type) throws ReflectiveOperationException {
+    static <T> T instance(Class<T> type) throws ReflectiveOperationException {
         return type.cast(allocate.invoke(allocator, type));
     }
-    private static void set(Class<?> owner, Object target, String name, Object value) throws ReflectiveOperationException {
+    static void set(Class<?> owner, Object target, String name, Object value) throws ReflectiveOperationException {
         var field = owner.getDeclaredField(name); field.setAccessible(true); field.set(target, value);
     }
     private static void check(boolean condition, String message) {

@@ -1,23 +1,19 @@
 package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.network.SkillEffectHudPayload;
-import com.mistaboom.essence_ascendance.skill.effect.EffectHudVisibility;
+import com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudPresentation;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudEntry;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudSnapshot;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.resources.ResourceLocation;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 /** Skill-agnostic presentation cache; server omissions hide disabled/suspended effects immediately. */
 public final class SkillEffectHudClientState {
-    private static final EffectHudVisibility<ResourceLocation> VISIBILITY = new EffectHudVisibility<>(60L);
-    private static final Map<ResourceLocation, SkillEffectHudEntry> DISPLAY_ENTRIES = new LinkedHashMap<>();
+    private static final SkillEffectHudPresentation PRESENTATION = new SkillEffectHudPresentation();
     private static SkillEffectHudSnapshot snapshot;
     private static LocalPlayer receiptPlayer;
     private static ClientLevel receiptLevel;
@@ -38,8 +34,7 @@ public final class SkillEffectHudClientState {
         receiptPlayer = null;
         receiptLevel = null;
         receiptTime = 0L;
-        VISIBILITY.clear();
-        DISPLAY_ENTRIES.clear();
+        PRESENTATION.clear();
     }
 
     public static List<SkillEffectHudEntry> visibleEntries() {
@@ -48,16 +43,24 @@ public final class SkillEffectHudClientState {
         if (snapshot == null || minecraft.player == null || minecraft.level == null
                 || !minecraft.player.isAlive()) return List.of();
         long now = minecraft.level.getGameTime();
-        return snapshot.entries().stream()
-                .filter(entry -> VISIBILITY.visible(entry.id(), now))
-                .map(entry -> DISPLAY_ENTRIES.getOrDefault(entry.id(), entry))
-                .toList();
+        return PRESENTATION.visibleEntries(now);
     }
 
     public static long estimatedServerGameTime() {
         Minecraft minecraft = Minecraft.getInstance();
         if (snapshot == null || receiptPlayer != minecraft.player || receiptLevel != minecraft.level) return 0L;
         return snapshot.serverGameTime() + Math.max(0L, receiptLevel.getGameTime() - receiptTime);
+    }
+
+    /** Typed presentation-only reach for native crosshair picking; server validates every attack again. */
+    public static double primaryMeleeBonusReach() {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (snapshot == null || minecraft.player != receiptPlayer || minecraft.level != receiptLevel
+                || minecraft.player == null || !minecraft.player.isAlive() || minecraft.player.isSpectator()
+                || estimatedServerGameTime() >= snapshot.primaryMeleeReachExpiresAt()) return 0;
+        boolean functional = com.mistaboom.essence_ascendance.equipment.EquipmentShieldService.canGuard(minecraft.player, minecraft.player.getMainHandItem())
+                || com.mistaboom.essence_ascendance.equipment.EquipmentShieldService.canGuard(minecraft.player, minecraft.player.getOffhandItem());
+        return functional ? snapshot.primaryMeleeBonusReach() : 0;
     }
 
     private static void accept(SkillEffectHudPayload payload) {
@@ -67,15 +70,7 @@ public final class SkillEffectHudClientState {
                 || !payload.snapshot().dimension().equals(minecraft.level.dimension().location())) return;
         if (receiptPlayer != minecraft.player || receiptLevel != minecraft.level) clear();
         long now = minecraft.level.getGameTime();
-        Map<ResourceLocation, Boolean> entries = new LinkedHashMap<>();
-        for (SkillEffectHudEntry entry : payload.snapshot().entries()) {
-            entries.put(entry.id(), entry.active());
-            if (entry.active() || !DISPLAY_ENTRIES.containsKey(entry.id())) {
-                DISPLAY_ENTRIES.put(entry.id(), entry);
-            }
-        }
-        DISPLAY_ENTRIES.keySet().retainAll(entries.keySet());
-        VISIBILITY.replace(entries, now);
+        PRESENTATION.replace(payload.snapshot().entries(), now);
         snapshot = payload.snapshot();
         receiptPlayer = minecraft.player;
         receiptLevel = minecraft.level;

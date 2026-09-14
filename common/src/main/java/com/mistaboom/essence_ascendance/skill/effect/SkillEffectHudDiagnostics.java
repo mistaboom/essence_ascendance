@@ -39,16 +39,16 @@ final class SkillEffectHudDiagnostics {
                 List.of(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.next_confirmed_attack")),
                 SkillEffectHudEntry.Meter.progress(1.0));
         SkillEffectHudSnapshot source = new SkillEffectHudSnapshot(100L, 12, dimension,
-                List.of(one, two, future, heat, chill, charge));
+                List.of(one, two, future, heat, chill, charge), .75, 180L);
         RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), RegistryAccess.EMPTY);
         try {
             SkillEffectHudPayload.CODEC.encode(buffer, new SkillEffectHudPayload(source));
             SkillEffectHudSnapshot decoded = SkillEffectHudPayload.CODEC.decode(buffer).snapshot();
             if (!source.equals(decoded) || buffer.isReadable()) failures.add("Generic HUD packet round-trip differs.");
-            if (!source.sameState(new SkillEffectHudSnapshot(101L, 12, dimension, source.entries()))) {
+            if (!source.sameState(new SkillEffectHudSnapshot(101L, 12, dimension, source.entries(), .75, 180L))) {
                 failures.add("HUD clock changes must not count as a content change.");
             }
-            if (source.sameState(new SkillEffectHudSnapshot(100L, 13, dimension, source.entries()))) {
+            if (source.sameState(new SkillEffectHudSnapshot(100L, 13, dimension, source.entries(), .75, 180L))) {
                 failures.add("HUD snapshots must distinguish player respawn identity.");
             }
         } catch (RuntimeException exception) {
@@ -57,7 +57,7 @@ final class SkillEffectHudDiagnostics {
             buffer.release();
         }
         try {
-            new SkillEffectHudSnapshot(100L, 12, dimension, List.of(one, one));
+            new SkillEffectHudSnapshot(100L, 12, dimension, List.of(one, one), 0, 0L);
             failures.add("HUD must reject duplicate card IDs.");
         } catch (IllegalArgumentException expected) { }
         try {

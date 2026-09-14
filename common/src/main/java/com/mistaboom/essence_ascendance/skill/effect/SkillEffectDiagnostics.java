@@ -57,7 +57,9 @@ final class SkillEffectDiagnostics {
                 SkillIds.FROSTBITE, SkillIds.SHATTER, SkillIds.STATIC_CHARGE, SkillIds.CHAIN_STRIKE,
                 SkillIds.HOMING_PROJECTILE, SkillIds.RICOCHET, SkillIds.PIERCING_PROJECTILE,
                 SkillIds.EXPLOSIVE_PAYLOAD, SkillIds.ROOTING_PAYLOAD, SkillIds.PROJECTILE_DRAG_FIELD,
-                SkillIds.INTERCEPTOR, SkillIds.TRAJECTORY_THEFT);
+                SkillIds.INTERCEPTOR, SkillIds.TRAJECTORY_THEFT, SkillIds.GUARDED_ADVANCE, SkillIds.SHIELD_RAM,
+                SkillIds.REFLEXIVE_WARD, SkillIds.STORED_FORCE, SkillIds.GUARD_AMPLIFIER, SkillIds.CROWD_REPRISAL,
+                SkillIds.RIPOSTE);
         List<SkillEffectHandler> actual = List.copyOf(SkillEffectRegistry.handlers());
         Set<ResourceLocation> seen = new HashSet<>();
         check(failures, SkillEffectRegistry.implementedIds().containsAll(expected),
@@ -198,6 +200,17 @@ final class SkillEffectDiagnostics {
                 () -> new SkillEffectBalanceSettings.StaticCharge(0, 0.25, 4, 0.5, 0.35, 0.6, 40, 0.5, 4));
         rejects(failures, "Chain Strike jump validation",
                 () -> new SkillEffectBalanceSettings.ChainStrike(101, 6, 0.75));
+        accepts(failures, "Guard profile validation", () -> EssenceConfigManager.skillEffects().guard().validate());
+        rejects(failures, "Guarded Advance finite movement validation",
+                () -> new com.mistaboom.essence_ascendance.config.GuardBalanceSettings.Mobility(Double.NaN, 1));
+        rejects(failures, "Shield Ram repeat guard cannot be shorter than stagger",
+                () -> new com.mistaboom.essence_ascendance.config.GuardBalanceSettings.Ram(.2, 2, 10, .3, .6, 3, 1));
+        rejects(failures, "Perfect guard timing remains short",
+                () -> new com.mistaboom.essence_ascendance.config.GuardBalanceSettings.PerfectGuard(11));
+        rejects(failures, "Guard Amplifier growth cannot exceed its maximum",
+                () -> new com.mistaboom.essence_ascendance.config.GuardBalanceSettings.Amplifier(2, 2, 120));
+        rejects(failures, "Riposte reach remains bounded",
+                () -> new com.mistaboom.essence_ascendance.config.GuardBalanceSettings.Riposte(100, 3, .35, 1));
     }
 
     private static void arithmetic(List<String> failures) {

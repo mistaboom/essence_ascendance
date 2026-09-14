@@ -1122,5 +1122,11 @@
   "command.essence_ascendance.balance.help.item": "explain item acquisition, sources, yield, and equipment evidence",
   "command.essence_ascendance.balance.help.bonus": "inspect generated Bonus limits by tier",
   "command.essence_ascendance.balance.help.skill": "inspect generated skill costs and rank scaling",
-  "command.essence_ascendance.balance.help.cost": "inspect one generated cost by document path"
+  "command.essence_ascendance.balance.help.cost": "inspect one generated cost by document path",
+  "hud.essence_ascendance.guard.amplifier": "REFLECT x%1$s",
+  "hud.essence_ascendance.guard.remaining": "REMAINING",
+  "hud.essence_ascendance.armed": "ARMED",
+  "hud.essence_ascendance.next_confirmed_melee": "NEXT CONFIRMED MELEE",
+  "hud.essence_ascendance.counterattack": "COUNTERATTACK",
+  "hud.essence_ascendance.damage_reach": "DMG x%1$s  REACH +%2$s"
 }

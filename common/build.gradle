@@ -30,6 +30,11 @@ loom {
 
 // Executable invariant suites use the real mapped Minecraft classpath and add no test library.
 def balanceInvariantMains = [
+        skillHudPresentationInvariants: 'com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudPresentationTest',
+        guardNativeHookShapeInvariants: 'com.mistaboom.essence_ascendance.skill.effect.GuardNativeHookShapeTest',
+        guardMovementInvariants: 'com.mistaboom.essence_ascendance.skill.effect.GuardMovementTest',
+        guardOutcomeInvariants: 'com.mistaboom.essence_ascendance.guard.GuardOutcomeTest',
+        guardCounterattackInvariants: 'com.mistaboom.essence_ascendance.skill.effect.GuardCounterattackTest',
         balanceConfigInvariants: 'com.mistaboom.essence_ascendance.balance.config.BalanceConfigTest',
         balanceDocumentInvariants: 'com.mistaboom.essence_ascendance.balance.generated.BalanceDocumentTest',
         balanceReportInvariants: 'com.mistaboom.essence_ascendance.balance.generated.BalanceReportsTest',
@@ -58,6 +63,7 @@ def balanceInvariantMains = [
         attunementAdapterInvariants: 'com.mistaboom.essence_ascendance.attunement.AttunementAdapterTest',
         projectileSkillBatchInvariants: 'com.mistaboom.essence_ascendance.skill.effect.ProjectileSkillBatchTest',
         balanceProjectileInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.ProjectileBalanceTest',
+        balanceGuardInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.GuardBalanceTest',
         projectilePayloadInvariants: 'com.mistaboom.essence_ascendance.projectile.ProjectilePayloadTest',
         projectileControlInvariants: 'com.mistaboom.essence_ascendance.projectile.ProjectileControlTest',
         balanceLifecycleInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.RuntimeLifecycleTest'

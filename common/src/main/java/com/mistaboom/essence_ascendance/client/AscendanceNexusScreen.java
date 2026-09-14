@@ -4,6 +4,7 @@ import com.mistaboom.essence_ascendance.client.nexus.NexusCategoryView;
 import com.mistaboom.essence_ascendance.client.nexus.NexusCategoryViewFactory;
 import com.mistaboom.essence_ascendance.client.nexus.NexusDraft;
 import com.mistaboom.essence_ascendance.client.nexus.NexusMode;
+import com.mistaboom.essence_ascendance.client.nexus.NexusNavigationState;
 import com.mistaboom.essence_ascendance.client.nexus.NexusProgressionTrack;
 import com.mistaboom.essence_ascendance.client.nexus.NexusSkillTreeLayout;
 import com.mistaboom.essence_ascendance.balance.BalanceProfileDefinition;
@@ -42,6 +43,7 @@ import net.minecraft.world.entity.player.Inventory;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -52,6 +54,7 @@ import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -146,6 +149,8 @@ public final class AscendanceNexusScreen
 
     private int draggingTrackIndex = -1;
     private NexusMode mode = NexusMode.ASCENDANCE;
+    private final UUID navigationPlayer;
+    private final Map<NexusMode, NexusNavigationState.Page> navigationPages = new EnumMap<>(NexusMode.class);
     private final NexusDraft draft = new NexusDraft();
     private final NexusAttunementView attunementView = new NexusAttunementView();
     private boolean acceptedAscension;
@@ -186,12 +191,44 @@ public final class AscendanceNexusScreen
         titleLabelY = 0;
         inventoryLabelX = 0;
         inventoryLabelY = 0;
+        navigationPlayer = playerInventory.player.getUUID();
+        NexusNavigationState.Snapshot remembered = NexusNavigationState.recall(navigationPlayer);
+        mode = remembered.mode();
+        navigationPages.putAll(remembered.pages());
+        restoreCategoryNavigation();
+        attunementView.restoreNavigation(remembered.attunement());
+        skillScrollX.putAll(remembered.skillScrollX());
+        skillScrollY.putAll(remembered.skillScrollY());
     }
 
     @Override
     protected void init() {
         super.init();
         draggingTrackIndex = -1;
+    }
+
+    @Override
+    public void removed() {
+        rememberCategoryNavigation();
+        NexusNavigationState.remember(navigationPlayer, new NexusNavigationState.Snapshot(mode, navigationPages,
+                attunementView.navigation(), skillScrollX, skillScrollY));
+        super.removed();
+    }
+
+    private void rememberCategoryNavigation() {
+        if (mode != NexusMode.ASCENDANCE) navigationPages.put(mode,
+                new NexusNavigationState.Page(selectedEssenceId, tabWindowStart, trackWindowStart));
+    }
+
+    private void restoreCategoryNavigation() {
+        var page = navigationPages.getOrDefault(mode, NexusNavigationState.Page.initial());
+        selectedEssenceId = page.category(); selectedCategoryIndex = 0;
+        tabWindowStart = page.tabWindow(); trackWindowStart = page.trackWindow();
+    }
+
+    private void changeMode(NexusMode requested) {
+        if (requested == mode) return;
+        rememberCategoryNavigation(); mode = requested; restoreCategoryNavigation();
     }
 
     @Override
@@ -218,9 +255,7 @@ public final class AscendanceNexusScreen
         List<NexusCategoryView> categories =
                 categories();
 
-        if (!modeAvailable(mode)) {
-            mode = NexusMode.ASCENDANCE;
-        }
+        changeMode(NexusNavigationState.availableMode(mode, ClientEssenceState.ready(), this::modeAvailable));
         renderModeSelector(
                 graphics,
                 mouseX,
@@ -4163,7 +4198,7 @@ public final class AscendanceNexusScreen
                 relativeX * NexusMode.values().length / Math.max(1, selectorWidth)
         );
         NexusMode requested = NexusMode.values()[selected];
-        if (modeAvailable(requested)) mode = requested;
+        if (modeAvailable(requested)) changeMode(requested);
         draggingTrackIndex = -1;
         panningSkills = false;
         return true;
@@ -5095,15 +5130,8 @@ public final class AscendanceNexusScreen
             return;
         }
 
-        if (selectedEssenceId != null) {
-            for (int i = 0; i < categories.size(); i++) {
-                if (categories.get(i).essence().id()
-                        .equals(selectedEssenceId)) {
-                    selectedCategoryIndex = i;
-                    break;
-                }
-            }
-        }
+        selectedCategoryIndex = NexusNavigationState.categoryIndex(selectedEssenceId,
+                categories.stream().map(category -> category.essence().id()).toList());
 
         selectedCategoryIndex =
                 Math.max(

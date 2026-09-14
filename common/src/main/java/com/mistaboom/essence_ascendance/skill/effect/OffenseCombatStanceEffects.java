@@ -3,8 +3,6 @@ package com.mistaboom.essence_ascendance.skill.effect;
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudEntry.Text;
-import com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudEntry.Meter;
-import java.util.Locale;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
@@ -41,10 +39,10 @@ final class OffenseCombatStanceEffects {
                 context.settings().frenzy().maxStacks(), percentPerStack);
     }
 
-    private static String decimal(double value) { return String.format(Locale.ROOT, "%.2f", value); }
+    private static String decimal(double value) { return SkillEffectHudCards.decimal(value); }
 
     private static Text stackBadge(int count, int maximum) {
-        return Text.translated("hud.essence_ascendance.stacks", Integer.toString(count), Integer.toString(maximum));
+        return SkillEffectHudCards.count(count, maximum);
     }
 
     private static double healthFraction(SkillEffectRuntime.Context context) {
@@ -66,7 +64,7 @@ final class OffenseCombatStanceEffects {
         context.discardState(SkillIds.ARMOR_CRACK);
     }
 
-    private static final class Frenzy implements SkillEffectHandler {
+    private static final class Frenzy implements SkillEffectHudHandler {
         @Override public ResourceLocation id() { return SkillIds.FRENZY; }
 
         @Override public double bowDrawSpeedMultiplier(SkillEffectRuntime.Context context) {
@@ -77,16 +75,16 @@ final class OffenseCombatStanceEffects {
             return bowDrawSpeedMultiplier(context);
         }
 
-        @Override public List<SkillEffectHudEntry> hudEntries(SkillEffectRuntime.Context context) {
+        @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
             TimedStackState state = context.existingState(id());
             int count = state == null ? 0 : state.count();
             var settings = context.settings().frenzy();
-            return List.of(SkillEffectHudEntry.skill(id(), count > 0, 0xFFE87929,
+            return SkillEffectHudCards.timed(id(), count > 0, 0xFFE87929,
                     stackBadge(count, settings.maxStacks()),
                     List.of(Text.translated("hud.essence_ascendance.damage_speed",
                             decimal(SkillEffectMath.stackMultiplier(count, settings.maxStacks(), settings.damageBonusPercentPerStack())),
                             decimal(frenzySpeed(context, settings.attackSpeedBonusPercentPerStack())))),
-                    Meter.timer("hud.essence_ascendance.chain", state == null ? 0L : state.nextExpiry())));
+                    "hud.essence_ascendance.chain", state == null ? 0L : state.nextExpiry());
         }
 
         @Override public void reconcile(SkillEffectRuntime.Context context) {
@@ -136,10 +134,10 @@ final class OffenseCombatStanceEffects {
         }
     }
 
-    private static final class ArmorCrack implements SkillEffectHandler {
+    private static final class ArmorCrack implements SkillEffectHudHandler {
         @Override public ResourceLocation id() { return SkillIds.ARMOR_CRACK; }
 
-        @Override public List<SkillEffectHudEntry> hudEntries(SkillEffectRuntime.Context context) {
+        @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
             CrackState state = context.existingState(id());
             int count = state == null ? 0 : state.stacks.count();
             var settings = context.settings().armorCrack();
@@ -152,9 +150,9 @@ final class OffenseCombatStanceEffects {
                 detail = Text.translated("hud.essence_ascendance.armor_reduction", name,
                         decimal(count * settings.armorReductionPerStack()));
             }
-            return List.of(SkillEffectHudEntry.skill(id(), count > 0, 0xFFF2C94C,
+            return SkillEffectHudCards.timed(id(), count > 0, 0xFFF2C94C,
                     stackBadge(count, settings.maxStacks()), List.of(detail),
-                    Meter.timer("hud.essence_ascendance.exposed", state == null ? 0L : state.stacks.nextExpiry())));
+                    "hud.essence_ascendance.exposed", state == null ? 0L : state.stacks.nextExpiry());
         }
 
         @Override public void reconcile(SkillEffectRuntime.Context context) {
@@ -215,17 +213,17 @@ final class OffenseCombatStanceEffects {
         }
     }
 
-    private static final class Desperation implements SkillEffectHandler {
+    private static final class Desperation implements SkillEffectHudHandler {
         @Override public ResourceLocation id() { return SkillIds.DESPERATION; }
 
-        @Override public List<SkillEffectHudEntry> hudEntries(SkillEffectRuntime.Context context) {
+        @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
             double missing = 1.0 - healthFraction(context);
             double multiplier = SkillEffectMath.desperationMultiplier(context.player().getHealth(),
                     context.player().getMaxHealth(), context.settings().desperation().maxDamageBonusPercent());
-            return List.of(SkillEffectHudEntry.skill(id(), multiplier > 1.000001, 0xFFEA4E4E,
+            return SkillEffectHudCards.progress(id(), multiplier > 1.000001, 0xFFEA4E4E,
                     Text.translated("hud.essence_ascendance.percent", Long.toString(Math.round(missing * 100.0))),
                     List.of(Text.translated("hud.essence_ascendance.damage", decimal(multiplier))),
-                    Meter.progress(missing)));
+                    missing);
         }
 
         @Override public double damageMultiplier(SkillEffectRuntime.Context context, LivingEntity target,
@@ -244,7 +242,7 @@ final class OffenseCombatStanceEffects {
         }
     }
 
-    private static final class DeathRush implements SkillEffectHandler {
+    private static final class DeathRush implements SkillEffectHudHandler {
         @Override public ResourceLocation id() { return SkillIds.DEATH_RUSH; }
 
         @Override public double bowDrawSpeedMultiplier(SkillEffectRuntime.Context context) {
@@ -255,16 +253,16 @@ final class OffenseCombatStanceEffects {
             return rushSpeed(context, context.settings().deathRush().castSpeedBonusPercentPerStack());
         }
 
-        @Override public List<SkillEffectHudEntry> hudEntries(SkillEffectRuntime.Context context) {
+        @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
             TimedStackState state = context.existingState(id());
             int count = state == null ? 0 : state.count();
             var settings = context.settings().deathRush();
-            return List.of(SkillEffectHudEntry.skill(id(), count > 0, 0xFFB17BFF,
+            return SkillEffectHudCards.timed(id(), count > 0, 0xFFB17BFF,
                     stackBadge(count, settings.maxStacks()),
                     List.of(Text.translated("hud.essence_ascendance.attack_bow_speed",
                             decimal(rushSpeed(context, settings.attackSpeedBonusPercentPerStack())),
                             decimal(bowDrawSpeedMultiplier(context)))),
-                    Meter.timer("hud.essence_ascendance.next_stack", state == null ? 0L : state.nextExpiry())));
+                    "hud.essence_ascendance.next_stack", state == null ? 0L : state.nextExpiry());
         }
 
         @Override public void reconcile(SkillEffectRuntime.Context context) {

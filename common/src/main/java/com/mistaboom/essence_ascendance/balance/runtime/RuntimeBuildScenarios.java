@@ -111,6 +111,7 @@ public final class RuntimeBuildScenarios {
                 "External equipment starts from the engine's raw player health; observed armor and toughness are applied once using the band's incoming enemy hit. Armor-adjusted frontier effective health is not treated as raw health.",
                 "Parity profiles normalize each original physical axis curve once at Transcendent, then round to its gameplay unit. Armor compares physically wearable armor/toughness pairs; weapon families retain their own winning damage/cadence pairing. When a caster family is absent, the observed ranged DPS supplies the existing faster, lighter caster ratio; absent ranged evidence falls back explicitly to melee.",
                 "Armor penetration uses an explicit conservative armor-pressure allowance. Homing reliability, roots, drag fields, interception, theft, shields, immunity, flight and gathering capabilities retain separate semantic budgets; no speculative prevented damage or Attunement activity is modeled.",
+                "Guard counters include one fully charged Stored Force and an armed Riposte in the melee-shield burst bound, respecting exclusive block-reward choices. Reflection, Crowd Reprisal and guard control retain their semantic axes because saved evidence supplies no confirmed block/reflection rate; these are not invented sustained damage or prevention events.",
                 "Equipment-focused and stat-focused scenarios are balance projections with required equipment access; actual applicability, ownership, live requirements and worn-slot coverage remain enforced by gameplay."));
     }
     static double equipmentValue(RuntimeBalanceDefinition runtime,double base,EquipmentProfileDefinition profile,EquipmentBaselineProperty property) {
@@ -144,7 +145,13 @@ public final class RuntimeBuildScenarios {
         if(active.contains(SkillIds.RICOCHET)) {double retained=s.projectiles().ricochetDamageMultiplier();for(int i=0;i<s.projectiles().ricochets();i++){area+=retained;retained*=s.projectiles().ricochetDamageMultiplier();}}
         if(active.contains(SkillIds.PIERCING_PROJECTILE)) {double retained=s.projectiles().piercingDamageMultiplier();for(int i=0;i<s.projectiles().penetrations();i++){area+=retained;retained*=s.projectiles().piercingDamageMultiplier();}}
         area += projectilePayloadArea(s, active);
+        if (family.equals("melee_shield")) burst += guardCounterBurst(s, active, hit) / hit;
         return new BuildComposition.Modifier(flat,damage,speed,burst,area,0,0,0,0,0,0,0);
+    }
+    static double guardCounterBurst(SkillEffectBalanceSettings s, Set<ResourceLocation> active, double hit) {
+        double bonus = active.contains(SkillIds.RIPOSTE) ? hit * s.guard().riposte().damageScale() : 0;
+        if (active.contains(SkillIds.STORED_FORCE)) bonus += s.guard().storedForce().capacity() * s.guard().storedForce().damageScale();
+        return bonus;
     }
     static double projectilePayloadArea(SkillEffectBalanceSettings s, Set<ResourceLocation> active) {
         double area = 0;

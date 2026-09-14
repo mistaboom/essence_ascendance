@@ -4,6 +4,7 @@
   "compatibilityLevel": "JAVA_21",
   "minVersion": "0.8",
   "client": [
+    "RiposteReachRendererMixin",
     "AttunementMovementInputMixin",
     "AnvilScreenCostMixin",
     "EnchantmentScreenCostMixin",
@@ -12,6 +13,14 @@
     "CasterUseInputMixin"
   ],
   "mixins": [
+    "ServerPlayerGuardDamageMixin",
+    "ExplosionGuardKnockbackMixin",
+    "GuardLifecycleMixin",
+    "GuardKnockbackMixin",
+    "GuardMovementEntityMixin",
+    "GuardMovementLivingEntityMixin",
+    "RiposteDisplacementMixin",
+    "RiposteReachConnectionMixin",
     "AttunementLivingMixin",
     "AttunementPlayerMixin",
     "AttunementFoodMixin",

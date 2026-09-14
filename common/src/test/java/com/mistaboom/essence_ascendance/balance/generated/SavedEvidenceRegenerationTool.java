@@ -38,7 +38,7 @@ public final class SavedEvidenceRegenerationTool {
                 || !first.document().section("economy").equals(original.section("economy")))
             throw new AssertionError("Offline runtime rebuild altered authoritative saved evidence/economy");
         if (!first.document().section("runtime").get("attunement").equals(original.section("runtime").get("attunement")))
-            throw new AssertionError("Projectile batch unexpectedly retuned Category Attunement");
+            throw new AssertionError("Skill batch unexpectedly retuned Category Attunement");
         if (!settingsBytes.equals(Files.readString(BalanceInputs.settingsPath(config)))
                 || !overridesBytes.equals(Files.readString(BalanceInputs.overridesPath(config))))
             throw new AssertionError("Human inputs changed during replay");

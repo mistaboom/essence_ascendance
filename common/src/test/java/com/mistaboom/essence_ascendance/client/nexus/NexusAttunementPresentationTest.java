@@ -44,7 +44,57 @@ public final class NexusAttunementPresentationTest {
         check(handoff.ready(true, 8, "awakened"), "Confirmed and synchronized Ascension closes and animates");
         handoff.begin("awakened");
         check(!handoff.ready(true, 9, "resonant"), "Previous acknowledgement cannot authorize next chapter");
+        navigation();
         System.out.println("NexusAttunementPresentationTest: " + checks + " checks PASS");
+    }
+    private static void navigation() {
+        var firstPlayer = new java.util.UUID(4, 1);
+        var otherPlayer = new java.util.UUID(4, 2);
+        var offense = net.minecraft.resources.ResourceLocation.parse("essence_ascendance:offense");
+        var defense = net.minecraft.resources.ResourceLocation.parse("essence_ascendance:defense");
+        check(NexusNavigationState.recall(firstPlayer).mode() == NexusMode.ASCENDANCE,
+                "An unseen player retains Ascendance as the initial default");
+        var pages = new java.util.EnumMap<NexusMode, NexusNavigationState.Page>(NexusMode.class);
+        pages.put(NexusMode.BONUSES, new NexusNavigationState.Page(offense, 1, 3));
+        pages.put(NexusMode.SKILLS, new NexusNavigationState.Page(defense, 2, 0));
+        var detail = new NexusNavigationState.Attunement(defense.toString(), 12, 1);
+        for (NexusMode mode : NexusMode.values()) {
+            var saved = new NexusNavigationState.Snapshot(mode, pages, detail,
+                    java.util.Map.of(defense, 45.0), java.util.Map.of(defense, 26.0));
+            NexusNavigationState.remember(firstPlayer, saved);
+            var reopened = NexusNavigationState.recall(firstPlayer);
+            check(reopened.equals(saved), "Every top-level mode reopens its complete navigation snapshot");
+            check(reopened.page(NexusMode.BONUSES).category().equals(offense)
+                    && reopened.page(NexusMode.SKILLS).category().equals(defense), "Bonuses and Skills retain independent category tabs");
+            check(reopened.page(NexusMode.BONUSES).trackWindow() == 3 && reopened.page(NexusMode.SKILLS).tabWindow() == 2,
+                    "Category/track paging survives reopening");
+            check(reopened.skillScrollX().get(defense) == 45 && reopened.skillScrollY().get(defense) == 26,
+                    "The selected skill-tree viewport survives reopening");
+            check(NexusNavigationState.availableMode(mode, false, candidate -> false) == mode,
+                    "Waiting for initial synchronization cannot erase the requested last screen");
+            check(NexusNavigationState.availableMode(mode, true, candidate -> candidate == NexusMode.ASCENDANCE) == NexusMode.ASCENDANCE,
+                    "Authoritatively locked modes fall back to Ascendance");
+            check(NexusNavigationState.availableMode(mode, true, candidate -> true) == mode,
+                    "Available remembered modes remain selected");
+        }
+        pages.clear();
+        check(NexusNavigationState.recall(firstPlayer).pages().size() == 2, "Saved navigation snapshots cannot be changed by a previous screen's mutable map");
+        check(NexusNavigationState.recall(otherPlayer).mode() == NexusMode.ASCENDANCE
+                && NexusNavigationState.recall(otherPlayer).pages().isEmpty(), "Another player cannot inherit prior navigation");
+        check(NexusNavigationState.categoryIndex(defense, java.util.List.of(offense, defense)) == 1
+                && NexusNavigationState.categoryIndex(defense, java.util.List.of(defense, offense)) == 0,
+                "Remembered tabs resolve registry identity after category reordering");
+        check(NexusNavigationState.categoryIndex(defense, java.util.List.of(offense)) == 0
+                && NexusNavigationState.categoryIndex(null, java.util.List.of(offense)) == 0,
+                "Removed/unset category falls back to the first available tab");
+        var view = new com.mistaboom.essence_ascendance.client.NexusAttunementView();
+        view.restoreNavigation(detail);
+        check(view.navigation().equals(detail), "Ascendance category detail and its scroll restore without rendering or gameplay state");
+        check(view.back() && view.navigation().category() == null && view.navigation().scroll() == 0,
+                "Returning to the constellation remembers the overview rather than reopening an old detail");
+        var recreated = new com.mistaboom.essence_ascendance.client.NexusAttunementView();
+        recreated.restoreNavigation(view.navigation());
+        check(recreated.navigation().category() == null, "Constellation overview remains the overview on recreation");
     }
     private static void check(boolean condition, String message) {
         checks++;

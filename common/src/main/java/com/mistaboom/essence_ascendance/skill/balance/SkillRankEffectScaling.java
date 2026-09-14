@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.skill.balance;
 
 import com.mistaboom.essence_ascendance.config.ProjectileBalanceSettings;
+import com.mistaboom.essence_ascendance.config.GuardBalanceSettings;
 import com.mistaboom.essence_ascendance.config.SkillEffectBalanceSettings;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import net.minecraft.resources.ResourceLocation;
@@ -108,6 +109,39 @@ public final class SkillRankEffectScaling {
                     v.swingHalfAngleDegrees(), v.readinessThreshold(), v.swingBudget(), scale(v.theftSpeedMultiplier(), f, 2),
                     v.theftTargetRange(), v.theftAimConeDegrees(), scale(v.theftTurnDegreesPerTick(), f, 45), v.redirectBudget()));
         });
+        register(SkillIds.GUARDED_ADVANCE, (p, f) -> p.mobility = new GuardBalanceSettings.Mobility(
+                retained(p.mobility.slowdownRemoval(), f), p.mobility.stepHeight()));
+        register(SkillIds.SHIELD_RAM, (p, f) -> {
+            var v = p.ram;
+            p.ram = new GuardBalanceSettings.Ram(v.minimumSpeed(), v.maximumSweep(), v.staggerTicks(),
+                    v.staggerMovementMultiplier(), scale(v.knockback(), f, 2), v.contactLimit(), v.repeatCooldownTicks());
+        });
+        register(SkillIds.REFLEXIVE_WARD, (p, f) -> {
+            var v = p.ward;
+            p.ward = new GuardBalanceSettings.Ward(scale(v.preventedReflectionScale(), f, 1),
+                    scale(v.knockbackEchoScale(), f, 2), v.knockbackEchoCap());
+        });
+        register(SkillIds.STORED_FORCE, (p, f) -> {
+            var v = p.storedForce;
+            p.storedForce = new GuardBalanceSettings.StoredForce(v.conversion(), v.capacity(), v.durationTicks(),
+                    scale(v.damageScale(), f, 4), v.knockbackScale());
+        });
+        register(SkillIds.GUARD_AMPLIFIER, (p, f) -> {
+            var v = p.amplifier;
+            double maximum = 1 + scale(v.maximumMultiplier() - 1, f, 3);
+            p.amplifier = new GuardBalanceSettings.Amplifier(scale(v.perBlockGrowth(), f, maximum - 1),
+                    maximum, v.durationTicks());
+        });
+        register(SkillIds.CROWD_REPRISAL, (p, f) -> {
+            var v = p.reprisal;
+            p.reprisal = new GuardBalanceSettings.Reprisal(v.radius(), scale(v.damageScale(), f, 1),
+                    v.maximumTargets(), v.particleCount());
+        });
+        register(SkillIds.RIPOSTE, (p, f) -> {
+            var v = p.riposte;
+            p.riposte = new GuardBalanceSettings.Riposte(v.durationTicks(), scale(v.bonusReach(), f, 2),
+                    scale(v.damageScale(), f, 4), v.protectionTicks());
+        });
     }
     private SkillRankEffectScaling() { }
 
@@ -169,14 +203,25 @@ public final class SkillRankEffectScaling {
         public SkillEffectBalanceSettings.StaticCharge staticCharge;
         public SkillEffectBalanceSettings.ChainStrike chainStrike;
         public ProjectileBalanceSettings projectiles;
+        public GuardBalanceSettings.Mobility mobility;
+        public GuardBalanceSettings.Ram ram;
+        public GuardBalanceSettings.Ward ward;
+        public GuardBalanceSettings.StoredForce storedForce;
+        public GuardBalanceSettings.Amplifier amplifier;
+        public GuardBalanceSettings.PerfectGuard perfectGuard;
+        public GuardBalanceSettings.Reprisal reprisal;
+        public GuardBalanceSettings.Riposte riposte;
         private Parameters(SkillEffectBalanceSettings v) {
             frenzy=v.frenzy(); armorCrack=v.armorCrack(); desperation=v.desperation(); deathRush=v.deathRush();
             kindling=v.kindling(); combustion=v.combustion(); frostbite=v.frostbite(); shatter=v.shatter();
             staticCharge=v.staticCharge(); chainStrike=v.chainStrike(); projectiles=v.projectiles();
+            mobility=v.guard().mobility(); ram=v.guard().ram(); ward=v.guard().ward(); storedForce=v.guard().storedForce();
+            amplifier=v.guard().amplifier(); perfectGuard=v.guard().perfectGuard(); reprisal=v.guard().reprisal(); riposte=v.guard().riposte();
         }
         private SkillEffectBalanceSettings build() {
             return new SkillEffectBalanceSettings(frenzy, armorCrack, desperation, deathRush, kindling,
-                    combustion, frostbite, shatter, staticCharge, chainStrike, projectiles);
+                    combustion, frostbite, shatter, staticCharge, chainStrike, projectiles,
+                    new GuardBalanceSettings(mobility, ram, ward, storedForce, amplifier, perfectGuard, reprisal, riposte));
         }
     }
 }

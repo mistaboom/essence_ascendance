@@ -21,12 +21,14 @@ public abstract class AttunementLivingMixin {
     @WrapMethod(method = "getDamageAfterArmorAbsorb")
     private float essenceAscendance$armorPrevention(DamageSource source, float amount, Operation<Float> original) {
         float remaining = original.call(source, amount);
+        com.mistaboom.essence_ascendance.equipment.EquipmentDamageService.recordGuardPrevention((LivingEntity)(Object)this, source, amount, remaining);
         AttunementGameplay.prevented((LivingEntity) (Object) this, source, amount, remaining);
         return remaining;
     }
     @WrapMethod(method = "getDamageAfterMagicAbsorb")
     private float essenceAscendance$magicPrevention(DamageSource source, float amount, Operation<Float> original) {
         float remaining = original.call(source, amount);
+        com.mistaboom.essence_ascendance.equipment.EquipmentDamageService.recordGuardPrevention((LivingEntity)(Object)this, source, amount, remaining);
         AttunementGameplay.prevented((LivingEntity) (Object) this, source, amount, remaining);
         return remaining;
     }

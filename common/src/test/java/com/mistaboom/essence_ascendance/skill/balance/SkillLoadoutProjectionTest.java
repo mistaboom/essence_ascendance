@@ -76,8 +76,13 @@ public final class SkillLoadoutProjectionTest {
         check(current.scenarios().stream().anyMatch(s -> s.activeRanks().containsKey(SkillIds.EXPLOSIVE_PAYLOAD)),
                 "Implemented payloads contribute to current-build demand");
         var currentDefense = project(category("defense"), ranks(category("defense"), 1), false);
-        check(currentDefense.scenarios().stream().noneMatch(s -> s.activeRanks().containsKey(SkillIds.GUARDED_ADVANCE)),
+        check(currentDefense.scenarios().stream().noneMatch(s -> s.activeRanks().containsKey(SkillIds.EVASIVE_CURRENT)),
                 "The next unimplemented defense branch stays excluded from current-build demand");
+        check(currentDefense.scenarios().stream().anyMatch(s -> s.activeRanks().containsKey(SkillIds.GUARDED_ADVANCE)),
+                "Implemented guard mobility participates in current-build demand");
+        for (var scenario : currentDefense.scenarios())
+            check(!(scenario.activeRanks().containsKey(SkillIds.STORED_FORCE) && scenario.activeRanks().containsKey(SkillIds.GUARD_AMPLIFIER)),
+                    "Current guard block rewards remain exclusive in generated projections");
         check(original.scenarios().stream().anyMatch(s -> s.activeRanks().containsKey(SkillIds.EXPLOSIVE_PAYLOAD)),
                 "Future catalog pressure can be projected without enabling effects");
     }

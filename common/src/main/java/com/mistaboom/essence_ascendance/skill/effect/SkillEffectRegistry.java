@@ -15,7 +15,10 @@ public final class SkillEffectRegistry {
     private static final Map<ResourceLocation, SkillEffectHandler> HANDLERS =
             validated(java.util.stream.Stream.of(OffenseCombatStanceEffects.handlers(),
                     OffenseElementalImbuementEffects.handlers(), OffenseProjectileEffects.handlers(),
-                    DefenseProjectileEffects.handlers())
+                    DefenseProjectileEffects.handlers(), com.mistaboom.essence_ascendance.guard.GuardReflectionEffects.handlers(),
+                    GuardCounterattackService.handlers(), java.util.List.<SkillEffectHandler>of(
+                            new GuardMobilityHandler(com.mistaboom.essence_ascendance.skill.SkillIds.GUARDED_ADVANCE),
+                            new GuardMobilityHandler(com.mistaboom.essence_ascendance.skill.SkillIds.SHIELD_RAM)))
                     .flatMap(Collection::stream).toList());
 
     private SkillEffectRegistry() { }

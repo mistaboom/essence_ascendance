@@ -43,7 +43,7 @@ final class OffenseElementalImbuementEffects {
         return ids.size();
     }
 
-    private static final class Kindling implements SkillEffectHandler {
+    private static final class Kindling implements SkillEffectHudHandler {
         private static final int BURN_PULSE_TICKS = 20;
 
         @Override public ResourceLocation id() { return SkillIds.KINDLING; }
@@ -100,7 +100,7 @@ final class OffenseElementalImbuementEffects {
                     : 1.0;
         }
 
-        @Override public List<SkillEffectHudEntry> hudEntries(SkillEffectRuntime.Context context) {
+        @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
             KindlingState state = context.existingState(id());
             var settings = context.settings().kindling();
             SourceOwnedBuildupState.Snapshot top = state == null ? null
@@ -118,8 +118,8 @@ final class OffenseElementalImbuementEffects {
             List<SkillEffectHudEntry.Text> lines = top == null
                     ? List.of(targets(burning))
                     : List.of(SkillEffectHudEntry.Text.literal(top.target().getName().getString()), targets(tracked));
-            return List.of(SkillEffectHudEntry.skill(id(), top != null || burning > 0, 0xFFFF6A2B,
-                    badge, lines, SkillEffectHudEntry.Meter.progress(fraction)));
+            return SkillEffectHudCards.progress(id(), top != null || burning > 0, 0xFFFF6A2B,
+                    badge, lines, fraction);
         }
 
         @Override public void targetRemoved(SkillEffectRuntime.Context context, Entity target) {
@@ -180,7 +180,7 @@ final class OffenseElementalImbuementEffects {
         }
     }
 
-    private static final class Frostbite implements SkillEffectHandler {
+    private static final class Frostbite implements SkillEffectHudHandler {
         @Override public ResourceLocation id() { return SkillIds.FROSTBITE; }
 
         @Override public void successfulAttack(SkillEffectRuntime.Context context, AttackResultContext result) {
@@ -217,7 +217,7 @@ final class OffenseElementalImbuementEffects {
             if (state.empty()) context.discardState(id());
         }
 
-        @Override public List<SkillEffectHudEntry> hudEntries(SkillEffectRuntime.Context context) {
+        @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
             FrostbiteState state = context.existingState(id());
             var settings = context.settings().frostbite();
             SourceOwnedBuildupState.Snapshot top = state == null ? null
@@ -235,8 +235,8 @@ final class OffenseElementalImbuementEffects {
             List<SkillEffectHudEntry.Text> lines = top == null
                     ? List.of(targets(frozen))
                     : List.of(SkillEffectHudEntry.Text.literal(top.target().getName().getString()), targets(tracked));
-            return List.of(SkillEffectHudEntry.skill(id(), top != null || frozen > 0, 0xFF72D9FF,
-                    badge, lines, SkillEffectHudEntry.Meter.progress(fraction)));
+            return SkillEffectHudCards.progress(id(), top != null || frozen > 0, 0xFF72D9FF,
+                    badge, lines, fraction);
         }
 
         @Override public void targetRemoved(SkillEffectRuntime.Context context, Entity target) {
@@ -282,7 +282,7 @@ final class OffenseElementalImbuementEffects {
         }
     }
 
-    private static final class StaticCharge implements SkillEffectHandler {
+    private static final class StaticCharge implements SkillEffectHudHandler {
         @Override public ResourceLocation id() { return SkillIds.STATIC_CHARGE; }
 
         @Override public void tick(SkillEffectRuntime.Context context) {
@@ -352,7 +352,7 @@ final class OffenseElementalImbuementEffects {
             }
         }
 
-        @Override public List<SkillEffectHudEntry> hudEntries(SkillEffectRuntime.Context context) {
+        @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
             StaticChargeState state = context.existingState(id());
             double maximum = context.settings().staticCharge().maximumCharge();
             double charge = state == null ? 0.0 : state.charge;
@@ -362,10 +362,10 @@ final class OffenseElementalImbuementEffects {
                     : SkillEffectHudEntry.Text.literal(decimal(charge) + "/" + decimal(maximum));
             boolean active = charge > 0.0001
                     || (state != null && state.dischargeVisible(context.now()));
-            return List.of(SkillEffectHudEntry.skill(id(), active, 0xFFFFE45C,
+            return SkillEffectHudCards.progress(id(), active, 0xFFFFE45C,
                     badge,
                     List.of(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.next_confirmed_attack")),
-                    SkillEffectHudEntry.Meter.progress(fraction)));
+                    fraction);
         }
 
         @Override public List<String> debugLines(SkillEffectRuntime.Context context) {

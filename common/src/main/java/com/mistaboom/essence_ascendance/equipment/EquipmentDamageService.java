@@ -6,6 +6,9 @@ import com.mistaboom.essence_ascendance.stat.EssenceStats;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import com.mistaboom.essence_ascendance.skill.effect.AttackCategory;
+import com.mistaboom.essence_ascendance.skill.effect.GuardCounterattackService;
+import com.mistaboom.essence_ascendance.guard.*;
+import com.mistaboom.essence_ascendance.skill.SkillIds;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.InteractionHand;
@@ -18,6 +21,7 @@ import net.minecraft.world.entity.projectile.Projectile;
 import com.mistaboom.essence_ascendance.projectile.MagicBoltEntity;
 import com.mistaboom.essence_ascendance.projectile.ProjectileRuntime;
 import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -56,6 +60,33 @@ public final class EquipmentDamageService {
 
     private static final ThreadLocal<Integer> REFLECTION_DEPTH =
             ThreadLocal.withInitial(() -> 0);
+    private static final ThreadLocal<MeasuredDamage> MEASURED_DAMAGE = new ThreadLocal<>();
+    private static final Map<ServerPlayer, GuardOutcome> LAST_GUARD = new WeakHashMap<>();
+    private static long nextGuardEvent;
+    private record ExplosionScope(Entity target, DamageSource source) { }
+    private record PendingExplosion(DamageSource source, GuardOutcome outcome, boolean wardEligible) { }
+    private static final ThreadLocal<ExplosionScope> EXPLOSION_HIT = new ThreadLocal<>();
+    private static final Map<ServerPlayer, PendingExplosion> EXPLOSION_IMPULSES = new WeakHashMap<>();
+
+    public record DamageResult(boolean accepted, double loss) { }
+    private static final class MeasuredDamage {
+        final LivingEntity target; final DamageSource source; double loss;
+        SkillDamageFrame frame;
+        SkillHealthSample sample;
+        MeasuredDamage(LivingEntity target, DamageSource source) { this.target = target; this.source = source; }
+    }
+    /** Exact health/absorption-write measurement excludes nested sources and Totem restoration. */
+    public static DamageResult measureDamage(LivingEntity target, DamageSource source, BooleanSupplier action) {
+        MeasuredDamage previous = MEASURED_DAMAGE.get(), measurement = new MeasuredDamage(target, source);
+        MEASURED_DAMAGE.set(measurement);
+        try { return new DamageResult(action.getAsBoolean(), measurement.loss); }
+        finally { if (previous == null) MEASURED_DAMAGE.remove(); else MEASURED_DAMAGE.set(previous); }
+    }
+    public static boolean withReflection(BooleanSupplier action) {
+        int previous = REFLECTION_DEPTH.get(); REFLECTION_DEPTH.set(previous + 1);
+        try { return action.getAsBoolean(); }
+        finally { if (previous == 0) REFLECTION_DEPTH.remove(); else REFLECTION_DEPTH.set(previous); }
+    }
 
     /* All scopes are server-thread-only, bounded to the native call and closed
      * in finally. No context or combat input is persisted on items/entities. */
@@ -126,6 +157,13 @@ public final class EquipmentDamageService {
         }
         Deque<SkillHealthSample> samples = SKILL_HEALTH_SAMPLES.get();
         SkillHealthSample sample = new SkillHealthSample(target, healthAndAbsorption(target));
+        MeasuredDamage measurement = MEASURED_DAMAGE.get();
+        // DamageSource instances may be reused by nested hits. Bind this request to
+        // its native call and exact health write, not just the source/target pair.
+        if (measurement != null && measurement.target == target && measurement.source == source
+                && measurement.sample == null
+                && (measurement.frame == null || measurement.frame == SKILL_DAMAGE_FRAMES.get().peek()))
+            measurement.sample = sample;
         double healthBefore = target.getHealth();
         samples.push(sample);
         boolean completed = false;
@@ -135,9 +173,11 @@ public final class EquipmentDamageService {
         } finally {
             samples.pop();
             double totalLoss = Math.max(0.0, sample.before - healthAndAbsorption(target));
+            double totalHealthLoss = Math.max(0, healthBefore - target.getHealth());
             for (SkillHealthSample parent : samples) {
                 if (parent.target == target) {
                     parent.nestedLoss += totalLoss;
+                    parent.nestedHealthLoss += totalHealthLoss;
                     break;
                 }
             }
@@ -145,8 +185,22 @@ public final class EquipmentDamageService {
             PrimarySkillHitProbe probe = PRIMARY_SKILL_HIT_PROBE.get();
             SkillDamageFrame frame = SKILL_DAMAGE_FRAMES.get().peek();
             double ownLoss = Math.max(0.0, totalLoss - sample.nestedLoss);
+            double ownHealthLoss = Math.min(ownLoss, Math.max(0, totalHealthLoss - sample.nestedHealthLoss));
+            if (completed && measurement != null && measurement.sample == sample) measurement.loss += ownLoss;
+            if (completed && target instanceof ServerPlayer defender) {
+                ReflectionFrame guard = frame(defender, source);
+                if (guard != null) {
+                    guard.healthLost += (float) ownHealthLoss;
+                    guard.absorptionLost += ownLoss - ownHealthLoss;
+                    if (!guard.suppressed && ownHealthLoss > 0) {
+                        guard.ordinaryPercent = guard.preHitStats.damageReflectionPercent();
+                        if (guard.preHitHeldShield || source.isDirect()) guard.ordinaryDamage +=
+                                ShieldMath.reflectedPortion((float) ownHealthLoss, guard.ordinaryPercent);
+                    }
+                }
+            }
             if (completed) com.mistaboom.essence_ascendance.attunement.AttunementGameplay.damageMeasured(
-                    target, source, ownLoss, Math.min(ownLoss, Math.max(0, healthBefore - target.getHealth())));
+                    target, source, ownLoss, ownHealthLoss);
             // The exact direct-projectile probe also observes sanitized returned shots. Their
             // secondary scope suppresses offensive procs, not measured native collision success.
             if (completed && Double.isFinite(ownLoss) && ownLoss > 0 && !isReflectionInProgress())
@@ -196,7 +250,11 @@ public final class EquipmentDamageService {
     public static boolean withSkillDamageFrame(LivingEntity target, DamageSource source, BooleanSupplier action) {
         if (target.level().isClientSide) return action.getAsBoolean();
         Deque<SkillDamageFrame> frames = SKILL_DAMAGE_FRAMES.get();
-        frames.push(new SkillDamageFrame(target, source, !frames.isEmpty()));
+        SkillDamageFrame frame = new SkillDamageFrame(target, source, !frames.isEmpty());
+        frames.push(frame);
+        MeasuredDamage measurement = MEASURED_DAMAGE.get();
+        if (measurement != null && measurement.frame == null && measurement.sample == null
+                && measurement.target == target && measurement.source == source) measurement.frame = frame;
         try {
             return action.getAsBoolean();
         } finally {
@@ -309,6 +367,8 @@ public final class EquipmentDamageService {
     }
 
     public static void tickSkillInput(ServerPlayer player) {
+        PendingExplosion pending = EXPLOSION_IMPULSES.get(player);
+        if (pending != null && pending.outcome.tick() != player.level().getGameTime()) EXPLOSION_IMPULSES.remove(player);
         Deque<Long> expected = EXPECTED_MAIN_SWINGS.get(player);
         if (expected == null) return;
         long tick = player.serverLevel().getGameTime();
@@ -322,6 +382,8 @@ public final class EquipmentDamageService {
 
     public static void clearSkillInput() {
         EXPECTED_MAIN_SWINGS.clear();
+        EXPLOSION_IMPULSES.clear(); LAST_GUARD.clear(); REFLECTION_FRAMES.clear();
+        LAST_DAMAGE.clear(); LAST_REFLECTION.clear(); nextGuardEvent = 0;
     }
 
     private record PrimarySkillAttack(ServerPlayer player, Entity target) {}
@@ -340,6 +402,7 @@ public final class EquipmentDamageService {
         final LivingEntity target;
         final double before;
         double nestedLoss;
+        double nestedHealthLoss;
         SkillHealthSample(LivingEntity target, double before) {
             this.target = target;
             this.before = before;
@@ -387,6 +450,10 @@ public final class EquipmentDamageService {
                 0.0,
                 incomingDamage * (1.0 - clampedResistance / 100.0)
         );
+        if (frame != null) {
+            frame.incoming = incomingDamage;
+            frame.mitigated = Math.max(0, incomingDamage - resolvedDamage);
+        }
 
         com.mistaboom.essence_ascendance.attunement.AttunementGameplay.prevented(player, source, incomingDamage, resolvedDamage);
 
@@ -407,20 +474,29 @@ public final class EquipmentDamageService {
     }
 
     private static final Map<ServerPlayer, Deque<ReflectionFrame>> REFLECTION_FRAMES = new WeakHashMap<>();
-    private static final Map<ServerPlayer, Deque<HealthSample>> HEALTH_SAMPLES = new WeakHashMap<>();
     private static final Map<ServerPlayer, ReflectionEvaluation> LAST_REFLECTION = new WeakHashMap<>();
 
     /** Loader wrappers pair this with endDamage in a finally block, including cancellations/exceptions. */
-    public static void beginDamage(ServerPlayer player, DamageSource source) {
+    public static void beginDamage(ServerPlayer player, DamageSource source, float incoming) {
         DamageStatState preHitStats = evaluateStats(player);
         boolean preHitHeldShield = EquipmentShieldService.heldContext(player) != null;
         REFLECTION_FRAMES.computeIfAbsent(player, ignored -> new ArrayDeque<>())
                 .push(new ReflectionFrame(
                         source,
-                        isReflectionInProgress(),
+                        isReflectionInProgress() || isSecondarySkillDamage(),
                         preHitStats,
                         preHitHeldShield
                 ));
+        ReflectionFrame frame = frame(player, source);
+        frame.event = ++nextGuardEvent;
+        frame.incoming = Float.isFinite(incoming) ? Math.max(0, incoming) : 0;
+        frame.skillShield = EquipmentShieldService.canGuard(player, player.getMainHandItem())
+                || EquipmentShieldService.canGuard(player, player.getOffhandItem());
+        frame.wardPercent = frame.skillShield ? preHitStats.damageReflectionPercent() : armorReflectionPercent(player);
+        frame.guard = GuardLifecycle.observe(player);
+        frame.tick = player.level().getGameTime();
+        ExplosionScope explosion = EXPLOSION_HIT.get();
+        frame.deferEcho = explosion != null && explosion.target == player && explosion.source == source;
     }
 
     public static void captureBlockingShield(ServerPlayer player, DamageSource source) {
@@ -432,11 +508,12 @@ public final class EquipmentDamageService {
 
     /** Receives only the authoritative stopped portion, NEVER the shield durability cost. */
     public static void recordBlockedDamage(ServerPlayer player, DamageSource source, float stoppedDamage) {
-        com.mistaboom.essence_ascendance.attunement.AttunementGameplay.blocked(player, source, stoppedDamage);
         ReflectionFrame frame = frame(player, source);
-        if (frame != null && !frame.suppressed && frame.shield != null
+        if (frame != null && !frame.blockRecorded
                 && Float.isFinite(stoppedDamage) && stoppedDamage > 0) {
+            frame.blockRecorded = true;
             frame.blockedDamage = stoppedDamage;
+            com.mistaboom.essence_ascendance.attunement.AttunementGameplay.blocked(player, source, stoppedDamage);
         }
     }
 
@@ -444,52 +521,6 @@ public final class EquipmentDamageService {
     public static void commitBlock(ServerPlayer player, DamageSource source) {
         ReflectionFrame frame = frame(player, source);
         if (frame != null) frame.blockCompleted = true;
-    }
-
-    public static void beginHealthMeasurement(ServerPlayer player, DamageSource source) {
-        HEALTH_SAMPLES.computeIfAbsent(player, ignored -> new ArrayDeque<>())
-                .push(new HealthSample(source, player.getHealth()));
-    }
-
-    public static void endHealthMeasurement(ServerPlayer player) {
-        Deque<HealthSample> samples = HEALTH_SAMPLES.get(player);
-        if (samples == null || samples.isEmpty()) return;
-        HealthSample sample = samples.pop();
-        float totalLoss = Math.max(0, sample.healthBefore - player.getHealth());
-        float ownLoss = Math.max(0, totalLoss - sample.nestedLoss);
-        if (!samples.isEmpty()) samples.peek().nestedLoss += totalLoss;
-        else HEALTH_SAMPLES.remove(player);
-        reflectAfterDamage(player, sample.source, ownLoss);
-    }
-
-    public static void reflectAfterDamage(ServerPlayer victim, DamageSource source, float actualHealthDamage) {
-        if (isReflectionInProgress() || !Float.isFinite(actualHealthDamage) || actualHealthDamage <= 0) return;
-        ReflectionFrame frame = frame(victim, source);
-        DamageStatState stats = frame != null ? frame.preHitStats : evaluateStats(victim);
-        boolean hasShield = frame != null
-                ? frame.preHitHeldShield
-                : EquipmentShieldService.heldContext(victim) != null;
-        double ordinary = hasShield || source.isDirect()
-                ? ShieldMath.reflectedPortion(actualHealthDamage, stats.damageReflectionPercent()) : 0;
-        if (frame != null) {
-            if (!frame.suppressed) {
-                frame.healthLost += actualHealthDamage;
-                frame.ordinaryDamage += ordinary;
-                frame.ordinaryPercent = stats.damageReflectionPercent();
-            }
-        } else {
-            // Retain the existing service entrypoint for direct, standalone post-damage callers.
-            float reflected = applyReflection(victim, source, ordinary);
-            recordDamageDiagnostic(victim, source, actualHealthDamage, stats.damageReflectionPercent(), reflected);
-        }
-    }
-
-    /**
-     * Compatibility entrypoint for integrations that cannot expose the native
-     * hurt result. First-party loader hooks use the four-argument overload.
-     */
-    public static void endDamage(ServerPlayer victim, DamageSource source, boolean returnedNormally) {
-        endDamage(victim, source, returnedNormally, true);
     }
 
     /**
@@ -507,74 +538,52 @@ public final class EquipmentDamageService {
         if (frames == null || frames.isEmpty()) return;
         ReflectionFrame frame = frames.pop();
         if (frames.isEmpty()) REFLECTION_FRAMES.remove(victim);
-        if (!returnedNormally) {
-            // Discard only this scope's unfinished probe; a nested failure must
-            // not erase an enclosing damage measurement for the same player.
-            discardHealthMeasurement(victim, source);
-            return;
-        }
-        if (frame.source != source || frame.suppressed) return;
-
-        /*
-         * Vanilla returns false for a completely blocked hit even though its
-         * authoritative shield-damage operation completed. Treat that commit
-         * as success; a false return with no committed block is a rejected or
-         * canceled hit and cannot retaliate.
-         */
-        if (!damageAccepted && !frame.blockCompleted) {
-            discardHealthMeasurement(victim, source);
-            return;
-        }
+        if (!returnedNormally) return;
+        if (frame.source != source) return;
         float blocked = frame.blockCompleted ? frame.blockedDamage : 0;
         double blockReflection = frame.shield == null ? 0
                 : ShieldMath.reflectedPortion(blocked, frame.shield.blockedReflectionPercent());
-        // Compute the two disjoint portions separately, then apply one normal defended hit.
-        // Two hurt() calls would incorrectly lose one portion to the attacker's invulnerability timer.
-        float reflected = applyReflection(victim, source, frame.ordinaryDamage + blockReflection);
-        recordDamageDiagnostic(victim, source, frame.healthLost, frame.ordinaryPercent, reflected);
+        boolean actualHit = damageAccepted || frame.blockCompleted && blocked > 0;
+        boolean validDefender = !victim.isRemoved() && !victim.isSpectator() && !victim.getAbilities().invulnerable;
+        var resolvedSource = ReflectionRouter.source(victim, source);
+        var context = SkillEffectRuntime.context(victim);
+        boolean perfect = actualHit && !frame.suppressed && frame.guard.functional()
+                && PerfectGuardFramework.perfect(frame.tick, frame.guard.readyTick(), context.settings().guard().perfectGuard().windowTicks(),
+                        frame.guard.nativeReady(), blocked);
+        // Rewards commit before reflection, so the earning block may use its new amplifier.
+        if (actualHit && !frame.suppressed && validDefender && blocked > 0 && frame.guard.functional()) {
+            GuardReflectionEffects.onBlock(victim, frame.event, blocked, perfect);
+            GuardCounterattackService.onBlock(victim, frame.event, blocked, perfect);
+        }
+        boolean ward = context.isEffective(SkillIds.REFLEXIVE_WARD) && resolvedSource.eligible()
+                && com.mistaboom.essence_ascendance.projectile.ProjectileOwnership.hostileDamageSource(victim, resolvedSource.target());
+        double extension = ReflectionRouter.wardExtension(blocked + frame.mitigated, blocked, frame.healthLost + frame.absorptionLost,
+                frame.wardPercent, context.settings().guard().ward().preventedReflectionScale(),
+                actualHit && validDefender && ward && !frame.suppressed && (frame.skillShield || source.isDirect()));
+        double multiplier = GuardReflectionEffects.multiplier(context);
+        double requested = actualHit && validDefender ? ReflectionRouter.compose(frame.ordinaryDamage, blockReflection, extension, multiplier) : 0;
+        var result = ReflectionRouter.reflect(victim, resolvedSource, requested, frame.suppressed || !actualHit || !validDefender);
+        boolean echoEligible = actualHit && validDefender && ward && !frame.suppressed;
+        var echo = echoEligible && !frame.deferEcho
+                ? KnockbackEchoService.echo(victim, resolvedSource.target(), frame.attemptedKnockback, context.settings().guard().ward())
+                : KnockbackEchoService.Result.none(frame.deferEcho ? "awaiting_correlated_explosion_impulse" : "ineligible_hit");
+        if (result.confirmed() > 0) ReflectionRouter.reprisal(victim, resolvedSource.target(), result.confirmed(), context);
+        recordDamageDiagnostic(victim, source, frame.healthLost, frame.ordinaryPercent, (float) result.requested());
         LAST_REFLECTION.put(victim, new ReflectionEvaluation(blocked, frame.healthLost,
                 frame.ordinaryPercent, frame.shield == null ? 0 : frame.shield.nativeReflectionPercent(),
                 frame.shield == null ? 0 : frame.shield.investedReflectionPercent(),
                 frame.shield == null ? 0 : frame.shield.amplification(),
-                frame.ordinaryDamage, blockReflection, reflected));
-    }
-
-    private static void discardHealthMeasurement(ServerPlayer victim, DamageSource source) {
-        Deque<HealthSample> samples = HEALTH_SAMPLES.get(victim);
-        if (samples == null || samples.isEmpty() || samples.peek().source != source) return;
-
-        HealthSample discarded = samples.pop();
-        float totalLoss = Math.max(0, discarded.healthBefore - victim.getHealth());
-        if (!samples.isEmpty()) {
-            // If this was a failed nested call, exclude any health change it
-            // managed before unwinding from its enclosing call's reflection.
-            samples.peek().nestedLoss += totalLoss;
-        } else {
-            HEALTH_SAMPLES.remove(victim);
-        }
-    }
-
-    private static float applyReflection(ServerPlayer victim, DamageSource source, double rawDamage) {
-        float reflected = ShieldMath.safeDamage(rawDamage);
-        Entity causingEntity = source.getEntity(); // A projectile's owner, not the direct projectile entity.
-        if (reflected <= 0 || isReflectionInProgress() || !(causingEntity instanceof LivingEntity attacker)
-                || attacker == victim || !attacker.isAlive() || attacker.isRemoved()
-                || attacker.level() != victim.level()) return 0;
-        if (attacker instanceof Player other && (!victim.server.isPvpAllowed()
-                || !victim.canHarmPlayer(other))) return 0;
-        if (victim.getTeam() != null && victim.isAlliedTo(attacker)
-                && !victim.getTeam().isAllowFriendlyFire()) return 0;
-        int previousDepth = REFLECTION_DEPTH.get();
-        REFLECTION_DEPTH.set(previousDepth + 1);
-        try {
-            // Existing thorns-style rules: normal attribution/mitigation, no original projectile payload,
-            // no player.attack(), melee/ranged bonuses, true damage or invulnerability reset.
-            attacker.hurt(victim.damageSources().thorns(victim), reflected);
-        } finally {
-            if (previousDepth == 0) REFLECTION_DEPTH.remove();
-            else REFLECTION_DEPTH.set(previousDepth);
-        }
-        return reflected; // Requested defended hit, not a claim about the target's final health loss.
+                frame.ordinaryDamage, blockReflection, (float) result.requested()));
+        LAST_GUARD.put(victim, new GuardOutcome(frame.event, frame.tick, victim.getUUID(), frame.guard,
+                source.getMsgId(), source.getDirectEntity() == null ? null : source.getDirectEntity().getUUID(),
+                resolvedSource.target() == null ? null : resolvedSource.target().getUUID(), resolvedSource.decision(),
+                frame.incoming, blocked, frame.mitigated, frame.healthLost, frame.absorptionLost, damageAccepted,
+                frame.blockCompleted && blocked > 0, perfect, frame.suppressed ? 1 : 0,
+                frame.attemptedKnockback, frame.acceptedKnockback, frame.knockbackDecision, echo,
+                frame.ordinaryDamage, frame.shield == null ? 0 : ShieldMath.reflectedPortion(blocked, frame.shield.nativeBlockedReflectionPercent()),
+                frame.shield == null ? 0 : ShieldMath.reflectedPortion(blocked, frame.shield.investedBlockedReflectionPercent()),
+                extension, multiplier, result.requested(), result.confirmed(), !actualHit ? "unconfirmed_native_hit" : result.decision()));
+        if (frame.deferEcho) EXPLOSION_IMPULSES.put(victim, new PendingExplosion(source, LAST_GUARD.get(victim), echoEligible));
     }
 
     private static ReflectionFrame frame(ServerPlayer player, DamageSource source) {
@@ -612,6 +621,14 @@ public final class EquipmentDamageService {
         double ordinaryDamage;
         double ordinaryPercent;
         boolean blockCompleted;
+        boolean blockRecorded;
+        boolean skillShield;
+        boolean deferEcho;
+        long event, tick;
+        double incoming, mitigated, absorptionLost, wardPercent;
+        GuardLifecycle.Snapshot guard = GuardLifecycle.Snapshot.empty();
+        Vec3 attemptedKnockback = Vec3.ZERO, acceptedKnockback = Vec3.ZERO;
+        String knockbackDecision = "no_correlated_native_attempt";
         ReflectionFrame(
                 DamageSource source,
                 boolean suppressed,
@@ -622,16 +639,6 @@ public final class EquipmentDamageService {
             this.suppressed = suppressed;
             this.preHitStats = preHitStats;
             this.preHitHeldShield = preHitHeldShield;
-        }
-    }
-
-    private static final class HealthSample {
-        final DamageSource source;
-        final float healthBefore;
-        float nestedLoss;
-        HealthSample(DamageSource source, float healthBefore) {
-            this.source = source;
-            this.healthBefore = healthBefore;
         }
     }
 
@@ -673,7 +680,66 @@ public final class EquipmentDamageService {
         LAST_DAMAGE.remove(player);
         LAST_REFLECTION.remove(player);
         REFLECTION_FRAMES.remove(player);
-        HEALTH_SAMPLES.remove(player);
+        LAST_GUARD.remove(player);
+        GuardLifecycle.forget(player);
+        ReflectionRouter.forget(player);
+        EXPLOSION_IMPULSES.remove(player);
+    }
+
+    public static Optional<GuardOutcome> lastGuardOutcome(ServerPlayer player) { return Optional.ofNullable(LAST_GUARD.get(player)); }
+
+    /** Pair an explosion's exact hurt invocation with its later resistance-adjusted native impulse. */
+    public static boolean withExplosionHit(Entity target, DamageSource source, BooleanSupplier original) {
+        ExplosionScope previous = EXPLOSION_HIT.get();
+        EXPLOSION_HIT.set(new ExplosionScope(target, source));
+        if (target instanceof ServerPlayer player) EXPLOSION_IMPULSES.remove(player);
+        try { return original.getAsBoolean(); }
+        finally { if (previous == null) EXPLOSION_HIT.remove(); else EXPLOSION_HIT.set(previous); }
+    }
+    public static void explosionKnockback(Entity entity, DamageSource source, Vec3 rawAttempt, Vec3 proposed, Runnable original) {
+        Vec3 before = entity.getDeltaMovement();
+        boolean protection = GuardCounterattackService.suppressDisplacement(entity);
+        if (!protection) original.run();
+        if (!(entity instanceof ServerPlayer player)) return;
+        PendingExplosion pending = EXPLOSION_IMPULSES.remove(player);
+        GuardOutcome current = LAST_GUARD.get(player);
+        if (pending == null || pending.source != source || current == null || current.eventId() != pending.outcome.eventId()
+                || pending.outcome.tick() != player.level().getGameTime()) return;
+        Vec3 bounded = KnockbackEchoService.bounded(rawAttempt);
+        Vec3 attempt = KnockbackEchoService.bounded(current.attemptedKnockback().add(bounded));
+        var context = SkillEffectRuntime.context(player);
+        var responsible = ReflectionRouter.source(player, source);
+        var echo = pending.wardEligible && responsible.eligible() && context.isEffective(SkillIds.REFLEXIVE_WARD)
+                ? KnockbackEchoService.echo(player, responsible.target(), attempt, context.settings().guard().ward())
+                : KnockbackEchoService.Result.none("ineligible_explosion_source_or_hit");
+        LAST_GUARD.put(player, current.withKnockback(attempt,
+                current.acceptedKnockback().add(entity.getDeltaMovement().subtract(before)),
+                protection ? "explosion_riposte_suppressed" : "native_explosion_resolved", echo));
+    }
+
+    /** The real native knockback invocation is sampled even when resistance/protection suppresses it. */
+    public static void observeGuardKnockback(LivingEntity target, double strength, double x, double z, Runnable original) {
+        ReflectionFrame guard = target instanceof ServerPlayer player ? activeFrame(player) : null;
+        Vec3 attempt = KnockbackEchoService.attempt(strength, x, z);
+        Vec3 before = target.getDeltaMovement();
+        boolean protectedAttack = GuardCounterattackService.suppressDisplacement(target);
+        if (!protectedAttack) original.run();
+        if (guard != null && !guard.suppressed) {
+            guard.attemptedKnockback = KnockbackEchoService.bounded(guard.attemptedKnockback.add(attempt));
+            guard.acceptedKnockback = guard.acceptedKnockback.add(target.getDeltaMovement().subtract(before));
+            guard.knockbackDecision = protectedAttack ? "riposte_resolution_suppressed" : guard.acceptedKnockback.lengthSqr() == 0
+                    ? "native_resisted_or_canceled" : "native_accepted";
+        }
+    }
+    private static ReflectionFrame activeFrame(ServerPlayer player) {
+        var frames = REFLECTION_FRAMES.get(player); return frames == null ? null : frames.peek();
+    }
+
+    /** Native armor and magic reduction share the existing measured-prevention hooks. */
+    public static void recordGuardPrevention(LivingEntity target, DamageSource source, double before, double after) {
+        if (!(target instanceof ServerPlayer player) || !Double.isFinite(before) || !Double.isFinite(after)) return;
+        ReflectionFrame frame = frame(player, source);
+        if (frame != null) frame.mitigated += Math.max(0, before - after);
     }
 
     public static DamageCategory classify(DamageSource source) {

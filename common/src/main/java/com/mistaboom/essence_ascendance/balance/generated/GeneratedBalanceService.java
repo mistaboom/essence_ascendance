@@ -32,7 +32,7 @@ import java.util.Map;
 
 /** Server-thread transaction: collect, construct, validate, persist, publish, then synchronize. */
 public final class GeneratedBalanceService {
-    static final String GENERATION_REVISION = "projectile-control-swing-order-13";
+    static final String GENERATION_REVISION = "guard-outcome-counterplay-14";
     private static final String DISSOLUTION_ACCOUNTING = "whole_essence_v1";
     private static volatile Active active;
     private static volatile boolean resourcesChanged;
@@ -93,6 +93,7 @@ public final class GeneratedBalanceService {
             validation.addProperty("serialization", "passed");
             validation.addProperty("attunement", "multiple unrestricted base methods, positive rates, bounded policy, complete adjacent chapter topology passed");
             validation.addProperty("projectiles", "validated independent path/payload and bounded control policy; native gameplay remains manual");
+            validation.addProperty("guard", "validated guard mobility, reflection and counterattack bounds; live gameplay remains manual");
             validation.addProperty("liveGameplay", "not performed by generator");
             JsonObject document = new JsonObject();
             document.add("metadata", metadata);
@@ -178,6 +179,7 @@ public final class GeneratedBalanceService {
         result.addProperty("curveSource", "/runtime/skillCurves");
         result.addProperty("rankPolicy", "Current maximum ranks remain one; future ranks are projections, not new effects");
         result.add("projectilePolicy", projectilePolicy());
+        result.add("guardPolicy", guardPolicy());
         result.add("semantics", serializer.toJsonTree(catalog.stream().map(skill ->
                 com.mistaboom.essence_ascendance.skill.balance.SkillBalanceSemantics.require(skill.id())).toList()));
         JsonObject projections = new JsonObject();
@@ -217,6 +219,25 @@ public final class GeneratedBalanceService {
         policy.addProperty("theft", "Exact crosshair or hostile aim-cone assistance before responsible source; full launch-speed floor plus melee impulse and persisted homing; otherwise safe destruction; one transfer, original offensive path/payload cleared");
         policy.addProperty("attunement", "Only confirmed damage/defeat contributes through registered outcome metadata; slowing, rooting or interception alone awards nothing; no per-action caps");
         policy.addProperty("adapters", "Vanilla arrows, spectral arrows and real Caster bolts; unknown projectile classes require explicit opt-in; absent optional mods need no class loading");
+        return policy;
+    }
+
+    static JsonObject guardPolicy() {
+        JsonObject policy = new JsonObject();
+        policy.addProperty("tuning", "/runtime/effects/guard; existing exact TOML overrides, finite validated bounds, content identity and procedural rank retention; no parallel configuration");
+        policy.addProperty("eligibility", "Guard mobility and block rewards require an effective skill and functional Ascendance Shield, the current explicit shield contract; both hands use native readiness; Fractured, disabled, broken or invalid equipment grants no guard benefit; generic third-party shields are not inferred");
+        policy.addProperty("mobility", "Guarded Advance uses the stronger of equipment investment and skill slowdown removal once, permitting native sprint, jump and short steps only during valid guarding; hunger, crouching, fluids, riding and collision remain authoritative");
+        policy.addProperty("ram", "Meaningful forward guarded sprint sweep; physical contact clipped by terrain, deterministic target budget and repeat cooldown; bounded stagger and push, no direct damage or block/counter rewards");
+        policy.addProperty("outcomes", "One bounded native-hit identity records incoming force, successful block prevention, actual health/absorption loss, responsible source and attempted knockback; duplicate or secondary callbacks cannot grant rewards");
+        policy.addProperty("perfect", "Short window begins at the resolved native-ready tick of one continuous functional guard; pre-ready, late, swapped, disabled and invalid guard sessions do not qualify");
+        policy.addProperty("ward", "Fully prevented positive eligible hostile hits extend existing direct-hit armor reflection or functional held-shield reflection toward responsible projectile owners; zero equipment reflection stays zero; finite capped attempted-knockback echo awards no speculative activity");
+        policy.addProperty("amplifier", "Successful positive blocks grow a capped multiplier; perfect blocks set its maximum; both refresh expiry, and the granting block uses the new multiplier once");
+        policy.addProperty("stored_force", "Positive blocks add converted force up to capacity and refresh idle expiry; next accepted positive primary melee hit consumes once; misses, cancellation, zero loss and secondary damage retain charge until expiry or invalid state");
+        policy.addProperty("riposte", "Perfect blocks arm one timed primary melee counter; native cooldown/critical rules remain; damage increases the primary component before Stored Force flat damage; bonus reach and protection apply only to the eligible attack and close on return");
+        policy.addProperty("reprisal", "Only confirmed primary reflected health/absorption loss seeds reduced area damage; deterministic safe creature area selection excludes defender and primary target; no repeated amplification or secondary cascade");
+        policy.addProperty("choices", "Stored Force and Guard Amplifier use the existing exclusive selected-choice machinery; either may coexist with Riposte; invalid effect/choice/equipment/lifecycle state clears transient rewards");
+        policy.addProperty("attunement", "Confirmed damage and kills use general outcome contribution metadata; movement, ram, charge, perfect timing, blocking and echoed knockback create no speculative damage credit; independent history, nonzero repetition floor and no per-action caps remain");
+        policy.addProperty("evidence", "Generated numeric checks and saved-evidence replay are automated evidence only; live movement feel, shield timing and both-loader multiplayer/modpack acceptance remain separate");
         return policy;
     }
 

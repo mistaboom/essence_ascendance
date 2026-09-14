@@ -12,6 +12,33 @@ import net.minecraft.world.entity.projectile.Projectile;
 /** Auditable, shared damaging-projectile ownership policy. A missing owner is not an unresolved owner. */
 public final class ProjectileOwnership {
     private ProjectileOwnership() { }
+    /** Damage reflection uses the native responsible source, never an inferred projectile owner.
+     * Unlike proximity control this remains valid at the final collision after a shot stops flying. */
+    public static LivingEntity damageSource(net.minecraft.world.damagesource.DamageSource source, ServerPlayer defender) {
+        if (!(source.getEntity() instanceof LivingEntity responsible) || responsible == defender
+                || !responsible.isAlive() || responsible.isRemoved() || responsible.isSpectator()
+                || responsible.level() != defender.level()) return null;
+        if (source.getDirectEntity() != null && (source.getDirectEntity().isRemoved()
+                || source.getDirectEntity().level() != defender.level())) return null;
+        if (source.getDirectEntity() instanceof Projectile projectile) {
+            if (projectile.getOwner() != responsible) return null;
+            var state = ProjectileRuntime.state(projectile);
+            if (state != null && !ProjectileRuntime.validOwnership(projectile, state)) return null;
+        }
+        return responsible;
+    }
+    /** Reuse the same pet/team/PvP relationship as defensive projectile control. */
+    public static boolean hostileDamageSource(ServerPlayer defender, LivingEntity actual) {
+        return actual != null && relationship(defender, actual) == Decision.HOSTILE;
+    }
+    private static Decision relationship(ServerPlayer defender, Entity actual) {
+        Entity responsible = actual instanceof TamableAnimal pet && pet.getOwner() != null ? pet.getOwner() : actual;
+        boolean self = actual == defender || responsible == defender;
+        boolean allied = defender.isAlliedTo(actual) || defender.isAlliedTo(responsible);
+        boolean pvp = !(responsible instanceof Player player) || defender.server.isPvpAllowed()
+                && defender.canHarmPlayer(player) && player.canHarmPlayer(defender);
+        return classify(true, true, true, false, self, allied, pvp);
+    }
     public enum Decision { HOSTILE, OWNERLESS_DAMAGING, UNSUPPORTED, INACTIVE, INVALID_DEFENDER,
         UNRESOLVED_OWNER, INVALID_OWNER, OWN, ALLIED, PVP_DISABLED }
     public record Resolution(Decision decision, LivingEntity source) {
@@ -30,12 +57,7 @@ public final class ProjectileOwnership {
         var launch = ProjectileRuntime.state(projectile);
         if (launch != null && !ProjectileRuntime.validOwnership(projectile, launch))
             return new Resolution(Decision.INVALID_OWNER, living);
-        Entity responsible = actual instanceof TamableAnimal pet && pet.getOwner() != null ? pet.getOwner() : actual;
-        boolean self = actual == defender || responsible == defender;
-        boolean allied = defender.isAlliedTo(actual) || defender.isAlliedTo(responsible);
-        boolean pvp = !(responsible instanceof Player player) || defender.server.isPvpAllowed()
-                && defender.canHarmPlayer(player) && player.canHarmPlayer(defender);
-        return new Resolution(classify(true, true, true, false, self, allied, pvp), living);
+        return new Resolution(relationship(defender, actual), living);
     }
     public static boolean validDefender(ServerPlayer player) {
         return player.isAlive() && !player.isRemoved() && !player.isSpectator() && !player.getAbilities().invulnerable

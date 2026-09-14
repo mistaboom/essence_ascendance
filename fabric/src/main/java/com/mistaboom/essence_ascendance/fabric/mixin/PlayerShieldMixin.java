@@ -2,10 +2,7 @@ package com.mistaboom.essence_ascendance.fabric.mixin;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import com.mistaboom.essence_ascendance.equipment.EquipmentDamageService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentShieldService;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemCooldowns;
@@ -21,35 +18,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class PlayerShieldMixin {
     @Unique
     private ItemStack essenceAscendance$disabledShield = ItemStack.EMPTY;
-
-    @WrapOperation(method = "hurt", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/world/entity/LivingEntity;hurt(Lnet/minecraft/world/damagesource/DamageSource;F)Z"))
-    private boolean essenceAscendance$reflectionScope(Player receiver, DamageSource source, float amount,
-                                                       Operation<Boolean> original) {
-        if (!(receiver instanceof ServerPlayer player)) return original.call(receiver, source, amount);
-        EquipmentDamageService.beginDamage(player, source);
-        boolean completedNormally = false;
-        boolean damageAccepted = false;
-        try {
-            boolean result = original.call(receiver, source, amount);
-            damageAccepted = result;
-            completedNormally = true;
-            return result;
-        } finally {
-            EquipmentDamageService.endDamage(player, source, completedNormally, damageAccepted);
-        }
-    }
-
-    // Player overrides actuallyHurt; a hook on LivingEntity.actuallyHurt misses player health changes.
-    @Inject(method = "actuallyHurt", at = @At("HEAD"))
-    private void essenceAscendance$beforeHealth(DamageSource source, float amount, CallbackInfo ci) {
-        if ((Object) this instanceof ServerPlayer player) EquipmentDamageService.beginHealthMeasurement(player, source);
-    }
-
-    @Inject(method = "actuallyHurt", at = @At("RETURN"))
-    private void essenceAscendance$afterHealth(DamageSource source, float amount, CallbackInfo ci) {
-        if ((Object) this instanceof ServerPlayer player) EquipmentDamageService.endHealthMeasurement(player);
-    }
 
     @Inject(method = "disableShield", at = @At("HEAD"))
     private void essenceAscendance$captureDisabledShield(CallbackInfo ci) {

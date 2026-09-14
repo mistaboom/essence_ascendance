@@ -43,7 +43,9 @@ public final class SkillProcDamageService {
                 : new DamageSource(owner.registryAccess().registryOrThrow(Registries.DAMAGE_TYPE)
                         .getHolderOrThrow(Objects.requireNonNull(kind.damageType(), "Native returned shots keep their existing damage source")),
                         owner, owner);
-        return withAttributedDamage(owner, sourceSkill, kind, root, generation, () -> target.hurt(source, amount));
+        var result = EquipmentDamageService.measureDamage(target, source,
+                () -> withAttributedDamage(owner, sourceSkill, kind, root, generation, () -> target.hurt(source, amount)));
+        return result.accepted() && result.loss() > 0;
     }
 
     /** Retains the native damage source/physics while sharing secondary attribution and recursion protection. */
@@ -77,6 +79,7 @@ public final class SkillProcDamageService {
         COMBUSTION(DamageTypes.INDIRECT_MAGIC),
         EXPLOSIVE_PAYLOAD(DamageTypes.PLAYER_EXPLOSION),
         REDIRECTED_PROJECTILE(null),
+        CROWD_REPRISAL(DamageTypes.THORNS),
         ICE_SHARD(DamageTypes.INDIRECT_MAGIC),
         LIGHTNING_ARC(DamageTypes.INDIRECT_MAGIC);
 
@@ -85,7 +88,7 @@ public final class SkillProcDamageService {
         /** A null type means the caller must retain the original projectile source through withAttributedDamage. */
         public ResourceKey<DamageType> damageType() { return damageType; }
 
-        public boolean reflectedOutcome() { return this == REDIRECTED_PROJECTILE; }
+        public boolean reflectedOutcome() { return this == REDIRECTED_PROJECTILE || this == CROWD_REPRISAL; }
     }
 
     public record ProcContext(ServerPlayer owner, DamageKind kind, ResourceLocation sourceSkill,

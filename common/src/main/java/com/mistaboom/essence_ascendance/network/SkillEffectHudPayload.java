@@ -30,6 +30,8 @@ public record SkillEffectHudPayload(SkillEffectHudSnapshot snapshot) implements 
         buf.writeLong(snapshot.serverGameTime());
         buf.writeVarInt(snapshot.playerEntityId());
         buf.writeResourceLocation(snapshot.dimension());
+        buf.writeDouble(snapshot.primaryMeleeBonusReach());
+        buf.writeLong(snapshot.primaryMeleeReachExpiresAt());
         buf.writeVarInt(snapshot.entries().size());
         for (SkillEffectHudEntry entry : snapshot.entries()) {
             buf.writeResourceLocation(entry.id());
@@ -57,6 +59,8 @@ public record SkillEffectHudPayload(SkillEffectHudSnapshot snapshot) implements 
         long now = buf.readLong();
         int entityId = buf.readVarInt();
         ResourceLocation dimension = buf.readResourceLocation();
+        double reach = buf.readDouble();
+        long reachExpiry = buf.readLong();
         int count = count(buf, SkillEffectHudSnapshot.MAX_ENTRIES);
         List<SkillEffectHudEntry> entries = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
@@ -72,7 +76,7 @@ public record SkillEffectHudPayload(SkillEffectHudSnapshot snapshot) implements 
             Meter meter = new Meter(buf.readEnum(MeterKind.class), readText(buf), buf.readLong(), buf.readDouble());
             entries.add(new SkillEffectHudEntry(id, source, active, accent, title, badge, lines, meter));
         }
-        return new SkillEffectHudPayload(new SkillEffectHudSnapshot(now, entityId, dimension, entries));
+        return new SkillEffectHudPayload(new SkillEffectHudSnapshot(now, entityId, dimension, entries, reach, reachExpiry));
     }
 
     private static void writeText(RegistryFriendlyByteBuf buf, Text text) {

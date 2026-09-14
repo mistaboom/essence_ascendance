@@ -363,6 +363,18 @@ public final class RuntimeBalanceGenerator {
         // Control timing and targeting remain identity/avoidance policy, never invented DPS.
         JsonObject payload = tree.getAsJsonObject("projectiles").getAsJsonObject("payload");
         payload.addProperty("explosiveDamageScale", payload.get("explosiveDamageScale").getAsDouble() * scale);
+        JsonObject guard = tree.getAsJsonObject("guard");
+        for (String section : List.of("storedForce", "reprisal", "riposte")) {
+            JsonObject effect = guard.getAsJsonObject(section);
+            effect.addProperty("damageScale", Math.min(section.equals("reprisal") ? 1 : 4,
+                    effect.get("damageScale").getAsDouble() * scale));
+        }
+        JsonObject ward = guard.getAsJsonObject("ward");
+        ward.addProperty("preventedReflectionScale", Math.min(1, ward.get("preventedReflectionScale").getAsDouble() * scale));
+        JsonObject amplifier = guard.getAsJsonObject("amplifier");
+        double maximum = Math.min(4, 1 + (amplifier.get("maximumMultiplier").getAsDouble() - 1) * scale);
+        amplifier.addProperty("perBlockGrowth", Math.min(maximum - 1, amplifier.get("perBlockGrowth").getAsDouble() * scale));
+        amplifier.addProperty("maximumMultiplier", maximum);
     }
 
 }

@@ -13,6 +13,9 @@ public record SkillEffectHudEntry(ResourceLocation id, ResourceLocation sourceSk
     public static final int MAX_LINES = 3;
 
     public SkillEffectHudEntry {
+        // Accents are opaque RGB. A missing alpha byte must never make a new
+        // skill's border/badge invisible or change the shared card appearance.
+        accent = 0xFF000000 | (accent & 0xFFFFFF);
         Objects.requireNonNull(id);
         Objects.requireNonNull(sourceSkill);
         Objects.requireNonNull(title);

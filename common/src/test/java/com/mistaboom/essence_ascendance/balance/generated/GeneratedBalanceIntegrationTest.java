@@ -279,6 +279,9 @@ public final class GeneratedBalanceIntegrationTest {
             check(report.contains("Projectile payload and control policy"), "Human report omitted projectile interaction policy");
             var policyRows = csv(Files.readString(reports.resolve("projectile_policy.csv")));
             check(policyRows.size() == skills.getAsJsonObject("projectilePolicy").size() + 1, "Projectile policy export lost contracts");
+            check(report.contains("Guard mobility and counterplay policy"), "Human report omitted guard interaction policy");
+            var guardRows = csv(Files.readString(reports.resolve("guard_policy.csv")));
+            check(guardRows.size() == skills.getAsJsonObject("guardPolicy").size() + 1, "Guard policy export lost contracts");
             var savedExports = new TreeMap<Path, String>();
             try (var paths = Files.walk(folder)) {
                 for (Path path : paths.filter(Files::isRegularFile).toList()) savedExports.put(path, Files.readString(path));
@@ -431,6 +434,7 @@ public final class GeneratedBalanceIntegrationTest {
         JsonObject old = JsonParser.parseString(original.text()).getAsJsonObject();
         old.getAsJsonObject("runtime").getAsJsonObject("effects").getAsJsonObject("projectiles").remove("payload");
         old.getAsJsonObject("runtime").getAsJsonObject("effects").getAsJsonObject("projectiles").remove("control");
+        old.getAsJsonObject("runtime").getAsJsonObject("effects").remove("guard");
         old.getAsJsonObject("metadata").addProperty("generatorRevision", "old-test-runtime");
         var evidenceSource = BalanceDocument.seal(old);
         try { GeneratedBalanceService.decode(evidenceSource); throw new AssertionError("Old projectile runtime silently migrated"); }
@@ -444,6 +448,8 @@ public final class GeneratedBalanceIntegrationTest {
         check(regenerated.runtime().toJson().get("attunement").equals(original.section("runtime").get("attunement")), "Offline rebuild changed Attunement");
         check(regenerated.document().section("metadata").get("generatorRevision").getAsString().equals(GeneratedBalanceService.GENERATION_REVISION), "Replay reused stale generator revision");
         check(regenerated.document().section("skills").getAsJsonObject("projectilePolicy").has("attunement"), "Replay omitted projectile participation policy");
+        check(regenerated.document().section("skills").getAsJsonObject("guardPolicy").has("attunement"), "Replay omitted guard participation policy");
+        check(regenerated.runtime().config().skillEffects().guard() != null, "Replay did not regenerate the current guard schema");
         var changedInputs = new com.mistaboom.essence_ascendance.balance.config.BalanceInputs(settings,
                 new BalanceOverrides(List.of(), Map.of("/runtime/effects/projectiles/control/redirectBudget", 0L)), "changed", "changed");
         try { SavedEvidenceRegenerator.regenerate(evidenceSource, changedInputs); throw new AssertionError("Changed inputs reused stale saved evidence"); }

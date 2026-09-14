@@ -38,12 +38,14 @@ public final class EquipmentShieldService {
     }
 
     public static boolean canGuard(LivingEntity holder, ItemStack stack) {
-        return functional(stack) && (!(holder instanceof Player player)
+        return holder != null && holder.isAlive() && !holder.isRemoved() && !holder.isSpectator()
+                && functional(stack) && (!(holder instanceof Player player)
                 || !player.getCooldowns().isOnCooldown(stack.getItem()));
     }
 
     public static boolean isUsingShield(LivingEntity holder) {
-        return holder.isUsingItem() && canGuard(holder, holder.getUseItem());
+        return holder.isUsingItem() && canGuard(holder, holder.getUseItem())
+                && holder.getItemInHand(holder.getUsedItemHand()) == holder.getUseItem();
     }
 
     public static boolean isGuarding(LivingEntity holder) {
@@ -217,9 +219,8 @@ public final class EquipmentShieldService {
 
     public static void tick(ServerPlayer holder) {
         syncReadinessState(holder);
-        if (!holder.isUsingItem() || !isShield(holder.getUseItem())) return;
-        if (!canGuard(holder, holder.getUseItem())) holder.stopUsingItem();
-        else holder.setSprinting(false);
+        if (holder.isUsingItem() && isShield(holder.getUseItem()) && !isUsingShield(holder)) holder.stopUsingItem();
+        com.mistaboom.essence_ascendance.skill.effect.GuardMobilityController.tick(holder);
     }
 
     public record Context(EquipmentTier itemTier, EquipmentTier effectiveTier, int nativeDurability,

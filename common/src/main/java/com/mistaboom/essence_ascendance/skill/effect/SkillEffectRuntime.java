@@ -41,6 +41,7 @@ public final class SkillEffectRuntime {
     public static boolean isImplemented(ResourceLocation id) { return SkillEffectRegistry.isImplemented(id); }
 
     public static void tick(ServerPlayer player) {
+        com.mistaboom.essence_ascendance.guard.GuardLifecycle.observe(player);
         if (!player.isAlive() || player.isRemoved()) {
             reset(player);
             return;
@@ -61,6 +62,10 @@ public final class SkillEffectRuntime {
     }
 
     public static void reset(ServerPlayer player) {
+        GuardCounterattackService.reset(player);
+        com.mistaboom.essence_ascendance.guard.GuardLifecycle.forget(player);
+        GuardMobilityController.remove(player);
+        com.mistaboom.essence_ascendance.guard.ReflectionRouter.forget(player);
         PlayerRuntime runtime = PLAYERS.remove(player.getUUID());
         if (runtime == null) {
             // Also remove known stable modifiers when recovering an old player instance.
@@ -72,12 +77,16 @@ public final class SkillEffectRuntime {
     public static void forget(ServerPlayer player) { reset(player); }
 
     public static void clearAll() {
+        GuardCounterattackService.clearAll();
         for (PlayerRuntime runtime : List.copyOf(PLAYERS.values())) {
             ServerPlayer player = runtime.player.get();
             if (player != null) clear(new Context(player, runtime));
             else runtime.states.values().forEach(SkillEffectState::clear);
         }
         PLAYERS.clear();
+        com.mistaboom.essence_ascendance.guard.GuardLifecycle.clear();
+        GuardMobilityController.clear();
+        com.mistaboom.essence_ascendance.guard.ReflectionRouter.clear();
         nextAttemptToken = 0;
     }
 
@@ -89,6 +98,7 @@ public final class SkillEffectRuntime {
         long token = ++nextAttemptToken;
         if (token == 0) token = ++nextAttemptToken;
         context.runtime.attempt = new Attempt(token, target, context.now(), context.runtime.effective);
+        GuardCounterattackService.begin(context, token, target);
         return token;
     }
 
@@ -123,6 +133,14 @@ public final class SkillEffectRuntime {
     /** Newly earned stacks are committed after Player.attack, so they cannot affect the earning hit. */
     public static void finishPrimaryAttack(ServerPlayer player, long token) {
         if (token == 0) return;
+        try {
+            finishPrimaryAttackOutcome(player, token);
+        } finally {
+            GuardCounterattackService.close(player, token);
+        }
+    }
+
+    private static void finishPrimaryAttackOutcome(ServerPlayer player, long token) {
         PlayerRuntime runtime = PLAYERS.get(player.getUUID());
         Attempt attempt = runtime == null ? null : runtime.attempt;
         if (attempt == null || attempt.token != token) return;
@@ -132,6 +150,7 @@ public final class SkillEffectRuntime {
         if (context.runtime != runtime || runtime.attempt != attempt
                 || !attempt.effectiveAtStart.equals(context.runtime.effective)) return;
         runtime.attempt = null;
+        GuardCounterattackService.finish(context, token, attempt.success, attempt.damageDealt);
         Entity target = attempt.target.get();
         if (attempt.success && attempt.source != null && target instanceof LivingEntity living && player.isAlive()) {
             dispatchSuccessfulAttack(context,
@@ -167,7 +186,8 @@ public final class SkillEffectRuntime {
                         handler.flatPrimaryDamageBonus(context, target, source, primary), 0.0, Float.MAX_VALUE);
             }
         }
-        return (float) Math.min(Float.MAX_VALUE, amount * multiplier + flatBonus);
+        return GuardCounterattackService.modify(context, target, primary,
+                (float) Math.min(Float.MAX_VALUE, amount * multiplier + flatBonus));
     }
 
     /** Native confirmed death, while its authoritative source/caster scope still exists. */
@@ -243,8 +263,10 @@ public final class SkillEffectRuntime {
                 }
             }
         }
+        Context context = current(player);
         return new SkillEffectHudSnapshot(player.level().getGameTime(), player.getId(),
-                player.level().dimension().location(), entries);
+                player.level().dimension().location(), entries, GuardCounterattackService.bonusReach(context),
+                GuardCounterattackService.reachExpiresAt(context));
     }
 
     public static List<String> debugLines(ServerPlayer player, ResourceLocation skillId) {
@@ -262,6 +284,9 @@ public final class SkillEffectRuntime {
 
     /** Launch snapshots and all effect handlers share the same resolved rank-adjusted values. */
     public static SkillEffectBalanceSettings resolvedSettings(ServerPlayer player) { return current(player).settings(); }
+
+    /** Reconciled shared effect context; server gameplay callers use the same effective loadout. */
+    public static Context context(ServerPlayer player) { return current(player); }
 
     private static Context current(ServerPlayer player) {
         PlayerRuntime runtime = PLAYERS.get(player.getUUID());

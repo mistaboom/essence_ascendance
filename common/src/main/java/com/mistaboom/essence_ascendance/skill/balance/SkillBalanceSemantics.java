@@ -166,22 +166,22 @@ public final class SkillBalanceSemantics {
     private static void defense(List<Builder> all) {
         all.add(skill(SkillIds.GUARDED_ADVANCE, multi(GROUND_SPEED, .45), flat(JUMP, .2))
                 .equipment(Equipment.SHIELD).actions(Action.BLOCK, Action.SPRINT).availability(.6, 1)
-                .condition("Shield raised; restores guarding traversal rather than unconditional speed"));
+                .condition("Functional registered shield actively raised; native sprint/jump and short steps; slowdown resolves once, no inactive movement bonus"));
         all.add(skill(SkillIds.SHIELD_RAM, flat(CROWD_CONTROL, .55))
                 .equipment(Equipment.SHIELD).actions(Action.BLOCK, Action.SPRINT).availability(.35, .75).risk(.25)
-                .condition("Sprint into a creature while guarding; contact distance and setup"));
+                .condition("Forward guarded sprint swept contact, speed threshold and terrain clipping; bounded stagger/push, repeat guard, no damage or block reward"));
         all.add(skill(SkillIds.STORED_FORCE, flat(BURST_DAMAGE, .65), flat(CROWD_CONTROL, .25))
-                .attacks().equipment(Equipment.SHIELD).actions(Action.BLOCK, Action.ATTACK).availability(.35, .8).risk(.2)
-                .condition("Successful block stores damage for one subsequent attack"));
+                .deliveries(Delivery.MELEE).equipment(Equipment.SHIELD).actions(Action.BLOCK, Action.ATTACK).availability(.35, .8).risk(.2)
+                .condition("Measured positive block prevention adds capped charge, refreshes idle expiry; one accepted positive primary melee hit consumes; exclusive with Guard Amplifier"));
         all.add(skill(SkillIds.GUARD_AMPLIFIER, multi(REFLECTION, .7))
                 .equipment(Equipment.SHIELD).actions(Action.BLOCK, Action.PERFECT_BLOCK).availability(.45, .8)
-                .condition("Block-dependent reflection amplification; perfect timing reaches maximum"));
+                .condition("Positive blocks grow and refresh reflection multiplier before their reflection; native-ready perfect timing reaches maximum; exclusive with Stored Force"));
         all.add(skill(SkillIds.REFLEXIVE_WARD, flat(REFLECTION, .5), flat(CROWD_CONTROL, .2))
                 .actions(Action.TAKE_DAMAGE).availability(.6, .8)
-                .condition("Completely prevented hits and attempted knockback can return force"));
+                .condition("Valid fully prevented positive hostile force extends existing equipment reflection; attempted knockback echoes toward responsible living source; no secondary recursion"));
         all.add(skill(SkillIds.CROWD_REPRISAL, area(AREA_DAMAGE, .4, 3))
                 .actions(Action.TAKE_DAMAGE).availability(.35, .75).area(4)
-                .condition("Requires reflection and nearby hostiles; reduced secondary damage"));
+                .condition("Confirmed primary reflected damage only; reduced secondary damage to bounded visible hostiles excludes defender and primary, never amplified again"));
         all.add(skill(SkillIds.INTERCEPTOR, flat(BLOCKING, .55))
                 .equipment(Equipment.MELEE_WEAPON).actions(Action.SWING).availability(.4, .6).risk(.2).range(3)
                 .condition("Ready ordinary server melee swing must intersect supported hostile projectile in the forward weapon arc; no speculative prevention credit"));
@@ -207,7 +207,7 @@ public final class SkillBalanceSemantics {
         all.add(skill(SkillIds.RIPOSTE, flat(BURST_DAMAGE, .7), flat(REACH, .3))
                 .deliveries(Delivery.MELEE).equipment(Equipment.SHIELD, Equipment.MELEE_WEAPON)
                 .actions(Action.PERFECT_BLOCK, Action.ATTACK).availability(.25, .6).risk(.25)
-                .condition("One melee counterattack after a perfectly timed block"));
+                .condition("Native-ready perfect block arms one timed primary melee counter; accepted positive hit consumes; bounded attack-only reach and protection, ordinary cooldown; combines with Stored Force"));
     }
 
     private static void vitality(List<Builder> all) {

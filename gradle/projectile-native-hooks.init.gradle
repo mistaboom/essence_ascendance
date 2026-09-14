@@ -11,6 +11,10 @@ allprojects { p ->
                 from(p.rootProject.project(':common').sourceSets.test.output) {
                     include 'com/mistaboom/essence_ascendance/projectile/ProjectileNativeHookTest*.class'
                     include 'com/mistaboom/essence_ascendance/projectile/ProjectileNativeInterceptionTest*.class'
+                    include 'com/mistaboom/essence_ascendance/projectile/NativeGuardCounterattackTest*.class'
+                    include 'com/mistaboom/essence_ascendance/projectile/NativeGuardRamTest*.class'
+                    include 'com/mistaboom/essence_ascendance/projectile/NativeGuardOutcomeTest*.class'
+                    include 'com/mistaboom/essence_ascendance/projectile/NativeGuardExplosionTest*.class'
                 }
                 from(fixtureMetadata)
                 doFirst {

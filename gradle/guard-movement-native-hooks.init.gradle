@@ -1,0 +1,81 @@
+// Explicit isolated client initialization test. Test entrypoint exits before any menu/world is opened.
+allprojects { p ->
+    p.afterEvaluate {
+        if (p.path == ':fabric') {
+            def metadata = p.rootProject.file('build/guard-movement-hook-metadata')
+            def fixture = p.tasks.register('guardMovementHookFixtureJar', Jar) {
+                dependsOn(p.rootProject.project(':common').tasks.named('testClasses'))
+                archiveFileName = 'guard-movement-hook-fixture.jar'
+                destinationDirectory = p.rootProject.layout.buildDirectory
+                from(p.rootProject.project(':common').sourceSets.test.output) {
+                    include 'com/mistaboom/essence_ascendance/fixture/GuardMovementNativeTest*.class'
+                }
+                from(metadata)
+                doFirst {
+                    metadata.mkdirs()
+                    new File(metadata, 'fabric.mod.json').text = '''{"schemaVersion":1,"id":"essence_guard_movement_hook_test","version":"1","environment":"client","entrypoints":{"client":["com.mistaboom.essence_ascendance.fixture.GuardMovementNativeTest::runAndExit"]},"depends":{"essence_ascendance":"*"}}'''
+                }
+            }
+            p.tasks.named('runClient').configure { t ->
+                def testRun = p.rootProject.file('build/guard-movement-native-hooks-run').canonicalFile
+                t.internalRunDir.set(testRun)
+                t.jvmArgs('-Dfabric.addMods=' + p.rootProject.file('build/guard-movement-hook-fixture.jar').canonicalPath,
+                        '-Dessence.guard.movementNativeTest=true', '-Dessence.guard.fixtureLoader=fabric')
+                t.dependsOn(fixture)
+                t.doFirst {
+                    if (t.internalRunDir.asFile.get().canonicalFile != testRun) throw new GradleException('Unexpected movement test directory')
+                    testRun.mkdirs()
+                }
+            }
+        }
+        if (p.path == ':neoforge') {
+            def common = p.rootProject.project(':common')
+            def metadata = p.rootProject.file('build/guard-movement-neo-hook-metadata')
+            def compile = p.tasks.register('compileGuardMovementNeoFixture', JavaCompile) {
+                dependsOn(common.tasks.named('testClasses'))
+                source(p.rootProject.file('gradle/native-fixtures/GuardMovementNativeMod.java'))
+                classpath = p.sourceSets.main.compileClasspath + common.sourceSets.test.output
+                destinationDirectory = p.rootProject.layout.buildDirectory.dir('guard-movement-neo-hook-classes')
+                options.release = 21
+            }
+            def fixture = p.tasks.register('guardMovementNeoHookFixtureJar', Jar) {
+                dependsOn(compile)
+                archiveFileName = 'guard-movement-neo-hook-fixture.jar'
+                destinationDirectory = p.rootProject.layout.buildDirectory
+                from(common.sourceSets.test.output) {
+                    include 'com/mistaboom/essence_ascendance/fixture/GuardMovementNativeTest*.class'
+                }
+                from(compile.flatMap { it.destinationDirectory })
+                from(metadata)
+                doFirst {
+                    new File(metadata, 'META-INF').mkdirs()
+                    new File(metadata, 'META-INF/neoforge.mods.toml').text = '''modLoader="javafml"
+loaderVersion="[4,)"
+license="All Rights Reserved"
+[[mods]]
+modId="essence_guard_movement_hook_test"
+version="1"
+displayName="No-world guard movement fixture"
+[[dependencies.essence_guard_movement_hook_test]]
+modId="essence_ascendance"
+type="required"
+versionRange="[1,)"
+ordering="AFTER"
+side="CLIENT"
+'''
+                }
+            }
+            p.tasks.named('runClient').configure { t ->
+                def testRun = p.rootProject.file('build/guard-movement-native-hooks-neoforge-run').canonicalFile
+                t.internalRunDir.set(testRun)
+                t.jvmArgs('-Dessence.guard.movementNativeTest=true', '-Dessence.guard.fixtureLoader=neoforge')
+                t.dependsOn(fixture)
+                t.doFirst {
+                    if (t.internalRunDir.asFile.get().canonicalFile != testRun) throw new GradleException('Unexpected NeoForge movement test directory')
+                    new File(testRun, 'mods').mkdirs()
+                    p.copy { from(fixture.get().archiveFile); into(new File(testRun, 'mods')) }
+                }
+            }
+        }
+    }
+}

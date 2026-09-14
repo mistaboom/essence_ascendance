@@ -3,6 +3,7 @@ package com.mistaboom.essence_ascendance.client;
 import com.mistaboom.essence_ascendance.attunement.AttunementContribution;
 import com.mistaboom.essence_ascendance.attunement.AttunementSnapshot;
 import com.mistaboom.essence_ascendance.client.nexus.NexusConstellationLayout;
+import com.mistaboom.essence_ascendance.client.nexus.NexusNavigationState;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.text.EssenceText;
 import net.minecraft.ChatFormatting;
@@ -30,10 +31,20 @@ public final class NexusAttunementView {
     private AttunementSnapshot snapshot = AttunementSnapshot.empty();
     private SemanticTooltip hovered;
 
+    public NexusNavigationState.Attunement navigation() {
+        return new NexusNavigationState.Attunement(selectedCategory, scroll, focusedIndex);
+    }
+
+    public void restoreNavigation(NexusNavigationState.Attunement navigation) {
+        selectedCategory = navigation.category(); scroll = navigation.scroll(); focusedIndex = navigation.focusedIndex();
+        // The next authoritative render resolves removed categories and clamps scrolling to the current layout.
+    }
+
     public void render(GuiGraphics graphics, Font font, AttunementSnapshot state,
                        Component currentTier, Component nextTier, int left, int top,
                        int width, int height, int mouseX, int mouseY, double time) {
         this.snapshot = state;
+        focusedIndex = Math.clamp(focusedIndex, -1, state.categories().size());
         this.left = left;
         this.top = top;
         this.width = Math.max(1, width);

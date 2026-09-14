@@ -45,6 +45,9 @@ public final class BalanceReports {
         var projectileRules = tables.table("projectile_policy.csv", "contract", "rule");
         if (skills.has("projectilePolicy")) skills.getAsJsonObject("projectilePolicy").entrySet().stream()
                 .sorted(Map.Entry.comparingByKey()).forEach(entry -> projectileRules.row(entry.getKey(), entry.getValue().getAsString()));
+        var guardRules = tables.table("guard_policy.csv", "contract", "rule");
+        if (skills.has("guardPolicy")) skills.getAsJsonObject("guardPolicy").entrySet().stream()
+                .sorted(Map.Entry.comparingByKey()).forEach(entry -> guardRules.row(entry.getKey(), entry.getValue().getAsString()));
         Path reports = BalanceReportLayout.reports(folder), diagnostics = BalanceReportLayout.diagnostics(folder);
         tables.write(reports, diagnostics);
         BalanceProfileStore.writeAtomically(reports.resolve("balance_report.md"), report(current, previous, generationMillis, skills));
@@ -124,6 +127,12 @@ public final class BalanceReports {
         if (skills.has("projectilePolicy")) {
             out.append("## Projectile payload and control policy\n\nResolved tuning is exported as scalar exact paths in `runtime_parameters.csv`; the contracts below are also in `projectile_policy.csv`.\n\n| Contract | Rule |\n|---|---|\n");
             skills.getAsJsonObject("projectilePolicy").entrySet().stream().sorted(Map.Entry.comparingByKey())
+                    .forEach(entry -> row(out, entry.getKey(), entry.getValue().getAsString()));
+            out.append('\n');
+        }
+        if (skills.has("guardPolicy")) {
+            out.append("## Guard mobility and counterplay policy\n\nResolved tuning is exported in `runtime_parameters.csv` under `/runtime/effects/guard`; `guard_policy.csv` records ordering, lifecycle and attribution rules.\n\n| Contract | Rule |\n|---|---|\n");
+            skills.getAsJsonObject("guardPolicy").entrySet().stream().sorted(Map.Entry.comparingByKey())
                     .forEach(entry -> row(out, entry.getKey(), entry.getValue().getAsString()));
             out.append('\n');
         }

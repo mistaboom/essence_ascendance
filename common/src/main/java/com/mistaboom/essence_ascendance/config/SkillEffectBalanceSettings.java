@@ -18,7 +18,8 @@ public record SkillEffectBalanceSettings(
         Shatter shatter,
         StaticCharge staticCharge,
         ChainStrike chainStrike,
-        ProjectileBalanceSettings projectiles
+        ProjectileBalanceSettings projectiles,
+        GuardBalanceSettings guard
 ) {
     public SkillEffectBalanceSettings {
         Objects.requireNonNull(frenzy, "Frenzy balance cannot be null");
@@ -32,6 +33,7 @@ public record SkillEffectBalanceSettings(
         Objects.requireNonNull(staticCharge, "Static Charge balance cannot be null");
         Objects.requireNonNull(chainStrike, "Chain Strike balance cannot be null");
         Objects.requireNonNull(projectiles, "Projectile balance cannot be null");
+        Objects.requireNonNull(guard, "Missing guard balance; rebuild generated balance");
     }
 
     public record Frenzy(
@@ -190,6 +192,7 @@ public record SkillEffectBalanceSettings(
                 staticCharge.lightningDamage());
         new ChainStrike(chainStrike.maximumJumps(), chainStrike.radius(), chainStrike.damageFalloff());
         projectiles.validate();
+        guard.validate();
     }
 
     public static SkillEffectBalanceSettings defaults() {
@@ -204,7 +207,8 @@ public record SkillEffectBalanceSettings(
                 new Shatter(3.0, 5.0, 6),
                 new StaticCharge(100.0, 1.0, 4.0, 0.50, 0.35, 0.60, 40, 0.50, 4.0),
                 new ChainStrike(3, 6.0, 0.75),
-                ProjectileBalanceSettings.defaults()
+                ProjectileBalanceSettings.defaults(),
+                GuardBalanceSettings.defaults()
         );
     }
 

@@ -32,7 +32,8 @@ public final class ProjectileSkillBatchTest {
         lifecycle();
         crossControlInteractions();
         for (var kind : SkillProcDamageService.DamageKind.values())
-            check(kind.reflectedOutcome() == (kind == SkillProcDamageService.DamageKind.REDIRECTED_PROJECTILE),
+            check(kind.reflectedOutcome() == (kind == SkillProcDamageService.DamageKind.REDIRECTED_PROJECTILE
+                            || kind == SkillProcDamageService.DamageKind.CROWD_REPRISAL),
                     "Only an actual returned-damage outcome participates in Defense reflection: " + kind);
         var failures = SkillEffectRuntime.validateInvariants();
         check(failures.isEmpty(), "Full gameplay diagnostics: " + failures);
@@ -42,13 +43,13 @@ public final class ProjectileSkillBatchTest {
 
     private static void catalogAndComposition() {
         check(SkillRegistry.values().size() == 90, "The curated catalog retains 90 skills");
-        check(SkillEffectRegistry.implementedIds().size() == 18, "15 Offense and three Defense effects implemented");
+        check(SkillEffectRegistry.implementedIds().size() == 25, "15 Offense and ten Defense effects implemented");
         for (var id : List.of(SkillIds.EXPLOSIVE_PAYLOAD, SkillIds.ROOTING_PAYLOAD,
                 SkillIds.PROJECTILE_DRAG_FIELD, SkillIds.INTERCEPTOR, SkillIds.TRAJECTORY_THEFT)) {
             check(SkillEffectRegistry.isImplemented(id), "Batch registered: " + id);
         }
-        for (var id : List.of(SkillIds.GUARDED_ADVANCE, SkillIds.SHIELD_RAM, SkillIds.REFLEXIVE_WARD,
-                SkillIds.EVASIVE_CURRENT, SkillIds.STATUS_MIRROR)) {
+        for (var id : List.of(SkillIds.EVASIVE_CURRENT, SkillIds.BULWARK_STANCE, SkillIds.ADAPTIVE_GUARD,
+                SkillIds.STATUS_MIRROR, SkillIds.PURE_STATE)) {
             check(!SkillEffectRegistry.isImplemented(id), "Future branches remain unimplemented: " + id);
         }
         check(!SkillGroups.OFFENSE_PROJECTILE_PATH.equals(SkillGroups.OFFENSE_PROJECTILE_PAYLOAD),

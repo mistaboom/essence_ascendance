@@ -2,7 +2,8 @@ package com.mistaboom.essence_ascendance.neoforge.mixin;
 
 import com.mistaboom.essence_ascendance.client.EquipmentTooltipClientState;
 import com.mistaboom.essence_ascendance.equipment.EquipmentShieldService;
-import com.mistaboom.essence_ascendance.equipment.ShieldMath;
+import com.mistaboom.essence_ascendance.skill.effect.GuardMobilityController;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import net.minecraft.client.player.LocalPlayer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -22,11 +23,33 @@ public abstract class LocalPlayerShieldMovementMixin {
         LocalPlayer player = (LocalPlayer) (Object) this;
         if (!EquipmentShieldService.isUsingShield(player)) return vanillaMultiplier;
 
-        // Guarded Movement never enables a sprinting shield charge.
-        player.setSprinting(false);
+        // One shared policy replaces the former unconditional sprint cancellation.
+        if (!GuardMobilityController.sprintAllowed(player)) player.setSprinting(false);
         if (!EquipmentShieldService.isGuarding(player)) return vanillaMultiplier;
 
-        return ShieldMath.movementMultiplier(vanillaMultiplier,
+        return GuardMobilityController.movementMultiplier(player, vanillaMultiplier,
                 EquipmentTooltipClientState.guardedMovementPercent(player.getUseItem()));
+    }
+    /** Only the item-use prohibition changes; native hunger/input/blindness/riding checks still run. */
+    @ModifyExpressionValue(method = "canStartSprinting", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/player/LocalPlayer;isUsingItem()Z"), require = 1, expect = 1)
+    private boolean essenceAscendance$guardedSprintStart(boolean usingItem) {
+        return usingItem && !GuardMobilityController.sprintAllowed((LocalPlayer) (Object) this);
+    }
+    /** NeoForge repeats the item-use test in its sprint-key branch after the ordinary decision helper. */
+    @ModifyExpressionValue(method = "aiStep", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/player/LocalPlayer;isUsingItem()Z", ordinal = 1), require = 1, expect = 1)
+    private boolean essenceAscendance$guardedSprintKey(boolean usingItem) {
+        return usingItem && !GuardMobilityController.sprintAllowed((LocalPlayer) (Object) this);
+    }
+    /** Sprint intent is checked before the guard-specific slowdown, including low configured/rank multipliers. */
+    @ModifyExpressionValue(method = "hasEnoughImpulseToStartSprinting", at = @At(value = "FIELD",
+            target = "Lnet/minecraft/client/player/Input;forwardImpulse:F"), require = 1, expect = 1)
+    private float essenceAscendance$guardedSprintIntent(float scaled) {
+        LocalPlayer player = (LocalPlayer) (Object) this;
+        if (!GuardMobilityController.sprintAllowed(player)) return scaled;
+        float multiplier = GuardMobilityController.movementMultiplier(player, .2F,
+                EquipmentTooltipClientState.guardedMovementPercent(player.getUseItem()));
+        return Math.min(1, scaled / multiplier);
     }
 }
