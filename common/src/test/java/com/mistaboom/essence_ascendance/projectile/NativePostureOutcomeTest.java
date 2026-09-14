@@ -4,17 +4,23 @@ import com.mistaboom.essence_ascendance.attunement.AttunementGameplay;
 import com.mistaboom.essence_ascendance.equipment.EquipmentDamageService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentShieldService;
 import com.mistaboom.essence_ascendance.item.AscendanceItems;
+import com.mistaboom.essence_ascendance.network.SkillEffectHudPayload;
 import com.mistaboom.essence_ascendance.posture.PostureService;
 import com.mistaboom.essence_ascendance.posture.ThreatFacingResolver;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.SkillGroups;
 import com.mistaboom.essence_ascendance.skill.SkillRegistry;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
+import com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudEntry;
+import com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudPresentation;
+import com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudSnapshot;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
 
@@ -41,9 +47,27 @@ public final class NativePostureOutcomeTest {
         check(!PostureService.eligible(p,p.damageSources().arrow(arrow,attacker),4,false),"Mismatched native shooter ownership fails closed");
         ProjectileNativeInterceptionTest.set(Entity.class,p,"onGround",true); p.setYRot(0);p.setXRot(0);
         check(SkillEffectRuntime.context(p).isEffective(SkillIds.ADAPTIVE_GUARD),"Real saved choice selects only Adaptive Guard");
+        var presentation=new SkillEffectHudPresentation();
+        var initialHud=transmittedHud(f);
+        check(initialHud.entries().stream().anyMatch(card->card.id().equals(SkillIds.ADAPTIVE_GUARD)&&!card.active()),
+                "Selected Adaptive Guard is present but inactive before any qualifying hit");
+        presentation.replace(initialHud.entries(),initialHud.serverGameTime());
+        check(presentation.visibleEntries(initialHud.serverGameTime()).isEmpty(),"Unseeded adaptation has no fabricated visible stacks");
         p.invulnerableTime=0;check(p.hurt(source,4),"First native adaptation hit accepted");
         close(PostureService.snapshot(p).incoming().resistance(),0,"First native exact damage ID unmitigated");
         check(PostureService.snapshot(p).stacks()==1,"Native measured positive health hit seeds first stack");
+        long firstHitLifecycle=PostureService.snapshot(p).lifecycle();
+        var firstHitHud=transmittedHud(f);
+        var firstHitCard=firstHitHud.entries().stream().filter(card->card.id().equals(SkillIds.ADAPTIVE_GUARD)).findFirst().orElseThrow();
+        check(firstHitCard.active()&&firstHitCard.badge().arguments().getFirst().equals("1")
+                        &&firstHitCard.meter().kind()==SkillEffectHudEntry.MeterKind.TIMER
+                        &&firstHitCard.meter().expiresAt()==PostureService.snapshot(p).expiresAt(),
+                "Actual native first-hit outcome reaches shared HUD codec with one stack and authoritative expiry");
+        presentation.replace(firstHitHud.entries(),firstHitHud.serverGameTime());
+        check(presentation.visibleEntries(firstHitHud.serverGameTime()).stream().anyMatch(card->card.id().equals(SkillIds.ADAPTIVE_GUARD)),
+                "Shared client presentation visibly opens Adaptive Guard on the first accepted native hit");
+        check(PostureService.snapshot(p).lifecycle()==firstHitLifecycle&&PostureService.snapshot(p).stacks()==1,
+                "Runtime HUD snapshot and codec do not reconcile away the active adaptation lifecycle");
         p.invulnerableTime=0;p.setHealth(20);check(p.hurt(source,4),"Second native adaptation hit accepted");
         var s=PostureService.snapshot(p);check(s.stacks()==2,"Second native hit commits exactly one stack");
         close(s.incoming().resistance(),SkillEffectRuntime.resolvedSettings(p).posture().adaptive().resistancePerStack(),"Same native type receives typed generated reduction");
@@ -73,7 +97,15 @@ public final class NativePostureOutcomeTest {
         check(PostureService.snapshot(p).meter()==0&&PostureService.snapshot(p).stacks()==0,"Switching owned exclusive choice clears old adaptation");
         chargeEvasive(f);
         attacker.setPos(p.getX(),p.getY(),p.getZ()+2);
-        check(PostureService.snapshot(p).meter()==1,"Controlled server-accepted motion evidence fills Evasive meter");
+        check(PostureService.snapshot(p).meter()==1&&p.getDeltaMovement().y==0&&!PostureService.snapshot(p).movement().equals("server_velocity_acceleration"),
+                "Native ground contact cancelling downward gravity every tick permits Evasive charge from accepted motion evidence");
+        p.setDeltaMovement(new Vec3(0,.42,0));
+        double beforeLift=PostureService.snapshot(p).meter();
+        evasiveStep(f);
+        check(PostureService.snapshot(p).movement().equals("server_velocity_acceleration")&&PostureService.snapshot(p).meter()<beforeLift,
+                "Actual transformed positive upward velocity still suppresses charge despite simultaneous deliberate input");
+        chargeEvasive(f);
+        attacker.setPos(p.getX(),p.getY(),p.getZ()+2);
         var shield=new ItemStack(AscendanceItems.ASCENDANCE_SHIELD.get());p.setItemInHand(InteractionHand.OFF_HAND,shield);p.startUsingItem(InteractionHand.OFF_HAND);
         ProjectileNativeInterceptionTest.set(LivingEntity.class,p,"useItemRemaining",shield.getUseDuration(p)-EquipmentShieldService.raiseDelayTicks(p,shield));
         p.invulnerableTime=0;p.setHealth(20);p.hurtTime=0;
@@ -91,8 +123,11 @@ public final class NativePostureOutcomeTest {
         attacker.setPos(0,0,2);
         p.setPos(0,0,0);PostureService.forget(p);SkillEffectRuntime.refresh(p);p.setDeltaMovement(Vec3.ZERO);p.hurtTime=0;ProjectileNativeInterceptionTest.set(Entity.class,p,"onGround",true);
         var settings=SkillEffectRuntime.resolvedSettings(p).posture();
-        for(int t=0;t<settings.bulwark().buildTicks()+settings.movement().stableTicks();t++){f.level.tick++;PostureService.tick(SkillEffectRuntime.context(p));}
-        check(PostureService.snapshot(p).meter()==1&&PostureService.snapshot(p).threat().facing(),"Bounded real native hostility/LOS query charges frontal stillness");
+        for(int t=0;t<settings.bulwark().buildTicks()+settings.movement().stableTicks();t++){
+            f.level.tick++;groundContact(f);PostureService.tick(SkillEffectRuntime.context(p));
+        }
+        check(PostureService.snapshot(p).meter()==1&&PostureService.snapshot(p).threat().facing(),
+                "Native ground contact cancelling downward gravity every tick permits Bulwark frontal stillness charge");
         check(ThreatFacingResolver.incoming(p,attacker,settings.bulwark()),"Native responsible attacker in front accepted");
         f.level.occluded=true;check(!ThreatFacingResolver.incoming(p,attacker,settings.bulwark()),"Controlled native LOS terrain rejects hidden threats");f.level.occluded=false;
         p.invulnerableTime=0;p.setHealth(20);p.setDeltaMovement(Vec3.ZERO);p.hurtTime=0;
@@ -110,11 +145,29 @@ public final class NativePostureOutcomeTest {
     private static void chargeEvasive(ProjectileNativeInterceptionTest.Fixture f) throws ReflectiveOperationException {
         var p=f.player;p.hurtTime=0;ProjectileNativeInterceptionTest.set(Entity.class,p,"onGround",true);p.setDeltaMovement(Vec3.ZERO);PostureService.forget(p);SkillEffectRuntime.refresh(p);
         int build=SkillEffectRuntime.resolvedSettings(p).posture().evasive().buildTicks();
-        for(int tick=0;tick<build;tick++) {
-            f.level.tick++;AttunementGameplay.setMovementIntent(p,true);Vec3 before=p.position();p.setPos(before.x+.1,before.y,before.z);
-            PostureService.moved(p,before,p.level().dimension().location().toString(),p.getYRot(),p.getXRot());
-            PostureService.tick(SkillEffectRuntime.context(p));
-        }
+        for(int tick=0;tick<build;tick++) evasiveStep(f);
+    }
+    private static void evasiveStep(ProjectileNativeInterceptionTest.Fixture f) {
+        var p=f.player;f.level.tick++;groundContact(f);AttunementGameplay.setMovementIntent(p,true);
+        Vec3 before=p.position();p.setPos(before.x+.1,before.y,before.z);
+        PostureService.moved(p,before,p.level().dimension().location().toString(),p.getYRot(),p.getXRot());
+        PostureService.tick(SkillEffectRuntime.context(p));
+    }
+    private static void groundContact(ProjectileNativeInterceptionTest.Fixture f) {
+        // Real Entity.move sets onGround before this real Block callback cancels downward gravity.
+        // The fixture supplies the collision boundary without opening a world or overriding velocity.
+        f.player.setDeltaMovement(new Vec3(0,-.0784,0));
+        Blocks.STONE.updateEntityAfterFallOn(f.level,f.player);
+    }
+    private static SkillEffectHudSnapshot transmittedHud(ProjectileNativeInterceptionTest.Fixture f) {
+        var snapshot=SkillEffectRuntime.hudSnapshot(f.player);
+        var buffer=new RegistryFriendlyByteBuf(io.netty.buffer.Unpooled.buffer(),f.level.registryAccess());
+        try {
+            SkillEffectHudPayload.CODEC.encode(buffer,new SkillEffectHudPayload(snapshot));
+            var decoded=SkillEffectHudPayload.CODEC.decode(buffer).snapshot();
+            check(decoded.equals(snapshot),"Actual runtime posture HUD snapshot survives the shared S2C codec");
+            return decoded;
+        } finally {buffer.release();}
     }
     private static void close(double a,double b,String message){check(Math.abs(a-b)<1e-5,message+": "+a+" vs "+b);}
     private static void check(boolean pass,String message){checks++;if(!pass)throw new AssertionError(message);}

@@ -77,6 +77,7 @@ public final class SkillEffectRuntime {
     public static void forget(ServerPlayer player) { reset(player); }
 
     public static void clearAll() {
+        CombatHudActivity.clear();
         GuardCounterattackService.clearAll();
         com.mistaboom.essence_ascendance.posture.PostureService.clear();
         for (PlayerRuntime runtime : List.copyOf(PLAYERS.values())) {
@@ -346,6 +347,7 @@ public final class SkillEffectRuntime {
     }
 
     private static void clear(Context context) {
+        CombatHudActivity.forget(context.player());
         for (SkillEffectHandler handler : SkillEffectRegistry.handlers()) handler.deactivate(context);
         context.runtime.states.values().forEach(SkillEffectState::clear);
         context.runtime.states.clear();

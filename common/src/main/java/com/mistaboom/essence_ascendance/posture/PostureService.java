@@ -6,6 +6,7 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentDamageService;
 import com.mistaboom.essence_ascendance.projectile.ProjectileOwnership;
 import com.mistaboom.essence_ascendance.projectile.ProjectileRuntime;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
+import com.mistaboom.essence_ascendance.skill.effect.CombatHudActivity;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceLocation;
@@ -134,11 +135,12 @@ public final class PostureService {
         var settings = SkillEffectRuntime.resolvedSettings(player).posture().movement();
         Vec3 current = entity.getDeltaMovement();
         // Ordinary drag/gravity do not create horizontal acceleration. Force or a changed horizontal
-        // direction does. Vertical force is relevant on ground; ordinary airborne gravity is unsupported.
+        // direction does. Ground collision cancels downward gravity after native move sets onGround;
+        // only acceleration into positive upward motion counts as grounded vertical force.
         if (!Double.isFinite(proposed.lengthSqr()) || proposed.horizontalDistance() > current.horizontalDistance() + settings.minimumDisplacement()
                 || current.horizontalDistance() > settings.minimumDisplacement() && proposed.horizontalDistance() > settings.minimumDisplacement()
                 && current.normalize().dot(proposed.normalize()) < 0
-                || player.onGround() && proposed.y > current.y + settings.minimumDisplacement()) forced(player,"server_velocity_acceleration");
+                || player.onGround() && proposed.y > Math.max(0, current.y) + settings.minimumDisplacement()) forced(player,"server_velocity_acceleration");
     }
     private static boolean movementMode(ServerPlayer player) {
         if (player.isPassenger() || player.isSleeping() || player.isFallFlying() || player.isInLava()) return false;
@@ -247,6 +249,7 @@ public final class PostureService {
         Snapshot s=snapshot(player);
         return List.of("Posture: player="+s.player()+" entity="+s.entityId()+" lifecycle="+s.lifecycle()+" dimension="+s.dimension()+" selected="+s.selected()+" effective="+s.effective(),
                 "  meter="+s.meter()+"/"+s.maximum()+" reason="+s.reason()+" tick="+s.tick()+" expires="+s.expiresAt(),
+                "  HUD combatRemainingTicks="+CombatHudActivity.remainingTicks(player)+" windowTicks="+CombatHudActivity.WINDOW_TICKS+" (presentation only)",
                 "  intent="+s.movementIntent()+" displacement="+s.displacement()+" turn="+s.turnDegrees()+" movement="+s.movement(),
                 "  threat="+s.threat(), "  adaptation="+s.damageType()+" stacks="+s.stacks(), "  incoming="+s.incoming());
     }

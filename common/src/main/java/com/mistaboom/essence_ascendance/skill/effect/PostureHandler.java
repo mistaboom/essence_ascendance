@@ -14,11 +14,13 @@ public record PostureHandler(ResourceLocation id) implements SkillEffectHudHandl
     @Override public List<String> debugLines(SkillEffectRuntime.Context context) { return PostureService.diagnostics(context.player()); }
     @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
         var snapshot = PostureService.snapshot(context.player());
-        return card(id, snapshot.meter(), snapshot.stacks(), snapshot.expiresAt(), context.settings().posture());
+        return card(id, snapshot.meter(), snapshot.stacks(), snapshot.expiresAt(), context.settings().posture(),
+                CombatHudActivity.active(context.player()));
     }
 
     /** Shared card factories only; numerical presentation never feeds gameplay state. */
-    static SkillEffectHudEntry card(ResourceLocation id, double meter, int stacks, long expiresAt, PostureBalanceSettings settings) {
+    static SkillEffectHudEntry card(ResourceLocation id, double meter, int stacks, long expiresAt,
+                                   PostureBalanceSettings settings, boolean inCombat) {
         if (id.equals(SkillIds.ADAPTIVE_GUARD)) {
             double resistance = stacks == 0 ? 0 : Math.max(0, Math.min(settings.adaptive().maximumStacks(), stacks + 1)
                     - settings.adaptive().minimumHits() + 1) * settings.adaptive().resistancePerStack();
@@ -29,7 +31,7 @@ public record PostureHandler(ResourceLocation id) implements SkillEffectHudHandl
         }
         boolean evasive = id.equals(SkillIds.EVASIVE_CURRENT);
         double maximum = evasive ? settings.evasive().maximumDodgeChance() : settings.bulwark().maximumResistance();
-        return SkillEffectHudCards.progress(id, meter > 0, evasive ? 0xFF67CABB : 0xFF729ECC,
+        return SkillEffectHudCards.progress(id, inCombat && meter > 0, evasive ? 0xFF67CABB : 0xFF729ECC,
                 SkillEffectHudEntry.Text.translated("hud.essence_ascendance.percent", percent(meter)),
                 List.of(SkillEffectHudEntry.Text.translated(evasive ? "hud.essence_ascendance.posture.evasive"
                         : "hud.essence_ascendance.posture.bulwark", percent(meter * maximum))), meter);

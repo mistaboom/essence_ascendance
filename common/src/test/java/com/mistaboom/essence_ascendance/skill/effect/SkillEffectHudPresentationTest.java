@@ -118,8 +118,11 @@ public final class SkillEffectHudPresentationTest {
     private static void postureCards() {
         var settings = com.mistaboom.essence_ascendance.config.PostureBalanceSettings.defaults();
         for (var id : List.of(SkillIds.EVASIVE_CURRENT, SkillIds.BULWARK_STANCE, SkillIds.ADAPTIVE_GUARD)) {
-            var active = PostureHandler.card(id, .5, 3, 200, settings);
-            var empty = PostureHandler.card(id, 0, 0, 0, settings);
+            var active = PostureHandler.card(id, .5, 3, 200, settings, true);
+            var empty = PostureHandler.card(id, 0, 0, 0, settings, true);
+            var peaceful = PostureHandler.card(id, .5, 3, 200, settings, false);
+            check(peaceful.active() == id.equals(SkillIds.ADAPTIVE_GUARD),
+                    "Only adaptation can display outside recent mob/player combat");
             check(active.id().equals(id) && active.sourceSkill().equals(id), "Posture identity uses shared card contract");
             check(active.active() && !empty.active() && active.lines().size() == 1, "Active/inactive posture cards have one detail line");
             check((active.accent() >>> 24) == 255, "Posture accent remains opaque");
@@ -141,6 +144,17 @@ public final class SkillEffectHudPresentationTest {
             check(!empty.active(), "Closing presentation cannot reactivate gameplay snapshot");
             display.replace(List.of(active), 90); display.replace(List.of(), 91);
             check(display.visibleEntries(91).isEmpty(), "Posture opt-out/choice switch removes card immediately");
+            if (!id.equals(SkillIds.ADAPTIVE_GUARD)) {
+                display.replace(List.of(peaceful), 100);
+                check(display.visibleEntries(100).isEmpty(), "Charged posture stays hidden during ordinary travel or waiting");
+                display.replace(List.of(active), 110);
+                display.replace(List.of(peaceful), 210);
+                check(display.visibleEntries(269).equals(List.of(active)) && display.visibleEntries(270).isEmpty(),
+                        "Combat expiry uses the shared close delay without extending combat");
+            } else {
+                var firstHit = PostureHandler.card(id, 0, 1, 300, settings, false);
+                check(firstHit.active(), "The first adapting hit reveals the card even for environmental damage");
+            }
         }
         check(com.mistaboom.essence_ascendance.status.StatusEffectHandlers.mirror() instanceof SkillEffectHudHandler,
                 "Mirror cooldown uses shared card handler");

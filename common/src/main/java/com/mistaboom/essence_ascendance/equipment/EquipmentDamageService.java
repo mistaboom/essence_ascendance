@@ -5,6 +5,7 @@ import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import com.mistaboom.essence_ascendance.stat.EssenceStats;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
+import com.mistaboom.essence_ascendance.skill.effect.CombatHudActivity;
 import com.mistaboom.essence_ascendance.skill.effect.AttackCategory;
 import com.mistaboom.essence_ascendance.skill.effect.GuardCounterattackService;
 import com.mistaboom.essence_ascendance.guard.*;
@@ -218,6 +219,7 @@ public final class EquipmentDamageService {
                     && frame != null && !frame.nested && frame.target == target && frame.source == source
                     && !isReflectionInProgress() && SECONDARY_SKILL_DEPTH.get() == 0;
             if (realDamage) {
+                CombatHudActivity.confirmedDamage(target, source);
                 AttackCategory category = primaryAttackCategory(target, source);
                 if (category == AttackCategory.MELEE) {
                     if (probe != null && probe.target == target && probe.source == source) {
@@ -588,6 +590,8 @@ public final class EquipmentDamageService {
                 : ShieldMath.reflectedPortion(blocked, frame.shield.blockedReflectionPercent());
         boolean dodged = frame.posture.dodged();
         boolean actualHit = !dodged && (damageAccepted || frame.blockCompleted && blocked > 0);
+        if (!frame.suppressed && (dodged || frame.blockCompleted && blocked > 0))
+            CombatHudActivity.confirmedDefense(victim, source);
         PostureService.finish(victim,frame.posture,damageAccepted,frame.blockCompleted && blocked > 0,
                 frame.healthLost + frame.absorptionLost, dodged ? frame.posture.requestedPrevention() : frame.postureApplied);
         if (actualHit && frame.knockbackDecision.equals("bulwark_correlated_force_rejected"))
