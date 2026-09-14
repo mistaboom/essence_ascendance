@@ -22,7 +22,8 @@ final class BuildPowerTargetsTest {
         near(BuildPowerTargets.multiplier(stronger,ProgressionBand.APEX,Participation.FULLY_COMBINED),4,"Friendly power scales added headroom");
         near(BuildPowerTargets.multiplier(stronger,ProgressionBand.APEX,Participation.EQUIPMENT_FOCUSED),1,"Friendly power changed equipment parity");
         near(BuildPowerTargets.burstMultiplier(settings,ProgressionBand.APEX,Participation.CATEGORY_SPECIALIZED,false),3,"Omitted defense grants no burst permission");
-        near(BuildPowerTargets.burstMultiplier(settings,ProgressionBand.APEX,Participation.CATEGORY_SPECIALIZED,true),4,"Actual low-health burst ceiling");
+        near(BuildPowerTargets.burstMultiplier(settings,ProgressionBand.APEX,Participation.CATEGORY_SPECIALIZED,true),3,"Offense-only rows retain ordinary ceiling even at low health");
+        near(BuildPowerTargets.burstMultiplier(settings,ProgressionBand.APEX,Participation.FULLY_COMBINED,true),4,"Actual low-health combined burst ceiling");
         near(BuildPowerTargets.burstMultiplier(settings,ProgressionBand.APEX,Participation.SKILL_FOCUSED,true),2,"Standalone skill ceiling is still 2x");
         double[] combined={1.5,1.7,2,2.5,3};
         for(var band:ProgressionBand.values()) {
@@ -55,6 +56,9 @@ final class BuildPowerTargetsTest {
 
         var full=RuntimeBuildScenarios.plan();
         check(full.full().get(AscendanceTiers.TRANSCENDENT.id()).stream().anyMatch(s->s.contributingRanks().getOrDefault(SkillIds.FRENZY,0)==5),"Numeric plan still hard-codes rank one");
+        for(var id:List.of(SkillIds.EVASIVE_CURRENT,SkillIds.BULWARK_STANCE,SkillIds.ADAPTIVE_GUARD,SkillIds.STATUS_MIRROR,SkillIds.PURE_STATE))
+            check(full.full().get(AscendanceTiers.TRANSCENDENT.id()).stream().anyMatch(s->s.contributingRanks().getOrDefault(id,0)
+                    ==SkillRegistry.require(id).rankPolicy().projectionRanks()),"Apex late-tier skill omitted full projected ranks: "+id);
         check(full.full().get(AscendanceTiers.DORMANT.id()).stream().flatMap(s->s.contributingRanks().values().stream()).allMatch(r->r==1),"Ranks bypass tier gates");
         var frenzy=SkillRegistry.require(SkillIds.FRENZY);
         check(frenzy.maximumRank()==1&&frenzy.rankPolicy().projectionRanks()==5,"Future rank projection changed current purchasability");

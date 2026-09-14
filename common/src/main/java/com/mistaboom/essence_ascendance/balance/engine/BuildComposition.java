@@ -266,8 +266,11 @@ public final class BuildComposition {
         double health = equipment.health() + nexus.bonusHealth() + skills.bonusHealth();
         double armor = equipment.armor() + nexus.armor() + skills.armor();
         double toughness = equipment.toughness() + nexus.toughness() + skills.toughness();
-        double taken = armorDamageFraction(incomingHit, armor, toughness)
-                * (1 - nexus.damageReduction()) * (1 - skills.damageReduction())
+        // EquipmentDamageService applies equipment and posture resistance before
+        // Minecraft's nonlinear armor/toughness calculation, in that same hit.
+        double resistanceTaken = (1 - nexus.damageReduction()) * (1 - skills.damageReduction());
+        double taken = armorDamageFraction(incomingHit * resistanceTaken, armor, toughness)
+                * resistanceTaken
                 * (1 - nexus.avoidance()) * (1 - skills.avoidance());
         double healing = equipment.healingPerSecond() + nexus.healingPerSecond() + skills.healingPerSecond()
                 + sustained * (nexus.lifeStealFraction() + skills.lifeStealFraction());

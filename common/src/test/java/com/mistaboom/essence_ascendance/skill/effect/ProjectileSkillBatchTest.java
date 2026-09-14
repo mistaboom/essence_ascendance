@@ -43,14 +43,14 @@ public final class ProjectileSkillBatchTest {
 
     private static void catalogAndComposition() {
         check(SkillRegistry.values().size() == 90, "The curated catalog retains 90 skills");
-        check(SkillEffectRegistry.implementedIds().size() == 25, "15 Offense and ten Defense effects implemented");
+        check(SkillEffectRegistry.implementedIds().size() == 30, "15 Offense and 15 Defense effects implemented");
         for (var id : List.of(SkillIds.EXPLOSIVE_PAYLOAD, SkillIds.ROOTING_PAYLOAD,
                 SkillIds.PROJECTILE_DRAG_FIELD, SkillIds.INTERCEPTOR, SkillIds.TRAJECTORY_THEFT)) {
             check(SkillEffectRegistry.isImplemented(id), "Batch registered: " + id);
         }
         for (var id : List.of(SkillIds.EVASIVE_CURRENT, SkillIds.BULWARK_STANCE, SkillIds.ADAPTIVE_GUARD,
                 SkillIds.STATUS_MIRROR, SkillIds.PURE_STATE)) {
-            check(!SkillEffectRegistry.isImplemented(id), "Future branches remain unimplemented: " + id);
+            check(SkillEffectRegistry.isImplemented(id), "Completed Defense branches registered: " + id);
         }
         check(!SkillGroups.OFFENSE_PROJECTILE_PATH.equals(SkillGroups.OFFENSE_PROJECTILE_PAYLOAD),
                 "Path and payload retain separate choice groups");

@@ -258,6 +258,42 @@ schema_version = 1
 # "/runtime/effects/guard/riposte/bonusReach" = 0.75 # 0..2 blocks, eligible counterattack only
 # "/runtime/effects/guard/riposte/damageScale" = 0.35 # 0..4 added primary-melee damage fraction
 # "/runtime/effects/guard/riposte/protectionTicks" = 1 # 1..2; attack return closes protection immediately
+
+# Defensive posture and harmful-status skills share this generated profile.
+# Examples below are seed defaults, not promises of final calibrated power.
+# Rebuild preserves human TOML. Reload/choice/lifecycle changes clear transient posture/cooldown.
+# Damage resistance applies before native armor. Pure State is binary, has no
+# magnitude knob or invented rank benefit, and does not cleanse existing effects.
+# Movement measurements use server blocks/tick and degrees; hysteresis absorbs jitter.
+# "/runtime/effects/posture/movement/minimumDisplacement" = 0.01 # .001..0.1
+# "/runtime/effects/posture/movement/stillEnterDisplacement" = 0.003 # .0001..minimumDisplacement
+# "/runtime/effects/posture/movement/stillExitDisplacement" = 0.015 # stillEnterDisplacement..0.2
+# "/runtime/effects/posture/movement/maximumDisplacement" = 3.0 # 1..8; discontinuity reset
+# "/runtime/effects/posture/movement/turnEnterDegrees" = 1.0 # .1..5
+# "/runtime/effects/posture/movement/turnExitDegrees" = 3.0 # turnEnterDegrees..20
+# "/runtime/effects/posture/movement/stableTicks" = 3 # 1..20
+# "/runtime/effects/posture/movement/intentTimeoutTicks" = 10 # 5..40
+# "/runtime/effects/posture/movement/forcedMotionQuietTicks" = 10 # 1..40
+# "/runtime/effects/posture/evasive/buildTicks" = 80 # 20..1200 to full meter
+# "/runtime/effects/posture/evasive/drainTicks" = 20 # 1..200 from full to empty
+# "/runtime/effects/posture/evasive/maximumDodgeChance" = 0.2 # 0..0.75; generated rank scaling
+# "/runtime/effects/posture/evasive/successDrainFraction" = 0.5 # .1..1 of full meter per dodge
+# "/runtime/effects/posture/evasive/hitDrainFraction" = 1.0 # .1..1 of full meter per taken hit
+# "/runtime/effects/posture/bulwark/buildTicks" = 80 # 20..1200 while stationary and facing threat
+# "/runtime/effects/posture/bulwark/drainTicks" = 20 # 1..200
+# "/runtime/effects/posture/bulwark/threatRange" = 12.0 # 1..32 blocks
+# "/runtime/effects/posture/bulwark/facingDegrees" = 60.0 # 10..85 half angle
+# "/runtime/effects/posture/bulwark/maximumResistance" = 0.2 # 0..0.75; generated rank scaling
+# "/runtime/effects/posture/bulwark/knockbackThreshold" = 1.0 # .5..1 of full meter, correlated hostile hit only
+# "/runtime/effects/posture/bulwark/maximumThreats" = 32 # 1..64 bounded threat candidates
+# "/runtime/effects/posture/adaptive/windowTicks" = 120 # 20..1200 since last eligible type hit
+# "/runtime/effects/posture/adaptive/maximumStacks" = 5 # 2..16, includes first seeding hit
+# "/runtime/effects/posture/adaptive/minimumHits" = 2 # 2..maximumStacks; first mitigated hit
+# "/runtime/effects/posture/adaptive/resistancePerStack" = 0.05 # 0..0.75/(maximumStacks-minimumHits+1)
+# Status Mirror copies at most this duration/amplifier through normal target acceptance.
+# "/runtime/effects/status/mirrorCooldownTicks" = 600 # 20..72000; rank scaling reduces cooldown, never below20
+# "/runtime/effects/status/mirrorMaximumDurationTicks" = 1200 # 1..72000; infinite copied durations use this cap
+# "/runtime/effects/status/mirrorMaximumAmplifier" = 4 # 0..10, zero-based native amplifier
 # Stored Force and Riposte spend once on accepted positive primary melee damage;
 # misses/canceled/no-loss attacks retain them until expiry or invalid state.
 # Native damage, armor, absorption and attack cooldown still apply. Riposte adds

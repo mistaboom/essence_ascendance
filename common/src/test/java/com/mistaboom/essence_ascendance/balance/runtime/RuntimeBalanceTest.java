@@ -76,6 +76,21 @@ public final class RuntimeBalanceTest {
         var generated=RuntimeBalanceDefinition.generate(evidence,economy,BalanceSettings.defaults(),BalanceOverrides.empty());
         check(generated.generationAnalysis()!=null,"Numeric composition scenarios missing");
         generated.generationAnalysis().requireSafe();
+        RuntimeBuildScenarios.analyze(generated,evidence,BalanceSettings.defaults(),RuntimeBuildScenarios.plan(generated,false)).requireSafe();
+        var posture=generated.config().skillEffects().posture();
+        var postureDefaults=com.mistaboom.essence_ascendance.config.PostureBalanceSettings.defaults();
+        check(posture.evasive().maximumDodgeChance()>0 && posture.evasive().maximumDodgeChance()<=postureDefaults.evasive().maximumDodgeChance(),
+                "Rank-one Evasive recovery exceeds requested gameplay strength");
+        check(posture.bulwark().maximumResistance()>0 && posture.bulwark().maximumResistance()<=postureDefaults.bulwark().maximumResistance(),
+                "Rank-one Bulwark recovery exceeds requested gameplay strength");
+        check(posture.adaptive().resistancePerStack()>0 && posture.adaptive().resistancePerStack()<=postureDefaults.adaptive().resistancePerStack(),
+                "Rank-one Adaptive recovery exceeds requested gameplay strength");
+        if(generated.composition().get("defense_calibration")<1) {
+            check(posture.evasive().maximumDodgeChance()>postureDefaults.evasive().maximumDodgeChance()*generated.composition().get("defense_calibration"),
+                    "Earlier-tier Nexus defense bottleneck unnecessarily suppresses late-tier posture");
+            check(generated.composition().get("posture_evasive_rank_one_recovery")>0,
+                    "Independent posture recovery lacks diagnostic evidence");
+        }
         BuildPowerTargetsTest.run(generated);
         check(generated.composition().get("equipment_standalone_factor")==1.0,
                 "Ordinary equipment must not pay a budget penalty for unowned Nexus upgrades or skills");

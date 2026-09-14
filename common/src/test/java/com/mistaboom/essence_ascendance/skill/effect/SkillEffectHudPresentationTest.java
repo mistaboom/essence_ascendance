@@ -16,6 +16,7 @@ public final class SkillEffectHudPresentationTest {
         cardContract();
         retainedPresentation();
         independentCards();
+        postureCards();
         var failures = new ArrayList<String>();
         SkillEffectHudDiagnostics.validate(failures);
         check(failures.isEmpty(), "Existing generic HUD codec diagnostics: " + failures);
@@ -112,6 +113,39 @@ public final class SkillEffectHudPresentationTest {
         return SkillEffectHudCards.timed(id, active, 0xFFC65C, SkillEffectHudEntry.Text.literal(badge),
                 List.of(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.next_confirmed_melee")),
                 "hud.essence_ascendance.counterattack", expiry);
+    }
+
+    private static void postureCards() {
+        var settings = com.mistaboom.essence_ascendance.config.PostureBalanceSettings.defaults();
+        for (var id : List.of(SkillIds.EVASIVE_CURRENT, SkillIds.BULWARK_STANCE, SkillIds.ADAPTIVE_GUARD)) {
+            var active = PostureHandler.card(id, .5, 3, 200, settings);
+            var empty = PostureHandler.card(id, 0, 0, 0, settings);
+            check(active.id().equals(id) && active.sourceSkill().equals(id), "Posture identity uses shared card contract");
+            check(active.active() && !empty.active() && active.lines().size() == 1, "Active/inactive posture cards have one detail line");
+            check((active.accent() >>> 24) == 255, "Posture accent remains opaque");
+            if (id.equals(SkillIds.ADAPTIVE_GUARD)) {
+                check(active.badge().equals(SkillEffectHudCards.count(3, settings.adaptive().maximumStacks())), "Adaptation badge displays bounded stacks");
+                check(active.meter().kind() == SkillEffectHudEntry.MeterKind.TIMER && active.meter().expiresAt() == 200, "Adaptation footer shows real memory expiry");
+                check(active.lines().equals(List.of(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.posture.adaptive", "15.0"))), "Adaptive detail matches next same-type hit mitigation");
+            } else {
+                check(active.badge().equals(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.percent", "50.0")), "Posture badge displays meter fraction");
+                check(active.meter().equals(SkillEffectHudEntry.Meter.progress(.5)), "Posture progress uses actual server meter");
+                check(active.lines().equals(List.of(SkillEffectHudEntry.Text.translated(id.equals(SkillIds.EVASIVE_CURRENT)
+                        ? "hud.essence_ascendance.posture.evasive" : "hud.essence_ascendance.posture.bulwark", "10.0"))), "Posture detail is scaled to meter");
+            }
+            var display = new SkillEffectHudPresentation();
+            display.replace(List.of(empty), 0);
+            check(display.visibleEntries(0).isEmpty(), "Initial posture is hidden");
+            display.replace(List.of(active), 10); display.replace(List.of(empty), 20);
+            check(display.visibleEntries(79).equals(List.of(active)) && display.visibleEntries(80).isEmpty(), "Posture drain closes after exactly sixty ticks");
+            check(!empty.active(), "Closing presentation cannot reactivate gameplay snapshot");
+            display.replace(List.of(active), 90); display.replace(List.of(), 91);
+            check(display.visibleEntries(91).isEmpty(), "Posture opt-out/choice switch removes card immediately");
+        }
+        check(com.mistaboom.essence_ascendance.status.StatusEffectHandlers.mirror() instanceof SkillEffectHudHandler,
+                "Mirror cooldown uses shared card handler");
+        check(!(com.mistaboom.essence_ascendance.status.StatusEffectHandlers.pureState() instanceof SkillEffectHudHandler),
+                "Pure State adds no permanent passive overlay");
     }
 
     private static void check(boolean condition, String message) {

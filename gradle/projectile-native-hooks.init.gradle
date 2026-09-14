@@ -1,5 +1,6 @@
-// Explicit no-world loader test: gradlew -I gradle/projectile-native-hooks.init.gradle :fabric:runServer
-// The test-only entrypoint exits with the assertion result; --initSettings is a second guard against world access.
+// Explicit no-world tests: -I gradle/projectile-native-hooks.init.gradle :fabric:runServer or :neoforge:runClient.
+// Fabric exits at server initialization with --initSettings as a second guard.
+// NeoForge loads its fixture during client setup and exits before a menu or world.
 allprojects { p ->
     p.afterEvaluate {
         if (p.path == ':fabric') {
@@ -15,6 +16,8 @@ allprojects { p ->
                     include 'com/mistaboom/essence_ascendance/projectile/NativeGuardRamTest*.class'
                     include 'com/mistaboom/essence_ascendance/projectile/NativeGuardOutcomeTest*.class'
                     include 'com/mistaboom/essence_ascendance/projectile/NativeGuardExplosionTest*.class'
+                    include 'com/mistaboom/essence_ascendance/projectile/NativeStatusInterceptionTest*.class'
+                    include 'com/mistaboom/essence_ascendance/projectile/NativePostureOutcomeTest*.class'
                 }
                 from(fixtureMetadata)
                 doFirst {
@@ -32,6 +35,63 @@ allprojects { p ->
                 t.doFirst {
                     if (t.internalRunDir.asFile.get().canonicalFile != testRun) throw new GradleException('Unexpected hook test directory')
                     testRun.mkdirs()
+                }
+            }
+        }
+        if (p.path == ':neoforge') {
+            def common = p.rootProject.project(':common')
+            p.tasks.named('runServer').configure {
+                doFirst { throw new GradleException('Use :neoforge:runClient for the initialization-only native fixture; server settings initialization exits before mod setup.') }
+            }
+            // NeoForge modules reject split packages. Add package-private native probes to
+            // the common development module for this explicit fixture run only.
+            if (p.gradle.startParameter.taskNames.any { it == ':neoforge:runClient' }) {
+                common.tasks.named('jar').configure {
+                    dependsOn(common.tasks.named('testClasses'))
+                    from(common.sourceSets.test.output) { include 'com/mistaboom/essence_ascendance/projectile/*Native*.class' }
+                }
+            }
+            def metadata = p.rootProject.file('build/defense-native-neo-metadata')
+            def compile = p.tasks.register('compileDefenseNativeFixture', JavaCompile) {
+                dependsOn(common.tasks.named('testClasses'))
+                source(p.rootProject.file('gradle/native-fixtures/DefenseNativeMod.java'))
+                classpath = p.sourceSets.main.compileClasspath + common.sourceSets.test.output
+                destinationDirectory = p.rootProject.layout.buildDirectory.dir('defense-native-neo-classes')
+                options.release = 21
+            }
+            def fixture = p.tasks.register('defenseNativeFixtureJar', Jar) {
+                dependsOn(compile)
+                archiveFileName = 'defense-native-neo-fixture.jar'
+                destinationDirectory = p.rootProject.layout.buildDirectory
+                from(compile.flatMap { it.destinationDirectory })
+                from(metadata)
+                doFirst {
+                    new File(metadata, 'META-INF').mkdirs()
+                    new File(metadata, 'META-INF/neoforge.mods.toml').text = '''modLoader="javafml"
+loaderVersion="[4,)"
+license="All Rights Reserved"
+[[mods]]
+modId="essence_defense_native_test"
+version="1"
+displayName="No-world Defense fixture"
+[[dependencies.essence_defense_native_test]]
+modId="essence_ascendance"
+type="required"
+versionRange="[1,)"
+ordering="AFTER"
+side="CLIENT"
+'''
+                }
+            }
+            p.tasks.named('runClient').configure { t ->
+                def testRun = p.rootProject.file('build/defense-native-neoforge-run').canonicalFile
+                t.internalRunDir.set(testRun)
+                t.jvmArgs('-Dessence.projectile.nativeHookTest=true')
+                t.dependsOn(fixture)
+                t.doFirst {
+                    if (t.internalRunDir.asFile.get().canonicalFile != testRun) throw new GradleException('Unexpected Defense test directory')
+                    new File(testRun, 'mods').mkdirs()
+                    p.copy { from(fixture.get().archiveFile); into(new File(testRun, 'mods')) }
                 }
             }
         }

@@ -8,6 +8,7 @@ import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import com.mistaboom.essence_ascendance.skill.effect.AttackCategory;
 import com.mistaboom.essence_ascendance.skill.effect.GuardCounterattackService;
 import com.mistaboom.essence_ascendance.guard.*;
+import com.mistaboom.essence_ascendance.posture.PostureService;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.DamageTypeTags;
@@ -61,10 +62,11 @@ public final class EquipmentDamageService {
     private static final ThreadLocal<Integer> REFLECTION_DEPTH =
             ThreadLocal.withInitial(() -> 0);
     private static final ThreadLocal<MeasuredDamage> MEASURED_DAMAGE = new ThreadLocal<>();
+    private static final ThreadLocal<java.util.function.DoubleSupplier> POSTURE_TEST_ROLL = new ThreadLocal<>();
     private static final Map<ServerPlayer, GuardOutcome> LAST_GUARD = new WeakHashMap<>();
     private static long nextGuardEvent;
     private record ExplosionScope(Entity target, DamageSource source) { }
-    private record PendingExplosion(DamageSource source, GuardOutcome outcome, boolean wardEligible) { }
+    private record PendingExplosion(DamageSource source, GuardOutcome outcome, boolean wardEligible, PostureService.Incoming posture) { }
     private static final ThreadLocal<ExplosionScope> EXPLOSION_HIT = new ThreadLocal<>();
     private static final Map<ServerPlayer, PendingExplosion> EXPLOSION_IMPULSES = new WeakHashMap<>();
 
@@ -86,6 +88,13 @@ public final class EquipmentDamageService {
         int previous = REFLECTION_DEPTH.get(); REFLECTION_DEPTH.set(previous + 1);
         try { return action.getAsBoolean(); }
         finally { if (previous == 0) REFLECTION_DEPTH.remove(); else REFLECTION_DEPTH.set(previous); }
+    }
+    /** Scoped deterministic native-fixture seam; ordinary gameplay always uses the entity random source. */
+    public static boolean withPostureTestRoll(java.util.function.DoubleSupplier roll, BooleanSupplier action) {
+        if (!Boolean.getBoolean("essence.projectile.nativeHookTest")) throw new IllegalStateException("Explicit native fixture required");
+        var previous = POSTURE_TEST_ROLL.get(); POSTURE_TEST_ROLL.set(java.util.Objects.requireNonNull(roll));
+        try { return action.getAsBoolean(); }
+        finally { if (previous == null) POSTURE_TEST_ROLL.remove(); else POSTURE_TEST_ROLL.set(previous); }
     }
 
     /* All scopes are server-thread-only, bounded to the native call and closed
@@ -451,6 +460,21 @@ public final class EquipmentDamageService {
                 incomingDamage * (1.0 - clampedResistance / 100.0)
         );
         if (frame != null) {
+            // Exactly one mitigation decision per outer native event, shared across loader callbacks.
+            if (!frame.posturePrepared) {
+                frame.posturePrepared = true;
+                frame.posture = PostureService.prepare(player, source, resolvedDamage, frame.event, frame.suppressed);
+            }
+            if (!frame.incomingModified) {
+                frame.incomingModified = true;
+                float beforePosture = resolvedDamage;
+                resolvedDamage *= (float) (1 - frame.posture.resistance());
+                frame.postureApplied = Math.max(0,beforePosture-resolvedDamage);
+                frame.posture = frame.posture.prevention(frame.postureApplied);
+            } else return frame.resolvedIncoming;
+            frame.resolvedIncoming = resolvedDamage;
+        }
+        if (frame != null) {
             frame.incoming = incomingDamage;
             frame.mitigated = Math.max(0, incomingDamage - resolvedDamage);
         }
@@ -483,7 +507,7 @@ public final class EquipmentDamageService {
         REFLECTION_FRAMES.computeIfAbsent(player, ignored -> new ArrayDeque<>())
                 .push(new ReflectionFrame(
                         source,
-                        isReflectionInProgress() || isSecondarySkillDamage(),
+                        isReflectionInProgress() || isSecondarySkillDamage() || !SKILL_DAMAGE_FRAMES.get().isEmpty(),
                         preHitStats,
                         preHitHeldShield
                 ));
@@ -497,6 +521,24 @@ public final class EquipmentDamageService {
         frame.tick = player.level().getGameTime();
         ExplosionScope explosion = EXPLOSION_HIT.get();
         frame.deferEcho = explosion != null && explosion.target == player && explosion.source == source;
+    }
+
+    /** Native initial immunity/source checks have passed; no shield decision or health write has run. */
+    public static boolean tryPostureDodge(ServerPlayer player, DamageSource source, float amount) {
+        ReflectionFrame frame = frame(player, source);
+        if (frame == null || frame.suppressed || frame.dodgeResolved) return frame != null && frame.posture != null && frame.posture.dodged();
+        frame.dodgeResolved = true;
+        if (!frame.posturePrepared) {
+            frame.posturePrepared = true;
+            frame.posture = PostureService.prepare(player,source,amount,frame.event,frame.suppressed);
+        }
+        // Native cooldown applies later in hurt. A conservative exclusion prevents rejected probes from rolling.
+        if (!Float.isFinite(amount) || amount <= 0 || frame.posture.chance() <= 0
+                || !PostureService.canRoll(player,frame.posture)
+                || player.invulnerableTime > 10 && !source.is(DamageTypeTags.BYPASSES_COOLDOWN)) return false;
+        var testRoll = POSTURE_TEST_ROLL.get();
+        frame.posture = PostureService.roll(player,frame.posture,testRoll == null ? player.getRandom().nextDouble() : testRoll.getAsDouble(),amount);
+        return frame.posture.dodged();
     }
 
     public static void captureBlockingShield(ServerPlayer player, DamageSource source) {
@@ -540,10 +582,16 @@ public final class EquipmentDamageService {
         if (frames.isEmpty()) REFLECTION_FRAMES.remove(victim);
         if (!returnedNormally) return;
         if (frame.source != source) return;
+        if (frame.posture == null) frame.posture = PostureService.prepare(victim,source,(float)frame.incoming,frame.event,true);
         float blocked = frame.blockCompleted ? frame.blockedDamage : 0;
         double blockReflection = frame.shield == null ? 0
                 : ShieldMath.reflectedPortion(blocked, frame.shield.blockedReflectionPercent());
-        boolean actualHit = damageAccepted || frame.blockCompleted && blocked > 0;
+        boolean dodged = frame.posture.dodged();
+        boolean actualHit = !dodged && (damageAccepted || frame.blockCompleted && blocked > 0);
+        PostureService.finish(victim,frame.posture,damageAccepted,frame.blockCompleted && blocked > 0,
+                frame.healthLost + frame.absorptionLost, dodged ? frame.posture.requestedPrevention() : frame.postureApplied);
+        if (actualHit && frame.knockbackDecision.equals("bulwark_correlated_force_rejected"))
+            PostureService.knockback(victim,frame.posture,frame.knockbackDecision);
         boolean validDefender = !victim.isRemoved() && !victim.isSpectator() && !victim.getAbilities().invulnerable;
         var resolvedSource = ReflectionRouter.source(victim, source);
         var context = SkillEffectRuntime.context(victim);
@@ -583,7 +631,7 @@ public final class EquipmentDamageService {
                 frame.ordinaryDamage, frame.shield == null ? 0 : ShieldMath.reflectedPortion(blocked, frame.shield.nativeBlockedReflectionPercent()),
                 frame.shield == null ? 0 : ShieldMath.reflectedPortion(blocked, frame.shield.investedBlockedReflectionPercent()),
                 extension, multiplier, result.requested(), result.confirmed(), !actualHit ? "unconfirmed_native_hit" : result.decision()));
-        if (frame.deferEcho) EXPLOSION_IMPULSES.put(victim, new PendingExplosion(source, LAST_GUARD.get(victim), echoEligible));
+        if (frame.deferEcho) EXPLOSION_IMPULSES.put(victim, new PendingExplosion(source, LAST_GUARD.get(victim), echoEligible, frame.posture));
     }
 
     private static ReflectionFrame frame(ServerPlayer player, DamageSource source) {
@@ -624,6 +672,10 @@ public final class EquipmentDamageService {
         boolean blockRecorded;
         boolean skillShield;
         boolean deferEcho;
+        boolean posturePrepared, incomingModified, dodgeResolved;
+        float resolvedIncoming;
+        double postureApplied;
+        PostureService.Incoming posture;
         long event, tick;
         double incoming, mitigated, absorptionLost, wardPercent;
         GuardLifecycle.Snapshot guard = GuardLifecycle.Snapshot.empty();
@@ -698,9 +750,10 @@ public final class EquipmentDamageService {
     }
     public static void explosionKnockback(Entity entity, DamageSource source, Vec3 rawAttempt, Vec3 proposed, Runnable original) {
         Vec3 before = entity.getDeltaMovement();
-        boolean protection = GuardCounterattackService.suppressDisplacement(entity);
+        boolean protection = suppressExplosionDisplacement(entity, source);
         if (!protection) original.run();
         if (!(entity instanceof ServerPlayer player)) return;
+        if (!protection && entity.getDeltaMovement().subtract(before).lengthSqr() > 0) PostureService.forced(player,"explosion_knockback");
         PendingExplosion pending = EXPLOSION_IMPULSES.remove(player);
         GuardOutcome current = LAST_GUARD.get(player);
         if (pending == null || pending.source != source || current == null || current.eventId() != pending.outcome.eventId()
@@ -714,7 +767,15 @@ public final class EquipmentDamageService {
                 : KnockbackEchoService.Result.none("ineligible_explosion_source_or_hit");
         LAST_GUARD.put(player, current.withKnockback(attempt,
                 current.acceptedKnockback().add(entity.getDeltaMovement().subtract(before)),
-                protection ? "explosion_riposte_suppressed" : "native_explosion_resolved", echo));
+                protection ? "explosion_posture_or_riposte_suppressed" : "native_explosion_resolved", echo));
+        if (protection && pending.posture != null) PostureService.knockback(player, pending.posture, "correlated_explosion_rejected");
+    }
+    public static boolean suppressExplosionDisplacement(Entity entity, DamageSource source) {
+        if (GuardCounterattackService.suppressDisplacement(entity)) return true;
+        if (!(entity instanceof ServerPlayer player)) return false;
+        PendingExplosion pending = EXPLOSION_IMPULSES.get(player);
+        return pending != null && pending.source == source && pending.outcome.tick() == player.level().getGameTime()
+                && (pending.outcome.accepted() || pending.outcome.successfulBlock()) && PostureService.suppressKnockback(player,pending.posture);
     }
 
     /** The real native knockback invocation is sampled even when resistance/protection suppresses it. */
@@ -723,12 +784,17 @@ public final class EquipmentDamageService {
         Vec3 attempt = KnockbackEchoService.attempt(strength, x, z);
         Vec3 before = target.getDeltaMovement();
         boolean protectedAttack = GuardCounterattackService.suppressDisplacement(target);
-        if (!protectedAttack) original.run();
+        boolean bulwark = guard != null && !guard.suppressed && target instanceof ServerPlayer player
+                && PostureService.suppressKnockback(player, guard.posture);
+        if (!protectedAttack && !bulwark) original.run();
+        if (target instanceof ServerPlayer player && target.getDeltaMovement().subtract(before).lengthSqr() > 0)
+            PostureService.forced(player,"native_knockback");
         if (guard != null && !guard.suppressed) {
             guard.attemptedKnockback = KnockbackEchoService.bounded(guard.attemptedKnockback.add(attempt));
             guard.acceptedKnockback = guard.acceptedKnockback.add(target.getDeltaMovement().subtract(before));
-            guard.knockbackDecision = protectedAttack ? "riposte_resolution_suppressed" : guard.acceptedKnockback.lengthSqr() == 0
+            guard.knockbackDecision = protectedAttack ? "riposte_resolution_suppressed" : bulwark ? "bulwark_correlated_force_rejected" : guard.acceptedKnockback.lengthSqr() == 0
                     ? "native_resisted_or_canceled" : "native_accepted";
+            if (guard.posture != null) guard.posture = guard.posture.force(guard.knockbackDecision);
         }
     }
     private static ReflectionFrame activeFrame(ServerPlayer player) {

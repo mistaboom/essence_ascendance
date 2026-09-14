@@ -80,6 +80,8 @@ public final class BalanceReportLayout {
                   runtime_parameters.csv          All scalar runtime values and exact paths.
                   projectile_policy.csv           Payload, ownership and defensive control contracts.
                   guard_policy.csv                Guard, perfect-block, reflection and counterattack contracts.
+                  posture_status_policy.csv       Posture, harmful-status and binary rank contracts.
+                  combat_defense_pressure.csv     Conditional avoidance, resistance, knockback and status bounds.
                 Curve cost_scope distinguishes individual rank prices from active-rank
                 build totals, which exclude inactive prerequisites and other investments.
                 Runtime json_pointer values can be used in commented TOML exact overrides.

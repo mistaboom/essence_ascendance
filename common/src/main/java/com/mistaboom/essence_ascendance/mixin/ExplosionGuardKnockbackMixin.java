@@ -54,7 +54,7 @@ public abstract class ExplosionGuardKnockbackMixin {
                                                         @Local(index = 24) double rawMagnitude,
                                                         @Share("guardExplosionDirection") LocalRef<Vec3> direction,
                                                         @Share("guardExplosionProtected") LocalBooleanRef protectedImpulse) {
-        protectedImpulse.set(GuardCounterattackService.suppressDisplacement(entity));
+        protectedImpulse.set(EquipmentDamageService.suppressExplosionDisplacement(entity, damageSource));
         Vec3 raw = direction.get() == null ? Vec3.ZERO : direction.get().scale(rawMagnitude);
         EquipmentDamageService.explosionKnockback(entity, damageSource, raw, proposed,
                 () -> original.call(entity, proposed));

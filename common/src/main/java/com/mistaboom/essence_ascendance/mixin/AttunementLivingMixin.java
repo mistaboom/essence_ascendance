@@ -14,9 +14,16 @@ import org.spongepowered.asm.mixin.Mixin;
 public abstract class AttunementLivingMixin {
     @WrapMethod(method = "addEffect(Lnet/minecraft/world/effect/MobEffectInstance;Lnet/minecraft/world/entity/Entity;)Z")
     private boolean essenceAscendance$effectSource(MobEffectInstance effect, Entity source, Operation<Boolean> original) {
-        boolean applied = original.call(effect, source);
-        if (applied && (Object) this instanceof ServerPlayer player) AttunementGameplay.effectApplied(player, effect.getEffect(), source);
+        boolean applied = com.mistaboom.essence_ascendance.status.StatusInterceptionService.apply(
+                (LivingEntity)(Object)this, effect, source, () -> original.call(effect, source));
+        if (applied && !com.mistaboom.essence_ascendance.status.StatusInterceptionService.secondary()
+                && (Object) this instanceof ServerPlayer player) AttunementGameplay.effectApplied(player, effect.getEffect(), source);
         return applied;
+    }
+    @WrapMethod(method = "forceAddEffect")
+    private void essenceAscendance$forcedEffect(MobEffectInstance effect, Entity source, Operation<Void> original) {
+        com.mistaboom.essence_ascendance.status.StatusInterceptionService.apply((LivingEntity)(Object)this,
+                effect, source, () -> { original.call(effect, source); return ((LivingEntity)(Object)this).getEffect(effect.getEffect()) == effect; });
     }
     @WrapMethod(method = "getDamageAfterArmorAbsorb")
     private float essenceAscendance$armorPrevention(DamageSource source, float amount, Operation<Float> original) {

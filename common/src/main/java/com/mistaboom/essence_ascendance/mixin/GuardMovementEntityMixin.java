@@ -19,7 +19,9 @@ abstract class GuardMovementEntityMixin {
         Entity entity = (Entity) (Object) this;
         StaggerController.tick(entity);
         var initial = GuardMobilityController.beginMove(entity, type);
+        Vec3 postureBefore = entity.position();
         original.call(type, requested);
+        com.mistaboom.essence_ascendance.posture.PostureService.externalMove(entity, type, postureBefore);
         StaggerController.moved(entity);
         GuardMobilityController.completedMove(entity, initial);
     }
@@ -27,4 +29,13 @@ abstract class GuardMovementEntityMixin {
     private void essenceAscendance$staggerExpiry(CallbackInfo ci) { StaggerController.tick((Entity) (Object) this); }
     @Inject(method = "remove", at = @At("HEAD"), require = 1, expect = 1)
     private void essenceAscendance$staggerRemoved(CallbackInfo ci) { StaggerController.remove((Entity) (Object) this); }
+    @Inject(method = "setDeltaMovement(Lnet/minecraft/world/phys/Vec3;)V", at = @At("HEAD"), require = 1, expect = 1)
+    private void essenceAscendance$postureVelocity(Vec3 velocity, CallbackInfo ci) {
+        com.mistaboom.essence_ascendance.posture.PostureService.velocity((Entity)(Object)this,velocity);
+    }
+    @Inject(method = "push(DDD)V", at = @At("HEAD"), require = 1, expect = 1)
+    private void essenceAscendance$posturePush(double x, double y, double z, CallbackInfo ci) {
+        if ((Object)this instanceof net.minecraft.server.level.ServerPlayer player && (x != 0 || y != 0 || z != 0))
+            com.mistaboom.essence_ascendance.posture.PostureService.forced(player,"native_entity_push");
+    }
 }

@@ -2,6 +2,8 @@ package com.mistaboom.essence_ascendance.skill.balance;
 
 import com.mistaboom.essence_ascendance.config.ProjectileBalanceSettings;
 import com.mistaboom.essence_ascendance.config.GuardBalanceSettings;
+import com.mistaboom.essence_ascendance.config.PostureBalanceSettings;
+import com.mistaboom.essence_ascendance.config.StatusBalanceSettings;
 import com.mistaboom.essence_ascendance.config.SkillEffectBalanceSettings;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import net.minecraft.resources.ResourceLocation;
@@ -142,6 +144,28 @@ public final class SkillRankEffectScaling {
             p.riposte = new GuardBalanceSettings.Riposte(v.durationTicks(), scale(v.bonusReach(), f, 2),
                     scale(v.damageScale(), f, 4), v.protectionTicks());
         });
+        register(SkillIds.EVASIVE_CURRENT, (p, f) -> {
+            var v = p.evasive;
+            p.evasive = new PostureBalanceSettings.Evasive(v.buildTicks(), v.drainTicks(),
+                    scale(v.maximumDodgeChance(), f, .75), v.successDrainFraction(), v.hitDrainFraction());
+        });
+        register(SkillIds.BULWARK_STANCE, (p, f) -> {
+            var v = p.bulwark;
+            p.bulwark = new PostureBalanceSettings.Bulwark(v.buildTicks(), v.drainTicks(), v.threatRange(),
+                    v.facingDegrees(), scale(v.maximumResistance(), f, .75), v.knockbackThreshold(), v.maximumThreats());
+        });
+        register(SkillIds.ADAPTIVE_GUARD, (p, f) -> {
+            var v = p.adaptive;
+            p.adaptive = new PostureBalanceSettings.Adaptive(v.windowTicks(), v.maximumStacks(), v.minimumHits(),
+                    scale(v.resistancePerStack(), f, .75 / Math.max(1, v.maximumStacks() - v.minimumHits() + 1)));
+        });
+        register(SkillIds.STATUS_MIRROR, (p, f) -> {
+            var v = p.status;
+            p.status = new StatusBalanceSettings(Math.max(20, (int) Math.ceil(v.mirrorCooldownTicks() / f)),
+                    v.mirrorMaximumDurationTicks(), v.mirrorMaximumAmplifier());
+        });
+        // Pure State is binary. Its capability pressure remains one at every
+        // projected rank; no inert numeric rule pretends to improve immunity.
     }
     private SkillRankEffectScaling() { }
 
@@ -158,6 +182,21 @@ public final class SkillRankEffectScaling {
     }
 
     public static boolean supports(ResourceLocation id) { return RULES.containsKey(id); }
+
+    /** Resolved defensive magnitudes retain their own calibration, independent of offensive output. */
+    public static double generatedPressureFactor(SkillEffectBalanceSettings settings, ResourceLocation id, double offenseScale) {
+        var reference = PostureBalanceSettings.defaults();
+        if (id.equals(SkillIds.EVASIVE_CURRENT)) return settings.posture().evasive().maximumDodgeChance()
+                / reference.evasive().maximumDodgeChance();
+        if (id.equals(SkillIds.BULWARK_STANCE)) return settings.posture().bulwark().maximumResistance()
+                / reference.bulwark().maximumResistance();
+        if (id.equals(SkillIds.ADAPTIVE_GUARD)) return settings.posture().adaptive().resistancePerStack()
+                / reference.adaptive().resistancePerStack();
+        if (id.equals(SkillIds.STATUS_MIRROR)) return StatusBalanceSettings.defaults().mirrorCooldownTicks()
+                / (double) settings.status().mirrorCooldownTicks();
+        if (id.equals(SkillIds.PURE_STATE)) return 1;
+        return offenseScale;
+    }
 
     public static SkillEffectBalanceSettings apply(SkillEffectBalanceSettings base, Map<ResourceLocation, Integer> effectiveRanks) {
         return apply(base, effectiveRanks, SkillRankEffectScaling::factor);
@@ -219,17 +258,25 @@ public final class SkillRankEffectScaling {
         public GuardBalanceSettings.PerfectGuard perfectGuard;
         public GuardBalanceSettings.Reprisal reprisal;
         public GuardBalanceSettings.Riposte riposte;
+        public PostureBalanceSettings.Movement postureMovement;
+        public PostureBalanceSettings.Evasive evasive;
+        public PostureBalanceSettings.Bulwark bulwark;
+        public PostureBalanceSettings.Adaptive adaptive;
+        public StatusBalanceSettings status;
         private Parameters(SkillEffectBalanceSettings v) {
             frenzy=v.frenzy(); armorCrack=v.armorCrack(); desperation=v.desperation(); deathRush=v.deathRush();
             kindling=v.kindling(); combustion=v.combustion(); frostbite=v.frostbite(); shatter=v.shatter();
             staticCharge=v.staticCharge(); chainStrike=v.chainStrike(); projectiles=v.projectiles();
             mobility=v.guard().mobility(); ram=v.guard().ram(); ward=v.guard().ward(); storedForce=v.guard().storedForce();
             amplifier=v.guard().amplifier(); perfectGuard=v.guard().perfectGuard(); reprisal=v.guard().reprisal(); riposte=v.guard().riposte();
+            postureMovement=v.posture().movement(); evasive=v.posture().evasive();
+            bulwark=v.posture().bulwark(); adaptive=v.posture().adaptive(); status=v.status();
         }
         private SkillEffectBalanceSettings build() {
             return new SkillEffectBalanceSettings(frenzy, armorCrack, desperation, deathRush, kindling,
                     combustion, frostbite, shatter, staticCharge, chainStrike, projectiles,
-                    new GuardBalanceSettings(mobility, ram, ward, storedForce, amplifier, perfectGuard, reprisal, riposte));
+                    new GuardBalanceSettings(mobility, ram, ward, storedForce, amplifier, perfectGuard, reprisal, riposte),
+                    new PostureBalanceSettings(postureMovement, evasive, bulwark, adaptive), status);
         }
     }
 }

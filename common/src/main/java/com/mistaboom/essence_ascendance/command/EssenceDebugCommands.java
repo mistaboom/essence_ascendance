@@ -160,6 +160,8 @@ final class EssenceDebugCommands {
                         .then(Commands.literal("help").executes(context -> showGameplayHelp(context.getSource())))
                         .then(viewTarget(Commands.literal("shield"), context -> showShield(context.getSource())))
                         .then(viewTarget(Commands.literal("projectiles"), context -> showProjectiles(context.getSource())))
+                        .then(viewTarget(Commands.literal("posture"), context -> showPosture(context.getSource())))
+                        .then(viewTarget(Commands.literal("status"), context -> showStatusEffects(context.getSource())))
                         .then(viewTarget(Commands.argument("category", StringArgumentType.word())
                                         .suggests(EssenceCommandUtil::suggestCategories),
                                 context -> showGameplay(context.getSource(),
@@ -255,6 +257,8 @@ final class EssenceDebugCommands {
         }
         help(source, "player gameplay shield [player]", "gameplay.shield");
         help(source, "player gameplay projectiles [player]", "gameplay.projectiles");
+        help(source, "player gameplay posture [player]", "gameplay.posture");
+        help(source, "player gameplay status [player]", "gameplay.status");
         return 1;
     }
 
@@ -695,6 +699,20 @@ final class EssenceDebugCommands {
                 "Nexus revision",
                 Long.toString(data.nexusRevision())
         ));
+        return 1;
+    }
+
+    private static int showPosture(CommandSourceStack source) throws CommandSyntaxException {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("debug.gameplay.posture")));
+        for (String line : com.mistaboom.essence_ascendance.posture.PostureService.diagnostics(source.getPlayerOrException()))
+            EssenceCommandUtil.send(source, EssenceCommandUtil.muted(line));
+        return 1;
+    }
+
+    private static int showStatusEffects(CommandSourceStack source) throws CommandSyntaxException {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(EssenceText.command("debug.gameplay.status")));
+        for (String line : com.mistaboom.essence_ascendance.status.StatusInterceptionService.debugLines(source.getPlayerOrException()))
+            EssenceCommandUtil.send(source, EssenceCommandUtil.muted(line));
         return 1;
     }
 

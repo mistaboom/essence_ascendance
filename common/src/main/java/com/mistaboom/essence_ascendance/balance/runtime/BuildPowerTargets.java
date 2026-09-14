@@ -31,7 +31,8 @@ public final class BuildPowerTargets {
         // Only a modeled Desperation build at <=20% current health qualifies.
         // The offense-only report row by itself does not grant this allowance.
         boolean combined = participation != Participation.EQUIPMENT_FOCUSED
-                && participation != Participation.BONUS_FOCUSED && participation != Participation.SKILL_FOCUSED;
+                && participation != Participation.BONUS_FOCUSED && participation != Participation.SKILL_FOCUSED
+                && participation != Participation.CATEGORY_SPECIALIZED;
         return lowHealth && combined && band == ProgressionBand.APEX
                 ? 1 + 3 * intent(settings, band) : ordinary;
     }

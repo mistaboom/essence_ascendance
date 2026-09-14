@@ -17,9 +17,28 @@ import java.util.*;
 public final class RuntimeBuildScenarios {
     private RuntimeBuildScenarios() { }
     public record Case(String tier, String skillSelection, Evaluation evaluation,
-                       Map<Participation, Limits> participationLimits) {
+                       Map<Participation, Limits> participationLimits,
+                       Map<Participation, DefensivePressure> defensivePressure) {
+        public Case {
+            participationLimits = Collections.unmodifiableMap(new EnumMap<>(participationLimits));
+            defensivePressure = Collections.unmodifiableMap(new EnumMap<>(defensivePressure));
+            if (participationLimits.size() != Participation.values().length || defensivePressure.size() != Participation.values().length)
+                throw new IllegalArgumentException("Every combat case requires all participation limits and defense pressure");
+        }
         public Limits limitFor(Participation participation) {
             return Objects.requireNonNull(participationLimits.get(participation), "Missing participation ceiling");
+        }
+    }
+    /** Conditional capability bounds retain their real units; status immunity is never infinite EHP or invented DPS. */
+    public record DefensivePressure(double peakAvoidance, double peakDamageReduction,
+                                    boolean frontalKnockbackImmunity, double peakHarmfulStatusPrevention,
+                                    double maximumMirrorTransfersPerSecond, int mirrorMaximumDurationTicks,
+                                    int mirrorMaximumAmplifier) {
+        public DefensivePressure {
+            for (double value : new double[]{peakAvoidance, peakDamageReduction, peakHarmfulStatusPrevention, maximumMirrorTransfersPerSecond})
+                if (!Double.isFinite(value) || value < 0 || value > 1) throw new IllegalArgumentException("Invalid defense capability bound");
+            if (mirrorMaximumDurationTicks < 0 || mirrorMaximumDurationTicks > 72_000 || mirrorMaximumAmplifier < 0 || mirrorMaximumAmplifier > 10)
+                throw new IllegalArgumentException("Invalid status copy bound");
         }
     }
     public record Analysis(double attenuation, List<Case> cases, List<String> assumptions) {
@@ -40,10 +59,12 @@ public final class RuntimeBuildScenarios {
     }
     public static Plan plan(boolean developed) {
         Map<ResourceLocation, List<SkillLoadoutProjection.Scenario>> full = new LinkedHashMap<>(), moderate = new LinkedHashMap<>();
+        int apexOrder = AscendanceTierRegistry.powerTiers().stream().mapToInt(AscendanceTierDefinition::order).max().orElseThrow();
         for (var tier : AscendanceTierRegistry.powerTiers()) {
             Map<ResourceLocation, Integer> fullRanks = new LinkedHashMap<>(), moderateRanks = new LinkedHashMap<>();
             for (var skill : SkillRegistry.values()) {
-                int projectedRank = developed ? Math.min(skill.rankPolicy().projectionRanks(), Math.max(1,
+                int projectedRank = developed && tier.order() == apexOrder ? skill.rankPolicy().projectionRanks()
+                        : developed ? Math.min(skill.rankPolicy().projectionRanks(), Math.max(1,
                         tier.order() - AscendanceTierRegistry.get(skill.requiredTierId()).orElseThrow().order() + 1)) : 1;
                 fullRanks.put(skill.id(), projectedRank);
                 moderateRanks.put(skill.id(), skill.prerequisites().isEmpty() ? 1 : 0);
@@ -116,6 +137,7 @@ public final class RuntimeBuildScenarios {
                         String id = tier.id() + "/" + archetype.id() + "/" + scenario.id() + "/health_" + healthFraction;
                         Map<Participation, Metrics> metrics = new EnumMap<>(Participation.class);
                         Map<Participation, Limits> limits = new EnumMap<>(Participation.class);
+                        Map<Participation, DefensivePressure> defenses = new EnumMap<>(Participation.class);
                         for (var participation : Participation.values()) {
                             Equipment item = participation == Participation.BONUS_FOCUSED || participation == Participation.SKILL_FOCUSED ? external : ascendance;
                             Modifier nexus = switch (participation) {
@@ -129,7 +151,14 @@ public final class RuntimeBuildScenarios {
                                 case MIXED -> moderateRanks.keySet();
                                 default -> fullRanks.keySet();
                             };
+                            if (participation == Participation.CATEGORY_SPECIALIZED) active = Set.copyOf(active.stream()
+                                    .filter(skillId -> SkillBalanceSemantics.require(skillId).weights().keySet().stream().anyMatch(axis -> switch (axis) {
+                                        case SUSTAINED_DAMAGE, BURST_DAMAGE, AREA_DAMAGE, ATTACK_RATE, ARMOR_PENETRATION,
+                                                DAMAGE_OVER_TIME, DELIVERY_RELIABILITY, SHIELD_INTERACTION -> true;
+                                        default -> false;
+                                    })).toList());
                             var effects = participation == Participation.MIXED ? moderateEffects : fullEffects;
+                            defenses.put(participation, defensivePressure(effects, active));
                             double actualHealth = active.contains(SkillIds.DESPERATION) ? healthFraction : 1;
                             metrics.put(participation, combat(effects, active, family, item, nexus, incoming, window, actualHealth));
                             double target = plan.developed() ? BuildPowerTargets.multiplier(settings, band, participation)
@@ -154,9 +183,10 @@ public final class RuntimeBuildScenarios {
                         var evaluation = new Evaluation(id, metrics, violations, List.of(
                                 "Reference incoming hit=" + incoming + " HP; fully useful healing window=" + window + " seconds.",
                                 "Candidate effective ranks=" + new TreeMap<>(fullRanks) + "; Desperation current-health fraction=" + healthFraction + ".",
-                                "Each participation uses its own weapon damage/cadence and ceiling. Ordinary armor is applied once. Low-health EHP uses current, not maximum, health."));
+                                "Each participation uses its own weapon damage/cadence and ceiling. Ordinary armor is applied once. Low-health EHP uses current, not maximum, health.",
+                                "Posture defense assumes a fully built eligible state: intentional movement for dodge, stationary facing of a hostile threat for Bulwark, or repeated identical eligible damage for Adaptive. Status bounds require a harmful application; Mirror additionally requires a valid hostile source and ready cooldown."));
                         result.add(new Case(tier.id().toString(), archetype.id() + "/" + scenario.id() + "/health_" + healthFraction,
-                                evaluation, Collections.unmodifiableMap(limits)));
+                                evaluation, Collections.unmodifiableMap(limits), Collections.unmodifiableMap(defenses)));
                     }
                 }
             }
@@ -164,15 +194,20 @@ public final class RuntimeBuildScenarios {
         if (result.isEmpty()) throw new IllegalStateException("No registered equipment families were available for numeric build validation");
         return new Analysis(1, result, List.of(
                 "Only implemented skills and evaluator-approved dependency/choice/replacement selections contribute. Full builds use a provisional future five-rank stress projection, not currently purchasable ranks or a catalog design decision.",
+                "Fully developed apex scenarios use every eligible skill's entire projectionRanks curve, including skills first available at that tier. Earlier tiers retain staged development estimates. This corrects the former apex underprojection of late-tier skills without creating player-facing rank gates.",
                 "Default final-output ceilings at Transcendent: equipment 1x pack parity; external equipment plus Nexus 2x; external equipment plus skills 2x; combined builds 3x. These are ceilings, not guaranteed multipliers for every legal selection. Gameplay still compounds damage and attack speed; the generator checks the resulting output.",
                 "Combined progression ceilings are 1.5x / 1.7x / 2x / 2.5x / 3x. Existing friendly power controls scale added headroom, not the 1x equipment foundation.",
                 "Only Desperation builds at <=20% current health may use the 4x Transcendent combined BURST ceiling. A near-zero-health worst case and the ordinary-health boundary are both checked; sustained damage stays capped at 3x. Removing defense investments alone grants no burst exception.",
                 "Full Nexus reaches each generated tier cap; moderate Nexus uses each real curve at half investment. Moderate skills use eligible prerequisite-free roots at rank one.",
                 "Offense, defense and healing calibrate separately. An explicit first-purchase budget reserves later-tier room for possible future ranks. Rank one is frozen before projected-rank calibration; unrelated implemented effect consumers then recover unused headroom individually. Planned skills never tax current effects.",
+                "Late posture first-rank magnitudes recover independently after the shared initial calibration, up to their requested settings and the same complete first-rank survival limits. An earlier-tier Nexus-only bottleneck cannot unnecessarily suppress a posture unavailable at that tier. Recovery changes neither equipment nor offensive tuning.",
                 "Primary hits multiply their actual skill damage modifiers, then add flat Static Charge, then apply an armed Riposte and fully charged Stored Force. Static Charge is averaged once over its configured sprint charge cycle for sustained damage, and counted once at full charge for burst.",
                 "Kindling uses maintained burning; Combustion and Shatter are secondary-target on-kill damage, not invented extra damage against their already-dead primary target. Area bounds assume one elemental completion per buildup cycle and bounded distinct victims; they are estimates, not measured combat logs.",
                 "Nexus passive regeneration is not multiplied by Healing Effectiveness in gameplay. It is modeled separately; externally sourced healing amplification retains a semantic budget because evidence does not provide a healing event rate.",
                 "Armor penetration retains an explicit conservative armor-pressure allowance. Reflection, guard amplification, Crowd Reprisal, control, interception, flight and gathering retain separate semantic budgets; no prevented-hit or Attunement activity is invented.",
+                "Evasive expected avoidance and Bulwark/Adaptive damage reduction use actual generated values at the contributing rank, each under its strongest eligible posture condition. The three exclusive postures never stack. Meter build/drain and type-change exposure reduce real availability; peak bounds deliberately do not assume free continuous uptime.",
+                "Status Mirror and Pure State share an independent exclusive choice. harmful-status prevention is a capability fraction, and Mirror transfer capacity is applications/second bounded by its generated cooldown. Missing pack harmful-application rates and source acceptance evidence prevent converting these into damage, EHP, or guaranteed status uptime.",
+                "Pure State is binary at every diagnostic rank. Its provisional catalog curve supplies no numeric consumer and no invented rank benefit; the later catalog-wide rank design must decide whether it should have ranks. Already-active harmful effects are not cleansed.",
                 "Pack parity preserves existing equipment curves and attainable weapon/armor pairings. Physical quantization and tool archetype baselines are not nerfed to make a bonus budget fit. External-gear projections assume required equipment access; gameplay still enforces eligibility, ownership and worn-slot coverage."));
     }
 
@@ -236,10 +271,29 @@ public final class RuntimeBuildScenarios {
         if (active.contains(SkillIds.PIERCING_PROJECTILE)) for (int i = 1; i <= s.projectiles().penetrations(); i++)
             area += hit * rate * Math.pow(s.projectiles().piercingDamageMultiplier(), i);
         area += hit * rate * projectilePayloadArea(s, active);
-        var defense = BuildComposition.compose(item, nexus, Modifier.none(), incoming, window);
+        var pressure = defensivePressure(s, active);
+        var posture = new Modifier(0, 1, 1, 0, 0, 0, 0, 0,
+                pressure.peakDamageReduction(), pressure.peakAvoidance(), 0, 0);
+        var defense = BuildComposition.compose(item, nexus, posture, incoming, window);
         double currentEhp = defense.effectiveHealth() * healthFraction;
         return new Metrics(sustained, burst, area, currentEhp,
                 currentEhp + defense.sustainedHealth() - defense.effectiveHealth(), defense.healingPerSecond());
+    }
+
+    public static DefensivePressure defensivePressure(SkillEffectBalanceSettings s, Set<ResourceLocation> active) {
+        long postures = List.of(SkillIds.EVASIVE_CURRENT, SkillIds.BULWARK_STANCE, SkillIds.ADAPTIVE_GUARD)
+                .stream().filter(active::contains).count();
+        if (postures > 1 || active.contains(SkillIds.STATUS_MIRROR) && active.contains(SkillIds.PURE_STATE))
+            throw new IllegalArgumentException("Numeric defense requires an effective exclusive selection");
+        double avoidance = active.contains(SkillIds.EVASIVE_CURRENT) ? s.posture().evasive().maximumDodgeChance() : 0;
+        double reduction = active.contains(SkillIds.BULWARK_STANCE) ? s.posture().bulwark().maximumResistance() : 0;
+        if (active.contains(SkillIds.ADAPTIVE_GUARD)) reduction = s.posture().adaptive().resistancePerStack()
+                * (s.posture().adaptive().maximumStacks() - s.posture().adaptive().minimumHits() + 1);
+        boolean mirror = active.contains(SkillIds.STATUS_MIRROR);
+        return new DefensivePressure(avoidance, reduction, reduction > 0 && active.contains(SkillIds.BULWARK_STANCE)
+                && s.posture().bulwark().knockbackThreshold() <= 1, mirror || active.contains(SkillIds.PURE_STATE) ? 1 : 0,
+                mirror ? 20.0 / s.status().mirrorCooldownTicks() : 0,
+                mirror ? s.status().mirrorMaximumDurationTicks() : 0, mirror ? s.status().mirrorMaximumAmplifier() : 0);
     }
 
     static double guardCounterBurst(SkillEffectBalanceSettings s, Set<ResourceLocation> active, double hit) {

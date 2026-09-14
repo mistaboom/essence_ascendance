@@ -94,6 +94,7 @@ public final class EssenceCommandTest {
                 "debug player skills", "debug player skills summary", "debug player skills owned", "debug player skills loadout",
                 "debug player skills show test_skill", "debug player milestones list", "debug player milestones show test_milestone",
                 "debug player gameplay", "debug player gameplay offense", "debug player gameplay shield", "debug player gameplay projectiles",
+                "debug player gameplay posture", "debug player gameplay status",
                 "debug player milestones", "debug player equipment",
                 "test", "test skills", "test skills effects", "test skills milestones")) {
             valid(dispatcher, "essence " + path, operator);
@@ -115,7 +116,7 @@ public final class EssenceCommandTest {
         }
         for (String inspection : List.of("summary", "equipment", "skills summary", "skills owned", "skills loadout", "skills show test_skill",
                 "milestones list", "milestones show test_milestone", "gameplay offense", "gameplay defense", "gameplay vitality",
-                "gameplay mobility", "gameplay gathering", "gameplay utility", "gameplay shield", "gameplay projectiles")) {
+                "gameplay mobility", "gameplay gathering", "gameplay utility", "gameplay shield", "gameplay projectiles", "gameplay posture", "gameplay status")) {
             String path = "essence debug player " + inspection;
             valid(dispatcher, path + " TestPlayer", operator);
             valid(dispatcher, path + " @s", operator);

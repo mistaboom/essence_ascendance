@@ -17,6 +17,11 @@ public final class SkillEffectRegistry {
                     OffenseElementalImbuementEffects.handlers(), OffenseProjectileEffects.handlers(),
                     DefenseProjectileEffects.handlers(), com.mistaboom.essence_ascendance.guard.GuardReflectionEffects.handlers(),
                     GuardCounterattackService.handlers(), java.util.List.<SkillEffectHandler>of(
+                            new PostureHandler(com.mistaboom.essence_ascendance.skill.SkillIds.EVASIVE_CURRENT),
+                            new PostureHandler(com.mistaboom.essence_ascendance.skill.SkillIds.BULWARK_STANCE),
+                            new PostureHandler(com.mistaboom.essence_ascendance.skill.SkillIds.ADAPTIVE_GUARD),
+                            com.mistaboom.essence_ascendance.status.StatusEffectHandlers.mirror(),
+                            com.mistaboom.essence_ascendance.status.StatusEffectHandlers.pureState(),
                             new GuardMobilityHandler(com.mistaboom.essence_ascendance.skill.SkillIds.GUARDED_ADVANCE),
                             new GuardMobilityHandler(com.mistaboom.essence_ascendance.skill.SkillIds.SHIELD_RAM)))
                     .flatMap(Collection::stream).toList());

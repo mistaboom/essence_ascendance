@@ -13,6 +13,14 @@
     "CasterUseInputMixin"
   ],
   "mixins": [
+    "PostureDamageMixin",
+    "StatusEffectInstanceAccess",
+    "StatusPeriodicEffectMixin",
+    "StatusArrowSourceMixin",
+    "StatusInstantEffectMixin",
+    "StatusInstantHealthMixin",
+    "StatusPotionInstantMixin",
+    "StatusCloudInstantMixin",
     "ServerPlayerGuardDamageMixin",
     "ExplosionGuardKnockbackMixin",
     "GuardLifecycleMixin",

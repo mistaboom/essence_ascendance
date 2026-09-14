@@ -36,8 +36,8 @@ public final class BuildCompositionTest {
         var equipment = new BuildComposition.Equipment(4, 2, 20, 8, 20, 0);
         var nexus = new BuildComposition.Modifier(0, 1, 1, 0, 0, 20, 0, 0, .5, .2, 2, 0);
         var result = BuildComposition.compose(equipment, nexus, BuildComposition.Modifier.none(), 10, 10);
-        near(result.effectiveHealth(), 40 / .12, "Health, armor, independent reduction and expected avoidance compose");
-        near(result.sustainedHealth(), 60 / .12, "Healing uses the same declared mitigation model");
+        near(result.effectiveHealth(), 40 / .1, "Resistance reduces the hit before nonlinear armor; expected avoidance applies once");
+        near(result.sustainedHealth(), 60 / .1, "Healing uses the same native-ordered mitigation model");
         check(BuildComposition.armorDamageFraction(100, 20, 0) > BuildComposition.armorDamageFraction(10, 20, 0),
                 "A boss-sized hit evaluates different survival from a routine hit");
     }

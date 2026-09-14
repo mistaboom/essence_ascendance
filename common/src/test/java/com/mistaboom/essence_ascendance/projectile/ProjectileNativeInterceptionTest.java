@@ -191,8 +191,16 @@ public final class ProjectileNativeInterceptionTest {
             set(Player.class, entity, "foodData", new net.minecraft.world.food.FoodData());
             set(LivingEntity.class, entity, "useItem", net.minecraft.world.item.ItemStack.EMPTY);
             set(Player.class, entity, "gameProfile", new GameProfile(entity.getUUID(), name));
+            try {
+                set(Player.class,entity,"prefixes",new ArrayList<>());
+                set(Player.class,entity,"suffixes",new ArrayList<>());
+            } catch (NoSuchFieldException ignored) { }
             set(LivingEntity.class, entity, "attributes", new AttributeMap(Player.createAttributes().build()));
             set(LivingEntity.class, entity, "activeEffects", new HashMap<>());
+            // The initialization-only NeoForge fixture skips native constructors, including its
+            // transient damage bookkeeping stack. Fabric has no corresponding field.
+            try { set(LivingEntity.class,entity,"damageContainers",new java.util.Stack<>()); }
+            catch (NoSuchFieldException ignored) { }
             set(LivingEntity.class, entity, "attackStrengthTicker", 100);
             // An animation already in progress skips only the cosmetic tracker broadcast. The native override still resets the ticker.
             set(LivingEntity.class, entity, "swinging", true);
@@ -302,6 +310,13 @@ public final class ProjectileNativeInterceptionTest {
             }
             return result;
         }
+        @Override public <T extends Entity> void getEntities(EntityTypeTest<Entity,T> type, AABB box,
+                Predicate<? super T> predicate, List<? super T> result, int limit) {
+            for (T entity : getEntities(type,box,predicate)) {
+                if (result.size() >= limit) break;
+                result.add(entity);
+            }
+        }
         @Override public BlockHitResult clip(ClipContext context) {
             if (occluded) return new BlockHitResult(context.getFrom().lerp(context.getTo(), .5), Direction.NORTH,
                     BlockPos.containing(context.getFrom().lerp(context.getTo(), .5)), false);
@@ -332,6 +347,8 @@ public final class ProjectileNativeInterceptionTest {
         set(Entity.class, entity, "levelCallback", EntityInLevelCallback.NULL);
         set(Entity.class, entity, "random", RandomSource.create(0));
         set(Entity.class, entity, "fluidHeight", new it.unimi.dsi.fastutil.objects.Object2DoubleOpenHashMap<>());
+        try { set(Entity.class,entity,"forgeFluidTypeHeight",new it.unimi.dsi.fastutil.objects.Object2DoubleOpenHashMap<>()); }
+        catch (NoSuchFieldException ignored) { }
         entity.xo = position.x; entity.yo = position.y; entity.zo = position.z;
     }
 

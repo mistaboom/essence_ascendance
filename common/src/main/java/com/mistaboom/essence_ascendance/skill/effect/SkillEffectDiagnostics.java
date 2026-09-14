@@ -59,7 +59,8 @@ final class SkillEffectDiagnostics {
                 SkillIds.EXPLOSIVE_PAYLOAD, SkillIds.ROOTING_PAYLOAD, SkillIds.PROJECTILE_DRAG_FIELD,
                 SkillIds.INTERCEPTOR, SkillIds.TRAJECTORY_THEFT, SkillIds.GUARDED_ADVANCE, SkillIds.SHIELD_RAM,
                 SkillIds.REFLEXIVE_WARD, SkillIds.STORED_FORCE, SkillIds.GUARD_AMPLIFIER, SkillIds.CROWD_REPRISAL,
-                SkillIds.RIPOSTE);
+                SkillIds.RIPOSTE, SkillIds.EVASIVE_CURRENT, SkillIds.BULWARK_STANCE,
+                SkillIds.ADAPTIVE_GUARD, SkillIds.STATUS_MIRROR, SkillIds.PURE_STATE);
         List<SkillEffectHandler> actual = List.copyOf(SkillEffectRegistry.handlers());
         Set<ResourceLocation> seen = new HashSet<>();
         check(failures, SkillEffectRegistry.implementedIds().containsAll(expected),

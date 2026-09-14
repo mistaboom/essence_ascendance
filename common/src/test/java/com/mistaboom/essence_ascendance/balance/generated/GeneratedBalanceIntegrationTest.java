@@ -282,6 +282,14 @@ public final class GeneratedBalanceIntegrationTest {
             check(report.contains("Guard mobility and counterplay policy"), "Human report omitted guard interaction policy");
             var guardRows = csv(Files.readString(reports.resolve("guard_policy.csv")));
             check(guardRows.size() == skills.getAsJsonObject("guardPolicy").size() + 1, "Guard policy export lost contracts");
+            check(report.contains("Defensive posture and harmful-status policy"), "Human report omitted posture/status policy");
+            var postureRows = csv(Files.readString(reports.resolve("posture_status_policy.csv")));
+            check(postureRows.size() == skills.getAsJsonObject("postureStatusPolicy").size() + 1, "Posture/status policy lost contracts");
+            var defenseRows = csv(Files.readString(reports.resolve("combat_defense_pressure.csv")));
+            check(defenseRows.size() == analysis.cases().size() * BuildComposition.Participation.values().length + 1,
+                    "Conditional defense pressure lacks full case/participation coverage");
+            check(skills.getAsJsonObject("postureStatusPolicy").get("rank_policy").getAsString().contains("binary"),
+                    "Pure State rank limitation was hidden");
             var savedExports = new TreeMap<Path, String>();
             try (var paths = Files.walk(folder)) {
                 for (Path path : paths.filter(Files::isRegularFile).toList()) savedExports.put(path, Files.readString(path));

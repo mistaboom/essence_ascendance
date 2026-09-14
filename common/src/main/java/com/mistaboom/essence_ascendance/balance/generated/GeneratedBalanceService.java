@@ -32,7 +32,7 @@ import java.util.Map;
 
 /** Server-thread transaction: collect, construct, validate, persist, publish, then synchronize. */
 public final class GeneratedBalanceService {
-    static final String GENERATION_REVISION = "developed-build-ceilings-15";
+    static final String GENERATION_REVISION = "defensive-posture-status-16";
     private static final String DISSOLUTION_ACCOUNTING = "whole_essence_v1";
     private static volatile Active active;
     private static volatile boolean resourcesChanged;
@@ -94,6 +94,7 @@ public final class GeneratedBalanceService {
             validation.addProperty("attunement", "multiple unrestricted base methods, positive rates, bounded policy, complete adjacent chapter topology passed");
             validation.addProperty("projectiles", "validated independent path/payload and bounded control policy; native gameplay remains manual");
             validation.addProperty("guard", "validated guard mobility, reflection and counterattack bounds; live gameplay remains manual");
+            validation.addProperty("postureStatus", "validated generated posture mitigation and binary harmful-status capability; conditional native gameplay remains manual");
             validation.addProperty("liveGameplay", "not performed by generator");
             JsonObject document = new JsonObject();
             document.add("metadata", metadata);
@@ -180,6 +181,7 @@ public final class GeneratedBalanceService {
         result.addProperty("rankPolicy", "All current skills remain single purchases. A provisional five-rank stress projection reserves future headroom; rank eligibility, gates, costs and purchasing remain deferred catalog decisions.");
         result.add("projectilePolicy", projectilePolicy());
         result.add("guardPolicy", guardPolicy());
+        result.add("postureStatusPolicy", postureStatusPolicy());
         result.add("semantics", serializer.toJsonTree(catalog.stream().map(skill ->
                 com.mistaboom.essence_ascendance.skill.balance.SkillBalanceSemantics.require(skill.id())).toList()));
         JsonObject projections = new JsonObject();
@@ -196,7 +198,8 @@ public final class GeneratedBalanceService {
                 });
                 var projection = com.mistaboom.essence_ascendance.skill.balance.SkillLoadoutProjection.project(catalog,
                         tier.id(), ranks, (id, rank) -> runtime.skillCurves().get(id.toString()).ranks().get(rank - 1).powerMultiplier()
-                                * runtime.composition().get("rank_safe_skill_scale"),
+                                * com.mistaboom.essence_ascendance.skill.balance.SkillRankEffectScaling.generatedPressureFactor(
+                                        runtime.config().skillEffects(), id, runtime.composition().get("rank_safe_skill_scale")),
                         budgets, future);
                 projections.add(tier.id().getPath() + (future ? "_future_catalog" : "_current_effects"), serializer.toJsonTree(projection));
             }
@@ -219,6 +222,26 @@ public final class GeneratedBalanceService {
         policy.addProperty("theft", "Exact crosshair or hostile aim-cone assistance before responsible source; full launch-speed floor plus melee impulse and persisted homing; otherwise safe destruction; one transfer, original offensive path/payload cleared");
         policy.addProperty("attunement", "Only confirmed damage/defeat contributes through registered outcome metadata; slowing, rooting or interception alone awards nothing; no per-action caps");
         policy.addProperty("adapters", "Vanilla arrows, spectral arrows and real Caster bolts; unknown projectile classes require explicit opt-in; absent optional mods need no class loading");
+        return policy;
+    }
+
+    static JsonObject postureStatusPolicy() {
+        JsonObject policy = new JsonObject();
+        policy.addProperty("tuning", "/runtime/effects/posture and /runtime/effects/status; existing commented exact TOML, validated bounds, required schema fields and content fingerprint; no separate configuration");
+        policy.addProperty("choices", "One Evasive/Bulwark/Adaptive posture and one independent Mirror/Pure State status choice. Switching, lost effectiveness or lifecycle discontinuity resets transient state");
+        policy.addProperty("movement", "Ordinary input must correlate with measured server movement. Crouch, grounded motion, intentional swimming/climbing/flight and legitimate guarded movement qualify; mounts, idle falling, forced motion, teleports and correction do not. Finite stillness and turning hysteresis reject jitter");
+        policy.addProperty("evasive", "Bounded chance at full posture; one server roll for hostile living-owned nonfire/nonexplosive projectiles or direct physical damage. Direct armor-bypassing or witch-resistant magic, unavoidable/admin/environmental damage and secondaries do not roll. Success, taken hits and stopping drain meter; no fabricated block, reflection or guard reward");
+        policy.addProperty("bulwark", "Build while stationary facing bounded valid visible hostile threats. Resistance requires frontal responsible living source. Full-meter threshold suppresses only correlated incoming knockback; loss of stance releases immunity");
+        policy.addProperty("adaptive", "One exact DamageType registry ID with bounded stacks/window. First eligible hit seeds; repeated hits reach generated threshold; type switch reseeds before its mitigation. Rejected, zero and secondary damage never build stacks");
+        policy.addProperty("incoming_order", "Native incoming event identity; Evasive decision; existing equipment resistance then posture resistance; native shield/armor/toughness/enchantment/Resistance/absorption and actual loss; confirmed guard/reflection/counter outcomes. A dodge is not a block. Prevention and correlated knockback are measured once");
+        policy.addProperty("mirror", "First actual eligible harmful application from a valid hostile responsible living source is removed and copied once via native effect semantics. Confirmed interception starts cooldown once; rejected copy does not undo protection. Copy duration/amplifier/presentation are bounded; secondary copies cannot recurse");
+        policy.addProperty("status_ticks", "Periodic HARMFUL effect callbacks, including restored effects, run as derived secondary outcomes: native damage and duration remain, but no posture/dodge/reflection/offense proc or transfer chain. BENEFICIAL/NEUTRAL ticks are untouched; no persisted provenance references");
+        policy.addProperty("native_status_boundary", "Timed effects record actual native acceptance and hidden-chain changes; Mirror restores any prior chain after removing the intercepted application. Instant harmful interception records eligibility preflight separately from native damage. Source-less effects qualify only for Pure State prevention");
+        policy.addProperty("pure_state", "Binary prevention of new harmful applications, including source-less effects. Existing effects are not cleansed. Beneficial/neutral effects remain native. No reflection, cooldown or numeric rank benefit is invented");
+        policy.addProperty("rank_policy", "All 90 skills remain one purchase with five provisional diagnostic ranks. Evasive chance, Bulwark resistance, Adaptive per-stack resistance and Mirror cooldown have real typed consumers. Pure State capability pressure stays binary; later catalog-wide design must decide rank eligibility");
+        policy.addProperty("balance", "Preserves developed-build-ceilings-15 final-output targets. Posture enters survival via generated avoidance and pre-armor reduction. Status prevention/transfer and knockback control retain separate capability units, never offense allowance or infinite immunity EHP");
+        policy.addProperty("status_evidence", "No pack-wide harmful-application cadence or successful-copy rate has been observed. Peak prevention and maximum transfers/second are conditional bounds, not measured uptime, damage or survival. These remain explicit evidence limitations");
+        policy.addProperty("attunement", "Only accepted general measured outcomes may contribute. Meter build, threat scans, dodge requests, cooldown readiness and rejected copies create no progression credit; no stable-ID dispatch or per-action cap");
         return policy;
     }
 

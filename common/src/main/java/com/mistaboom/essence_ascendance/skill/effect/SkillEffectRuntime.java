@@ -78,6 +78,7 @@ public final class SkillEffectRuntime {
 
     public static void clearAll() {
         GuardCounterattackService.clearAll();
+        com.mistaboom.essence_ascendance.posture.PostureService.clear();
         for (PlayerRuntime runtime : List.copyOf(PLAYERS.values())) {
             ServerPlayer player = runtime.player.get();
             if (player != null) clear(new Context(player, runtime));

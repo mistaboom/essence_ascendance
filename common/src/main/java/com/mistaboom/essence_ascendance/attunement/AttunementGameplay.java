@@ -97,6 +97,12 @@ public final class AttunementGameplay {
         movement.intent = active;
         movement.intentTick = player.level().getGameTime();
     }
+    /** Shared evidence only: consumers must independently corroborate native server displacement. */
+    public static boolean movementIntent(ServerPlayer player, int timeoutTicks) {
+        Movement movement = MOVEMENT.get(player);
+        long elapsed = movement == null ? -1 : player.level().getGameTime() - movement.intentTick;
+        return movement != null && movement.intent && elapsed >= 0 && elapsed <= timeoutTicks;
+    }
 
     public static boolean damage(LivingEntity target, DamageSource source, float requested, BooleanSupplier original) {
         if (target.level().isClientSide || !com.mistaboom.essence_ascendance.config.EssenceConfigManager.authoritativeReady())

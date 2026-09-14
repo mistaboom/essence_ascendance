@@ -29,7 +29,11 @@ public final class ProjectileOwnership {
     }
     /** Reuse the same pet/team/PvP relationship as defensive projectile control. */
     public static boolean hostileDamageSource(ServerPlayer defender, LivingEntity actual) {
-        return actual != null && relationship(defender, actual) == Decision.HOSTILE;
+        return damageSourceRelationship(defender, actual) == Decision.HOSTILE;
+    }
+    /** Shared exact relationship result for auditable damage/status transfer outcomes. */
+    public static Decision damageSourceRelationship(ServerPlayer defender, LivingEntity actual) {
+        return actual == null ? Decision.INVALID_OWNER : relationship(defender, actual);
     }
     private static Decision relationship(ServerPlayer defender, Entity actual) {
         Entity responsible = actual instanceof TamableAnimal pet && pet.getOwner() != null ? pet.getOwner() : actual;

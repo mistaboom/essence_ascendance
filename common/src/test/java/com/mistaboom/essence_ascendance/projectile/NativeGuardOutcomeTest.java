@@ -346,7 +346,7 @@ public final class NativeGuardOutcomeTest {
     }
 
     @SuppressWarnings("unchecked")
-    private static void registry(ProjectileNativeInterceptionTest.Fixture fixture) throws ReflectiveOperationException {
+    static void registry(ProjectileNativeInterceptionTest.Fixture fixture) throws ReflectiveOperationException {
         var registry = new MappedRegistry<DamageType>(Registries.DAMAGE_TYPE, Lifecycle.stable());
         for (var field : DamageTypes.class.getDeclaredFields()) {
             if (field.getType() != ResourceKey.class) continue;
@@ -356,7 +356,12 @@ public final class NativeGuardOutcomeTest {
         registry.freeze();
         registry.bindTags(new HashMap<>(java.util.Map.of(DamageTypeTags.IS_PROJECTILE,
                 List.of(registry.getHolderOrThrow(DamageTypes.ARROW)))));
-        fixture.level.memoryRegistries = new RegistryAccess.ImmutableRegistryAccess(List.of(registry)).freeze();
+        // NeoForge resolves the enchantment registry before iterating even an empty native
+        // equipment enchantment map. These fixtures equip no enchanted items: an empty frozen
+        // registry faithfully preserves that boundary without replacing native enchantment code.
+        var enchantments = new MappedRegistry<net.minecraft.world.item.enchantment.Enchantment>(Registries.ENCHANTMENT, Lifecycle.stable());
+        enchantments.freeze();
+        fixture.level.memoryRegistries = new RegistryAccess.ImmutableRegistryAccess(List.of(registry,enchantments)).freeze();
         fixture.level.memoryDamageSources = new DamageSources(fixture.level.memoryRegistries);
         var managers = ProjectileNativeInterceptionTest.instance(net.minecraft.server.ReloadableServerResources.class);
         ProjectileNativeInterceptionTest.set(net.minecraft.server.ReloadableServerResources.class, managers, "fullRegistryHolder",

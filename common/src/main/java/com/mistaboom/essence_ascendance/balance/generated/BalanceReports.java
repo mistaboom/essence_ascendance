@@ -48,6 +48,9 @@ public final class BalanceReports {
         var guardRules = tables.table("guard_policy.csv", "contract", "rule");
         if (skills.has("guardPolicy")) skills.getAsJsonObject("guardPolicy").entrySet().stream()
                 .sorted(Map.Entry.comparingByKey()).forEach(entry -> guardRules.row(entry.getKey(), entry.getValue().getAsString()));
+        var postureRules = tables.table("posture_status_policy.csv", "contract", "rule");
+        if (skills.has("postureStatusPolicy")) skills.getAsJsonObject("postureStatusPolicy").entrySet().stream()
+                .sorted(Map.Entry.comparingByKey()).forEach(entry -> postureRules.row(entry.getKey(), entry.getValue().getAsString()));
         Path reports = BalanceReportLayout.reports(folder), diagnostics = BalanceReportLayout.diagnostics(folder);
         tables.write(reports, diagnostics);
         BalanceProfileStore.writeAtomically(reports.resolve("balance_report.md"), report(current, previous, generationMillis, skills));
@@ -350,6 +353,11 @@ public final class BalanceReports {
     }
 
     private static void combatSummary(StringBuilder out, JsonObject skills) {
+        if (skills.has("postureStatusPolicy")) {
+            out.append("\n### Defensive posture and harmful-status policy\n\nResolved runtime values are in `runtime_parameters.csv`; `posture_status_policy.csv` records conditions, event order, binary rank limitations and missing status evidence. `combat_defense_pressure.csv` reports conditional avoidance, resistance, knockback and harmful-effect bounds separately from damage.\n\n| Contract | Rule |\n|---|---|\n");
+            skills.getAsJsonObject("postureStatusPolicy").entrySet().stream().sorted(Map.Entry.comparingByKey())
+                    .forEach(entry -> row(out, entry.getKey(), entry.getValue().getAsString()));
+        }
         out.append("\n### Resolved numeric combat checks\n\n");
         var analysis = numericAnalysis(skills);
         if (analysis == null) {
@@ -357,7 +365,7 @@ public final class BalanceReports {
             return;
         }
         out.append("These cases compose the actual saved equipment, Nexus and implemented-skill values under legal skill selections. They cover equipment-focused, bonus-focused, skill-focused, mixed, fully combined, offense-specialized and broad generalist participation. Each prediction is compared with its own generated limit. They are model checks under the assumptions below, not measured combat results.\n\n")
-                .append("Analysis attenuation: ").append(number(analysis.attenuation())).append(". Named skill/equipment cases: ")
+                .append("Minimum initial calibration: ").append(number(analysis.attenuation())).append("; independent Nexus/posture/rank recovery is recorded in runtime composition parameters. Named skill/equipment cases: ")
                 .append(analysis.cases().size()).append(". Full per-case, per-participation, per-metric values are in `combat_builds.csv`; saved analysis is `skills.combinedBuilds`.\n\n")
                 .append("The next table identifies the tightest budget in each participation/tier group. A ratio below or equal to one is within that case's allowed limit; all metrics and cases in the group contribute to its pass result.\n\n")
                 .append("| Tier | Participation | Cases | Tightest metric | Predicted | Allowed | Budget used | All pass |\n|---|---|---:|---|---:|---:|---:|---|\n");
@@ -414,6 +422,9 @@ public final class BalanceReports {
         var out = tables.table("combat_builds.csv", "tier", "skill_selection", "case_id", "participation", "metric", "unit", "predicted", "allowed", "budget_fraction",
                 "passes", "analysis_attenuation");
         var assumptions = tables.table("combat_assumptions.csv", "scope", "case_id", "assumption_index", "assumption");
+        var pressure = tables.table("combat_defense_pressure.csv", "case_id", "participation", "peak_avoidance_fraction",
+                "peak_damage_reduction_fraction", "frontal_knockback_immunity", "peak_harmful_status_prevention_fraction",
+                "maximum_mirror_transfers_per_second", "mirror_maximum_duration_ticks", "mirror_maximum_amplifier");
         var analysis = numericAnalysis(skills);
         if (analysis == null) return;
         for (int i = 0; i < analysis.assumptions().size(); i++) assumptions.row("analysis", "", Integer.toString(i), analysis.assumptions().get(i));
@@ -424,6 +435,13 @@ public final class BalanceReports {
             for (var participation : BuildComposition.Participation.values()) {
                 var metrics = one.evaluation().scenarios().get(participation);
                 if (metrics == null) continue;
+                {
+                    var p = one.defensivePressure().get(participation);
+                    pressure.row(one.evaluation().id(), participation.name(), number(p.peakAvoidance()), number(p.peakDamageReduction()),
+                            Boolean.toString(p.frontalKnockbackImmunity()), number(p.peakHarmfulStatusPrevention()),
+                            number(p.maximumMirrorTransfersPerSecond()), Integer.toString(p.mirrorMaximumDurationTicks()),
+                            Integer.toString(p.mirrorMaximumAmplifier()));
+                }
                 for (var metric : BuildComposition.Metric.values()) {
                     NumericCheck check = new NumericCheck(one, participation, metric, metrics.value(metric), one.limitFor(participation).value(metric));
                     out.row(one.tier(), one.skillSelection(), one.evaluation().id(), participation.name(), metric.name(), metricUnit(metric),

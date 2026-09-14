@@ -192,18 +192,18 @@ public final class SkillBalanceSemantics {
                 .availability(.5, .9).area(5).condition("Supported approaching hostile projectiles; strongest field wins, bounded reference speed restores on exit; avoidance only"));
         all.add(skill(SkillIds.EVASIVE_CURRENT, flat(AVOIDANCE, .55))
                 .actions(Action.MOVE).availability(.6, .85).risk(.15)
-                .condition("Continuous movement builds evasion; stopping or being hit drains it"));
-        all.add(skill(SkillIds.BULWARK_STANCE, flat(DAMAGE_REDUCTION, .6), capability(STATUS_RESISTANCE, .3))
+                .condition("Server-correlated intentional movement builds evasion; one roll per eligible native hit; success and taken hits drain, stopping drains; forced motion cannot charge"));
+        all.add(skill(SkillIds.BULWARK_STANCE, flat(DAMAGE_REDUCTION, .6), capability(CROWD_CONTROL, .3), flat(BURST_SURVIVAL, .3))
                 .actions(Action.STAND_STILL, Action.FACE_THREAT).availability(.55, .8).risk(.3)
-                .condition("Stationary frontal defense; turning and movement drain posture"));
-        all.add(skill(SkillIds.ADAPTIVE_GUARD, flat(DAMAGE_REDUCTION, .55))
+                .condition("Stationary frontal defense facing a valid visible hostile threat; movement/turning drain posture; thresholded correlated knockback immunity is control, not harmful-status immunity"));
+        all.add(skill(SkillIds.ADAPTIVE_GUARD, flat(DAMAGE_REDUCTION, .55), flat(SUSTAINED_SURVIVAL, .35))
                 .actions(Action.TAKE_DAMAGE).availability(.55, .7).risk(.2)
-                .condition("Repeated damage type; a different type restarts adaptation"));
+                .condition("Exact registry DamageType identity; first eligible hit seeds, repeated hits begin mitigation at the generated threshold; type switch reseeds before that hit; secondary/rejected hits never build"));
         all.add(skill(SkillIds.STATUS_MIRROR, flat(STATUS_RESISTANCE, .55), flat(REFLECTION, .25))
-                .availability(.5, .75).timing(20, 0)
-                .condition("First harmful status is transferred where a source exists; cooldown-limited"));
+                .availability(.5, .75).timing(com.mistaboom.essence_ascendance.config.StatusBalanceSettings.defaults().mirrorCooldownTicks() / 20.0, 0)
+                .condition("First actual eligible harmful effect from a valid hostile responsible living source is removed and copied through native semantics; confirmed interception starts cooldown once, transfer rejection does not revoke protection; no secondary recursion"));
         all.add(skill(SkillIds.PURE_STATE, capability(STATUS_RESISTANCE, 1))
-                .condition("Transformative harmful-status immunity; exclusive with status reflection"));
+                .condition("New harmful-effect immunity including source-less effects; preserves existing effects and beneficial/neutral applications; exclusive with status reflection; binary capability has no honest numeric rank consumer"));
         all.add(skill(SkillIds.RIPOSTE, flat(BURST_DAMAGE, .7), flat(REACH, .3))
                 .deliveries(Delivery.MELEE).equipment(Equipment.SHIELD, Equipment.MELEE_WEAPON)
                 .actions(Action.PERFECT_BLOCK, Action.ATTACK).availability(.25, .6).risk(.25)

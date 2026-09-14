@@ -76,8 +76,9 @@ public final class SkillLoadoutProjectionTest {
         check(current.scenarios().stream().anyMatch(s -> s.activeRanks().containsKey(SkillIds.EXPLOSIVE_PAYLOAD)),
                 "Implemented payloads contribute to current-build demand");
         var currentDefense = project(category("defense"), ranks(category("defense"), 1), false);
-        check(currentDefense.scenarios().stream().noneMatch(s -> s.activeRanks().containsKey(SkillIds.EVASIVE_CURRENT)),
-                "The next unimplemented defense branch stays excluded from current-build demand");
+        for(var id:List.of(SkillIds.EVASIVE_CURRENT,SkillIds.BULWARK_STANCE,SkillIds.ADAPTIVE_GUARD,SkillIds.STATUS_MIRROR,SkillIds.PURE_STATE))
+            check(currentDefense.scenarios().stream().anyMatch(s -> s.activeRanks().containsKey(id)),
+                    "Every implemented posture/status choice participates in current-build demand: "+id);
         check(currentDefense.scenarios().stream().anyMatch(s -> s.activeRanks().containsKey(SkillIds.GUARDED_ADVANCE)),
                 "Implemented guard mobility participates in current-build demand");
         for (var scenario : currentDefense.scenarios())

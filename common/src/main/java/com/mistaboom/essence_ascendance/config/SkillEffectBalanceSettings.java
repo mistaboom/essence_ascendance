@@ -19,7 +19,9 @@ public record SkillEffectBalanceSettings(
         StaticCharge staticCharge,
         ChainStrike chainStrike,
         ProjectileBalanceSettings projectiles,
-        GuardBalanceSettings guard
+        GuardBalanceSettings guard,
+        PostureBalanceSettings posture,
+        StatusBalanceSettings status
 ) {
     public SkillEffectBalanceSettings {
         Objects.requireNonNull(frenzy, "Frenzy balance cannot be null");
@@ -34,6 +36,8 @@ public record SkillEffectBalanceSettings(
         Objects.requireNonNull(chainStrike, "Chain Strike balance cannot be null");
         Objects.requireNonNull(projectiles, "Projectile balance cannot be null");
         Objects.requireNonNull(guard, "Missing guard balance; rebuild generated balance");
+        Objects.requireNonNull(posture, "Missing posture balance; rebuild generated balance");
+        Objects.requireNonNull(status, "Missing status balance; rebuild generated balance");
     }
 
     public record Frenzy(
@@ -193,6 +197,8 @@ public record SkillEffectBalanceSettings(
         new ChainStrike(chainStrike.maximumJumps(), chainStrike.radius(), chainStrike.damageFalloff());
         projectiles.validate();
         guard.validate();
+        posture.validate();
+        status.validate();
     }
 
     public static SkillEffectBalanceSettings defaults() {
@@ -208,7 +214,9 @@ public record SkillEffectBalanceSettings(
                 new StaticCharge(100.0, 1.0, 4.0, 0.50, 0.35, 0.60, 40, 0.50, 4.0),
                 new ChainStrike(3, 6.0, 0.75),
                 ProjectileBalanceSettings.defaults(),
-                GuardBalanceSettings.defaults()
+                GuardBalanceSettings.defaults(),
+                PostureBalanceSettings.defaults(),
+                StatusBalanceSettings.defaults()
         );
     }
 

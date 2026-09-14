@@ -36,6 +36,7 @@ public final class SavedEvidenceRegenerator {
         validation.addProperty("serialization", "passed");
         validation.addProperty("projectiles", "validated independent path/payload and bounded control policy; native gameplay remains manual");
         validation.addProperty("guard", "validated guard mobility, reflection and counterattack bounds; live gameplay remains manual");
+        validation.addProperty("postureStatus", "validated generated posture mitigation and binary harmful-status capability; conditional native gameplay remains manual");
         validation.addProperty("liveGameplay", "not performed by saved-evidence replay");
         JsonObject content = new JsonObject();
         content.add("metadata", metadata);
