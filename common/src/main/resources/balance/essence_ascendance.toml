@@ -7,7 +7,7 @@
 # Sort/filter reports/*.csv in a spreadsheet; these exports do not change gameplay.
 # Full troubleshooting evidence stays in the generated JSON and diagnostics/.
 #
-# Omitted keys use the documented vanilla-like defaults. Unknown keys are errors.
+# Omitted keys use the documented progression defaults. Unknown keys are errors.
 # Supported TOML: these named tables, decimal numbers, booleans, quoted strings.
 # Advanced facts additionally support [[fact]] and arrays of primitive values.
 # Inline tables, dates, dotted bare keys, hexadecimal numbers and multiline strings
@@ -20,6 +20,12 @@ schema_version = 1
 # control still sets added-power headroom for Nexus/skills and combined builds.
 # Range 0.1..4.0; default 1.0. 1.2 asks for stronger Ascendance contributions.
 # This is not a percentage of the single strongest registered item.
+# Default final-output ceilings at Transcendent: equipment 1x pack parity,
+# external gear + developed Nexus 2x, external gear + ranked skills 2x,
+# combined builds 3x. Only a <=20%-health Desperation build can use 4x burst;
+# sustained damage still uses 3x. These are checked outputs, not stacking buffs.
+# Combined tier ceilings: 1.5x / 1.7x / 2x / 2.5x / 3x. Existing band controls
+# scale the added headroom relative to the default values below.
 overall = 1.0
 # Relative emphasis within the detected progression bands, each 0.1..4.0.
 # Raising early helps the first meaningful investments; lowering apex reins in
@@ -87,9 +93,9 @@ onboarding_effort_fraction = 0.50
 breadth_exponent = 1.0
 
 [builds]
-# Minimum emphasis on meaningful partial participation, 0.1..1.0; default 0.65.
-# Higher values support players concentrating on equipment, Nexus or skills.
-# Combined-build accounting still constrains multiplicative interactions.
+# Partial-participation emphasis in semantic capability allocation, 0.1..1.0.
+# Actual numeric Nexus and skill values are no longer discounted by these
+# shares: their separate final-output ceilings constrain composed gameplay.
 partial_viability = 0.65
 # Strength of multiplicative-composition safeguards, 0..1; default 0.75.
 # Higher values leave less headroom for stacked multipliers. Zero relaxes this
@@ -97,10 +103,10 @@ partial_viability = 0.65
 composition_safeguard = 0.75
 
 [budget]
-# Split added Ascendance power among the three systems. Equipment keeps an
-# ordinary pack-equivalent baseline before these shares add its upgrade power.
+# Split semantic capability allocation among the three systems. These weights
+# are not direct percentages of live damage, defense, or the final-output caps.
 # Each share must be 0.01..0.98; all three MUST sum to 1.0.
-# Example: equipment=0.5, nexus=0.3, skills=0.2 favors evolving equipment.
+# Equipment always retains its generated pack-parity foundation.
 equipment = 0.40
 nexus = 0.35
 skills = 0.25

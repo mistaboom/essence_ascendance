@@ -373,7 +373,7 @@ public final class BalanceReports {
                     if (metrics == null) continue;
                     caseCount++;
                     for (var metric : BuildComposition.Metric.values()) {
-                        NumericCheck check = new NumericCheck(one, participation, metric, metrics.value(metric), one.limits().value(metric));
+                        NumericCheck check = new NumericCheck(one, participation, metric, metrics.value(metric), one.limitFor(participation).value(metric));
                         allPass &= check.passed();
                         if (worst == null || check.ratio() > worst.ratio()) worst = check;
                     }
@@ -394,14 +394,14 @@ public final class BalanceReports {
                 double usage = 0;
                 for (var metric : BuildComposition.Metric.values())
                     usage = Math.max(usage, new NumericCheck(one, BuildComposition.Participation.FULLY_COMBINED,
-                            metric, metrics.value(metric), one.limits().value(metric)).ratio());
+                            metric, metrics.value(metric), one.limitFor(BuildComposition.Participation.FULLY_COMBINED).value(metric)).ratio());
                 if (usage > largest) { largest = usage; representative = one; }
             }
             if (representative == null) continue;
             var metrics = representative.evaluation().scenarios().get(BuildComposition.Participation.FULLY_COMBINED);
             for (var metric : BuildComposition.Metric.values()) {
                 NumericCheck check = new NumericCheck(representative, BuildComposition.Participation.FULLY_COMBINED,
-                        metric, metrics.value(metric), representative.limits().value(metric));
+                        metric, metrics.value(metric), representative.limitFor(BuildComposition.Participation.FULLY_COMBINED).value(metric));
                 row(out, tier.id().getPath(), representative.skillSelection(), metric.name(), number(check.predicted()), number(check.allowed()), Boolean.toString(check.passed()));
             }
         }
@@ -425,7 +425,7 @@ public final class BalanceReports {
                 var metrics = one.evaluation().scenarios().get(participation);
                 if (metrics == null) continue;
                 for (var metric : BuildComposition.Metric.values()) {
-                    NumericCheck check = new NumericCheck(one, participation, metric, metrics.value(metric), one.limits().value(metric));
+                    NumericCheck check = new NumericCheck(one, participation, metric, metrics.value(metric), one.limitFor(participation).value(metric));
                     out.row(one.tier(), one.skillSelection(), one.evaluation().id(), participation.name(), metric.name(), metricUnit(metric),
                             number(check.predicted()), number(check.allowed()), ratioText(check), Boolean.toString(check.passed()),
                             number(analysis.attenuation()));

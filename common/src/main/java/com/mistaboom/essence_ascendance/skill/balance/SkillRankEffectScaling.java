@@ -157,13 +157,21 @@ public final class SkillRankEffectScaling {
                 / SkillBalanceRuntime.require(id.toString(), 1).powerMultiplier();
     }
 
+    public static boolean supports(ResourceLocation id) { return RULES.containsKey(id); }
+
     public static SkillEffectBalanceSettings apply(SkillEffectBalanceSettings base, Map<ResourceLocation, Integer> effectiveRanks) {
+        return apply(base, effectiveRanks, SkillRankEffectScaling::factor);
+    }
+
+    /** Generation must resolve against its candidate curves, never an installed/older world profile. */
+    public static SkillEffectBalanceSettings apply(SkillEffectBalanceSettings base, Map<ResourceLocation, Integer> effectiveRanks,
+            java.util.function.ToDoubleBiFunction<ResourceLocation, Integer> factors) {
         if (effectiveRanks.values().stream().noneMatch(rank -> rank > 1)) return base;
         Parameters parameters = new Parameters(base);
         effectiveRanks.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
             if (entry.getValue() <= 1) return;
             var rule = RULES.get(entry.getKey());
-            if (rule != null) rule.accept(parameters, factor(entry.getKey(), entry.getValue()));
+            if (rule != null) rule.accept(parameters, factors.applyAsDouble(entry.getKey(), entry.getValue()));
         });
         return parameters.build();
     }

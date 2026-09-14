@@ -56,7 +56,7 @@ public final class SkillRankLedgerTest {
         var editedRanks = new java.util.ArrayList<>(frenzy.ranks());
         var third = editedRanks.get(2);
         editedRanks.set(2, new SkillBalanceRuntime.ResolvedRank(3, third.cost(), third.powerMultiplier() * 1.01));
-        edited.put(SkillIds.FRENZY.toString(), new SkillBalanceRuntime.ResolvedSkill(1, editedRanks));
+        edited.put(SkillIds.FRENZY.toString(), new SkillBalanceRuntime.ResolvedSkill(frenzy.maximumRank(), editedRanks));
         SkillBalanceRuntime.install(edited);
         check(SkillRankEffectScaling.apply(settings, Map.of(SkillIds.FRENZY, 3)).frenzy().damageBonusPercentPerStack()
                 > ranked.frenzy().damageBonusPercentPerStack(), "Resolved future rank edit is disconnected from gameplay tuning");

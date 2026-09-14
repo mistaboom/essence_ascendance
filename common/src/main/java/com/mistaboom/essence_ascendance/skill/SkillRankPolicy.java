@@ -18,7 +18,7 @@ public record SkillRankPolicy(int maximumRank, int projectionRanks, SkillRankCur
         });
     }
     public static SkillRankPolicy singlePurchase() {
-        return new SkillRankPolicy(1, 5, SkillRankCurve.standard(), RefundRule.NONE, Map.of());
+        return new SkillRankPolicy(1, 5, SkillRankCurve.developed(), RefundRule.NONE, Map.of());
     }
     public record Gates(ResourceLocation requiredTierId, Map<ResourceLocation, Integer> prerequisites,
                         List<SkillRequirement> requirements) {

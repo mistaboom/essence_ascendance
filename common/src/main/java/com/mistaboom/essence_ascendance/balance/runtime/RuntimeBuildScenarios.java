@@ -2,11 +2,9 @@ package com.mistaboom.essence_ascendance.balance.runtime;
 
 import com.mistaboom.essence_ascendance.balance.config.BalanceSettings;
 import com.mistaboom.essence_ascendance.balance.engine.*;
+import com.mistaboom.essence_ascendance.balance.engine.BuildComposition.*;
 import com.mistaboom.essence_ascendance.config.SkillEffectBalanceSettings;
-import com.mistaboom.essence_ascendance.equipment.EquipmentProfileRegistry;
-import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineProperty;
-import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineService;
-import com.mistaboom.essence_ascendance.equipment.EquipmentProfileDefinition;
+import com.mistaboom.essence_ascendance.equipment.*;
 import com.mistaboom.essence_ascendance.skill.*;
 import com.mistaboom.essence_ascendance.skill.balance.*;
 import com.mistaboom.essence_ascendance.stat.*;
@@ -15,139 +13,235 @@ import com.mistaboom.essence_ascendance.progression.StatScalingService;
 import net.minecraft.resources.ResourceLocation;
 import java.util.*;
 
-/** Generation-only numeric check of actual resolved values and legal current skill selections. */
+/** Generation-only numeric checks using candidate rank curves and matching weapon inputs. */
 public final class RuntimeBuildScenarios {
-    private RuntimeBuildScenarios() {}
-    public record Case(String tier, String skillSelection, BuildComposition.Limits limits,
-                       BuildComposition.Evaluation evaluation) {}
+    private RuntimeBuildScenarios() { }
+    public record Case(String tier, String skillSelection, Evaluation evaluation,
+                       Map<Participation, Limits> participationLimits) {
+        public Limits limitFor(Participation participation) {
+            return Objects.requireNonNull(participationLimits.get(participation), "Missing participation ceiling");
+        }
+    }
     public record Analysis(double attenuation, List<Case> cases, List<String> assumptions) {
-        public Analysis { cases=List.copyOf(cases); assumptions=List.copyOf(assumptions); }
-        public void requireSafe() { for(var row:cases)row.evaluation().requireSafe(); }
-    }
-    public record Plan(Map<ResourceLocation,List<SkillLoadoutProjection.Scenario>> full,
-                       Map<ResourceLocation,List<SkillLoadoutProjection.Scenario>> moderate) {}
-    public static Plan plan() {
-        Map<ResourceLocation,Integer> fullRanks=new LinkedHashMap<>(),moderateRanks=new LinkedHashMap<>();
-        for(var skill:SkillRegistry.values()) {
-            fullRanks.put(skill.id(),1);
-            moderateRanks.put(skill.id(),skill.prerequisites().isEmpty()?1:0);
+        public Analysis { cases = List.copyOf(cases); assumptions = List.copyOf(assumptions); }
+        public void requireSafe() { for (var row : cases) row.evaluation().requireSafe(); }
+        public boolean safeFor(Channel channel) {
+            return cases.stream().flatMap(row -> row.evaluation().violations().stream())
+                    .noneMatch(v -> channel == null || channel.includes(v.metric()));
         }
-        Map<ResourceLocation,List<SkillLoadoutProjection.Scenario>> full=new LinkedHashMap<>(),moderate=new LinkedHashMap<>();
-        for(var tier:AscendanceTierRegistry.powerTiers()) {
-            full.put(tier.id(),SkillLoadoutProjection.project(SkillRegistry.values(),tier.id(),fullRanks,(id,rank)->1,Map.of(),false).scenarios());
-            moderate.put(tier.id(),SkillLoadoutProjection.project(SkillRegistry.values(),tier.id(),moderateRanks,(id,rank)->1,Map.of(),false).scenarios());
-        }
-        return new Plan(Collections.unmodifiableMap(full),Collections.unmodifiableMap(moderate));
     }
-    public static Analysis analyze(RuntimeBalanceDefinition runtime,PackEvidence evidence,BalanceSettings settings,Plan plan,boolean guard) {
-        return analyze(runtime,evidence,settings,plan,guard,null);
+    public record Plan(Map<ResourceLocation, List<SkillLoadoutProjection.Scenario>> full,
+                       Map<ResourceLocation, List<SkillLoadoutProjection.Scenario>> moderate, boolean developed,
+                       EquipmentBaselineConfig equipmentLimits) { }
+    public static Plan plan() { return plan(true); }
+    public static Plan plan(RuntimeBalanceDefinition runtime, boolean developed) {
+        var plan=plan(developed);
+        return new Plan(plan.full(),plan.moderate(),developed,runtime.config().equipmentBaselineConfig());
     }
-    public static Analysis analyze(RuntimeBalanceDefinition runtime,PackEvidence evidence,BalanceSettings settings,Plan plan,boolean guard,BuildComposition.Channel channel) {
-        List<Case> result=new ArrayList<>(); double attenuation=1;
-        boolean parity=runtime.composition().getOrDefault("equipment_apex_parity",0.0)==1.0;
-        int bandIndex=0;
-        for(var tier:AscendanceTierRegistry.powerTiers().stream().sorted(Comparator.comparingInt(AscendanceTierDefinition::order)).toList()) {
-            ProgressionBand band=ProgressionBand.at(bandIndex++);
-            double relative=settings.overallPower()*switch(band){case ENTRY,EARLY->settings.earlyPower();case MID->settings.midPower();case LATE->settings.latePower();case APEX->settings.apexPower();};
-            double rate=RuntimeReferencePolicy.required(evidence,band,CapabilityAxis.ATTACK_RATE);
-            double dps=RuntimeReferencePolicy.required(evidence,band,CapabilityAxis.SUSTAINED_DAMAGE);
-            double armor=RuntimeReferencePolicy.observed(evidence,band,CapabilityAxis.ARMOR,0);
-            double toughness=RuntimeReferencePolicy.observed(evidence,band,CapabilityAxis.TOUGHNESS,0);
-            // The equipment frontier's EFFECTIVE_HEALTH already includes armor mitigation.
-            // This model accepts raw health and applies the observed armor exactly once.
-            double health=RuntimeReferencePolicy.playerHealth();
-            double incoming=runtime.composition().getOrDefault("enemy_damage_"+band.name().toLowerCase(Locale.ROOT),RuntimeReferencePolicy.playerHit());
-            if(parity) {
-                var pairedArmor=RuntimeReferencePolicy.armor(evidence,band,settings.outlierPolicy().name(),incoming);
-                armor=pairedArmor.armor();toughness=pairedArmor.toughness();
+    public static Plan plan(boolean developed) {
+        Map<ResourceLocation, List<SkillLoadoutProjection.Scenario>> full = new LinkedHashMap<>(), moderate = new LinkedHashMap<>();
+        for (var tier : AscendanceTierRegistry.powerTiers()) {
+            Map<ResourceLocation, Integer> fullRanks = new LinkedHashMap<>(), moderateRanks = new LinkedHashMap<>();
+            for (var skill : SkillRegistry.values()) {
+                int projectedRank = developed ? Math.min(skill.rankPolicy().projectionRanks(), Math.max(1,
+                        tier.order() - AscendanceTierRegistry.get(skill.requiredTierId()).orElseThrow().order() + 1)) : 1;
+                fullRanks.put(skill.id(), projectedRank);
+                moderateRanks.put(skill.id(), skill.prerequisites().isEmpty() ? 1 : 0);
             }
-            double survivalWindow=settings.generation().survivalWindowSeconds();
-            // Relative intent allocates incremental headroom above an ordinary external loadout.
-            double headroom=1+relative;
-            var baseline=runtime.config().equipmentBaselineConfig().baselineFor(tier);
-            Map<String,RuntimeReferencePolicy.Weapon> familyReferences=new HashMap<>();
-            for(String family:List.of("melee_shield","ranged","caster"))familyReferences.put(family,parity
-                    ?RuntimeReferencePolicy.weapon(evidence,band,family,settings.outlierPolicy().name())
-                    :new RuntimeReferencePolicy.Weapon(dps/rate,rate,Math.max(dps/rate,evidence.reference(band,CapabilityAxis.BURST_DAMAGE,dps/rate)),false));
-            Set<String> duplicateSelections=new HashSet<>();
-            for(var scenario:plan.full().get(tier.id())) {
-                String family=scenario.equipmentContext();
-                if(!Set.of("melee_shield","ranged","caster").contains(family))continue;
-                String signature=family+new TreeSet<>(scenario.contributingRanks().keySet()).toString();
-                if(!duplicateSelections.add(signature))continue;
-                var reference=familyReferences.get(family);
-                var external=new BuildComposition.Equipment(reference.damage(),reference.rate(),armor,toughness,health,0);
-                var externalMetrics=BuildComposition.compose(external,BuildComposition.Modifier.none(),BuildComposition.Modifier.none(),incoming,survivalWindow);
-                var limits=new BuildComposition.Limits(reference.dps()*headroom,reference.burst()*headroom,
-                        reference.dps()*relative*2,externalMetrics.effectiveHealth()*headroom,
-                        externalMetrics.effectiveHealth()*headroom*1.35,health*relative/survivalWindow);
-                double damage=family.equals("ranged")?baseline.rangedDamage():family.equals("caster")?baseline.magicDamage():baseline.meleeDamage();
-                double attackRate=family.equals("ranged")?baseline.rangedAttackSpeed():family.equals("caster")?baseline.magicCastSpeed():baseline.meleeAttackSpeed();
-                EquipmentBaselineProperty damageProperty=family.equals("ranged")?EquipmentBaselineProperty.RANGED_DAMAGE:family.equals("caster")?EquipmentBaselineProperty.MAGIC_DAMAGE:EquipmentBaselineProperty.MELEE_DAMAGE;
-                EquipmentBaselineProperty speedProperty=family.equals("ranged")?EquipmentBaselineProperty.RANGED_ATTACK_SPEED:family.equals("caster")?EquipmentBaselineProperty.MAGIC_CAST_SPEED:EquipmentBaselineProperty.MELEE_ATTACK_SPEED;
-                for(var archetype:EquipmentProfileRegistry.values()) {
-                if(archetype.baselineMultiplier(damageProperty)<=0||archetype.baselineMultiplier(speedProperty)<=0)continue;
-                double archetypeDamage=equipmentValue(runtime,damage,archetype,damageProperty);
-                double archetypeRate=equipmentValue(runtime,attackRate,archetype,speedProperty);
-                var ascendance=new BuildComposition.Equipment(Math.max(.01,archetypeDamage),archetypeRate,baseline.fullSetArmor(),baseline.fullSetToughness(),health,0);
-                var smaller=plan.moderate().get(tier.id()).stream().filter(s->s.equipmentContext().equals(family)&&s.objective().equals(scenario.objective())).findFirst().orElse(null);
-                var inputs=new BuildComposition.Inputs(tier.id()+"/"+archetype.id()+"/"+scenario.id(),external,ascendance,
-                        nexus(runtime,tier,family,false),nexus(runtime,tier,family,true),
-                        skills(runtime.config().skillEffects(),scenario.contributingRanks().keySet(),family,Math.min(external.hitDamage(),archetypeDamage),Math.min(reference.rate(),archetypeRate)),
-                        skills(runtime.config().skillEffects(),smaller==null?Set.of():smaller.contributingRanks().keySet(),family,Math.min(external.hitDamage(),archetypeDamage),Math.min(reference.rate(),archetypeRate)),incoming,survivalWindow);
-                var evaluated=BuildComposition.evaluate(inputs,limits);
-                if(guard)attenuation=Math.min(attenuation,(channel==null?BuildComposition.guard(inputs,limits):BuildComposition.guard(inputs,limits,channel)).attenuation());
-                result.add(new Case(tier.id().toString(),archetype.id()+"/"+scenario.id(),limits,evaluated));
+            full.put(tier.id(), SkillLoadoutProjection.project(SkillRegistry.values(), tier.id(), fullRanks,
+                    (id, rank) -> SkillRegistry.require(id).rankPolicy().curve().power(rank), Map.of(), false).scenarios());
+            moderate.put(tier.id(), SkillLoadoutProjection.project(SkillRegistry.values(), tier.id(), moderateRanks,
+                    (id, rank) -> 1, Map.of(), false).scenarios());
+        }
+        return new Plan(Collections.unmodifiableMap(full), Collections.unmodifiableMap(moderate), developed, null);
+    }
+
+    public static Analysis analyze(RuntimeBalanceDefinition runtime, PackEvidence evidence, BalanceSettings settings,
+                                   Plan plan) {
+        List<Case> result = new ArrayList<>();
+        boolean parity = runtime.composition().getOrDefault("equipment_apex_parity", 0.0) == 1.0;
+        int bandIndex = 0;
+        for (var tier : AscendanceTierRegistry.powerTiers().stream().sorted(Comparator.comparingInt(AscendanceTierDefinition::order)).toList()) {
+            ProgressionBand band = ProgressionBand.at(bandIndex++);
+            double rate = RuntimeReferencePolicy.required(evidence, band, CapabilityAxis.ATTACK_RATE);
+            double dps = RuntimeReferencePolicy.required(evidence, band, CapabilityAxis.SUSTAINED_DAMAGE);
+            double armor = RuntimeReferencePolicy.observed(evidence, band, CapabilityAxis.ARMOR, 0);
+            double toughness = RuntimeReferencePolicy.observed(evidence, band, CapabilityAxis.TOUGHNESS, 0);
+            double health = RuntimeReferencePolicy.playerHealth();
+            double incoming = runtime.composition().getOrDefault("enemy_damage_" + band.name().toLowerCase(Locale.ROOT), RuntimeReferencePolicy.playerHit());
+            if (parity) {
+                var pairedArmor = RuntimeReferencePolicy.armor(evidence, band, settings.outlierPolicy().name(), incoming);
+                armor = pairedArmor.armor(); toughness = pairedArmor.toughness();
+            }
+            double window = settings.generation().survivalWindowSeconds();
+            var baseline = runtime.config().equipmentBaselineConfig().baselineFor(tier);
+            var equipmentLimit=plan.equipmentLimits()==null?null:plan.equipmentLimits().baselineFor(tier);
+            Map<String, RuntimeReferencePolicy.Weapon> references = new HashMap<>();
+            for (String family : List.of("melee_shield", "ranged", "caster")) references.put(family, parity
+                    ? RuntimeReferencePolicy.weapon(evidence, band, family, settings.outlierPolicy().name())
+                    : new RuntimeReferencePolicy.Weapon(dps / rate, rate, Math.max(dps / rate,
+                            evidence.reference(band, CapabilityAxis.BURST_DAMAGE, dps / rate)), false));
+            Set<String> duplicateSelections = new HashSet<>();
+            for (var scenario : plan.full().get(tier.id())) {
+                String family = scenario.equipmentContext();
+                if (!references.containsKey(family)) continue;
+                if (!duplicateSelections.add(family + new TreeMap<>(scenario.contributingRanks()))) continue;
+                var reference = references.get(family);
+                var external = new Equipment(reference.damage(), reference.rate(), armor, toughness, health, 0);
+                var externalMetrics = BuildComposition.compose(external, Modifier.none(), Modifier.none(), incoming, window);
+                double damage = family.equals("ranged") ? baseline.rangedDamage() : family.equals("caster") ? baseline.magicDamage() : baseline.meleeDamage();
+                double attackRate = family.equals("ranged") ? baseline.rangedAttackSpeed() : family.equals("caster") ? baseline.magicCastSpeed() : baseline.meleeAttackSpeed();
+                var damageProperty = family.equals("ranged") ? EquipmentBaselineProperty.RANGED_DAMAGE : family.equals("caster") ? EquipmentBaselineProperty.MAGIC_DAMAGE : EquipmentBaselineProperty.MELEE_DAMAGE;
+                var speedProperty = family.equals("ranged") ? EquipmentBaselineProperty.RANGED_ATTACK_SPEED : family.equals("caster") ? EquipmentBaselineProperty.MAGIC_CAST_SPEED : EquipmentBaselineProperty.MELEE_ATTACK_SPEED;
+                var smaller = plan.moderate().get(tier.id()).stream().filter(s -> s.equipmentContext().equals(family)
+                        && s.objective().equals(scenario.objective())).findFirst().orElse(null);
+                Map<ResourceLocation, Integer> fullRanks = scenario.contributingRanks();
+                Map<ResourceLocation, Integer> moderateRanks = smaller == null ? Map.of() : smaller.contributingRanks();
+                var fullEffects = rankedEffects(runtime, fullRanks);
+                var moderateEffects = rankedEffects(runtime, moderateRanks);
+                var nexusFull = nexus(runtime, tier, family, false);
+                var nexusModerate = nexus(runtime, tier, family, true);
+                for (var archetype : EquipmentProfileRegistry.values()) {
+                    if (archetype.baselineMultiplier(damageProperty) <= 0 || archetype.baselineMultiplier(speedProperty) <= 0) continue;
+                    var ascendance = new Equipment(Math.max(.01, equipmentValue(runtime, damage, archetype, damageProperty)),
+                            equipmentValue(runtime, attackRate, archetype, speedProperty), baseline.fullSetArmor(), baseline.fullSetToughness(), health, 0);
+                    var originalEquipment=equipmentLimit==null?external:new Equipment(
+                            Math.max(.01,equipmentValue(runtime,equipmentLimit.value(damageProperty),archetype,damageProperty)),
+                            equipmentValue(runtime,equipmentLimit.value(speedProperty),archetype,speedProperty),
+                            equipmentLimit.fullSetArmor(),equipmentLimit.fullSetToughness(),health,0);
+                    // Check the ordinary-health boundary and the near-zero worst case.
+                    double[] healthStates = fullRanks.containsKey(SkillIds.DESPERATION)
+                            ? new double[]{1, .200001, .000001} : new double[]{1};
+                    for (double healthFraction : healthStates) {
+                        String id = tier.id() + "/" + archetype.id() + "/" + scenario.id() + "/health_" + healthFraction;
+                        Map<Participation, Metrics> metrics = new EnumMap<>(Participation.class);
+                        Map<Participation, Limits> limits = new EnumMap<>(Participation.class);
+                        for (var participation : Participation.values()) {
+                            Equipment item = participation == Participation.BONUS_FOCUSED || participation == Participation.SKILL_FOCUSED ? external : ascendance;
+                            Modifier nexus = switch (participation) {
+                                case EQUIPMENT_FOCUSED, SKILL_FOCUSED -> Modifier.none();
+                                case BROAD_GENERALIST -> nexusModerate;
+                                case CATEGORY_SPECIALIZED -> nexusFull.offenseOnly();
+                                default -> nexusFull;
+                            };
+                            Set<ResourceLocation> active = switch (participation) {
+                                case EQUIPMENT_FOCUSED, BONUS_FOCUSED -> Set.of();
+                                case MIXED -> moderateRanks.keySet();
+                                default -> fullRanks.keySet();
+                            };
+                            var effects = participation == Participation.MIXED ? moderateEffects : fullEffects;
+                            double actualHealth = active.contains(SkillIds.DESPERATION) ? healthFraction : 1;
+                            metrics.put(participation, combat(effects, active, family, item, nexus, incoming, window, actualHealth));
+                            double target = plan.developed() ? BuildPowerTargets.multiplier(settings, band, participation)
+                                    : BuildPowerTargets.rankOneMultiplier(settings, band, participation);
+                            double burst = plan.developed() ? BuildPowerTargets.burstMultiplier(settings, band, participation, actualHealth <= .2) : target;
+                            // Tool archetype identity/rounding are not purchased added power.
+                            // Frozen before exact overrides: a raised weapon stat
+                            // cannot authorize its own higher equipment ceiling.
+                            var base = BuildComposition.compose(item==external?external:originalEquipment, Modifier.none(), Modifier.none(), incoming, window);
+                            limits.put(participation, new Limits(Math.max(reference.dps() * target, base.sustainedDamage()),
+                                    Math.max(reference.burst() * burst, base.burstDamage()), reference.dps() * Math.max(0, target - 1) * 2,
+                                    Math.max(externalMetrics.effectiveHealth() * target, base.effectiveHealth()),
+                                    Math.max(externalMetrics.effectiveHealth() * target * 1.35, base.sustainedHealth()), health * Math.max(0, target - 1) / window));
+                        }
+                        List<Violation> violations = new ArrayList<>();
+                        metrics.forEach((participation, value) -> {
+                            for (var metric : Metric.values()) {
+                                double actual = value.value(metric), limit = limits.get(participation).value(metric);
+                                if (actual > limit + 1e-9 * Math.max(1, limit)) violations.add(new Violation(participation, metric, actual, limit));
+                            }
+                        });
+                        var evaluation = new Evaluation(id, metrics, violations, List.of(
+                                "Reference incoming hit=" + incoming + " HP; fully useful healing window=" + window + " seconds.",
+                                "Candidate effective ranks=" + new TreeMap<>(fullRanks) + "; Desperation current-health fraction=" + healthFraction + ".",
+                                "Each participation uses its own weapon damage/cadence and ceiling. Ordinary armor is applied once. Low-health EHP uses current, not maximum, health."));
+                        result.add(new Case(tier.id().toString(), archetype.id() + "/" + scenario.id() + "/health_" + healthFraction,
+                                evaluation, Collections.unmodifiableMap(limits)));
+                    }
                 }
             }
         }
-        if(result.isEmpty())throw new IllegalStateException("No registered equipment families were available for numeric build validation");
-        return new Analysis(attenuation,result,List.of(
-                "Only implemented skills and evaluator-approved dependency/choice/replacement selections contribute numeric combat effects; planned skills remain separate projections.",
-                "Full Nexus means each stat reaches its generated tier cap. Broad investment uses each actual curve at half that cap. Moderate skills own eligible prerequisite-free roots and use legal choices.",
-                "Skill numbers are conservative trigger estimates from generated handler parameters: maximum maintained stacks, one elemental completion per configured buildup cycle, and a five-second movement charge cycle; not measured combat logs.",
-                "The ordinary external equipment frontier receives incremental headroom of overall × band policy; caps are external × (1 + requested headroom), with observed burst evidence separate from sustained DPS divided by attack rate.",
-                "Offense, defense and healing are calibrated independently. Survival or recovery limits cannot reduce weapon damage, attack speed or offensive skill effects. Only actual currently purchasable ranks enter live numeric calibration.",
-                "External equipment starts from the engine's raw player health; observed armor and toughness are applied once using the band's incoming enemy hit. Armor-adjusted frontier effective health is not treated as raw health.",
-                "Parity profiles normalize each original physical axis curve once at Transcendent, then round to its gameplay unit. Armor compares physically wearable armor/toughness pairs; weapon families retain their own winning damage/cadence pairing. When a caster family is absent, the observed ranged DPS supplies the existing faster, lighter caster ratio; absent ranged evidence falls back explicitly to melee.",
-                "Armor penetration uses an explicit conservative armor-pressure allowance. Homing reliability, roots, drag fields, interception, theft, shields, immunity, flight and gathering capabilities retain separate semantic budgets; no speculative prevented damage or Attunement activity is modeled.",
-                "Guard counters include one fully charged Stored Force and an armed Riposte in the melee-shield burst bound, respecting exclusive block-reward choices. Reflection, Crowd Reprisal and guard control retain their semantic axes because saved evidence supplies no confirmed block/reflection rate; these are not invented sustained damage or prevention events.",
-                "Equipment-focused and stat-focused scenarios are balance projections with required equipment access; actual applicability, ownership, live requirements and worn-slot coverage remain enforced by gameplay."));
+        if (result.isEmpty()) throw new IllegalStateException("No registered equipment families were available for numeric build validation");
+        return new Analysis(1, result, List.of(
+                "Only implemented skills and evaluator-approved dependency/choice/replacement selections contribute. Full builds use a provisional future five-rank stress projection, not currently purchasable ranks or a catalog design decision.",
+                "Default final-output ceilings at Transcendent: equipment 1x pack parity; external equipment plus Nexus 2x; external equipment plus skills 2x; combined builds 3x. These are ceilings, not guaranteed multipliers for every legal selection. Gameplay still compounds damage and attack speed; the generator checks the resulting output.",
+                "Combined progression ceilings are 1.5x / 1.7x / 2x / 2.5x / 3x. Existing friendly power controls scale added headroom, not the 1x equipment foundation.",
+                "Only Desperation builds at <=20% current health may use the 4x Transcendent combined BURST ceiling. A near-zero-health worst case and the ordinary-health boundary are both checked; sustained damage stays capped at 3x. Removing defense investments alone grants no burst exception.",
+                "Full Nexus reaches each generated tier cap; moderate Nexus uses each real curve at half investment. Moderate skills use eligible prerequisite-free roots at rank one.",
+                "Offense, defense and healing calibrate separately. An explicit first-purchase budget reserves later-tier room for possible future ranks. Rank one is frozen before projected-rank calibration; unrelated implemented effect consumers then recover unused headroom individually. Planned skills never tax current effects.",
+                "Primary hits multiply their actual skill damage modifiers, then add flat Static Charge, then apply an armed Riposte and fully charged Stored Force. Static Charge is averaged once over its configured sprint charge cycle for sustained damage, and counted once at full charge for burst.",
+                "Kindling uses maintained burning; Combustion and Shatter are secondary-target on-kill damage, not invented extra damage against their already-dead primary target. Area bounds assume one elemental completion per buildup cycle and bounded distinct victims; they are estimates, not measured combat logs.",
+                "Nexus passive regeneration is not multiplied by Healing Effectiveness in gameplay. It is modeled separately; externally sourced healing amplification retains a semantic budget because evidence does not provide a healing event rate.",
+                "Armor penetration retains an explicit conservative armor-pressure allowance. Reflection, guard amplification, Crowd Reprisal, control, interception, flight and gathering retain separate semantic budgets; no prevented-hit or Attunement activity is invented.",
+                "Pack parity preserves existing equipment curves and attainable weapon/armor pairings. Physical quantization and tool archetype baselines are not nerfed to make a bonus budget fit. External-gear projections assume required equipment access; gameplay still enforces eligibility, ownership and worn-slot coverage."));
     }
-    static double equipmentValue(RuntimeBalanceDefinition runtime,double base,EquipmentProfileDefinition profile,EquipmentBaselineProperty property) {
-        return runtime.composition().getOrDefault("equipment_quantization",0.0)==1.0
-                ?EquipmentBaselineService.resolvedValue(base,profile,property):base*profile.baselineMultiplier(property);
+
+    static SkillEffectBalanceSettings rankedEffects(RuntimeBalanceDefinition runtime, Map<ResourceLocation, Integer> ranks) {
+        return SkillRankEffectScaling.apply(runtime.config().skillEffects(), ranks, (id, rank) -> {
+            var curve = runtime.skillCurves().get(id.toString());
+            return curve.ranks().get(rank - 1).powerMultiplier() / curve.ranks().getFirst().powerMultiplier();
+        });
     }
-    private static BuildComposition.Modifier nexus(RuntimeBalanceDefinition runtime,AscendanceTierDefinition tier,String family,boolean moderate) {
-        StatDefinition damage=family.equals("ranged")?EssenceStats.RANGED_DAMAGE:family.equals("caster")?EssenceStats.MAGIC_DAMAGE:EssenceStats.MELEE_DAMAGE;
-        StatDefinition speed=family.equals("ranged")?EssenceStats.RANGED_ATTACK_SPEED:family.equals("caster")?EssenceStats.MAGIC_CAST_SPEED:EssenceStats.MELEE_ATTACK_SPEED;
-        double resistance=Math.max(bonus(runtime,tier,EssenceStats.MELEE_RESISTANCE,moderate),Math.max(bonus(runtime,tier,EssenceStats.RANGED_RESISTANCE,moderate),bonus(runtime,tier,EssenceStats.MAGIC_RESISTANCE,moderate)))/100;
-        double healing=bonus(runtime,tier,EssenceStats.HEALTH_REGENERATION,moderate)*2*(1+bonus(runtime,tier,EssenceStats.HEALING_EFFECTIVENESS,moderate)/100);
-        return new BuildComposition.Modifier(0,1+bonus(runtime,tier,damage,moderate)/100,1+bonus(runtime,tier,speed,moderate)/100,
-                0,0,bonus(runtime,tier,EssenceStats.MAX_HEALTH,moderate)*2,0,0,resistance,0,healing,0);
+    static double equipmentValue(RuntimeBalanceDefinition runtime, double base, EquipmentProfileDefinition profile, EquipmentBaselineProperty property) {
+        return runtime.composition().getOrDefault("equipment_quantization", 0.0) == 1.0
+                ? EquipmentBaselineService.resolvedValue(base, profile, property) : base * profile.baselineMultiplier(property);
     }
-    private static double bonus(RuntimeBalanceDefinition runtime,AscendanceTierDefinition tier,StatDefinition stat,boolean moderate) {
-        var profile=runtime.config().balanceProfile();long cap=profile.getInvestmentCap(tier,stat);
-        return runtime.config().statMaxBonus(stat)*StatScalingService.progressionForInvestment(stat,moderate?cap/2:cap,tier,profile);
+    private static Modifier nexus(RuntimeBalanceDefinition runtime, AscendanceTierDefinition tier, String family, boolean moderate) {
+        var damage = family.equals("ranged") ? EssenceStats.RANGED_DAMAGE : family.equals("caster") ? EssenceStats.MAGIC_DAMAGE : EssenceStats.MELEE_DAMAGE;
+        var speed = family.equals("ranged") ? EssenceStats.RANGED_ATTACK_SPEED : family.equals("caster") ? EssenceStats.MAGIC_CAST_SPEED : EssenceStats.MELEE_ATTACK_SPEED;
+        double resistance = Math.max(bonus(runtime, tier, EssenceStats.MELEE_RESISTANCE, moderate),
+                Math.max(bonus(runtime, tier, EssenceStats.RANGED_RESISTANCE, moderate), bonus(runtime, tier, EssenceStats.MAGIC_RESISTANCE, moderate))) / 100;
+        return new Modifier(0, 1 + bonus(runtime, tier, damage, moderate) / 100, 1 + bonus(runtime, tier, speed, moderate) / 100,
+                0, 0, bonus(runtime, tier, EssenceStats.MAX_HEALTH, moderate) * 2, 0, 0, resistance, 0,
+                bonus(runtime, tier, EssenceStats.HEALTH_REGENERATION, moderate) * 2, 0);
     }
-    private static BuildComposition.Modifier skills(SkillEffectBalanceSettings s,Set<ResourceLocation> active,String family,double hit,double rate) {
-        double damage=1,speed=1,flat=0,burst=0,area=0;
-        hit=Math.max(.1,hit);rate=Math.max(.2,rate);
-        if(active.contains(SkillIds.FRENZY)) {damage+=s.frenzy().maxStacks()*s.frenzy().damageBonusPercentPerStack()/100;speed+=s.frenzy().maxStacks()*s.frenzy().attackSpeedBonusPercentPerStack()/100;}
-        if(active.contains(SkillIds.ARMOR_CRACK))damage*=1+Math.min(.8,s.armorCrack().maxStacks()*s.armorCrack().armorReductionPerStack()/25);
-        if(active.contains(SkillIds.DESPERATION))damage+=s.desperation().maxDamageBonusPercent()/100;
-        if(active.contains(SkillIds.DEATH_RUSH))speed+=s.deathRush().maxStacks()*(family.equals("ranged")?s.deathRush().bowDrawSpeedBonusPercentPerStack():family.equals("caster")?s.deathRush().castSpeedBonusPercentPerStack():s.deathRush().attackSpeedBonusPercentPerStack())/100;
-        if(active.contains(SkillIds.KINDLING))damage*=1+s.kindling().burningDamageAmplificationPercent()/100+s.kindling().burningDamagePercentPerSecond()/100/rate;
-        if(active.contains(SkillIds.COMBUSTION)) {double proc=s.combustion().damage()/Math.max(1,s.kindling().maxHeat());flat+=proc;burst+=s.combustion().damage()/hit;area+=proc*Math.max(0,s.combustion().targetsPerBurst()-1)/hit;}
-        if(active.contains(SkillIds.SHATTER)) {double proc=s.shatter().shardDamage()/Math.max(1,s.frostbite().maxChill());flat+=proc;burst+=s.shatter().shardDamage()/hit;area+=proc*Math.max(0,s.shatter().maximumTargets()-1)/hit;}
-        if(active.contains(SkillIds.STATIC_CHARGE)) {flat+=s.staticCharge().lightningDamage()/5/rate;burst+=s.staticCharge().lightningDamage()/hit;}
-        if(active.contains(SkillIds.CHAIN_STRIKE)) {double retained=s.chainStrike().damageFalloff();for(int i=0;i<s.chainStrike().maximumJumps();i++){area+=s.staticCharge().lightningDamage()/5/rate/hit*retained;retained*=s.chainStrike().damageFalloff();}}
-        if(active.contains(SkillIds.RICOCHET)) {double retained=s.projectiles().ricochetDamageMultiplier();for(int i=0;i<s.projectiles().ricochets();i++){area+=retained;retained*=s.projectiles().ricochetDamageMultiplier();}}
-        if(active.contains(SkillIds.PIERCING_PROJECTILE)) {double retained=s.projectiles().piercingDamageMultiplier();for(int i=0;i<s.projectiles().penetrations();i++){area+=retained;retained*=s.projectiles().piercingDamageMultiplier();}}
-        area += projectilePayloadArea(s, active);
-        if (family.equals("melee_shield")) burst += guardCounterBurst(s, active, hit) / hit;
-        return new BuildComposition.Modifier(flat,damage,speed,burst,area,0,0,0,0,0,0,0);
+    private static double bonus(RuntimeBalanceDefinition runtime, AscendanceTierDefinition tier, StatDefinition stat, boolean moderate) {
+        var profile = runtime.config().balanceProfile(); long cap = profile.getInvestmentCap(tier, stat);
+        return runtime.config().statMaxBonus(stat) * StatScalingService.progressionForInvestment(stat, moderate ? cap / 2 : cap, tier, profile);
     }
+
+    /** Same primary-hit order as SkillEffectRuntime/GuardCounterattackService; secondary damage stays separate. */
+    static Metrics combat(SkillEffectBalanceSettings s, Set<ResourceLocation> active, String family, Equipment item,
+                          Modifier nexus, double incoming, double window, double healthFraction) {
+        double damage = 1, speed = 1, flatBurst = 0, flatDps = 0, area = 0;
+        if (active.contains(SkillIds.FRENZY)) {
+            damage *= 1 + s.frenzy().maxStacks() * s.frenzy().damageBonusPercentPerStack() / 100;
+            speed *= 1 + s.frenzy().maxStacks() * s.frenzy().attackSpeedBonusPercentPerStack() / 100;
+        }
+        if (active.contains(SkillIds.ARMOR_CRACK)) damage *= 1 + Math.min(.8, s.armorCrack().maxStacks() * s.armorCrack().armorReductionPerStack() / 25);
+        if (active.contains(SkillIds.DESPERATION)) damage *= 1 + (1 - healthFraction) * s.desperation().maxDamageBonusPercent() / 100;
+        if (active.contains(SkillIds.DEATH_RUSH)) speed *= 1 + s.deathRush().maxStacks() * (family.equals("ranged")
+                ? s.deathRush().bowDrawSpeedBonusPercentPerStack() : family.equals("caster")
+                ? s.deathRush().castSpeedBonusPercentPerStack() : s.deathRush().attackSpeedBonusPercentPerStack()) / 100;
+        if (active.contains(SkillIds.KINDLING)) damage *= 1 + s.kindling().burningDamageAmplificationPercent() / 100;
+        double hit = item.hitDamage() * nexus.damageMultiplier() * damage;
+        double rate = item.attacksPerSecond() * nexus.attackRateMultiplier() * speed;
+        if (active.contains(SkillIds.STATIC_CHARGE)) {
+            flatBurst = s.staticCharge().lightningDamage();
+            double chargeSeconds = s.staticCharge().maximumCharge() / Math.max(.001, 20 * s.staticCharge().sprintPerTick());
+            flatDps = flatBurst * Math.min(rate, 1 / Math.max(.05, chargeSeconds));
+        }
+        double sustained = hit * rate + flatDps;
+        if (active.contains(SkillIds.KINDLING)) sustained += hit * s.kindling().burningDamagePercentPerSecond() / 100;
+        double burst = hit + flatBurst;
+        if (family.equals("melee_shield")) burst += guardCounterBurst(s, active, burst);
+        if (active.contains(SkillIds.COMBUSTION)) area += s.combustion().damage() * s.combustion().targetsPerBurst()
+                * rate / Math.max(1, Math.ceil(s.kindling().maxHeat() / (double) Math.max(1, s.kindling().heatPerHit())));
+        if (active.contains(SkillIds.SHATTER)) area += s.shatter().shardDamage() * s.shatter().maximumTargets()
+                * rate / Math.max(1, Math.ceil(s.frostbite().maxChill() / (double) Math.max(1, s.frostbite().chillPerHit())));
+        if (active.contains(SkillIds.CHAIN_STRIKE)) for (int i = 1; i <= s.chainStrike().maximumJumps(); i++)
+            area += flatDps * Math.pow(s.chainStrike().damageFalloff(), i);
+        if (active.contains(SkillIds.RICOCHET)) for (int i = 1; i <= s.projectiles().ricochets(); i++)
+            area += hit * rate * Math.pow(s.projectiles().ricochetDamageMultiplier(), i);
+        if (active.contains(SkillIds.PIERCING_PROJECTILE)) for (int i = 1; i <= s.projectiles().penetrations(); i++)
+            area += hit * rate * Math.pow(s.projectiles().piercingDamageMultiplier(), i);
+        area += hit * rate * projectilePayloadArea(s, active);
+        var defense = BuildComposition.compose(item, nexus, Modifier.none(), incoming, window);
+        double currentEhp = defense.effectiveHealth() * healthFraction;
+        return new Metrics(sustained, burst, area, currentEhp,
+                currentEhp + defense.sustainedHealth() - defense.effectiveHealth(), defense.healingPerSecond());
+    }
+
     static double guardCounterBurst(SkillEffectBalanceSettings s, Set<ResourceLocation> active, double hit) {
         double bonus = active.contains(SkillIds.RIPOSTE) ? hit * s.guard().riposte().damageScale() : 0;
         if (active.contains(SkillIds.STORED_FORCE)) bonus += s.guard().storedForce().capacity() * s.guard().storedForce().damageScale();
@@ -155,13 +249,10 @@ public final class RuntimeBuildScenarios {
     }
     static double projectilePayloadArea(SkillEffectBalanceSettings s, Set<ResourceLocation> active) {
         double area = 0;
-        if(active.contains(SkillIds.EXPLOSIVE_PAYLOAD)) {
-            // Share the safe-area target bound with Combustion. Payload may compose
-            // with path continuation, but only a bounded number of confirmed victims.
-            int contacts = 1;
-            double retention = 1;
-            if(active.contains(SkillIds.RICOCHET)) { contacts += s.projectiles().ricochets(); retention = s.projectiles().ricochetDamageMultiplier(); }
-            if(active.contains(SkillIds.PIERCING_PROJECTILE)) { contacts += s.projectiles().penetrations(); retention = s.projectiles().piercingDamageMultiplier(); }
+        if (active.contains(SkillIds.EXPLOSIVE_PAYLOAD)) {
+            int contacts = 1; double retention = 1;
+            if (active.contains(SkillIds.RICOCHET)) { contacts += s.projectiles().ricochets(); retention = s.projectiles().ricochetDamageMultiplier(); }
+            if (active.contains(SkillIds.PIERCING_PROJECTILE)) { contacts += s.projectiles().penetrations(); retention = s.projectiles().piercingDamageMultiplier(); }
             contacts = Math.min(contacts, s.projectiles().payloadTriggerBudget());
             double contactDamage = 1;
             for (int contact = 0; contact < contacts; contact++) {

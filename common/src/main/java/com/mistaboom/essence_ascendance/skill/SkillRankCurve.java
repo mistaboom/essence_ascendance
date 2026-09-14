@@ -4,7 +4,7 @@ package com.mistaboom.essence_ascendance.skill;
 public record SkillRankCurve(CostShape costShape, PowerShape powerShape,
                              double costGrowth, double powerGrowth, double softCap) {
     public enum CostShape { FLAT_INCREMENT, GEOMETRIC }
-    public enum PowerShape { DIMINISHING, SOFT_CAPPED, UTILITY, CHANCE, DURATION, COOLDOWN, THRESHOLD }
+    public enum PowerShape { DIMINISHING, SOFT_CAPPED, UTILITY, CHANCE, DURATION, COOLDOWN, THRESHOLD, PROGRESSIVE }
     public SkillRankCurve {
         if (costShape == null || powerShape == null || !Double.isFinite(costGrowth)
                 || costGrowth < 0 || !Double.isFinite(powerGrowth) || powerGrowth < 0
@@ -12,6 +12,9 @@ public record SkillRankCurve(CostShape costShape, PowerShape powerShape,
     }
     public static SkillRankCurve standard() {
         return new SkillRankCurve(CostShape.GEOMETRIC, PowerShape.DIMINISHING, 0.6, 0.35, 3.0);
+    }
+    public static SkillRankCurve developed() {
+        return new SkillRankCurve(CostShape.GEOMETRIC, PowerShape.PROGRESSIVE, .6, .3, 2.5);
     }
     public long cost(long firstRankCost, int rank) {
         requireRank(rank);
@@ -26,6 +29,8 @@ public record SkillRankCurve(CostShape costShape, PowerShape powerShape,
         requireRank(rank);
         double increments = rank - 1.0;
         return switch (powerShape) {
+            case PROGRESSIVE -> Math.min(softCap, 1 + powerGrowth * increments
+                    + powerGrowth / 12 * increments * (increments - 1));
             case DIMINISHING, DURATION, UTILITY -> Math.min(softCap, 1.0 + powerGrowth * Math.log1p(increments));
             case SOFT_CAPPED, CHANCE, COOLDOWN -> 1.0 + (softCap - 1.0)
                     * (1.0 - Math.exp(-powerGrowth * increments));

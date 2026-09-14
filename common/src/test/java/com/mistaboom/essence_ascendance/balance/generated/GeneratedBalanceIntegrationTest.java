@@ -261,7 +261,7 @@ public final class GeneratedBalanceIntegrationTest {
                 var metric = BuildComposition.Metric.valueOf(cell(row, header, "metric"));
                 check(seen.add(id + "/" + participation + "/" + metric), "Combat CSV duplicated a case metric");
                 double predicted = one.evaluation().scenarios().get(participation).value(metric);
-                double allowed = one.limits().value(metric);
+                double allowed = one.limitFor(participation).value(metric);
                 double fraction = allowed > 0 ? predicted / allowed : 0;
                 close(csvNumber(row, header, "predicted"), predicted, "CSV prediction differs from saved resolved gameplay calculation");
                 close(csvNumber(row, header, "allowed"), allowed, "CSV allowed value differs from saved per-case limit");

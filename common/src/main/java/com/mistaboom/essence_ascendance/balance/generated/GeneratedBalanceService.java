@@ -32,7 +32,7 @@ import java.util.Map;
 
 /** Server-thread transaction: collect, construct, validate, persist, publish, then synchronize. */
 public final class GeneratedBalanceService {
-    static final String GENERATION_REVISION = "guard-outcome-counterplay-14";
+    static final String GENERATION_REVISION = "developed-build-ceilings-15";
     private static final String DISSOLUTION_ACCOUNTING = "whole_essence_v1";
     private static volatile Active active;
     private static volatile boolean resourcesChanged;
@@ -177,7 +177,7 @@ public final class GeneratedBalanceService {
                         (value, type, context) -> new com.google.gson.JsonPrimitive(value.toString())).create();
         JsonObject result = new JsonObject();
         result.addProperty("curveSource", "/runtime/skillCurves");
-        result.addProperty("rankPolicy", "Current maximum ranks remain one; future ranks are projections, not new effects");
+        result.addProperty("rankPolicy", "All current skills remain single purchases. A provisional five-rank stress projection reserves future headroom; rank eligibility, gates, costs and purchasing remain deferred catalog decisions.");
         result.add("projectilePolicy", projectilePolicy());
         result.add("guardPolicy", guardPolicy());
         result.add("semantics", serializer.toJsonTree(catalog.stream().map(skill ->

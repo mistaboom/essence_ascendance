@@ -50,8 +50,10 @@ public final class RuntimeBalanceGenerator {
         // Shares allocate added power. Ordinary equipment is a complete alternative
         // to pack gear, so it must not pay for hypothetical Nexus/skill ownership.
         double equipmentScale = 1;
-        double bonusScale = participation + (1-participation)*settings.nexusShare();
-        double skillScale = participation + (1-participation)*settings.skillShare();
+        // Each non-equipment system is independently viable. Semantic allocation
+        // shares are not a tax on actual rank-one effect parameters.
+        double bonusScale = 1;
+        double skillScale = 1;
         double lastArmor=0,lastToughness=0,lastDamage=0,lastRate=0,lastMining=0,lastDurability=0;
         double lastRangedRate=0,lastRangedDamage=0,lastMagicRate=0,lastMagicDamage=0;
         var policy=settings.generation();
@@ -180,8 +182,7 @@ public final class RuntimeBalanceGenerator {
         MilestoneRegistry.values().forEach(m->milestones.put(m.id(),m));
         var advancements=RuntimeAscensionPolicy.generate(profile);
         var shield=shield(equipment,settings);
-        // Planned repeat ranks remain diagnostics, never a reason to weaken the
-        // rank-one effects players can actually buy. Real legal builds are checked below.
+        // Rank-one effects and additional rank growth have separate calibration.
         double resolvedSkillScale=skillScale*Math.sqrt(apex);
         var effects=effects(resolvedSkillScale);
         var config=new EssenceServerConfig(1,6,8,infuser,shield,effects,LatentOreWorldgenSettings.defaults(),profile,milestones,advancements,bonuses,new EquipmentBaselineConfig(equipment));
@@ -192,6 +193,10 @@ public final class RuntimeBalanceGenerator {
         composition.put("partial_viability",participation); composition.put("composition_safeguard",settings.compositionSafeguard());
         composition.put("equipment_standalone_factor",equipmentScale);composition.put("nexus_standalone_factor",bonusScale);composition.put("skills_standalone_factor",skillScale);
         composition.put("rank_safe_skill_scale",resolvedSkillScale);
+        composition.put("nexus_apex_target",BuildPowerTargets.multiplier(settings,ProgressionBand.APEX,BuildComposition.Participation.BONUS_FOCUSED));
+        composition.put("skills_apex_target",BuildPowerTargets.multiplier(settings,ProgressionBand.APEX,BuildComposition.Participation.SKILL_FOCUSED));
+        composition.put("combined_apex_target",BuildPowerTargets.multiplier(settings,ProgressionBand.APEX,BuildComposition.Participation.FULLY_COMBINED));
+        composition.put("conditional_burst_apex_target",BuildPowerTargets.burstMultiplier(settings,ProgressionBand.APEX,BuildComposition.Participation.FULLY_COMBINED,true));
         var curves=new TreeMap<>(SkillBalanceGenerator.generate(caps,1));
         for(var skill:com.mistaboom.essence_ascendance.skill.SkillRegistry.values()) {
             var curve=curves.get(skill.id().toString());
@@ -214,29 +219,33 @@ public final class RuntimeBalanceGenerator {
         }
         var attunement=AttunementGenerator.generate(evidence,economy,settings,profile);
         var runtime=RuntimeValueQuantization.apply(new RuntimeBalanceDefinition(config,crucible,pylons,curves,composition,attunement));
-        RuntimeBuildScenarios.Plan compositionPlan=economy==null?null:RuntimeBuildScenarios.plan();
+        var requestedRuntime=runtime;
+        RuntimeBuildScenarios.Plan compositionPlan=economy==null?null:RuntimeBuildScenarios.plan(runtime,true);
         double compositionScale=1;
         if(compositionPlan!=null) {
+            var firstRankPlan=RuntimeBuildScenarios.plan(runtime,false);
             for(var channel:BuildComposition.Channel.values()) {
-                double channelScale=1;
-                for(int pass=0;pass<8;pass++) {
-                    var check=RuntimeBuildScenarios.analyze(runtime,evidence,settings,compositionPlan,true,channel);
-                    if(check.attenuation()>=.9999999)break;
-                    double factor=check.attenuation()*.9999;
-                    if(channelScale*factor<.02)
-                        throw new IllegalArgumentException("Requested "+channel+" targets leave less than 2% of generated added power; revise external evidence or friendly power controls");
-                    channelScale*=factor;
-                    JsonObject adjusted=runtime.toJson();attenuateCombat(adjusted,factor,channel);
-                    RuntimeValueQuantization.apply(adjusted);
-                    runtime=RuntimeBalanceDefinition.fromJson(adjusted);
-                }
+                double channelScale=calibration(runtime,evidence,settings,firstRankPlan,channel,false);
+                runtime=adjusted(runtime,channelScale,channel,false);
                 compositionScale=Math.min(compositionScale,channelScale);
                 JsonObject measured=runtime.toJson();
                 measured.getAsJsonObject("composition").addProperty(channel.name().toLowerCase(Locale.ROOT)+"_calibration",channelScale);
                 measured.getAsJsonObject("composition").addProperty("nexus_"+channel.name().toLowerCase(Locale.ROOT)+"_factor",bonusScale*channelScale);
                 runtime=RuntimeBalanceDefinition.fromJson(measured);
             }
-            RuntimeBuildScenarios.analyze(runtime,evidence,settings,compositionPlan,false).requireSafe();
+            // A low-base-damage weapon's flat skill proc can be the first-rank
+            // bottleneck. Recover unused Nexus headroom independently instead
+            // of letting that proc permanently tax every passive damage stat.
+            runtime=restoreNexusOffense(runtime,requestedRuntime,evidence,settings,firstRankPlan);
+            // Freeze first-rank values. Developed builds may trim only added
+            // rank power, never the base Nexus or first-rank skill effects.
+            var requestedRanks=runtime.skillCurves();
+            double growth=calibration(runtime,evidence,settings,compositionPlan,BuildComposition.Channel.OFFENSE,true);
+            runtime=adjusted(runtime,growth,BuildComposition.Channel.OFFENSE,true);
+            runtime=restoreRankGrowth(runtime,requestedRanks,evidence,settings,compositionPlan);
+            JsonObject ranked=runtime.toJson();ranked.getAsJsonObject("composition").addProperty("rank_growth_calibration",growth);
+            runtime=RuntimeBalanceDefinition.fromJson(ranked);
+            RuntimeBuildScenarios.analyze(runtime,evidence,settings,compositionPlan).requireSafe();
         }
         if(overrides!=null&&!overrides.exactValues().isEmpty()) {
             JsonObject json=runtime.toJson();
@@ -245,18 +254,117 @@ public final class RuntimeBalanceGenerator {
             runtime=RuntimeBalanceDefinition.fromJson(json);
         }
         if(compositionPlan!=null) {
-            var finalAnalysis=RuntimeBuildScenarios.analyze(runtime,evidence,settings,compositionPlan,false);
+            var finalAnalysis=RuntimeBuildScenarios.analyze(runtime,evidence,settings,compositionPlan);
             finalAnalysis.requireSafe();
             runtime=runtime.withAnalysis(new RuntimeBuildScenarios.Analysis(compositionScale,finalAnalysis.cases(),finalAnalysis.assumptions()));
         }
         return runtime.withContentIdentity();
+    }
+
+    private static RuntimeBalanceDefinition restoreRankGrowth(RuntimeBalanceDefinition current,
+            Map<String,com.mistaboom.essence_ascendance.skill.balance.SkillBalanceRuntime.ResolvedSkill> requested,
+            PackEvidence evidence,BalanceSettings settings,RuntimeBuildScenarios.Plan plan) {
+        // Recover each consumer independently after finding a safe common floor.
+        // An area-continuation limit must not flatten control duration, guard
+        // mobility, or an unrelated stance's entire progression curve.
+        for(var entry:new TreeMap<>(requested).entrySet()) {
+            String id=entry.getKey();
+            if(current.skillCurves().get(id).equals(entry.getValue()))continue;
+            var full=interpolateRankGrowth(current,id,entry.getValue(),1);
+            if(RuntimeBuildScenarios.analyze(full,evidence,settings,plan).safeFor(BuildComposition.Channel.OFFENSE)) {
+                current=full;continue;
+            }
+            double low=0,high=1;
+            for(int pass=0;pass<14;pass++) {
+                double middle=(low+high)/2;
+                var candidate=interpolateRankGrowth(current,id,entry.getValue(),middle);
+                if(RuntimeBuildScenarios.analyze(candidate,evidence,settings,plan).safeFor(BuildComposition.Channel.OFFENSE))low=middle;else high=middle;
+            }
+            current=interpolateRankGrowth(current,id,entry.getValue(),low);
+        }
+        return current;
+    }
+    private static RuntimeBalanceDefinition interpolateRankGrowth(RuntimeBalanceDefinition current,String id,
+            com.mistaboom.essence_ascendance.skill.balance.SkillBalanceRuntime.ResolvedSkill requested,double fraction) {
+        var curves=new TreeMap<>(current.skillCurves());var initial=curves.get(id);
+        var ranks=new ArrayList<com.mistaboom.essence_ascendance.skill.balance.SkillBalanceRuntime.ResolvedRank>();
+        for(int i=0;i<initial.ranks().size();i++) {
+            var rank=initial.ranks().get(i);
+            ranks.add(new com.mistaboom.essence_ascendance.skill.balance.SkillBalanceRuntime.ResolvedRank(rank.rank(),rank.cost(),
+                    rank.powerMultiplier()+(requested.ranks().get(i).powerMultiplier()-rank.powerMultiplier())*fraction));
+        }
+        curves.put(id,new com.mistaboom.essence_ascendance.skill.balance.SkillBalanceRuntime.ResolvedSkill(initial.maximumRank(),ranks));
+        return new RuntimeBalanceDefinition(current.config(),current.crucible(),current.pylons(),curves,current.composition(),current.attunement());
+    }
+
+    private static RuntimeBalanceDefinition restoreNexusOffense(RuntimeBalanceDefinition current,RuntimeBalanceDefinition requested,
+            PackEvidence evidence,BalanceSettings settings,RuntimeBuildScenarios.Plan plan) {
+        double low=0,high=1;
+        var full=interpolateNexusOffense(current,requested,1);
+        if(RuntimeBuildScenarios.analyze(full,evidence,settings,plan).safeFor(BuildComposition.Channel.OFFENSE))return full;
+        for(int pass=0;pass<20;pass++) {
+            double middle=(low+high)/2;
+            var candidate=interpolateNexusOffense(current,requested,middle);
+            if(RuntimeBuildScenarios.analyze(candidate,evidence,settings,plan).safeFor(BuildComposition.Channel.OFFENSE))low=middle;else high=middle;
+        }
+        return interpolateNexusOffense(current,requested,low);
+    }
+    private static RuntimeBalanceDefinition interpolateNexusOffense(RuntimeBalanceDefinition current,RuntimeBalanceDefinition requested,double fraction) {
+        var json=current.toJson();var bonuses=json.getAsJsonObject("statMaxBonuses");
+        for(var stat:List.of(EssenceStats.MELEE_DAMAGE,EssenceStats.MELEE_ATTACK_SPEED,EssenceStats.RANGED_DAMAGE,
+                EssenceStats.RANGED_ATTACK_SPEED,EssenceStats.MAGIC_DAMAGE,EssenceStats.MAGIC_CAST_SPEED)) {
+            double initial=current.config().statMaxBonus(stat),target=requested.config().statMaxBonus(stat);
+            bonuses.addProperty(stat.id().toString(),initial+(target-initial)*fraction);
+        }
+        RuntimeValueQuantization.apply(json);
+        double factor=bonuses.get(EssenceStats.MELEE_DAMAGE.id().toString()).getAsDouble()
+                /Math.max(1,requested.config().statMaxBonus(EssenceStats.MELEE_DAMAGE));
+        json.getAsJsonObject("composition").addProperty("nexus_offense_factor",factor);
+        return RuntimeBalanceDefinition.fromJson(json);
+    }
+
+    private static double calibration(RuntimeBalanceDefinition source,PackEvidence evidence,BalanceSettings settings,
+            RuntimeBuildScenarios.Plan plan,BuildComposition.Channel channel,boolean rankGrowth) {
+        if(RuntimeBuildScenarios.analyze(source,evidence,settings,plan).safeFor(channel))return 1;
+        var zero=RuntimeBuildScenarios.analyze(adjusted(source,0,channel,rankGrowth),evidence,settings,plan);
+        if(!zero.safeFor(channel)) {
+            zero.requireSafe();
+            throw new IllegalArgumentException("Cannot calibrate "+channel+" without changing base equipment");
+        }
+        double low=0,high=1;
+        for(int pass=0;pass<20;pass++) {
+            double middle=(low+high)/2;
+            var candidate=adjusted(source,middle,channel,rankGrowth);
+            if(RuntimeBuildScenarios.analyze(candidate,evidence,settings,plan).safeFor(channel))low=middle;else high=middle;
+        }
+        if(low<.02)throw new IllegalArgumentException("Requested "+channel+" targets leave less than 2% of "
+                +(rankGrowth?"additional rank growth":"rank-one added power")+"; revise external evidence or friendly power controls; "
+                +RuntimeBuildScenarios.analyze(adjusted(source,.02,channel,rankGrowth),evidence,settings,plan).cases().stream()
+                    .filter(c->!c.evaluation().safe()).findFirst().map(c->c.evaluation().id()+" "+c.evaluation().violations()).orElse("unknown constraint"));
+        return low;
+    }
+    private static RuntimeBalanceDefinition adjusted(RuntimeBalanceDefinition source,double factor,
+            BuildComposition.Channel channel,boolean rankGrowth) {
+        if(factor==1)return source;
+        JsonObject json=source.toJson();
+        if(rankGrowth) {
+            for(var entry:json.getAsJsonObject("skillCurves").entrySet()) {
+                if(!com.mistaboom.essence_ascendance.skill.balance.SkillRankEffectScaling.supports(ResourceLocation.parse(entry.getKey())))continue;
+                for(var element:entry.getValue().getAsJsonObject().getAsJsonArray("ranks")) {
+                    var rank=element.getAsJsonObject();
+                    rank.addProperty("powerMultiplier",1+(rank.get("powerMultiplier").getAsDouble()-1)*factor);
+                }
+            }
+        } else attenuateCombat(json,factor,channel);
+        RuntimeValueQuantization.apply(json);
+        return RuntimeBalanceDefinition.fromJson(json);
     }
     private static void attenuateCombat(JsonObject json,double factor,BuildComposition.Channel channel) {
         var affected=switch(channel) {
             case OFFENSE -> List.of(EssenceStats.MELEE_DAMAGE,EssenceStats.MELEE_ATTACK_SPEED,EssenceStats.RANGED_DAMAGE,
                     EssenceStats.RANGED_ATTACK_SPEED,EssenceStats.MAGIC_DAMAGE,EssenceStats.MAGIC_CAST_SPEED);
             case DEFENSE -> List.of(EssenceStats.MELEE_RESISTANCE,EssenceStats.RANGED_RESISTANCE,EssenceStats.MAGIC_RESISTANCE,EssenceStats.MAX_HEALTH);
-            case HEALING -> List.of(EssenceStats.HEALTH_REGENERATION,EssenceStats.HEALING_EFFECTIVENESS);
+            case HEALING -> List.of(EssenceStats.HEALTH_REGENERATION);
         };
         for(var stat:affected) {
             JsonObject bonuses=json.getAsJsonObject("statMaxBonuses");String key=stat.id().toString();

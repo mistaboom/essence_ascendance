@@ -76,6 +76,7 @@ public final class RuntimeBalanceTest {
         var generated=RuntimeBalanceDefinition.generate(evidence,economy,BalanceSettings.defaults(),BalanceOverrides.empty());
         check(generated.generationAnalysis()!=null,"Numeric composition scenarios missing");
         generated.generationAnalysis().requireSafe();
+        BuildPowerTargetsTest.run(generated);
         check(generated.composition().get("equipment_standalone_factor")==1.0,
                 "Ordinary equipment must not pay a budget penalty for unowned Nexus upgrades or skills");
         for(var channel:BuildComposition.Channel.values())check(generated.composition().containsKey(channel.name().toLowerCase(Locale.ROOT)+"_calibration"),
@@ -93,6 +94,10 @@ public final class RuntimeBalanceTest {
         check(generated.toJson().equals(RuntimeValueQuantization.apply(generated).toJson()),"Published runtime endpoints are not quantized");
         rejected(()->RuntimeBalanceDefinition.generate(evidence,economy,BalanceSettings.defaults(),new BalanceOverrides(List.of(),
                 Map.of("/runtime/statMaxBonuses/essence_ascendance:melee_damage",12.34))),"Off-grid exact override accepted");
+        rejected(()->RuntimeBalanceDefinition.generate(evidence,economy,BalanceSettings.defaults(),new BalanceOverrides(List.of(),
+                Map.of("/runtime/equipment/essence_ascendance:transcendent/meleeDamage",1000))),"Equipment override raised its own parity ceiling");
+        rejected(()->RuntimeBalanceDefinition.generate(evidence,economy,BalanceSettings.defaults(),new BalanceOverrides(List.of(),
+                Map.of("/runtime/skillCurves/essence_ascendance:frenzy/ranks/4/powerMultiplier",1000))),"Rank-five exact override bypassed developed-build validation");
         check(RuntimeValueQuantization.down(.049,.01)==.04,"Small regeneration rate lost its unit precision");
         check(RuntimeValueQuantization.down(1.65,.1)==1.6,"Attack cadence was floored to whole attacks");
         check(RuntimeValueQuantization.down(10.9,.5)==10.5,"Health does not use half-heart endpoints");

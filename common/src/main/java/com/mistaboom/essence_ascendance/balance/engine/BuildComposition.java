@@ -26,7 +26,7 @@ public final class BuildComposition {
     /** A survival limit must not silently reduce weapon or skill damage. */
     public enum Channel {
         OFFENSE, DEFENSE, HEALING;
-        boolean includes(Metric metric) {
+        public boolean includes(Metric metric) {
             return switch (this) {
                 case OFFENSE -> metric == Metric.SUSTAINED_DAMAGE || metric == Metric.BURST_DAMAGE || metric == Metric.AREA_DAMAGE;
                 case DEFENSE -> metric == Metric.EFFECTIVE_HEALTH;
