@@ -41,6 +41,14 @@ public final class PostureMeterTest {
         for(int t=1;t<=100;t++)evade.tick(t,.1,0,true,false,true,false,settings);
         check(evade.hit(1,100,"mod:physical",true,false,true,settings) && evade.meter()==.5,"Successful dodge consumes configured meter fraction");
         check(!evade.hit(1,100,"mod:physical",true,true,true,settings) && evade.meter()==.5,"Duplicate incoming event cannot consume twice");
+        evade.tick(101,0,0,true,false,true,false,settings,true);
+        check(evade.meter()==.5&&evade.reason().equals("waiting_for_movement_sample"),"Brief missing motion samples only hold charge; input alone cannot build it");
+        evade.tick(102,0,0,false,false,true,false,settings,true);
+        close(evade.meter(),.45,"Released input overrides movement sample grace");
+        evade.tick(103,.1,0,true,true,true,false,settings,true);
+        close(evade.meter(),.4,"Actual forced movement still drains during movement sample grace");
+        evade.tick(104,0,0,true,false,false,false,settings,true);
+        close(evade.meter(),.35,"Unsupported movement still drains during movement sample grace");
         evade.hit(2,101,"mod:physical",true,true,false,settings);check(evade.meter()==0,"Actual taken hit drains configured meter");
         var adapt=new PostureMeter();adapt.select(PostureMeter.Choice.ADAPTIVE);
         adapt.hit(99,1,"mod:nested",false,true,false,settings);

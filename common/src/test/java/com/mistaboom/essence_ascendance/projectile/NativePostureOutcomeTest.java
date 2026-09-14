@@ -99,6 +99,15 @@ public final class NativePostureOutcomeTest {
         attacker.setPos(p.getX(),p.getY(),p.getZ()+2);
         check(PostureService.snapshot(p).meter()==1&&p.getDeltaMovement().y==0&&!PostureService.snapshot(p).movement().equals("server_velocity_acceleration"),
                 "Native ground contact cancelling downward gravity every tick permits Evasive charge from accepted motion evidence");
+        for(int gap=1;gap<=2;gap++) {
+            f.level.tick++;groundContact(f);PostureService.tick(SkillEffectRuntime.context(p));
+            close(PostureService.snapshot(p).meter(),1,"A brief packet gap holds Evasive without draining or inventing movement");
+        }
+        f.level.tick++;groundContact(f);PostureService.tick(SkillEffectRuntime.context(p));
+        check(PostureService.snapshot(p).meter()<1,"Missing movement beyond two ticks resumes normal drain despite held input");
+        chargeEvasive(f);f.level.tick++;AttunementGameplay.setMovementIntent(p,false);PostureService.tick(SkillEffectRuntime.context(p));
+        check(PostureService.snapshot(p).meter()<1,"Released movement input drains immediately even within sample grace");
+        chargeEvasive(f);
         p.hurtTime=5; evasiveStep(f);
         check(PostureService.snapshot(p).meter()<1&&PostureService.snapshot(p).movement().equals("recent_native_hit"),
                 "Evasive still rejects movement evidence during native hit recovery");
@@ -121,11 +130,12 @@ public final class NativePostureOutcomeTest {
         check(!outcome.successfulBlock()&&!outcome.perfect()&&outcome.requestedReflection()==0&&outcome.wardExtension()==0,"Dodge cannot fabricate native block/perfect/reflection/Ward rewards");
         check(shield.getDamageValue()==durability&&p.getHealth()==20,"Dodge bypasses native shield durability and health write");
         var dodgeHud=transmittedHud(f).entries().stream().filter(card->card.id().equals(SkillIds.EVASIVE_CURRENT)).findFirst().orElseThrow();
-        check(s.recentDodge()&&dodgeHud.active()&&dodgeHud.badge().equals(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.posture.dodged")),
-                "Confirmed native dodge reaches the real shared packet as an explicit DODGED badge");
+        check(s.recentDodge()&&dodgeHud.active()&&dodgeHud.lines().equals(List.of(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.posture.dodged"))),
+                "Confirmed native dodge reaches the real shared packet in the existing dodge-percent line");
         close(s.meter(),1-SkillEffectRuntime.resolvedSettings(p).posture().evasive().successDrainFraction(),"Native dodge drains once");
         long event=s.incoming().event();EquipmentDamageService.endDamage(p,source,true,false);
         check(PostureService.snapshot(p).incoming().event()==event,"Duplicate native completion cannot change dodge");
+        zombieDodgeOutcomes(f);
         p.stopUsingItem();p.setItemInHand(InteractionHand.OFF_HAND,ItemStack.EMPTY);p.setItemInHand(InteractionHand.MAIN_HAND,ItemStack.EMPTY);
         data.setLoadoutSelection(SkillGroups.DEFENSE_POSTURE,SkillIds.BULWARK_STANCE);SkillEffectRuntime.refresh(p);
         check(p.getMainHandItem().isEmpty()&&p.getOffhandItem().isEmpty()&&SkillEffectRuntime.context(p).isEffective(SkillIds.BULWARK_STANCE),
@@ -168,6 +178,50 @@ public final class NativePostureOutcomeTest {
         p.getAbilities().invulnerable=true;SkillEffectRuntime.refresh(p);check(!PostureService.snapshot(p).effective(),"Invalid defender lifecycle discards transient state");
         p.getAbilities().invulnerable=false;PostureService.forget(p);f.close();
         System.out.println("Native posture outcome checks passed: "+checks+" (actual transformed native damage/knockback; controlled movement/terrain, no world)");
+    }
+    private static void zombieDodgeOutcomes(ProjectileNativeInterceptionTest.Fixture f) throws ReflectiveOperationException {
+        var p=f.player;p.stopUsingItem();p.setItemInHand(InteractionHand.OFF_HAND,ItemStack.EMPTY);
+        var zombies=List.of(zombie(f),zombie(f));
+        int successes=0,failures=0;
+        // Exercise the production RandomSource path too, not just a forced successful test roll.
+        ProjectileNativeInterceptionTest.set(Entity.class,p,"random",RandomSource.create(8137));
+        for(int attempt=0;attempt<24;attempt++) {
+            chargeEvasive(f);p.invulnerableTime=0;p.setHealth(20);
+            var zombie=zombies.get(attempt%2);zombie.setPos(p.getX(),p.getY(),p.getZ()+1);
+            var display=new SkillEffectHudPresentation();
+            com.mistaboom.essence_ascendance.skill.effect.CombatHudActivity.confirmedDefense(p,p.damageSources().mobAttack(zombie));
+            display.replace(SkillEffectRuntime.hudSnapshot(p).entries(),f.level.tick);
+            boolean accepted=zombie.doHurtTarget(p);
+            var result=PostureService.snapshot(p);
+            check(result.incoming().chance()==.2&&result.incoming().roll()>=0&&result.incoming().roll()<1,
+                    "Actual unarmed zombie melee makes a production random roll at the full meter's 20 percent chance");
+            var hud=transmittedHud(f);display.replace(hud.entries(),hud.serverGameTime());
+            var card=display.visibleEntries(f.level.tick).stream().filter(entry->entry.id().equals(SkillIds.EVASIVE_CURRENT)).findFirst().orElseThrow();
+            if(result.incoming().dodged()) {
+                successes++;
+                check(!accepted&&p.getHealth()==20&&result.meter()==.5&&card.lines().equals(List.of(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.posture.dodged"))),
+                        "A successful real zombie dodge prevents damage, spends half charge and says Dodged on the regular card");
+            } else {
+                failures++;
+                check(accepted&&p.getHealth()<20&&result.meter()==0&&card.active()&&card.meter().fraction()==0
+                                &&card.lines().equals(List.of(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.posture.evasive","0.0"))),
+                        "A failed real zombie roll immediately displays zero chance instead of retaining the pre-hit full card");
+            }
+        }
+        check(successes>0&&failures>0,"Seeded production RNG against two zombies covers both successes and failures: "+successes+" / "+failures);
+        System.out.println("Two-zombie Evasive outcomes: "+successes+" dodges / "+failures+" damaging hits (24 full-meter native attacks, production RNG)");
+    }
+    private static net.minecraft.world.entity.monster.Zombie zombie(ProjectileNativeInterceptionTest.Fixture f) throws ReflectiveOperationException {
+        var zombie=ProjectileNativeInterceptionTest.instance(net.minecraft.world.entity.monster.Zombie.class);
+        ProjectileNativeInterceptionTest.initializeEntity(zombie,net.minecraft.world.entity.EntityType.ZOMBIE,f.level,new Vec3(0,0,2),new net.minecraft.world.phys.AABB(-.3,0,1.7,.3,1.95,2.3));
+        ProjectileNativeInterceptionTest.defineData(zombie,net.minecraft.world.entity.monster.Zombie.class);
+        ProjectileNativeInterceptionTest.set(LivingEntity.class,zombie,"attributes",new net.minecraft.world.entity.ai.attributes.AttributeMap(net.minecraft.world.entity.monster.Zombie.createAttributes().build()));
+        ProjectileNativeInterceptionTest.set(LivingEntity.class,zombie,"activeEffects",new java.util.HashMap<>());
+        ProjectileNativeInterceptionTest.set(LivingEntity.class,zombie,"useItem",ItemStack.EMPTY);
+        ProjectileNativeInterceptionTest.set(net.minecraft.world.entity.Mob.class,zombie,"handItems",net.minecraft.core.NonNullList.withSize(2,ItemStack.EMPTY));
+        ProjectileNativeInterceptionTest.set(net.minecraft.world.entity.Mob.class,zombie,"armorItems",net.minecraft.core.NonNullList.withSize(4,ItemStack.EMPTY));
+        ProjectileNativeInterceptionTest.set(net.minecraft.world.entity.Mob.class,zombie,"bodyArmorItem",ItemStack.EMPTY);
+        zombie.setHealth(20);f.level.entities.add(zombie);return zombie;
     }
     private static void bulwarkHeldItemComparison(ProjectileNativeInterceptionTest.Fixture f, LivingEntity attacker) throws ReflectiveOperationException {
         var p=f.player;var source=p.damageSources().playerAttack((net.minecraft.world.entity.player.Player)attacker);

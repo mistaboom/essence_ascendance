@@ -32,10 +32,12 @@ public record PostureHandler(ResourceLocation id) implements SkillEffectHudHandl
         boolean evasive = id.equals(SkillIds.EVASIVE_CURRENT);
         boolean dodged = evasive && recentDodge;
         double maximum = evasive ? settings.evasive().maximumDodgeChance() : settings.bulwark().maximumResistance();
-        return SkillEffectHudCards.progress(id, dodged || inCombat && meter > 0, dodged ? 0xFF9AF0C2 : evasive ? 0xFF67CABB : 0xFF729ECC,
-                dodged ? SkillEffectHudEntry.Text.translated("hud.essence_ascendance.posture.dodged")
-                        : SkillEffectHudEntry.Text.translated("hud.essence_ascendance.percent", percent(meter)),
-                List.of(SkillEffectHudEntry.Text.translated(evasive ? "hud.essence_ascendance.posture.evasive"
+        // Keep Evasive live at zero during combat: shared closing retention would otherwise
+        // keep showing the pre-hit charge after a damaging hit has emptied the real meter.
+        return SkillEffectHudCards.progress(id, dodged || inCombat && (evasive || meter > 0), evasive ? 0xFF67CABB : 0xFF729ECC,
+                SkillEffectHudEntry.Text.translated("hud.essence_ascendance.percent", percent(meter)),
+                List.of(dodged ? SkillEffectHudEntry.Text.translated("hud.essence_ascendance.posture.dodged")
+                        : SkillEffectHudEntry.Text.translated(evasive ? "hud.essence_ascendance.posture.evasive"
                         : "hud.essence_ascendance.posture.bulwark", percent(meter * maximum))), meter);
     }
     private static String percent(double value) { return String.format(java.util.Locale.ROOT, "%.1f", value * 100); }

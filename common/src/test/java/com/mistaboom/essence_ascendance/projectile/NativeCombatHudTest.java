@@ -131,8 +131,8 @@ public final class NativeCombatHudTest {
                 "A second real dodge spends the final remaining meter");
         var dodgeSnapshot = PostureService.snapshot(p);
         check(card(p, SkillIds.EVASIVE_CURRENT).active()
-                        && card(p, SkillIds.EVASIVE_CURRENT).badge().equals(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.posture.dodged")),
-                "An empty-meter confirmed dodge still displays its outcome badge");
+                        && card(p, SkillIds.EVASIVE_CURRENT).lines().equals(List.of(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.posture.dodged"))),
+                "An empty-meter confirmed dodge replaces the existing dodge-percent line");
         f.level.tick++;
         PostureService.finish(p, dodgeSnapshot.incoming(), false, false, 0, 4);
         check(PostureService.snapshot(p).dodgeFeedbackUntil() == dodgeSnapshot.dodgeFeedbackUntil(),
@@ -143,9 +143,10 @@ public final class NativeCombatHudTest {
         f.level.tick = dodgeSnapshot.dodgeFeedbackUntil() - 1;
         check(card(p, SkillIds.EVASIVE_CURRENT).active(), "The confirmed dodge badge includes its last presentation tick");
         f.level.tick++;
-        check(!PostureService.snapshot(p).recentDodge() && !card(p, SkillIds.EVASIVE_CURRENT).active()
-                        && PostureService.snapshot(p).meter() == 0,
-                "The two-second dodge indication expires without extending gameplay meter");
+        check(!PostureService.snapshot(p).recentDodge() && card(p, SkillIds.EVASIVE_CURRENT).active()
+                        && PostureService.snapshot(p).meter() == 0
+                        && card(p, SkillIds.EVASIVE_CURRENT).lines().equals(List.of(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.posture.evasive", "0.0"))),
+                "The two-second dodge indication returns to the real zero chance while combat continues");
 
         CombatHudActivity.clear(); select(f, SkillIds.BULWARK_STANCE);
         p.setPos(0, 0, 0); other.setPos(0, 0, 2); p.setYRot(0); p.setXRot(0); ready(p);

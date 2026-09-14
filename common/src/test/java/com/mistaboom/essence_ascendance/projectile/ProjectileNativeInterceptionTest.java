@@ -274,6 +274,10 @@ public final class ProjectileNativeInterceptionTest {
         @Override public DimensionDataStorage getDataStorage() { return storage; }
         @Override public ServerScoreboard getScoreboard() { return scoreboard; }
         @Override public net.minecraft.world.Difficulty getDifficulty() { return net.minecraft.world.Difficulty.NORMAL; }
+        @Override public net.minecraft.world.DifficultyInstance getCurrentDifficultyAt(BlockPos position) {
+            // Native zombie melee consults local difficulty even with no fire transfer; no chunk is opened.
+            return new net.minecraft.world.DifficultyInstance(getDifficulty(), 0, 0, 0);
+        }
         @Override public net.minecraft.world.level.GameRules getGameRules() { return new net.minecraft.world.level.GameRules(); }
         @Override public net.minecraft.world.flag.FeatureFlagSet enabledFeatures() { return net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS; }
         @Override public void broadcastEntityEvent(Entity entity, byte event) { }

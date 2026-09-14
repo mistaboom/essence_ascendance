@@ -30,6 +30,10 @@ public final class PostureMeter {
     }
     public void tick(long now, double displacement, double turn, boolean intentional, boolean forced,
                      boolean validMode, boolean facingThreat, PostureBalanceSettings settings) {
+        tick(now, displacement, turn, intentional, forced, validMode, facingThreat, settings, false);
+    }
+    public void tick(long now, double displacement, double turn, boolean intentional, boolean forced,
+                     boolean validMode, boolean facingThreat, PostureBalanceSettings settings, boolean waitingForMovementSample) {
         if (now == lastTick) return;
         if (lastTick != Long.MIN_VALUE && (now < lastTick || now - lastTick > 1)) clear("tick_discontinuity");
         lastTick = now; expire(now);
@@ -43,8 +47,9 @@ public final class PostureMeter {
         still = stableTicks >= motion.stableTicks();
         if (choice == Choice.EVASIVE) {
             boolean build = intentional && !forced && validMode && displacement >= motion.minimumDisplacement();
-            meter = bound(meter + (build ? 1.0 / settings.evasive().buildTicks() : -1.0 / settings.evasive().drainTicks()));
-            reason = build ? "intentional_movement" : forced ? "forced_motion" : !validMode ? "unsupported_movement_mode" : "movement_stopped";
+            boolean waiting = !build && waitingForMovementSample && intentional && !forced && validMode;
+            meter = bound(meter + (build ? 1.0 / settings.evasive().buildTicks() : waiting ? 0 : -1.0 / settings.evasive().drainTicks()));
+            reason = build ? "intentional_movement" : waiting ? "waiting_for_movement_sample" : forced ? "forced_motion" : !validMode ? "unsupported_movement_mode" : "movement_stopped";
         } else if (choice == Choice.BULWARK) {
             boolean build = still && facingThreat;
             meter = bound(meter + (build ? 1.0 / settings.bulwark().buildTicks() : -1.0 / settings.bulwark().drainTicks()));

@@ -22,6 +22,7 @@ import java.util.*;
 /** One transient authoritative posture per player lifecycle, never persisted and never fed by HUD retention. */
 public final class PostureService {
     public static final int DODGE_FEEDBACK_TICKS = 40;
+    private static final int MOVEMENT_SAMPLE_GRACE_TICKS = 2;
     private static final Map<ServerPlayer, State> STATES = new WeakHashMap<>();
     private static long nextLifecycle;
     private PostureService() { }
@@ -112,8 +113,13 @@ public final class PostureService {
                 : !supported ? "unsupported_movement_mode" : state.pendingMotion;
         state.threat = state.meter.choice() == PostureMeter.Choice.BULWARK
                 ? ThreatFacingResolver.resolve(player, settings.bulwark()) : ThreatFacingResolver.Result.none("not_bulwark");
+        // Movement packets can bunch around a server tick. Briefly hold (never build) charge
+        // across a missing sample while input is still fresh; stopping input drains immediately.
+        boolean waitingForMovementSample = state.meter.choice() == PostureMeter.Choice.EVASIVE
+                && context.now() >= state.sampleTick && state.sampleTick != Long.MIN_VALUE
+                && context.now() - state.sampleTick <= MOVEMENT_SAMPLE_GRACE_TICKS;
         state.meter.tick(context.now(), displacement, state.turn,
-                state.intent, forced, supported, state.threat.facing(), settings);
+                state.intent, forced, supported, state.threat.facing(), settings, waitingForMovementSample);
         state.lastTick = context.now(); state.lastPosition = player.position(); state.yaw = player.getYRot(); state.pitch = player.getXRot();
         state.packetDistance = 0; state.packetTurn = 0; state.pendingMotion = "no_server_movement";
     }
@@ -129,7 +135,7 @@ public final class PostureService {
         }
         state.packetDistance = Math.min(movement.maximumDisplacement() + 1, state.packetDistance + distance);
         state.packetTurn = Math.min(360, state.packetTurn + angle(yaw, player.getYRot()) + angle(pitch, player.getXRot()));
-        state.sampleTick = player.level().getGameTime();
+        if (distance >= movement.minimumDisplacement()) state.sampleTick = player.level().getGameTime();
         state.pendingMotion = player.isSwimming() ? "native_swimming" : player.onClimbable() ? "native_climbing"
                 : player.getAbilities().flying ? "native_flight" : player.isCrouching() ? "native_crouching" : "native_player_translation";
     }

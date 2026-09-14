@@ -119,7 +119,7 @@ public final class SkillEffectHudPresentationTest {
         var settings = com.mistaboom.essence_ascendance.config.PostureBalanceSettings.defaults();
         for (var id : List.of(SkillIds.EVASIVE_CURRENT, SkillIds.BULWARK_STANCE, SkillIds.ADAPTIVE_GUARD)) {
             var active = PostureHandler.card(id, .5, 3, 200, settings, true, false);
-            var empty = PostureHandler.card(id, 0, 0, 0, settings, true, false);
+            var empty = PostureHandler.card(id, 0, 0, 0, settings, false, false);
             var peaceful = PostureHandler.card(id, .5, 3, 200, settings, false, false);
             check(peaceful.active() == id.equals(SkillIds.ADAPTIVE_GUARD),
                     "Only adaptation can display outside recent mob/player combat");
@@ -157,17 +157,28 @@ public final class SkillEffectHudPresentationTest {
             }
         }
         var dodged = PostureHandler.card(SkillIds.EVASIVE_CURRENT, 0, 0, 0, settings, true, true);
-        check(dodged.active() && dodged.badge().equals(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.posture.dodged")),
+        check(dodged.active() && dodged.lines().equals(List.of(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.posture.dodged"))),
                 "Confirmed dodge visibly opens the card even when consuming the entire meter");
         check(dodged.meter().equals(SkillEffectHudEntry.Meter.progress(0))
-                        && dodged.lines().equals(List.of(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.posture.evasive", "0.0"))),
-                "Dodge feedback preserves the actual remaining chance and grants no fake meter");
+                        && dodged.badge().equals(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.percent", "0.0"))
+                        && dodged.accent() == 0xFF67CABB,
+                "Dodged replaces only the existing dodge line; the regular badge, color and actual meter remain");
         var depleted = PostureHandler.card(SkillIds.EVASIVE_CURRENT, 0, 0, 0, settings, true, false);
         var dodgeDisplay = new SkillEffectHudPresentation();
+        var charged = PostureHandler.card(SkillIds.EVASIVE_CURRENT, 1, 0, 0, settings, true, false);
+        dodgeDisplay.replace(List.of(charged), 90);
+        dodgeDisplay.replace(List.of(depleted), 91);
+        check(depleted.active() && dodgeDisplay.visibleEntries(91).equals(List.of(depleted))
+                        && depleted.lines().equals(List.of(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.posture.evasive", "0.0"))),
+                "A real hit immediately replaces the full combat card with zero chance instead of retaining stale charge");
         dodgeDisplay.replace(List.of(dodged), 100);
         dodgeDisplay.replace(List.of(depleted), 140);
-        check(dodgeDisplay.visibleEntries(199).equals(List.of(dodged)) && dodgeDisplay.visibleEntries(200).isEmpty(),
-                "A spent dodge uses ordinary closure after its short outcome indicator expires");
+        check(dodgeDisplay.visibleEntries(140).equals(List.of(depleted)),
+                "Expired dodge feedback returns to the regular zero-percent line during combat");
+        var peaceful = PostureHandler.card(SkillIds.EVASIVE_CURRENT, 0, 0, 0, settings, false, false);
+        dodgeDisplay.replace(List.of(peaceful), 200);
+        check(dodgeDisplay.visibleEntries(259).equals(List.of(depleted)) && dodgeDisplay.visibleEntries(260).isEmpty(),
+                "Zero-meter combat card closes normally after combat ends");
         check(com.mistaboom.essence_ascendance.status.StatusEffectHandlers.mirror() instanceof SkillEffectHudHandler,
                 "Mirror cooldown uses shared card handler");
         check(!(com.mistaboom.essence_ascendance.status.StatusEffectHandlers.pureState() instanceof SkillEffectHudHandler),
