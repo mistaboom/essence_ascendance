@@ -54,15 +54,22 @@ public final class RuntimeBuildScenarios {
                        EquipmentBaselineConfig equipmentLimits) { }
     public static Plan plan() { return plan(true); }
     public static Plan plan(RuntimeBalanceDefinition runtime, boolean developed) {
-        var plan=plan(developed);
+        return plan(runtime, developed, true);
+    }
+    static Plan plan(RuntimeBalanceDefinition runtime, boolean developed, boolean includeVitality) {
+        var plan=plan(developed, includeVitality);
         return new Plan(plan.full(),plan.moderate(),developed,runtime.config().equipmentBaselineConfig());
     }
     public static Plan plan(boolean developed) {
+        return plan(developed, true);
+    }
+    private static Plan plan(boolean developed, boolean includeVitality) {
         Map<ResourceLocation, List<SkillLoadoutProjection.Scenario>> full = new LinkedHashMap<>(), moderate = new LinkedHashMap<>();
         int apexOrder = AscendanceTierRegistry.powerTiers().stream().mapToInt(AscendanceTierDefinition::order).max().orElseThrow();
         for (var tier : AscendanceTierRegistry.powerTiers()) {
             Map<ResourceLocation, Integer> fullRanks = new LinkedHashMap<>(), moderateRanks = new LinkedHashMap<>();
             for (var skill : SkillRegistry.values()) {
+                if (!includeVitality && vitalitySkill(skill.id())) continue;
                 int projectedRank = developed && tier.order() == apexOrder ? skill.rankPolicy().projectionRanks()
                         : developed ? Math.min(skill.rankPolicy().projectionRanks(), Math.max(1,
                         tier.order() - AscendanceTierRegistry.get(skill.requiredTierId()).orElseThrow().order() + 1)) : 1;
@@ -131,7 +138,7 @@ public final class RuntimeBuildScenarios {
                             equipmentValue(runtime,equipmentLimit.value(speedProperty),archetype,speedProperty),
                             equipmentLimit.fullSetArmor(),equipmentLimit.fullSetToughness(),health,0);
                     // Check the ordinary-health boundary and the near-zero worst case.
-                    double[] healthStates = fullRanks.containsKey(SkillIds.DESPERATION)
+                    double[] healthStates = fullRanks.containsKey(SkillIds.DESPERATION) || fullRanks.containsKey(SkillIds.RISING_RECOVERY)
                             ? new double[]{1, .200001, .000001} : new double[]{1};
                     for (double healthFraction : healthStates) {
                         String id = tier.id() + "/" + archetype.id() + "/" + scenario.id() + "/health_" + healthFraction;
@@ -159,11 +166,32 @@ public final class RuntimeBuildScenarios {
                                     })).toList());
                             var effects = participation == Participation.MIXED ? moderateEffects : fullEffects;
                             defenses.put(participation, defensivePressure(effects, active));
-                            double actualHealth = active.contains(SkillIds.DESPERATION) ? healthFraction : 1;
-                            metrics.put(participation, combat(effects, active, family, item, nexus, incoming, window, actualHealth));
+                            double actualHealth = active.contains(SkillIds.DESPERATION) || active.contains(SkillIds.RISING_RECOVERY) ? healthFraction : 1;
+                            double healingEffectiveness = switch (participation) {
+                                case EQUIPMENT_FOCUSED, SKILL_FOCUSED, CATEGORY_SPECIALIZED -> 1;
+                                default -> 1 + bonus(runtime, tier, EssenceStats.HEALING_EFFECTIVENESS,
+                                        participation == Participation.BROAD_GENERALIST) / 100;
+                            };
+                            metrics.put(participation, combat(effects, active, family, item, nexus, incoming, window, actualHealth, healingEffectiveness));
                             double target = plan.developed() ? BuildPowerTargets.multiplier(settings, band, participation)
                                     : BuildPowerTargets.rankOneMultiplier(settings, band, participation);
-                            double burst = plan.developed() ? BuildPowerTargets.burstMultiplier(settings, band, participation, actualHealth <= .2) : target;
+                            // The former rank-one sustain reserve was already filled before
+                            // recovery existed. Spend that provisional future allowance on
+                            // real recovery, then fit future posture/recovery growth jointly.
+                            // The approved final tier ceilings and every current value stay fixed.
+                            double healingTarget = active.contains(SkillIds.RISING_RECOVERY) || active.contains(SkillIds.LIFE_STEAL)
+                                    ? BuildPowerTargets.multiplier(settings, band, participation) : target;
+                            if (plan.developed() && active.contains(SkillIds.RISING_RECOVERY)) {
+                                var vitality = SkillBalanceSemantics.require(SkillIds.RISING_RECOVERY);
+                                healingTarget += vitality.expectedAvailability()
+                                        * vitality.weights().getOrDefault(CapabilityAxis.REGENERATION, 0.0);
+                            } else if (plan.developed() && active.contains(SkillIds.LIFE_STEAL)) {
+                                var vitality = SkillBalanceSemantics.require(SkillIds.LIFE_STEAL);
+                                healingTarget += vitality.expectedAvailability()
+                                        * vitality.weights().getOrDefault(CapabilityAxis.HEALING, 0.0);
+                            }
+                            double burst = plan.developed() ? BuildPowerTargets.burstMultiplier(settings, band, participation,
+                                    active.contains(SkillIds.DESPERATION) && actualHealth <= .2) : target;
                             // Tool archetype identity/rounding are not purchased added power.
                             // Frozen before exact overrides: a raised weapon stat
                             // cannot authorize its own higher equipment ceiling.
@@ -171,7 +199,7 @@ public final class RuntimeBuildScenarios {
                             limits.put(participation, new Limits(Math.max(reference.dps() * target, base.sustainedDamage()),
                                     Math.max(reference.burst() * burst, base.burstDamage()), reference.dps() * Math.max(0, target - 1) * 2,
                                     Math.max(externalMetrics.effectiveHealth() * target, base.effectiveHealth()),
-                                    Math.max(externalMetrics.effectiveHealth() * target * 1.35, base.sustainedHealth()), health * Math.max(0, target - 1) / window));
+                                    Math.max(externalMetrics.effectiveHealth() * healingTarget * 1.35, base.sustainedHealth()), health * Math.max(0, healingTarget - 1) / window));
                         }
                         List<Violation> violations = new ArrayList<>();
                         metrics.forEach((participation, value) -> {
@@ -203,11 +231,16 @@ public final class RuntimeBuildScenarios {
                 "Late posture first-rank magnitudes recover independently after the shared initial calibration, up to their requested settings and the same complete first-rank survival limits. An earlier-tier Nexus-only bottleneck cannot unnecessarily suppress a posture unavailable at that tier. Recovery changes neither equipment nor offensive tuning.",
                 "Primary hits multiply their actual skill damage modifiers, then add flat Static Charge, then apply an armed Riposte and fully charged Stored Force. Static Charge is averaged once over its configured sprint charge cycle for sustained damage, and counted once at full charge for burst.",
                 "Kindling uses maintained burning; Combustion and Shatter are secondary-target on-kill damage, not invented extra damage against their already-dead primary target. Area bounds assume one elemental completion per buildup cycle and bounded distinct victims; they are estimates, not measured combat logs.",
-                "Nexus passive regeneration is not multiplied by Healing Effectiveness in gameplay. It is modeled separately; externally sourced healing amplification retains a semantic budget because evidence does not provide a healing event rate.",
+                 "Nexus passive regeneration is an existing health-regeneration bonus. Rising Recovery multiplies that bonus and eligible native food regeneration by the same missing-health curve; Healing Effectiveness remains separate.",
                 "Armor penetration retains an explicit conservative armor-pressure allowance. Reflection, guard amplification, Crowd Reprisal, control, interception, flight and gathering retain separate semantic budgets; no prevented-hit or Attunement activity is invented.",
                 "Evasive expected avoidance and Bulwark/Adaptive damage reduction use actual generated values at the contributing rank, each under its strongest eligible posture condition. The three exclusive postures never stack. Meter build/drain and type-change exposure reduce real availability; peak bounds deliberately do not assume free continuous uptime.",
                 "Status Mirror and Pure State share an independent exclusive choice. harmful-status prevention is a capability fraction, and Mirror transfer capacity is applications/second bounded by its generated cooldown. Missing pack harmful-application rates and source acceptance evidence prevent converting these into damage, EHP, or guaranteed status uptime.",
                 "Pure State is binary at every diagnostic rank. Its provisional catalog curve supplies no numeric consumer and no invented rank benefit; the later catalog-wide rank design must decide whether it should have ranks. Already-active harmful effects are not cleansed.",
+                "Vitality is added after existing equipment, Nexus and prior rank-one skill calibration is frozen. New recovery and provisional posture rank growth share developed survival headroom; only future posture growth can be reduced when its previous apex consumes the full ceiling. Current gameplay values never change.",
+                "Implemented recovery may consume the prior provisional first-purchase sustain reserve up to the unchanged final tier ceiling; offense and effective-health reserves are untouched. Future recovery and posture growth are then calibrated together instead of flattening a newly implemented skill to zero.",
+                 "Rising Recovery multiplies the existing Nexus passive health-regeneration bonus and adds the same missing-health multiplier to eligible native food regeneration; the projection uses the fastest saturated cadence (one health per ten ticks) as its conservative upper bound. Native food eligibility/exhaustion remains authoritative; Healing Effectiveness does not multiply either regeneration source.",
+                "Life Steal uses direct primary weapon hit damage and cadence, including native primary Static Charge and direct counter damage, with same-target chain progress derived from the native timeout and accepted-hit rate. Native Ricochet/Piercing continuation hits contribute bounded base-fraction healing because each distinct victim resets the chain; primary chain plus continuation is a conservative capacity envelope, not a promise of simultaneous maintained chains. Separate elemental/payload/returned damage does not heal. Healing Effectiveness applies to Life Steal; actual healing remains capped by missing health.",
+                "Feast Reflex duration and Inner Sustenance food/saturation restoration retain native resource/time units in vitalityPolicy. Food inventory, consumption side effects and phantom/sleep immunity are conditional capabilities, not invented health or damage. Out-of-combat hunger recovery never counts as in-combat healing.",
                 "Pack parity preserves existing equipment curves and attainable weapon/armor pairings. Physical quantization and tool archetype baselines are not nerfed to make a bonus budget fit. External-gear projections assume required equipment access; gameplay still enforces eligibility, ownership and worn-slot coverage."));
     }
 
@@ -238,6 +271,10 @@ public final class RuntimeBuildScenarios {
     /** Same primary-hit order as SkillEffectRuntime/GuardCounterattackService; secondary damage stays separate. */
     static Metrics combat(SkillEffectBalanceSettings s, Set<ResourceLocation> active, String family, Equipment item,
                           Modifier nexus, double incoming, double window, double healthFraction) {
+        return combat(s, active, family, item, nexus, incoming, window, healthFraction, 1);
+    }
+    static Metrics combat(SkillEffectBalanceSettings s, Set<ResourceLocation> active, String family, Equipment item,
+                          Modifier nexus, double incoming, double window, double healthFraction, double healingEffectiveness) {
         double damage = 1, speed = 1, flatBurst = 0, flatDps = 0, area = 0;
         if (active.contains(SkillIds.FRENZY)) {
             damage *= 1 + s.frenzy().maxStacks() * s.frenzy().damageBonusPercentPerStack() / 100;
@@ -276,8 +313,64 @@ public final class RuntimeBuildScenarios {
                 pressure.peakDamageReduction(), pressure.peakAvoidance(), 0, 0);
         var defense = BuildComposition.compose(item, nexus, posture, incoming, window);
         double currentEhp = defense.effectiveHealth() * healthFraction;
+        double additionalHealing = (vitalityHealing(s, active, hit + flatDps / Math.max(.000001, rate), rate, family, healthFraction,
+                nexus.healingPerSecond())
+                + directContinuationHealing(s, active, hit, rate, family))
+                * (active.contains(SkillIds.LIFE_STEAL) ? healingEffectiveness : 1);
+        double taken = (item.health() + nexus.bonusHealth()) / defense.effectiveHealth();
         return new Metrics(sustained, burst, area, currentEhp,
-                currentEhp + defense.sustainedHealth() - defense.effectiveHealth(), defense.healingPerSecond());
+                currentEhp + defense.sustainedHealth() - defense.effectiveHealth() + additionalHealing * window / taken,
+                defense.healingPerSecond() + additionalHealing);
+    }
+
+    static boolean vitalitySkill(ResourceLocation id) {
+        return id.equals(SkillIds.RISING_RECOVERY) || id.equals(SkillIds.LIFE_STEAL)
+                || id.equals(SkillIds.FEAST_REFLEX) || id.equals(SkillIds.INNER_SUSTENANCE);
+    }
+
+    static double vitalityHealing(SkillEffectBalanceSettings settings, Set<ResourceLocation> active,
+                                  double directHit, double attacksPerSecond, String family, double healthFraction) {
+        return vitalityHealing(settings, active, directHit, attacksPerSecond, family, healthFraction, 0);
+    }
+
+    static double vitalityHealing(SkillEffectBalanceSettings settings, Set<ResourceLocation> active,
+                                  double directHit, double attacksPerSecond, String family, double healthFraction,
+                                  double nexusPassiveHealingPerSecond) {
+        if (active.contains(SkillIds.RISING_RECOVERY) && active.contains(SkillIds.LIFE_STEAL)
+                || active.contains(SkillIds.FEAST_REFLEX) && active.contains(SkillIds.INNER_SUSTENANCE))
+            throw new IllegalArgumentException("Vitality projection requires an effective exclusive selection");
+        var s = settings.vitality();
+        if (active.contains(SkillIds.RISING_RECOVERY)) {
+            double missingCurve = Math.pow(Math.clamp(1 - healthFraction, 0, 1), s.risingRecovery().recoveryCurveExponent());
+            double acceleratedFraction = s.risingRecovery().maxSpeedBonus() * missingCurve;
+            double nativeFoodHealing = 20.0 / net.minecraft.world.food.FoodConstants.HEALTH_TICK_COUNT_SATURATED;
+            return (nativeFoodHealing + Math.max(0, nexusPassiveHealingPerSecond)) * acceleratedFraction;
+        }
+        if (!active.contains(SkillIds.LIFE_STEAL)) return 0;
+        double directCounter = family.equals("melee_shield") ? guardCounterBurst(settings, active, directHit) : 0;
+        // Runtime expires at elapsed >= timeout, including exact equality. The
+        // balance projection uses the number of accepted hits that fit inside
+        // that native timeout instead of assuming the maximum chain is always
+        // maintained.
+        double hitsPerWindow = Math.max(1.0, attacksPerSecond * s.lifeSteal().chainTimeoutTicks() / 20.0);
+        double chainProgress = Math.clamp((hitsPerWindow - 1.0) / Math.max(1, s.lifeSteal().maxChainHits() - 1), 0.0, 1.0);
+        double fraction = s.lifeSteal().baseHealingFraction()
+                + (s.lifeSteal().maxChainHits() - 1) * s.lifeSteal().perHitHealingFraction() * chainProgress;
+        return (directHit + directCounter) * attacksPerSecond * fraction;
+    }
+
+    /** Native nonredirected continuation is direct weapon damage; payload/elemental area is not. */
+    static double directContinuationHealing(SkillEffectBalanceSettings settings, Set<ResourceLocation> active,
+                                            double ordinaryHit, double attacksPerSecond, String family) {
+        if (!active.contains(SkillIds.LIFE_STEAL) || family.equals("melee_shield")) return 0;
+        var p = settings.projectiles();
+        boolean ricochet = active.contains(SkillIds.RICOCHET), piercing = active.contains(SkillIds.PIERCING_PROJECTILE);
+        if (ricochet && piercing) throw new IllegalArgumentException("A projectile cannot select both continuation paths");
+        int contacts = Math.min(Math.max(0, p.maximumImpacts() - 1), ricochet ? p.ricochets() : piercing ? p.penetrations() : 0);
+        double retention = ricochet ? p.ricochetDamageMultiplier() : p.piercingDamageMultiplier();
+        double directExtra = 0;
+        for (int contact = 1; contact <= contacts; contact++) directExtra += ordinaryHit * Math.pow(retention, contact);
+        return directExtra * attacksPerSecond * settings.vitality().lifeSteal().baseHealingFraction();
     }
 
     public static DefensivePressure defensivePressure(SkillEffectBalanceSettings s, Set<ResourceLocation> active) {

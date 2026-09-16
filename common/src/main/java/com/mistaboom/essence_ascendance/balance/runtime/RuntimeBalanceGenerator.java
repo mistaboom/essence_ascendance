@@ -177,7 +177,7 @@ public final class RuntimeBalanceGenerator {
         var shield=shield(equipment,settings);
         // Rank-one effects and additional rank growth have separate calibration.
         double resolvedSkillScale=skillScale*Math.sqrt(apex);
-        var effects=effects(resolvedSkillScale);
+        var effects=effects(resolvedSkillScale, evidence, settings);
         var config=new EssenceServerConfig(1,6,8,infuser,shield,effects,LatentOreWorldgenSettings.defaults(),profile,milestones,advancements,bonuses,new EquipmentBaselineConfig(equipment));
         var crucible=new EssenceCrucibleStructureStats(1,positiveLong(entry*48.0),8,positiveLong(entry/2.0),20,1,6,1,0);
         Map<String,Double> composition=new TreeMap<>(encounterBudgets);
@@ -213,8 +213,8 @@ public final class RuntimeBalanceGenerator {
         var attunement=AttunementGenerator.generate(evidence,economy,settings,profile);
         var runtime=RuntimeValueQuantization.apply(new RuntimeBalanceDefinition(config,crucible,pylons,curves,composition,attunement));
         var requestedRuntime=runtime;
-        RuntimeBuildScenarios.Plan compositionPlan=economy==null?null:RuntimeBuildScenarios.plan(runtime,true);
-        RuntimeBuildScenarios.Plan firstRankPlan=economy==null?null:RuntimeBuildScenarios.plan(runtime,false);
+        RuntimeBuildScenarios.Plan compositionPlan=economy==null?null:RuntimeBuildScenarios.plan(runtime,true,false);
+        RuntimeBuildScenarios.Plan firstRankPlan=economy==null?null:RuntimeBuildScenarios.plan(runtime,false,false);
         double compositionScale=1;
         if(compositionPlan!=null) {
             for(var channel:BuildComposition.Channel.values()) {
@@ -252,6 +252,13 @@ public final class RuntimeBalanceGenerator {
             RuntimeBuildScenarios.analyze(runtime,evidence,settings,compositionPlan).requireSafe();
         }
         runtime=resolveFinalTracks(runtime,evidence,settings,categoryFactors);
+        if (compositionPlan != null) {
+            firstRankPlan = RuntimeBuildScenarios.plan(runtime, false);
+            compositionPlan = RuntimeBuildScenarios.plan(runtime, true);
+            runtime = calibrateVitality(runtime, evidence, settings, firstRankPlan, false);
+            runtime = reserveVitalityHeadroom(runtime, evidence, settings, firstRankPlan, compositionPlan);
+            runtime = calibrateVitality(runtime, evidence, settings, compositionPlan, true);
+        }
         if(overrides!=null&&!overrides.exactValues().isEmpty()) {
             JsonObject json=runtime.toJson();
             overrides.exactValues().forEach((path,value)->{if(path.startsWith("/runtime/")) applyExact(json,path.substring("/runtime/".length()),value);});
@@ -277,6 +284,101 @@ public final class RuntimeBalanceGenerator {
             runtime=runtime.withAnalysis(new RuntimeBuildScenarios.Analysis(compositionScale,finalAnalysis.cases(),finalAnalysis.assumptions()));
         }
         return runtime.withContentIdentity();
+    }
+
+    /** Only provisional posture growth changes: newly implemented healing must remain useful at every tier. */
+    private static RuntimeBalanceDefinition reserveVitalityHeadroom(RuntimeBalanceDefinition runtime, PackEvidence evidence,
+            BalanceSettings settings, RuntimeBuildScenarios.Plan firstRankPlan, RuntimeBuildScenarios.Plan plan) {
+        var requested = runtime.skillCurves();
+        // Future offensive growth increases accepted weapon healing. Fit the
+        // requested recovery stress curve against that dependency while postures
+        // keep their unchanged rank-one values, preserving honest recovery growth.
+        runtime = adjusted(runtime, 0, BuildComposition.Channel.HEALING, true);
+        // Rank-one values are purchased now. Do not recalibrate them against
+        // the five-rank stress projection; future offensive growth gets its
+        // own analytic curve below.
+        runtime = calibrateVitality(runtime, evidence, settings, firstRankPlan, false);
+        runtime = new RuntimeBalanceDefinition(runtime.config(), runtime.crucible(), runtime.pylons(), requested, runtime.composition(), runtime.attunement());
+        var noPostureGrowth = adjusted(runtime, 0, BuildComposition.Channel.HEALING, true);
+        // Start the analytic Vitality rank pass from the purchased value for
+        // both mutually exclusive recovery branches. Otherwise the first
+        // branch would be tested while the other branch still carries its
+        // requested future curve and would incorrectly fail at factor zero.
+        noPostureGrowth = scaleVitality(noPostureGrowth, com.mistaboom.essence_ascendance.skill.SkillIds.RISING_RECOVERY, 0, true);
+        noPostureGrowth = scaleVitality(noPostureGrowth, com.mistaboom.essence_ascendance.skill.SkillIds.LIFE_STEAL, 0, true);
+        noPostureGrowth = calibrateVitality(noPostureGrowth, evidence, settings, plan, true);
+        var reserved = new TreeMap<>(requested);
+        for (var id : List.of(com.mistaboom.essence_ascendance.skill.SkillIds.RISING_RECOVERY,
+                com.mistaboom.essence_ascendance.skill.SkillIds.LIFE_STEAL)) {
+            var curve = noPostureGrowth.skillCurves().get(id.toString());
+            reserved.put(id.toString(), new com.mistaboom.essence_ascendance.skill.balance.SkillBalanceRuntime.ResolvedSkill(curve.maximumRank(),
+                    curve.ranks().stream().map(rank -> new com.mistaboom.essence_ascendance.skill.balance.SkillBalanceRuntime.ResolvedRank(
+                            rank.rank(), rank.cost(), 1 + (rank.powerMultiplier() - 1) * .5)).toList()));
+        }
+        runtime = new RuntimeBalanceDefinition(runtime.config(), runtime.crucible(), runtime.pylons(), reserved, runtime.composition(), runtime.attunement());
+        // Share remaining room with half the actually attainable extra recovery
+        // growth. These are analytic ranks; all current ranks remain one.
+        double factor = calibration(runtime, evidence, settings, plan, BuildComposition.Channel.HEALING, true);
+        runtime = adjusted(runtime, factor, BuildComposition.Channel.HEALING, true);
+        runtime = restoreRankGrowth(runtime, requested, evidence, settings, plan);
+        var curves = new TreeMap<>(runtime.skillCurves());
+        requested.forEach((id, curve) -> { if (RuntimeBuildScenarios.vitalitySkill(ResourceLocation.parse(id))) curves.put(id, curve); });
+        var composition = new TreeMap<>(runtime.composition());
+        composition.put("vitality_projected_posture_growth_retention", factor);
+        return new RuntimeBalanceDefinition(runtime.config(), runtime.crucible(), runtime.pylons(), curves, composition, runtime.attunement());
+    }
+
+    /** New healing consumes remaining headroom without changing any existing runtime value. */
+    private static RuntimeBalanceDefinition calibrateVitality(RuntimeBalanceDefinition runtime, PackEvidence evidence,
+            BalanceSettings settings, RuntimeBuildScenarios.Plan plan, boolean ranks) {
+        for (var id : List.of(com.mistaboom.essence_ascendance.skill.SkillIds.RISING_RECOVERY,
+                com.mistaboom.essence_ascendance.skill.SkillIds.LIFE_STEAL)) {
+            // Validate one recovery branch at a time; mutual exclusion makes the magnitudes independent.
+            var only = vitalityPlan(plan, id);
+            double low = 0, high = 1;
+            if (RuntimeBuildScenarios.analyze(runtime, evidence, settings, only).safeFor(BuildComposition.Channel.HEALING)) low = 1;
+            else {
+                RuntimeBuildScenarios.analyze(scaleVitality(runtime, id, 0, ranks), evidence, settings, only)
+                        .requireSafe();
+                for (int pass = 0; pass < 20; pass++) {
+                    double middle = (low + high) / 2;
+                    if (RuntimeBuildScenarios.analyze(scaleVitality(runtime, id, middle, ranks), evidence, settings, only)
+                            .safeFor(BuildComposition.Channel.HEALING)) low = middle;
+                    else high = middle;
+                }
+            }
+            runtime = scaleVitality(runtime, id, low, ranks);
+            var json = runtime.toJson();
+            String key = "vitality_" + id.getPath() + (ranks ? "_rank_growth" : "_rank_one");
+            json.getAsJsonObject("composition").addProperty(key, low * runtime.composition().getOrDefault(key, 1.0));
+            runtime = RuntimeBalanceDefinition.fromJson(json);
+        }
+        RuntimeBuildScenarios.analyze(runtime, evidence, settings, plan).requireSafe();
+        return runtime;
+    }
+    private static RuntimeBuildScenarios.Plan vitalityPlan(RuntimeBuildScenarios.Plan plan, ResourceLocation branch) {
+        var full = new LinkedHashMap<ResourceLocation, List<com.mistaboom.essence_ascendance.skill.balance.SkillLoadoutProjection.Scenario>>();
+        plan.full().forEach((tier, rows) -> full.put(tier, rows.stream().filter(row ->
+                row.contributingRanks().keySet().stream().noneMatch(id ->
+                        (id.equals(com.mistaboom.essence_ascendance.skill.SkillIds.RISING_RECOVERY)
+                                || id.equals(com.mistaboom.essence_ascendance.skill.SkillIds.LIFE_STEAL)) && !id.equals(branch))).toList()));
+        return new RuntimeBuildScenarios.Plan(full, plan.moderate(), plan.developed(), plan.equipmentLimits());
+    }
+    private static RuntimeBalanceDefinition scaleVitality(RuntimeBalanceDefinition source, ResourceLocation id, double factor, boolean ranks) {
+        var json = source.toJson();
+        if (ranks) {
+            for (var element : json.getAsJsonObject("skillCurves").getAsJsonObject(id.toString()).getAsJsonArray("ranks")) {
+                var rank = element.getAsJsonObject();
+                rank.addProperty("powerMultiplier", 1 + (rank.get("powerMultiplier").getAsDouble() - 1) * factor);
+            }
+        } else {
+            var vitality = json.getAsJsonObject("effects").getAsJsonObject("vitality");
+            var value = vitality.getAsJsonObject(id.equals(com.mistaboom.essence_ascendance.skill.SkillIds.RISING_RECOVERY) ? "risingRecovery" : "lifeSteal");
+            for (String key : id.equals(com.mistaboom.essence_ascendance.skill.SkillIds.RISING_RECOVERY)
+                    ? List.of("maxSpeedBonus") : List.of("baseHealingFraction", "perHitHealingFraction"))
+                value.addProperty(key, value.get(key).getAsDouble() * factor);
+        }
+        return RuntimeBalanceDefinition.fromJson(json);
     }
 
     private static RuntimeBalanceDefinition resolveFinalTracks(RuntimeBalanceDefinition runtime,PackEvidence evidence,
@@ -335,6 +437,7 @@ public final class RuntimeBalanceGenerator {
         // mobility, or an unrelated stance's entire progression curve.
         for(var entry:new TreeMap<>(requested).entrySet()) {
             String id=entry.getKey();
+            if (RuntimeBuildScenarios.vitalitySkill(ResourceLocation.parse(id))) continue;
             if(current.skillCurves().get(id).equals(entry.getValue()))continue;
             var full=interpolateRankGrowth(current,id,entry.getValue(),1);
             if(RuntimeBuildScenarios.analyze(full,evidence,settings,plan).safeFor(null)) {
@@ -416,6 +519,7 @@ public final class RuntimeBalanceGenerator {
         if(rankGrowth) {
             for(var entry:json.getAsJsonObject("skillCurves").entrySet()) {
                 if(!com.mistaboom.essence_ascendance.skill.balance.SkillRankEffectScaling.supports(ResourceLocation.parse(entry.getKey())))continue;
+                if(RuntimeBuildScenarios.vitalitySkill(ResourceLocation.parse(entry.getKey())))continue;
                 if(entry.getKey().equals(com.mistaboom.essence_ascendance.skill.SkillIds.STATUS_MIRROR.toString()))continue;
                 boolean posture=isPosture(ResourceLocation.parse(entry.getKey()));
                 if(channel==BuildComposition.Channel.OFFENSE && posture
@@ -538,10 +642,11 @@ public final class RuntimeBalanceGenerator {
         }
         return new ShieldBalanceSettings(baseReflection,ShieldBalanceSettings.defaults().minimumDisableTicks(),durability,reflection,amplification);
     }
-    private static SkillEffectBalanceSettings effects(double scale) {
+    private static SkillEffectBalanceSettings effects(double scale, PackEvidence evidence, BalanceSettings settings) {
         JsonObject tree=JSON.toJsonTree(SkillEffectBalanceSettings.defaults()).getAsJsonObject();
         scaleEffectFields(tree,scale);
         scalePostureFields(tree.getAsJsonObject("posture"),Math.min(1,scale));
+        tree.add("vitality", JSON.toJsonTree(VitalityBalanceGenerator.generate(evidence, settings)));
         return JSON.fromJson(tree,SkillEffectBalanceSettings.class);
     }
     private static void scaleEffectFields(JsonObject tree,double scale) {

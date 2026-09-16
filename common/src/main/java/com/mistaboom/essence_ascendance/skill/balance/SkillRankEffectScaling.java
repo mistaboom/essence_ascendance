@@ -4,6 +4,7 @@ import com.mistaboom.essence_ascendance.config.ProjectileBalanceSettings;
 import com.mistaboom.essence_ascendance.config.GuardBalanceSettings;
 import com.mistaboom.essence_ascendance.config.PostureBalanceSettings;
 import com.mistaboom.essence_ascendance.config.StatusBalanceSettings;
+import com.mistaboom.essence_ascendance.config.VitalityBalanceSettings;
 import com.mistaboom.essence_ascendance.config.SkillEffectBalanceSettings;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import net.minecraft.resources.ResourceLocation;
@@ -164,6 +165,21 @@ public final class SkillRankEffectScaling {
             p.status = new StatusBalanceSettings(Math.max(20, (int) Math.ceil(v.mirrorCooldownTicks() / f)),
                     v.mirrorMaximumDurationTicks(), v.mirrorMaximumAmplifier());
         });
+        register(SkillIds.RISING_RECOVERY, (p, f) -> p.risingRecovery = new VitalityBalanceSettings.RisingRecovery(
+                scale(p.risingRecovery.maxSpeedBonus(), f, 9), p.risingRecovery.recoveryCurveExponent()));
+        register(SkillIds.LIFE_STEAL, (p, f) -> {
+            var v = p.lifeSteal;
+            double bounded = Math.min(f, 1 / Math.max(.000001, v.baseHealingFraction() + (v.maxChainHits() - 1) * v.perHitHealingFraction()));
+            p.lifeSteal = new VitalityBalanceSettings.LifeSteal(v.baseHealingFraction() * bounded,
+                    v.perHitHealingFraction() * bounded, v.maxChainHits(), v.chainTimeoutTicks());
+        });
+        register(SkillIds.FEAST_REFLEX, (p, f) -> p.feastReflex = new VitalityBalanceSettings.FeastReflex(
+                Math.max(.05, p.feastReflex.useDurationMultiplier() / f)));
+        register(SkillIds.INNER_SUSTENANCE, (p, f) -> {
+            var v = p.innerSustenance;
+            p.innerSustenance = new VitalityBalanceSettings.InnerSustenance(v.combatTimeoutTicks(),
+                    Math.max(20, (int) Math.ceil(v.hungerRecoveryIntervalTicks() / f)), v.hungerPerRecovery(), v.saturationPerRecovery());
+        });
         // Pure State is binary. Its capability pressure remains one at every
         // projected rank; no inert numeric rule pretends to improve immunity.
     }
@@ -195,6 +211,11 @@ public final class SkillRankEffectScaling {
         if (id.equals(SkillIds.STATUS_MIRROR)) return StatusBalanceSettings.defaults().mirrorCooldownTicks()
                 / (double) settings.status().mirrorCooldownTicks();
         if (id.equals(SkillIds.PURE_STATE)) return 1;
+        var vitality = VitalityBalanceSettings.defaults();
+        if (id.equals(SkillIds.RISING_RECOVERY)) return settings.vitality().risingRecovery().maxSpeedBonus() / vitality.risingRecovery().maxSpeedBonus();
+        if (id.equals(SkillIds.LIFE_STEAL)) return settings.vitality().lifeSteal().baseHealingFraction() / vitality.lifeSteal().baseHealingFraction();
+        if (id.equals(SkillIds.FEAST_REFLEX)) return vitality.feastReflex().useDurationMultiplier() / settings.vitality().feastReflex().useDurationMultiplier();
+        if (id.equals(SkillIds.INNER_SUSTENANCE)) return vitality.innerSustenance().hungerRecoveryIntervalTicks() / (double) settings.vitality().innerSustenance().hungerRecoveryIntervalTicks();
         return offenseScale;
     }
 
@@ -263,6 +284,10 @@ public final class SkillRankEffectScaling {
         public PostureBalanceSettings.Bulwark bulwark;
         public PostureBalanceSettings.Adaptive adaptive;
         public StatusBalanceSettings status;
+        public VitalityBalanceSettings.RisingRecovery risingRecovery;
+        public VitalityBalanceSettings.LifeSteal lifeSteal;
+        public VitalityBalanceSettings.FeastReflex feastReflex;
+        public VitalityBalanceSettings.InnerSustenance innerSustenance;
         private Parameters(SkillEffectBalanceSettings v) {
             frenzy=v.frenzy(); armorCrack=v.armorCrack(); desperation=v.desperation(); deathRush=v.deathRush();
             kindling=v.kindling(); combustion=v.combustion(); frostbite=v.frostbite(); shatter=v.shatter();
@@ -271,12 +296,15 @@ public final class SkillRankEffectScaling {
             amplifier=v.guard().amplifier(); perfectGuard=v.guard().perfectGuard(); reprisal=v.guard().reprisal(); riposte=v.guard().riposte();
             postureMovement=v.posture().movement(); evasive=v.posture().evasive();
             bulwark=v.posture().bulwark(); adaptive=v.posture().adaptive(); status=v.status();
+            risingRecovery=v.vitality().risingRecovery(); lifeSteal=v.vitality().lifeSteal();
+            feastReflex=v.vitality().feastReflex(); innerSustenance=v.vitality().innerSustenance();
         }
         private SkillEffectBalanceSettings build() {
             return new SkillEffectBalanceSettings(frenzy, armorCrack, desperation, deathRush, kindling,
                     combustion, frostbite, shatter, staticCharge, chainStrike, projectiles,
                     new GuardBalanceSettings(mobility, ram, ward, storedForce, amplifier, perfectGuard, reprisal, riposte),
-                    new PostureBalanceSettings(postureMovement, evasive, bulwark, adaptive), status);
+                    new PostureBalanceSettings(postureMovement, evasive, bulwark, adaptive), status,
+                    new VitalityBalanceSettings(risingRecovery, lifeSteal, feastReflex, innerSustenance));
         }
     }
 }

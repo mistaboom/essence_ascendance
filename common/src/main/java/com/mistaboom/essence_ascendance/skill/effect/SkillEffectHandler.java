@@ -21,8 +21,13 @@ public interface SkillEffectHandler {
             primaryHit(context, result.target());
         }
     }
+    /** Direct weapon outcome dispatched only after native hurt returns accepted and positive. */
+    default void acceptedAttack(SkillEffectRuntime.Context context, AttackResultContext result) { }
     default void primaryHit(SkillEffectRuntime.Context context, LivingEntity target) { }
     default void primaryMiss(SkillEffectRuntime.Context context) { }
+    /** Native hurt returned true with measured positive loss; canceled and zero damage never enter. */
+    default void acceptedDamage(SkillEffectRuntime.Context context, DamageSource source,
+                                double healthLost, double absorptionLost) { }
     default void kill(SkillEffectRuntime.Context context, LivingEntity target) { }
     /** Every completed death is observable; default kill rewards remain ordinary player-attributed only. */
     default void deathObserved(SkillEffectRuntime.Context context, SkillDeathContext death) {

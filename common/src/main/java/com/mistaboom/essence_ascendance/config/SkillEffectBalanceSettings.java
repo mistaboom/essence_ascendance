@@ -21,7 +21,8 @@ public record SkillEffectBalanceSettings(
         ProjectileBalanceSettings projectiles,
         GuardBalanceSettings guard,
         PostureBalanceSettings posture,
-        StatusBalanceSettings status
+        StatusBalanceSettings status,
+        VitalityBalanceSettings vitality
 ) {
     public SkillEffectBalanceSettings {
         Objects.requireNonNull(frenzy, "Frenzy balance cannot be null");
@@ -38,6 +39,7 @@ public record SkillEffectBalanceSettings(
         Objects.requireNonNull(guard, "Missing guard balance; rebuild generated balance");
         Objects.requireNonNull(posture, "Missing posture balance; rebuild generated balance");
         Objects.requireNonNull(status, "Missing status balance; rebuild generated balance");
+        Objects.requireNonNull(vitality, "Missing Vitality balance; rebuild generated balance");
     }
 
     public record Frenzy(
@@ -199,6 +201,7 @@ public record SkillEffectBalanceSettings(
         guard.validate();
         posture.validate();
         status.validate();
+        vitality.validate();
     }
 
     public static SkillEffectBalanceSettings defaults() {
@@ -216,7 +219,8 @@ public record SkillEffectBalanceSettings(
                 ProjectileBalanceSettings.defaults(),
                 GuardBalanceSettings.defaults(),
                 PostureBalanceSettings.defaults(),
-                StatusBalanceSettings.defaults()
+                StatusBalanceSettings.defaults(),
+                VitalityBalanceSettings.defaults()
         );
     }
 

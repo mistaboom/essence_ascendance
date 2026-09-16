@@ -16,7 +16,10 @@ public final class SkillEffectRegistry {
             validated(java.util.stream.Stream.of(OffenseCombatStanceEffects.handlers(),
                     OffenseElementalImbuementEffects.handlers(), OffenseProjectileEffects.handlers(),
                     DefenseProjectileEffects.handlers(), com.mistaboom.essence_ascendance.guard.GuardReflectionEffects.handlers(),
-                    GuardCounterattackService.handlers(), java.util.List.<SkillEffectHandler>of(
+                    GuardCounterattackService.handlers(),
+                    VitalityRecoveryEffects.handlers(),
+                    VitalitySustenanceEffects.handlers(),
+                    java.util.List.<SkillEffectHandler>of(
                             new PostureHandler(com.mistaboom.essence_ascendance.skill.SkillIds.EVASIVE_CURRENT),
                             new PostureHandler(com.mistaboom.essence_ascendance.skill.SkillIds.BULWARK_STANCE),
                             new PostureHandler(com.mistaboom.essence_ascendance.skill.SkillIds.ADAPTIVE_GUARD),

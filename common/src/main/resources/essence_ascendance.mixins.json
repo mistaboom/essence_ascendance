@@ -13,6 +13,16 @@
     "CasterUseInputMixin"
   ],
   "mixins": [
+    "FoodDataRecoveryMixin",
+    "FeastUseDurationMixin",
+    "FeastContainerReturnMixin",
+    "SustenancePlayerExertionMixin",
+    "SustenanceMovementExertionMixin",
+    "SustenanceMiningExertionMixin",
+    "SustenanceSleepMixin",
+    "SustenancePhantomSpawnerMixin",
+    "SustenancePhantomTargetMixin",
+    "SustenancePhantomAwarenessMixin",
     "PostureDamageMixin",
     "StatusEffectInstanceAccess",
     "StatusPeriodicEffectMixin",

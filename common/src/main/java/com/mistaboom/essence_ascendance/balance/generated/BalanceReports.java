@@ -52,6 +52,9 @@ public final class BalanceReports {
         var postureRules = tables.table("posture_status_policy.csv", "contract", "rule");
         if (skills.has("postureStatusPolicy")) skills.getAsJsonObject("postureStatusPolicy").entrySet().stream()
                 .sorted(Map.Entry.comparingByKey()).forEach(entry -> postureRules.row(entry.getKey(), entry.getValue().getAsString()));
+        var vitalityRules = tables.table("vitality_policy.csv", "contract", "rule");
+        if (skills.has("vitalityPolicy")) skills.getAsJsonObject("vitalityPolicy").entrySet().stream()
+                .sorted(Map.Entry.comparingByKey()).forEach(entry -> vitalityRules.row(entry.getKey(), entry.getValue().getAsString()));
         Path reports = BalanceReportLayout.reports(folder), diagnostics = BalanceReportLayout.diagnostics(folder);
         tables.write(reports, diagnostics);
         BalanceProfileStore.writeAtomically(reports.resolve("balance_report.md"), report(current, previous, generationMillis, skills));
@@ -378,6 +381,11 @@ public final class BalanceReports {
     }
 
     private static void combatSummary(StringBuilder out, JsonObject skills) {
+        if (skills.has("vitalityPolicy")) {
+            out.append("\n### Vitality recovery and sustenance policy\n\nResolved native units and attribution are in `vitality_policy.csv`; exact scalar tuning is in `runtime_parameters.csv` under `/runtime/effects/vitality`. Capacity bounds are not measured play feel.\n\n| Contract | Rule |\n|---|---|\n");
+            skills.getAsJsonObject("vitalityPolicy").entrySet().stream().sorted(Map.Entry.comparingByKey())
+                    .forEach(entry -> row(out, entry.getKey(), entry.getValue().getAsString()));
+        }
         if (skills.has("postureStatusPolicy")) {
             out.append("\n### Defensive posture and harmful-status policy\n\nResolved runtime values are in `runtime_parameters.csv`; `posture_status_policy.csv` records conditions, event order, binary rank limitations and missing status evidence. `combat_defense_pressure.csv` reports conditional avoidance, resistance, knockback and harmful-effect bounds separately from damage.\n\n| Contract | Rule |\n|---|---|\n");
             skills.getAsJsonObject("postureStatusPolicy").entrySet().stream().sorted(Map.Entry.comparingByKey())

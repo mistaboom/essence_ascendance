@@ -5650,6 +5650,10 @@ public final class AscendanceNexusScreen
         tooltip.title(Component.translatable(skill.nameTranslationKey()),
                 AscendancePalette.categoryRgb(skill.essenceId()));
         tooltip.description(Component.translatable(skill.descriptionTranslationKey()));
+        String detailsKey = skill.descriptionTranslationKey() + ".details";
+        if (net.minecraft.locale.Language.getInstance().has(detailsKey)) {
+            tooltip.detail(Component.translatable(detailsKey));
+        }
         tooltip.field(EssenceText.gui("nexus.skills.tooltip.rank",
                 SemanticTooltip.value(evaluation.currentRank()), SemanticTooltip.value(skill.maximumRank()),
                 SemanticTooltip.value(evaluation.projectedRank()).copy().withStyle(ChatFormatting.AQUA)));

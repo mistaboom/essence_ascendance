@@ -21,6 +21,10 @@ public final class DefenseNativeMod {
             // This preserves real native onClimbable/NeoForge ladder policy in the fixture.
             net.neoforged.fml.config.ConfigTracker.INSTANCE.loadDefaultServerConfigs();
             net.neoforged.neoforge.common.NeoForgeConfig.SERVER.fullBoundingBoxLadders.get();
+            // This setup-time fixture exits before ClientModLoader's ordinary end-of-loading
+            // EVENT_BUS.start(). Enable the public native bus so cancellation and other
+            // gameplay events execute exactly as they do after normal game loading.
+            net.neoforged.neoforge.common.NeoForge.EVENT_BUS.start();
             ProjectileNativeHookTest.runAndExit();
         });
     }

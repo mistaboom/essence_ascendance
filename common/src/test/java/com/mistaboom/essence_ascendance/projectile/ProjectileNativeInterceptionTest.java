@@ -215,6 +215,9 @@ public final class ProjectileNativeInterceptionTest {
             set(ServerPlayer.class, entity, "gameMode", gameMode);
             players.put(entity.getUUID(), entity);
             level.entities.add(entity);
+            // Every fixture combat participant can now enter the shared accepted-combat runtime.
+            // Keep unavailable world advancement providers outside this in-memory boundary using real captured receipts.
+            SkillRegistry.referencedPermanentMilestoneIds().forEach(saved.getPlayerData(entity.getUUID())::completeMilestone);
             return entity;
         }
 
@@ -263,6 +266,7 @@ public final class ProjectileNativeInterceptionTest {
         boolean occluded;
         net.minecraft.core.RegistryAccess memoryRegistries;
         net.minecraft.world.damagesource.DamageSources memoryDamageSources;
+        net.minecraft.world.level.GameRules memoryGameRules;
 
         private MemoryLevel() {
             super(null, null, null, null, Level.OVERWORLD, null, null, false, 0, List.of(), false, null);
@@ -270,6 +274,7 @@ public final class ProjectileNativeInterceptionTest {
         }
 
         @Override public MinecraftServer getServer() { return memoryServer; }
+        @Override public Iterable<Entity> getAllEntities() { return entities; }
         @Override public long getGameTime() { return tick; }
         @Override public DimensionDataStorage getDataStorage() { return storage; }
         @Override public ServerScoreboard getScoreboard() { return scoreboard; }
@@ -278,7 +283,9 @@ public final class ProjectileNativeInterceptionTest {
             // Native zombie melee consults local difficulty even with no fire transfer; no chunk is opened.
             return new net.minecraft.world.DifficultyInstance(getDifficulty(), 0, 0, 0);
         }
-        @Override public net.minecraft.world.level.GameRules getGameRules() { return new net.minecraft.world.level.GameRules(); }
+        @Override public net.minecraft.world.level.GameRules getGameRules() {
+            return memoryGameRules == null ? new net.minecraft.world.level.GameRules() : memoryGameRules;
+        }
         @Override public net.minecraft.world.flag.FeatureFlagSet enabledFeatures() { return net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS; }
         @Override public void broadcastEntityEvent(Entity entity, byte event) { }
         @Override public void broadcastDamageEvent(Entity entity, net.minecraft.world.damagesource.DamageSource source) { }

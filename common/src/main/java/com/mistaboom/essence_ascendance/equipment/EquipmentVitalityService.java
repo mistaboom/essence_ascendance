@@ -31,6 +31,8 @@ import java.util.WeakHashMap;
  *     Passive healing from worn Ascendance armor. It uses the normal heal()
  *     path so other mods can still observe healing, but a recursion/source
  *     guard prevents Healing Effectiveness from multiplying this stat.
+ *     Rising Recovery applies its shared missing-health speed multiplier
+ *     here as well as to eligible native food regeneration.
  *
  *   Healing Effectiveness
  *     Multiplies external/discrete healing. Vanilla hunger-based natural
@@ -96,6 +98,17 @@ public final class EquipmentVitalityService {
                 value(playerData, worn, EssenceStats.BREATH_HOLD),
                 value(playerData, worn, EssenceStats.STATUS_RESISTANCE)
         );
+    }
+
+    /**
+     * True while the worn Nexus vitality stat can actually heal this player.
+     * This is also used by the Rising Recovery HUD because passive healing has
+     * no native FoodData timer from which to derive an activity event.
+     */
+    public static boolean passiveRegenerationAvailable(ServerPlayer player) {
+        if (player == null || !player.isAlive() || player.isRemoved()
+                || player.getHealth() >= player.getMaxHealth()) return false;
+        return evaluateStats(player).healthRegenerationHeartsPerSecond() > EPSILON;
     }
 
     /*
@@ -395,7 +408,7 @@ public final class EquipmentVitalityService {
         double heartsPerSecond = Math.max(
                 0.0,
                 stats.healthRegenerationHeartsPerSecond()
-        );
+        ) * com.mistaboom.essence_ascendance.skill.effect.VitalityRecoveryEffects.regenerationSpeed(player);
 
         if (heartsPerSecond <= EPSILON) {
             return;

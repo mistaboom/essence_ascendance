@@ -20,9 +20,12 @@ public final class SavedEvidenceRegenerationTool {
         Path config = Path.of(args[0]).toAbsolutePath().normalize();
         Path output = Path.of(args[1]).toAbsolutePath().normalize();
         Path source = config.resolve("essence_ascendance/generated_balance.json");
+        if (output.equals(source.getParent()))
+            throw new IllegalArgumentException("Saved-evidence audit output must be isolated from the installed profile directory");
         if (!Files.isRegularFile(source) || !Files.isRegularFile(BalanceInputs.settingsPath(config))
                 || !Files.isRegularFile(BalanceInputs.overridesPath(config)))
             throw new IllegalArgumentException("Saved generated evidence and both existing human TOML inputs are required");
+        byte[] originalBytes = Files.readAllBytes(source);
         var original = BalanceProfileStore.read(source);
         String settingsBytes = Files.readString(BalanceInputs.settingsPath(config));
         String overridesBytes = Files.readString(BalanceInputs.overridesPath(config));
@@ -40,6 +43,8 @@ public final class SavedEvidenceRegenerationTool {
         // Bonus prices and normalized development references are regenerated together.
         // Historical player skill receipts are world data and are never opened here.
         first.runtime().validate();
+        if (!java.util.Arrays.equals(originalBytes, Files.readAllBytes(source)))
+            throw new AssertionError("Installed profile changed during isolated replay");
         if (!settingsBytes.equals(Files.readString(BalanceInputs.settingsPath(config)))
                 || !overridesBytes.equals(Files.readString(BalanceInputs.overridesPath(config))))
             throw new AssertionError("Human inputs changed during replay");
@@ -47,9 +52,39 @@ public final class SavedEvidenceRegenerationTool {
         BalanceReports.export(first, null, output, 0);
         BalanceProfileStore.writeAtomically(output.resolve("diagnostics/generation_comparison.json"),
                 BalanceDocument.GSON.toJson(comparison(original, first.document())) + "\n");
+        if (original.section("metadata").get("generatorRevision").getAsString().equals("smooth-bonus-tracks-19"))
+            requireVitalityPreservation(original, first.document());
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println(
                 "SavedEvidenceRegenerationTool PASS: deterministic current runtime installed in " + output
                 + "; integrity=" + first.document().integrity() + "; saved evidence/economy and human inputs unchanged; Bonus tracks and Attunement regenerated; no world opened");
+    }
+
+    private static void requireVitalityPreservation(BalanceDocument previous, BalanceDocument current) {
+        var before = previous.section("runtime"); var after = current.section("runtime");
+        for (String key : new String[]{"equipment", "statMaxBonuses", "infuser", "shield", "pylons", "crucible", "attunement", "milestones", "advancements", "worldgen"})
+            if (!before.get(key).equals(after.get(key))) throw new AssertionError("Vitality changed unrelated runtime section " + key);
+        var oldProfile = before.getAsJsonObject("balanceProfile").deepCopy();
+        var newProfile = after.getAsJsonObject("balanceProfile").deepCopy();
+        oldProfile.remove("id"); newProfile.remove("id");
+        stripNativeDiagnostics(oldProfile); stripNativeDiagnostics(newProfile);
+        if (!oldProfile.equals(newProfile)) throw new AssertionError("Vitality changed Bonus tracks, costs or tier policy");
+        for (var entry : before.getAsJsonObject("effects").entrySet())
+            if (!entry.getValue().equals(after.getAsJsonObject("effects").get(entry.getKey())))
+                throw new AssertionError("Vitality changed prior skill settings " + entry.getKey());
+        var vitalityIds = java.util.Set.of("essence_ascendance:rising_recovery", "essence_ascendance:life_steal", "essence_ascendance:feast_reflex", "essence_ascendance:inner_sustenance");
+        var projectedPostures = java.util.Set.of("essence_ascendance:evasive_current", "essence_ascendance:bulwark_stance", "essence_ascendance:adaptive_guard");
+        for (var entry : before.getAsJsonObject("skillCurves").entrySet()) {
+            var changed = after.getAsJsonObject("skillCurves").getAsJsonObject(entry.getKey());
+            if (!vitalityIds.contains(entry.getKey()) && !projectedPostures.contains(entry.getKey()) && !entry.getValue().equals(changed))
+                throw new AssertionError("Vitality changed prior skill curve " + entry.getKey());
+            var oldRanks = entry.getValue().getAsJsonObject().getAsJsonArray("ranks");
+            for (int i = 0; i < oldRanks.size(); i++)
+                if (!oldRanks.get(i).getAsJsonObject().get("cost").equals(changed.getAsJsonArray("ranks").get(i).getAsJsonObject().get("cost")))
+                    throw new AssertionError("Vitality changed skill price " + entry.getKey());
+            if (changed.get("maximumRank").getAsInt() != 1) throw new AssertionError("Vitality enabled purchasable ranks");
+            if (!oldRanks.get(0).equals(changed.getAsJsonArray("ranks").get(0)))
+                throw new AssertionError("Vitality changed current purchasable rank " + entry.getKey());
+        }
     }
 
     /** Compare raw validated evidence documents; no discarded runtime-schema adapter is needed. */
@@ -66,10 +101,19 @@ public final class SavedEvidenceRegenerationTool {
         for (String key : new String[]{"equipment", "balanceProfile", "infuser", "shield", "pylons", "crucible", "attunement"})
             unchanged.addProperty(key, previous.section("runtime").get(key).equals(current.section("runtime").get(key)));
         result.add("runtimeSectionEquality", unchanged);
+        var beforeProfile = previous.section("runtime").getAsJsonObject("balanceProfile").deepCopy();
+        var afterProfile = current.section("runtime").getAsJsonObject("balanceProfile").deepCopy();
+        beforeProfile.remove("id"); afterProfile.remove("id");
+        stripNativeDiagnostics(beforeProfile); stripNativeDiagnostics(afterProfile);
+        result.addProperty("bonusMechanicsAndPolicyUnchanged", beforeProfile.equals(afterProfile));
+        result.addProperty("nativeEvidenceBoundary", "Standalone replay omits mod-constructor block registration; step-height collision-shape evidence text may differ without any Bonus effect, cost, cap, checkpoint or availability change");
         var changes = new com.google.gson.JsonObject();
         differences("/runtime", previous.section("runtime"), current.section("runtime"), changes);
         result.add("runtimeValueChanges", changes);
         return result;
+    }
+    private static void stripNativeDiagnostics(com.google.gson.JsonObject profile) {
+        profile.getAsJsonObject("bonusTracks").entrySet().forEach(entry -> entry.getValue().getAsJsonObject().remove("evidence"));
     }
     private static void differences(String path, com.google.gson.JsonElement before, com.google.gson.JsonElement after,
                                     com.google.gson.JsonObject changes) {

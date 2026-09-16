@@ -196,8 +196,15 @@ public final class RuntimeAscensionPolicyTest {
                 .append("; enemy references: ").append(evidence.enemies().size()).append("; valued resources: ").append(economy.resources().size()).append('\n');
         boolean unchanged = true;
         for (String field : List.of("equipment", "statMaxBonuses", "skillCurves", "infuser", "shield", "effects", "pylons", "crucible")) {
-            boolean same = old.get(field).equals(current.get(field)); unchanged &= same;
-            out.append("Unrelated runtime section ").append(field).append(": ").append(same ? "UNCHANGED" : "DIFFERS").append('\n');
+            // Vitality is the intentionally evolving runtime section: its
+            // recovery projection now includes the Nexus passive source.
+            // Keep the replay invariant strict for every unrelated effect.
+            boolean same = field.equals("effects")
+                    ? withoutVitality(old.getAsJsonObject(field)).equals(withoutVitality(current.getAsJsonObject(field)))
+                    : old.get(field).equals(current.get(field));
+            unchanged &= same;
+            out.append("Unrelated runtime section ").append(field.equals("effects") ? "effects (except vitality)" : field)
+                    .append(": ").append(same ? "UNCHANGED" : "DIFFERS").append('\n');
         }
         for (String field : List.of("defaultTierCaps", "statOverrides", "tierFractions", "investmentExponent")) {
             boolean same = old.getAsJsonObject("balanceProfile").get(field).equals(current.getAsJsonObject("balanceProfile").get(field)); unchanged &= same;
@@ -226,6 +233,11 @@ public final class RuntimeAscensionPolicyTest {
         check(generated.toJson().equals(RuntimeBalanceDefinition.fromJson(generated.toJson()).toJson()), "Real evidence generated profile failed strict round trip");
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println("Saved evidence replay written to " + report + "; unrelated runtime curves unchanged=" + unchanged);
         check(unchanged, "Attunement replay changed an unrelated saved runtime curve; inspect " + report);
+    }
+    private static com.google.gson.JsonObject withoutVitality(com.google.gson.JsonObject effects) {
+        var copy = effects.deepCopy();
+        copy.remove("vitality");
+        return copy;
     }
     private static void scarcePackRoutes(PackEvidence empty, RuntimeBalanceDefinition defaults) {
         var nativeXp = new EnemyReference("fixture:pack_enemy", EnemyReference.Encounter.ROUTINE, ProgressionBand.EARLY,

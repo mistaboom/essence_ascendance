@@ -32,7 +32,7 @@ import java.util.Map;
 
 /** Server-thread transaction: collect, construct, validate, persist, publish, then synchronize. */
 public final class GeneratedBalanceService {
-    static final String GENERATION_REVISION = "smooth-bonus-tracks-19";
+    static final String GENERATION_REVISION = "vitality-recovery-sustenance-21";
     private static final String DISSOLUTION_ACCOUNTING = "whole_essence_v1";
     private static volatile Active active;
     private static volatile boolean resourcesChanged;
@@ -95,6 +95,7 @@ public final class GeneratedBalanceService {
             validation.addProperty("projectiles", "validated independent path/payload and bounded control policy; native gameplay remains manual");
             validation.addProperty("guard", "validated guard mobility, reflection and counterattack bounds; live gameplay remains manual");
             validation.addProperty("postureStatus", "validated generated posture mitigation and binary harmful-status capability; conditional native gameplay remains manual");
+            validation.addProperty("vitality", "validated native-unit recovery and sustenance settings and developed-build headroom; live gameplay remains manual");
             validation.addProperty("liveGameplay", "not performed by generator");
             validation.add("bonusTracks", com.mistaboom.essence_ascendance.balance.runtime.BonusTrackGenerator.diagnostics(runtime));
             JsonObject document = new JsonObject();
@@ -183,6 +184,7 @@ public final class GeneratedBalanceService {
         result.add("projectilePolicy", projectilePolicy());
         result.add("guardPolicy", guardPolicy());
         result.add("postureStatusPolicy", postureStatusPolicy());
+        result.add("vitalityPolicy", vitalityPolicy(runtime));
         result.add("semantics", serializer.toJsonTree(catalog.stream().map(skill ->
                 com.mistaboom.essence_ascendance.skill.balance.SkillBalanceSemantics.require(skill.id())).toList()));
         JsonObject projections = new JsonObject();
@@ -223,6 +225,27 @@ public final class GeneratedBalanceService {
         policy.addProperty("theft", "Exact crosshair or hostile aim-cone assistance before responsible source; full launch-speed floor plus melee impulse and persisted homing; otherwise safe destruction; one transfer, original offensive path/payload cleared");
         policy.addProperty("attunement", "Only confirmed damage/defeat contributes through registered outcome metadata; slowing, rooting or interception alone awards nothing; no per-action caps");
         policy.addProperty("adapters", "Vanilla arrows, spectral arrows and real Caster bolts; unknown projectile classes require explicit opt-in; absent optional mods need no class loading");
+        return policy;
+    }
+
+    static JsonObject vitalityPolicy(RuntimeBalanceDefinition runtime) {
+        var policy = new JsonObject();
+        var v = runtime.config().skillEffects().vitality();
+        policy.addProperty("tuning", "/runtime/effects/vitality; required typed schema, native-unit bounds and exact TOML pointers; no independent settings or purchasable ranks");
+        policy.addProperty("derivation", "Existing semantic weights allocate the Dormant first-purchase healing allowance. Saved pack sustained-damage pressure converts healing/second to Life Steal fraction; fastest native natural cadence bounds Rising Recovery. Native food/exhaustion units and the configured survival window resolve consumption and out-of-combat recovery.");
+        policy.addProperty("preservation", "Equipment, Bonus mechanics, economy, Attunement and existing rank-one settings resolve first and remain unchanged. Newly implemented healing shares developed survival headroom with provisional posture growth; that diagnostic growth may be reduced globally to keep useful healing and all existing build ceilings.");
+        policy.addProperty("naturalRecovery", "Smooth missing-health fraction raised to generated exponent; eligible native natural-regeneration timer keeps normal exhaustion/food checks, while the same multiplier applies to the existing Nexus passive health-regeneration bonus. Other healing is never accelerated.");
+        policy.addProperty("maximumNaturalSpeedMultiplier", 1 + v.risingRecovery().maxSpeedBonus());
+        policy.addProperty("firstHitHealingFraction", v.lifeSteal().baseHealingFraction());
+        policy.addProperty("maximumChainHealingFraction", v.lifeSteal().baseHealingFraction() + (v.lifeSteal().maxChainHits() - 1) * v.lifeSteal().perHitHealingFraction());
+        policy.addProperty("lifeSteal", "One accepted primary direct-weapon chain per owner; same target, timeout, miss/inactivity and all lifecycle/selection boundaries; actual accepted damage and missing-health cap. Secondary, reflected, status, canceled, zero and invulnerable outcomes excluded; no recursive healing or duplicate Attunement.");
+        policy.addProperty("foodUseDurationMultiplier", v.feastReflex().useDurationMultiplier());
+        policy.addProperty("automaticMeal", "While hurt, deterministic nonharmful hotbar food is eligible only when its nutrition raises the food bar to vanilla's natural-healing threshold. At full health, food is eligible only when strictly less than half its nutrition would be wasted. Ordinary item completion owns stacks, containers, effects, criteria, sounds and cancellation; never interrupts active use.");
+        policy.addProperty("outOfCombatFoodPointsPerSecond", 20.0 * v.innerSustenance().hungerPerRecovery() / v.innerSustenance().hungerRecoveryIntervalTicks());
+        policy.addProperty("outOfCombatSaturationPointsPerSecond", 20.0 * v.innerSustenance().saturationPerRecovery() / v.innerSustenance().hungerRecoveryIntervalTicks());
+        policy.addProperty("combatTimeoutSeconds", v.innerSustenance().combatTimeoutTicks() / 20.0);
+        policy.addProperty("innerSustenance", "Accepted recent hostile damage delays recovery. At full native food/saturation passive activity exhaustion stops, while healing exhaustion and explicit resource costs remain. Owner-only optional sleep/phantom behavior; voluntary sleep and spawn setting remain native.");
+        policy.addProperty("evidenceLimit", "No observed player food throughput, damage cadence, sleep population or phantom encounter telemetry. Capacity/seconds are conditional bounds; live gameplay, multiplayer, dedicated-server and representative-modpack acceptance remain pending.");
         return policy;
     }
 

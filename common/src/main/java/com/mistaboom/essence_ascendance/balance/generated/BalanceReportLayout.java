@@ -90,6 +90,7 @@ public final class BalanceReportLayout {
                   projectile_policy.csv           Payload, ownership and defensive control contracts.
                   guard_policy.csv                Guard, perfect-block, reflection and counterattack contracts.
                   posture_status_policy.csv       Posture, harmful-status and binary rank contracts.
+                  vitality_policy.csv             Native recovery/food units, authority and remaining play-feel acceptance.
                   combat_defense_pressure.csv     Conditional avoidance, resistance, knockback and status bounds.
                 Curve cost_scope distinguishes individual rank prices from active-rank
                 build totals, which exclude inactive prerequisites and other investments.

@@ -30,6 +30,12 @@ loom {
 
 // Executable invariant suites use the real mapped Minecraft classpath and add no test library.
 def balanceInvariantMains = [
+        vitalityBatchContractInvariants: 'com.mistaboom.essence_ascendance.skill.effect.VitalityBatchContractTest',
+        vitalityBalanceInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.VitalityBalanceTest',
+        vitalityRecoveryInvariants: 'com.mistaboom.essence_ascendance.vitality.RecoveryTest',
+        recoveryNativeHookShapeInvariants: 'com.mistaboom.essence_ascendance.vitality.RecoveryNativeHookShapeTest',
+        vitalitySustenanceInvariants: 'com.mistaboom.essence_ascendance.skill.effect.SustenanceTest',
+        sustenanceNativeHookShapeInvariants: 'com.mistaboom.essence_ascendance.skill.effect.SustenanceNativeHookShapeTest',
         bonusTrackProgressionInvariants: 'com.mistaboom.essence_ascendance.progression.BonusTrackProgressionTest',
         bonusTrackGeneratorInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.BonusTrackGeneratorTest',
         nativeBonusMechanicsInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.NativeBonusMechanicsTest',

@@ -19,6 +19,8 @@ allprojects { p ->
                     include 'com/mistaboom/essence_ascendance/projectile/NativeStatusInterceptionTest*.class'
                     include 'com/mistaboom/essence_ascendance/projectile/NativePostureOutcomeTest*.class'
                     include 'com/mistaboom/essence_ascendance/projectile/NativeCombatHudTest*.class'
+                    include 'com/mistaboom/essence_ascendance/projectile/NativeVitalityRecoveryTest*.class'
+                    include 'com/mistaboom/essence_ascendance/projectile/NativeVitalitySustenanceTest*.class'
                 }
                 from(fixtureMetadata)
                 doFirst {

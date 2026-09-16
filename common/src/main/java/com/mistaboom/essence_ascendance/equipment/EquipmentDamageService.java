@@ -119,8 +119,10 @@ public final class EquipmentDamageService {
         }
         boolean intercepted = com.mistaboom.essence_ascendance.projectile.ProjectileInterceptionService.attack(player);
         rememberMainSwing(player);
+        Object attackIdentity = SkillEffectRuntime.attackRuntimeIdentity(player);
+        var effective = com.mistaboom.essence_ascendance.skill.CommittedSkillService.effectiveIds(player);
         long token = SkillEffectRuntime.beginPrimaryAttack(player, target);
-        PRIMARY_SKILL_ATTACK.set(new PrimarySkillAttack(player, target));
+        PRIMARY_SKILL_ATTACK.set(new PrimarySkillAttack(player, target, isMeleeWeapon(player), attackIdentity, effective));
         var exertion = com.mistaboom.essence_ascendance.attunement.AttunementGameplay.beginExertion(player, "combat");
         try {
             action.run();
@@ -196,6 +198,10 @@ public final class EquipmentDamageService {
             SkillDamageFrame frame = SKILL_DAMAGE_FRAMES.get().peek();
             double ownLoss = Math.max(0.0, totalLoss - sample.nestedLoss);
             double ownHealthLoss = Math.min(ownLoss, Math.max(0, totalHealthLoss - sample.nestedHealthLoss));
+            if (completed && frame != null && frame.target == target && frame.source == source) {
+                frame.healthLost += ownHealthLoss;
+                frame.absorptionLost += ownLoss - ownHealthLoss;
+            }
             if (completed && measurement != null && measurement.sample == sample) measurement.loss += ownLoss;
             if (completed && target instanceof ServerPlayer defender) {
                 ReflectionFrame guard = frame(defender, source);
@@ -263,14 +269,43 @@ public final class EquipmentDamageService {
         Deque<SkillDamageFrame> frames = SKILL_DAMAGE_FRAMES.get();
         SkillDamageFrame frame = new SkillDamageFrame(target, source, !frames.isEmpty());
         frames.push(frame);
-        MeasuredDamage measurement = MEASURED_DAMAGE.get();
-        if (measurement != null && measurement.frame == null && measurement.sample == null
-                && measurement.target == target && measurement.source == source) measurement.frame = frame;
         try {
-            return action.getAsBoolean();
+            captureAttackAuthority(frame);
+            MeasuredDamage measurement = MEASURED_DAMAGE.get();
+            if (measurement != null && measurement.frame == null && measurement.sample == null
+                    && measurement.target == target && measurement.source == source) measurement.frame = frame;
+            boolean accepted = action.getAsBoolean();
+            double loss = frame.healthLost + frame.absorptionLost;
+            if (accepted && Double.isFinite(loss) && loss > 0) {
+                if (source.getEntity() instanceof ServerPlayer responsible)
+                    com.mistaboom.essence_ascendance.skill.effect.RecentHostileCombat.acceptedDamage(responsible, target);
+                if (target instanceof ServerPlayer player)
+                    SkillEffectRuntime.onAcceptedDamage(player, source, frame.healthLost, frame.absorptionLost);
+                if (!frame.nested && !isReflectionInProgress() && SECONDARY_SKILL_DEPTH.get() == 0 && frame.acceptedOwner != null)
+                    SkillEffectRuntime.onAcceptedAttackSuccess(frame.acceptedOwner, target, frame.acceptedCategory,
+                            source, loss, frame.effectiveAtDamage, frame.runtimeAtDamage, frame.directWeapon);
+            }
+            return accepted;
         } finally {
             frames.pop();
             if (frames.isEmpty()) SKILL_DAMAGE_FRAMES.remove();
+        }
+    }
+
+    private static void captureAttackAuthority(SkillDamageFrame frame) {
+        // Freeze authority before native cancellation, mitigation or health-write callbacks can change the loadout.
+        // Melee additionally retains the Player.attack input identity across hooks that run before Entity.hurt.
+        ServerPlayer owner = skillDamagePlayer(frame.target, frame.source);
+        AttackCategory category = owner == null ? null : primaryAttackCategory(owner, frame.target, frame.source);
+        PrimarySkillAttack primary = PRIMARY_SKILL_ATTACK.get();
+        if (owner != null && category != null) {
+            frame.acceptedOwner = owner;
+            frame.acceptedCategory = category;
+            frame.directWeapon = category != AttackCategory.MELEE || primary != null && primary.weapon;
+            frame.runtimeAtDamage = category == AttackCategory.MELEE && primary != null
+                    ? primary.runtimeIdentity : SkillEffectRuntime.attackRuntimeIdentity(owner);
+            frame.effectiveAtDamage = category == AttackCategory.MELEE && primary != null
+                    ? primary.effective : com.mistaboom.essence_ascendance.skill.CommittedSkillService.effectiveIds(owner);
         }
     }
 
@@ -328,6 +363,13 @@ public final class EquipmentDamageService {
     public static AttackCategory primaryAttackCategory(LivingEntity target, DamageSource source) {
         ServerPlayer player = skillDamagePlayer(target, source);
         return player == null ? null : primaryAttackCategory(player, target, source);
+    }
+
+    /** A killing primary hit is still awaiting native acceptance while death observers run. */
+    public static boolean pendingAcceptedAttack(ServerPlayer owner, LivingEntity target) {
+        SkillDamageFrame frame = SKILL_DAMAGE_FRAMES.get().peek();
+        return frame != null && !frame.nested && frame.target == target && frame.acceptedOwner == owner
+                && frame.directWeapon && !isReflectionInProgress() && SECONDARY_SKILL_DEPTH.get() == 0;
     }
 
     /** Future chain/lightning/shard effects must run their damage inside this scope. */
@@ -397,7 +439,22 @@ public final class EquipmentDamageService {
         LAST_DAMAGE.clear(); LAST_REFLECTION.clear(); nextGuardEvent = 0;
     }
 
-    private record PrimarySkillAttack(ServerPlayer player, Entity target) {}
+    /** Native attribute/component semantics permit modded melee weapons without item-name lists. */
+    private static boolean isMeleeWeapon(ServerPlayer player) {
+        var stack = player.getMainHandItem();
+        if (stack.isEmpty()) return false;
+        if (stack.getItem() instanceof EquipmentProfileItem profile
+                && profile.equipmentProfileId().equals(EquipmentProfiles.MELEE_WEAPON.id())) return true;
+        if (stack.is(net.minecraft.tags.ItemTags.WEAPON_ENCHANTABLE)) return true;
+        boolean[] damage = {false};
+        stack.forEachModifier(net.minecraft.world.entity.EquipmentSlot.MAINHAND, (attribute, modifier) -> {
+            if (attribute.equals(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE) && modifier.amount() > 0)
+                damage[0] = true;
+        });
+        return damage[0];
+    }
+    private record PrimarySkillAttack(ServerPlayer player, Entity target, boolean weapon, Object runtimeIdentity,
+                                     java.util.Set<net.minecraft.resources.ResourceLocation> effective) {}
     private record SweepSkillDamage(ServerPlayer player, Entity target, DamageSource source) {}
     private static final class PrimarySkillHitProbe {
         final LivingEntity target;
@@ -425,6 +482,12 @@ public final class EquipmentDamageService {
         final boolean nested;
         boolean modified;
         boolean primaryReported;
+        double healthLost, absorptionLost;
+        ServerPlayer acceptedOwner;
+        AttackCategory acceptedCategory;
+        boolean directWeapon;
+        Object runtimeAtDamage;
+        java.util.Set<net.minecraft.resources.ResourceLocation> effectiveAtDamage = java.util.Set.of();
         SkillDamageFrame(LivingEntity target, DamageSource source, boolean nested) {
             this.target = target;
             this.source = source;

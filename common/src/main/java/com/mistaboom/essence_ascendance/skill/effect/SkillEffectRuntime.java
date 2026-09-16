@@ -132,6 +132,24 @@ public final class SkillEffectRuntime {
                 AttackResultContext.primary(player, target, category, source, damageDealt));
     }
 
+    /** Completed native hurt outcome for effects that require its final acceptance, such as healing. */
+    public static Object attackRuntimeIdentity(ServerPlayer player) { return current(player).runtime.attackIdentity; }
+
+    public static void onAcceptedAttackSuccess(ServerPlayer player, LivingEntity target, AttackCategory category,
+                                               DamageSource source, double damageDealt,
+                                               Set<ResourceLocation> effectiveAtDamage, Object runtimeAtDamage,
+                                               boolean directWeapon) {
+        if (!player.isAlive() || player.isRemoved() || !Double.isFinite(damageDealt) || damageDealt <= 0) return;
+        Context context = current(player);
+        if (context.runtime.attackIdentity != runtimeAtDamage || !context.runtime.effective.equals(effectiveAtDamage)) return;
+        RecentHostileCombat.acceptedDamage(player, target);
+        if (!directWeapon) return;
+        AttackResultContext result = AttackResultContext.primary(player, target, category, source, damageDealt);
+        for (SkillEffectHandler handler : SkillEffectRegistry.handlers()) {
+            if (context.isEffective(handler.id())) handler.acceptedAttack(context, result);
+        }
+    }
+
     /** Newly earned stacks are committed after Player.attack, so they cannot affect the earning hit. */
     public static void finishPrimaryAttack(ServerPlayer player, long token) {
         if (token == 0) return;
@@ -290,6 +308,19 @@ public final class SkillEffectRuntime {
     /** Reconciled shared effect context; server gameplay callers use the same effective loadout. */
     public static Context context(ServerPlayer player) { return current(player); }
 
+    /** Completed native incoming damage, shared by combat-state and reactive food consumers. */
+    public static void onAcceptedDamage(ServerPlayer player, DamageSource source,
+                                        double healthLost, double absorptionLost) {
+        if (!player.isAlive() || player.isRemoved() || !Double.isFinite(healthLost)
+                || !Double.isFinite(absorptionLost) || healthLost + absorptionLost <= 0) return;
+        RecentHostileCombat.acceptedDamage(player,
+                com.mistaboom.essence_ascendance.projectile.ProjectileOwnership.damageSource(source, player));
+        Context context = current(player);
+        for (SkillEffectHandler handler : SkillEffectRegistry.handlers()) {
+            if (context.isEffective(handler.id())) handler.acceptedDamage(context, source, healthLost, absorptionLost);
+        }
+    }
+
     private static Context current(ServerPlayer player) {
         PlayerRuntime runtime = PLAYERS.get(player.getUUID());
         if (runtime != null && runtime.player.get() != player) {
@@ -313,6 +344,7 @@ public final class SkillEffectRuntime {
             effective.forEach(id -> ranks.put(id, committed.authoritativeRank(id)));
         }
         if (runtime.baseSettings != settings || !runtime.ranks.equals(ranks)) {
+            runtime.attackIdentity = new Object();
             if (runtime.baseSettings != settings) clear(context);
             else for (var entry : ranks.entrySet()) {
                 Integer previousRank = runtime.ranks.get(entry.getKey());
@@ -330,6 +362,7 @@ public final class SkillEffectRuntime {
             // No in-flight hit may be attributed to a changed effective loadout.
             // This applies equally to future branches without naming any skill.
             runtime.attempt = null;
+            runtime.attackIdentity = new Object();
         }
         for (SkillEffectHandler handler : SkillEffectRegistry.handlers()) {
             if (runtime.effective.contains(handler.id()) && !effective.contains(handler.id())) handler.deactivate(context);
@@ -353,6 +386,7 @@ public final class SkillEffectRuntime {
         context.runtime.states.clear();
         context.runtime.effective = Set.of();
         context.runtime.attempt = null;
+        context.runtime.attackIdentity = new Object();
     }
 
     private static void dispatchMiss(Context context) {
@@ -413,6 +447,7 @@ public final class SkillEffectRuntime {
         SkillEffectBalanceSettings settings;
         Map<ResourceLocation, Integer> ranks = Map.of();
         Attempt attempt;
+        Object attackIdentity = new Object();
         long lastGameplayTick = Long.MIN_VALUE;
 
         PlayerRuntime(ServerPlayer player, SkillEffectBalanceSettings settings) {

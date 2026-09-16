@@ -212,16 +212,16 @@ public final class SkillBalanceSemantics {
 
     private static void vitality(List<Builder> all) {
         all.add(skill(SkillIds.RISING_RECOVERY, multi(REGENERATION, .6))
-                .availability(.5, .9).risk(.25).condition("Natural regeneration accelerates as current health falls"));
+                .availability(.5, .9).risk(.25).condition("Eligible vanilla natural regeneration keeps its native food, exhaustion, difficulty and gamerule checks; the generated missing-health power curve also multiplies the existing Nexus passive health-regeneration bonus, while other healing remains unchanged"));
         all.add(skill(SkillIds.LIFE_STEAL, flat(HEALING, .6), flat(SUSTAINED_SURVIVAL, .3))
                 .attacks().actions(Action.REPEATED_HIT, Action.SAME_TARGET).availability(.65, .9).risk(.15)
-                .condition("Accepted direct damage, with same-target chain; recursive proc healing excluded"));
+                .condition("Actual accepted positive direct weapon damage only; generated same-target chain, inactivity/miss and lifecycle resets; missing-health cap; reflected, secondary, status and recursive proc damage excluded"));
         all.add(skill(SkillIds.FEAST_REFLEX, flat(RECOVERY, .5), flat(CONVENIENCE, .3))
                 .actions(Action.EAT, Action.DRINK).availability(.5, .85).cost(.25)
-                .condition("Consumes suitable carried hotbar food; automatic eating is not free food generation"));
+                .condition("Native food/drink duration multiplier; while hurt, one nonharmful nutritious hotbar stack is consumed only when it raises food enough for vanilla natural healing; at full health, food is consumed only when less than half its nutrition would be wasted; no active-use interruption or repeated event"));
         all.add(skill(SkillIds.INNER_SUSTENANCE, flat(RESOURCE_CONSUMPTION, .45), capability(CONVENIENCE, .5))
                 .actions(Action.REST).availability(.65, 1)
-                .condition("Out-of-combat hunger recovery and reduced sleep/phantom pressure"));
+                .condition("Generated food/saturation increments only outside accepted hostile combat; full native food/saturation protects passive activity exhaustion; explicit costs persist; optional sleep and owner-only phantom pressure immunity are binary capabilities"));
         all.add(skill(SkillIds.HUNGER_WARD, flat(EFFECTIVE_HEALTH, .6))
                 .actions(Action.TAKE_DAMAGE).availability(.75, 1).cost(.35)
                 .condition("Food and saturation are spent before health; finite reservoir"));
