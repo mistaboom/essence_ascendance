@@ -17,7 +17,8 @@
     "LivingEntitySkillCombatMixin",
     "ServerSkillSwingMixin",
     "ServerPlayerSkillDeathMixin",
-    "EntitySkillRemovalMixin"
+    "EntitySkillRemovalMixin",
+    "VitalityPlayerDamageMixin"
   ],
   "client": [
     "ItemInHandRendererMixin",

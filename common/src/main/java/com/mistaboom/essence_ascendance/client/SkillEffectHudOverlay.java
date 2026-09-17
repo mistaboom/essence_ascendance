@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudEntry;
+import com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudLayout;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudEntry.Text;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -13,7 +14,7 @@ import java.util.Locale;
 
 /** One data-driven renderer/layout for every current or future effect card. No skill-specific branches. */
 public final class SkillEffectHudOverlay {
-    private static final int WIDTH = 158;
+    private static final int WIDTH = SkillEffectHudLayout.WIDTH;
     private static final int GAP = 3;
     private static final int BACKGROUND = 0xCC11131A;
     private static final int TEXT = 0xFFF4F1E8;
@@ -33,6 +34,7 @@ public final class SkillEffectHudOverlay {
         int columns = Math.max(1, (graphics.guiWidth() / 2) / (WIDTH + GAP));
         int cursor = 0;
         long now = SkillEffectHudClientState.estimatedServerGameTime();
+        entries = com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudPriority.order(entries, now);
         for (int column = 0; column < columns && cursor < entries.size(); column++) {
             List<SkillEffectHudEntry> group = new ArrayList<>();
             int totalHeight = 0;
@@ -60,17 +62,23 @@ public final class SkillEffectHudOverlay {
         }
     }
 
-    private static int height(SkillEffectHudEntry entry) { return 30 + 9 * entry.lines().size(); }
+    private static int height(SkillEffectHudEntry entry) { return SkillEffectHudLayout.height(entry.lines().size()); }
 
     private static void renderCard(GuiGraphics graphics, SkillEffectHudEntry entry, int x, int y, long now) {
         Font font = Minecraft.getInstance().font;
         graphics.fill(x, y, x + WIDTH, y + height(entry), BACKGROUND);
         graphics.fill(x, y, x + 3, y + height(entry), entry.accent());
-        String badge = fit(resolve(entry.badge()), 68);
-        int badgeX = x + WIDTH - 7 - font.width(badge);
-        String title = fit(resolve(entry.title()).toUpperCase(Locale.ROOT), badgeX - x - 12);
-        graphics.drawString(font, title, x + 7, y + 4, TEXT, false);
-        graphics.drawString(font, badge, badgeX, y + 4, entry.accent(), false);
+        String titleText = resolve(entry.title()).toUpperCase(Locale.ROOT);
+        String badgeText = resolve(entry.badge());
+        var header = SkillEffectHudLayout.header(font.width(titleText), font.width(badgeText));
+        String badge = fit(badgeText, header.badgeLimit());
+        String title = fit(titleText, header.titleLimit());
+        graphics.pose().pushPose();
+        graphics.pose().translate(x + 7, y + 4, 0);
+        graphics.pose().scale(header.scale(), header.scale(), 1);
+        graphics.drawString(font, title, 0, 0, TEXT, false);
+        graphics.drawString(font, badge, header.rightEdge() - font.width(badge), 0, entry.accent(), false);
+        graphics.pose().popPose();
         for (int line = 0; line < entry.lines().size(); line++) {
             graphics.drawString(font, fit(resolve(entry.lines().get(line)), WIDTH - 14),
                     x + 7, y + 14 + 9 * line, MUTED, false);

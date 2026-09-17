@@ -15,7 +15,9 @@
     "LivingEntitySkillCombatMixin",
     "ServerSkillSwingMixin",
     "ServerPlayerSkillDeathMixin",
-    "EntitySkillRemovalMixin"
+    "EntitySkillRemovalMixin",
+    "VitalityPlayerDamageMixin",
+    "NeoForgeDamageContainerAccess"
   ],
   "client": [
     "ItemInHandRendererMixin",

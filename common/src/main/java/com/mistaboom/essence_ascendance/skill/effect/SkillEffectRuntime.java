@@ -49,6 +49,8 @@ public final class SkillEffectRuntime {
         Context context = current(player);
         if (context.runtime.lastGameplayTick != context.now()) {
             context.runtime.lastGameplayTick = context.now();
+            com.mistaboom.essence_ascendance.vitality.VitalityDamageService.tick(context);
+            if (!player.isAlive() || player.isRemoved()) return;
             for (SkillEffectHandler handler : SkillEffectRegistry.handlers()) {
                 if (context.isEffective(handler.id())) handler.tick(context);
             }
@@ -57,11 +59,14 @@ public final class SkillEffectRuntime {
 
     /** Progression refresh preserves still-effective effects; config changes clear transient combat. */
     public static void refresh(ServerPlayer player) {
+        if (player.isAlive() && !player.isRemoved())
+            com.mistaboom.essence_ascendance.vitality.VitalityDamageService.reconcileTrauma(player);
         if (player.isAlive() && !player.isRemoved()) current(player);
         else reset(player);
     }
 
     public static void reset(ServerPlayer player) {
+        com.mistaboom.essence_ascendance.vitality.VitalityDamageService.removeModifier(player);
         GuardCounterattackService.reset(player);
         com.mistaboom.essence_ascendance.guard.GuardLifecycle.forget(player);
         GuardMobilityController.remove(player);
@@ -274,7 +279,7 @@ public final class SkillEffectRuntime {
         if (player.isAlive() && !player.isRemoved()) {
             Context context = current(player);
             for (SkillEffectHandler handler : SkillEffectRegistry.handlers()) {
-                if (!context.isEffective(handler.id())) continue;
+                if (!context.isEffective(handler.id()) && !handler.hudWhileIneffective(context)) continue;
                 for (SkillEffectHudEntry entry : handler.hudEntries(context)) {
                     if (!entry.sourceSkill().equals(handler.id())) {
                         throw new IllegalArgumentException("HUD source does not match handler: " + handler.id());
@@ -311,6 +316,7 @@ public final class SkillEffectRuntime {
     /** Completed native incoming damage, shared by combat-state and reactive food consumers. */
     public static void onAcceptedDamage(ServerPlayer player, DamageSource source,
                                         double healthLost, double absorptionLost) {
+        if (com.mistaboom.essence_ascendance.vitality.DeferredDamageService.deferred(source)) return;
         if (!player.isAlive() || player.isRemoved() || !Double.isFinite(healthLost)
                 || !Double.isFinite(absorptionLost) || healthLost + absorptionLost <= 0) return;
         RecentHostileCombat.acceptedDamage(player,

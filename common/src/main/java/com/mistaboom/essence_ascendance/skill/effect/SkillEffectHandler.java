@@ -49,6 +49,8 @@ public interface SkillEffectHandler {
      * Multi-card providers keep stable IDs and emit inactive entries after rewards
      * end so the shared closing delay can run. Omission immediately removes a card.
      */
+    /** An unpaid obligation may remain visible after its skill is deselected; this never grants power. */
+    default boolean hudWhileIneffective(SkillEffectRuntime.Context context) { return false; }
     default List<SkillEffectHudEntry> hudEntries(SkillEffectRuntime.Context context) { return List.of(); }
 
     /** Called even when an implementation has already become ineffective. */

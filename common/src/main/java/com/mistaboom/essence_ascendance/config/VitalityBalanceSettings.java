@@ -4,8 +4,14 @@ import java.util.Objects;
 
 /** Server-generated Vitality mechanics. Fractions use 1 for 100%; food uses native food points. */
 public record VitalityBalanceSettings(RisingRecovery risingRecovery, LifeSteal lifeSteal,
-                                     FeastReflex feastReflex, InnerSustenance innerSustenance) {
+                                     FeastReflex feastReflex, InnerSustenance innerSustenance,
+                                     VitalityDamageBalanceSettings damage) {
+    /** Reference-only convenience constructor retained for existing invariant fixtures. */
+    public VitalityBalanceSettings(RisingRecovery recovery, LifeSteal steal, FeastReflex feast, InnerSustenance inner) {
+        this(recovery, steal, feast, inner, VitalityDamageBalanceSettings.defaults());
+    }
     public VitalityBalanceSettings {
+        Objects.requireNonNull(damage, "Missing Vitality damage routing balance; rebuild generated balance");
         Objects.requireNonNull(risingRecovery, "Missing Rising Recovery balance; rebuild generated balance");
         Objects.requireNonNull(lifeSteal, "Missing Life Steal balance; rebuild generated balance");
         Objects.requireNonNull(feastReflex, "Missing Feast Reflex balance; rebuild generated balance");
@@ -44,6 +50,7 @@ public record VitalityBalanceSettings(RisingRecovery risingRecovery, LifeSteal l
                 new FeastReflex(.25), new InnerSustenance(200, 160, 1, .5));
     }
     public void validate() {
+        damage.validate();
         new RisingRecovery(risingRecovery.maxSpeedBonus(), risingRecovery.recoveryCurveExponent());
         new LifeSteal(lifeSteal.baseHealingFraction(), lifeSteal.perHitHealingFraction(), lifeSteal.maxChainHits(), lifeSteal.chainTimeoutTicks());
         new FeastReflex(feastReflex.useDurationMultiplier());

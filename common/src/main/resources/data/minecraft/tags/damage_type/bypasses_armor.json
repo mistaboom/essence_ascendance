@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "essence_ascendance:magic_bolt"
+    "essence_ascendance:magic_bolt",
+    "essence_ascendance:delayed_pain"
   ]
 }

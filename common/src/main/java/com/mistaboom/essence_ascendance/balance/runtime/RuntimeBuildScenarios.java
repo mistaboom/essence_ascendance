@@ -236,11 +236,11 @@ public final class RuntimeBuildScenarios {
                 "Evasive expected avoidance and Bulwark/Adaptive damage reduction use actual generated values at the contributing rank, each under its strongest eligible posture condition. The three exclusive postures never stack. Meter build/drain and type-change exposure reduce real availability; peak bounds deliberately do not assume free continuous uptime.",
                 "Status Mirror and Pure State share an independent exclusive choice. harmful-status prevention is a capability fraction, and Mirror transfer capacity is applications/second bounded by its generated cooldown. Missing pack harmful-application rates and source acceptance evidence prevent converting these into damage, EHP, or guaranteed status uptime.",
                 "Pure State is binary at every diagnostic rank. Its provisional catalog curve supplies no numeric consumer and no invented rank benefit; the later catalog-wide rank design must decide whether it should have ranks. Already-active harmful effects are not cleansed.",
-                "Vitality is added after existing equipment, Nexus and prior rank-one skill calibration is frozen. New recovery and provisional posture rank growth share developed survival headroom; only future posture growth can be reduced when its previous apex consumes the full ceiling. Current gameplay values never change.",
+                "Damage-routing reservoirs and Adrenaline participate in the normal first-rank and projected-rank composition guard. Recovery is subsequently allocated from remaining sustain headroom; recovery and provisional posture growth share the developed survival ceiling. A profile rebuild may recalibrate real consumers under the same friendly controls.",
                 "Implemented recovery may consume the prior provisional first-purchase sustain reserve up to the unchanged final tier ceiling; offense and effective-health reserves are untouched. Future recovery and posture growth are then calibrated together instead of flattening a newly implemented skill to zero.",
                  "Rising Recovery multiplies the existing Nexus passive health-regeneration bonus and adds the same missing-health multiplier to eligible native food regeneration; the projection uses the fastest saturated cadence (one health per ten ticks) as its conservative upper bound. Native food eligibility/exhaustion remains authoritative; Healing Effectiveness does not multiply either regeneration source.",
-                "Life Steal uses direct primary weapon hit damage and cadence, including native primary Static Charge and direct counter damage, with same-target chain progress derived from the native timeout and accepted-hit rate. Native Ricochet/Piercing continuation hits contribute bounded base-fraction healing because each distinct victim resets the chain; primary chain plus continuation is a conservative capacity envelope, not a promise of simultaneous maintained chains. Separate elemental/payload/returned damage does not heal. Healing Effectiveness applies to Life Steal; actual healing remains capped by missing health.",
-                "Feast Reflex duration and Inner Sustenance food/saturation restoration retain native resource/time units in vitalityPolicy. Food inventory, consumption side effects and phantom/sleep immunity are conditional capabilities, not invented health or damage. Out-of-combat hunger recovery never counts as in-combat healing.",
+                "Life Steal uses direct primary weapon hit damage and cadence, including native primary Static Charge and direct counter damage, with same-target chain progress derived from the native timeout and accepted-hit rate. Native Ricochet/Piercing continuation hits contribute bounded base-fraction healing because each distinct victim resets the chain; primary chain plus continuation is a conservative capacity envelope, not a promise of simultaneous maintained chains. Separate elemental/payload/returned damage does not heal. Healing Effectiveness applies to Life Steal; actual healing is bounded by useful missing HP or, with Pain Purge, recoverable delayed damage.",
+                "Hunger Ward protection is bounded by BOTH its damage-share survival budget and one full native food+saturation reservoir. Damage Ceiling adds at most its finite Trauma capacity divided by its cost, only when the reference hit crosses the cap; ignoring the reduced maximum health is a conservative upper bound. Staggered Pain adds no permanent EHP. Pain Purge mirrors actual generated healing plus conditional native saturated-food regeneration into debt, at its calibrated ratio; no potion or food throughput is invented. Metabolic Conversion remains a conditional resource conversion. Adrenaline contributes its real peak attack-speed multiplier in all weapon families. Feast Reflex duration and Inner Sustenance food/saturation restoration retain native resource/time units in vitalityPolicy. Food inventory, consumption side effects and phantom/sleep immunity are conditional capabilities, not invented health or damage. Out-of-combat hunger recovery never counts as in-combat healing.",
                 "Pack parity preserves existing equipment curves and attainable weapon/armor pairings. Physical quantization and tool archetype baselines are not nerfed to make a bonus budget fit. External-gear projections assume required equipment access; gameplay still enforces eligibility, ownership and worn-slot coverage."));
     }
 
@@ -286,6 +286,7 @@ public final class RuntimeBuildScenarios {
                 ? s.deathRush().bowDrawSpeedBonusPercentPerStack() : family.equals("caster")
                 ? s.deathRush().castSpeedBonusPercentPerStack() : s.deathRush().attackSpeedBonusPercentPerStack()) / 100;
         if (active.contains(SkillIds.KINDLING)) damage *= 1 + s.kindling().burningDamageAmplificationPercent() / 100;
+        if (active.contains(SkillIds.ADRENALINE)) speed *= 1 + s.vitality().damage().adrenaline().attackSpeedBonus();
         double hit = item.hitDamage() * nexus.damageMultiplier() * damage;
         double rate = item.attacksPerSecond() * nexus.attackRateMultiplier() * speed;
         if (active.contains(SkillIds.STATIC_CHARGE)) {
@@ -317,9 +318,36 @@ public final class RuntimeBuildScenarios {
                 nexus.healingPerSecond())
                 + directContinuationHealing(s, active, hit, rate, family))
                 * (active.contains(SkillIds.LIFE_STEAL) ? healingEffectiveness : 1);
-        double taken = (item.health() + nexus.bonusHealth()) / defense.effectiveHealth();
+        double maximumHealth = item.health() + nexus.bonusHealth();
+        double taken = maximumHealth / defense.effectiveHealth();
+        double resourceProtection = 0;
+        if (active.contains(SkillIds.HUNGER_WARD)) {
+            var ward = s.vitality().damage().hungerWard();
+            resourceProtection = com.mistaboom.essence_ascendance.vitality.DamageRoutingMath.wardProtection(
+                    maximumHealth * healthFraction, net.minecraft.world.food.FoodConstants.MAX_FOOD
+                            * 2.0 * ward.healthPerFoodPoint(), ward.damageShare());
+        }
+        double percentageSurvival = 1;
+        if (active.contains(SkillIds.DAMAGE_CEILING)) {
+            double fraction = s.vitality().damage().damageCeiling().damageTakenFraction();
+            percentageSurvival = 1 / fraction;
+            taken *= fraction;
+            currentEhp *= percentageSurvival;
+            // Prevention is proportional on every hit, not a single-hit cap or a finite HP bank.
+            // Sustained healing below is an optimistic bound: lost capacity can only constrain it.
+            // We do not credit capacity restoration as healing or assume mid-combat Trauma clears.
+        }
+        currentEhp += resourceProtection / taken;
+        if (active.contains(SkillIds.PAIN_PURGE) && active.contains(SkillIds.STAGGERED_PAIN)) {
+            // The native saturated-food rate is conditional, not invented food/potion throughput.
+            // Count fully useful HP plus debt recovery conservatively; queue cancellation is not EHP.
+            double nativeFoodHealing = 20.0 / net.minecraft.world.food.FoodConstants.HEALTH_TICK_COUNT_SATURATED;
+            additionalHealing += (Math.max(0, defense.healingPerSecond() + additionalHealing) + nativeFoodHealing)
+                    * s.vitality().damage().painPurge().queuePerHealing();
+        }
         return new Metrics(sustained, burst, area, currentEhp,
-                currentEhp + defense.sustainedHealth() - defense.effectiveHealth() + additionalHealing * window / taken,
+                currentEhp + (defense.sustainedHealth() - defense.effectiveHealth()) * percentageSurvival
+                        + additionalHealing * window / taken,
                 defense.healingPerSecond() + additionalHealing);
     }
 

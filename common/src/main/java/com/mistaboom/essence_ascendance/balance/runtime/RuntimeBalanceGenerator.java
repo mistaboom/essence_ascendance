@@ -219,7 +219,7 @@ public final class RuntimeBalanceGenerator {
         if(compositionPlan!=null) {
             for(var channel:BuildComposition.Channel.values()) {
                 double channelScale=calibration(runtime,evidence,settings,firstRankPlan,channel,false);
-                runtime=adjusted(runtime,channelScale,channel,false);
+                runtime=adjusted(runtime,channelScale,channel,false,settings);
                 compositionScale=Math.min(compositionScale,channelScale);
                 JsonObject measured=runtime.toJson();
                 measured.getAsJsonObject("composition").addProperty(channel.name().toLowerCase(Locale.ROOT)+"_calibration",channelScale);
@@ -240,7 +240,7 @@ public final class RuntimeBalanceGenerator {
             double growth=1;
             for(var channel:BuildComposition.Channel.values()) {
                 double channelGrowth=calibration(runtime,evidence,settings,compositionPlan,channel,true);
-                runtime=adjusted(runtime,channelGrowth,channel,true);
+                runtime=adjusted(runtime,channelGrowth,channel,true,settings);
                 growth=Math.min(growth,channelGrowth);
                 var measured=runtime.toJson();
                 measured.getAsJsonObject("composition").addProperty("rank_growth_"+channel.name().toLowerCase(Locale.ROOT)+"_calibration",channelGrowth);
@@ -293,13 +293,13 @@ public final class RuntimeBalanceGenerator {
         // Future offensive growth increases accepted weapon healing. Fit the
         // requested recovery stress curve against that dependency while postures
         // keep their unchanged rank-one values, preserving honest recovery growth.
-        runtime = adjusted(runtime, 0, BuildComposition.Channel.HEALING, true);
+        runtime = adjusted(runtime, 0, BuildComposition.Channel.HEALING, true, settings);
         // Rank-one values are purchased now. Do not recalibrate them against
         // the five-rank stress projection; future offensive growth gets its
         // own analytic curve below.
         runtime = calibrateVitality(runtime, evidence, settings, firstRankPlan, false);
         runtime = new RuntimeBalanceDefinition(runtime.config(), runtime.crucible(), runtime.pylons(), requested, runtime.composition(), runtime.attunement());
-        var noPostureGrowth = adjusted(runtime, 0, BuildComposition.Channel.HEALING, true);
+        var noPostureGrowth = adjusted(runtime, 0, BuildComposition.Channel.HEALING, true, settings);
         // Start the analytic Vitality rank pass from the purchased value for
         // both mutually exclusive recovery branches. Otherwise the first
         // branch would be tested while the other branch still carries its
@@ -319,7 +319,7 @@ public final class RuntimeBalanceGenerator {
         // Share remaining room with half the actually attainable extra recovery
         // growth. These are analytic ranks; all current ranks remain one.
         double factor = calibration(runtime, evidence, settings, plan, BuildComposition.Channel.HEALING, true);
-        runtime = adjusted(runtime, factor, BuildComposition.Channel.HEALING, true);
+        runtime = adjusted(runtime, factor, BuildComposition.Channel.HEALING, true, settings);
         runtime = restoreRankGrowth(runtime, requested, evidence, settings, plan);
         var curves = new TreeMap<>(runtime.skillCurves());
         requested.forEach((id, curve) -> { if (RuntimeBuildScenarios.vitalitySkill(ResourceLocation.parse(id))) curves.put(id, curve); });
@@ -495,7 +495,7 @@ public final class RuntimeBalanceGenerator {
     private static double calibration(RuntimeBalanceDefinition source,PackEvidence evidence,BalanceSettings settings,
             RuntimeBuildScenarios.Plan plan,BuildComposition.Channel channel,boolean rankGrowth) {
         if(RuntimeBuildScenarios.analyze(source,evidence,settings,plan).safeFor(channel))return 1;
-        var zero=RuntimeBuildScenarios.analyze(adjusted(source,0,channel,rankGrowth),evidence,settings,plan);
+        var zero=RuntimeBuildScenarios.analyze(adjusted(source,0,channel,rankGrowth,settings),evidence,settings,plan);
         if(!zero.safeFor(channel)) {
             zero.requireSafe();
             throw new IllegalArgumentException("Cannot calibrate "+channel+" without changing base equipment");
@@ -503,17 +503,17 @@ public final class RuntimeBalanceGenerator {
         double low=0,high=1;
         for(int pass=0;pass<20;pass++) {
             double middle=(low+high)/2;
-            var candidate=adjusted(source,middle,channel,rankGrowth);
+            var candidate=adjusted(source,middle,channel,rankGrowth,settings);
             if(RuntimeBuildScenarios.analyze(candidate,evidence,settings,plan).safeFor(channel))low=middle;else high=middle;
         }
         if(low<.02)throw new IllegalArgumentException("Requested "+channel+" targets leave less than 2% of "
                 +(rankGrowth?"additional rank growth":"rank-one added power")+"; revise external evidence or friendly power controls; "
-                +RuntimeBuildScenarios.analyze(adjusted(source,.02,channel,rankGrowth),evidence,settings,plan).cases().stream()
+                +RuntimeBuildScenarios.analyze(adjusted(source,.02,channel,rankGrowth,settings),evidence,settings,plan).cases().stream()
                     .filter(c->!c.evaluation().safe()).findFirst().map(c->c.evaluation().id()+" "+c.evaluation().violations()).orElse("unknown constraint"));
         return low;
     }
     private static RuntimeBalanceDefinition adjusted(RuntimeBalanceDefinition source,double factor,
-            BuildComposition.Channel channel,boolean rankGrowth) {
+            BuildComposition.Channel channel,boolean rankGrowth,BalanceSettings settings) {
         if(factor==1)return source;
         JsonObject json=source.toJson();
         if(rankGrowth) {
@@ -521,7 +521,11 @@ public final class RuntimeBalanceGenerator {
                 if(!com.mistaboom.essence_ascendance.skill.balance.SkillRankEffectScaling.supports(ResourceLocation.parse(entry.getKey())))continue;
                 if(RuntimeBuildScenarios.vitalitySkill(ResourceLocation.parse(entry.getKey())))continue;
                 if(entry.getKey().equals(com.mistaboom.essence_ascendance.skill.SkillIds.STATUS_MIRROR.toString()))continue;
-                boolean posture=isPosture(ResourceLocation.parse(entry.getKey()));
+                var skillId = ResourceLocation.parse(entry.getKey());
+                boolean posture=isPosture(skillId)
+                        || skillId.equals(com.mistaboom.essence_ascendance.skill.SkillIds.HUNGER_WARD)
+                        || skillId.equals(com.mistaboom.essence_ascendance.skill.SkillIds.DAMAGE_CEILING)
+                        || skillId.equals(com.mistaboom.essence_ascendance.skill.SkillIds.PAIN_PURGE);
                 if(channel==BuildComposition.Channel.OFFENSE && posture
                         || channel!=BuildComposition.Channel.OFFENSE && !posture)continue;
                 for(var element:entry.getValue().getAsJsonObject().getAsJsonArray("ranks")) {
@@ -529,11 +533,11 @@ public final class RuntimeBalanceGenerator {
                     rank.addProperty("powerMultiplier",1+(rank.get("powerMultiplier").getAsDouble()-1)*factor);
                 }
             }
-        } else attenuateCombat(json,factor,channel);
+        } else attenuateCombat(json,factor,channel,settings);
         RuntimeValueQuantization.apply(json);
         return RuntimeBalanceDefinition.fromJson(json);
     }
-    private static void attenuateCombat(JsonObject json,double factor,BuildComposition.Channel channel) {
+    private static void attenuateCombat(JsonObject json,double factor,BuildComposition.Channel channel,BalanceSettings settings) {
         var affected=switch(channel) {
             case OFFENSE -> List.of(EssenceStats.MELEE_DAMAGE,EssenceStats.MELEE_ATTACK_SPEED,EssenceStats.RANGED_DAMAGE,
                     EssenceStats.RANGED_ATTACK_SPEED,EssenceStats.MAGIC_DAMAGE,EssenceStats.MAGIC_CAST_SPEED);
@@ -546,6 +550,8 @@ public final class RuntimeBalanceGenerator {
         }
         if(channel==BuildComposition.Channel.OFFENSE) {
             scaleEffectFields(json.getAsJsonObject("effects"),factor);
+            var adrenaline = json.getAsJsonObject("effects").getAsJsonObject("vitality").getAsJsonObject("damage").getAsJsonObject("adrenaline");
+            adrenaline.addProperty("attackSpeedBonus", adrenaline.get("attackSpeedBonus").getAsDouble() * factor);
             JsonObject projectiles=json.getAsJsonObject("effects").getAsJsonObject("projectiles");
             for(String key:List.of("ricochetDamageMultiplier","piercingDamageMultiplier"))
                 projectiles.addProperty(key,projectiles.get(key).getAsDouble()*factor);
@@ -554,6 +560,19 @@ public final class RuntimeBalanceGenerator {
                 composition.addProperty(key,composition.get(key).getAsDouble()*factor);
         } else if(channel==BuildComposition.Channel.DEFENSE) {
             scalePostureFields(json.getAsJsonObject("effects").getAsJsonObject("posture"),factor);
+            var routing = json.getAsJsonObject("effects").getAsJsonObject("vitality").getAsJsonObject("damage");
+            var ward = routing.getAsJsonObject("hungerWard");
+            ward.addProperty("damageShare", com.mistaboom.essence_ascendance.vitality.DamageRoutingMath.scaleShare(
+                    ward.get("damageShare").getAsDouble(), factor));
+            var ceiling = routing.getAsJsonObject("damageCeiling");
+            ceiling.addProperty("damageTakenFraction", com.mistaboom.essence_ascendance.vitality.DamageRoutingMath.scaleTakenFraction(
+                    ceiling.get("damageTakenFraction").getAsDouble(), factor));
+            // The same serialized percentage also determines the max-HP cost. Never calibrate a
+            // second ratio independently or revive the old maximum-health hit threshold.
+        } else if (channel == BuildComposition.Channel.HEALING) {
+            var purge = json.getAsJsonObject("effects").getAsJsonObject("vitality")
+                    .getAsJsonObject("damage").getAsJsonObject("painPurge");
+            purge.addProperty("queuePerHealing", purge.get("queuePerHealing").getAsDouble() * factor);
         }
     }
     private static boolean isPosture(ResourceLocation id) {

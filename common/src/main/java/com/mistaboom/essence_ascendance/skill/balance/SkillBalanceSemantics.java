@@ -218,28 +218,28 @@ public final class SkillBalanceSemantics {
                 .condition("Actual accepted positive direct weapon damage only; generated same-target chain, inactivity/miss and lifecycle resets; missing-health cap; reflected, secondary, status and recursive proc damage excluded"));
         all.add(skill(SkillIds.FEAST_REFLEX, flat(RECOVERY, .5), flat(CONVENIENCE, .3))
                 .actions(Action.EAT, Action.DRINK).availability(.5, .85).cost(.25)
-                .condition("Native food/drink duration multiplier; while hurt, one nonharmful nutritious hotbar stack is consumed only when it raises food enough for vanilla natural healing; at full health, food is consumed only when less than half its nutrition would be wasted; no active-use interruption or repeated event"));
+                .condition("Native food/drink duration multiplier; while hurt and below vanilla natural regeneration, successive nonharmful nutritious hotbar meals restore food without requiring a single serving to fill the gap; effective Metabolic Conversion allows meals through full hunger until health is full; at full health, food is consumed only when less than half its nutrition would be wasted; no active-use interruption or repeated event"));
         all.add(skill(SkillIds.INNER_SUSTENANCE, flat(RESOURCE_CONSUMPTION, .45), capability(CONVENIENCE, .5))
                 .actions(Action.REST).availability(.65, 1)
                 .condition("Generated food/saturation increments only outside accepted hostile combat; full native food/saturation protects passive activity exhaustion; explicit costs persist; optional sleep and owner-only phantom pressure immunity are binary capabilities"));
         all.add(skill(SkillIds.HUNGER_WARD, flat(EFFECTIVE_HEALTH, .6))
                 .actions(Action.TAKE_DAMAGE).availability(.75, 1).cost(.35)
-                .condition("Food and saturation are spent before health; finite reservoir"));
+                .condition("Only a generated share of each hit spends saturation and food; the rest reaches health, and unpayable redirected damage returns to health; finite reservoir and share-limited survival"));
         all.add(skill(SkillIds.STAGGERED_PAIN, flat(BURST_SURVIVAL, .65))
                 .actions(Action.TAKE_DAMAGE).timing(0, 10)
                 .condition("Ten-second damage delay redistributes damage; does not itself reduce total damage"));
-        all.add(skill(SkillIds.DAMAGE_CEILING, flat(BURST_SURVIVAL, .75))
-                .actions(Action.TAKE_DAMAGE).availability(.5, 1).risk(.45)
-                .condition("Limits a single hit at the cost of temporary maximum-health trauma"));
+        all.add(skill(SkillIds.DAMAGE_CEILING, multi(EFFECTIVE_HEALTH, .75))
+                .actions(Action.TAKE_DAMAGE).availability(1, 1).risk(.45).timing(0, 10)
+                .condition("Every post-mitigation/absorption hit takes one generated fraction of incoming health damage; that identical fraction of prevented damage removes temporary maximum-health capacity; no hit-size threshold, conversion bank or delayed damage; native capacity minimum and surviving HP bound only the cost; capacity returns empty after the generated quiet-combat duration"));
         all.add(skill(SkillIds.METABOLIC_CONVERSION, flat(CONVERSION, .5), flat(HEALING, .3))
                 .actions(Action.EAT).availability(.45, .9).cost(.2)
                 .condition("Healing overflow and full-hunger food convert resources, not duplicate them"));
-        all.add(skill(SkillIds.PAIN_PURGE, flat(SUSTAINED_SURVIVAL, .6))
-                .actions(Action.EAT, Action.DRINK).availability(.45, .85).cost(.3)
-                .condition("Consumables remove part of queued damage before ordinary healing"));
+        all.add(skill(SkillIds.PAIN_PURGE, flat(SUSTAINED_SURVIVAL, 1))
+                .actions(Action.EAT, Action.DRINK, Action.REST, Action.ATTACK).availability(.45, .85).cost(.3)
+                .condition("Accepted healing also cancels delayed damage at a generated ratio up to one-for-one, including at full HP; native food regeneration, passive regeneration, direct life steal and healing effects share one observer; debt recovery is not another healing event"));
         all.add(skill(SkillIds.ADRENALINE, multi(GROUND_SPEED, .3), multi(ATTACK_RATE, .35))
                 .attacks().actions(Action.TAKE_DAMAGE).availability(.25, .8).risk(.5).timing(0, 5)
-                .condition("Only a Damage Ceiling trauma event grants the brief buff"));
+                .condition("A single accepted hit that actually removes more than the generated quarter-health target of pre-hit current maximum HP grants one refreshable timed buff; excludes absorption, prevented damage, max-HP cost and deferred payments; no lethal-save requirement"));
         all.add(skill(SkillIds.DEEP_WARD, multi(EFFECTIVE_HEALTH, .55))
                 .actions(Action.KILL).availability(.6, .8)
                 .condition("Extends Soul Ward capacity and combat retention; decay resumes out of combat"));

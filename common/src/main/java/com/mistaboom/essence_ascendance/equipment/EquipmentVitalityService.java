@@ -106,8 +106,7 @@ public final class EquipmentVitalityService {
      * no native FoodData timer from which to derive an activity event.
      */
     public static boolean passiveRegenerationAvailable(ServerPlayer player) {
-        if (player == null || !player.isAlive() || player.isRemoved()
-                || player.getHealth() >= player.getMaxHealth()) return false;
+        if (player == null || !com.mistaboom.essence_ascendance.vitality.HealingRecoveryService.needsRecovery(player)) return false;
         return evaluateStats(player).healthRegenerationHeartsPerSecond() > EPSILON;
     }
 
@@ -400,8 +399,7 @@ public final class EquipmentVitalityService {
             VitalityStatState stats,
             RuntimeState runtime
     ) {
-        if (!player.isAlive()
-                || player.getHealth() >= player.getMaxHealth()) {
+        if (!com.mistaboom.essence_ascendance.vitality.HealingRecoveryService.needsRecovery(player)) {
             return;
         }
 

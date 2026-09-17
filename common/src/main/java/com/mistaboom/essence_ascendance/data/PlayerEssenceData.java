@@ -23,6 +23,10 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 public final class PlayerEssenceData {
+    private com.mistaboom.essence_ascendance.vitality.VitalityDamageLedger vitalityDamage =
+            new com.mistaboom.essence_ascendance.vitality.VitalityDamageLedger();
+    public com.mistaboom.essence_ascendance.vitality.VitalityDamageLedger vitalityDamage() { return vitalityDamage; }
+
 
     // Persistent owner identity invalidates even projectiles stored in unloaded chunks.
     private java.util.UUID projectileLife = java.util.UUID.randomUUID();
@@ -1232,6 +1236,7 @@ private static final String NEXUS_REVISION_TAG =
 
 
         root.put("category_attunement", attunement.save());
+        root.put("vitality_damage", vitalityDamage.save());
 
 
         /*
@@ -1559,6 +1564,7 @@ private static final String NEXUS_REVISION_TAG =
 
 
         data.attunement = com.mistaboom.essence_ascendance.attunement.AttunementLedger.load(root.getCompound("category_attunement"));
+        data.vitalityDamage = com.mistaboom.essence_ascendance.vitality.VitalityDamageLedger.load(root.getCompound("vitality_damage"));
 
 
         /*

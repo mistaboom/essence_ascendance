@@ -32,7 +32,7 @@ import java.util.Map;
 
 /** Server-thread transaction: collect, construct, validate, persist, publish, then synchronize. */
 public final class GeneratedBalanceService {
-    static final String GENERATION_REVISION = "vitality-recovery-sustenance-21";
+    static final String GENERATION_REVISION = "proportional-ceiling-health-loss-26";
     private static final String DISSOLUTION_ACCOUNTING = "whole_essence_v1";
     private static volatile Active active;
     private static volatile boolean resourcesChanged;
@@ -238,14 +238,32 @@ public final class GeneratedBalanceService {
         policy.addProperty("maximumNaturalSpeedMultiplier", 1 + v.risingRecovery().maxSpeedBonus());
         policy.addProperty("firstHitHealingFraction", v.lifeSteal().baseHealingFraction());
         policy.addProperty("maximumChainHealingFraction", v.lifeSteal().baseHealingFraction() + (v.lifeSteal().maxChainHits() - 1) * v.lifeSteal().perHitHealingFraction());
-        policy.addProperty("lifeSteal", "One accepted primary direct-weapon chain per owner; same target, timeout, miss/inactivity and all lifecycle/selection boundaries; actual accepted damage and missing-health cap. Secondary, reflected, status, canceled, zero and invulnerable outcomes excluded; no recursive healing or duplicate Attunement.");
+        policy.addProperty("lifeSteal", "One accepted primary direct-weapon chain per owner; same target, timeout, miss/inactivity and all lifecycle/selection boundaries; actual accepted damage and useful missing-HP/recoverable-debt cap. Secondary, reflected, status, canceled, zero and invulnerable outcomes excluded; no recursive healing or duplicate Attunement.");
         policy.addProperty("foodUseDurationMultiplier", v.feastReflex().useDurationMultiplier());
-        policy.addProperty("automaticMeal", "While hurt, deterministic nonharmful hotbar food is eligible only when its nutrition raises the food bar to vanilla's natural-healing threshold. At full health, food is eligible only when strictly less than half its nutrition would be wasted. Ordinary item completion owns stacks, containers, effects, criteria, sounds and cancellation; never interrupts active use.");
+        policy.addProperty("automaticMeal", "While hurt and below the native regeneration threshold, successive nutritious safe hotbar meals are eligible; one meal need not fill the whole gap. With effective Metabolic Conversion and a positive generated food-healing rate, meals continue through full hunger until health is full. At full health, food is eligible only when strictly less than half its nutrition would be wasted. Ordinary item completion owns stacks, containers, effects, criteria, sounds and cancellation; never interrupts active use.");
         policy.addProperty("outOfCombatFoodPointsPerSecond", 20.0 * v.innerSustenance().hungerPerRecovery() / v.innerSustenance().hungerRecoveryIntervalTicks());
         policy.addProperty("outOfCombatSaturationPointsPerSecond", 20.0 * v.innerSustenance().saturationPerRecovery() / v.innerSustenance().hungerRecoveryIntervalTicks());
         policy.addProperty("combatTimeoutSeconds", v.innerSustenance().combatTimeoutTicks() / 20.0);
         policy.addProperty("innerSustenance", "Accepted recent hostile damage delays recovery. At full native food/saturation passive activity exhaustion stops, while healing exhaustion and explicit resource costs remain. Owner-only optional sleep/phantom behavior; voluntary sleep and spawn setting remain native.");
-        policy.addProperty("evidenceLimit", "No observed player food throughput, damage cadence, sleep population or phantom encounter telemetry. Capacity/seconds are conditional bounds; live gameplay, multiplayer, dedicated-server and representative-modpack acceptance remain pending.");
+        var damage = v.damage();
+        policy.addProperty("damageRouting", "After native armor, resistance, enchantments and absorption; one selected damage style. Void/admin bypass-invulnerability sources remain native. Delayed payments cannot be mitigated, absorbed, routed or proc-triggered again.");
+        policy.addProperty("hungerWardDamageShare", damage.hungerWard().damageShare());
+        policy.addProperty("hungerWardHealthPerFoodPoint", damage.hungerWard().healthPerFoodPoint());
+        policy.addProperty("hungerWard", "Only the generated share of post-mitigation damage is offered to food. Unpaid redirected damage returns to health. Calibration/rank scaling changes the share, not food value; the survival projection is bounded by both the share and finite reservoir. No automatic unlimited food-throughput assumption.");
+        policy.addProperty("hungerWardFullReservoirHealth", net.minecraft.world.food.FoodConstants.MAX_FOOD * 2.0 * damage.hungerWard().healthPerFoodPoint());
+        policy.addProperty("staggeredPainPaymentSeconds", damage.staggeredPain().paymentTicks() / 20.0);
+        policy.addProperty("delayedDamage", "Source-preserving, linear online-tick obligations; parallel hits keep their own deadlines. Unpaid totals survive refund, skill selection, dimension change, reconnect and configuration refresh. Native rejection pauses payment. Tagged quiet feedback preserves health/death handling but suppresses repeated impact tilt/sound and health-update flinches. Confirmed death clears debt; a Totem does not. The safety bound applies overflow immediately, never silently drops it.");
+        policy.addProperty("damageCeilingTakenFraction", damage.damageCeiling().damageTakenFraction());
+        policy.addProperty("maxHealthPerPreventedDamage", damage.damageCeiling().damageTakenFraction());
+        policy.addProperty("trauma", "One generated fraction P: take incoming health damage times P, prevent the remainder, and temporarily lose P times prevented damage from maximum-health capacity. No hit-size threshold, max-HP damage cap, independent ratio, Trauma bank or deferred payment. Native capacity minimum and surviving HP bound only the cost, never prevention. Stored independently of effective skills. Quiet-online recovery removes the exact-ID native modifier without healing; native heart slots return empty.");
+        policy.addProperty("metabolicFoodPerOverflowHealth", damage.metabolicConversion().foodPointsPerOverflowHealth());
+        policy.addProperty("metabolicHealthPerNutrition", damage.metabolicConversion().healthPerNutrition());
+        policy.addProperty("metabolicConversion", "Only accepted native overflow restores food, hunger first then saturation, with fractional carry. Full-hunger food uses native completion to heal; this healing cannot recursively refill food. A validated lossy round trip remains mandatory under exact overrides.");
+        policy.addProperty("queueRecoveryPerHealing", damage.painPurge().queuePerHealing());
+        policy.addProperty("painPurge", "Accepted positive native healing also cancels that amount times queuePerHealing from unpaid damage, capped by debt. Includes native food/passive regeneration, direct life steal and healing potions/effects, including at full HP. Cancellation is never a recursive heal or fictional Attunement health outcome. Nonhealing food alone no longer purges a percentage of the queue.");
+        policy.addProperty("adrenalineHealthLossTriggerFraction", damage.adrenaline().triggerHealthLossFraction());
+        policy.addProperty("adrenaline", "One refreshable timed stack after a native health write actually removes MORE than triggerHealthLossFraction times pre-hit current maximum HP. Strict comparison; includes equipped/previously reduced maximum HP, excludes absorption, prevented damage, this hit's capacity loss and deferred payments. No lethal-save condition. Existing immediate attribute/HUD sync and bow/caster speed consumers; generated duration/magnitudes and trigger, no new keybind or packet.");
+        policy.addProperty("evidenceLimit", "No observed player food throughput, damage cadence, sleep population or phantom encounter telemetry. Food capacity and delayed payment remain conditional resource/time contracts; Ceiling is a bounded proportional prevention multiplier whose temporary capacity loss is not healing. Live gameplay, multiplayer, dedicated-server and representative-modpack acceptance remain pending.");
         return policy;
     }
 

@@ -16,6 +16,12 @@ import org.spongepowered.asm.mixin.injection.At;
 /** Modify only the two eligible natural regeneration increments; starvation and healing calls remain native. */
 @Mixin(FoodData.class)
 public abstract class FoodDataRecoveryMixin implements com.mistaboom.essence_ascendance.vitality.NaturalRecoveryClockAccess {
+    @WrapOperation(method = "tick", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/world/entity/player/Player;isHurt()Z"), require = 2, expect = 2, allow = 2)
+    private boolean essenceAscendance$recoverQueuedDamage(Player player, Operation<Boolean> original) {
+        return original.call(player) || player instanceof net.minecraft.server.level.ServerPlayer server
+                && com.mistaboom.essence_ascendance.vitality.HealingRecoveryService.hasRecoverableDebt(server);
+    }
     @Shadow private int tickTimer;
     @Unique private int essenceAscendance$transientNaturalSurplus;
     public int essenceAscendance$naturalTimer() { return tickTimer; }

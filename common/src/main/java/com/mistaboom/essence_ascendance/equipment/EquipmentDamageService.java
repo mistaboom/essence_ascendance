@@ -503,6 +503,7 @@ public final class EquipmentDamageService {
             DamageSource source,
             float incomingDamage
     ) {
+        if (com.mistaboom.essence_ascendance.vitality.DeferredDamageService.deferred(source)) return incomingDamage;
         if (!Float.isFinite(incomingDamage) || incomingDamage <= 0.0F) {
             return incomingDamage;
         }

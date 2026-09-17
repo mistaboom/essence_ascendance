@@ -32,20 +32,20 @@ public final class SustenanceMath {
 
     /**
      * Decides whether one particular food stack is useful for an automatic
-     * meal.  Feast follows vanilla's natural-regeneration threshold when the
-     * player is hurt.  At full health it only tops up hunger when fewer than
+     * meal. While hurt, every nutritious meal below the regeneration threshold
+     * is progress toward recovery; one serving need not bridge the whole gap.
+     * At full health it only tops up hunger when fewer than
      * half of that food's nutrition points would be wasted.
      */
     public static boolean automaticMealOpportunity(boolean healingNeeded, int foodLevel,
                                                    int nutrition, boolean usingItem) {
-        if (usingItem || foodLevel < 0 || foodLevel >= FoodConstants.MAX_FOOD || nutrition <= 0) return false;
-        if (healingNeeded) {
-            return foodLevel < NATURAL_REGENERATION_FOOD_LEVEL
-                    && (long) foodLevel + nutrition >= NATURAL_REGENERATION_FOOD_LEVEL;
-        }
-        int missingFood = FoodConstants.MAX_FOOD - foodLevel;
-        // Wasted nutrition is strictly less than half the food's value.
-        return missingFood > 0 && 2L * missingFood > nutrition;
+        return AutomaticMealPolicy.useful(healingNeeded, foodLevel, nutrition, usingItem,
+                FoodConstants.MAX_FOOD, NATURAL_REGENERATION_FOOD_LEVEL);
+    }
+    public static boolean automaticMealOpportunity(boolean healingNeeded, boolean foodCanHeal, int foodLevel,
+                                                   int nutrition, boolean usingItem) {
+        return AutomaticMealPolicy.useful(healingNeeded, foodCanHeal, foodLevel, nutrition, usingItem,
+                FoodConstants.MAX_FOOD, NATURAL_REGENERATION_FOOD_LEVEL);
     }
     public static final class RecoveryClock implements SkillEffectState {
         private long previousTick = Long.MIN_VALUE;

@@ -10,7 +10,10 @@
     "EnchantmentScreenCostMixin",
     "CasterAttackIndicatorMixin",
     "CasterCooldownOverlayMixin",
-    "CasterUseInputMixin"
+    "CasterUseInputMixin",
+    "MetabolicClientFoodEligibilityMixin",
+    "QuietHealthUpdateMixin",
+    "MaximumHealthHudMixin"
   ],
   "mixins": [
     "FoodDataRecoveryMixin",
@@ -66,7 +69,14 @@
     "ImmobilizedEntityMixin",
     "ImmobilizedPlayerConnectionMixin",
     "ArrowProjectilePathMixin",
-    "LivingEntityProjectileShieldMixin"
+    "LivingEntityProjectileShieldMixin",
+    "DeferredDamageNativeAccess",
+    "ConsumableRecoveryMixin",
+    "MetabolicHealingMixin",
+    "MetabolicFoodEligibilityMixin",
+    "QuietDamageFeedbackMixin",
+    "QueuedRegenerationEligibilityMixin",
+    "VitalityHealthCommitMixin"
   ],
   "injectors": {
     "defaultRequire": 1

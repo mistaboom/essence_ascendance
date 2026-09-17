@@ -133,6 +133,7 @@ public final class PlayerRuntimeLifecycleService {
 
     /** Called by the authoritative death-completion hook, after cancellation. */
     public static void onDeath(ServerPlayer player) {
+        com.mistaboom.essence_ascendance.vitality.VitalityDamageService.onDeath(player);
         com.mistaboom.essence_ascendance.attunement.AttunementGameplay.forget(player);
         com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.forgetOwner(player);
         SkillEffectRuntime.reset(player);

@@ -170,6 +170,7 @@ public final class AscendanceNexusScreen
     private double lastSkillPanX;
     private double lastSkillPanY;
     private ResourceLocation hoveredSkillId;
+    private final SkillTooltipPresentation skillTooltipPresentation = new SkillTooltipPresentation();
     private ResourceLocation tooltipSkillId;
     private int skillTooltipScroll;
     private int skillTooltipMaximumScroll;
@@ -5649,11 +5650,7 @@ public final class AscendanceNexusScreen
         SemanticTooltip tooltip = new SemanticTooltip();
         tooltip.title(Component.translatable(skill.nameTranslationKey()),
                 AscendancePalette.categoryRgb(skill.essenceId()));
-        tooltip.description(Component.translatable(skill.descriptionTranslationKey()));
-        String detailsKey = skill.descriptionTranslationKey() + ".details";
-        if (net.minecraft.locale.Language.getInstance().has(detailsKey)) {
-            tooltip.detail(Component.translatable(detailsKey));
-        }
+        skillTooltipPresentation.append(tooltip, skill, skillEvaluations());
         tooltip.field(EssenceText.gui("nexus.skills.tooltip.rank",
                 SemanticTooltip.value(evaluation.currentRank()), SemanticTooltip.value(skill.maximumRank()),
                 SemanticTooltip.value(evaluation.projectedRank()).copy().withStyle(ChatFormatting.AQUA)));

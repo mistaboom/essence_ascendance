@@ -180,3 +180,21 @@ tasks.register('exportSavedBalance', JavaExec) {
 tasks.named('test', Test) {
     failOnNoDiscoveredTests = false
 }
+
+// Focused, opt-in checks for the Vitality damage batch. Deliberately NOT dependencies of build/check.
+[
+    vitalityDamageMathInvariants: 'com.mistaboom.essence_ascendance.vitality.VitalityDamageMathTest',
+    healingRoutingMathInvariants: 'com.mistaboom.essence_ascendance.vitality.HealingRoutingMathTest',
+    vitalityDamageBatchInvariants: 'com.mistaboom.essence_ascendance.vitality.VitalityDamageBatchContractTest',
+    vitalityDamageNativeHookShapeInvariants: 'com.mistaboom.essence_ascendance.vitality.VitalityDamageNativeHookShapeTest'
+].each { taskName, className ->
+    tasks.register(taskName, JavaExec) {
+        group = 'verification'
+        description = 'Opt-in Vitality damage batch verification (not part of normal build).'
+        dependsOn tasks.named('testClasses')
+        classpath = sourceSets.test.runtimeClasspath
+        mainClass = className
+    }
+}
+// A passing parity check must inspect a real mapped NeoForge class, never an absent-cache substitute.
+tasks.named('vitalityDamageNativeHookShapeInvariants') { dependsOn ':neoforge:compileJava' }

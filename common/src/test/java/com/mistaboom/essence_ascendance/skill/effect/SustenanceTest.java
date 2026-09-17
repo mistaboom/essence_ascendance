@@ -26,11 +26,13 @@ public final class SustenanceTest {
                         && !SustenanceMath.automaticMeal(1, -1, 0, false),
                 "Feast uses an actually non-full food bar, even when a saturation reserve remains");
         check(SustenanceMath.automaticMealOpportunity(true, 10, 8, false)
-                        && !SustenanceMath.automaticMealOpportunity(true, 10, 7, false)
+                        && SustenanceMath.automaticMealOpportunity(true, 10, 7, false)
+                        && SustenanceMath.automaticMealOpportunity(true, 0, 8, false)
+                        && !SustenanceMath.automaticMealOpportunity(true, 18, 8, false)
                         && SustenanceMath.automaticMealOpportunity(false, 15, 8, false)
                         && !SustenanceMath.automaticMealOpportunity(false, 16, 8, false)
                         && !SustenanceMath.automaticMealOpportunity(false, 20, 8, false),
-                "Feast only eats healing-enabling food while hurt, or food with strictly less than half wasted nutrition when healthy");
+                "Feast accepts successive useful meals while hurt, or food with strictly less than half wasted nutrition when healthy");
         var clock = new SustenanceMath.RecoveryClock();
         for (int tick = 0; tick < 159; tick++) check(!clock.tick(tick,false,160), "recovery waits full quiet interval");
         check(clock.tick(159,false,160), "recovery at exact interval");

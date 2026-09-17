@@ -107,14 +107,16 @@ public final class VitalitySustenanceEffects {
             FeastState state = context.state(id(), FeastState::new);
             if (state.active() || !state.claim(context.now())) return;
             int foodLevel = player.getFoodData().getFoodLevel();
-            boolean healingNeeded = player.getHealth() < player.getMaxHealth();
+            boolean healingNeeded = com.mistaboom.essence_ascendance.vitality.HealingRecoveryService.needsRecovery(player);
+            boolean foodCanHeal = context.isEffective(SkillIds.METABOLIC_CONVERSION)
+                    && context.settings().vitality().damage().metabolicConversion().healthPerNutrition() > 0;
             int slot = chooseFood(player.getInventory(), stack -> {
                 FoodProperties food = stack.get(DataComponents.FOOD);
                 return food != null
                         && player.canEat(food.canAlwaysEat())
                         && !player.getCooldowns().isOnCooldown(stack.getItem())
                         && stack.getUseDuration(player) > 0
-                        && SustenanceMath.automaticMealOpportunity(healingNeeded, foodLevel,
+                        && SustenanceMath.automaticMealOpportunity(healingNeeded, foodCanHeal, foodLevel,
                         food.nutrition(), player.isUsingItem());
             });
             if (slot < 0) return;
@@ -136,8 +138,15 @@ public final class VitalitySustenanceEffects {
         }
         @Override public List<String> debugLines(SkillEffectRuntime.Context context) {
             return List.of("Food/drink duration factor=" + context.settings().vitality().feastReflex().useDurationMultiplier(),
-                    "Food bar=" + context.player().getFoodData().getFoodLevel() + "/20; automatic meals are virtual",
-                    "Automatic selection=food that reaches natural healing while hurt, or wastes less than half its nutrition at full health; no harmful component effects.");
+                    "HP=" + context.player().getHealth() + "/" + context.player().getMaxHealth()
+                            + "; food=" + context.player().getFoodData().getFoodLevel() + "/" + net.minecraft.world.food.FoodConstants.MAX_FOOD
+                            + "; saturation=" + context.player().getFoodData().getSaturationLevel(),
+                    "Needs recovery=" + com.mistaboom.essence_ascendance.vitality.HealingRecoveryService.needsRecovery(context.player())
+                            + "; Metabolic effective=" + context.isEffective(SkillIds.METABOLIC_CONVERSION)
+                            + "; food HP/nutrition=" + context.settings().vitality().damage().metabolicConversion().healthPerNutrition(),
+                    "Native canEat=" + context.player().canEat(false) + "; manual item use=" + context.player().isUsingItem()
+                            + "; safe hotbar food slot=" + chooseFood(context.player().getInventory(), stack -> true),
+                    "Automatic selection=safe useful meals below natural regeneration, or through full hunger until HP is full with effective Metabolic Conversion; healthy meals waste less than half nutrition; never interrupts item use.");
         }
     }
 

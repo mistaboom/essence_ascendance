@@ -5,6 +5,7 @@ import com.mistaboom.essence_ascendance.config.GuardBalanceSettings;
 import com.mistaboom.essence_ascendance.config.PostureBalanceSettings;
 import com.mistaboom.essence_ascendance.config.StatusBalanceSettings;
 import com.mistaboom.essence_ascendance.config.VitalityBalanceSettings;
+import com.mistaboom.essence_ascendance.config.VitalityDamageBalanceSettings;
 import com.mistaboom.essence_ascendance.config.SkillEffectBalanceSettings;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import net.minecraft.resources.ResourceLocation;
@@ -180,6 +181,33 @@ public final class SkillRankEffectScaling {
             p.innerSustenance = new VitalityBalanceSettings.InnerSustenance(v.combatTimeoutTicks(),
                     Math.max(20, (int) Math.ceil(v.hungerRecoveryIntervalTicks() / f)), v.hungerPerRecovery(), v.saturationPerRecovery());
         });
+        register(SkillIds.HUNGER_WARD, (p, f) -> p.hungerWard = new VitalityDamageBalanceSettings.HungerWard(
+                p.hungerWard.healthPerFoodPoint(),
+                com.mistaboom.essence_ascendance.vitality.DamageRoutingMath.scaleShare(p.hungerWard.damageShare(), f)));
+        register(SkillIds.DAMAGE_CEILING, (p, f) -> {
+            var v = p.damageCeiling;
+            p.damageCeiling = new VitalityDamageBalanceSettings.DamageCeiling(
+                    com.mistaboom.essence_ascendance.vitality.DamageRoutingMath.scaleTakenFraction(v.damageTakenFraction(), f),
+                    v.combatTimeoutTicks());
+        });
+        register(SkillIds.METABOLIC_CONVERSION, (p, f) -> {
+            var v = p.metabolicConversion;
+            double product = v.foodPointsPerOverflowHealth() * v.healthPerNutrition();
+            double bounded = product > 0 ? Math.min(f, Math.sqrt(Math.nextDown(1.0) / product)) : f;
+            double food = Math.min(1024, v.foodPointsPerOverflowHealth() * bounded);
+            double health = Math.min(1024, v.healthPerNutrition() * bounded);
+            if (food * health >= 1) health = Math.nextDown(Math.nextDown(1.0) / food);
+            p.metabolicConversion = new VitalityDamageBalanceSettings.MetabolicConversion(food, health);
+        });
+        register(SkillIds.PAIN_PURGE, (p, f) -> p.painPurge = new VitalityDamageBalanceSettings.PainPurge(
+                scale(p.painPurge.queuePerHealing(), f, 1)));
+        register(SkillIds.ADRENALINE, (p, f) -> {
+            var v = p.adrenaline;
+            p.adrenaline = new VitalityDamageBalanceSettings.Adrenaline(
+                    v.triggerHealthLossFraction(), v.durationTicks(), scale(v.movementSpeedBonus(), f, 10), scale(v.attackSpeedBonus(), f, 10),
+                    scale(v.knockbackResistance(), f, 1));
+        });
+        // Staggered Pain is a binary timing capability, not an invented damage-reduction multiplier.
         // Pure State is binary. Its capability pressure remains one at every
         // projected rank; no inert numeric rule pretends to improve immunity.
     }
@@ -216,6 +244,19 @@ public final class SkillRankEffectScaling {
         if (id.equals(SkillIds.LIFE_STEAL)) return settings.vitality().lifeSteal().baseHealingFraction() / vitality.lifeSteal().baseHealingFraction();
         if (id.equals(SkillIds.FEAST_REFLEX)) return vitality.feastReflex().useDurationMultiplier() / settings.vitality().feastReflex().useDurationMultiplier();
         if (id.equals(SkillIds.INNER_SUSTENANCE)) return vitality.innerSustenance().hungerRecoveryIntervalTicks() / (double) settings.vitality().innerSustenance().hungerRecoveryIntervalTicks();
+        var damage = settings.vitality().damage();
+        var referenceDamage = vitality.damage();
+        if (id.equals(SkillIds.STAGGERED_PAIN)) return 1;
+        if (id.equals(SkillIds.HUNGER_WARD)) {
+            double base = referenceDamage.hungerWard().damageShare();
+            double share = damage.hungerWard().damageShare();
+            return base > 0 ? (share / (1 - share)) / (base / (1 - base)) : 1;
+        }
+        if (id.equals(SkillIds.DAMAGE_CEILING)) return (1 / damage.damageCeiling().damageTakenFraction() - 1)
+                / (1 / referenceDamage.damageCeiling().damageTakenFraction() - 1);
+        if (id.equals(SkillIds.METABOLIC_CONVERSION)) return damage.metabolicConversion().healthPerNutrition() / referenceDamage.metabolicConversion().healthPerNutrition();
+        if (id.equals(SkillIds.PAIN_PURGE)) return damage.painPurge().queuePerHealing() / referenceDamage.painPurge().queuePerHealing();
+        if (id.equals(SkillIds.ADRENALINE)) return damage.adrenaline().attackSpeedBonus() / referenceDamage.adrenaline().attackSpeedBonus();
         return offenseScale;
     }
 
@@ -288,6 +329,12 @@ public final class SkillRankEffectScaling {
         public VitalityBalanceSettings.LifeSteal lifeSteal;
         public VitalityBalanceSettings.FeastReflex feastReflex;
         public VitalityBalanceSettings.InnerSustenance innerSustenance;
+        public VitalityDamageBalanceSettings.HungerWard hungerWard;
+        public VitalityDamageBalanceSettings.StaggeredPain staggeredPain;
+        public VitalityDamageBalanceSettings.DamageCeiling damageCeiling;
+        public VitalityDamageBalanceSettings.MetabolicConversion metabolicConversion;
+        public VitalityDamageBalanceSettings.PainPurge painPurge;
+        public VitalityDamageBalanceSettings.Adrenaline adrenaline;
         private Parameters(SkillEffectBalanceSettings v) {
             frenzy=v.frenzy(); armorCrack=v.armorCrack(); desperation=v.desperation(); deathRush=v.deathRush();
             kindling=v.kindling(); combustion=v.combustion(); frostbite=v.frostbite(); shatter=v.shatter();
@@ -298,13 +345,21 @@ public final class SkillRankEffectScaling {
             bulwark=v.posture().bulwark(); adaptive=v.posture().adaptive(); status=v.status();
             risingRecovery=v.vitality().risingRecovery(); lifeSteal=v.vitality().lifeSteal();
             feastReflex=v.vitality().feastReflex(); innerSustenance=v.vitality().innerSustenance();
+            hungerWard=v.vitality().damage().hungerWard();
+            staggeredPain=v.vitality().damage().staggeredPain();
+            damageCeiling=v.vitality().damage().damageCeiling();
+            metabolicConversion=v.vitality().damage().metabolicConversion();
+            painPurge=v.vitality().damage().painPurge();
+            adrenaline=v.vitality().damage().adrenaline();
+
         }
         private SkillEffectBalanceSettings build() {
             return new SkillEffectBalanceSettings(frenzy, armorCrack, desperation, deathRush, kindling,
                     combustion, frostbite, shatter, staticCharge, chainStrike, projectiles,
                     new GuardBalanceSettings(mobility, ram, ward, storedForce, amplifier, perfectGuard, reprisal, riposte),
                     new PostureBalanceSettings(postureMovement, evasive, bulwark, adaptive), status,
-                    new VitalityBalanceSettings(risingRecovery, lifeSteal, feastReflex, innerSustenance));
+                    new VitalityBalanceSettings(risingRecovery, lifeSteal, feastReflex, innerSustenance,
+                            new VitalityDamageBalanceSettings(hungerWard, staggeredPain, damageCeiling, metabolicConversion, painPurge, adrenaline)));
         }
     }
 }

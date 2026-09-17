@@ -24,6 +24,12 @@ import java.util.List;
 public final class VanillaPlayerAttributeSyncService {
     private VanillaPlayerAttributeSyncService() { }
 
+    /** Native vitals snapshot after an atomic capacity/health update; never invent a second health account. */
+    public static void syncOwnerHealth(ServerPlayer player) {
+        player.connection.send(new net.minecraft.network.protocol.game.ClientboundSetHealthPacket(
+                player.getHealth(), player.getFoodData().getFoodLevel(), player.getFoodData().getSaturationLevel()));
+    }
+
     public static void syncOwner(ServerPlayer player, Holder<Attribute> attribute) {
         syncOwner(player, List.of(attribute));
     }

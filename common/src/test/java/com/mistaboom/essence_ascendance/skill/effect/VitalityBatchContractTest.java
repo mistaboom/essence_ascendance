@@ -36,12 +36,12 @@ public final class VitalityBatchContractTest {
     }
 
     private static void catalog() throws Exception {
-        check(SkillRegistry.size() == 90 && SkillEffectRegistry.implementedIds().size() == 34,
-                "The complete batch implements exactly thirty-four of ninety effects");
+        check(SkillRegistry.size() == 90 && SkillEffectRegistry.implementedIds().size() >= 34,
+                "All previously completed effects remain implemented");
         check(SkillRegistry.values(EssenceTypes.VITALITY.id()).stream()
                 .filter(skill -> SkillEffectRegistry.isImplemented(skill.id())).map(SkillDefinition::id)
-                .collect(java.util.stream.Collectors.toSet()).equals(DESCRIPTIONS.keySet()),
-                "Only the four requested Vitality effects enter the runtime");
+                .collect(java.util.stream.Collectors.toSet()).containsAll(DESCRIPTIONS.keySet()),
+                "All four original Vitality effects remain in the runtime");
         check(Set.copyOf(SkillRegistry.choiceGroup(SkillGroups.VITALITY_RECOVERY).orElseThrow().memberIds()).equals(Set.copyOf(RECOVERY)),
                 "Reviewed recovery exclusions remain exact");
         check(Set.copyOf(SkillRegistry.choiceGroup(SkillGroups.VITALITY_SUSTENANCE).orElseThrow().memberIds()).equals(Set.copyOf(SUSTENANCE)),
