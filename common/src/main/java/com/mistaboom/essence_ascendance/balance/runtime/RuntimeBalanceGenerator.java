@@ -679,6 +679,7 @@ public final class RuntimeBalanceGenerator {
         scaleEffectFields(tree,scale);
         scalePostureFields(tree.getAsJsonObject("posture"),Math.min(1,scale));
         tree.add("vitality", JSON.toJsonTree(VitalityBalanceGenerator.generate(evidence, settings)));
+        tree.add("mobility", JSON.toJsonTree(MobilityBalanceGenerator.generate(settings)));
         return JSON.fromJson(tree,SkillEffectBalanceSettings.class);
     }
     private static void scaleEffectFields(JsonObject tree,double scale) {

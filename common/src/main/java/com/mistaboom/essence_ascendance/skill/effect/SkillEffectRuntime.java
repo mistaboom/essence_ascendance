@@ -81,6 +81,13 @@ public final class SkillEffectRuntime {
 
     public static void forget(ServerPlayer player) { reset(player); }
 
+    public static void movementDiscontinuity(ServerPlayer player) {
+        PlayerRuntime runtime = PLAYERS.get(player.getUUID());
+        if (runtime == null || runtime.player.get() != player) return;
+        Context context = new Context(player, runtime);
+        for (SkillEffectHandler handler : SkillEffectRegistry.handlers()) handler.movementDiscontinuity(context);
+    }
+
     public static void clearAll() {
         CombatHudActivity.clear();
         GuardCounterattackService.clearAll();

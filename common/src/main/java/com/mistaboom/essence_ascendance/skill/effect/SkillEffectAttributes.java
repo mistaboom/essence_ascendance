@@ -36,6 +36,23 @@ public final class SkillEffectAttributes {
         }
     }
 
+    public static void minimum(LivingEntity entity, Holder<Attribute> attribute, ResourceLocation id, double minimum) {
+        AttributeInstance instance = entity.getAttribute(attribute);
+        if (instance == null) return;
+        double subtotal = instance.getBaseValue(), baseMultiplier = 1, totalMultiplier = 1;
+        for (AttributeModifier modifier : instance.getModifiers()) {
+            if (modifier.id().equals(id)) continue;
+            switch (modifier.operation()) {
+                case ADD_VALUE -> subtotal += modifier.amount();
+                case ADD_MULTIPLIED_BASE -> baseMultiplier += modifier.amount();
+                case ADD_MULTIPLIED_TOTAL -> totalMultiplier *= 1 + modifier.amount();
+            }
+        }
+        double multiplier = baseMultiplier * totalMultiplier;
+        apply(entity, attribute, id, SkillEffectMath.attributeFloorAddition(subtotal, multiplier, minimum),
+                AttributeModifier.Operation.ADD_VALUE);
+    }
+
     public static void reduction(LivingEntity target, Holder<Attribute> attribute, ResourceLocation id,
                           double requested) {
         AttributeInstance instance = target.getAttribute(attribute);

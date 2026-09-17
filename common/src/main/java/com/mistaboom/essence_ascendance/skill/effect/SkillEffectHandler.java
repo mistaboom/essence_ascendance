@@ -37,6 +37,8 @@ public interface SkillEffectHandler {
         if (death.ordinaryKillBy(context.player())) kill(context, death.victim());
     }
     default void targetRemoved(SkillEffectRuntime.Context context, Entity target) { }
+    /** Teleport/correction invalidates movement evidence, not unrelated combat state. */
+    default void movementDiscontinuity(SkillEffectRuntime.Context context) { }
     default double damageMultiplier(SkillEffectRuntime.Context context, LivingEntity target,
                                     DamageSource source, AttackCategory primaryCategory) { return 1.0; }
     /** Flat primary damage is added after ordinary multipliers but before native mitigation. */

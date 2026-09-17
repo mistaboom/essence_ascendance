@@ -21,6 +21,7 @@ public final class SkillEffectRegistry {
                     VitalitySustenanceEffects.handlers(),
                     VitalityDamageEffects.handlers(),
                     VitalityWardEffects.handlers(),
+                    MobilityMomentumEffects.handlers(),
                     java.util.List.<SkillEffectHandler>of(
                             new PostureHandler(com.mistaboom.essence_ascendance.skill.SkillIds.EVASIVE_CURRENT),
                             new PostureHandler(com.mistaboom.essence_ascendance.skill.SkillIds.BULWARK_STANCE),

@@ -30,6 +30,15 @@ public final class NativeBonusMechanics {
         return player.hasAttribute(attribute) ? player.getValue(attribute) : attribute.value().getDefaultValue();
     }
 
+    /** Shared empty-world collision measurement. Context-dependent blocks may throw and require caller policy. */
+    public static double collisionTop(net.minecraft.world.level.block.state.BlockState state) {
+        var shape = state.getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO);
+        if (shape.isEmpty()) return 0;
+        double top = shape.max(Direction.Axis.Y);
+        if (!Double.isFinite(top) || top < 0) throw new IllegalArgumentException("Invalid native collision height");
+        return top;
+    }
+
     /** Percentage points for an ADD_VALUE modifier whose gameplay conversion divides by 100. */
     public static double additivePercentHeadroom(Holder<Attribute> attribute) {
         return Math.max(0, attribute.value().sanitizeValue(Double.MAX_VALUE) - baseline(attribute)) * 100;
@@ -49,10 +58,9 @@ public final class NativeBonusMechanics {
                 var resource = evidence.resources().get(itemId);
                 if (resource == null || !resource.reachable()) continue;
                 try {
-                    var shape = block.defaultBlockState().getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO);
+                    double height = collisionTop(block.defaultBlockState());
                     inspected++;
-                    if (shape.isEmpty()) continue;
-                    double height = shape.max(Direction.Axis.Y);
+                    if (height == 0) continue;
                     if (!Double.isFinite(height) || height <= base || height > base + maximum + 1e-7) continue;
                     surfaces.computeIfAbsent(height, unused -> new ArrayList<>()).add(itemId);
                     confidence = Math.min(confidence, resource.confidence());

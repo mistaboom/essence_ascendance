@@ -381,6 +381,12 @@ public final class BalanceReports {
     }
 
     private static void combatSummary(StringBuilder out, JsonObject skills) {
+        if (skills.has("mobilityPolicy")) {
+            out.append("## Conditional mobility policy\n\n| Field | Value / policy |\n|---|---|\n");
+            skills.getAsJsonObject("mobilityPolicy").entrySet().stream().sorted(Map.Entry.comparingByKey())
+                    .forEach(entry -> row(out, entry.getKey(), entry.getValue().getAsString()));
+            out.append("\nExact values and provenance are included in `runtime_parameters.csv` under `/runtime/effects/mobility`. These movement capabilities are not direct combat-output multipliers.\n\n");
+        }
         if (skills.has("vitalityPolicy")) {
             out.append("\n### Vitality recovery and sustenance policy\n\nResolved native units and attribution are in `vitality_policy.csv`; exact scalar tuning is in `runtime_parameters.csv` under `/runtime/effects/vitality`. Capacity bounds are not measured play feel.\n\n| Contract | Rule |\n|---|---|\n");
             skills.getAsJsonObject("vitalityPolicy").entrySet().stream().sorted(Map.Entry.comparingByKey())

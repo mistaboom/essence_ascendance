@@ -32,7 +32,7 @@ import java.util.Map;
 
 /** Server-thread transaction: collect, construct, validate, persist, publish, then synchronize. */
 public final class GeneratedBalanceService {
-    static final String GENERATION_REVISION = "vitality-ward-pools-27";
+    static final String GENERATION_REVISION = "mobility-momentum-28";
     private static final String DISSOLUTION_ACCOUNTING = "whole_essence_v1";
     private static volatile Active active;
     private static volatile boolean resourcesChanged;
@@ -185,6 +185,7 @@ public final class GeneratedBalanceService {
         result.add("guardPolicy", guardPolicy());
         result.add("postureStatusPolicy", postureStatusPolicy());
         result.add("vitalityPolicy", vitalityPolicy(runtime));
+        result.add("mobilityPolicy", mobilityPolicy(runtime));
         result.add("semantics", serializer.toJsonTree(catalog.stream().map(skill ->
                 com.mistaboom.essence_ascendance.skill.balance.SkillBalanceSemantics.require(skill.id())).toList()));
         JsonObject projections = new JsonObject();
@@ -281,6 +282,26 @@ public final class GeneratedBalanceService {
         policy.addProperty("shatteringWard", "One pulse only when an accepted nondeferred native hit empties a positive Soul Ward pool and the player survives; expiry/capacity trimming/external effect edits/deactivation are not damage breaks. Bounded visible hostile targets, shared control/PvP/team immunity policy and native resisted/cancelable knockback. One refreshable regeneration window uses native healing, not a second healing or HUD system.");
         policy.addProperty("wardProjection", "Defense/rank calibration includes a full finite earned pool with native pre-routing mitigation; no extra Damage Ceiling multiplier is credited to absorption. Healing/rank calibration includes peak conditional Shattering regeneration and accepted-healing synergies. Crowd control is not credited as damage or EHP; no observed victim distribution, kill cadence or break uptime is assumed.");
         policy.addProperty("evidenceLimit", "No observed player food throughput, damage cadence, sleep population or phantom encounter telemetry. Food capacity and delayed payment remain conditional resource/time contracts; Ceiling is a bounded proportional prevention multiplier whose temporary capacity loss is not healing. Live gameplay, multiplayer, dedicated-server and representative-modpack acceptance remain pending.");
+        return policy;
+    }
+
+    static JsonObject mobilityPolicy(RuntimeBalanceDefinition runtime) {
+        var v = runtime.config().skillEffects().mobility();
+        JsonObject policy = new JsonObject();
+        policy.addProperty("tuning", "/runtime/effects/mobility; generated from existing skill-tier headroom, semantic weights/availability and survival reference window. Existing exact TOML overrides, rank consumers and fingerprint; no live defaults or parallel config.");
+        policy.addProperty("maximumSprintSpeedBonus", v.runningMomentum().maximumSpeedBonus());
+        policy.addProperty("buildSeconds", v.runningMomentum().buildTicks() / 20.0);
+        policy.addProperty("fullDrainSeconds", v.runningMomentum().drainTicks() / 20.0);
+        policy.addProperty("sharpTurnDegrees", v.runningMomentum().sharpTurnDegrees());
+        policy.addProperty("vaultNativeStepHeight", v.momentumVault().stepHeight());
+        policy.addProperty("vaultMinimumMomentum", v.momentumVault().minimumMomentum());
+        policy.addProperty("rushRetentionSeconds", v.rush().durationTicks() / 20.0);
+        policy.addProperty("movementEvidence", "Accepted native grounded movement plus fresh existing input signal; one state transition per server tick. No buildup from input alone, packet count, mounts, swimming, climbing, flight, forced displacement or teleports. Brief missing movement samples and ordinary sprint jumps may hold, never build.");
+        policy.addProperty("runningMomentum", "One normalized reservoir. Stopping, crouching, lost input or a sharp turn drains unless Rush retains. Only land sprinting applies the proportional speed modifier. Flight/water/climbing/mounts/teleports/dimension changes and lifecycle resets clear movement state and its exact-ID modifiers.");
+        policy.addProperty("momentumVault", "Generated native fence collision height defines a step floor while charged, grounded and sprinting with measured movement. Normal collision/headroom semantics; no teleport, velocity launch, fall reset or block modification. Sneak disables; existing stronger additive/multiplicative step modifiers remain intact. Readiness shares Running Momentum's HUD card.");
+        policy.addProperty("rush", "Confirmed attributed nonallied kills, including native projectile/caster and skill-proc kills, fill Running Momentum and refresh one retention window. No stacked timers, extra speed bonus or bypass of movement-mode/discontinuity resets. Separate standard timed HUD card.");
+        policy.addProperty("projection", "Ground-speed magnitude is projected as conditional movement, vault as vertical access/convenience, Rush as retention convenience. No extra jump impulse, direct DPS or EHP is invented. Future ranks scale maximum sprint bonus, reduce vault activation threshold, or extend retention.");
+        policy.addProperty("evidenceLimit", "No observed route geometry, turning behavior, obstacle frequency or kill cadence is assumed. Dedicated-server movement prediction and representative-modpack acceptance need in-game verification.");
         return policy;
     }
 

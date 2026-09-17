@@ -10,6 +10,14 @@ public final class SkillEffectMath {
         return Double.isFinite(value) ? Math.max(minimum, Math.min(maximum, value)) : minimum;
     }
 
+    /** Add only the shortfall needed for a native attribute floor; never erase another source. */
+    public static double attributeFloorAddition(double subtotal, double multiplier, double minimum) {
+        if (!Double.isFinite(subtotal) || !Double.isFinite(multiplier) || !Double.isFinite(minimum)
+                || multiplier <= 0 || minimum <= 0) return 0;
+        double addition = minimum / multiplier - subtotal;
+        return Double.isFinite(addition) ? Math.max(0, addition) : 0;
+    }
+
     public static int stacks(int count, int maximum) {
         return Math.max(0, Math.min(Math.max(0, maximum), count));
     }

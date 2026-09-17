@@ -22,6 +22,7 @@ public abstract class AttunementMovementMixin {
     private void essenceAscendance$postureDiscontinuity(double x, double y, double z, float yaw, float pitch,
             java.util.Set<net.minecraft.world.entity.RelativeMovement> relative, CallbackInfo ci) {
         PostureService.forget(player);
+        com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime.movementDiscontinuity(player);
     }
     @WrapMethod(method = "handleContainerClick")
     private void essenceAscendance$nativeMenuRequest(ServerboundContainerClickPacket packet, Operation<Void> original) {

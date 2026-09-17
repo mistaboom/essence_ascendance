@@ -22,7 +22,7 @@ import java.util.*;
 /** One transient authoritative posture per player lifecycle, never persisted and never fed by HUD retention. */
 public final class PostureService {
     public static final int DODGE_FEEDBACK_TICKS = 40;
-    private static final int MOVEMENT_SAMPLE_GRACE_TICKS = 2;
+    private static final int MOVEMENT_SAMPLE_GRACE_TICKS = com.mistaboom.essence_ascendance.movement.PlayerMotionTracker.SAMPLE_GRACE_TICKS;
     private static final Map<ServerPlayer, State> STATES = new WeakHashMap<>();
     private static long nextLifecycle;
     private PostureService() { }
@@ -125,6 +125,7 @@ public final class PostureService {
     }
     /** Reuses the existing input packet only as evidence; all motion and lifecycle checks remain server-side. */
     public static void moved(ServerPlayer player, Vec3 before, String dimension, float yaw, float pitch) {
+        com.mistaboom.essence_ascendance.movement.PlayerMotionTracker.moved(player, before, dimension, yaw);
         State state = STATES.get(player); if (state == null) return;
         var movement = SkillEffectRuntime.resolvedSettings(player).posture().movement();
         if (!dimension.equals(player.level().dimension().location().toString())) { forget(player); return; }
@@ -141,17 +142,20 @@ public final class PostureService {
     }
     /** Non-player native displacement (pistons, conveyors, knockback and collision correction) cannot charge. */
     public static void externalMove(Entity entity, MoverType type, Vec3 before) {
+        com.mistaboom.essence_ascendance.movement.PlayerMotionTracker.externalMove(entity, type, before);
         if (!(entity instanceof ServerPlayer player) || type == MoverType.PLAYER || !STATES.containsKey(player)) return;
         var settings = SkillEffectRuntime.resolvedSettings(player).posture().movement();
         if (player.position().distanceTo(before) > settings.stillExitDisplacement()) forced(player, "native_" + type.name().toLowerCase(Locale.ROOT));
     }
     public static void forced(ServerPlayer player, String reason) {
+        com.mistaboom.essence_ascendance.movement.PlayerMotionTracker.forced(player);
         State state = STATES.get(player); if (state == null) return;
         state.forcedUntil = player.level().getGameTime() + SkillEffectRuntime.resolvedSettings(player).posture().movement().forcedMotionQuietTicks();
         state.pendingMotion = reason; state.forceReason = reason.substring(0,Math.min(reason.length(),96));
     }
     /** Explicit server velocity accelerations conservatively invalidate accumulated evasion evidence. */
     public static void velocity(Entity entity, Vec3 proposed) {
+        com.mistaboom.essence_ascendance.movement.PlayerMotionTracker.velocity(entity, proposed);
         if (!(entity instanceof ServerPlayer player) || !STATES.containsKey(player)) return;
         var settings = SkillEffectRuntime.resolvedSettings(player).posture().movement();
         Vec3 current = entity.getDeltaMovement();

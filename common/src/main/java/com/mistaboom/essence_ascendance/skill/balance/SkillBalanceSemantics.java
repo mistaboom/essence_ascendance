@@ -261,11 +261,11 @@ public final class SkillBalanceSemantics {
         all.add(skill(SkillIds.RUNNING_MOMENTUM, multi(GROUND_SPEED, .5))
                 .actions(Action.SPRINT).availability(.7, .9).risk(.1)
                 .condition("Continuous sprinting; sharp turns and stopping lose accumulated speed"));
-        all.add(skill(SkillIds.MOMENTUM_VAULT, capability(CONVENIENCE, .5), flat(JUMP, .25))
-                .actions(Action.SPRINT).availability(.6, .85).condition("Short obstacles during momentum sprinting"));
-        all.add(skill(SkillIds.RUSH, flat(GROUND_SPEED, .4))
-                .actions(Action.KILL, Action.SPRINT).availability(.3, .75).timing(0, 5)
-                .condition("Kills fill existing Running Momentum and delay its decay"));
+        all.add(skill(SkillIds.MOMENTUM_VAULT, capability(CONVENIENCE, .5), flat(VERTICAL_MOVEMENT, .25))
+                .actions(Action.SPRINT).availability(.6, .85).condition("Native step-height floor over short collision obstacles during a charged sprint; no jump impulse or airborne lift"));
+        all.add(skill(SkillIds.RUSH, flat(CONVENIENCE, .4))
+                .actions(Action.KILL, Action.SPRINT).availability(.3, .75)
+                .condition("Attributed kills fill existing Running Momentum and retain it; no second speed multiplier or invented kill rate"));
         all.add(skill(SkillIds.TERRAIN_FREEDOM, capability(CONVENIENCE, .55), flat(STATUS_RESISTANCE, .3))
                 .actions(Action.MOVE).availability(.5, 1).condition("Terrain slow, contact, freezing and sinking hazards only"));
         all.add(skill(SkillIds.AQUATIC_BODY, flat(GROUND_SPEED, .4), flat(MINING_SPEED, .35), flat(INFORMATION, .25))

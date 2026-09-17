@@ -1,6 +1,8 @@
 package com.mistaboom.essence_ascendance.skill.balance;
 
 import com.mistaboom.essence_ascendance.config.ProjectileBalanceSettings;
+import com.mistaboom.essence_ascendance.config.MobilityBalanceSettings;
+import com.mistaboom.essence_ascendance.balance.engine.CapabilityAxis;
 import com.mistaboom.essence_ascendance.config.GuardBalanceSettings;
 import com.mistaboom.essence_ascendance.config.PostureBalanceSettings;
 import com.mistaboom.essence_ascendance.config.StatusBalanceSettings;
@@ -223,6 +225,15 @@ public final class SkillRankEffectScaling {
                     v.triggerHealthLossFraction(), v.durationTicks(), scale(v.movementSpeedBonus(), f, 10), scale(v.attackSpeedBonus(), f, 10),
                     scale(v.knockbackResistance(), f, 1));
         });
+        register(SkillIds.RUNNING_MOMENTUM, (p, f) -> {
+            var v = p.runningMomentum;
+            p.runningMomentum = new MobilityBalanceSettings.RunningMomentum(scale(v.maximumSpeedBonus(), f, 16),
+                    v.buildTicks(), v.drainTicks(), v.sharpTurnDegrees());
+        });
+        register(SkillIds.MOMENTUM_VAULT, (p, f) -> p.momentumVault = new MobilityBalanceSettings.MomentumVault(
+                p.momentumVault.stepHeight(), p.momentumVault.minimumMomentum() / f));
+        register(SkillIds.RUSH, (p, f) -> p.rush = new MobilityBalanceSettings.Rush(
+                (int) Math.ceil(scale(p.rush.durationTicks(), f, 72_000))));
         // Staggered Pain is a binary timing capability, not an invented damage-reduction multiplier.
         // Pure State is binary. Its capability pressure remains one at every
         // projected rank; no inert numeric rule pretends to improve immunity.
@@ -290,6 +301,21 @@ public final class SkillRankEffectScaling {
                     / weights.get(com.mistaboom.essence_ascendance.balance.engine.CapabilityAxis.CROWD_CONTROL);
             return Math.max(healing, control);
         }
+        var movement = settings.mobility();
+        if (id.equals(SkillIds.RUNNING_MOMENTUM)) return movement.runningMomentum().maximumSpeedBonus()
+                / SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.GROUND_SPEED);
+        if (id.equals(SkillIds.MOMENTUM_VAULT)) {
+            // Height is a native obstacle capability. Earlier activation improves availability, not jump impulse.
+            if (movement.momentumVault().stepHeight() <= 0) return 0;
+            return movement.momentumVault().stepHeight() * (2 - movement.momentumVault().minimumMomentum())
+                    / SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.VERTICAL_MOVEMENT);
+        }
+        if (id.equals(SkillIds.RUSH)) {
+            // Retained time relative to the shared build window is convenience, not an additional speed multiplier.
+            if (movement.runningMomentum().maximumSpeedBonus() <= 0) return 0;
+            return (1 + movement.rush().durationTicks() / (double) movement.runningMomentum().buildTicks())
+                    / SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.CONVENIENCE);
+        }
         return offenseScale;
     }
 
@@ -345,6 +371,9 @@ public final class SkillRankEffectScaling {
         public SkillEffectBalanceSettings.StaticCharge staticCharge;
         public SkillEffectBalanceSettings.ChainStrike chainStrike;
         public ProjectileBalanceSettings projectiles;
+        public MobilityBalanceSettings.RunningMomentum runningMomentum;
+        public MobilityBalanceSettings.MomentumVault momentumVault;
+        public MobilityBalanceSettings.Rush rush;
         public GuardBalanceSettings.Mobility mobility;
         public GuardBalanceSettings.Ram ram;
         public GuardBalanceSettings.Ward ward;
@@ -390,6 +419,7 @@ public final class SkillRankEffectScaling {
             soulWard=v.vitality().wards().soulWard();
             deepWard=v.vitality().wards().deepWard();
             shatteringWard=v.vitality().wards().shatteringWard();
+            runningMomentum=v.mobility().runningMomentum(); momentumVault=v.mobility().momentumVault(); rush=v.mobility().rush();
 
         }
         private SkillEffectBalanceSettings build() {
@@ -399,7 +429,8 @@ public final class SkillRankEffectScaling {
                     new PostureBalanceSettings(postureMovement, evasive, bulwark, adaptive), status,
                     new VitalityBalanceSettings(risingRecovery, lifeSteal, feastReflex, innerSustenance,
                             new VitalityDamageBalanceSettings(hungerWard, staggeredPain, damageCeiling, metabolicConversion, painPurge, adrenaline),
-                            new VitalityWardBalanceSettings(soulWard, deepWard, shatteringWard)));
+                            new VitalityWardBalanceSettings(soulWard, deepWard, shatteringWard)),
+                    new MobilityBalanceSettings(runningMomentum, momentumVault, rush));
         }
     }
 }

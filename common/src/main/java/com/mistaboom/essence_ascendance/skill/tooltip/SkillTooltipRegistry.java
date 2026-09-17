@@ -148,6 +148,19 @@ public final class SkillTooltipRegistry {
                 line("skill.essence_ascendance.shattering_ward.description.resolved.1", pct(s -> s.vitality().wards().shatteringWard().healingFractionPerSecond()),
                         sec(s -> s.vitality().wards().shatteringWard().regenerationTicks())),
                 line("skill.essence_ascendance.shattering_ward.description.resolved.2"));
+        define(SkillIds.RUNNING_MOMENTUM,
+                line("skill.essence_ascendance.running_momentum.description.resolved", pct(s -> s.mobility().runningMomentum().maximumSpeedBonus()),
+                        sec(s -> s.mobility().runningMomentum().buildTicks())),
+                line("skill.essence_ascendance.running_momentum.description.resolved.1", sec(s -> s.mobility().runningMomentum().drainTicks()),
+                        n(s -> s.mobility().runningMomentum().sharpTurnDegrees())),
+                line("skill.essence_ascendance.running_momentum.description.resolved.2"));
+        define(SkillIds.MOMENTUM_VAULT,
+                line("skill.essence_ascendance.momentum_vault.description.resolved", pct(s -> s.mobility().momentumVault().minimumMomentum()),
+                        n(s -> s.mobility().momentumVault().stepHeight())),
+                line("skill.essence_ascendance.momentum_vault.description.resolved.1"));
+        define(SkillIds.RUSH,
+                line("skill.essence_ascendance.rush.description.resolved", sec(s -> s.mobility().rush().durationTicks())),
+                line("skill.essence_ascendance.rush.description.resolved.1"));
         define(SkillIds.ADRENALINE,
                 line("skill.essence_ascendance.adrenaline.description.resolved" , pct(s -> s.vitality().damage().adrenaline().triggerHealthLossFraction()), sec(s -> s.vitality().damage().adrenaline().durationTicks())),
                 line("skill.essence_ascendance.adrenaline.description.resolved.1" , pct(s -> s.vitality().damage().adrenaline().movementSpeedBonus()), pct(s -> s.vitality().damage().adrenaline().attackSpeedBonus()), pct(s -> s.vitality().damage().adrenaline().knockbackResistance())));
