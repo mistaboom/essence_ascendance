@@ -28,6 +28,9 @@ public interface SkillEffectHandler {
     /** Native hurt returned true with measured positive loss; canceled and zero damage never enter. */
     default void acceptedDamage(SkillEffectRuntime.Context context, DamageSource source,
                                 double healthLost, double absorptionLost) { }
+    /** One owned absorption source crossed from positive to empty during accepted native damage. */
+    default void absorptionDepleted(SkillEffectRuntime.Context context, DamageSource source,
+                                     ResourceLocation pool) { }
     default void kill(SkillEffectRuntime.Context context, LivingEntity target) { }
     /** Every completed death is observable; default kill rewards remain ordinary player-attributed only. */
     default void deathObserved(SkillEffectRuntime.Context context, SkillDeathContext death) {

@@ -4,9 +4,6 @@ import com.mistaboom.essence_ascendance.balance.config.BalanceSettings;
 import com.mistaboom.essence_ascendance.balance.engine.*;
 import com.mistaboom.essence_ascendance.config.VitalityDamageBalanceSettings;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
-import com.mistaboom.essence_ascendance.skill.SkillRegistry;
-import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
-import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
 import com.mistaboom.essence_ascendance.skill.balance.SkillBalanceSemantics;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.food.FoodConstants;
@@ -16,9 +13,9 @@ import net.minecraft.world.food.FoodConstants;
 final class VitalityDamageBalanceGenerator {
     private VitalityDamageBalanceGenerator() { }
     static VitalityDamageBalanceSettings generate(BalanceSettings settings) {
-        double wardHeadroom = headroom(settings, SkillIds.HUNGER_WARD);
-        double ceilingHeadroom = headroom(settings, SkillIds.DAMAGE_CEILING);
-        double adrenalineHeadroom = headroom(settings, SkillIds.ADRENALINE);
+        double wardHeadroom = SkillGenerationBudget.headroom(settings, SkillIds.HUNGER_WARD);
+        double ceilingHeadroom = SkillGenerationBudget.headroom(settings, SkillIds.DAMAGE_CEILING);
+        double adrenalineHeadroom = SkillGenerationBudget.headroom(settings, SkillIds.ADRENALINE);
         double health = RuntimeReferencePolicy.playerHealth();
         double foodReservoir = FoodConstants.MAX_FOOD * 2.0; // full food + full saturation, native units
         double wardBudget = wardHeadroom * weight(SkillIds.HUNGER_WARD, CapabilityAxis.EFFECTIVE_HEALTH);
@@ -55,15 +52,6 @@ final class VitalityDamageBalanceGenerator {
                 // tune the rewards, not this trigger's meaning.
                 new VitalityDamageBalanceSettings.Adrenaline(.25, ticks(adrenaline.durationSeconds()), movement, attack,
                         Math.clamp(adrenalineHeadroom * adrenaline.setupRisk(), 0, 1)));
-    }
-    private static double headroom(BalanceSettings settings, ResourceLocation id) {
-        var tiers = AscendanceTierRegistry.powerTiers().stream()
-                .sorted(java.util.Comparator.comparingInt(AscendanceTierDefinition::order)).toList();
-        var requiredTier = SkillRegistry.require(id).requiredTierId();
-        for (int index = 0; index < tiers.size(); index++) if (tiers.get(index).id().equals(requiredTier))
-            return BuildPowerTargets.rankOneMultiplier(settings, ProgressionBand.at(index),
-                    BuildComposition.Participation.SKILL_FOCUSED) - 1;
-        throw new IllegalArgumentException("No generated power band for skill " + id + " at " + requiredTier);
     }
     private static int ticks(double seconds) { return Math.clamp((int)Math.ceil(seconds * 20), 1, 72_000); }
     private static double weight(ResourceLocation id, CapabilityAxis axis) {

@@ -274,7 +274,8 @@ public final class EquipmentDamageService {
             MeasuredDamage measurement = MEASURED_DAMAGE.get();
             if (measurement != null && measurement.frame == null && measurement.sample == null
                     && measurement.target == target && measurement.source == source) measurement.frame = frame;
-            boolean accepted = action.getAsBoolean();
+            boolean accepted = com.mistaboom.essence_ascendance.skill.effect.AbsorptionPoolService
+                    .damage(target, source, action);
             double loss = frame.healthLost + frame.absorptionLost;
             if (accepted && Double.isFinite(loss) && loss > 0) {
                 if (source.getEntity() instanceof ServerPlayer responsible)

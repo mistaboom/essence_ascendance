@@ -21,7 +21,7 @@ public final class VitalityBatchContractTest {
     private static final Map<ResourceLocation, String> DESCRIPTIONS = Map.of(
             SkillIds.RISING_RECOVERY, "Natural regeneration accelerates continuously as health falls, becoming strongest below half health.",
             SkillIds.LIFE_STEAL, "Direct weapon damage restores health, with consecutive hits on the same target increasing the healing until the attack chain breaks.",
-            SkillIds.FEAST_REFLEX, "Food and drinks are consumed much faster; when the food bar is below full and health drops, suitable hotbar food is consumed automatically.",
+            SkillIds.FEAST_REFLEX, "Consumes food and drinks much faster. Automatically eats safe hotbar food when needed, including successive meals when injured and hungry.",
             SkillIds.INNER_SUSTENANCE, "Hunger slowly restores outside combat; at full saturation, passive hunger drain stops, sleep becomes optional, and phantoms ignore the player.");
 
     public static void main(String[] args) throws Exception {
@@ -52,8 +52,10 @@ public final class VitalityBatchContractTest {
             var language = JsonParser.parseReader(reader).getAsJsonObject();
             for (var entry : DESCRIPTIONS.entrySet()) {
                 var skill = SkillRegistry.require(entry.getKey());
-                check(language.get(skill.descriptionTranslationKey()).getAsString().equals(entry.getValue()),
-                        "Reviewed catalog description preserved: " + skill.id());
+                var actualDescription = language.get(skill.descriptionTranslationKey()).getAsString();
+                check(actualDescription.equals(entry.getValue()),
+                        "Current catalog description preserved: " + skill.id()
+                                + "\nExpected: " + entry.getValue() + "\nActual: " + actualDescription);
                 check(skill.essenceId().equals(EssenceTypes.VITALITY.id()) && skill.prerequisites().isEmpty()
                         && skill.replacementTargetId().isEmpty(), "Category and prerequisite relationships preserved");
                 check(skill.requiredTierId().equals(RECOVERY.contains(skill.id())

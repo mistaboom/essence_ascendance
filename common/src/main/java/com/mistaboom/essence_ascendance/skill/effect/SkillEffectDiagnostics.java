@@ -45,10 +45,34 @@ final class SkillEffectDiagnostics {
         configuration(failures);
         arithmetic(failures);
         timedStacks(failures);
+        absorptionOwnership(failures);
         elementalFoundation(failures);
         hudVisibility(failures);
         persistentDataSchema(failures);
         return List.copyOf(failures);
+    }
+
+    private static void absorptionOwnership(List<String> failures) {
+        var pool = new AbsorptionPoolLedger<String>();
+        pool.configure("first", 8); pool.configure("second", 4);
+        check(failures, pool.grant("first", 20) == 8 && pool.grant("second", 2) == 2,
+                "Owned absorption must cap grants independently.");
+        check(failures, pool.external(16) == 6, "Owned absorption must not claim unrelated native hearts.");
+        var partial = pool.consume(3);
+        check(failures, partial.depleted().isEmpty() && pool.amount("first") == 5,
+                "Partial absorption damage must not emit a break.");
+        var broken = pool.consume(6);
+        check(failures, broken.depleted().equals(List.of("first")) && pool.amount("second") == 1,
+                "Only a drained positive source emits a break, in deterministic source order.");
+        check(failures, pool.consume(0).depleted().isEmpty(), "Empty/zero hits must not repeat a ward break.");
+        pool.configure("second", .5);
+        check(failures, pool.amount("second") == .5 && pool.remove("first") == 0,
+                "Capacity trims and cleanup may remove only their source's points.");
+        pool.fit(.25);
+        check(failures, pool.total() == .25 && pool.external(2.25) == 2,
+                "External native edits must reconcile ownership without inventing absorption.");
+        pool.clear();
+        check(failures, pool.empty() && pool.total() == 0, "Transient absorption cleanup must clear all ownership.");
     }
 
     private static void registrations(List<String> failures) {
@@ -61,7 +85,8 @@ final class SkillEffectDiagnostics {
                 SkillIds.REFLEXIVE_WARD, SkillIds.STORED_FORCE, SkillIds.GUARD_AMPLIFIER, SkillIds.CROWD_REPRISAL,
                 SkillIds.RIPOSTE, SkillIds.EVASIVE_CURRENT, SkillIds.BULWARK_STANCE,
                 SkillIds.ADAPTIVE_GUARD, SkillIds.STATUS_MIRROR, SkillIds.PURE_STATE,
-                SkillIds.RISING_RECOVERY, SkillIds.LIFE_STEAL, SkillIds.FEAST_REFLEX, SkillIds.INNER_SUSTENANCE);
+                SkillIds.RISING_RECOVERY, SkillIds.LIFE_STEAL, SkillIds.FEAST_REFLEX, SkillIds.INNER_SUSTENANCE,
+                SkillIds.SOUL_WARD, SkillIds.DEEP_WARD, SkillIds.SHATTERING_WARD);
         List<SkillEffectHandler> actual = List.copyOf(SkillEffectRegistry.handlers());
         Set<ResourceLocation> seen = new HashSet<>();
         check(failures, SkillEffectRegistry.implementedIds().containsAll(expected),

@@ -320,6 +320,17 @@ public final class RuntimeBuildScenarios {
                 * (active.contains(SkillIds.LIFE_STEAL) ? healingEffectiveness : 1);
         double maximumHealth = item.health() + nexus.bonusHealth();
         double taken = maximumHealth / defense.effectiveHealth();
+        // Native absorption is spent BEFORE the post-absorption damage styles. Count one full earned
+        // reservoir, not an invented kill/refill rate, and never amplify it with Damage Ceiling.
+        double wardProtection = active.contains(SkillIds.SOUL_WARD)
+                ? com.mistaboom.essence_ascendance.skill.effect.VitalityWardEffects.capacity(maximumHealth,
+                        s.vitality().wards(), active.contains(SkillIds.DEEP_WARD)) / taken : 0;
+        if (active.contains(SkillIds.SOUL_WARD) && active.contains(SkillIds.SHATTERING_WARD)
+                && !active.contains(SkillIds.DEEP_WARD)) {
+            // Peak conditional regeneration is a conservative bound; no assumed break frequency or
+            // knockback-as-EHP credit. Accepted native healing also participates in Pain Purge below.
+            additionalHealing += maximumHealth * s.vitality().wards().shatteringWard().healingFractionPerSecond();
+        }
         double resourceProtection = 0;
         if (active.contains(SkillIds.HUNGER_WARD)) {
             var ward = s.vitality().damage().hungerWard();
@@ -337,7 +348,7 @@ public final class RuntimeBuildScenarios {
             // Sustained healing below is an optimistic bound: lost capacity can only constrain it.
             // We do not credit capacity restoration as healing or assume mid-combat Trauma clears.
         }
-        currentEhp += resourceProtection / taken;
+        currentEhp += resourceProtection / taken + wardProtection;
         if (active.contains(SkillIds.PAIN_PURGE) && active.contains(SkillIds.STAGGERED_PAIN)) {
             // The native saturated-food rate is conditional, not invented food/potion throughput.
             // Count fully useful HP plus debt recovery conservatively; queue cancellation is not EHP.

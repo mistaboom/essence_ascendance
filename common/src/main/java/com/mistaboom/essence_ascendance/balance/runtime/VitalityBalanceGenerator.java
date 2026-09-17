@@ -49,7 +49,7 @@ final class VitalityBalanceGenerator {
                         seed.lifeSteal().perHitHealingFraction() * stealScale, hits, seed.lifeSteal().chainTimeoutTicks()),
                 new VitalityBalanceSettings.FeastReflex(duration), new VitalityBalanceSettings.InnerSustenance(
                         combatTicks, recoveryTicks, seed.innerSustenance().hungerPerRecovery(), seed.innerSustenance().saturationPerRecovery()),
-                VitalityDamageBalanceGenerator.generate(settings));
+                VitalityDamageBalanceGenerator.generate(settings), VitalityWardBalanceGenerator.generate(settings));
     }
     private static double weight(net.minecraft.resources.ResourceLocation id, CapabilityAxis axis) {
         return SkillBalanceSemantics.require(id).weights().getOrDefault(axis, 0.0);

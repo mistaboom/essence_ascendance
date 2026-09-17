@@ -134,6 +134,20 @@ public final class SkillTooltipRegistry {
         define(SkillIds.PAIN_PURGE,
                 line("skill.essence_ascendance.pain_purge.description.resolved" , pct(s -> s.vitality().damage().painPurge().queuePerHealing())),
                 line("skill.essence_ascendance.pain_purge.description.resolved.1"));
+        define(SkillIds.SOUL_WARD,
+                line("skill.essence_ascendance.soul_ward.description.resolved", pct(s -> s.vitality().wards().soulWard().victimHealthFraction()),
+                        pct(s -> s.vitality().wards().soulWard().capacityHealthFraction())),
+                line("skill.essence_ascendance.soul_ward.description.resolved.1", sec(s -> s.vitality().wards().soulWard().durationTicks())));
+        define(SkillIds.DEEP_WARD,
+                line("skill.essence_ascendance.deep_ward.description.resolved", pct(s -> s.vitality().wards().deepWard().capacityBonusFraction())),
+                line("skill.essence_ascendance.deep_ward.description.resolved.1", sec(s -> s.vitality().wards().deepWard().combatTimeoutTicks()),
+                        sec(s -> s.vitality().wards().deepWard().decayTicks())));
+        define(SkillIds.SHATTERING_WARD,
+                line("skill.essence_ascendance.shattering_ward.description.resolved", n(s -> s.vitality().wards().shatteringWard().maximumTargets()),
+                        n(s -> s.vitality().wards().shatteringWard().radius()), n(s -> s.vitality().wards().shatteringWard().knockback())),
+                line("skill.essence_ascendance.shattering_ward.description.resolved.1", pct(s -> s.vitality().wards().shatteringWard().healingFractionPerSecond()),
+                        sec(s -> s.vitality().wards().shatteringWard().regenerationTicks())),
+                line("skill.essence_ascendance.shattering_ward.description.resolved.2"));
         define(SkillIds.ADRENALINE,
                 line("skill.essence_ascendance.adrenaline.description.resolved" , pct(s -> s.vitality().damage().adrenaline().triggerHealthLossFraction()), sec(s -> s.vitality().damage().adrenaline().durationTicks())),
                 line("skill.essence_ascendance.adrenaline.description.resolved.1" , pct(s -> s.vitality().damage().adrenaline().movementSpeedBonus()), pct(s -> s.vitality().damage().adrenaline().attackSpeedBonus()), pct(s -> s.vitality().damage().adrenaline().knockbackResistance())));

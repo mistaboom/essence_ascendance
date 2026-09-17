@@ -32,7 +32,7 @@ import java.util.Map;
 
 /** Server-thread transaction: collect, construct, validate, persist, publish, then synchronize. */
 public final class GeneratedBalanceService {
-    static final String GENERATION_REVISION = "proportional-ceiling-health-loss-26";
+    static final String GENERATION_REVISION = "vitality-ward-pools-27";
     private static final String DISSOLUTION_ACCOUNTING = "whole_essence_v1";
     private static volatile Active active;
     private static volatile boolean resourcesChanged;
@@ -263,6 +263,23 @@ public final class GeneratedBalanceService {
         policy.addProperty("painPurge", "Accepted positive native healing also cancels that amount times queuePerHealing from unpaid damage, capped by debt. Includes native food/passive regeneration, direct life steal and healing potions/effects, including at full HP. Cancellation is never a recursive heal or fictional Attunement health outcome. Nonhealing food alone no longer purges a percentage of the queue.");
         policy.addProperty("adrenalineHealthLossTriggerFraction", damage.adrenaline().triggerHealthLossFraction());
         policy.addProperty("adrenaline", "One refreshable timed stack after a native health write actually removes MORE than triggerHealthLossFraction times pre-hit current maximum HP. Strict comparison; includes equipped/previously reduced maximum HP, excludes absorption, prevented damage, this hit's capacity loss and deferred payments. No lethal-save condition. Existing immediate attribute/HUD sync and bow/caster speed consumers; generated duration/magnitudes and trigger, no new keybind or packet.");
+        var wards = v.wards();
+        policy.addProperty("wardTuning", "/runtime/effects/vitality/wards; required generated schema, existing validated exact TOML overrides, content identity and rank consumers; no parallel configuration or live fallback");
+        policy.addProperty("soulWardVictimHealthFraction", wards.soulWard().victimHealthFraction());
+        policy.addProperty("soulWardCapacityHealthFraction", wards.soulWard().capacityHealthFraction());
+        policy.addProperty("soulWardDurationSeconds", wards.soulWard().durationTicks() / 20.0);
+        policy.addProperty("deepWardCapacityBonusFraction", wards.deepWard().capacityBonusFraction());
+        policy.addProperty("deepWardCombatTimeoutSeconds", wards.deepWard().combatTimeoutTicks() / 20.0);
+        policy.addProperty("deepWardFullCapDecaySeconds", wards.deepWard().decayTicks() / 20.0);
+        policy.addProperty("shatteringWardHealingFractionPerSecond", wards.shatteringWard().healingFractionPerSecond());
+        policy.addProperty("shatteringWardRegenerationSeconds", wards.shatteringWard().regenerationTicks() / 20.0);
+        policy.addProperty("shatteringWardRadius", wards.shatteringWard().radius());
+        policy.addProperty("shatteringWardMaximumTargets", wards.shatteringWard().maximumTargets());
+        policy.addProperty("shatteringWardKnockback", wards.shatteringWard().knockback());
+        policy.addProperty("wardOwnership", "Confirmed attributed kills grant native absorption from victim current max HP, capped by owner current max HP times the generated capacity. Kills at cap refresh. Source-owned hearts are spent before external absorption; potion application/refresh/removal operates on its own reservoir. Exact-source cap modifiers and points are removed on expiry/refund/lifecycle reset; saved absorption excludes transient owned points. Native hard capacity still applies.");
+        policy.addProperty("deepWard", "Mutually exclusive with Shattering Ward. Extends Soul Ward capacity and retains earned hearts during accepted hostile combat; attributed kills also refresh quiet time. After the generated quiet interval, decays by full capacity / decayTicks each online game tick. Returning to combat pauses decay without granting new hearts.");
+        policy.addProperty("shatteringWard", "One pulse only when an accepted nondeferred native hit empties a positive Soul Ward pool and the player survives; expiry/capacity trimming/external effect edits/deactivation are not damage breaks. Bounded visible hostile targets, shared control/PvP/team immunity policy and native resisted/cancelable knockback. One refreshable regeneration window uses native healing, not a second healing or HUD system.");
+        policy.addProperty("wardProjection", "Defense/rank calibration includes a full finite earned pool with native pre-routing mitigation; no extra Damage Ceiling multiplier is credited to absorption. Healing/rank calibration includes peak conditional Shattering regeneration and accepted-healing synergies. Crowd control is not credited as damage or EHP; no observed victim distribution, kill cadence or break uptime is assumed.");
         policy.addProperty("evidenceLimit", "No observed player food throughput, damage cadence, sleep population or phantom encounter telemetry. Food capacity and delayed payment remain conditional resource/time contracts; Ceiling is a bounded proportional prevention multiplier whose temporary capacity loss is not healing. Live gameplay, multiplayer, dedicated-server and representative-modpack acceptance remain pending.");
         return policy;
     }

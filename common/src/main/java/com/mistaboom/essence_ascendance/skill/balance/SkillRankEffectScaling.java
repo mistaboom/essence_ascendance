@@ -6,6 +6,7 @@ import com.mistaboom.essence_ascendance.config.PostureBalanceSettings;
 import com.mistaboom.essence_ascendance.config.StatusBalanceSettings;
 import com.mistaboom.essence_ascendance.config.VitalityBalanceSettings;
 import com.mistaboom.essence_ascendance.config.VitalityDamageBalanceSettings;
+import com.mistaboom.essence_ascendance.config.VitalityWardBalanceSettings;
 import com.mistaboom.essence_ascendance.config.SkillEffectBalanceSettings;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import net.minecraft.resources.ResourceLocation;
@@ -181,6 +182,21 @@ public final class SkillRankEffectScaling {
             p.innerSustenance = new VitalityBalanceSettings.InnerSustenance(v.combatTimeoutTicks(),
                     Math.max(20, (int) Math.ceil(v.hungerRecoveryIntervalTicks() / f)), v.hungerPerRecovery(), v.saturationPerRecovery());
         });
+        register(SkillIds.SOUL_WARD, (p, f) -> {
+            var v = p.soulWard;
+            p.soulWard = new VitalityWardBalanceSettings.SoulWard(scale(v.victimHealthFraction(), f, 1),
+                    scale(v.capacityHealthFraction(), f, 1024), v.durationTicks());
+        });
+        register(SkillIds.DEEP_WARD, (p, f) -> {
+            var v = p.deepWard;
+            p.deepWard = new VitalityWardBalanceSettings.DeepWard(scale(v.capacityBonusFraction(), f, 1024),
+                    v.combatTimeoutTicks(), v.decayTicks());
+        });
+        register(SkillIds.SHATTERING_WARD, (p, f) -> {
+            var v = p.shatteringWard;
+            p.shatteringWard = new VitalityWardBalanceSettings.ShatteringWard(v.radius(), v.maximumTargets(),
+                    scale(v.knockback(), f, 1024), scale(v.healingFractionPerSecond(), f, 1024), v.regenerationTicks());
+        });
         register(SkillIds.HUNGER_WARD, (p, f) -> p.hungerWard = new VitalityDamageBalanceSettings.HungerWard(
                 p.hungerWard.healthPerFoodPoint(),
                 com.mistaboom.essence_ascendance.vitality.DamageRoutingMath.scaleShare(p.hungerWard.damageShare(), f)));
@@ -257,6 +273,23 @@ public final class SkillRankEffectScaling {
         if (id.equals(SkillIds.METABOLIC_CONVERSION)) return damage.metabolicConversion().healthPerNutrition() / referenceDamage.metabolicConversion().healthPerNutrition();
         if (id.equals(SkillIds.PAIN_PURGE)) return damage.painPurge().queuePerHealing() / referenceDamage.painPurge().queuePerHealing();
         if (id.equals(SkillIds.ADRENALINE)) return damage.adrenaline().attackSpeedBonus() / referenceDamage.adrenaline().attackSpeedBonus();
+        var wards = settings.vitality().wards();
+        // Actual dimensional magnitude against the existing semantic weight, never a neutral fixture divisor.
+        if (id.equals(SkillIds.SOUL_WARD)) return wards.soulWard().capacityHealthFraction()
+                / SkillBalanceSemantics.require(id).weights().get(com.mistaboom.essence_ascendance.balance.engine.CapabilityAxis.EFFECTIVE_HEALTH);
+        if (id.equals(SkillIds.DEEP_WARD)) return wards.deepWard().capacityBonusFraction()
+                / SkillBalanceSemantics.require(id).weights().get(com.mistaboom.essence_ascendance.balance.engine.CapabilityAxis.EFFECTIVE_HEALTH);
+        if (id.equals(SkillIds.SHATTERING_WARD)) {
+            var weights = SkillBalanceSemantics.require(id).weights();
+            // The reachable capability projection has one scalar per skill. Keep its largest
+            // normalized component so healing calibration cannot erase still-active crowd control.
+            double healing = wards.shatteringWard().healingFractionPerSecond()
+                    * wards.shatteringWard().regenerationTicks() / 20.0
+                    / weights.get(com.mistaboom.essence_ascendance.balance.engine.CapabilityAxis.REGENERATION);
+            double control = wards.shatteringWard().knockback()
+                    / weights.get(com.mistaboom.essence_ascendance.balance.engine.CapabilityAxis.CROWD_CONTROL);
+            return Math.max(healing, control);
+        }
         return offenseScale;
     }
 
@@ -335,6 +368,9 @@ public final class SkillRankEffectScaling {
         public VitalityDamageBalanceSettings.MetabolicConversion metabolicConversion;
         public VitalityDamageBalanceSettings.PainPurge painPurge;
         public VitalityDamageBalanceSettings.Adrenaline adrenaline;
+        public VitalityWardBalanceSettings.SoulWard soulWard;
+        public VitalityWardBalanceSettings.DeepWard deepWard;
+        public VitalityWardBalanceSettings.ShatteringWard shatteringWard;
         private Parameters(SkillEffectBalanceSettings v) {
             frenzy=v.frenzy(); armorCrack=v.armorCrack(); desperation=v.desperation(); deathRush=v.deathRush();
             kindling=v.kindling(); combustion=v.combustion(); frostbite=v.frostbite(); shatter=v.shatter();
@@ -351,6 +387,9 @@ public final class SkillRankEffectScaling {
             metabolicConversion=v.vitality().damage().metabolicConversion();
             painPurge=v.vitality().damage().painPurge();
             adrenaline=v.vitality().damage().adrenaline();
+            soulWard=v.vitality().wards().soulWard();
+            deepWard=v.vitality().wards().deepWard();
+            shatteringWard=v.vitality().wards().shatteringWard();
 
         }
         private SkillEffectBalanceSettings build() {
@@ -359,7 +398,8 @@ public final class SkillRankEffectScaling {
                     new GuardBalanceSettings(mobility, ram, ward, storedForce, amplifier, perfectGuard, reprisal, riposte),
                     new PostureBalanceSettings(postureMovement, evasive, bulwark, adaptive), status,
                     new VitalityBalanceSettings(risingRecovery, lifeSteal, feastReflex, innerSustenance,
-                            new VitalityDamageBalanceSettings(hungerWard, staggeredPain, damageCeiling, metabolicConversion, painPurge, adrenaline)));
+                            new VitalityDamageBalanceSettings(hungerWard, staggeredPain, damageCeiling, metabolicConversion, painPurge, adrenaline),
+                            new VitalityWardBalanceSettings(soulWard, deepWard, shatteringWard)));
         }
     }
 }

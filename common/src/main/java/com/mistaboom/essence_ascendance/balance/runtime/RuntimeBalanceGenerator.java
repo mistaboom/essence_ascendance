@@ -525,9 +525,13 @@ public final class RuntimeBalanceGenerator {
                 boolean posture=isPosture(skillId)
                         || skillId.equals(com.mistaboom.essence_ascendance.skill.SkillIds.HUNGER_WARD)
                         || skillId.equals(com.mistaboom.essence_ascendance.skill.SkillIds.DAMAGE_CEILING)
-                        || skillId.equals(com.mistaboom.essence_ascendance.skill.SkillIds.PAIN_PURGE);
-                if(channel==BuildComposition.Channel.OFFENSE && posture
-                        || channel!=BuildComposition.Channel.OFFENSE && !posture)continue;
+                        || skillId.equals(com.mistaboom.essence_ascendance.skill.SkillIds.PAIN_PURGE)
+                        || skillId.equals(com.mistaboom.essence_ascendance.skill.SkillIds.SOUL_WARD)
+                        || skillId.equals(com.mistaboom.essence_ascendance.skill.SkillIds.DEEP_WARD);
+                boolean healing = skillId.equals(com.mistaboom.essence_ascendance.skill.SkillIds.SHATTERING_WARD);
+                if(channel==BuildComposition.Channel.OFFENSE && (posture || healing)
+                        || channel==BuildComposition.Channel.DEFENSE && !posture
+                        || channel==BuildComposition.Channel.HEALING && !posture && !healing)continue;
                 for(var element:entry.getValue().getAsJsonObject().getAsJsonArray("ranks")) {
                     var rank=element.getAsJsonObject();
                     rank.addProperty("powerMultiplier",1+(rank.get("powerMultiplier").getAsDouble()-1)*factor);
@@ -567,12 +571,21 @@ public final class RuntimeBalanceGenerator {
             var ceiling = routing.getAsJsonObject("damageCeiling");
             ceiling.addProperty("damageTakenFraction", com.mistaboom.essence_ascendance.vitality.DamageRoutingMath.scaleTakenFraction(
                     ceiling.get("damageTakenFraction").getAsDouble(), factor));
+            var wards = json.getAsJsonObject("effects").getAsJsonObject("vitality").getAsJsonObject("wards");
+            var soul = wards.getAsJsonObject("soulWard");
+            soul.addProperty("capacityHealthFraction", soul.get("capacityHealthFraction").getAsDouble() * factor);
+            soul.addProperty("victimHealthFraction", soul.get("victimHealthFraction").getAsDouble() * factor);
+            var deep = wards.getAsJsonObject("deepWard");
+            deep.addProperty("capacityBonusFraction", deep.get("capacityBonusFraction").getAsDouble() * factor);
             // The same serialized percentage also determines the max-HP cost. Never calibrate a
             // second ratio independently or revive the old maximum-health hit threshold.
         } else if (channel == BuildComposition.Channel.HEALING) {
             var purge = json.getAsJsonObject("effects").getAsJsonObject("vitality")
                     .getAsJsonObject("damage").getAsJsonObject("painPurge");
             purge.addProperty("queuePerHealing", purge.get("queuePerHealing").getAsDouble() * factor);
+            var shattering = json.getAsJsonObject("effects").getAsJsonObject("vitality")
+                    .getAsJsonObject("wards").getAsJsonObject("shatteringWard");
+            shattering.addProperty("healingFractionPerSecond", shattering.get("healingFractionPerSecond").getAsDouble() * factor);
         }
     }
     private static boolean isPosture(ResourceLocation id) {

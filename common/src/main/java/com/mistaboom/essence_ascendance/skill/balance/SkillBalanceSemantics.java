@@ -246,7 +246,7 @@ public final class SkillBalanceSemantics {
         all.add(skill(SkillIds.SOUL_WARD, flat(EFFECTIVE_HEALTH, .55))
                 .actions(Action.KILL).availability(.55, .8)
                 .condition("Kills build capped temporary ward hearts using victim vitality"));
-        all.add(skill(SkillIds.SHATTERING_WARD, flat(CROWD_CONTROL, .4), flat(REGENERATION, .45))
+        all.add(skill(SkillIds.SHATTERING_WARD, area(CROWD_CONTROL, .4, 3), flat(REGENERATION, .45))
                 .actions(Action.TAKE_DAMAGE).availability(.3, .8).area(4)
                 .condition("Final Soul Ward heart must break; no reward per absorbed damage tick"));
         all.add(skill(SkillIds.SECOND_WIND, capability(BURST_SURVIVAL, 1), flat(REGENERATION, .4))

@@ -17,13 +17,20 @@ public final class SkillTargetingService {
 
     public static List<LivingEntity> nearby(ServerPlayer owner, Entity origin, double radius,
                                             Set<UUID> excluded, int limit) {
+        return nearby(owner, origin, radius, excluded, limit, target -> true);
+    }
+
+    /** Apply caller-specific geometry/eligibility before the deterministic budget, not after it. */
+    public static List<LivingEntity> nearby(ServerPlayer owner, Entity origin, double radius,
+                                            Set<UUID> excluded, int limit,
+                                            java.util.function.Predicate<LivingEntity> permitted) {
         if (!Double.isFinite(radius) || radius <= 0.0 || limit <= 0
                 || origin.level() != owner.level()) return List.of();
         AABB bounds = origin.getBoundingBox().inflate(radius);
         return owner.serverLevel().getEntitiesOfClass(LivingEntity.class, bounds,
                         target -> target.isAlive() && !target.isRemoved()
                                 && !excluded.contains(target.getUUID())
-                                && EquipmentDamageService.canSkillHarm(owner, target))
+                                && EquipmentDamageService.canSkillHarm(owner, target) && permitted.test(target))
                 .stream()
                 .sorted(Comparator.<LivingEntity>comparingDouble(target -> origin.distanceToSqr(target))
                         .thenComparing(target -> target.getUUID().toString()))

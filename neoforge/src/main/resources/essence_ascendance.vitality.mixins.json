@@ -17,7 +17,9 @@
     "ServerPlayerSkillDeathMixin",
     "EntitySkillRemovalMixin",
     "VitalityPlayerDamageMixin",
-    "NeoForgeDamageContainerAccess"
+    "NeoForgeDamageContainerAccess",
+    "PlayerAbsorptionPoolMixin",
+    "LivingEntityAbsorptionPoolMixin"
   ],
   "client": [
     "ItemInHandRendererMixin",

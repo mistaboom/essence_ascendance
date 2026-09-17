@@ -91,6 +91,7 @@ public final class SkillEffectRuntime {
             else runtime.states.values().forEach(SkillEffectState::clear);
         }
         PLAYERS.clear();
+        AbsorptionPoolService.clearAll();
         com.mistaboom.essence_ascendance.guard.GuardLifecycle.clear();
         GuardMobilityController.clear();
         com.mistaboom.essence_ascendance.guard.ReflectionRouter.clear();
@@ -325,6 +326,17 @@ public final class SkillEffectRuntime {
         for (SkillEffectHandler handler : SkillEffectRegistry.handlers()) {
             if (context.isEffective(handler.id())) handler.acceptedDamage(context, source, healthLost, absorptionLost);
         }
+    }
+
+    /** Shared native pool-break outcome. Expiry, cleanup and external effect removal never enter here. */
+    public static void onAbsorptionDepleted(ServerPlayer player, DamageSource source, ResourceLocation pool) {
+        if (!player.isAlive() || player.isRemoved()
+                || com.mistaboom.essence_ascendance.vitality.DeferredDamageService.deferred(source)) return;
+        RecentHostileCombat.acceptedDamage(player,
+                com.mistaboom.essence_ascendance.projectile.ProjectileOwnership.damageSource(source, player));
+        Context context = current(player);
+        for (SkillEffectHandler handler : SkillEffectRegistry.handlers())
+            if (context.isEffective(handler.id())) handler.absorptionDepleted(context, source, pool);
     }
 
     private static Context current(ServerPlayer player) {
