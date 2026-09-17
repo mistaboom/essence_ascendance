@@ -93,10 +93,7 @@ public final class EssencePylonContent {
 
         CreativeTabRegistry.append(
                 CreativeModeTabs.FUNCTIONAL_BLOCKS,
-                ESSENCE_PYLON_ITEM
-        );
-        CreativeTabRegistry.append(
-                CreativeModeTabs.INGREDIENTS,
+                ESSENCE_PYLON_ITEM,
                 ESSENCE_FOCUS
         );
 

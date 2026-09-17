@@ -9,6 +9,46 @@ architectury {
     common rootProject.enabled_platforms.split(',')
 }
 
+def generatedEssenceTextureResources = layout.buildDirectory.dir('generated-resources/essence-block-textures')
+def essenceTextureGeneratorClasses = layout.buildDirectory.dir('essence-block-texture-generator/classes')
+def essenceTextureGeneratorSource = rootProject.file('tools/EssenceBlockTextureGenerator.java')
+def essenceBaseMask = file('src/main/resources/assets/essence_ascendance/textures/item/essence_block/base.png')
+def essenceAccentMask = file('src/main/resources/assets/essence_ascendance/textures/item/essence_block/accent.png')
+
+sourceSets.main.resources.srcDir(generatedEssenceTextureResources)
+
+tasks.register('compileEssenceBlockTextureGenerator', JavaCompile) {
+    source = files(essenceTextureGeneratorSource)
+    destinationDirectory = essenceTextureGeneratorClasses
+    classpath = files()
+    options.release = 21
+}
+
+tasks.register('generateEssenceBlockTextures', JavaExec) {
+    dependsOn tasks.named('compileEssenceBlockTextureGenerator')
+    classpath = files(essenceTextureGeneratorClasses)
+    mainClass = 'EssenceBlockTextureGenerator'
+    inputs.file(essenceTextureGeneratorSource)
+    inputs.file(essenceBaseMask)
+    inputs.file(essenceAccentMask)
+    outputs.dir(generatedEssenceTextureResources)
+    doFirst {
+        args(
+                essenceBaseMask.absolutePath,
+                essenceAccentMask.absolutePath,
+                generatedEssenceTextureResources.get().asFile.absolutePath
+        )
+    }
+}
+
+tasks.named('processResources') {
+    dependsOn tasks.named('generateEssenceBlockTextures')
+}
+
+tasks.named('sourcesJar') {
+    dependsOn tasks.named('generateEssenceBlockTextures')
+}
+
 dependencies {
     // We depend on Fabric Loader here to use the Fabric @Environment annotations,
     // which get remapped to the correct annotations on each platform.

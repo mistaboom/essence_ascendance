@@ -1,0 +1,50 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "essence_ascendance:item/essence_block/base"
+  },
+  "elements": [
+    {
+      "from": [0, 0, 0],
+      "to": [16, 16, 16],
+      "faces": {
+        "down": {"texture": "#base", "tintindex": 0},
+        "up": {"texture": "#base", "tintindex": 0},
+        "north": {"texture": "#base", "tintindex": 0},
+        "south": {"texture": "#base", "tintindex": 0},
+        "west": {"texture": "#base", "tintindex": 0},
+        "east": {"texture": "#base", "tintindex": 0}
+      }
+    },
+    {
+      "from": [0, -0.001, 0],
+      "to": [16, -0.001, 16],
+      "faces": {"down": {"texture": "#accent", "tintindex": 1}}
+    },
+    {
+      "from": [0, 16.001, 0],
+      "to": [16, 16.001, 16],
+      "faces": {"up": {"texture": "#accent", "tintindex": 1}}
+    },
+    {
+      "from": [0, 0, -0.001],
+      "to": [16, 16, -0.001],
+      "faces": {"north": {"texture": "#accent", "tintindex": 1}}
+    },
+    {
+      "from": [0, 0, 16.001],
+      "to": [16, 16, 16.001],
+      "faces": {"south": {"texture": "#accent", "tintindex": 1}}
+    },
+    {
+      "from": [-0.001, 0, 0],
+      "to": [-0.001, 16, 16],
+      "faces": {"west": {"texture": "#accent", "tintindex": 1}}
+    },
+    {
+      "from": [16.001, 0, 0],
+      "to": [16.001, 16, 16],
+      "faces": {"east": {"texture": "#accent", "tintindex": 1}}
+    }
+  ]
+}

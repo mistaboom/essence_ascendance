@@ -5,8 +5,12 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentTierVisuals;
 import com.mistaboom.essence_ascendance.equipment.EquipmentWeaponService;
 import com.mistaboom.essence_ascendance.item.AscendanceItems;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserContent;
+import com.mistaboom.essence_ascendance.infuser.EssentiumBlock;
+import dev.architectury.registry.client.rendering.ColorHandlerRegistry;
+import dev.architectury.registry.client.rendering.RenderTypeRegistry;
 import net.minecraft.client.renderer.item.ClampedItemPropertyFunction;
 import net.minecraft.client.renderer.item.ItemProperties;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -109,6 +113,33 @@ public final class EssenceAscendanceClient {
                 EssenceInfuserContent.ESSENTIUM_INGOT.get(),
                 EssenceInfuserContent.ESSENTIUM_BLOCK.get()
         };
+
+        Item[] essenceCarrierTintItems = {
+                EssenceInfuserContent.LATENT_NUGGET.get(),
+                EssenceInfuserContent.LATENT_INGOT.get(),
+                EssenceInfuserContent.LATENT_BLOCK_ITEM.get(),
+                EssenceInfuserContent.ESSENTIUM_NUGGET.get(),
+                EssenceInfuserContent.ESSENTIUM_INGOT.get(),
+                EssenceInfuserContent.ESSENTIUM_BLOCK.get()
+        };
+
+        ColorHandlerRegistry.registerItemColors(
+                EssentiumCarrierVisuals::itemTint,
+                essenceCarrierTintItems
+        );
+        ColorHandlerRegistry.registerBlockColors(
+                (state, level, pos, tintIndex) -> EssentiumCarrierVisuals.CLEAR_TINT,
+                EssenceInfuserContent.LATENT_BLOCK.get()
+        );
+        ColorHandlerRegistry.registerBlockColors(
+                EssentiumBlock::tint,
+                EssenceInfuserContent.ESSENTIUM_BLOCK_BLOCK.get()
+        );
+        RenderTypeRegistry.register(
+                RenderType.cutout(),
+                EssenceInfuserContent.LATENT_BLOCK.get(),
+                EssenceInfuserContent.ESSENTIUM_BLOCK_BLOCK.get()
+        );
 
         for (Item item : essentiumVisualItems) {
             registrar.register(

@@ -1,6 +1,8 @@
 package com.mistaboom.essence_ascendance.infuser;
 
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.context.UseOnContext;
 
 /** Marker item for data-bearing Essentium carriers. */
 public final class EssentiumItem extends Item {
@@ -36,5 +38,13 @@ public final class EssentiumItem extends Item {
 
     public CarrierForm form() {
         return form;
+    }
+
+    @Override
+    public InteractionResult useOn(UseOnContext context) {
+        if (form != CarrierForm.BLOCK) {
+            return super.useOn(context);
+        }
+        return EssentiumBlock.placeCarrier(context);
     }
 }

@@ -1,3 +1,7 @@
 {
-  "parent": "minecraft:block/gold_block"
+  "parent": "essence_ascendance:item/essence_block_layers",
+  "textures": {
+    "base": "essence_ascendance:item/essence_block/base",
+    "accent": "essence_ascendance:item/essence_block/accent"
+  }
 }

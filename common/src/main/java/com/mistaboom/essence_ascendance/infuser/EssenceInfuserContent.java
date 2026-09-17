@@ -79,6 +79,15 @@ public final class EssenceInfuserContent {
                             .strength(5.0F)
             )
     );
+    public static final RegistrySupplier<EssentiumBlock> ESSENTIUM_BLOCK_BLOCK = BLOCKS.register(
+            "essentium_block",
+            () -> new EssentiumBlock(
+                    BlockBehaviour.Properties.of()
+                            .mapColor(net.minecraft.world.level.material.MapColor.COLOR_GRAY)
+                            .requiresCorrectToolForDrops()
+                            .strength(5.0F)
+            )
+    );
     public static final RegistrySupplier<Block> CHANNELSTONE = BLOCKS.register(
             "channelstone",
             () -> new Block(
@@ -176,6 +185,15 @@ public final class EssenceInfuserContent {
                     ).build(null)
             );
 
+    public static final RegistrySupplier<BlockEntityType<EssentiumBlockEntity>> ESSENTIUM_BLOCK_BLOCK_ENTITY =
+            BLOCK_ENTITIES.register(
+                    "essentium_block",
+                    () -> BlockEntityType.Builder.of(
+                            EssentiumBlockEntity::new,
+                            ESSENTIUM_BLOCK_BLOCK.get()
+                    ).build(null)
+            );
+
     public static final RegistrySupplier<MenuType<EssenceInfuserMenu>> ESSENCE_INFUSER_MENU =
             MENUS.register(
                     "essence_infuser",
@@ -241,22 +259,34 @@ public final class EssenceInfuserContent {
                 LATENT_ORE_ITEM,
                 DEEPSLATE_LATENT_ORE_ITEM,
                 NETHERRACK_LATENT_ORE_ITEM,
-                END_STONE_LATENT_ORE_ITEM
+                END_STONE_LATENT_ORE_ITEM,
+                RAW_LATENT_ORE,
+                RAW_LATENT_ORE_BLOCK_ITEM
         );
         CreativeTabRegistry.append(
                 CreativeModeTabs.INGREDIENTS,
-                RAW_LATENT_ORE,
+                ASCENDANCE_MATRIX,
                 LATENT_NUGGET,
                 LATENT_INGOT,
-                ASCENDANCE_MATRIX,
-                ESSENTIUM_NUGGET,
-                ESSENTIUM_INGOT,
-                ESSENTIUM_BLOCK
+                LATENT_BLOCK_ITEM
+        );
+        // Resolve full carrier stacks when the tab is rebuilt, not during
+        // registry initialization. Empty/uninfused carriers stay hidden.
+        CreativeTabRegistry.modify(
+                CreativeTabRegistry.defer(CreativeModeTabs.INGREDIENTS),
+                (flags, output, canUseGameMasterBlocks) -> {
+                    for (Item item : new Item[]{
+                            ESSENTIUM_NUGGET.get(),
+                            ESSENTIUM_INGOT.get(),
+                            ESSENTIUM_BLOCK.get()
+                    }) {
+                        EssentiumCarrierData.createFullVariants((EssentiumItem) item, 1)
+                                .forEach(output::accept);
+                    }
+                }
         );
         CreativeTabRegistry.append(
                 CreativeModeTabs.BUILDING_BLOCKS,
-                RAW_LATENT_ORE_BLOCK_ITEM,
-                LATENT_BLOCK_ITEM,
                 CHANNELSTONE_ITEM
         );
         CreativeTabRegistry.append(

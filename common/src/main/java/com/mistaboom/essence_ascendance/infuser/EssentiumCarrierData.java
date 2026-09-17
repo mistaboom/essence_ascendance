@@ -11,6 +11,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -147,6 +149,21 @@ public final class EssentiumCarrierData {
         ItemStack stack = new ItemStack(item);
         write(stack, new Value(essence, grade, capacity));
         return stack;
+    }
+
+    /** Shared Essence/tier browse order for JEI and the creative menu. */
+    public static List<ItemStack> createFullVariants(EssentiumItem item, int stackCount) {
+        List<ItemStack> variants = new ArrayList<>();
+        for (EssenceDefinition essence : EssenceRegistry.values()) {
+            for (EssenceFocusTier grade : EssenceFocusTier.values()) {
+                ItemStack stack = createFull(item, essence, grade);
+                if (!stack.isEmpty()) {
+                    stack.setCount(stackCount);
+                    variants.add(stack);
+                }
+            }
+        }
+        return List.copyOf(variants);
     }
 
     public static void write(ItemStack stack, Value value) {

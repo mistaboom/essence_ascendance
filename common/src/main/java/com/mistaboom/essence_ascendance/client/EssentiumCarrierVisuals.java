@@ -19,6 +19,10 @@ import net.minecraft.world.item.ItemStack;
  */
 public final class EssentiumCarrierVisuals {
 
+    /** White leaves a grayscale layer unchanged when Minecraft applies a tint. */
+    public static final int CLEAR_TINT = 0xFFFFFFFF;
+    private static final int CLEAR_RGB = 0xFFFFFF;
+
     public static final ResourceLocation MODEL_PROPERTY =
             ResourceLocation.fromNamespaceAndPath(
                     EssenceAscendance.MOD_ID,
@@ -30,30 +34,43 @@ public final class EssentiumCarrierVisuals {
     private EssentiumCarrierVisuals() {
     }
 
-    /** Future carrier body layers share armor's exact grey tier primary. Existing vanilla models are placeholders. */
+    /** Carrier base layers share armor's exact grey tier primary. */
     public static int primaryRgb(EssentiumCarrierData.Value value) {
         return AscendancePalette.tierPrimaryRgb(EquipmentTier.fromSerializedName(value.grade().serializedName()));
     }
 
-    /** Infused ingot inlays carry Essence identity; they do not use armor's tier metal accent. */
+    /** Carrier accent layers carry Essence identity; they do not use armor's tier metal accent. */
     public static int accentRgb(EssentiumCarrierData.Value value) {
         return AscendancePalette.categoryRgb(value.essence());
     }
 
     public static int primaryRgb(ItemStack stack) {
         return EssentiumCarrierData.read(stack).map(EssentiumCarrierVisuals::primaryRgb)
-                .orElse(AscendancePalette.LATENT.primaryRgb());
+                .orElse(CLEAR_RGB);
     }
 
     public static int accentRgb(ItemStack stack) {
         return EssentiumCarrierData.read(stack).map(EssentiumCarrierVisuals::accentRgb)
-                .orElse(AscendancePalette.LATENT.metalRgb());
+                .orElse(CLEAR_RGB);
+    }
+
+    /** Shared tint handler for latent and data-bearing carriers. Latent has no color data, so both layers stay clear. */
+    public static int itemTint(ItemStack stack, int tintIndex) {
+        return switch (tintIndex) {
+            case 0 -> opaque(primaryRgb(stack));
+            case 1 -> opaque(accentRgb(stack));
+            default -> CLEAR_TINT;
+        };
+    }
+
+    private static int opaque(int rgb) {
+        return 0xFF000000 | (rgb & 0xFFFFFF);
     }
 
     /**
-     * Returns 0 for an empty/invalid carrier so the generic gold fallback model
-     * remains visible.  Valid carrier data resolves to one stable built-in
-     * Essence visual slot.
+     * Returns 0 for an empty/invalid carrier so the neutral layered fallback
+     * model remains selected. Valid carrier data resolves to one stable
+     * built-in Essence visual slot.
      */
     public static float modelPropertyValue(ItemStack stack) {
         return EssentiumCarrierData.read(stack)

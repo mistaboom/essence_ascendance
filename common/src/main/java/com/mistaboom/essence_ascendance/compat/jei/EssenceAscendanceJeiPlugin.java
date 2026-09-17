@@ -5,8 +5,6 @@ import com.mistaboom.essence_ascendance.client.AscendanceNexusScreen;
 import com.mistaboom.essence_ascendance.client.EssenceCrucibleScreen;
 import com.mistaboom.essence_ascendance.client.EssenceInfuserScreen;
 import com.mistaboom.essence_ascendance.client.EssencePylonScreen;
-import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
-import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserContent;
 import com.mistaboom.essence_ascendance.infuser.EssentiumBlockCompactingRecipe;
 import com.mistaboom.essence_ascendance.infuser.EssentiumBlockUncompactingRecipe;
@@ -14,7 +12,6 @@ import com.mistaboom.essence_ascendance.infuser.EssentiumCarrierData;
 import com.mistaboom.essence_ascendance.infuser.EssentiumItem;
 import com.mistaboom.essence_ascendance.infuser.EssentiumNuggetCompactingRecipe;
 import com.mistaboom.essence_ascendance.infuser.EssentiumNuggetUncompactingRecipe;
-import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
@@ -284,22 +281,7 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
             return List.of();
         }
 
-        List<ItemStack> result = new ArrayList<>();
-        for (EssenceDefinition essence : EssenceRegistry.values()) {
-            for (EssenceFocusTier grade : EssenceFocusTier.values()) {
-                ItemStack stack = EssentiumCarrierData.createFull(
-                        item,
-                        essence,
-                        grade
-                );
-                if (stack.isEmpty()) {
-                    continue;
-                }
-                stack.setCount(stackCount);
-                result.add(stack);
-            }
-        }
-        return List.copyOf(result);
+        return EssentiumCarrierData.createFullVariants(item, stackCount);
     }
 
     private static void hideTagInformationCategories(IJeiRuntime jeiRuntime) {
