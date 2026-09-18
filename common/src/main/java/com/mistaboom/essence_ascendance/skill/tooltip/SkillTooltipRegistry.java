@@ -161,6 +161,18 @@ public final class SkillTooltipRegistry {
         define(SkillIds.RUSH,
                 line("skill.essence_ascendance.rush.description.resolved", sec(s -> s.mobility().rush().durationTicks())),
                 line("skill.essence_ascendance.rush.description.resolved.1"));
+        define(SkillIds.TERRAIN_FREEDOM,
+                line("skill.essence_ascendance.terrain_freedom.description.resolved"),
+                line("skill.essence_ascendance.terrain_freedom.description.resolved.1"));
+        define(SkillIds.AQUATIC_BODY,
+                line("skill.essence_ascendance.aquatic_body.description.resolved"),
+                line("skill.essence_ascendance.aquatic_body.description.resolved.1"));
+        define(SkillIds.WATER_WALKING,
+                line("skill.essence_ascendance.water_walking.description.resolved"),
+                line("skill.essence_ascendance.water_walking.description.resolved.1"));
+        define(SkillIds.LAVABORN,
+                line("skill.essence_ascendance.lavaborn.description.resolved"),
+                line("skill.essence_ascendance.lavaborn.description.resolved.1"));
         define(SkillIds.ADRENALINE,
                 line("skill.essence_ascendance.adrenaline.description.resolved" , pct(s -> s.vitality().damage().adrenaline().triggerHealthLossFraction()), sec(s -> s.vitality().damage().adrenaline().durationTicks())),
                 line("skill.essence_ascendance.adrenaline.description.resolved.1" , pct(s -> s.vitality().damage().adrenaline().movementSpeedBonus()), pct(s -> s.vitality().damage().adrenaline().attackSpeedBonus()), pct(s -> s.vitality().damage().adrenaline().knockbackResistance())));

@@ -32,7 +32,7 @@ import java.util.Map;
 
 /** Server-thread transaction: collect, construct, validate, persist, publish, then synchronize. */
 public final class GeneratedBalanceService {
-    static final String GENERATION_REVISION = "mobility-momentum-28";
+    static final String GENERATION_REVISION = "mobility-terrain-fluids-29";
     private static final String DISSOLUTION_ACCOUNTING = "whole_essence_v1";
     private static volatile Active active;
     private static volatile boolean resourcesChanged;
@@ -296,6 +296,12 @@ public final class GeneratedBalanceService {
         policy.addProperty("vaultNativeStepHeight", v.momentumVault().stepHeight());
         policy.addProperty("vaultMinimumMomentum", v.momentumVault().minimumMomentum());
         policy.addProperty("rushRetentionSeconds", v.rush().durationTicks() / 20.0);
+        policy.addProperty("traversalTuning", "Binary native restoration, not generated magnitudes: no new TOML scalar, hidden multiplier or fake numeric rank. Existing semantic weights/availability, purchase costs and generated profile identity remain authoritative; later diagnostic ranks do not amplify capabilities.");
+        policy.addProperty("terrainFreedom", "Tagged contact damage, drag callbacks and native below-identity block speed/jump factors; powder-snow/soul-sand/mud firm footing and freezing protection. Opt-in block/damage tags extend terrain support. No attacks, suffocation, falls, drowning, ordinary fire, lava or bypass-invulnerability immunity.");
+        policy.addProperty("aquaticBody", "An exact-ID SUBMERGED_MINING_SPEED floor and scoped off-ground mining restoration remove underwater mining penalties. No WATER_MOVEMENT_EFFICIENCY floor or movement off-ground bypass: Swim Speed remains entirely with the existing bonus/equipment pipeline, including native scaling. Normal tools, haste/fatigue, air supply and rain behavior remain. Normal scene fog, not night vision or wall visibility.");
+        policy.addProperty("waterWalking", "Sprint-only exposed tagged liquid surfaces at native FluidState height, including flowing levels. Actual collision/headroom with native stepping onto neighboring surfaces; never lifts immersed players. Crouch, stopping, mounts and flight disable. No placement, teleport, forced lift, fall reset or waterlogged-solid replacement.");
+        policy.addProperty("lavaborn", "Scoped native swimming branch/input/steering in lava, using the actual bonus/equipment-controlled swimming speed. Only source-less tagged lava/fire contact damage is suppressed while immersed. The native lava ignition call is blocked at its source; unrelated fire timers are never cleared and no protection persists after exit. Clear vision omits only duplicated inward-facing lava quads, preserving exterior surfaces and solid-block occlusion. Meshes refresh on effective vision permission changes, never on immersion transitions. Native drowning/air state and other water-only gameplay remain untouched.");
+        policy.addProperty("traversalPrediction", "Existing committed server evaluation and synchronized local snapshot; no drafts, extra packets or remote-player grants. Pure passive skills add no permanent HUD cards; descriptions and debug lines share registered handlers.");
         policy.addProperty("movementEvidence", "Accepted native grounded movement plus fresh existing input signal; one state transition per server tick. No buildup from input alone, packet count, mounts, swimming, climbing, flight, forced displacement or teleports. Brief missing movement samples and ordinary sprint jumps may hold, never build.");
         policy.addProperty("runningMomentum", "One normalized reservoir. Stopping, crouching, lost input or a sharp turn drains unless Rush retains. Only land sprinting applies the proportional speed modifier. Flight/water/climbing/mounts/teleports/dimension changes and lifecycle resets clear movement state and its exact-ID modifiers.");
         policy.addProperty("momentumVault", "Generated native fence collision height defines a step floor while charged, grounded and sprinting with measured movement. Normal collision/headroom semantics; no teleport, velocity launch, fall reset or block modification. Sneak disables; existing stronger additive/multiplicative step modifiers remain intact. Readiness shares Running Momentum's HUD card.");

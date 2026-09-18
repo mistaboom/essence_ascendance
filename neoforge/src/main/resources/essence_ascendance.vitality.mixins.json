@@ -19,7 +19,8 @@
     "VitalityPlayerDamageMixin",
     "NeoForgeDamageContainerAccess",
     "PlayerAbsorptionPoolMixin",
-    "LivingEntityAbsorptionPoolMixin"
+    "LivingEntityAbsorptionPoolMixin",
+    "TraversalMiningMixin"
   ],
   "client": [
     "ItemInHandRendererMixin",

@@ -13,7 +13,11 @@
     "CasterUseInputMixin",
     "MetabolicClientFoodEligibilityMixin",
     "QuietHealthUpdateMixin",
-    "MaximumHealthHudMixin"
+    "MaximumHealthHudMixin",
+    "TraversalLocalPlayerMixin",
+    "TraversalFogMixin",
+    "TraversalScreenEffectsMixin",
+    "TraversalLiquidRendererMixin"
   ],
   "mixins": [
     "FoodDataRecoveryMixin",
@@ -76,7 +80,10 @@
     "MetabolicFoodEligibilityMixin",
     "QuietDamageFeedbackMixin",
     "QueuedRegenerationEligibilityMixin",
-    "VitalityHealthCommitMixin"
+    "VitalityHealthCommitMixin",
+    "TraversalEntityMixin",
+    "TraversalBlockStateMixin",
+    "TraversalLivingEntityMixin"
   ],
   "injectors": {
     "defaultRequire": 1

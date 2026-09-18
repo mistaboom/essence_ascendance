@@ -20,7 +20,8 @@
     "EntitySkillRemovalMixin",
     "VitalityPlayerDamageMixin",
     "PlayerAbsorptionPoolMixin",
-    "LivingEntityAbsorptionPoolMixin"
+    "LivingEntityAbsorptionPoolMixin",
+    "TraversalMiningMixin"
   ],
   "client": [
     "ItemInHandRendererMixin",

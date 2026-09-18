@@ -266,6 +266,7 @@ public final class SkillRankEffectScaling {
         if (id.equals(SkillIds.STATUS_MIRROR)) return StatusBalanceSettings.defaults().mirrorCooldownTicks()
                 / (double) settings.status().mirrorCooldownTicks();
         if (id.equals(SkillIds.PURE_STATE)) return 1;
+        if (com.mistaboom.essence_ascendance.movement.TraversalCapabilities.isBinarySkill(id)) return 1;
         var vitality = VitalityBalanceSettings.defaults();
         if (id.equals(SkillIds.RISING_RECOVERY)) return settings.vitality().risingRecovery().maxSpeedBonus() / vitality.risingRecovery().maxSpeedBonus();
         if (id.equals(SkillIds.LIFE_STEAL)) return settings.vitality().lifeSteal().baseHealingFraction() / vitality.lifeSteal().baseHealingFraction();

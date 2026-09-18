@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:cactus",
+    "minecraft:sweet_berry_bush",
+    "minecraft:hot_floor",
+    "minecraft:freeze"
+  ]
+}

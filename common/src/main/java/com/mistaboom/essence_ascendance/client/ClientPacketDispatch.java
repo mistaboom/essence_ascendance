@@ -33,6 +33,7 @@ public final class ClientPacketDispatch {
         EssenceCrucibleClientState.clear();
         EssencePylonClientState.clear();
         SkillEffectHudClientState.clear();
+        TraversalFluidRenderState.clear();
     }
 
     private ClientPacketDispatch() {

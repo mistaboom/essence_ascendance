@@ -143,7 +143,7 @@
   "skill.essence_ascendance.animal_gift": "Animal Gift",
   "skill.essence_ascendance.animal_gift.description": "Well-fed adult animals near the player periodically provide their normal renewable products without being harmed.",
   "skill.essence_ascendance.aquatic_body": "Aquatic Body",
-  "skill.essence_ascendance.aquatic_body.description": "Removes underwater visibility, movement, and mining penalties; sprint swimming gains full acceleration and tools retain their speed in rain.",
+  "skill.essence_ascendance.aquatic_body.description": "Restores full underwater mining efficiency and clear vision. Swimming speed remains controlled by Swim Speed bonuses and equipment.",
   "skill.essence_ascendance.armor_crack": "Armor Crack",
   "skill.essence_ascendance.armor_crack.description": "While Frenzy is active, repeated hits against the same enemy progressively reduce its defenses.",
   "skill.essence_ascendance.bonded_companion": "Bonded Companion",
@@ -223,7 +223,7 @@
   "skill.essence_ascendance.kindling": "Kindling",
   "skill.essence_ascendance.kindling.description": "Repeated hits build Heat; full Heat ignites the enemy and increases damage taken while burning.",
   "skill.essence_ascendance.lavaborn": "Lavaborn",
-  "skill.essence_ascendance.lavaborn.description": "Extends Aquatic Body to lava: immersion causes no damage and grants clear vision and full-speed swimming, but ordinary burning resumes after leaving.",
+  "skill.essence_ascendance.lavaborn.description": "Extends swimming and clear vision to lava. Immersion causes no contact damage, and lava cannot set you on fire; unrelated fire remains dangerous outside lava.",
   "skill.essence_ascendance.life_steal": "Life Steal",
   "skill.essence_ascendance.life_steal.description": "Direct weapon damage restores health, with consecutive hits on the same target increasing the healing until the attack chain breaks.",
   "skill.essence_ascendance.life_steal.description.details": "Only confirmed direct weapon hits heal. Changing targets, a missed melee attack, or waiting too long breaks the chain.",
@@ -1299,5 +1299,13 @@
   "hud.essence_ascendance.vitality.ward_quiet": "DECAY IN",
   "hud.essence_ascendance.vitality.ward_regenerating": "ACTIVE",
   "hud.essence_ascendance.vitality.ward_healing": "Recovering %s HP/s",
-  "hud.essence_ascendance.vitality.ward_regeneration_time": "TIME"
+  "hud.essence_ascendance.vitality.ward_regeneration_time": "TIME",
+  "skill.essence_ascendance.terrain_freedom.description.resolved": "Ignore terrain slowing and reduced jumps, cobweb and berry-bush drag, honey sliding, and freezing. Keep firm footing on powder snow, soul sand and mud.",
+  "skill.essence_ascendance.terrain_freedom.description.resolved.1": "Prevents cactus, berry-bush, magma-block and freezing contact damage. Does not prevent attacks, suffocation, falls, drowning, fire or lava.",
+  "skill.essence_ascendance.aquatic_body.description.resolved": "Restore full native underwater mining efficiency, including while swimming off the ground. See through water with normal scene fog.",
+  "skill.essence_ascendance.aquatic_body.description.resolved.1": "Does not boost swimming speed; Swim Speed bonuses and equipment still apply normally. Air supply, drowning, Mining Fatigue and normal tool requirements are unchanged.",
+  "skill.essence_ascendance.water_walking.description.resolved": "Sprint across exposed water and lava surfaces at their natural height. Hold Sneak or stop sprinting to enter the liquid normally.",
+  "skill.essence_ascendance.water_walking.description.resolved.1": "Enter from shore or above. Does not lift you out of a liquid, place blocks or prevent falling damage. Disabled while riding or flying.",
+  "skill.essence_ascendance.lavaborn.description.resolved": "Swim through lava using your normal swimming speed and see through its surfaces from inside. While immersed, lava and ordinary fire contact cannot hurt you.",
+  "skill.essence_ascendance.lavaborn.description.resolved.1": "Lava cannot ignite you, so leaving it does not cause lingering lava burns. Unrelated fire is not extinguished; attacks and damage outside immersion remain normal."
 }

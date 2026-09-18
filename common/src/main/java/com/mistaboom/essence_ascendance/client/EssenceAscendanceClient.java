@@ -71,6 +71,8 @@ public final class EssenceAscendanceClient {
         ClientPacketDispatch.init();
         RuntimeBalanceClientState.init();
         ClientEssenceState.init();
+        com.mistaboom.essence_ascendance.skill.CommittedSkillAccess.installClientPrediction((player, skill) ->
+                player == net.minecraft.client.Minecraft.getInstance().player && ClientCommittedSkills.isEffective(skill));
         AscendanceNexusTransactionClientState.init();
         EssenceCrucibleClientState.init();
         EssencePylonClientState.init();

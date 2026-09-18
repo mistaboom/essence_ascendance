@@ -198,3 +198,19 @@ tasks.named('test', Test) {
 }
 // A passing parity check must inspect a real mapped NeoForge class, never an absent-cache substitute.
 tasks.named('vitalityDamageNativeHookShapeInvariants') { dependsOn ':neoforge:compileJava' }
+
+// Focused opt-in traversal checks; deliberately do not add work to normal build/check.
+[
+    traversalRulesInvariants: 'com.mistaboom.essence_ascendance.movement.TraversalRulesTest',
+    traversalBatchInvariants: 'com.mistaboom.essence_ascendance.movement.TraversalBatchContractTest',
+    traversalNativeHookShapeInvariants: 'com.mistaboom.essence_ascendance.movement.TraversalNativeHookShapeTest'
+].each { taskName, className ->
+    tasks.register(taskName, JavaExec) {
+        group = 'verification'
+        description = 'Opt-in terrain/fluid traversal verification (not part of normal build).'
+        dependsOn tasks.named('testClasses')
+        classpath = sourceSets.test.runtimeClasspath
+        mainClass = className
+    }
+}
+tasks.named('traversalNativeHookShapeInvariants') { dependsOn ':neoforge:compileJava' }

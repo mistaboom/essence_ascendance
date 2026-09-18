@@ -266,14 +266,14 @@ public final class SkillBalanceSemantics {
         all.add(skill(SkillIds.RUSH, flat(CONVENIENCE, .4))
                 .actions(Action.KILL, Action.SPRINT).availability(.3, .75)
                 .condition("Attributed kills fill existing Running Momentum and retain it; no second speed multiplier or invented kill rate"));
-        all.add(skill(SkillIds.TERRAIN_FREEDOM, capability(CONVENIENCE, .55), flat(STATUS_RESISTANCE, .3))
+        all.add(skill(SkillIds.TERRAIN_FREEDOM, capability(CONVENIENCE, .55), capability(STATUS_RESISTANCE, .3))
                 .actions(Action.MOVE).availability(.5, 1).condition("Terrain slow, contact, freezing and sinking hazards only"));
-        all.add(skill(SkillIds.AQUATIC_BODY, flat(GROUND_SPEED, .4), flat(MINING_SPEED, .35), flat(INFORMATION, .25))
-                .actions(Action.SWIM).availability(.4, 1).condition("Restores underwater movement, visibility and tool effectiveness"));
+        all.add(skill(SkillIds.AQUATIC_BODY, capability(MINING_SPEED, .35), capability(INFORMATION, .25))
+                .actions(Action.SWIM).availability(.4, 1).condition("Binary restoration of native underwater mining efficiency and visibility only; swimming speed remains with bonuses/equipment, with no movement-efficiency floor or off-ground movement bypass; no breathing immunity"));
         all.add(skill(SkillIds.WATER_WALKING, capability(CONVENIENCE, .55))
-                .actions(Action.SPRINT, Action.SNEAK).availability(.4, 1).condition("Liquid-surface travel; Sneak resumes ordinary swimming"));
-        all.add(skill(SkillIds.LAVABORN, capability(STATUS_RESISTANCE, .8), flat(GROUND_SPEED, .4))
-                .actions(Action.SWIM).availability(.3, 1).condition("Lava-immersion protection, visibility and swimming; ordinary fire remains after exit"));
+                .actions(Action.SPRINT, Action.SNEAK).availability(.4, 1).condition("Exposed native liquid-surface collision while sprinting; native entry/stepping, never an immersed lift. Sneak or stopping resumes ordinary swimming"));
+        all.add(skill(SkillIds.LAVABORN, capability(STATUS_RESISTANCE, .8), capability(GROUND_SPEED, .4))
+                .actions(Action.SWIM).availability(.3, 1).condition("Lava-immersion protection and inside-out visibility; native swimming access uses actual bonus/equipment speed. Lava ignition is prevented at its source; unrelated fire and damage remain normal outside immersion"));
         all.add(skill(SkillIds.IMPACT_CONTROL, flat(FALL_CONTROL, .65))
                 .actions(Action.MOVE).availability(.6, 1).condition("Movement and impact damage reduction, not general damage immunity"));
         all.add(skill(SkillIds.CHARGED_JUMP, flat(JUMP, .7), flat(VERTICAL_MOVEMENT, .5))
