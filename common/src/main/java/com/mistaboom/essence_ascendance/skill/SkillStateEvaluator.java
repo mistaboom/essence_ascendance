@@ -27,8 +27,9 @@ import java.util.Set;
  * direct target prerequisite is the deliberate exception because the
  * replacement suppresses that target's behavior while retaining its progression
  * identity. A replacement suppresses its target only while the replacement is
- * itself owned, selected, and not suspended, so the target resumes whenever the
- * replacement is unselected or suspended. Ordinary automatic skills are active
+ * itself owned, selected, and not suspended. A selected but suspended replacement
+ * can temporarily restore its target; clearing a selectable group means none,
+ * not an implicit selection of the target. Ordinary automatic skills are active
  * by default; a self-to-self loadout entry is an explicit suppression marker so
  * one automatic descendant can be disabled without deactivating its branch.</p>
  */
@@ -499,7 +500,6 @@ public final class SkillStateEvaluator {
                     definitions,
                     ownedIds,
                     selected,
-                    selections,
                     nextReplaced
             );
             nextFallbackActive.removeAll(suppressedAutomatic);
@@ -628,7 +628,6 @@ public final class SkillStateEvaluator {
             Map<ResourceLocation, SkillDefinition> definitions,
             Set<ResourceLocation> ownedIds,
             Set<ResourceLocation> selectedIds,
-            Map<ResourceLocation, ResourceLocation> selections,
             Map<ResourceLocation, Set<ResourceLocation>> replaced
     ) {
         Set<ResourceLocation> fallback = new LinkedHashSet<>();
@@ -642,14 +641,12 @@ public final class SkillStateEvaluator {
 
             /*
              * A selected but suspended/branch-blocked replacement restores its
-             * target. When the replacement group permits no selection, an owned
-             * target also resumes so Vector Jump can fall back to Double Jump.
-             * Selecting a different member (for example Charged Jump) deliberately
-             * keeps that target branch inactive.
+             * target only while that replacement remains the player's choice.
+             * Clearing a group is an explicit choice of no active style, not a
+             * request to select an owned prerequisite. Automatic targets already
+             * resume through automaticActivation unless explicitly suppressed.
              */
-            if (selectedIds.contains(replacement.id())
-                    || (replacement.choiceGroup() != null
-                    && !selections.containsKey(replacement.choiceGroup()))) {
+            if (selectedIds.contains(replacement.id())) {
                 fallback.add(replacement.replacementTarget());
             }
         }

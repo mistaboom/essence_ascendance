@@ -6618,7 +6618,9 @@ public final class AscendanceNexusScreen
         OWNED_INACTIVE("○", 0xCC2C2A31, 0xFF96909D, 0xFFC5C0CA),
         SUSPENDED("!", 0xCC3B2929, 0xFFD47A7A, 0xFFF0C4C4),
         WILL_SUSPEND("!", 0xCC3D3425, 0xFFD1B36A, 0xFFF4DFAD),
-        REPLACED("↻", 0xCC262F3A, 0xFF7FA7C6, 0xFFD1E2EF);
+        // Replaced skills remain owned but inactive. Reserve blue for staged purchases;
+        // the replacement glyph and localized tooltip distinguish this from ordinary inactivity.
+        REPLACED("↻", 0xCC2C2A31, 0xFF96909D, 0xFFC5C0CA);
 
         private final String glyph;
         private final int fillColor;

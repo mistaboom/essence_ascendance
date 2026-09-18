@@ -20,7 +20,8 @@ public final class PlayerMotionTracker {
         final MotionSampleAccumulator pending = new MotionSampleAccumulator();
         final String dimension;
         PostureBalanceSettings.Movement policy;
-        Vec3 position;
+        Vec3 position, acceptedVelocity;
+        long velocityAt = Long.MIN_VALUE;
         float yaw;
         long lastTick = Long.MIN_VALUE, forcedUntil;
         Sample sample;
@@ -61,10 +62,25 @@ public final class PlayerMotionTracker {
     public static void moved(ServerPlayer player, Vec3 before, String dimension, float yaw) {
         State state = STATES.get(player); if (state == null) return;
         Vec3 delta = player.position().subtract(before);
+        if (dimension.equals(dimension(player)) && Double.isFinite(delta.lengthSqr())
+                && delta.length() <= state.policy.maximumDisplacement()
+                && delta.length() >= state.policy.minimumDisplacement()) {
+            state.acceptedVelocity = delta;
+            state.velocityAt = player.level().getGameTime();
+        }
         state.pending.record(player.level().getGameTime(), delta.horizontalDistance(),
                 dimension.equals(dimension(player)) ? delta.length() : Double.NaN,
                 MotionSampleAccumulator.angle(yaw, player.getYRot()),
                 state.policy.minimumDisplacement(), state.policy.maximumDisplacement());
+    }
+    /** Most recent accepted native positional step, not an input-packet claim. Rotation-only packets
+     * do not erase an airborne velocity; stale samples fall back to the native entity motion. */
+    public static Vec3 velocity(ServerPlayer player) {
+        State state = STATES.get(player);
+        long now = player.level().getGameTime();
+        if (state != null && state.acceptedVelocity != null && now >= state.velocityAt
+                && now - state.velocityAt <= SAMPLE_GRACE_TICKS) return state.acceptedVelocity;
+        return player.getDeltaMovement();
     }
     public static void forced(ServerPlayer player) {
         State state = STATES.get(player); if (state == null) return;

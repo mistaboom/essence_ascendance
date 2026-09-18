@@ -17,7 +17,8 @@
     "TraversalLocalPlayerMixin",
     "TraversalFogMixin",
     "TraversalScreenEffectsMixin",
-    "TraversalLiquidRendererMixin"
+    "TraversalLiquidRendererMixin",
+    "MovementAbilityInputMixin"
   ],
   "mixins": [
     "FoodDataRecoveryMixin",
@@ -83,7 +84,8 @@
     "VitalityHealthCommitMixin",
     "TraversalEntityMixin",
     "TraversalBlockStateMixin",
-    "TraversalLivingEntityMixin"
+    "TraversalLivingEntityMixin",
+    "MovementAbilityNativeAccess"
   ],
   "injectors": {
     "defaultRequire": 1

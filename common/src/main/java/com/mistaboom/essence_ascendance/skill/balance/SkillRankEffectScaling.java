@@ -234,6 +234,14 @@ public final class SkillRankEffectScaling {
                 p.momentumVault.stepHeight(), p.momentumVault.minimumMomentum() / f));
         register(SkillIds.RUSH, (p, f) -> p.rush = new MobilityBalanceSettings.Rush(
                 (int) Math.ceil(scale(p.rush.durationTicks(), f, 72_000))));
+        register(SkillIds.IMPACT_CONTROL, (p, f) -> p.impactControl = new MobilityBalanceSettings.ImpactControl(
+                retained(p.impactControl.damageReduction(), f)));
+        register(SkillIds.CHARGED_JUMP, (p, f) -> p.chargedJump = new MobilityBalanceSettings.ChargedJump(
+                p.chargedJump.chargeTicks(), scale(p.chargedJump.heightBonus(), f, 64), scale(p.chargedJump.steeringBonus(), f, 64)));
+        register(SkillIds.DOUBLE_JUMP, (p, f) -> p.doubleJump = new MobilityBalanceSettings.AirJump(
+                scale(p.doubleJump.heightBonus(), f, 64), scale(p.doubleJump.steeringBonus(), f, 64)));
+        register(SkillIds.VECTOR_JUMP, (p, f) -> p.vectorJump = new MobilityBalanceSettings.VectorJump(
+                scale(p.vectorJump.impulseBonus(), f, 64), retained(p.vectorJump.brakeFraction(), f)));
         // Staggered Pain is a binary timing capability, not an invented damage-reduction multiplier.
         // Pure State is binary. Its capability pressure remains one at every
         // projected rank; no inert numeric rule pretends to improve immunity.
@@ -317,6 +325,16 @@ public final class SkillRankEffectScaling {
             return (1 + movement.rush().durationTicks() / (double) movement.runningMomentum().buildTicks())
                     / SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.CONVENIENCE);
         }
+        if (id.equals(SkillIds.IMPACT_CONTROL)) return movement.impactControl().damageReduction()
+                / Math.max(Math.ulp(1.0), 1 - movement.impactControl().damageReduction())
+                / SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.FALL_CONTROL);
+        if (id.equals(SkillIds.CHARGED_JUMP)) return movement.chargedJump().heightBonus()
+                / SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.JUMP);
+        if (id.equals(SkillIds.DOUBLE_JUMP)) return 1 + movement.doubleJump().heightBonus()
+                / SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.JUMP);
+        if (id.equals(SkillIds.VECTOR_JUMP)) return 1 + movement.vectorJump().impulseBonus()
+                / (SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.JUMP)
+                + SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.VERTICAL_MOVEMENT));
         return offenseScale;
     }
 
@@ -375,6 +393,10 @@ public final class SkillRankEffectScaling {
         public MobilityBalanceSettings.RunningMomentum runningMomentum;
         public MobilityBalanceSettings.MomentumVault momentumVault;
         public MobilityBalanceSettings.Rush rush;
+        public MobilityBalanceSettings.ImpactControl impactControl;
+        public MobilityBalanceSettings.ChargedJump chargedJump;
+        public MobilityBalanceSettings.AirJump doubleJump;
+        public MobilityBalanceSettings.VectorJump vectorJump;
         public GuardBalanceSettings.Mobility mobility;
         public GuardBalanceSettings.Ram ram;
         public GuardBalanceSettings.Ward ward;
@@ -421,6 +443,8 @@ public final class SkillRankEffectScaling {
             deepWard=v.vitality().wards().deepWard();
             shatteringWard=v.vitality().wards().shatteringWard();
             runningMomentum=v.mobility().runningMomentum(); momentumVault=v.mobility().momentumVault(); rush=v.mobility().rush();
+            impactControl=v.mobility().impactControl(); chargedJump=v.mobility().chargedJump();
+            doubleJump=v.mobility().doubleJump(); vectorJump=v.mobility().vectorJump();
 
         }
         private SkillEffectBalanceSettings build() {
@@ -431,7 +455,7 @@ public final class SkillRankEffectScaling {
                     new VitalityBalanceSettings(risingRecovery, lifeSteal, feastReflex, innerSustenance,
                             new VitalityDamageBalanceSettings(hungerWard, staggeredPain, damageCeiling, metabolicConversion, painPurge, adrenaline),
                             new VitalityWardBalanceSettings(soulWard, deepWard, shatteringWard)),
-                    new MobilityBalanceSettings(runningMomentum, momentumVault, rush));
+                    new MobilityBalanceSettings(runningMomentum, momentumVault, rush, impactControl, chargedJump, doubleJump, vectorJump));
         }
     }
 }

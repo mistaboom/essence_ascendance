@@ -518,7 +518,7 @@ public final class EquipmentDamageService {
         DamageStatState stats = frame != null
                 ? frame.preHitStats
                 : evaluateStats(player);
-        DamageCategory category = classify(source);
+        DamageCategory category = classify(player, source);
         double resistancePercent = stats.resistanceFor(category);
         double clampedResistance = clamp(resistancePercent, 0.0, 100.0);
 
@@ -526,6 +526,7 @@ public final class EquipmentDamageService {
                 0.0,
                 incomingDamage * (1.0 - clampedResistance / 100.0)
         );
+        resolvedDamage = com.mistaboom.essence_ascendance.movement.ImpactDamageService.incoming(player, source, resolvedDamage);
         if (frame != null) {
             // Exactly one mitigation decision per outer native event, shared across loader callbacks.
             if (!frame.posturePrepared) {
@@ -711,7 +712,7 @@ public final class EquipmentDamageService {
     private static void recordDamageDiagnostic(ServerPlayer victim, DamageSource source, float healthDamage,
                                               double ordinaryPercent, float reflected) {
         DamageEvaluation previous = LAST_DAMAGE.get(victim);
-        LAST_DAMAGE.put(victim, new DamageEvaluation(classify(source),
+        LAST_DAMAGE.put(victim, new DamageEvaluation(classify(victim, source),
                 previous == null ? -1 : previous.incomingDamage(),
                 previous == null ? -1 : previous.resolvedIncomingDamage(),
                 previous == null ? 0 : previous.resistancePercent(),
@@ -875,6 +876,13 @@ public final class EquipmentDamageService {
         if (!(target instanceof ServerPlayer player) || !Double.isFinite(before) || !Double.isFinite(after)) return;
         ReflectionFrame frame = frame(player, source);
         if (frame != null) frame.mitigated += Math.max(0, before - after);
+    }
+
+    /** Impact Control extends the existing player+equipment Fall Resistance category, rather than
+     * re-evaluating or stacking a second copy of that bonus in a skill-specific damage hook. */
+    private static DamageCategory classify(ServerPlayer player, DamageSource source) {
+        return com.mistaboom.essence_ascendance.movement.ImpactDamageService.applies(player, source)
+                ? DamageCategory.FALL : classify(source);
     }
 
     public static DamageCategory classify(DamageSource source) {

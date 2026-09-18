@@ -39,6 +39,7 @@ public final class EquipmentGameplayEvents {
         PlayerEssenceSyncService.init();
         SkillEffectHudSyncService.init();
         com.mistaboom.essence_ascendance.network.AttunementMovementIntentService.init();
+        com.mistaboom.essence_ascendance.network.MovementAbilityInputService.init();
         EquipmentTooltipSyncService.init();
         PlayerRuntimeLifecycleService.init();
         SoulboundEquipmentService.init();

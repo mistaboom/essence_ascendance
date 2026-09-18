@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "#essence_ascendance:fall",
+    "minecraft:fly_into_wall",
+    "minecraft:stalagmite"
+  ]
+}

@@ -161,6 +161,20 @@ public final class SkillTooltipRegistry {
         define(SkillIds.RUSH,
                 line("skill.essence_ascendance.rush.description.resolved", sec(s -> s.mobility().rush().durationTicks())),
                 line("skill.essence_ascendance.rush.description.resolved.1"));
+        define(SkillIds.IMPACT_CONTROL,
+                line("skill.essence_ascendance.impact_control.description.resolved", pct(s -> s.mobility().impactControl().damageReduction())),
+                line("skill.essence_ascendance.impact_control.description.resolved.1"));
+        define(SkillIds.CHARGED_JUMP,
+                line("skill.essence_ascendance.charged_jump.description.resolved", sec(s -> s.mobility().chargedJump().chargeTicks()),
+                        n(s -> Math.sqrt(1 + s.mobility().chargedJump().heightBonus()))),
+                line("skill.essence_ascendance.charged_jump.description.resolved.1"));
+        define(SkillIds.DOUBLE_JUMP,
+                line("skill.essence_ascendance.double_jump.description.resolved", n(s -> Math.sqrt(1 + s.mobility().doubleJump().heightBonus()))),
+                line("skill.essence_ascendance.double_jump.description.resolved.1"));
+        define(SkillIds.VECTOR_JUMP,
+                line("skill.essence_ascendance.vector_jump.description.resolved", n(s -> Math.sqrt(1 + s.mobility().vectorJump().impulseBonus()))),
+                line("skill.essence_ascendance.vector_jump.description.resolved.1", pct(s -> s.mobility().vectorJump().brakeFraction())),
+                line("skill.essence_ascendance.vector_jump.description.resolved.2"));
         define(SkillIds.TERRAIN_FREEDOM,
                 line("skill.essence_ascendance.terrain_freedom.description.resolved"),
                 line("skill.essence_ascendance.terrain_freedom.description.resolved.1"));

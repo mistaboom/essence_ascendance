@@ -275,13 +275,13 @@ public final class SkillBalanceSemantics {
         all.add(skill(SkillIds.LAVABORN, capability(STATUS_RESISTANCE, .8), capability(GROUND_SPEED, .4))
                 .actions(Action.SWIM).availability(.3, 1).condition("Lava-immersion protection and inside-out visibility; native swimming access uses actual bonus/equipment speed. Lava ignition is prevented at its source; unrelated fire and damage remain normal outside immersion"));
         all.add(skill(SkillIds.IMPACT_CONTROL, flat(FALL_CONTROL, .65))
-                .actions(Action.MOVE).availability(.6, 1).condition("Movement and impact damage reduction, not general damage immunity"));
+                .actions(Action.MOVE).availability(.6, 1).condition("Generated fall/tagged movement-impact reduction; reuse player/equipment Fall Resistance once, transfer native fall multiplier to non-fall collisions only, never general damage immunity"));
         all.add(skill(SkillIds.CHARGED_JUMP, flat(JUMP, .7), flat(VERTICAL_MOVEMENT, .5))
-                .actions(Action.JUMP).availability(.55, 1).risk(.15).condition("Grounded charge time before controllable leap"));
+                .actions(Action.JUMP).availability(.55, 1).risk(.15).condition("Elapsed server-tick charge on native solid support; release ordinary Jump for a movement-key-steered native leap; cancelled input never auto-launches"));
         all.add(skill(SkillIds.DOUBLE_JUMP, capability(JUMP, .65), flat(FALL_CONTROL, .3))
-                .actions(Action.JUMP).availability(.75, 1).condition("One extra directional air jump; landing resets the resource"));
+                .actions(Action.JUMP).availability(.75, 1).condition("One fresh ordinary Jump press spends a directional air jump; native landing resets the resource, never holding the key or changing skill in midair"));
         all.add(skill(SkillIds.VECTOR_JUMP, capability(JUMP, .85), flat(VERTICAL_MOVEMENT, .55), flat(FALL_CONTROL, .4))
-                .actions(Action.JUMP).availability(.75, 1).condition("Replaces the extra jump with one stronger directional impulse"));
+                .actions(Action.JUMP).availability(.75, 1).condition("Replaces Double Jump with one look-directed native impulse; upward climbs, forward accelerates, downward brakes without a downward kick"));
         all.add(skill(SkillIds.ESSENCE_WINGS, capability(GLIDING, 1))
                 .actions(Action.JUMP, Action.GLIDE).availability(.85, 1)
                 .condition("Elytra milestone and replacement of Fatigue Flight; equipment-free gliding"));

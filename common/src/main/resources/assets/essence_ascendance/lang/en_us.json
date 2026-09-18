@@ -1307,5 +1307,21 @@
   "skill.essence_ascendance.water_walking.description.resolved": "Sprint across exposed water and lava surfaces at their natural height. Hold Sneak or stop sprinting to enter the liquid normally.",
   "skill.essence_ascendance.water_walking.description.resolved.1": "Enter from shore or above. Does not lift you out of a liquid, place blocks or prevent falling damage. Disabled while riding or flying.",
   "skill.essence_ascendance.lavaborn.description.resolved": "Swim through lava using your normal swimming speed and see through its surfaces from inside. While immersed, lava and ordinary fire contact cannot hurt you.",
-  "skill.essence_ascendance.lavaborn.description.resolved.1": "Lava cannot ignite you, so leaving it does not cause lingering lava burns. Unrelated fire is not extinguished; attacks and damage outside immersion remain normal."
+  "skill.essence_ascendance.lavaborn.description.resolved.1": "Lava cannot ignite you, so leaving it does not cause lingering lava burns. Unrelated fire is not extinguished; attacks and damage outside immersion remain normal.",
+  "hud.essence_ascendance.mobility.jump_charge": "Charge %s%%",
+  "hud.essence_ascendance.mobility.jump_launch": "Launch %sx",
+  "hud.essence_ascendance.mobility.jump_release": "Release Jump to leap",
+  "hud.essence_ascendance.mobility.air_jump_ready": "READY",
+  "hud.essence_ascendance.mobility.air_jump_spent": "SPENT",
+  "hud.essence_ascendance.mobility.double_jump_hint": "Tap Jump; movement keys steer",
+  "hud.essence_ascendance.mobility.vector_jump_hint": "Tap Jump; look to launch or brake",
+  "skill.essence_ascendance.impact_control.description.resolved": "Reduces falling and movement-impact damage by %s%%, including wall collisions and landing on pointed dripstone.",
+  "skill.essence_ascendance.impact_control.description.resolved.1": "Your existing player and equipment Fall Resistance also protects against other movement impacts, alongside native fall-damage multipliers. Fall Resistance is applied once; attacks and administrative damage are unaffected.",
+  "skill.essence_ascendance.charged_jump.description.resolved": "Hold Jump on solid ground to charge over %s seconds, then release for up to %sx your native upward jump launch.",
+  "skill.essence_ascendance.charged_jump.description.resolved.1": "Movement keys steer the leap. Releasing early gives a smaller jump; leaving the ground, opening a screen, or changing movement mode cancels the charge.",
+  "skill.essence_ascendance.double_jump.description.resolved": "Release and tap Jump again in midair for one extra jump with %sx your native upward launch. Movement keys choose its direction.",
+  "skill.essence_ascendance.double_jump.description.resolved.1": "Landing on solid ground restores the extra jump. Holding Jump does not repeat it. Swimming, climbing, gliding, flight, riding, and teleports reset it.",
+  "skill.essence_ascendance.vector_jump.description.resolved": "Replaces Double Jump with one look-directed air launch, using %sx your native jump impulse. Look upward to climb or forward to accelerate.",
+  "skill.essence_ascendance.vector_jump.description.resolved.1": "Looking downward brakes instead of diving: up to %s%% of existing falling velocity is removed when looking straight down. Reduced fall momentum lowers accumulated fall damage.",
+  "skill.essence_ascendance.vector_jump.description.resolved.2": "Release and tap Jump again to activate; landing restores the shared air jump. This replaces Double Jump, never adds another charge."
 }

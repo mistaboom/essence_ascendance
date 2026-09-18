@@ -32,7 +32,7 @@ import java.util.Map;
 
 /** Server-thread transaction: collect, construct, validate, persist, publish, then synchronize. */
 public final class GeneratedBalanceService {
-    static final String GENERATION_REVISION = "mobility-terrain-fluids-29";
+    static final String GENERATION_REVISION = "mobility-jump-impact-30";
     private static final String DISSOLUTION_ACCOUNTING = "whole_essence_v1";
     private static volatile Active active;
     private static volatile boolean resourcesChanged;
@@ -296,6 +296,18 @@ public final class GeneratedBalanceService {
         policy.addProperty("vaultNativeStepHeight", v.momentumVault().stepHeight());
         policy.addProperty("vaultMinimumMomentum", v.momentumVault().minimumMomentum());
         policy.addProperty("rushRetentionSeconds", v.rush().durationTicks() / 20.0);
+        policy.addProperty("impactReduction", v.impactControl().damageReduction());
+        policy.addProperty("chargedJumpSeconds", v.chargedJump().chargeTicks() / 20.0);
+        policy.addProperty("chargedJumpLaunchMultiplier", Math.sqrt(1 + v.chargedJump().heightBonus()));
+        policy.addProperty("chargedJumpSteeringBonus", v.chargedJump().steeringBonus());
+        policy.addProperty("doubleJumpLaunchMultiplier", Math.sqrt(1 + v.doubleJump().heightBonus()));
+        policy.addProperty("doubleJumpSteeringBonus", v.doubleJump().steeringBonus());
+        policy.addProperty("vectorJumpImpulseMultiplier", Math.sqrt(1 + v.vectorJump().impulseBonus()));
+        policy.addProperty("vectorJumpDownwardBrake", v.vectorJump().brakeFraction());
+        policy.addProperty("impactControl", "Generated conditional impact reduction through the existing incoming-damage pipeline. Existing combined player/equipment Fall Resistance selects the FALL category for movement impacts, once; native IS_FALL plus extensible movement_impact damage tag covers falls, fly_into_wall and stalagmite by default. Native fall-damage multiplier transfers only to non-fall tagged impacts; no double application, combat/admin immunity or permanent HUD card.");
+        policy.addProperty("jumpInput", "Bounded ordinary Jump/direction intent only; server elapsed time earns charge and fresh edges spend one landing-backed air resource. No client velocity, position, strength, skill, timestamp or charge claims. Ground support requires native collision under the feet; mode, lifecycle, rank/config and teleport discontinuities reset state. Existing posture intent expiry cancels stale input, never launches.");
+        policy.addProperty("jumpMotion", "Native jump power includes live attributes, Jump Boost and block factors. Native jump callbacks/exertion remain. Charged/Double redirect using movement keys; Vector replaces Double, launches along look, and looks down to brake rather than accelerate descent. Kinematics reuse accepted native movement evidence. Only successful impulses adjust fall distance; packet component bounds are transport constraints, not gameplay tuning. No teleport or collision bypass.");
+        policy.addProperty("jumpPresentation", "Existing shared progress HUD and synchronized rank-resolved tooltips. Charged card shows elapsed charge and launch multiplier; ready air resource uses normal closing grace after spending. Local routing suppresses a claimed press until release to avoid accidental Elytra deployment; physical motion is server-approved, not applied twice by client prediction.");
         policy.addProperty("traversalTuning", "Binary native restoration, not generated magnitudes: no new TOML scalar, hidden multiplier or fake numeric rank. Existing semantic weights/availability, purchase costs and generated profile identity remain authoritative; later diagnostic ranks do not amplify capabilities.");
         policy.addProperty("terrainFreedom", "Tagged contact damage, drag callbacks and native below-identity block speed/jump factors; powder-snow/soul-sand/mud firm footing and freezing protection. Opt-in block/damage tags extend terrain support. No attacks, suffocation, falls, drowning, ordinary fire, lava or bypass-invulnerability immunity.");
         policy.addProperty("aquaticBody", "An exact-ID SUBMERGED_MINING_SPEED floor and scoped off-ground mining restoration remove underwater mining penalties. No WATER_MOVEMENT_EFFICIENCY floor or movement off-ground bypass: Swim Speed remains entirely with the existing bonus/equipment pipeline, including native scaling. Normal tools, haste/fatigue, air supply and rain behavior remain. Normal scene fog, not night vision or wall visibility.");
@@ -306,7 +318,7 @@ public final class GeneratedBalanceService {
         policy.addProperty("runningMomentum", "One normalized reservoir. Stopping, crouching, lost input or a sharp turn drains unless Rush retains. Only land sprinting applies the proportional speed modifier. Flight/water/climbing/mounts/teleports/dimension changes and lifecycle resets clear movement state and its exact-ID modifiers.");
         policy.addProperty("momentumVault", "Generated native fence collision height defines a step floor while charged, grounded and sprinting with measured movement. Normal collision/headroom semantics; no teleport, velocity launch, fall reset or block modification. Sneak disables; existing stronger additive/multiplicative step modifiers remain intact. Readiness shares Running Momentum's HUD card.");
         policy.addProperty("rush", "Confirmed attributed nonallied kills, including native projectile/caster and skill-proc kills, fill Running Momentum and refresh one retention window. No stacked timers, extra speed bonus or bypass of movement-mode/discontinuity resets. Separate standard timed HUD card.");
-        policy.addProperty("projection", "Ground-speed magnitude is projected as conditional movement, vault as vertical access/convenience, Rush as retention convenience. No extra jump impulse, direct DPS or EHP is invented. Future ranks scale maximum sprint bonus, reduce vault activation threshold, or extend retention.");
+        policy.addProperty("projection", "Ground-speed magnitude is projected as conditional movement, vault as vertical access/convenience, Rush as retention convenience. Jump strengths project on JUMP/VERTICAL_MOVEMENT and conditional FALL_CONTROL only, not global combat EHP/DPS. Native launch is the baseline; square-root impulse maps generated impulse-squared headroom without claiming exact discrete-physics block heights. Ranks scale typed strengths/reduction/braking, not air-jump count. Momentum branches retain their own speed, vault-threshold and retention consumers.");
         policy.addProperty("evidenceLimit", "No observed route geometry, turning behavior, obstacle frequency or kill cadence is assumed. Dedicated-server movement prediction and representative-modpack acceptance need in-game verification.");
         return policy;
     }
