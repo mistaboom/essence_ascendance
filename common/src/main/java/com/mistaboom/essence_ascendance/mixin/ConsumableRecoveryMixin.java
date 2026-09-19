@@ -15,7 +15,8 @@ public abstract class ConsumableRecoveryMixin {
     @WrapMethod(method = "finishUsingItem")
     private ItemStack essenceAscendance$completedRecovery(Level level, LivingEntity user, Operation<ItemStack> original) {
         return user instanceof ServerPlayer player
-                ? ConsumableRecoveryService.complete(player, (ItemStack)(Object)this, () -> original.call(level, user))
+                ? com.mistaboom.essence_ascendance.utility.UtilityPotionService.complete(player, (ItemStack)(Object)this,
+                        () -> ConsumableRecoveryService.complete(player, (ItemStack)(Object)this, () -> original.call(level, user)))
                 : original.call(level, user);
     }
 }

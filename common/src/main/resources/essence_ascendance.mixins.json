@@ -82,6 +82,8 @@
     "ArrowProjectilePathMixin",
     "LivingEntityProjectileShieldMixin",
     "DeferredDamageNativeAccess",
+    "BondedCompanionMixin",
+    "VillagePatronMixin",
     "ConsumableRecoveryMixin",
     "MetabolicHealingMixin",
     "MetabolicFoodEligibilityMixin",

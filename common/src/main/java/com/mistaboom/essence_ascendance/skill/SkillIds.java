@@ -94,7 +94,7 @@ public final class SkillIds {
     public static final ResourceLocation MASTERWORK_TEMPERING = id("masterwork_tempering");
     public static final ResourceLocation VILLAGE_PATRON = id("village_patron");
     public static final ResourceLocation BONDED_COMPANION = id("bonded_companion");
-    public static final ResourceLocation POTION_DURATION = id("potion_duration");
+    public static final ResourceLocation ALCHEMICAL_AMPLIFICATION = id("alchemical_amplification");
     public static final ResourceLocation POTION_RELAY = id("potion_relay");
     public static final ResourceLocation SANCTUARY = id("sanctuary");
     public static final ResourceLocation INDUSTRIOUS_PRESENCE = id("industrious_presence");

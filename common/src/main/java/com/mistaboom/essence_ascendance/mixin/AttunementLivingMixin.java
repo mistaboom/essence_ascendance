@@ -14,11 +14,16 @@ import org.spongepowered.asm.mixin.Mixin;
 public abstract class AttunementLivingMixin {
     @WrapMethod(method = "addEffect(Lnet/minecraft/world/effect/MobEffectInstance;Lnet/minecraft/world/entity/Entity;)Z")
     private boolean essenceAscendance$effectSource(MobEffectInstance effect, Entity source, Operation<Boolean> original) {
-        boolean applied = com.mistaboom.essence_ascendance.status.StatusInterceptionService.apply(
-                (LivingEntity)(Object)this, effect, source, () -> original.call(effect, source));
-        if (applied && !com.mistaboom.essence_ascendance.status.StatusInterceptionService.secondary()
-                && (Object) this instanceof ServerPlayer player) AttunementGameplay.effectApplied(player, effect.getEffect(), source);
-        return applied;
+        LivingEntity self = (LivingEntity)(Object)this;
+        return com.mistaboom.essence_ascendance.utility.UtilityPotionService.apply(self, effect, source,
+                (resolvedEffect, resolvedSource) -> {
+                    boolean applied = com.mistaboom.essence_ascendance.status.StatusInterceptionService.apply(
+                            self, resolvedEffect, resolvedSource, () -> original.call(resolvedEffect, resolvedSource));
+                    if (applied && !com.mistaboom.essence_ascendance.status.StatusInterceptionService.secondary()
+                            && self instanceof ServerPlayer player)
+                        AttunementGameplay.effectApplied(player, resolvedEffect.getEffect(), resolvedSource);
+                    return applied;
+                });
     }
     @WrapMethod(method = "forceAddEffect")
     private void essenceAscendance$forcedEffect(MobEffectInstance effect, Entity source, Operation<Void> original) {

@@ -286,6 +286,12 @@ public final class SkillRankEffectScaling {
                 scaleOdds(p.masterworkTempering.reinforcementFractionPerMaterialUnit(), f),
                 scaleOdds(p.masterworkTempering.maximumOverdurabilityFraction(), f),
                 scaleOdds(p.masterworkTempering.maximumPerformanceBonus(), f)));
+        register(SkillIds.VILLAGE_PATRON, (p, f) -> p.villagePatron = scaleVillagePatron(p.villagePatron, f));
+        register(SkillIds.BONDED_COMPANION, (p, f) -> p.bondedCompanion = scaleBondedCompanion(p.bondedCompanion, f));
+        register(SkillIds.ALCHEMICAL_AMPLIFICATION, (p, f) -> p.alchemicalAmplification = new UtilityBalanceSettings.AlchemicalAmplification(
+                scaleOdds(p.alchemicalAmplification.maximumBonusFraction(), f), p.alchemicalAmplification.diminishingWindowTicks()));
+        register(SkillIds.POTION_RELAY, (p, f) -> p.potionRelay = new UtilityBalanceSettings.PotionRelay(
+                p.potionRelay.radiusBlocks(), scaleOdds(p.potionRelay.durationFraction(), f), p.potionRelay.maximumTargets()));
         // Staggered Pain is a binary timing capability, not an invented damage-reduction multiplier.
         // Pure State is binary. Its capability pressure remains one at every
         // projected rank; no inert numeric rule pretends to improve immunity.
@@ -450,6 +456,14 @@ public final class SkillRankEffectScaling {
                     / Math.max(Math.ulp(1.0), weights.get(CapabilityAxis.THROUGHPUT));
             return Math.max(reinforcement, Math.max(capacity, performance));
         }
+        if (id.equals(SkillIds.VILLAGE_PATRON)) return inverseOdds(utility.villagePatron().discountFraction())
+                / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.CONVERSION));
+        if (id.equals(SkillIds.BONDED_COMPANION)) return inverseOdds(utility.bondedCompanion().statBonusFraction())
+                / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.SUSTAINED_DAMAGE));
+        if (id.equals(SkillIds.ALCHEMICAL_AMPLIFICATION)) return inverseOdds(utility.alchemicalAmplification().maximumBonusFraction())
+                / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.RESOURCE_CONSUMPTION));
+        if (id.equals(SkillIds.POTION_RELAY)) return inverseOdds(utility.potionRelay().durationFraction())
+                / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.CONVENIENCE));
         return offenseScale;
     }
 
@@ -471,6 +485,30 @@ public final class SkillRankEffectScaling {
     }
 
     private static double scale(double value, double factor, double maximum) { return Math.min(maximum, value * factor); }
+    private static UtilityBalanceSettings.VillagePatron scaleVillagePatron(UtilityBalanceSettings.VillagePatron value,
+                                                                            double factor) {
+        var weights = SkillBalanceSemantics.require(SkillIds.VILLAGE_PATRON).weights();
+        double headroom = inverseOdds(value.discountFraction())
+                / Math.max(Math.ulp(1.0), weights.get(CapabilityAxis.CONVERSION));
+        double baseRate = odds(headroom * weights.get(CapabilityAxis.THROUGHPUT));
+        double scaledRate = odds(headroom * factor * weights.get(CapabilityAxis.THROUGHPUT));
+        int interval = baseRate <= 0 || scaledRate <= 0 ? value.restockIntervalTicks()
+                : Math.max(1, (int) Math.ceil(value.restockIntervalTicks() * baseRate / scaledRate));
+        return new UtilityBalanceSettings.VillagePatron(scaleOdds(value.discountFraction(), factor),
+                value.restockRadiusBlocks(), interval);
+    }
+    private static UtilityBalanceSettings.BondedCompanion scaleBondedCompanion(UtilityBalanceSettings.BondedCompanion value,
+                                                                                 double factor) {
+        var semantics = SkillBalanceSemantics.require(SkillIds.BONDED_COMPANION);
+        var weights = semantics.weights();
+        double headroom = inverseOdds(value.statBonusFraction())
+                / Math.max(Math.ulp(1.0), weights.get(CapabilityAxis.SUSTAINED_DAMAGE));
+        double teleportStrength = odds(headroom * factor * weights.get(CapabilityAxis.TELEPORTATION));
+        double catchup = teleportStrength <= 0 ? value.catchupDistanceBlocks()
+                : semantics.rangeBlocks() / Math.sqrt(teleportStrength);
+        return new UtilityBalanceSettings.BondedCompanion(scaleOdds(value.statBonusFraction(), factor),
+                Math.clamp(catchup, semantics.rangeBlocks(), 128));
+    }
     private static double scaleRestfulMendingRate(UtilityBalanceSettings.RestfulMending value, double factor) {
         double inactive = Math.max(Math.ulp(1.0),
                 1.0 - SkillBalanceSemantics.require(SkillIds.RESTFUL_MENDING).expectedAvailability());
@@ -488,6 +526,7 @@ public final class SkillRankEffectScaling {
         if (probability >= 1) return Double.MAX_VALUE;
         return probability / (1.0 - probability);
     }
+    private static double odds(double power) { return power <= 0 ? 0 : power / (1.0 + power); }
     // The sum of a geometric continuation remains bounded by the rank factor.
     private static double retained(double value, double factor) { return value <= 0 ? 0 : 1.0 - (1.0 - value) / factor; }
     /** Scales independent-event odds without treating probability as a linear damage fraction. */
@@ -554,6 +593,10 @@ public final class SkillRankEffectScaling {
         public UtilityBalanceSettings.RestfulMending restfulMending;
         public UtilityBalanceSettings.MetabolicMending metabolicMending;
         public UtilityBalanceSettings.MasterworkTempering masterworkTempering;
+        public UtilityBalanceSettings.VillagePatron villagePatron;
+        public UtilityBalanceSettings.BondedCompanion bondedCompanion;
+        public UtilityBalanceSettings.AlchemicalAmplification alchemicalAmplification;
+        public UtilityBalanceSettings.PotionRelay potionRelay;
         public GuardBalanceSettings.Mobility mobility;
         public GuardBalanceSettings.Ram ram;
         public GuardBalanceSettings.Ward ward;
@@ -610,7 +653,9 @@ public final class SkillRankEffectScaling {
             fishingInstinct=v.gathering().fishingInstinct();
             threatSense=v.utility().threatSense(); huntersLedger=v.utility().huntersLedger(); waylight=v.utility().waylight();
             restfulMending=v.utility().restfulMending(); metabolicMending=v.utility().metabolicMending();
-            masterworkTempering=v.utility().masterworkTempering();
+            masterworkTempering=v.utility().masterworkTempering(); villagePatron=v.utility().villagePatron();
+            bondedCompanion=v.utility().bondedCompanion(); alchemicalAmplification=v.utility().alchemicalAmplification();
+            potionRelay=v.utility().potionRelay();
 
         }
         private SkillEffectBalanceSettings build() {
@@ -625,7 +670,7 @@ public final class SkillRankEffectScaling {
                     new GatheringBalanceSettings(toolInstinct, miningMomentum, naturesBoon, oreSight, treasureSense,
                             huntersStudy, essenceBloom, verdantStride, herdkeeper, animalGift, fishingInstinct),
                     new UtilityBalanceSettings(threatSense, huntersLedger, waylight, restfulMending,
-                            metabolicMending, masterworkTempering));
+                            metabolicMending, masterworkTempering, villagePatron, bondedCompanion, alchemicalAmplification, potionRelay));
         }
     }
 }

@@ -149,14 +149,18 @@ public final class DormantGuidebookTest {
         CompoundTag milestones = new CompoundTag();
         milestones.putBoolean("test:milestone", true);
         saved.put("completed_milestones", milestones);
+        var fixtureSkill = com.mistaboom.essence_ascendance.skill.SkillRegistry.values().stream()
+                .filter(skill -> skill.activationPolicy() == com.mistaboom.essence_ascendance.skill.SkillActivationPolicy.TOGGLE)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Reset fixture requires one real toggle skill"));
         CompoundTag receipt = new CompoundTag();
-        receipt.putString("paid_essence", "test:owned");
-        receipt.putLongArray("rank_paid_costs", new long[]{10, 20});
+        receipt.putString("paid_essence", fixtureSkill.essenceId().toString());
+        receipt.putLongArray("rank_paid_costs", new long[]{10});
         CompoundTag skills = new CompoundTag();
-        skills.put("test:skill", receipt);
+        skills.put(fixtureSkill.id().toString(), receipt);
         saved.put("skill_ranks", skills);
         CompoundTag selections = new CompoundTag();
-        selections.putString("test:slot", "test:skill");
+        selections.putString(fixtureSkill.id().toString(), fixtureSkill.id().toString());
         saved.put("loadout_selections", selections);
         CompoundTag attunement = new AttunementLedger().save();
         attunement.putString("chapter", "test:chapter");

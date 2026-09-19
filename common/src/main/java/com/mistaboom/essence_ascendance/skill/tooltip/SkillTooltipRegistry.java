@@ -265,6 +265,29 @@ public final class SkillTooltipRegistry {
                 line("skill.essence_ascendance.masterwork_tempering.description.resolved.1",
                         pct(s -> s.utility().masterworkTempering().maximumPerformanceBonus())),
                 line("skill.essence_ascendance.masterwork_tempering.description.resolved.2"));
+        define(SkillIds.VILLAGE_PATRON,
+                line("skill.essence_ascendance.village_patron.description.resolved",
+                        pct(s -> s.utility().villagePatron().discountFraction()),
+                        n(s -> s.utility().villagePatron().restockRadiusBlocks()),
+                        sec(s -> s.utility().villagePatron().restockIntervalTicks())),
+                line("skill.essence_ascendance.village_patron.description.resolved.1"));
+        define(SkillIds.BONDED_COMPANION,
+                line("skill.essence_ascendance.bonded_companion.description.resolved",
+                        pct(s -> s.utility().bondedCompanion().statBonusFraction())),
+                line("skill.essence_ascendance.bonded_companion.description.resolved.1",
+                        n(s -> s.utility().bondedCompanion().catchupDistanceBlocks())));
+        define(SkillIds.ALCHEMICAL_AMPLIFICATION,
+                line("skill.essence_ascendance.alchemical_amplification.description.resolved",
+                        pct(s -> s.utility().alchemicalAmplification().maximumBonusFraction()),
+                        sec(s -> s.utility().alchemicalAmplification().diminishingWindowTicks())),
+                line("skill.essence_ascendance.alchemical_amplification.description.resolved.1",
+                        pct(s -> s.utility().alchemicalAmplification().maximumBonusFraction())));
+        define(SkillIds.POTION_RELAY,
+                line("skill.essence_ascendance.potion_relay.description.resolved",
+                        n(s -> s.utility().potionRelay().radiusBlocks()),
+                        pct(s -> s.utility().potionRelay().durationFraction()),
+                        n(s -> s.utility().potionRelay().maximumTargets())),
+                line("skill.essence_ascendance.potion_relay.description.resolved.1"));
         define(SkillIds.ADRENALINE,
                 line("skill.essence_ascendance.adrenaline.description.resolved" , pct(s -> s.vitality().damage().adrenaline().triggerHealthLossFraction()), sec(s -> s.vitality().damage().adrenaline().durationTicks())),
                 line("skill.essence_ascendance.adrenaline.description.resolved.1" , pct(s -> s.vitality().damage().adrenaline().movementSpeedBonus()), pct(s -> s.vitality().damage().adrenaline().attackSpeedBonus()), pct(s -> s.vitality().damage().adrenaline().knockbackResistance())));

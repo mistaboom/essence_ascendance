@@ -324,12 +324,12 @@ public final class Skills {
                 SkillCostBand.ADVANCED, 7)
                 .requirements(milestone(Milestones.BEST_FRIENDS_FOREVER.id()))
                 .hint(SkillLayoutHint.UPPER).build());
-        skills.add(skill(SkillIds.POTION_DURATION, essence, AscendanceTiers.AWAKENED.id(),
+        skills.add(skill(SkillIds.ALCHEMICAL_AMPLIFICATION, essence, AscendanceTiers.AWAKENED.id(),
                 SkillCostBand.FOUNDATION, 8)
                 .requirements(milestone(Milestones.LOCAL_BREWERY.id()))
                 .hint(SkillLayoutHint.CENTER).build());
         skills.add(skill(SkillIds.POTION_RELAY, essence, AscendanceTiers.RESONANT.id(),
-                SkillCostBand.ADVANCED, 9).requires(SkillIds.POTION_DURATION)
+                SkillCostBand.ADVANCED, 9).requires(SkillIds.ALCHEMICAL_AMPLIFICATION)
                 .hint(SkillLayoutHint.LOWER).build());
         skills.add(skill(SkillIds.SANCTUARY, essence, AscendanceTiers.TRANSCENDENT.id(),
                 SkillCostBand.KEYSTONE, 10).requires(SkillIds.WAYLIGHT)

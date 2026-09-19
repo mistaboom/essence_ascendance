@@ -3,6 +3,7 @@ package com.mistaboom.essence_ascendance.mixin;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mistaboom.essence_ascendance.status.StatusInterceptionService;
+import com.mistaboom.essence_ascendance.utility.UtilityPotionService;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.entity.AreaEffectCloud;
 import net.minecraft.world.entity.Entity;
@@ -16,14 +17,19 @@ public abstract class StatusCloudInstantMixin {
             "Lnet/minecraft/world/entity/LivingEntity;addEffect(Lnet/minecraft/world/effect/MobEffectInstance;Lnet/minecraft/world/entity/Entity;)Z"), require = 1, expect = 1)
     private boolean essenceAscendance$source(LivingEntity target, net.minecraft.world.effect.MobEffectInstance effect,
                                              Entity source, Operation<Boolean> original) {
-        return StatusInterceptionService.withSource(target, effect, (Entity)(Object)this,
-                ((AreaEffectCloud)(Object)this).getOwner(), () -> original.call(target, effect, source));
+        AreaEffectCloud cloud = (AreaEffectCloud)(Object)this;
+        return UtilityPotionService.applyExternalPotion(target, effect, source,
+                (resolvedEffect, resolvedSource) -> StatusInterceptionService.withSource(
+                        target, resolvedEffect, cloud, cloud.getOwner(),
+                        () -> original.call(target, resolvedEffect, resolvedSource)));
     }
+
     @WrapOperation(method = "tick", at = @At(value = "INVOKE", target =
             "Lnet/minecraft/world/effect/MobEffect;applyInstantenousEffect(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/entity/LivingEntity;ID)V"), require = 1)
     private void essenceAscendance$instant(MobEffect effect, Entity direct, Entity owner, LivingEntity target,
                                            int amplifier, double potency, Operation<Void> original) {
-        StatusInterceptionService.instant(effect, direct, owner, target, amplifier, potency,
-                () -> original.call(effect, direct, owner, target, amplifier, potency));
+        double resolvedPotency = UtilityPotionService.externalInstantPotency(effect, target, potency);
+        StatusInterceptionService.instant(effect, direct, owner, target, amplifier, resolvedPotency,
+                () -> original.call(effect, direct, owner, target, amplifier, resolvedPotency));
     }
 }

@@ -355,11 +355,11 @@ public final class SkillBalanceSemantics {
                 .equipment(Equipment.REPAIRABLE_GEAR).actions(Action.REPAIR).availability(.65, 1).cost(.3)
                 .condition("Fully repaired gear can consume compatible construction/repair-material forms to gain finite Overdurability with role performance"));
         all.add(skill(SkillIds.VILLAGE_PATRON, flat(CONVERSION, .45), flat(THROUGHPUT, .35))
-                .actions(Action.TRADE).availability(.55, 1).condition("Hero-of-the-village milestone; discounts and local trade restock"));
+                .actions(Action.TRADE).availability(.55, 1).area(8).condition("Hero-of-the-village milestone; discounts and local trade restock"));
         all.add(skill(SkillIds.BONDED_COMPANION, flat(SUSTAINED_DAMAGE, .35), capability(TELEPORTATION, .4))
-                .availability(.55, .8).condition("Milestone-gated allied creature stats and safe companion catch-up; not player teleportation"));
-        all.add(skill(SkillIds.POTION_DURATION, flat(RESOURCE_CONSUMPTION, .5))
-                .actions(Action.DRINK).availability(.55, 1).cost(.2).condition("Milestone-gated compatible beneficial potion duration; long effects diminish"));
+                .availability(.55, .8).range(12).condition("Milestone-gated allied creature stats and safe companion catch-up; not player teleportation"));
+        all.add(skill(SkillIds.ALCHEMICAL_AMPLIFICATION, flat(RESOURCE_CONSUMPTION, .5))
+                .actions(Action.DRINK).availability(.55, 1).cost(.2).condition("Milestone-gated beneficial potion amplification; timed effects gain diminishing duration while instant beneficial effects gain potency"));
         all.add(skill(SkillIds.POTION_RELAY, area(CONVENIENCE, .45, 3))
                 .actions(Action.DRINK).availability(.4, .85).cost(.2).area(8)
                 .condition("Shares reduced beneficial effect duration with nearby allies; solo target count is one"));

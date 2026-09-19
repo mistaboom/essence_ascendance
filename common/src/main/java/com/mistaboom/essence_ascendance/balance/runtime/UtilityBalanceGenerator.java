@@ -7,7 +7,7 @@ import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.balance.SkillBalanceSemantics;
 import net.minecraft.world.food.FoodConstants;
 
-/** Generates Utility sensing and maintenance values from the shared semantic/headroom model. */
+/** Generates Utility gameplay values from the shared semantic/headroom model. */
 final class UtilityBalanceGenerator {
     private UtilityBalanceGenerator() { }
 
@@ -16,6 +16,9 @@ final class UtilityBalanceGenerator {
         var ledger = SkillBalanceSemantics.require(SkillIds.HUNTERS_LEDGER);
         var waylight = SkillBalanceSemantics.require(SkillIds.WAYLIGHT);
         var restful = SkillBalanceSemantics.require(SkillIds.RESTFUL_MENDING);
+        var village = SkillBalanceSemantics.require(SkillIds.VILLAGE_PATRON);
+        var bonded = SkillBalanceSemantics.require(SkillIds.BONDED_COMPANION);
+        var relay = SkillBalanceSemantics.require(SkillIds.POTION_RELAY);
         double window = settings.generation().survivalWindowSeconds();
         double ledgerInformation = power(settings, SkillIds.HUNTERS_LEDGER, CapabilityAxis.INFORMATION);
 
@@ -36,6 +39,20 @@ final class UtilityBalanceGenerator {
         double reinforcementPerUnit = Math.min(maximumOverdurability, odds(masterworkConversion));
         double performanceBonus = odds(masterworkThroughput);
 
+        double villageDiscount = odds(power(settings, SkillIds.VILLAGE_PATRON, CapabilityAxis.CONVERSION));
+        double villageRestockRate = odds(power(settings, SkillIds.VILLAGE_PATRON, CapabilityAxis.THROUGHPUT));
+        int villageRestockTicks = ticks(window / Math.max(Math.ulp(1.0), villageRestockRate));
+
+        double bondedStats = odds(power(settings, SkillIds.BONDED_COMPANION, CapabilityAxis.SUSTAINED_DAMAGE));
+        double bondedTeleport = odds(power(settings, SkillIds.BONDED_COMPANION, CapabilityAxis.TELEPORTATION));
+        double bondedCatchup = bonded.rangeBlocks() / Math.sqrt(Math.max(Math.ulp(1.0), bondedTeleport));
+
+        double alchemicalAmplification = odds(power(settings, SkillIds.ALCHEMICAL_AMPLIFICATION, CapabilityAxis.RESOURCE_CONSUMPTION));
+        int amplificationDiminishingWindow = ticks(settings.generation().bossEncounterSeconds());
+
+        double relayDuration = odds(power(settings, SkillIds.POTION_RELAY, CapabilityAxis.CONVENIENCE));
+        int relayTargets = relay.contributions().stream().mapToInt(SkillBalanceSemantics.Contribution::targets).max().orElse(1);
+
         return new UtilityBalanceSettings(
                 new UtilityBalanceSettings.ThreatSense(Math.clamp(threat.rangeBlocks(), 0, 128)),
                 new UtilityBalanceSettings.HuntersLedger(memoryTicks),
@@ -46,7 +63,21 @@ final class UtilityBalanceGenerator {
                 new UtilityBalanceSettings.MasterworkTempering(
                         Math.clamp(reinforcementPerUnit, 0, 1),
                         Math.clamp(maximumOverdurability, 0, 1),
-                        Math.clamp(performanceBonus, 0, 1)));
+                        Math.clamp(performanceBonus, 0, 1)),
+                new UtilityBalanceSettings.VillagePatron(
+                        Math.clamp(villageDiscount, 0, 1),
+                        Math.clamp(village.areaRadiusBlocks(), 0, 128),
+                        villageRestockTicks),
+                new UtilityBalanceSettings.BondedCompanion(
+                        Math.clamp(bondedStats, 0, 1),
+                        Math.clamp(bondedCatchup, bonded.rangeBlocks(), 128)),
+                new UtilityBalanceSettings.AlchemicalAmplification(
+                        Math.clamp(alchemicalAmplification, 0, 1),
+                        amplificationDiminishingWindow),
+                new UtilityBalanceSettings.PotionRelay(
+                        Math.clamp(relay.areaRadiusBlocks(), 0, 128),
+                        Math.clamp(relayDuration, 0, 1),
+                        relayTargets));
     }
 
     private static double power(BalanceSettings settings, net.minecraft.resources.ResourceLocation skill,
