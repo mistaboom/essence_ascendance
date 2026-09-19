@@ -19,7 +19,9 @@
     "TraversalScreenEffectsMixin",
     "TraversalLiquidRendererMixin",
     "MovementAbilityInputMixin",
-    "GatheringSurveyRendererMixin"
+    "GatheringSurveyRendererMixin",
+    "UtilitySenseRendererMixin",
+    "UtilitySenseClientMixin"
   ],
   "mixins": [
     "FoodDataRecoveryMixin",
@@ -91,7 +93,8 @@
     "GatheringLootTableMixin",
     "GatheringFishingHookMixin",
     "VerdantFarmlandMixin",
-    "VerdantTurtleEggMixin"
+    "VerdantTurtleEggMixin",
+    "CreeperExplosionAccess"
   ],
   "injectors": {
     "defaultRequire": 1

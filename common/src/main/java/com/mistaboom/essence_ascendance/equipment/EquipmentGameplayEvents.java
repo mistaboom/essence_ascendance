@@ -9,6 +9,7 @@ import com.mistaboom.essence_ascendance.network.ItemEssenceTooltipSyncService;
 import com.mistaboom.essence_ascendance.network.PlayerEssenceSyncService;
 import com.mistaboom.essence_ascendance.network.SkillEffectHudSyncService;
 import com.mistaboom.essence_ascendance.network.GatheringSurveySyncService;
+import com.mistaboom.essence_ascendance.network.UtilitySenseSyncService;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import dev.architectury.event.events.common.TickEvent;
 import net.minecraft.server.level.ServerPlayer;
@@ -40,6 +41,7 @@ public final class EquipmentGameplayEvents {
         PlayerEssenceSyncService.init();
         SkillEffectHudSyncService.init();
         GatheringSurveySyncService.init();
+        UtilitySenseSyncService.init();
         com.mistaboom.essence_ascendance.network.AttunementMovementIntentService.init();
         com.mistaboom.essence_ascendance.network.MovementAbilityInputService.init();
         EquipmentTooltipSyncService.init();
@@ -61,6 +63,7 @@ public final class EquipmentGameplayEvents {
                 // Send after the authoritative gameplay pass so presentation sees
                 // the same resolved state used by gameplay this tick.
                 GatheringSurveySyncService.syncIfNeeded(serverPlayer);
+                UtilitySenseSyncService.syncIfNeeded(serverPlayer);
                 SkillEffectHudSyncService.syncIfNeeded(serverPlayer);
             }
         });

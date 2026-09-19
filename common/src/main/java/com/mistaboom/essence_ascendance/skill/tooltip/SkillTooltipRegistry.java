@@ -239,6 +239,18 @@ public final class SkillTooltipRegistry {
                         n(s -> s.gathering().fishingInstinct().reelWindowMultiplier())),
                 line("skill.essence_ascendance.fishing_instinct.description.resolved.1",
                         n(s -> s.gathering().fishingInstinct().virtualLuckLevels())));
+        define(SkillIds.THREAT_SENSE,
+                line("skill.essence_ascendance.threat_sense.description.resolved",
+                        n(s -> s.utility().threatSense().rangeBlocks())),
+                line("skill.essence_ascendance.threat_sense.description.resolved.1"));
+        define(SkillIds.HUNTERS_LEDGER,
+                line("skill.essence_ascendance.hunters_ledger.description.resolved",
+                        sec(s -> s.utility().huntersLedger().memoryTicks())),
+                line("skill.essence_ascendance.hunters_ledger.description.resolved.1"));
+        define(SkillIds.WAYLIGHT,
+                line("skill.essence_ascendance.waylight.description.resolved",
+                        n(s -> s.utility().waylight().searchRadiusBlocks())),
+                line("skill.essence_ascendance.waylight.description.resolved.1"));
         define(SkillIds.ADRENALINE,
                 line("skill.essence_ascendance.adrenaline.description.resolved" , pct(s -> s.vitality().damage().adrenaline().triggerHealthLossFraction()), sec(s -> s.vitality().damage().adrenaline().durationTicks())),
                 line("skill.essence_ascendance.adrenaline.description.resolved.1" , pct(s -> s.vitality().damage().adrenaline().movementSpeedBonus()), pct(s -> s.vitality().damage().adrenaline().attackSpeedBonus()), pct(s -> s.vitality().damage().adrenaline().knockbackResistance())));

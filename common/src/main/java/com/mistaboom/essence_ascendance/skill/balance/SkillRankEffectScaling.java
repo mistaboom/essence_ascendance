@@ -3,6 +3,7 @@ package com.mistaboom.essence_ascendance.skill.balance;
 import com.mistaboom.essence_ascendance.config.ProjectileBalanceSettings;
 import com.mistaboom.essence_ascendance.config.MobilityBalanceSettings;
 import com.mistaboom.essence_ascendance.config.GatheringBalanceSettings;
+import com.mistaboom.essence_ascendance.config.UtilityBalanceSettings;
 import com.mistaboom.essence_ascendance.balance.engine.CapabilityAxis;
 import com.mistaboom.essence_ascendance.config.GuardBalanceSettings;
 import com.mistaboom.essence_ascendance.config.PostureBalanceSettings;
@@ -271,6 +272,12 @@ public final class SkillRankEffectScaling {
                 1.0 + scale(p.fishingInstinct.biteSpeedMultiplier() - 1.0, f, 127),
                 1.0 + scale(p.fishingInstinct.reelWindowMultiplier() - 1.0, f, 127),
                 scale(p.fishingInstinct.virtualLuckLevels(), f, 255)));
+        register(SkillIds.THREAT_SENSE, (p, f) -> p.threatSense = new UtilityBalanceSettings.ThreatSense(
+                scale(p.threatSense.rangeBlocks(), f, 128)));
+        register(SkillIds.HUNTERS_LEDGER, (p, f) -> p.huntersLedger = new UtilityBalanceSettings.HuntersLedger(
+                (int) Math.ceil(scale(p.huntersLedger.memoryTicks(), f, 72_000))));
+        register(SkillIds.WAYLIGHT, (p, f) -> p.waylight = new UtilityBalanceSettings.Waylight(
+                scale(p.waylight.searchRadiusBlocks(), f, 128)));
         // Staggered Pain is a binary timing capability, not an invented damage-reduction multiplier.
         // Pure State is binary. Its capability pressure remains one at every
         // projected rank; no inert numeric rule pretends to improve immunity.
@@ -403,6 +410,14 @@ public final class SkillRankEffectScaling {
         }
         if (id.equals(SkillIds.FISHING_INSTINCT)) return (gathering.fishingInstinct().biteSpeedMultiplier() - 1.0)
                 / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.THROUGHPUT));
+        var utility = settings.utility();
+        if (id.equals(SkillIds.THREAT_SENSE)) return utility.threatSense().rangeBlocks()
+                / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).rangeBlocks());
+        // Hunter's Ledger is an information extension. Its generated memory is rank-scaled,
+        // while the capability-pressure projection remains binary like other information gates.
+        if (id.equals(SkillIds.HUNTERS_LEDGER)) return 1;
+        if (id.equals(SkillIds.WAYLIGHT)) return utility.waylight().searchRadiusBlocks()
+                / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).areaRadiusBlocks());
         return offenseScale;
     }
 
@@ -484,6 +499,9 @@ public final class SkillRankEffectScaling {
         public GatheringBalanceSettings.Herdkeeper herdkeeper;
         public GatheringBalanceSettings.AnimalGift animalGift;
         public GatheringBalanceSettings.FishingInstinct fishingInstinct;
+        public UtilityBalanceSettings.ThreatSense threatSense;
+        public UtilityBalanceSettings.HuntersLedger huntersLedger;
+        public UtilityBalanceSettings.Waylight waylight;
         public GuardBalanceSettings.Mobility mobility;
         public GuardBalanceSettings.Ram ram;
         public GuardBalanceSettings.Ward ward;
@@ -538,6 +556,7 @@ public final class SkillRankEffectScaling {
             essenceBloom=v.gathering().essenceBloom(); verdantStride=v.gathering().verdantStride();
             herdkeeper=v.gathering().herdkeeper(); animalGift=v.gathering().animalGift();
             fishingInstinct=v.gathering().fishingInstinct();
+            threatSense=v.utility().threatSense(); huntersLedger=v.utility().huntersLedger(); waylight=v.utility().waylight();
 
         }
         private SkillEffectBalanceSettings build() {
@@ -550,7 +569,8 @@ public final class SkillRankEffectScaling {
                             new VitalityWardBalanceSettings(soulWard, deepWard, shatteringWard)),
                     new MobilityBalanceSettings(runningMomentum, momentumVault, rush, impactControl, chargedJump, doubleJump, vectorJump),
                     new GatheringBalanceSettings(toolInstinct, miningMomentum, naturesBoon, oreSight, treasureSense,
-                            huntersStudy, essenceBloom, verdantStride, herdkeeper, animalGift, fishingInstinct));
+                            huntersStudy, essenceBloom, verdantStride, herdkeeper, animalGift, fishingInstinct),
+                    new UtilityBalanceSettings(threatSense, huntersLedger, waylight));
         }
     }
 }

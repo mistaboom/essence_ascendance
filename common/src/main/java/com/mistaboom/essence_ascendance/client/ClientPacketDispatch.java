@@ -34,6 +34,7 @@ public final class ClientPacketDispatch {
         EssencePylonClientState.clear();
         SkillEffectHudClientState.clear();
         GatheringSurveyClientState.clear();
+        UtilitySenseClientState.clear();
         TraversalFluidRenderState.clear();
     }
 

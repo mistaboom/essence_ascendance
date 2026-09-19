@@ -344,7 +344,7 @@ public final class SkillBalanceSemantics {
         all.add(skill(SkillIds.HUNTERS_LEDGER, flat(INFORMATION, .4))
                 .availability(.8, .95).condition("Threat Sense extension adds persistent outline and observed health/armor information"));
         all.add(skill(SkillIds.WAYLIGHT, capability(INFORMATION, .5), flat(CONVENIENCE, .2))
-                .availability(.7, 1).condition("Personal visibility and local spawnable-block guidance"));
+                .availability(.7, 1).area(8).condition("Personal visibility and local spawnable-block guidance"));
         all.add(skill(SkillIds.RESTFUL_MENDING, flat(REPAIR, .55))
                 .equipment(Equipment.REPAIRABLE_GEAR).actions(Action.REST).availability(.55, 1)
                 .condition("Ascendance gear must remain unused; repair pauses on use"));
