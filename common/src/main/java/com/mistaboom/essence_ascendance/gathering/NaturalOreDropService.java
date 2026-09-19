@@ -20,17 +20,20 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Dimension-aware ore catalog for Nature's Boon. Convention/custom tags define
- * pack content, while the existing procedural economy supplies relative rarity
- * weighting so ore values are not maintained in a second balancing table.
+ * Shared dimension-aware natural-ore catalog for Gathering skills. Convention/custom
+ * tags define pack content, while the existing procedural economy supplies relative
+ * rarity weighting so ore values are not maintained in a second balancing table.
  */
 public final class NaturalOreDropService {
+    private static final TagKey<Block> ORES = blockTag("c", "ores");
     private static final TagKey<Block> STONE_ORES = blockTag("c", "ores_in_ground/stone");
     private static final TagKey<Block> DEEPSLATE_ORES = blockTag("c", "ores_in_ground/deepslate");
     private static final TagKey<Block> NETHERRACK_ORES = blockTag("c", "ores_in_ground/netherrack");
@@ -70,7 +73,45 @@ public final class NaturalOreDropService {
 
     public static int candidateCount(ServerPlayer player) { return candidates(player, player.serverLevel().dimension()).size(); }
 
+    /**
+     * Dimension-correct natural ore catalog used by Nature's Boon and other mechanics that
+     * actually create ore. This deliberately stays scoped to the player's current dimension.
+     */
+    public static Map<Block, Long> oreValues(ServerPlayer player) {
+        return oreValues(player, player.serverLevel().dimension());
+    }
+
+    /**
+     * Detection catalog used by Ore Sight. Detection answers "is this block an ore?", not
+     * "should this ore naturally generate here?", so command/mod-placed ore remains visible
+     * outside its normal dimension. Common ore tags provide mod coverage; explicit vanilla
+     * fallbacks keep the survey reliable even when a pack has incomplete common tags.
+     */
+    public static Map<Block, Long> surveyOreValues(ServerPlayer player) {
+        LinkedHashSet<Block> blocks = new LinkedHashSet<>();
+        addTagged(blocks, ORES);
+        addTagged(blocks, STONE_ORES);
+        addTagged(blocks, DEEPSLATE_ORES);
+        addTagged(blocks, NETHERRACK_ORES);
+        addTagged(blocks, END_STONE_ORES);
+        addTagged(blocks, dimensionTag("ores", player.serverLevel().dimension()));
+        addVanillaFallbacks(blocks, Ground.OVERWORLD);
+        addVanillaFallbacks(blocks, Ground.NETHER);
+        return valuedBlocks(player, blocks);
+    }
+
+    public static boolean isNaturalOre(ServerPlayer player, BlockState state) {
+        return state != null && !state.isAir() && oreValues(player).containsKey(state.getBlock());
+    }
+
     private static List<Candidate> candidates(ServerPlayer player, ResourceKey<Level> dimension) {
+        Map<Block, Long> values = oreValues(player, dimension);
+        List<Candidate> result = new ArrayList<>(values.size());
+        values.forEach((block, value) -> result.add(new Candidate(block, 1.0 / Math.max(1L, value))));
+        return List.copyOf(result);
+    }
+
+    private static Map<Block, Long> oreValues(ServerPlayer player, ResourceKey<Level> dimension) {
         Ground ground = Ground.resolve(dimension);
         LinkedHashSet<Block> blocks = new LinkedHashSet<>();
         switch (ground) {
@@ -85,16 +126,19 @@ public final class NaturalOreDropService {
         addTagged(blocks, dimensionTag("ores", dimension));
         addVanillaFallbacks(blocks, ground);
 
+        return valuedBlocks(player, blocks);
+    }
+
+    private static Map<Block, Long> valuedBlocks(ServerPlayer player, LinkedHashSet<Block> blocks) {
         Map<ResourceLocation, Long> values = valuationValues(player);
-        List<Candidate> result = new ArrayList<>();
+        Map<Block, Long> result = new LinkedHashMap<>();
         for (Block block : blocks) {
             Item item = block.asItem();
             if (item == Items.AIR) continue;
             ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
-            long value = Math.max(1L, values.getOrDefault(itemId, 1L));
-            result.add(new Candidate(block, 1.0 / value));
+            result.put(block, Math.max(1L, values.getOrDefault(itemId, 1L)));
         }
-        return List.copyOf(result);
+        return Collections.unmodifiableMap(result);
     }
 
     private static Map<ResourceLocation, Long> valuationValues(ServerPlayer player) {

@@ -233,6 +233,8 @@ public final class PlayerRuntimeLifecycleService {
                 player
         );
 
+        com.mistaboom.essence_ascendance.network.GatheringSurveySyncService.forget(player);
+
         EssenceCrucibleChannelService.stopForPlayer(
                 player
         );
@@ -286,6 +288,8 @@ public final class PlayerRuntimeLifecycleService {
         PlayerEssenceSyncService.forget(
                 player
         );
+
+        com.mistaboom.essence_ascendance.network.GatheringSurveySyncService.forget(player);
 
         EssenceCrucibleChannelService.stopForPlayer(
                 player

@@ -250,6 +250,16 @@ public final class SkillRankEffectScaling {
                 p.miningMomentum.chainTimeoutTicks(), p.miningMomentum.crossMaterialBuildFraction()));
         register(SkillIds.NATURES_BOON, (p, f) -> p.naturesBoon = new GatheringBalanceSettings.NaturesBoon(
                 scaleOdds(p.naturesBoon.dropChance(), f)));
+        register(SkillIds.ORE_SIGHT, (p, f) -> p.oreSight = new GatheringBalanceSettings.Survey(
+                scale(p.oreSight.rangeBlocks(), f, 128)));
+        register(SkillIds.TREASURE_SENSE, (p, f) -> p.treasureSense = new GatheringBalanceSettings.Survey(
+                scale(p.treasureSense.rangeBlocks(), f, 128)));
+        register(SkillIds.HUNTERS_STUDY, (p, f) -> p.huntersStudy = new GatheringBalanceSettings.HuntersStudy(
+                p.huntersStudy.killsToFullStudy(), scale(p.huntersStudy.maximumVirtualLootingLevels(), f, 255)));
+        register(SkillIds.ESSENCE_BLOOM, (p, f) -> p.essenceBloom = new GatheringBalanceSettings.EssenceBloom(
+                scaleOdds(p.essenceBloom.triggerChance(), f),
+                scale(p.essenceBloom.essencePerExperiencePoint(), f, 1_024),
+                scale(p.essenceBloom.bonusExperienceFraction(), f, 16)));
         // Staggered Pain is a binary timing capability, not an invented damage-reduction multiplier.
         // Pure State is binary. Its capability pressure remains one at every
         // projected rank; no inert numeric rule pretends to improve immunity.
@@ -353,6 +363,14 @@ public final class SkillRankEffectScaling {
             return chance <= 0 ? 0 : (chance / Math.max(Math.ulp(1.0), 1 - chance))
                     / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.DROP_YIELD));
         }
+        if (id.equals(SkillIds.ORE_SIGHT)) return gathering.oreSight().rangeBlocks()
+                / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).rangeBlocks());
+        if (id.equals(SkillIds.TREASURE_SENSE)) return gathering.treasureSense().rangeBlocks()
+                / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).rangeBlocks());
+        if (id.equals(SkillIds.HUNTERS_STUDY)) return gathering.huntersStudy().maximumVirtualLootingLevels()
+                / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.DROP_YIELD));
+        if (id.equals(SkillIds.ESSENCE_BLOOM)) return gathering.essenceBloom().essencePerExperiencePoint()
+                / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.CONVERSION));
         if (id.equals(SkillIds.TORCHBEARER)) return 1;
         return offenseScale;
     }
@@ -427,6 +445,10 @@ public final class SkillRankEffectScaling {
         public GatheringBalanceSettings.ToolInstinct toolInstinct;
         public GatheringBalanceSettings.MiningMomentum miningMomentum;
         public GatheringBalanceSettings.NaturesBoon naturesBoon;
+        public GatheringBalanceSettings.Survey oreSight;
+        public GatheringBalanceSettings.Survey treasureSense;
+        public GatheringBalanceSettings.HuntersStudy huntersStudy;
+        public GatheringBalanceSettings.EssenceBloom essenceBloom;
         public GuardBalanceSettings.Mobility mobility;
         public GuardBalanceSettings.Ram ram;
         public GuardBalanceSettings.Ward ward;
@@ -476,7 +498,9 @@ public final class SkillRankEffectScaling {
             impactControl=v.mobility().impactControl(); chargedJump=v.mobility().chargedJump();
             doubleJump=v.mobility().doubleJump(); vectorJump=v.mobility().vectorJump();
             toolInstinct=v.gathering().toolInstinct(); miningMomentum=v.gathering().miningMomentum();
-            naturesBoon=v.gathering().naturesBoon();
+            naturesBoon=v.gathering().naturesBoon(); oreSight=v.gathering().oreSight();
+            treasureSense=v.gathering().treasureSense(); huntersStudy=v.gathering().huntersStudy();
+            essenceBloom=v.gathering().essenceBloom();
 
         }
         private SkillEffectBalanceSettings build() {
@@ -488,7 +512,8 @@ public final class SkillRankEffectScaling {
                             new VitalityDamageBalanceSettings(hungerWard, staggeredPain, damageCeiling, metabolicConversion, painPurge, adrenaline),
                             new VitalityWardBalanceSettings(soulWard, deepWard, shatteringWard)),
                     new MobilityBalanceSettings(runningMomentum, momentumVault, rush, impactControl, chargedJump, doubleJump, vectorJump),
-                    new GatheringBalanceSettings(toolInstinct, miningMomentum, naturesBoon));
+                    new GatheringBalanceSettings(toolInstinct, miningMomentum, naturesBoon, oreSight, treasureSense,
+                            huntersStudy, essenceBloom));
         }
     }
 }

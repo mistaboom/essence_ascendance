@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "essence_ascendance:ascendance_helmet",
+    "essence_ascendance:ascendance_chestplate",
+    "essence_ascendance:ascendance_leggings",
+    "essence_ascendance:ascendance_boots"
+  ]
+}

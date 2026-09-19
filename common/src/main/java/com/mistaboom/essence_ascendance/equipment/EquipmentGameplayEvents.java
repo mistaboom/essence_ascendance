@@ -8,6 +8,7 @@ import com.mistaboom.essence_ascendance.network.EssencePylonNetworkService;
 import com.mistaboom.essence_ascendance.network.ItemEssenceTooltipSyncService;
 import com.mistaboom.essence_ascendance.network.PlayerEssenceSyncService;
 import com.mistaboom.essence_ascendance.network.SkillEffectHudSyncService;
+import com.mistaboom.essence_ascendance.network.GatheringSurveySyncService;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import dev.architectury.event.events.common.TickEvent;
 import net.minecraft.server.level.ServerPlayer;
@@ -38,6 +39,7 @@ public final class EquipmentGameplayEvents {
         ItemEssenceTooltipSyncService.init();
         PlayerEssenceSyncService.init();
         SkillEffectHudSyncService.init();
+        GatheringSurveySyncService.init();
         com.mistaboom.essence_ascendance.network.AttunementMovementIntentService.init();
         com.mistaboom.essence_ascendance.network.MovementAbilityInputService.init();
         EquipmentTooltipSyncService.init();
@@ -56,8 +58,9 @@ public final class EquipmentGameplayEvents {
                 EquipmentGatheringService.sync(serverPlayer);
                 com.mistaboom.essence_ascendance.attunement.AttunementGameplay.tick(serverPlayer);
                 EquipmentTooltipSyncService.sync(serverPlayer);
-                // Send after the authoritative gameplay pass so the HUD sees
-                // the same resolved state used by combat this tick.
+                // Send after the authoritative gameplay pass so presentation sees
+                // the same resolved state used by gameplay this tick.
+                GatheringSurveySyncService.syncIfNeeded(serverPlayer);
                 SkillEffectHudSyncService.syncIfNeeded(serverPlayer);
             }
         });

@@ -199,6 +199,20 @@ public final class SkillTooltipRegistry {
         define(SkillIds.NATURES_BOON,
                 line("skill.essence_ascendance.natures_boon.description.resolved", pct(s -> s.gathering().naturesBoon().dropChance())),
                 line("skill.essence_ascendance.natures_boon.description.resolved.1"));
+        define(SkillIds.ORE_SIGHT,
+                line("skill.essence_ascendance.ore_sight.description.resolved", n(s -> s.gathering().oreSight().rangeBlocks())),
+                line("skill.essence_ascendance.ore_sight.description.resolved.1"));
+        define(SkillIds.TREASURE_SENSE,
+                line("skill.essence_ascendance.treasure_sense.description.resolved", n(s -> s.gathering().treasureSense().rangeBlocks())),
+                line("skill.essence_ascendance.treasure_sense.description.resolved.1"));
+        define(SkillIds.HUNTERS_STUDY,
+                line("skill.essence_ascendance.hunters_study.description.resolved", n(s -> s.gathering().huntersStudy().killsToFullStudy())),
+                line("skill.essence_ascendance.hunters_study.description.resolved.1", n(s -> s.gathering().huntersStudy().maximumVirtualLootingLevels())));
+        define(SkillIds.ESSENCE_BLOOM,
+                line("skill.essence_ascendance.essence_bloom.description.resolved", pct(s -> s.gathering().essenceBloom().triggerChance())),
+                line("skill.essence_ascendance.essence_bloom.description.resolved.1",
+                        n(s -> s.gathering().essenceBloom().essencePerExperiencePoint()),
+                        pct(s -> s.gathering().essenceBloom().bonusExperienceFraction())));
         define(SkillIds.TORCHBEARER,
                 line("skill.essence_ascendance.torchbearer.description.resolved"),
                 line("skill.essence_ascendance.torchbearer.description.resolved.1"));

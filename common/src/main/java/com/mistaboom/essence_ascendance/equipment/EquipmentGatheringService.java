@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.equipment;
 
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
+import com.mistaboom.essence_ascendance.gathering.GatheringLootService;
 import com.mistaboom.essence_ascendance.stat.EssenceStats;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
@@ -14,6 +15,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.util.RandomSource;
 
 import java.util.Collections;
 import java.util.Map;
@@ -247,9 +249,12 @@ public final class EquipmentGatheringService {
         VirtualLootState direct = VIRTUAL_LOOT_BY_STACK.get(stack);
         SyncedVirtualLootState synced = readSyncedVirtualLootState(stack);
 
-        int virtualLevel = direct != null
+        int equipmentLevel = direct != null
                 ? levelFor(direct, enchantment)
                 : levelFor(synced, enchantment);
+        int studyLevel = enchantment.is(Enchantments.LOOTING)
+                ? GatheringLootService.currentVirtualLootingBonus() : 0;
+        int virtualLevel = addEnchantmentLevels(equipmentLevel, studyLevel);
 
         if (virtualLevel <= 0) {
             return vanillaLevel;
@@ -290,10 +295,13 @@ public final class EquipmentGatheringService {
             return vanillaLevel;
         }
 
-        int virtualLevel = Math.max(
+        int equipmentLevel = Math.max(
                 calculateLevelFor(player, player.getMainHandItem(), enchantment),
                 calculateLevelFor(player, player.getOffhandItem(), enchantment)
         );
+        int studyLevel = enchantment.is(Enchantments.LOOTING)
+                ? GatheringLootService.currentVirtualLootingBonus(player) : 0;
+        int virtualLevel = addEnchantmentLevels(equipmentLevel, studyLevel);
 
         int resolved = addEnchantmentLevels(vanillaLevel, virtualLevel);
 
@@ -354,9 +362,9 @@ public final class EquipmentGatheringService {
         return new VirtualLootState(
                 player.getUUID(),
                 fortuneLevels,
-                toVirtualLevel(fortuneLevels),
+                virtualEnchantmentLevel(fortuneLevels),
                 lootingLevels,
-                toVirtualLevel(lootingLevels)
+                virtualEnchantmentLevel(lootingLevels)
         );
     }
 
@@ -416,7 +424,7 @@ public final class EquipmentGatheringService {
         return "other";
     }
 
-    private static int toVirtualLevel(double levels) {
+    public static int virtualEnchantmentLevel(double levels) {
         if (!Double.isFinite(levels) || levels <= 0.0) {
             return 0;
         }
@@ -426,6 +434,35 @@ public final class EquipmentGatheringService {
                 0L,
                 Math.min(MAX_VIRTUAL_ENCHANTMENT_LEVEL, rounded)
         );
+    }
+
+    /**
+     * Realizes a continuous, expected virtual enchantment level as the integer
+     * value vanilla requires for one event. Fractional levels are rounded
+     * stochastically, preserving their long-run expected value instead of
+     * introducing a hidden 0.5-level purchase gate.
+     *
+     * This is intentionally separate from {@link #virtualEnchantmentLevel(double)}:
+     * equipment bonuses are stable while held, whereas event-scoped mechanics
+     * such as Hunter's Study can safely realize their fractional expectation per
+     * native loot-table evaluation.
+     */
+    public static int stochasticVirtualEnchantmentLevel(
+            double levels,
+            RandomSource random
+    ) {
+        if (!Double.isFinite(levels) || levels <= 0.0 || random == null) {
+            return 0;
+        }
+
+        double capped = Math.min(MAX_VIRTUAL_ENCHANTMENT_LEVEL, levels);
+        int whole = (int) Math.floor(capped);
+        if (whole >= MAX_VIRTUAL_ENCHANTMENT_LEVEL) {
+            return MAX_VIRTUAL_ENCHANTMENT_LEVEL;
+        }
+
+        double fractional = capped - whole;
+        return whole + (random.nextDouble() < fractional ? 1 : 0);
     }
 
     /*
@@ -666,9 +703,9 @@ public final class EquipmentGatheringService {
         return new GatheringState(
                 mainHand.isEmpty() ? "EMPTY" : mainHand.getHoverName().getString(),
                 fortuneLevels,
-                toVirtualLevel(fortuneLevels),
+                virtualEnchantmentLevel(fortuneLevels),
                 lootingLevels,
-                toVirtualLevel(lootingLevels),
+                virtualEnchantmentLevel(lootingLevels),
                 PlayerAttributedBlockHarvestService.cropYieldPercent(player),
                 experienceGainPercent(player),
                 durabilityPercent

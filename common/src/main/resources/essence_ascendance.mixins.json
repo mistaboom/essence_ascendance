@@ -18,7 +18,8 @@
     "TraversalFogMixin",
     "TraversalScreenEffectsMixin",
     "TraversalLiquidRendererMixin",
-    "MovementAbilityInputMixin"
+    "MovementAbilityInputMixin",
+    "GatheringSurveyRendererMixin"
   ],
   "mixins": [
     "FoodDataRecoveryMixin",
@@ -86,7 +87,8 @@
     "TraversalEntityMixin",
     "TraversalBlockStateMixin",
     "TraversalLivingEntityMixin",
-    "MovementAbilityNativeAccess"
+    "MovementAbilityNativeAccess",
+    "GatheringLootTableMixin"
   ],
   "injectors": {
     "defaultRequire": 1
