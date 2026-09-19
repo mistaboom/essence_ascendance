@@ -64,7 +64,8 @@ public final class EquipmentAttributeService {
     private static final ResourceLocation MELEE_DAMAGE_ID = id("melee_damage");
     private static final ResourceLocation MELEE_ATTACK_SPEED_ID = id("melee_attack_speed");
     private static final ResourceLocation ATTACK_KNOCKBACK_ID = id("attack_knockback");
-    private static final ResourceLocation MINING_SPEED_ID = id("mining_speed");
+    /** Stable ID used by systems that temporarily substitute the effective held mining tool. */
+    public static final ResourceLocation MINING_SPEED_MODIFIER_ID = id("mining_speed");
     private static final ResourceLocation MAX_HEALTH_ID = id("max_health");
     private static final ResourceLocation MOVEMENT_SPEED_ID = id("movement_speed");
     private static final ResourceLocation KNOCKBACK_RESISTANCE_ID = id("knockback_resistance");
@@ -138,7 +139,7 @@ public final class EquipmentAttributeService {
         if (apply(
                 player,
                 Attributes.BLOCK_BREAK_SPEED,
-                MINING_SPEED_ID,
+                MINING_SPEED_MODIFIER_ID,
                 desired.miningSpeedFraction(),
                 AttributeModifier.Operation.ADD_MULTIPLIED_BASE
         )) changed.add(Attributes.BLOCK_BREAK_SPEED);
@@ -299,7 +300,7 @@ public final class EquipmentAttributeService {
         if (remove(player, Attributes.ATTACK_DAMAGE, MELEE_DAMAGE_ID)) changed.add(Attributes.ATTACK_DAMAGE);
         if (remove(player, Attributes.ATTACK_SPEED, MELEE_ATTACK_SPEED_ID)) changed.add(Attributes.ATTACK_SPEED);
         if (remove(player, Attributes.ATTACK_KNOCKBACK, ATTACK_KNOCKBACK_ID)) changed.add(Attributes.ATTACK_KNOCKBACK);
-        if (remove(player, Attributes.BLOCK_BREAK_SPEED, MINING_SPEED_ID)) changed.add(Attributes.BLOCK_BREAK_SPEED);
+        if (remove(player, Attributes.BLOCK_BREAK_SPEED, MINING_SPEED_MODIFIER_ID)) changed.add(Attributes.BLOCK_BREAK_SPEED);
         if (remove(player, Attributes.MAX_HEALTH, MAX_HEALTH_ID)) changed.add(Attributes.MAX_HEALTH);
         if (remove(player, Attributes.MOVEMENT_SPEED, MOVEMENT_SPEED_ID)) changed.add(Attributes.MOVEMENT_SPEED);
         if (remove(player, Attributes.KNOCKBACK_RESISTANCE, KNOCKBACK_RESISTANCE_ID)) changed.add(Attributes.KNOCKBACK_RESISTANCE);
@@ -453,7 +454,7 @@ public final class EquipmentAttributeService {
                 && presenceMatches(player, Attributes.ATTACK_DAMAGE, MELEE_DAMAGE_ID, state.meleeDamageModifier())
                 && presenceMatches(player, Attributes.ATTACK_SPEED, MELEE_ATTACK_SPEED_ID, state.meleeAttackSpeedModifier())
                 && presenceMatches(player, Attributes.ATTACK_KNOCKBACK, ATTACK_KNOCKBACK_ID, state.attackKnockback())
-                && presenceMatches(player, Attributes.BLOCK_BREAK_SPEED, MINING_SPEED_ID, state.miningSpeedFraction())
+                && presenceMatches(player, Attributes.BLOCK_BREAK_SPEED, MINING_SPEED_MODIFIER_ID, state.miningSpeedFraction())
                 && presenceMatches(player, Attributes.MAX_HEALTH, MAX_HEALTH_ID, state.maxHealthPoints())
                 && presenceMatches(player, Attributes.MOVEMENT_SPEED, MOVEMENT_SPEED_ID, state.movementSpeedFraction())
                 && presenceMatches(player, Attributes.KNOCKBACK_RESISTANCE, KNOCKBACK_RESISTANCE_ID, state.knockbackResistance())

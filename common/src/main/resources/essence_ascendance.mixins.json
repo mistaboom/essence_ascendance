@@ -52,6 +52,7 @@
     "AttunementFoodMixin",
     "AttunementMovementMixin",
     "AttunementHarvestMixin",
+    "ToolInstinctPlayerMixin",
     "AttunementBlockDropMixin",
     "AttunementFishingMixin",
     "AttunementMenuMixin",

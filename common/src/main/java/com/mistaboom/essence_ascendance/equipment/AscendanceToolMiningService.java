@@ -224,6 +224,20 @@ public final class AscendanceToolMiningService {
         }
     }
 
+    /** Highest declared logical level required by a block, shared by mining skills and tool components. */
+    public static int requiredHarvestLevel(net.minecraft.world.level.block.state.BlockState state) {
+        int required = 0;
+        if (state.is(BlockTags.INCORRECT_FOR_WOODEN_TOOL)) required = Math.max(required, 1);
+        if (state.is(BlockTags.INCORRECT_FOR_STONE_TOOL)) required = Math.max(required, 2);
+        if (state.is(BlockTags.INCORRECT_FOR_IRON_TOOL)) required = Math.max(required, 3);
+        if (state.is(BlockTags.INCORRECT_FOR_DIAMOND_TOOL)) required = Math.max(required, 4);
+        if (state.is(BlockTags.INCORRECT_FOR_NETHERITE_TOOL)) required = Math.max(required, 5);
+        for (RequiredLevelTag custom : discoverNumericRequirementTags()) {
+            if (state.is(custom.tag())) required = Math.max(required, custom.level());
+        }
+        return required;
+    }
+
     private static TagKey<Block> vanillaIncorrectTag(int harvestLevel) {
         if (harvestLevel <= 0) {
             return BlockTags.INCORRECT_FOR_WOODEN_TOOL;

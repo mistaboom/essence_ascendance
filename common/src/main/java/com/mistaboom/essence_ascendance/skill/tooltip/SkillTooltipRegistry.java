@@ -187,6 +187,21 @@ public final class SkillTooltipRegistry {
         define(SkillIds.LAVABORN,
                 line("skill.essence_ascendance.lavaborn.description.resolved"),
                 line("skill.essence_ascendance.lavaborn.description.resolved.1"));
+        define(SkillIds.TOOL_INSTINCT,
+                line("skill.essence_ascendance.tool_instinct.description.resolved", pct(s -> s.gathering().toolInstinct().maximumLowerTierSpeedBonus())),
+                line("skill.essence_ascendance.tool_instinct.description.resolved.1"));
+        define(SkillIds.MINING_MOMENTUM,
+                line("skill.essence_ascendance.mining_momentum.description.resolved", pct(s -> s.gathering().miningMomentum().maximumSpeedBonus()),
+                        n(s -> s.gathering().miningMomentum().buildBreaks())),
+                line("skill.essence_ascendance.mining_momentum.description.resolved.1",
+                        pct(s -> s.gathering().miningMomentum().crossMaterialBuildFraction()),
+                        sec(s -> s.gathering().miningMomentum().chainTimeoutTicks())));
+        define(SkillIds.NATURES_BOON,
+                line("skill.essence_ascendance.natures_boon.description.resolved", pct(s -> s.gathering().naturesBoon().dropChance())),
+                line("skill.essence_ascendance.natures_boon.description.resolved.1"));
+        define(SkillIds.TORCHBEARER,
+                line("skill.essence_ascendance.torchbearer.description.resolved"),
+                line("skill.essence_ascendance.torchbearer.description.resolved.1"));
         define(SkillIds.ADRENALINE,
                 line("skill.essence_ascendance.adrenaline.description.resolved" , pct(s -> s.vitality().damage().adrenaline().triggerHealthLossFraction()), sec(s -> s.vitality().damage().adrenaline().durationTicks())),
                 line("skill.essence_ascendance.adrenaline.description.resolved.1" , pct(s -> s.vitality().damage().adrenaline().movementSpeedBonus()), pct(s -> s.vitality().damage().adrenaline().attackSpeedBonus()), pct(s -> s.vitality().damage().adrenaline().knockbackResistance())));

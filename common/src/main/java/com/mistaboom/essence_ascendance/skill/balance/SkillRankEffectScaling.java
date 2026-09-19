@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.skill.balance;
 
 import com.mistaboom.essence_ascendance.config.ProjectileBalanceSettings;
 import com.mistaboom.essence_ascendance.config.MobilityBalanceSettings;
+import com.mistaboom.essence_ascendance.config.GatheringBalanceSettings;
 import com.mistaboom.essence_ascendance.balance.engine.CapabilityAxis;
 import com.mistaboom.essence_ascendance.config.GuardBalanceSettings;
 import com.mistaboom.essence_ascendance.config.PostureBalanceSettings;
@@ -242,6 +243,13 @@ public final class SkillRankEffectScaling {
                 scale(p.doubleJump.heightBonus(), f, 64), scale(p.doubleJump.steeringBonus(), f, 64)));
         register(SkillIds.VECTOR_JUMP, (p, f) -> p.vectorJump = new MobilityBalanceSettings.VectorJump(
                 scale(p.vectorJump.impulseBonus(), f, 64), retained(p.vectorJump.brakeFraction(), f)));
+        register(SkillIds.TOOL_INSTINCT, (p, f) -> p.toolInstinct = new GatheringBalanceSettings.ToolInstinct(
+                scale(p.toolInstinct.maximumLowerTierSpeedBonus(), f, 16)));
+        register(SkillIds.MINING_MOMENTUM, (p, f) -> p.miningMomentum = new GatheringBalanceSettings.MiningMomentum(
+                scale(p.miningMomentum.maximumSpeedBonus(), f, 16), p.miningMomentum.buildBreaks(),
+                p.miningMomentum.chainTimeoutTicks(), p.miningMomentum.crossMaterialBuildFraction()));
+        register(SkillIds.NATURES_BOON, (p, f) -> p.naturesBoon = new GatheringBalanceSettings.NaturesBoon(
+                scaleOdds(p.naturesBoon.dropChance(), f)));
         // Staggered Pain is a binary timing capability, not an invented damage-reduction multiplier.
         // Pure State is binary. Its capability pressure remains one at every
         // projected rank; no inert numeric rule pretends to improve immunity.
@@ -335,6 +343,17 @@ public final class SkillRankEffectScaling {
         if (id.equals(SkillIds.VECTOR_JUMP)) return 1 + movement.vectorJump().impulseBonus()
                 / (SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.JUMP)
                 + SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.VERTICAL_MOVEMENT));
+        var gathering = settings.gathering();
+        if (id.equals(SkillIds.TOOL_INSTINCT)) return gathering.toolInstinct().maximumLowerTierSpeedBonus()
+                / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.MINING_SPEED));
+        if (id.equals(SkillIds.MINING_MOMENTUM)) return gathering.miningMomentum().maximumSpeedBonus()
+                / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.MINING_SPEED));
+        if (id.equals(SkillIds.NATURES_BOON)) {
+            double chance = gathering.naturesBoon().dropChance();
+            return chance <= 0 ? 0 : (chance / Math.max(Math.ulp(1.0), 1 - chance))
+                    / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.DROP_YIELD));
+        }
+        if (id.equals(SkillIds.TORCHBEARER)) return 1;
         return offenseScale;
     }
 
@@ -358,6 +377,14 @@ public final class SkillRankEffectScaling {
     private static double scale(double value, double factor, double maximum) { return Math.min(maximum, value * factor); }
     // The sum of a geometric continuation remains bounded by the rank factor.
     private static double retained(double value, double factor) { return value <= 0 ? 0 : 1.0 - (1.0 - value) / factor; }
+    /** Scales independent-event odds without treating probability as a linear damage fraction. */
+    private static double scaleOdds(double probability, double factor) {
+        if (probability <= 0) return 0;
+        if (probability >= 1) return 1;
+        double odds = probability / (1.0 - probability);
+        double scaled = odds * factor;
+        return scaled / (1.0 + scaled);
+    }
     private static ProjectileBalanceSettings.Profile homing(ProjectileBalanceSettings.Profile v, double factor) {
         return new ProjectileBalanceSettings.Profile(v.range(), v.speed(), v.lifetimeTicks(), v.acquisitionRange(),
                 v.acquisitionConeDegrees(), scale(v.turnDegreesPerTick(), factor, 45));
@@ -397,6 +424,9 @@ public final class SkillRankEffectScaling {
         public MobilityBalanceSettings.ChargedJump chargedJump;
         public MobilityBalanceSettings.AirJump doubleJump;
         public MobilityBalanceSettings.VectorJump vectorJump;
+        public GatheringBalanceSettings.ToolInstinct toolInstinct;
+        public GatheringBalanceSettings.MiningMomentum miningMomentum;
+        public GatheringBalanceSettings.NaturesBoon naturesBoon;
         public GuardBalanceSettings.Mobility mobility;
         public GuardBalanceSettings.Ram ram;
         public GuardBalanceSettings.Ward ward;
@@ -445,6 +475,8 @@ public final class SkillRankEffectScaling {
             runningMomentum=v.mobility().runningMomentum(); momentumVault=v.mobility().momentumVault(); rush=v.mobility().rush();
             impactControl=v.mobility().impactControl(); chargedJump=v.mobility().chargedJump();
             doubleJump=v.mobility().doubleJump(); vectorJump=v.mobility().vectorJump();
+            toolInstinct=v.gathering().toolInstinct(); miningMomentum=v.gathering().miningMomentum();
+            naturesBoon=v.gathering().naturesBoon();
 
         }
         private SkillEffectBalanceSettings build() {
@@ -455,7 +487,8 @@ public final class SkillRankEffectScaling {
                     new VitalityBalanceSettings(risingRecovery, lifeSteal, feastReflex, innerSustenance,
                             new VitalityDamageBalanceSettings(hungerWard, staggeredPain, damageCeiling, metabolicConversion, painPurge, adrenaline),
                             new VitalityWardBalanceSettings(soulWard, deepWard, shatteringWard)),
-                    new MobilityBalanceSettings(runningMomentum, momentumVault, rush, impactControl, chargedJump, doubleJump, vectorJump));
+                    new MobilityBalanceSettings(runningMomentum, momentumVault, rush, impactControl, chargedJump, doubleJump, vectorJump),
+                    new GatheringBalanceSettings(toolInstinct, miningMomentum, naturesBoon));
         }
     }
 }

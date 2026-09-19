@@ -155,6 +155,16 @@ public final class EquipmentBaselineService {
         );
     }
 
+    /** Physical harvest capability stored by the artifact tier, independent of player investment. */
+    public static int physicalHarvestLevel(ItemStack stack) {
+        if (!EquipmentTierData.isAscendanceEquipment(stack)) return -1;
+        if (FracturedEquipmentData.isFractured(stack) || EquipmentTierData.tier(stack) == EquipmentTier.LATENT) {
+            return latentBaseline().harvestLevel();
+        }
+        EquipmentTier tier = EquipmentTierData.tier(stack);
+        return EssenceConfigManager.get().equipmentBaselineConfig().baselineFor(tier.ascendanceTier()).harvestLevel();
+    }
+
     private static EquipmentBaselineConfig.TierBaseline latentBaseline() {
         return java.util.Objects.requireNonNull(EssenceConfigManager.get().equipmentBaselineConfig().tierBaselines().get(
                 net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("essence_ascendance", "latent")),

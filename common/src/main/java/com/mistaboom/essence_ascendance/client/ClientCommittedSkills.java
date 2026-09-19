@@ -9,27 +9,32 @@ import java.util.*;
 public final class ClientCommittedSkills {
     private static ClientEssenceState.Snapshot previous;
     private static Set<ResourceLocation> effective = Set.of();
+    private static Map<ResourceLocation, Integer> ranks = Map.of();
     private ClientCommittedSkills() { }
     public static boolean isEffective(ResourceLocation skill) {
         var snapshot = ClientEssenceState.snapshot();
         if (snapshot != previous) {
-            previous = snapshot; effective = Set.of();
+            previous = snapshot; effective = Set.of(); ranks = Map.of();
             if (snapshot.ready() && snapshot.tierId() != null) {
-                Map<ResourceLocation, Integer> ranks = new LinkedHashMap<>();
-                snapshot.ownedSkills().forEach((id, receipt) -> ranks.put(id, receipt.rank()));
+                Map<ResourceLocation, Integer> resolvedRanks = new LinkedHashMap<>();
+                snapshot.ownedSkills().forEach((id, receipt) -> resolvedRanks.put(id, receipt.rank()));
                 Map<ResourceLocation, Long> totals = new LinkedHashMap<>();
                 for (var stat : EssenceStatRegistry.values()) {
                     var saved = snapshot.stats().get(stat.id());
                     long amount = saved == null ? 0 : Math.max(0, saved.storedInvestment());
                     totals.merge(stat.essenceType().id(), amount, (a, b) -> b > Long.MAX_VALUE - a ? Long.MAX_VALUE : a + b);
                 }
-                var context = SkillEvaluationContext.committed(snapshot.tierId(), ranks, snapshot.loadoutSelections(),
+                var context = SkillEvaluationContext.committed(snapshot.tierId(), resolvedRanks, snapshot.loadoutSelections(),
                         snapshot.completedMilestones(), Set.of(), totals);
                 Set<ResourceLocation> active = new LinkedHashSet<>();
                 SkillStateEvaluator.evaluateAll(context).forEach((id, result) -> { if (result.effective()) active.add(id); });
                 effective = Set.copyOf(active);
+                ranks = Map.copyOf(resolvedRanks);
             }
         }
         return effective.contains(skill);
+    }
+    public static int effectiveRank(ResourceLocation skill) {
+        return isEffective(skill) ? ranks.getOrDefault(skill, 0) : 0;
     }
 }
