@@ -87,7 +87,8 @@ final class SkillEffectDiagnostics {
                 SkillIds.ADAPTIVE_GUARD, SkillIds.STATUS_MIRROR, SkillIds.PURE_STATE,
                 SkillIds.RISING_RECOVERY, SkillIds.LIFE_STEAL, SkillIds.FEAST_REFLEX, SkillIds.INNER_SUSTENANCE,
                 SkillIds.SOUL_WARD, SkillIds.DEEP_WARD, SkillIds.SHATTERING_WARD,
-                SkillIds.TOOL_INSTINCT, SkillIds.MINING_MOMENTUM, SkillIds.NATURES_BOON, SkillIds.TORCHBEARER);
+                SkillIds.TOOL_INSTINCT, SkillIds.MINING_MOMENTUM, SkillIds.NATURES_BOON, SkillIds.TORCHBEARER,
+                SkillIds.VERDANT_STRIDE, SkillIds.HERDKEEPER, SkillIds.ANIMAL_GIFT, SkillIds.FISHING_INSTINCT);
         List<SkillEffectHandler> actual = List.copyOf(SkillEffectRegistry.handlers());
         Set<ResourceLocation> seen = new HashSet<>();
         check(failures, SkillEffectRegistry.implementedIds().containsAll(expected),

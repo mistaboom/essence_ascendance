@@ -17,6 +17,9 @@ final class GatheringBalanceGenerator {
         var treasureSense = SkillBalanceSemantics.require(SkillIds.TREASURE_SENSE);
         var huntersStudy = SkillBalanceSemantics.require(SkillIds.HUNTERS_STUDY);
         var bloom = SkillBalanceSemantics.require(SkillIds.ESSENCE_BLOOM);
+        var verdant = SkillBalanceSemantics.require(SkillIds.VERDANT_STRIDE);
+        var herdkeeper = SkillBalanceSemantics.require(SkillIds.HERDKEEPER);
+        var animalGift = SkillBalanceSemantics.require(SkillIds.ANIMAL_GIFT);
         double window = settings.generation().survivalWindowSeconds();
 
         double instinctSpeed = power(settings, SkillIds.TOOL_INSTINCT, CapabilityAxis.MINING_SPEED);
@@ -25,6 +28,12 @@ final class GatheringBalanceGenerator {
         double hunterYield = power(settings, SkillIds.HUNTERS_STUDY, CapabilityAxis.DROP_YIELD);
         double bloomConversion = power(settings, SkillIds.ESSENCE_BLOOM, CapabilityAxis.CONVERSION);
         double bloomExperience = power(settings, SkillIds.ESSENCE_BLOOM, CapabilityAxis.EXPERIENCE);
+        double verdantYield = power(settings, SkillIds.VERDANT_STRIDE, CapabilityAxis.CROP_YIELD);
+        double herdThroughput = power(settings, SkillIds.HERDKEEPER, CapabilityAxis.THROUGHPUT);
+        double giftYield = power(settings, SkillIds.ANIMAL_GIFT, CapabilityAxis.DROP_YIELD);
+        double giftAutomation = power(settings, SkillIds.ANIMAL_GIFT, CapabilityAxis.AUTOMATION_INTERACTION);
+        double fishingThroughput = power(settings, SkillIds.FISHING_INSTINCT, CapabilityAxis.THROUGHPUT);
+        double fishingYield = power(settings, SkillIds.FISHING_INSTINCT, CapabilityAxis.DROP_YIELD);
 
         int buildBreaks = Math.clamp((int) Math.ceil(window * momentum.expectedAvailability()), 1, 1_024);
         int timeout = ticks(window * Math.max(Math.ulp(1.0), 1.0 - momentum.expectedAvailability()));
@@ -36,6 +45,13 @@ final class GatheringBalanceGenerator {
         double bloomChance = Math.clamp(odds(bloomPressure) * bloom.expectedAvailability(), 0, 1);
         double bonusXpFraction = odds(bloomExperience);
 
+        int verdantPulse = ticks(window * Math.max(Math.ulp(1.0), verdant.expectedAvailability()));
+        double verdantChance = Math.clamp(odds(verdantYield) * verdant.expectedAvailability(), 0, 1);
+        double breedingRecovery = 1.0 + Math.max(0, herdThroughput);
+        double giftPressure = giftYield + giftAutomation;
+        int giftPulse = ticks(window * Math.max(Math.ulp(1.0), animalGift.expectedAvailability()));
+        double giftChance = Math.clamp(odds(giftPressure) * animalGift.expectedAvailability(), 0, 1);
+
         return new GatheringBalanceSettings(
                 new GatheringBalanceSettings.ToolInstinct(Math.clamp(instinctSpeed, 0, 16)),
                 new GatheringBalanceSettings.MiningMomentum(Math.clamp(momentumSpeed, 0, 16),
@@ -45,7 +61,15 @@ final class GatheringBalanceGenerator {
                 new GatheringBalanceSettings.Survey(Math.clamp(treasureSense.rangeBlocks(), 0, 128)),
                 new GatheringBalanceSettings.HuntersStudy(studyKills, Math.clamp(hunterYield, 0, 255)),
                 new GatheringBalanceSettings.EssenceBloom(bloomChance,
-                        Math.clamp(bloomConversion, 0, 1_024), Math.clamp(bonusXpFraction, 0, 16)));
+                        Math.clamp(bloomConversion, 0, 1_024), Math.clamp(bonusXpFraction, 0, 16)),
+                new GatheringBalanceSettings.VerdantStride(Math.clamp(verdant.areaRadiusBlocks(), 0, 128),
+                        verdantPulse, verdantChance),
+                new GatheringBalanceSettings.Herdkeeper(Math.clamp(herdkeeper.areaRadiusBlocks(), 0, 128),
+                        Math.clamp(breedingRecovery, 1, 128)),
+                new GatheringBalanceSettings.AnimalGift(Math.clamp(animalGift.areaRadiusBlocks(), 0, 128),
+                        giftPulse, giftChance),
+                new GatheringBalanceSettings.FishingInstinct(Math.clamp(1.0 + fishingThroughput, 1, 128),
+                        Math.clamp(1.0 + fishingThroughput, 1, 128), Math.clamp(fishingYield, 0, 255)));
     }
 
     private static double power(BalanceSettings settings, net.minecraft.resources.ResourceLocation skill,

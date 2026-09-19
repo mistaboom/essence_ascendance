@@ -27,6 +27,8 @@ public final class SkillEffectRegistry {
                     GatheringMiningEffects.handlers(),
                     GatheringSurveyEffects.handlers(),
                     GatheringLootEffects.handlers(),
+                    GatheringRuralEffects.handlers(),
+                    GatheringFishingEffects.handlers(),
                     java.util.List.<SkillEffectHandler>of(
                             new PostureHandler(com.mistaboom.essence_ascendance.skill.SkillIds.EVASIVE_CURRENT),
                             new PostureHandler(com.mistaboom.essence_ascendance.skill.SkillIds.BULWARK_STANCE),

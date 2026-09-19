@@ -216,6 +216,29 @@ public final class SkillTooltipRegistry {
         define(SkillIds.TORCHBEARER,
                 line("skill.essence_ascendance.torchbearer.description.resolved"),
                 line("skill.essence_ascendance.torchbearer.description.resolved.1"));
+        define(SkillIds.VERDANT_STRIDE,
+                line("skill.essence_ascendance.verdant_stride.description.resolved",
+                        n(s -> s.gathering().verdantStride().radiusBlocks()),
+                        sec(s -> s.gathering().verdantStride().growthPulseTicks()),
+                        pct(s -> s.gathering().verdantStride().growthChance())),
+                line("skill.essence_ascendance.verdant_stride.description.resolved.1"));
+        define(SkillIds.HERDKEEPER,
+                line("skill.essence_ascendance.herdkeeper.description.resolved",
+                        n(s -> s.gathering().herdkeeper().radiusBlocks()),
+                        n(s -> s.gathering().herdkeeper().breedingRecoveryMultiplier())),
+                line("skill.essence_ascendance.herdkeeper.description.resolved.1"));
+        define(SkillIds.ANIMAL_GIFT,
+                line("skill.essence_ascendance.animal_gift.description.resolved",
+                        n(s -> s.gathering().animalGift().radiusBlocks()),
+                        sec(s -> s.gathering().animalGift().giftPulseTicks()),
+                        pct(s -> s.gathering().animalGift().giftChance())),
+                line("skill.essence_ascendance.animal_gift.description.resolved.1"));
+        define(SkillIds.FISHING_INSTINCT,
+                line("skill.essence_ascendance.fishing_instinct.description.resolved",
+                        n(s -> s.gathering().fishingInstinct().biteSpeedMultiplier()),
+                        n(s -> s.gathering().fishingInstinct().reelWindowMultiplier())),
+                line("skill.essence_ascendance.fishing_instinct.description.resolved.1",
+                        n(s -> s.gathering().fishingInstinct().virtualLuckLevels())));
         define(SkillIds.ADRENALINE,
                 line("skill.essence_ascendance.adrenaline.description.resolved" , pct(s -> s.vitality().damage().adrenaline().triggerHealthLossFraction()), sec(s -> s.vitality().damage().adrenaline().durationTicks())),
                 line("skill.essence_ascendance.adrenaline.description.resolved.1" , pct(s -> s.vitality().damage().adrenaline().movementSpeedBonus()), pct(s -> s.vitality().damage().adrenaline().attackSpeedBonus()), pct(s -> s.vitality().damage().adrenaline().knockbackResistance())));

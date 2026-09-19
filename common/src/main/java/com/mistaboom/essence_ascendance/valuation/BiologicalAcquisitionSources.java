@@ -12,10 +12,10 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * Generation-only descriptions of nonlethal production absent from ordinary loot
- * tables. Integrations can register further factual events before generation.
- * Counts describe one completed event, never a measured farm rate or an item price.
- * The adapter never spawns, ages, brushes or harvests a live entity/block.
+ * Shared factual descriptions of nonlethal production absent from ordinary loot tables.
+ * Integrations can register further factual events before generation. Counts describe one
+ * completed event, never a measured farm rate or an item price. The registry itself has no
+ * side effects; valuation and gameplay consumers decide how an eligible event is used.
  */
 public final class BiologicalAcquisitionSources {
     public enum Event { GROWTH, PERIODIC_PRODUCTION, POLLINATION_HARVEST }
@@ -55,6 +55,16 @@ public final class BiologicalAcquisitionSources {
         List<Source> result = new ArrayList<>(vanilla());
         result.addAll(ADDITIONAL.values());
         return result.stream().sorted(java.util.Comparator.comparing(Source::id)).toList();
+    }
+
+    /** Renewable products an adult producer creates on its own, without a consumed input or tool. */
+    public static synchronized List<Source> periodicProducts(EntityType<?> producer) {
+        if (producer == null) return List.of();
+        return all().stream()
+                .filter(source -> source.producer() == producer)
+                .filter(source -> source.event() == Event.PERIODIC_PRODUCTION)
+                .filter(source -> source.requirements().isEmpty())
+                .toList();
     }
 
     private static List<Source> vanilla() {

@@ -1,0 +1,165 @@
+package com.mistaboom.essence_ascendance.gathering;
+
+import com.mistaboom.essence_ascendance.config.GatheringBalanceSettings;
+import com.mistaboom.essence_ascendance.equipment.PlayerAttributedBlockHarvestService;
+import com.mistaboom.essence_ascendance.skill.SkillIds;
+import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
+import com.mistaboom.essence_ascendance.skill.effect.SkillEffectState;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.TamableAnimal;
+import net.minecraft.world.level.block.state.BlockState;
+
+import java.util.List;
+
+/** Shared nearby-growth and animal scheduler for the Gathering rural branch. */
+public final class GatheringRuralService {
+    private GatheringRuralService() { }
+
+    public static void tickVerdantStride(SkillEffectRuntime.Context context) {
+        GatheringBalanceSettings.VerdantStride tuning = context.settings().gathering().verdantStride();
+        PulseState pulse = pulseState(context, SkillIds.VERDANT_STRIDE);
+        if (!pulseDue(context, pulse, tuning.growthPulseTicks())) return;
+
+        ServerPlayer player = context.player();
+        ServerLevel level = player.serverLevel();
+        BlockPos center = player.blockPosition();
+        int range = (int) Math.ceil(tuning.radiusBlocks());
+        double rangeSqr = tuning.radiusBlocks() * tuning.radiusBlocks();
+        int eligible = 0;
+        int extraTicks = 0;
+
+        for (BlockPos mutable : BlockPos.betweenClosed(center.offset(-range, -range, -range),
+                center.offset(range, range, range))) {
+            if (center.distSqr(mutable) > rangeSqr) continue;
+            BlockState state = level.getBlockState(mutable);
+            if (!PlayerAttributedBlockHarvestService.isCrop(state) || !state.isRandomlyTicking()) continue;
+            eligible++;
+            if (player.getRandom().nextDouble() >= tuning.growthChance()) continue;
+            state.randomTick(level, mutable, level.random);
+            extraTicks++;
+        }
+        pulse.lastEligibleTargets = eligible;
+        pulse.lastSuccessfulEvents = extraTicks;
+    }
+
+    public static void tickHerdkeeper(SkillEffectRuntime.Context context) {
+        GatheringBalanceSettings.Herdkeeper tuning = context.settings().gathering().herdkeeper();
+        for (Animal animal : nearbyLivestock(context.player(), tuning.radiusBlocks())) {
+            // One is vanilla's neutral navigation speed factor; skill power is kept in generated cooldown recovery.
+            animal.getNavigation().moveTo(context.player(), 1.0D);
+            int age = animal.getAge();
+            if (age <= 0) continue;
+            int extraRecovery = stochasticWhole(tuning.breedingRecoveryMultiplier() - 1.0D,
+                    context.player().getRandom().nextDouble());
+            if (extraRecovery > 0) animal.setAge(Math.max(0, age - extraRecovery));
+        }
+    }
+
+    public static void tickAnimalGift(SkillEffectRuntime.Context context) {
+        GatheringBalanceSettings.AnimalGift tuning = context.settings().gathering().animalGift();
+        PulseState pulse = pulseState(context, SkillIds.ANIMAL_GIFT);
+        if (!pulseDue(context, pulse, tuning.giftPulseTicks())) return;
+
+        ServerPlayer player = context.player();
+        int eligible = 0;
+        int gifts = 0;
+        for (Animal animal : nearbyLivestock(player, tuning.radiusBlocks())) {
+            if (!giftEligible(player, animal)) continue;
+            eligible++;
+            if (player.getRandom().nextDouble() >= tuning.giftChance()) continue;
+            if (RenewableAnimalProductRegistry.provideOne(player, animal, player.getRandom())) gifts++;
+        }
+        pulse.lastEligibleTargets = eligible;
+        pulse.lastSuccessfulEvents = gifts;
+    }
+
+    /** Native fragile-ground hooks call this without duplicating activation logic. */
+    public static boolean protectsFragileGround(Entity entity) {
+        return entity instanceof ServerPlayer player
+                && SkillEffectRuntime.context(player).isEffective(SkillIds.VERDANT_STRIDE);
+    }
+
+    public static int nearbyLivestockCount(ServerPlayer player, double radiusBlocks) {
+        return nearbyLivestock(player, radiusBlocks).size();
+    }
+
+    public static int renewableProductCount(ServerPlayer player, double radiusBlocks) {
+        int count = 0;
+        for (Animal animal : nearbyLivestock(player, radiusBlocks)) {
+            if (RenewableAnimalProductRegistry.hasAvailableProduct(player, animal)) count++;
+        }
+        return count;
+    }
+
+    public static HerdkeeperHudState herdkeeperHudState(ServerPlayer player, double radiusBlocks) {
+        int nearby = 0;
+        int recovering = 0;
+        for (Animal animal : nearbyLivestock(player, radiusBlocks)) {
+            nearby++;
+            if (animal.getAge() > 0) recovering++;
+        }
+        return new HerdkeeperHudState(nearby, recovering);
+    }
+
+    public static PulseHudState pulseHudState(SkillEffectRuntime.Context context,
+                                               net.minecraft.resources.ResourceLocation skill) {
+        PulseState state = context.existingState(skill);
+        if (state == null) return new PulseHudState(0, 0, 0L);
+        return new PulseHudState(state.lastEligibleTargets, state.lastSuccessfulEvents, state.nextPulseTick);
+    }
+
+    public static void clear(SkillEffectRuntime.Context context, net.minecraft.resources.ResourceLocation skill) {
+        context.discardState(skill);
+    }
+
+    private static List<Animal> nearbyLivestock(ServerPlayer player, double radiusBlocks) {
+        double radiusSqr = radiusBlocks * radiusBlocks;
+        return player.serverLevel().getEntitiesOfClass(Animal.class,
+                player.getBoundingBox().inflate(radiusBlocks),
+                animal -> animal.isAlive() && !animal.isRemoved()
+                        && !(animal instanceof TamableAnimal)
+                        && animal.distanceToSqr(player) <= radiusSqr);
+    }
+
+    private static PulseState pulseState(SkillEffectRuntime.Context context,
+                                         net.minecraft.resources.ResourceLocation skill) {
+        return context.state(skill, PulseState::new);
+    }
+
+    private static boolean pulseDue(SkillEffectRuntime.Context context, PulseState state, int periodTicks) {
+        if (state.nextPulseTick != Long.MIN_VALUE && context.now() < state.nextPulseTick) return false;
+        state.nextPulseTick = context.now() + periodTicks;
+        return true;
+    }
+
+    private static boolean giftEligible(ServerPlayer player, Animal animal) {
+        return !animal.isBaby()
+                && (animal.isInLove() || animal.getAge() > 0)
+                && RenewableAnimalProductRegistry.hasAvailableProduct(player, animal);
+    }
+
+    private static int stochasticWhole(double expected, double roll) {
+        if (!Double.isFinite(expected) || expected <= 0) return 0;
+        int whole = (int) Math.floor(expected);
+        return whole + (roll < expected - whole ? 1 : 0);
+    }
+
+    public record PulseHudState(int eligibleTargets, int successfulEvents, long nextPulseTick) { }
+    public record HerdkeeperHudState(int nearbyAnimals, int recoveringCooldowns) { }
+
+    private static final class PulseState implements SkillEffectState {
+        private long nextPulseTick = Long.MIN_VALUE;
+        private int lastEligibleTargets;
+        private int lastSuccessfulEvents;
+
+        @Override public void clear() {
+            nextPulseTick = Long.MIN_VALUE;
+            lastEligibleTargets = 0;
+            lastSuccessfulEvents = 0;
+        }
+    }
+}

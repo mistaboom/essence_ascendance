@@ -260,6 +260,17 @@ public final class SkillRankEffectScaling {
                 scaleOdds(p.essenceBloom.triggerChance(), f),
                 scale(p.essenceBloom.essencePerExperiencePoint(), f, 1_024),
                 scale(p.essenceBloom.bonusExperienceFraction(), f, 16)));
+        register(SkillIds.VERDANT_STRIDE, (p, f) -> p.verdantStride = new GatheringBalanceSettings.VerdantStride(
+                p.verdantStride.radiusBlocks(), p.verdantStride.growthPulseTicks(),
+                scaleOdds(p.verdantStride.growthChance(), f)));
+        register(SkillIds.HERDKEEPER, (p, f) -> p.herdkeeper = new GatheringBalanceSettings.Herdkeeper(
+                p.herdkeeper.radiusBlocks(), 1.0 + scale(p.herdkeeper.breedingRecoveryMultiplier() - 1.0, f, 127)));
+        register(SkillIds.ANIMAL_GIFT, (p, f) -> p.animalGift = new GatheringBalanceSettings.AnimalGift(
+                p.animalGift.radiusBlocks(), p.animalGift.giftPulseTicks(), scaleOdds(p.animalGift.giftChance(), f)));
+        register(SkillIds.FISHING_INSTINCT, (p, f) -> p.fishingInstinct = new GatheringBalanceSettings.FishingInstinct(
+                1.0 + scale(p.fishingInstinct.biteSpeedMultiplier() - 1.0, f, 127),
+                1.0 + scale(p.fishingInstinct.reelWindowMultiplier() - 1.0, f, 127),
+                scale(p.fishingInstinct.virtualLuckLevels(), f, 255)));
         // Staggered Pain is a binary timing capability, not an invented damage-reduction multiplier.
         // Pure State is binary. Its capability pressure remains one at every
         // projected rank; no inert numeric rule pretends to improve immunity.
@@ -372,6 +383,26 @@ public final class SkillRankEffectScaling {
         if (id.equals(SkillIds.ESSENCE_BLOOM)) return gathering.essenceBloom().essencePerExperiencePoint()
                 / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.CONVERSION));
         if (id.equals(SkillIds.TORCHBEARER)) return 1;
+        if (id.equals(SkillIds.VERDANT_STRIDE)) {
+            double chance = gathering.verdantStride().growthChance();
+            double availability = SkillBalanceSemantics.require(id).expectedAvailability();
+            double rawChance = availability <= 0 ? 0 : Math.min(Math.nextDown(1.0), chance / availability);
+            return rawChance <= 0 ? 0 : (rawChance / Math.max(Math.ulp(1.0), 1 - rawChance))
+                    / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.CROP_YIELD));
+        }
+        if (id.equals(SkillIds.HERDKEEPER)) return (gathering.herdkeeper().breedingRecoveryMultiplier() - 1.0)
+                / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.THROUGHPUT));
+        if (id.equals(SkillIds.ANIMAL_GIFT)) {
+            double chance = gathering.animalGift().giftChance();
+            double availability = SkillBalanceSemantics.require(id).expectedAvailability();
+            double rawChance = availability <= 0 ? 0 : Math.min(Math.nextDown(1.0), chance / availability);
+            double combinedWeight = SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.DROP_YIELD)
+                    + SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.AUTOMATION_INTERACTION);
+            return rawChance <= 0 ? 0 : (rawChance / Math.max(Math.ulp(1.0), 1 - rawChance))
+                    / Math.max(Math.ulp(1.0), combinedWeight);
+        }
+        if (id.equals(SkillIds.FISHING_INSTINCT)) return (gathering.fishingInstinct().biteSpeedMultiplier() - 1.0)
+                / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.THROUGHPUT));
         return offenseScale;
     }
 
@@ -449,6 +480,10 @@ public final class SkillRankEffectScaling {
         public GatheringBalanceSettings.Survey treasureSense;
         public GatheringBalanceSettings.HuntersStudy huntersStudy;
         public GatheringBalanceSettings.EssenceBloom essenceBloom;
+        public GatheringBalanceSettings.VerdantStride verdantStride;
+        public GatheringBalanceSettings.Herdkeeper herdkeeper;
+        public GatheringBalanceSettings.AnimalGift animalGift;
+        public GatheringBalanceSettings.FishingInstinct fishingInstinct;
         public GuardBalanceSettings.Mobility mobility;
         public GuardBalanceSettings.Ram ram;
         public GuardBalanceSettings.Ward ward;
@@ -500,7 +535,9 @@ public final class SkillRankEffectScaling {
             toolInstinct=v.gathering().toolInstinct(); miningMomentum=v.gathering().miningMomentum();
             naturesBoon=v.gathering().naturesBoon(); oreSight=v.gathering().oreSight();
             treasureSense=v.gathering().treasureSense(); huntersStudy=v.gathering().huntersStudy();
-            essenceBloom=v.gathering().essenceBloom();
+            essenceBloom=v.gathering().essenceBloom(); verdantStride=v.gathering().verdantStride();
+            herdkeeper=v.gathering().herdkeeper(); animalGift=v.gathering().animalGift();
+            fishingInstinct=v.gathering().fishingInstinct();
 
         }
         private SkillEffectBalanceSettings build() {
@@ -513,7 +550,7 @@ public final class SkillRankEffectScaling {
                             new VitalityWardBalanceSettings(soulWard, deepWard, shatteringWard)),
                     new MobilityBalanceSettings(runningMomentum, momentumVault, rush, impactControl, chargedJump, doubleJump, vectorJump),
                     new GatheringBalanceSettings(toolInstinct, miningMomentum, naturesBoon, oreSight, treasureSense,
-                            huntersStudy, essenceBloom));
+                            huntersStudy, essenceBloom, verdantStride, herdkeeper, animalGift, fishingInstinct));
         }
     }
 }

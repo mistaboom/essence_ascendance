@@ -10,7 +10,11 @@ public record GatheringBalanceSettings(
         Survey oreSight,
         Survey treasureSense,
         HuntersStudy huntersStudy,
-        EssenceBloom essenceBloom
+        EssenceBloom essenceBloom,
+        VerdantStride verdantStride,
+        Herdkeeper herdkeeper,
+        AnimalGift animalGift,
+        FishingInstinct fishingInstinct
 ) {
     public GatheringBalanceSettings {
         Objects.requireNonNull(toolInstinct, "Missing Tool Instinct balance; rebuild generated balance");
@@ -20,6 +24,10 @@ public record GatheringBalanceSettings(
         Objects.requireNonNull(treasureSense, "Missing Treasure Sense balance; rebuild generated balance");
         Objects.requireNonNull(huntersStudy, "Missing Hunter's Study balance; rebuild generated balance");
         Objects.requireNonNull(essenceBloom, "Missing Essence Bloom balance; rebuild generated balance");
+        Objects.requireNonNull(verdantStride, "Missing Verdant Stride balance; rebuild generated balance");
+        Objects.requireNonNull(herdkeeper, "Missing Herdkeeper balance; rebuild generated balance");
+        Objects.requireNonNull(animalGift, "Missing Animal Gift balance; rebuild generated balance");
+        Objects.requireNonNull(fishingInstinct, "Missing Fishing Instinct balance; rebuild generated balance");
     }
 
     /** Maximum target-dependent speed bonus when the Ascendance tool fully outclasses the material. */
@@ -69,12 +77,50 @@ public record GatheringBalanceSettings(
         }
     }
 
+    /** Nearby crop random ticks are advanced by this generated pulse and chance; fragile-ground protection is binary. */
+    public record VerdantStride(double radiusBlocks, int growthPulseTicks, double growthChance) {
+        public VerdantStride {
+            number("verdantStride.radiusBlocks", radiusBlocks, 0, 128);
+            integer("verdantStride.growthPulseTicks", growthPulseTicks, 1, 72_000);
+            number("verdantStride.growthChance", growthChance, 0, 1);
+        }
+    }
+
+    /** Native animal navigation gathers the herd; this multiplier accelerates only positive breeding cooldown. */
+    public record Herdkeeper(double radiusBlocks, double breedingRecoveryMultiplier) {
+        public Herdkeeper {
+            number("herdkeeper.radiusBlocks", radiusBlocks, 0, 128);
+            number("herdkeeper.breedingRecoveryMultiplier", breedingRecoveryMultiplier, 1, 128);
+        }
+    }
+
+    /** Well-fed adults periodically roll once for a factual, renewable biological product. */
+    public record AnimalGift(double radiusBlocks, int giftPulseTicks, double giftChance) {
+        public AnimalGift {
+            number("animalGift.radiusBlocks", radiusBlocks, 0, 128);
+            integer("animalGift.giftPulseTicks", giftPulseTicks, 1, 72_000);
+            number("animalGift.giftChance", giftChance, 0, 1);
+        }
+    }
+
+    /** Fishing timing scales native hook countdowns/windows; virtual Luck is realized stochastically per retrieval. */
+    public record FishingInstinct(double biteSpeedMultiplier, double reelWindowMultiplier,
+                                  double virtualLuckLevels) {
+        public FishingInstinct {
+            number("fishingInstinct.biteSpeedMultiplier", biteSpeedMultiplier, 1, 128);
+            number("fishingInstinct.reelWindowMultiplier", reelWindowMultiplier, 1, 128);
+            number("fishingInstinct.virtualLuckLevels", virtualLuckLevels, 0, 255);
+        }
+    }
+
     /** Neutral schema fixture only. Gameplay requires the generated profile. */
     public static GatheringBalanceSettings defaults() {
         return new GatheringBalanceSettings(new ToolInstinct(0),
                 new MiningMomentum(0, 1, 1, 1), new NaturesBoon(0),
                 new Survey(0), new Survey(0), new HuntersStudy(1, 0),
-                new EssenceBloom(0, 0, 0));
+                new EssenceBloom(0, 0, 0),
+                new VerdantStride(0, 1, 0), new Herdkeeper(0, 1),
+                new AnimalGift(0, 1, 0), new FishingInstinct(1, 1, 0));
     }
 
     public void validate() {
@@ -87,6 +133,11 @@ public record GatheringBalanceSettings(
         new HuntersStudy(huntersStudy.killsToFullStudy(), huntersStudy.maximumVirtualLootingLevels());
         new EssenceBloom(essenceBloom.triggerChance(), essenceBloom.essencePerExperiencePoint(),
                 essenceBloom.bonusExperienceFraction());
+        new VerdantStride(verdantStride.radiusBlocks(), verdantStride.growthPulseTicks(), verdantStride.growthChance());
+        new Herdkeeper(herdkeeper.radiusBlocks(), herdkeeper.breedingRecoveryMultiplier());
+        new AnimalGift(animalGift.radiusBlocks(), animalGift.giftPulseTicks(), animalGift.giftChance());
+        new FishingInstinct(fishingInstinct.biteSpeedMultiplier(), fishingInstinct.reelWindowMultiplier(),
+                fishingInstinct.virtualLuckLevels());
     }
 
     private static void integer(String field, int value, int minimum, int maximum) {
