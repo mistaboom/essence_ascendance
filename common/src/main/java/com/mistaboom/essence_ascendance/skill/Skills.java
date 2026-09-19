@@ -310,10 +310,10 @@ public final class Skills {
         skills.add(skill(SkillIds.RESTFUL_MENDING, essence, AscendanceTiers.RESONANT.id(),
                 SkillCostBand.ADVANCED, 3).group(SkillGroups.UTILITY_MAINTENANCE)
                 .hint(SkillLayoutHint.UPPER).build());
-        skills.add(skill(SkillIds.DURABILITY_REVERSAL, essence, AscendanceTiers.RESONANT.id(),
+        skills.add(skill(SkillIds.METABOLIC_MENDING, essence, AscendanceTiers.RESONANT.id(),
                 SkillCostBand.ADVANCED, 4).group(SkillGroups.UTILITY_MAINTENANCE)
                 .hint(SkillLayoutHint.CENTER).build());
-        skills.add(skill(SkillIds.TEMPERED_REPAIR, essence, AscendanceTiers.RESONANT.id(),
+        skills.add(skill(SkillIds.MASTERWORK_TEMPERING, essence, AscendanceTiers.RESONANT.id(),
                 SkillCostBand.ADVANCED, 5).group(SkillGroups.UTILITY_MAINTENANCE)
                 .hint(SkillLayoutHint.LOWER).build());
         skills.add(skill(SkillIds.VILLAGE_PATRON, essence, AscendanceTiers.AWAKENED.id(),

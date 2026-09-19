@@ -278,6 +278,14 @@ public final class SkillRankEffectScaling {
                 (int) Math.ceil(scale(p.huntersLedger.memoryTicks(), f, 72_000))));
         register(SkillIds.WAYLIGHT, (p, f) -> p.waylight = new UtilityBalanceSettings.Waylight(
                 scale(p.waylight.searchRadiusBlocks(), f, 128)));
+        register(SkillIds.RESTFUL_MENDING, (p, f) -> p.restfulMending = new UtilityBalanceSettings.RestfulMending(
+                p.restfulMending.idleDelayTicks(), scaleRestfulMendingRate(p.restfulMending, f)));
+        register(SkillIds.METABOLIC_MENDING, (p, f) -> p.metabolicMending = new UtilityBalanceSettings.MetabolicMending(
+                scaleMetabolicMendingRate(p.metabolicMending, f)));
+        register(SkillIds.MASTERWORK_TEMPERING, (p, f) -> p.masterworkTempering = new UtilityBalanceSettings.MasterworkTempering(
+                scaleOdds(p.masterworkTempering.reinforcementFractionPerMaterialUnit(), f),
+                scaleOdds(p.masterworkTempering.maximumOverdurabilityFraction(), f),
+                scaleOdds(p.masterworkTempering.maximumPerformanceBonus(), f)));
         // Staggered Pain is a binary timing capability, not an invented damage-reduction multiplier.
         // Pure State is binary. Its capability pressure remains one at every
         // projected rank; no inert numeric rule pretends to improve immunity.
@@ -418,6 +426,30 @@ public final class SkillRankEffectScaling {
         if (id.equals(SkillIds.HUNTERS_LEDGER)) return 1;
         if (id.equals(SkillIds.WAYLIGHT)) return utility.waylight().searchRadiusBlocks()
                 / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).areaRadiusBlocks());
+        if (id.equals(SkillIds.RESTFUL_MENDING)) {
+            var semantics = SkillBalanceSemantics.require(id);
+            double inactive = Math.max(Math.ulp(1.0), 1.0 - semantics.expectedAvailability());
+            double window = utility.restfulMending().idleDelayTicks() / 20.0 / inactive;
+            double bounded = Math.clamp(utility.restfulMending().repairFractionPerSecond() * window, 0, Math.nextDown(1.0));
+            return inverseOdds(bounded)
+                    / Math.max(Math.ulp(1.0), semantics.weights().get(CapabilityAxis.REPAIR));
+        }
+        if (id.equals(SkillIds.METABOLIC_MENDING)) {
+            double bounded = Math.clamp(utility.metabolicMending().repairFractionPerFoodPoint()
+                    * net.minecraft.world.food.FoodConstants.MAX_FOOD, 0, Math.nextDown(1.0));
+            return inverseOdds(bounded)
+                    / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.REPAIR));
+        }
+        if (id.equals(SkillIds.MASTERWORK_TEMPERING)) {
+            var weights = SkillBalanceSemantics.require(id).weights();
+            double reinforcement = inverseOdds(utility.masterworkTempering().reinforcementFractionPerMaterialUnit())
+                    / Math.max(Math.ulp(1.0), weights.get(CapabilityAxis.CONVERSION));
+            double capacity = inverseOdds(utility.masterworkTempering().maximumOverdurabilityFraction())
+                    / Math.max(Math.ulp(1.0), weights.get(CapabilityAxis.DURABILITY));
+            double performance = inverseOdds(utility.masterworkTempering().maximumPerformanceBonus())
+                    / Math.max(Math.ulp(1.0), weights.get(CapabilityAxis.THROUGHPUT));
+            return Math.max(reinforcement, Math.max(capacity, performance));
+        }
         return offenseScale;
     }
 
@@ -439,6 +471,23 @@ public final class SkillRankEffectScaling {
     }
 
     private static double scale(double value, double factor, double maximum) { return Math.min(maximum, value * factor); }
+    private static double scaleRestfulMendingRate(UtilityBalanceSettings.RestfulMending value, double factor) {
+        double inactive = Math.max(Math.ulp(1.0),
+                1.0 - SkillBalanceSemantics.require(SkillIds.RESTFUL_MENDING).expectedAvailability());
+        double window = value.idleDelayTicks() / 20.0 / inactive;
+        double bounded = Math.clamp(value.repairFractionPerSecond() * window, 0, Math.nextDown(1.0));
+        return Math.min(1.0, scaleOdds(bounded, factor) / Math.max(Math.ulp(1.0), window));
+    }
+    private static double scaleMetabolicMendingRate(UtilityBalanceSettings.MetabolicMending value, double factor) {
+        double barRepair = Math.clamp(value.repairFractionPerFoodPoint()
+                * net.minecraft.world.food.FoodConstants.MAX_FOOD, 0, Math.nextDown(1.0));
+        return scaleOdds(barRepair, factor) / net.minecraft.world.food.FoodConstants.MAX_FOOD;
+    }
+    private static double inverseOdds(double probability) {
+        if (probability <= 0) return 0;
+        if (probability >= 1) return Double.MAX_VALUE;
+        return probability / (1.0 - probability);
+    }
     // The sum of a geometric continuation remains bounded by the rank factor.
     private static double retained(double value, double factor) { return value <= 0 ? 0 : 1.0 - (1.0 - value) / factor; }
     /** Scales independent-event odds without treating probability as a linear damage fraction. */
@@ -502,6 +551,9 @@ public final class SkillRankEffectScaling {
         public UtilityBalanceSettings.ThreatSense threatSense;
         public UtilityBalanceSettings.HuntersLedger huntersLedger;
         public UtilityBalanceSettings.Waylight waylight;
+        public UtilityBalanceSettings.RestfulMending restfulMending;
+        public UtilityBalanceSettings.MetabolicMending metabolicMending;
+        public UtilityBalanceSettings.MasterworkTempering masterworkTempering;
         public GuardBalanceSettings.Mobility mobility;
         public GuardBalanceSettings.Ram ram;
         public GuardBalanceSettings.Ward ward;
@@ -557,6 +609,8 @@ public final class SkillRankEffectScaling {
             herdkeeper=v.gathering().herdkeeper(); animalGift=v.gathering().animalGift();
             fishingInstinct=v.gathering().fishingInstinct();
             threatSense=v.utility().threatSense(); huntersLedger=v.utility().huntersLedger(); waylight=v.utility().waylight();
+            restfulMending=v.utility().restfulMending(); metabolicMending=v.utility().metabolicMending();
+            masterworkTempering=v.utility().masterworkTempering();
 
         }
         private SkillEffectBalanceSettings build() {
@@ -570,7 +624,8 @@ public final class SkillRankEffectScaling {
                     new MobilityBalanceSettings(runningMomentum, momentumVault, rush, impactControl, chargedJump, doubleJump, vectorJump),
                     new GatheringBalanceSettings(toolInstinct, miningMomentum, naturesBoon, oreSight, treasureSense,
                             huntersStudy, essenceBloom, verdantStride, herdkeeper, animalGift, fishingInstinct),
-                    new UtilityBalanceSettings(threatSense, huntersLedger, waylight));
+                    new UtilityBalanceSettings(threatSense, huntersLedger, waylight, restfulMending,
+                            metabolicMending, masterworkTempering));
         }
     }
 }

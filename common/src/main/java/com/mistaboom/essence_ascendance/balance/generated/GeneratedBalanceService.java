@@ -32,7 +32,7 @@ import java.util.Map;
 
 /** Server-thread transaction: collect, construct, validate, persist, publish, then synchronize. */
 public final class GeneratedBalanceService {
-    static final String GENERATION_REVISION = "utility-sense-focus-34";
+    static final String GENERATION_REVISION = "utility-maintenance-38";
     private static final String DISSOLUTION_ACCOUNTING = "whole_essence_v1";
     private static volatile Active active;
     private static volatile boolean resourcesChanged;
@@ -241,7 +241,7 @@ public final class GeneratedBalanceService {
         policy.addProperty("maximumChainHealingFraction", v.lifeSteal().baseHealingFraction() + (v.lifeSteal().maxChainHits() - 1) * v.lifeSteal().perHitHealingFraction());
         policy.addProperty("lifeSteal", "One accepted primary direct-weapon chain per owner; same target, timeout, miss/inactivity and all lifecycle/selection boundaries; actual accepted damage and useful missing-HP/recoverable-debt cap. Secondary, reflected, status, canceled, zero and invulnerable outcomes excluded; no recursive healing or duplicate Attunement.");
         policy.addProperty("foodUseDurationMultiplier", v.feastReflex().useDurationMultiplier());
-        policy.addProperty("automaticMeal", "While hurt and below the native regeneration threshold, successive nutritious safe hotbar meals are eligible; one meal need not fill the whole gap. With effective Metabolic Conversion and a positive generated food-healing rate, meals continue through full hunger until health is full. At full health, food is eligible only when strictly less than half its nutrition would be wasted. Ordinary item completion owns stacks, containers, effects, criteria, sounds and cancellation; never interrupts active use.");
+        policy.addProperty("automaticMeal", "While hurt and below the native regeneration threshold, successive nutritious safe hotbar meals are eligible; one meal need not fill the whole gap. With effective Metabolic Conversion and a positive generated food-healing rate, meals continue through full hunger until health is full. With effective Metabolic Mending and damaged eligible gear, meals likewise continue through full hunger while food can still produce maintenance repair. Otherwise at full health, food is eligible only when strictly less than half its nutrition would be wasted. Ordinary item completion owns stacks, containers, effects, criteria, sounds and cancellation; never interrupts active use.");
         policy.addProperty("outOfCombatFoodPointsPerSecond", 20.0 * v.innerSustenance().hungerPerRecovery() / v.innerSustenance().hungerRecoveryIntervalTicks());
         policy.addProperty("outOfCombatSaturationPointsPerSecond", 20.0 * v.innerSustenance().saturationPerRecovery() / v.innerSustenance().hungerRecoveryIntervalTicks());
         policy.addProperty("combatTimeoutSeconds", v.innerSustenance().combatTimeoutTicks() / 20.0);

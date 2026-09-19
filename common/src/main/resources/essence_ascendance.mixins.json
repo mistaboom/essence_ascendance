@@ -68,6 +68,8 @@
     "BlockCropYieldMixin",
     "FallingBlockPortalConservationMixin",
     "AnvilMenuEfficiencyMixin",
+    "MasterworkTemperingAnvilMixin",
+    "MasterworkItemBarMixin",
     "EnchantmentMenuEfficiencyMixin",
     "PlayerMenuCostMixin",
     "ItemStackMenuCostMixin",

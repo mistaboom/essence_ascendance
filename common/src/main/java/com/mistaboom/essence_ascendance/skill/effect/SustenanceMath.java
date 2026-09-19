@@ -44,8 +44,13 @@ public final class SustenanceMath {
     }
     public static boolean automaticMealOpportunity(boolean healingNeeded, boolean foodCanHeal, int foodLevel,
                                                    int nutrition, boolean usingItem) {
-        return AutomaticMealPolicy.useful(healingNeeded, foodCanHeal, foodLevel, nutrition, usingItem,
-                FoodConstants.MAX_FOOD, NATURAL_REGENERATION_FOOD_LEVEL);
+        return automaticMealOpportunity(healingNeeded, foodCanHeal, false, foodLevel, nutrition, usingItem);
+    }
+    public static boolean automaticMealOpportunity(boolean healingNeeded, boolean foodCanHeal,
+                                                   boolean maintenanceNeeded, int foodLevel,
+                                                   int nutrition, boolean usingItem) {
+        return AutomaticMealPolicy.useful(healingNeeded, foodCanHeal, maintenanceNeeded, foodLevel, nutrition,
+                usingItem, FoodConstants.MAX_FOOD, NATURAL_REGENERATION_FOOD_LEVEL);
     }
     public static final class RecoveryClock implements SkillEffectState {
         private long previousTick = Long.MIN_VALUE;

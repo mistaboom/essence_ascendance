@@ -90,8 +90,8 @@ public final class SkillIds {
     public static final ResourceLocation HUNTERS_LEDGER = id("hunters_ledger");
     public static final ResourceLocation WAYLIGHT = id("waylight");
     public static final ResourceLocation RESTFUL_MENDING = id("restful_mending");
-    public static final ResourceLocation DURABILITY_REVERSAL = id("durability_reversal");
-    public static final ResourceLocation TEMPERED_REPAIR = id("tempered_repair");
+    public static final ResourceLocation METABOLIC_MENDING = id("metabolic_mending");
+    public static final ResourceLocation MASTERWORK_TEMPERING = id("masterwork_tempering");
     public static final ResourceLocation VILLAGE_PATRON = id("village_patron");
     public static final ResourceLocation BONDED_COMPANION = id("bonded_companion");
     public static final ResourceLocation POTION_DURATION = id("potion_duration");

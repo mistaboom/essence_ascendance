@@ -9,6 +9,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -320,6 +321,31 @@ public final class SkillEffectRuntime {
 
     /** Reconciled shared effect context; server gameplay callers use the same effective loadout. */
     public static Context context(ServerPlayer player) { return current(player); }
+
+    /**
+     * Shared post-enchantment durability pipeline. Loader adapters call this exactly once before
+     * the artifact fracture guard, so maintenance skills compose with Unbreaking and durability efficiency.
+     */
+    public static int modifyDurabilityLoss(ServerPlayer player, ItemStack stack, int actualDamage) {
+        if (player == null || stack == null || stack.isEmpty() || actualDamage < 0) return Math.max(0, actualDamage);
+        Context context = current(player);
+        int resolved = actualDamage;
+        for (SkillEffectHandler handler : SkillEffectRegistry.handlers()) {
+            if (!context.isEffective(handler.id())) continue;
+            resolved = Math.max(0, handler.durabilityLoss(context, stack, resolved));
+        }
+        return resolved;
+    }
+
+    /** Shared completed-food event. Native hunger, saturation, effects and containers have already resolved. */
+    public static void onFoodConsumed(ServerPlayer player, ItemStack source, int nutrition, double saturationPoints) {
+        if (player == null || source == null || source.isEmpty() || nutrition < 0
+                || !Double.isFinite(saturationPoints) || saturationPoints < 0) return;
+        Context context = current(player);
+        for (SkillEffectHandler handler : SkillEffectRegistry.handlers()) {
+            if (context.isEffective(handler.id())) handler.foodConsumed(context, source, nutrition, saturationPoints);
+        }
+    }
 
     /** Completed native incoming damage, shared by combat-state and reactive food consumers. */
     public static void onAcceptedDamage(ServerPlayer player, DamageSource source,

@@ -5,7 +5,9 @@ import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
+import com.mistaboom.essence_ascendance.skill.SkillActivationPolicy;
 import com.mistaboom.essence_ascendance.skill.SkillDefinition;
+import com.mistaboom.essence_ascendance.skill.SkillRegistry;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
 import com.mistaboom.essence_ascendance.tier.AscendanceTiers;
@@ -1452,8 +1454,9 @@ private static final String NEXUS_REVISION_TAG =
          * PERMANENT OWNED SKILLS
          * ========================================================
          *
-         * Do not consult the current skill registry here. A temporarily
-         * missing or retired valid ID must round-trip untouched.
+         * Development saves retain only skills that exist in the current
+         * catalog. Removed/renamed identities are discarded rather than
+         * aliased or migrated into a different skill.
          */
 
         if (root.contains(
@@ -1477,6 +1480,14 @@ private static final String NEXUS_REVISION_TAG =
                     EssenceAscendance.LOGGER.warn(
                             "Ignoring malformed owned skill entry '{}' in Essence Ascendance player data",
                             key
+                    );
+                    continue;
+                }
+
+                if (SkillRegistry.get(skillId).isEmpty()) {
+                    EssenceAscendance.LOGGER.warn(
+                            "Discarding saved skill '{}' because it is not present in the current skill catalog",
+                            skillId
                     );
                     continue;
                 }
@@ -1555,6 +1566,15 @@ private static final String NEXUS_REVISION_TAG =
                     continue;
                 }
 
+                if (!validLoadedSelection(data, selectionId, skillId)) {
+                    EssenceAscendance.LOGGER.warn(
+                            "Discarding saved loadout selection '{} -> {}' because it is not valid in the current skill catalog",
+                            selectionId,
+                            skillId
+                    );
+                    continue;
+                }
+
                 data.loadoutSelections.put(
                         selectionId,
                         skillId
@@ -1605,6 +1625,31 @@ private static final String NEXUS_REVISION_TAG =
 
 
         return data;
+    }
+
+
+    private static boolean validLoadedSelection(
+            PlayerEssenceData data,
+            ResourceLocation selectionId,
+            ResourceLocation skillId
+    ) {
+        if (!data.ownedSkills.containsKey(skillId)) {
+            return false;
+        }
+
+        var group = SkillRegistry.choiceGroup(selectionId);
+        if (group.isPresent()) {
+            return group.get().memberIds().contains(skillId);
+        }
+
+        SkillDefinition directControl = SkillRegistry.get(selectionId).orElse(null);
+        if (directControl == null
+                || !selectionId.equals(skillId)) {
+            return false;
+        }
+
+        return directControl.activationPolicy() == SkillActivationPolicy.TOGGLE
+                || directControl.activationPolicy() == SkillActivationPolicy.AUTOMATIC;
     }
 
 

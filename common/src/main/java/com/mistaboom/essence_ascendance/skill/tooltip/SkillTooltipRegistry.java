@@ -251,6 +251,20 @@ public final class SkillTooltipRegistry {
                 line("skill.essence_ascendance.waylight.description.resolved",
                         n(s -> s.utility().waylight().searchRadiusBlocks())),
                 line("skill.essence_ascendance.waylight.description.resolved.1"));
+        define(SkillIds.RESTFUL_MENDING,
+                line("skill.essence_ascendance.restful_mending.description.resolved",
+                        sec(s -> s.utility().restfulMending().idleDelayTicks()),
+                        pct(s -> s.utility().restfulMending().repairFractionPerSecond())));
+        define(SkillIds.METABOLIC_MENDING,
+                line("skill.essence_ascendance.metabolic_mending.description.resolved",
+                        pct(s -> s.utility().metabolicMending().repairFractionPerFoodPoint())));
+        define(SkillIds.MASTERWORK_TEMPERING,
+                line("skill.essence_ascendance.masterwork_tempering.description.resolved",
+                        pct(s -> s.utility().masterworkTempering().reinforcementFractionPerMaterialUnit()),
+                        pct(s -> s.utility().masterworkTempering().maximumOverdurabilityFraction())),
+                line("skill.essence_ascendance.masterwork_tempering.description.resolved.1",
+                        pct(s -> s.utility().masterworkTempering().maximumPerformanceBonus())),
+                line("skill.essence_ascendance.masterwork_tempering.description.resolved.2"));
         define(SkillIds.ADRENALINE,
                 line("skill.essence_ascendance.adrenaline.description.resolved" , pct(s -> s.vitality().damage().adrenaline().triggerHealthLossFraction()), sec(s -> s.vitality().damage().adrenaline().durationTicks())),
                 line("skill.essence_ascendance.adrenaline.description.resolved.1" , pct(s -> s.vitality().damage().adrenaline().movementSpeedBonus()), pct(s -> s.vitality().damage().adrenaline().attackSpeedBonus()), pct(s -> s.vitality().damage().adrenaline().knockbackResistance())));

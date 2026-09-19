@@ -347,13 +347,13 @@ public final class SkillBalanceSemantics {
                 .availability(.7, 1).area(8).condition("Personal visibility and local spawnable-block guidance"));
         all.add(skill(SkillIds.RESTFUL_MENDING, flat(REPAIR, .55))
                 .equipment(Equipment.REPAIRABLE_GEAR).actions(Action.REST).availability(.55, 1)
-                .condition("Ascendance gear must remain unused; repair pauses on use"));
-        all.add(skill(SkillIds.DURABILITY_REVERSAL, flat(DURABILITY, .55))
-                .equipment(Equipment.REPAIRABLE_GEAR).availability(.8, 1)
-                .condition("Durability loss builds charge for a later reversal; bounded net durability gain"));
-        all.add(skill(SkillIds.TEMPERED_REPAIR, flat(DURABILITY, .45), flat(REPAIR, .2))
-                .equipment(Equipment.REPAIRABLE_GEAR).actions(Action.REPAIR).availability(.6, 1).cost(.2)
-                .condition("Anvil or smithing repair grants a finite consumable temper buffer"));
+                .condition("Damageable carried gear must remain unused; repair pauses on durability use"));
+        all.add(skill(SkillIds.METABOLIC_MENDING, flat(REPAIR, .55))
+                .equipment(Equipment.REPAIRABLE_GEAR).actions(Action.EAT).availability(.75, 1).cost(.35)
+                .condition("Consumed nutrition and saturation become immediate repair budget for damaged carried gear; Feast Reflex may auto-consume for maintenance"));
+        all.add(skill(SkillIds.MASTERWORK_TEMPERING, flat(DURABILITY, .45), flat(CONVERSION, .25), multi(THROUGHPUT, .2))
+                .equipment(Equipment.REPAIRABLE_GEAR).actions(Action.REPAIR).availability(.65, 1).cost(.3)
+                .condition("Fully repaired gear can consume compatible construction/repair-material forms to gain finite Overdurability with role performance"));
         all.add(skill(SkillIds.VILLAGE_PATRON, flat(CONVERSION, .45), flat(THROUGHPUT, .35))
                 .actions(Action.TRADE).availability(.55, 1).condition("Hero-of-the-village milestone; discounts and local trade restock"));
         all.add(skill(SkillIds.BONDED_COMPANION, flat(SUSTAINED_DAMAGE, .35), capability(TELEPORTATION, .4))

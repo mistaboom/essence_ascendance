@@ -20,7 +20,8 @@ import java.util.List;
  *
  * Order intentionally preserves the already-approved visual layout:
  * 1. organize Ascendance equipment tooltip;
- * 2. append the compact item -> Essence acquisition line.
+ * 2. append item-local Masterwork Tempering state when present;
+ * 3. append the compact item -> Essence acquisition line.
  */
 public final class EssenceTooltipPipeline {
 
@@ -45,6 +46,8 @@ public final class EssenceTooltipPipeline {
                 tooltipContext,
                 tooltipFlag
         );
+
+        MasterworkTemperingTooltip.append(stack, tooltip);
 
         if (EssentiumCarrierData.isEssentium(stack)) {
             EssentiumCarrierData.readValidated(stack)

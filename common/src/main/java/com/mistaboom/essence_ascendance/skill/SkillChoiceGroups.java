@@ -104,8 +104,8 @@ public final class SkillChoiceGroups {
             group(
                     SkillGroups.UTILITY_MAINTENANCE,
                     SkillIds.RESTFUL_MENDING,
-                    SkillIds.DURABILITY_REVERSAL,
-                    SkillIds.TEMPERED_REPAIR
+                    SkillIds.METABOLIC_MENDING,
+                    SkillIds.MASTERWORK_TEMPERING
             )
     );
 

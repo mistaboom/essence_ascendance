@@ -3,6 +3,7 @@ package com.mistaboom.essence_ascendance.neoforge.mixin;
 import com.mistaboom.essence_ascendance.equipment.AscendanceArtifactDurabilityService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentGatheringService;
 import com.mistaboom.essence_ascendance.equipment.FracturedEquipmentData;
+import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -26,6 +27,9 @@ public abstract class ItemStackDurabilityMixin {
     @Unique
     private boolean essenceAscendance$fracturedBeforeServerDamage;
 
+    @Unique
+    private ServerPlayer essenceAscendance$durabilityOwner;
+
     @Inject(
             method = "hurtAndBreak(ILnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/LivingEntity;Ljava/util/function/Consumer;)V",
             at = @At("HEAD")
@@ -39,6 +43,7 @@ public abstract class ItemStackDurabilityMixin {
     ) {
         essenceAscendance$fracturedBeforeServerDamage =
                 FracturedEquipmentData.isFractured((ItemStack) (Object) this);
+        essenceAscendance$durabilityOwner = entity instanceof ServerPlayer player ? player : null;
     }
 
     @Inject(
@@ -58,6 +63,7 @@ public abstract class ItemStackDurabilityMixin {
                 && entity instanceof ServerPlayer player) {
             player.playSound(stack.getBreakingSound());
         }
+        essenceAscendance$durabilityOwner = null;
     }
 
     @ModifyVariable(
@@ -162,6 +168,10 @@ public abstract class ItemStackDurabilityMixin {
                 stack,
                 requestedDamage
         );
+        if (essenceAscendance$durabilityOwner != null) {
+            actualDamage = SkillEffectRuntime.modifyDurabilityLoss(
+                    essenceAscendance$durabilityOwner, stack, actualDamage);
+        }
         return AscendanceArtifactDurabilityService.fractureBeforeVanillaBreak(
                 stack,
                 actualDamage

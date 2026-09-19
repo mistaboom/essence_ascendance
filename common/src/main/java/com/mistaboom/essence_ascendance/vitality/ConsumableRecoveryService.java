@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.vitality;
 
 import com.mistaboom.essence_ascendance.attunement.AttunementEvent;
 import com.mistaboom.essence_ascendance.attunement.AttunementGameplay;
+import com.mistaboom.essence_ascendance.equipment.EquipmentMaintenanceService;
 import com.mistaboom.essence_ascendance.skill.CommittedSkillService;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
@@ -21,19 +22,31 @@ public final class ConsumableRecoveryService {
         final ServerPlayer player;
         final ItemStack source;
         final int nutrition;
+        final double saturationPoints;
         final boolean fullHunger;
         Frame(ServerPlayer player, ItemStack source) {
             this.player = player; this.source = source.copy();
             var food = source.get(DataComponents.FOOD);
             nutrition = food == null ? 0 : Math.max(0, food.nutrition());
+            saturationPoints = food == null ? 0 : Math.max(0, FoodConstants.saturationByModifier(nutrition, food.saturation()));
             fullHunger = player.getFoodData().getFoodLevel() >= FoodConstants.MAX_FOOD;
         }
     }
     private ConsumableRecoveryService() { }
     public static boolean canEatForRecovery(ServerPlayer player) {
-        return valid(player) && HealingRecoveryService.needsRecovery(player)
+        if (!valid(player)) return false;
+        boolean healing = HealingRecoveryService.needsRecovery(player)
                 && CommittedSkillService.isEffective(player, SkillIds.METABOLIC_CONVERSION)
                 && SkillEffectRuntime.resolvedSettings(player).vitality().damage().metabolicConversion().healthPerNutrition() > 0;
+        return healing || canEatForMaintenance(player);
+    }
+
+    /** Shared manual/automatic meal gate for Metabolic Mending. */
+    public static boolean canEatForMaintenance(ServerPlayer player) {
+        return valid(player)
+                && EquipmentMaintenanceService.hasDamagedItem(player)
+                && CommittedSkillService.isEffective(player, SkillIds.METABOLIC_MENDING)
+                && SkillEffectRuntime.resolvedSettings(player).utility().metabolicMending().repairFractionPerFoodPoint() > 0;
     }
     public static ItemStack complete(ServerPlayer player, ItemStack source, Supplier<ItemStack> original) {
         if (!valid(player) || source.isEmpty()) return original.get();
@@ -49,6 +62,7 @@ public final class ConsumableRecoveryService {
                     try { if (amount > 0) player.heal((float)Math.min(Float.MAX_VALUE, amount)); }
                     finally { if (previousHealing == null) FOOD_HEALING.remove(); else FOOD_HEALING.set(previousHealing); }
                 }
+                SkillEffectRuntime.onFoodConsumed(player, frame.source, frame.nutrition, frame.saturationPoints);
             }
             return result;
         } finally { if (previous == null) CONSUMPTION.remove(); else CONSUMPTION.set(previous); }

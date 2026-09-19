@@ -30,6 +30,7 @@ public final class SkillEffectRegistry {
                     GatheringRuralEffects.handlers(),
                     GatheringFishingEffects.handlers(),
                     UtilitySenseEffects.handlers(),
+                    UtilityMaintenanceEffects.handlers(),
                     java.util.List.<SkillEffectHandler>of(
                             new PostureHandler(com.mistaboom.essence_ascendance.skill.SkillIds.EVASIVE_CURRENT),
                             new PostureHandler(com.mistaboom.essence_ascendance.skill.SkillIds.BULWARK_STANCE),

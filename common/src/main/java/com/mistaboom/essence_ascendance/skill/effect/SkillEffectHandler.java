@@ -4,6 +4,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
 
@@ -37,6 +38,11 @@ public interface SkillEffectHandler {
         if (death.ordinaryKillBy(context.player())) kill(context, death.victim());
     }
     default void targetRemoved(SkillEffectRuntime.Context context, Entity target) { }
+    /** Post-enchantment native durability loss. Return the remaining loss that vanilla should apply. */
+    default int durabilityLoss(SkillEffectRuntime.Context context, ItemStack stack, int actualDamage) { return actualDamage; }
+    /** Completed native food consumption; saturationPoints is the food's intrinsic vanilla saturation contribution. */
+    default void foodConsumed(SkillEffectRuntime.Context context, ItemStack source, int nutrition,
+                              double saturationPoints) { }
     /** Teleport/correction invalidates movement evidence, not unrelated combat state. */
     default void movementDiscontinuity(SkillEffectRuntime.Context context) { }
     default double damageMultiplier(SkillEffectRuntime.Context context, LivingEntity target,
