@@ -148,6 +148,14 @@ public final class SkillTooltipRegistry {
                 line("skill.essence_ascendance.shattering_ward.description.resolved.1", pct(s -> s.vitality().wards().shatteringWard().healingFractionPerSecond()),
                         sec(s -> s.vitality().wards().shatteringWard().regenerationTicks())),
                 line("skill.essence_ascendance.shattering_ward.description.resolved.2"));
+        define(SkillIds.SECOND_WIND,
+                line("skill.essence_ascendance.second_wind.description.resolved", pct(s -> s.vitality().deathDefiance().secondWind().recoveryHealthFraction()),
+                        sec(s -> s.vitality().deathDefiance().secondWind().recoveryTicks()), pct(s -> s.vitality().deathDefiance().secondWind().strengthDamageBonus())),
+                line("skill.essence_ascendance.second_wind.description.resolved.1", sec(s -> s.vitality().deathDefiance().secondWind().cooldownTicks())));
+        define(SkillIds.SPIRIT_WALK,
+                line("skill.essence_ascendance.spirit_walk.description.resolved", sec(s -> s.vitality().deathDefiance().spiritWalk().durationTicks())),
+                line("skill.essence_ascendance.spirit_walk.description.resolved.1", pct(s -> s.vitality().deathDefiance().spiritWalk().reformHealthFraction()),
+                        sec(s -> s.vitality().deathDefiance().spiritWalk().cooldownTicks())));
         define(SkillIds.RUNNING_MOMENTUM,
                 line("skill.essence_ascendance.running_momentum.description.resolved", pct(s -> s.mobility().runningMomentum().maximumSpeedBonus()),
                         sec(s -> s.mobility().runningMomentum().buildTicks())),

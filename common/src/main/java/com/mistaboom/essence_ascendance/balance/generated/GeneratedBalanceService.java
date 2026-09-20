@@ -32,7 +32,7 @@ import java.util.Map;
 
 /** Server-thread transaction: collect, construct, validate, persist, publish, then synchronize. */
 public final class GeneratedBalanceService {
-    static final String GENERATION_REVISION = "mobility-flight-42";
+    static final String GENERATION_REVISION = "vitality-death-defiance-43";
     private static final String DISSOLUTION_ACCOUNTING = "whole_essence_v1";
     private static volatile Active active;
     private static volatile boolean resourcesChanged;
@@ -95,7 +95,7 @@ public final class GeneratedBalanceService {
             validation.addProperty("projectiles", "validated independent path/payload and bounded control policy; native gameplay remains manual");
             validation.addProperty("guard", "validated guard mobility, reflection and counterattack bounds; live gameplay remains manual");
             validation.addProperty("postureStatus", "validated generated posture mitigation and binary harmful-status capability; conditional native gameplay remains manual");
-            validation.addProperty("vitality", "validated native-unit recovery and sustenance settings and developed-build headroom; live gameplay remains manual");
+            validation.addProperty("vitality", "validated native-unit recovery, damage routing, ward and death-defiance settings with developed-build headroom; live gameplay remains manual");
             validation.addProperty("liveGameplay", "not performed by generator");
             validation.add("bonusTracks", com.mistaboom.essence_ascendance.balance.runtime.BonusTrackGenerator.diagnostics(runtime));
             JsonObject document = new JsonObject();

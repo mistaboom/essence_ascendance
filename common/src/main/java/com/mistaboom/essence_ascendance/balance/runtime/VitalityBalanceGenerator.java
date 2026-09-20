@@ -3,6 +3,7 @@ package com.mistaboom.essence_ascendance.balance.runtime;
 import com.mistaboom.essence_ascendance.balance.config.BalanceSettings;
 import com.mistaboom.essence_ascendance.balance.engine.*;
 import com.mistaboom.essence_ascendance.config.VitalityBalanceSettings;
+import com.mistaboom.essence_ascendance.config.VitalityDeathDefianceBalanceSettings;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.balance.SkillBalanceSemantics;
 import net.minecraft.world.food.FoodConstants;
@@ -49,7 +50,43 @@ final class VitalityBalanceGenerator {
                         seed.lifeSteal().perHitHealingFraction() * stealScale, hits, seed.lifeSteal().chainTimeoutTicks()),
                 new VitalityBalanceSettings.FeastReflex(duration), new VitalityBalanceSettings.InnerSustenance(
                         combatTicks, recoveryTicks, seed.innerSustenance().hungerPerRecovery(), seed.innerSustenance().saturationPerRecovery()),
-                VitalityDamageBalanceGenerator.generate(settings), VitalityWardBalanceGenerator.generate(settings));
+                VitalityDamageBalanceGenerator.generate(settings), VitalityWardBalanceGenerator.generate(settings),
+                deathDefiance(settings));
+    }
+
+    private static VitalityDeathDefianceBalanceSettings deathDefiance(BalanceSettings settings) {
+        var second = SkillBalanceSemantics.require(SkillIds.SECOND_WIND);
+        var spirit = SkillBalanceSemantics.require(SkillIds.SPIRIT_WALK);
+        double window = settings.generation().survivalWindowSeconds();
+        double secondHeadroom = SkillGenerationBudget.headroom(settings, SkillIds.SECOND_WIND);
+        double spiritHeadroom = SkillGenerationBudget.headroom(settings, SkillIds.SPIRIT_WALK);
+
+        // Active windows are derived from the shared survival horizon and semantic availability rather than
+        // a second hand-tuned duration table. Magnitudes consume the same tier headroom used by every skill family.
+        double secondWindow = window * Math.sqrt(Math.max(Math.ulp(1.0), second.expectedAvailability()))
+                * (1 + secondHeadroom * second.weights().getOrDefault(CapabilityAxis.REGENERATION, 0.0));
+        double spiritWindow = window * Math.sqrt(Math.max(Math.ulp(1.0), spirit.expectedAvailability()))
+                * (1 + spiritHeadroom * spirit.weights().getOrDefault(CapabilityAxis.CONVENIENCE, 0.0));
+        double recovery = Math.clamp(secondHeadroom
+                * second.weights().getOrDefault(CapabilityAxis.REGENERATION, 0.0), 0, 16);
+        double strength = Math.clamp(secondHeadroom
+                * second.weights().getOrDefault(CapabilityAxis.BURST_DAMAGE, 0.0), 0, 16);
+        double survivalPower = spiritHeadroom
+                * spirit.weights().getOrDefault(CapabilityAxis.BURST_SURVIVAL, 0.0);
+        double reform = survivalPower <= 0 ? 0 : survivalPower / (1 + survivalPower);
+        return new VitalityDeathDefianceBalanceSettings(
+                new VitalityDeathDefianceBalanceSettings.SecondWind(
+                        semanticCooldown(second, window), ticks(secondWindow), recovery, strength),
+                new VitalityDeathDefianceBalanceSettings.SpiritWalk(
+                        semanticCooldown(spirit, window), ticks(spiritWindow), Math.min(Math.nextDown(1.0), reform)));
+    }
+
+    private static int semanticCooldown(SkillBalanceSemantics.Descriptor descriptor, double fallbackSeconds) {
+        return ticks(descriptor.cooldownSeconds() > 0 ? descriptor.cooldownSeconds() : fallbackSeconds);
+    }
+
+    private static int ticks(double seconds) {
+        return Math.clamp((int)Math.ceil(seconds * 20), 1, 72_000);
     }
     private static double weight(net.minecraft.resources.ResourceLocation id, CapabilityAxis axis) {
         return SkillBalanceSemantics.require(id).weights().getOrDefault(axis, 0.0);

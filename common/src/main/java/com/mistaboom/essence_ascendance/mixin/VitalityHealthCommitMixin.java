@@ -3,6 +3,7 @@ package com.mistaboom.essence_ascendance.mixin;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mistaboom.essence_ascendance.vitality.VitalityDamageService;
+import com.mistaboom.essence_ascendance.vitality.VitalityDeathDefianceService;
 import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.server.level.ServerPlayer;
@@ -19,7 +20,9 @@ public abstract class VitalityHealthCommitMixin {
                                                    @Local(argsOnly = true) DamageSource source) {
         float healthBefore = player.getHealth();
         float maximumBefore = player.getMaxHealth();
-        original.call(player, health);
+        float resolved = player instanceof ServerPlayer server
+                ? VitalityDeathDefianceService.interceptHealthWrite(server, source, healthBefore, health) : health;
+        original.call(player, resolved);
         if (player instanceof ServerPlayer server)
             VitalityDamageService.commitHealthDamage(server, source, healthBefore, maximumBefore);
     }

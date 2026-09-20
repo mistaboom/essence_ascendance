@@ -11,6 +11,7 @@ import com.mistaboom.essence_ascendance.config.StatusBalanceSettings;
 import com.mistaboom.essence_ascendance.config.VitalityBalanceSettings;
 import com.mistaboom.essence_ascendance.config.VitalityDamageBalanceSettings;
 import com.mistaboom.essence_ascendance.config.VitalityWardBalanceSettings;
+import com.mistaboom.essence_ascendance.config.VitalityDeathDefianceBalanceSettings;
 import com.mistaboom.essence_ascendance.config.SkillEffectBalanceSettings;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import net.minecraft.resources.ResourceLocation;
@@ -201,6 +202,16 @@ public final class SkillRankEffectScaling {
             p.shatteringWard = new VitalityWardBalanceSettings.ShatteringWard(v.radius(), v.maximumTargets(),
                     scale(v.knockback(), f, 1024), scale(v.healingFractionPerSecond(), f, 1024), v.regenerationTicks());
         });
+        register(SkillIds.SECOND_WIND, (p, f) -> {
+            var v = p.secondWind;
+            p.secondWind = new VitalityDeathDefianceBalanceSettings.SecondWind(v.cooldownTicks(), v.recoveryTicks(),
+                    scale(v.recoveryHealthFraction(), f, 16), scale(v.strengthDamageBonus(), f, 16));
+        });
+        register(SkillIds.SPIRIT_WALK, (p, f) -> {
+            var v = p.spiritWalk;
+            p.spiritWalk = new VitalityDeathDefianceBalanceSettings.SpiritWalk(v.cooldownTicks(), v.durationTicks(),
+                    scaleOdds(v.reformHealthFraction(), f));
+        });
         register(SkillIds.HUNGER_WARD, (p, f) -> p.hungerWard = new VitalityDamageBalanceSettings.HungerWard(
                 p.hungerWard.healthPerFoodPoint(),
                 com.mistaboom.essence_ascendance.vitality.DamageRoutingMath.scaleShare(p.hungerWard.damageShare(), f)));
@@ -384,6 +395,20 @@ public final class SkillRankEffectScaling {
             double control = wards.shatteringWard().knockback()
                     / weights.get(com.mistaboom.essence_ascendance.balance.engine.CapabilityAxis.CROWD_CONTROL);
             return Math.max(healing, control);
+        }
+        var deathDefiance = settings.vitality().deathDefiance();
+        if (id.equals(SkillIds.SECOND_WIND)) {
+            var weights = SkillBalanceSemantics.require(id).weights();
+            double recovery = deathDefiance.secondWind().recoveryHealthFraction()
+                    / Math.max(Math.ulp(1.0), weights.get(CapabilityAxis.REGENERATION));
+            double strength = deathDefiance.secondWind().strengthDamageBonus()
+                    / Math.max(Math.ulp(1.0), weights.get(CapabilityAxis.BURST_DAMAGE));
+            return Math.max(recovery, strength);
+        }
+        if (id.equals(SkillIds.SPIRIT_WALK)) {
+            double survival = inverseOdds(deathDefiance.spiritWalk().reformHealthFraction());
+            return survival / Math.max(Math.ulp(1.0),
+                    SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.BURST_SURVIVAL));
         }
         var movement = settings.mobility();
         if (id.equals(SkillIds.RUNNING_MOMENTUM)) return movement.runningMomentum().maximumSpeedBonus()
@@ -696,6 +721,8 @@ public final class SkillRankEffectScaling {
         public VitalityWardBalanceSettings.SoulWard soulWard;
         public VitalityWardBalanceSettings.DeepWard deepWard;
         public VitalityWardBalanceSettings.ShatteringWard shatteringWard;
+        public VitalityDeathDefianceBalanceSettings.SecondWind secondWind;
+        public VitalityDeathDefianceBalanceSettings.SpiritWalk spiritWalk;
         private Parameters(SkillEffectBalanceSettings v) {
             frenzy=v.frenzy(); armorCrack=v.armorCrack(); desperation=v.desperation(); deathRush=v.deathRush();
             kindling=v.kindling(); combustion=v.combustion(); frostbite=v.frostbite(); shatter=v.shatter();
@@ -715,6 +742,8 @@ public final class SkillRankEffectScaling {
             soulWard=v.vitality().wards().soulWard();
             deepWard=v.vitality().wards().deepWard();
             shatteringWard=v.vitality().wards().shatteringWard();
+            secondWind=v.vitality().deathDefiance().secondWind();
+            spiritWalk=v.vitality().deathDefiance().spiritWalk();
             runningMomentum=v.mobility().runningMomentum(); momentumVault=v.mobility().momentumVault(); rush=v.mobility().rush();
             impactControl=v.mobility().impactControl(); chargedJump=v.mobility().chargedJump();
             doubleJump=v.mobility().doubleJump(); vectorJump=v.mobility().vectorJump(); essenceWings=v.mobility().essenceWings();
@@ -742,7 +771,8 @@ public final class SkillRankEffectScaling {
                     new PostureBalanceSettings(postureMovement, evasive, bulwark, adaptive), status,
                     new VitalityBalanceSettings(risingRecovery, lifeSteal, feastReflex, innerSustenance,
                             new VitalityDamageBalanceSettings(hungerWard, staggeredPain, damageCeiling, metabolicConversion, painPurge, adrenaline),
-                            new VitalityWardBalanceSettings(soulWard, deepWard, shatteringWard)),
+                            new VitalityWardBalanceSettings(soulWard, deepWard, shatteringWard),
+                            new VitalityDeathDefianceBalanceSettings(secondWind, spiritWalk)),
                     new MobilityBalanceSettings(runningMomentum, momentumVault, rush, impactControl, chargedJump, doubleJump, vectorJump,
                             essenceWings, fatigueFlight, vectorBoost, untetheredFlight),
                     new GatheringBalanceSettings(toolInstinct, miningMomentum, naturesBoon, oreSight, treasureSense,

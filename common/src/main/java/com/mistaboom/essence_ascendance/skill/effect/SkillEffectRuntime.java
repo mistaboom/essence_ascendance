@@ -50,6 +50,9 @@ public final class SkillEffectRuntime {
         Context context = current(player);
         if (context.runtime.lastGameplayTick != context.now()) {
             context.runtime.lastGameplayTick = context.now();
+            // Centralized targeted status immunity keeps future skill rules on the same native
+            // application/purge path instead of requiring per-skill effect-removal loops.
+            com.mistaboom.essence_ascendance.status.SkillStatusImmunityService.reconcile(context);
             com.mistaboom.essence_ascendance.vitality.VitalityDamageService.tick(context);
             if (!player.isAlive() || player.isRemoved()) return;
             for (SkillEffectHandler handler : SkillEffectRegistry.handlers()) {

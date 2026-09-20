@@ -314,6 +314,9 @@ public final class EquipmentDamageService {
      * percentages apply once before target equipment resistance and vanilla
      * armor, toughness, enchantments and absorption. No extra hurt call. */
     public static float modifyOutgoingSkillDamage(LivingEntity target, DamageSource source, float amount) {
+        amount = com.mistaboom.essence_ascendance.vitality.VitalityDeathDefianceService.modifyOutgoingDamage(source, amount);
+        if (!Float.isFinite(amount)) return 0.0F;
+        if (amount <= 0.0F) return 0.0F;
         Deque<SkillDamageFrame> frames = SKILL_DAMAGE_FRAMES.get();
         SkillDamageFrame frame = frames.peek();
         if (frame == null || frame.target != target || frame.source != source || frame.modified) return amount;

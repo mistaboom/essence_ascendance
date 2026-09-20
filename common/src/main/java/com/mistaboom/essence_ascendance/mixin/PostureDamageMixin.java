@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.mixin;
 
 import com.mistaboom.essence_ascendance.equipment.EquipmentDamageService;
+import com.mistaboom.essence_ascendance.vitality.VitalityDeathDefianceService;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
@@ -15,10 +16,14 @@ public abstract class PostureDamageMixin {
     @Inject(method="hurt", at=@At(value="INVOKE", target="Lnet/minecraft/world/entity/LivingEntity;isDamageSourceBlocked(Lnet/minecraft/world/damagesource/DamageSource;)Z"),
             cancellable=true, require=1, expect=1, allow=1)
     private void essenceAscendance$postureDodge(DamageSource source, float amount, CallbackInfoReturnable<Boolean> result) {
-        if ((Object)this instanceof ServerPlayer player && EquipmentDamageService.tryPostureDodge(player,source,amount)) {
-            if ((Object)this instanceof com.mistaboom.essence_ascendance.posture.NativeDamageCleanup cleanup)
-                cleanup.essenceAscendance$finishDodgedDamage(source);
-            result.setReturnValue(false);
+        if ((Object)this instanceof ServerPlayer player) {
+            boolean spiritWalk = VitalityDeathDefianceService.blocksIncomingDamage(player, source);
+            boolean postureDodge = !spiritWalk && EquipmentDamageService.tryPostureDodge(player, source, amount);
+            if (spiritWalk || postureDodge) {
+                if ((Object)this instanceof com.mistaboom.essence_ascendance.posture.NativeDamageCleanup cleanup)
+                    cleanup.essenceAscendance$finishDodgedDamage(source);
+                result.setReturnValue(false);
+            }
         }
     }
 }

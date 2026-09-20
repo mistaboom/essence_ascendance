@@ -21,6 +21,7 @@ public final class SkillEffectRegistry {
                     VitalitySustenanceEffects.handlers(),
                     VitalityDamageEffects.handlers(),
                     VitalityWardEffects.handlers(),
+                    VitalityDeathDefianceEffects.handlers(),
                     MobilityMomentumEffects.handlers(),
                     MobilityTraversalEffects.handlers(),
                     MobilityJumpEffects.handlers(),

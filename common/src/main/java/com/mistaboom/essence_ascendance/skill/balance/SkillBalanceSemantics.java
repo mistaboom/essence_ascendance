@@ -249,7 +249,7 @@ public final class SkillBalanceSemantics {
         all.add(skill(SkillIds.SHATTERING_WARD, area(CROWD_CONTROL, .4, 3), flat(REGENERATION, .45))
                 .actions(Action.TAKE_DAMAGE).availability(.3, .8).area(4)
                 .condition("Final Soul Ward heart must break; no reward per absorbed damage tick"));
-        all.add(skill(SkillIds.SECOND_WIND, capability(BURST_SURVIVAL, 1), flat(REGENERATION, .4))
+        all.add(skill(SkillIds.SECOND_WIND, capability(BURST_SURVIVAL, 1), flat(REGENERATION, .4), multi(BURST_DAMAGE, .2))
                 .actions(Action.LETHAL_DAMAGE).availability(.15, 1).timing(120, 0).risk(.5)
                 .condition("Lethal interception with cooldown; recovery is not permanent invulnerability"));
         all.add(skill(SkillIds.SPIRIT_WALK, capability(BURST_SURVIVAL, 1), capability(CONVENIENCE, .4))
@@ -344,7 +344,7 @@ public final class SkillBalanceSemantics {
         all.add(skill(SkillIds.HUNTERS_LEDGER, flat(INFORMATION, .4))
                 .availability(.8, .95).condition("Threat Sense extension adds persistent outline and observed health/armor information"));
         all.add(skill(SkillIds.WAYLIGHT, capability(INFORMATION, .5), flat(CONVENIENCE, .2))
-                .availability(.7, 1).area(8).condition("Personal visibility and local spawnable-block guidance"));
+                .availability(.7, 1).area(8).condition("Personal visibility, binary Blindness/Darkness immunity, and local spawnable-block guidance"));
         all.add(skill(SkillIds.RESTFUL_MENDING, flat(REPAIR, .55))
                 .equipment(Equipment.REPAIRABLE_GEAR).actions(Action.REST).availability(.55, 1)
                 .condition("Damageable carried gear must remain unused; repair pauses on durability use"));

@@ -54,6 +54,17 @@ public final class StatusInterceptionService {
         state.entityId = context.player().getId(); state.dimension = dimension; state.lastTick = context.now();
         return state;
     }
+    /** Shared native harmful-effect purge used by recovery/death-defiance mechanics. */
+    public static int purgeHarmful(ServerPlayer player) {
+        List<Holder<MobEffect>> harmful = new ArrayList<>();
+        for (Holder<MobEffect> effect : new ArrayList<>(player.getActiveEffectsMap().keySet())) {
+            if (effect.value().getCategory() == MobEffectCategory.HARMFUL) harmful.add(effect);
+        }
+        int removed = 0;
+        for (Holder<MobEffect> effect : harmful) if (player.removeEffect(effect)) removed++;
+        return removed;
+    }
+
     public static Optional<StatusOutcome> lastOutcome(ServerPlayer player) {
         var context = SkillEffectRuntime.context(player);
         ResourceLocation id = selected(context);
@@ -102,6 +113,7 @@ public final class StatusInterceptionService {
         Restoration restoration = RESTORING.get();
         if (!(target instanceof ServerPlayer defender) || !active(defender)
                 || restoration != null && restoration.player == target && restoration.instance == incoming) return nativeApply.getAsBoolean();
+        if (SkillStatusImmunityService.blocks(defender, incoming.getEffect())) return false;
         var context = SkillEffectRuntime.context(defender);
         ResourceLocation selected = selected(context);
         if (selected == null) return nativeApply.getAsBoolean();

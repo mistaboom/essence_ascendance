@@ -5,19 +5,27 @@ import java.util.Objects;
 /** Server-generated Vitality mechanics. Fractions use 1 for 100%; food uses native food points. */
 public record VitalityBalanceSettings(RisingRecovery risingRecovery, LifeSteal lifeSteal,
                                      FeastReflex feastReflex, InnerSustenance innerSustenance,
-                                     VitalityDamageBalanceSettings damage, VitalityWardBalanceSettings wards) {
+                                     VitalityDamageBalanceSettings damage, VitalityWardBalanceSettings wards,
+                                     VitalityDeathDefianceBalanceSettings deathDefiance) {
     /** Reference-only convenience constructor retained for existing invariant fixtures. */
     public VitalityBalanceSettings(RisingRecovery recovery, LifeSteal steal, FeastReflex feast, InnerSustenance inner) {
         this(recovery, steal, feast, inner, VitalityDamageBalanceSettings.defaults());
     }
-    /** Reference-only fixture constructor; generated JSON must contain both complete subtrees. */
+    /** Reference-only fixture constructor; generated JSON must contain all complete Vitality subtrees. */
     public VitalityBalanceSettings(RisingRecovery recovery, LifeSteal steal, FeastReflex feast, InnerSustenance inner,
                                   VitalityDamageBalanceSettings damage) {
-        this(recovery, steal, feast, inner, damage, VitalityWardBalanceSettings.defaults());
+        this(recovery, steal, feast, inner, damage, VitalityWardBalanceSettings.defaults(),
+                VitalityDeathDefianceBalanceSettings.defaults());
+    }
+    /** Reference-only fixture constructor; generated JSON must contain the death-defiance subtree too. */
+    public VitalityBalanceSettings(RisingRecovery recovery, LifeSteal steal, FeastReflex feast, InnerSustenance inner,
+                                  VitalityDamageBalanceSettings damage, VitalityWardBalanceSettings wards) {
+        this(recovery, steal, feast, inner, damage, wards, VitalityDeathDefianceBalanceSettings.defaults());
     }
     public VitalityBalanceSettings {
         Objects.requireNonNull(wards, "Missing Vitality ward balance; rebuild generated balance");
         Objects.requireNonNull(damage, "Missing Vitality damage routing balance; rebuild generated balance");
+        Objects.requireNonNull(deathDefiance, "Missing Vitality death-defiance balance; rebuild generated balance");
         Objects.requireNonNull(risingRecovery, "Missing Rising Recovery balance; rebuild generated balance");
         Objects.requireNonNull(lifeSteal, "Missing Life Steal balance; rebuild generated balance");
         Objects.requireNonNull(feastReflex, "Missing Feast Reflex balance; rebuild generated balance");
@@ -58,6 +66,7 @@ public record VitalityBalanceSettings(RisingRecovery risingRecovery, LifeSteal l
     public void validate() {
         damage.validate();
         wards.validate();
+        deathDefiance.validate();
         new RisingRecovery(risingRecovery.maxSpeedBonus(), risingRecovery.recoveryCurveExponent());
         new LifeSteal(lifeSteal.baseHealingFraction(), lifeSteal.perHitHealingFraction(), lifeSteal.maxChainHits(), lifeSteal.chainTimeoutTicks());
         new FeastReflex(feastReflex.useDurationMultiplier());

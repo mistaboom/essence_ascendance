@@ -74,6 +74,9 @@ private static final String NEXUS_REVISION_TAG =
     private static final String FRACTIONAL_RESOURCE_COST_CARRY_TAG =
             "fractional_resource_cost_carry";
 
+    private static final String ABILITY_COOLDOWNS_TAG =
+            "ability_cooldowns";
+
 
     private final Map<ResourceLocation, Long> availableEssence =
             new LinkedHashMap<>();
@@ -128,6 +131,10 @@ private static final String NEXUS_REVISION_TAG =
      * only when gameplay consumes a resource and is never edited in the UI.
      */
     private final Map<ResourceLocation, Double> fractionalResourceCostCarry =
+            new LinkedHashMap<>();
+
+    /* Persistent game-time deadlines for reusable ability/choice-group cooldown channels. */
+    private final Map<ResourceLocation, Long> abilityCooldowns =
             new LinkedHashMap<>();
 
 
@@ -608,6 +615,7 @@ private static final String NEXUS_REVISION_TAG =
         crucibleReservoir.clear();
         ownedSkills.clear();
         loadoutSelections.clear();
+        abilityCooldowns.clear();
         completedMilestones.clear();
         attunement = new com.mistaboom.essence_ascendance.attunement.AttunementLedger();
         currentTierId = AscendanceTiers.LATENT.id();
@@ -827,9 +835,10 @@ private static final String NEXUS_REVISION_TAG =
     /** Development-only reset of both ownership receipts and their selections. */
     public int clearAllSkillsForAdmin() {
         int removed = ownedSkills.size();
-        if (removed == 0 && loadoutSelections.isEmpty()) return 0;
+        if (removed == 0 && loadoutSelections.isEmpty() && abilityCooldowns.isEmpty()) return 0;
         ownedSkills.clear();
         loadoutSelections.clear();
+        abilityCooldowns.clear();
         bumpRevision();
         return removed;
     }
@@ -977,6 +986,31 @@ private static final String NEXUS_REVISION_TAG =
         return true;
     }
 
+
+    /*
+     * ============================================================
+     * PERSISTENT ABILITY COOLDOWNS
+     * ============================================================
+     */
+
+    public long getAbilityCooldownUntil(ResourceLocation channelId) {
+        return abilityCooldowns.getOrDefault(Objects.requireNonNull(channelId, "Cooldown channel ID cannot be null"), 0L);
+    }
+
+    /** Updates gameplay cooldown state without changing the Nexus optimistic-concurrency revision. */
+    public boolean setAbilityCooldownUntil(ResourceLocation channelId, long gameTime) {
+        Objects.requireNonNull(channelId, "Cooldown channel ID cannot be null");
+        if (gameTime < 0) throw new IllegalArgumentException("Ability cooldown game time cannot be negative");
+        long previous = getAbilityCooldownUntil(channelId);
+        if (previous == gameTime) return false;
+        if (gameTime == 0) abilityCooldowns.remove(channelId);
+        else abilityCooldowns.put(channelId, gameTime);
+        return true;
+    }
+
+    public Map<ResourceLocation, Long> getAllAbilityCooldowns() {
+        return Collections.unmodifiableMap(abilityCooldowns);
+    }
 
     /*
      * ============================================================
@@ -1259,6 +1293,12 @@ private static final String NEXUS_REVISION_TAG =
                 FRACTIONAL_RESOURCE_COST_CARRY_TAG,
                 resourceCostCarryTag
         );
+
+        CompoundTag cooldownTag = new CompoundTag();
+        for (Map.Entry<ResourceLocation, Long> entry : abilityCooldowns.entrySet()) {
+            if (entry.getValue() > 0) cooldownTag.putLong(entry.getKey().toString(), entry.getValue());
+        }
+        root.put(ABILITY_COOLDOWNS_TAG, cooldownTag);
 
 
         /*
@@ -1634,6 +1674,20 @@ private static final String NEXUS_REVISION_TAG =
                         channelId,
                         carry
                 );
+            }
+        }
+
+        if (root.contains(ABILITY_COOLDOWNS_TAG, Tag.TAG_COMPOUND)) {
+            CompoundTag cooldownTag = root.getCompound(ABILITY_COOLDOWNS_TAG);
+            for (String key : cooldownTag.getAllKeys()) {
+                ResourceLocation channelId = ResourceLocation.tryParse(key);
+                long readyAt = cooldownTag.getLong(key);
+                if (channelId == null || readyAt <= 0) {
+                    EssenceAscendance.LOGGER.warn(
+                            "Ignoring invalid ability cooldown '{}' in Essence Ascendance player data", key);
+                    continue;
+                }
+                data.abilityCooldowns.put(channelId, readyAt);
             }
         }
 

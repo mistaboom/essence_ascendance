@@ -443,6 +443,7 @@ final class SkillEffectDiagnostics {
                 "currentTierId", id,
                 "nexusRevision", "long"));
         expected.put("vitalityDamage", "com.mistaboom.essence_ascendance.vitality.VitalityDamageLedger");
+        expected.put("abilityCooldowns", balances);
         expected.put("projectileLife", "java.util.UUID");
         expected.put("dormantGuidebookReceived", "boolean");
         expected.put("fractionalResourceCostCarry", "java.util.Map<" + id + ", java.lang.Double>");

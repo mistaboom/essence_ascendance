@@ -27,6 +27,13 @@ public final class VitalityDamageService {
             dirty(player);
     }
     public static void dirty(ServerPlayer player) { EssenceSavedData.get(player.server).setDirty(); }
+    /** Cancels only queued Staggered Pain obligations; Trauma and other Vitality state are unrelated. */
+    public static double clearDelayedDamage(ServerPlayer player) {
+        var delayed = ledger(player).delayed;
+        double cleared = delayed.total();
+        if (cleared > 0) { delayed.clear(); dirty(player); }
+        return cleared;
+    }
     public static float route(ServerPlayer player, DamageSource source, float amount) {
         if (!Float.isFinite(amount) || amount <= 0 || !player.isAlive() || player.isRemoved()
                 || player.isSpectator() || player.getAbilities().invulnerable || DeferredDamageService.paying(player)
@@ -84,6 +91,7 @@ public final class VitalityDamageService {
         long now = player.server.overworld().getGameTime();
         if (ledger.lastOnlineTick == now) return;
         ledger.lastOnlineTick = now;
+        VitalityDeathDefianceService.tick(context);
         if (!ledger.delayed.isEmpty()) {
             ledger.delayed.settleAmount(payment -> DeferredDamageService.pay(player, payment));
             dirty(player);

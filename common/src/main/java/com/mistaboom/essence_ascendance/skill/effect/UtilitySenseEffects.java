@@ -91,7 +91,7 @@ public final class UtilitySenseEffects {
             var marker = UtilitySenseService.waylightMarker(context);
             return List.of("Search radius=" + context.settings().utility().waylight().searchRadiusBlocks()
                             + "; candidate=" + (marker == null ? "none" : marker.feet().toShortString()),
-                    "Chooses the nearest naturally spawnable ordinary hostile-mob footing using native placement, collision, and dimension light gates; Night Vision is client-only presentation and does not modify server potion state.");
+                    "Chooses the nearest naturally spawnable ordinary hostile-mob footing using native placement, collision, and dimension light gates; Night Vision remains client-only presentation, while native Blindness and Darkness applications are rejected server-side and pre-existing instances are purged while Waylight is effective.");
         }
     }
 }
