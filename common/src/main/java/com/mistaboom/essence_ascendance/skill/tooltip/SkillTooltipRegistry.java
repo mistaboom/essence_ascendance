@@ -288,6 +288,26 @@ public final class SkillTooltipRegistry {
                         pct(s -> s.utility().potionRelay().durationFraction()),
                         n(s -> s.utility().potionRelay().maximumTargets())),
                 line("skill.essence_ascendance.potion_relay.description.resolved.1"));
+        define(SkillIds.SANCTUARY,
+                line("skill.essence_ascendance.sanctuary.description.resolved",
+                        n(s -> s.utility().sanctuary().radiusBlocks()),
+                        sec(s -> s.utility().sanctuary().disengageDelayTicks())),
+                line("skill.essence_ascendance.sanctuary.description.resolved.1"));
+        define(SkillIds.INDUSTRIOUS_PRESENCE,
+                line("skill.essence_ascendance.industrious_presence.description.resolved",
+                        n(s -> s.utility().industriousPresence().radiusBlocks()),
+                        n(s -> s.utility().industriousPresence().processingSpeedMultiplier())),
+                line("skill.essence_ascendance.industrious_presence.description.resolved.1"));
+        define(SkillIds.CONTAINMENT_FIELD,
+                line("skill.essence_ascendance.containment_field.description.resolved",
+                        n(s -> s.utility().containmentField().radiusBlocks())),
+                line("skill.essence_ascendance.containment_field.description.resolved.1"));
+        define(SkillIds.FRIENDLY_FIRE_WARD,
+                line("skill.essence_ascendance.friendly_fire_ward.description.resolved"),
+                line("skill.essence_ascendance.friendly_fire_ward.description.resolved.1"));
+        define(SkillIds.ENCHANTING_INSIGHT,
+                line("skill.essence_ascendance.enchanting_insight.description.resolved"),
+                line("skill.essence_ascendance.enchanting_insight.description.resolved.1"));
         define(SkillIds.ADRENALINE,
                 line("skill.essence_ascendance.adrenaline.description.resolved" , pct(s -> s.vitality().damage().adrenaline().triggerHealthLossFraction()), sec(s -> s.vitality().damage().adrenaline().durationTicks())),
                 line("skill.essence_ascendance.adrenaline.description.resolved.1" , pct(s -> s.vitality().damage().adrenaline().movementSpeedBonus()), pct(s -> s.vitality().damage().adrenaline().attackSpeedBonus()), pct(s -> s.vitality().damage().adrenaline().knockbackResistance())));

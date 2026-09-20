@@ -156,7 +156,7 @@ public final class SkillEffectRuntime {
         if (!player.isAlive() || player.isRemoved() || !Double.isFinite(damageDealt) || damageDealt <= 0) return;
         Context context = current(player);
         if (context.runtime.attackIdentity != runtimeAtDamage || !context.runtime.effective.equals(effectiveAtDamage)) return;
-        RecentHostileCombat.acceptedDamage(player, target);
+        RecentHostileCombat.acceptedOutgoingDamage(player, target);
         if (!directWeapon) return;
         AttackResultContext result = AttackResultContext.primary(player, target, category, source, damageDealt);
         for (SkillEffectHandler handler : SkillEffectRegistry.handlers()) {

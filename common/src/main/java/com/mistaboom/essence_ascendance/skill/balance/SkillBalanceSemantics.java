@@ -363,8 +363,10 @@ public final class SkillBalanceSemantics {
         all.add(skill(SkillIds.POTION_RELAY, area(CONVENIENCE, .45, 3))
                 .actions(Action.DRINK).availability(.4, .85).cost(.2).area(8)
                 .condition("Shares reduced beneficial effect duration with nearby allies; solo target count is one"));
+        // Vanilla natural spawning already excludes the nearest 24 blocks. Sanctuary keeps the original
+        // 16-block design as an added protected ring, so its generated effective radius starts at 40.
         all.add(skill(SkillIds.SANCTUARY, capability(CONVENIENCE, .8))
-                .availability(.8, 1).area(16).condition("Enabled toggle, beacon milestone; prevents nearby natural hostile spawns outside combat"));
+                .availability(.8, 1).area(40).condition("Enabled toggle, beacon milestone; extends the natural hostile-spawn exclusion and persistently pacifies disengaged hostiles until the player resumes hostile combat"));
         all.add(skill(SkillIds.INDUSTRIOUS_PRESENCE, multi(THROUGHPUT, .65), capability(AUTOMATION_INTERACTION, .6))
                 .actions(Action.PROCESS).availability(.65, 1).area(8)
                 .condition("Enabled proximity processing toggle; finite loaded block work and economy throughput budget"));

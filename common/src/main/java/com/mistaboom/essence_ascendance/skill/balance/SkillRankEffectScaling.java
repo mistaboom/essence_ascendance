@@ -292,6 +292,12 @@ public final class SkillRankEffectScaling {
                 scaleOdds(p.alchemicalAmplification.maximumBonusFraction(), f), p.alchemicalAmplification.diminishingWindowTicks()));
         register(SkillIds.POTION_RELAY, (p, f) -> p.potionRelay = new UtilityBalanceSettings.PotionRelay(
                 p.potionRelay.radiusBlocks(), scaleOdds(p.potionRelay.durationFraction(), f), p.potionRelay.maximumTargets()));
+        register(SkillIds.SANCTUARY, (p, f) -> p.sanctuary = new UtilityBalanceSettings.Sanctuary(
+                scale(p.sanctuary.radiusBlocks(), f, 128), p.sanctuary.disengageDelayTicks()));
+        register(SkillIds.INDUSTRIOUS_PRESENCE, (p, f) -> p.industriousPresence = new UtilityBalanceSettings.IndustriousPresence(
+                p.industriousPresence.radiusBlocks(), 1.0 + scale(p.industriousPresence.processingSpeedMultiplier() - 1.0, f, 127)));
+        register(SkillIds.CONTAINMENT_FIELD, (p, f) -> p.containmentField = new UtilityBalanceSettings.ContainmentField(
+                scale(p.containmentField.radiusBlocks(), f, 128)));
         // Staggered Pain is a binary timing capability, not an invented damage-reduction multiplier.
         // Pure State is binary. Its capability pressure remains one at every
         // projected rank; no inert numeric rule pretends to improve immunity.
@@ -464,6 +470,13 @@ public final class SkillRankEffectScaling {
                 / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.RESOURCE_CONSUMPTION));
         if (id.equals(SkillIds.POTION_RELAY)) return inverseOdds(utility.potionRelay().durationFraction())
                 / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.CONVENIENCE));
+        if (id.equals(SkillIds.SANCTUARY)) return utility.sanctuary().radiusBlocks()
+                / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).areaRadiusBlocks());
+        if (id.equals(SkillIds.INDUSTRIOUS_PRESENCE)) return (utility.industriousPresence().processingSpeedMultiplier() - 1.0)
+                / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.THROUGHPUT));
+        if (id.equals(SkillIds.CONTAINMENT_FIELD)) return utility.containmentField().radiusBlocks()
+                / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).areaRadiusBlocks());
+        if (id.equals(SkillIds.FRIENDLY_FIRE_WARD) || id.equals(SkillIds.ENCHANTING_INSIGHT)) return 1;
         return offenseScale;
     }
 
@@ -597,6 +610,9 @@ public final class SkillRankEffectScaling {
         public UtilityBalanceSettings.BondedCompanion bondedCompanion;
         public UtilityBalanceSettings.AlchemicalAmplification alchemicalAmplification;
         public UtilityBalanceSettings.PotionRelay potionRelay;
+        public UtilityBalanceSettings.Sanctuary sanctuary;
+        public UtilityBalanceSettings.IndustriousPresence industriousPresence;
+        public UtilityBalanceSettings.ContainmentField containmentField;
         public GuardBalanceSettings.Mobility mobility;
         public GuardBalanceSettings.Ram ram;
         public GuardBalanceSettings.Ward ward;
@@ -655,7 +671,8 @@ public final class SkillRankEffectScaling {
             restfulMending=v.utility().restfulMending(); metabolicMending=v.utility().metabolicMending();
             masterworkTempering=v.utility().masterworkTempering(); villagePatron=v.utility().villagePatron();
             bondedCompanion=v.utility().bondedCompanion(); alchemicalAmplification=v.utility().alchemicalAmplification();
-            potionRelay=v.utility().potionRelay();
+            potionRelay=v.utility().potionRelay(); sanctuary=v.utility().sanctuary();
+            industriousPresence=v.utility().industriousPresence(); containmentField=v.utility().containmentField();
 
         }
         private SkillEffectBalanceSettings build() {
@@ -670,7 +687,8 @@ public final class SkillRankEffectScaling {
                     new GatheringBalanceSettings(toolInstinct, miningMomentum, naturesBoon, oreSight, treasureSense,
                             huntersStudy, essenceBloom, verdantStride, herdkeeper, animalGift, fishingInstinct),
                     new UtilityBalanceSettings(threatSense, huntersLedger, waylight, restfulMending,
-                            metabolicMending, masterworkTempering, villagePatron, bondedCompanion, alchemicalAmplification, potionRelay));
+                            metabolicMending, masterworkTempering, villagePatron, bondedCompanion, alchemicalAmplification, potionRelay,
+                            sanctuary, industriousPresence, containmentField));
         }
     }
 }

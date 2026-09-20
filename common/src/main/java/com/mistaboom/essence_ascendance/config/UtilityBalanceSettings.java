@@ -13,7 +13,10 @@ public record UtilityBalanceSettings(
         VillagePatron villagePatron,
         BondedCompanion bondedCompanion,
         AlchemicalAmplification alchemicalAmplification,
-        PotionRelay potionRelay
+        PotionRelay potionRelay,
+        Sanctuary sanctuary,
+        IndustriousPresence industriousPresence,
+        ContainmentField containmentField
 ) {
     public UtilityBalanceSettings {
         Objects.requireNonNull(threatSense, "Missing Threat Sense balance; rebuild generated balance");
@@ -26,6 +29,9 @@ public record UtilityBalanceSettings(
         Objects.requireNonNull(bondedCompanion, "Missing Bonded Companion balance; rebuild generated balance");
         Objects.requireNonNull(alchemicalAmplification, "Missing Alchemical Amplification balance; rebuild generated balance");
         Objects.requireNonNull(potionRelay, "Missing Potion Relay balance; rebuild generated balance");
+        Objects.requireNonNull(sanctuary, "Missing Sanctuary balance; rebuild generated balance");
+        Objects.requireNonNull(industriousPresence, "Missing Industrious Presence balance; rebuild generated balance");
+        Objects.requireNonNull(containmentField, "Missing Containment Field balance; rebuild generated balance");
     }
 
     /** Server-authoritative radius for threat acquisition and danger preview. */
@@ -103,6 +109,30 @@ public record UtilityBalanceSettings(
         }
     }
 
+
+    /** Sanctuary radius plus the generated accepted-hostile-combat quiet time before targets disengage. */
+    public record Sanctuary(double radiusBlocks, int disengageDelayTicks) {
+        public Sanctuary {
+            number("sanctuary.radiusBlocks", radiusBlocks, 0, 128);
+            integer("sanctuary.disengageDelayTicks", disengageDelayTicks, 1, 72_000);
+        }
+    }
+
+    /** Proximity radius and native block-entity tick throughput multiplier. */
+    public record IndustriousPresence(double radiusBlocks, double processingSpeedMultiplier) {
+        public IndustriousPresence {
+            number("industriousPresence.radiusBlocks", radiusBlocks, 0, 128);
+            number("industriousPresence.processingSpeedMultiplier", processingSpeedMultiplier, 1, 128);
+        }
+    }
+
+    /** Radius around the player in which an explosion's center is contained. */
+    public record ContainmentField(double radiusBlocks) {
+        public ContainmentField {
+            number("containmentField.radiusBlocks", radiusBlocks, 0, 128);
+        }
+    }
+
     /** Neutral schema fixture only. Gameplay requires the generated profile. */
     public static UtilityBalanceSettings defaults() {
         return new UtilityBalanceSettings(
@@ -115,7 +145,10 @@ public record UtilityBalanceSettings(
                 new VillagePatron(0, 0, 1),
                 new BondedCompanion(0, 0),
                 new AlchemicalAmplification(0, 1),
-                new PotionRelay(0, 0, 1));
+                new PotionRelay(0, 0, 1),
+                new Sanctuary(0, 1),
+                new IndustriousPresence(0, 1),
+                new ContainmentField(0));
     }
 
     public void validate() {
@@ -130,6 +163,9 @@ public record UtilityBalanceSettings(
         new BondedCompanion(bondedCompanion.statBonusFraction(), bondedCompanion.catchupDistanceBlocks());
         new AlchemicalAmplification(alchemicalAmplification.maximumBonusFraction(), alchemicalAmplification.diminishingWindowTicks());
         new PotionRelay(potionRelay.radiusBlocks(), potionRelay.durationFraction(), potionRelay.maximumTargets());
+        new Sanctuary(sanctuary.radiusBlocks(), sanctuary.disengageDelayTicks());
+        new IndustriousPresence(industriousPresence.radiusBlocks(), industriousPresence.processingSpeedMultiplier());
+        new ContainmentField(containmentField.radiusBlocks());
     }
 
     private static void integer(String field, int value, int minimum, int maximum) {

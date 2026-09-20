@@ -279,7 +279,7 @@ public final class EquipmentDamageService {
             double loss = frame.healthLost + frame.absorptionLost;
             if (accepted && Double.isFinite(loss) && loss > 0) {
                 if (source.getEntity() instanceof ServerPlayer responsible)
-                    com.mistaboom.essence_ascendance.skill.effect.RecentHostileCombat.acceptedDamage(responsible, target);
+                    com.mistaboom.essence_ascendance.skill.effect.RecentHostileCombat.acceptedOutgoingDamage(responsible, target);
                 if (target instanceof ServerPlayer player)
                     SkillEffectRuntime.onAcceptedDamage(player, source, frame.healthLost, frame.absorptionLost);
                 if (!frame.nested && !isReflectionInProgress() && SECONDARY_SKILL_DEPTH.get() == 0 && frame.acceptedOwner != null)

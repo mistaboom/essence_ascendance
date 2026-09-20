@@ -19,6 +19,9 @@ final class UtilityBalanceGenerator {
         var village = SkillBalanceSemantics.require(SkillIds.VILLAGE_PATRON);
         var bonded = SkillBalanceSemantics.require(SkillIds.BONDED_COMPANION);
         var relay = SkillBalanceSemantics.require(SkillIds.POTION_RELAY);
+        var sanctuary = SkillBalanceSemantics.require(SkillIds.SANCTUARY);
+        var industrious = SkillBalanceSemantics.require(SkillIds.INDUSTRIOUS_PRESENCE);
+        var containment = SkillBalanceSemantics.require(SkillIds.CONTAINMENT_FIELD);
         double window = settings.generation().survivalWindowSeconds();
         double ledgerInformation = power(settings, SkillIds.HUNTERS_LEDGER, CapabilityAxis.INFORMATION);
 
@@ -53,6 +56,12 @@ final class UtilityBalanceGenerator {
         double relayDuration = odds(power(settings, SkillIds.POTION_RELAY, CapabilityAxis.CONVENIENCE));
         int relayTargets = relay.contributions().stream().mapToInt(SkillBalanceSemantics.Contribution::targets).max().orElse(1);
 
+        double sanctuaryConvenience = power(settings, SkillIds.SANCTUARY, CapabilityAxis.CONVENIENCE);
+        int sanctuaryDisengageTicks = ticks(window / Math.max(Math.ulp(1.0), 1.0 + Math.max(0, sanctuaryConvenience)));
+
+        double industriousThroughput = power(settings, SkillIds.INDUSTRIOUS_PRESENCE, CapabilityAxis.THROUGHPUT);
+        double industriousMultiplier = 1.0 + Math.max(0, industriousThroughput);
+
         return new UtilityBalanceSettings(
                 new UtilityBalanceSettings.ThreatSense(Math.clamp(threat.rangeBlocks(), 0, 128)),
                 new UtilityBalanceSettings.HuntersLedger(memoryTicks),
@@ -77,7 +86,15 @@ final class UtilityBalanceGenerator {
                 new UtilityBalanceSettings.PotionRelay(
                         Math.clamp(relay.areaRadiusBlocks(), 0, 128),
                         Math.clamp(relayDuration, 0, 1),
-                        relayTargets));
+                        relayTargets),
+                new UtilityBalanceSettings.Sanctuary(
+                        Math.clamp(sanctuary.areaRadiusBlocks(), 0, 128),
+                        sanctuaryDisengageTicks),
+                new UtilityBalanceSettings.IndustriousPresence(
+                        Math.clamp(industrious.areaRadiusBlocks(), 0, 128),
+                        Math.clamp(industriousMultiplier, 1, 128)),
+                new UtilityBalanceSettings.ContainmentField(
+                        Math.clamp(containment.areaRadiusBlocks(), 0, 128)));
     }
 
     private static double power(BalanceSettings settings, net.minecraft.resources.ResourceLocation skill,

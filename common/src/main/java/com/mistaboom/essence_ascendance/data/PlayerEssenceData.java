@@ -1484,7 +1484,8 @@ private static final String NEXUS_REVISION_TAG =
                     continue;
                 }
 
-                if (SkillRegistry.get(skillId).isEmpty()) {
+                SkillDefinition loadedSkill = SkillRegistry.get(skillId).orElse(null);
+                if (loadedSkill == null) {
                     EssenceAscendance.LOGGER.warn(
                             "Discarding saved skill '{}' because it is not present in the current skill catalog",
                             skillId
@@ -1519,13 +1520,25 @@ private static final String NEXUS_REVISION_TAG =
                         );
 
                 long[] rankCosts = purchaseTag.getLongArray(SKILL_RANK_COSTS_TAG);
-                if (paidEssenceId == null || rankCosts.length == 0 || rankCosts.length > SkillPurchase.MAX_RANKS) {
+                if (paidEssenceId == null || rankCosts.length == 0
+                        || rankCosts.length > SkillPurchase.MAX_RANKS) {
                     throw new IllegalArgumentException("Malformed rank receipt for " + skillId);
+                }
+                if (rankCosts.length > loadedSkill.maximumRank()) {
+                    EssenceAscendance.LOGGER.warn(
+                            "Discarding saved skill '{}' at rank {} because the current catalog maximum rank is {}",
+                            skillId,
+                            rankCosts.length,
+                            loadedSkill.maximumRank()
+                    );
+                    continue;
                 }
                 data.ownedSkills.put(skillId, new SkillPurchase(paidEssenceId,
                         java.util.Arrays.stream(rankCosts).boxed().toList()));
             }
         }
+
+        discardLoadedPrerequisiteOrphans(data);
 
 
         /*
@@ -1625,6 +1638,35 @@ private static final String NEXUS_REVISION_TAG =
 
 
         return data;
+    }
+
+
+    private static void discardLoadedPrerequisiteOrphans(
+            PlayerEssenceData data
+    ) {
+        while (true) {
+            Set<ResourceLocation> invalid =
+                    SkillRegistry.invalidPrerequisiteOwners(data.getSkillRanks());
+            if (invalid.isEmpty()) {
+                return;
+            }
+
+            boolean removedAny = false;
+            for (ResourceLocation skillId : invalid) {
+                if (data.ownedSkills.remove(skillId) == null) {
+                    continue;
+                }
+                removedAny = true;
+                EssenceAscendance.LOGGER.warn(
+                        "Discarding saved skill '{}' because its current-catalog prerequisite ownership is incomplete",
+                        skillId
+                );
+            }
+
+            if (!removedAny) {
+                return;
+            }
+        }
     }
 
 

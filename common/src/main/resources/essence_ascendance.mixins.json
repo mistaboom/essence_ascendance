@@ -8,6 +8,8 @@
     "AttunementMovementInputMixin",
     "AnvilScreenCostMixin",
     "EnchantmentScreenCostMixin",
+    "AbstractContainerScreenPositionAccess",
+    "EnchantmentScreenInsightMixin",
     "CasterAttackIndicatorMixin",
     "CasterCooldownOverlayMixin",
     "CasterUseInputMixin",
@@ -98,7 +100,14 @@
     "GatheringFishingHookMixin",
     "VerdantFarmlandMixin",
     "VerdantTurtleEggMixin",
-    "CreeperExplosionAccess"
+    "CreeperExplosionAccess",
+    "NaturalSpawnerSanctuaryMixin",
+    "MobSanctuaryTargetMixin",
+    "ProcessingBlockEntityTickMixin",
+    "ContainmentExplosionMixin",
+    "FriendlyFireWardMixin",
+    "EnchantmentMenuInsightAccess",
+    "EnchantmentMenuInsightMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -32,6 +32,8 @@ public final class SkillEffectRegistry {
                     UtilitySenseEffects.handlers(),
                     UtilityMaintenanceEffects.handlers(),
                     UtilitySocialAlchemyEffects.handlers(),
+                    UtilityWorldEffects.handlers(),
+                    UtilityInteractionEffects.handlers(),
                     java.util.List.<SkillEffectHandler>of(
                             new PostureHandler(com.mistaboom.essence_ascendance.skill.SkillIds.EVASIVE_CURRENT),
                             new PostureHandler(com.mistaboom.essence_ascendance.skill.SkillIds.BULWARK_STANCE),

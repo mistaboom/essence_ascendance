@@ -117,6 +117,64 @@ public final class SkillRegistry {
     }
 
     /**
+     * Finds owned catalog skills whose paid rank no longer has all required
+     * prerequisite ranks. This is intentionally ownership-only: activation and
+     * choice state are separate concerns. Unknown IDs and impossible saved ranks
+     * are also treated as invalid ownership entries.
+     */
+    public static Set<ResourceLocation> invalidPrerequisiteOwners(
+            Map<ResourceLocation, Integer> ownedRanks
+    ) {
+        Objects.requireNonNull(ownedRanks, "Owned skill ranks cannot be null");
+        Set<ResourceLocation> invalid = new LinkedHashSet<>();
+
+        for (Map.Entry<ResourceLocation, Integer> entry : ownedRanks.entrySet()) {
+            ResourceLocation skillId = entry.getKey();
+            Integer rank = entry.getValue();
+            if (skillId == null || rank == null) {
+                continue;
+            }
+
+            SkillDefinition skill = CATALOG.skillsById().get(skillId);
+            if (skill == null || rank < 1 || rank > skill.maximumRank()) {
+                invalid.add(skillId);
+                continue;
+            }
+
+            for (Map.Entry<ResourceLocation, Integer> prerequisite :
+                    skill.prerequisiteRanks(rank).entrySet()) {
+                if (ownedRanks.getOrDefault(prerequisite.getKey(), 0)
+                        < prerequisite.getValue()) {
+                    invalid.add(skillId);
+                    break;
+                }
+            }
+        }
+
+        return Set.copyOf(invalid);
+    }
+
+    /**
+     * Returns true only when the proposed ownership map creates a prerequisite
+     * violation that was not already present in the authoritative baseline.
+     * This keeps a pre-existing development-save inconsistency from poisoning an
+     * otherwise unrelated Nexus transaction while still preventing a refund or
+     * purchase from introducing a new broken dependency.
+     */
+    public static boolean introducesPrerequisiteViolation(
+            Map<ResourceLocation, Integer> authoritativeRanks,
+            Map<ResourceLocation, Integer> projectedRanks
+    ) {
+        Set<ResourceLocation> existing = invalidPrerequisiteOwners(authoritativeRanks);
+        for (ResourceLocation skillId : invalidPrerequisiteOwners(projectedRanks)) {
+            if (!existing.contains(skillId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Returns requested skills in prerequisite-first order. Missing catalog
      * IDs are rejected. Prerequisites outside the requested set are omitted.
      */

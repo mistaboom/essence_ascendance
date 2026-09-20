@@ -117,7 +117,10 @@ public final class AscendanceNexusTransactionService {
             targetInvestments.clear(); targetInvestments.putAll(bonusPlan.investments());
             currentBonusByEssence.putAll(bonusPlan.currentCategoryTotals());
             projectedBonusByEssence.putAll(bonusPlan.targetCategoryTotals());
-            Map<ResourceLocation, Integer> finalRanks = new LinkedHashMap<>(playerData.getSkillRanks());
+            Map<ResourceLocation, Integer> authoritativeRanks =
+                    new LinkedHashMap<>(playerData.getSkillRanks());
+            Map<ResourceLocation, Integer> finalRanks =
+                    new LinkedHashMap<>(authoritativeRanks);
             for (var request : requestedPurchases.entrySet()) {
                 ResourceLocation skillId = request.getKey();
                 Integer targetRank = request.getValue();
@@ -152,16 +155,21 @@ public final class AscendanceNexusTransactionService {
             Set<ResourceLocation> finalOwnedIds = finalRanks.keySet();
             targetLoadoutSelections.entrySet().removeIf(entry -> !finalOwnedIds.contains(entry.getValue()));
 
-            // A refund must retain every paid descendant's rank prerequisites. Refund the child first.
-            for (var owned : finalRanks.entrySet()) {
-                SkillDefinition skill = SkillRegistry.get(owned.getKey()).orElse(null);
-                if (skill == null) continue;
-                for (var prerequisite : skill.prerequisiteRanks(owned.getValue()).entrySet()) {
-                    if (finalRanks.getOrDefault(prerequisite.getKey(), 0) < prerequisite.getValue()) {
-                        return Result.failure(AscendanceNexusTransactionResultPayload.Status.SKILL_PREREQUISITE_REQUIRED,
-                                playerData.nexusRevision());
-                    }
-                }
+            /*
+             * A refund must not create a new broken descendant prerequisite,
+             * but a pre-existing development-save inconsistency must not poison
+             * unrelated loadout/Bonus transactions. Renamed/removed prerequisite
+             * chains are pruned on the next save load; until then only regressions
+             * introduced by this proposal are rejected here.
+             */
+            if (SkillRegistry.introducesPrerequisiteViolation(
+                    authoritativeRanks,
+                    finalRanks
+            )) {
+                return Result.failure(
+                        AscendanceNexusTransactionResultPayload.Status.SKILL_PREREQUISITE_REQUIRED,
+                        playerData.nexusRevision()
+                );
             }
 
             for (Map.Entry<ResourceLocation, Optional<ResourceLocation>> entry :
