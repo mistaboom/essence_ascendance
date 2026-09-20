@@ -2,10 +2,12 @@ package com.mistaboom.essence_ascendance.config;
 
 import java.util.Objects;
 
-/** Generated land-movement parameters. Fractions, native blocks, degrees and server ticks. */
+/** Generated land/air movement parameters. Fractions, native-relative power and server ticks. */
 public record MobilityBalanceSettings(RunningMomentum runningMomentum, MomentumVault momentumVault, Rush rush,
                                       ImpactControl impactControl, ChargedJump chargedJump,
-                                      AirJump doubleJump, VectorJump vectorJump) {
+                                      AirJump doubleJump, VectorJump vectorJump, EssenceWings essenceWings,
+                                      FatigueFlight fatigueFlight, VectorBoost vectorBoost,
+                                      UntetheredFlight untetheredFlight) {
     public MobilityBalanceSettings {
         Objects.requireNonNull(runningMomentum, "Missing Running Momentum balance; rebuild generated balance");
         Objects.requireNonNull(momentumVault, "Missing Momentum Vault balance; rebuild generated balance");
@@ -14,6 +16,10 @@ public record MobilityBalanceSettings(RunningMomentum runningMomentum, MomentumV
         Objects.requireNonNull(chargedJump, "Missing Charged Jump balance; rebuild generated balance");
         Objects.requireNonNull(doubleJump, "Missing Double Jump balance; rebuild generated balance");
         Objects.requireNonNull(vectorJump, "Missing Vector Jump balance; rebuild generated balance");
+        Objects.requireNonNull(essenceWings, "Missing Essence Wings balance; rebuild generated balance");
+        Objects.requireNonNull(fatigueFlight, "Missing Fatigue Flight balance; rebuild generated balance");
+        Objects.requireNonNull(vectorBoost, "Missing Vector Boost balance; rebuild generated balance");
+        Objects.requireNonNull(untetheredFlight, "Missing Untethered Flight balance; rebuild generated balance");
     }
     public record RunningMomentum(double maximumSpeedBonus, int buildTicks, int drainTicks, double sharpTurnDegrees) {
         public RunningMomentum {
@@ -54,11 +60,35 @@ public record MobilityBalanceSettings(RunningMomentum runningMomentum, MomentumV
             number("vectorJump.brakeFraction", brakeFraction, 0, 1);
         }
     }
+    /** Generated fraction of native Elytra horizontal drag removed by Essence Wings. */
+    public record EssenceWings(double horizontalDragCompensation) {
+        public EssenceWings { number("essenceWings.horizontalDragCompensation", horizontalDragCompensation, 0, 1); }
+    }
+    /** Flight stamina is normalized; thrust is relative to live native gravity rather than a fixed Y impulse. */
+    public record FatigueFlight(int enduranceTicks, int groundRechargeTicks, double thrustGravityMultiplier) {
+        public FatigueFlight {
+            ticks("fatigueFlight.enduranceTicks", enduranceTicks);
+            ticks("fatigueFlight.groundRechargeTicks", groundRechargeTicks);
+            number("fatigueFlight.thrustGravityMultiplier", thrustGravityMultiplier, 1, 65);
+        }
+    }
+    /** Burst speed is anchored to native firework-Elytra acceleration; generated power scales that native target. */
+    public record VectorBoost(int rechargeTicks, double rocketSpeedBonus) {
+        public VectorBoost {
+            ticks("vectorBoost.rechargeTicks", rechargeTicks);
+            number("vectorBoost.rocketSpeedBonus", rocketSpeedBonus, 0, 64);
+        }
+    }
+    /** Untethered Flight inherits the generated Fatigue Flight endurance contract and adds airborne recovery. */
+    public record UntetheredFlight(int airRechargeTicks) {
+        public UntetheredFlight { ticks("untetheredFlight.airRechargeTicks", airRechargeTicks); }
+    }
     /** Neutral schema fixtures only. Gameplay requires a validated, generated profile. */
     public static MobilityBalanceSettings defaults() {
         return new MobilityBalanceSettings(new RunningMomentum(0, 1, 1, 180),
                 new MomentumVault(0, 1), new Rush(1), new ImpactControl(0),
-                new ChargedJump(1, 0, 0), new AirJump(0, 0), new VectorJump(0, 0));
+                new ChargedJump(1, 0, 0), new AirJump(0, 0), new VectorJump(0, 0), new EssenceWings(0),
+                new FatigueFlight(1, 1, 1), new VectorBoost(1, 0), new UntetheredFlight(1));
     }
     public void validate() {
         new RunningMomentum(runningMomentum.maximumSpeedBonus(), runningMomentum.buildTicks(),
@@ -69,6 +99,10 @@ public record MobilityBalanceSettings(RunningMomentum runningMomentum, MomentumV
         new ChargedJump(chargedJump.chargeTicks(), chargedJump.heightBonus(), chargedJump.steeringBonus());
         new AirJump(doubleJump.heightBonus(), doubleJump.steeringBonus());
         new VectorJump(vectorJump.impulseBonus(), vectorJump.brakeFraction());
+        new EssenceWings(essenceWings.horizontalDragCompensation());
+        new FatigueFlight(fatigueFlight.enduranceTicks(), fatigueFlight.groundRechargeTicks(), fatigueFlight.thrustGravityMultiplier());
+        new VectorBoost(vectorBoost.rechargeTicks(), vectorBoost.rocketSpeedBonus());
+        new UntetheredFlight(untetheredFlight.airRechargeTicks());
     }
     private static void ticks(String key, int value) {
         if (value < 1 || value > 72_000)

@@ -24,6 +24,7 @@
     "GatheringSurveyRendererMixin",
     "GatheringSalvageGrindstoneScreenMixin",
     "UtilitySenseRendererMixin",
+    "FlightVisualRendererMixin",
     "UtilitySenseClientMixin"
   ],
   "mixins": [
@@ -97,6 +98,7 @@
     "TraversalBlockStateMixin",
     "TraversalLivingEntityMixin",
     "MovementAbilityNativeAccess",
+    "EssenceWingsFallFlyingMixin",
     "GatheringLootTableMixin",
     "GatheringFishingHookMixin",
     "VerdantFarmlandMixin",

@@ -244,6 +244,16 @@ public final class SkillRankEffectScaling {
                 scale(p.doubleJump.heightBonus(), f, 64), scale(p.doubleJump.steeringBonus(), f, 64)));
         register(SkillIds.VECTOR_JUMP, (p, f) -> p.vectorJump = new MobilityBalanceSettings.VectorJump(
                 scale(p.vectorJump.impulseBonus(), f, 64), retained(p.vectorJump.brakeFraction(), f)));
+        register(SkillIds.ESSENCE_WINGS, (p, f) -> p.essenceWings = new MobilityBalanceSettings.EssenceWings(
+                scale(p.essenceWings.horizontalDragCompensation(), f, 1)));
+        register(SkillIds.FATIGUE_FLIGHT, (p, f) -> p.fatigueFlight = new MobilityBalanceSettings.FatigueFlight(
+                (int) Math.ceil(scale(p.fatigueFlight.enduranceTicks(), f, 72_000)),
+                Math.max(1, (int) Math.ceil(p.fatigueFlight.groundRechargeTicks() / f)),
+                1 + scale(p.fatigueFlight.thrustGravityMultiplier() - 1, f, 64)));
+        register(SkillIds.VECTOR_BOOST, (p, f) -> p.vectorBoost = new MobilityBalanceSettings.VectorBoost(
+                Math.max(1, (int) Math.ceil(p.vectorBoost.rechargeTicks() / f)), p.vectorBoost.rocketSpeedBonus()));
+        register(SkillIds.UNTETHERED_FLIGHT, (p, f) -> p.untetheredFlight = new MobilityBalanceSettings.UntetheredFlight(
+                Math.max(1, (int) Math.ceil(p.untetheredFlight.airRechargeTicks() / f))));
         register(SkillIds.TOOL_INSTINCT, (p, f) -> p.toolInstinct = new GatheringBalanceSettings.ToolInstinct(
                 scale(p.toolInstinct.maximumLowerTierSpeedBonus(), f, 16)));
         register(SkillIds.MINING_MOMENTUM, (p, f) -> p.miningMomentum = new GatheringBalanceSettings.MiningMomentum(
@@ -400,6 +410,26 @@ public final class SkillRankEffectScaling {
         if (id.equals(SkillIds.VECTOR_JUMP)) return 1 + movement.vectorJump().impulseBonus()
                 / (SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.JUMP)
                 + SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.VERTICAL_MOVEMENT));
+        if (id.equals(SkillIds.ESSENCE_WINGS)) return 1 + movement.essenceWings().horizontalDragCompensation()
+                / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.GLIDING));
+        if (id.equals(SkillIds.FATIGUE_FLIGHT)) {
+            double availability = SkillBalanceSemantics.require(id).expectedAvailability();
+            double ratio = movement.fatigueFlight().enduranceTicks() / (double) movement.fatigueFlight().groundRechargeTicks();
+            double generated = Math.max(0, Math.sqrt(ratio * (1 - availability) / Math.max(Math.ulp(1.0), availability)) - 1);
+            double weight = SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.FLIGHT)
+                    + SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.VERTICAL_MOVEMENT);
+            return 1 + generated / Math.max(Math.ulp(1.0), weight);
+        }
+        if (id.equals(SkillIds.VECTOR_BOOST)) return 1 + movement.vectorBoost().rocketSpeedBonus()
+                / (SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.GROUND_SPEED)
+                + SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.VERTICAL_MOVEMENT));
+        if (id.equals(SkillIds.UNTETHERED_FLIGHT)) {
+            double generated = Math.max(0, movement.fatigueFlight().enduranceTicks()
+                    / (double) movement.untetheredFlight().airRechargeTicks() - 1);
+            double weight = SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.FLIGHT)
+                    + SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.VERTICAL_MOVEMENT);
+            return 1 + generated / Math.max(Math.ulp(1.0), weight);
+        }
         var gathering = settings.gathering();
         if (id.equals(SkillIds.TOOL_INSTINCT)) return gathering.toolInstinct().maximumLowerTierSpeedBonus()
                 / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.MINING_SPEED));
@@ -609,6 +639,10 @@ public final class SkillRankEffectScaling {
         public MobilityBalanceSettings.ChargedJump chargedJump;
         public MobilityBalanceSettings.AirJump doubleJump;
         public MobilityBalanceSettings.VectorJump vectorJump;
+        public MobilityBalanceSettings.EssenceWings essenceWings;
+        public MobilityBalanceSettings.FatigueFlight fatigueFlight;
+        public MobilityBalanceSettings.VectorBoost vectorBoost;
+        public MobilityBalanceSettings.UntetheredFlight untetheredFlight;
         public GatheringBalanceSettings.ToolInstinct toolInstinct;
         public GatheringBalanceSettings.MiningMomentum miningMomentum;
         public GatheringBalanceSettings.NaturesBoon naturesBoon;
@@ -683,7 +717,9 @@ public final class SkillRankEffectScaling {
             shatteringWard=v.vitality().wards().shatteringWard();
             runningMomentum=v.mobility().runningMomentum(); momentumVault=v.mobility().momentumVault(); rush=v.mobility().rush();
             impactControl=v.mobility().impactControl(); chargedJump=v.mobility().chargedJump();
-            doubleJump=v.mobility().doubleJump(); vectorJump=v.mobility().vectorJump();
+            doubleJump=v.mobility().doubleJump(); vectorJump=v.mobility().vectorJump(); essenceWings=v.mobility().essenceWings();
+            fatigueFlight=v.mobility().fatigueFlight(); vectorBoost=v.mobility().vectorBoost();
+            untetheredFlight=v.mobility().untetheredFlight();
             toolInstinct=v.gathering().toolInstinct(); miningMomentum=v.gathering().miningMomentum();
             naturesBoon=v.gathering().naturesBoon(); oreSight=v.gathering().oreSight();
             treasureSense=v.gathering().treasureSense(); huntersStudy=v.gathering().huntersStudy();
@@ -707,7 +743,8 @@ public final class SkillRankEffectScaling {
                     new VitalityBalanceSettings(risingRecovery, lifeSteal, feastReflex, innerSustenance,
                             new VitalityDamageBalanceSettings(hungerWard, staggeredPain, damageCeiling, metabolicConversion, painPurge, adrenaline),
                             new VitalityWardBalanceSettings(soulWard, deepWard, shatteringWard)),
-                    new MobilityBalanceSettings(runningMomentum, momentumVault, rush, impactControl, chargedJump, doubleJump, vectorJump),
+                    new MobilityBalanceSettings(runningMomentum, momentumVault, rush, impactControl, chargedJump, doubleJump, vectorJump,
+                            essenceWings, fatigueFlight, vectorBoost, untetheredFlight),
                     new GatheringBalanceSettings(toolInstinct, miningMomentum, naturesBoon, oreSight, treasureSense,
                             huntersStudy, essenceBloom, verdantStride, herdkeeper, animalGift, fishingInstinct,
                             fishersCall, salvagersCraft, pocketNets),

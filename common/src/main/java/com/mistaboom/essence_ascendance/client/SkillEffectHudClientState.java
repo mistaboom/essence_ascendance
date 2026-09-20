@@ -8,6 +8,7 @@ import dev.architectury.networking.NetworkManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.List;
 
@@ -44,6 +45,15 @@ public final class SkillEffectHudClientState {
                 || !minecraft.player.isAlive()) return List.of();
         long now = minecraft.level.getGameTime();
         return PRESENTATION.visibleEntries(now);
+    }
+
+    /** Latest authoritative entry without presentation grace/freeze; useful for responsive client VFX. */
+    public static SkillEffectHudEntry currentEntry(ResourceLocation id) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (snapshot == null || receiptPlayer != minecraft.player || receiptLevel != minecraft.level
+                || minecraft.player == null || !minecraft.player.isAlive()) return null;
+        for (SkillEffectHudEntry entry : snapshot.entries()) if (entry.id().equals(id)) return entry;
+        return null;
     }
 
     public static long estimatedServerGameTime() {

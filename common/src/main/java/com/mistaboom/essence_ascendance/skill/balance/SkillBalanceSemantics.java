@@ -284,13 +284,13 @@ public final class SkillBalanceSemantics {
                 .actions(Action.JUMP).availability(.75, 1).condition("Replaces Double Jump with one look-directed native impulse; upward climbs, forward accelerates, downward brakes without a downward kick"));
         all.add(skill(SkillIds.ESSENCE_WINGS, capability(GLIDING, 1))
                 .actions(Action.JUMP, Action.GLIDE).availability(.85, 1)
-                .condition("Elytra milestone and replacement of Fatigue Flight; equipment-free gliding"));
+                .condition("Elytra milestone and replacement of Fatigue Flight; equipment-free gliding with generated horizontal drag compensation"));
         all.add(skill(SkillIds.FATIGUE_FLIGHT, capability(FLIGHT, .6), flat(VERTICAL_MOVEMENT, .5))
                 .actions(Action.JUMP).availability(.45, 1).cost(.35)
-                .condition("Flight stamina and grounded recharge limit sustained airborne use"));
+                .condition("Held-Jump jetpack thrust adds generated gravity-relative acceleration to existing vertical velocity; stamina and grounded recharge limit sustained airborne use"));
         all.add(skill(SkillIds.VECTOR_BOOST, flat(GROUND_SPEED, .5), flat(VERTICAL_MOVEMENT, .4))
                 .actions(Action.GLIDE, Action.JUMP).availability(.45, 1).cost(.2)
-                .condition("Wings plus Vector Jump; rechargeable glide impulse replaces firework consumption"));
+                .condition("Wings plus Vector Jump; rechargeable native-firework-relative glide burst replaces firework consumption"));
         all.add(skill(SkillIds.UNTETHERED_FLIGHT, capability(FLIGHT, 1), capability(VERTICAL_MOVEMENT, .8))
                 .actions(Action.JUMP).condition("Elytra milestone; replaces Fatigue Flight with sustained flight and air recharge"));
     }

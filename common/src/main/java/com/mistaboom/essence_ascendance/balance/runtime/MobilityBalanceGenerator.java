@@ -33,6 +33,19 @@ final class MobilityBalanceGenerator {
         double vector = power(settings, SkillIds.VECTOR_JUMP, CapabilityAxis.JUMP)
                 + power(settings, SkillIds.VECTOR_JUMP, CapabilityAxis.VERTICAL_MOVEMENT);
         double brake = power(settings, SkillIds.VECTOR_JUMP, CapabilityAxis.FALL_CONTROL);
+        double wingsPower = power(settings, SkillIds.ESSENCE_WINGS, CapabilityAxis.GLIDING);
+        var fatigue = SkillBalanceSemantics.require(SkillIds.FATIGUE_FLIGHT);
+        var boost = SkillBalanceSemantics.require(SkillIds.VECTOR_BOOST);
+        double fatiguePower = power(settings, SkillIds.FATIGUE_FLIGHT, CapabilityAxis.FLIGHT)
+                + power(settings, SkillIds.FATIGUE_FLIGHT, CapabilityAxis.VERTICAL_MOVEMENT);
+        int enduranceTicks = ticks(window * fatigue.expectedAvailability() * (1 + fatiguePower));
+        int groundRechargeTicks = ticks(window * (1 - fatigue.expectedAvailability()) / (1 + fatiguePower));
+        double boostPower = power(settings, SkillIds.VECTOR_BOOST, CapabilityAxis.GROUND_SPEED)
+                + power(settings, SkillIds.VECTOR_BOOST, CapabilityAxis.VERTICAL_MOVEMENT);
+        int boostRechargeTicks = ticks(window * (1 - boost.expectedAvailability()) / (1 + boostPower));
+        double untetheredPower = power(settings, SkillIds.UNTETHERED_FLIGHT, CapabilityAxis.FLIGHT)
+                + power(settings, SkillIds.UNTETHERED_FLIGHT, CapabilityAxis.VERTICAL_MOVEMENT);
+        int airRechargeTicks = Math.clamp((int) Math.ceil(enduranceTicks / (1 + untetheredPower)), 1, 72_000);
         return new MobilityBalanceSettings(
                 new MobilityBalanceSettings.RunningMomentum(Math.clamp(speed, 0, 16),
                         ticks(window * availability), ticks(window * (1 - availability) * speedWeight),
@@ -43,7 +56,11 @@ final class MobilityBalanceGenerator {
                 new MobilityBalanceSettings.ChargedJump(ticks(window * (1 - charged.expectedAvailability()) / (1 + chargedHeight)),
                         Math.min(64, chargedHeight), Math.min(64, chargedControl)),
                 new MobilityBalanceSettings.AirJump(Math.min(64, doubleHeight), Math.min(64, doubleControl)),
-                new MobilityBalanceSettings.VectorJump(Math.min(64, vector), brake / (1 + brake)));
+                new MobilityBalanceSettings.VectorJump(Math.min(64, vector), brake / (1 + brake)),
+                new MobilityBalanceSettings.EssenceWings(Math.clamp(wingsPower, 0, 1)),
+                new MobilityBalanceSettings.FatigueFlight(enduranceTicks, groundRechargeTicks, Math.min(65, 1 + fatiguePower)),
+                new MobilityBalanceSettings.VectorBoost(boostRechargeTicks, Math.min(64, boostPower)),
+                new MobilityBalanceSettings.UntetheredFlight(airRechargeTicks));
     }
     private static double power(BalanceSettings settings, net.minecraft.resources.ResourceLocation skill, CapabilityAxis axis) {
         return SkillGenerationBudget.headroom(settings, skill) * SkillBalanceSemantics.require(skill).weights().get(axis);

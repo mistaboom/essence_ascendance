@@ -24,6 +24,7 @@ public final class SkillEffectRegistry {
                     MobilityMomentumEffects.handlers(),
                     MobilityTraversalEffects.handlers(),
                     MobilityJumpEffects.handlers(),
+                    MobilityFlightEffects.handlers(),
                     GatheringMiningEffects.handlers(),
                     GatheringSurveyEffects.handlers(),
                     GatheringLootEffects.handlers(),

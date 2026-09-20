@@ -34,7 +34,10 @@ public final class BonusTrackGeneratorTest {
         check(step.inputs().get("marginal_power") < movement.inputs().get("marginal_power") / 2,
                 "Cheap conditional step convenience must not dominate normalized broad movement power");
         check(flight.startTier().equals(AscendanceTiers.RESONANT.id()), "Vanilla-like profile reserves explicitly declared native standard flight at catalog tier");
-        check(flight.evidence().stream().anyMatch(reason -> reason.contains("DECLARED_NOT_IMPLEMENTED")), "Declared flight must never masquerade as an implemented effect");
+        check(flight.evidence().stream().anyMatch(reason -> reason.contains("; IMPLEMENTED: explicit standard-flight")),
+                "Implemented standard flight must advertise implemented capability evidence");
+        check(flight.evidence().stream().noneMatch(reason -> reason.contains("DECLARED_NOT_IMPLEMENTED")),
+                "Implemented standard flight must not retain declaration-only capability evidence");
         var early = resolve(evidence(List.of(capability("test:verified_route", ProgressionBand.ENTRY, true, .95,
                 Map.of(CapabilityAxis.FLIGHT, 1.0, CapabilityAxis.ABILITIES_FLYING_SPEED, 1.0))))).get(EssenceStats.FLIGHT_SPEED.id());
         check(early.startTier().equals(AscendanceTiers.DORMANT.id()), "Verified early standard flight must unlock early");

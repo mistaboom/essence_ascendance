@@ -175,6 +175,20 @@ public final class SkillTooltipRegistry {
                 line("skill.essence_ascendance.vector_jump.description.resolved", n(s -> Math.sqrt(1 + s.mobility().vectorJump().impulseBonus()))),
                 line("skill.essence_ascendance.vector_jump.description.resolved.1", pct(s -> s.mobility().vectorJump().brakeFraction())),
                 line("skill.essence_ascendance.vector_jump.description.resolved.2"));
+        define(SkillIds.ESSENCE_WINGS,
+                line("skill.essence_ascendance.essence_wings.description.resolved", pct(s -> s.mobility().essenceWings().horizontalDragCompensation())),
+                line("skill.essence_ascendance.essence_wings.description.resolved.1"));
+        define(SkillIds.FATIGUE_FLIGHT,
+                line("skill.essence_ascendance.fatigue_flight.description.resolved", sec(s -> s.mobility().fatigueFlight().enduranceTicks()),
+                        n(s -> s.mobility().fatigueFlight().thrustGravityMultiplier())),
+                line("skill.essence_ascendance.fatigue_flight.description.resolved.1", sec(s -> s.mobility().fatigueFlight().groundRechargeTicks())));
+        define(SkillIds.VECTOR_BOOST,
+                line("skill.essence_ascendance.vector_boost.description.resolved", n(s -> Math.sqrt(1 + s.mobility().vectorBoost().rocketSpeedBonus()))),
+                line("skill.essence_ascendance.vector_boost.description.resolved.1", sec(s -> s.mobility().vectorBoost().rechargeTicks())));
+        define(SkillIds.UNTETHERED_FLIGHT,
+                line("skill.essence_ascendance.untethered_flight.description.resolved", sec(s -> s.mobility().untetheredFlight().airRechargeTicks()),
+                        sec(s -> s.mobility().fatigueFlight().enduranceTicks())),
+                line("skill.essence_ascendance.untethered_flight.description.resolved.1"));
         define(SkillIds.TERRAIN_FREEDOM,
                 line("skill.essence_ascendance.terrain_freedom.description.resolved"),
                 line("skill.essence_ascendance.terrain_freedom.description.resolved.1"));

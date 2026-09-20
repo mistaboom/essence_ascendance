@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.mixin;
 
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
+import com.mistaboom.essence_ascendance.movement.FlightAbilityRules;
 import com.mistaboom.essence_ascendance.movement.MovementAbilityInput;
 import com.mistaboom.essence_ascendance.movement.MovementAbilityRules;
 import com.mistaboom.essence_ascendance.movement.MovementAbilityState;
@@ -38,6 +39,11 @@ public abstract class MovementAbilityInputMixin {
             require = 1, expect = 1, allow = 1)
     private void essenceAscendance$routeJump(CallbackInfo ci) {
         LocalPlayer player = (LocalPlayer) (Object) this;
+        Minecraft minecraft = Minecraft.getInstance();
+        boolean focused = minecraft.screen == null && minecraft.isWindowActive();
+        // Read the physical binding once for both presentation and the authoritative input packet.
+        boolean jumpDown = minecraft.options.keyJump.isDown();
+        com.mistaboom.essence_ascendance.client.FlightVisualClientState.tick(player, jumpDown, focused);
         if (!NetworkManager.canServerReceive(MovementAbilityInputPayload.TYPE)) return;
         ResourceLocation style = MovementAbilityRules.style(player);
         Object balance = EssenceConfigManager.clientRuntime();
@@ -48,13 +54,13 @@ public abstract class MovementAbilityInputMixin {
             essenceAscendance$jumpLevel = player.level(); essenceAscendance$jumpBalance = balance;
             essenceAscendance$jumpFlags = -1; essenceAscendance$jumpSent = Long.MIN_VALUE;
         }
-        Minecraft minecraft = Minecraft.getInstance();
-        boolean eligible = style != null && MovementAbilityRules.allowed(player);
-        boolean enabled = eligible && minecraft.screen == null && minecraft.isWindowActive();
-        boolean supported = eligible && MovementAbilityRules.supported(player);
-        // Read the ordinary Jump binding, not the input flag this mixin consumes or
-        // vanilla's synthetic auto-jump. Remapped keys still work; no new keybind.
-        boolean jumpDown = minecraft.options.keyJump.isDown();
+        boolean jumpEligible = style != null && MovementAbilityRules.allowed(player);
+        boolean jumpEnabled = jumpEligible && focused;
+        boolean flightEnabled = FlightAbilityRules.usesMovementInput(player)
+                && FlightAbilityRules.inputAllowed(player) && focused;
+        boolean enabled = jumpEnabled || flightEnabled;
+        boolean supported = MovementAbilityRules.supported(player);
+        // The ordinary Jump binding was sampled above before any local suppression.
         int flags = enabled ? MovementAbilityInput.ENABLED
                 | (jumpDown ? MovementAbilityInput.JUMP : 0)
                 | (player.input.up ? MovementAbilityInput.FORWARD : 0)
@@ -63,13 +69,18 @@ public abstract class MovementAbilityInputMixin {
                 | (player.input.right ? MovementAbilityInput.RIGHT : 0) : 0;
         long now = player.level().getGameTime();
         var settings = EssenceConfigManager.skillEffects();
-        var mode = MovementAbilityRules.mode(style);
-        var decision = essenceAscendance$jumpInput.input(now,
-                new MovementAbilityInput(flags | (enabled && !supported ? MovementAbilityInput.AIR_JUMP : 0)),
-                mode, eligible, supported, settings.mobility().chargedJump().chargeTicks(),
-                settings.posture().movement().intentTimeoutTicks());
-        if (decision.action() == MovementAbilityState.Action.CHARGED_RELEASE)
-            essenceAscendance$jumpInput.launched(now, true);
+        MovementAbilityState.Decision decision = MovementAbilityState.Decision.NONE;
+        MovementAbilityState.Mode mode = style == null ? MovementAbilityState.Mode.AIR : MovementAbilityRules.mode(style);
+        if (style != null) {
+            decision = essenceAscendance$jumpInput.input(now,
+                    new MovementAbilityInput(flags | (jumpEnabled && !supported ? MovementAbilityInput.AIR_JUMP : 0)),
+                    mode, jumpEnabled, supported, settings.mobility().chargedJump().chargeTicks(),
+                    settings.posture().movement().intentTimeoutTicks());
+            if (decision.action() == MovementAbilityState.Action.CHARGED_RELEASE)
+                essenceAscendance$jumpInput.launched(now, true);
+        } else {
+            essenceAscendance$jumpInput.clear();
+        }
         // Mark only an extra-jump request. A native ground press must never become
         // an air jump if its queued server handler runs after the takeoff packet.
         if (decision.action() == MovementAbilityState.Action.AIR_JUMP) flags |= MovementAbilityInput.AIR_JUMP;
@@ -78,9 +89,9 @@ public abstract class MovementAbilityInputMixin {
             NetworkManager.sendToServer(new MovementAbilityInputPayload(new MovementAbilityInput(flags)));
             essenceAscendance$jumpFlags = flags; essenceAscendance$jumpSent = now;
         }
-        // One native takeoff per physical press, never hold-to-hop. The spent-air
-        // edge can still reach Elytra; skill-owned presses cannot deploy it too.
-        essenceAscendance$suppressNativeJump = enabled && (jumpDown
+        // Flight consumes the same transport but never suppresses vanilla Jump. Only
+        // the existing jump-style controller may claim native takeoff/air-jump input.
+        essenceAscendance$suppressNativeJump = jumpEnabled && (jumpDown
                 ? decision.action() != MovementAbilityState.Action.NATIVE_JUMP
                 : mode == MovementAbilityState.Mode.CHARGED && supported);
         if (essenceAscendance$suppressNativeJump) player.input.jumping = false;

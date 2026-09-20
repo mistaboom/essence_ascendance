@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.network;
 
+import com.mistaboom.essence_ascendance.movement.FlightAbilityService;
 import com.mistaboom.essence_ascendance.movement.MovementAbilityService;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.server.level.ServerPlayer;
@@ -11,8 +12,10 @@ public final class MovementAbilityInputService {
         if (initialized) return;
         NetworkManager.registerReceiver(NetworkManager.Side.C2S, MovementAbilityInputPayload.TYPE,
                 MovementAbilityInputPayload.CODEC, (payload, context) -> context.queue(() -> {
-                    if (context.getPlayer() instanceof ServerPlayer player)
+                    if (context.getPlayer() instanceof ServerPlayer player) {
                         MovementAbilityService.input(player, payload.input());
+                        FlightAbilityService.input(player, payload.input());
+                    }
                 }));
         initialized = true;
     }
