@@ -9,6 +9,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
@@ -17,12 +18,46 @@ import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
 public final class EssenceCrucibleBlock extends Block implements EntityBlock {
 
+    /* Exact 1/16-voxel decomposition of the authored Blockbench mesh. */
+    private static final VoxelShape SHAPE = Shapes.or(
+            Block.box(11.0D, 0.0D, 11.0D, 15.0D, 2.0D, 15.0D),
+            Block.box(1.0D, 0.0D, 11.0D, 5.0D, 2.0D, 15.0D),
+            Block.box(11.0D, 0.0D, 1.0D, 15.0D, 2.0D, 5.0D),
+            Block.box(1.0D, 0.0D, 1.0D, 5.0D, 2.0D, 5.0D),
+            Block.box(0.0D, 2.0D, 0.0D, 16.0D, 9.0D, 16.0D),
+            Block.box(0.0D, 9.0D, 0.0D, 2.0D, 10.0D, 16.0D),
+            Block.box(2.0D, 9.0D, 0.0D, 16.0D, 10.0D, 2.0D),
+            Block.box(14.0D, 9.0D, 2.0D, 16.0D, 10.0D, 14.0D),
+            Block.box(2.0D, 9.0D, 14.0D, 16.0D, 10.0D, 16.0D),
+            Block.box(2.0D, 10.0D, 14.0D, 15.0D, 12.0D, 15.0D),
+            Block.box(1.0D, 10.0D, 1.0D, 2.0D, 12.0D, 15.0D),
+            Block.box(2.0D, 10.0D, 1.0D, 15.0D, 12.0D, 2.0D),
+            Block.box(14.0D, 10.0D, 2.0D, 15.0D, 12.0D, 14.0D),
+            Block.box(0.0D, 12.0D, 0.0D, 2.0D, 16.0D, 16.0D),
+            Block.box(2.0D, 12.0D, 0.0D, 16.0D, 16.0D, 2.0D),
+            Block.box(14.0D, 12.0D, 2.0D, 16.0D, 16.0D, 14.0D),
+            Block.box(2.0D, 12.0D, 14.0D, 16.0D, 16.0D, 16.0D)
+    );
+
     public EssenceCrucibleBlock(Properties properties) {
         super(properties);
+    }
+
+    @Override
+    protected VoxelShape getShape(
+            BlockState state,
+            BlockGetter level,
+            BlockPos pos,
+            CollisionContext context
+    ) {
+        return SHAPE;
     }
 
     @Override

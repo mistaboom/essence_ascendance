@@ -10,7 +10,7 @@ import net.minecraft.client.renderer.entity.ItemRenderer;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 
-/** Placeholder renderer: the installed Focus floats above the pylon cap. */
+/** Renders the modeled Pylon plus the installed floating Essence Focus. */
 public final class EssencePylonRenderer
         implements BlockEntityRenderer<EssencePylonBlockEntity> {
 
@@ -29,6 +29,13 @@ public final class EssencePylonRenderer
             int packedLight,
             int packedOverlay
     ) {
+        EssenceMachineMeshes.PYLON.render(
+                poseStack,
+                bufferSource,
+                packedLight,
+                packedOverlay
+        );
+
         ItemStack focus = pylon.getItem(EssencePylonBlockEntity.FOCUS_SLOT);
         if (focus.isEmpty()) {
             return;

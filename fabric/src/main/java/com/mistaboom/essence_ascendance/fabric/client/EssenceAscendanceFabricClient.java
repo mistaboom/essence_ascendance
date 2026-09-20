@@ -2,8 +2,10 @@ package com.mistaboom.essence_ascendance.fabric.client;
 
 import com.mistaboom.essence_ascendance.client.EssenceAscendanceClient;
 import com.mistaboom.essence_ascendance.client.AscendanceNexusScreen;
+import com.mistaboom.essence_ascendance.client.EssenceCrucibleRenderer;
 import com.mistaboom.essence_ascendance.client.EssenceCrucibleScreen;
 import com.mistaboom.essence_ascendance.client.EssenceInfuserRenderer;
+import com.mistaboom.essence_ascendance.client.EssenceMachineItemRenderer;
 import com.mistaboom.essence_ascendance.client.EssenceInfuserScreen;
 import com.mistaboom.essence_ascendance.client.EssencePylonRenderer;
 import com.mistaboom.essence_ascendance.client.EssencePylonScreen;
@@ -14,6 +16,7 @@ import com.mistaboom.essence_ascendance.nexus.AscendanceNexusContent;
 import net.minecraft.client.gui.screens.MenuScreens;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.rendering.v1.BlockEntityRendererRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry;
 import net.minecraft.client.renderer.item.ItemProperties;
 
 /*
@@ -32,6 +35,21 @@ public final class EssenceAscendanceFabricClient
                 ItemProperties::register
         );
 
+        BuiltinItemRendererRegistry.INSTANCE.register(
+                EssenceCrucibleContent.ESSENCE_CRUCIBLE_ITEM.get(),
+                (stack, mode, matrices, buffers, light, overlay) ->
+                        EssenceMachineItemRenderer.instance().renderByItem(
+                                stack, mode, matrices, buffers, light, overlay
+                        )
+        );
+        BuiltinItemRendererRegistry.INSTANCE.register(
+                EssencePylonContent.ESSENCE_PYLON_ITEM.get(),
+                (stack, mode, matrices, buffers, light, overlay) ->
+                        EssenceMachineItemRenderer.instance().renderByItem(
+                                stack, mode, matrices, buffers, light, overlay
+                        )
+        );
+
         MenuScreens.register(
                 EssenceCrucibleContent.ESSENCE_CRUCIBLE_MENU.get(),
                 EssenceCrucibleScreen::new
@@ -47,6 +65,10 @@ public final class EssenceAscendanceFabricClient
         MenuScreens.register(
                 AscendanceNexusContent.ASCENDANCE_NEXUS_MENU.get(),
                 AscendanceNexusScreen::new
+        );
+        BlockEntityRendererRegistry.register(
+                EssenceCrucibleContent.ESSENCE_CRUCIBLE_BLOCK_ENTITY.get(),
+                EssenceCrucibleRenderer::new
         );
         BlockEntityRendererRegistry.register(
                 EssencePylonContent.ESSENCE_PYLON_BLOCK_ENTITY.get(),

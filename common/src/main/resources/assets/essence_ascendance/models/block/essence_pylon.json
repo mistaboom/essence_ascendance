@@ -1,36 +1,6 @@
 {
   "textures": {
-    "stone": "minecraft:block/polished_blackstone",
-    "gem": "minecraft:block/amethyst_block",
-    "particle": "minecraft:block/polished_blackstone"
+    "particle": "essence_ascendance:block/essence_pylon"
   },
-  "elements": [
-    {
-      "from": [1, 0, 1],
-      "to": [15, 4, 15],
-      "faces": {
-        "down": {"texture": "#stone"}, "up": {"texture": "#stone"},
-        "north": {"texture": "#stone"}, "south": {"texture": "#stone"},
-        "west": {"texture": "#stone"}, "east": {"texture": "#stone"}
-      }
-    },
-    {
-      "from": [4, 4, 4],
-      "to": [12, 14, 12],
-      "faces": {
-        "down": {"texture": "#stone"}, "up": {"texture": "#stone"},
-        "north": {"texture": "#stone"}, "south": {"texture": "#stone"},
-        "west": {"texture": "#stone"}, "east": {"texture": "#stone"}
-      }
-    },
-    {
-      "from": [2, 14, 2],
-      "to": [14, 16, 14],
-      "faces": {
-        "down": {"texture": "#gem"}, "up": {"texture": "#gem"},
-        "north": {"texture": "#gem"}, "south": {"texture": "#gem"},
-        "west": {"texture": "#gem"}, "east": {"texture": "#gem"}
-      }
-    }
-  ]
+  "elements": []
 }

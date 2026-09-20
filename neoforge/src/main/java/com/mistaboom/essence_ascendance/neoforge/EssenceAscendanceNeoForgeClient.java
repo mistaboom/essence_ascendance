@@ -3,8 +3,10 @@ package com.mistaboom.essence_ascendance.neoforge;
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.client.EssenceAscendanceClient;
 import com.mistaboom.essence_ascendance.client.AscendanceNexusScreen;
+import com.mistaboom.essence_ascendance.client.EssenceCrucibleRenderer;
 import com.mistaboom.essence_ascendance.client.EssenceCrucibleScreen;
 import com.mistaboom.essence_ascendance.client.EssenceInfuserRenderer;
+import com.mistaboom.essence_ascendance.client.EssenceMachineItemRenderer;
 import com.mistaboom.essence_ascendance.client.EssenceInfuserScreen;
 import com.mistaboom.essence_ascendance.client.EssencePylonRenderer;
 import com.mistaboom.essence_ascendance.client.EssencePylonScreen;
@@ -12,6 +14,7 @@ import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleContent;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserContent;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonContent;
 import com.mistaboom.essence_ascendance.nexus.AscendanceNexusContent;
+import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.client.renderer.item.ItemProperties;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
@@ -19,6 +22,8 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
+import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
+import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 
 @Mod(
         value = EssenceAscendance.MOD_ID,
@@ -37,6 +42,9 @@ public final class EssenceAscendanceNeoForgeClient {
         );
         modBus.addListener(
                 this::registerRenderers
+        );
+        modBus.addListener(
+                this::registerClientExtensions
         );
     }
 
@@ -65,12 +73,33 @@ public final class EssenceAscendanceNeoForgeClient {
             EntityRenderersEvent.RegisterRenderers event
     ) {
         event.registerBlockEntityRenderer(
+                EssenceCrucibleContent.ESSENCE_CRUCIBLE_BLOCK_ENTITY.get(),
+                EssenceCrucibleRenderer::new
+        );
+        event.registerBlockEntityRenderer(
                 EssencePylonContent.ESSENCE_PYLON_BLOCK_ENTITY.get(),
                 EssencePylonRenderer::new
         );
         event.registerBlockEntityRenderer(
                 EssenceInfuserContent.ESSENCE_INFUSER_BLOCK_ENTITY.get(),
                 EssenceInfuserRenderer::new
+        );
+    }
+
+    private void registerClientExtensions(
+            RegisterClientExtensionsEvent event
+    ) {
+        IClientItemExtensions machineRenderer = new IClientItemExtensions() {
+            @Override
+            public BlockEntityWithoutLevelRenderer getCustomRenderer() {
+                return EssenceMachineItemRenderer.instance();
+            }
+        };
+
+        event.registerItem(
+                machineRenderer,
+                EssenceCrucibleContent.ESSENCE_CRUCIBLE_ITEM.get(),
+                EssencePylonContent.ESSENCE_PYLON_ITEM.get()
         );
     }
 
