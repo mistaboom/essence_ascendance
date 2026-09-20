@@ -26,6 +26,7 @@ public abstract class GatheringFishingHookMixin implements GatheringFishingHookA
 
     @Unique private int essenceAscendance$lureBefore;
     @Unique private int essenceAscendance$hookBefore;
+    @Unique private int essenceAscendance$nibbleBefore;
     @Unique private double essenceAscendance$lureCarry;
     @Unique private double essenceAscendance$hookCarry;
     @Unique private double essenceAscendance$reelCarry;
@@ -45,16 +46,17 @@ public abstract class GatheringFishingHookMixin implements GatheringFishingHookA
     }
 
     @WrapMethod(method = "retrieve")
-    private int essenceAscendance$fishingInstinctLoot(ItemStack rod, Operation<Integer> original) {
-        if (!(((FishingHook) (Object) this).getPlayerOwner() instanceof ServerPlayer player)) {
-            return original.call(rod);
-        }
-        int bonus = GatheringFishingService.virtualLuck(player);
-        if (bonus <= 0) return original.call(rod);
+    private int essenceAscendance$gatheringFishingLoot(ItemStack rod, Operation<Integer> original) {
+        FishingHook hook = (FishingHook) (Object) this;
+        if (!(hook.getPlayerOwner() instanceof ServerPlayer player)) return original.call(rod);
+        boolean hadFishBite = nibble > 0 && hook.getHookedIn() == null;
         int nativeLuck = luck;
+        int bonus = GatheringFishingService.virtualLuck(player);
         luck = Math.max(0, nativeLuck + bonus);
         try {
-            return original.call(rod);
+            int result = original.call(rod);
+            GatheringFishingService.afterRetrieve(player, hook, rod, hadFishBite, luck);
+            return result;
         } finally {
             luck = nativeLuck;
         }
@@ -70,6 +72,8 @@ public abstract class GatheringFishingHookMixin implements GatheringFishingHookA
     @Override public void essenceAscendance$setLureBefore(int ticks) { essenceAscendance$lureBefore = ticks; }
     @Override public int essenceAscendance$hookBefore() { return essenceAscendance$hookBefore; }
     @Override public void essenceAscendance$setHookBefore(int ticks) { essenceAscendance$hookBefore = ticks; }
+    @Override public int essenceAscendance$nibbleBefore() { return essenceAscendance$nibbleBefore; }
+    @Override public void essenceAscendance$setNibbleBefore(int ticks) { essenceAscendance$nibbleBefore = ticks; }
     @Override public double essenceAscendance$lureCarry() { return essenceAscendance$lureCarry; }
     @Override public void essenceAscendance$setLureCarry(double carry) { essenceAscendance$lureCarry = carry; }
     @Override public double essenceAscendance$hookCarry() { return essenceAscendance$hookCarry; }

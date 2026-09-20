@@ -29,6 +29,7 @@ public final class SkillEffectRegistry {
                     GatheringLootEffects.handlers(),
                     GatheringRuralEffects.handlers(),
                     GatheringFishingEffects.handlers(),
+                    GatheringSalvageEffects.handlers(),
                     UtilitySenseEffects.handlers(),
                     UtilityMaintenanceEffects.handlers(),
                     UtilitySocialAlchemyEffects.handlers(),

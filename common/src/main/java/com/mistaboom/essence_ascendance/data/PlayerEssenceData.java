@@ -1459,6 +1459,8 @@ private static final String NEXUS_REVISION_TAG =
          * aliased or migrated into a different skill.
          */
 
+        boolean discardedCatalogSkill = false;
+
         if (root.contains(
                 OWNED_SKILLS_TAG,
                 Tag.TAG_COMPOUND
@@ -1484,8 +1486,8 @@ private static final String NEXUS_REVISION_TAG =
                     continue;
                 }
 
-                SkillDefinition loadedSkill = SkillRegistry.get(skillId).orElse(null);
-                if (loadedSkill == null) {
+                if (SkillRegistry.get(skillId).isEmpty()) {
+                    discardedCatalogSkill = true;
                     EssenceAscendance.LOGGER.warn(
                             "Discarding saved skill '{}' because it is not present in the current skill catalog",
                             skillId
@@ -1524,21 +1526,20 @@ private static final String NEXUS_REVISION_TAG =
                         || rankCosts.length > SkillPurchase.MAX_RANKS) {
                     throw new IllegalArgumentException("Malformed rank receipt for " + skillId);
                 }
-                if (rankCosts.length > loadedSkill.maximumRank()) {
-                    EssenceAscendance.LOGGER.warn(
-                            "Discarding saved skill '{}' at rank {} because the current catalog maximum rank is {}",
-                            skillId,
-                            rankCosts.length,
-                            loadedSkill.maximumRank()
-                    );
-                    continue;
-                }
                 data.ownedSkills.put(skillId, new SkillPurchase(paidEssenceId,
                         java.util.Arrays.stream(rankCosts).boxed().toList()));
             }
         }
 
-        discardLoadedPrerequisiteOrphans(data);
+        /*
+         * Only repair prerequisite chains when this load actually discarded a
+         * removed/renamed catalog identity. Normal save/load is accounting-
+         * lossless: historical rank receipts are not reinterpreted against
+         * today's rank ceiling or used as a reason to rewrite ownership.
+         */
+        if (discardedCatalogSkill) {
+            discardLoadedPrerequisiteOrphans(data);
+        }
 
 
         /*
@@ -1645,8 +1646,32 @@ private static final String NEXUS_REVISION_TAG =
             PlayerEssenceData data
     ) {
         while (true) {
-            Set<ResourceLocation> invalid =
-                    SkillRegistry.invalidPrerequisiteOwners(data.getSkillRanks());
+            Map<ResourceLocation, Integer> ownedRanks = data.getSkillRanks();
+            Set<ResourceLocation> invalid = new LinkedHashSet<>();
+
+            for (Map.Entry<ResourceLocation, Integer> entry : ownedRanks.entrySet()) {
+                SkillDefinition skill = SkillRegistry.get(entry.getKey()).orElse(null);
+                if (skill == null) {
+                    continue;
+                }
+
+                /*
+                 * A receipt may legitimately preserve more historical ranks
+                 * than the current catalog exposes. Only the prerequisite
+                 * gates that exist in today's catalog participate in orphan
+                 * cleanup; the receipt itself remains untouched.
+                 */
+                int catalogRank = Math.min(entry.getValue(), skill.maximumRank());
+                for (Map.Entry<ResourceLocation, Integer> prerequisite :
+                        skill.prerequisiteRanks(catalogRank).entrySet()) {
+                    if (ownedRanks.getOrDefault(prerequisite.getKey(), 0)
+                            < prerequisite.getValue()) {
+                        invalid.add(entry.getKey());
+                        break;
+                    }
+                }
+            }
+
             if (invalid.isEmpty()) {
                 return;
             }
@@ -1658,7 +1683,7 @@ private static final String NEXUS_REVISION_TAG =
                 }
                 removedAny = true;
                 EssenceAscendance.LOGGER.warn(
-                        "Discarding saved skill '{}' because its current-catalog prerequisite ownership is incomplete",
+                        "Discarding saved skill '{}' because a removed/renamed catalog skill left its current prerequisite ownership incomplete",
                         skillId
                 );
             }

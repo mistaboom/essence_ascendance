@@ -14,7 +14,10 @@ public record GatheringBalanceSettings(
         VerdantStride verdantStride,
         Herdkeeper herdkeeper,
         AnimalGift animalGift,
-        FishingInstinct fishingInstinct
+        FishingInstinct fishingInstinct,
+        FishersCall fishersCall,
+        SalvagersCraft salvagersCraft,
+        PocketNets pocketNets
 ) {
     public GatheringBalanceSettings {
         Objects.requireNonNull(toolInstinct, "Missing Tool Instinct balance; rebuild generated balance");
@@ -28,6 +31,9 @@ public record GatheringBalanceSettings(
         Objects.requireNonNull(herdkeeper, "Missing Herdkeeper balance; rebuild generated balance");
         Objects.requireNonNull(animalGift, "Missing Animal Gift balance; rebuild generated balance");
         Objects.requireNonNull(fishingInstinct, "Missing Fishing Instinct balance; rebuild generated balance");
+        Objects.requireNonNull(fishersCall, "Missing Fisher's Call balance; rebuild generated balance");
+        Objects.requireNonNull(salvagersCraft, "Missing Salvager's Craft balance; rebuild generated balance");
+        Objects.requireNonNull(pocketNets, "Missing Pocket Nets balance; rebuild generated balance");
     }
 
     /** Maximum target-dependent speed bonus when the Ascendance tool fully outclasses the material. */
@@ -113,6 +119,33 @@ public record GatheringBalanceSettings(
         }
     }
 
+    /** Consecutive catches build one shared-deadline shoal; generated values bound both speed and extra loot. */
+    public record FishersCall(int catchesToFullShoal, int chainTimeoutTicks,
+                              double maximumBiteSpeedMultiplier, double maximumExtraCatchChance) {
+        public FishersCall {
+            integer("fishersCall.catchesToFullShoal", catchesToFullShoal, 1, 1_024);
+            integer("fishersCall.chainTimeoutTicks", chainTimeoutTicks, 1, 72_000);
+            number("fishersCall.maximumBiteSpeedMultiplier", maximumBiteSpeedMultiplier, 1, 128);
+            number("fishersCall.maximumExtraCatchChance", maximumExtraCatchChance, 0, 1);
+        }
+    }
+
+    /** Grindstone salvage destroys the chosen equipment and realizes fractional material/experience recovery. */
+    public record SalvagersCraft(double materialRecoveryFraction, double bonusExperienceFraction) {
+        public SalvagersCraft {
+            number("salvagersCraft.materialRecoveryFraction", materialRecoveryFraction, 0, 1);
+            number("salvagersCraft.bonusExperienceFraction", bonusExperienceFraction, 0, 1);
+        }
+    }
+
+    /** Passive swimming checks are deliberately pulsed; each success rolls the loaded fishing loot table. */
+    public record PocketNets(int pulseTicks, double dropChance) {
+        public PocketNets {
+            integer("pocketNets.pulseTicks", pulseTicks, 1, 72_000);
+            number("pocketNets.dropChance", dropChance, 0, 1);
+        }
+    }
+
     /** Neutral schema fixture only. Gameplay requires the generated profile. */
     public static GatheringBalanceSettings defaults() {
         return new GatheringBalanceSettings(new ToolInstinct(0),
@@ -120,7 +153,9 @@ public record GatheringBalanceSettings(
                 new Survey(0), new Survey(0), new HuntersStudy(1, 0),
                 new EssenceBloom(0, 0, 0),
                 new VerdantStride(0, 1, 0), new Herdkeeper(0, 1),
-                new AnimalGift(0, 1, 0), new FishingInstinct(1, 1, 0));
+                new AnimalGift(0, 1, 0), new FishingInstinct(1, 1, 0),
+                new FishersCall(1, 1, 1, 0), new SalvagersCraft(0, 0),
+                new PocketNets(1, 0));
     }
 
     public void validate() {
@@ -138,6 +173,10 @@ public record GatheringBalanceSettings(
         new AnimalGift(animalGift.radiusBlocks(), animalGift.giftPulseTicks(), animalGift.giftChance());
         new FishingInstinct(fishingInstinct.biteSpeedMultiplier(), fishingInstinct.reelWindowMultiplier(),
                 fishingInstinct.virtualLuckLevels());
+        new FishersCall(fishersCall.catchesToFullShoal(), fishersCall.chainTimeoutTicks(),
+                fishersCall.maximumBiteSpeedMultiplier(), fishersCall.maximumExtraCatchChance());
+        new SalvagersCraft(salvagersCraft.materialRecoveryFraction(), salvagersCraft.bonusExperienceFraction());
+        new PocketNets(pocketNets.pulseTicks(), pocketNets.dropChance());
     }
 
     private static void integer(String field, int value, int minimum, int maximum) {

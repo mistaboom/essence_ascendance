@@ -1,5 +1,7 @@
 package com.mistaboom.essence_ascendance.skill.effect;
 
+import net.minecraft.util.RandomSource;
+
 import java.util.List;
 
 /** Pure, bounded arithmetic shared by skill handlers and the in-mod diagnostic. */
@@ -54,6 +56,15 @@ public final class SkillEffectMath {
 
     public static long remaining(long expiry, long now) {
         return expiry > now ? expiry - now : 0;
+    }
+
+    /** Realizes a non-negative continuous reward without introducing a hidden half-unit threshold. */
+    public static int stochasticWhole(double expected, RandomSource random) {
+        if (!Double.isFinite(expected) || expected <= 0.0D || random == null) return 0;
+        double capped = Math.min(Integer.MAX_VALUE, expected);
+        int whole = (int) Math.floor(capped);
+        if (whole == Integer.MAX_VALUE) return whole;
+        return whole + (random.nextDouble() < capped - whole ? 1 : 0);
     }
 
     /** Independent expiries; an ordinary kill at cap intentionally changes no expiry. */

@@ -22,6 +22,7 @@
     "TraversalLiquidRendererMixin",
     "MovementAbilityInputMixin",
     "GatheringSurveyRendererMixin",
+    "GatheringSalvageGrindstoneScreenMixin",
     "UtilitySenseRendererMixin",
     "UtilitySenseClientMixin"
   ],

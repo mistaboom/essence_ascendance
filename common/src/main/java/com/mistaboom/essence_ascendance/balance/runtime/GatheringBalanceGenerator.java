@@ -20,6 +20,8 @@ final class GatheringBalanceGenerator {
         var verdant = SkillBalanceSemantics.require(SkillIds.VERDANT_STRIDE);
         var herdkeeper = SkillBalanceSemantics.require(SkillIds.HERDKEEPER);
         var animalGift = SkillBalanceSemantics.require(SkillIds.ANIMAL_GIFT);
+        var fishersCall = SkillBalanceSemantics.require(SkillIds.FISHERS_CALL);
+        var pocketNets = SkillBalanceSemantics.require(SkillIds.POCKET_NETS);
         double window = settings.generation().survivalWindowSeconds();
 
         double instinctSpeed = power(settings, SkillIds.TOOL_INSTINCT, CapabilityAxis.MINING_SPEED);
@@ -34,6 +36,11 @@ final class GatheringBalanceGenerator {
         double giftAutomation = power(settings, SkillIds.ANIMAL_GIFT, CapabilityAxis.AUTOMATION_INTERACTION);
         double fishingThroughput = power(settings, SkillIds.FISHING_INSTINCT, CapabilityAxis.THROUGHPUT);
         double fishingYield = power(settings, SkillIds.FISHING_INSTINCT, CapabilityAxis.DROP_YIELD);
+        double shoalThroughput = power(settings, SkillIds.FISHERS_CALL, CapabilityAxis.THROUGHPUT);
+        double shoalYield = power(settings, SkillIds.FISHERS_CALL, CapabilityAxis.DROP_YIELD);
+        double salvageConversion = power(settings, SkillIds.SALVAGERS_CRAFT, CapabilityAxis.CONVERSION);
+        double salvageExperience = power(settings, SkillIds.SALVAGERS_CRAFT, CapabilityAxis.EXPERIENCE);
+        double pocketYield = power(settings, SkillIds.POCKET_NETS, CapabilityAxis.DROP_YIELD);
 
         int buildBreaks = Math.clamp((int) Math.ceil(window * momentum.expectedAvailability()), 1, 1_024);
         int timeout = ticks(window * Math.max(Math.ulp(1.0), 1.0 - momentum.expectedAvailability()));
@@ -51,6 +58,13 @@ final class GatheringBalanceGenerator {
         double giftPressure = giftYield + giftAutomation;
         int giftPulse = ticks(window * Math.max(Math.ulp(1.0), animalGift.expectedAvailability()));
         double giftChance = Math.clamp(odds(giftPressure) * animalGift.expectedAvailability(), 0, 1);
+        int shoalCatches = Math.clamp((int) Math.ceil(window * fishersCall.expectedAvailability()), 1, 1_024);
+        int shoalTimeout = ticks(window / Math.max(Math.ulp(1.0), fishersCall.expectedAvailability()));
+        double extraCatchChance = Math.clamp(odds(shoalYield) * fishersCall.expectedAvailability(), 0, 1);
+        double materialRecovery = Math.clamp(odds(salvageConversion), 0, 1);
+        double salvageExperienceFraction = Math.clamp(odds(salvageExperience), 0, 1);
+        int pocketPulse = ticks(window * Math.max(Math.ulp(1.0), pocketNets.expectedAvailability()));
+        double pocketChance = Math.clamp(odds(pocketYield) * pocketNets.expectedAvailability(), 0, 1);
 
         return new GatheringBalanceSettings(
                 new GatheringBalanceSettings.ToolInstinct(Math.clamp(instinctSpeed, 0, 16)),
@@ -69,7 +83,11 @@ final class GatheringBalanceGenerator {
                 new GatheringBalanceSettings.AnimalGift(Math.clamp(animalGift.areaRadiusBlocks(), 0, 128),
                         giftPulse, giftChance),
                 new GatheringBalanceSettings.FishingInstinct(Math.clamp(1.0 + fishingThroughput, 1, 128),
-                        Math.clamp(1.0 + fishingThroughput, 1, 128), Math.clamp(fishingYield, 0, 255)));
+                        Math.clamp(1.0 + fishingThroughput, 1, 128), Math.clamp(fishingYield, 0, 255)),
+                new GatheringBalanceSettings.FishersCall(shoalCatches, shoalTimeout,
+                        Math.clamp(1.0 + shoalThroughput, 1, 128), extraCatchChance),
+                new GatheringBalanceSettings.SalvagersCraft(materialRecovery, salvageExperienceFraction),
+                new GatheringBalanceSettings.PocketNets(pocketPulse, pocketChance));
     }
 
     private static double power(BalanceSettings settings, net.minecraft.resources.ResourceLocation skill,

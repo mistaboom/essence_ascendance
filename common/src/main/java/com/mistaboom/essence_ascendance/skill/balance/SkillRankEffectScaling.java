@@ -272,6 +272,15 @@ public final class SkillRankEffectScaling {
                 1.0 + scale(p.fishingInstinct.biteSpeedMultiplier() - 1.0, f, 127),
                 1.0 + scale(p.fishingInstinct.reelWindowMultiplier() - 1.0, f, 127),
                 scale(p.fishingInstinct.virtualLuckLevels(), f, 255)));
+        register(SkillIds.FISHERS_CALL, (p, f) -> p.fishersCall = new GatheringBalanceSettings.FishersCall(
+                p.fishersCall.catchesToFullShoal(), p.fishersCall.chainTimeoutTicks(),
+                1.0 + scale(p.fishersCall.maximumBiteSpeedMultiplier() - 1.0, f, 127),
+                scaleOdds(p.fishersCall.maximumExtraCatchChance(), f)));
+        register(SkillIds.SALVAGERS_CRAFT, (p, f) -> p.salvagersCraft = new GatheringBalanceSettings.SalvagersCraft(
+                scaleOdds(p.salvagersCraft.materialRecoveryFraction(), f),
+                scaleOdds(p.salvagersCraft.bonusExperienceFraction(), f)));
+        register(SkillIds.POCKET_NETS, (p, f) -> p.pocketNets = new GatheringBalanceSettings.PocketNets(
+                p.pocketNets.pulseTicks(), scaleOdds(p.pocketNets.dropChance(), f)));
         register(SkillIds.THREAT_SENSE, (p, f) -> p.threatSense = new UtilityBalanceSettings.ThreatSense(
                 scale(p.threatSense.rangeBlocks(), f, 128)));
         register(SkillIds.HUNTERS_LEDGER, (p, f) -> p.huntersLedger = new UtilityBalanceSettings.HuntersLedger(
@@ -430,6 +439,17 @@ public final class SkillRankEffectScaling {
         }
         if (id.equals(SkillIds.FISHING_INSTINCT)) return (gathering.fishingInstinct().biteSpeedMultiplier() - 1.0)
                 / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.THROUGHPUT));
+        if (id.equals(SkillIds.FISHERS_CALL)) return (gathering.fishersCall().maximumBiteSpeedMultiplier() - 1.0)
+                / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.THROUGHPUT));
+        if (id.equals(SkillIds.SALVAGERS_CRAFT)) return inverseOdds(gathering.salvagersCraft().materialRecoveryFraction())
+                / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.CONVERSION));
+        if (id.equals(SkillIds.POCKET_NETS)) {
+            double chance = gathering.pocketNets().dropChance();
+            double availability = SkillBalanceSemantics.require(id).expectedAvailability();
+            double rawChance = availability <= 0 ? 0 : Math.min(Math.nextDown(1.0), chance / availability);
+            return inverseOdds(rawChance)
+                    / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.DROP_YIELD));
+        }
         var utility = settings.utility();
         if (id.equals(SkillIds.THREAT_SENSE)) return utility.threatSense().rangeBlocks()
                 / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).rangeBlocks());
@@ -600,6 +620,9 @@ public final class SkillRankEffectScaling {
         public GatheringBalanceSettings.Herdkeeper herdkeeper;
         public GatheringBalanceSettings.AnimalGift animalGift;
         public GatheringBalanceSettings.FishingInstinct fishingInstinct;
+        public GatheringBalanceSettings.FishersCall fishersCall;
+        public GatheringBalanceSettings.SalvagersCraft salvagersCraft;
+        public GatheringBalanceSettings.PocketNets pocketNets;
         public UtilityBalanceSettings.ThreatSense threatSense;
         public UtilityBalanceSettings.HuntersLedger huntersLedger;
         public UtilityBalanceSettings.Waylight waylight;
@@ -666,7 +689,8 @@ public final class SkillRankEffectScaling {
             treasureSense=v.gathering().treasureSense(); huntersStudy=v.gathering().huntersStudy();
             essenceBloom=v.gathering().essenceBloom(); verdantStride=v.gathering().verdantStride();
             herdkeeper=v.gathering().herdkeeper(); animalGift=v.gathering().animalGift();
-            fishingInstinct=v.gathering().fishingInstinct();
+            fishingInstinct=v.gathering().fishingInstinct(); fishersCall=v.gathering().fishersCall();
+            salvagersCraft=v.gathering().salvagersCraft(); pocketNets=v.gathering().pocketNets();
             threatSense=v.utility().threatSense(); huntersLedger=v.utility().huntersLedger(); waylight=v.utility().waylight();
             restfulMending=v.utility().restfulMending(); metabolicMending=v.utility().metabolicMending();
             masterworkTempering=v.utility().masterworkTempering(); villagePatron=v.utility().villagePatron();
@@ -685,7 +709,8 @@ public final class SkillRankEffectScaling {
                             new VitalityWardBalanceSettings(soulWard, deepWard, shatteringWard)),
                     new MobilityBalanceSettings(runningMomentum, momentumVault, rush, impactControl, chargedJump, doubleJump, vectorJump),
                     new GatheringBalanceSettings(toolInstinct, miningMomentum, naturesBoon, oreSight, treasureSense,
-                            huntersStudy, essenceBloom, verdantStride, herdkeeper, animalGift, fishingInstinct),
+                            huntersStudy, essenceBloom, verdantStride, herdkeeper, animalGift, fishingInstinct,
+                            fishersCall, salvagersCraft, pocketNets),
                     new UtilityBalanceSettings(threatSense, huntersLedger, waylight, restfulMending,
                             metabolicMending, masterworkTempering, villagePatron, bondedCompanion, alchemicalAmplification, potionRelay,
                             sanctuary, industriousPresence, containmentField));

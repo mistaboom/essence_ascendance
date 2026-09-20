@@ -239,6 +239,23 @@ public final class SkillTooltipRegistry {
                         n(s -> s.gathering().fishingInstinct().reelWindowMultiplier())),
                 line("skill.essence_ascendance.fishing_instinct.description.resolved.1",
                         n(s -> s.gathering().fishingInstinct().virtualLuckLevels())));
+        define(SkillIds.FISHERS_CALL,
+                line("skill.essence_ascendance.fishers_call.description.resolved",
+                        n(s -> s.gathering().fishersCall().catchesToFullShoal()),
+                        sec(s -> s.gathering().fishersCall().chainTimeoutTicks())),
+                line("skill.essence_ascendance.fishers_call.description.resolved.1",
+                        n(s -> s.gathering().fishersCall().maximumBiteSpeedMultiplier()),
+                        pct(s -> s.gathering().fishersCall().maximumExtraCatchChance())));
+        define(SkillIds.SALVAGERS_CRAFT,
+                line("skill.essence_ascendance.salvagers_craft.description.resolved",
+                        pct(s -> s.gathering().salvagersCraft().materialRecoveryFraction())),
+                line("skill.essence_ascendance.salvagers_craft.description.resolved.1",
+                        pct(s -> s.gathering().salvagersCraft().bonusExperienceFraction())));
+        define(SkillIds.POCKET_NETS,
+                line("skill.essence_ascendance.pocket_nets.description.resolved",
+                        sec(s -> s.gathering().pocketNets().pulseTicks()),
+                        pct(s -> s.gathering().pocketNets().dropChance())),
+                line("skill.essence_ascendance.pocket_nets.description.resolved.1"));
         define(SkillIds.THREAT_SENSE,
                 line("skill.essence_ascendance.threat_sense.description.resolved",
                         n(s -> s.utility().threatSense().rangeBlocks())),

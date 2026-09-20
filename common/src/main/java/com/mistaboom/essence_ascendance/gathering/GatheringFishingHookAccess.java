@@ -12,6 +12,8 @@ public interface GatheringFishingHookAccess {
     void essenceAscendance$setLureBefore(int ticks);
     int essenceAscendance$hookBefore();
     void essenceAscendance$setHookBefore(int ticks);
+    int essenceAscendance$nibbleBefore();
+    void essenceAscendance$setNibbleBefore(int ticks);
     double essenceAscendance$lureCarry();
     void essenceAscendance$setLureCarry(double carry);
     double essenceAscendance$hookCarry();
