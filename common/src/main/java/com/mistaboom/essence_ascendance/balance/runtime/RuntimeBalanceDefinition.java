@@ -145,7 +145,7 @@ public final class RuntimeBalanceDefinition {
             for(var tier:tiers) {
                 var point=track.checkpoint(tier.id());
                 if (!tier.grantsPower() && (point.cumulativeCap()!=0 || point.effectFraction()!=0 || point.available()))
-                    throw new IllegalArgumentException("Non-powered tier grants Bonus " + stat.id());
+                    throw new IllegalArgumentException("Onboarding tier grants Bonus " + stat.id());
                 if(!Objects.equals(profile.statOverrides().getOrDefault(stat.id(),Map.of()).get(tier.id()),point.cumulativeCap()))
                     throw new IllegalArgumentException("Bonus cap mirror differs from authoritative checkpoint " + stat.id());
             }
@@ -215,6 +215,8 @@ public final class RuntimeBalanceDefinition {
         for (String required : List.of("equipment_share", "nexus_share", "skill_share", "rank_safe_skill_scale"))
             if (!composition.containsKey(required)) throw new IllegalArgumentException("Missing composition budget " + required);
         config.skillEffects().validate();
+        if (composition.getOrDefault("meaningful_progression", 0.0) == 1)
+            com.mistaboom.essence_ascendance.skill.balance.SkillBalanceGenerator.validatePublished(config.skillEffects(), skillCurves);
         if(toJson().toString().getBytes(java.nio.charset.StandardCharsets.UTF_8).length > com.mistaboom.essence_ascendance.network.RuntimeBalancePayload.MAX_BYTES)
             throw new IllegalArgumentException("Resolved runtime profile exceeds network limit; reduce oversized exact overrides");
     }

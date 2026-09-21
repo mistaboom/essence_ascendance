@@ -72,8 +72,9 @@ public final class ConstructionMaterialResolver {
         }
         if (fallback != null) return recipeMaterials(target, fallback, fallbackOutputCount);
 
-        Item repair = nativeRepairMaterial(target);
-        return repair == null ? List.of() : List.of(new MaterialAmount(repair, 1.0D));
+        // Repair compatibility alone is not construction evidence: a one-item fallback can create
+        // a profitable craft/recycle loop in packs with multi-output or conversion recipes.
+        return List.of();
     }
 
     private static List<MaterialAmount> recipeMaterials(ItemStack target, Recipe<?> recipe, int outputCount) {
@@ -83,6 +84,7 @@ public final class ConstructionMaterialResolver {
             Item candidate = representative(target, ingredient);
             if (candidate != null) amounts.merge(candidate, perOutput, Double::sum);
         }
+        if (amounts.values().stream().mapToDouble(Double::doubleValue).sum() <= 1) return List.of();
         return amounts.entrySet().stream()
                 .map(entry -> new MaterialAmount(entry.getKey(), entry.getValue()))
                 .toList();

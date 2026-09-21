@@ -76,7 +76,8 @@ public final class RuntimeBalanceTest {
         var generated=RuntimeBalanceDefinition.generate(evidence,economy,BalanceSettings.defaults(),BalanceOverrides.empty());
         check(generated.generationAnalysis()!=null,"Numeric composition scenarios missing");
         generated.generationAnalysis().requireSafe();
-        RuntimeBuildScenarios.analyze(generated,evidence,BalanceSettings.defaults(),RuntimeBuildScenarios.plan(generated,false)).requireSafe();
+        com.mistaboom.essence_ascendance.skill.balance.SkillBalanceGenerator.validatePublished(generated.config().skillEffects(), generated.skillCurves());
+        check(generated.generationAnalysis().assumptions().stream().anyMatch(a -> a.contains("local ignored overage")), "Allocation report must identify excluded floor overage");
         var posture=generated.config().skillEffects().posture();
         var postureDefaults=com.mistaboom.essence_ascendance.config.PostureBalanceSettings.defaults();
         check(posture.evasive().maximumDodgeChance()>0 && posture.evasive().maximumDodgeChance()<=postureDefaults.evasive().maximumDodgeChance(),
@@ -190,8 +191,12 @@ public final class RuntimeBalanceTest {
         rejected(()->RuntimeBalanceDefinition.generate(evidence,economy,BalanceSettings.defaults(),new BalanceOverrides(List.of(),
                 Map.of("/runtime/composition/equipment_share",.9))),"Derived diagnostic override accepted");
         check(generated.toJson().equals(RuntimeBalanceDefinition.generate(evidence,economy,BalanceSettings.defaults(),BalanceOverrides.empty()).toJson()),"Full runtime pass nondeterministic");
-        check(generated.config().balanceProfile().getInvestmentCap(AscendanceTiers.DORMANT,EssenceStats.MELEE_DAMAGE)
-                !=generated.config().balanceProfile().getInvestmentCap(AscendanceTiers.DORMANT,EssenceStats.DAMAGE_REFLECTION),"Category supply ignored");
+        var meleeTrack = generated.config().balanceProfile().bonusTrack(EssenceStats.MELEE_DAMAGE.id());
+        var reflectionTrack = generated.config().balanceProfile().bonusTrack(EssenceStats.DAMAGE_REFLECTION.id());
+        check(!meleeTrack.inputs().get("category_supply").equals(reflectionTrack.inputs().get("category_supply")), "Category supply input ignored");
+        check(meleeTrack.checkpoints().stream().filter(BonusTrackDefinition.Checkpoint::purchasable).findFirst().orElseThrow().segmentCost()
+                != reflectionTrack.checkpoints().stream().filter(BonusTrackDefinition.Checkpoint::purchasable).findFirst().orElseThrow().segmentCost(),
+                "Generated state pricing must retain category economy despite independently placed tier windows");
         var exact=new BalanceOverrides(List.of(),Map.of("/runtime/worldgen/overworld/veinsPerChunk",3L,
                 "/runtime/skillCurves/"+skill+"/ranks/0/cost",1L));
         var edited=RuntimeBalanceDefinition.generate(evidence,economy,BalanceSettings.defaults(),exact);

@@ -87,6 +87,8 @@ public record SkillDefinition(
         return replacementTarget != null;
     }
 
+    public ProgressionRequirements.Skill progressionRequirements() { return ProgressionRequirements.skill(id); }
+
     public boolean hasLiveRequirements() {
         return requirements.stream().anyMatch(SkillRequirement::live);
     }
@@ -100,7 +102,11 @@ public record SkillDefinition(
         return com.mistaboom.essence_ascendance.skill.balance.SkillBalanceRuntime.require(id.toString(), targetRank).cost();
     }
 
-    public int maximumRank() { return rankPolicy.maximumRank(); }
+    public int maximumRank() {
+        if (rankPolicy.maximumRank() > 0) return rankPolicy.maximumRank();
+        var resolved = com.mistaboom.essence_ascendance.skill.balance.SkillBalanceRuntime.snapshot().get(id.toString());
+        return resolved == null ? 1 : resolved.maximumRank();
+    }
 
     /** Later ranks inherit earlier gates unless the same requirement identity is explicitly refined. */
     public ResourceLocation requiredTierId(int rank) {

@@ -60,11 +60,11 @@ public final class VitalityBatchContractTest {
                         && skill.replacementTargetId().isEmpty(), "Category and prerequisite relationships preserved");
                 check(skill.requiredTierId().equals(RECOVERY.contains(skill.id())
                         ? AscendanceTiers.DORMANT.id() : AscendanceTiers.AWAKENED.id()), "Registered tier preserved");
-                check(skill.maximumRank() == 1 && skill.rankPolicy().projectionRanks() == 5,
-                        "Future five-rank balance headroom never becomes a purchase");
+                check(skill.rankPolicy().maximumRank() == 0,
+                        "Catalog delegates purchasable rank count to the balance engine");
             }
         }
-        for (var skill : SkillRegistry.values()) check(skill.maximumRank() == 1, "Every existing skill still has one purchasable rank");
+        for (var skill : SkillRegistry.values()) check(skill.rankPolicy().maximumRank() == 0, "Catalog delegates purchasable rank count to generated balance");
     }
 
     private static void choicesAndAuthority() {

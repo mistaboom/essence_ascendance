@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.projectile;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
+import dev.architectury.platform.Platform;
 import dev.architectury.registry.registries.DeferredRegister;
 import dev.architectury.registry.registries.RegistrySupplier;
 import net.minecraft.core.registries.Registries;
@@ -15,7 +16,9 @@ public final class ProjectileContent {
     public static final RegistrySupplier<EntityType<MagicBoltEntity>> MAGIC_BOLT = TYPES.register("magic_bolt",
             () -> EntityType.Builder.<MagicBoltEntity>of(MagicBoltEntity::new, MobCategory.MISC)
                     .sized(0.2F, 0.2F).clientTrackingRange(8).updateInterval(1)
-                    .build(EssenceAscendance.MOD_ID + ":magic_bolt"));
+                    // Fabric accepts null to skip vanilla DFU lookup for custom entities, retaining saves.
+                    // The registry ID is assigned by TYPES.register, independently of this DFU key.
+                    .build(Platform.isFabric() ? null : EssenceAscendance.MOD_ID + ":magic_bolt"));
     public static final ResourceKey<DamageType> MAGIC_BOLT_DAMAGE = ResourceKey.create(Registries.DAMAGE_TYPE,
             ResourceLocation.fromNamespaceAndPath(EssenceAscendance.MOD_ID, "magic_bolt"));
     private ProjectileContent() { }

@@ -43,7 +43,7 @@ public final class NexusBonusPresentationTest {
                 var layout = new NexusBonusTrackLayout(facts, 30, 30 + height);
                 check(layout.startY() <= layout.bottom() && layout.completionY() >= layout.top()
                         && layout.completionY() <= layout.startY(), "Every useful span fits a responsive rail");
-                check(layout.startY() == layout.yForPosition(facts.tierPositions().get(start - 1)),
+                check(layout.startY() == layout.yForPosition((start == 0 ? 0 : facts.tierPositions().get(start - 1))),
                         "Delayed track begins at the entry boundary of its first useful tier");
                 check(layout.completionY() == layout.yForPosition(facts.tierPositions().get(end)),
                         "Early completion terminates on its own tier guide");
@@ -86,11 +86,11 @@ public final class NexusBonusPresentationTest {
                 for (int band = 1; band <= 5; band++) {
                     double center = layout.bandCenterPosition(band);
                     check(Math.abs(center - labelPositions[band]) < 1e-12,
-                            "Tier labels identify the interiors of the five powered bands, independent of track span");
-                    check(center > facts.tierPositions().get(band - 1) && center < facts.tierPositions().get(band),
+                            "Tier labels identify the interiors of the five purchasable bands after onboarding, independent of track span");
+                    check(center > (band == 0 ? 0 : facts.tierPositions().get(band - 1)) && center < facts.tierPositions().get(band),
                             "Tier label was assigned to a cap boundary instead of its own tier band");
                     int labelY = layout.bandCenterY(band);
-                    int lowerBoundaryY = layout.yForPosition(facts.tierPositions().get(band - 1));
+                    int lowerBoundaryY = layout.yForPosition((band == 0 ? 0 : facts.tierPositions().get(band - 1)));
                     int upperBoundaryY = layout.yForPosition(facts.tierPositions().get(band));
                     check(labelY >= upperBoundaryY && labelY <= lowerBoundaryY,
                             "Responsive tier label leaves its band");
@@ -154,7 +154,7 @@ public final class NexusBonusPresentationTest {
                 new BonusTrackDefinition.Checkpoint(tiers.get(3), 100, 0, .2, true, false),
                 new BonusTrackDefinition.Checkpoint(tiers.get(4), 16100, 16000, .7, true, true),
                 new BonusTrackDefinition.Checkpoint(tiers.get(5), 116100, 100000, 1, true, true)),
-                base.tierPositions(), base.investmentExponent(), base.purchaseStyle(), base.snapPoints(), base.applicability());
+                base.tierPositions(), base.investmentExponent(), base.purchaseStyle(), List.of(0.0, .2, .7, 1.0), base.applicability());
         var gap = new NexusBonusTrackLayout(gapFacts, 20, 220);
         for (var tier : List.of(AscendanceTiers.DORMANT, AscendanceTiers.AWAKENED, AscendanceTiers.RESONANT))
             check(gap.capUnlockTier(tier.id()).equals(AscendanceTiers.ASCENDANT.id()),
@@ -175,18 +175,18 @@ public final class NexusBonusPresentationTest {
         check(categories.size() == 1 && categories.getFirst().tracks().size() == 2, "View factory includes synchronized category tracks only");
         var step = categories.getFirst().tracks().stream().filter(track -> track.stat().id().equals(EssenceStats.STEP_HEIGHT.id())).findFirst().orElseThrow();
         var movement = categories.getFirst().tracks().stream().filter(track -> track.stat().id().equals(EssenceStats.MOVEMENT_SPEED.id())).findFirst().orElseThrow();
-        check(step.milestones().isEmpty(), "Step Height has continuous control without snapping marks");
-        check(movement.milestones().isEmpty(), "Continuous track remains a continuous slider");
+        check(step.milestones().size() == 2, "Step Height presents generated complete-state checkpoints");
+        check(movement.milestones().size() == 5, "Movement presents its generated state count");
         check(step.dragTarget(1, 599, TIER) == 599 && step.dragTarget(1, 600, TIER) == 600,
                 "Step Height dragging uses every affordable Essence rather than snapping to milestones");
         check(step.dragTarget(.17, 600, TIER) > 0 && step.dragTarget(.17, 600, TIER) < 100,
                 "Step Height accepts partial investments between native traversal boundaries");
-        check(step.progression(100, TIER) == .5 && step.progression(99, TIER) > 0 && step.progression(99, TIER) < .5,
-                "Step Height preview remains smooth around the native threshold");
+        check(step.progression(100, TIER) == .5 && step.progression(99, TIER) == 0,
+                "Step Height preview applies power only at complete funding");
         for (long amount = 1; amount <= 600; amount++) {
-            check(step.progression(amount, TIER) > step.progression(amount - 1, TIER), "Every Step Height Essence amount has a smooth preview");
-            check(step.dragTarget(step.progression(amount, TIER), 600, TIER) == amount,
-                    "Every Step Height amount can be recovered from its continuous drag position");
+            check(step.progression(amount, TIER) >= step.progression(amount - 1, TIER), "Complete-state preview is monotonic");
+            double funding = BonusTrackCurve.progressionForInvestment(stepFacts.checkpoints(), stepFacts.investmentExponent(), amount, TIER);
+            check(step.dragTarget(funding, 600, TIER) == amount, "Funding coordinate preserves exact partial investment");
         }
         for (var unit : StatUnit.values()) {
             check(NexusProgressionTrack.effectLabel(unit, 1.25).equals(unit == StatUnit.PERCENT ? "+1.25%" : "+1.25"),
@@ -199,8 +199,8 @@ public final class NexusBonusPresentationTest {
             long target = movement.dragTarget(i / 1000.0, Long.MAX_VALUE, TIER);
             check(target >= previous, "Continuous dragging remains monotonic");
             previous = target;
-            double effect = movement.progression(target, TIER);
-            check(movement.dragTarget(effect, Long.MAX_VALUE, TIER) == target, "Continuous effect preview round-trips every staged target");
+            double effect = BonusTrackCurve.progressionForInvestment(movementFacts.checkpoints(), movementFacts.investmentExponent(), target, TIER);
+            check(movement.dragTarget(effect, Long.MAX_VALUE, TIER) == target, "Funding coordinate round-trips every staged target");
         }
         long previousCap = 0;
         for (var checkpoint : movementFacts.checkpoints()) {
@@ -210,8 +210,8 @@ public final class NexusBonusPresentationTest {
             // within every segment, including the expensive late-game portions of the curve.
             for (long offset = 1; offset <= Math.min(64, checkpoint.segmentCost()); offset++) {
                 for (long target : new long[] {previousCap + offset, checkpoint.cumulativeCap() - offset + 1}) {
-                    double effect = movement.progression(target, TIER);
-                    check(effect > movement.progression(target - 1, TIER), "Every sampled adjacent Essence amount adds continuous effect");
+                    double effect = BonusTrackCurve.progressionForInvestment(movementFacts.checkpoints(), movementFacts.investmentExponent(), target, TIER);
+                    check(movement.progression(target, TIER) >= movement.progression(target - 1, TIER), "Funding never reduces complete-state effect");
                     check(movement.dragTarget(effect, Long.MAX_VALUE, TIER) == target,
                             "Every segment retains per-Essence continuous selection through the inverse curve");
                 }

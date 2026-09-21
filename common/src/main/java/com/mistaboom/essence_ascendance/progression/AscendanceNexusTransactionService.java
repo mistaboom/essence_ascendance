@@ -98,6 +98,8 @@ public final class AscendanceNexusTransactionService {
 
         Map<ResourceLocation, Long> targetInvestments =
                 new LinkedHashMap<>(playerData.getAllInvested());
+        if (!playerData.getTier().grantsPower() && (!requestedPurchases.isEmpty() || !loadoutChanges.isEmpty()))
+            return Result.failure(AscendanceNexusTransactionResultPayload.Status.INVALID_PROPOSAL, playerData.nexusRevision());
         Map<ResourceLocation, Long> targetAvailable =
                 new LinkedHashMap<>(playerData.getAllAvailable());
         Map<ResourceLocation, SkillPurchase> targetOwnedSkills =

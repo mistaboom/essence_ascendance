@@ -28,6 +28,8 @@
     "UtilitySenseClientMixin"
   ],
   "mixins": [
+    "FoodEffectOriginMixin",
+    "AnimalFeedingMixin",
     "FoodDataRecoveryMixin",
     "FeastUseDurationMixin",
     "FeastContainerReturnMixin",

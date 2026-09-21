@@ -76,10 +76,15 @@ final class OffenseElementalImbuementEffects {
             }
             for (TargetConditionState.Pulse pulse : state.burning.drainDuePulses(context.now())) {
                 if (pulse.magnitude() <= 0.0) continue;
-                PropagationBudget root = new PropagationBudget(0, 1);
+                var lineage = pulse.lineage();
+                if (lineage != null && !context.isEffective(lineage.sourceSkill())) continue;
+                var combustion = context.settings().combustion();
+                PropagationBudget root = lineage == null
+                        ? new PropagationBudget(combustion.maximumGeneration(), combustion.rootTargetBudget()) : lineage.root();
                 root.seed(pulse.target().getUUID());
                 SkillProcDamageService.hurt(context.player(), pulse.target(), (float) pulse.magnitude(),
-                        SkillProcDamageService.DamageKind.BURNING, id(), root, 0);
+                        SkillProcDamageService.DamageKind.BURNING, lineage == null ? id() : lineage.sourceSkill(), root,
+                        lineage == null ? 0 : lineage.generation());
             }
         }
 
@@ -88,6 +93,7 @@ final class OffenseElementalImbuementEffects {
             if (state == null) return;
             state.heat.reconcile(context.player(), context.now(), context.settings().kindling().maxHeat());
             state.burning.reconcile(context.player(), context.now());
+            state.burning.discardInactiveLineage(context::isEffective);
             if (state.empty()) context.discardState(id());
         }
 
@@ -153,10 +159,11 @@ final class OffenseElementalImbuementEffects {
                     || previous.kind() != SkillProcDamageService.DamageKind.COMBUSTION)) return;
             if (state == null || !state.burning.consume(death.victim(), context.now())) return;
             var settings = context.settings().combustion();
-            PropagationBudget root = previous == null || burningKill
+            PropagationBudget root = previous == null
                     ? new PropagationBudget(settings.maximumGeneration(), settings.rootTargetBudget())
                     : previous.root();
-            int generation = previous == null || burningKill ? 0 : previous.generation() + 1;
+            int generation = previous == null || burningKill && previous.sourceSkill().equals(SkillIds.KINDLING)
+                    ? 0 : previous.generation() + 1;
             root.seed(death.victim().getUUID());
             if (!root.canContinue(generation)) return;
             double damage = settings.damage() * Math.pow(settings.generationDamageFalloff(), generation);
@@ -164,7 +171,8 @@ final class OffenseElementalImbuementEffects {
                     settings.radius(), settings.targetsPerBurst(), (float) damage, id(),
                     SkillProcDamageService.DamageKind.COMBUSTION, root, generation, target -> {
                 state.ignite(target, context.now(), settings.seededIgnitionTicks(), damage,
-                        context.settings().kindling().burningDamagePercentPerSecond());
+                        context.settings().kindling().burningDamagePercentPerSecond(),
+                        new TargetConditionState.Lineage(root, generation, id()));
                 SkillProcDamageService.particles(context.player(), target, ParticleTypes.FLAME, 10, 0.35, 0.02);
             });
         }
@@ -288,6 +296,8 @@ final class OffenseElementalImbuementEffects {
         @Override public void tick(SkillEffectRuntime.Context context) {
             StaticChargeState state = context.state(id(), StaticChargeState::new);
             var settings = context.settings().staticCharge();
+            com.mistaboom.essence_ascendance.movement.PlayerMotionTracker.track(context.player(), context.settings().posture().movement());
+            var motion = com.mistaboom.essence_ascendance.movement.PlayerMotionTracker.sample(context.player());
             double vertical = context.player().getDeltaMovement().y;
             boolean onGround = context.player().onGround();
             if (state.dischargeVisible(context.now())) {
@@ -298,13 +308,16 @@ final class OffenseElementalImbuementEffects {
                 return;
             }
             double gain = 0.0;
-            if (state.initialized && state.previousOnGround && !onGround && vertical > 0.10) {
+            boolean validMotion = motion.qualifiedSpatialMovement(context.settings().posture().movement().minimumDisplacement());
+            if (validMotion && motion.intentional() && state.initialized && state.previousOnGround && !onGround && vertical > 0.10) {
                 gain += settings.jumpCharge();
             }
-            if (context.player().isFallFlying()) gain += settings.glidePerTick();
-            else if (context.player().getAbilities().flying) gain += settings.flightPerTick();
-            else if (!onGround && vertical < -0.08) gain += settings.fallPerTick();
-            else if (context.player().isSprinting()) gain += settings.sprintPerTick();
+            if (validMotion) {
+                if (motion.intentional() && context.player().isFallFlying()) gain += settings.glidePerTick();
+                else if (motion.intentional() && context.player().getAbilities().flying) gain += settings.flightPerTick();
+                else if (!onGround && vertical < -0.08) gain += settings.fallPerTick();
+                else if (motion.intentional() && motion.moving() && context.player().isSprinting()) gain += settings.sprintPerTick();
+            }
             state.initialized = true;
             state.previousOnGround = onGround;
             if (gain > 0.0) state.add(gain, settings.maximumCharge(), context.now());
@@ -403,9 +416,13 @@ final class OffenseElementalImbuementEffects {
 
         void ignite(LivingEntity target, long now, int durationTicks,
                     double triggeringDamage, double damagePercentPerSecond) {
+            ignite(target, now, durationTicks, triggeringDamage, damagePercentPerSecond, null);
+        }
+        void ignite(LivingEntity target, long now, int durationTicks,
+                    double triggeringDamage, double damagePercentPerSecond, TargetConditionState.Lineage lineage) {
             double pulseDamage = SkillEffectMath.clamp(
                     triggeringDamage * damagePercentPerSecond / 100.0, 0.0, Float.MAX_VALUE);
-            burning.apply(target, now, durationTicks, pulseDamage, Kindling.BURN_PULSE_TICKS);
+            burning.apply(target, now, durationTicks, pulseDamage, Kindling.BURN_PULSE_TICKS, lineage);
             target.setRemainingFireTicks(Math.max(target.getRemainingFireTicks(), 2));
         }
 

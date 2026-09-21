@@ -42,8 +42,8 @@ public final class SkillRankLedgerTest {
         var curves = SkillBalanceGenerator.generate(costs, 1.0);
         SkillBalanceRuntime.install(curves);
         var settings = SkillEffectBalanceSettings.defaults();
-        check(SkillRankEffectScaling.apply(settings, Map.of(SkillIds.FRENZY, 1)) == settings,
-                "Current single-rank effect settings must remain identical");
+        check(SkillRankEffectScaling.apply(settings, Map.of(SkillIds.FRENZY, 1)).equals(settings),
+                "Nominal first-state candidate must preserve its input values");
         var ranked = SkillRankEffectScaling.apply(settings,
                 Map.of(SkillIds.FRENZY, 3, SkillIds.PIERCING_PROJECTILE, 3));
         check(ranked.frenzy().damageBonusPercentPerStack() > settings.frenzy().damageBonusPercentPerStack(),

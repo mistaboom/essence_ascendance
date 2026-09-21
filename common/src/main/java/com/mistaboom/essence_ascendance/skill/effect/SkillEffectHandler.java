@@ -39,6 +39,7 @@ public interface SkillEffectHandler {
     }
     default void targetRemoved(SkillEffectRuntime.Context context, Entity target) { }
     /** Post-enchantment native durability loss. Return the remaining loss that vanilla should apply. */
+    default void durabilityAttempt(SkillEffectRuntime.Context context, ItemStack stack) { }
     default int durabilityLoss(SkillEffectRuntime.Context context, ItemStack stack, int actualDamage) { return actualDamage; }
     /** Completed native food consumption; saturationPoints is the food's intrinsic vanilla saturation contribution. */
     default void foodConsumed(SkillEffectRuntime.Context context, ItemStack source, int nutrition,

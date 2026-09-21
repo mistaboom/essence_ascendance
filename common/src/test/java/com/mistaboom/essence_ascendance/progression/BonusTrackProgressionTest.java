@@ -16,7 +16,7 @@ import net.minecraft.server.Bootstrap;
 
 import java.util.*;
 
-/** Real-registry invariants for per-track economics, smooth purchase/effect realization and normalized development. */
+/** Real-registry invariants for per-track economics, partial funding and complete-state effect realization and normalized development. */
 public final class BonusTrackProgressionTest {
     private static int assertions;
     private static final long[] COSTS = {0, 100, 400, 1600, 6400, 25600};
@@ -67,8 +67,8 @@ public final class BonusTrackProgressionTest {
             check(TierInvestmentPolicy.validTarget(stat, AscendanceTiers.TRANSCENDENT, profile, previousTierCap, previousTierCap + 1),
                     "Transcendent cannot continue a previously full Ascendant track");
             check(StatScalingService.realizedProgressionForInvestment(stat, previousTierCap + 1, AscendanceTiers.TRANSCENDENT, profile)
-                            > StatScalingService.maximumProgression(stat, AscendanceTiers.ASCENDANT, profile),
-                    "First Transcendent investment failed to add an effect");
+                            == StatScalingService.maximumProgression(stat, AscendanceTiers.ASCENDANT, profile),
+                    "Partial next-state funding must not grant sub-floor power");
             check(StatScalingService.realizedProgressionForInvestment(stat, apexCap, AscendanceTiers.TRANSCENDENT, profile) == 1,
                     "Long Bonus track cannot reach its final effect endpoint");
         }
@@ -89,15 +89,15 @@ public final class BonusTrackProgressionTest {
     private static void continuousAndAuthority(BalanceProfileDefinition profile) {
         var step = profile.bonusTrack(EssenceStats.STEP_HEIGHT.id());
         var apex = AscendanceTiers.TRANSCENDENT;
-        check(step.purchaseStyle() == PurchaseStyle.CONTINUOUS && step.snapPoints().isEmpty(), "Step fixture must use uniform continuous purchase behavior");
+        check(step.purchaseStyle() == PurchaseStyle.FUNDED_STATES && !step.snapPoints().isEmpty(), "Step fixture must use complete-state realization with partial funding");
         double previous = -1;
         for (long amount = 0; amount <= step.checkpoint(apex.id()).cumulativeCap(); amount++) {
             check(TierInvestmentPolicy.validTarget(EssenceStats.STEP_HEIGHT, apex, profile, 0, amount),
                     "Authoritative validator rejected a partial Step purchase");
             double raw = StatScalingService.progressionForInvestment(EssenceStats.STEP_HEIGHT, amount, apex, profile);
             double realized = StatScalingService.realizedProgressionForInvestment(EssenceStats.STEP_HEIGHT, amount, apex, profile);
-            check(realized == raw && realized > previous, "Applied Step effect snapped or stopped increasing between tier checkpoints");
-            check(Math.abs(StatScalingService.investmentForProgression(EssenceStats.STEP_HEIGHT, realized, apex, profile) - amount) <= 1,
+            check(realized <= raw + 1e-9 && realized >= previous, "Complete-state effect must hold while funding accumulates");
+            check(Math.abs(StatScalingService.investmentForProgression(EssenceStats.STEP_HEIGHT, raw, apex, profile) - amount) <= 1,
                     "Smooth Step purchase/effect inverse changed integer investment");
             previous = realized;
         }
@@ -244,7 +244,7 @@ public final class BonusTrackProgressionTest {
             previous = cap;
         }
         return new BonusTrackDefinition(stat.id(), stat.category(), stat.unit(), power > 0 ? 1 : 0,
-                tiers.get(start).id(), tiers.get(end).id(), points, EXPONENT, style, snaps,
+                tiers.get(start).id(), tiers.get(end).id(), points, EXPONENT, PurchaseStyle.FUNDED_STATES, java.util.Arrays.stream(fractions).distinct().boxed().toList(),
                 power > 0 ? Applicability.AVAILABLE : Applicability.UNAVAILABLE, List.of(), 1, List.of("Synthetic native mechanics fixture"),
                 "test", Map.of("marginal_power", power));
     }

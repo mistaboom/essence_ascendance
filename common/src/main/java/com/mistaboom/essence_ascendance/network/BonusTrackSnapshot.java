@@ -86,9 +86,15 @@ public record BonusTrackSnapshot(
                 throw new IllegalArgumentException("Invalid resolved Bonus snap point");
             previousSnap = snap;
         }
-        if (purchaseStyle == BonusTrackDefinition.PurchaseStyle.THRESHOLD && applicability == BonusTrackDefinition.Applicability.AVAILABLE
+        if (purchaseStyle != BonusTrackDefinition.PurchaseStyle.CONTINUOUS && applicability == BonusTrackDefinition.Applicability.AVAILABLE
                 && (snapPoints.isEmpty() || snapPoints.getFirst() != 0 || snapPoints.getLast() != 1))
             throw new IllegalArgumentException("Missing threshold purchase endpoints");
+        if (purchaseStyle == BonusTrackDefinition.PurchaseStyle.FUNDED_STATES) {
+            if (applicability == BonusTrackDefinition.Applicability.AVAILABLE && snapPoints.size() != checkpoints.stream().filter(BonusTrackDefinition.Checkpoint::purchasable).count() + 1)
+                throw new IllegalArgumentException("Extra or missing complete-state snapshot");
+            for (var point : checkpoints) if (point.purchasable() && !snapPoints.contains(point.effectFraction()))
+                throw new IllegalArgumentException("Missing complete-state effect checkpoint");
+        }
     }
 
     public boolean available() { return applicability == BonusTrackDefinition.Applicability.AVAILABLE; }

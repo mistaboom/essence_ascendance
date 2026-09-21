@@ -283,6 +283,15 @@ public final class RuntimeBalanceGenerator {
             finalAnalysis.requireSafe();
             runtime=runtime.withAnalysis(new RuntimeBuildScenarios.Analysis(compositionScale,finalAnalysis.cases(),finalAnalysis.assumptions()));
         }
+        // Floors are the last operation. Their excess cannot enter any sibling/global calibration or cost calculation.
+        var nominalAnalysis = runtime.generationAnalysis();
+        runtime = SkillBalanceGenerator.publishMeaningful(runtime);
+        runtime = BonusTrackGenerator.publishMeaningful(runtime);
+        if (nominalAnalysis != null) {
+            var assumptions = new ArrayList<>(nominalAnalysis.assumptions());
+            assumptions.add("These allocation-envelope cases precede meaningful-state publication. Required first-state floor excess is local ignored overage, excluded from compensating calibration. Published native states and maxima are authoritative in skillCurves and bonusTracks.");
+            runtime = runtime.withAnalysis(new RuntimeBuildScenarios.Analysis(nominalAnalysis.attenuation(), nominalAnalysis.cases(), assumptions));
+        }
         return runtime.withContentIdentity();
     }
 

@@ -131,7 +131,7 @@ public final class BalanceReports {
                 .append("### Attunement calibration assumptions\n\n");
         current.runtime().attunement().assumptions().forEach(assumption -> out.append("- ").append(assumption).append('\n'));
         combatSummary(out, skills);
-        out.append("\nThe complete runtime curve table is in `curves.csv`. Bonus investment uses the same generated concave interpolation in the server and Nexus previews. Each Bonus has its own applicability, effect checkpoints and adjacent economic segment costs, resolved from native marginal utility, breadth, alternatives and composition headroom. bonus_tracks.csv contains the complete per-tier review data. Bonus refunds are exact differences between final allocated targets; skill refunds retain historical paid receipts.\n\n");
+        out.append("\nThe runtime curve table is in `curves.csv`. Bonus funding uses the shared concave investment curve; applied power stays at the previous complete state until the next checkpoint is fully funded. `bonus_tracks.csv` contains generated tier windows, complete values and costs. Skill curve multipliers describe nominal allocation; `skill_rank_parameters.csv` exports the exact generated native values consumed by gameplay and previews. First-state floor excess is local ignored overage, excluded from nominal allocation envelopes and repricing. Bonus refunds are exact differences between final allocated targets; skill refunds retain historical paid receipts.\n\n");
         skillSummary(out, current, skills);
         if (skills.has("projectilePolicy")) {
             out.append("## Projectile payload and control policy\n\nResolved tuning is exported as scalar exact paths in `runtime_parameters.csv`; the contracts below are also in `projectile_policy.csv`.\n\n| Contract | Rule |\n|---|---|\n");
@@ -261,11 +261,15 @@ public final class BalanceReports {
             long cap = profile.getInvestmentCap(tier,stat);
             for (double fraction : new double[]{0,0.1,0.25,0.5,1}) {
                 long investment = (long)Math.floor(cap * fraction);
-                double power = config.statMaxBonus(stat) * StatScalingService.progressionForInvestment(stat,investment,tier,profile);
+                double power = config.statMaxBonus(stat) * StatScalingService.realizedProgressionForInvestment(stat,investment,tier,profile);
                 out.row("nexus",stat.category().name(),stat.id().toString(),tier.id().toString(),"",Long.toString(investment),Long.toString(investment),number(power),"","","","","",number(fraction),"passed","stat_investment");
             }
         }
         current.runtime().skillCurves().forEach((id, skill) -> skill.ranks().forEach(rank -> out.row("skill","",id,"",Integer.toString(rank.rank()),"",Long.toString(rank.cost()),number(rank.powerMultiplier()),"","","","","","",rank.rank() <= skill.maximumRank() ? "purchasable" : "future_projection","individual_rank")));
+        var nativeValues = tables.table("skill_rank_parameters.csv", "skill_id", "rank", "cost", "native_parameter", "value");
+        current.runtime().skillCurves().forEach((id, skill) -> skill.ranks().forEach(rank ->
+                rank.parameters().forEach((path, value) -> nativeValues.row(id, Integer.toString(rank.rank()),
+                        Long.toString(rank.cost()), path, number(value)))));
         for (var entry : projections(skills)) {
             JsonObject projection = entry.getValue().getAsJsonObject();
             for (JsonElement value : projection.getAsJsonArray("scenarios")) {

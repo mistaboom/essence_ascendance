@@ -181,6 +181,10 @@ public final class NativePostureOutcomeTest {
     }
     private static void zombieDodgeOutcomes(ProjectileNativeInterceptionTest.Fixture f) throws ReflectiveOperationException {
         var p=f.player;p.stopUsingItem();p.setItemInHand(InteractionHand.OFF_HAND,ItemStack.EMPTY);
+        var evasive=SkillEffectRuntime.resolvedSettings(p).posture().evasive();
+        double afterDodge=Math.max(0,1-evasive.successDrainFraction());
+        double afterHit=Math.max(0,1-evasive.hitDrainFraction());
+        String retainedChance=String.format(java.util.Locale.ROOT,"%.1f",afterHit*evasive.maximumDodgeChance()*100);
         var zombies=List.of(zombie(f),zombie(f));
         int successes=0,failures=0;
         // Exercise the production RandomSource path too, not just a forced successful test roll.
@@ -193,24 +197,24 @@ public final class NativePostureOutcomeTest {
             display.replace(SkillEffectRuntime.hudSnapshot(p).entries(),f.level.tick);
             boolean accepted=zombie.doHurtTarget(p);
             var result=PostureService.snapshot(p);
-            check(result.incoming().chance()==.2&&result.incoming().roll()>=0&&result.incoming().roll()<1,
-                    "Actual unarmed zombie melee makes a production random roll at the full meter's 20 percent chance");
+            check(result.incoming().chance()==evasive.maximumDodgeChance()&&result.incoming().roll()>=0&&result.incoming().roll()<1,
+                    "Actual unarmed zombie melee makes a production random roll at the generated full-meter chance");
             var hud=transmittedHud(f);display.replace(hud.entries(),hud.serverGameTime());
             var card=display.visibleEntries(f.level.tick).stream().filter(entry->entry.id().equals(SkillIds.EVASIVE_CURRENT)).findFirst().orElseThrow();
             if(result.incoming().dodged()) {
                 successes++;
-                check(!accepted&&p.getHealth()==20&&result.meter()==.5&&card.lines().equals(List.of(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.posture.dodged"))),
-                        "A successful real zombie dodge prevents damage, spends half charge and says Dodged on the regular card");
+                check(!accepted&&p.getHealth()==20&&result.meter()==afterDodge&&card.lines().equals(List.of(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.posture.dodged"))),
+                        "A successful real zombie dodge prevents damage, spends generated charge and says Dodged on the regular card");
             } else {
                 failures++;
-                check(accepted&&p.getHealth()<20&&result.meter()==.875&&card.active()&&card.meter().fraction()==.875
-                                &&card.lines().equals(List.of(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.posture.evasive","17.5"))),
-                        "A failed real zombie roll immediately displays retained seven-eighths charge and 17.5 percent chance");
+                check(accepted&&p.getHealth()<20&&result.meter()==afterHit&&card.active()&&card.meter().fraction()==afterHit
+                                &&card.lines().equals(List.of(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.posture.evasive",retainedChance))),
+                        "A failed real zombie roll immediately displays generated retained charge and dodge chance");
                 for(int recovery=1;recovery<SkillEffectRuntime.resolvedSettings(p).posture().movement().forcedMotionQuietTicks();recovery++) {
                     if(p.hurtTime>0)p.hurtTime--;
                     evasiveStep(f);
                 }
-                close(PostureService.snapshot(p).meter(),.875,"Actual native hurt recovery holds the retained charge while movement input continues");
+                close(PostureService.snapshot(p).meter(),afterHit,"Actual native hurt recovery holds the retained charge while movement input continues");
             }
         }
         check(successes>0&&failures>0,"Seeded production RNG against two zombies covers both successes and failures: "+successes+" / "+failures);

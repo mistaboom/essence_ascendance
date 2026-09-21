@@ -37,7 +37,22 @@ public final class RegistryIntegrityTest {
                     "Expected 15 skills in " + essence);
         }
         check(EssenceStatRegistry.size() == 40, "Expected 40 registered bonuses in the current catalog");
+        check(SkillRegistry.choiceGroups().size() == 19, "Preserve all intentional choice groups");
+        check(SkillRegistry.choiceGroups().stream().mapToInt(g -> g.memberIds().size() * (g.memberIds().size()-1) / 2).sum() == 31,
+                "Preserve all 31 unordered exclusion pairs");
+        check(SkillRegistry.values().stream().filter(s -> s.isReplacement()).count() == 3, "Preserve replacement edges");
+        for (var skill : SkillRegistry.values()) {
+            var requirements = skill.progressionRequirements();
+            check(requirements.home().equalsIgnoreCase(skill.essenceId().getPath()), "Approved skill home: " + skill.id());
+            check(!requirements.firstStateFloor().isBlank() && !requirements.additionalImprovementFloor().isBlank(), "Missing outcome floor");
+            check(!requirements.bonusCompatibility().isBlank(), "Missing zero-bonus contract");
+        }
         for (var stat : EssenceStatRegistry.values()) {
+            var requirements = com.mistaboom.essence_ascendance.skill.ProgressionRequirements.bonus(stat.id());
+            check(requirements.home().equalsIgnoreCase(stat.essenceType().id().getPath()), "Approved bonus home");
+            check(requirements.meetsFirstFloor(requirements.firstStateFloor() * 2), "First floor must not cap stronger benefits");
+            check(requirements.meetsImprovementFloor(requirements.tierImprovementFloor() * 2), "Improvement floor must not cap stronger benefits");
+            check(com.mistaboom.essence_ascendance.balance.runtime.BonusSemantics.require(stat).neutralMultiplier() == 1, "Neutral multiplier");
             check(essences.contains(stat.essenceType().id()), "Bonus has an unknown Essence: " + stat.id());
             check(stat.category().name().equalsIgnoreCase(stat.essenceType().id().getPath()),
                     "Bonus category/Essence mismatch: " + stat.id());

@@ -6,11 +6,14 @@ import java.util.*;
 import static com.mistaboom.essence_ascendance.balance.engine.CapabilityAxis.*;
 
 /** Native mechanic declarations, not prices or tier assignments. Conditions express applicability breadth. */
-final class BonusSemantics {
-    enum Response { MULTIPLIER, PREVENTION, HEALTH, RECOVERY, AIR, REACH_DISTANCE, STEP_BOUNDARY, YIELD_LEVEL, LUCK }
-    record Mechanic(CapabilityAxis axis, Response response, List<String> conditions, String nativeMechanism) {}
+public final class BonusSemantics {
+    public enum Response { MULTIPLIER, PREVENTION, HEALTH, RECOVERY, AIR, REACH_DISTANCE, STEP_BOUNDARY, YIELD_LEVEL, LUCK }
+    public record Mechanic(CapabilityAxis axis, Response response, List<String> conditions, String nativeMechanism) {
+        public double neutralContribution() { return 0; }
+        public double neutralMultiplier() { return 1; }
+    }
     private BonusSemantics() {}
-    static Mechanic require(StatDefinition stat) {
+    public static Mechanic require(StatDefinition stat) {
         return switch (stat.id().getPath()) {
             case "movement_speed" -> mechanic(GROUND_SPEED, Response.MULTIPLIER, "movement speed attribute");
             case "swim_speed" -> mechanic(GROUND_SPEED, Response.MULTIPLIER, "swimming movement multiplier", "submerged");

@@ -381,6 +381,7 @@ public final class AscendanceNexusScreen
             int mouseX,
             int mouseY
     ) {
+        if (!modeAvailable(NexusMode.BONUSES)) return;
         int selectorWidth = Math.min(
                 MODE_SELECTOR_WIDTH,
                 Math.max(3, width - 2 * SAFE_MARGIN)

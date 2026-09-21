@@ -56,17 +56,17 @@ public final class VitalityBalanceTest {
                 + "\"/runtime/effects/vitality/risingRecovery/recoveryCurveExponent\" = 3.0\n"
                 + "\"/runtime/effects/vitality/lifeSteal/chainTimeoutTicks\" = 80\n"
                 + "\"/runtime/effects/vitality/feastReflex/useDurationMultiplier\" = 0.2\n"
-                + "\"/runtime/effects/vitality/innerSustenance/hungerRecoveryIntervalTicks\" = 240\n", "vitality-test.toml");
+                + "\"/runtime/effects/vitality/innerSustenance/hungerRecoveryIntervalTicks\" = 180\n", "vitality-test.toml");
         var changed = RuntimeReferencePolicy.withBootstrapReferences(() -> RuntimeBalanceDefinition.generate(
                 RuntimeReferencePolicy.bootstrapEvidence(), BalanceSettings.defaults(), overrides));
         var v = changed.config().skillEffects().vitality();
         near(v.risingRecovery().recoveryCurveExponent(), 3, "Recovery pointer");
         check(v.lifeSteal().chainTimeoutTicks() == 80, "Chain pointer");
         near(v.feastReflex().useDurationMultiplier(), .2, "Feast pointer");
-        check(v.innerSustenance().hungerRecoveryIntervalTicks() == 240, "Hunger pointer");
+        check(v.innerSustenance().hungerRecoveryIntervalTicks() == 180, "Floor-compatible hunger pointer");
         check(!baseline.config().balanceProfile().id().equals(changed.config().balanceProfile().id()), "Content identity includes new tuning");
         var oldJson = baseline.toJson(); var newJson = changed.toJson();
-        for (String key : List.of("equipment", "statMaxBonuses", "infuser", "shield", "pylons", "crucible", "attunement", "skillCurves", "composition"))
+        for (String key : List.of("equipment", "statMaxBonuses", "infuser", "shield", "pylons", "crucible", "attunement", "composition"))
             check(oldJson.get(key).equals(newJson.get(key)), "Vitality override changed unrelated " + key);
         for (String key : oldJson.getAsJsonObject("effects").keySet()) if (!key.equals("vitality"))
             check(oldJson.getAsJsonObject("effects").get(key).equals(newJson.getAsJsonObject("effects").get(key)), "Vitality override changed prior skill " + key);
@@ -76,11 +76,11 @@ public final class VitalityBalanceTest {
         var base = runtime.config().skillEffects();
         for (var id : SKILLS) {
             var curve = runtime.skillCurves().get(id.toString());
-            check(curve.maximumRank() == 1 && curve.ranks().size() == 5, "One purchasable rank and five analytical points");
+            check(curve.maximumRank() == curve.ranks().size(), "Only meaningful purchasable ranks are published");
             check(SkillRankEffectScaling.supports(id), "Missing real typed rank consumer " + id);
-            check(SkillRankEffectScaling.apply(base, Map.of(id, 1)) == base, "Rank one must be exact generated value");
-            var ranked = SkillRankEffectScaling.apply(base, Map.of(id, 5)); ranked.validate();
-            check(!ranked.vitality().equals(base.vitality()), "Projected rank needs a real numeric effect " + id);
+            check(SkillRankEffectScaling.apply(base, Map.of(id, 1)).equals(base), "Rank one must be exact generated value");
+            var ranked = SkillRankEffectScaling.apply(base, Map.of(id, curve.maximumRank())); ranked.validate();
+            check(curve.maximumRank() == 1 || !ranked.vitality().equals(base.vitality()), "Additional ranks need a real numeric effect " + id);
             check(ranked.frenzy().equals(base.frenzy()) && ranked.projectiles().equals(base.projectiles())
                     && ranked.guard().equals(base.guard()) && ranked.posture().equals(base.posture())
                     && ranked.status().equals(base.status()), "Vitality rank changed prior effects");
@@ -150,7 +150,7 @@ public final class VitalityBalanceTest {
             throw new AssertionError("Exclusive sustenance stacked"); } catch (IllegalArgumentException expected) { checks++; }
     }
     private static void projections(RuntimeBalanceDefinition runtime) {
-        var ranks = new LinkedHashMap<ResourceLocation, Integer>(); SkillRegistry.values().forEach(skill -> ranks.put(skill.id(), 5));
+        var ranks = new LinkedHashMap<ResourceLocation, Integer>(); SkillRegistry.values().forEach(skill -> ranks.put(skill.id(), runtime.skillCurves().get(skill.id().toString()).maximumRank()));
         var projection = SkillLoadoutProjection.project(SkillRegistry.values(), AscendanceTiers.TRANSCENDENT.id(), ranks,
                 (id, rank) -> runtime.skillCurves().get(id.toString()).ranks().get(rank - 1).powerMultiplier(), Map.of(), false);
         var seen = new HashSet<ResourceLocation>();

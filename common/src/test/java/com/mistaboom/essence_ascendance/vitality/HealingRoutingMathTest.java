@@ -35,6 +35,11 @@ public final class HealingRoutingMathTest {
         }
     }
     private static void healing() {
+        near(HealingRoutingMath.demand(0, 12, .5, 0, 1, false), 24);
+        near(HealingRoutingMath.demand(3, 12, .5, 0, 1, false), 27);
+        near(HealingRoutingMath.demand(3, 12, .5, 8, .5, true), 16);
+        near(HealingRoutingMath.demand(3, 12, .5, 0, 1, true), 3);
+        near(HealingRoutingMath.demand(0, 0, .5, 0, 1, false), 0);
         near(HealingRoutingMath.accepted(8, 12), 4);
         near(HealingRoutingMath.accepted(20, 24), 4); // accepted before native max-HP clamp
         near(HealingRoutingMath.accepted(20, 19), 0);

@@ -20,12 +20,13 @@ public final class TierInvestmentPolicy {
     public static boolean validTarget(StatDefinition stat, AscendanceTierDefinition tier,
                                       BalanceProfileDefinition profile, long current, long target) {
         if (current < 0 || target < 0) return false;
+        if (!tier.grantsPower() && target > current) return false;
         long cap = profile.getInvestmentCap(tier, stat);
         if (cap < 0) throw new IllegalStateException("Negative Bonus cap for " + stat.id());
         if (target > cap) return target <= current;
         if (target == current) return true;
         BonusTrackDefinition resolved = profile.bonusTrack(stat.id());
-        if (resolved == null || resolved.purchaseStyle() == BonusTrackDefinition.PurchaseStyle.CONTINUOUS) return true;
+        if (resolved == null || resolved.purchaseStyle() != BonusTrackDefinition.PurchaseStyle.THRESHOLD) return true;
         return BonusTrackCurve.isSnapInvestment(resolved.checkpoints(), resolved.investmentExponent(),
                 resolved.snapPoints(), target, tier.id());
     }

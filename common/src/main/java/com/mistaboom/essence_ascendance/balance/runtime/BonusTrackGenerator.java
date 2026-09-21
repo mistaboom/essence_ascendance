@@ -14,6 +14,89 @@ import java.util.*;
 /** Resolves semantic marginal utility against reachable pack evidence and the existing tier economy. */
 public final class BonusTrackGenerator {
     private BonusTrackGenerator() {}
+    /** Final local publication. Allocation, desirability and prices were resolved before floor grants. */
+    public static RuntimeBalanceDefinition publishMeaningful(RuntimeBalanceDefinition nominal) {
+        return publishMeaningful(nominal, Map.of());
+    }
+    public static RuntimeBalanceDefinition publishMeaningful(RuntimeBalanceDefinition nominal,
+            Map<ResourceLocation, com.mistaboom.essence_ascendance.skill.ProgressionRequirements.Bonus> requirements) {
+        var json = nominal.toJson();
+        var tracks = new TreeMap<ResourceLocation, BonusTrackDefinition>();
+        for (var stat : EssenceStatRegistry.values()) {
+            var track = nominal.config().balanceProfile().bonusTracks().get(stat.id());
+            tracks.put(stat.id(), meaningful(track, requirements.getOrDefault(stat.id(), track.progressionRequirements())));
+        }
+        json.getAsJsonObject("balanceProfile").add("bonusTracks", toJson(tracks));
+        for (var entry : tracks.entrySet()) {
+            json.getAsJsonObject("statMaxBonuses").addProperty(entry.getKey().toString(), entry.getValue().maximumEffect());
+            var caps = json.getAsJsonObject("balanceProfile").getAsJsonObject("statOverrides").getAsJsonObject(entry.getKey().toString());
+            entry.getValue().checkpoints().forEach(point -> caps.addProperty(point.tierId().toString(), point.cumulativeCap()));
+        }
+        return RuntimeBalanceDefinition.fromJson(json);
+    }
+    public static BonusTrackDefinition meaningful(BonusTrackDefinition nominal,
+            com.mistaboom.essence_ascendance.skill.ProgressionRequirements.Bonus requirements) {
+        if (nominal.applicability() == BonusTrackDefinition.Applicability.UNAVAILABLE) return nominal;
+        var tiers = AscendanceTierRegistry.values().stream().sorted(Comparator.comparingInt(AscendanceTierDefinition::order)).toList();
+        var points = nominal.checkpoints().stream().filter(BonusTrackDefinition.Checkpoint::purchasable).toList();
+        boolean nativeStep = nominal.inputs().containsKey("native_base_step_height");
+        double quantum = nativeStep ? .000001 : RuntimeValueQuantization.statStep(nominal.unit());
+        double ceiling = nominal.inputs().getOrDefault("native_maximum_effect", 1_000_000.0);
+        var candidates = points.stream().map(p -> {
+            double value = p.effectFraction() * nominal.maximumEffect();
+            return nativeStep ? Math.rint(value * 1_000_000) / 1_000_000 : value;
+        }).toList();
+        var values = new ArrayList<>(com.mistaboom.essence_ascendance.progression.MeaningfulProgression.select(
+                candidates, requirements.firstStateFloor(), requirements.tierImprovementFloor(), quantum, ceiling));
+        // Route evidence remains a hard lower bound; optional bonuses never become skill prerequisites.
+        int earliest = tiers.indexOf(AscendanceTierRegistry.powerTiers().stream()
+                .min(Comparator.comparingInt(AscendanceTierDefinition::order)).orElseThrow());
+        if (nominal.compatibilityRequirements().contains("ABILITIES_FLYING_SPEED")
+                || nominal.compatibilityRequirements().contains("native menu cost hook"))
+            earliest = tiers.indexOf(AscendanceTierRegistry.get(nominal.startTier()).orElseThrow());
+        double desirability = nominal.inputs().getOrDefault("native_response", 0.0);
+        double breadth = nominal.inputs().getOrDefault("breadth", 1.0);
+        double score = breadth == 1 ? 0 : desirability / (Math.log(2) + desirability);
+        int firstPurchasable = earliest;
+        int start = Math.max(earliest, firstPurchasable + (int) Math.ceil((tiers.size() - firstPurchasable - values.size()) * score));
+        if (nominal.inputs().containsKey("native_base_step_height")) start = earliest;
+        start = Math.min(tiers.size() - 1, start);
+        // A late native route can offer fewer states. Retain the first and endpoint without filler subdivision.
+        int room = tiers.size() - start;
+        while (values.size() > room) values.remove(values.size() == 2 ? 0 : values.size() - 2);
+        int end = start + values.size() - 1;
+        double maximum = values.getLast();
+        var checkpoints = new ArrayList<BonusTrackDefinition.Checkpoint>();
+        var snaps = new ArrayList<Double>(); snaps.add(0.0);
+        long cumulative = 0; double fraction = 0;
+        for (int index = 0; index < tiers.size(); index++) {
+            long segment = 0;
+            if (index >= start && index <= end) {
+                int state = index - start;
+                fraction = state == values.size() - 1 ? 1.0 : values.get(state) / maximum;
+                // Nominal cost schedule is independent of any floor overage or final published effect.
+                long cost = points.get(Math.min(state, points.size() - 1)).segmentCost();
+                segment = Math.max(1, cost);
+                cumulative = Math.addExact(cumulative, segment);
+                snaps.add(fraction);
+            }
+            checkpoints.add(new BonusTrackDefinition.Checkpoint(tiers.get(index).id(), cumulative, segment,
+                    fraction, index >= start, segment > 0));
+        }
+        var inputs = new TreeMap<>(nominal.inputs());
+        inputs.keySet().removeIf(key -> key.startsWith("native_threshold_"));
+        inputs.put("first_state_floor", requirements.firstStateFloor());
+        inputs.put("later_state_floor", requirements.tierImprovementFloor());
+        inputs.put("nominal_endpoint", nominal.maximumEffect());
+        inputs.put("placement_desirability", score);
+        var reasons = new ArrayList<>(nominal.evidence());
+        reasons.removeIf(reason -> reason.contains("intervening investment and applied effect remain continuous"));
+        reasons.add("Complete native states; first floor is local ignored overage. Later quantized candidates must meet the improvement floor; larger changes remain intact. Contiguous route-compatible placement uses nominal desirability and state count.");
+        return new BonusTrackDefinition(nominal.statId(), nominal.category(), nominal.unit(), maximum,
+                tiers.get(start).id(), tiers.get(end).id(), checkpoints, nominal.investmentExponent(),
+                BonusTrackDefinition.PurchaseStyle.FUNDED_STATES, snaps, nominal.applicability(),
+                nominal.compatibilityRequirements(), nominal.confidence(), reasons, nominal.source(), inputs);
+    }
     public static Map<ResourceLocation, BonusTrackDefinition> resolve(PackEvidence evidence, BalanceSettings settings,
             Map<ResourceLocation, Long> tierCaps, Map<ResourceLocation, Double> tierFractions,
             Map<ResourceLocation, Double> maxima, Map<String, Double> categorySupply, double exponent) {

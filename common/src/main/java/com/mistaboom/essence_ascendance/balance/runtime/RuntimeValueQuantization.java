@@ -17,7 +17,8 @@ public final class RuntimeValueQuantization {
     }
     public static double statStep(StatUnit unit) {
         return switch(unit) {
-            case PERCENT, LEVELS -> 1;
+            case PERCENT -> 1;
+            case LEVELS -> .5;
             case HEARTS -> .5;
             case HEARTS_PER_SECOND -> .01;
             case BLOCKS, SECONDS, FLAT -> .1;

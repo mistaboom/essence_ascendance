@@ -45,9 +45,13 @@ public final class ProcessingAccelerationService {
             return Plan.NONE;
         }
 
+        if (!SharedTargetWork.claim(level, blockEntity, "processor", level.getGameTime(), 1)) return Plan.NONE;
+
         double accrued = FRACTIONAL_TICKS.getOrDefault(blockEntity, 0.0) + (match.strength() - 1.0);
-        int extraTicks = (int) Math.floor(accrued);
-        FRACTIONAL_TICKS.put(blockEntity, accrued - extraTicks);
+        int requestedTicks = Math.min(64, (int) Math.floor(accrued));
+        int extraTicks = 0;
+        while (extraTicks < requestedTicks && SharedTargetWork.visit(level, level.getGameTime())) extraTicks++;
+        FRACTIONAL_TICKS.put(blockEntity, accrued - Math.floor(accrued));
         return new Plan(match.player(), extraTicks, match.strength());
     }
 }

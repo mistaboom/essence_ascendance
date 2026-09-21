@@ -55,8 +55,8 @@ public final class DefenseCompletionTest {
                 check(language.get(definition.nameTranslationKey()).getAsString().equals(entry.getValue().get(0)), "Workbook name preserved");
                 check(language.get(definition.descriptionTranslationKey()).getAsString().equals(entry.getValue().get(1)), "Workbook description preserved");
                 check(definition.prerequisites().isEmpty() && definition.essenceId().equals(EssenceTypes.DEFENSE.id()), "Workbook category and relationships");
-                check(definition.maximumRank() == 1 && definition.rankPolicy().projectionRanks() == 5,
-                        "Single purchase and provisional five-rank analysis remain separate");
+                check(definition.rankPolicy().maximumRank() == 0,
+                        "Catalog delegates purchasable rank count to the balance engine");
             }
         }
     }

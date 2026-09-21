@@ -14,7 +14,16 @@ public final class PlayerMotionTracker {
     /** Network batching allowance, not an effect duration. Missing samples may hold, never build, momentum. */
     public static final int SAMPLE_GRACE_TICKS = 2;
     public record Sample(boolean discontinuity, boolean intentional, boolean forced, boolean moving,
-                         boolean recentMovement, double distance, double turnDegrees, String reason) { }
+                         boolean recentMovement, double distance, double turnDegrees, String reason, double spatialDistance) {
+        public Sample(boolean discontinuity, boolean intentional, boolean forced, boolean moving,
+                      boolean recentMovement, double distance, double turnDegrees, String reason) {
+            this(discontinuity, intentional, forced, moving, recentMovement, distance, turnDegrees, reason, distance);
+        }
+        public boolean qualifiedSpatialMovement(double minimum) {
+            return !discontinuity && !forced && Double.isFinite(spatialDistance)
+                    && (spatialDistance >= minimum || recentMovement);
+        }
+    }
     private static final Map<ServerPlayer, State> STATES = new WeakHashMap<>();
     private static final class State {
         final MotionSampleAccumulator pending = new MotionSampleAccumulator();
@@ -54,7 +63,7 @@ public final class PlayerMotionTracker {
                 : !intentional ? "no_movement_input" : moving ? "native_player_movement"
                 : packet.recentMovement() ? "waiting_for_movement_sample" : "movement_stopped";
         state.sample = new Sample(discontinuity, intentional, forced, moving, packet.recentMovement(),
-                packet.horizontalDistance(), turn, reason);
+                packet.horizontalDistance(), turn, reason, packet.spatialDistance());
         state.lastTick = now; state.position = player.position(); state.yaw = player.getYRot();
         return state.sample;
     }

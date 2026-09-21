@@ -23,8 +23,8 @@ public final class SkillBalanceRuntime {
             throw new IllegalArgumentException("Generated skill curves do not match the registered catalog");
         for (var definition : SkillRegistry.values()) {
             ResolvedSkill curve = candidate.get(definition.id().toString());
-            if (curve == null || curve.maximumRank() != definition.maximumRank()
-                    || curve.ranks().size() < definition.rankPolicy().projectionRanks())
+            if (curve == null || (definition.rankPolicy().maximumRank() > 0
+                    && curve.maximumRank() > definition.rankPolicy().maximumRank()))
                 throw new IllegalArgumentException("Missing/incompatible skill rank curve: " + definition.id());
         }
     }
@@ -51,11 +51,15 @@ public final class SkillBalanceRuntime {
             }
         }
     }
-    /** Power is relative to the profile's final rank-one effect settings; it is not a second base power field. */
-    public record ResolvedRank(int rank, long cost, double powerMultiplier) {
+    /** Multiplier retains nominal allocation diagnostics; parameters are the published native value authority. */
+    public record ResolvedRank(int rank, long cost, double powerMultiplier, Map<String, Double> parameters) {
+        public ResolvedRank(int rank, long cost, double powerMultiplier) { this(rank, cost, powerMultiplier, Map.of()); }
         public ResolvedRank {
+            parameters = Collections.unmodifiableMap(new TreeMap<>(parameters));
             if (rank < 1 || rank > 64 || cost < 0 || !Double.isFinite(powerMultiplier) || powerMultiplier <= 0)
                 throw new IllegalArgumentException("Invalid generated skill rank value");
+            if (parameters.entrySet().stream().anyMatch(e -> e.getKey().isBlank() || !Double.isFinite(e.getValue())))
+                throw new IllegalArgumentException("Invalid generated native rank parameters");
         }
     }
 }

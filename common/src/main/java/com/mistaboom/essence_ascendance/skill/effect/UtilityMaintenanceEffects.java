@@ -105,14 +105,13 @@ public final class UtilityMaintenanceEffects {
             if (repairTarget.getDamageValue() <= 0) item.repairCarry = 0;
         }
 
-        @Override public int durabilityLoss(SkillEffectRuntime.Context context, ItemStack stack, int actualDamage) {
-            if (!EquipmentMaintenanceService.eligible(stack)) return actualDamage;
+        @Override public void durabilityAttempt(SkillEffectRuntime.Context context, ItemStack stack) {
+            if (!EquipmentMaintenanceService.eligible(stack)) return;
             RestfulState state = context.state(id(), RestfulState::new);
             RestfulItemState item = state.items.computeIfAbsent(stack, ignored -> new RestfulItemState(context.now()));
             item.lastUseAt = context.now();
             item.repairCarry = 0;
             if (state.activeTarget == stack) state.activeTarget = null;
-            return actualDamage;
         }
 
         @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
@@ -270,7 +269,8 @@ public final class UtilityMaintenanceEffects {
 
         @Override public int durabilityLoss(SkillEffectRuntime.Context context, ItemStack stack, int actualDamage) {
             if (!EquipmentMaintenanceService.eligible(stack) || actualDamage <= 0) return actualDamage;
-            double capacity = EquipmentMaintenanceData.overdurabilityCapacity(stack);
+            double capacity = EquipmentMaintenanceData.clampOverdurability(stack,
+                    settings(context).masterworkTempering().maximumOverdurabilityFraction());
             double overdurability = Math.min(capacity, EquipmentMaintenanceData.overdurability(stack));
             if (capacity <= 0 || overdurability <= 0) return actualDamage;
 
@@ -381,7 +381,7 @@ public final class UtilityMaintenanceEffects {
 
         private static double performance(ItemStack stack, UtilityBalanceSettings.MasterworkTempering tuning) {
             if (!EquipmentMaintenanceService.eligible(stack)) return 0;
-            double capacity = EquipmentMaintenanceData.overdurabilityCapacity(stack);
+            double capacity = EquipmentMaintenanceData.clampOverdurability(stack, tuning.maximumOverdurabilityFraction());
             double overdurability = Math.min(capacity, EquipmentMaintenanceData.overdurability(stack));
             if (capacity <= 0 || overdurability <= 0) return 0;
             return Math.clamp(overdurability / capacity, 0, 1) * tuning.maximumPerformanceBonus();

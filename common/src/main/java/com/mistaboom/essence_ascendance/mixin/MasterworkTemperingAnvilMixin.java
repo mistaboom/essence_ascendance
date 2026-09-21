@@ -23,6 +23,18 @@ public abstract class MasterworkTemperingAnvilMixin {
 
     @Unique private ServerPlayer essenceAscendance$owner;
 
+    /** Native pickup is the authoritative transaction boundary, including stale previews after a loadout switch. */
+    @Inject(method = "mayPickup", at = @At("HEAD"), cancellable = true)
+    private void essenceAscendance$validateTempering(net.minecraft.world.entity.player.Player actor, boolean present,
+            org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Boolean> ci) {
+        if (!(actor instanceof ServerPlayer player)) return;
+        AnvilMenu menu = (AnvilMenu)(Object)this;
+        ItemStack input = menu.getSlot(0).getItem(), output = menu.getSlot(2).getItem();
+        boolean addsBuffer = com.mistaboom.essence_ascendance.equipment.EquipmentMaintenanceData.overdurability(output)
+                > com.mistaboom.essence_ascendance.equipment.EquipmentMaintenanceData.overdurability(input);
+        if (addsBuffer && !SkillEffectRuntime.context(player).isEffective(SkillIds.MASTERWORK_TEMPERING)) ci.setReturnValue(false);
+    }
+
     @Inject(
             method = "<init>(ILnet/minecraft/world/entity/player/Inventory;Lnet/minecraft/world/inventory/ContainerLevelAccess;)V",
             at = @At("RETURN")

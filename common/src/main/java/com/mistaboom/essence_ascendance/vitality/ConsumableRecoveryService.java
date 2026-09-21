@@ -21,11 +21,12 @@ public final class ConsumableRecoveryService {
     private static final class Frame {
         final ServerPlayer player;
         final ItemStack source;
+        final ItemStack identity;
         final int nutrition;
         final double saturationPoints;
         final boolean fullHunger;
         Frame(ServerPlayer player, ItemStack source) {
-            this.player = player; this.source = source.copy();
+            this.player = player; this.identity = source; this.source = source.copy();
             var food = source.get(DataComponents.FOOD);
             nutrition = food == null ? 0 : Math.max(0, food.nutrition());
             saturationPoints = food == null ? 0 : Math.max(0, FoodConstants.saturationByModifier(nutrition, food.saturation()));
@@ -33,9 +34,22 @@ public final class ConsumableRecoveryService {
         }
     }
     private ConsumableRecoveryService() { }
+    public static boolean consumingFood() {
+        return CONSUMPTION.get() != null && CONSUMPTION.get().nutrition > 0;
+    }
+    public static boolean foodOrigin(ServerPlayer player) {
+        Frame frame = CONSUMPTION.get();
+        return FOOD_HEALING.get() == player || frame != null && frame.player == player && frame.nutrition > 0;
+    }
+    public static void withFoodHealing(ServerPlayer player, Runnable action) {
+        ServerPlayer previous = FOOD_HEALING.get();
+        FOOD_HEALING.set(player);
+        try { action.run(); }
+        finally { if (previous == null) FOOD_HEALING.remove(); else FOOD_HEALING.set(previous); }
+    }
     public static boolean canEatForRecovery(ServerPlayer player) {
         if (!valid(player)) return false;
-        boolean healing = HealingRecoveryService.needsRecovery(player)
+        boolean healing = HealingRecoveryService.usefulHealing(player, true) > 0
                 && CommittedSkillService.isEffective(player, SkillIds.METABOLIC_CONVERSION)
                 && SkillEffectRuntime.resolvedSettings(player).vitality().damage().metabolicConversion().healthPerNutrition() > 0;
         return healing || canEatForMaintenance(player);
@@ -51,6 +65,7 @@ public final class ConsumableRecoveryService {
     public static ItemStack complete(ServerPlayer player, ItemStack source, Supplier<ItemStack> original) {
         if (!valid(player) || source.isEmpty()) return original.get();
         Frame previous = CONSUMPTION.get(), frame = new Frame(player, source);
+        if (previous != null && previous.player == player && previous.identity == source) return original.get();
         CONSUMPTION.set(frame);
         try {
             ItemStack result = original.get(); // native stack, container, effects, criteria and item callbacks
@@ -69,7 +84,7 @@ public final class ConsumableRecoveryService {
     }
     /** Overflow is taken from the accepted post-event proposed HP, not the requested heal argument. */
     public static void overflow(ServerPlayer player, double excess) {
-        if (!valid(player) || !Double.isFinite(excess) || excess <= 0 || FOOD_HEALING.get() == player) return;
+        if (!valid(player) || !Double.isFinite(excess) || excess <= 0 || foodOrigin(player)) return;
         var context = SkillEffectRuntime.context(player);
         if (!context.isEffective(SkillIds.METABOLIC_CONVERSION)) return;
         var food = player.getFoodData();

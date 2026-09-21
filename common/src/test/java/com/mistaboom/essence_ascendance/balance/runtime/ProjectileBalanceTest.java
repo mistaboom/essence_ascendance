@@ -60,12 +60,9 @@ public final class ProjectileBalanceTest {
         var overridden = RuntimeReferencePolicy.withBootstrapReferences(() -> RuntimeBalanceDefinition.generate(
                 RuntimeReferencePolicy.bootstrapEvidence(), BalanceSettings.defaults(), parsed));
         check(overridden.config().skillEffects().projectiles().payloadTriggerBudget() == 2
-                && overridden.config().skillEffects().projectiles().control().minimumSpeedFactor() == .4,
+                && Math.abs(overridden.config().skillEffects().projectiles().control().minimumSpeedFactor() - .4) < 1e-9,
                 "Exact projectile fields bypassed the existing validated generation pipeline");
-        JsonObject tuned = first.toJson();
-        projectile(tuned).getAsJsonObject("payload").addProperty("triggerBudget", 2);
-        projectile(tuned).getAsJsonObject("control").addProperty("minimumSpeedFactor", 0.4);
-        var changed = RuntimeBalanceDefinition.fromJson(tuned).withContentIdentity();
+        var changed = overridden.withContentIdentity();
         check(!changed.config().balanceProfile().id().equals(first.config().balanceProfile().id()), "Changed payload/control settings reused cached content identity");
         check(changed.toJson().get("attunement").equals(first.toJson().get("attunement")), "Projectile tuning changed Attunement policy or chapter calibration");
         check(changed.attunement().policy().repetitionFloor() > 0, "Attunement repetition floor disappeared");

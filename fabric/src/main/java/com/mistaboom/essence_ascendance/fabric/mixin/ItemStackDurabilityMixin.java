@@ -24,46 +24,23 @@ import java.util.function.Consumer;
 @Mixin(ItemStack.class)
 public abstract class ItemStackDurabilityMixin {
 
-    @Unique
-    private boolean essenceAscendance$fracturedBeforeServerDamage;
+    @Unique private ServerPlayer essenceAscendance$durabilityOwner;
 
-    @Unique
-    private ServerPlayer essenceAscendance$durabilityOwner;
-
-    @Inject(
-            method = "hurtAndBreak(ILnet/minecraft/server/level/ServerLevel;Lnet/minecraft/server/level/ServerPlayer;Ljava/util/function/Consumer;)V",
-            at = @At("HEAD")
-    )
-    private void essenceAscendance$captureFractureStateBeforeDamage(
-            int amount,
-            ServerLevel level,
-            ServerPlayer player,
-            Consumer<Item> onBreak,
-            CallbackInfo ci
-    ) {
-        essenceAscendance$fracturedBeforeServerDamage =
-                FracturedEquipmentData.isFractured((ItemStack) (Object) this);
+    @com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod(
+            method = "hurtAndBreak(ILnet/minecraft/server/level/ServerLevel;Lnet/minecraft/server/level/ServerPlayer;Ljava/util/function/Consumer;)V")
+    private void essenceAscendance$wearFrame(int amount, ServerLevel level, ServerPlayer player,
+            Consumer<Item> onBreak, com.llamalad7.mixinextras.injector.wrapoperation.Operation<Void> original) {
+        ItemStack stack = (ItemStack)(Object)this;
+        ServerPlayer previous = essenceAscendance$durabilityOwner;
+        boolean fracturedBefore = FracturedEquipmentData.isFractured(stack);
         essenceAscendance$durabilityOwner = player;
-    }
-
-    @Inject(
-            method = "hurtAndBreak(ILnet/minecraft/server/level/ServerLevel;Lnet/minecraft/server/level/ServerPlayer;Ljava/util/function/Consumer;)V",
-            at = @At("RETURN")
-    )
-    private void essenceAscendance$playBreakSoundWhenFractured(
-            int amount,
-            ServerLevel level,
-            ServerPlayer player,
-            Consumer<Item> onBreak,
-            CallbackInfo ci
-    ) {
-        ItemStack stack = (ItemStack) (Object) this;
-        if (!essenceAscendance$fracturedBeforeServerDamage
-                && FracturedEquipmentData.isFractured(stack)
-                && player != null) {
-            player.playSound(stack.getBreakingSound());
+        try {
+            original.call(amount, level, player, onBreak);
+            if (!fracturedBefore && FracturedEquipmentData.isFractured(stack) && player != null)
+                player.playSound(stack.getBreakingSound());
+        } finally {
+            essenceAscendance$durabilityOwner = previous;
         }
-        essenceAscendance$durabilityOwner = null;
     }
 
     @ModifyVariable(

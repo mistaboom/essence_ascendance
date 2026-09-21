@@ -17,6 +17,14 @@ import org.spongepowered.asm.mixin.injection.At;
 @Mixin(FoodData.class)
 public abstract class FoodDataRecoveryMixin implements com.mistaboom.essence_ascendance.vitality.NaturalRecoveryClockAccess {
     @WrapOperation(method = "tick", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/world/entity/player/Player;heal(F)V"), require = 2)
+    private void essenceAscendance$foodOrigin(Player player, float amount, Operation<Void> original) {
+        if (player instanceof net.minecraft.server.level.ServerPlayer server)
+            com.mistaboom.essence_ascendance.vitality.ConsumableRecoveryService.withFoodHealing(server,
+                    () -> original.call(player, amount));
+        else original.call(player, amount);
+    }
+    @WrapOperation(method = "tick", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/world/entity/player/Player;isHurt()Z"), require = 2, expect = 2, allow = 2)
     private boolean essenceAscendance$recoverQueuedDamage(Player player, Operation<Boolean> original) {
         return original.call(player) || player instanceof net.minecraft.server.level.ServerPlayer server

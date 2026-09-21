@@ -440,7 +440,7 @@ public final class Skills {
                     activationPolicy,
                     displayOrder,
                     layoutHint,
-                    SkillRankPolicy.singlePurchase()
+                    SkillRankPolicy.generated()
             );
         }
     }

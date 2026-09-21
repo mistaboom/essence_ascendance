@@ -14,6 +14,37 @@ public final class EquipmentMaintenanceData {
 
     private EquipmentMaintenanceData() { }
 
+    /** Unpaid sub-point wear is item state, including while efficiency is absent. */
+    public static double wearDebt(ItemStack stack) {
+        CompoundTag data = root(stack);
+        double value = data == null ? 0 : data.getDouble("wear_debt");
+        return Double.isFinite(value) && value >= 0 && value < 1 ? value : 0;
+    }
+
+    public static int resolveWear(ItemStack stack, int requested, double efficiencyPercent) {
+        if (requested <= 0 || !EquipmentMaintenanceService.eligible(stack)) return requested;
+        double efficiency = Double.isFinite(efficiencyPercent) ? Math.clamp(efficiencyPercent, 0, 100) : 0;
+        double raw = requested * (1 - efficiency / 100) + wearDebt(stack);
+        int whole = (int) Math.floor(raw + 1e-9);
+        double debt = Math.max(0, raw - whole);
+        CompoundTag outer = outer(stack);
+        CompoundTag data = outer.contains(ROOT_TAG, Tag.TAG_COMPOUND) ? outer.getCompound(ROOT_TAG) : new CompoundTag();
+        if (debt > 0) data.putDouble("wear_debt", debt); else data.remove("wear_debt");
+        finish(outer, data);
+        if (outer.isEmpty()) stack.remove(DataComponents.CUSTOM_DATA);
+        else stack.set(DataComponents.CUSTOM_DATA, CustomData.of(outer));
+        return whole;
+    }
+
+    /** Paid capacity can shrink, but a new native capacity or rank never refills it. */
+    public static double clampOverdurability(ItemStack stack, double maximumFraction) {
+        double capacity = Math.min(overdurabilityCapacity(stack), Math.max(0, stack.getMaxDamage() * maximumFraction));
+        double remaining = Math.min(overdurability(stack), capacity);
+        if (remaining != overdurability(stack) || capacity != overdurabilityCapacity(stack))
+            setOverdurability(stack, remaining, capacity);
+        return capacity;
+    }
+
     public static double overdurability(ItemStack stack) {
         CompoundTag root = root(stack);
         if (root == null) return 0;

@@ -80,6 +80,7 @@ public final class NativeVitalityRecoveryTest {
         lifecycleDuringNativeDamage(f, target);
         additionalOutcomes(f, target);
         attunement(f, target);
+        sharedDomains(f, target);
         target.setHealth(20); hit(f, target, 1);
         f.saved.getPlayerData(player.getUUID()).clearAllSkillsForAdmin(); SkillEffectRuntime.refresh(player);
         check(VitalityRecoveryEffects.chainHits(player) == 0 && !SkillEffectRuntime.context(player).isEffective(SkillIds.LIFE_STEAL),
@@ -90,6 +91,116 @@ public final class NativeVitalityRecoveryTest {
     }
 
     /** Proves the mutable local reaches the real health write, not merely the CombatTracker argument. */
+    private static void sharedDomains(ProjectileNativeInterceptionTest.Fixture f, ServerPlayer target) throws ReflectiveOperationException {
+        var player = f.player;
+        var data = f.saved.getPlayerData(player.getUUID());
+        data.grantAllSkillsForAdmin(List.of(SkillRegistry.require(SkillIds.HUNGER_WARD),
+                SkillRegistry.require(SkillIds.METABOLIC_CONVERSION), SkillRegistry.require(SkillIds.MASTERWORK_TEMPERING),
+                SkillRegistry.require(SkillIds.RESTFUL_MENDING), SkillRegistry.require(SkillIds.METABOLIC_MENDING)));
+        data.setLoadoutSelection(SkillRegistry.require(SkillIds.HUNGER_WARD).choiceGroup(), SkillIds.HUNGER_WARD);
+        data.setLoadoutSelection(SkillGroups.VITALITY_RECOVERY, SkillIds.LIFE_STEAL);
+        SkillEffectRuntime.refresh(player);
+        check(SkillEffectRuntime.context(player).isEffective(SkillIds.METABOLIC_CONVERSION), "Legal Conversion branch active");
+        player.setHealth(player.getMaxHealth()); player.getFoodData().setFoodLevel(10); player.getFoodData().setSaturation(0);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.IRON_SWORD));
+        target.setHealth(20); hit(f, target, 4);
+        check(com.mistaboom.essence_ascendance.vitality.VitalityDamageService.carry(player, SkillIds.METABOLIC_CONVERSION) > 0
+                || player.getFoodData().getFoodLevel() > 10 || player.getFoodData().getSaturationLevel() > 0,
+                "Independent Life Steal serves food deficit at full HP");
+        double beforeFood = player.getFoodData().getFoodLevel() + player.getFoodData().getSaturationLevel();
+        com.mistaboom.essence_ascendance.vitality.ConsumableRecoveryService.withFoodHealing(player, () -> player.heal(4));
+        equal(player.getFoodData().getFoodLevel() + player.getFoodData().getSaturationLevel(), beforeFood, "Food healing cannot generate food");
+        var effect = new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.REGENERATION, 100);
+        ((com.mistaboom.essence_ascendance.vitality.FoodEffectOrigin) effect).essenceAscendance$foodOrigin(true);
+        var copy = new net.minecraft.world.effect.MobEffectInstance(effect);
+        check(((com.mistaboom.essence_ascendance.vitality.FoodEffectOrigin) copy).essenceAscendance$foodOrigin(), "Timed effect copy retains lineage");
+        var loaded = net.minecraft.world.effect.MobEffectInstance.load((net.minecraft.nbt.CompoundTag)copy.save());
+        check(((com.mistaboom.essence_ascendance.vitality.FoodEffectOrigin) loaded).essenceAscendance$foodOrigin(), "Timed effect save/load retains lineage");
+        player.setHealth(player.getMaxHealth()-.01F); loaded.tick(player, () -> {});
+        equal(player.getFoodData().getFoodLevel() + player.getFoodData().getSaturationLevel(), beforeFood, "Delayed food healing cannot generate food");
+        var stronger = new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.REGENERATION, 20, 1);
+        effect.update(stronger);
+        var hiddenSaved = net.minecraft.world.effect.MobEffectInstance.load((net.minecraft.nbt.CompoundTag)effect.save());
+        var hiddenOrigin = (com.mistaboom.essence_ascendance.vitality.FoodEffectOrigin) hiddenSaved;
+        check(!hiddenOrigin.essenceAscendance$foodOrigin() && hiddenOrigin.essenceAscendance$hiddenOrigin().essenceAscendance$foodOrigin(),
+                "Native stronger independent effect and hidden food effect keep distinct saved provenance");
+        try {
+            com.mistaboom.essence_ascendance.vitality.ConsumableRecoveryService.withFoodHealing(player, () -> { throw new IllegalStateException("probe"); });
+        } catch (IllegalStateException expected) { }
+        check(!com.mistaboom.essence_ascendance.vitality.ConsumableRecoveryService.foodOrigin(player), "Exceptional native effect unwinds food scope");
+
+        data.setLoadoutSelection(SkillGroups.UTILITY_MAINTENANCE, SkillIds.MASTERWORK_TEMPERING); SkillEffectRuntime.refresh(player);
+        ItemStack tool = new ItemStack(Items.IRON_PICKAXE); tool.set(net.minecraft.core.component.DataComponents.MAX_DAMAGE, 1000);
+        player.setItemInHand(InteractionHand.MAIN_HAND, tool);
+        double capacity = 1000 * SkillEffectRuntime.resolvedSettings(player).utility().masterworkTempering().maximumOverdurabilityFraction();
+        com.mistaboom.essence_ascendance.equipment.EquipmentMaintenanceData.setOverdurability(tool, capacity, capacity);
+        tool.hurtAndBreak(1, f.level, player, ignored -> {});
+        equal(tool.getDamageValue(), 0, "Transformed native wear consumes active buffer before native damage");
+        equal(com.mistaboom.essence_ascendance.equipment.EquipmentMaintenanceData.overdurability(tool), capacity-1, "One buffer debit");
+        data.setLoadoutSelection(SkillGroups.UTILITY_MAINTENANCE, SkillIds.RESTFUL_MENDING); SkillEffectRuntime.refresh(player);
+        tool.hurtAndBreak(1, f.level, player, ignored -> {});
+        equal(tool.getDamageValue(), 1, "Inactive buffer grants no absorption to excluded maintenance branch");
+        equal(com.mistaboom.essence_ascendance.equipment.EquipmentMaintenanceData.overdurability(tool), capacity-1, "Dormant paid buffer preserved");
+        data.setLoadoutSelection(SkillGroups.UTILITY_MAINTENANCE, SkillIds.MASTERWORK_TEMPERING); SkillEffectRuntime.refresh(player);
+        equal(com.mistaboom.essence_ascendance.equipment.EquipmentMaintenanceData.overdurability(tool), capacity-1, "Re-enable never refills buffer");
+        com.mistaboom.essence_ascendance.equipment.EquipmentMaintenanceData.resolveWear(tool, 1, 50);
+        var savedTool = ItemStack.parseOptional(player.registryAccess(), (net.minecraft.nbt.CompoundTag)tool.save(player.registryAccess()));
+        equal(com.mistaboom.essence_ascendance.equipment.EquipmentMaintenanceData.wearDebt(savedTool), .5, "Native item save/load retains fractional wear");
+
+        data.setLoadoutSelection(SkillGroups.UTILITY_MAINTENANCE, SkillIds.METABOLIC_MENDING); SkillEffectRuntime.refresh(player);
+        tool.setDamageValue(50); player.setHealth(5); player.getFoodData().setFoodLevel(20); player.getFoodData().setSaturation(1);
+        ItemStack meal = new ItemStack(Items.BREAD, 2);
+        double paidBuffer = com.mistaboom.essence_ascendance.equipment.EquipmentMaintenanceData.overdurability(tool);
+        meal.finishUsingItem(f.level, player);
+        check(meal.getCount() == 1 && player.getHealth() > 5 && tool.getDamageValue() < 50,
+                "One completed native full-hunger meal independently heals and repairs");
+        equal(com.mistaboom.essence_ascendance.equipment.EquipmentMaintenanceData.overdurability(tool), paidBuffer,
+                "Metabolic Mending never refills dormant paid buffer");
+        player.setHealth(player.getMaxHealth()); tool.setDamageValue(0);
+        check(!com.mistaboom.essence_ascendance.vitality.ConsumableRecoveryService.canEatForRecovery(player),
+                "No useful heal or native repair demand stops full-hunger meals");
+
+        data.setLoadoutSelection(SkillGroups.UTILITY_MAINTENANCE, SkillIds.MASTERWORK_TEMPERING); SkillEffectRuntime.refresh(player);
+        var anvil = new net.minecraft.world.inventory.AnvilMenu(77, player.getInventory(), net.minecraft.world.inventory.ContainerLevelAccess.NULL);
+        anvil.getSlot(0).set(new ItemStack(Items.IRON_SWORD));
+        anvil.getSlot(1).set(new ItemStack(Items.IRON_INGOT));
+        anvil.createResult();
+        check(com.mistaboom.essence_ascendance.equipment.EquipmentMaintenanceData.overdurability(anvil.getSlot(2).getItem()) > 0,
+                "Native anvil preview supplies paid tempering output");
+        data.setLoadoutSelection(SkillGroups.UTILITY_MAINTENANCE, SkillIds.RESTFUL_MENDING); SkillEffectRuntime.refresh(player);
+        var mayPickup = net.minecraft.world.inventory.AnvilMenu.class.getDeclaredMethod("mayPickup", Player.class, boolean.class);
+        mayPickup.setAccessible(true);
+        check(!(boolean)mayPickup.invoke(anvil, player, true), "Stale tempering preview cannot bypass inactive branch at native pickup");
+
+        TargetConditionState conditions = new TargetConditionState(player.getUUID());
+        PropagationBudget root = new PropagationBudget(2, 3);
+        root.seed(target.getUUID());
+        conditions.apply(target, f.level.tick, 100, 2, 1, new TargetConditionState.Lineage(root, 1, SkillIds.COMBUSTION));
+        var pulse = conditions.drainDuePulses(f.level.tick + 1).getFirst();
+        check(pulse.lineage().root() == root && pulse.lineage().generation() == 1, "Delayed pulse retains exact root budget and generation");
+        check(conditions.drainDuePulses(f.level.tick + 1).isEmpty(), "No replayed delayed pulse");
+        conditions.discardInactiveLineage(id -> false);
+        check(conditions.size() == 0, "Inactive source cannot resume stored effects after switching");
+
+        var cow = new net.minecraft.world.entity.animal.Cow(net.minecraft.world.entity.EntityType.COW, f.level);
+        var fed = (com.mistaboom.essence_ascendance.gathering.AnimalFeedingState) cow;
+        check(!fed.essenceAscendance$fed(f.level.tick), "Breeding age is not successful feeding");
+        ItemStack wheat = new ItemStack(Items.WHEAT, 2);
+        var feed = net.minecraft.world.entity.animal.Animal.class.getDeclaredMethod("usePlayerItem", Player.class, InteractionHand.class, ItemStack.class);
+        feed.setAccessible(true); feed.invoke(cow, player, InteractionHand.MAIN_HAND, wheat);
+        check(wheat.getCount() == 1 && fed.essenceAscendance$fed(f.level.tick), "Native consumed feed starts window");
+        long fedAt = fed.essenceAscendance$fedAt();
+        cow.setAge(0);
+        check(fed.essenceAscendance$fed(fedAt + fed.essenceAscendance$feedWindow() - 1), "Herd recovery cannot shorten fed window");
+        check(!fed.essenceAscendance$fed(fedAt + fed.essenceAscendance$feedWindow()), "Fed window expires at native breeding interval");
+        net.minecraft.nbt.CompoundTag animalData = new net.minecraft.nbt.CompoundTag();
+        cow.addAdditionalSaveData(animalData);
+        var cowCopy = new net.minecraft.world.entity.animal.Cow(net.minecraft.world.entity.EntityType.COW, f.level);
+        cowCopy.readAdditionalSaveData(animalData);
+        check(((com.mistaboom.essence_ascendance.gathering.AnimalFeedingState)cowCopy).essenceAscendance$fedAt() == fedAt,
+                "Native animal save/load retains feed timestamp");
+    }
+
     private static void routedHealthLocal() throws ReflectiveOperationException {
         var f = new ProjectileNativeInterceptionTest.Fixture(NativeGuardOutcomeTest.NativePlayer.class);
         NativeGuardOutcomeTest.registry(f);

@@ -348,6 +348,19 @@ public final class SkillRankEffectScaling {
 
     public static boolean supports(ResourceLocation id) { return RULES.containsKey(id); }
 
+    /** Reporting only: actual outcome in units of its declared first-state floor, never an allocation input.
+     * Expected-rate floors can exceed old availability priors, so inverse-odds reconstruction is invalid here. */
+    public static double publishedPressureFactor(SkillEffectBalanceSettings settings, ResourceLocation id) {
+        var json = new com.google.gson.Gson().toJsonTree(settings).getAsJsonObject();
+        double result = 1;
+        for (var outcome : com.mistaboom.essence_ascendance.skill.ProgressionRequirements.skill(id).outcomes()) {
+            if (outcome.first() > 0) result = Math.max(result, outcome.measure(json) / outcome.first());
+            else if (outcome.first() < 0 && outcome.measure(json) < 0)
+                result = Math.max(result, outcome.first() / outcome.measure(json));
+        }
+        return result;
+    }
+
     /** Resolved defensive magnitudes retain their own calibration, independent of offensive output. */
     public static double generatedPressureFactor(SkillEffectBalanceSettings settings, ResourceLocation id, double offenseScale) {
         var reference = PostureBalanceSettings.defaults();
@@ -556,7 +569,33 @@ public final class SkillRankEffectScaling {
     }
 
     public static SkillEffectBalanceSettings apply(SkillEffectBalanceSettings base, Map<ResourceLocation, Integer> effectiveRanks) {
-        return apply(base, effectiveRanks, SkillRankEffectScaling::factor);
+        return applyResolved(base, effectiveRanks, SkillBalanceRuntime.snapshot());
+    }
+
+    /** Gameplay and previews consume the exact same generated native values. Scalars are nominal calibration only. */
+    public static SkillEffectBalanceSettings applyResolved(SkillEffectBalanceSettings base,
+            Map<ResourceLocation, Integer> ranks, Map<String, SkillBalanceRuntime.ResolvedSkill> curves) {
+        if (ranks.values().stream().noneMatch(rank -> rank > 0)) return base;
+        if (ranks.entrySet().stream().allMatch(e -> e.getValue() <= 1
+                && (curves.get(e.getKey().toString()) == null || curves.get(e.getKey().toString()).ranks().getFirst().parameters().isEmpty()))) return base;
+        var gson = new com.google.gson.Gson();
+        var effects = gson.toJsonTree(base).getAsJsonObject();
+        for (var entry : new java.util.TreeMap<>(ranks).entrySet()) {
+            if (entry.getValue() <= 0) continue;
+            var curve = curves.get(entry.getKey().toString());
+            if (curve == null || entry.getValue() > curve.ranks().size())
+                throw new IllegalArgumentException("Rank absent from generated profile: " + entry.getKey());
+            var rank = curve.ranks().get(entry.getValue() - 1);
+            if (rank.parameters().isEmpty()) {
+                var current = gson.fromJson(effects, SkillEffectBalanceSettings.class);
+                effects = gson.toJsonTree(apply(current, Map.of(entry.getKey(), entry.getValue()),
+                        (id, value) -> rank.powerMultiplier())).getAsJsonObject();
+            } else {
+                for (var parameter : rank.parameters().entrySet())
+                    com.mistaboom.essence_ascendance.skill.ProgressionRequirements.write(effects, parameter.getKey(), parameter.getValue());
+            }
+        }
+        return gson.fromJson(effects, SkillEffectBalanceSettings.class);
     }
 
     /** Generation must resolve against its candidate curves, never an installed/older world profile. */

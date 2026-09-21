@@ -12,6 +12,13 @@ public final class NativeBonusMechanicsTest {
         Thread.currentThread().setUncaughtExceptionHandler((thread, error) ->
                 error.printStackTrace(new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.err))));
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap();
+        var shield = com.mistaboom.essence_ascendance.config.ShieldBalanceSettings.defaults();
+        var absent = new EnumMap<com.mistaboom.essence_ascendance.equipment.EquipmentTier, Double>(com.mistaboom.essence_ascendance.equipment.EquipmentTier.class);
+        for (var tier : com.mistaboom.essence_ascendance.equipment.EquipmentTier.values()) absent.put(tier, 0.0);
+        try {
+            new com.mistaboom.essence_ascendance.config.ShieldBalanceSettings(0, shield.minimumDisableTicks(), shield.durability(), absent, shield.blockAmplification());
+            throw new AssertionError("No native reflection route accepted");
+        } catch (IllegalArgumentException expected) { }
         var input = evidence(true);
         var step = NativeBonusMechanics.step(input, 1);
         check(step.source().equals("reachable_block_collision_shapes+native_attribute"), "did not use registered shapes");

@@ -323,7 +323,7 @@ public final class SkillLoadoutProjection {
             var descriptor = SkillBalanceSemantics.require(id);
             if (!equipment.permits(descriptor)) continue;
             double scaling = rankScale.applyAsDouble(id, ranks.get(id));
-            if (!Double.isFinite(scaling) || scaling < 0 || scaling > 64)
+            if (!Double.isFinite(scaling) || scaling < 0)
                 throw new IllegalArgumentException("Invalid projected rank contribution for " + id);
             contributing.add(id);
             Vector category = categories.computeIfAbsent(byId.get(id).essenceId(), ignored -> new Vector());

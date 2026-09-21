@@ -57,13 +57,18 @@ public final class RuntimeBuildScenarios {
         return plan(runtime, developed, true);
     }
     static Plan plan(RuntimeBalanceDefinition runtime, boolean developed, boolean includeVitality) {
-        var plan=plan(developed, includeVitality);
+        var plan=plan(developed, includeVitality, runtime.composition().getOrDefault("meaningful_progression", 0.0) == 1
+                ? runtime.skillCurves() : Map.of());
         return new Plan(plan.full(),plan.moderate(),developed,runtime.config().equipmentBaselineConfig());
     }
     public static Plan plan(boolean developed) {
         return plan(developed, true);
     }
     private static Plan plan(boolean developed, boolean includeVitality) {
+        return plan(developed, includeVitality, Map.of());
+    }
+    private static Plan plan(boolean developed, boolean includeVitality,
+            Map<String, com.mistaboom.essence_ascendance.skill.balance.SkillBalanceRuntime.ResolvedSkill> curves) {
         Map<ResourceLocation, List<SkillLoadoutProjection.Scenario>> full = new LinkedHashMap<>(), moderate = new LinkedHashMap<>();
         int apexOrder = AscendanceTierRegistry.powerTiers().stream().mapToInt(AscendanceTierDefinition::order).max().orElseThrow();
         for (var tier : AscendanceTierRegistry.powerTiers()) {
@@ -73,6 +78,7 @@ public final class RuntimeBuildScenarios {
                 int projectedRank = developed && tier.order() == apexOrder ? skill.rankPolicy().projectionRanks()
                         : developed ? Math.min(skill.rankPolicy().projectionRanks(), Math.max(1,
                         tier.order() - AscendanceTierRegistry.get(skill.requiredTierId()).orElseThrow().order() + 1)) : 1;
+                if (curves.containsKey(skill.id().toString())) projectedRank = Math.min(projectedRank, curves.get(skill.id().toString()).maximumRank());
                 fullRanks.put(skill.id(), projectedRank);
                 moderateRanks.put(skill.id(), skill.prerequisites().isEmpty() ? 1 : 0);
             }
@@ -245,6 +251,8 @@ public final class RuntimeBuildScenarios {
     }
 
     static SkillEffectBalanceSettings rankedEffects(RuntimeBalanceDefinition runtime, Map<ResourceLocation, Integer> ranks) {
+        if (runtime.composition().getOrDefault("meaningful_progression", 0.0) == 1)
+            return SkillRankEffectScaling.applyResolved(runtime.config().skillEffects(), ranks, runtime.skillCurves());
         return SkillRankEffectScaling.apply(runtime.config().skillEffects(), ranks, (id, rank) -> {
             var curve = runtime.skillCurves().get(id.toString());
             return curve.ranks().get(rank - 1).powerMultiplier() / curve.ranks().getFirst().powerMultiplier();
@@ -265,7 +273,7 @@ public final class RuntimeBuildScenarios {
     }
     private static double bonus(RuntimeBalanceDefinition runtime, AscendanceTierDefinition tier, StatDefinition stat, boolean moderate) {
         var profile = runtime.config().balanceProfile(); long cap = profile.getInvestmentCap(tier, stat);
-        return runtime.config().statMaxBonus(stat) * StatScalingService.progressionForInvestment(stat, moderate ? cap / 2 : cap, tier, profile);
+        return runtime.config().statMaxBonus(stat) * StatScalingService.realizedProgressionForInvestment(stat, moderate ? cap / 2 : cap, tier, profile);
     }
 
     /** Same primary-hit order as SkillEffectRuntime/GuardCounterattackService; secondary damage stays separate. */

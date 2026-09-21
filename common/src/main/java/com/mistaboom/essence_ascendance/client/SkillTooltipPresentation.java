@@ -71,12 +71,7 @@ public final class SkillTooltipPresentation {
     }
     private static List<Component> resolve(RuntimeBalanceDefinition profile, Map<ResourceLocation, Integer> ranks,
                                            List<SkillTooltipRegistry.Line> definition) {
-        var resolved = SkillRankEffectScaling.apply(profile.config().skillEffects(), ranks, (id, rank) -> {
-            var curve = profile.skillCurves().get(id.toString());
-            if (curve == null || rank < 1 || rank > curve.ranks().size())
-                throw new IllegalStateException("Tooltip rank is absent from the synchronized server profile: " + id);
-            return curve.ranks().get(rank - 1).powerMultiplier() / curve.ranks().getFirst().powerMultiplier();
-        });
+        var resolved = SkillRankEffectScaling.applyResolved(profile.config().skillEffects(), ranks, profile.skillCurves());
         return definition.stream().map(line -> line.render(resolved)).toList();
     }
     private static void fallback(SemanticTooltip tooltip, SkillDefinition skill) {

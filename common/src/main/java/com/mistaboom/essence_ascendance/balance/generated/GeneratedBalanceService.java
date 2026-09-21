@@ -32,7 +32,7 @@ import java.util.Map;
 
 /** Server-thread transaction: collect, construct, validate, persist, publish, then synchronize. */
 public final class GeneratedBalanceService {
-    static final String GENERATION_REVISION = "vitality-death-defiance-43";
+    static final String GENERATION_REVISION = "meaningful-progression-44";
     private static final String DISSOLUTION_ACCOUNTING = "whole_essence_v1";
     private static volatile Active active;
     private static volatile boolean resourcesChanged;
@@ -180,7 +180,7 @@ public final class GeneratedBalanceService {
                         (value, type, context) -> new com.google.gson.JsonPrimitive(value.toString())).create();
         JsonObject result = new JsonObject();
         result.addProperty("curveSource", "/runtime/skillCurves");
-        result.addProperty("rankPolicy", "All current skills remain single purchases. A provisional five-rank stress projection reserves future headroom; rank eligibility, gates, costs and purchasing remain deferred catalog decisions.");
+        result.addProperty("rankPolicy", "Purchasable maxima and exact native rank parameters are generated from meaningful calibrated states. Candidate curves are allocation inputs, never promised ranks. First-state floor excess is local ignored overage and never funds another allocation.");
         result.add("projectilePolicy", projectilePolicy());
         result.add("guardPolicy", guardPolicy());
         result.add("postureStatusPolicy", postureStatusPolicy());
@@ -189,6 +189,13 @@ public final class GeneratedBalanceService {
         result.add("semantics", serializer.toJsonTree(catalog.stream().map(skill ->
                 com.mistaboom.essence_ascendance.skill.balance.SkillBalanceSemantics.require(skill.id())).toList()));
         JsonObject projections = new JsonObject();
+        Map<String, Double> publishedPressure = new java.util.HashMap<>();
+        catalog.forEach(skill -> runtime.skillCurves().get(skill.id().toString()).ranks().forEach(rank -> {
+            var effects = com.mistaboom.essence_ascendance.skill.balance.SkillRankEffectScaling.applyResolved(
+                    runtime.config().skillEffects(), Map.of(skill.id(), rank.rank()), runtime.skillCurves());
+            publishedPressure.put(skill.id() + "/" + rank.rank(),
+                    com.mistaboom.essence_ascendance.skill.balance.SkillRankEffectScaling.publishedPressureFactor(effects, skill.id()));
+        }));
         Map<com.mistaboom.essence_ascendance.balance.engine.CapabilityAxis, Double> budgets =
                 new java.util.EnumMap<>(com.mistaboom.essence_ascendance.balance.engine.CapabilityAxis.class);
         for (var axis : com.mistaboom.essence_ascendance.balance.engine.CapabilityAxis.values())
@@ -201,9 +208,7 @@ public final class GeneratedBalanceService {
                     ranks.put(skill.id(), future ? curve.ranks().size() : curve.maximumRank());
                 });
                 var projection = com.mistaboom.essence_ascendance.skill.balance.SkillLoadoutProjection.project(catalog,
-                        tier.id(), ranks, (id, rank) -> runtime.skillCurves().get(id.toString()).ranks().get(rank - 1).powerMultiplier()
-                                * com.mistaboom.essence_ascendance.skill.balance.SkillRankEffectScaling.generatedPressureFactor(
-                                        runtime.config().skillEffects(), id, runtime.composition().get("rank_safe_skill_scale")),
+                        tier.id(), ranks, (id, rank) -> publishedPressure.get(id + "/" + rank),
                         budgets, future);
                 projections.add(tier.id().getPath() + (future ? "_future_catalog" : "_current_effects"), serializer.toJsonTree(projection));
             }

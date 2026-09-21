@@ -329,6 +329,14 @@ public final class SkillEffectRuntime {
      * Shared post-enchantment durability pipeline. Loader adapters call this exactly once before
      * the artifact fracture guard, so maintenance skills compose with Unbreaking and durability efficiency.
      */
+    public static void onDurabilityAttempt(ServerPlayer player, ItemStack stack) {
+        if (player == null || !player.isAlive() || player.getAbilities().instabuild
+                || !com.mistaboom.essence_ascendance.equipment.EquipmentMaintenanceService.eligible(stack)) return;
+        Context context = current(player);
+        for (SkillEffectHandler handler : SkillEffectRegistry.handlers())
+            if (context.isEffective(handler.id())) handler.durabilityAttempt(context, stack);
+    }
+
     public static int modifyDurabilityLoss(ServerPlayer player, ItemStack stack, int actualDamage) {
         if (player == null || stack == null || stack.isEmpty() || actualDamage < 0) return Math.max(0, actualDamage);
         Context context = current(player);

@@ -54,13 +54,13 @@ public final class PostureStatusBalanceTest {
         var inputs = BalanceOverrides.parse("[exact]\n\"/runtime/effects/posture/evasive/buildTicks\" = 100\n"
                 + "\"/runtime/effects/posture/evasive/hitDrainFraction\" = 0.25\n"
                 + "\"/runtime/effects/posture/evasive/successDrainFraction\" = 1.0\n"
-                + "\"/runtime/effects/status/mirrorCooldownTicks\" = 500\n", "posture-status.toml");
+                + "\"/runtime/effects/status/mirrorCooldownTicks\" = 180\n", "posture-status.toml");
         var changed = RuntimeReferencePolicy.withBootstrapReferences(() -> RuntimeBalanceDefinition.generate(
                 RuntimeReferencePolicy.bootstrapEvidence(), BalanceSettings.defaults(), inputs));
         check(changed.config().skillEffects().posture().evasive().buildTicks() == 100, "Posture exact TOML consumer");
         near(changed.config().skillEffects().posture().evasive().hitDrainFraction(),.25,"Explicit pack-maker hit debit overrides the new default");
         near(changed.config().skillEffects().posture().evasive().successDrainFraction(),1,"Explicit pack-maker dodge debit remains supported");
-        check(changed.config().skillEffects().status().mirrorCooldownTicks() == 500, "Status exact TOML consumer");
+        check(changed.config().skillEffects().status().mirrorCooldownTicks() == 180, "Floor-compatible status exact TOML consumer");
         check(!changed.config().balanceProfile().id().equals(runtime.config().balanceProfile().id()), "Content identity must change");
         check(changed.toJson().get("attunement").equals(runtime.toJson().get("attunement")), "Tuning does not change Attunement");
         ranks(runtime);
@@ -81,16 +81,16 @@ public final class PostureStatusBalanceTest {
         var base = runtime.config().skillEffects();
         for (var id : SKILLS) {
             var curve = runtime.skillCurves().get(id.toString());
-            check(curve.maximumRank() == 1 && curve.ranks().size() == 5, "Single purchase plus provisional five ranks: " + id);
-            check(SkillRankEffectScaling.apply(base, Map.of(id, 1)) == base, "First rank must use generated gameplay value");
-            var ranked = SkillRankEffectScaling.apply(base, Map.of(id, 5));
+            check(curve.maximumRank() == curve.ranks().size(), "Only meaningful purchasable states: " + id);
+            check(SkillRankEffectScaling.apply(base, Map.of(id, 1)).equals(base), "First rank must use generated gameplay value");
+            var ranked = SkillRankEffectScaling.apply(base, Map.of(id, curve.maximumRank()));
             ranked.validate();
             if (id.equals(SkillIds.PURE_STATE)) {
                 check(!SkillRankEffectScaling.supports(id), "Pure State must not have an inert numeric consumer");
                 check(ranked.equals(base), "Pure State cannot invent a numeric benefit");
             } else {
                 check(SkillRankEffectScaling.supports(id), "Missing numeric consumer: " + id);
-                check(!ranked.equals(base), "Honest numeric rank must change its parameter: " + id);
+                check(curve.maximumRank() == 1 || !ranked.equals(base), "Honest numeric rank must change its parameter: " + id);
             }
             check(ranked.frenzy().equals(base.frenzy()) && ranked.projectiles().equals(base.projectiles())
                     && ranked.guard().equals(base.guard()), "Defense rank changed unrelated offensive or guard tuning");
@@ -98,7 +98,7 @@ public final class PostureStatusBalanceTest {
             check(ranked.status().mirrorMaximumDurationTicks() == base.status().mirrorMaximumDurationTicks()
                     && ranked.status().mirrorMaximumAmplifier() == base.status().mirrorMaximumAmplifier(), "Ranks changed copy safety caps");
         }
-        var strong = SkillRankEffectScaling.apply(base, Map.of(SkillIds.STATUS_MIRROR, 5));
+        var strong = SkillRankEffectScaling.apply(base, Map.of(SkillIds.STATUS_MIRROR, runtime.skillCurves().get(SkillIds.STATUS_MIRROR.toString()).maximumRank()));
         near(RuntimeBuildScenarios.defensivePressure(strong, Set.of(SkillIds.STATUS_MIRROR)).maximumMirrorTransfersPerSecond(),
                 20.0 / strong.status().mirrorCooldownTicks(), "Mirror capacity has applications/second units");
         SkillBalanceRuntime.clear();
@@ -135,7 +135,7 @@ public final class PostureStatusBalanceTest {
 
     private static void projections(RuntimeBalanceDefinition runtime) {
         var ranks = new LinkedHashMap<ResourceLocation, Integer>();
-        SkillRegistry.values().forEach(skill -> ranks.put(skill.id(), 5));
+        SkillRegistry.values().forEach(skill -> ranks.put(skill.id(), runtime.skillCurves().get(skill.id().toString()).maximumRank()));
         for (boolean planned : List.of(false, true)) {
             var projection = SkillLoadoutProjection.project(SkillRegistry.values(), AscendanceTiers.TRANSCENDENT.id(), ranks,
                     (id, rank) -> runtime.skillCurves().get(id.toString()).ranks().get(rank - 1).powerMultiplier(), Map.of(), planned);
@@ -149,7 +149,7 @@ public final class PostureStatusBalanceTest {
             }
             check(seen.containsAll(SKILLS), "Projection omitted an implemented posture/status choice");
         }
-        for (int rank : List.of(1, 5)) {
+        for (int rank : List.of(1)) {
             var pure = SkillLoadoutProjection.project(SkillRegistry.values(), AscendanceTiers.TRANSCENDENT.id(),
                     Map.of(SkillIds.PURE_STATE, rank), (id, r) -> 2.5, Map.of(), false);
             near(pure.axisEnvelope().get(CapabilityAxis.STATUS_RESISTANCE), 1,

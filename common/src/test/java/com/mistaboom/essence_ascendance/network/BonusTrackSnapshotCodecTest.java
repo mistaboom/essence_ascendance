@@ -20,7 +20,7 @@ public final class BonusTrackSnapshotCodecTest {
             .stream().map(path -> ResourceLocation.parse("essence_ascendance:" + path)).toList();
 
     public static void main(String[] args) {
-        for (var track : List.of(track(1, 5, false), track(3, 5, false), track(1, 2, true), unavailable())) {
+        for (var track : List.of(track(1, 5, false), track(3, 5, false), track(4, 4, false), track(1, 2, true), unavailable())) {
             var encoded = buffer();
             BonusTrackSnapshot.write(encoded, track);
             byte[] bytes = bytes(encoded);
@@ -28,7 +28,7 @@ public final class BonusTrackSnapshotCodecTest {
                     "Resolved checkpoint, segment, snap and geometry facts round-trip exactly");
             for (int i = 1; i < track.tierPositions().size(); i++) {
                 check(Math.abs(track.tierPositions().get(i) - track.tierPositions().get(i - 1) - .2) < 1e-12,
-                        "Every powered tier, including Transcendent, retains an equal visible band");
+                        "Every purchasable tier position, beginning at Dormant, retains an equal visible band");
             }
             encoded.release();
             var repeated = buffer();
@@ -86,8 +86,8 @@ public final class BonusTrackSnapshotCodecTest {
         }
         return new BonusTrackSnapshot(threshold ? StatUnit.BLOCKS : StatUnit.PERCENT, TIERS.get(start), TIERS.get(completion),
                 checkpoints, List.of(0.0, .2, .4, .6, .8, 1.0), .72,
-                threshold ? BonusTrackDefinition.PurchaseStyle.THRESHOLD : BonusTrackDefinition.PurchaseStyle.CONTINUOUS,
-                threshold ? List.of(0.0, .5, 1.0) : List.of(), BonusTrackDefinition.Applicability.AVAILABLE);
+                BonusTrackDefinition.PurchaseStyle.FUNDED_STATES,
+                java.util.stream.Stream.concat(java.util.stream.Stream.of(0.0), checkpoints.stream().filter(BonusTrackDefinition.Checkpoint::purchasable).map(BonusTrackDefinition.Checkpoint::effectFraction)).toList(), BonusTrackDefinition.Applicability.AVAILABLE);
     }
 
     public static BonusTrackSnapshot unavailable() {

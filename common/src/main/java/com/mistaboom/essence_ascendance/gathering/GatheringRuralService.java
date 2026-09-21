@@ -14,6 +14,8 @@ import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.List;
+import com.mistaboom.essence_ascendance.utility.SharedTargetWork;
+import com.mistaboom.essence_ascendance.utility.UtilityAuraService;
 
 /** Shared nearby-growth and animal scheduler for the Gathering rural branch. */
 public final class GatheringRuralService {
@@ -32,11 +34,22 @@ public final class GatheringRuralService {
         int eligible = 0;
         int extraTicks = 0;
 
-        for (BlockPos mutable : BlockPos.betweenClosed(center.offset(-range, -range, -range),
-                center.offset(range, range, range))) {
+        int side = range * 2 + 1;
+        int volume = side * side * side;
+        for (int visits = 0; visits < Math.min(volume, 1024); visits++) {
+            if (!SharedTargetWork.visit(level, context.now())) break;
+            int index = pulse.cursor;
+            pulse.cursor = (pulse.cursor + 1) % volume;
+            BlockPos mutable = center.offset(index % side - range, (index / side) % side - range, index / (side * side) - range);
             if (center.distSqr(mutable) > rangeSqr) continue;
+            if (!level.hasChunkAt(mutable)) continue;
             BlockState state = level.getBlockState(mutable);
             if (!PlayerAttributedBlockHarvestService.isCrop(state) || !state.isRandomlyTicking()) continue;
+            var match = UtilityAuraService.strongest(level, net.minecraft.world.phys.Vec3.atCenterOf(mutable), SkillIds.VERDANT_STRIDE,
+                    c -> c.settings().gathering().verdantStride().radiusBlocks(),
+                    c -> c.settings().gathering().verdantStride().growthChance() / c.settings().gathering().verdantStride().growthPulseTicks());
+            if (match == null || match.player() != player || !SharedTargetWork.claimPosition(level, mutable.asLong(),
+                    "crop_growth", context.now(), tuning.growthPulseTicks())) continue;
             eligible++;
             if (player.getRandom().nextDouble() >= tuning.growthChance()) continue;
             state.randomTick(level, mutable, level.random);
@@ -49,6 +62,12 @@ public final class GatheringRuralService {
     public static void tickHerdkeeper(SkillEffectRuntime.Context context) {
         GatheringBalanceSettings.Herdkeeper tuning = context.settings().gathering().herdkeeper();
         for (Animal animal : nearbyLivestock(context.player(), tuning.radiusBlocks())) {
+            if (!SharedTargetWork.visit(animal.level(), context.now())) break;
+            var match = UtilityAuraService.strongest(context.player().serverLevel(), animal.position(), SkillIds.HERDKEEPER,
+                    c -> c.settings().gathering().herdkeeper().radiusBlocks(),
+                    c -> c.settings().gathering().herdkeeper().breedingRecoveryMultiplier());
+            if (match == null || match.player() != context.player()
+                    || !SharedTargetWork.claim(animal.level(), animal, "herdkeeper", context.now(), 1)) continue;
             // One is vanilla's neutral navigation speed factor; skill power is kept in generated cooldown recovery.
             animal.getNavigation().moveTo(context.player(), 1.0D);
             int age = animal.getAge();
@@ -68,7 +87,13 @@ public final class GatheringRuralService {
         int eligible = 0;
         int gifts = 0;
         for (Animal animal : nearbyLivestock(player, tuning.radiusBlocks())) {
+            if (!SharedTargetWork.visit(animal.level(), context.now())) break;
             if (!giftEligible(player, animal)) continue;
+            var match = UtilityAuraService.strongest(player.serverLevel(), animal.position(), SkillIds.ANIMAL_GIFT,
+                    c -> c.settings().gathering().animalGift().radiusBlocks(),
+                    c -> c.settings().gathering().animalGift().giftChance() / c.settings().gathering().animalGift().giftPulseTicks());
+            if (match == null || match.player() != player
+                    || !SharedTargetWork.claim(animal.level(), animal, "animal_gift", context.now(), tuning.giftPulseTicks())) continue;
             eligible++;
             if (player.getRandom().nextDouble() >= tuning.giftChance()) continue;
             if (RenewableAnimalProductRegistry.provideOne(player, animal, player.getRandom())) gifts++;
@@ -118,11 +143,13 @@ public final class GatheringRuralService {
 
     private static List<Animal> nearbyLivestock(ServerPlayer player, double radiusBlocks) {
         double radiusSqr = radiusBlocks * radiusBlocks;
-        return player.serverLevel().getEntitiesOfClass(Animal.class,
+        List<Animal> animals = new java.util.ArrayList<>();
+        player.serverLevel().getEntities(net.minecraft.world.level.entity.EntityTypeTest.forClass(Animal.class),
                 player.getBoundingBox().inflate(radiusBlocks),
                 animal -> animal.isAlive() && !animal.isRemoved()
                         && !(animal instanceof TamableAnimal)
-                        && animal.distanceToSqr(player) <= radiusSqr);
+                        && animal.distanceToSqr(player) <= radiusSqr, animals, 256);
+        return animals;
     }
 
     private static PulseState pulseState(SkillEffectRuntime.Context context,
@@ -138,7 +165,7 @@ public final class GatheringRuralService {
 
     private static boolean giftEligible(ServerPlayer player, Animal animal) {
         return !animal.isBaby()
-                && (animal.isInLove() || animal.getAge() > 0)
+                && animal instanceof AnimalFeedingState fed && fed.essenceAscendance$fed(player.level().getGameTime())
                 && RenewableAnimalProductRegistry.hasAvailableProduct(player, animal);
     }
 
@@ -155,6 +182,7 @@ public final class GatheringRuralService {
         private long nextPulseTick = Long.MIN_VALUE;
         private int lastEligibleTargets;
         private int lastSuccessfulEvents;
+        private int cursor;
 
         @Override public void clear() {
             nextPulseTick = Long.MIN_VALUE;

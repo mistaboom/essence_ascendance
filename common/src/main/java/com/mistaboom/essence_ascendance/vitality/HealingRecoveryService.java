@@ -14,13 +14,22 @@ public final class HealingRecoveryService {
                 && SkillEffectRuntime.resolvedSettings(player).vitality().damage().painPurge().queuePerHealing() > 0;
     }
     public static boolean needsRecovery(ServerPlayer player) {
-        return valid(player) && (player.getHealth() < player.getMaxHealth() || hasRecoverableDebt(player));
+        return valid(player) && usefulHealing(player) > 0;
     }
     public static double usefulHealing(ServerPlayer player) {
-        double missing = Math.max(0, player.getMaxHealth() - player.getHealth());
-        if (!hasRecoverableDebt(player)) return missing;
-        return HealingRoutingMath.usefulHealing(missing, VitalityDamageService.ledger(player).delayed.total(),
-                SkillEffectRuntime.resolvedSettings(player).vitality().damage().painPurge().queuePerHealing());
+        return usefulHealing(player, ConsumableRecoveryService.foodOrigin(player));
+    }
+    public static double usefulHealing(ServerPlayer player, boolean foodOrigin) {
+        if (!valid(player)) return 0;
+        var context = SkillEffectRuntime.context(player);
+        var tuning = context.settings().vitality().damage();
+        boolean conversion = context.isEffective(SkillIds.METABOLIC_CONVERSION);
+        var food = player.getFoodData();
+        double missingFood = Math.max(0, 20 - food.getFoodLevel()) + Math.max(0, 20 - food.getSaturationLevel());
+        return HealingRoutingMath.demand(player.getMaxHealth() - player.getHealth(), missingFood,
+                conversion ? tuning.metabolicConversion().foodPointsPerOverflowHealth() : 0,
+                hasRecoverableDebt(player) ? VitalityDamageService.ledger(player).delayed.total() : 0,
+                tuning.painPurge().queuePerHealing(), foodOrigin);
     }
     /** Runs only after the native accepted heal write succeeds, including heals clamped at full HP. */
     public static void acceptedHeal(ServerPlayer player, double before, double proposed) {

@@ -27,7 +27,7 @@ public final class SkillRankCurveTest {
         double[] developed = {1, 1.3, 1.65, 2.05, 2.5};
         for (int rank = 1; rank <= developed.length; rank++)
             require(Math.abs(SkillRankCurve.developed().power(rank) - developed[rank - 1]) < 1e-12,
-                    "Developed five-rank curve changed");
+                    "Nominal allocation sampling schedule changed; publication selects meaningful states");
         double previousIncrement = Double.MAX_VALUE;
         for (int rank = 2; rank <= 64; rank++) {
             double increment = curve.power(rank) - curve.power(rank - 1);

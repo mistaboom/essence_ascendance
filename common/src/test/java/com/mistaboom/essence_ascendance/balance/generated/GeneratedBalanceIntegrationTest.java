@@ -85,7 +85,7 @@ public final class GeneratedBalanceIntegrationTest {
                 .getAsJsonArray("checkpoints").get(1).getAsJsonObject().addProperty("segmentCost", 0),
                 "Inconsistent Bonus segment cost escaped full-document validation");
         reject(document, root -> bonusTrack(root, EssenceStats.STEP_HEIGHT.id().toString())
-                .addProperty("purchaseStyle", "THRESHOLD"), "An explicitly threshold-only track without snap endpoints was accepted");
+                .add("snapPoints", new com.google.gson.JsonArray()), "A complete-state track without snap endpoints was accepted");
         reject(document, root -> bonusTrack(root, EssenceStats.STEP_HEIGHT.id().toString())
                 .addProperty("completionTier", AscendanceTiers.TRANSCENDENT.id().toString()),
                 "Declared completion tier disagreed with resolved checkpoints");
@@ -198,7 +198,7 @@ public final class GeneratedBalanceIntegrationTest {
         try {
             BalanceReports.export(decoded, null, folder, 0);
             Path reports = folder.resolve("reports");
-            for (String name : List.of("balance_report.md", "valuation.csv", "equipment.csv", "curves.csv",
+            for (String name : List.of("balance_report.md", "valuation.csv", "equipment.csv", "curves.csv", "skill_rank_parameters.csv",
                     "builds.csv", "combat_builds.csv", "invariants.csv", "valuation_sources.csv", "valuation_source_dependencies.csv",
                     "warnings.csv", "equipment_capabilities.csv", "build_skill_ranks.csv", "build_selections.csv", "build_category_pressure.csv",
                     "combat_assumptions.csv", "evidence.csv", "evidence_dependencies.csv", "runtime_parameters.csv", "generated_equipment.csv",
@@ -209,6 +209,14 @@ public final class GeneratedBalanceIntegrationTest {
             for (String name : List.of("pack_metadata.json", "report_text.json"))
                 check(Files.isRegularFile(folder.resolve("diagnostics").resolve(name)), "Missing detailed diagnostic " + name);
             var attunement = decoded.runtime().attunement();
+            var nativeRanks = csv(Files.readString(reports.resolve("skill_rank_parameters.csv")));
+            check(nativeRanks.size() - 1 == decoded.runtime().skillCurves().values().stream()
+                    .flatMap(curve -> curve.ranks().stream()).mapToInt(rank -> rank.parameters().size()).sum(),
+                    "Native rank export lost generated parameters");
+            for (var row : nativeRanks.subList(1, nativeRanks.size())) {
+                var rank = decoded.runtime().skillCurves().get(row.get(0)).ranks().get(Integer.parseInt(row.get(1))-1);
+                close(Double.parseDouble(row.get(4)), rank.parameters().get(row.get(3)), "Report native rank value diverged from gameplay authority");
+            }
             List<List<String>> targets = csv(Files.readString(reports.resolve("attunement_targets.csv")));
             check(targets.size() - 1 == attunement.chapters().values().stream().mapToInt(chapter -> chapter.categories().size()).sum(), "Attunement category report lost rows");
             List<List<String>> breadth = csv(Files.readString(reports.resolve("attunement_breadth.csv")));
@@ -443,8 +451,10 @@ public final class GeneratedBalanceIntegrationTest {
             check(view.checkpoints().equals(track.checkpoints()) && view.snapPoints().equals(track.snapPoints())
                     && view.startTier().equals(track.startTier()) && view.completionTier().equals(track.completionTier()),
                     "Generated Bonus facts diverged in synchronized presentation");
-            check(track.purchaseStyle() == com.mistaboom.essence_ascendance.balance.runtime.BonusTrackDefinition.PurchaseStyle.CONTINUOUS
-                            && track.snapPoints().isEmpty(), "Generated Bonus has a nonuniform threshold purchase restriction");
+            if (track.applicability() != com.mistaboom.essence_ascendance.balance.runtime.BonusTrackDefinition.Applicability.UNAVAILABLE)
+                check(track.purchaseStyle() == com.mistaboom.essence_ascendance.balance.runtime.BonusTrackDefinition.PurchaseStyle.FUNDED_STATES
+                                && track.snapPoints().size() == track.activeStateCount() + 1,
+                        "Generated Bonus must synchronize every complete funded state");
             var geometry = new com.mistaboom.essence_ascendance.client.nexus.NexusBonusTrackLayout(view, 30, 230);
             for (int index = 0; index < track.checkpoints().size(); index++) {
                 var point = track.checkpoints().get(index);

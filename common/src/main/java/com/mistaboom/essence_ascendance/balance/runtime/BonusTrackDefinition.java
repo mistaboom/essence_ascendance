@@ -11,7 +11,14 @@ public record BonusTrackDefinition(ResourceLocation statId, StatCategory categor
         List<Checkpoint> checkpoints, double investmentExponent, PurchaseStyle purchaseStyle,
         List<Double> snapPoints, Applicability applicability, List<String> compatibilityRequirements,
         double confidence, List<String> evidence, String source, Map<String, Double> inputs) {
-    public enum PurchaseStyle { CONTINUOUS, THRESHOLD }
+    public enum PurchaseStyle { CONTINUOUS, THRESHOLD, FUNDED_STATES }
+    public int activeStateCount() { return (int) checkpoints.stream().filter(Checkpoint::purchasable).count(); }
+    public List<Double> activeValues() { return checkpoints.stream().filter(Checkpoint::purchasable)
+            .map(point -> point.effectFraction() * maximumEffect).toList(); }
+    /** Endpoint remains this track's maximumEffect; requirements never rewrite its generated span. */
+    public com.mistaboom.essence_ascendance.skill.ProgressionRequirements.Bonus progressionRequirements() {
+        return com.mistaboom.essence_ascendance.skill.ProgressionRequirements.bonus(statId);
+    }
     public enum Applicability { AVAILABLE, UNAVAILABLE }
     public record Checkpoint(ResourceLocation tierId, long cumulativeCap, long segmentCost,
                              double effectFraction, boolean available, boolean purchasable) {
@@ -70,10 +77,13 @@ public record BonusTrackDefinition(ResourceLocation statId, StatCategory categor
                 throw new IllegalArgumentException("Invalid Bonus snap points " + statId);
             priorSnap = snap;
         }
-        if (purchaseStyle == PurchaseStyle.THRESHOLD && applicability == Applicability.AVAILABLE
+        if (purchaseStyle != PurchaseStyle.CONTINUOUS && applicability == Applicability.AVAILABLE
                 && (snapPoints.isEmpty() || snapPoints.getFirst() != 0 || snapPoints.getLast() != 1))
             throw new IllegalArgumentException("Threshold Bonuses must include zero and completion snaps");
-        if (purchaseStyle == PurchaseStyle.THRESHOLD && applicability == Applicability.AVAILABLE) {
+        if (purchaseStyle != PurchaseStyle.CONTINUOUS && applicability == Applicability.AVAILABLE) {
+            if (purchaseStyle == PurchaseStyle.FUNDED_STATES
+                    && snapPoints.size() != checkpoints.stream().filter(Checkpoint::purchasable).count() + 1)
+                throw new IllegalArgumentException("Extra or missing complete Bonus state " + statId);
             long priorCost = -1;
             for (double snap : snapPoints) {
                 long cost = com.mistaboom.essence_ascendance.progression.BonusTrackCurve.investmentForProgression(
@@ -87,6 +97,18 @@ public record BonusTrackDefinition(ResourceLocation statId, StatCategory categor
                 Double boundary = inputs.get("native_threshold_" + index);
                 if (boundary != null && Math.abs(boundary - maximumEffect * snapPoints.get(index)) > 1e-7)
                     throw new IllegalArgumentException("Bonus snap no longer reaches its generated native boundary " + statId);
+            }
+            if (purchaseStyle == PurchaseStyle.FUNDED_STATES && inputs.containsKey("first_state_floor")) {
+                double priorValue = 0; boolean active = false, finished = false;
+                for (var point : checkpoints) {
+                    if (point.purchasable()) {
+                        double value = point.effectFraction() * maximumEffect;
+                        double floor = inputs.get(active ? "later_state_floor" : "first_state_floor");
+                        if (finished || value - priorValue + 1e-9 < floor)
+                            throw new IllegalArgumentException("Sub-floor or noncontiguous Bonus state " + statId);
+                        active = true; priorValue = value;
+                    } else if (active) finished = true;
+                }
             }
         }
     }

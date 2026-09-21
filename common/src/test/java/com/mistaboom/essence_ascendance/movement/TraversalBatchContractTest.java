@@ -36,7 +36,7 @@ public final class TraversalBatchContractTest {
                 var skill = SkillRegistry.require(id);
                 check(SkillEffectRegistry.isImplemented(id), "Runtime implementation registered");
                 check(skill.essenceId().equals(EssenceTypes.MOBILITY.id()), "Mobility category preserved");
-                check(skill.maximumRank() == 1 && skill.rankPolicy().projectionRanks() == 5, "One purchase; provisional projections only");
+                check(skill.rankPolicy().maximumRank() == 0, "Catalog delegates purchasable rank count to the balance engine");
                 check(!SkillRankEffectScaling.supports(id), "No invented numeric rank consumer");
                 check(SkillBalanceSemantics.require(id).contributions().stream().allMatch(c -> c.form() == SkillBalanceSemantics.Form.CAPABILITY), "Restorative capabilities cannot become unconditional magnitudes");
                 for (double scale : new double[]{.1, 1, 4}) check(SkillRankEffectScaling.generatedPressureFactor(defaults, id, scale) == 1, "Offense generation never amplifies binary access");

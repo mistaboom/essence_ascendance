@@ -175,7 +175,9 @@ public final class VitalityRecoveryEffects {
             state.dimension = context.player().level().dimension().location();
             state.target = new WeakReference<>(result.target());
             int hits = state.chain.hit(result.target().getUUID(), context.now(), tuning.chainTimeoutTicks(), tuning.maxChainHits());
-            double amount = RecoveryMath.healing(result.damageDealt(), com.mistaboom.essence_ascendance.vitality.HealingRecoveryService.usefulHealing(context.player()),
+            double sourceMultiplier = 1 + Math.max(0, com.mistaboom.essence_ascendance.equipment.EquipmentVitalityService
+                    .evaluateStats(context.player()).healingEffectivenessPercent()) / 100;
+            double amount = RecoveryMath.healing(result.damageDealt(), com.mistaboom.essence_ascendance.vitality.HealingRecoveryService.usefulHealing(context.player()) / sourceMultiplier,
                     tuning.baseHealingFraction(), tuning.perHitHealingFraction(), hits, tuning.maxChainHits());
             // Native heal observers own Vitality Attunement exactly once. A healing callback cannot recursively proc attacks.
             if (amount > 0) EquipmentDamageService.withSecondarySkillDamage(() -> context.player().heal((float) amount));

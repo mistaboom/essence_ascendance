@@ -52,7 +52,7 @@ public final class VitalityDamageBatchContractTest {
         }
         for (var id : all) {
             var skill = SkillRegistry.require(id);
-            check(skill.maximumRank() == 1 && skill.rankPolicy().projectionRanks() == 5, "No accidental extra purchasable ranks");
+            check(skill.rankPolicy().maximumRank() == 0, "Catalog delegates purchasable rank count to the balance engine");
         }
         check(!SkillRankEffectScaling.supports(SkillIds.STAGGERED_PAIN), "Time shifting is not fictitious permanent mitigation/rank growth");
         var effects = SkillEffectBalanceSettings.defaults();

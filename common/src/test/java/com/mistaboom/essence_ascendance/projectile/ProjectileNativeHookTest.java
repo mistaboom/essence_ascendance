@@ -1,5 +1,8 @@
 package com.mistaboom.essence_ascendance.projectile;
 
+import com.mistaboom.essence_ascendance.EssenceAscendance;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
@@ -32,6 +35,11 @@ public final class ProjectileNativeHookTest {
     }
     public static void run() {
         try {
+            var magicBolt = ProjectileContent.MAGIC_BOLT.get();
+            check(BuiltInRegistries.ENTITY_TYPE.getKey(magicBolt).equals(
+                            ResourceLocation.fromNamespaceAndPath(EssenceAscendance.MOD_ID, "magic_bolt")),
+                    "Magic bolt retains its saved entity registry ID");
+            check(magicBolt.canSerialize(), "Magic bolt remains saveable without a vanilla data fixer");
             check(Arrays.stream(ServerGamePacketListenerImpl.class.getDeclaredMethods())
                     .anyMatch(method -> method.getName().contains("attackBeforeMining")), "Server block-attack wrapper transformed");
             var allocatorField = Class.forName("sun.misc.Unsafe").getDeclaredField("theUnsafe");

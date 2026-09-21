@@ -28,6 +28,9 @@ public record NexusProgressionTrack(
     public double progression(long target, ResourceLocation tierId) {
         var resolved = state.track();
         long effective = Math.clamp(target, 0L, state.currentInvestmentCap());
+        if (resolved.purchaseStyle() != com.mistaboom.essence_ascendance.balance.runtime.BonusTrackDefinition.PurchaseStyle.CONTINUOUS)
+            return BonusTrackCurve.realizedProgressionForInvestment(resolved.checkpoints(), resolved.investmentExponent(),
+                    resolved.snapPoints(), effective, tierId);
         return BonusTrackCurve.progressionForInvestment(resolved.checkpoints(), resolved.investmentExponent(), effective, tierId);
     }
 

@@ -124,7 +124,8 @@ def balanceInvariantMains = [
         balanceGuardInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.GuardBalanceTest',
         projectilePayloadInvariants: 'com.mistaboom.essence_ascendance.projectile.ProjectilePayloadTest',
         projectileControlInvariants: 'com.mistaboom.essence_ascendance.projectile.ProjectileControlTest',
-        balanceLifecycleInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.RuntimeLifecycleTest'
+        balanceLifecycleInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.RuntimeLifecycleTest',
+        meaningfulProgressionInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.MeaningfulProgressionTest'
 ]
 balanceInvariantMains.each { taskName, className ->
     tasks.register(taskName, JavaExec) {
@@ -278,6 +279,7 @@ tasks.register('balanceGenerationInvariants') {
     group = 'verification'
     description = 'Full generated-profile integration, runtime composition and ascension/evidence replay sweeps.'
     dependsOn generationTasks
+    dependsOn 'meaningfulProgressionInvariants'
 }
 tasks.register('dormantGuidebookInvariants', JavaExec) {
     group = 'verification'
@@ -286,3 +288,18 @@ tasks.register('dormantGuidebookInvariants', JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'com.mistaboom.essence_ascendance.progression.DormantGuidebookTest'
 }
+
+[
+    durabilityDomainInvariants: 'com.mistaboom.essence_ascendance.equipment.DurabilityDomainTest',
+    sharedTargetWorkInvariants: 'com.mistaboom.essence_ascendance.utility.SharedTargetWorkTest'
+].each { taskName, className ->
+    tasks.register(taskName, JavaExec) {
+        group = 'verification'
+        dependsOn tasks.named('testClasses')
+        classpath = sourceSets.test.runtimeClasspath
+        mainClass = className
+    }
+}
+tasks.named('balanceInvariants') { dependsOn 'durabilityDomainInvariants', 'sharedTargetWorkInvariants' }
+tasks.named('vitalityInvariants') { dependsOn 'durabilityDomainInvariants' }
+tasks.named('combatInvariants') { dependsOn 'sharedTargetWorkInvariants' }

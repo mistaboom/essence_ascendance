@@ -46,6 +46,8 @@ public record ShieldBalanceSettings(
             reflectionBonusCopy.put(tier, reflectionBonus);
             amplificationCopy.put(tier, multiplier);
         }
+        if (baseReflectionPercent == 0 && reflectionBonusCopy.values().stream().noneMatch(value -> value > 0))
+            throw new IllegalArgumentException("Reflection skills require a positive native shield reflection route before bonus investment");
         durability = Collections.unmodifiableMap(durabilityCopy);
         innateReflectionBonus = Collections.unmodifiableMap(reflectionBonusCopy);
         blockAmplification = Collections.unmodifiableMap(amplificationCopy);

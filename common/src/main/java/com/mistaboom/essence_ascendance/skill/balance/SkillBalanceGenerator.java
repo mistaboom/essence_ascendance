@@ -73,9 +73,134 @@ public final class SkillBalanceGenerator {
                         skill.rankPolicy().curve().cost(firstCost, rank),
                         skill.rankPolicy().curve().power(rank)));
             }
-            result.put(skill.id().toString(), new SkillBalanceRuntime.ResolvedSkill(skill.maximumRank(), ranks));
+            result.put(skill.id().toString(), new SkillBalanceRuntime.ResolvedSkill(1, ranks));
         }
         SkillBalanceRuntime.validate(result);
         return Collections.unmodifiableMap(result);
+    }
+
+    /** Final publication happens after nominal allocation/calibration. No accepted floor overage is fed back. */
+    public static com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceDefinition publishMeaningful(
+            com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceDefinition nominal) {
+        return publishMeaningful(nominal, Map.of());
+    }
+    public static com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceDefinition publishMeaningful(
+            com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceDefinition nominal,
+            Map<ResourceLocation, com.mistaboom.essence_ascendance.skill.ProgressionRequirements.Skill> requirementsBySkill) {
+        var json = nominal.toJson();
+        var base = json.getAsJsonObject("effects").deepCopy();
+        var firstEffects = base.deepCopy();
+        var gson = new com.google.gson.Gson();
+        var curves = new TreeMap<String, SkillBalanceRuntime.ResolvedSkill>();
+        for (var skill : SkillRegistry.values()) {
+            var requirements = requirementsBySkill.getOrDefault(skill.id(), skill.progressionRequirements());
+            var source = nominal.skillCurves().get(skill.id().toString());
+            var owned = new java.util.TreeSet<String>();
+            var probe = gson.toJsonTree(SkillRankEffectScaling.apply(nominal.config().skillEffects(),
+                    Map.of(skill.id(), 2), (id, rank) -> 2)).getAsJsonObject();
+            changedPaths(base, probe, "", owned);
+            requirements.outcomes().forEach(outcome -> owned.add(outcome.path()));
+            var ranks = new ArrayList<SkillBalanceRuntime.ResolvedRank>();
+            com.google.gson.JsonObject previous = null;
+            for (var candidate : source.ranks()) {
+                if (!ranks.isEmpty() && (!SkillRankEffectScaling.supports(skill.id())
+                        || skill.id().equals(com.mistaboom.essence_ascendance.skill.SkillIds.UNTETHERED_FLIGHT))) break;
+                var effects = gson.toJsonTree(SkillRankEffectScaling.apply(nominal.config().skillEffects(),
+                        Map.of(skill.id(), candidate.rank()), (id, rank) -> candidate.powerMultiplier())).getAsJsonObject();
+                requirements.outcomes().forEach(outcome -> outcome.quantize(effects));
+                if (ranks.isEmpty()) requirements.outcomes().forEach(outcome -> outcome.grantFirst(effects));
+                else {
+                    // Fixed first-state capabilities persist; scalable allocations are never bumped to manufacture ranks.
+                    requirements.outcomes().stream().filter(o -> o.later() == 0).forEach(o -> o.grantFirst(effects));
+                    boolean meaningful = false, all = true, regressed = false;
+                    for (var outcome : requirements.outcomes()) {
+                        double before = outcome.measure(previous), after = outcome.measure(effects);
+                        regressed |= after + 1e-9 < before;
+                        if (outcome.later() > 0) {
+                            boolean improves = com.mistaboom.essence_ascendance.progression.MeaningfulProgression.improves(before, after, outcome.later());
+                            meaningful |= improves; all &= improves;
+                        }
+                    }
+                    if (regressed || !meaningful || (!requirements.alternativeImprovements() && !all)) continue;
+                }
+                // Constructors enforce real cross-parameter/native constraints, including conversion no-feedback.
+                try { gson.fromJson(effects, com.mistaboom.essence_ascendance.config.SkillEffectBalanceSettings.class).validate(); }
+                catch (IllegalArgumentException invalid) { if (ranks.isEmpty()) throw invalid; else continue; }
+                var parameters = new TreeMap<String, Double>();
+                for (String path : owned) parameters.put(path, com.mistaboom.essence_ascendance.skill.ProgressionRequirements.read(effects, path));
+                if (ranks.isEmpty()) parameters.forEach((path, value) ->
+                        com.mistaboom.essence_ascendance.skill.ProgressionRequirements.write(firstEffects, path, value));
+                ranks.add(new SkillBalanceRuntime.ResolvedRank(ranks.size() + 1, candidate.cost(), candidate.powerMultiplier(), parameters));
+                previous = effects;
+                if (skill.rankPolicy().maximumRank() > 0 && ranks.size() >= skill.rankPolicy().maximumRank()) break;
+            }
+            curves.put(skill.id().toString(), new SkillBalanceRuntime.ResolvedSkill(ranks.size(), ranks));
+        }
+        json.add("effects", firstEffects);
+        json.add("skillCurves", gson.toJsonTree(curves));
+        json.getAsJsonObject("composition").addProperty("meaningful_progression", 1);
+        return com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceDefinition.fromJson(json);
+    }
+    public static void validatePublished(com.mistaboom.essence_ascendance.config.SkillEffectBalanceSettings base,
+            Map<String, SkillBalanceRuntime.ResolvedSkill> curves) {
+        var gson = new com.google.gson.Gson();
+        for (var skill : SkillRegistry.values()) {
+            var curve = curves.get(skill.id().toString());
+            if (curve.maximumRank() != curve.ranks().size()) throw new IllegalArgumentException("Unpurchasable filler ranks: " + skill.id());
+            if ((!SkillRankEffectScaling.supports(skill.id()) || skill.id().equals(com.mistaboom.essence_ascendance.skill.SkillIds.UNTETHERED_FLIGHT))
+                    && curve.maximumRank() != 1) throw new IllegalArgumentException("Binary skill has extra ranks: " + skill.id());
+            var requirements = skill.progressionRequirements();
+            var baseline = gson.toJsonTree(base).getAsJsonObject();
+            var allowed = new java.util.TreeSet<String>();
+            for (var reference : java.util.List.of(base, com.mistaboom.essence_ascendance.config.SkillEffectBalanceSettings.defaults())) {
+                var probe = gson.toJsonTree(SkillRankEffectScaling.apply(reference,
+                        Map.of(skill.id(), 2), (id, rank) -> 2)).getAsJsonObject();
+                changedPaths(gson.toJsonTree(reference).getAsJsonObject(), probe, "", allowed);
+            }
+            requirements.outcomes().forEach(outcome -> allowed.add(outcome.path()));
+            com.google.gson.JsonObject previous = null;
+            for (var rank : curve.ranks()) {
+                if (!allowed.containsAll(rank.parameters().keySet()))
+                    throw new IllegalArgumentException("Foreign native rank parameter: " + skill.id());
+                if (rank.rank() == 1) for (var parameter : rank.parameters().entrySet()) {
+                    if (Math.abs(com.mistaboom.essence_ascendance.skill.ProgressionRequirements.read(baseline, parameter.getKey())
+                            - parameter.getValue()) > 1e-9)
+                        throw new IllegalArgumentException("Rank-one effect mirror disagrees: " + skill.id());
+                }
+                if (!rank.parameters().keySet().equals(curve.ranks().getFirst().parameters().keySet()))
+                    throw new IllegalArgumentException("Rank parameter ownership changed: " + skill.id());
+                var effects = gson.toJsonTree(base).getAsJsonObject();
+                rank.parameters().forEach((path, value) -> com.mistaboom.essence_ascendance.skill.ProgressionRequirements.write(effects, path, value));
+                boolean any = false, all = true;
+                for (var outcome : requirements.outcomes()) {
+                    if (!rank.parameters().containsKey(outcome.path())) throw new IllegalArgumentException("Missing native rank outcome: " + skill.id());
+                    double value = com.mistaboom.essence_ascendance.skill.ProgressionRequirements.read(effects, outcome.path());
+                    if (Math.abs(value - Math.rint(value / outcome.quantum()) * outcome.quantum()) > Math.max(1e-9, 4 * Math.ulp(value)))
+                        throw new IllegalArgumentException("Native rank parameter is off its gameplay grid: " + skill.id());
+                    if (value < outcome.minimum() - 1e-9 || value > outcome.maximum() + 1e-9 || outcome.measure(effects) + 1e-9 < outcome.first())
+                        throw new IllegalArgumentException("Rank floor/ceiling violated: " + skill.id() + "/" + outcome.path());
+                    if (previous != null) {
+                        if (outcome.measure(effects) + 1e-9 < outcome.measure(previous)) throw new IllegalArgumentException("Rank outcome regressed: " + skill.id());
+                        if (outcome.later() > 0) {
+                            boolean improves = com.mistaboom.essence_ascendance.progression.MeaningfulProgression.improves(outcome.measure(previous), outcome.measure(effects), outcome.later());
+                            any |= improves; all &= improves;
+                        }
+                    }
+                }
+                if (previous != null && (!any || (!requirements.alternativeImprovements() && !all)))
+                    throw new IllegalArgumentException("Sub-floor rank improvement: " + skill.id());
+                gson.fromJson(effects, com.mistaboom.essence_ascendance.config.SkillEffectBalanceSettings.class).validate();
+                previous = effects;
+            }
+        }
+    }
+    private static void changedPaths(com.google.gson.JsonObject base, com.google.gson.JsonObject candidate,
+                                     String prefix, java.util.Set<String> paths) {
+        for (var entry : base.entrySet()) {
+            String path = prefix + entry.getKey();
+            var next = candidate.get(entry.getKey());
+            if (entry.getValue().isJsonObject()) changedPaths(entry.getValue().getAsJsonObject(), next.getAsJsonObject(), path + "/", paths);
+            else if (!entry.getValue().equals(next)) paths.add(path);
+        }
     }
 }

@@ -616,7 +616,7 @@ public final class StatScalingService {
                                                            BalanceProfileDefinition profile) {
         var resolved = profile.bonusTrack(stat.id());
         if (resolved != null && resolved.purchaseStyle()
-                == com.mistaboom.essence_ascendance.balance.runtime.BonusTrackDefinition.PurchaseStyle.THRESHOLD)
+                != com.mistaboom.essence_ascendance.balance.runtime.BonusTrackDefinition.PurchaseStyle.CONTINUOUS)
             return BonusTrackCurve.realizedProgressionForInvestment(resolved.checkpoints(),
                     resolved.investmentExponent(), resolved.snapPoints(), investment, tier.id());
         return progressionForInvestment(stat, investment, tier, profile);

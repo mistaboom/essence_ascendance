@@ -89,16 +89,8 @@ public final class MasterworkTemperingTooltip {
         if (runtime == null) return 0;
         RuntimeBalanceDefinition resolvedRuntime = runtime;
 
-        var resolved = SkillRankEffectScaling.apply(
-                resolvedRuntime.config().skillEffects(),
-                Map.of(SkillIds.MASTERWORK_TEMPERING, rank),
-                (id, resolvedRank) -> {
-                    var curve = resolvedRuntime.skillCurves().get(id.toString());
-                    if (curve == null || resolvedRank < 1 || resolvedRank > curve.ranks().size()) return 1.0;
-                    return curve.ranks().get(resolvedRank - 1).powerMultiplier()
-                            / curve.ranks().getFirst().powerMultiplier();
-                }
-        );
+        var resolved = SkillRankEffectScaling.applyResolved(resolvedRuntime.config().skillEffects(),
+                Map.of(SkillIds.MASTERWORK_TEMPERING, rank), resolvedRuntime.skillCurves());
         double maximum = resolved.utility().masterworkTempering().maximumPerformanceBonus();
         return Math.clamp(current / capacity, 0, 1) * maximum;
     }

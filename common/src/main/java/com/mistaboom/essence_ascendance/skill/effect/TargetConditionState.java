@@ -37,6 +37,10 @@ public final class TargetConditionState implements SkillEffectState {
     /** Applies or refreshes a condition with optional reusable periodic-effect metadata. */
     public void apply(LivingEntity target, long now, int durationTicks,
                       double magnitude, int pulseIntervalTicks) {
+        apply(target, now, durationTicks, magnitude, pulseIntervalTicks, null);
+    }
+    public void apply(LivingEntity target, long now, int durationTicks,
+                      double magnitude, int pulseIntervalTicks, Lineage lineage) {
         if (!target.isAlive() || target.isRemoved()) return;
         if (!Double.isFinite(magnitude) || magnitude < 0.0 || pulseIntervalTicks < 0) {
             throw new IllegalArgumentException("Invalid condition pulse metadata");
@@ -56,6 +60,7 @@ public final class TargetConditionState implements SkillEffectState {
         entry.target = new WeakReference<>(target);
         entry.expiresAt = SkillEffectMath.expiresAt(now, durationTicks);
         entry.magnitude = magnitude;
+        entry.lineage = lineage;
         if (pulseIntervalTicks > 0) {
             if (!wasActive || entry.pulseIntervalTicks != pulseIntervalTicks || entry.nextPulseAt <= 0L) {
                 entry.nextPulseAt = pulseAt(now, pulseIntervalTicks);
@@ -111,6 +116,13 @@ public final class TargetConditionState implements SkillEffectState {
         return targets.size();
     }
 
+    public void discardInactiveLineage(java.util.function.Predicate<net.minecraft.resources.ResourceLocation> effective) {
+        for (UUID id : List.copyOf(targets.keySet())) {
+            Entry entry = targets.get(id);
+            if (entry.lineage != null && !effective.test(entry.lineage.sourceSkill())) remove(id);
+        }
+    }
+
     public Set<UUID> targetIds() {
         return Set.copyOf(targets.keySet());
     }
@@ -130,7 +142,7 @@ public final class TargetConditionState implements SkillEffectState {
             LivingEntity target = entry.target.get();
             if (target != null && now < entry.expiresAt && entry.pulseIntervalTicks > 0
                     && entry.nextPulseAt > 0L && now >= entry.nextPulseAt) {
-                pulses.add(new Pulse(target, entry.magnitude));
+                pulses.add(new Pulse(target, entry.magnitude, entry.lineage));
                 entry.nextPulseAt = pulseAt(now, entry.pulseIntervalTicks);
             }
         }
@@ -158,7 +170,8 @@ public final class TargetConditionState implements SkillEffectState {
         return now > Long.MAX_VALUE - intervalTicks ? Long.MAX_VALUE : now + intervalTicks;
     }
 
-    public record Pulse(LivingEntity target, double magnitude) { }
+    public record Lineage(PropagationBudget root, int generation, net.minecraft.resources.ResourceLocation sourceSkill) { }
+    public record Pulse(LivingEntity target, double magnitude, Lineage lineage) { }
 
     private static final class Entry {
         WeakReference<LivingEntity> target;
@@ -166,6 +179,7 @@ public final class TargetConditionState implements SkillEffectState {
         double magnitude;
         long nextPulseAt;
         int pulseIntervalTicks;
+        Lineage lineage;
 
         Entry(LivingEntity target) {
             this.target = new WeakReference<>(target);

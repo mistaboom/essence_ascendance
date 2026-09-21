@@ -66,7 +66,7 @@ public final class GuardBalanceTest {
         var overridden = RuntimeReferencePolicy.withBootstrapReferences(() -> RuntimeBalanceDefinition.generate(
                 RuntimeReferencePolicy.bootstrapEvidence(), BalanceSettings.defaults(), parsed));
         check(overridden.config().skillEffects().guard().perfectGuard().windowTicks() == 3
-                && overridden.config().skillEffects().guard().mobility().slowdownRemoval() == .9,
+                && Math.abs(overridden.config().skillEffects().guard().mobility().slowdownRemoval() - .9) < 1e-9,
                 "Guard overrides bypass existing TOML/resolved generation");
         JsonObject changedJson = first.toJson(); field(changedJson, "perfectGuard").addProperty("windowTicks", 3);
         var changed = RuntimeBalanceDefinition.fromJson(changedJson).withContentIdentity();
@@ -95,7 +95,7 @@ public final class GuardBalanceTest {
         for (ResourceLocation id : List.of(SkillIds.GUARDED_ADVANCE, SkillIds.SHIELD_RAM, SkillIds.REFLEXIVE_WARD,
                 SkillIds.STORED_FORCE, SkillIds.GUARD_AMPLIFIER, SkillIds.CROWD_REPRISAL, SkillIds.RIPOSTE)) {
             var curve = runtime.skillCurves().get(id.toString());
-            check(curve.ranks().size() > 1, "Guard rank curve lost procedural projections");
+            check(curve.ranks().size() == curve.maximumRank(), "Guard generated count differs from purchasable ranks");
             GuardBalanceSettings previous = base.guard();
             for (int rank = 1; rank <= curve.ranks().size(); rank++) {
                 var next = SkillRankEffectScaling.apply(base, Map.of(id, rank)).guard();
@@ -107,7 +107,7 @@ public final class GuardBalanceTest {
                 previous = next;
             }
             ranks.put(id, curve.ranks().size());
-            check(power(previous, id) > power(base.guard(), id), "Guard rank consumer is missing: " + id);
+            check(curve.maximumRank() == 1 || !previous.equals(base.guard()), "Additional guard rank needs a native improvement: " + id);
         }
         var all = SkillRankEffectScaling.apply(base, ranks);
         Map<ResourceLocation,Integer> reversed = new LinkedHashMap<>();

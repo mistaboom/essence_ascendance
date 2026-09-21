@@ -75,8 +75,6 @@ public final class EquipmentGatheringService {
     private static final Map<UUID, HeldStacks> HELD_STACKS =
             new ConcurrentHashMap<>();
 
-    private static final Map<ItemStack, Double> DURABILITY_CARRY =
-            Collections.synchronizedMap(new WeakHashMap<>());
 
     private static final Map<UUID, Double> EXPERIENCE_BONUS_CARRY =
             new ConcurrentHashMap<>();
@@ -616,27 +614,9 @@ public final class EquipmentGatheringService {
                 applicability
         );
 
-        if (percent <= 0.0) {
-            DURABILITY_CARRY.remove(stack);
-            recordDurability(
-                    player,
-                    stack,
-                    requestedDamage,
-                    requestedDamage,
-                    0.0,
-                    0.0,
-                    context
-            );
-            return requestedDamage;
-        }
-
-        double multiplier = Math.max(0.0, 1.0 - percent / 100.0);
-        double carry = DURABILITY_CARRY.getOrDefault(stack, 0.0);
-        double rawResolved = requestedDamage * multiplier + carry;
-        int resolved = (int) Math.floor(rawResolved + 1.0E-9D);
-        double nextCarry = rawResolved - resolved;
-
-        DURABILITY_CARRY.put(stack, nextCarry);
+        com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime.onDurabilityAttempt(player, stack);
+        int resolved = EquipmentMaintenanceData.resolveWear(stack, requestedDamage, percent);
+        double nextCarry = EquipmentMaintenanceData.wearDebt(stack);
 
         recordDurability(
                 player,

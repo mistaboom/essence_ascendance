@@ -113,8 +113,11 @@ public final class GatheringSalvageService {
         }
 
         int recovered = 0;
+        // Retain a tangible first item, but never return every input of a repeatable recipe.
+        // Ascendance's one-ingot decomposition also consumes Essence in its independent native construction.
+        int maximum = materialRecoveryLimit(materials.stream().mapToDouble(ConstructionMaterialResolver.MaterialAmount::amount).sum());
         for (Map.Entry<Item, Double> entry : expected.entrySet()) {
-            int amount = SkillEffectMath.stochasticWhole(entry.getValue(), player.getRandom());
+            int amount = Math.min(maximum - recovered, SkillEffectMath.stochasticWhole(entry.getValue(), player.getRandom()));
             recovered += giveMaterial(player, entry.getKey(), amount);
         }
 
@@ -125,6 +128,11 @@ public final class GatheringSalvageService {
             if (fallback != null) recovered += giveMaterial(player, fallback, 1);
         }
         return recovered;
+    }
+
+    public static int materialRecoveryLimit(double constructionUnits) {
+        if (!Double.isFinite(constructionUnits) || constructionUnits <= 0) return 0;
+        return Math.max(1, (int)Math.ceil(constructionUnits) - 1);
     }
 
     private static Item weightedMaterial(Map<Item, Double> expected, ServerPlayer player) {

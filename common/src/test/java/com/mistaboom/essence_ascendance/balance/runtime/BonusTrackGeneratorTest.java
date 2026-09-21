@@ -25,10 +25,10 @@ public final class BonusTrackGeneratorTest {
         check(step.checkpoints().getLast().cumulativeCap() < movement.checkpoints().getLast().cumulativeCap() / 5,
                 "Step must be materially cheaper than broadly applicable movement");
         check(step.completionTier().equals(AscendanceTiers.AWAKENED.id()), "Two useful block boundaries should complete in two segments");
-        check(step.snapPoints().isEmpty() && step.purchaseStyle() == BonusTrackDefinition.PurchaseStyle.CONTINUOUS,
-                "Step Height must use the same smooth purchase behavior as every other Bonus");
-        check(step.inputs().containsKey("native_threshold_1") && step.inputs().containsKey("native_threshold_2"),
-                "Native traversal thresholds should remain diagnostic valuation inputs");
+        check(step.snapPoints().size() == step.activeStateCount() + 1 && step.purchaseStyle() == BonusTrackDefinition.PurchaseStyle.FUNDED_STATES,
+                "Step Height publishes complete native traversal states");
+        check(step.inputs().containsKey("first_state_floor") && step.inputs().containsKey("later_state_floor"),
+                "Resolved floors remain auditable");
         check(Math.abs(step.maximumEffect() + step.inputs().get("native_base_step_height") - 1.5) < 1e-7,
                 "Step maximum must reach a real traversal boundary, without an imperceptible tail");
         check(step.inputs().get("marginal_power") < movement.inputs().get("marginal_power") / 2,
@@ -40,7 +40,9 @@ public final class BonusTrackGeneratorTest {
                 "Implemented standard flight must not retain declaration-only capability evidence");
         var early = resolve(evidence(List.of(capability("test:verified_route", ProgressionBand.ENTRY, true, .95,
                 Map.of(CapabilityAxis.FLIGHT, 1.0, CapabilityAxis.ABILITIES_FLYING_SPEED, 1.0))))).get(EssenceStats.FLIGHT_SPEED.id());
-        check(early.startTier().equals(AscendanceTiers.DORMANT.id()), "Verified early standard flight must unlock early");
+        check(AscendanceTierRegistry.get(early.startTier()).orElseThrow().order() >= AscendanceTiers.DORMANT.order()
+                        && AscendanceTierRegistry.get(early.startTier()).orElseThrow().order() < AscendanceTierRegistry.get(flight.startTier()).orElseThrow().order(),
+                "Verified early standard flight permits earlier generated pacing, never Latent power");
         var glidingEvidence = evidence(List.of(capability("test:glider", ProgressionBand.ENTRY, true, 1,
                 Map.of(CapabilityAxis.GLIDING, 1.0))));
         check(resolve(glidingEvidence).get(EssenceStats.FLIGHT_SPEED.id()).startTier().equals(AscendanceTiers.RESONANT.id()),
@@ -84,8 +86,15 @@ public final class BonusTrackGeneratorTest {
         var resolvedProfile = new com.mistaboom.essence_ascendance.balance.BalanceProfileDefinition(
                 ResourceLocation.parse("test:smooth_resolved"), "Smooth resolved fixtures", caps(), Map.of(), fractions(), .8, vanilla);
         for (var track : vanilla.values()) {
-            check(track.purchaseStyle() == BonusTrackDefinition.PurchaseStyle.CONTINUOUS && track.snapPoints().isEmpty(),
-                    "Generated Bonuses must never acquire threshold-only purchase gates");
+            boolean started = false;
+            for (var point : track.checkpoints()) {
+                started |= point.tierId().equals(track.startTier());
+                double value = BonusTrackCurve.progressionForInvestment(track.checkpoints(), track.investmentExponent(), Long.MAX_VALUE, point.tierId());
+                check(started || value == 0, "Every bonus is neutral before its generated start: " + track.statId());
+                check(value == point.effectFraction(), "Generated boundary uses this track's own checkpoint: " + track.statId());
+            }
+            check(track.purchaseStyle() == BonusTrackDefinition.PurchaseStyle.FUNDED_STATES && !track.snapPoints().isEmpty(),
+                    "Generated Bonuses publish complete states while allowing partial funding");
             if (track.applicability() == BonusTrackDefinition.Applicability.AVAILABLE
                     && track.completionTier().equals(AscendanceTiers.TRANSCENDENT.id())) {
                 var ascendant = track.checkpoint(AscendanceTiers.ASCENDANT.id());
@@ -93,10 +102,10 @@ public final class BonusTrackGeneratorTest {
                 check(transcendent.segmentCost() > 0 && transcendent.cumulativeCap() > ascendant.cumulativeCap()
                         && transcendent.effectFraction() > ascendant.effectFraction(), "Ordinary long tracks must add Transcendent capacity and effect");
                 long midway = ascendant.cumulativeCap() + (transcendent.cumulativeCap() - ascendant.cumulativeCap()) / 2;
-                double midwayEffect = BonusTrackCurve.progressionForInvestment(track.checkpoints(), track.investmentExponent(),
-                        midway, AscendanceTiers.TRANSCENDENT.id());
-                check(midwayEffect > ascendant.effectFraction() && midwayEffect < 1,
-                        "Final tier segment must remain purchasable between its endpoints");
+                double midwayEffect = BonusTrackCurve.realizedProgressionForInvestment(track.checkpoints(), track.investmentExponent(),
+                        track.snapPoints(), midway, AscendanceTiers.TRANSCENDENT.id());
+                check(midwayEffect == ascendant.effectFraction(),
+                        "Partial final-state funding must hold the last complete benefit");
             }
             for (var point : track.checkpoints()) {
             double previous = -1;
@@ -110,8 +119,9 @@ public final class BonusTrackGeneratorTest {
                 var tier = AscendanceTierRegistry.get(point.tierId()).orElseThrow();
                 check(TierInvestmentPolicy.validTarget(stat, tier, resolvedProfile, 0, amount),
                         "Smooth generated target was rejected by server purchase validation");
-                check(StatScalingService.realizedProgressionForInvestment(stat, amount, tier, resolvedProfile) == fraction,
-                        "Smooth generated effect was quantized to a native threshold");
+                double realized = StatScalingService.realizedProgressionForInvestment(stat, amount, tier, resolvedProfile);
+                check(realized <= fraction + 1e-9 && track.snapPoints().contains(realized),
+                        "Applied effect must be one generated complete state");
                 previous = fraction;
             }
             if (point.tierId().equals(AscendanceTiers.TRANSCENDENT.id()) && track == step)
@@ -146,7 +156,10 @@ public final class BonusTrackGeneratorTest {
         System.out.println("BonusTrackGeneratorTest: " + checks + " semantic costs, native thresholds, flight compatibility and curve checks PASS");
     }
     private static Map<ResourceLocation, BonusTrackDefinition> resolve(PackEvidence evidence) {
-        return BonusTrackGenerator.resolve(evidence, BalanceSettings.defaults(), caps(), fractions(), maxima(), Map.of(), .8);
+        var result = new TreeMap<ResourceLocation, BonusTrackDefinition>();
+        BonusTrackGenerator.resolve(evidence, BalanceSettings.defaults(), caps(), fractions(), maxima(), Map.of(), .8)
+                .forEach((id, track) -> result.put(id, BonusTrackGenerator.meaningful(track, track.progressionRequirements())));
+        return result;
     }
     private static Map<ResourceLocation, Long> caps() {
         Map<ResourceLocation, Long> values = new LinkedHashMap<>();

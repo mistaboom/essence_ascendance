@@ -41,14 +41,22 @@ public final class VillagePatronService {
         }
         ServerPlayer player = context.player();
         double radiusSquared = tuning.restockRadiusBlocks() * tuning.restockRadiusBlocks();
-        List<Villager> villagers = player.serverLevel().getEntitiesOfClass(Villager.class,
+        List<Villager> villagers = new java.util.ArrayList<>();
+        player.serverLevel().getEntities(net.minecraft.world.level.entity.EntityTypeTest.forClass(Villager.class),
                 player.getBoundingBox().inflate(tuning.restockRadiusBlocks()),
-                villager -> villager.isAlive() && !villager.isRemoved() && player.distanceToSqr(villager) <= radiusSquared);
+                villager -> villager.isAlive() && !villager.isRemoved() && player.distanceToSqr(villager) <= radiusSquared,
+                villagers, 256);
 
         int exhausted = 0;
         int refreshed = 0;
         long nextRestockAt = Long.MAX_VALUE;
         for (Villager villager : villagers) {
+            if (!SharedTargetWork.visit(villager.level(), context.now())) break;
+            var match = UtilityAuraService.strongest(player.serverLevel(), villager.position(), SkillIds.VILLAGE_PATRON,
+                    c -> c.settings().utility().villagePatron().restockRadiusBlocks(),
+                    c -> 1.0 / c.settings().utility().villagePatron().restockIntervalTicks());
+            if (match == null || match.player() != player
+                    || !SharedTargetWork.claim(villager.level(), villager, "restock", context.now(), 1)) continue;
             int exhaustedHere = exhaustedOffers(villager);
             if (exhaustedHere <= 0) {
                 RESTOCK_CLOCKS.remove(villager);
