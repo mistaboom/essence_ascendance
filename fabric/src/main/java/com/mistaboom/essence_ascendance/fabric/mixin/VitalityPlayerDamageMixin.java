@@ -20,7 +20,7 @@ public abstract class VitalityPlayerDamageMixin {
             target = "Lnet/minecraft/world/damagesource/CombatTracker;recordDamage(Lnet/minecraft/world/damagesource/DamageSource;F)V"),
             require = 1, expect = 1, allow = 1)
     private void essenceAscendance$routeHealth(CombatTracker tracker, DamageSource source, float amount,
-                                               Operation<Void> original, @Local(ordinal = 1) LocalFloatRef healthDamage) {
+                                               Operation<Void> original, @Local(ordinal = 0) LocalFloatRef healthDamage) {
         if (!((Object)this instanceof ServerPlayer player)) { original.call(tracker, source, amount); return; }
         float routed = VitalityDamageService.route(player, source, amount);
         healthDamage.set(routed);

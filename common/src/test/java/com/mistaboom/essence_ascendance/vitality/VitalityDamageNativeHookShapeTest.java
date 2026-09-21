@@ -18,16 +18,18 @@ public final class VitalityDamageNativeHookShapeTest {
     private static final String LOCAL = "net/minecraft/client/player/LocalPlayer";
     private static final String GUI = "net/minecraft/client/gui/Gui";
     public static void main(String[] args) throws Exception {
-        inspect(VitalityDamageNativeHookShapeTest.class.getResourceAsStream("/" + PLAYER + ".class"), 1, "Fabric");
+        Path root = Path.of("").toAbsolutePath();
+        while (root != null && !Files.isDirectory(root.resolve(".gradle/loom-cache/minecraftMaven/net/minecraft"))) root = root.getParent();
+        if (root == null) throw new AssertionError("Mapped NeoForge cache required; compile :neoforge:compileJava first");
+        inspect(VitalityDamageNativeHookShapeTest.class.getResourceAsStream("/" + PLAYER + ".class"),
+                declaredFloatOrdinal(root, "fabric"), "Fabric");
         inspectFeedback(VitalityDamageNativeHookShapeTest.class.getResourceAsStream("/" + LIVING + ".class"),
                 VitalityDamageNativeHookShapeTest.class.getResourceAsStream("/" + LOCAL + ".class"), "Fabric");
         inspectHealing(VitalityDamageNativeHookShapeTest.class.getResourceAsStream("/" + LIVING + ".class"),
                 VitalityDamageNativeHookShapeTest.class.getResourceAsStream("/" + FOOD + ".class"),
                 VitalityDamageNativeHookShapeTest.class.getResourceAsStream("/" + REGEN + ".class"), "Fabric");
         inspectHud(VitalityDamageNativeHookShapeTest.class.getResourceAsStream("/" + GUI + ".class"), "Fabric");
-        Path root = Path.of("").toAbsolutePath();
-        while (root != null && !Files.isDirectory(root.resolve(".gradle/loom-cache/minecraftMaven/net/minecraft"))) root = root.getParent();
-        if (root == null) throw new AssertionError("Mapped NeoForge cache required; compile :neoforge:compileJava first");
+        int neoOrdinal = declaredFloatOrdinal(root, "neoforge");
         int found = 0;
         try (var paths = Files.walk(root.resolve(".gradle/loom-cache/minecraftMaven/net/minecraft"))) {
             for (Path path : paths.filter(p -> p.getFileName().toString().startsWith("neoforge-")
@@ -36,7 +38,7 @@ public final class VitalityDamageNativeHookShapeTest {
                     var entry = jar.getJarEntry(PLAYER + ".class");
                     if (entry == null) continue;
                     String loader = "NeoForge " + path.getFileName();
-                    inspect(jar.getInputStream(entry), 3, loader);
+                    inspect(jar.getInputStream(entry), neoOrdinal, loader);
                     var living = jar.getJarEntry(LIVING + ".class");
                     var local = jar.getJarEntry(LOCAL + ".class");
                     check(living != null && local != null, loader + " merged client/server classes are required");
@@ -54,6 +56,24 @@ public final class VitalityDamageNativeHookShapeTest {
         }
         check(found > 0, "NeoForge was actually inspected, not silently skipped");
         System.out.println("VitalityDamageNativeHookShapeTest: " + checks + " checks passed (both mapped loaders)");
+    }
+    /** Inspect the actual compiled annotation so a changed binding cannot silently diverge from this test. */
+    private static int declaredFloatOrdinal(Path root, String loader) throws Exception {
+        Path mixin = root.resolve(loader + "/build/classes/java/main/com/mistaboom/essence_ascendance/"
+                + loader + "/mixin/VitalityPlayerDamageMixin.class");
+        check(Files.isRegularFile(mixin), loader + " compiled routing mixin must exist");
+        var type = read(Files.newInputStream(mixin));
+        var route = type.methods.stream().filter(m -> m.name.equals("essenceAscendance$routeHealth")).findFirst().orElseThrow();
+        var annotations = new ArrayList<AnnotationNode>();
+        if (route.visibleParameterAnnotations != null) for (var parameter : route.visibleParameterAnnotations)
+            if (parameter != null) annotations.addAll(parameter);
+        if (route.invisibleParameterAnnotations != null) for (var parameter : route.invisibleParameterAnnotations)
+            if (parameter != null) annotations.addAll(parameter);
+        var locals = annotations.stream().filter(a -> a.desc.equals("Lcom/llamalad7/mixinextras/sugar/Local;")).toList();
+        check(locals.size() == 1, loader + " one explicit health local binding is required");
+        var values = locals.getFirst().values;
+        for (int i = 0; i < values.size(); i += 2) if (values.get(i).equals("ordinal")) return (Integer) values.get(i + 1);
+        throw new AssertionError(loader + " health local requires an explicit ordinal");
     }
     private static void inspect(InputStream input, int expectedFloatOrdinal, String loader) throws Exception {
         check(input != null, loader + " mapped Player class available");
@@ -76,7 +96,9 @@ public final class VitalityDamageNativeHookShapeTest {
                         .sorted(Comparator.comparingInt(v -> v.index)).toList();
                 check(locals.size() > expectedFloatOrdinal, loader + " expected live float ordinal exists");
                 check(locals.get(expectedFloatOrdinal).index == ((VarInsnNode)previous).var,
-                        loader + " @Local ordinal targets final post-absorption health, not raw input");
+                        loader + " @Local ordinal targets final post-absorption health, not raw input; ordinal="
+                                + expectedFloatOrdinal + ", loaded slot=" + ((VarInsnNode)previous).var
+                                + ", live floats=" + locals.stream().map(v -> v.name + "@" + v.index).toList());
             }
             if (call.name.equals("setHealth") && call.desc.equals("(F)V")) {
                 check(call.owner.equals(PLAYER), loader + " common capacity-commit hook bytecode owner remains Player");

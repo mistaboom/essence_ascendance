@@ -85,7 +85,36 @@ public final class NativeVitalityRecoveryTest {
         check(VitalityRecoveryEffects.chainHits(player) == 0 && !SkillEffectRuntime.context(player).isEffective(SkillIds.LIFE_STEAL),
                 "Removing the purchase receipt immediately removes gameplay and transient chain state");
         f.close(); SkillEffectRuntime.clearAll();
+        routedHealthLocal();
         System.out.println("Native Vitality recovery checks passed: " + checks + " (actual regeneration, direct weapon damage, healing, lifecycle and HUD; no world)");
+    }
+
+    /** Proves the mutable local reaches the real health write, not merely the CombatTracker argument. */
+    private static void routedHealthLocal() throws ReflectiveOperationException {
+        var f = new ProjectileNativeInterceptionTest.Fixture(NativeGuardOutcomeTest.NativePlayer.class);
+        NativeGuardOutcomeTest.registry(f);
+        var player = f.player;
+        var attacker = f.player(NativeGuardOutcomeTest.NativePlayer.class, new Vec3(0, 0, 2), "routing_attacker");
+        var source = player.damageSources().playerAttack(attacker);
+        var data = f.saved.getPlayerData(player.getUUID());
+        data.clearAllSkillsForAdmin(); SkillEffectRuntime.refresh(player);
+        player.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_ABSORPTION).setBaseValue(2);
+        player.setHealth(20); player.setAbsorptionAmount(2); player.invulnerableTime = 0;
+        equal(player.getAbsorptionAmount(), 2, "Native routing fixture starts with absorption");
+        check(player.hurt(source, 4), "Unselected native routing control hit accepted");
+        equal(player.getHealth(), 18, "Unselected native hit spends absorption before health");
+        var skill = SkillRegistry.require(SkillIds.STAGGERED_PAIN);
+        data.grantAllSkillsForAdmin(List.of(skill));
+        data.setLoadoutSelection(skill.choiceGroup(), skill.id());
+        SkillEffectRuntime.refresh(player);
+        check(SkillEffectRuntime.context(player).isEffective(skill.id()), "Real committed Staggered Pain selection is effective");
+        player.setHealth(20); player.setAbsorptionAmount(2); player.invulnerableTime = 0; f.level.tick++;
+        check(player.hurt(source, 4), "Selected native routing hit accepted");
+        equal(player.getAbsorptionAmount(), 0, "Routing preserves the native absorption spend");
+        equal(player.getHealth(), 20, "Routed post-absorption damage changes the actual native health-write local");
+        equal(com.mistaboom.essence_ascendance.vitality.VitalityDamageService.ledger(player).delayed.total(), 2,
+                "Only post-absorption damage becomes debt; no immediate double charge");
+        f.close(); SkillEffectRuntime.clearAll();
     }
 
     private static void natural(ProjectileNativeInterceptionTest.Fixture f) throws ReflectiveOperationException {

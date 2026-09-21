@@ -136,6 +136,8 @@ public final class ProjectileNativeInterceptionTest {
         final MemoryLevel level;
         final EssenceSavedData saved = new EssenceSavedData();
         final Map<UUID, ServerPlayer> players = new HashMap<>();
+        final List<ServerPlayer> onlinePlayers = new ArrayList<>();
+        final List<io.netty.channel.embedded.EmbeddedChannel> networkChannels = new ArrayList<>();
         final ServerPlayer player;
         final ServerGamePacketListenerImpl listener;
 
@@ -160,7 +162,13 @@ public final class ProjectileNativeInterceptionTest {
             set(MinecraftServer.class, server, "levels", Map.of(Level.OVERWORLD, level));
             var list = instance(DedicatedPlayerList.class);
             set(PlayerList.class, list, "playersByUUID", players);
-            set(PlayerList.class, list, "players", new ArrayList<ServerPlayer>());
+            set(PlayerList.class, list, "players", onlinePlayers);
+            try {
+                // NeoForge exposes the constructor-created read-only view from getPlayers().
+                set(PlayerList.class, list, "playersView", java.util.Collections.unmodifiableList(onlinePlayers));
+            } catch (NoSuchFieldException vanillaList) {
+                // Vanilla/Fabric returns the original list directly.
+            }
             set(MinecraftServer.class, server, "playerList", list);
             player = player(playerClass, Vec3.ZERO, "defender");
             PlayerEssenceData data = saved.getPlayerData(player.getUUID());
@@ -170,9 +178,7 @@ public final class ProjectileNativeInterceptionTest {
             SkillRegistry.referencedPermanentMilestoneIds().forEach(data::completeMilestone);
             check(CommittedSkillService.effectiveIds(player).containsAll(List.of(SkillIds.PROJECTILE_DRAG_FIELD, SkillIds.INTERCEPTOR)),
                     "The production committed evaluator enables Interceptor and its prerequisite");
-            listener = instance(ServerGamePacketListenerImpl.class);
-            set(ServerGamePacketListenerImpl.class, listener, "player", player);
-            player.connection = listener;
+            listener = player.connection;
         }
 
         ServerPlayer player(Vec3 position, String name) throws ReflectiveOperationException {
@@ -214,11 +220,42 @@ public final class ProjectileNativeInterceptionTest {
             set(ServerPlayerGameMode.class, gameMode, "gameModeForPlayer", GameType.SURVIVAL);
             set(ServerPlayer.class, entity, "gameMode", gameMode);
             players.put(entity.getUUID(), entity);
+            onlinePlayers.add(entity);
             level.entities.add(entity);
             // Every fixture combat participant can now enter the shared accepted-combat runtime.
             // Keep unavailable world advancement providers outside this in-memory boundary using real captured receipts.
             SkillRegistry.referencedPermanentMilestoneIds().forEach(saved.getPlayerData(entity.getUUID())::completeMilestone);
+            initializeNetworkBoundary(entity);
             return entity;
+        }
+
+        /** Real detached connection, with no negotiated custom channels and no socket/world lifecycle. */
+        private void initializeNetworkBoundary(ServerPlayer entity) throws ReflectiveOperationException {
+            var handler = instance(ServerGamePacketListenerImpl.class);
+            initializeNetworkBoundary(entity, handler);
+        }
+
+        void initializeNetworkBoundary(ServerPlayer entity, ServerGamePacketListenerImpl handler) throws ReflectiveOperationException {
+            set(ServerGamePacketListenerImpl.class, handler, "player", entity);
+            var connection = new net.minecraft.network.Connection(net.minecraft.network.protocol.PacketFlow.SERVERBOUND);
+            var channel = new io.netty.channel.embedded.EmbeddedChannel();
+            networkChannels.add(channel);
+            set(net.minecraft.network.Connection.class, connection, "channel", channel);
+            set(net.minecraft.server.network.ServerCommonPacketListenerImpl.class, handler, "connection", connection);
+            set(net.minecraft.server.network.ServerCommonPacketListenerImpl.class, handler, "server", server);
+            entity.connection = handler;
+            try {
+                // Fabric's addon is normally created by the listener constructor, which this fixture deliberately skips.
+                // Use its real constructor and empty negotiated-channel state, not a replacement networking API.
+                var addonType = Class.forName("net.fabricmc.fabric.impl.networking.server.ServerPlayNetworkAddon");
+                Object addon = addonType.getConstructor(ServerGamePacketListenerImpl.class,
+                        net.minecraft.network.Connection.class, MinecraftServer.class).newInstance(handler, connection, server);
+                var field = java.util.Arrays.stream(ServerGamePacketListenerImpl.class.getDeclaredFields())
+                        .filter(f -> f.getType() == addonType).findFirst().orElseThrow();
+                field.setAccessible(true); field.set(handler, addon);
+            } catch (ClassNotFoundException notFabric) {
+                // NeoForge owns negotiation on the native connection rather than a Fabric addon.
+            }
         }
 
         AbstractArrow arrow(Class<? extends AbstractArrow> type) throws ReflectiveOperationException {
@@ -249,6 +286,7 @@ public final class ProjectileNativeInterceptionTest {
         }
 
         void close() {
+            networkChannels.forEach(io.netty.channel.embedded.EmbeddedChannel::finishAndReleaseAll);
             CommittedSkillService.forget(player);
             ProjectileControlService.forget(player);
             SkillEffectRuntime.forget(player);

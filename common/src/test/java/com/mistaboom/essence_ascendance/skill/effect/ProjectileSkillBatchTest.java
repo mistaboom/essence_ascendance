@@ -42,8 +42,7 @@ public final class ProjectileSkillBatchTest {
     }
 
     private static void catalogAndComposition() {
-        check(SkillRegistry.values().size() == 90, "The curated catalog retains 90 skills");
-        check(SkillEffectRegistry.implementedIds().size() >= 34, "15 Offense, 15 Defense and 4 Vitality effects implemented");
+        // Catalog-wide exact coverage belongs to RegistryIntegrityTest.
         for (var id : List.of(SkillIds.EXPLOSIVE_PAYLOAD, SkillIds.ROOTING_PAYLOAD,
                 SkillIds.PROJECTILE_DRAG_FIELD, SkillIds.INTERCEPTOR, SkillIds.TRAJECTORY_THEFT)) {
             check(SkillEffectRegistry.isImplemented(id), "Batch registered: " + id);

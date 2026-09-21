@@ -44,7 +44,7 @@ public final class NativeVitalitySustenanceTest {
         FoodPlayer player = (FoodPlayer) f.player;
         player.drops = new ArrayList<>();
         var listener = ProjectileNativeInterceptionTest.instance(SilentListener.class);
-        listener.player = player; player.connection = listener;
+        f.initializeNetworkBoundary(player, listener);
         var inventoryMenu = new InventoryMenu(player.getInventory(), false, player);
         ProjectileNativeInterceptionTest.set(Player.class, player, "inventoryMenu", inventoryMenu);
         player.containerMenu = inventoryMenu;

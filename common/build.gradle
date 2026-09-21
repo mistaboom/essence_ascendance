@@ -114,7 +114,8 @@ def balanceInvariantMains = [
         balanceAscensionPolicyInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.RuntimeAscensionPolicyTest',
         attunementAccountingTest: 'com.mistaboom.essence_ascendance.attunement.AttunementAccountingTest',
         essenceCommandInvariants: 'com.mistaboom.essence_ascendance.command.EssenceCommandTest',
-        dormantGuidebookInvariants: 'com.mistaboom.essence_ascendance.progression.DormantGuidebookTest',
+        playerProgressionResetInvariants: 'com.mistaboom.essence_ascendance.progression.PlayerProgressionResetTest',
+        registryIntegrityInvariants: 'com.mistaboom.essence_ascendance.verification.RegistryIntegrityTest',
         attunementPresentationInvariants: 'com.mistaboom.essence_ascendance.client.nexus.NexusAttunementPresentationTest',
         attunementNetworkInvariants: 'com.mistaboom.essence_ascendance.network.AttunementSnapshotCodecTest',
         attunementAdapterInvariants: 'com.mistaboom.essence_ascendance.attunement.AttunementAdapterTest',
@@ -139,16 +140,42 @@ balanceInvariantMains.each { taskName, className ->
         }
     }
 }
+// These eight suites own local fixtures only: no game bootstrap or installed runtime profile.
+// Keep each original JavaExec task for isolated debugging. Never run both paths from check.
+def lightweightTasks = [
+        'balanceConfigInvariants', 'balanceDocumentInvariants', 'balanceEvidenceInvariants',
+        'balanceCompositionInvariants', 'balanceTooltipInvariants', 'balanceRankInvariants',
+        'statusPolicyInvariants', 'vitalityRecoveryInvariants'
+]
+def nativeShapeTasks = [
+        'recoveryNativeHookShapeInvariants', 'sustenanceNativeHookShapeInvariants',
+        'postureNativeHookShapeInvariants', 'statusNativeHookShapeInvariants', 'guardNativeHookShapeInvariants'
+]
+// Full generated-profile sweeps/replays are intentionally expensive and have a named opt-in owner.
+def generationTasks = ['balanceIntegrationInvariants', 'balanceRuntimeInvariants', 'balanceAscensionPolicyInvariants']
+tasks.register('lightweightInvariants', JavaExec) {
+    group = 'verification'
+    description = 'Runs reviewed local-fixture invariants in one JVM, reporting each failing class.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.mistaboom.essence_ascendance.verification.InvariantSuite'
+    def members = lightweightTasks.collect { balanceInvariantMains[it] }
+    // An explicit diagnostic rerun verifies that the shared suites do not depend on execution order.
+    args(rootProject.hasProperty('reverseInvariantOrder') ? members.reverse() : members)
+}
 tasks.register('balanceInvariants') {
     group = 'verification'
-    description = 'Runs deterministic balance, economy, rank and profile invariants.'
-    dependsOn balanceInvariantMains.keySet()
+    description = 'Normal-build regression contract: lightweight, registry, accounting, codec and profile invariants.'
+    dependsOn balanceInvariantMains.keySet().findAll {
+        !(it in lightweightTasks) && !(it in nativeShapeTasks) && !(it in generationTasks)
+    }
+    dependsOn tasks.named('lightweightInvariants')
 }
 tasks.named('check') { dependsOn tasks.named('balanceInvariants') }
 
 // Explicit development refresh from verified saved pack evidence. It never opens a world.
 tasks.register('regenerateSavedBalance', JavaExec) {
-    group = 'verification'
+    group = 'development tools'
     description = 'Regenerates and validates a profile from saved evidence without opening a Minecraft world.'
     dependsOn tasks.named('testClasses')
     classpath = sourceSets.test.runtimeClasspath
@@ -163,7 +190,7 @@ tasks.register('regenerateSavedBalance', JavaExec) {
 
 // Refresh only derived reports from an already validated saved profile; inputs stay byte-identical.
 tasks.register('exportSavedBalance', JavaExec) {
-    group = 'verification'
+    group = 'development tools'
     description = 'Exports reports from the saved profile without regeneration or opening a Minecraft world.'
     dependsOn tasks.named('testClasses')
     classpath = sourceSets.test.runtimeClasspath
@@ -175,9 +202,10 @@ tasks.register('exportSavedBalance', JavaExec) {
     }
 }
 
-// These test sources are executable main programs, so framework discovery is empty.
-// The JavaExec invariant tasks above remain required by check and fail on any error.
+// Standard test is a useful entry point even though framework discovery is empty.
+// testClasses does not depend on test, so this introduces no dependency cycle.
 tasks.named('test', Test) {
+    dependsOn tasks.named('balanceInvariants')
     failOnNoDiscoveredTests = false
 }
 
@@ -197,7 +225,7 @@ tasks.named('test', Test) {
     }
 }
 // A passing parity check must inspect a real mapped NeoForge class, never an absent-cache substitute.
-tasks.named('vitalityDamageNativeHookShapeInvariants') { dependsOn ':neoforge:compileJava' }
+tasks.named('vitalityDamageNativeHookShapeInvariants') { dependsOn ':fabric:compileJava', ':neoforge:compileJava' }
 
 // Focused opt-in traversal checks; deliberately do not add work to normal build/check.
 [
@@ -214,3 +242,47 @@ tasks.named('vitalityDamageNativeHookShapeInvariants') { dependsOn ':neoforge:co
     }
 }
 tasks.named('traversalNativeHookShapeInvariants') { dependsOn ':neoforge:compileJava' }
+
+// All shape checks require real mapped classes for both loaders, including on a fresh common-only run.
+nativeShapeTasks.each { name -> tasks.named(name) { dependsOn ':neoforge:compileJava' } }
+
+tasks.register('vitalityInvariants') {
+    group = 'verification'
+    description = 'Focused Vitality recovery, sustenance, damage, healing, schema and native hook shapes.'
+    dependsOn 'vitalityBatchContractInvariants', 'vitalityBalanceInvariants', 'vitalityRecoveryInvariants',
+            'recoveryNativeHookShapeInvariants', 'vitalitySustenanceInvariants', 'sustenanceNativeHookShapeInvariants',
+            'vitalityDamageMathInvariants', 'healingRoutingMathInvariants', 'vitalityDamageBatchInvariants',
+            'vitalityDamageNativeHookShapeInvariants'
+}
+tasks.register('traversalInvariants') {
+    group = 'verification'
+    description = 'Focused terrain/fluid traversal, guard movement and native hook shapes.'
+    dependsOn 'traversalRulesInvariants', 'traversalBatchInvariants', 'traversalNativeHookShapeInvariants',
+            'guardMovementInvariants', 'guardNativeHookShapeInvariants'
+}
+tasks.register('combatInvariants') {
+    group = 'verification'
+    description = 'Focused projectile, guard, posture and status contracts and native hook shapes.'
+    dependsOn 'projectileSkillBatchInvariants', 'balanceProjectileInvariants', 'projectilePayloadInvariants',
+            'projectileControlInvariants', 'balanceGuardInvariants', 'guardOutcomeInvariants',
+            'guardCounterattackInvariants', 'guardNativeHookShapeInvariants', 'defenseCompletionInvariants',
+            'postureStatusBalanceInvariants', 'postureMeterInvariants', 'postureNativeHookShapeInvariants',
+            'statusPolicyInvariants', 'statusNativeHookShapeInvariants', 'skillHudPresentationInvariants'
+}
+tasks.register('focusedInvariants') {
+    group = 'verification'
+    description = 'All supported focused domain suites; excludes deferred guidebook and loader launches.'
+    dependsOn 'vitalityInvariants', 'traversalInvariants', 'combatInvariants', 'balanceGenerationInvariants'
+}
+tasks.register('balanceGenerationInvariants') {
+    group = 'verification'
+    description = 'Full generated-profile integration, runtime composition and ascension/evidence replay sweeps.'
+    dependsOn generationTasks
+}
+tasks.register('dormantGuidebookInvariants', JavaExec) {
+    group = 'verification'
+    description = 'Deferred guidebook delivery and recovery checks; explicit opt-in only.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.mistaboom.essence_ascendance.progression.DormantGuidebookTest'
+}
