@@ -20,7 +20,7 @@ public final class TierInvestmentPolicy {
     public static boolean validTarget(StatDefinition stat, AscendanceTierDefinition tier,
                                       BalanceProfileDefinition profile, long current, long target) {
         if (current < 0 || target < 0) return false;
-        if (!tier.grantsPower() && target > current) return false;
+        if (!tier.grantsPower() && target != current) return false;
         long cap = profile.getInvestmentCap(tier, stat);
         if (cap < 0) throw new IllegalStateException("Negative Bonus cap for " + stat.id());
         if (target > cap) return target <= current;

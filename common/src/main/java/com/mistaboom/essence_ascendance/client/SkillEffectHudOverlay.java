@@ -20,8 +20,7 @@ import java.util.stream.Collectors;
 /** One data-driven renderer/layout for every current or future effect card. No skill-specific branches. */
 public final class SkillEffectHudOverlay {
     private static final int WIDTH = SkillEffectHudLayout.WIDTH;
-    private static final int GAP = 3;
-    private static final int BACKGROUND = 0xCC11131A;
+    private static final int GAP = SkillEffectHudLayout.GAP;
     private static final int TEXT = 0xFFF4F1E8;
     private static final int MUTED = 0xFFB4BAC7;
 
@@ -208,41 +207,51 @@ public final class SkillEffectHudOverlay {
                                    int visibleHeight, long now) {
         int fullHeight = height(entry);
         int clippedHeight = Math.clamp(visibleHeight, 1, fullHeight);
-        graphics.fill(x, y, x + WIDTH, y + clippedHeight, BACKGROUND);
-        graphics.fill(x, y, x + 3, y + clippedHeight, entry.accent());
+        graphics.fill(x, y, x + WIDTH, y + clippedHeight, SkillEffectHudLayout.BACKGROUND);
+        int fillWidth = SkillEffectHudLayout.progressWidth(entry.meter());
+        int fillColor = SkillEffectHudLayout.fillColor(entry.accent());
+        if (fillWidth > 0) graphics.fill(x + SkillEffectHudLayout.ACCENT_WIDTH, y,
+                x + SkillEffectHudLayout.ACCENT_WIDTH + fillWidth, y + clippedHeight, fillColor);
+        graphics.fill(x, y, x + SkillEffectHudLayout.ACCENT_WIDTH, y + clippedHeight, entry.accent());
+        // Use the possible fill color even at zero progress, avoiding text-color flicker on first charge.
+        int textBackground = entry.meter().kind() == SkillEffectHudEntry.MeterKind.PROGRESS
+                ? fillColor : SkillEffectHudLayout.BACKGROUND;
+        int primary = SkillEffectHudLayout.textColor(TEXT, textBackground);
+        int secondary = SkillEffectHudLayout.textColor(MUTED, textBackground);
+        int status = SkillEffectHudLayout.textColor(entry.accent(), textBackground);
         graphics.enableScissor(x, y, x + WIDTH, y + clippedHeight);
         try {
             Font font = Minecraft.getInstance().font;
-            String titleText = resolve(entry.title()).toUpperCase(Locale.ROOT);
-            String badgeText = resolve(entry.badge());
-            var header = SkillEffectHudLayout.header(font.width(titleText), font.width(badgeText));
-            String badge = fit(badgeText, header.badgeLimit());
-            String title = fit(titleText, header.titleLimit());
-            graphics.pose().pushPose();
-            graphics.pose().translate(x + 7, y + 4, 0);
-            graphics.pose().scale(header.scale(), header.scale(), 1);
-            graphics.drawString(font, title, 0, 0, TEXT, false);
-            graphics.drawString(font, badge, header.rightEdge() - font.width(badge), 0, entry.accent(), false);
-            graphics.pose().popPose();
-            for (int line = 0; line < entry.lines().size(); line++) {
-                graphics.drawString(font, fit(resolve(entry.lines().get(line)), WIDTH - 14),
-                        x + 7, y + 14 + 9 * line, MUTED, false);
-            }
-            int footer = y + fullHeight - 10;
+            // Four rows: full title, status plus indicator, then two full-width details.
+            drawRow(graphics, resolve(entry.title()), x, y + SkillEffectHudLayout.TITLE_Y, primary);
+            String badge = resolve(entry.badge());
+            drawRow(graphics, badge, x, y + SkillEffectHudLayout.BADGE_Y, status);
+            int statusY = y + SkillEffectHudLayout.BADGE_Y;
             switch (entry.meter().kind()) {
-                case NONE -> { }
+                case NONE, PROGRESS -> { }
                 case TIMER -> {
                     long remaining = Math.max(0L, entry.meter().expiresAt() - now);
-                    String value = entry.meter().expiresAt() == 0L ? " —"
-                            : " " + String.format(Locale.ROOT, "%.2f", remaining / 20.0) + "s";
-                    graphics.drawString(font, fit(resolve(entry.meter().label()) + value, WIDTH - 14),
-                            x + 7, footer, remaining > 0L ? TEXT : MUTED, false);
+                    String value = com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudCards.compact(remaining / 20.0) + "s";
+                    String timer = SkillEffectHudLayout.timerText(badge, resolve(entry.meter().label()), value, font::width);
+                    int timerWidth = font.width(timer);
+                    // Exceptionally long translated statuses can use spare title space for the countdown.
+                    int timerY = font.width(badge) + SkillEffectHudLayout.STATUS_GAP + timerWidth <= SkillEffectHudLayout.CONTENT_WIDTH
+                            ? statusY : y + SkillEffectHudLayout.TITLE_Y;
+                    if (timerY == statusY || font.width(resolve(entry.title())) + SkillEffectHudLayout.STATUS_GAP + timerWidth <= SkillEffectHudLayout.CONTENT_WIDTH)
+                        graphics.drawString(font, timer, x + WIDTH - SkillEffectHudLayout.PADDING - timerWidth,
+                                timerY, remaining > 0L ? primary : secondary, true);
                 }
-                case PROGRESS -> {
-                    int fill = (int) Math.round(entry.meter().fraction() * (WIDTH - 14));
-                    graphics.fill(x + 7, footer, x + WIDTH - 7, footer + 4, 0xFF381C22);
-                    graphics.fill(x + 7, footer, x + 7 + fill, footer + 4, entry.accent());
-                }
+            }
+            int row = 0;
+            // Numeric/state details outrank free-form names and other contextual prose.
+            List<Text> details = new ArrayList<>(entry.lines());
+            details.sort(java.util.Comparator.comparingInt(text -> text.translationKey().isEmpty() ? 1
+                    : text.arguments().isEmpty() ? 1 : 0));
+            for (Text detail : details) {
+                String text = resolve(detail);
+                if (font.width(text) > SkillEffectHudLayout.CONTENT_WIDTH) continue;
+                drawRow(graphics, text, x, y + SkillEffectHudLayout.DETAIL_Y + SkillEffectHudLayout.ROW_HEIGHT * row++, secondary);
+                if (row == SkillEffectHudLayout.DETAIL_ROWS) break;
             }
         } finally {
             graphics.disableScissor();
@@ -250,17 +259,19 @@ public final class SkillEffectHudOverlay {
     }
 
     private static String resolve(Text text) {
-        return text.translationKey().isEmpty() ? text.literal()
+        String resolved = text.translationKey().isEmpty() ? text.literal()
                 : Component.translatable(text.translationKey(), text.arguments().toArray()).getString();
+        return com.mistaboom.essence_ascendance.skill.effect.SkillHudVocabulary.compact(resolved,
+                key -> Component.translatable(key).getString());
+    }
+
+    private static void drawRow(GuiGraphics graphics, String text, int x, int y, int color) {
+        if (Minecraft.getInstance().font.width(text) <= SkillEffectHudLayout.CONTENT_WIDTH)
+            graphics.drawString(Minecraft.getInstance().font, text, x + SkillEffectHudLayout.PADDING, y, color, true);
     }
 
     private static String fit(String text, int pixels) {
-        Font font = Minecraft.getInstance().font;
-        if (pixels <= 0) return "";
-        if (font.width(text) <= pixels) return text;
-        String ellipsis = "…";
-        if (font.width(ellipsis) > pixels) return "";
-        return font.plainSubstrByWidth(text, pixels - font.width(ellipsis)) + ellipsis;
+        return Minecraft.getInstance().font.width(text) <= pixels ? text : "";
     }
 
     private static final class AnimatedCard {

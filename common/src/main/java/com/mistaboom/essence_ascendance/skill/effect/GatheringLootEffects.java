@@ -99,9 +99,8 @@ public final class GatheringLootEffects {
             long experience = state == null ? 0 : state.experienceAwarded;
             return SkillEffectHudEntry.skill(id(), active, AscendancePalette.GATHERING,
                     text("bloom_essence_badge", Long.toString(essence)),
-                    List.of(text("bloom_essence", Long.toString(essence)),
-                            text("bloom_experience", Long.toString(experience))),
-                    SkillEffectHudEntry.Meter.none());
+                    List.of(text("bloom_experience", Long.toString(experience))),
+                    SkillEffectHudEntry.Meter.none()).asEvent();
         }
 
         @Override public List<String> debugLines(SkillEffectRuntime.Context context) {

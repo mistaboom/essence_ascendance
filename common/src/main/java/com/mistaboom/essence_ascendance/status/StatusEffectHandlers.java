@@ -15,7 +15,7 @@ public final class StatusEffectHandlers {
             @Override public List<String> debugLines(SkillEffectRuntime.Context context) { return StatusInterceptionService.debugLines(context.player()); }
             @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
                 var state = StatusInterceptionService.state(context, id());
-                return SkillEffectHudCards.timed(id(), state.cooldownUntil > context.now(), 0xFFAF93DB,
+                return SkillEffectHudCards.timed(id(), state.cooldownUntil > context.now(), com.mistaboom.essence_ascendance.visual.AscendancePalette.DEFENSE,
                         SkillEffectHudEntry.Text.translated("hud.essence_ascendance.status.cooldown"),
                         List.of(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.status.mirror")),
                         "hud.essence_ascendance.remaining", state.cooldownUntil);

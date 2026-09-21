@@ -69,6 +69,19 @@ public final class AscendanceNexusNetworkService {
                         )
         );
 
+        NetworkManager.registerReceiver(NetworkManager.Side.C2S, SkillHudPreferencePayload.TYPE,
+                SkillHudPreferencePayload.CODEC, (payload, context) -> context.queue(() -> {
+                    if (!(context.getPlayer() instanceof ServerPlayer player)
+                            || !validNexusMenu(player, payload.menuId())) return;
+                    var data = playerData(player);
+                    if (!data.getTier().grantsPower()
+                            || !com.mistaboom.essence_ascendance.skill.CommittedSkillService.isEffective(player, payload.skill())) return;
+                    data.setSkillHudEnabled(payload.skill(), payload.enabled());
+                    EssenceSavedData.get(player.server).setDirty();
+                    PlayerEssenceSyncService.forceSync(player);
+                    SkillEffectHudSyncService.forget(player);
+                    SkillEffectHudSyncService.syncIfNeeded(player);
+                }));
         initialized = true;
 
         EssenceAscendance.LOGGER.info(

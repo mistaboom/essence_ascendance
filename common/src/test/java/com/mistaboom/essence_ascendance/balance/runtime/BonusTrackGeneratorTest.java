@@ -94,7 +94,7 @@ public final class BonusTrackGeneratorTest {
                 check(value == point.effectFraction(), "Generated boundary uses this track's own checkpoint: " + track.statId());
             }
             check(track.purchaseStyle() == BonusTrackDefinition.PurchaseStyle.FUNDED_STATES && !track.snapPoints().isEmpty(),
-                    "Generated Bonuses publish complete states while allowing partial funding");
+                    "Generated Bonuses retain meaningful tier checkpoints");
             if (track.applicability() == BonusTrackDefinition.Applicability.AVAILABLE
                     && track.completionTier().equals(AscendanceTiers.TRANSCENDENT.id())) {
                 var ascendant = track.checkpoint(AscendanceTiers.ASCENDANT.id());
@@ -102,10 +102,10 @@ public final class BonusTrackGeneratorTest {
                 check(transcendent.segmentCost() > 0 && transcendent.cumulativeCap() > ascendant.cumulativeCap()
                         && transcendent.effectFraction() > ascendant.effectFraction(), "Ordinary long tracks must add Transcendent capacity and effect");
                 long midway = ascendant.cumulativeCap() + (transcendent.cumulativeCap() - ascendant.cumulativeCap()) / 2;
-                double midwayEffect = BonusTrackCurve.realizedProgressionForInvestment(track.checkpoints(), track.investmentExponent(),
-                        track.snapPoints(), midway, AscendanceTiers.TRANSCENDENT.id());
-                check(midwayEffect == ascendant.effectFraction(),
-                        "Partial final-state funding must hold the last complete benefit");
+                double midwayEffect = StatScalingService.realizedProgressionForInvestment(
+                        EssenceStatRegistry.get(track.statId()).orElseThrow(), midway, AscendanceTiers.TRANSCENDENT, resolvedProfile);
+                check(midwayEffect > ascendant.effectFraction() && midwayEffect < transcendent.effectFraction(),
+                        "Partial final-tier investment grants fractional additional power");
             }
             for (var point : track.checkpoints()) {
             double previous = -1;
@@ -120,8 +120,8 @@ public final class BonusTrackGeneratorTest {
                 check(TierInvestmentPolicy.validTarget(stat, tier, resolvedProfile, 0, amount),
                         "Smooth generated target was rejected by server purchase validation");
                 double realized = StatScalingService.realizedProgressionForInvestment(stat, amount, tier, resolvedProfile);
-                check(realized <= fraction + 1e-9 && track.snapPoints().contains(realized),
-                        "Applied effect must be one generated complete state");
+                check(realized == fraction,
+                        "Applied gameplay effect continuously follows the generated segment curve");
                 previous = fraction;
             }
             if (point.tierId().equals(AscendanceTiers.TRANSCENDENT.id()) && track == step)

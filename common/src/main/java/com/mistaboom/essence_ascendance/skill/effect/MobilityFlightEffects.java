@@ -36,6 +36,27 @@ public final class MobilityFlightEffects {
         return context.settings().posture().movement().intentTimeoutTicks();
     }
 
+    static SkillEffectHudEntry wingsCard(boolean owned, boolean gliding) {
+        boolean active = owned && gliding;
+        return SkillEffectHudEntry.skill(SkillIds.ESSENCE_WINGS, active, AscendancePalette.MOBILITY,
+                text(active ? "wings_gliding" : "wings_ready"), List.of(), SkillEffectHudEntry.Meter.none());
+    }
+
+    static SkillEffectHudEntry flightCard(ResourceLocation id, boolean flying, boolean permission, double stamina) {
+        if (id.equals(SkillIds.UNTETHERED_FLIGHT))
+            return SkillEffectHudEntry.skill(id, flying, AscendancePalette.MOBILITY,
+                    text("untethered_flying"), List.of(), SkillEffectHudEntry.Meter.none());
+        return SkillEffectHudCards.progress(id, flying || permission || stamina < 1, AscendancePalette.MOBILITY,
+                text(flying ? "flight_thrusting" : "flight_stamina", compact(stamina * 100)),
+                flying ? List.of() : List.of(text("flight_ground_recharge")), stamina);
+    }
+
+    static SkillEffectHudEntry boostCard(boolean gliding, double charge) {
+        Text badge = charge >= 1 ? text("vector_boost_ready") : text("vector_boost_recharge", compact(charge * 100));
+        return SkillEffectHudCards.progress(SkillIds.VECTOR_BOOST, gliding || charge < 1, AscendancePalette.MOBILITY,
+                badge, gliding && charge >= 1 ? List.of(text("vector_boost_hint")) : List.of(), charge);
+    }
+
     private static void stopOwnedWings(SkillEffectRuntime.Context context, FlightAbilityState state) {
         if (state == null || !state.wingsActive()) return;
         if (context.player().isFallFlying()) context.player().stopFallFlying();
@@ -96,10 +117,8 @@ public final class MobilityFlightEffects {
 
         @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
             FlightAbilityState state = context.existingState(id());
-            boolean active = state != null && state.wingsActive();
-            return SkillEffectHudCards.progress(id(), active, AscendancePalette.MOBILITY,
-                    text(active ? "wings_gliding" : "wings_ready"),
-                    List.of(text("wings_hint")), active ? 1 : 0);
+            return wingsCard(state != null && state.wingsActive() && FlightAbilityRules.wingsAllowed(context.player()),
+                    context.player().isFallFlying());
         }
 
         @Override public List<String> debugLines(SkillEffectRuntime.Context context) {
@@ -192,11 +211,7 @@ public final class MobilityFlightEffects {
             boolean flying = untethered
                     ? state != null && state.flightPermission() && context.player().getAbilities().flying
                     : state != null && state.thrusting();
-            boolean active = state != null && (flying || state.flightPermission() || stamina < 1);
-            String status = flying ? (untethered ? "flight_flying" : "flight_thrusting") : "flight_stamina";
-            return SkillEffectHudCards.progress(id, active, AscendancePalette.MOBILITY,
-                    text(status, compact(stamina * 100)),
-                    List.of(text(untethered ? "flight_air_recharge" : "flight_ground_recharge")), stamina);
+            return flightCard(id, flying, state != null && state.flightPermission(), stamina);
         }
 
         @Override public List<String> debugLines(SkillEffectRuntime.Context context) {
@@ -245,10 +260,10 @@ public final class MobilityFlightEffects {
         @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
             FlightAbilityState state = context.existingState(id());
             double charge = state == null ? 1 : state.boostCharge();
-            boolean gliding = context.player().isFallFlying();
-            Text badge = charge >= 1 ? text("vector_boost_ready") : text("vector_boost_recharge", compact(charge * 100));
-            return SkillEffectHudCards.progress(id(), gliding || charge < 1, AscendancePalette.MOBILITY,
-                    badge, List.of(text("vector_boost_hint")), charge);
+            FlightAbilityState wings = context.existingState(SkillIds.ESSENCE_WINGS);
+            boolean gliding = context.isEffective(SkillIds.ESSENCE_WINGS) && wings != null && wings.wingsActive()
+                    && context.player().isFallFlying() && FlightAbilityRules.wingsAllowed(context.player());
+            return boostCard(gliding, charge);
         }
 
         @Override public List<String> debugLines(SkillEffectRuntime.Context context) {

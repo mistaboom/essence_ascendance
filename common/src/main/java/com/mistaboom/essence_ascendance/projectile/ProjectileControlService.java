@@ -108,6 +108,7 @@ public final class ProjectileControlService {
                     SoundSource.PLAYERS, 0.35F, 0.8F);
             if (claims != null) for (var field : claims.values()) {
                 var player = field.owner().get();
+                if (player != null && factor < 1) com.mistaboom.essence_ascendance.skill.effect.SkillHudEvents.record(player, SkillIds.PROJECTILE_DRAG_FIELD, "slowed", (1 - factor) * 100);
                 if (player != null) record(player, "drag_sample", "Projectile #" + projectile.getId()
                         + " owner=" + (projectile.getOwner() == null ? "ownerless damaging" : projectile.getOwner().getUUID())
                         + " hostile=" + ProjectileOwnership.resolve(projectile, player).decision()

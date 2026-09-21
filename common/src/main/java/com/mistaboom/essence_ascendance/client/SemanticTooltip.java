@@ -28,15 +28,18 @@ public final class SemanticTooltip {
     public SemanticTooltip field(Component text) { return add(text.copy().withStyle(ChatFormatting.GRAY), 0); }
     public SemanticTooltip detail(Component text) { return add(text.copy().withStyle(ChatFormatting.GRAY), 1); }
     public SemanticTooltip section(Component text) {
-        return add(text.copy().withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD), 0);
+        return add(text.copy().withStyle(ChatFormatting.GRAY, ChatFormatting.BOLD), 0);
     }
     public SemanticTooltip requirement(Component text, State state) {
         return add(text.copy().withStyle(state.color()), 1);
     }
     public SemanticTooltip hint(Component text) {
-        return add(text.copy().withStyle(ChatFormatting.GOLD), 0);
+        return add(text.copy().withStyle(ChatFormatting.GRAY), 0);
     }
-    public SemanticTooltip gap() { return add(Component.empty(), 0); }
+    public SemanticTooltip gap() {
+        if (!lines.isEmpty() && !lines.getLast().content().getString().isEmpty()) add(Component.empty(), 0);
+        return this;
+    }
     public List<Line> lines() { return List.copyOf(lines); }
 
     private SemanticTooltip add(Component text, int indentation) {

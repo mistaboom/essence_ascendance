@@ -103,7 +103,16 @@ public final class VitalityWardEffects {
                     "Kills refresh at cap; expiry/cap trims/refunds are not damage breaks. External potion absorption is not owned.");
         }
     }
-    private static final class Deep implements SkillEffectHandler {
+    private static final class Deep implements SkillEffectHudHandler {
+        @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
+            var source = new Soul().hudEntry(context);
+            WardState state = context.existingState(SkillIds.SOUL_WARD);
+            boolean retained = state != null && quietRemaining(context, state) > 0;
+            return SkillEffectHudEntry.skill(id(), source.active(), 0, text(retained ? "ward_retained" : "ward_decaying"),
+                    List.of(text("ward_capacity_bonus", compact(settings(context).deepWard().capacityBonusFraction() * 100)),
+                            text("ward_decay_rate", compact(capacity(context) / settings(context).deepWard().decayTicks() * 20))),
+                    SkillEffectHudEntry.Meter.none());
+        }
         @Override public ResourceLocation id() { return SkillIds.DEEP_WARD; }
         @Override public List<String> debugLines(SkillEffectRuntime.Context context) {
             WardState state = context.existingState(SkillIds.SOUL_WARD);

@@ -299,7 +299,7 @@ public final class ClientEssenceState {
                     new SkillPurchaseSnapshot(
                             skillId,
                             paidEssenceId,
-                            state.paidCosts()
+                            state.paidCosts(), state.hudEnabled()
                     )
             );
         }
@@ -500,8 +500,12 @@ public final class ClientEssenceState {
     public record SkillPurchaseSnapshot(
             ResourceLocation skillId,
             ResourceLocation essenceId,
-            java.util.List<Long> paidCosts
+            java.util.List<Long> paidCosts,
+            boolean hudEnabled
     ) {
+        public SkillPurchaseSnapshot(ResourceLocation skillId, ResourceLocation essenceId, java.util.List<Long> paidCosts) {
+            this(skillId, essenceId, paidCosts, true);
+        }
         public SkillPurchaseSnapshot { paidCosts = java.util.List.copyOf(paidCosts); }
         public int rank() { return paidCosts.size(); }
         public long paidCost() {

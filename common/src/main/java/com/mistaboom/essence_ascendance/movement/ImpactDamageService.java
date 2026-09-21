@@ -31,7 +31,10 @@ public final class ImpactDamageService {
         // kinetic collisions, and never multiply a fall's existing protection twice.
         double fallMultiplier = source.is(DamageTypeTags.IS_FALL) ? 1
                 : player.getAttributeValue(Attributes.FALL_DAMAGE_MULTIPLIER);
-        return MovementImpulseMath.impactDamage(amount,
+        float result = MovementImpulseMath.impactDamage(amount,
                 SkillEffectRuntime.resolvedSettings(player).mobility().impactControl().damageReduction(), fallMultiplier);
+        if (result < amount) com.mistaboom.essence_ascendance.skill.effect.SkillHudEvents.record(player,
+                SkillIds.IMPACT_CONTROL, "prevented", amount - result);
+        return result;
     }
 }

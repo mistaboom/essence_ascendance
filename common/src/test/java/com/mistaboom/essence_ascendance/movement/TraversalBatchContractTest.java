@@ -47,7 +47,7 @@ public final class TraversalBatchContractTest {
         check(SkillBalanceSemantics.require(SkillIds.AQUATIC_BODY).contributions().stream()
                 .noneMatch(c -> c.axis() == com.mistaboom.essence_ascendance.balance.engine.CapabilityAxis.GROUND_SPEED),
                 "Aquatic Body does not reserve or project a swimming-speed contribution");
-        check(SkillEffectRegistry.handlers().stream().filter(h -> IDS.contains(h.id())).noneMatch(h -> h instanceof SkillEffectHudHandler), "No passive permanent HUD cards");
+        check(SkillEffectRegistry.handlers().stream().filter(h -> IDS.contains(h.id())).allMatch(h -> h instanceof SkillEffectHudHandler), "Traversal exposes conditional activity cards");
         var all = new LinkedHashMap<ResourceLocation, Integer>(); IDS.forEach(id -> all.put(id, 1));
         var full = evaluate(all);
         check(IDS.stream().allMatch(id -> full.get(id).effective()), "Committed full branch becomes effective");

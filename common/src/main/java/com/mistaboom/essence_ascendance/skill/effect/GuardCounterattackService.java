@@ -203,7 +203,7 @@ public final class GuardCounterattackService {
                 Math.clamp(origin.y, bounds.minY, bounds.maxY), Math.clamp(origin.z, bounds.minZ, bounds.maxZ));
     }
 
-    private static String decimal(double value) { return String.format(Locale.ROOT, "%.2f", value); }
+    private static String decimal(double value) { return SkillEffectHudCards.decimal(value); }
 
     private record CounterEffect(ResourceLocation id) implements SkillEffectHudHandler {
         @Override public void deactivate(SkillEffectRuntime.Context context) {
@@ -223,7 +223,7 @@ public final class GuardCounterattackService {
             double value = state == null ? 0 : state.ledger.value();
             boolean force = id.equals(SkillIds.STORED_FORCE);
             var settings = context.settings().guard();
-            return SkillEffectHudCards.timed(id, value > 0, force ? 0xFFFFC65C : 0xFF82E5E8,
+            return SkillEffectHudCards.timed(id, value > 0, force ? com.mistaboom.essence_ascendance.visual.AscendancePalette.DEFENSE : com.mistaboom.essence_ascendance.visual.AscendancePalette.DEFENSE,
                     force ? SkillEffectHudEntry.Text.literal(decimal(value) + "/" + decimal(settings.storedForce().capacity()))
                             : SkillEffectHudEntry.Text.translated("hud.essence_ascendance.armed"),
                     List.of(force ? SkillEffectHudEntry.Text.translated("hud.essence_ascendance.next_confirmed_melee")

@@ -21,6 +21,12 @@ public final class MobilityJumpEffects {
     private static Text text(String key, String... args) {
         return Text.translated("hud.essence_ascendance.mobility." + key, args);
     }
+    static SkillEffectHudEntry airJumpCard(ResourceLocation id, boolean allowed, boolean airborne, boolean ready) {
+        return SkillEffectHudEntry.skill(id, allowed && airborne && ready, AscendancePalette.MOBILITY,
+                text(ready ? "air_jump_ready" : "air_jump_spent"),
+                ready ? List.of(text(id.equals(SkillIds.VECTOR_JUMP) ? "vector_jump_hint" : "double_jump_hint")) : List.of(),
+                SkillEffectHudEntry.Meter.none());
+    }
     private static final class Impact implements SkillEffectHandler {
         @Override public ResourceLocation id() { return SkillIds.IMPACT_CONTROL; }
         @Override public List<String> debugLines(SkillEffectRuntime.Context context) {
@@ -45,9 +51,7 @@ public final class MobilityJumpEffects {
             }
             boolean ready = state != null && state.airAvailable();
             boolean airborne = state != null && !state.grounded();
-            return SkillEffectHudCards.progress(id, allowed && airborne && ready, AscendancePalette.MOBILITY,
-                    text(ready ? "air_jump_ready" : "air_jump_spent"),
-                    List.of(text(id.equals(SkillIds.VECTOR_JUMP) ? "vector_jump_hint" : "double_jump_hint")), ready ? 1 : 0);
+            return airJumpCard(id, allowed, airborne, ready);
         }
         @Override public List<String> debugLines(SkillEffectRuntime.Context context) {
             MovementAbilityState state = context.existingState(id);

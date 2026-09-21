@@ -123,9 +123,9 @@ public final class VitalityRecoveryEffects {
             long last = state == null ? Long.MIN_VALUE : state.lastEligibleTick;
             boolean passive = com.mistaboom.essence_ascendance.equipment.EquipmentVitalityService
                     .passiveRegenerationAvailable(context.player());
-            boolean active = passive || (last != Long.MIN_VALUE && context.now() - last <= 40);
-            double speed = state != null && last != Long.MIN_VALUE
-                    ? state.lastSpeed : regenerationSpeed(context.player());
+            boolean active = com.mistaboom.essence_ascendance.vitality.HealingRecoveryService.needsRecovery(context.player())
+                    && (passive || (last != Long.MIN_VALUE && context.now() >= last && context.now() - last <= 40));
+            double speed = regenerationSpeed(context.player());
             // Keep the card compact like the other skill cards. A natural
             // regeneration timer is an internal native cadence, so showing
             // its seconds countdown only flickers between tiny values and is
@@ -202,5 +202,5 @@ public final class VitalityRecoveryEffects {
                     + "; timeout=" + context.settings().vitality().lifeSteal().chainTimeoutTicks() + " ticks.");
         }
     }
-    private static String decimal(double value) { return String.format(Locale.ROOT, "%.2f", value); }
+    private static String decimal(double value) { return SkillEffectHudCards.decimal(value); }
 }

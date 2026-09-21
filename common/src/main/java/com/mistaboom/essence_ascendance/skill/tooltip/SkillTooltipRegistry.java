@@ -52,8 +52,8 @@ public final class SkillTooltipRegistry {
         define(SkillIds.CHAIN_STRIKE,
                 line("skill.essence_ascendance.chain_strike.description.resolved" , n(s -> s.chainStrike().maximumJumps()), n(s -> s.chainStrike().radius()), pct(s -> s.chainStrike().damageFalloff())));
         define(SkillIds.HOMING_PROJECTILE,
-                line("skill.essence_ascendance.homing_projectile.description.resolved" , n(s -> s.projectiles().arrow().acquisitionRange()), n(s -> s.projectiles().arrow().acquisitionConeDegrees()), n(s -> s.projectiles().arrow().turnDegreesPerTick())),
-                line("skill.essence_ascendance.homing_projectile.description.resolved.1" , n(s -> s.projectiles().caster().acquisitionRange()), n(s -> s.projectiles().caster().acquisitionConeDegrees()), n(s -> s.projectiles().caster().turnDegreesPerTick())));
+                line("skill.essence_ascendance.homing_projectile.description.resolved" , n(s -> s.projectiles().arrow().acquisitionRange()), n(s -> s.projectiles().arrow().acquisitionConeDegrees()), n(s -> s.projectiles().arrow().turnDegreesPerTick() * 20)),
+                line("skill.essence_ascendance.homing_projectile.description.resolved.1" , n(s -> s.projectiles().caster().acquisitionRange()), n(s -> s.projectiles().caster().acquisitionConeDegrees()), n(s -> s.projectiles().caster().turnDegreesPerTick() * 20)));
         define(SkillIds.RICOCHET,
                 line("skill.essence_ascendance.ricochet.description.resolved" , n(s -> Math.min(s.projectiles().ricochets(), s.projectiles().maximumImpacts() - 1)), n(s -> s.projectiles().ricochetRadius()), pct(s -> s.projectiles().ricochetDamageMultiplier())));
         define(SkillIds.PIERCING_PROJECTILE,
@@ -73,12 +73,12 @@ public final class SkillTooltipRegistry {
                 line("skill.essence_ascendance.interceptor.description.resolved.1" , n(s -> s.projectiles().control().swingRadius()), n(s -> s.projectiles().control().swingHalfAngleDegrees())));
         define(SkillIds.TRAJECTORY_THEFT,
                 line("skill.essence_ascendance.trajectory_theft.description.resolved" , n(s -> s.projectiles().control().theftSpeedMultiplier()), n(s -> s.projectiles().control().theftTargetRange()), n(s -> s.projectiles().control().theftAimConeDegrees())),
-                line("skill.essence_ascendance.trajectory_theft.description.resolved.1" , n(s -> s.projectiles().control().theftTurnDegreesPerTick()), n(s -> s.projectiles().control().redirectBudget())));
+                line("skill.essence_ascendance.trajectory_theft.description.resolved.1" , n(s -> s.projectiles().control().theftTurnDegreesPerTick() * 20), n(s -> s.projectiles().control().redirectBudget())));
         define(SkillIds.GUARDED_ADVANCE,
                 line("skill.essence_ascendance.guarded_advance.description.resolved" , pct(s -> s.guard().mobility().slowdownRemoval()), n(s -> s.guard().mobility().stepHeight())));
         define(SkillIds.SHIELD_RAM,
                 line("skill.essence_ascendance.shield_ram.description.resolved" , sec(s -> s.guard().ram().staggerTicks()), n(s -> s.guard().ram().knockback())),
-                line("skill.essence_ascendance.shield_ram.description.resolved.1" , n(s -> s.guard().ram().minimumSpeed()), pct(s -> s.guard().ram().staggerMovementMultiplier()), n(s -> s.guard().ram().contactLimit()), sec(s -> s.guard().ram().repeatCooldownTicks())));
+                line("skill.essence_ascendance.shield_ram.description.resolved.1" , n(s -> s.guard().ram().minimumSpeed() * 20), pct(s -> s.guard().ram().staggerMovementMultiplier()), n(s -> s.guard().ram().contactLimit()), sec(s -> s.guard().ram().repeatCooldownTicks())));
         define(SkillIds.REFLEXIVE_WARD,
                 line("skill.essence_ascendance.reflexive_ward.description.resolved" , pct(s -> s.guard().ward().preventedReflectionScale())),
                 line("skill.essence_ascendance.reflexive_ward.description.resolved.1" , n(s -> s.guard().ward().knockbackEchoScale()), n(s -> s.guard().ward().knockbackEchoCap())));
@@ -109,7 +109,7 @@ public final class SkillTooltipRegistry {
                 line("skill.essence_ascendance.pure_state.description.resolved"));
         define(SkillIds.RISING_RECOVERY,
                 line("skill.essence_ascendance.rising_recovery.description.resolved" , n(s -> 1 + s.vitality().risingRecovery().maxSpeedBonus())),
-                line("skill.essence_ascendance.rising_recovery.description.resolved.1" , n(s -> s.vitality().risingRecovery().maxSpeedBonus()), n(s -> s.vitality().risingRecovery().recoveryCurveExponent())));
+                line("skill.essence_ascendance.rising_recovery.description.resolved.1"));
         define(SkillIds.LIFE_STEAL,
                 line("skill.essence_ascendance.life_steal.description.resolved" , pct(s -> s.vitality().lifeSteal().baseHealingFraction()), pct(s -> s.vitality().lifeSteal().perHitHealingFraction()), n(s -> s.vitality().lifeSteal().maxChainHits())),
                 line("skill.essence_ascendance.life_steal.description.resolved.1" , pct(s -> s.vitality().lifeSteal().baseHealingFraction() + (s.vitality().lifeSteal().maxChainHits() - 1) * s.vitality().lifeSteal().perHitHealingFraction()), sec(s -> s.vitality().lifeSteal().chainTimeoutTicks())));
@@ -193,10 +193,7 @@ public final class SkillTooltipRegistry {
         define(SkillIds.VECTOR_BOOST,
                 line("skill.essence_ascendance.vector_boost.description.resolved", n(s -> Math.sqrt(1 + s.mobility().vectorBoost().rocketSpeedBonus()))),
                 line("skill.essence_ascendance.vector_boost.description.resolved.1", sec(s -> s.mobility().vectorBoost().rechargeTicks())));
-        define(SkillIds.UNTETHERED_FLIGHT,
-                line("skill.essence_ascendance.untethered_flight.description.resolved", sec(s -> s.mobility().untetheredFlight().airRechargeTicks()),
-                        sec(s -> s.mobility().fatigueFlight().enduranceTicks())),
-                line("skill.essence_ascendance.untethered_flight.description.resolved.1"));
+        define(SkillIds.UNTETHERED_FLIGHT, line("skill.essence_ascendance.untethered_flight.description.resolved"));
         define(SkillIds.TERRAIN_FREEDOM,
                 line("skill.essence_ascendance.terrain_freedom.description.resolved"),
                 line("skill.essence_ascendance.terrain_freedom.description.resolved.1"));

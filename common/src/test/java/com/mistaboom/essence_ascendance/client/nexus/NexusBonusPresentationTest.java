@@ -175,18 +175,41 @@ public final class NexusBonusPresentationTest {
         check(categories.size() == 1 && categories.getFirst().tracks().size() == 2, "View factory includes synchronized category tracks only");
         var step = categories.getFirst().tracks().stream().filter(track -> track.stat().id().equals(EssenceStats.STEP_HEIGHT.id())).findFirst().orElseThrow();
         var movement = categories.getFirst().tracks().stream().filter(track -> track.stat().id().equals(EssenceStats.MOVEMENT_SPEED.id())).findFirst().orElseThrow();
+        var tooltipTracks = List.of(step, movement);
+        check(NexusProgressionTrack.tooltipTrack(tooltipTracks, 0, null) == step,
+                "Dragging retains the tooltip outside the hover area");
+        check(NexusProgressionTrack.tooltipTrack(tooltipTracks, 0, movement) == step,
+                "Crossing another track while dragging keeps the grabbed track's tooltip");
+        check(NexusProgressionTrack.tooltipTrack(tooltipTracks, -1, movement) == movement
+                        && NexusProgressionTrack.tooltipTrack(tooltipTracks, -1, null) == null,
+                "Releasing returns to ordinary hover tooltips");
         check(step.milestones().size() == 2, "Step Height presents generated complete-state checkpoints");
         check(movement.milestones().size() == 5, "Movement presents its generated state count");
         check(step.dragTarget(1, 599, TIER) == 599 && step.dragTarget(1, 600, TIER) == 600,
                 "Step Height dragging uses every affordable Essence rather than snapping to milestones");
         check(step.dragTarget(.17, 600, TIER) > 0 && step.dragTarget(.17, 600, TIER) < 100,
                 "Step Height accepts partial investments between native traversal boundaries");
-        check(step.progression(100, TIER) == .5 && step.progression(99, TIER) == 0,
-                "Step Height preview applies power only at complete funding");
+        check(step.progression(100, TIER) == .5 && step.progression(99, TIER) > 0
+                        && step.progression(99, TIER) < .5,
+                "Step Height preview grants fractional benefit before the tier target");
+        int bottomY = step.handleY(0, TIER, 20, 320);
+        int partialY = step.handleY(50, TIER, 20, 320);
+        int firstBenefitY = step.handleY(100, TIER, 20, 320);
+        check(partialY < bottomY && partialY > firstBenefitY && step.progression(50, TIER) > 0,
+                "Handle and earned effect advance together between tier markers");
+        for (double mouseY = firstBenefitY; mouseY <= bottomY; mouseY++) {
+            long target = step.dragTarget(step.layout(20, 320).effectForY(mouseY), 600, TIER);
+            check(Math.abs(step.handleY(target, TIER, 20, 320) - mouseY) <= 2,
+                    "Rendered handle follows the drag coordinate to integer-Essence precision");
+        }
+        check(step.handleY(step.dragTarget(1, 50, TIER), TIER, 20, 320) == partialY,
+                "Affordability clamps at partial funding rather than a completed tier");
         for (long amount = 1; amount <= 600; amount++) {
             check(step.progression(amount, TIER) >= step.progression(amount - 1, TIER), "Complete-state preview is monotonic");
-            double funding = BonusTrackCurve.progressionForInvestment(stepFacts.checkpoints(), stepFacts.investmentExponent(), amount, TIER);
+            double funding = step.fundingProgression(amount, TIER);
             check(step.dragTarget(funding, 600, TIER) == amount, "Funding coordinate preserves exact partial investment");
+            check(step.handleY(amount, TIER, 20, 320) <= step.handleY(amount - 1, TIER, 20, 320),
+                    "Every incremental investment moves or preserves the handle monotonically");
         }
         for (var unit : StatUnit.values()) {
             check(NexusProgressionTrack.effectLabel(unit, 1.25).equals(unit == StatUnit.PERCENT ? "+1.25%" : "+1.25"),
@@ -234,6 +257,7 @@ public final class NexusBonusPresentationTest {
         var essence = first.essenceType().id();
         var stats = Map.of(first.id(), state(first, facts, 400, TIER), second.id(), state(second, facts, 200, TIER));
         var baseline = snapshot(10, 1000, stats, TIER);
+        hudDraftPreferences(baseline);
         var ids = Map.of(first.id(), essence, second.id(), essence);
         var draft = new NexusDraft();
         check(draft.synchronize(baseline) == NexusDraft.SyncOutcome.CAPTURED, "Draft captures authoritative baseline");
@@ -259,6 +283,48 @@ public final class NexusBonusPresentationTest {
         draft.stageBonus(first.id(), 700);
         check(draft.projectedAvailable(essence, demoted, Map.of(first.id(), essence)) == 1100
                 && draft.finalBonusTargets(demoted).get(first.id()) == 700, "Partial over-cap refunds remain exact target operations");
+    }
+
+    private static void hudDraftPreferences(ClientEssenceState.Snapshot snapshot) {
+        var owned = ResourceLocation.parse("test:owned");
+        var staged = ResourceLocation.parse("test:staged");
+        var group = ResourceLocation.parse("test:group");
+        var stat = EssenceStats.MOVEMENT_SPEED;
+        var essence = stat.essenceType().id();
+        for (boolean bonusFirst : new boolean[]{true, false}) {
+            var baseline = withPurchase(snapshot, owned, essence, List.of(100L), true);
+            var hidden = withPurchase(snapshot, owned, essence, List.of(100L), false);
+            var draft = new NexusDraft();
+            draft.synchronize(baseline);
+            if (bonusFirst) draft.stageBonus(stat.id(), 500);
+            draft.stagePurchase(staged, essence, 250, 1);
+            draft.stageLoadout(group, staged);
+            if (!bonusFirst) draft.stageBonus(stat.id(), 500);
+            for (var preference : List.of(hidden, baseline, hidden, baseline)) {
+                check(draft.synchronize(preference) == NexusDraft.SyncOutcome.UNCHANGED && !draft.invalidated(),
+                        "HUD off/on must preserve a mixed draft staged in either screen order");
+                check(draft.finalBonusTargets(preference).get(stat.id()) == 500
+                                && draft.projectedRanks(preference).get(staged) == 1
+                                && draft.finalLoadouts(preference).get(group).equals(staged)
+                                && draft.projectedAvailable(essence, preference, Map.of(stat.id(), essence)) == 650,
+                        "Visibility sync preserves staged bonuses, purchases, loadouts and shared budget");
+            }
+            var ranked = withPurchase(snapshot, owned, essence, List.of(100L, 200L), false);
+            check(draft.synchronize(ranked) == NexusDraft.SyncOutcome.INVALIDATED,
+                    "Actual purchased ranks still invalidate a stale draft");
+            draft.clearAndCapture(baseline);
+            draft.stageBonus(stat.id(), 500);
+            check(draft.synchronize(withPurchase(snapshot, owned, essence, List.of(101L), true)) == NexusDraft.SyncOutcome.INVALIDATED,
+                    "Changed paid receipt still invalidates at the same rank");
+        }
+    }
+
+    private static ClientEssenceState.Snapshot withPurchase(ClientEssenceState.Snapshot s, ResourceLocation skill,
+            ResourceLocation essence, List<Long> paidCosts, boolean hudEnabled) {
+        return new ClientEssenceState.Snapshot(s.ready(), s.playerRevision(), s.tierId(), s.balanceProfileId(),
+                s.availableEssence(), s.stats(), s.skillMilestones(), s.completedMilestones(),
+                Map.of(skill, new ClientEssenceState.SkillPurchaseSnapshot(skill, essence, paidCosts, hudEnabled)),
+                s.loadoutSelections(), s.attunement(), s.progress());
     }
 
     private static ClientEssenceState.StatSnapshot state(StatDefinition stat, BonusTrackSnapshot facts, long stored, ResourceLocation tier) {

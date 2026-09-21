@@ -139,6 +139,7 @@ public final class GuardMobilityController {
             player.serverLevel().playSound(null, target.blockPosition(), SoundEvents.SHIELD_BLOCK, SoundSource.PLAYERS, .35F, 1.15F);
             accepted++; reason = "accepted target=" + contact.id() + "; fraction=" + contact.fraction() + "; push=" + direction;
         }
+        if (accepted > 0) SkillHudEvents.record(player, SkillIds.SHIELD_RAM, "targets", accepted);
         RECENT.put(player, "Shield Ram: " + reason + "; speed=" + speed + "; sweep=" + movement
                 + "; candidates=" + contacts.size() + "; accepted=" + accepted + "; stagger=" + tuning.staggerTicks()
                 + "; knockback=" + tuning.knockback() + "; remaining=" + ledger.remaining(tuning.contactLimit())

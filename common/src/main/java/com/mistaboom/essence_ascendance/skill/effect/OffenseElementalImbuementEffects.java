@@ -30,7 +30,7 @@ final class OffenseElementalImbuementEffects {
     }
 
     private static String decimal(double value) {
-        return String.format(Locale.ROOT, "%.1f", value);
+        return SkillEffectHudCards.decimal(value);
     }
 
     private static SkillEffectHudEntry.Text targets(int count) {
@@ -124,8 +124,9 @@ final class OffenseElementalImbuementEffects {
             List<SkillEffectHudEntry.Text> lines = top == null
                     ? List.of(targets(burning))
                     : List.of(SkillEffectHudEntry.Text.literal(top.target().getName().getString()), targets(tracked));
-            return SkillEffectHudCards.progress(id(), top != null || burning > 0, 0xFFFF6A2B,
-                    badge, lines, fraction);
+            return SkillEffectHudEntry.skill(id(), top != null || burning > 0, com.mistaboom.essence_ascendance.visual.AscendancePalette.OFFENSE,
+                    badge, top == null ? List.of() : lines,
+                    top == null ? SkillEffectHudEntry.Meter.none() : SkillEffectHudEntry.Meter.progress(fraction));
         }
 
         @Override public void targetRemoved(SkillEffectRuntime.Context context, Entity target) {
@@ -243,8 +244,9 @@ final class OffenseElementalImbuementEffects {
             List<SkillEffectHudEntry.Text> lines = top == null
                     ? List.of(targets(frozen))
                     : List.of(SkillEffectHudEntry.Text.literal(top.target().getName().getString()), targets(tracked));
-            return SkillEffectHudCards.progress(id(), top != null || frozen > 0, 0xFF72D9FF,
-                    badge, lines, fraction);
+            return SkillEffectHudEntry.skill(id(), top != null || frozen > 0, com.mistaboom.essence_ascendance.visual.AscendancePalette.OFFENSE,
+                    badge, top == null ? List.of() : lines,
+                    top == null ? SkillEffectHudEntry.Meter.none() : SkillEffectHudEntry.Meter.progress(fraction));
         }
 
         @Override public void targetRemoved(SkillEffectRuntime.Context context, Entity target) {
@@ -375,9 +377,14 @@ final class OffenseElementalImbuementEffects {
                     : SkillEffectHudEntry.Text.literal(decimal(charge) + "/" + decimal(maximum));
             boolean active = charge > 0.0001
                     || (state != null && state.dischargeVisible(context.now()));
-            return SkillEffectHudCards.progress(id(), active, 0xFFFFE45C,
+            if (charge <= 0.0001 && active)
+                return SkillEffectHudEntry.skill(id(), true, 0,
+                        SkillEffectHudEntry.Text.translated("hud.essence_ascendance.discharged"),
+                        List.of(), SkillEffectHudEntry.Meter.none());
+            return SkillEffectHudCards.progress(id(), active, com.mistaboom.essence_ascendance.visual.AscendancePalette.OFFENSE,
                     badge,
-                    List.of(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.next_confirmed_attack")),
+                    state != null && state.full(maximum)
+                            ? List.of(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.next_confirmed_attack")) : List.of(),
                     fraction);
         }
 

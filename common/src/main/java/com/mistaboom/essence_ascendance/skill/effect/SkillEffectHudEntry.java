@@ -9,13 +9,24 @@ import java.util.Objects;
 /** Presentation data, never gameplay authority. A handler may emit several independently keyed cards. */
 public record SkillEffectHudEntry(ResourceLocation id, ResourceLocation sourceSkill,
                                   boolean active, int accent, Text title, Text badge,
-                                  List<Text> lines, Meter meter) {
+                                  List<Text> lines, Meter meter, boolean retainAfterActive) {
     public static final int MAX_LINES = 3;
+
+    public SkillEffectHudEntry(ResourceLocation id, ResourceLocation sourceSkill, boolean active, int accent,
+                               Text title, Text badge, List<Text> lines, Meter meter) {
+        this(id, sourceSkill, active, accent, title, badge, lines, meter, false);
+    }
+
+    /** Completed outcomes may linger; live readiness, resources and movement states may not. */
+    public SkillEffectHudEntry asEvent() {
+        return new SkillEffectHudEntry(id, sourceSkill, active, accent, title, badge, lines, meter, true);
+    }
 
     public SkillEffectHudEntry {
         // Accents are opaque RGB. A missing alpha byte must never make a new
         // skill's border/badge invisible or change the shared card appearance.
-        accent = 0xFF000000 | (accent & 0xFFFFFF);
+        accent = com.mistaboom.essence_ascendance.visual.AscendancePalette.categoryArgb(
+                SkillRegistry.require(sourceSkill).essenceId());
         Objects.requireNonNull(id);
         Objects.requireNonNull(sourceSkill);
         Objects.requireNonNull(title);

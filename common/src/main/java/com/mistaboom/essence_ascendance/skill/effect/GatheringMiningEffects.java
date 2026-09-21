@@ -35,15 +35,19 @@ public final class GatheringMiningEffects {
     public static void successfulHarvest(ServerPlayer player, BlockPos pos, BlockState state, ItemStack resolvedTool) {
         if (player == null || state == null || state.isAir()) return;
         SkillEffectRuntime.Context context = SkillEffectRuntime.context(player);
+        if (context.isEffective(SkillIds.TOOL_INSTINCT) && GatheringToolResolver.isAscendanceMiningTool(resolvedTool))
+            SkillHudEvents.record(player, SkillIds.TOOL_INSTINCT, Text.translated("hud.essence_ascendance.event.tool"), List.of(Text.literal(resolvedTool.getHoverName().getString())));
         if (context.isEffective(SkillIds.MINING_MOMENTUM)) recordMomentum(context, state);
         if (context.isEffective(SkillIds.NATURES_BOON)) {
             double chance = settings(context).naturesBoon().dropChance();
             if (chance > 0 && NaturalOreDropService.eligibleSource(player.serverLevel(), state)
                     && player.getRandom().nextDouble() < chance) {
-                NaturalOreDropService.dropRandomOre(player, pos, state, resolvedTool);
+                if (NaturalOreDropService.dropRandomOre(player, pos, state, resolvedTool))
+                    SkillHudEvents.record(player, SkillIds.NATURES_BOON, "loot", 1);
             }
         }
-        if (context.isEffective(SkillIds.TORCHBEARER)) HotbarLightPlacementService.placeAtFeetIfSpawnDark(player);
+        if (context.isEffective(SkillIds.TORCHBEARER) && HotbarLightPlacementService.placeAtFeetIfSpawnDark(player))
+            SkillHudEvents.record(player, SkillIds.TORCHBEARER, "placed", 1);
     }
 
     private static void recordMomentum(SkillEffectRuntime.Context context, BlockState block) {

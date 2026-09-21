@@ -684,6 +684,7 @@ public final class EquipmentDamageService {
         double multiplier = GuardReflectionEffects.multiplier(context);
         double requested = actualHit && validDefender ? ReflectionRouter.compose(frame.ordinaryDamage, blockReflection, extension, multiplier) : 0;
         var result = ReflectionRouter.reflect(victim, resolvedSource, requested, frame.suppressed || !actualHit || !validDefender);
+        if (extension > 0 && result.confirmed() > 0) com.mistaboom.essence_ascendance.skill.effect.SkillHudEvents.record(victim, SkillIds.REFLEXIVE_WARD, "damage", result.confirmed());
         boolean echoEligible = actualHit && validDefender && ward && !frame.suppressed;
         var echo = echoEligible && !frame.deferEcho
                 ? KnockbackEchoService.echo(victim, resolvedSource.target(), frame.attemptedKnockback, context.settings().guard().ward())

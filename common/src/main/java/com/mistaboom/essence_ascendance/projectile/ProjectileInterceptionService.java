@@ -99,6 +99,7 @@ public final class ProjectileInterceptionService {
             successes++;
         }
         if (successes > 0) {
+            com.mistaboom.essence_ascendance.skill.effect.SkillHudEvents.record(player, SkillIds.INTERCEPTOR, "targets", successes);
             if (airSwing) player.resetAttackStrengthTicker();
             player.level().playSound(null, player.blockPosition(), SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS, 0.45F, 1.2F);
         }
@@ -148,6 +149,7 @@ public final class ProjectileInterceptionService {
         control.dragFactor = 1;
         ((ProjectileStateAccess) projectile).essenceAscendance$flightScale(1);
         control.physicsInput = null;
+        com.mistaboom.essence_ascendance.skill.effect.SkillHudEvents.record(defender, SkillIds.TRAJECTORY_THEFT, "redirected", 1);
         return "Trajectory Theft " + decision + " target=" + target.getUUID() + " speed="
                 + String.format(java.util.Locale.ROOT, "%.2f", speed) + " homing=" + next.profile.turnDegreesPerTick()
                 + "deg/tick remaining redirects=" + control.remainingRedirects + "; native damage/physics retained; path/payload cleared";

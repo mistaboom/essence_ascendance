@@ -37,6 +37,7 @@ public record SkillEffectHudPayload(SkillEffectHudSnapshot snapshot) implements 
             buf.writeResourceLocation(entry.id());
             buf.writeResourceLocation(entry.sourceSkill());
             buf.writeBoolean(entry.active());
+            buf.writeBoolean(entry.retainAfterActive());
             buf.writeInt(entry.accent());
             writeText(buf, entry.title());
             writeText(buf, entry.badge());
@@ -67,6 +68,7 @@ public record SkillEffectHudPayload(SkillEffectHudSnapshot snapshot) implements 
             ResourceLocation id = buf.readResourceLocation();
             ResourceLocation source = buf.readResourceLocation();
             boolean active = buf.readBoolean();
+            boolean retainAfterActive = buf.readBoolean();
             int accent = buf.readInt();
             Text title = readText(buf);
             Text badge = readText(buf);
@@ -74,7 +76,7 @@ public record SkillEffectHudPayload(SkillEffectHudSnapshot snapshot) implements 
             List<Text> lines = new ArrayList<>(lineCount);
             for (int line = 0; line < lineCount; line++) lines.add(readText(buf));
             Meter meter = new Meter(buf.readEnum(MeterKind.class), readText(buf), buf.readLong(), buf.readDouble());
-            entries.add(new SkillEffectHudEntry(id, source, active, accent, title, badge, lines, meter));
+            entries.add(new SkillEffectHudEntry(id, source, active, accent, title, badge, lines, meter, retainAfterActive));
         }
         return new SkillEffectHudPayload(new SkillEffectHudSnapshot(now, entityId, dimension, entries, reach, reachExpiry));
     }

@@ -446,6 +446,8 @@ final class SkillEffectDiagnostics {
         expected.put("abilityCooldowns", balances);
         expected.put("projectileLife", "java.util.UUID");
         expected.put("dormantGuidebookReceived", "boolean");
+        // Persistent presentation preference, not a transient gameplay timer or effect state.
+        expected.put("hiddenSkillHud", ids);
         expected.put("fractionalResourceCostCarry", "java.util.Map<" + id + ", java.lang.Double>");
         Map<String, String> actual = new HashMap<>();
         for (var field : PlayerEssenceData.class.getDeclaredFields()) {

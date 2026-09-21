@@ -18,7 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** Catalog-wide baseline. Future HUD definitions and bonus prose are planned, not falsely asserted here. */
+/** Catalog-wide baseline; shared HUD definitions and generated prose are covered by SharedPresentationTest. */
 public final class RegistryIntegrityTest {
     public static void main(String[] args) throws Exception {
         net.minecraft.SharedConstants.tryDetectVersion();

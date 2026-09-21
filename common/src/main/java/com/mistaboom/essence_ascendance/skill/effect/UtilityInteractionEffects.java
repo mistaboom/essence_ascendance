@@ -32,7 +32,7 @@ public final class UtilityInteractionEffects {
                     ? List.of()
                     : List.of(text("friendly_fire_target", targetName));
             return SkillEffectHudEntry.skill(id(), blockedNow, AscendancePalette.UTILITY,
-                    text("friendly_fire_blocked"), details, SkillEffectHudEntry.Meter.none());
+                    text("friendly_fire_blocked"), details, SkillEffectHudEntry.Meter.none()).asEvent();
         }
 
         @Override public List<String> debugLines(SkillEffectRuntime.Context context) {
@@ -41,7 +41,13 @@ public final class UtilityInteractionEffects {
         }
     }
 
-    private static final class EnchantingInsight implements SkillEffectHandler {
+    private static final class EnchantingInsight implements SkillEffectHudHandler {
+        @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
+            int offers = context.player().containerMenu instanceof net.minecraft.world.inventory.EnchantmentMenu menu
+                    ? (int) java.util.Arrays.stream(menu.costs).filter(cost -> cost > 0).count() : 0;
+            return SkillEffectHudEntry.skill(id(), offers > 0, 0,
+                    Text.translated("hud.essence_ascendance.event.offers", Integer.toString(offers)), List.of(), SkillEffectHudEntry.Meter.none());
+        }
         @Override public ResourceLocation id() { return SkillIds.ENCHANTING_INSIGHT; }
 
         @Override public List<String> debugLines(SkillEffectRuntime.Context context) {

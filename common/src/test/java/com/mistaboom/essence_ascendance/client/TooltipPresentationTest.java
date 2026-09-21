@@ -95,8 +95,13 @@ public final class TooltipPresentationTest {
             check(line.content().getStyle().getColor().getValue() == SemanticTooltip.State.values()[i].color().getColor(),
                     "Requirement status color mismatch");
         }
-        check(lines.getLast().content().getStyle().getColor().getValue() == ChatFormatting.GOLD.getColor(),
-                "Action hint not highlighted");
+        check(lines.getLast().content().getStyle().getColor().getValue() == ChatFormatting.GRAY.getColor(),
+                "Action hint must remain neutral");
+        var paragraphs = new SemanticTooltip().gap().title(Component.literal("Skill"), 0xD65368)
+                .gap().gap().detail(Component.literal("Effect paragraph")).gap().gap();
+        check(paragraphs.lines().size() == 4 && paragraphs.lines().get(1).content().getString().isEmpty(),
+                "Paragraph spacing has no leading or duplicate blank rows");
+        check(paragraphs.lines().get(2).indentation() == 1, "Effect paragraphs retain continuation indentation");
     }
 
     private static void codec() {

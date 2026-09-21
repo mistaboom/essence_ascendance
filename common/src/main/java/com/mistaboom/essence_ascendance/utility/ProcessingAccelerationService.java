@@ -52,6 +52,7 @@ public final class ProcessingAccelerationService {
         int extraTicks = 0;
         while (extraTicks < requestedTicks && SharedTargetWork.visit(level, level.getGameTime())) extraTicks++;
         FRACTIONAL_TICKS.put(blockEntity, accrued - Math.floor(accrued));
+        if (extraTicks > 0) com.mistaboom.essence_ascendance.skill.effect.SkillHudEvents.record(match.player(), SkillIds.INDUSTRIOUS_PRESENCE, "processing", match.strength());
         return new Plan(match.player(), extraTicks, match.strength());
     }
 }

@@ -27,7 +27,7 @@ final class SkillEffectHudDiagnostics {
                 SkillEffectHudEntry.Text.literal("Test two"), SkillEffectHudEntry.Text.literal("50%"),
                 List.of(), SkillEffectHudEntry.Meter.progress(0.5));
         SkillEffectHudEntry independent = SkillEffectHudEntry.skill(SkillIds.NATURES_BOON, true, 0xFF00FF00,
-                SkillEffectHudEntry.Text.literal("TEST"), List.of(), SkillEffectHudEntry.Meter.none());
+                SkillEffectHudEntry.Text.literal("TEST"), List.of(), SkillEffectHudEntry.Meter.none()).asEvent();
         SkillEffectHudEntry heat = SkillEffectHudEntry.skill(SkillIds.KINDLING, true, 0xFFFF6A2B,
                 SkillEffectHudEntry.Text.translated("hud.essence_ascendance.heat", "3", "5"),
                 List.of(SkillEffectHudEntry.Text.literal("Zombie")), SkillEffectHudEntry.Meter.progress(0.6));

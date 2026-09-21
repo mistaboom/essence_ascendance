@@ -40,7 +40,7 @@ public final class UtilityWorldEffects {
                     ? SkillEffectHudEntry.Meter.timer("hud.essence_ascendance.utility.sanctuary_disengage",
                     state.nextDisengageAt())
                     : SkillEffectHudEntry.Meter.none();
-            return SkillEffectHudEntry.skill(id(), true, AscendancePalette.UTILITY,
+            return SkillEffectHudEntry.skill(id(), state.nearbyHostiles() > 0 || state.pacifiedHostiles() > 0, AscendancePalette.UTILITY,
                     text("sanctuary_hostiles", Integer.toString(state.nearbyHostiles())), details, meter);
         }
 
@@ -59,11 +59,11 @@ public final class UtilityWorldEffects {
 
         @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
             var tuning = context.settings().utility().industriousPresence();
-            return SkillEffectHudEntry.skill(id(), true, AscendancePalette.UTILITY,
+            return SkillEffectHudEntry.skill(id(), SkillHudEvents.active(context, id()), AscendancePalette.UTILITY,
                     text("industrious_speed", SkillEffectHudCards.compact(tuning.processingSpeedMultiplier())),
                     List.of(text("industrious_radius", SkillEffectHudCards.compact(tuning.radiusBlocks())),
                             text("industrious_processors")),
-                    SkillEffectHudEntry.Meter.none());
+                    SkillEffectHudEntry.Meter.none()).asEvent();
         }
 
         @Override public List<String> debugLines(SkillEffectRuntime.Context context) {
@@ -82,13 +82,15 @@ public final class UtilityWorldEffects {
             var state = ExplosionContainmentService.snapshot(context);
             List<Text> details = new ArrayList<>();
             details.add(text("containment_radius", SkillEffectHudCards.compact(tuning.radiusBlocks())));
-            if (state.lastContainedAt() == context.now() && state.containedThisTick() > 0) {
+            boolean recent = state.containedThisTick() > 0 && context.now() >= state.lastContainedAt()
+                    && context.now() - state.lastContainedAt() < SkillHudEvents.EVENT_TICKS;
+            if (recent) {
                 details.add(text("containment_caught", Integer.toString(state.containedThisTick())));
             } else {
                 details.add(text("containment_protection"));
             }
-            return SkillEffectHudEntry.skill(id(), true, AscendancePalette.UTILITY,
-                    text("containment_active"), details, SkillEffectHudEntry.Meter.none());
+            return SkillEffectHudEntry.skill(id(), recent, AscendancePalette.UTILITY,
+                    text("containment_active"), details, SkillEffectHudEntry.Meter.none()).asEvent();
         }
 
         @Override public List<String> debugLines(SkillEffectRuntime.Context context) {

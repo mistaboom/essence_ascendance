@@ -40,10 +40,9 @@ public final class GatheringFishingEffects {
                 case CAST, NONE -> text("fishing_cast");
             };
             return SkillEffectHudEntry.skill(id(), state.active(), AscendancePalette.GATHERING,
-                    text("fishing_bite_speed", SkillEffectHudCards.compact(tuning.biteSpeedMultiplier())),
-                    List.of(status,
-                            text("fishing_reel_window", SkillEffectHudCards.compact(tuning.reelWindowMultiplier())),
-                            text("fishing_luck", SkillEffectHudCards.compact(tuning.virtualLuckLevels()))),
+                    status,
+                    List.of(text("fishing_bite_speed", SkillEffectHudCards.compact(tuning.biteSpeedMultiplier())),
+                            text("fishing_reel_window", SkillEffectHudCards.compact(tuning.reelWindowMultiplier()))),
                     SkillEffectHudEntry.Meter.none());
         }
 

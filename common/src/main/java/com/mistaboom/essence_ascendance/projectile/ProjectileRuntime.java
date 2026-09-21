@@ -108,6 +108,8 @@ public final class ProjectileRuntime {
         }
         state.remainingTicks--;
         if (state.path == ProjectilePath.HOMING || state.redirected) ProjectileTargeting.steer(projectile, owner, state);
+        if (state.path == ProjectilePath.HOMING && state.target != null)
+            com.mistaboom.essence_ascendance.skill.effect.SkillHudEvents.record(owner, com.mistaboom.essence_ascendance.skill.SkillIds.HOMING_PROJECTILE, "homing", 1);
         double speed = projectile.getDeltaMovement().length();
         if (!finite(projectile.getDeltaMovement()) || speed < EPSILON || speed > state.maximumSpeed) {
             stop(projectile, state); return;
@@ -167,6 +169,10 @@ public final class ProjectileRuntime {
                 }
                 if (!continuing) continuing = state.penetrate();
             }
+            if (success && state.path == ProjectilePath.RICOCHET)
+                com.mistaboom.essence_ascendance.skill.effect.SkillHudEvents.record(owner, com.mistaboom.essence_ascendance.skill.SkillIds.RICOCHET, "ricochet", state.ricochets);
+            if (success && state.path == ProjectilePath.PIERCING)
+                com.mistaboom.essence_ascendance.skill.effect.SkillHudEvents.record(owner, com.mistaboom.essence_ascendance.skill.SkillIds.PIERCING_PROJECTILE, "piercing", state.skillPenetrations);
             if (success) ProjectileImpactEffects.impact(state,
                     new ProjectileImpactEffects.Impact(projectile, owner, hit, living, probe.confirmedDamage, continuing));
             if (!continuing) stop(projectile, state);

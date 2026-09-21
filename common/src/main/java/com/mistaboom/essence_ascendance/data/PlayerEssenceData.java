@@ -25,6 +25,13 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 public final class PlayerEssenceData {
+    private final Set<ResourceLocation> hiddenSkillHud = new LinkedHashSet<>();
+    public boolean skillHudEnabled(ResourceLocation skill) { return !hiddenSkillHud.contains(skill); }
+    public void setSkillHudEnabled(ResourceLocation skill, boolean enabled) {
+        Objects.requireNonNull(skill);
+        if (enabled) hiddenSkillHud.remove(skill); else hiddenSkillHud.add(skill);
+    }
+
     private com.mistaboom.essence_ascendance.vitality.VitalityDamageLedger vitalityDamage =
             new com.mistaboom.essence_ascendance.vitality.VitalityDamageLedger();
     public com.mistaboom.essence_ascendance.vitality.VitalityDamageLedger vitalityDamage() { return vitalityDamage; }
@@ -1271,6 +1278,9 @@ private static final String NEXUS_REVISION_TAG =
         );
 
 
+        CompoundTag hudPreferences = new CompoundTag();
+        hiddenSkillHud.forEach(id -> hudPreferences.putBoolean(id.toString(), false));
+        root.put("skill_hud_preferences", hudPreferences);
         root.put("category_attunement", attunement.save());
         root.put("vitality_damage", vitalityDamage.save());
 
@@ -1637,6 +1647,11 @@ private static final String NEXUS_REVISION_TAG =
         }
 
 
+        CompoundTag hudPreferences = root.getCompound("skill_hud_preferences");
+        for (String key : hudPreferences.getAllKeys()) {
+            ResourceLocation id = ResourceLocation.tryParse(key);
+            if (id != null && !hudPreferences.getBoolean(key)) data.hiddenSkillHud.add(id);
+        }
         data.attunement = com.mistaboom.essence_ascendance.attunement.AttunementLedger.load(root.getCompound("category_attunement"));
         data.vitalityDamage = com.mistaboom.essence_ascendance.vitality.VitalityDamageLedger.load(root.getCompound("vitality_damage"));
 

@@ -45,6 +45,8 @@ public final class SkillProcDamageService {
                         owner, owner);
         var result = EquipmentDamageService.measureDamage(target, source,
                 () -> withAttributedDamage(owner, sourceSkill, kind, root, generation, () -> target.hurt(source, amount)));
+        if (result.accepted() && result.loss() > 0)
+            SkillHudEvents.record(owner, sourceSkill, "damage", result.loss());
         return result.accepted() && result.loss() > 0;
     }
 

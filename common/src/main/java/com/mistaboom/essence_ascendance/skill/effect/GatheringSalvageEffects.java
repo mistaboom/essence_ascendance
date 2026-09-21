@@ -27,10 +27,8 @@ public final class GatheringSalvageEffects {
             GatheringSalvageService.HudState state = GatheringSalvageService.hudState(context);
             return SkillEffectHudEntry.skill(id(), state.grindstoneOpen(), AscendancePalette.GATHERING,
                     text(state.salvageReady() ? "salvage_ready" : "salvage_button"),
-                    List.of(text("salvage_material", SkillEffectHudCards.compact(tuning.materialRecoveryFraction() * 100.0D)),
-                            text("salvage_xp", SkillEffectHudCards.compact(tuning.bonusExperienceFraction() * 100.0D)),
-                            text("salvage_last", Integer.toString(state.lastMaterials()),
-                                    Integer.toString(state.lastExperience()))),
+                    List.of(text("salvage_last", Integer.toString(state.lastMaterials()), Integer.toString(state.lastExperience())),
+                            text("salvage_material", SkillEffectHudCards.compact(tuning.materialRecoveryFraction() * 100.0D))),
                     SkillEffectHudEntry.Meter.none());
         }
 

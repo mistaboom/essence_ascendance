@@ -118,7 +118,7 @@ public final class AscendanceNexusScreen
     private static final int GAUGE_TEXT_GAP = 4;
     private static final int SECTION_HEIGHT = 34;
     private static final int NARROW_SECTION_HEIGHT = 30;
-    private static final int SKILL_LEGEND_HEIGHT = 22;
+    private static final int SKILL_LEGEND_HEIGHT = 34;
     private static final int SKILL_SCROLL_STEP = 28;
     private static final int SKILL_ROUTE_CLEARANCE =
             NexusSkillTreeLayout.ROUTE_SPACING;
@@ -299,6 +299,7 @@ public final class AscendanceNexusScreen
                     mouseX,
                     mouseY
             );
+            hoveredTrack = NexusProgressionTrack.tooltipTrack(category.tracks(), draggingTrackIndex, hoveredTrack);
         }
     }
 
@@ -353,7 +354,7 @@ public final class AscendanceNexusScreen
                 renderPrimaryActionTooltip(graphics, mouseX, mouseY);
             } else if (mode == NexusMode.SKILLS && hoveredSkillId != null) {
                 renderSkillTooltip(graphics, hoveredSkillId, mouseX, mouseY);
-            } else if (mode == NexusMode.BONUSES && hoveredTrack != null && draggingTrackIndex < 0) {
+            } else if (mode == NexusMode.BONUSES && hoveredTrack != null) {
                 renderTrackTooltip(graphics, hoveredTrack, mouseX, mouseY);
             } else {
                 renderPrimaryActionTooltip(
@@ -372,8 +373,7 @@ public final class AscendanceNexusScreen
     private boolean modeAvailable(NexusMode candidate) {
         if (candidate == NexusMode.ASCENDANCE) return true;
         ClientEssenceState.Snapshot state = ClientEssenceState.snapshot();
-        return state.ready() && AscendanceTierRegistry.get(state.tierId())
-                .map(AscendanceTierDefinition::grantsPower).orElse(false);
+        return state.ready() && com.mistaboom.essence_ascendance.client.nexus.NexusHudControl.progressionAvailable(state.tierId());
     }
 
     private void renderModeSelector(
@@ -968,6 +968,8 @@ public final class AscendanceNexusScreen
                 layout.middleTop() + 12,
                 MUTED
         );
+        graphics.drawCenteredString(font, EssenceText.gui("nexus.skills.legend.hud"),
+                center, layout.middleTop() + 22, MUTED);
     }
 
     private void renderSkillTree(
@@ -2687,10 +2689,17 @@ public final class AscendanceNexusScreen
             );
         }
 
-        String renderedCost = formatLongForWidth(
-                cost,
-                Math.max(1, bounds.width() - 8)
-        );
+        if (hudControlVisible(definition)) {
+            var receipt = ClientEssenceState.snapshot().ownedSkills().get(definition.id());
+            graphics.drawString(font, com.mistaboom.essence_ascendance.client.nexus.NexusHudControl.glyph(receipt.hudEnabled()),
+                    bounds.right() - 11, bounds.bottom() - 11, MUTED, false);
+        }
+
+        var snapshot = ClientEssenceState.snapshot();
+        var purchase = snapshot.ownedSkills().get(definition.id());
+        String renderedCost = SkillTooltipPresentation.nodePurchaseLabel(definition, currentBalanceProfile(snapshot),
+                purchase == null ? 0 : purchase.rank(),
+                amount -> formatLongForWidth(amount, Math.max(1, bounds.width() - 28))).getString();
         graphics.drawCenteredString(
                 font,
                 renderedCost,
@@ -3447,12 +3456,10 @@ public final class AscendanceNexusScreen
         boolean dragging =
                 draggingTrackIndex == absoluteIndex;
 
-        double progress =
-                stagedProgression(track, stagedTarget);
-        progress = clamp01(progress);
-
-        int knobY = geometry.yForEffect(progress);
-        int currentY = geometry.yForEffect(stagedProgression(track, track.state().storedInvestment()));
+        var tierId = ClientEssenceState.snapshot().tierId();
+        int knobY = track.handleY(stagedTarget, tierId, top, bottom);
+        int currentY = track.handleY(track.state().storedInvestment(), tierId, top, bottom);
+        int earnedY = geometry.yForEffect(stagedProgression(track, stagedTarget));
         int fill = accent;
 
         graphics.fill(
@@ -3460,8 +3467,11 @@ public final class AscendanceNexusScreen
                 knobY,
                 railRight,
                 startY,
-                available ? fill : TRACK_LOCKED
+                available ? (fill & 0x00FFFFFF) | 0x66000000 : TRACK_LOCKED
         );
+
+        // Solid fill is earned power; the softer extension and handle show funding toward the next benefit.
+        if (available) graphics.fill(railLeft, earnedY, railRight, startY, fill);
 
         if (changed) graphics.fill(railLeft - 3, currentY, railRight + 3, currentY + 1, accent);
 
@@ -3520,46 +3530,7 @@ public final class AscendanceNexusScreen
             int mouseX,
             int mouseY
     ) {
-        ClientEssenceState.Snapshot snapshot = ClientEssenceState.snapshot();
-        var resolved = track.state().track();
-        long target = stagedInvestment(track);
-        long delta = target - track.state().storedInvestment();
-        int accent = AscendancePalette.categoryRgb(track.stat().essenceType().id());
-        SemanticTooltip tooltip = new SemanticTooltip().title(EssenceText.stat(track.stat()), accent);
-        if (!resolved.available()) tooltip.requirement(EssenceText.gui("nexus.track.unavailable"), SemanticTooltip.State.UNAVAILABLE);
-        tooltip.field(EssenceText.gui("nexus.track.effect_preview",
-                SemanticTooltip.value(formatBonus(resolved.unit(), track.state().scaledBonus())),
-                SemanticTooltip.value(formatBonus(resolved.unit(), stagedScaledBonus(track, target)))
-                        .copy().withStyle(style -> style.withColor(accent).withBold(delta != 0))));
-        tooltip.field(EssenceText.gui("nexus.track.investment_preview", SemanticTooltip.value(formatLong(track.state().storedInvestment())),
-                SemanticTooltip.value(formatLong(target)),
-                SemanticTooltip.value((delta > 0 ? "+" : "") + formatLong(delta)).copy()
-                        .withStyle(delta < 0 ? ChatFormatting.GREEN : delta > 0 ? ChatFormatting.AQUA : ChatFormatting.WHITE)));
-        tooltip.gap();
-        tooltip.field(EssenceText.gui("nexus.track.current_tier", tierNameComponent(snapshot.tierId()).copy()
-                .withStyle(style -> style.withColor(AscendancePalette.tierMetalRgb(snapshot.tierId())))));
-        tooltip.field(EssenceText.gui("nexus.track.tier_cap", SemanticTooltip.value(formatLong(track.state().currentInvestmentCap()))));
-        if (resolved.available()) {
-            ResourceLocation capTier = track.layout(0, 100).capUnlockTier(snapshot.tierId());
-            boolean completeRange = BonusTrackCurve.maximumProgression(resolved.checkpoints(), snapshot.tierId()) >= 1;
-            tooltip.field(EssenceText.gui(completeRange ? "nexus.track.cap_complete" : "nexus.track.cap_unlock",
-                    tierNameComponent(capTier).copy().withStyle(style -> style.withColor(AscendancePalette.tierMetalRgb(capTier)))));
-        }
-        tooltip.field(EssenceText.gui("nexus.track.total_cap", SemanticTooltip.value(formatLong(resolved.checkpoints().getLast().cumulativeCap()))));
-        tooltip.gap().section(EssenceText.gui("nexus.track.checkpoints"));
-        for (var checkpoint : resolved.checkpoints()) {
-            if (checkpoint.segmentCost() == 0) continue;
-            tooltip.detail(EssenceText.gui("nexus.track.checkpoint", tierNameComponent(checkpoint.tierId()).copy()
-                            .withStyle(style -> style.withColor(AscendancePalette.tierMetalRgb(checkpoint.tierId()))),
-                    SemanticTooltip.value(formatLong(checkpoint.cumulativeCap())),
-                    SemanticTooltip.value(formatLong(checkpoint.segmentCost())),
-                    SemanticTooltip.value(formatBonus(resolved.unit(), track.state().transcendentMaximumBonus() * checkpoint.effectFraction()))
-                            .copy().withStyle(checkpoint.cumulativeCap() <= track.state().effectiveInvestment() ? ChatFormatting.GREEN
-                                    : checkpoint.cumulativeCap() <= target ? ChatFormatting.AQUA
-                                    : checkpoint.cumulativeCap() <= track.state().currentInvestmentCap() ? ChatFormatting.WHITE : ChatFormatting.DARK_GRAY)));
-        }
-        if (track.state().storedInvestment() > track.state().currentInvestmentCap())
-            tooltip.gap().hint(EssenceText.gui("nexus.track.preserved", SemanticTooltip.value(formatLong(track.state().storedInvestment() - track.state().effectiveInvestment()))));
+        var tooltip = BonusTooltipPresentation.tooltip(track, ClientEssenceState.snapshot().tierId(), stagedInvestment(track));
         graphics.renderTooltip(font, tooltip.wrap(font, TooltipLayout.compactWidth(280, width)), mouseX, mouseY);
     }
 
@@ -3830,6 +3801,7 @@ public final class AscendanceNexusScreen
             return true;
         }
 
+        if (handleHudControlClick(mouseX, mouseY, button)) return true;
         if (button != 0) {
             return super.mouseClicked(
                     mouseX,
@@ -4244,6 +4216,37 @@ public final class AscendanceNexusScreen
         draggingTrackIndex = -1;
         panningSkills = false;
         return true;
+    }
+
+    private boolean hudControlVisible(SkillDefinition skill) {
+        var evaluation = skillEvaluations().get(skill.id());
+        return evaluation != null && com.mistaboom.essence_ascendance.client.nexus.NexusHudControl.visible(
+                modeAvailable(NexusMode.SKILLS), evaluation.owned(), evaluation.effective());
+    }
+
+    private boolean handleHudControlClick(double mouseX, double mouseY, int button) {
+        if (mode != NexusMode.SKILLS || !modeAvailable(NexusMode.SKILLS)) return false;
+        var categories = categories();
+        if (categories.isEmpty()) return false;
+        stabilizeSelection(categories);
+        var category = categories.get(selectedCategoryIndex);
+        var viewport = skillViewport(contentLayout());
+        if (!viewport.contains(mouseX, mouseY)) return false;
+        var tree = skillLayout(category.essence().id());
+        var scroll = clampedSkillScroll(category.essence().id(), tree, viewport);
+        for (var node : tree.nodes()) {
+            var bounds = skillNodeBounds(node, viewport, scroll);
+            if (!hudControlVisible(node.definition()) || !com.mistaboom.essence_ascendance.client.nexus.NexusHudControl.hit(
+                    mouseX, mouseY, bounds.right(), bounds.bottom())) continue;
+            if (button == 0) {
+                var receipt = ClientEssenceState.snapshot().ownedSkills().get(node.definition().id());
+                dev.architectury.networking.NetworkManager.sendToServer(
+                        new com.mistaboom.essence_ascendance.network.SkillHudPreferencePayload(
+                                menu.containerId, node.definition().id(), !receipt.hudEnabled()));
+            }
+            return true; // Consume every button here before node selection, purchasing or panning.
+        }
+        return false;
     }
 
     private SkillDefinition skillAt(
@@ -5651,82 +5654,15 @@ public final class AscendanceNexusScreen
         SemanticTooltip tooltip = new SemanticTooltip();
         tooltip.title(Component.translatable(skill.nameTranslationKey()),
                 AscendancePalette.categoryRgb(skill.essenceId()));
-        skillTooltipPresentation.append(tooltip, skill, skillEvaluations());
-        tooltip.field(EssenceText.gui("nexus.skills.tooltip.rank",
-                SemanticTooltip.value(evaluation.currentRank()), SemanticTooltip.value(skill.maximumRank()),
-                SemanticTooltip.value(evaluation.projectedRank()).copy().withStyle(ChatFormatting.AQUA)));
-        if (evaluation.owned() && evaluation.eligibleToPurchase()) {
-            tooltip.hint(EssenceText.gui("nexus.skills.tooltip.rank_purchase"));
-        }
-        tooltip.gap();
-        tooltip.field(
-                EssenceText.gui(
-                        "nexus.skills.tooltip.cost",
-                        Component.literal(formatLong(cost)).withStyle(cost <= projectedBalance
-                                ? ChatFormatting.GREEN : ChatFormatting.RED),
-                        EssenceText.essenceShort(category.essence())
-                                .withStyle(style -> style.withColor(AscendancePalette.categoryRgb(skill.essenceId())))
-                )
-        );
-        tooltip.field(
-                EssenceText.gui(
-                        "nexus.skills.tooltip.required_tier",
-                        SemanticTooltip.value(tierNameComponent(skill.requiredTierId(
-                                Math.min(skill.maximumRank(), evaluation.currentRank() + 1))))
-                )
-        );
-        tooltip.field(
-                EssenceText.gui(
-                        "nexus.skills.tooltip.activation",
-                        SemanticTooltip.value(EssenceText.gui(
-                                "nexus.skills.activation."
-                                        + skill.activationPolicy().name().toLowerCase(Locale.ROOT)
-                        ))
-                )
-        );
-        tooltip.field(
-                EssenceText.gui(
-                        "nexus.skills.tooltip.status",
-                        EssenceText.gui(
-                                "nexus.skills.state."
-                                        + visual.name().toLowerCase(Locale.ROOT)
-                        ).withStyle(style -> style.withColor(visual.textColor & 0xFFFFFF))
-                )
-        );
-        tooltip.section(EssenceText.gui("nexus.skills.tooltip.state_details"));
-        tooltip.detail(
-                EssenceText.gui(
-                        "nexus.skills.tooltip.owned_detail",
-                        skillBooleanStatus(evaluation.owned()),
-                        projectedSkillBooleanStatus(evaluation.owned(), evaluation.projectedOwned(), true)
-                )
-        );
-        tooltip.detail(
-                EssenceText.gui(
-                        "nexus.skills.tooltip.selected_detail",
-                        skillSelectionStatus(skill, evaluation.selected()),
-                        skill.activationPolicy() == SkillActivationPolicy.AUTOMATIC
-                                ? skillSelectionStatus(skill, false)
-                                : projectedSkillBooleanStatus(evaluation.selected(), evaluation.projectedSelected(), true)
-                )
-        );
-        tooltip.detail(
-                EssenceText.gui(
-                        "nexus.skills.tooltip.effective_detail",
-                        skillBooleanStatus(evaluation.effective()),
-                        projectedSkillBooleanStatus(evaluation.effective(), evaluation.projectedEffective(), true)
-                )
-        );
-        tooltip.detail(
-                EssenceText.gui(
-                        "nexus.skills.tooltip.suspended_detail",
-                        projectedSkillBooleanStatus(evaluation.suspended(), evaluation.suspended(), false),
-                        projectedSkillBooleanStatus(evaluation.suspended(), evaluation.projectedSuspended(), false)
-                )
-        );
+        skillTooltipPresentation.append(tooltip, skill, skillEvaluations(), hasShiftDown());
+        boolean purchasePreview = !evaluation.owned()
+                || SkillTooltipPresentation.previewsNext(evaluation.currentRank(), skill.maximumRank(), hasShiftDown());
+        tooltip.field(EssenceText.gui("nexus.skills.tooltip.status",
+                EssenceText.gui("nexus.skills.state." + visual.name().toLowerCase(Locale.ROOT))
+                        .withStyle(style -> style.withColor(visual.textColor() & 0xFFFFFF))));
 
-        if (!evaluation.prerequisites().isEmpty()) {
-            tooltip.section(EssenceText.gui("nexus.skills.tooltip.prerequisites"));
+        if ((purchasePreview || !evaluation.effective()) && !evaluation.prerequisites().isEmpty()) {
+            tooltip.gap().section(EssenceText.gui("nexus.skills.tooltip.prerequisites"));
             for (com.mistaboom.essence_ascendance.skill.SkillPrerequisiteStatus status :
                     evaluation.prerequisites()) {
                 String statusPath = status.authoritativeOwned()
@@ -5737,15 +5673,15 @@ public final class AscendanceNexusScreen
                 tooltip.requirement(
                         EssenceText.gui(
                                 statusPath,
-                                skillName(status.skillId())
+                                EssenceText.gui("nexus.skills.tooltip.prerequisite_rank", skillName(status.skillId()), status.requiredRank())
                         ), status.authoritativeOwned() ? SemanticTooltip.State.MET
                                 : status.projectedOwned() ? SemanticTooltip.State.STAGED : SemanticTooltip.State.MISSING
                 );
             }
         }
 
-        if (!evaluation.requirements().isEmpty()) {
-            tooltip.section(EssenceText.gui("nexus.skills.tooltip.requirements"));
+        if ((purchasePreview || !evaluation.effective()) && !evaluation.requirements().isEmpty()) {
+            tooltip.gap().section(EssenceText.gui("nexus.skills.tooltip.requirements"));
             for (com.mistaboom.essence_ascendance.skill.SkillRequirementStatus status :
                     evaluation.requirements()) {
                 ClientEssenceState.MilestoneSnapshot milestone =
@@ -5773,6 +5709,8 @@ public final class AscendanceNexusScreen
             }
         }
 
+        if (skill.choiceGroupId().isPresent() || skill.replacementTargetId().isPresent()
+                || !evaluation.projectedReplacedBy().isEmpty()) tooltip.gap();
         skill.choiceGroupId().ifPresent(groupId -> {
             SkillChoiceGroup group = SkillRegistry.choiceGroup(groupId).orElse(null);
             Component groupName = group == null
@@ -5808,9 +5746,11 @@ public final class AscendanceNexusScreen
                 projectedBalance,
                 cost
         );
-        if (clickHint != null) {
+        boolean nextRankHint = evaluation.owned() && evaluation.currentRank() < skill.maximumRank();
+        if (clickHint != null || nextRankHint) {
             tooltip.gap();
-            tooltip.hint(clickHint);
+            if (nextRankHint) tooltip.hint(SkillTooltipPresentation.rankPurchaseHint(hasShiftDown()));
+            if (clickHint != null) tooltip.hint(clickHint);
         }
 
         int maximumWidth = Math.max(1, Math.min(300, width - 32));

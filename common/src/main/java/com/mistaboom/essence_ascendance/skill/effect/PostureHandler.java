@@ -24,7 +24,7 @@ public record PostureHandler(ResourceLocation id) implements SkillEffectHudHandl
         if (id.equals(SkillIds.ADAPTIVE_GUARD)) {
             double resistance = stacks == 0 ? 0 : Math.max(0, Math.min(settings.adaptive().maximumStacks(), stacks + 1)
                     - settings.adaptive().minimumHits() + 1) * settings.adaptive().resistancePerStack();
-            return SkillEffectHudCards.timed(id, stacks > 0, 0xFFCEA868,
+            return SkillEffectHudCards.timed(id, stacks > 0, com.mistaboom.essence_ascendance.visual.AscendancePalette.DEFENSE,
                     SkillEffectHudCards.count(stacks, settings.adaptive().maximumStacks()),
                     List.of(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.posture.adaptive", percent(resistance))),
                     "hud.essence_ascendance.guard.remaining", expiresAt);
@@ -34,7 +34,7 @@ public record PostureHandler(ResourceLocation id) implements SkillEffectHudHandl
         double maximum = evasive ? settings.evasive().maximumDodgeChance() : settings.bulwark().maximumResistance();
         // Keep Evasive live at zero during combat: shared closing retention would otherwise
         // keep showing the pre-hit charge after a damaging hit has emptied the real meter.
-        return SkillEffectHudCards.progress(id, dodged || inCombat && (evasive || meter > 0), evasive ? 0xFF67CABB : 0xFF729ECC,
+        return SkillEffectHudCards.progress(id, dodged || inCombat && (evasive || meter > 0), evasive ? com.mistaboom.essence_ascendance.visual.AscendancePalette.DEFENSE : com.mistaboom.essence_ascendance.visual.AscendancePalette.DEFENSE,
                 SkillEffectHudEntry.Text.translated("hud.essence_ascendance.percent", percent(meter)),
                 List.of(dodged ? SkillEffectHudEntry.Text.translated("hud.essence_ascendance.posture.dodged")
                         : SkillEffectHudEntry.Text.translated(evasive ? "hud.essence_ascendance.posture.evasive"

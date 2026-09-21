@@ -90,7 +90,10 @@ public final class NativeGuardOutcomeTest {
         var tuning = SkillEffectRuntime.resolvedSettings(player).guard();
         equal(outcome.skillAmplifier(), tuning.amplifier().maximumMultiplier(), "Same perfect native outcome promotes amplifier before reflection");
         var amplifierHud = amplifierCard(player);
-        check(amplifierHud.active() && amplifierHud.accent() == 0xFF70BCD4, "Native Amplifier card has an opaque shared accent");
+        check(amplifierHud.active() && amplifierHud.accent()
+                        == com.mistaboom.essence_ascendance.visual.AscendancePalette.categoryArgb(
+                                SkillRegistry.require(amplifierHud.sourceSkill()).essenceId()),
+                "Native Amplifier card follows its home Essence accent");
         check(amplifierHud.badge().equals(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.percent", "100")),
                 "Amplifier uses a compact normalized badge instead of a long effect sentence");
         check(amplifierHud.lines().equals(List.of(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.guard.amplifier",
@@ -252,9 +255,8 @@ public final class NativeGuardOutcomeTest {
         var expiredAmplifierHud = amplifierCard(player);
         check(!expiredAmplifierHud.active(), "Natural Amplifier expiry keeps its effective inactive card identity");
         amplifierPresentation.replace(List.of(expiredAmplifierHud), 101);
-        check(amplifierPresentation.visibleEntries(160).equals(List.of(amplifierHud))
-                        && amplifierPresentation.visibleEntries(161).isEmpty(),
-                "Actual Amplifier snapshots share the offense sixty-tick closing behavior");
+        check(amplifierPresentation.visibleEntries(101).isEmpty(),
+                "Expired Amplifier immediately stops advertising an active multiplier");
         f.close();
         System.out.println("Native guard outcomes passed: " + assertions + " (actual Player.hurt/block/durability; controlled measured retaliation/cancellation/area outcomes; no world)");
     }

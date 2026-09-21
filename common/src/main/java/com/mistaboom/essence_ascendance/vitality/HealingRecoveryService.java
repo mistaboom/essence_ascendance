@@ -41,7 +41,11 @@ public final class HealingRecoveryService {
             var debt = VitalityDamageService.ledger(player).delayed;
             double amount = HealingRoutingMath.mirrored(accepted, debt.total(),
                     context.settings().vitality().damage().painPurge().queuePerHealing());
-            if (debt.recover(amount) > 0) VitalityDamageService.dirty(player);
+            double recovered = debt.recover(amount);
+            if (recovered > 0) {
+                VitalityDamageService.dirty(player);
+                com.mistaboom.essence_ascendance.skill.effect.SkillHudEvents.record(player, SkillIds.PAIN_PURGE, "purged", recovered);
+            }
         }
         ConsumableRecoveryService.overflow(player, Math.min(accepted, Math.max(0, proposed - player.getMaxHealth())));
     }

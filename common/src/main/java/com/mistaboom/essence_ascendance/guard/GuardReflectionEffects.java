@@ -62,7 +62,7 @@ public final class GuardReflectionEffects {
             double multiplier = state == null ? 1 : state.state.multiplier(context.now());
             double maximum = context.settings().guard().amplifier().maximumMultiplier();
             double fraction = maximum <= 1 ? 0 : SkillEffectMath.clamp((multiplier - 1) / (maximum - 1), 0, 1);
-            return SkillEffectHudCards.timed(id, multiplier > 1, 0xFF70BCD4,
+            return SkillEffectHudCards.timed(id, multiplier > 1, com.mistaboom.essence_ascendance.visual.AscendancePalette.DEFENSE,
                     SkillEffectHudEntry.Text.translated("hud.essence_ascendance.percent", Long.toString(Math.round(fraction * 100))),
                     List.of(SkillEffectHudEntry.Text.translated("hud.essence_ascendance.guard.amplifier", SkillEffectHudCards.decimal(multiplier))),
                     "hud.essence_ascendance.guard.remaining", state == null ? 0 : state.state.expiresAt());

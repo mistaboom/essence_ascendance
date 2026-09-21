@@ -67,7 +67,6 @@ public final class UtilitySocialAlchemyEffects {
             var tuning = settings(context).bondedCompanion();
             List<Text> details = state == null ? List.of() : List.of(
                     Text.literal(state.name()),
-                    text("bonded_stats", compact(tuning.statBonusFraction() * 100.0)),
                     state.teleportedThisTick() ? text("bonded_caught_up")
                             : text("bonded_catchup", compact(tuning.catchupDistanceBlocks())));
             return SkillEffectHudEntry.skill(id(), state != null, AscendancePalette.UTILITY,
@@ -96,9 +95,7 @@ public final class UtilitySocialAlchemyEffects {
             double gainedSeconds = (state.appliedDuration() - state.originalDuration()) / 20.0;
             return SkillEffectHudCards.timed(id(), true, AscendancePalette.UTILITY,
                     text("alchemical_amplification_bonus", compact(gainedSeconds)),
-                    List.of(Text.translated(state.effectKey()),
-                            text("alchemical_amplification_cap", compact(tuning.maximumBonusFraction() * 100.0)),
-                            text("alchemical_amplification_window", compact(tuning.diminishingWindowTicks() / 20.0))),
+                    List.of(Text.translated(state.effectKey())),
                     "hud.essence_ascendance.utility.potion_remaining", state.expiresAt());
         }
 
@@ -120,13 +117,13 @@ public final class UtilitySocialAlchemyEffects {
             var state = UtilityPotionService.relaySnapshot(context);
             var tuning = settings(context).potionRelay();
             if (state == null) return SkillEffectHudEntry.skill(id(), false, AscendancePalette.UTILITY,
-                    text("potion_relay_allies", "0"), List.of(), SkillEffectHudEntry.Meter.none());
-            return SkillEffectHudCards.timed(id(), true, AscendancePalette.UTILITY,
+                    text("potion_relay_allies", "0"), List.of(), SkillEffectHudEntry.Meter.none()).asEvent();
+            return SkillEffectHudEntry.skill(id(), context.now() - (state.expiresAt() - state.durationTicks()) < SkillHudEvents.EVENT_TICKS,
+                    AscendancePalette.UTILITY,
                     text("potion_relay_allies", Integer.toString(state.targets())),
                     List.of(Text.translated(state.effectKey()),
-                            text("potion_relay_duration", compact(tuning.durationFraction() * 100.0)),
-                            text("potion_relay_radius", compact(tuning.radiusBlocks()))),
-                    "hud.essence_ascendance.utility.potion_remaining", state.expiresAt());
+                            text("potion_relay_applied_duration", compact(state.durationTicks() / 20.0))),
+                    SkillEffectHudEntry.Meter.none()).asEvent();
         }
 
         @Override public List<String> debugLines(SkillEffectRuntime.Context context) {

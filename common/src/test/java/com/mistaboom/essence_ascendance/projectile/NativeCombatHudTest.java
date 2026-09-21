@@ -56,6 +56,15 @@ public final class NativeCombatHudTest {
         check(CombatHudActivity.remainingTicks(p) == 100, "New native combat activity lasts exactly one hundred ticks");
         check(card(p, SkillIds.ADAPTIVE_GUARD).active() && PostureService.snapshot(p).stacks() == 1,
                 "First real native hit publishes the effective Adaptive Guard card");
+        var gameplayBeforeHud = PostureService.snapshot(p);
+        long revisionBeforeHud = data.nexusRevision();
+        data.setSkillHudEnabled(SkillIds.ADAPTIVE_GUARD, false);
+        check(SkillEffectRuntime.hudSnapshot(p).entries().stream().noneMatch(e -> e.sourceSkill().equals(SkillIds.ADAPTIVE_GUARD)),
+                "Hidden preference removes the real server card immediately");
+        check(PostureService.snapshot(p).equals(gameplayBeforeHud) && data.nexusRevision() == revisionBeforeHud,
+                "Native posture and progression remain identical when HUD is hidden");
+        data.setSkillHudEnabled(SkillIds.ADAPTIVE_GUARD, true);
+        check(card(p, SkillIds.ADAPTIVE_GUARD).active(), "Re-enabling presentation restores the existing native state");
         f.level.tick += 99;
         check(CombatHudActivity.active(p) && CombatHudActivity.remainingTicks(p) == 1, "Combat includes its final tick");
         f.level.tick++;
@@ -189,6 +198,7 @@ public final class NativeCombatHudTest {
         f.level.tick = beforeRollback;
         CombatHudActivity.confirmedDamage(other, outgoing); SkillEffectRuntime.clearAll();
         check(!CombatHudActivity.active(p), "Global runtime clear removes all combat presentation state");
+        mobilityAndPotionHud(f);
         f.close();
         System.out.println("Native combat HUD checks passed: " + checks
                 + " (actual native health/absorption/dodge/block and saved-skill snapshots; no world)");
@@ -246,6 +256,37 @@ public final class NativeCombatHudTest {
         ProjectileNativeInterceptionTest.initializeEntity(stand, EntityType.ARMOR_STAND, f.level, Vec3.ZERO, new AABB(-.5, 0, -.5, .5, 2, .5));
         CombatHudActivity.confirmedDamage(stand, outgoing);
         check(!CombatHudActivity.active(p), "Armor stands are excluded from mob/player combat activity");
+    }
+
+    private static void mobilityAndPotionHud(ProjectileNativeInterceptionTest.Fixture f) {
+        var p = f.player;
+        var data = f.saved.getPlayerData(p.getUUID());
+        data.grantAllSkillsForAdmin(List.of(SkillRegistry.require(SkillIds.ALCHEMICAL_AMPLIFICATION)));
+        SkillEffectRuntime.refresh(p);
+        var context = SkillEffectRuntime.context(p);
+        var wings = context.state(SkillIds.ESSENCE_WINGS, com.mistaboom.essence_ascendance.movement.FlightAbilityState::new);
+        wings.startWings(context.now());
+        p.startFallFlying();
+        var handler = com.mistaboom.essence_ascendance.skill.effect.SkillEffectRegistry.get(SkillIds.ESSENCE_WINGS);
+        var gliding = handler.hudEntries(context).getFirst();
+        check(gliding.active() && gliding.meter().kind() == SkillEffectHudEntry.MeterKind.NONE,
+                "Real fall-flying flag produces a Wings status without a binary progress bar");
+        p.stopFallFlying();
+        var landed = handler.hudEntries(context).getFirst();
+        check(!landed.active(), "Stale owned Wings flag cannot override stopped native gliding");
+        var presentation = new com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudPresentation();
+        presentation.replace(List.of(gliding), context.now());
+        presentation.replace(List.of(landed), context.now() + 1);
+        check(presentation.visibleEntries(context.now() + 1).isEmpty(), "Real native glide stop removes the live card immediately");
+
+        var effect = new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.MOVEMENT_SPEED, 200);
+        check(com.mistaboom.essence_ascendance.utility.UtilityPotionService.applyExternalPotion(p, effect, p,
+                (resolved, source) -> p.addEffect(resolved, source)), "Native timed potion was accepted");
+        check(com.mistaboom.essence_ascendance.utility.UtilityPotionService.amplificationSnapshot(context) != null,
+                "Accepted amplified potion exposes a current HUD timer");
+        p.removeEffect(net.minecraft.world.effect.MobEffects.MOVEMENT_SPEED);
+        check(com.mistaboom.essence_ascendance.utility.UtilityPotionService.amplificationSnapshot(context) == null,
+                "Removed native potion immediately clears the amplification HUD timer");
     }
 
     private static void select(ProjectileNativeInterceptionTest.Fixture f, ResourceLocation id) {

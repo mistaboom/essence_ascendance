@@ -137,21 +137,12 @@ public final class VitalityDamageMathTest {
         check(!hud.recent(199, 100), "cleanup removes the presentation window");
     }
     private static void headerLayout() {
-        var ordinary = com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudLayout.header(64, 36);
-        near(ordinary.scale(), 1);
-        var paired = com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudLayout.header(83, 66);
-        check(paired.titleLimit() >= 83 && paired.badgeLimit() >= 66, "standard numeric headers fit without truncation");
-        check(com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudLayout.height(1) == 39,
-                "one-detail-line card retains the standard compact height");
-        for (int title = 0; title <= 300; title += 3) {
-            for (int badge = 0; badge <= 180; badge += 3) {
-                var layout = com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudLayout.header(title, badge);
-                check(layout.scale() >= .8f && layout.scale() <= 1, "header scaling has a readability bound");
-                check(layout.titleLimit() + Math.min(badge, layout.badgeLimit()) < layout.rightEdge(),
-                        "fitted header fields cannot overlap");
-                check(layout.rightEdge() * layout.scale() <= 144.001, "header cannot run past card padding");
-            }
-        }
+        for (int lines = 0; lines <= 6; lines++) check(com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudLayout.height(lines) == 44,
+                "The fixed information budget never changes height");
+        var layout = com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudLayout.header(180, 140);
+        near(layout.scale(), 1);
+        check(layout.titleLimit() == 186 && layout.badgeLimit() == 186,
+                "Title and badge use separate fixed full-width rows");
     }
     private static void queues() {
         var queue = new LinearDamageQueue<String>();

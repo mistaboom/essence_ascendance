@@ -19,9 +19,6 @@ public final class VitalityDeathDefianceEffects {
         @Override public void deactivate(SkillEffectRuntime.Context context) {
             VitalityDeathDefianceService.deactivate(context, id());
         }
-        @Override public boolean hudWhileIneffective(SkillEffectRuntime.Context context) {
-            return VitalityDeathDefianceService.snapshot(context, id()).active();
-        }
         SkillEffectHudEntry card(SkillEffectRuntime.Context context, boolean spirit) {
             var state = VitalityDeathDefianceService.snapshot(context, id());
             boolean cooling = state.cooldownUntil() > context.now();

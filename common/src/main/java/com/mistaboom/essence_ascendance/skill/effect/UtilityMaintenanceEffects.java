@@ -212,14 +212,14 @@ public final class UtilityMaintenanceEffects {
                 return SkillEffectHudEntry.skill(id(), false, AscendancePalette.UTILITY,
                         text("metabolic_mending"),
                         List.of(text("metabolic_rate", compact(tuning.repairFractionPerFoodPoint() * 100.0))),
-                        SkillEffectHudEntry.Meter.none());
+                        SkillEffectHudEntry.Meter.none()).asEvent();
             }
             return SkillEffectHudEntry.skill(id(), true, AscendancePalette.UTILITY,
                     text("metabolic_repaired", Integer.toString(state.lastRepaired)),
                     List.of(Text.literal(state.lastTarget),
                             text("metabolic_food_value", compact(state.lastFoodValue)),
                             text("metabolic_rate", compact(tuning.repairFractionPerFoodPoint() * 100.0))),
-                    SkillEffectHudEntry.Meter.none());
+                    SkillEffectHudEntry.Meter.none()).asEvent();
         }
 
         @Override public List<String> debugLines(SkillEffectRuntime.Context context) {
@@ -305,8 +305,13 @@ public final class UtilityMaintenanceEffects {
             boolean active = state != null && state.lastAt != Long.MIN_VALUE
                     && context.now() >= state.lastAt && context.now() - state.lastAt <= 1;
             if (!active) {
-                return SkillEffectHudEntry.skill(id(), false, AscendancePalette.UTILITY,
-                        text("masterwork_overdurability", "0", "0"), List.of(), SkillEffectHudEntry.Meter.none());
+                ItemStack target = highestOverdurabilityItem(context);
+                double remaining = target.isEmpty() ? 0 : EquipmentMaintenanceData.overdurability(target);
+                double capacity = target.isEmpty() ? 0 : EquipmentMaintenanceData.overdurabilityCapacity(target);
+                return SkillEffectHudCards.progress(id(), remaining > 0, AscendancePalette.UTILITY,
+                        text("masterwork_overdurability", compact(remaining), compact(capacity)),
+                        target.isEmpty() ? List.of() : List.of(Text.literal(target.getHoverName().getString())),
+                        capacity <= 0 ? 0 : Math.clamp(remaining / capacity, 0, 1));
             }
             return SkillEffectHudCards.progress(id(), true, AscendancePalette.UTILITY,
                     text("masterwork_overdurability", compact(state.remaining), compact(state.capacity)),

@@ -249,9 +249,13 @@ public final class NativeVitalityRecoveryTest {
                             "hud.essence_ascendance.recovery.active"))
                             && recoveryCard.lines().equals(List.of(SkillEffectHudEntry.Text.translated(
                             "hud.essence_ascendance.recovery.speed", SkillEffectHudCards.decimal(
-                                    RecoveryMath.speed(4, 20, tuning.maxSpeedBonus(), tuning.recoveryCurveExponent())))))
+                                    RecoveryMath.speed(5, 20, tuning.maxSpeedBonus(), tuning.recoveryCurveExponent())))))
                             && recoveryCard.meter().kind() == SkillEffectHudEntry.MeterKind.NONE,
-                    "Rising Recovery HUD stays active only after a native eligible recovery tick");
+                    "Rising Recovery HUD refreshes its multiplier to the current post-heal health");
+            player.setHealth(20);
+            check(SkillEffectRuntime.hudSnapshot(player).entries().stream()
+                            .filter(entry -> entry.sourceSkill().equals(SkillIds.RISING_RECOVERY)).noneMatch(SkillEffectHudEntry::active),
+                    "Completed recovery cannot keep advertising an active regeneration bonus");
         }
         var food = new FoodData(); food.setFoodLevel(17); food.setSaturation(0);
         ProjectileNativeInterceptionTest.set(Player.class, player, "foodData", food); player.setHealth(4);

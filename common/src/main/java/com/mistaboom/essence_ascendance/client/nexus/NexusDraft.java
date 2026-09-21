@@ -408,7 +408,7 @@ public final class NexusDraft {
     private boolean matchesBaseline(ClientEssenceState.Snapshot snapshot) {
         if (!Objects.equals(baseTierId, snapshot.tierId())
                 || !Objects.equals(baseProfileId, snapshot.balanceProfileId())
-                || !baseOwnedSkills.equals(snapshot.ownedSkills())
+                || !matchesOwnedPurchases(snapshot.ownedSkills())
                 || !baseLoadouts.equals(snapshot.loadoutSelections())
                 || !baseMilestones.equals(snapshot.completedMilestones())
                 || baseStoredInvestments.size() != snapshot.stats().size()
@@ -428,6 +428,19 @@ public final class NexusDraft {
                     || !Objects.equals(baseMaximumEffects.get(entry.getKey()), entry.getValue().transcendentMaximumBonus())) {
                 return false;
             }
+        }
+        return true;
+    }
+
+    private boolean matchesOwnedPurchases(Map<ResourceLocation, ClientEssenceState.SkillPurchaseSnapshot> owned) {
+        if (baseOwnedSkills.size() != owned.size()) return false;
+        for (var entry : baseOwnedSkills.entrySet()) {
+            var before = entry.getValue();
+            var current = owned.get(entry.getKey());
+            // HUD visibility is an independent preference, not part of the transaction's purchase baseline.
+            if (current == null || !before.skillId().equals(current.skillId())
+                    || !before.essenceId().equals(current.essenceId())
+                    || !before.paidCosts().equals(current.paidCosts())) return false;
         }
         return true;
     }

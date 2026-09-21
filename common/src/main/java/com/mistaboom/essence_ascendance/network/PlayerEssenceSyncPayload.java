@@ -33,7 +33,7 @@ public record PlayerEssenceSyncPayload(
         ProgressState progress
 ) implements CustomPacketPayload {
 
-    public static final int CURRENT_SCHEMA_VERSION = 9;
+    public static final int CURRENT_SCHEMA_VERSION = 10;
 
     static final int MAX_ID_LENGTH = 128;
     private static final int MAX_ESSENCES = 128;
@@ -135,6 +135,7 @@ public record PlayerEssenceSyncPayload(
             buffer.writeUtf(skill.paidEssenceId(), MAX_ID_LENGTH);
             buffer.writeVarInt(skill.paidCosts().size());
             for (long cost : skill.paidCosts()) buffer.writeLong(cost);
+            buffer.writeBoolean(skill.hudEnabled());
         }
 
         buffer.writeVarInt(payload.loadoutSelections.size());
@@ -277,7 +278,7 @@ public record PlayerEssenceSyncPayload(
             int ranks = readBoundedCount(buffer, 64, "skill rank");
             List<Long> receipts = new ArrayList<>(ranks);
             for (int rank = 0; rank < ranks; rank++) receipts.add(buffer.readLong());
-            ownedSkills.add(new OwnedSkillState(skillId, essenceId, receipts));
+            ownedSkills.add(new OwnedSkillState(skillId, essenceId, receipts, buffer.readBoolean()));
         }
 
         int loadoutSelectionCount =
@@ -511,7 +512,10 @@ public record PlayerEssenceSyncPayload(
         }
     }
 
-    public record OwnedSkillState(String skillId, String paidEssenceId, List<Long> paidCosts) {
+    public record OwnedSkillState(String skillId, String paidEssenceId, List<Long> paidCosts, boolean hudEnabled) {
+        public OwnedSkillState(String skillId, String paidEssenceId, List<Long> paidCosts) {
+            this(skillId, paidEssenceId, paidCosts, true);
+        }
         public OwnedSkillState {
             Objects.requireNonNull(skillId, "Owned skill ID cannot be null");
             Objects.requireNonNull(paidEssenceId, "Paid Essence ID cannot be null");

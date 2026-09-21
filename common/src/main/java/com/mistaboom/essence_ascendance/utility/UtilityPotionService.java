@@ -103,6 +103,7 @@ public final class UtilityPotionService {
             int remaining = active == null ? resolved.getDuration() : active.getDuration();
             AmplificationState state = context.state(SkillIds.ALCHEMICAL_AMPLIFICATION, AmplificationState::new);
             state.effectKey = resolved.getEffect().value().getDescriptionId();
+            state.effect = resolved.getEffect();
             state.originalDuration = originalDuration;
             state.appliedDuration = resolved.getDuration();
             state.expiresAt = context.now() + Math.max(0, remaining);
@@ -124,7 +125,10 @@ public final class UtilityPotionService {
     public static AmplificationSnapshot amplificationSnapshot(SkillEffectRuntime.Context context) {
         AmplificationState state = context.existingState(SkillIds.ALCHEMICAL_AMPLIFICATION);
         if (state == null || state.expiresAt <= context.now()) return null;
-        return new AmplificationSnapshot(state.effectKey, state.originalDuration, state.appliedDuration, state.expiresAt);
+        MobEffectInstance active = state.effect == null ? null : context.player().getEffect(state.effect);
+        if (active == null) return null;
+        long expiry = active.isInfiniteDuration() ? state.expiresAt : Math.min(state.expiresAt, context.now() + active.getDuration());
+        return new AmplificationSnapshot(state.effectKey, state.originalDuration, state.appliedDuration, expiry);
     }
 
     public static RelaySnapshot relaySnapshot(SkillEffectRuntime.Context context) {
@@ -221,11 +225,12 @@ public final class UtilityPotionService {
     }
 
     private static final class AmplificationState implements SkillEffectState {
+        Holder<MobEffect> effect;
         String effectKey = "";
         int originalDuration;
         int appliedDuration;
         long expiresAt;
-        @Override public void clear() { effectKey = ""; originalDuration = appliedDuration = 0; expiresAt = 0; }
+        @Override public void clear() { effect = null; effectKey = ""; originalDuration = appliedDuration = 0; expiresAt = 0; }
     }
 
     private static final class RelayState implements SkillEffectState {

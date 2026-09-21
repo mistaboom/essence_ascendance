@@ -15,7 +15,28 @@ public final class MobilityTraversalEffects {
     public static List<SkillEffectHandler> handlers() {
         return TraversalCapabilities.profiles().stream().<SkillEffectHandler>map(Handler::new).toList();
     }
-    private record Handler(TraversalCapabilities.Profile profile) implements SkillEffectHandler {
+    private record Handler(TraversalCapabilities.Profile profile) implements SkillEffectHudHandler {
+        @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
+            if (!id().equals(com.mistaboom.essence_ascendance.skill.SkillIds.AQUATIC_BODY)
+                    && !id().equals(com.mistaboom.essence_ascendance.skill.SkillIds.LAVABORN)
+                    && !id().equals(com.mistaboom.essence_ascendance.skill.SkillIds.WATER_WALKING))
+                return SkillHudEvents.card(context, id());
+            var player = context.player();
+            boolean active = switch (id().getPath()) {
+                case "aquatic_body" -> player.isInWater() && TraversalService.fluidBody(player);
+                case "lavaborn" -> TraversalService.lavaBody(player);
+                case "water_walking" -> TraversalService.canStandOnFluid(player, player.level().getFluidState(player.blockPosition().below()));
+                default -> SkillHudEvents.active(context, id());
+            };
+            String key = switch (id().getPath()) {
+                case "aquatic_body" -> "submerged";
+                case "lavaborn" -> "lava";
+                case "water_walking" -> "surface";
+                default -> "terrain";
+            };
+            return SkillEffectHudEntry.skill(id(), active, 0, SkillEffectHudEntry.Text.translated("hud.essence_ascendance.event." + key),
+                    List.of(), SkillEffectHudEntry.Meter.none());
+        }
         @Override public ResourceLocation id() { return profile.skill(); }
         @Override public void reconcile(SkillEffectRuntime.Context context) {
             if (profile.capabilities().contains(TERRAIN_CONTACT) && context.player().getTicksFrozen() > 0)

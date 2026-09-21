@@ -85,9 +85,11 @@ final class OffenseProjectilePayloads {
         }
         @Override public void impact(ProjectileImpactEffects.Impact impact, CompoundTag data) {
             if (ImmobilizationController.apply(impact.owner(), impact.victim(), data.getInt("Duration"),
-                    data.getInt("MaximumDuration"), data.getDouble("MovementTolerance")) && data.getInt("Particles") > 0)
-                SkillProcDamageService.particles(impact.owner(), impact.victim(), ParticleTypes.ENCHANT,
+                    data.getInt("MaximumDuration"), data.getDouble("MovementTolerance"))) {
+                com.mistaboom.essence_ascendance.skill.effect.SkillHudEvents.record(impact.owner(), SkillIds.ROOTING_PAYLOAD, "rooted", data.getInt("Duration") / 20.0);
+                if (data.getInt("Particles") > 0) SkillProcDamageService.particles(impact.owner(), impact.victim(), ParticleTypes.ENCHANT,
                         data.getInt("Particles"), 0.25, 0.01);
+            }
         }
     }
 }

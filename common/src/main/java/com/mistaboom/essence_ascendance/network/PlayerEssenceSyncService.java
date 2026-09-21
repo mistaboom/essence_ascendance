@@ -340,7 +340,7 @@ public final class PlayerEssenceSyncService {
                                                 entry.getValue()
                                                         .essenceId()
                                                         .toString(),
-                                                entry.getValue().paidCosts()
+                                                entry.getValue().paidCosts(), playerData.skillHudEnabled(entry.getKey())
                                         )
                         )
                         .toList();

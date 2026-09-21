@@ -70,6 +70,7 @@ public final class SkillEffectRuntime {
     }
 
     public static void reset(ServerPlayer player) {
+        SkillHudEvents.forget(player);
         com.mistaboom.essence_ascendance.vitality.VitalityDamageService.removeModifier(player);
         GuardCounterattackService.reset(player);
         com.mistaboom.essence_ascendance.guard.GuardLifecycle.forget(player);
@@ -93,6 +94,7 @@ public final class SkillEffectRuntime {
     }
 
     public static void clearAll() {
+        SkillHudEvents.clear();
         CombatHudActivity.clear();
         GuardCounterattackService.clearAll();
         com.mistaboom.essence_ascendance.posture.PostureService.clear();
@@ -290,8 +292,9 @@ public final class SkillEffectRuntime {
         List<SkillEffectHudEntry> entries = new ArrayList<>();
         if (player.isAlive() && !player.isRemoved()) {
             Context context = current(player);
+            var data = com.mistaboom.essence_ascendance.data.EssenceSavedData.get(player.server).getPlayerData(player.getUUID());
             for (SkillEffectHandler handler : SkillEffectRegistry.handlers()) {
-                if (!context.isEffective(handler.id()) && !handler.hudWhileIneffective(context)) continue;
+                if (!data.getTier().grantsPower() || !context.isEffective(handler.id()) || !data.skillHudEnabled(handler.id())) continue;
                 for (SkillEffectHudEntry entry : handler.hudEntries(context)) {
                     if (!entry.sourceSkill().equals(handler.id())) {
                         throw new IllegalArgumentException("HUD source does not match handler: " + handler.id());
@@ -412,7 +415,10 @@ public final class SkillEffectRuntime {
                 Integer previousRank = runtime.ranks.get(entry.getKey());
                 if (previousRank != null && !previousRank.equals(entry.getValue())) {
                     SkillEffectHandler handler = SkillEffectRegistry.get(entry.getKey());
-                    if (handler != null) handler.deactivate(context);
+                    if (handler != null) {
+                        handler.deactivate(context);
+                        SkillHudEvents.forget(context.player(), handler.id());
+                    }
                     runtime.attempt = null;
                 }
             }
@@ -427,7 +433,10 @@ public final class SkillEffectRuntime {
             runtime.attackIdentity = new Object();
         }
         for (SkillEffectHandler handler : SkillEffectRegistry.handlers()) {
-            if (runtime.effective.contains(handler.id()) && !effective.contains(handler.id())) handler.deactivate(context);
+            if (runtime.effective.contains(handler.id()) && !effective.contains(handler.id())) {
+                handler.deactivate(context);
+                SkillHudEvents.forget(context.player(), handler.id());
+            }
         }
         runtime.effective = effective;
         // A wrapper normally closes in the same tick; this bounds even an interrupted adapter.
@@ -444,6 +453,7 @@ public final class SkillEffectRuntime {
     private static void clear(Context context) {
         CombatHudActivity.forget(context.player());
         for (SkillEffectHandler handler : SkillEffectRegistry.handlers()) handler.deactivate(context);
+        SkillHudEvents.forget(context.player());
         context.runtime.states.values().forEach(SkillEffectState::clear);
         context.runtime.states.clear();
         context.runtime.effective = Set.of();

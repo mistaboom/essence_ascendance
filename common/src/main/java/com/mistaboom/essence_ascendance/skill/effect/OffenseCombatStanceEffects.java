@@ -79,7 +79,7 @@ final class OffenseCombatStanceEffects {
             TimedStackState state = context.existingState(id());
             int count = state == null ? 0 : state.count();
             var settings = context.settings().frenzy();
-            return SkillEffectHudCards.timed(id(), count > 0, 0xFFE87929,
+            return SkillEffectHudCards.timed(id(), count > 0, com.mistaboom.essence_ascendance.visual.AscendancePalette.OFFENSE,
                     stackBadge(count, settings.maxStacks()),
                     List.of(Text.translated("hud.essence_ascendance.damage_speed",
                             decimal(SkillEffectMath.stackMultiplier(count, settings.maxStacks(), settings.damageBonusPercentPerStack())),
@@ -150,8 +150,10 @@ final class OffenseCombatStanceEffects {
                 detail = Text.translated("hud.essence_ascendance.armor_reduction", name,
                         decimal(count * settings.armorReductionPerStack()));
             }
-            return SkillEffectHudCards.timed(id(), count > 0, 0xFFF2C94C,
-                    stackBadge(count, settings.maxStacks()), List.of(detail),
+            return SkillEffectHudCards.timed(id(), count > 0, com.mistaboom.essence_ascendance.visual.AscendancePalette.OFFENSE,
+                    stackBadge(count, settings.maxStacks()), target == null ? List.of(detail) : List.of(
+                            Text.translated("hud.essence_ascendance.armor_removed", decimal(count * settings.armorReductionPerStack())),
+                            Text.literal(target.getName().getString())),
                     "hud.essence_ascendance.exposed", state == null ? 0L : state.stacks.nextExpiry());
         }
 
@@ -220,7 +222,7 @@ final class OffenseCombatStanceEffects {
             double missing = 1.0 - healthFraction(context);
             double multiplier = SkillEffectMath.desperationMultiplier(context.player().getHealth(),
                     context.player().getMaxHealth(), context.settings().desperation().maxDamageBonusPercent());
-            return SkillEffectHudCards.progress(id(), multiplier > 1.000001, 0xFFEA4E4E,
+            return SkillEffectHudCards.progress(id(), multiplier > 1.000001, com.mistaboom.essence_ascendance.visual.AscendancePalette.OFFENSE,
                     Text.translated("hud.essence_ascendance.percent", Long.toString(Math.round(missing * 100.0))),
                     List.of(Text.translated("hud.essence_ascendance.damage", decimal(multiplier))),
                     missing);
@@ -257,7 +259,7 @@ final class OffenseCombatStanceEffects {
             TimedStackState state = context.existingState(id());
             int count = state == null ? 0 : state.count();
             var settings = context.settings().deathRush();
-            return SkillEffectHudCards.timed(id(), count > 0, 0xFFB17BFF,
+            return SkillEffectHudCards.timed(id(), count > 0, com.mistaboom.essence_ascendance.visual.AscendancePalette.OFFENSE,
                     stackBadge(count, settings.maxStacks()),
                     List.of(Text.translated("hud.essence_ascendance.attack_bow_speed",
                             decimal(rushSpeed(context, settings.attackSpeedBonusPercentPerStack())),

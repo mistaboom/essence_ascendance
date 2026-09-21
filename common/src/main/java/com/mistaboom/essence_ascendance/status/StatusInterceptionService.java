@@ -131,6 +131,7 @@ public final class StatusInterceptionService {
         boolean secondary = secondary(direct);
         boolean pure = selected.equals(SkillIds.PURE_STATE) && harmful && nonempty;
         if (pure) {
+            com.mistaboom.essence_ascendance.skill.effect.SkillHudEvents.record(defender, SkillIds.PURE_STATE, "blocked", 1);
             state.latest = outcome(event, context, selected, incoming.getEffect(), requested.values, before.values, direct,
                     responsible, "prevented_before_native_application", before.values, before.values, true, false,
                     List.of(), "not_requested", List.of(), state, secondary, "pure_state_no_cleansing");

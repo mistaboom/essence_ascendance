@@ -94,7 +94,15 @@ public final class VitalitySustenanceEffects {
         @Override public void clear() { lastAttempt = Long.MIN_VALUE; }
     }
 
-    private static final class Feast implements SkillEffectHandler {
+    private static final class Feast implements SkillEffectHudHandler {
+        @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
+            var player = context.player();
+            if (player.isUsingItem() && player.getUseItem().has(DataComponents.FOOD))
+                return SkillEffectHudCards.timed(id(), true, 0,
+                        SkillEffectHudEntry.Text.translated("hud.essence_ascendance.event.eating"), List.of(),
+                        "hud.essence_ascendance.remaining", context.now() + player.getUseItemRemainingTicks());
+            return SkillHudEvents.card(context, id());
+        }
         @Override public ResourceLocation id() { return SkillIds.FEAST_REFLEX; }
         @Override public void acceptedDamage(SkillEffectRuntime.Context context, DamageSource source,
                                              double healthLost, double absorptionLost) {
@@ -122,7 +130,8 @@ public final class VitalitySustenanceEffects {
                         foodLevel, food.nutrition(), player.isUsingItem());
             });
             if (slot < 0) return;
-            virtualEat(player, slot);
+            int beforeFood = player.getFoodData().getFoodLevel();
+            if (virtualEat(player, slot)) SkillHudEvents.record(player, id(), "food", player.getFoodData().getFoodLevel() - beforeFood);
         }
         @Override public void reconcile(SkillEffectRuntime.Context context) {
             // Virtual meals have no native use state or temporary slot claim
@@ -177,7 +186,17 @@ public final class VitalitySustenanceEffects {
         boolean wasFull;
         @Override public void clear() { clock.clear(); wasFull = false; }
     }
-    private static final class Inner implements SkillEffectHandler {
+    private static final class Inner implements SkillEffectHudHandler {
+        @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
+            var food = context.player().getFoodData();
+            long lock = RecentHostileCombat.remaining(context, context.settings().vitality().innerSustenance().combatTimeoutTicks());
+            boolean missing = food.getFoodLevel() < 20 || food.getSaturationLevel() < 20;
+            if (!missing) return SkillHudEvents.card(context, id());
+            return SkillEffectHudEntry.skill(id(), true, 0, SkillEffectHudEntry.Text.translated("hud.essence_ascendance.event.reserve",
+                    Integer.toString(food.getFoodLevel()), SkillEffectHudCards.compact(food.getSaturationLevel())), List.of(),
+                    lock > 0 ? SkillEffectHudEntry.Meter.timer("hud.essence_ascendance.status.cooldown", context.now() + lock)
+                            : SkillEffectHudEntry.Meter.none());
+        }
         @Override public ResourceLocation id() { return SkillIds.INNER_SUSTENANCE; }
         @Override public void tick(SkillEffectRuntime.Context context) {
             var player = context.player();
@@ -190,6 +209,7 @@ public final class VitalitySustenanceEffects {
                 food.setFoodLevel(Math.min(net.minecraft.world.food.FoodConstants.MAX_FOOD, food.getFoodLevel() + settings.hungerPerRecovery()));
                 food.setSaturation((float) Math.min(food.getFoodLevel(), food.getSaturationLevel() + settings.saturationPerRecovery()));
                 double restored = AttunementGameplay.food(player) - before;
+                if (restored > 0) SkillHudEvents.record(player, id(), "refilled", restored);
                 if (restored > 0) SkillEffectRuntime.reportOutcome(player,
                         new AttunementEvent(AttunementGameplay.action("inner_sustenance"), List.of(
                                 AttunementEvent.Outcome.eligible("restore_hunger", id().toString(), restored))));

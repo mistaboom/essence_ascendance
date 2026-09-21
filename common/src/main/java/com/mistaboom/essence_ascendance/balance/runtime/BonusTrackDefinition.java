@@ -11,7 +11,13 @@ public record BonusTrackDefinition(ResourceLocation statId, StatCategory categor
         List<Checkpoint> checkpoints, double investmentExponent, PurchaseStyle purchaseStyle,
         List<Double> snapPoints, Applicability applicability, List<String> compatibilityRequirements,
         double confidence, List<String> evidence, String source, Map<String, Double> inputs) {
-    public enum PurchaseStyle { CONTINUOUS, THRESHOLD, FUNDED_STATES }
+    public enum PurchaseStyle {
+        CONTINUOUS, THRESHOLD,
+        /** Meaningful tier checkpoints with continuous benefits between them; serialized name retained. */
+        FUNDED_STATES;
+
+        public boolean continuousBenefits() { return this != THRESHOLD; }
+    }
     public int activeStateCount() { return (int) checkpoints.stream().filter(Checkpoint::purchasable).count(); }
     public List<Double> activeValues() { return checkpoints.stream().filter(Checkpoint::purchasable)
             .map(point -> point.effectFraction() * maximumEffect).toList(); }

@@ -69,9 +69,12 @@ public final class MeaningfulProgressionTest {
             for (var point : track.checkpoints()) {
                 if (point.purchasable()) {
                     check(!completed, "Contiguous active window");
-                    double before = BonusTrackCurve.realizedProgressionForInvestment(track.checkpoints(),track.investmentExponent(),track.snapPoints(),point.cumulativeCap()-1,point.tierId());
-                    double at = BonusTrackCurve.realizedProgressionForInvestment(track.checkpoints(),track.investmentExponent(),track.snapPoints(),point.cumulativeCap(),point.tierId());
-                    check(at == point.effectFraction() && at > before, "No partial power before complete funding");
+                    var stat = EssenceStatRegistry.get(track.statId()).orElseThrow();
+                    var tier = AscendanceTierRegistry.get(point.tierId()).orElseThrow();
+                    double before = StatScalingService.realizedProgressionForInvestment(stat, point.cumulativeCap()-1, tier, runtime.config().balanceProfile());
+                    double at = StatScalingService.realizedProgressionForInvestment(stat, point.cumulativeCap(), tier, runtime.config().balanceProfile());
+                    check(at == point.effectFraction() && at > before && (point.cumulativeCap() <= 1 || before > 0),
+                            "Fractional investment reaches the unchanged meaningful tier target");
                 } else if (point.available()) completed = true;
             }
             var snapshot = com.mistaboom.essence_ascendance.network.BonusTrackSnapshot.from(track, runtime.config().balanceProfile());

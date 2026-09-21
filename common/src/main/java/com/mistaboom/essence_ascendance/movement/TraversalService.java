@@ -41,7 +41,10 @@ public final class TraversalService {
                 && !player.isSleeping() && !player.isPassenger() && !player.isFallFlying() && !player.getAbilities().flying;
     }
     public static float terrainFactor(Entity entity, float nativeFactor) {
-        return TraversalCapabilities.has(entity, TERRAIN_DRAG) ? TraversalRules.withoutPenalty(nativeFactor) : nativeFactor;
+        float result = TraversalCapabilities.has(entity, TERRAIN_DRAG) ? TraversalRules.withoutPenalty(nativeFactor) : nativeFactor;
+        if (result != nativeFactor && entity instanceof net.minecraft.server.level.ServerPlayer player)
+            com.mistaboom.essence_ascendance.skill.effect.SkillHudEvents.record(player, com.mistaboom.essence_ascendance.skill.SkillIds.TERRAIN_FREEDOM, "terrain", 1);
+        return result;
     }
     public static boolean ignoresDrag(Entity entity, BlockState block) {
         return block.is(DRAG_BLOCKS) && TraversalCapabilities.has(entity, TERRAIN_DRAG);
@@ -53,10 +56,13 @@ public final class TraversalService {
     public static boolean preventsFreezing(Entity entity) { return TraversalCapabilities.has(entity, TERRAIN_CONTACT); }
     public static boolean protectsDamage(LivingEntity entity, DamageSource source) {
         if (source == null || !(entity instanceof Player)) return false;
-        return TraversalRules.protectsContact(TraversalCapabilities.has(entity, TERRAIN_CONTACT),
+        boolean protectedContact = TraversalRules.protectsContact(TraversalCapabilities.has(entity, TERRAIN_CONTACT),
                 TraversalCapabilities.has(entity, LAVA_PROTECTION), entity.isInLava(),
                 source.is(TERRAIN_DAMAGE), source.is(IMMERSION_DAMAGE),
                 source.getEntity() != null || source.getDirectEntity() != null, source.is(DamageTypeTags.BYPASSES_INVULNERABILITY));
+        if (protectedContact && entity instanceof net.minecraft.server.level.ServerPlayer player)
+            com.mistaboom.essence_ascendance.skill.effect.SkillHudEvents.record(player, source.is(TERRAIN_DAMAGE) ? com.mistaboom.essence_ascendance.skill.SkillIds.TERRAIN_FREEDOM : com.mistaboom.essence_ascendance.skill.SkillIds.LAVABORN, "terrain", 1);
+        return protectedContact;
     }
     public static boolean lavaBody(Entity entity) {
         return nativeMovement(entity) && entity.isInLava() && TraversalCapabilities.has(entity, LAVA_BODY);

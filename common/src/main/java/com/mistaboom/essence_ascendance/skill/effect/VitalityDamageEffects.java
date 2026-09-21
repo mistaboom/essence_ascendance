@@ -57,7 +57,6 @@ public final class VitalityDamageEffects {
     }
     private static final class StaggeredPain implements SkillEffectHudHandler {
         @Override public ResourceLocation id() { return SkillIds.STAGGERED_PAIN; }
-        @Override public boolean hudWhileIneffective(SkillEffectRuntime.Context context) { return !VitalityDamageService.ledger(context.player()).delayed.isEmpty(); }
         @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
             var debt = VitalityDamageService.ledger(context.player()).delayed;
             return SkillEffectHudCards.timed(id(), !debt.isEmpty(), AscendancePalette.VITALITY,
@@ -72,7 +71,6 @@ public final class VitalityDamageEffects {
     }
     private static final class DamageCeiling implements SkillEffectHudHandler {
         @Override public ResourceLocation id() { return SkillIds.DAMAGE_CEILING; }
-        @Override public boolean hudWhileIneffective(SkillEffectRuntime.Context context) { return VitalityDamageService.ledger(context.player()).traumaFraction > 0; }
         @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
             var debt = VitalityDamageService.ledger(context.player());
             boolean trauma = debt.traumaFraction > 0;

@@ -29,10 +29,10 @@ public final class UtilitySenseEffects {
         @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
             var counts = UtilitySenseService.threatCounts(context);
             List<Text> details = new ArrayList<>();
-            details.add(text("sense_range", SkillEffectHudCards.compact(context.settings().utility().threatSense().rangeBlocks())));
             if (counts.projectilePaths() > 0) details.add(text("projectile_paths", Integer.toString(counts.projectilePaths())));
             if (counts.explosions() > 0 && details.size() < SkillEffectHudEntry.MAX_LINES)
                 details.add(text("explosion_zones", Integer.toString(counts.explosions())));
+            if (details.size() < 2) details.add(text("sense_range", SkillEffectHudCards.compact(context.settings().utility().threatSense().rangeBlocks())));
             return SkillEffectHudEntry.skill(id(), counts.activeThreats() > 0 || counts.projectilePaths() > 0 || counts.explosions() > 0,
                     AscendancePalette.UTILITY, text("active_threats", Integer.toString(counts.activeThreats())),
                     details, SkillEffectHudEntry.Meter.none());
@@ -82,7 +82,7 @@ public final class UtilitySenseEffects {
                 details.add(text("waylight_spawnable"));
             }
             details.add(text("waylight_vision"));
-            return SkillEffectHudEntry.skill(id(), true, AscendancePalette.UTILITY,
+            return SkillEffectHudEntry.skill(id(), marker != null, AscendancePalette.UTILITY,
                     marker == null ? text("waylight_searching") : text("waylight_wisp"), details,
                     SkillEffectHudEntry.Meter.none());
         }

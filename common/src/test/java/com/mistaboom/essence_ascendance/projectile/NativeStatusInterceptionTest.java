@@ -175,8 +175,10 @@ public final class NativeStatusInterceptionTest {
                 "Pure State also prevents secondary harm without cooldown or transfer");
         player.forceAddEffect(new MobEffectInstance(poison, 100), source);
         check(!player.hasEffect(poison), "common native forceAddEffect boundary cannot bypass Pure State");
-        check(SkillEffectRuntime.hudSnapshot(player).entries().stream().noneMatch(e -> e.sourceSkill().equals(SkillIds.PURE_STATE)
-                || e.sourceSkill().equals(SkillIds.STATUS_MIRROR)), "Pure State creates no HUD clutter and switching immediately removes Mirror card");
+        check(SkillEffectRuntime.hudSnapshot(player).entries().stream().anyMatch(e -> e.sourceSkill().equals(SkillIds.PURE_STATE) && e.active()),
+                "Pure State briefly reports actual prevented harmful effects");
+        check(SkillEffectRuntime.hudSnapshot(player).entries().stream().noneMatch(e -> e.sourceSkill().equals(SkillIds.STATUS_MIRROR)),
+                "Switching immediately removes Mirror card");
 
         var registry = new MappedRegistry<MobEffect>(Registries.MOB_EFFECT, Lifecycle.stable());
         var modded = registry.register(ResourceKey.create(Registries.MOB_EFFECT, ResourceLocation.fromNamespaceAndPath("test", "harmful")),

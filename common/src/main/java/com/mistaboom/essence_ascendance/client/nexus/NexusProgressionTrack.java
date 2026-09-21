@@ -25,13 +25,30 @@ public record NexusProgressionTrack(
         return new NexusBonusTrackLayout(state.track(), top, bottom);
     }
 
+    /** Keep the grabbed track's live preview visible even when the pointer leaves its hover area. */
+    public static NexusProgressionTrack tooltipTrack(List<NexusProgressionTrack> tracks, int draggingIndex,
+                                                     NexusProgressionTrack hovered) {
+        return draggingIndex >= 0 && draggingIndex < tracks.size() ? tracks.get(draggingIndex) : hovered;
+    }
+
     public double progression(long target, ResourceLocation tierId) {
         var resolved = state.track();
         long effective = Math.clamp(target, 0L, state.currentInvestmentCap());
-        if (resolved.purchaseStyle() != com.mistaboom.essence_ascendance.balance.runtime.BonusTrackDefinition.PurchaseStyle.CONTINUOUS)
+        if (!resolved.purchaseStyle().continuousBenefits())
             return BonusTrackCurve.realizedProgressionForInvestment(resolved.checkpoints(), resolved.investmentExponent(),
                     resolved.snapPoints(), effective, tierId);
         return BonusTrackCurve.progressionForInvestment(resolved.checkpoints(), resolved.investmentExponent(), effective, tierId);
+    }
+
+    /** Handle position follows exact funding, independently of completed gameplay benefits. */
+    public double fundingProgression(long target, ResourceLocation tierId) {
+        var resolved = state.track();
+        return BonusTrackCurve.progressionForInvestment(resolved.checkpoints(), resolved.investmentExponent(),
+                Math.clamp(target, 0L, state.currentInvestmentCap()), tierId);
+    }
+
+    public int handleY(long target, ResourceLocation tierId, int top, int bottom) {
+        return layout(top, bottom).yForEffect(fundingProgression(target, tierId));
     }
 
     /** Exact final target for a drag; affordability is supplied by the shared cross-mode draft. */

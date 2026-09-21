@@ -115,10 +115,8 @@ public final class NativeGuardCounterattackTest {
             check(!card(consumedHud.entries(), SkillIds.STORED_FORCE).active() && !card(consumedHud.entries(), SkillIds.RIPOSTE).active(),
                     "Confirmed strike consumes both rewards while retaining inactive card identities");
             presentation.replace(consumedHud.entries(), 101);
-            check(card(presentation.visibleEntries(160), SkillIds.STORED_FORCE).equals(card(hud.entries(), SkillIds.STORED_FORCE))
-                            && card(presentation.visibleEntries(160), SkillIds.RIPOSTE).equals(card(hud.entries(), SkillIds.RIPOSTE)),
-                    "Actual consumed handler snapshots retain their last active values for sixty ticks");
-            check(presentation.visibleEntries(161).isEmpty(), "Actual consumed guard cards close at the exact shared grace boundary");
+            check(presentation.visibleEntries(101).isEmpty(), "Consumed guard rewards immediately stop advertising stored power and readiness");
+            check(presentation.visibleEntries(161).isEmpty(), "Consumed guard rewards cannot reappear during an event grace period");
             f.player.push(.2, 0, 0);
             check(f.player.getDeltaMovement().x > 0, "Native displacement resumes immediately after strike");
 

@@ -121,7 +121,12 @@ public final class MobilityMomentumEffects {
                     "One transition per server tick; native grounded movement plus fresh input builds. Jumps/forced recovery hold, never build. Teleports/mode changes reset.");
         }
     }
-    private static final class Vault implements SkillEffectHandler {
+    private static final class Vault implements SkillEffectHudHandler {
+        @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
+            return SkillEffectHudEntry.skill(id(), vaultReady(context), 0,
+                    Text.translated("hud.essence_ascendance.event.vault", compact(settings(context).momentumVault().stepHeight())),
+                    List.of(text("momentum", compact(amount(context) * 100))), SkillEffectHudEntry.Meter.none());
+        }
         @Override public ResourceLocation id() { return SkillIds.MOMENTUM_VAULT; }
         @Override public void reconcile(SkillEffectRuntime.Context context) { applyVault(context); }
         @Override public void deactivate(SkillEffectRuntime.Context context) {

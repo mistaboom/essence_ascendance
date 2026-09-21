@@ -303,3 +303,12 @@ tasks.register('dormantGuidebookInvariants', JavaExec) {
 tasks.named('balanceInvariants') { dependsOn 'durabilityDomainInvariants', 'sharedTargetWorkInvariants' }
 tasks.named('vitalityInvariants') { dependsOn 'durabilityDomainInvariants' }
 tasks.named('combatInvariants') { dependsOn 'sharedTargetWorkInvariants' }
+
+tasks.register('sharedPresentationInvariants', JavaExec) {
+    group = 'verification'
+    description = 'Generated tooltips, bonus prose, Latent gating, universal HUD and preference transport.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.mistaboom.essence_ascendance.client.SharedPresentationTest'
+}
+tasks.named('balanceInvariants') { dependsOn 'sharedPresentationInvariants' }

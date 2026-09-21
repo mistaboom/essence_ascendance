@@ -17,9 +17,8 @@ public final class SkillEffectHudPresentation {
         Map<ResourceLocation, Boolean> active = new LinkedHashMap<>();
         for (SkillEffectHudEntry entry : incoming) {
             active.put(entry.id(), entry.active());
-            // Preserve the accepted offense behavior: freeze the last active card
-            // during closing; repeated inactive snapshots must not restart its delay.
-            if (entry.active() || !displayed.containsKey(entry.id())) displayed.put(entry.id(), entry);
+            // Only completed event receipts retain their last outcome during closing.
+            if (entry.active() || !entry.retainAfterActive() || !displayed.containsKey(entry.id())) displayed.put(entry.id(), entry);
         }
         displayed.keySet().retainAll(active.keySet());
         visibility.replace(active, now);
@@ -27,7 +26,7 @@ public final class SkillEffectHudPresentation {
     }
 
     public List<SkillEffectHudEntry> visibleEntries(long now) {
-        return entries.stream().filter(entry -> visibility.visible(entry.id(), now))
+        return entries.stream().filter(entry -> (entry.active() || entry.retainAfterActive()) && visibility.visible(entry.id(), now))
                 .map(entry -> displayed.getOrDefault(entry.id(), entry)).toList();
     }
 
