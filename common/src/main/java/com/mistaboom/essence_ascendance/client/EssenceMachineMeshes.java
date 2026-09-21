@@ -16,6 +16,16 @@ public final class EssenceMachineMeshes {
             id("textures/block/essence_pylon.png")
     );
 
+    public static final BlockbenchStaticMesh NEXUS = new BlockbenchStaticMesh(
+            id("meshes/ascendance_nexus.eamesh"),
+            id("textures/block/ascendance_nexus.png")
+    );
+
+    public static final BlockbenchStaticMesh INFUSER = new BlockbenchStaticMesh(
+            id("meshes/essence_infuser.eamesh"),
+            id("textures/block/essence_infuser.png")
+    );
+
     private EssenceMachineMeshes() {
     }
 

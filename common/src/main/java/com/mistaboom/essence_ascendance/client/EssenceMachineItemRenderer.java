@@ -1,7 +1,9 @@
 package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleContent;
+import com.mistaboom.essence_ascendance.infuser.EssenceInfuserContent;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonContent;
+import com.mistaboom.essence_ascendance.nexus.AscendanceNexusContent;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
@@ -10,7 +12,7 @@ import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * Shared BEWLR/dynamic-item renderer for the two Generic-Model machine blocks.
+ * Shared BEWLR/dynamic-item renderer for the Generic-Model machine blocks.
  */
 public final class EssenceMachineItemRenderer
         extends BlockEntityWithoutLevelRenderer {
@@ -55,6 +57,10 @@ public final class EssenceMachineItemRenderer
             mesh = EssenceMachineMeshes.CRUCIBLE;
         } else if (stack.is(EssencePylonContent.ESSENCE_PYLON_ITEM.get())) {
             mesh = EssenceMachineMeshes.PYLON;
+        } else if (stack.is(AscendanceNexusContent.ASCENDANCE_NEXUS_ITEM.get())) {
+            mesh = EssenceMachineMeshes.NEXUS;
+        } else if (stack.is(EssenceInfuserContent.ESSENCE_INFUSER_ITEM.get())) {
+            mesh = EssenceMachineMeshes.INFUSER;
         }
 
         if (mesh != null) {

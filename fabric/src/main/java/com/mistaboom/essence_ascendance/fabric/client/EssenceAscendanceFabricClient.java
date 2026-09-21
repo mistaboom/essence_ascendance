@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.fabric.client;
 
 import com.mistaboom.essence_ascendance.client.EssenceAscendanceClient;
 import com.mistaboom.essence_ascendance.client.AscendanceNexusScreen;
+import com.mistaboom.essence_ascendance.client.AscendanceNexusRenderer;
 import com.mistaboom.essence_ascendance.client.EssenceCrucibleRenderer;
 import com.mistaboom.essence_ascendance.client.EssenceCrucibleScreen;
 import com.mistaboom.essence_ascendance.client.EssenceInfuserRenderer;
@@ -49,6 +50,20 @@ public final class EssenceAscendanceFabricClient
                                 stack, mode, matrices, buffers, light, overlay
                         )
         );
+        BuiltinItemRendererRegistry.INSTANCE.register(
+                AscendanceNexusContent.ASCENDANCE_NEXUS_ITEM.get(),
+                (stack, mode, matrices, buffers, light, overlay) ->
+                        EssenceMachineItemRenderer.instance().renderByItem(
+                                stack, mode, matrices, buffers, light, overlay
+                        )
+        );
+        BuiltinItemRendererRegistry.INSTANCE.register(
+                EssenceInfuserContent.ESSENCE_INFUSER_ITEM.get(),
+                (stack, mode, matrices, buffers, light, overlay) ->
+                        EssenceMachineItemRenderer.instance().renderByItem(
+                                stack, mode, matrices, buffers, light, overlay
+                        )
+        );
 
         MenuScreens.register(
                 EssenceCrucibleContent.ESSENCE_CRUCIBLE_MENU.get(),
@@ -73,6 +88,10 @@ public final class EssenceAscendanceFabricClient
         BlockEntityRendererRegistry.register(
                 EssencePylonContent.ESSENCE_PYLON_BLOCK_ENTITY.get(),
                 EssencePylonRenderer::new
+        );
+        BlockEntityRendererRegistry.register(
+                AscendanceNexusContent.ASCENDANCE_NEXUS_BLOCK_ENTITY.get(),
+                AscendanceNexusRenderer::new
         );
         BlockEntityRendererRegistry.register(
                 EssenceInfuserContent.ESSENCE_INFUSER_BLOCK_ENTITY.get(),

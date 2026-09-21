@@ -11,7 +11,7 @@ import net.minecraft.client.renderer.entity.ItemRenderer;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 
-/** Placeholder renderer: the installed shared Focus floats above the Infuser. */
+/** Renders the modeled Infuser plus the installed floating Essence Focus. */
 public final class EssenceInfuserRenderer
         implements BlockEntityRenderer<EssenceInfuserBlockEntity> {
 
@@ -30,6 +30,13 @@ public final class EssenceInfuserRenderer
             int packedLight,
             int packedOverlay
     ) {
+        EssenceMachineMeshes.INFUSER.render(
+                poseStack,
+                bufferSource,
+                packedLight,
+                packedOverlay
+        );
+
         ItemStack focus = infuser.getItem(EssenceInfuserBlockEntity.FOCUS_SLOT);
         if (focus.isEmpty()) {
             return;

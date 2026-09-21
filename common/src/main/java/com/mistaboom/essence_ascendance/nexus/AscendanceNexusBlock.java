@@ -9,21 +9,73 @@ import net.minecraft.world.MenuProvider;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.ContainerLevelAccess;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
 /** Stateless world access point for permanent player progression. */
-public final class AscendanceNexusBlock extends Block {
+public final class AscendanceNexusBlock extends Block implements EntityBlock {
 
     private static final Component TITLE =
             Component.translatable(
                     "container.essence_ascendance.ascendance_nexus"
             );
 
+    /* Exact 1/16-voxel decomposition of the authored Blockbench mesh, rotated 90° clockwise to match the in-world orientation. */
+    private static final VoxelShape SHAPE = Shapes.or(
+            Block.box(12.0D, 0.0D, 0.0D, 16.0D, 2.0D, 4.0D),
+            Block.box(12.0D, 0.0D, 12.0D, 16.0D, 2.0D, 16.0D),
+            Block.box(0.0D, 0.0D, 0.0D, 4.0D, 2.0D, 4.0D),
+            Block.box(0.0D, 0.0D, 12.0D, 4.0D, 2.0D, 16.0D),
+
+            Block.box(12.0D, 2.0D, 1.0D, 16.0D, 11.0D, 4.0D),
+            Block.box(12.0D, 2.0D, 12.0D, 16.0D, 11.0D, 15.0D),
+            Block.box(12.0D, 2.0D, 0.0D, 15.0D, 11.0D, 1.0D),
+            Block.box(12.0D, 2.0D, 15.0D, 15.0D, 11.0D, 16.0D),
+            Block.box(1.0D, 2.0D, 0.0D, 4.0D, 11.0D, 4.0D),
+            Block.box(1.0D, 2.0D, 12.0D, 4.0D, 11.0D, 16.0D),
+            Block.box(0.0D, 2.0D, 1.0D, 1.0D, 11.0D, 4.0D),
+            Block.box(0.0D, 2.0D, 12.0D, 1.0D, 11.0D, 15.0D),
+
+            Block.box(0.0D, 11.0D, 1.0D, 16.0D, 13.0D, 15.0D),
+            Block.box(1.0D, 11.0D, 0.0D, 15.0D, 13.0D, 1.0D),
+            Block.box(1.0D, 11.0D, 15.0D, 15.0D, 13.0D, 16.0D),
+
+            Block.box(0.0D, 13.0D, 0.0D, 16.0D, 14.0D, 16.0D),
+
+            Block.box(14.0D, 14.0D, 0.0D, 16.0D, 15.0D, 16.0D),
+            Block.box(0.0D, 14.0D, 0.0D, 14.0D, 15.0D, 2.0D),
+            Block.box(0.0D, 14.0D, 14.0D, 14.0D, 15.0D, 16.0D),
+
+            Block.box(15.0D, 15.0D, 0.0D, 16.0D, 16.0D, 16.0D),
+            Block.box(0.0D, 15.0D, 0.0D, 15.0D, 16.0D, 1.0D),
+            Block.box(0.0D, 15.0D, 15.0D, 15.0D, 16.0D, 16.0D)
+    );
+
     public AscendanceNexusBlock(Properties properties) {
         super(properties);
+    }
+
+    @Override
+    protected VoxelShape getShape(
+            BlockState state,
+            BlockGetter level,
+            BlockPos pos,
+            CollisionContext context
+    ) {
+        return SHAPE;
+    }
+
+    @Override
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        return new AscendanceNexusBlockEntity(pos, state);
     }
 
     @Override

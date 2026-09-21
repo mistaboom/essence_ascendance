@@ -11,10 +11,11 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.PushReaction;
 
-/** Registration holder for the stateless Ascendance Nexus interface block. */
+/** Registration holder for the Ascendance Nexus interface block. */
 public final class AscendanceNexusContent {
 
     private static final DeferredRegister<Block> BLOCKS =
@@ -22,6 +23,9 @@ public final class AscendanceNexusContent {
 
     private static final DeferredRegister<Item> ITEMS =
             DeferredRegister.create(EssenceAscendance.MOD_ID, Registries.ITEM);
+
+    private static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES =
+            DeferredRegister.create(EssenceAscendance.MOD_ID, Registries.BLOCK_ENTITY_TYPE);
 
     private static final DeferredRegister<MenuType<?>> MENUS =
             DeferredRegister.create(EssenceAscendance.MOD_ID, Registries.MENU);
@@ -46,6 +50,15 @@ public final class AscendanceNexusContent {
                     )
             );
 
+    public static final RegistrySupplier<BlockEntityType<AscendanceNexusBlockEntity>> ASCENDANCE_NEXUS_BLOCK_ENTITY =
+            BLOCK_ENTITIES.register(
+                    "ascendance_nexus",
+                    () -> BlockEntityType.Builder.of(
+                            AscendanceNexusBlockEntity::new,
+                            ASCENDANCE_NEXUS.get()
+                    ).build(null)
+            );
+
     public static final RegistrySupplier<MenuType<AscendanceNexusMenu>> ASCENDANCE_NEXUS_MENU =
             MENUS.register(
                     "ascendance_nexus",
@@ -67,6 +80,7 @@ public final class AscendanceNexusContent {
 
         BLOCKS.register();
         ITEMS.register();
+        BLOCK_ENTITIES.register();
         MENUS.register();
 
         CreativeTabRegistry.append(
