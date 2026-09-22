@@ -120,6 +120,31 @@ public final class GatheringRuralService {
         return count;
     }
 
+    /** Current loaded crops for the Verdant Stride badge, without scheduler claims or random ticks. */
+    public static int nearbyGrowingCropCount(ServerPlayer player, double radiusBlocks) {
+        ServerLevel level = player.serverLevel();
+        BlockPos center = player.blockPosition();
+        int range = (int) Math.ceil(radiusBlocks);
+        double rangeSqr = radiusBlocks * radiusBlocks;
+        int count = 0;
+        for (BlockPos pos : BlockPos.betweenClosed(center.offset(-range, -range, -range),
+                center.offset(range, range, range))) {
+            if (center.distSqr(pos) > rangeSqr || !level.hasChunkAt(pos)) continue;
+            BlockState state = level.getBlockState(pos);
+            if (PlayerAttributedBlockHarvestService.isCrop(state) && state.isRandomlyTicking()) count++;
+        }
+        return count;
+    }
+
+    /** Current Animal Gift eligibility, independent of the last scheduler pulse. */
+    public static int giftReadyCount(ServerPlayer player, double radiusBlocks) {
+        int count = 0;
+        for (Animal animal : nearbyLivestock(player, radiusBlocks)) {
+            if (giftEligible(player, animal)) count++;
+        }
+        return count;
+    }
+
     public static HerdkeeperHudState herdkeeperHudState(ServerPlayer player, double radiusBlocks) {
         int nearby = 0;
         int recovering = 0;

@@ -199,7 +199,18 @@ public final class NativeCombatHudTest {
         CombatHudActivity.confirmedDamage(other, outgoing); SkillEffectRuntime.clearAll();
         check(!CombatHudActivity.active(p), "Global runtime clear removes all combat presentation state");
         mobilityAndPotionHud(f);
-        f.close();
+        var previousRuntime = com.mistaboom.essence_ascendance.config.EssenceConfigManager.serverRuntime();
+        try {
+            // Initialization-only fixtures have no server-start event to install authoritative balance.
+            com.mistaboom.essence_ascendance.config.EssenceConfigManager.install(
+                    com.mistaboom.essence_ascendance.config.EssenceConfigManager.runtime());
+            mobilityLifecycle(f);
+            mobilityImpacts(f);
+        } finally {
+            f.close();
+            if (previousRuntime == null) com.mistaboom.essence_ascendance.config.EssenceConfigManager.reset();
+            else com.mistaboom.essence_ascendance.config.EssenceConfigManager.install(previousRuntime);
+        }
         System.out.println("Native combat HUD checks passed: " + checks
                 + " (actual native health/absorption/dodge/block and saved-skill snapshots; no world)");
     }
@@ -292,6 +303,128 @@ public final class NativeCombatHudTest {
     private static void select(ProjectileNativeInterceptionTest.Fixture f, ResourceLocation id) {
         f.saved.getPlayerData(f.player.getUUID()).setLoadoutSelection(SkillGroups.DEFENSE_POSTURE, id);
         SkillEffectRuntime.refresh(f.player);
+    }
+    private static void mobilityLifecycle(ProjectileNativeInterceptionTest.Fixture f) throws ReflectiveOperationException {
+        var p = f.player;
+        p.removeAllEffects(); p.stopFallFlying(); ready(p);
+        ProjectileNativeInterceptionTest.set(Entity.class, p, "onGround", false);
+        SkillEffectRuntime.reset(p);
+        var data = f.saved.getPlayerData(p.getUUID());
+        data.grantAllSkillsForAdmin(List.of(SkillRegistry.require(SkillIds.IMPACT_CONTROL),
+                SkillRegistry.require(SkillIds.DOUBLE_JUMP), SkillRegistry.require(SkillIds.VECTOR_JUMP),
+                SkillRegistry.require(SkillIds.FATIGUE_FLIGHT), SkillRegistry.require(SkillIds.ESSENCE_WINGS),
+                SkillRegistry.require(SkillIds.VECTOR_BOOST), SkillRegistry.require(SkillIds.UNTETHERED_FLIGHT)));
+        data.setLoadoutSelection(SkillGroups.MOBILITY_JUMP_STYLE, SkillIds.VECTOR_JUMP);
+        data.setLoadoutSelection(SkillGroups.MOBILITY_FLIGHT_REPLACEMENT, SkillIds.ESSENCE_WINGS);
+        var context = SkillEffectRuntime.context(p);
+        check(context.isEffective(SkillIds.ESSENCE_WINGS) && context.isEffective(SkillIds.VECTOR_BOOST)
+                && !context.isEffective(SkillIds.FATIGUE_FLIGHT) && !context.isEffective(SkillIds.DOUBLE_JUMP),
+                "Native saved loadout activates Wings/Vector/Boost without their replaced behaviors");
+        var wingsHandler = com.mistaboom.essence_ascendance.skill.effect.SkillEffectRegistry.get(SkillIds.ESSENCE_WINGS);
+        var wings = context.state(SkillIds.ESSENCE_WINGS, com.mistaboom.essence_ascendance.movement.FlightAbilityState::new);
+        wings.startWings(f.level.tick); p.startFallFlying();
+        check(p.isFallFlying(), "Native glide fixture starts fall-flying");
+        check(com.mistaboom.essence_ascendance.movement.FlightAbilityRules.wingsAllowed(p), "Native glide fixture permits the Wings mode");
+        check(com.mistaboom.essence_ascendance.skill.CommittedSkillAccess.isEffective(p, SkillIds.ESSENCE_WINGS),
+                "Native glide fixture grants authoritative Wings access");
+        check(!com.mistaboom.essence_ascendance.movement.MovementAbilityRules.supported(p), "Native glide fixture is unsupported in air");
+        var nativeGlide = LivingEntity.class.getDeclaredMethod("updateFallFlying"); nativeGlide.setAccessible(true);
+        nativeGlide.invoke(p);
+        check(p.isFallFlying(), "Transformed native chest validation preserves legitimate equipment-free Wings");
+        p.stopFallFlying();
+        wingsHandler.tick(context);
+        check(!p.isFallFlying() && !wings.wingsActive() && !wingsHandler.hudEntries(context).getFirst().active(),
+                "Native glide stop stays stopped on the next gameplay tick and clears owned state/card");
+        var boostHandler = com.mistaboom.essence_ascendance.skill.effect.SkillEffectRegistry.get(SkillIds.VECTOR_BOOST);
+        var boost = context.state(SkillIds.VECTOR_BOOST, com.mistaboom.essence_ascendance.movement.FlightAbilityState::new);
+        boost.updateBoost(f.level.tick, context.settings().mobility().vectorBoost().rechargeTicks());
+        check(boost.spendBoost(), "Native effective Boost starts with one charge");
+        data.setLoadoutSelection(SkillIds.VECTOR_BOOST, SkillIds.VECTOR_BOOST); SkillEffectRuntime.refresh(p);
+        check(SkillEffectRuntime.hudSnapshot(p).entries().stream().noneMatch(e -> e.sourceSkill().equals(SkillIds.VECTOR_BOOST)),
+                "Disabled Boost card disappears immediately");
+        data.clearLoadoutSelection(SkillIds.VECTOR_BOOST); context = SkillEffectRuntime.context(p);
+        boostHandler.tick(context);
+        check(context.<com.mistaboom.essence_ascendance.movement.FlightAbilityState>existingState(SkillIds.VECTOR_BOOST).boostCharge() == 0,
+                "Disable/re-enable cannot refill a spent Boost in the same tick");
+        data.clearLoadoutSelection(SkillGroups.MOBILITY_FLIGHT_REPLACEMENT); context = SkillEffectRuntime.context(p);
+        check(context.isEffective(SkillIds.FATIGUE_FLIGHT) && !context.isEffective(SkillIds.ESSENCE_WINGS),
+                "Clearing the replacement restores only the owned Fatigue branch");
+        var fatigueHandler = com.mistaboom.essence_ascendance.skill.effect.SkillEffectRegistry.get(SkillIds.FATIGUE_FLIGHT);
+        var fatigue = context.state(SkillIds.FATIGUE_FLIGHT, com.mistaboom.essence_ascendance.movement.FlightAbilityState::new);
+        int endurance = context.settings().mobility().fatigueFlight().enduranceTicks();
+        fatigue.updateStamina(f.level.tick, endurance, 100, false, false);
+        f.level.tick += endurance;
+        fatigue.updateStamina(f.level.tick, endurance, 100, true, false);
+        check(fatigue.stamina() == 0, "Native Fatigue reservoir can exhaust fully");
+        data.setLoadoutSelection(SkillIds.FATIGUE_FLIGHT, SkillIds.FATIGUE_FLIGHT); SkillEffectRuntime.refresh(p);
+        data.clearLoadoutSelection(SkillIds.FATIGUE_FLIGHT); context = SkillEffectRuntime.context(p);
+        fatigueHandler.tick(context);
+        check(context.<com.mistaboom.essence_ascendance.movement.FlightAbilityState>existingState(SkillIds.FATIGUE_FLIGHT).stamina() == 0,
+                "Disable/re-enable in the air cannot refill exhausted Fatigue stamina");
+        data.setLoadoutSelection(SkillGroups.MOBILITY_FLIGHT_REPLACEMENT, SkillIds.UNTETHERED_FLIGHT);
+        context = SkillEffectRuntime.context(p);
+        var free = context.state(SkillIds.UNTETHERED_FLIGHT, com.mistaboom.essence_ascendance.movement.FlightAbilityState::new);
+        var freeHandler = com.mistaboom.essence_ascendance.skill.effect.SkillEffectRegistry.get(SkillIds.UNTETHERED_FLIGHT);
+        free.activateFlight(p);
+        check(p.getAbilities().flying && p.getAbilities().mayfly && freeHandler.hudEntries(context).getFirst().active(),
+                "Owned Untethered lease and actual native flight expose the live card");
+        free.updateStamina(f.level.tick, 1, 100, false, false); f.level.tick++;
+        free.updateStamina(f.level.tick, 1, 100, true, false);
+        freeHandler.tick(context);
+        check(p.getAbilities().flying && freeHandler.hudEntries(context).getFirst().meter().kind() == SkillEffectHudEntry.MeterKind.NONE,
+                "Zero stamina cannot stop sustained Untethered or create a progress fill");
+        data.clearLoadoutSelection(SkillGroups.MOBILITY_FLIGHT_REPLACEMENT); SkillEffectRuntime.refresh(p);
+        check(!p.getAbilities().mayfly && !p.getAbilities().flying,
+                "Deactivation releases only skill-owned native flight permission and active flight");
+        p.getAbilities().mayfly = true; p.getAbilities().flying = true;
+        var externalLease = new com.mistaboom.essence_ascendance.movement.FlightAbilityState();
+        externalLease.activateFlight(p); externalLease.releaseFlight(p);
+        check(p.getAbilities().mayfly && p.getAbilities().flying, "Releasing a skill lease preserves pre-existing external flight");
+        p.getAbilities().mayfly = false; p.getAbilities().flying = false;
+        SkillEffectRuntime.reset(p);
+    }
+    private static void mobilityImpacts(ProjectileNativeInterceptionTest.Fixture f) {
+        var p = f.player;
+        var data = f.saved.getPlayerData(p.getUUID());
+        var registry = f.level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.DAMAGE_TYPE);
+        var fall = registry.getHolderOrThrow(net.minecraft.world.damagesource.DamageTypes.FALL);
+        var wall = registry.getHolderOrThrow(net.minecraft.world.damagesource.DamageTypes.FLY_INTO_WALL);
+        var spike = registry.getHolderOrThrow(net.minecraft.world.damagesource.DamageTypes.STALAGMITE);
+        var admin = registry.getHolderOrThrow(net.minecraft.world.damagesource.DamageTypes.GENERIC_KILL);
+        registry.bindTags(java.util.Map.of(net.minecraft.tags.DamageTypeTags.IS_FALL, List.of(fall, spike),
+                com.mistaboom.essence_ascendance.equipment.AscendanceDamageTypeTags.FALL, List.of(fall, spike),
+                com.mistaboom.essence_ascendance.movement.ImpactDamageService.MOVEMENT_IMPACT, List.of(fall, wall, spike, admin),
+                net.minecraft.tags.DamageTypeTags.BYPASSES_INVULNERABILITY, List.of(admin)));
+        var stat = com.mistaboom.essence_ascendance.stat.EssenceStats.FALL_RESISTANCE;
+        data.setInvested(stat, 1_000_000);
+        var boots = AscendanceItems.ASCENDANCE_BOOTS.get().getDefaultInstance();
+        com.mistaboom.essence_ascendance.equipment.EquipmentTierData.setTier(boots,
+                com.mistaboom.essence_ascendance.equipment.EquipmentTier.TRANSCENDENT);
+        p.getInventory().armor.set(0, boots);
+        double resistance = EquipmentDamageService.evaluateStats(p).fallResistancePercent() / 100;
+        check(resistance > 0 && resistance < 1, "Real Defense investment and worn equipment supply positive Fall Resistance");
+        double impact = SkillEffectRuntime.resolvedSettings(p).mobility().impactControl().damageReduction();
+        p.getAttribute(Attributes.FALL_DAMAGE_MULTIPLIER).setBaseValue(.5);
+        var fallSource = new DamageSource(fall);
+        var wallSource = new DamageSource(wall);
+        var spikeSource = new DamageSource(spike);
+        double expected = 10 * (1 - resistance) * (1 - impact);
+        check(Math.abs(EquipmentDamageService.modifyIncomingDamage(p, fallSource, 10) - expected) < 1e-5,
+                "Fall Resistance and Impact Control each apply once; native fall multiplier is not applied twice");
+        check(Math.abs(EquipmentDamageService.modifyIncomingDamage(p, spikeSource, 10) - expected) < 1e-5,
+                "Pointed-dripstone landing retains the native fall category and once-only composition");
+        check(Math.abs(EquipmentDamageService.modifyIncomingDamage(p, wallSource, 10) - expected * .5) < 1e-5,
+                "Wall collision receives conditional Fall Resistance and one transferred native fall multiplier");
+        check(com.mistaboom.essence_ascendance.movement.ImpactDamageService.incoming(p, new DamageSource(admin), 10) == 10
+                && com.mistaboom.essence_ascendance.movement.ImpactDamageService.incoming(p, p.damageSources().generic(), 10) == 10,
+                "Combat/untagged and administrative damage cannot inherit movement-impact protection");
+        data.setLoadoutSelection(SkillIds.IMPACT_CONTROL, SkillIds.IMPACT_CONTROL); SkillEffectRuntime.refresh(p);
+        check(EquipmentDamageService.modifyIncomingDamage(p, wallSource, 10) == 10,
+                "Disabling Impact Control removes conditional wall protection even with Defense Fall Resistance");
+        check(Math.abs(EquipmentDamageService.modifyIncomingDamage(p, fallSource, 10) - 10 * (1 - resistance)) < 1e-5,
+                "Ordinary Defense fall protection survives disabling Mobility Impact Control");
+        p.getAttribute(Attributes.FALL_DAMAGE_MULTIPLIER).setBaseValue(1);
+        SkillEffectRuntime.reset(p);
     }
     private static void captureFixtureMilestones(ProjectileNativeInterceptionTest.Fixture f, ServerPlayer player) {
         // Match the primary fixture's captured receipts: no native advancement manager exists before world setup.

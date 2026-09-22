@@ -157,6 +157,8 @@ public final class ProjectileRuntime {
             finally { if (previous == null) IMPACT.remove(); else IMPACT.set(previous); }
             boolean success = probe.accepted && probe.confirmedDamage > 0;
             boolean continuing = false;
+            int ricochetsBefore = state.ricochets;
+            int skillPenetrationsBefore = state.skillPenetrations;
             if (success && deflection == ProjectileDeflection.NONE && !projectile.isRemoved()
                     && owner(projectile, state) != null && state.canContinue()) {
                 if (state.ricochets > 0) {
@@ -169,9 +171,9 @@ public final class ProjectileRuntime {
                 }
                 if (!continuing) continuing = state.penetrate();
             }
-            if (success && state.path == ProjectilePath.RICOCHET)
+            if (usedSkillContinuation(state, ProjectilePath.RICOCHET, ricochetsBefore))
                 com.mistaboom.essence_ascendance.skill.effect.SkillHudEvents.record(owner, com.mistaboom.essence_ascendance.skill.SkillIds.RICOCHET, "ricochet", state.ricochets);
-            if (success && state.path == ProjectilePath.PIERCING)
+            if (usedSkillContinuation(state, ProjectilePath.PIERCING, skillPenetrationsBefore))
                 com.mistaboom.essence_ascendance.skill.effect.SkillHudEvents.record(owner, com.mistaboom.essence_ascendance.skill.SkillIds.PIERCING_PROJECTILE, "piercing", state.skillPenetrations);
             if (success) ProjectileImpactEffects.impact(state,
                     new ProjectileImpactEffects.Impact(projectile, owner, hit, living, probe.confirmedDamage, continuing));
@@ -180,6 +182,14 @@ public final class ProjectileRuntime {
         if (!state.ended && state.remainingRange <= EPSILON) stop(projectile, state);
         if (!projectile.isRemoved()) ProjectileUtil.rotateTowardsMovement(projectile, 1);
         remember(projectile, state);
+    }
+
+    static boolean usedSkillContinuation(ProjectileState state, ProjectilePath path, int previousBudget) {
+        return state.path == path && switch (path) {
+            case RICOCHET -> state.ricochets < previousBudget;
+            case PIERCING -> state.skillPenetrations < previousBudget;
+            default -> false;
+        };
     }
 
     private static boolean loadedSegment(Projectile projectile, Vec3 start, Vec3 end) {

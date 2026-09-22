@@ -79,8 +79,8 @@ public final class GatheringSurveyService {
                 && context.now() - state.scannedAt < REFRESH_TICKS) return;
 
         List<Target> targets = switch (mode) {
-            case ORE -> scanOres(player, center, radius);
-            case TREASURE -> scanTreasure(player.serverLevel(), center, radius);
+            case ORE -> scanOres(player, center, radius, tuning.rangeBlocks());
+            case TREASURE -> scanTreasure(player.serverLevel(), center, radius, tuning.rangeBlocks());
             case NONE -> List.of();
         };
         state.replace(center, context.now(), targets);
@@ -91,20 +91,16 @@ public final class GatheringSurveyService {
                 || player.getOffhandItem().is(ItemTags.PICKAXES);
     }
 
-    private static List<Target> scanOres(ServerPlayer player, BlockPos center, int radius) {
+    private static List<Target> scanOres(ServerPlayer player, BlockPos center, int radius, double rangeBlocks) {
         ServerLevel level = player.serverLevel();
         Map<Block, Long> values = NaturalOreDropService.surveyOreValues(player);
         if (values.isEmpty()) return List.of();
-        long radiusSq = (long) radius * radius;
         Map<Long, OreNode> nodes = new HashMap<>();
 
         for (BlockPos cursor : BlockPos.betweenClosed(center.offset(-radius, -radius, -radius),
                 center.offset(radius, radius, radius))) {
             if (nodes.size() >= MAX_TARGETS) break;
-            long dx = cursor.getX() - center.getX();
-            long dy = cursor.getY() - center.getY();
-            long dz = cursor.getZ() - center.getZ();
-            if (dx * dx + dy * dy + dz * dz > radiusSq || !level.hasChunkAt(cursor)) continue;
+            if (!withinRange(center, cursor, rangeBlocks) || !level.hasChunkAt(cursor)) continue;
             Block block = level.getBlockState(cursor).getBlock();
             Long value = values.get(block);
             if (value != null) nodes.put(cursor.asLong(), new OreNode(cursor.immutable(), Math.max(1L, value)));
@@ -150,16 +146,12 @@ public final class GatheringSurveyService {
                 .toList();
     }
 
-    private static List<Target> scanTreasure(ServerLevel level, BlockPos center, int radius) {
-        long radiusSq = (long) radius * radius;
+    private static List<Target> scanTreasure(ServerLevel level, BlockPos center, int radius, double rangeBlocks) {
         List<Target> result = new ArrayList<>();
         for (BlockPos cursor : BlockPos.betweenClosed(center.offset(-radius, -radius, -radius),
                 center.offset(radius, radius, radius))) {
             if (result.size() >= MAX_TARGETS) break;
-            long dx = cursor.getX() - center.getX();
-            long dy = cursor.getY() - center.getY();
-            long dz = cursor.getZ() - center.getZ();
-            if (dx * dx + dy * dy + dz * dz > radiusSq || !level.hasChunkAt(cursor)) continue;
+            if (!withinRange(center, cursor, rangeBlocks) || !level.hasChunkAt(cursor)) continue;
             BlockEntity entity = level.getBlockEntity(cursor);
             if (entity instanceof RandomizableContainerBlockEntity container && container.getLootTable() != null) {
                 result.add(new Target(cursor.immutable(), false));
@@ -174,6 +166,11 @@ public final class GatheringSurveyService {
         long dy = a.getY() - b.getY();
         long dz = a.getZ() - b.getZ();
         return dx * dx + dy * dy + dz * dz;
+    }
+
+    /** The scan box is rounded up for traversal, but detection uses the exact generated radius. */
+    public static boolean withinRange(BlockPos center, BlockPos target, double rangeBlocks) {
+        return rangeBlocks >= 0 && distanceSquared(center, target) <= rangeBlocks * rangeBlocks;
     }
 
     private static long saturatedAdd(long a, long b) {

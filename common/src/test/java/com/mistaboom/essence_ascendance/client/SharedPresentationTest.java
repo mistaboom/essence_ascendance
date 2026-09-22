@@ -118,6 +118,10 @@ public final class SharedPresentationTest {
             check(language.has(BonusTooltipPresentation.descriptionKey(stat)), "Description for every bonus: " + stat.id());
             String description = flatten(BonusTooltipPresentation.description(stat, 18));
             check(description.contains("18") && description.endsWith(".") && description.length() > 20, "A real sentence, not a raw value");
+            if (stat == EssenceStats.FALL_RESISTANCE)
+                check(description.contains("Reduces fall damage by 18%")
+                                && description.contains("With Impact Control, it also reduces damage from wall collisions and pointed dripstone"),
+                        "Fall Resistance describes the conditional movement-impact benefit");
             var definition = runtime.config().balanceProfile().bonusTrack(stat.id());
             var facts = BonusTrackSnapshot.from(definition, runtime.config().balanceProfile());
             long cap = definition.checkpoints().getLast().cumulativeCap();

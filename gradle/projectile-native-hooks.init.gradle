@@ -20,6 +20,7 @@ allprojects { p ->
                     include 'com/mistaboom/essence_ascendance/projectile/NativePostureOutcomeTest*.class'
                     include 'com/mistaboom/essence_ascendance/projectile/NativeCombatHudTest*.class'
                     include 'com/mistaboom/essence_ascendance/projectile/NativeVitalityRecoveryTest*.class'
+                    include 'com/mistaboom/essence_ascendance/projectile/NativeResourceChainsTest*.class'
                     include 'com/mistaboom/essence_ascendance/projectile/NativeVitalitySustenanceTest*.class'
                 }
                 from(fixtureMetadata)
@@ -93,6 +94,14 @@ side="CLIENT"
                 t.dependsOn(fixture)
                 t.doFirst {
                     if (t.internalRunDir.asFile.get().canonicalFile != testRun) throw new GradleException('Unexpected Defense test directory')
+                    def dataJar = common.sourceSets.main.compileClasspath.files.find { file ->
+                        if (!file.isFile() || !file.name.endsWith('.jar')) return false
+                        new java.util.zip.ZipFile(file).withCloseable { zip ->
+                            zip.getEntry('data/minecraft/loot_table/blocks/potatoes.json') != null
+                        }
+                    }
+                    if (dataJar == null) throw new GradleException('Native resource-chain fixture needs Minecraft data from its resolved dependency')
+                    t.jvmArgs('-Dessence.native.vanillaDataJar=' + dataJar.canonicalPath)
                     new File(testRun, 'mods').mkdirs()
                     p.copy { from(fixture.get().archiveFile); into(new File(testRun, 'mods')) }
                 }

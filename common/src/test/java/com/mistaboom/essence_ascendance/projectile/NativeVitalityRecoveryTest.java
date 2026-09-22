@@ -137,6 +137,29 @@ public final class NativeVitalityRecoveryTest {
         tool.hurtAndBreak(1, f.level, player, ignored -> {});
         equal(tool.getDamageValue(), 0, "Transformed native wear consumes active buffer before native damage");
         equal(com.mistaboom.essence_ascendance.equipment.EquipmentMaintenanceData.overdurability(tool), capacity-1, "One buffer debit");
+        // A real native wear call must apply the invested efficiency before the active Masterwork buffer.
+        // Compare the buffer debit with the same unenchanted item at zero investment; native damage must
+        // remain untouched while the buffer is available.
+        data.setTier(com.mistaboom.essence_ascendance.tier.AscendanceTiers.TRANSCENDENT);
+        data.setInvested(com.mistaboom.essence_ascendance.stat.EssenceStats.DURABILITY_EFFICIENCY, 100_000);
+        ItemStack efficientTool = com.mistaboom.essence_ascendance.item.AscendanceItems.ASCENDANCE_PICKAXE.get().getDefaultInstance();
+        com.mistaboom.essence_ascendance.equipment.EquipmentTierData.setTier(efficientTool,
+                com.mistaboom.essence_ascendance.equipment.EquipmentTier.TRANSCENDENT);
+        efficientTool.set(net.minecraft.core.component.DataComponents.MAX_DAMAGE, 1000);
+        com.mistaboom.essence_ascendance.equipment.EquipmentMaintenanceData.setOverdurability(efficientTool, capacity, capacity);
+        player.setItemInHand(InteractionHand.MAIN_HAND, efficientTool);
+        double efficiency = com.mistaboom.essence_ascendance.equipment.EquipmentGatheringService.evaluate(player)
+                .durabilityEfficiencyPercent();
+        check(efficiency > 0 && efficiency < 100, "Invested held durability efficiency resolves to a usable fraction");
+        for (int i = 0; i < 100; i++) efficientTool.hurtAndBreak(1, f.level, player, ignored -> {});
+        int expectedBufferDebit = (int) Math.floor(100 * (1 - efficiency / 100) + 1e-9);
+        equal(com.mistaboom.essence_ascendance.equipment.EquipmentMaintenanceData.overdurability(efficientTool),
+                capacity - expectedBufferDebit, "Efficiency reduces actual Overdurability consumption once");
+        equal(com.mistaboom.essence_ascendance.equipment.EquipmentMaintenanceData.wearDebt(efficientTool),
+                100 * (1 - efficiency / 100) - expectedBufferDebit, "Fractional wear is conserved alongside buffer absorption");
+        equal(efficientTool.getDamageValue(), 0, "Active buffer prevents native wear after efficiency");
+        enchantedWear(f, efficientTool, capacity, expectedBufferDebit);
+        player.setItemInHand(InteractionHand.MAIN_HAND, tool);
         data.setLoadoutSelection(SkillGroups.UTILITY_MAINTENANCE, SkillIds.RESTFUL_MENDING); SkillEffectRuntime.refresh(player);
         tool.hurtAndBreak(1, f.level, player, ignored -> {});
         equal(tool.getDamageValue(), 1, "Inactive buffer grants no absorption to excluded maintenance branch");
@@ -199,6 +222,46 @@ public final class NativeVitalityRecoveryTest {
         cowCopy.readAdditionalSaveData(animalData);
         check(((com.mistaboom.essence_ascendance.gathering.AnimalFeedingState)cowCopy).essenceAscendance$fedAt() == fedAt,
                 "Native animal save/load retains feed timestamp");
+    }
+    private static void enchantedWear(ProjectileNativeInterceptionTest.Fixture f, ItemStack source,
+                                      double capacity, int unenchantedDebit) {
+        var previousRegistries = f.level.memoryRegistries;
+        var enchantments = new net.minecraft.core.MappedRegistry<net.minecraft.world.item.enchantment.Enchantment>(
+                net.minecraft.core.registries.Registries.ENCHANTMENT, com.mojang.serialization.Lifecycle.stable());
+        var unbreaking = net.minecraft.data.registries.VanillaRegistries.createLookup()
+                .lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT)
+                .getOrThrow(net.minecraft.world.item.enchantment.Enchantments.UNBREAKING).value();
+        var holder = enchantments.register(net.minecraft.world.item.enchantment.Enchantments.UNBREAKING,
+                unbreaking, net.minecraft.core.RegistrationInfo.BUILT_IN);
+        enchantments.freeze();
+        var registries = new java.util.ArrayList<net.minecraft.core.Registry<?>>();
+        previousRegistries.registries()
+                .filter(entry -> !entry.key().equals(net.minecraft.core.registries.Registries.ENCHANTMENT))
+                .forEach(entry -> registries.add(entry.value()));
+        registries.add(enchantments);
+        try {
+            f.level.memoryRegistries = new net.minecraft.core.RegistryAccess.ImmutableRegistryAccess(registries).freeze();
+            ItemStack buffered = source.copy();
+            buffered.enchant(holder, 3);
+            com.mistaboom.essence_ascendance.equipment.EquipmentMaintenanceData.setOverdurability(buffered, capacity, capacity);
+            ItemStack ordinary = buffered.copy();
+            com.mistaboom.essence_ascendance.equipment.EquipmentMaintenanceData.setOverdurability(ordinary, 0, 0);
+            for (var stack : List.of(buffered, ordinary)) {
+                f.player.setItemInHand(InteractionHand.MAIN_HAND, stack);
+                f.level.getRandom().setSeed(130013L);
+                for (int i = 0; i < 100; i++) stack.hurtAndBreak(1, f.level, f.player, ignored -> {});
+            }
+            double debit = capacity - com.mistaboom.essence_ascendance.equipment.EquipmentMaintenanceData.overdurability(buffered);
+            check(debit > 0 && debit < unenchantedDebit, "Native Unbreaking saves real post-efficiency wear");
+            equal(debit, ordinary.getDamageValue(), "Identical native enchantment outcomes debit buffer or native damage once");
+            equal(buffered.getDamageValue(), 0, "Unbreaking and Efficiency preserve native damage while buffer remains");
+            equal(com.mistaboom.essence_ascendance.equipment.EquipmentMaintenanceData.wearDebt(buffered),
+                    com.mistaboom.essence_ascendance.equipment.EquipmentMaintenanceData.wearDebt(ordinary),
+                    "Buffer presence cannot change fractional efficiency carry");
+        } finally {
+            f.level.memoryRegistries = previousRegistries;
+            f.player.setItemInHand(InteractionHand.MAIN_HAND, source);
+        }
     }
 
     private static void routedHealthLocal() throws ReflectiveOperationException {

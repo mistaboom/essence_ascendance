@@ -86,11 +86,10 @@ public final class MobilityFlightEffects {
             state.expireInput(context.now(), timeout(context));
             boolean supported = MovementAbilityRules.supported(player);
             if (state.wingsActive()) {
-                if (!FlightAbilityRules.wingsAllowed(player) || supported) {
+                if (!player.isFallFlying() || !FlightAbilityRules.wingsAllowed(player) || supported) {
                     stopOwnedWings(context, state);
                     return;
                 }
-                if (!player.isFallFlying()) player.startFallFlying();
                 if (player.isFallFlying()) {
                     var tuning = context.settings().mobility().essenceWings();
                     applyVelocity(player, MovementImpulseMath.essenceWingsGlide(
@@ -199,7 +198,9 @@ public final class MobilityFlightEffects {
         @Override public void deactivate(SkillEffectRuntime.Context context) {
             FlightAbilityState state = context.existingState(id);
             if (state != null) state.releaseFlight(context.player());
-            context.discardState(id);
+            if (id.equals(SkillIds.FATIGUE_FLIGHT)) {
+                if (state != null) state.suspendThrust();
+            } else context.discardState(id);
         }
 
         @Override public void movementDiscontinuity(SkillEffectRuntime.Context context) { deactivate(context); }
@@ -254,8 +255,11 @@ public final class MobilityFlightEffects {
             return applyVelocity(player, MovementImpulseMath.vectorBoost(velocity(before), velocity(look), rocketSpeedBonus));
         }
 
-        @Override public void deactivate(SkillEffectRuntime.Context context) { context.discardState(id()); }
-        @Override public void movementDiscontinuity(SkillEffectRuntime.Context context) { context.discardState(id()); }
+        @Override public void deactivate(SkillEffectRuntime.Context context) {
+            FlightAbilityState state = context.existingState(id());
+            if (state != null) state.suspendBoost();
+        }
+        @Override public void movementDiscontinuity(SkillEffectRuntime.Context context) { deactivate(context); }
 
         @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
             FlightAbilityState state = context.existingState(id());

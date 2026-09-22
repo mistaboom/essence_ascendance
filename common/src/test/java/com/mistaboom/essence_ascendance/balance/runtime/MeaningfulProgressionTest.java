@@ -7,7 +7,9 @@ import com.mistaboom.essence_ascendance.progression.*;
 import com.mistaboom.essence_ascendance.skill.*;
 import com.mistaboom.essence_ascendance.skill.balance.*;
 import com.mistaboom.essence_ascendance.stat.*;
+import com.mistaboom.essence_ascendance.gathering.GatheringSurveyService;
 import com.mistaboom.essence_ascendance.tier.*;
+import net.minecraft.core.BlockPos;
 import net.minecraft.SharedConstants;
 import net.minecraft.server.Bootstrap;
 import java.util.*;
@@ -23,10 +25,19 @@ public final class MeaningfulProgressionTest {
         check(MeaningfulProgression.select(List.of(1.0, 24.0, 25.0), 12, 5, 1, 100).equals(List.of(12.0,24.0)),
                 "Ignored overage cannot lower or increase later nominal allocations");
         check(MeaningfulProgression.select(List.of(.1, .49, .51), .5, .5, .5, 1).equals(List.of(.5)), "Quantization collapse");
+        check(MeaningfulProgression.select(List.of(.01, 500_000.0, 1_000_000.0), 1, 5, 1, 1_000_000)
+                        .equals(List.of(1.0, 500_000.0, 1_000_000.0)),
+                "Very large legal changes remain intact; a lower-bound floor cannot normalize or subdivide them");
         rejects(() -> MeaningfulProgression.first(1, 5, 1, 4));
         var runtime = RuntimeBalanceDefinition.bootstrap();
         SkillBalanceRuntime.install(runtime.skillCurves());
         SkillBalanceGenerator.validatePublished(runtime.config().skillEffects(), runtime.skillCurves());
+        var origin = BlockPos.ZERO;
+        var boundary = new BlockPos(20, 0, 0);
+        check(!GatheringSurveyService.withinRange(origin, boundary, 19.8),
+                "Fractional Gathering survey radius must not round up to an extra block");
+        check(GatheringSurveyService.withinRange(origin, boundary, 20.0),
+                "Gathering survey includes its exact boundary");
         check(runtime.skillCurves().values().stream().map(SkillBalanceRuntime.ResolvedSkill::maximumRank).distinct().count() > 1,
                 "Generated max ranks must reflect mechanic and meaningful allocations");
         for (var skill : SkillRegistry.values()) {
@@ -86,6 +97,7 @@ public final class MeaningfulProgressionTest {
         }
         differential(runtime);
         bonusDifferential(runtime);
+        everyChoice(runtime);
         var damaged = runtime.toJson();
         var selected = runtime.skillCurves().entrySet().stream().filter(e -> e.getValue().maximumRank() > 1).findFirst().orElseThrow();
         var ranks = damaged.getAsJsonObject("skillCurves").getAsJsonObject(selected.getKey()).getAsJsonArray("ranks");
@@ -105,6 +117,38 @@ public final class MeaningfulProgressionTest {
         rejects(() -> RuntimeBalanceDefinition.fromJson(extraState));
         SkillBalanceRuntime.clear();
         System.out.println("MeaningfulProgressionTest: " + checks + " complete-state, native-floor, authority, quantization and non-compensation checks PASS");
+    }
+    private static void everyChoice(RuntimeBalanceDefinition runtime) {
+        var milestones = MilestoneRegistry.values().stream().map(MilestoneDefinition::id)
+                .collect(java.util.stream.Collectors.toSet());
+        for (boolean maximum : List.of(false, true)) for (boolean funded : List.of(false, true)) {
+            var ranks = new TreeMap<net.minecraft.resources.ResourceLocation, Integer>();
+            SkillRegistry.values().forEach(skill -> ranks.put(skill.id(), maximum ? skill.maximumRank() : 1));
+            var bonuses = new TreeMap<net.minecraft.resources.ResourceLocation, Long>();
+            if (funded) EssenceStatRegistry.values().forEach(stat -> bonuses.put(stat.id(),
+                    runtime.config().balanceProfile().getInvestmentCap(AscendanceTiers.TRANSCENDENT, stat)));
+            for (var group : SkillRegistry.choiceGroups()) for (var selected : group.memberIds()) {
+                var plan = SkillStateEvaluator.activationPlan(selected, ranks, Map.of()).orElseThrow();
+                var selections = new HashMap<>(plan.selectableAssignments());
+                for (boolean enabled : List.of(true, false, true)) {
+                    if (enabled) selections.put(group.id(), selected); else selections.remove(group.id());
+                    var context = SkillEvaluationContext.committed(AscendanceTiers.TRANSCENDENT.id(),
+                            ranks, selections, milestones, Set.of(), bonuses);
+                    var results = SkillStateEvaluator.evaluateAll(context);
+                    check(results.get(selected).effective() == enabled, "Choice activation survives rank/bonus/toggle matrix: " + selected);
+                    for (var sibling : group.memberIds()) if (!sibling.equals(selected))
+                        check(!results.get(sibling).effective(), "Excluded sibling cannot borrow rank, shared bonus or selection: " + sibling);
+                    for (var skill : SkillRegistry.values()) if (results.get(skill.id()).effective()) {
+                        for (var parent : skill.prerequisiteRanks(ranks.get(skill.id())).keySet()) {
+                            if (!parent.equals(skill.replacementTarget())) check(results.get(parent).effective(),
+                                    "Descendant cannot leak an inactive signature mechanic: " + skill.id());
+                        }
+                        if (skill.isReplacement()) check(!results.get(skill.replacementTarget()).effective(),
+                                "Replacement cannot reactivate its base signature mechanic");
+                    }
+                }
+            }
+        }
     }
     private static void differential(RuntimeBalanceDefinition runtime) {
         var gson = new Gson();

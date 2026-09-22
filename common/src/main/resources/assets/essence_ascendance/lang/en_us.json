@@ -1549,7 +1549,7 @@
   "stat.essence_ascendance.melee_resistance.description": "Reduces incoming melee damage by %s%%.",
   "stat.essence_ascendance.ranged_resistance.description": "Reduces incoming ranged damage by %s%%.",
   "stat.essence_ascendance.magic_resistance.description": "Reduces incoming magic damage by %s%%.",
-  "stat.essence_ascendance.fall_resistance.description": "Reduces fall and movement-impact damage by %s%%.",
+  "stat.essence_ascendance.fall_resistance.description": "Reduces fall damage by %s%%. With Impact Control, it also reduces damage from wall collisions and pointed dripstone.",
   "stat.essence_ascendance.knockback_resistance.description": "Reduces incoming knockback by %s%%.",
   "stat.essence_ascendance.fire_resistance.description": "Reduces incoming fire damage by %s%%.",
   "stat.essence_ascendance.explosion_resistance.description": "Reduces incoming explosion damage by %s%%.",

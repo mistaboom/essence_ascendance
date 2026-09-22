@@ -32,8 +32,9 @@ public final class GatheringRuralEffects {
         public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
             GatheringBalanceSettings.VerdantStride tuning = context.settings().gathering().verdantStride();
             GatheringRuralService.PulseHudState state = GatheringRuralService.pulseHudState(context, id());
-            return SkillEffectHudCards.timed(id(), state.eligibleTargets() > 0, AscendancePalette.GATHERING,
-                    text("verdant_crops", Integer.toString(state.eligibleTargets())),
+            int crops = GatheringRuralService.nearbyGrowingCropCount(context.player(), tuning.radiusBlocks());
+            return SkillEffectHudCards.timed(id(), crops > 0, AscendancePalette.GATHERING,
+                    text("verdant_crops", Integer.toString(crops)),
                     List.of(text("verdant_extra_ticks", Integer.toString(state.successfulEvents())),
                             text("verdant_chance", SkillEffectHudCards.compact(tuning.growthChance() * 100.0D))),
                     NEXT_PULSE_KEY, state.nextPulseTick());
@@ -88,8 +89,9 @@ public final class GatheringRuralEffects {
         public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
             GatheringBalanceSettings.AnimalGift tuning = context.settings().gathering().animalGift();
             GatheringRuralService.PulseHudState state = GatheringRuralService.pulseHudState(context, id());
-            return SkillEffectHudCards.timed(id(), state.eligibleTargets() > 0, AscendancePalette.GATHERING,
-                    text("gift_ready", Integer.toString(state.eligibleTargets())),
+            int ready = GatheringRuralService.giftReadyCount(context.player(), tuning.radiusBlocks());
+            return SkillEffectHudCards.timed(id(), ready > 0, AscendancePalette.GATHERING,
+                    text("gift_ready", Integer.toString(ready)),
                     List.of(text("gift_last", Integer.toString(state.successfulEvents())),
                             text("gift_chance", SkillEffectHudCards.compact(tuning.giftChance() * 100.0D))),
                     NEXT_PULSE_KEY, state.nextPulseTick());

@@ -151,6 +151,7 @@ public final class ProjectileNativeInterceptionTest {
             set(MinecraftServer.class, server, "pvp", true);
             level = instance(MemoryLevel.class);
             level.entities = new ArrayList<>();
+            level.movementSupport = List.of();
             level.tick = 100;
             level.memoryServer = server;
             level.scoreboard = new ServerScoreboard(server);
@@ -302,9 +303,13 @@ public final class ProjectileNativeInterceptionTest {
         DimensionDataStorage storage;
         ServerScoreboard scoreboard;
         boolean occluded;
+        List<net.minecraft.world.phys.shapes.VoxelShape> movementSupport;
         net.minecraft.core.RegistryAccess memoryRegistries;
         net.minecraft.world.damagesource.DamageSources memoryDamageSources;
         net.minecraft.world.level.GameRules memoryGameRules;
+        Map<BlockPos, net.minecraft.world.level.block.state.BlockState> memoryBlocks;
+        net.minecraft.world.item.crafting.RecipeManager memoryRecipes;
+        Holder<net.minecraft.world.level.biome.Biome> memoryBiome;
 
         private MemoryLevel() {
             super(null, null, null, null, Level.OVERWORLD, null, null, false, 0, List.of(), false, null);
@@ -314,6 +319,7 @@ public final class ProjectileNativeInterceptionTest {
         @Override public MinecraftServer getServer() { return memoryServer; }
         @Override public Iterable<Entity> getAllEntities() { return entities; }
         @Override public long getGameTime() { return tick; }
+        @Override public long getDayTime() { return tick; }
         @Override public DimensionDataStorage getDataStorage() { return storage; }
         @Override public ServerScoreboard getScoreboard() { return scoreboard; }
         @Override public net.minecraft.world.Difficulty getDifficulty() { return net.minecraft.world.Difficulty.NORMAL; }
@@ -328,7 +334,27 @@ public final class ProjectileNativeInterceptionTest {
         @Override public void broadcastEntityEvent(Entity entity, byte event) { }
         @Override public void broadcastDamageEvent(Entity entity, net.minecraft.world.damagesource.DamageSource source) { }
         @Override public net.minecraft.world.level.block.state.BlockState getBlockState(BlockPos position) {
-            return net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
+            return memoryBlocks == null ? net.minecraft.world.level.block.Blocks.AIR.defaultBlockState()
+                    : memoryBlocks.getOrDefault(position, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
+        }
+        @Override public boolean hasChunkAt(BlockPos position) { return true; }
+        @Override public boolean areEntitiesLoaded(long chunk) { return true; }
+        @Override public boolean setBlock(BlockPos position, net.minecraft.world.level.block.state.BlockState state, int flags, int depth) {
+            if (memoryBlocks == null) throw new AssertionError("Block storage was not installed for this fixture");
+            memoryBlocks.put(position.immutable(), state); return true;
+        }
+        @Override public void blockEntityChanged(BlockPos position) { }
+        @Override public void updateNeighbourForOutputSignal(BlockPos position, net.minecraft.world.level.block.Block block) { }
+        @Override public net.minecraft.util.profiling.ProfilerFiller getProfiler() { return net.minecraft.util.profiling.InactiveProfiler.INSTANCE; }
+        @Override public net.minecraft.world.item.crafting.RecipeManager getRecipeManager() {
+            return memoryRecipes == null ? super.getRecipeManager() : memoryRecipes;
+        }
+        @Override public RandomSource getRandomSequence(net.minecraft.resources.ResourceLocation sequence) { return getRandom(); }
+        @Override public Holder<net.minecraft.world.level.biome.Biome> getBiome(BlockPos position) {
+            return memoryBiome == null ? super.getBiome(position) : memoryBiome;
+        }
+        @Override public Iterable<net.minecraft.world.phys.shapes.VoxelShape> getBlockCollisions(Entity entity, AABB bounds) {
+            return movementSupport.stream().filter(shape -> shape.bounds().intersects(bounds)).toList();
         }
         @Override public net.minecraft.core.RegistryAccess registryAccess() {
             return memoryRegistries == null ? super.registryAccess() : memoryRegistries;

@@ -48,8 +48,39 @@ public final class VitalityBalanceTest {
         ranks(runtime);
         numeric(runtime);
         projections(runtime);
+        metabolicBudgets();
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println(
                 "VitalityBalanceTest: " + checks + " schema, exact pointer, native-unit, projection, rank and preservation checks PASS");
+    }
+    private static void metabolicBudgets() {
+        RuntimeReferencePolicy.withBootstrapReferences(() -> {
+            double previousFood = -1, previousHealing = -1;
+            for (double power : new double[]{.1, .2, .5, 1, 2, 4}) {
+                var settings = BalanceSettings.parse("schema_version=1\n[power]\noverall=" + power, "metabolic-budget-test");
+                var generated = VitalityDamageBalanceGenerator.generate(settings);
+                var pair = generated.metabolicConversion();
+                check(pair.foodPointsPerOverflowHealth() >= previousFood && pair.healthPerNutrition() >= previousHealing,
+                        "Lower budgets must not amplify either conversion direction");
+                previousFood = pair.foodPointsPerOverflowHealth(); previousHealing = pair.healthPerNutrition();
+                var json = new com.google.gson.Gson().toJsonTree(Map.of("vitality", Map.of("damage", generated))).getAsJsonObject();
+                var before = json.deepCopy();
+                for (var outcome : ProgressionRequirements.skill(SkillIds.METABOLIC_CONVERSION).outcomes()) {
+                    outcome.quantize(json); outcome.grantFirst(json);
+                    check(outcome.measure(json) + 1e-9 >= outcome.first(), "Both conversion directions keep tangible first benefits");
+                    check(ProgressionRequirements.read(json, outcome.path()) + 1e-9 >= ProgressionRequirements.read(before, outcome.path()) - outcome.quantum(),
+                            "Floor publication cannot compensate by reducing the paired allocation");
+                }
+                var finalDamage = new com.google.gson.Gson().fromJson(json.getAsJsonObject("vitality").getAsJsonObject("damage"),
+                        com.mistaboom.essence_ascendance.config.VitalityDamageBalanceSettings.class);
+                finalDamage.validate();
+                check(finalDamage.metabolicConversion().foodPointsPerOverflowHealth()
+                        * finalDamage.metabolicConversion().healthPerNutrition() < 1, "Useful pair remains strictly lossy");
+                json.getAsJsonObject("vitality").getAsJsonObject("damage").remove("metabolicConversion");
+                before.getAsJsonObject("vitality").getAsJsonObject("damage").remove("metabolicConversion");
+                check(json.equals(before), "Conversion floors cannot change Ward, Adrenaline or other damage parameters");
+            }
+            return null;
+        });
     }
     private static void exactPointers(RuntimeBalanceDefinition baseline) {
         var overrides = BalanceOverrides.parse("[exact]\n"

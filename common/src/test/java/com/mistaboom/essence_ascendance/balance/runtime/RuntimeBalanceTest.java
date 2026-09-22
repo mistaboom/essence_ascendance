@@ -73,6 +73,10 @@ public final class RuntimeBalanceTest {
         }
         var evidence=new PackEvidence(resources,List.of(),List.of(),references,List.of(),List.of(),Map.of());
         var economy=new EconomyProfile(values,List.of(),List.of(),List.of(),0,EconomyProcessingPolicy.defaults());
+        if (Arrays.asList(args).contains("--adversarial-only")) {
+            adversarialProfiles(evidence, economy);
+            return;
+        }
         var generated=RuntimeBalanceDefinition.generate(evidence,economy,BalanceSettings.defaults(),BalanceOverrides.empty());
         check(generated.generationAnalysis()!=null,"Numeric composition scenarios missing");
         generated.generationAnalysis().requireSafe();
@@ -215,8 +219,66 @@ public final class RuntimeBalanceTest {
                 "Enemy pressure moved the final physical endpoint away from pack parity");
         check(againstEnemies.composition().get("enemy_damage_entry")==12.0,
                 "Incoming-hit pressure must use observed attack damage, not sustained DPS or the missing-cadence fallback");
+        adversarialProfiles(evidence, economy);
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println(
                 "RuntimeBalanceTest: deterministic generation, strict roundtrip, rejected malformed runtime/rank/carrier fields, exact pointers, category supply, enemy evidence, harvest progression/cache compatibility, monotonic/inverse curves PASS");
+    }
+    /** Supported settings retain native floors; infeasible targets must reject rather than sell negligible power. */
+    private static void adversarialProfiles(PackEvidence evidence, EconomyProfile economy) {
+        Map<String, String> profiles = new LinkedHashMap<>();
+        profiles.put("very-low-budget", "[power]\noverall=0.1\n[budget]\nequipment=0.98\nnexus=0.01\nskills=0.01\n");
+        profiles.put("high-budget", "[power]\noverall=4.0\n[budget]\nequipment=0.02\nnexus=0.49\nskills=0.49\n");
+        profiles.put("narrow-range", "[power]\nearly=1.0\nmid=1.01\nlate=1.02\napex=1.03\n");
+        profiles.put("wide-range", "[power]\nearly=0.1\nmid=0.5\nlate=2.0\napex=4.0\n");
+        profiles.put("wide-range-supported", "[power]\nearly=0.5\nmid=1.0\nlate=2.0\napex=4.0\n");
+        var output = new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out));
+        var failures = new ArrayList<Throwable>();
+        for (var entry : profiles.entrySet()) {
+            output.println("Adversarial profile START: " + entry.getKey());
+            try {
+            var settings = BalanceSettings.parse("schema_version=1\n" + entry.getValue(), entry.getKey());
+            var runtime = RuntimeBalanceDefinition.generate(evidence, economy, settings, BalanceOverrides.empty());
+            check(!entry.getKey().equals("wide-range"),
+                    "Extreme wide range must reject targets below the minimum rank-one power envelope");
+            com.mistaboom.essence_ascendance.skill.balance.SkillBalanceGenerator.validatePublished(
+                    runtime.config().skillEffects(), runtime.skillCurves());
+            check(runtime.skillCurves().size() == 90, "Stress profile retains all skills: " + entry.getKey());
+            check(runtime.toJson().equals(RuntimeBalanceDefinition.fromJson(runtime.toJson()).toJson()),
+                    "Stress profile survives strict published validation: " + entry.getKey());
+            runtime.generationAnalysis().requireSafe();
+            for (var stat : EssenceStatRegistry.values()) {
+                var track = runtime.config().balanceProfile().bonusTrack(stat.id());
+                check(track != null, "Stress profile accounts for bonus: " + stat.id());
+                check(track.checkpoint(AscendanceTiers.LATENT.id()).effectFraction() == 0,
+                        "Stress profile cannot activate a Latent bonus");
+                if (track.applicability() == BonusTrackDefinition.Applicability.UNAVAILABLE) continue;
+                var values = track.activeValues();
+                var floors = track.progressionRequirements();
+                check(values.getFirst() + 1e-9 >= floors.firstStateFloor(), "Stress bonus first floor");
+                for (int i = 1; i < values.size(); i++) check(
+                        MeaningfulProgression.improves(
+                                values.get(i - 1), values.get(i), floors.tierImprovementFloor()), "Stress bonus later floor");
+                check(values.size() == track.activeStateCount() && values.getLast() == track.maximumEffect(),
+                        "Stress bonus generated count and endpoint");
+            }
+            output.println("Adversarial profile PASS: " + entry.getKey());
+            } catch (RuntimeException | AssertionError failure) {
+                if (entry.getKey().equals("wide-range") && failure instanceof IllegalArgumentException
+                        && failure.getMessage() != null && failure.getMessage().startsWith(
+                        "Requested OFFENSE targets leave less than 2% of rank-one added power;")) {
+                    output.println("Adversarial profile PASS: " + entry.getKey() + " (expected minimum-power rejection)");
+                    continue;
+                }
+                output.println("Adversarial profile FAIL: " + entry.getKey());
+                failure.printStackTrace(output);
+                failures.add(new AssertionError("Adversarial profile: " + entry.getKey(), failure));
+            }
+        }
+        if (!failures.isEmpty()) {
+            var failure = new AssertionError("Adversarial profiles failed: " + failures.size());
+            failures.forEach(failure::addSuppressed);
+            throw failure;
+        }
     }
     private static void verifyHarvestProgression(PackEvidence evidence,RuntimeBalanceDefinition generated) {
         Map<Integer,int[]> ladders=Map.of(

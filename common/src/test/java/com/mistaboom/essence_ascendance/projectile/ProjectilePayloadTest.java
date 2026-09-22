@@ -23,7 +23,7 @@ public final class ProjectilePayloadTest {
     private static int checks;
     private static final UUID OWNER = new UUID(1, 1), LIFE = new UUID(1, 2), VICTIM = new UUID(2, 1);
     public static void main(String[] args) {
-        choices(); snapshotsAndTransfers(); malformedSnapshots(); roots(); area();
+        choices(); continuationReceipts(); snapshotsAndTransfers(); malformedSnapshots(); roots(); area();
         com.mistaboom.essence_ascendance.skill.effect.SkillProcAttributionTest.verify();
         check(ProjectileDiagnostics.validate().isEmpty(), "Existing path/shield/swept collision regressions: " + ProjectileDiagnostics.validate());
         System.out.println("ProjectilePayloadTest: " + checks + " checks passed");
@@ -54,6 +54,26 @@ public final class ProjectilePayloadTest {
             data.putInt("Duration", 40); data.putInt("MaximumDuration", 80); data.putDouble("MovementTolerance", .0625);
         }
         return new ProjectileImpactEffects.Snapshot(id, data);
+    }
+    private static void continuationReceipts() {
+        ProjectileState ricochet = state(ProjectileSource.RANGED_PHYSICAL, ProjectilePath.RICOCHET, null);
+        int bounces = ricochet.ricochets;
+        check(!ProjectileRuntime.usedSkillContinuation(ricochet, ProjectilePath.RICOCHET, bounces),
+                "A direct hit without a rebound has no Ricochet receipt");
+        check(ricochet.ricochet() && ProjectileRuntime.usedSkillContinuation(ricochet, ProjectilePath.RICOCHET, bounces),
+                "A spent rebound has a Ricochet receipt");
+
+        ProjectileState piercing = state(ProjectileSource.RANGED_PHYSICAL, ProjectilePath.PIERCING, null);
+        int penetrations = piercing.skillPenetrations;
+        check(!ProjectileRuntime.usedSkillContinuation(piercing, ProjectilePath.PIERCING, penetrations),
+                "A direct hit without continuation has no Piercing receipt");
+        check(piercing.penetrate() && !ProjectileRuntime.usedSkillContinuation(piercing, ProjectilePath.PIERCING, penetrations),
+                "Native penetration does not claim a skill continuation");
+        piercing.nativePenetrations = 0;
+        check(piercing.penetrate() && ProjectileRuntime.usedSkillContinuation(piercing, ProjectilePath.PIERCING, penetrations),
+                "Spent skill penetration has a Piercing receipt");
+        check(!ProjectileRuntime.usedSkillContinuation(piercing, ProjectilePath.RICOCHET, bounces),
+                "One projectile path cannot claim another path's receipt");
     }
     private static void snapshotsAndTransfers() {
         for (var source : List.of(ProjectileSource.RANGED_PHYSICAL, ProjectileSource.ASCENDANCE_MAGIC))

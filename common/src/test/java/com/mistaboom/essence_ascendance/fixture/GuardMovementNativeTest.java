@@ -150,6 +150,7 @@ public final class GuardMovementNativeTest {
         @Override public boolean isAlive() { return alive; }
         @Override public boolean isSpectator() { return false; }
         @Override public boolean isCreative() { return false; }
+        @Override public boolean isSleeping() { return false; }
         @Override public boolean isUsingItem() { return using; }
         @Override public ItemStack getUseItem() { return using ? shield : ItemStack.EMPTY; }
         @Override public InteractionHand getUsedItemHand() { return hand; }

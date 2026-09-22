@@ -173,6 +173,16 @@ public final class FlightAbilityState implements SkillEffectState {
     public void startWings(long now) { wingsActive = true; wingsStartedTick = now; }
     public void stopWings() { wingsActive = false; wingsStartedTick = Long.MIN_VALUE; }
 
+    /** Cancel inactive thrust without treating a loadout change as a grounded refill. */
+    public void suspendThrust() {
+        cancelInput();
+        thrusting = false;
+        lastResourceTick = Long.MIN_VALUE;
+    }
+
+    /** A disabled boost loses input, but its already-running recharge still follows server time. */
+    public void suspendBoost() { cancelInput(); }
+
     private void cancelInput() {
         jumpDown = false;
         forwardInput = 0;
