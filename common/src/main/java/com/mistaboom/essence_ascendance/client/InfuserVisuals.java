@@ -40,7 +40,8 @@ public final class InfuserVisuals {
     private InfuserVisuals() { }
 
     public static void render(EssenceInfuserBlockEntity infuser, ItemRenderer itemRenderer,
-                              float partialTick, PoseStack pose, MultiBufferSource buffers,
+                              float partialTick, PoseStack pose,
+                              MultiBufferSource.BufferSource buffers,
                               int packedOverlay) {
         Level level = infuser.getLevel();
         if (level == null) return;
@@ -88,7 +89,7 @@ public final class InfuserVisuals {
 
     private static void renderFunctional(BlockPos pos, MachineVisualState.Infuser state,
                                          ItemRenderer itemRenderer, Level level,
-                                         PoseStack pose, MultiBufferSource buffers,
+                                         PoseStack pose, MultiBufferSource.BufferSource buffers,
                                          int packedOverlay, double age, boolean close) {
         MachineVisualState.Focus focus = state.focus();
         int tier = tierLevel(focus.tier());
@@ -144,7 +145,7 @@ public final class InfuserVisuals {
 
     private static void renderWorkpiece(MachineVisualState.Infuser state,
                                         ItemRenderer itemRenderer, Level level, BlockPos pos,
-                                        PoseStack pose, MultiBufferSource buffers,
+                                        PoseStack pose, MultiBufferSource.BufferSource buffers,
                                         int overlay, double age, boolean active,
                                         double intensity) {
         Item item = BuiltInRegistries.ITEM.get(state.workpiece());
@@ -164,6 +165,12 @@ public final class InfuserVisuals {
         itemRenderer.renderStatic(stack, ItemDisplayContext.FIXED, light, overlay,
                 pose, buffers, level, pos.hashCode());
         pose.popPose();
+
+        // Item render types live in fixed buffers and would otherwise remain queued
+        // until after every procedural pass, painting the workpiece over the whole
+        // cage. Establish its real depth now; subsequent field fragments behind it
+        // fail normally while fragments physically in front still pass.
+        buffers.endBatch();
     }
 
     private static void renderCompressionBands(PoseStack pose, VertexConsumer planes,

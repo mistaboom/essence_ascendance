@@ -90,7 +90,8 @@ public final class FocusVisuals {
         // ornament does not energize until the host has a machine link.
         if (!context.energized()) return;
 
-        // Depth writing prevents a later, farther machine batch from painting over the halo.
+        // MachineWorldVisualRenderer submits this after the opaque world so normal
+        // depth testing can resolve the halo without transparent depth writes.
         double activity = context.active() ? Math.min(1.0, Math.log1p(context.ratePerSecond()) / 16.0) : 0.0;
         int tierLevel = context.tier() == null ? 0 : context.tier().ordinal() + 1;
         double refinement = tierLevel / 5.0;

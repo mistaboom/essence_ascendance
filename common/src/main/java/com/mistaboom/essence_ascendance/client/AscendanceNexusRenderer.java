@@ -6,7 +6,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 
-/** Renders the Blockbench Nexus mesh and its embedded texture. */
+/** Renders the restrained Nexus lectern and its persistent floating codex. */
 public final class AscendanceNexusRenderer
         implements BlockEntityRenderer<AscendanceNexusBlockEntity> {
 
@@ -30,5 +30,20 @@ public final class AscendanceNexusRenderer
                 packedLight,
                 packedOverlay
         );
+
+        if (nexus.getLevel() != null) {
+            MachineWorldVisualRenderer.enqueue(nexus, partialTick);
+        }
+    }
+
+    @Override
+    public boolean shouldRenderOffScreen(AscendanceNexusBlockEntity nexus) {
+        // The codex and its orbit intentionally rise beyond the one-block lectern bounds.
+        return true;
+    }
+
+    @Override
+    public int getViewDistance() {
+        return NexusVisuals.VIEW_DISTANCE;
     }
 }

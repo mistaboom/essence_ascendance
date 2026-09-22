@@ -21,6 +21,7 @@
     "TraversalScreenEffectsMixin",
     "TraversalLiquidRendererMixin",
     "MovementAbilityInputMixin",
+    "MachineWorldVisualRendererMixin",
     "GatheringSurveyRendererMixin",
     "GatheringSalvageGrindstoneScreenMixin",
     "UtilitySenseRendererMixin",

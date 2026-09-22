@@ -32,7 +32,7 @@ public final class EssenceCrucibleRenderer
         );
 
         if (crucible.getLevel() != null) {
-            CrucibleVisuals.render(crucible, partialTick, poseStack, bufferSource);
+            MachineWorldVisualRenderer.enqueue(crucible, partialTick);
         }
     }
 

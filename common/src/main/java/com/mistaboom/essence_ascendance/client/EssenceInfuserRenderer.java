@@ -6,7 +6,6 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.entity.ItemRenderer;
-import net.minecraft.world.item.ItemStack;
 
 /** Renders the modeled Infuser, its containment field, workpiece, and shared Focus. */
 public final class EssenceInfuserRenderer
@@ -34,15 +33,8 @@ public final class EssenceInfuserRenderer
         );
 
         if (infuser.getLevel() != null) {
-            InfuserVisuals.render(infuser, itemRenderer, partialTick, poseStack,
-                    bufferSource, packedOverlay);
-
-            ItemStack focus = infuser.getItem(EssenceInfuserBlockEntity.FOCUS_SLOT);
-            if (focus.isEmpty()) return;
-            FocusVisuals.renderInstalled(FocusVisuals.Context.installed(
-                            infuser.visualState().focus(), infuser.visualState().linked()),
-                    infuser.getLevel(), infuser.getBlockPos(), partialTick,
-                    poseStack, bufferSource, packedOverlay);
+            MachineWorldVisualRenderer.enqueue(infuser, itemRenderer,
+                    partialTick, packedOverlay);
         }
     }
 
