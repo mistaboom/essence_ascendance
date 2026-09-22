@@ -32,28 +32,28 @@ public final class FocusVisuals {
     private static final Vec3 Z = new Vec3(0, 0, 1);
     private static final Vec3 TILTED = new Vec3(0, 0.56, 0.83);
     private static final double TAU = Math.PI * 2;
-    private static final Ornament LATENT_ORNAMENT = new Ornament(0.24, 0, 0, false, 2);
-    private static final Ornament DORMANT_ORNAMENT = new Ornament(0.18, 0, 0, false, 2);
-    private static final Ornament AWAKENED_ORNAMENT = new Ornament(0.13, 0, 0, true, 2);
-    private static final Ornament RESONANT_ORNAMENT = new Ornament(0.09, TAU * 0.42, 0, true, 3);
-    private static final Ornament ASCENDANT_ORNAMENT = new Ornament(0.05, TAU * 0.68, 4, true, 3);
-    private static final Ornament TRANSCENDENT_ORNAMENT = new Ornament(0.012, TAU, 4, true, 4);
+    private static final Ornament LATENT_ORNAMENT = new Ornament(0.58, 0, 0, false, 0);
+    private static final Ornament DORMANT_ORNAMENT = new Ornament(0.43, 0, 0, false, 1);
+    private static final Ornament AWAKENED_ORNAMENT = new Ornament(0.31, TAU * 0.24, 2, false, 2);
+    private static final Ornament RESONANT_ORNAMENT = new Ornament(0.20, TAU * 0.48, 4, true, 3);
+    private static final Ornament ASCENDANT_ORNAMENT = new Ornament(0.10, TAU * 0.74, 6, true, 4);
+    private static final Ornament TRANSCENDENT_ORNAMENT = new Ornament(0.012, TAU, 8, true, 5);
 
     private FocusVisuals() { }
 
     public enum Host { GENERIC, PYLON, INFUSER }
 
     /** Anchor is block-local for installed Foci; yaw is in world degrees. */
-    public record Context(Host host, boolean installed, EssenceFocusTier tier,
+    public record Context(Host host, boolean installed, boolean energized, EssenceFocusTier tier,
                           boolean active, long ratePerSecond,
                           double x, double y, double z, float yawDegrees) {
         public static Context generic(EssenceFocusTier tier) {
-            return new Context(Host.GENERIC, true, tier, false, 0, 0.5, 1.5, 0.5, 0);
+            return new Context(Host.GENERIC, true, true, tier, false, 0, 0.5, 1.5, 0.5, 0);
         }
 
-        public static Context installed(MachineVisualState.Focus focus) {
+        public static Context installed(MachineVisualState.Focus focus, boolean linked) {
             Host host = focus.host() == MachineVisualState.Host.PYLON ? Host.PYLON : Host.INFUSER;
-            return new Context(host, focus.installed(), focus.tier(), focus.active(), focus.ratePerSecond(),
+            return new Context(host, focus.installed(), linked, focus.tier(), focus.active(), focus.ratePerSecond(),
                     0.5, 1.5, 0.5, 0);
         }
     }
@@ -86,15 +86,20 @@ public final class FocusVisuals {
         double age = level.getGameTime() + partialTick;
         int light = LevelRenderer.getLightColor(level, pos.above());
         renderGem(context, pose, buffers, light, overlay, age);
+        // An installed gem remains a visible physical component, but its magical
+        // ornament does not energize until the host has a machine link.
+        if (!context.energized()) return;
 
         // Depth writing prevents a later, farther machine batch from painting over the halo.
         double activity = context.active() ? Math.min(1.0, Math.log1p(context.ratePerSecond()) / 16.0) : 0.0;
+        int tierLevel = context.tier() == null ? 0 : context.tier().ordinal() + 1;
+        double refinement = tierLevel / 5.0;
         double pulse = ProceduralMotion.oscillate(age * (0.07 + activity * 0.06), 0.018);
-        double radius = 0.30 + pulse + (context.tier() == null ? 0 : context.tier().ordinal() * 0.008);
+        double radius = 0.27 + refinement * 0.07 + pulse;
         double y = context.y() + hover(context, age) - 0.015;
         Vec3 center = new Vec3(context.x(), y, context.z());
         int rgb = color(context.tier());
-        float opacity = context.active() ? 0.66F : 0.38F;
+        float opacity = (float) (0.18 + refinement * 0.28 + (context.active() ? 0.18 : 0.0));
         Ornament ornament = ornament(context.tier());
         double direction = context.host() == Host.INFUSER ? -1 : 1;
         double phase = age * direction * 0.018 + Math.toRadians(context.yawDegrees());
@@ -118,7 +123,7 @@ public final class FocusVisuals {
                 ProceduralGeometry.line(pose, lines, inner, outer, rgb, opacity * 0.72F);
             }
         }
-        if (ornament.satellite() || context.active()) {
+        if (ornament.satellite() || context.active() && tierLevel >= 2) {
             double angle = phase - age * 0.042;
             Vec3 orbit = ProceduralGeometry.orbitPoint(center, X, Z, radius, radius, angle);
             double s = 0.018 + (context.tier() == null ? 0 : context.tier().ordinal() * 0.002);
@@ -156,21 +161,26 @@ public final class FocusVisuals {
         VertexConsumer planes = buffers.getBuffer(ProceduralRenderTypes.WORLD_PLANES);
         int luminous = luminousColor(rgb);
         double pulse = 1.0 + ProceduralMotion.oscillate(age * 0.09, context.active() ? 0.035 : 0.018);
-        double tier = context.tier() == null ? 0 : context.tier().ordinal();
-        double outerWidth = (0.37 + tier * 0.012) * pulse;
-        double outerHeight = (0.44 + tier * 0.012) * pulse;
-        double bodyWidth = (0.29 + tier * 0.008) * pulse;
-        double bodyHeight = (0.36 + tier * 0.008) * pulse;
-        double innerWidth = (0.23 + tier * 0.005) * pulse;
-        double innerHeight = (0.32 + tier * 0.005) * pulse;
+        int tier = context.tier() == null ? 0 : context.tier().ordinal() + 1;
+        double refinement = tier / 5.0;
+        double outerWidth = (0.33 + refinement * 0.10) * pulse;
+        double outerHeight = (0.39 + refinement * 0.10) * pulse;
+        double bodyWidth = (0.28 + refinement * 0.06) * pulse;
+        double bodyHeight = (0.34 + refinement * 0.07) * pulse;
+        double innerWidth = (0.245 + refinement * 0.025) * pulse;
+        double innerHeight = (0.31 + refinement * 0.035) * pulse;
+        float innerOpacity = (float) (0.23 + refinement * 0.32
+                + (context.active() ? 0.10 : 0.0));
 
         // Non-overlapping bands leave the mesh visible in the center.
-        ProceduralGeometry.diamondRing(pose, planes, center, right, up,
-                outerWidth, outerHeight, bodyWidth, bodyHeight, rgb,
-                context.active() ? 0.24F : 0.18F);
+        if (tier >= 2) {
+            ProceduralGeometry.diamondRing(pose, planes, center, right, up,
+                    outerWidth, outerHeight, bodyWidth, bodyHeight, rgb,
+                    (float) (0.08 + refinement * 0.18 + (context.active() ? 0.05 : 0.0)));
+        }
         ProceduralGeometry.diamondRing(pose, planes, center, right, up,
                 bodyWidth, bodyHeight, innerWidth, innerHeight, luminous,
-                context.active() ? 0.62F : 0.48F);
+                innerOpacity);
 
         for (int index = 0; index < ornament.shards(); index++) {
             double angle = ProceduralMotion.orbitAngle(index, ornament.shards(), phase + age * 0.012);
@@ -178,9 +188,11 @@ public final class FocusVisuals {
                     outerWidth + 0.055, angle)
                     .add(0, ProceduralMotion.oscillate(age * 0.12 + index * 2.0, 0.045), 0);
             ProceduralGeometry.diamondRing(pose, planes, shard, right, up,
-                    0.070, 0.105, 0.044, 0.071, rgb, 0.25F);
+                    0.070, 0.105, 0.044, 0.071, rgb,
+                    (float) (0.12 + refinement * 0.18));
             ProceduralGeometry.diamond(pose, planes, shard, right, up,
-                    0.044, 0.071, luminous, context.active() ? 0.91F : 0.78F);
+                    0.044, 0.071, luminous,
+                    (float) (0.42 + refinement * 0.38 + (context.active() ? 0.10 : 0.0)));
         }
     }
 

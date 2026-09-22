@@ -31,7 +31,8 @@ public final class EssencePylonRenderer
 
         if (pylon.getLevel() != null) {
             PylonVisuals.render(pylon, partialTick, poseStack, bufferSource);
-            FocusVisuals.renderInstalled(FocusVisuals.Context.installed(pylon.visualState().focus()),
+            FocusVisuals.renderInstalled(FocusVisuals.Context.installed(
+                            pylon.visualState().focus(), pylon.visualState().linked()),
                     pylon.getLevel(), pylon.getBlockPos(), partialTick,
                     poseStack, bufferSource, packedOverlay);
         }

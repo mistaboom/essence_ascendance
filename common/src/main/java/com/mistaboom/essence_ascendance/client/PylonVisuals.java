@@ -40,6 +40,10 @@ public final class PylonVisuals {
         boolean close = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition()
                 .distanceToSqr(Vec3.atCenterOf(pylon.getBlockPos())) <= DETAIL_DISTANCE_SQUARED;
 
+        // No procedural energy field is the readable unlinked state. An installed
+        // Focus is still rendered as a physical gem by the shared Focus renderer.
+        if (!state.linked()) return;
+
         if (!state.focus().installed()) {
             renderEmpty(pose, buffers, age, close);
             return;
@@ -50,16 +54,21 @@ public final class PylonVisuals {
 
     private static void renderEmpty(PoseStack pose, MultiBufferSource buffers,
                                     double age, boolean close) {
-        VertexConsumer lines = buffers.getBuffer(ProceduralRenderTypes.WORLD_DEPTH_LINES);
         int dormant = AscendancePalette.LATENT.primaryRgb();
         double phase = age * 0.003;
 
-        // A low, incomplete socket registration reads as machinery awaiting its catalyst.
-        ProceduralGeometry.brokenRing(pose, lines, CENTER, X, Z, 0.51,
-                phase, TAU, 4, 4, 0.58, dormant, 0.13F);
+        // A restrained broad band survives streaming/remote-desktop compression,
+        // while the broken outline still reads as machinery awaiting its catalyst.
+        VertexConsumer planes = buffers.getBuffer(ProceduralRenderTypes.WORLD_PLANES);
+        ProceduralGeometry.annulus(pose, planes, CENTER, X, Z,
+                0.425, 0.49, 20, phase * 0.25, dormant, 0.105F);
+
+        VertexConsumer lines = buffers.getBuffer(ProceduralRenderTypes.WORLD_DEPTH_LINES);
+        ProceduralGeometry.brokenRing(pose, lines, CENTER, X, Z, 0.48,
+                phase, TAU, 4, 4, 0.66, dormant, 0.27F);
         if (close) {
             ProceduralGeometry.spokes(pose, lines, CENTER, X, Z,
-                    0.43, 0.53, 4, Math.PI * 0.25, dormant, 0.10F);
+                    0.40, 0.51, 4, Math.PI * 0.25, dormant, 0.18F);
         }
     }
 
@@ -80,54 +89,58 @@ public final class PylonVisuals {
         // A BufferSource can close the current builder when another RenderType is requested.
         // Finish every plane emission before acquiring the depth-line consumer.
         VertexConsumer planes = buffers.getBuffer(ProceduralRenderTypes.WORLD_PLANES);
-        renderPrimaryDiscs(pose, planes, phase, rgb, luminous, tierProgress, activity);
-        renderOrbitNodes(pose, planes, phase, rgb, luminous, tier, focus.active());
-        if (state.linked()) {
-            renderAnchorPlane(pos, state, pose, planes, luminous, focus.active());
+        renderPrimaryDiscs(pose, planes, phase, rgb, luminous, tier, tierProgress, activity);
+        if (tier >= 1) {
+            renderOrbitNodes(pose, planes, phase, rgb, luminous, tier, focus.active());
         }
+        renderAnchorPlane(pos, state, pose, planes, luminous, focus.active());
 
         VertexConsumer lines = buffers.getBuffer(ProceduralRenderTypes.WORLD_DEPTH_LINES);
-        renderPrimaryRings(pose, lines, phase, rgb, tierProgress, state.linked(), activity);
-        renderPulse(pose, lines, age, rgb, luminous, focus.active(), throughput);
-        if (state.linked()) {
-            renderAnchorLine(pos, state, pose, lines, luminous, focus.active());
+        renderPrimaryRings(pose, lines, phase, rgb, tier, tierProgress, activity);
+        if (tier >= 1) {
+            renderPulse(pose, lines, age, rgb, luminous, tier, focus.active(), throughput);
         }
-        if (focus.active()) {
-            renderEnergyTransfer(pose, lines, phase, luminous, activity);
+        renderAnchorLine(pos, state, pose, lines, luminous, focus.active());
+        if (focus.active() && tier >= 2) {
+            renderEnergyTransfer(pose, lines, phase, luminous, activity, tier);
         }
         if (close) {
-            renderFineDetail(pose, lines, phase, counterPhase, rgb, tier,
-                    state.linked(), focus.active());
+            renderFineDetail(pose, lines, phase, counterPhase, rgb, tier, focus.active());
         }
     }
 
     private static void renderPrimaryDiscs(PoseStack pose, VertexConsumer planes, double phase,
-                                           int rgb, int luminous, double tier, double activity) {
-        double outer = 0.78 + tier * 0.08;
-        double inner = 0.55 + tier * 0.025;
-        float bodyOpacity = (float) (0.16 + activity * 0.10);
-        float edgeOpacity = (float) (0.11 + activity * 0.08);
+                                           int rgb, int luminous, int tier,
+                                           double refinement, double activity) {
+        double outer = 0.70 + refinement * 0.16;
+        double inner = 0.58 - refinement * 0.03;
+        float bodyOpacity = (float) (0.075 + refinement * 0.15 + activity * 0.07);
 
         ProceduralGeometry.annulus(pose, planes, CENTER, X, Z,
-                inner, outer, 32, phase * 0.16, rgb, bodyOpacity);
-        ProceduralGeometry.annulus(pose, planes, UPPER_CENTER, X, Z,
-                0.43, 0.50 + tier * 0.035, 24, -phase * 0.22,
-                luminous, edgeOpacity);
+                inner, outer, 24 + tier * 2, phase * 0.16, rgb, bodyOpacity);
+        if (tier >= 2) {
+            float edgeOpacity = (float) (0.06 + refinement * 0.13 + activity * 0.06);
+            ProceduralGeometry.annulus(pose, planes, UPPER_CENTER, X, Z,
+                    0.43, 0.48 + refinement * 0.12, 20 + tier * 2, -phase * 0.22,
+                    luminous, edgeOpacity);
+        }
     }
 
     private static void renderPrimaryRings(PoseStack pose, VertexConsumer lines, double phase,
-                                           int rgb, double tier, boolean linked, double activity) {
-        double outerRadius = 0.80 + tier * 0.08;
-        double outerGap = Math.max(0.045, 0.22 - tier * 0.10
-                - (linked ? 0.035 : 0.0) - activity * 0.055);
-        float outerOpacity = (float) (0.54 + activity * 0.28);
+                                           int rgb, int tier, double refinement,
+                                           double activity) {
+        double outerRadius = 0.72 + refinement * 0.18;
+        double outerGap = Math.max(0.045, 0.48 - refinement * 0.37 - activity * 0.045);
+        float outerOpacity = (float) (0.28 + refinement * 0.36 + activity * 0.20);
 
         ProceduralGeometry.brokenRing(pose, lines, CENTER, X, Z, outerRadius,
-                phase, TAU, 4, 8, outerGap, rgb, outerOpacity);
-        ProceduralGeometry.brokenRing(pose, lines, UPPER_CENTER, X, Z,
-                0.51 + tier * 0.035, -phase * 0.72, TAU, 3, 8,
-                Math.max(0.06, 0.28 - tier * 0.12 - activity * 0.08),
-                rgb, (float) (0.43 + activity * 0.30));
+                phase, TAU, 3 + (tier >= 3 ? 1 : 0), 6 + tier, outerGap, rgb, outerOpacity);
+        if (tier >= 1) {
+            ProceduralGeometry.brokenRing(pose, lines, UPPER_CENTER, X, Z,
+                    0.48 + refinement * 0.10, -phase * 0.72, TAU, 3, 5 + tier,
+                    Math.max(0.06, 0.50 - refinement * 0.39 - activity * 0.06),
+                    rgb, (float) (0.20 + refinement * 0.32 + activity * 0.20));
+        }
     }
 
     private static void renderOrbitNodes(PoseStack pose, VertexConsumer planes, double phase,
@@ -137,7 +150,7 @@ public final class PylonVisuals {
         Vector3f cameraUp = camera.getUpVector();
         Vec3 right = new Vec3(-left.x(), -left.y(), -left.z());
         Vec3 up = new Vec3(cameraUp.x(), cameraUp.y(), cameraUp.z());
-        int count = 3 + (tier >= 3 ? 1 : 0);
+        int count = Math.min(5, tier);
 
         for (int index = 0; index < count; index++) {
             double angle = ProceduralMotion.orbitAngle(index, count, phase * 1.35);
@@ -145,9 +158,11 @@ public final class PylonVisuals {
                     0.58 + tier * 0.012, 0.58 + tier * 0.012, angle)
                     .add(0, ProceduralMotion.oscillate(ageOffset(phase, index), 0.025), 0);
             ProceduralGeometry.diamondRing(pose, planes, center, right, up,
-                    0.052, 0.078, 0.030, 0.047, rgb, active ? 0.38F : 0.26F);
+                    0.052, 0.078, 0.030, 0.047, rgb,
+                    active ? 0.28F + tier * 0.025F : 0.13F + tier * 0.025F);
             ProceduralGeometry.diamond(pose, planes, center, right, up,
-                    0.030, 0.047, luminous, active ? 0.86F : 0.68F);
+                    0.030, 0.047, luminous,
+                    active ? 0.58F + tier * 0.055F : 0.34F + tier * 0.055F);
         }
     }
 
@@ -156,13 +171,15 @@ public final class PylonVisuals {
     }
 
     private static void renderPulse(PoseStack pose, VertexConsumer lines, double age,
-                                    int rgb, int luminous, boolean active, double throughput) {
+                                    int rgb, int luminous, int tier,
+                                    boolean active, double throughput) {
         double rate = active ? 0.026 + throughput * 0.034 : 0.010;
-        int pulses = active ? 2 : 1;
+        int pulses = active && tier >= 4 ? 2 : 1;
         for (int index = 0; index < pulses; index++) {
             double progress = ProceduralMotion.phase(age + index / (double) pulses / rate, rate);
             double radius = 0.53 + progress * (active ? 0.60 : 0.34);
-            float opacity = (float) ((active ? 0.36 : 0.18) * (1.0 - progress));
+            float opacity = (float) ((active ? 0.20 + tier * 0.045 : 0.08 + tier * 0.025)
+                    * (1.0 - progress));
             ProceduralGeometry.ring(pose, lines, new Vec3(0.5, 1.17, 0.5), X, Z,
                     radius, 32, index == 0 ? luminous : rgb, opacity);
         }
@@ -198,9 +215,11 @@ public final class PylonVisuals {
     }
 
     private static void renderEnergyTransfer(PoseStack pose, VertexConsumer lines,
-                                             double phase, int rgb, double activity) {
-        for (int index = 0; index < 4; index++) {
-            double angle = phase * 0.45 + index * Math.PI * 0.5;
+                                             double phase, int rgb, double activity,
+                                             int tier) {
+        int count = 1 + tier / 2;
+        for (int index = 0; index < count; index++) {
+            double angle = phase * 0.45 + index * TAU / count;
             Vec3 root = ProceduralGeometry.orbitPoint(UPPER_CENTER, X, Z,
                     0.38, 0.38, angle);
             Vec3 tip = new Vec3(0.5, 1.44, 0.5).lerp(root, 0.34);
@@ -211,24 +230,28 @@ public final class PylonVisuals {
 
     private static void renderFineDetail(PoseStack pose, VertexConsumer lines,
                                          double phase, double counterPhase, int rgb, int tier,
-                                         boolean linked, boolean active) {
+                                         boolean active) {
         double tierProgress = tier / 5.0;
-        float faint = active ? 0.24F : 0.16F;
-        int ticks = 12 + tier * 2;
+        float faint = (float) (0.08 + tierProgress * 0.15 + (active ? 0.06 : 0.0));
 
-        ProceduralGeometry.ring(pose, lines, new Vec3(0.5, 1.02, 0.5), X, Z,
-                0.63 + tierProgress * 0.04, 40, rgb, faint);
         ProceduralGeometry.brokenRing(pose, lines, new Vec3(0.5, 1.11, 0.5), X, Z,
                 0.37 + tierProgress * 0.03, counterPhase, TAU, 6, 5,
-                0.34 - tierProgress * 0.18, rgb, faint * 0.82F);
-        ProceduralGeometry.spokes(pose, lines, CENTER, X, Z,
-                0.67 + tierProgress * 0.04, 0.73 + tierProgress * 0.06,
-                ticks, counterPhase * 0.25, rgb, faint * 0.86F);
+                0.62 - tierProgress * 0.46, rgb, faint * 0.82F);
+        if (tier >= 2) {
+            ProceduralGeometry.spokes(pose, lines, CENTER, X, Z,
+                    0.67 + tierProgress * 0.04, 0.73 + tierProgress * 0.06,
+                    4 + tier * 2, counterPhase * 0.25, rgb, faint * 0.86F);
+        }
+        if (tier >= 4) {
+            ProceduralGeometry.ring(pose, lines, new Vec3(0.5, 1.02, 0.5), X, Z,
+                    0.63 + tierProgress * 0.04, 40, rgb, faint);
+        }
 
-        for (int index = 0; index < 4; index++) {
+        int uprights = tier >= 3 ? Math.min(4, tier - 1) : 0;
+        for (int index = 0; index < uprights; index++) {
             double angle = Math.PI * 0.25 + index * Math.PI * 0.5;
             Vec3 lower = ProceduralGeometry.orbitPoint(CENTER, X, Z, 0.43, 0.43, angle);
-            Vec3 upper = new Vec3(lower.x, linked ? 1.28 : 1.20, lower.z);
+            Vec3 upper = new Vec3(lower.x, 1.28, lower.z);
             ProceduralGeometry.line(pose, lines, lower, upper, rgb, faint * 0.72F);
         }
     }

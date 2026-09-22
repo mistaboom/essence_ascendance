@@ -12,8 +12,8 @@ public final class ProceduralRenderTypes {
 
     public static final RenderType WORLD_PLANES = planes("essence_ascendance_flight_planes", Depth.WORLD);
     public static final RenderType WORLD_LINES = lines("essence_ascendance_flight_edges", Depth.WORLD);
-    /** Sparse world ornaments that must occlude later opaque block-entity batches. */
-    public static final RenderType WORLD_DEPTH_LINES = lines("essence_ascendance_world_depth_lines", Depth.WORLD, true);
+    /** Depth-tested machine ornaments. Transparent lines never write depth. */
+    public static final RenderType WORLD_DEPTH_LINES = lines("essence_ascendance_world_depth_lines", Depth.WORLD, false);
     public static final RenderType PERCEPTION_PLANES = planes("essence_ascendance_utility_sense_fills", Depth.SEE_THROUGH);
     public static final RenderType PERCEPTION_LINES = lines("essence_ascendance_utility_sense_lines", Depth.SEE_THROUGH);
 
@@ -24,7 +24,10 @@ public final class ProceduralRenderTypes {
                 RenderType.TRANSIENT_BUFFER_SIZE, false, true,
                 () -> {
                     RenderSystem.setShader(GameRenderer::getPositionColorShader);
-                    begin(depth, depth == Depth.WORLD);
+                    // These planes are translucent. Writing their depth before a
+                    // later block-entity batch makes the opaque machine disappear
+                    // behind an otherwise transparent field (an X-ray silhouette).
+                    begin(depth, false);
                 },
                 () -> end(depth)) { };
     }

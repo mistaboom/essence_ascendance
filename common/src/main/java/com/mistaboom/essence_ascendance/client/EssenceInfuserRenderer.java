@@ -5,13 +5,16 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.minecraft.client.renderer.entity.ItemRenderer;
 import net.minecraft.world.item.ItemStack;
 
-/** Renders the modeled Infuser plus the installed floating Essence Focus. */
+/** Renders the modeled Infuser, its containment field, workpiece, and shared Focus. */
 public final class EssenceInfuserRenderer
         implements BlockEntityRenderer<EssenceInfuserBlockEntity> {
+    private final ItemRenderer itemRenderer;
 
     public EssenceInfuserRenderer(BlockEntityRendererProvider.Context context) {
+        itemRenderer = context.getItemRenderer();
     }
 
     @Override
@@ -30,15 +33,27 @@ public final class EssenceInfuserRenderer
                 packedOverlay
         );
 
-        ItemStack focus = infuser.getItem(EssenceInfuserBlockEntity.FOCUS_SLOT);
-        if (focus.isEmpty()) {
-            return;
-        }
-
         if (infuser.getLevel() != null) {
-            FocusVisuals.renderInstalled(FocusVisuals.Context.installed(infuser.visualState().focus()),
+            InfuserVisuals.render(infuser, itemRenderer, partialTick, poseStack,
+                    bufferSource, packedOverlay);
+
+            ItemStack focus = infuser.getItem(EssenceInfuserBlockEntity.FOCUS_SLOT);
+            if (focus.isEmpty()) return;
+            FocusVisuals.renderInstalled(FocusVisuals.Context.installed(
+                            infuser.visualState().focus(), infuser.visualState().linked()),
                     infuser.getLevel(), infuser.getBlockPos(), partialTick,
                     poseStack, bufferSource, packedOverlay);
         }
+    }
+
+    @Override
+    public boolean shouldRenderOffScreen(EssenceInfuserBlockEntity infuser) {
+        // The containment field intentionally extends beyond the one-block mesh.
+        return true;
+    }
+
+    @Override
+    public int getViewDistance() {
+        return InfuserVisuals.VIEW_DISTANCE;
     }
 }
