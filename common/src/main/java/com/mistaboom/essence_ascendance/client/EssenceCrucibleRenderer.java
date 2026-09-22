@@ -6,7 +6,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 
-/** Renders the Blockbench Crucible mesh and its embedded texture. */
+/** Renders the Blockbench Crucible mesh and its persistent dissolution field. */
 public final class EssenceCrucibleRenderer
         implements BlockEntityRenderer<EssenceCrucibleBlockEntity> {
 
@@ -30,5 +30,20 @@ public final class EssenceCrucibleRenderer
                 packedLight,
                 packedOverlay
         );
+
+        if (crucible.getLevel() != null) {
+            CrucibleVisuals.render(crucible, partialTick, poseStack, bufferSource);
+        }
+    }
+
+    @Override
+    public boolean shouldRenderOffScreen(EssenceCrucibleBlockEntity crucible) {
+        // The vertical release field intentionally extends above the one-block mesh.
+        return true;
+    }
+
+    @Override
+    public int getViewDistance() {
+        return CrucibleVisuals.VIEW_DISTANCE;
     }
 }
