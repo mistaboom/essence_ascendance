@@ -122,6 +122,22 @@ public final class ProceduralGeometry {
         arc(pose, out, center, axisA, axisB, radius, radius, 0, TAU, segments, rgb, alpha);
     }
 
+    /** Flat translucent band between two concentric circles in the caller's chosen plane. */
+    public static void annulus(PoseStack pose, VertexConsumer out, Vec3 center, Vec3 axisA, Vec3 axisB,
+                               double innerRadius, double outerRadius, int segments, double phase,
+                               int rgb, float alpha) {
+        if (segments < 3 || innerRadius < 0 || outerRadius <= innerRadius) return;
+        for (int i = 0; i < segments; i++) {
+            double angle = phase + TAU * i / segments;
+            double next = phase + TAU * (i + 1) / segments;
+            Vec3 outerA = orbitPoint(center, axisA, axisB, outerRadius, outerRadius, angle);
+            Vec3 outerB = orbitPoint(center, axisA, axisB, outerRadius, outerRadius, next);
+            Vec3 innerB = orbitPoint(center, axisA, axisB, innerRadius, innerRadius, next);
+            Vec3 innerA = orbitPoint(center, axisA, axisB, innerRadius, innerRadius, angle);
+            quad(pose, out, outerA, outerB, innerB, innerA, rgb, alpha);
+        }
+    }
+
     public static void brokenRing(PoseStack pose, VertexConsumer out, Vec3 center, Vec3 axisA, Vec3 axisB,
                                   double radius, double start, double sweep, int pieces, int segmentsPerPiece,
                                   double gapFraction, int rgb, float alpha) {

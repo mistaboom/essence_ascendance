@@ -5,7 +5,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.world.item.ItemStack;
 
 /** Renders the modeled Pylon plus the installed floating Essence Focus. */
 public final class EssencePylonRenderer
@@ -30,15 +29,22 @@ public final class EssencePylonRenderer
                 packedOverlay
         );
 
-        ItemStack focus = pylon.getItem(EssencePylonBlockEntity.FOCUS_SLOT);
-        if (focus.isEmpty()) {
-            return;
-        }
-
         if (pylon.getLevel() != null) {
+            PylonVisuals.render(pylon, partialTick, poseStack, bufferSource);
             FocusVisuals.renderInstalled(FocusVisuals.Context.installed(pylon.visualState().focus()),
                     pylon.getLevel(), pylon.getBlockPos(), partialTick,
                     poseStack, bufferSource, packedOverlay);
         }
+    }
+
+    @Override
+    public boolean shouldRenderOffScreen(EssencePylonBlockEntity pylon) {
+        // The resonance field intentionally extends beyond the one-block machine bounds.
+        return true;
+    }
+
+    @Override
+    public int getViewDistance() {
+        return PylonVisuals.VIEW_DISTANCE;
     }
 }
