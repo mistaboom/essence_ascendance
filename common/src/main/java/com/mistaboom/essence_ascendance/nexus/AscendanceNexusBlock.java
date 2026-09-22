@@ -14,7 +14,11 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.server.level.ServerLevel;
+import org.jetbrains.annotations.Nullable;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
@@ -76,6 +80,18 @@ public final class AscendanceNexusBlock extends Block implements EntityBlock {
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new AscendanceNexusBlockEntity(pos, state);
+    }
+
+    @Nullable
+    @Override
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(
+            Level level, BlockState state, BlockEntityType<T> type) {
+        if (level.isClientSide || type != AscendanceNexusContent.ASCENDANCE_NEXUS_BLOCK_ENTITY.get()) {
+            return null;
+        }
+        return (tickLevel, pos, tickState, entity) ->
+                AscendanceNexusBlockEntity.serverTick((ServerLevel) tickLevel, pos,
+                        tickState, (AscendanceNexusBlockEntity) entity);
     }
 
     @Override

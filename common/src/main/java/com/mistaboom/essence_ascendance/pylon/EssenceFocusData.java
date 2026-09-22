@@ -22,8 +22,9 @@ public final class EssenceFocusData {
     }
 
     /**
-     * Returns the completed operational tier. {@code null} means the focus is
-     * still Latent and therefore cannot be installed in a machine yet.
+     * Returns the completed upgrade tier. {@code null} means a Focus stack is
+     * still Latent; use {@link #isFocusItem(ItemStack)} to distinguish it from
+     * an empty or unrelated stack.
      */
     @Nullable
     public static EssenceFocusTier tier(ItemStack stack) {

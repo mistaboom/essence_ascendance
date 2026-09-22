@@ -4,6 +4,7 @@ import com.mistaboom.essence_ascendance.network.ServerMenuAccess;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleBlockEntity;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleStructureService;
+import com.mistaboom.essence_ascendance.visual.MachineVisualState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -45,6 +46,8 @@ public final class EssencePylonBlockEntity extends BlockEntity
     private UUID ownerId;
     private String ownerName = "";
     private BlockPos linkedCruciblePos;
+    private MachineVisualState.Pylon clientVisualState;
+    private MachineVisualState.Pylon lastSyncedVisualState;
 
     public EssencePylonBlockEntity(BlockPos pos, BlockState state) {
         super(
@@ -62,7 +65,26 @@ public final class EssencePylonBlockEntity extends BlockEntity
     ) {
         if (level.getGameTime() % 20L == 0L) {
             pylon.refreshLink();
+            if (!pylon.visualState().equals(pylon.lastSyncedVisualState)) {
+                pylon.syncBlockEntity();
+            }
         }
+    }
+
+    public MachineVisualState.Pylon visualState() {
+        if (level != null && level.isClientSide) return clientVisualState == null
+                ? MachineVisualState.IDLE_PYLON : clientVisualState;
+        boolean active = false;
+        if (level instanceof ServerLevel serverLevel && isCurrentLinkValid(serverLevel)
+                && serverLevel.getBlockEntity(linkedCruciblePos) instanceof EssenceCrucibleBlockEntity crucible) {
+            active = crucible.structureSnapshot().containsPylon(worldPosition);
+        }
+        EssenceFocusTier tier = focusTier();
+        boolean installed = hasInstalledFocus();
+        long rate = active ? contribution().transferRatePerSecondBonus() : 0L;
+        return new MachineVisualState.Pylon(linkedCruciblePos,
+                new MachineVisualState.Focus(MachineVisualState.Host.PYLON, installed, tier,
+                        active && installed, rate));
     }
 
     public UUID ownerId() {
@@ -104,13 +126,18 @@ public final class EssencePylonBlockEntity extends BlockEntity
         return EssencePylonContent.focusTier(getItem(FOCUS_SLOT));
     }
 
+    public boolean hasInstalledFocus() {
+        return EssencePylonContent.isFocusItem(getItem(FOCUS_SLOT));
+    }
+
     public EssencePylonContribution contribution() {
         return EssencePylonContent.contribution(getItem(FOCUS_SLOT));
     }
 
     public String focusDisplayName() {
+        if (!hasInstalledFocus()) return "No Focus";
         EssenceFocusTier tier = focusTier();
-        return tier == null ? "Empty / Base Pylon" : tier.displayName() + " Focus";
+        return tier == null ? "Latent Focus" : tier.displayName() + " Focus";
     }
 
     public void refreshLink() {
@@ -218,7 +245,13 @@ public final class EssencePylonBlockEntity extends BlockEntity
     private void syncBlockEntity() {
         setChanged();
         if (level != null && !level.isClientSide) {
+            lastSyncedVisualState = visualState();
             BlockState state = getBlockState();
+            boolean lit = hasInstalledFocus();
+            if (state.getValue(EssencePylonBlock.FOCUS_LIT) != lit) {
+                state = state.setValue(EssencePylonBlock.FOCUS_LIT, lit);
+                level.setBlock(worldPosition, state, Block.UPDATE_CLIENTS);
+            }
             level.sendBlockUpdated(
                     worldPosition,
                     state,
@@ -321,19 +354,24 @@ public final class EssencePylonBlockEntity extends BlockEntity
         linkedCruciblePos = tag.contains(LINKED_CRUCIBLE_TAG)
                 ? BlockPos.of(tag.getLong(LINKED_CRUCIBLE_TAG))
                 : null;
+        clientVisualState = tag.contains(MachineVisualState.TAG, net.minecraft.nbt.Tag.TAG_COMPOUND)
+                ? MachineVisualState.Pylon.read(tag.getCompound(MachineVisualState.TAG)) : null;
     }
 
     @Override
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
         CompoundTag tag = new CompoundTag();
         saveAdditional(tag, registries);
+        MachineVisualState.Pylon visual = visualState();
+        if (visual != null) tag.put(MachineVisualState.TAG, visual.save());
         return tag;
     }
 
     @Nullable
     @Override
     public ClientboundBlockEntityDataPacket getUpdatePacket() {
-        return ClientboundBlockEntityDataPacket.create(this);
+        return ClientboundBlockEntityDataPacket.create(this,
+                (entity, registries) -> entity.getUpdateTag(registries));
     }
 
     @Override

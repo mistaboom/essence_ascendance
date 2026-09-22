@@ -37,6 +37,7 @@ public final class EssencePylonContent {
                             BlockBehaviour.Properties.of()
                                     .requiresCorrectToolForDrops()
                                     .strength(3.5F)
+                                    .lightLevel(state -> state.getValue(EssencePylonBlock.FOCUS_LIT) ? 9 : 0)
                                     .pushReaction(PushReaction.BLOCK)
                     )
             );
@@ -100,10 +101,7 @@ public final class EssencePylonContent {
         initialized = true;
     }
 
-    /**
-     * Operational tier for an installed Focus. A partially infused Focus keeps
-     * operating at its last completed tier; only a still-Latent Focus is inactive.
-     */
+    /** Completed upgrade tier; null also describes an installed Latent Focus. */
     public static EssenceFocusTier focusTier(ItemStack stack) {
         return rawFocusTier(stack);
     }
@@ -120,9 +118,9 @@ public final class EssencePylonContent {
                 : tier.contribution();
     }
 
-    /** True only for a completed, installable Essence Focus. */
+    /** Every Essence Focus, including Latent, may be installed. */
     public static boolean isFocus(ItemStack stack) {
-        return focusTier(stack) != null;
+        return EssenceFocusData.isFocusItem(stack);
     }
 
     /** True for the unified Essence Focus at any completed/Latent infusion state. */

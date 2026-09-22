@@ -72,7 +72,8 @@ public final class EssenceCrucibleStructureService {
                             instanceof EssencePylonBlockEntity pylon)
                             || pylon.ownerId() == null
                             || !pylon.ownerId().equals(crucible.ownerId())
-                            || !pylon.isLinkedTo(cruciblePos)) {
+                            || !pylon.isLinkedTo(cruciblePos)
+                            || !pylon.hasInstalledFocus()) {
                         continue;
                     }
 

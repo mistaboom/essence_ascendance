@@ -27,7 +27,7 @@ public record EssenceCrucibleStructureSnapshot(
     ) {
         public String focusDisplayName() {
             return focusTier == null
-                    ? "Empty / Base Pylon"
+                    ? "Latent Focus"
                     : focusTier.displayName() + " Focus";
         }
     }

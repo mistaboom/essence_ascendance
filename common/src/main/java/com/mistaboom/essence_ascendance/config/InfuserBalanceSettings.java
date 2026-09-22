@@ -12,6 +12,8 @@ import java.util.Objects;
  */
 public record InfuserBalanceSettings(
         double linkRange,
+        // Legacy field names are retained for existing generated/runtime config data.
+        // These values now describe an installed Latent Focus, never an empty slot.
         int noFocusEfficiencyBasisPoints,
         long noFocusInfusionThroughputPerSecond,
         Map<String, GradeSettings> grades,
@@ -36,9 +38,9 @@ public record InfuserBalanceSettings(
         if (!(linkRange > 0.0D) || !Double.isFinite(linkRange)) {
             throw new IllegalArgumentException("Infuser link range must be finite and positive");
         }
-        validateEfficiency(noFocusEfficiencyBasisPoints, "No-Focus efficiency");
+        validateEfficiency(noFocusEfficiencyBasisPoints, "Latent Focus efficiency");
         if (noFocusInfusionThroughputPerSecond <= 0L) {
-            throw new IllegalArgumentException("No-Focus Infuser throughput must be positive");
+            throw new IllegalArgumentException("Latent Focus Infuser throughput must be positive");
         }
         Objects.requireNonNull(grades, "Infuser grade settings cannot be null");
         grades = Collections.unmodifiableMap(new LinkedHashMap<>(grades));

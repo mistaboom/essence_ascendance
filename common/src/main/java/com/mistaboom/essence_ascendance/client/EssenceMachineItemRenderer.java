@@ -70,6 +70,8 @@ public final class EssenceMachineItemRenderer
                     packedLight,
                     packedOverlay
             );
+        } else if (stack.is(EssencePylonContent.ESSENCE_FOCUS.get())) {
+            FocusVisuals.renderItem(stack, displayContext, poseStack, bufferSource, packedLight, packedOverlay);
         }
     }
 }

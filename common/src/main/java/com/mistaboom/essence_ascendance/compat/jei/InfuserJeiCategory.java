@@ -55,6 +55,7 @@ public final class InfuserJeiCategory implements IRecipeCategory<InfuserJeiRecip
     private static final int SLOT_Y = 10;
     private static final int INPUT_X = 8;
     private static final int AUX_X = 79;
+    private static final int FOCUS_X = 115;
     private static final int OUTPUT_X = 150;
     private static final int TEXT_X = 10;
     private static final int DETAIL_X = 18;
@@ -143,14 +144,12 @@ public final class InfuserJeiCategory implements IRecipeCategory<InfuserJeiRecip
         }
 
         EssenceFocusTier installedFocus = recipe.installedFocusTier();
-        if (installedFocus != null) {
-            ItemStack focus = new ItemStack(EssencePylonContent.ESSENCE_FOCUS.get());
-            EssenceFocusData.setTier(focus, installedFocus);
-            builder.addSlot(RecipeIngredientRole.CATALYST, AUX_X, SLOT_Y)
-                    .setStandardSlotBackground()
-                    .setSlotName("installed_focus")
-                    .addItemStack(focus);
-        }
+        ItemStack focus = new ItemStack(EssencePylonContent.ESSENCE_FOCUS.get());
+        if (installedFocus != null) EssenceFocusData.setTier(focus, installedFocus);
+        builder.addSlot(RecipeIngredientRole.CATALYST, AUX_X, SLOT_Y)
+                .setStandardSlotBackground()
+                .setSlotName("installed_focus")
+                .addItemStack(focus);
 
         EssenceDefinition source = representativeSource(recipe.targetEssence());
         EssenceInfuserBalance.Profile profile = EssenceInfuserBalance.profile(installedFocus);
@@ -179,21 +178,7 @@ public final class InfuserJeiCategory implements IRecipeCategory<InfuserJeiRecip
         }
 
         EssenceFocusTier required = focusRecipe.requiredInstalledFocusTier();
-        if (required != null) {
-            List<ItemStack> installedVariants = new ArrayList<>();
-            for (EssenceFocusTier tier : EssenceFocusTier.values()) {
-                if (tier.ordinal() < required.ordinal()) {
-                    continue;
-                }
-                ItemStack installed = new ItemStack(EssencePylonContent.ESSENCE_FOCUS.get());
-                EssenceFocusData.setTier(installed, tier);
-                installedVariants.add(installed);
-            }
-            builder.addSlot(RecipeIngredientRole.CATALYST, AUX_X, SLOT_Y)
-                    .setStandardSlotBackground()
-                    .setSlotName("installed_focus")
-                    .addItemStacks(installedVariants);
-        }
+        addFocusCatalyst(builder, AUX_X, required);
 
         builder.addOutputSlot(OUTPUT_X, SLOT_Y)
                 .setOutputSlotBackground()
@@ -209,6 +194,7 @@ public final class InfuserJeiCategory implements IRecipeCategory<InfuserJeiRecip
         if (!(resolved instanceof EquipmentInfusionRecipe equipmentRecipe)) {
             return;
         }
+        addFocusCatalyst(builder, FOCUS_X, equipmentRecipe.requiredInstalledFocusTier());
 
         ItemStack matrix = new ItemStack(
                 EssenceInfuserContent.ASCENDANCE_MATRIX.get(),
@@ -235,6 +221,7 @@ public final class InfuserJeiCategory implements IRecipeCategory<InfuserJeiRecip
         if (!(resolved instanceof RepairInfusionRecipe repairRecipe)) {
             return;
         }
+        addFocusCatalyst(builder, FOCUS_X, repairRecipe.requiredInstalledFocusTier());
 
         if (repairRecipe.latentIngotCount() > 0) {
             builder.addInputSlot(AUX_X, SLOT_Y)
@@ -267,6 +254,24 @@ public final class InfuserJeiCategory implements IRecipeCategory<InfuserJeiRecip
                 .setOutputSlotBackground()
                 .setSlotName("output")
                 .addItemStacks(outputs);
+    }
+
+    private static void addFocusCatalyst(IRecipeLayoutBuilder builder, int x,
+                                         EssenceFocusTier required) {
+        List<ItemStack> variants = new ArrayList<>();
+        if (required == null) {
+            variants.add(new ItemStack(EssencePylonContent.ESSENCE_FOCUS.get()));
+        }
+        for (EssenceFocusTier tier : EssenceFocusTier.values()) {
+            if (required != null && tier.ordinal() < required.ordinal()) continue;
+            ItemStack focus = new ItemStack(EssencePylonContent.ESSENCE_FOCUS.get());
+            EssenceFocusData.setTier(focus, tier);
+            variants.add(focus);
+        }
+        builder.addSlot(RecipeIngredientRole.CATALYST, x, SLOT_Y)
+                .setStandardSlotBackground()
+                .setSlotName("installed_focus")
+                .addItemStacks(variants);
     }
 
     @Override
@@ -309,12 +314,7 @@ public final class InfuserJeiCategory implements IRecipeCategory<InfuserJeiRecip
         );
 
         Component auxiliary = switch (recipe.kind()) {
-            case ESSENTIUM -> recipe.installedFocusTier() == null
-                    ? Component.empty()
-                    : EssenceText.term("focus");
-            case FOCUS -> resolved.requiredInstalledFocusTier() == null
-                    ? Component.empty()
-                    : EssenceText.term("focus");
+            case ESSENTIUM, FOCUS -> EssenceText.term("focus");
             case EQUIPMENT -> EssenceText.term("matrix");
             case REPAIR -> resolved instanceof RepairInfusionRecipe repair
                     && repair.latentIngotCount() > 0
@@ -323,6 +323,10 @@ public final class InfuserJeiCategory implements IRecipeCategory<InfuserJeiRecip
         };
         if (!auxiliary.getString().isEmpty()) {
             drawSlotLabel(graphics, font, auxiliary, AUX_X, 29);
+        }
+        if (recipe.kind() == InfuserJeiRecipe.Kind.EQUIPMENT
+                || recipe.kind() == InfuserJeiRecipe.Kind.REPAIR) {
+            drawSlotLabel(graphics, font, EssenceText.term("focus"), FOCUS_X, 29);
         }
 
         drawSlotLabel(
@@ -369,7 +373,7 @@ public final class InfuserJeiCategory implements IRecipeCategory<InfuserJeiRecip
                 startY
         );
         Component requiredFocus = installedFocus == null
-                ? EssenceText.term("none")
+                ? EssenceText.equipmentTier(com.mistaboom.essence_ascendance.equipment.EquipmentTier.LATENT)
                 : EssenceText.focusTier(installedFocus);
         y = detail(
                 graphics,
@@ -423,7 +427,8 @@ public final class InfuserJeiCategory implements IRecipeCategory<InfuserJeiRecip
         );
 
         Component requiredFocus = focusRecipe.requiredInstalledTier() == null
-                ? EssenceText.term("none")
+                ? EssenceText.jei("infuser.focus_tier_plus",
+                        EssenceText.equipmentTier(com.mistaboom.essence_ascendance.equipment.EquipmentTier.LATENT))
                 : EssenceText.jei(
                         "infuser.focus_tier_plus",
                         EssenceText.focusTier(focusRecipe.requiredInstalledTier())

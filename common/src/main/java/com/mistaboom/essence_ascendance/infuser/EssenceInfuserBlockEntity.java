@@ -13,10 +13,12 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentTierData;
 import com.mistaboom.essence_ascendance.equipment.SoulboundEquipmentData;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonContent;
 import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
+import com.mistaboom.essence_ascendance.visual.MachineVisualState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -63,6 +65,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     public static final int STATUS_PLAYER_CHANNELING = 8;
     public static final int STATUS_FOCUS_TIER_REQUIRED = 9;
     public static final int STATUS_FOCUS_MALFORMED = 10;
+    public static final int STATUS_NEEDS_FOCUS = 11;
     public static final int STATUS_COMPONENT_REQUIRED = 12;
     public static final int STATUS_REPAIR_MATERIAL_REQUIRED = 13;
 
@@ -77,6 +80,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     private static final String TARGET_ESSENCE_TAG = "target_essence";
     private static final String PROCESSING_TICKS_TAG = "processing_ticks";
     private static final String PROCESSING_ENABLED_TAG = "processing_enabled";
+    private static final String VISUAL_FOCUS_STACK_TAG = "visual_focus_stack";
 
     private final NonNullList<ItemStack> items =
             NonNullList.withSize(SLOT_COUNT, ItemStack.EMPTY);
@@ -90,6 +94,8 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     private int focusThroughputRemainderTwentieths;
     private boolean processingEnabled;
     private boolean processingVisualActive;
+    private MachineVisualState.Infuser clientVisualState;
+    private MachineVisualState.Infuser lastSyncedVisualState;
 
     public EssenceInfuserBlockEntity(BlockPos pos, BlockState state) {
         super(EssenceInfuserContent.ESSENCE_INFUSER_BLOCK_ENTITY.get(), pos, state);
@@ -110,6 +116,24 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         if (infuser.processingVisualActive && level.getGameTime() % 4L == 0L) {
             infuser.spawnTransferParticles(level);
         }
+        if (level.getGameTime() % 5L == 0L
+                && !infuser.visualState().equals(infuser.lastSyncedVisualState)) {
+            infuser.syncBlockEntity();
+        }
+    }
+
+    public MachineVisualState.Infuser visualState() {
+        if (level != null && level.isClientSide) return clientVisualState == null
+                ? MachineVisualState.IDLE_INFUSER : clientVisualState;
+        int status = statusCode();
+        boolean active = status == STATUS_PROCESSING;
+        ItemStack input = getItem(INPUT_SLOT);
+        long rate = active ? infusionThroughputPerSecond() : 0L;
+        return new MachineVisualState.Infuser(linkedCruciblePos, processingEnabled,
+                status, processingTicks, requiredProcessingTicks(), rate,
+                input.isEmpty() ? null : BuiltInRegistries.ITEM.getKey(input.getItem()),
+                new MachineVisualState.Focus(MachineVisualState.Host.INFUSER,
+                        hasInstalledFocus(), focusTier(), active && hasInstalledFocus(), rate));
     }
 
     public UUID ownerId() {
@@ -159,6 +183,10 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
 
     public EssenceFocusTier focusTier() {
         return EssencePylonContent.focusTier(getItem(FOCUS_SLOT));
+    }
+
+    public boolean hasInstalledFocus() {
+        return EssencePylonContent.isFocusItem(getItem(FOCUS_SLOT));
     }
 
     public EssenceInfuserBalance.Profile profile() {
@@ -275,7 +303,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     }
 
     public long infusionThroughputPerSecond() {
-        return profile().infusionThroughputPerSecond();
+        return hasInstalledFocus() ? profile().infusionThroughputPerSecond() : 0L;
     }
 
     public long focusInfusionRatePerSecond() {
@@ -292,6 +320,9 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
 
     public void setProcessingEnabled(Player player, boolean enabled) {
         if (!bindOwner(player) || ownerId == null) {
+            return;
+        }
+        if (enabled && !hasInstalledFocus()) {
             return;
         }
         if (enabled && player instanceof ServerPlayer serverPlayer) {
@@ -318,7 +349,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     }
 
     public int efficiencyBasisPoints() {
-        return profile().efficiencyBasisPoints();
+        return hasInstalledFocus() ? profile().efficiencyBasisPoints() : 0;
     }
 
     public long sourceAmountAvailable() {
@@ -352,6 +383,9 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     }
 
     public int statusCode() {
+        if (!hasInstalledFocus()) {
+            return STATUS_NEEDS_FOCUS;
+        }
         if (!processingEnabled) {
             return STATUS_STOPPED;
         }
@@ -702,6 +736,10 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     }
 
     private void tickProcessing(ServerLevel serverLevel) {
+        if (!hasInstalledFocus()) {
+            processingVisualActive = false;
+            return;
+        }
         Optional<EssenceInfuserRecipe> resolvedRecipe = currentInfusionRecipe();
         if (resolvedRecipe.isEmpty()) {
             processingVisualActive = false;
@@ -1131,7 +1169,8 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
 
     private void completeFocusInfusion(FocusInfusionRecipe recipe) {
         ItemStack workpiece = getItem(INPUT_SLOT);
-        if (!FocusInfusionData.requirementsMet(workpiece, recipe)
+        if (!hasInstalledFocus()
+                || !FocusInfusionData.requirementsMet(workpiece, recipe)
                 || !recipe.installedFocusAllows(focusTier())) {
             return;
         }
@@ -1408,7 +1447,13 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     private void syncBlockEntity() {
         setChanged();
         if (level != null && !level.isClientSide) {
+            lastSyncedVisualState = visualState();
             BlockState state = getBlockState();
+            boolean lit = hasInstalledFocus();
+            if (state.getValue(EssenceInfuserBlock.FOCUS_LIT) != lit) {
+                state = state.setValue(EssenceInfuserBlock.FOCUS_LIT, lit);
+                level.setBlock(worldPosition, state, Block.UPDATE_CLIENTS);
+            }
             level.sendBlockUpdated(worldPosition, state, state, Block.UPDATE_CLIENTS);
         }
     }
@@ -1454,6 +1499,15 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
 
     @Override
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        if (tag.contains(MachineVisualState.TAG, Tag.TAG_COMPOUND)) {
+            items.clear();
+            if (tag.contains(VISUAL_FOCUS_STACK_TAG, Tag.TAG_COMPOUND)) {
+                items.set(FOCUS_SLOT, ItemStack.parseOptional(registries,
+                        tag.getCompound(VISUAL_FOCUS_STACK_TAG)));
+            }
+            clientVisualState = MachineVisualState.Infuser.read(tag.getCompound(MachineVisualState.TAG));
+            return;
+        }
         super.loadAdditional(tag, registries);
         items.clear();
         ContainerHelper.loadAllItems(tag, items, registries);
@@ -1467,19 +1521,25 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         processingTicks = Math.max(0, tag.getInt(PROCESSING_TICKS_TAG));
         processingEnabled = tag.getBoolean(PROCESSING_ENABLED_TAG);
         processingVisualActive = false;
+        clientVisualState = tag.contains(MachineVisualState.TAG, Tag.TAG_COMPOUND)
+                ? MachineVisualState.Infuser.read(tag.getCompound(MachineVisualState.TAG)) : null;
     }
 
     @Override
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
         CompoundTag tag = new CompoundTag();
-        saveAdditional(tag, registries);
+        MachineVisualState.Infuser visual = visualState();
+        if (visual != null) tag.put(MachineVisualState.TAG, visual.save());
+        ItemStack focus = getItem(FOCUS_SLOT);
+        if (!focus.isEmpty()) tag.put(VISUAL_FOCUS_STACK_TAG, focus.saveOptional(registries));
         return tag;
     }
 
     @Nullable
     @Override
     public ClientboundBlockEntityDataPacket getUpdatePacket() {
-        return ClientboundBlockEntityDataPacket.create(this);
+        return ClientboundBlockEntityDataPacket.create(this,
+                (entity, registries) -> entity.getUpdateTag(registries));
     }
 
     @Override

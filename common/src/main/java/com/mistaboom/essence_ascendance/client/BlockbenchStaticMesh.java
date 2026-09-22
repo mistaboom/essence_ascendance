@@ -50,24 +50,31 @@ public final class BlockbenchStaticMesh {
             int packedLight,
             int packedOverlay
     ) {
+        render(poseStack, bufferSource, packedLight, packedOverlay, 0xFFFFFF, 255, false);
+    }
+
+    /** Tint a shared white mesh; optional translucent emission keeps the lit facets visible. */
+    public void render(PoseStack poseStack, MultiBufferSource bufferSource, int packedLight,
+                       int packedOverlay, int rgb, int alpha, boolean emissive) {
         float[] data = vertexData();
         if (data.length == 0) {
             return;
         }
 
         VertexConsumer consumer = bufferSource.getBuffer(
-                RenderType.entityCutoutNoCull(texture)
+                emissive ? RenderType.entityTranslucentEmissive(texture)
+                        : RenderType.entityCutoutNoCull(texture)
         );
         PoseStack.Pose pose = poseStack.last();
 
         for (int triangle = 0; triangle < data.length; triangle += FLOATS_PER_TRIANGLE) {
-            emitVertex(consumer, pose, data, triangle, packedLight, packedOverlay);
-            emitVertex(consumer, pose, data, triangle + FLOATS_PER_VERTEX, packedLight, packedOverlay);
-            emitVertex(consumer, pose, data, triangle + FLOATS_PER_VERTEX * 2, packedLight, packedOverlay);
+            emitVertex(consumer, pose, data, triangle, packedLight, packedOverlay, rgb, alpha);
+            emitVertex(consumer, pose, data, triangle + FLOATS_PER_VERTEX, packedLight, packedOverlay, rgb, alpha);
+            emitVertex(consumer, pose, data, triangle + FLOATS_PER_VERTEX * 2, packedLight, packedOverlay, rgb, alpha);
 
             // RenderType.entityCutoutNoCull is quad based. Repeating the third
             // vertex produces one real triangle and one degenerate triangle.
-            emitVertex(consumer, pose, data, triangle + FLOATS_PER_VERTEX * 2, packedLight, packedOverlay);
+            emitVertex(consumer, pose, data, triangle + FLOATS_PER_VERTEX * 2, packedLight, packedOverlay, rgb, alpha);
         }
     }
 
@@ -77,7 +84,9 @@ public final class BlockbenchStaticMesh {
             float[] data,
             int offset,
             int packedLight,
-            int packedOverlay
+            int packedOverlay,
+            int rgb,
+            int alpha
     ) {
         consumer.addVertex(
                         pose.pose(),
@@ -85,7 +94,7 @@ public final class BlockbenchStaticMesh {
                         data[offset + 1],
                         data[offset + 2]
                 )
-                .setColor(255, 255, 255, 255)
+                .setColor(rgb >> 16 & 255, rgb >> 8 & 255, rgb & 255, alpha)
                 .setUv(data[offset + 3], data[offset + 4])
                 .setOverlay(packedOverlay)
                 .setLight(packedLight)

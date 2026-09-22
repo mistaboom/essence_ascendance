@@ -29,6 +29,7 @@ public final class EssenceInfuserBalance {
         InfuserBalanceSettings settings =
                 EssenceConfigManager.get().infuserBalance();
 
+        // Null is the installed Latent profile. Empty slots are rejected by the block entity.
         EssenceFocusTier grade = focusTier == null
                 ? EssenceFocusTier.DORMANT
                 : focusTier;

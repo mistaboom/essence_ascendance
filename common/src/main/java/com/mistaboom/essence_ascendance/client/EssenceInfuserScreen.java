@@ -480,7 +480,9 @@ public final class EssenceInfuserScreen
             processingButton.visible = mode != EssenceInfuserWorkpieceMode.NONE;
             boolean hasActionableWorkpiece = mode != EssenceInfuserWorkpieceMode.NONE
                     && !(equipmentMode && menu.equipmentRecipe().isEmpty());
-            processingButton.active = hasActionableWorkpiece;
+            boolean focusInstalled = menu.getSlot(EssenceInfuserBlockEntity.FOCUS_SLOT).hasItem();
+            processingButton.active = hasActionableWorkpiece
+                    && (focusInstalled || menu.processingEnabled());
             if (mode != EssenceInfuserWorkpieceMode.NONE) {
                 String actionKey = repairMode
                         ? "repair"
@@ -603,7 +605,9 @@ public final class EssenceInfuserScreen
 
         info.section(EssenceText.term("focus_infusion"))
                 .line(EssenceText.gui("target_value", target == null ? EssenceText.term("unknown") : EssenceText.focusTier(target)))
-                .line(EssenceText.gui("required_focus_value", required == null ? EssenceText.term("none") : EssenceText.focusTier(required)))
+                .line(EssenceText.gui("required_focus_value", required == null
+                        ? EssenceText.equipmentTier(com.mistaboom.essence_ascendance.equipment.EquipmentTier.LATENT)
+                        : EssenceText.focusTier(required)))
                 .line(EssenceText.gui("rate_per_second", format(menu.infusionThroughputPerSecond())))
                 .section(EssenceText.term("automation"))
                 .line(EssenceText.gui("infuser.info.input_manual"))
@@ -653,9 +657,12 @@ public final class EssenceInfuserScreen
     }
 
     private Component focusText() {
+        if (!menu.getSlot(EssenceInfuserBlockEntity.FOCUS_SLOT).hasItem()) {
+            return EssenceText.gui("infuser.focus.none");
+        }
         var focus = menu.installedFocusTier();
         return focus == null
-                ? EssenceText.gui("infuser.focus.none_dormant")
+                ? EssenceText.equipmentTier(com.mistaboom.essence_ascendance.equipment.EquipmentTier.LATENT)
                 : EssenceText.focusTier(focus);
     }
 
@@ -671,6 +678,7 @@ public final class EssenceInfuserScreen
             case EssenceInfuserBlockEntity.STATUS_PLAYER_CHANNELING -> "player_channeling";
             case EssenceInfuserBlockEntity.STATUS_FOCUS_TIER_REQUIRED -> "focus_tier_required";
             case EssenceInfuserBlockEntity.STATUS_FOCUS_MALFORMED -> "focus_malformed";
+            case EssenceInfuserBlockEntity.STATUS_NEEDS_FOCUS -> "needs_focus";
             case EssenceInfuserBlockEntity.STATUS_COMPONENT_REQUIRED -> "component_required";
             case EssenceInfuserBlockEntity.STATUS_REPAIR_MATERIAL_REQUIRED -> "repair_material_required";
             default -> "waiting_input";

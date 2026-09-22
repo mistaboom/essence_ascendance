@@ -12,6 +12,8 @@ public final class ProceduralRenderTypes {
 
     public static final RenderType WORLD_PLANES = planes("essence_ascendance_flight_planes", Depth.WORLD);
     public static final RenderType WORLD_LINES = lines("essence_ascendance_flight_edges", Depth.WORLD);
+    /** Sparse world ornaments that must occlude later opaque block-entity batches. */
+    public static final RenderType WORLD_DEPTH_LINES = lines("essence_ascendance_world_depth_lines", Depth.WORLD, true);
     public static final RenderType PERCEPTION_PLANES = planes("essence_ascendance_utility_sense_fills", Depth.SEE_THROUGH);
     public static final RenderType PERCEPTION_LINES = lines("essence_ascendance_utility_sense_lines", Depth.SEE_THROUGH);
 
@@ -28,11 +30,15 @@ public final class ProceduralRenderTypes {
     }
 
     public static RenderType lines(String name, Depth depth) {
+        return lines(name, depth, false);
+    }
+
+    private static RenderType lines(String name, Depth depth, boolean writeDepth) {
         return new RenderType(name, DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.LINES,
                 RenderType.TRANSIENT_BUFFER_SIZE, false, true,
                 () -> {
                     RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
-                    begin(depth, false);
+                    begin(depth, writeDepth);
                 },
                 () -> end(depth)) { };
     }

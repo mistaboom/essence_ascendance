@@ -1,6 +1,9 @@
 {
   "variants": {
-    "": {
+    "focus_lit=false": {
+      "model": "essence_ascendance:block/essence_infuser"
+    },
+    "focus_lit=true": {
       "model": "essence_ascendance:block/essence_infuser"
     }
   }

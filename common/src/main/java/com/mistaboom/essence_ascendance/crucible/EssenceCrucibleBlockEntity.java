@@ -9,6 +9,7 @@ import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingRegistry;
 import com.mistaboom.essence_ascendance.balance.economy.FractionalAmountService;
 import com.mistaboom.essence_ascendance.balance.economy.FractionalLedgerSavedData;
 import com.mistaboom.essence_ascendance.infuser.EssentiumCarrierData;
+import com.mistaboom.essence_ascendance.visual.MachineVisualState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -16,6 +17,8 @@ import net.minecraft.core.NonNullList;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.ContainerHelper;
@@ -78,6 +81,8 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
     private EssenceCrucibleStructureSnapshot cachedStructureSnapshot;
     private long cachedStructureGameTime = Long.MIN_VALUE;
     private boolean processingVisualActive = false;
+    private MachineVisualState.Crucible clientVisualState;
+    private MachineVisualState.Crucible lastSentVisualState;
 
     public EssenceCrucibleBlockEntity(
             BlockPos pos,
@@ -100,6 +105,47 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         crucible.tickDissolution();
         crucible.tickChanneling();
         crucible.tickPylonSupportParticles(level);
+        if (level.getGameTime() % 5L == 0L) {
+            crucible.syncVisualState();
+        }
+    }
+
+    /** Observer snapshot; never used to decide gameplay or inventory behavior. */
+    public MachineVisualState.Crucible visualState() {
+        if (level != null && level.isClientSide) return clientVisualState == null
+                ? MachineVisualState.IDLE_CRUCIBLE : clientVisualState;
+        EssenceCrucibleStructureSnapshot structure = structureSnapshot();
+        long[] stored = storedEssenceSnapshot();
+        double total = 0.0D;
+        long largest = 0L;
+        int predominant = -1;
+        for (int i = 0; i < stored.length; i++) {
+            total += stored[i];
+            if (stored[i] > largest) {
+                largest = stored[i];
+                predominant = i;
+            }
+        }
+        long capacity = effectiveReservoirCapacity();
+        int fill = capacity <= 0L ? 0 : (int) Math.min(10000L,
+                Math.round(10000.0D * total / capacity / Math.max(1, stored.length)));
+        List<BlockPos> pylons = structure.activePylons().stream()
+                .map(EssenceCrucibleStructureSnapshot.ActivePylon::pos).toList();
+        List<net.minecraft.resources.ResourceLocation> inputs = new ArrayList<>();
+        for (int slot = 0; slot < activeInputSlotCount(structure.stats()); slot++) {
+            ItemStack stack = items.get(slot);
+            if (!stack.isEmpty()) inputs.add(BuiltInRegistries.ITEM.getKey(stack.getItem()));
+        }
+        return new MachineVisualState.Crucible(processingVisualActive, channelingPlayerId,
+                structure.stats().transferRatePerSecond(), predominant, fill, pylons, inputs);
+    }
+
+    private void syncVisualState() {
+        MachineVisualState.Crucible current = visualState();
+        if (current.equals(lastSentVisualState)) return;
+        lastSentVisualState = current;
+        BlockState state = getBlockState();
+        level.sendBlockUpdated(worldPosition, state, state, net.minecraft.world.level.block.Block.UPDATE_CLIENTS);
     }
 
     public EssenceCrucibleStructureSnapshot structureSnapshot() {
@@ -1010,6 +1056,10 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             CompoundTag tag,
             HolderLookup.Provider registries
     ) {
+        if (tag.contains(MachineVisualState.TAG, net.minecraft.nbt.Tag.TAG_COMPOUND)) {
+            clientVisualState = MachineVisualState.Crucible.read(tag.getCompound(MachineVisualState.TAG));
+            return;
+        }
         super.loadAdditional(tag, registries);
         ContainerHelper.loadAllItems(tag, items, registries);
 
@@ -1034,6 +1084,20 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         cachedStructureSnapshot = null;
         cachedStructureGameTime = Long.MIN_VALUE;
         processingVisualActive = false;
+    }
+
+    @Override
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        CompoundTag tag = new CompoundTag();
+        MachineVisualState.Crucible visual = visualState();
+        if (visual != null) tag.put(MachineVisualState.TAG, visual.save());
+        return tag;
+    }
+
+    @Override
+    public ClientboundBlockEntityDataPacket getUpdatePacket() {
+        return ClientboundBlockEntityDataPacket.create(this,
+                (entity, registries) -> entity.getUpdateTag(registries));
     }
 
     @Override

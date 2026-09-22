@@ -184,6 +184,9 @@ public final class EssencePylonScreen
     }
 
     private static Component statusText(EssencePylonStatePayload state) {
+        if (!state.focusInstalled()) {
+            return EssenceText.gui("pylon.status.needs_focus");
+        }
         if (!state.linked()) {
             return EssenceText.gui("pylon.status.unlinked");
         }
@@ -194,7 +197,7 @@ public final class EssencePylonScreen
     }
 
     private static int statusColor(EssencePylonStatePayload state) {
-        if (!state.linked() || !state.active()) {
+        if (!state.focusInstalled() || !state.linked() || !state.active()) {
             return MachineScreenUi.WARN;
         }
         return MachineScreenUi.GOOD;
@@ -203,6 +206,9 @@ public final class EssencePylonScreen
     private static Component focusText(EssencePylonStatePayload state) {
         if (!state.focusInstalled()) {
             return EssenceText.term("none");
+        }
+        if (state.focusTierName().equals("latent")) {
+            return EssenceText.equipmentTier(com.mistaboom.essence_ascendance.equipment.EquipmentTier.LATENT);
         }
         for (com.mistaboom.essence_ascendance.pylon.EssenceFocusTier tier
                 : com.mistaboom.essence_ascendance.pylon.EssenceFocusTier.values()) {

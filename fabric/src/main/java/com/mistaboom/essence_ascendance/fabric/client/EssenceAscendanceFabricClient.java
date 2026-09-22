@@ -64,6 +64,12 @@ public final class EssenceAscendanceFabricClient
                                 stack, mode, matrices, buffers, light, overlay
                         )
         );
+        BuiltinItemRendererRegistry.INSTANCE.register(
+                EssencePylonContent.ESSENCE_FOCUS.get(),
+                (stack, mode, matrices, buffers, light, overlay) ->
+                        EssenceMachineItemRenderer.instance().renderByItem(
+                                stack, mode, matrices, buffers, light, overlay)
+        );
 
         MenuScreens.register(
                 EssenceCrucibleContent.ESSENCE_CRUCIBLE_MENU.get(),

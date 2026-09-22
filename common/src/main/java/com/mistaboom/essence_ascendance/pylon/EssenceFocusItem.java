@@ -72,7 +72,7 @@ public final class EssenceFocusItem extends Item {
 
         tooltipComponents.add(section(EssenceText.term("pylon"), ChatFormatting.GREEN));
         if (tier == null) {
-            tooltipComponents.add(muted(EssenceText.tooltip("focus.inactive_until_dormant")));
+            tooltipComponents.add(muted(EssenceText.tooltip("focus.latent_baseline")));
         } else {
             EssencePylonContribution contribution = tier.contribution();
             tooltipComponents.add(value(EssenceText.tooltip("focus.pylon.reservoir", format(contribution.reservoirCapacityBonus()))));
@@ -91,7 +91,15 @@ public final class EssenceFocusItem extends Item {
         tooltipComponents.add(Component.empty());
         tooltipComponents.add(section(EssenceText.term("infuser"), ChatFormatting.AQUA));
         if (tier == null) {
-            tooltipComponents.add(muted(EssenceText.tooltip("focus.inactive_until_dormant")));
+            tooltipComponents.add(muted(EssenceText.tooltip("focus.latent_baseline")));
+            EssenceInfuserBalance.Profile profile = EssenceInfuserBalance.profile((EssenceFocusTier) null);
+            tooltipComponents.add(value(EssenceText.tooltip("focus.infuser.grade", EssenceText.focusTier(profile.grade()))));
+            tooltipComponents.add(value(EssenceText.tooltip(
+                    "focus.infuser.efficiency",
+                    String.format(Locale.ROOT, "%.1f", profile.efficiencyPercent())
+            )));
+            tooltipComponents.add(value(EssenceText.tooltip("focus.infuser.rate",
+                    format(profile.infusionThroughputPerSecond()))));
         } else {
             EssenceInfuserBalance.Profile profile = EssenceInfuserBalance.profile(tier);
             tooltipComponents.add(value(EssenceText.tooltip("focus.infuser.grade", EssenceText.focusTier(profile.grade()))));

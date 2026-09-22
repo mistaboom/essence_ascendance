@@ -16,6 +16,8 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
@@ -23,6 +25,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
 public final class EssenceInfuserBlock extends Block implements EntityBlock {
+    public static final BooleanProperty FOCUS_LIT = BooleanProperty.create("focus_lit");
 
     /* Exact 1/16-voxel decomposition of the authored Blockbench mesh, rotated 90° clockwise to match the in-world orientation. */
     private static final VoxelShape SHAPE = Shapes.or(
@@ -42,6 +45,12 @@ public final class EssenceInfuserBlock extends Block implements EntityBlock {
 
     public EssenceInfuserBlock(Properties properties) {
         super(properties);
+        registerDefaultState(stateDefinition.any().setValue(FOCUS_LIT, false));
+    }
+
+    @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(FOCUS_LIT);
     }
 
     @Override

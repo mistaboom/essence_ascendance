@@ -105,6 +105,7 @@ public final class EssenceAscendanceNeoForgeClient {
                 machineRenderer,
                 EssenceCrucibleContent.ESSENCE_CRUCIBLE_ITEM.get(),
                 EssencePylonContent.ESSENCE_PYLON_ITEM.get(),
+                EssencePylonContent.ESSENCE_FOCUS.get(),
                 AscendanceNexusContent.ASCENDANCE_NEXUS_ITEM.get(),
                 EssenceInfuserContent.ESSENCE_INFUSER_ITEM.get()
         );

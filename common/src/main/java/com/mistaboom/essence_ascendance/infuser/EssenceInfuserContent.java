@@ -102,6 +102,7 @@ public final class EssenceInfuserContent {
                     BlockBehaviour.Properties.of()
                             .requiresCorrectToolForDrops()
                             .strength(3.5F)
+                            .lightLevel(state -> state.getValue(EssenceInfuserBlock.FOCUS_LIT) ? 9 : 0)
                             .pushReaction(PushReaction.BLOCK)
             )
     );

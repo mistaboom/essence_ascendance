@@ -1,3 +1,13 @@
 {
-  "parent": "minecraft:item/amethyst_shard"
+  "parent": "builtin/entity",
+  "gui_light": "side",
+  "display": {
+    "thirdperson_righthand": { "rotation": [65, 35, 0], "scale": [0.9, 0.9, 0.9] },
+    "thirdperson_lefthand": { "rotation": [65, 215, 0], "scale": [0.9, 0.9, 0.9] },
+    "firstperson_righthand": { "rotation": [0, 35, 0], "scale": [1.0, 1.0, 1.0] },
+    "firstperson_lefthand": { "rotation": [0, 215, 0], "scale": [1.0, 1.0, 1.0] },
+    "ground": { "translation": [0, 2, 0], "scale": [0.8, 0.8, 0.8] },
+    "gui": { "rotation": [25, 35, 0], "scale": [1.6, 1.6, 1.6] },
+    "fixed": { "rotation": [0, 35, 0], "scale": [1.2, 1.2, 1.2] }
+  }
 }

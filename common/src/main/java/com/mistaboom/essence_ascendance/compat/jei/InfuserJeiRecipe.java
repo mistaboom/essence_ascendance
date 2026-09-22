@@ -104,11 +104,10 @@ public final class InfuserJeiRecipe {
     ) {
         String formPath = form.name().toLowerCase(Locale.ROOT);
         for (EssenceDefinition target : EssenceRegistry.values()) {
-            // No Focus is a real, distinct Dormant-grade conversion profile and
-            // may have different efficiency from a Dormant Focus. Keep both
-            // visible as separate JEI recipes instead of merging their costs.
+            // Latent Focus uses the baseline Dormant-grade conversion profile.
+            // Its efficiency may differ from a completed Dormant Focus.
             result.add(new InfuserJeiRecipe(
-                    id("essentium/" + formPath + "/" + target.id().getPath() + "/no_focus"),
+                    id("essentium/" + formPath + "/" + target.id().getPath() + "/latent"),
                     Kind.ESSENTIUM,
                     workpiece,
                     List.of(workpiece),
