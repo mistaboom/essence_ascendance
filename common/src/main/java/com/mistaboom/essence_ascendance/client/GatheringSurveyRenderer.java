@@ -1,15 +1,12 @@
 package com.mistaboom.essence_ascendance.client;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mistaboom.essence_ascendance.client.procedural.ProceduralRenderTypes;
 import com.mistaboom.essence_ascendance.gathering.GatheringSurveyService;
 import com.mistaboom.essence_ascendance.visual.AscendancePalette;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -25,28 +22,7 @@ public final class GatheringSurveyRenderer {
      * parallel lines wherever two surveyed blocks touch.
      */
 
-    private static final RenderType SEE_THROUGH_LINES = new RenderType(
-            "essence_ascendance_gathering_survey",
-            DefaultVertexFormat.POSITION_COLOR_NORMAL,
-            VertexFormat.Mode.LINES,
-            RenderType.TRANSIENT_BUFFER_SIZE,
-            false,
-            true,
-            () -> {
-                RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
-                RenderSystem.enableBlend();
-                RenderSystem.defaultBlendFunc();
-                RenderSystem.disableDepthTest();
-                RenderSystem.disableCull();
-                RenderSystem.depthMask(false);
-            },
-            () -> {
-                RenderSystem.depthMask(true);
-                RenderSystem.enableCull();
-                RenderSystem.enableDepthTest();
-                RenderSystem.disableBlend();
-            }
-    ) { };
+    private static final RenderType SEE_THROUGH_LINES = ProceduralRenderTypes.PERCEPTION_LINES;
 
     private GatheringSurveyRenderer() { }
 

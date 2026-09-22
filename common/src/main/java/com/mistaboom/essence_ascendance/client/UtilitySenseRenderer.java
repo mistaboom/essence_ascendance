@@ -1,15 +1,15 @@
 package com.mistaboom.essence_ascendance.client;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mistaboom.essence_ascendance.client.procedural.ProceduralGeometry;
+import com.mistaboom.essence_ascendance.client.procedural.ProceduralRenderTypes;
 import com.mistaboom.essence_ascendance.utility.UtilitySenseService;
 import com.mistaboom.essence_ascendance.visual.AscendancePalette;
+import com.mistaboom.essence_ascendance.visual.ProceduralColors;
+import com.mistaboom.essence_ascendance.visual.ProceduralMotion;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.world.entity.Entity;
@@ -18,53 +18,20 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
+import static com.mistaboom.essence_ascendance.client.procedural.ProceduralGeometry.billboardRect;
+import static com.mistaboom.essence_ascendance.client.procedural.ProceduralGeometry.diamond;
+import static com.mistaboom.essence_ascendance.client.procedural.ProceduralGeometry.diamondRing;
+import static com.mistaboom.essence_ascendance.client.procedural.ProceduralGeometry.line;
+
 /** Through-terrain presentation for Threat Sense, Hunter's Ledger and Waylight. */
 public final class UtilitySenseRenderer {
-    private static final RenderType SEE_THROUGH_LINES = new RenderType(
-            "essence_ascendance_utility_sense_lines",
-            DefaultVertexFormat.POSITION_COLOR_NORMAL,
-            VertexFormat.Mode.LINES,
-            RenderType.TRANSIENT_BUFFER_SIZE,
-            false,
-            true,
-            () -> {
-                RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
-                RenderSystem.enableBlend();
-                RenderSystem.defaultBlendFunc();
-                RenderSystem.disableDepthTest();
-                RenderSystem.disableCull();
-                RenderSystem.depthMask(false);
-            },
-            () -> {
-                RenderSystem.depthMask(true);
-                RenderSystem.enableCull();
-                RenderSystem.enableDepthTest();
-                RenderSystem.disableBlend();
-            }
-    ) { };
-
-    private static final RenderType SEE_THROUGH_FILLS = new RenderType(
-            "essence_ascendance_utility_sense_fills",
-            DefaultVertexFormat.POSITION_COLOR,
-            VertexFormat.Mode.QUADS,
-            RenderType.TRANSIENT_BUFFER_SIZE,
-            false,
-            true,
-            () -> {
-                RenderSystem.setShader(GameRenderer::getPositionColorShader);
-                RenderSystem.enableBlend();
-                RenderSystem.defaultBlendFunc();
-                RenderSystem.disableDepthTest();
-                RenderSystem.disableCull();
-                RenderSystem.depthMask(false);
-            },
-            () -> {
-                RenderSystem.depthMask(true);
-                RenderSystem.enableCull();
-                RenderSystem.enableDepthTest();
-                RenderSystem.disableBlend();
-            }
-    ) { };
+    private static final ProceduralColors.Colors WISP_COLORS = ProceduralColors.canonicalWisp();
+    private static final int[] SIDES = {-1, 1};
+    private static final Vec3 X_AXIS = new Vec3(1, 0, 0);
+    private static final Vec3 Y_AXIS = new Vec3(0, 1, 0);
+    private static final Vec3 Z_AXIS = new Vec3(0, 0, 1);
+    private static final RenderType SEE_THROUGH_LINES = ProceduralRenderTypes.PERCEPTION_LINES;
+    private static final RenderType SEE_THROUGH_FILLS = ProceduralRenderTypes.PERCEPTION_PLANES;
 
     private UtilitySenseRenderer() { }
 
@@ -228,10 +195,10 @@ public final class UtilitySenseRenderer {
         Vec3 right = cameraRight(camera);
         Vec3 up = cameraUp(camera);
         long age = UtilitySenseClientState.wispAge();
-        double pulse = 1.0 + Math.sin(age * 0.22) * 0.10;
-        double flap = Math.sin(age * 0.34) * 0.035;
-        int utility = AscendancePalette.UTILITY;
-        int core = AscendancePalette.TRANSCENDENT.metalRgb();
+        double pulse = 1.0 + ProceduralMotion.oscillate(age * 0.22, 0.10);
+        double flap = ProceduralMotion.oscillate(age * 0.34, 0.035);
+        int utility = WISP_COLORS.shell();
+        int core = WISP_COLORS.core();
 
         // Concentric, non-overlapping diamond bands preserve the layered glow without
         // stacking coplanar translucent faces. The old stacked diamonds could flicker
@@ -242,24 +209,24 @@ public final class UtilitySenseRenderer {
         double bodyHalfHeight = 0.19 * pulse;
         double coreHalfWidth = 0.075 * pulse;
         double coreHalfHeight = 0.095 * pulse;
-        billboardDiamondRing(pose, fills, center, right, up,
+        diamondRing(pose, fills, center, right, up,
                 outerHalfWidth, outerHalfHeight, bodyHalfWidth, bodyHalfHeight, utility, 0.12F);
-        billboardDiamondRing(pose, fills, center, right, up,
+        diamondRing(pose, fills, center, right, up,
                 bodyHalfWidth, bodyHalfHeight, coreHalfWidth, coreHalfHeight, utility, 0.72F);
-        billboardDiamond(pose, fills, center, right, up,
+        diamond(pose, fills, center, right, up,
                 coreHalfWidth, coreHalfHeight, core, 0.98F);
 
         Vec3 leftWing = center.add(right.scale(-0.17 - flap)).add(up.scale(0.015));
         Vec3 rightWing = center.add(right.scale(0.17 + flap)).add(up.scale(0.015));
-        billboardDiamond(pose, fills, leftWing, right, up, 0.095, 0.13 + Math.abs(flap), utility, 0.48F);
-        billboardDiamond(pose, fills, rightWing, right, up, 0.095, 0.13 + Math.abs(flap), utility, 0.48F);
+        diamond(pose, fills, leftWing, right, up, 0.095, 0.13 + Math.abs(flap), utility, 0.48F);
+        diamond(pose, fills, rightWing, right, up, 0.095, 0.13 + Math.abs(flap), utility, 0.48F);
 
         Vec3 velocity = UtilitySenseClientState.wispVelocity();
         Vec3 trail = velocity.lengthSqr() > 1.0E-5 ? velocity.normalize().scale(-1) : up.scale(-1);
         for (int i = 1; i <= 3; i++) {
             Vec3 mote = center.add(trail.scale(0.12 * i)).add(up.scale(-0.035 * i));
             double size = 0.055 - i * 0.009;
-            billboardDiamond(pose, fills, mote, right, up, size, size * 1.2, utility, 0.40F / i);
+            diamond(pose, fills, mote, right, up, size, size * 1.2, utility, 0.40F / i);
         }
     }
 
@@ -279,8 +246,8 @@ public final class UtilitySenseRenderer {
         int core = AscendancePalette.TRANSCENDENT.metalRgb();
         double half = 0.43;
         double corner = 0.18;
-        for (int sx : new int[]{-1, 1}) {
-            for (int sz : new int[]{-1, 1}) {
+        for (int sx : SIDES) {
+            for (int sz : SIDES) {
                 Vec3 cornerPoint = center.add(sx * half, 0, sz * half);
                 line(pose, lines, cornerPoint, cornerPoint.add(-sx * corner, 0, 0), utility, 0.88F);
                 line(pose, lines, cornerPoint, cornerPoint.add(0, 0, -sz * corner), utility, 0.88F);
@@ -312,26 +279,9 @@ public final class UtilitySenseRenderer {
 
     private static void renderSphere(PoseStack pose, VertexConsumer lines, Vec3 center,
                                      double radius, int rgb, float alpha) {
-        int segments = 24;
-        for (int plane = 0; plane < 3; plane++) {
-            Vec3 previous = circlePoint(center, radius, plane, 0);
-            for (int i = 1; i <= segments; i++) {
-                double angle = Math.PI * 2.0 * i / segments;
-                Vec3 next = circlePoint(center, radius, plane, angle);
-                line(pose, lines, previous, next, rgb, alpha);
-                previous = next;
-            }
-        }
-    }
-
-    private static Vec3 circlePoint(Vec3 center, double radius, int plane, double angle) {
-        double a = Math.cos(angle) * radius;
-        double b = Math.sin(angle) * radius;
-        return switch (plane) {
-            case 0 -> center.add(a, b, 0);
-            case 1 -> center.add(a, 0, b);
-            default -> center.add(0, a, b);
-        };
+        ProceduralGeometry.ring(pose, lines, center, X_AXIS, Y_AXIS, radius, 24, rgb, alpha);
+        ProceduralGeometry.ring(pose, lines, center, X_AXIS, Z_AXIS, radius, 24, rgb, alpha);
+        ProceduralGeometry.ring(pose, lines, center, Y_AXIS, Z_AXIS, radius, 24, rgb, alpha);
     }
 
     private static void crossMarker(PoseStack pose, VertexConsumer lines, Vec3 center,
@@ -339,57 +289,6 @@ public final class UtilitySenseRenderer {
         line(pose, lines, center.add(-radius, 0, 0), center.add(radius, 0, 0), rgb, alpha);
         line(pose, lines, center.add(0, -radius, 0), center.add(0, radius, 0), rgb, alpha);
         line(pose, lines, center.add(0, 0, -radius), center.add(0, 0, radius), rgb, alpha);
-    }
-
-    private static void billboardRect(PoseStack pose, VertexConsumer fills, Vec3 center, Vec3 right, Vec3 up,
-                                      double width, double height, int rgb, float alpha) {
-        Vec3 horizontal = right.scale(width * 0.5);
-        Vec3 vertical = up.scale(height * 0.5);
-        quad(pose, fills,
-                center.subtract(horizontal).subtract(vertical),
-                center.add(horizontal).subtract(vertical),
-                center.add(horizontal).add(vertical),
-                center.subtract(horizontal).add(vertical), rgb, alpha);
-    }
-
-    private static void billboardDiamond(PoseStack pose, VertexConsumer fills, Vec3 center, Vec3 right, Vec3 up,
-                                         double halfWidth, double halfHeight, int rgb, float alpha) {
-        quad(pose, fills,
-                center.add(up.scale(halfHeight)),
-                center.add(right.scale(halfWidth)),
-                center.add(up.scale(-halfHeight)),
-                center.add(right.scale(-halfWidth)), rgb, alpha);
-    }
-
-    private static void billboardDiamondRing(PoseStack pose, VertexConsumer fills, Vec3 center, Vec3 right, Vec3 up,
-                                             double outerHalfWidth, double outerHalfHeight,
-                                             double innerHalfWidth, double innerHalfHeight,
-                                             int rgb, float alpha) {
-        Vec3 outerTop = center.add(up.scale(outerHalfHeight));
-        Vec3 outerRight = center.add(right.scale(outerHalfWidth));
-        Vec3 outerBottom = center.add(up.scale(-outerHalfHeight));
-        Vec3 outerLeft = center.add(right.scale(-outerHalfWidth));
-        Vec3 innerTop = center.add(up.scale(innerHalfHeight));
-        Vec3 innerRight = center.add(right.scale(innerHalfWidth));
-        Vec3 innerBottom = center.add(up.scale(-innerHalfHeight));
-        Vec3 innerLeft = center.add(right.scale(-innerHalfWidth));
-
-        quad(pose, fills, outerTop, outerRight, innerRight, innerTop, rgb, alpha);
-        quad(pose, fills, outerRight, outerBottom, innerBottom, innerRight, rgb, alpha);
-        quad(pose, fills, outerBottom, outerLeft, innerLeft, innerBottom, rgb, alpha);
-        quad(pose, fills, outerLeft, outerTop, innerTop, innerLeft, rgb, alpha);
-    }
-
-    private static void quad(PoseStack pose, VertexConsumer fills, Vec3 a, Vec3 b, Vec3 c, Vec3 d,
-                             int rgb, float alpha) {
-        int red = (rgb >> 16) & 0xFF;
-        int green = (rgb >> 8) & 0xFF;
-        int blue = rgb & 0xFF;
-        int opacity = Math.clamp(Math.round(alpha * 255.0F), 0, 255);
-        fills.addVertex(pose.last().pose(), (float) a.x, (float) a.y, (float) a.z).setColor(red, green, blue, opacity);
-        fills.addVertex(pose.last().pose(), (float) b.x, (float) b.y, (float) b.z).setColor(red, green, blue, opacity);
-        fills.addVertex(pose.last().pose(), (float) c.x, (float) c.y, (float) c.z).setColor(red, green, blue, opacity);
-        fills.addVertex(pose.last().pose(), (float) d.x, (float) d.y, (float) d.z).setColor(red, green, blue, opacity);
     }
 
     private static Vec3 cameraRight(Camera camera) {
@@ -400,22 +299,6 @@ public final class UtilitySenseRenderer {
     private static Vec3 cameraUp(Camera camera) {
         Vector3f up = camera.getUpVector();
         return new Vec3(up.x(), up.y(), up.z());
-    }
-
-    private static void line(PoseStack pose, VertexConsumer lines, Vec3 start, Vec3 end, int rgb, float alpha) {
-        Vec3 direction = end.subtract(start);
-        if (direction.lengthSqr() <= Math.ulp(1.0)) return;
-        Vec3 normal = direction.normalize();
-        int red = (rgb >> 16) & 0xFF;
-        int green = (rgb >> 8) & 0xFF;
-        int blue = rgb & 0xFF;
-        int a = Math.clamp(Math.round(alpha * 255.0F), 0, 255);
-        lines.addVertex(pose.last().pose(), (float) start.x, (float) start.y, (float) start.z)
-                .setColor(red, green, blue, a)
-                .setNormal(pose.last(), (float) normal.x, (float) normal.y, (float) normal.z);
-        lines.addVertex(pose.last().pose(), (float) end.x, (float) end.y, (float) end.z)
-                .setColor(red, green, blue, a)
-                .setNormal(pose.last(), (float) normal.x, (float) normal.y, (float) normal.z);
     }
 
 }

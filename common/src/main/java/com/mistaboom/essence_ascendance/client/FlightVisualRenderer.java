@@ -1,16 +1,14 @@
 package com.mistaboom.essence_ascendance.client;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.blaze3d.vertex.VertexFormat;
-import com.mistaboom.essence_ascendance.visual.AscendancePalette;
+import com.mistaboom.essence_ascendance.client.procedural.ProceduralGeometry;
+import com.mistaboom.essence_ascendance.client.procedural.ProceduralRenderTypes;
+import com.mistaboom.essence_ascendance.visual.ProceduralColors;
+import com.mistaboom.essence_ascendance.visual.ProceduralMotion;
 import net.minecraft.client.player.AbstractClientPlayer;
-import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.world.phys.Vec3;
 
 /**
  * Textureless procedural presentation shared by Fatigue Flight, Essence Wings
@@ -24,55 +22,20 @@ import net.minecraft.world.phys.Vec3;
  * correctly occlude against the harness and wings.</p>
  */
 public final class FlightVisualRenderer {
+    private static final ProceduralColors.Colors WISP_COLORS = ProceduralColors.canonicalWisp();
+    private static final int[] SIDES = {-1, 1};
+    private static final double[] FEATHER_DEGREES = {0.0, 24.0, 48.0, 72.0};
+    private static final double[] FEATHER_FILL_LENGTHS = {1.48, 1.30, 1.06, 0.86};
+    private static final double[] FEATHER_EDGE_LENGTHS = {1.42, 1.24, 1.01, 0.82};
+    private static final double[] FEATHER_WIDTHS = {0.112, 0.108, 0.100, 0.090};
     private static final float WISP_HALO_ALPHA = 0.12F;
     private static final float WISP_BODY_ALPHA = 0.72F;
     private static final float WISP_CORE_ALPHA = 0.98F;
     private static final float WISP_WING_ALPHA = 0.48F;
     private static final float WISP_LINE_ALPHA = 0.86F;
 
-    private static final RenderType PLANES = new RenderType(
-            "essence_ascendance_flight_planes",
-            DefaultVertexFormat.POSITION_COLOR,
-            VertexFormat.Mode.QUADS,
-            RenderType.TRANSIENT_BUFFER_SIZE,
-            false,
-            true,
-            () -> {
-                RenderSystem.setShader(GameRenderer::getPositionColorShader);
-                RenderSystem.enableBlend();
-                RenderSystem.defaultBlendFunc();
-                RenderSystem.enableDepthTest();
-                RenderSystem.disableCull();
-                RenderSystem.depthMask(true);
-            },
-            () -> {
-                RenderSystem.depthMask(true);
-                RenderSystem.enableCull();
-                RenderSystem.disableBlend();
-            }
-    ) { };
-
-    private static final RenderType EDGES = new RenderType(
-            "essence_ascendance_flight_edges",
-            DefaultVertexFormat.POSITION_COLOR_NORMAL,
-            VertexFormat.Mode.LINES,
-            RenderType.TRANSIENT_BUFFER_SIZE,
-            false,
-            true,
-            () -> {
-                RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
-                RenderSystem.enableBlend();
-                RenderSystem.defaultBlendFunc();
-                RenderSystem.enableDepthTest();
-                RenderSystem.disableCull();
-                RenderSystem.depthMask(false);
-            },
-            () -> {
-                RenderSystem.depthMask(true);
-                RenderSystem.enableCull();
-                RenderSystem.disableBlend();
-            }
-    ) { };
+    private static final RenderType PLANES = ProceduralRenderTypes.WORLD_PLANES;
+    private static final RenderType EDGES = ProceduralRenderTypes.WORLD_LINES;
 
     private FlightVisualRenderer() { }
 
@@ -119,13 +82,13 @@ public final class FlightVisualRenderer {
     }
 
     private static void renderHarnessFills(PoseStack pose, VertexConsumer fills, double age) {
-        double pulse = 1.0 + Math.sin(age * 0.22) * 0.075;
+        double pulse = 1.0 + ProceduralMotion.oscillate(age * 0.22, 0.075);
 
         renderCentralShardFill(pose, fills,
                 0.000F, 0.220F, 0.465F,
                 0.180 * pulse, 0.380 * pulse);
 
-        for (int side : new int[]{-1, 1}) {
+        for (int side : SIDES) {
             renderPivotedSideShardFill(pose, fills,
                     side,
                     side * 0.170F, 0.295F, 0.465F,
@@ -134,13 +97,13 @@ public final class FlightVisualRenderer {
     }
 
     private static void renderHarnessEdges(PoseStack pose, VertexConsumer lines, double age) {
-        double pulse = 1.0 + Math.sin(age * 0.22) * 0.075;
+        double pulse = 1.0 + ProceduralMotion.oscillate(age * 0.22, 0.075);
 
         renderCentralShardEdges(pose, lines,
                 0.000F, 0.220F, 0.467F,
                 0.180 * pulse, 0.380 * pulse);
 
-        for (int side : new int[]{-1, 1}) {
+        for (int side : SIDES) {
             renderPivotedSideShardEdges(pose, lines,
                     side,
                     side * 0.170F, 0.295F, 0.467F,
@@ -151,8 +114,8 @@ public final class FlightVisualRenderer {
     private static void renderCentralShardFill(PoseStack pose, VertexConsumer fills,
                                                float x, float y, float z,
                                                double halfWidth, double halfHeight) {
-        int utility = AscendancePalette.UTILITY;
-        int core = AscendancePalette.TRANSCENDENT.metalRgb();
+        int utility = WISP_COLORS.shell();
+        int core = WISP_COLORS.core();
         double haloZ = z;
         double bodyZ = z + 0.0015;
         double coreZ = z + 0.0030;
@@ -179,7 +142,7 @@ public final class FlightVisualRenderer {
     private static void renderCentralShardEdges(PoseStack pose, VertexConsumer lines,
                                                 float x, float y, float z,
                                                 double halfWidth, double halfHeight) {
-        int core = AscendancePalette.TRANSCENDENT.metalRgb();
+        int core = WISP_COLORS.core();
         double edgeZ = z + 0.0045;
         diamondEdgesLocal(pose, lines, x, y, edgeZ, halfWidth * 0.63, halfHeight * 0.67, core, 0.38F);
         diamondEdgesLocal(pose, lines, x, y, edgeZ + 0.0005, halfWidth * 0.30, halfHeight * 0.37, core, WISP_LINE_ALPHA);
@@ -193,8 +156,8 @@ public final class FlightVisualRenderer {
     private static void renderPivotedSideShardFill(PoseStack pose, VertexConsumer fills,
                                                    int side, float pivotX, float pivotY, float pivotZ,
                                                    double halfWidth, double halfHeight) {
-        int utility = AscendancePalette.UTILITY;
-        int core = AscendancePalette.TRANSCENDENT.metalRgb();
+        int utility = WISP_COLORS.shell();
+        int core = WISP_COLORS.core();
         OrientedDiamond outer = orientedDiamondFromInnerCorner(side, pivotX, pivotY, pivotZ, halfWidth, halfHeight);
         OrientedDiamond mid = orientedDiamondFromInnerCorner(side, pivotX, pivotY, pivotZ - 0.0015F,
                 halfWidth * 0.63, halfHeight * 0.67);
@@ -217,7 +180,7 @@ public final class FlightVisualRenderer {
     private static void renderPivotedSideShardEdges(PoseStack pose, VertexConsumer lines,
                                                     int side, float pivotX, float pivotY, float pivotZ,
                                                     double halfWidth, double halfHeight) {
-        int core = AscendancePalette.TRANSCENDENT.metalRgb();
+        int core = WISP_COLORS.core();
         OrientedDiamond mid = orientedDiamondFromInnerCorner(side, pivotX, pivotY, pivotZ - 0.0045F,
                 halfWidth * 0.63, halfHeight * 0.67);
         OrientedDiamond inner = orientedDiamondFromInnerCorner(side, pivotX, pivotY, pivotZ - 0.0050F,
@@ -234,39 +197,32 @@ public final class FlightVisualRenderer {
      * harness diamond.
      */
     private static void renderWingFeathers(PoseStack pose, VertexConsumer fills, double age) {
-        int utility = AscendancePalette.UTILITY;
+        int utility = WISP_COLORS.shell();
         double breathe = Math.sin(age * 0.12) * 0.020;
         double zWing = 0.465;
         double pivotX = 0.315;
         double pivotY = 0.090;
         double rootRadius = 0.190;
-        double[] degrees = {0.0, 24.0, 48.0, 72.0};
-        double[] lengths = {1.48, 1.30, 1.06, 0.86};
-        double[] widths = {0.112, 0.108, 0.100, 0.090};
-
-        for (int side : new int[]{-1, 1}) {
-            for (int i = 0; i < degrees.length; i++) {
-                LocalPoint root = fanPoint(pivotX, pivotY, zWing, rootRadius, degrees[i]);
-                LocalPoint tip = fanPoint(pivotX, pivotY, zWing, rootRadius + lengths[i] + breathe * (1.0 - i * 0.18), degrees[i]);
-                feather(pose, fills, side, root, tip, widths[i], utility, WISP_WING_ALPHA);
+        for (int side : SIDES) {
+            for (int i = 0; i < FEATHER_DEGREES.length; i++) {
+                LocalPoint root = fanPoint(pivotX, pivotY, zWing, rootRadius, FEATHER_DEGREES[i]);
+                LocalPoint tip = fanPoint(pivotX, pivotY, zWing, rootRadius + FEATHER_FILL_LENGTHS[i] + breathe * (1.0 - i * 0.18), FEATHER_DEGREES[i]);
+                feather(pose, fills, side, root, tip, FEATHER_WIDTHS[i], utility, WISP_WING_ALPHA);
             }
         }
     }
 
     private static void renderWingFeatherAccents(PoseStack pose, VertexConsumer lines, double age) {
-        int core = AscendancePalette.TRANSCENDENT.metalRgb();
+        int core = WISP_COLORS.core();
         double breathe = Math.sin(age * 0.12) * 0.020;
         double zWing = 0.461;
         double pivotX = 0.315;
         double pivotY = 0.090;
         double rootRadius = 0.190;
-        double[] degrees = {0.0, 24.0, 48.0, 72.0};
-        double[] lengths = {1.42, 1.24, 1.01, 0.82};
-
-        for (int side : new int[]{-1, 1}) {
-            for (int i = 0; i < degrees.length; i++) {
-                LocalPoint root = fanPoint(pivotX, pivotY, zWing, rootRadius, degrees[i]);
-                LocalPoint tip = fanPoint(pivotX, pivotY, zWing, rootRadius + lengths[i] + breathe * (1.0 - i * 0.18), degrees[i]);
+        for (int side : SIDES) {
+            for (int i = 0; i < FEATHER_DEGREES.length; i++) {
+                LocalPoint root = fanPoint(pivotX, pivotY, zWing, rootRadius, FEATHER_DEGREES[i]);
+                LocalPoint tip = fanPoint(pivotX, pivotY, zWing, rootRadius + FEATHER_EDGE_LENGTHS[i] + breathe * (1.0 - i * 0.18), FEATHER_DEGREES[i]);
                 featherSpine(pose, lines, side, root, tip, core, WISP_LINE_ALPHA);
             }
         }
@@ -274,12 +230,12 @@ public final class FlightVisualRenderer {
 
     private static void renderThrusterFills(PoseStack pose, VertexConsumer fills,
                                             double age, double intensity) {
-        int utility = AscendancePalette.UTILITY;
-        int core = AscendancePalette.TRANSCENDENT.metalRgb();
+        int utility = WISP_COLORS.shell();
+        int core = WISP_COLORS.core();
         double flicker = 1.0 + Math.sin(age * 0.88) * 0.07 + Math.sin(age * 1.73) * 0.03;
         double length = 0.620 * intensity * flicker;
 
-        for (int side : new int[]{-1, 1}) {
+        for (int side : SIDES) {
             double x = side * 0.2725;
             double top = 0.595;
             double bottom = top + length;
@@ -316,10 +272,10 @@ public final class FlightVisualRenderer {
 
     private static void renderThrusterEdges(PoseStack pose, VertexConsumer lines,
                                             double age, double intensity) {
-        int core = AscendancePalette.TRANSCENDENT.metalRgb();
+        int core = WISP_COLORS.core();
         double flicker = 1.0 + Math.sin(age * 0.88) * 0.07 + Math.sin(age * 1.73) * 0.03;
         double length = 0.620 * intensity * flicker;
-        for (int side : new int[]{-1, 1}) {
+        for (int side : SIDES) {
             double x = side * 0.2725;
             line(pose, lines,
                     point(x, 0.615, 0.3685),
@@ -427,31 +383,14 @@ public final class FlightVisualRenderer {
     private static void quad(PoseStack pose, VertexConsumer fills,
                              LocalPoint a, LocalPoint b, LocalPoint c, LocalPoint d,
                              int rgb, float alpha) {
-        int red = (rgb >> 16) & 0xFF;
-        int green = (rgb >> 8) & 0xFF;
-        int blue = rgb & 0xFF;
-        int opacity = Math.clamp(Math.round(alpha * 255.0F), 0, 255);
-        fills.addVertex(pose.last().pose(), (float) a.x, (float) a.y, (float) a.z).setColor(red, green, blue, opacity);
-        fills.addVertex(pose.last().pose(), (float) b.x, (float) b.y, (float) b.z).setColor(red, green, blue, opacity);
-        fills.addVertex(pose.last().pose(), (float) c.x, (float) c.y, (float) c.z).setColor(red, green, blue, opacity);
-        fills.addVertex(pose.last().pose(), (float) d.x, (float) d.y, (float) d.z).setColor(red, green, blue, opacity);
+        ProceduralGeometry.quad(pose, fills, a.x, a.y, a.z, b.x, b.y, b.z,
+                c.x, c.y, c.z, d.x, d.y, d.z, rgb, alpha);
     }
 
     private static void line(PoseStack pose, VertexConsumer lines,
                              LocalPoint start, LocalPoint end, int rgb, float alpha) {
-        Vec3 direction = new Vec3(end.x - start.x, end.y - start.y, end.z - start.z);
-        if (direction.lengthSqr() <= Math.ulp(1.0)) return;
-        Vec3 normal = direction.normalize();
-        int red = (rgb >> 16) & 0xFF;
-        int green = (rgb >> 8) & 0xFF;
-        int blue = rgb & 0xFF;
-        int opacity = Math.clamp(Math.round(alpha * 255.0F), 0, 255);
-        lines.addVertex(pose.last().pose(), (float) start.x, (float) start.y, (float) start.z)
-                .setColor(red, green, blue, opacity)
-                .setNormal(pose.last(), (float) normal.x, (float) normal.y, (float) normal.z);
-        lines.addVertex(pose.last().pose(), (float) end.x, (float) end.y, (float) end.z)
-                .setColor(red, green, blue, opacity)
-                .setNormal(pose.last(), (float) normal.x, (float) normal.y, (float) normal.z);
+        ProceduralGeometry.line(pose, lines, start.x, start.y, start.z,
+                end.x, end.y, end.z, rgb, alpha);
     }
 
     private static LocalPoint point(double x, double y, double z) {

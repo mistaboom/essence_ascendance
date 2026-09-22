@@ -4,6 +4,7 @@ import com.mistaboom.essence_ascendance.attunement.AttunementContribution;
 import com.mistaboom.essence_ascendance.attunement.AttunementSnapshot;
 import com.mistaboom.essence_ascendance.client.nexus.NexusConstellationLayout;
 import com.mistaboom.essence_ascendance.client.nexus.NexusNavigationState;
+import com.mistaboom.essence_ascendance.client.procedural.GuiProceduralGeometry;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.text.EssenceText;
 import com.mistaboom.essence_ascendance.visual.AscendancePalette;
@@ -68,26 +69,25 @@ public final class NexusAttunementView {
                 int sx = left + Math.floorMod(i * 127 + 29, this.width);
                 int sy = top + Math.floorMod(i * 73 + 17, this.height);
                 int alpha = 18 + (int) (15 * (1 + Math.sin(time / 31 + i)));
-                graphics.fill(sx, sy, sx + 1, sy + 1, MachineScreenUi.opacity(0xFFC3C3CA, alpha));
+                graphics.fill(sx, sy, sx + 1, sy + 1, GuiProceduralGeometry.opacity(0xFFC3C3CA, alpha));
             }
             for (var node : layout.nodes()) {
                 var category = state.categories().get(node.index());
                 boolean complete = maximum || category.completed();
                 int color = color(category);
-                MachineScreenUi.beam(graphics, node.x(), node.y(), cx, cy,
-                        MachineScreenUi.opacity(color, complete ? 150 : 24));
+                GuiProceduralGeometry.beam(graphics, node.x(), node.y(), cx, cy,
+                        GuiProceduralGeometry.opacity(color, complete ? 150 : 24));
                 if (complete) {
                     double phase = (time / 60 + node.index() * 0.19) % 1;
-                    int px = node.x() + (int) ((cx - node.x()) * phase);
-                    int py = node.y() + (int) ((cy - node.y()) * phase);
-                    MachineScreenUi.crystal(graphics, px, py, 2, 1, color);
+                    GuiProceduralGeometry.travelingCrystal(graphics, node.x(), node.y(), cx, cy,
+                            phase, 2, 1, color);
                 }
             }
             int centralColor = AscendancePalette.tierPrimaryArgb(ClientEssenceState.snapshot().tierId());
             int centralMetal = AscendancePalette.tierMetalArgb(ClientEssenceState.snapshot().tierId());
-            MachineScreenUi.orbit(graphics, cx, cy, centerRadius + 4, centerRadius + 4,
-                    12, time / 240, MachineScreenUi.opacity(centralMetal, ready ? 170 : 100));
-            MachineScreenUi.crystal(graphics, cx, cy, centerRadius,
+            GuiProceduralGeometry.orbit(graphics, cx, cy, centerRadius + 4, centerRadius + 4,
+                    12, time / 240, GuiProceduralGeometry.opacity(centralMetal, ready ? 170 : 100));
+            GuiProceduralGeometry.crystal(graphics, cx, cy, centerRadius,
                     maximum ? 1 : state.completedCategories() / (double) Math.max(1, state.requiredCategories()), centralColor);
             // Tier names remain inside the medallion and scale to the allocated central width.
             centeredFit(graphics, font, currentTier, cx, cy - 11, centerRadius * 2 - 2,
@@ -101,7 +101,7 @@ public final class NexusAttunementView {
                 double a = Math.PI * 2 * i / Math.max(1, sockets) - Math.PI / 2;
                 int sx = cx + (int) (Math.cos(a) * (centerRadius + 7));
                 int sy = cy + (int) (Math.sin(a) * (centerRadius + 7));
-                MachineScreenUi.crystal(graphics, sx, sy, 2,
+                GuiProceduralGeometry.crystal(graphics, sx, sy, 2,
                         maximum || i < state.completedCategories() ? 1 : 0, centralColor);
             }
             for (var node : layout.nodes()) {
@@ -114,10 +114,10 @@ public final class NexusAttunementView {
                 int radius = node.radius();
                 if (active || focus) {
                     int alpha = focus ? 180 : 60 + (int) (30 * (1 + Math.sin(time / 15 + node.index())));
-                    MachineScreenUi.orbit(graphics, node.x(), node.y(), radius + 4, radius + 4, 4,
-                            0, MachineScreenUi.opacity(color, alpha));
+                    GuiProceduralGeometry.orbit(graphics, node.x(), node.y(), radius + 4, radius + 4, 4,
+                            0, GuiProceduralGeometry.opacity(color, alpha));
                 }
-                MachineScreenUi.crystal(graphics, node.x(), node.y(), radius,
+                GuiProceduralGeometry.crystal(graphics, node.x(), node.y(), radius,
                         complete ? 1 : category.percent() / 100.0, available || complete ? color : DIM);
                 int methods = category.methods().size();
                 for (int m = 0; m < methods; m++) {
@@ -128,8 +128,8 @@ public final class NexusAttunementView {
                     boolean repeated = category.recent().stream().anyMatch(r -> r.activityId().equals(method.activityId())
                             && r.repetitionMultiplier() < 0.65);
                     int glyphColor = !method.available() ? DIM : repeated ? 0xFFD1B36A
-                            : method.progress() > 0 || maximum ? color : MachineScreenUi.opacity(color, 100);
-                    MachineScreenUi.orbit(graphics, gx, gy, 2, 2, 3 + m % 3, a, glyphColor);
+                            : method.progress() > 0 || maximum ? color : GuiProceduralGeometry.opacity(color, 100);
+                    GuiProceduralGeometry.orbit(graphics, gx, gy, 2, 2, 3 + m % 3, a, glyphColor);
                 }
                 int labelY = node.y() + (Math.sin(node.angle()) < -0.1 ? -radius - 27 : radius + 13);
                 Component label = this.width < 420 ? compactName(category) : categoryName(category);

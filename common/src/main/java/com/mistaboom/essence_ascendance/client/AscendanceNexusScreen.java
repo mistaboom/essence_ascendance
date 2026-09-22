@@ -16,6 +16,7 @@ import com.mistaboom.essence_ascendance.network.AscendanceNexusTransactionPayloa
 import com.mistaboom.essence_ascendance.network.PlayerEssenceSyncPayload;
 import com.mistaboom.essence_ascendance.progression.BonusTrackCurve;
 import com.mistaboom.essence_ascendance.visual.AscendancePalette;
+import com.mistaboom.essence_ascendance.client.procedural.GuiProceduralGeometry;
 import com.mistaboom.essence_ascendance.skill.requirement.BonusInvestmentRequirement;
 import com.mistaboom.essence_ascendance.skill.requirement.PermanentMilestoneRequirement;
 import com.mistaboom.essence_ascendance.skill.requirement.SkillRequirement;
@@ -535,7 +536,7 @@ public final class AscendanceNexusScreen
                     layout.y(),
                     layout.tabWidth(),
                     TAB_HEIGHT,
-                    selected ? accent : MachineScreenUi.opacity(accent, 120)
+                    selected ? accent : GuiProceduralGeometry.opacity(accent, 120)
             );
             if (selected) graphics.fill(x + 2, layout.y() + TAB_HEIGHT - 3,
                     x + layout.tabWidth() - 2, layout.y() + TAB_HEIGHT - 1, accent);
