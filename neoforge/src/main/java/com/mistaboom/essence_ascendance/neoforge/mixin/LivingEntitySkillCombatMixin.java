@@ -49,13 +49,16 @@ public abstract class LivingEntitySkillCombatMixin {
     private void essenceAscendance$completedSkillDeath(DamageSource source, Operation<Void> original) {
         LivingEntity entity = (LivingEntity) (Object) this;
         boolean alreadyDead = dead;
-        original.call(source);
-        // The common death event is cancelable. Only a completed native death
-        // transition can grant a kill, and duplicate die calls cannot grant twice.
-        if (!entity.level().isClientSide && !alreadyDead && dead) {
-            com.mistaboom.essence_ascendance.attunement.AttunementGameplay.defeated(entity, source);
-            SkillEffectRuntime.onLivingDeath(entity, source);
-            if (entity instanceof ServerPlayer player) PlayerRuntimeLifecycleService.onDeath(player);
-        }
+        if (entity.level().isClientSide) { original.call(source); return; }
+        SkillEffectRuntime.duringNativeDeath(entity, () -> {
+            original.call(source);
+            // The common death event is cancelable. Only a completed native death
+            // transition can grant a kill, and duplicate die calls cannot grant twice.
+            if (!alreadyDead && dead) {
+                com.mistaboom.essence_ascendance.attunement.AttunementGameplay.defeated(entity, source);
+                SkillEffectRuntime.onLivingDeath(entity, source);
+                if (entity instanceof ServerPlayer player) PlayerRuntimeLifecycleService.onDeath(player);
+            }
+        });
     }
 }

@@ -4,7 +4,6 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentDamageService;
 import com.mistaboom.essence_ascendance.equipment.EquipmentShieldService;
 import com.mistaboom.essence_ascendance.guard.CounterattackLedger;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.protocol.game.ServerboundInteractPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -128,7 +127,7 @@ public final class GuardCounterattackService {
             }
         }
         if (confirmed && (state.riposteBonus > 0 || state.storedBonus > 0)) {
-            SkillProcDamageService.particles(state.player, state.target, ParticleTypes.CRIT, 3, .15, .01);
+            com.mistaboom.essence_ascendance.network.CombatVisualFeedback.defenseImpact(state.player.serverLevel(), state.target);
         }
     }
 

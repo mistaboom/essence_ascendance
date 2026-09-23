@@ -3,8 +3,12 @@ package com.mistaboom.essence_ascendance.projectile;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.equipment.EquipmentDamageService;
 import com.mistaboom.essence_ascendance.mixin.ProjectileNativeAccess;
+import com.mistaboom.essence_ascendance.network.CombatVisualFeedback;
 import com.mistaboom.essence_ascendance.skill.CommittedSkillService;
 import com.mistaboom.essence_ascendance.skill.effect.OffenseProjectileEffects;
+import com.mistaboom.essence_ascendance.visual.transientfx.SemanticVisualColor;
+import com.mistaboom.essence_ascendance.visual.transientfx.TransientVisualIds;
+import com.mistaboom.essence_ascendance.visual.transientfx.VisualIntensity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -68,7 +72,15 @@ public final class ProjectileRuntime {
         if (state.path == ProjectilePath.HOMING) {
             LivingEntity target = ProjectileTargeting.acquire(projectile, owner, owner.getEyePosition(),
                     owner.getLookAngle(), state.profile.acquisitionRange(), state.profile.acquisitionConeDegrees(), state.visited);
-            if (target != null) state.target = target.getUUID();
+            if (target != null) {
+                state.target = target.getUUID();
+                Vec3 direction = target.getBoundingBox().getCenter().subtract(projectile.position());
+                CombatVisualFeedback.link(owner.serverLevel(), TransientVisualIds.WORLD_PROJECTILE_GUIDANCE,
+                        projectile.position(), projectile, target, target.getBoundingBox().getCenter(), direction,
+                        0.78F, 0.62F, VisualIntensity.STANDARD, SemanticVisualColor.MAGIC, 14,
+                        owner.level().getGameTime() ^ projectile.getUUID().getLeastSignificantBits(),
+                        (float) state.profile.turnDegreesPerTick(), 0.0F);
+            }
         }
     }
 
@@ -167,6 +179,11 @@ public final class ProjectileRuntime {
                         projectile.setDeltaMovement(next.getBoundingBox().getCenter().subtract(destination).normalize().scale(speed));
                         projectile.hasImpulse = true;
                         continuing = true;
+                        CombatVisualFeedback.link(owner.serverLevel(), TransientVisualIds.WORLD_PROJECTILE_REDIRECT,
+                                destination, null, null, next.getBoundingBox().getCenter(), projectile.getDeltaMovement(),
+                                0.92F, 0.90F, VisualIntensity.STANDARD, SemanticVisualColor.MAGIC, 12,
+                                projectile.level().getGameTime() ^ projectile.getUUID().getMostSignificantBits()
+                                        ^ state.ricochets, state.ricochets, 0.0F);
                     }
                 }
                 if (!continuing) continuing = state.penetrate();
@@ -175,6 +192,12 @@ public final class ProjectileRuntime {
                 com.mistaboom.essence_ascendance.skill.effect.SkillHudEvents.record(owner, com.mistaboom.essence_ascendance.skill.SkillIds.RICOCHET, "ricochet", state.ricochets);
             if (usedSkillContinuation(state, ProjectilePath.PIERCING, skillPenetrationsBefore))
                 com.mistaboom.essence_ascendance.skill.effect.SkillHudEvents.record(owner, com.mistaboom.essence_ascendance.skill.SkillIds.PIERCING_PROJECTILE, "piercing", state.skillPenetrations);
+            if (usedSkillContinuation(state, ProjectilePath.PIERCING, skillPenetrationsBefore))
+                CombatVisualFeedback.at(owner.serverLevel(), TransientVisualIds.WORLD_PROJECTILE_PIERCE,
+                        destination, projectile.getDeltaMovement(), 0.95F, 0.86F,
+                        VisualIntensity.STANDARD, SemanticVisualColor.MAGIC, 11,
+                        projectile.level().getGameTime() ^ projectile.getUUID().getLeastSignificantBits()
+                                ^ state.skillPenetrations, state.skillPenetrations, 0.0F);
             if (success) ProjectileImpactEffects.impact(state,
                     new ProjectileImpactEffects.Impact(projectile, owner, hit, living, probe.confirmedDamage, continuing));
             if (!continuing) stop(projectile, state);

@@ -6,7 +6,6 @@ import com.mistaboom.essence_ascendance.projectile.ProjectileOwnership;
 import com.mistaboom.essence_ascendance.projectile.ProjectileTargeting;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.effect.*;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
@@ -60,8 +59,7 @@ public final class ReflectionRouter {
                 tuning.maximumTargets(), ShieldMath.safeDamage(confirmed * tuning.damageScale()), SkillIds.CROWD_REPRISAL,
                 SkillProcDamageService.DamageKind.CROWD_REPRISAL, budget, 0, target -> {},
                 target -> ProjectileTargeting.hostile(player, target) && player.hasLineOfSight(target),
-                target -> { if (tuning.particleCount() > 0) SkillProcDamageService.particles(player, target, ParticleTypes.ENCHANTED_HIT,
-                        tuning.particleCount(), target.getBbWidth() / 2, 0); });
+                target -> com.mistaboom.essence_ascendance.network.CombatVisualFeedback.defenseImpact(player.serverLevel(), target));
         RECENT.put(player, "Crowd Reprisal: confirmed primary=" + confirmed + "; source=" + primary.getUUID()
                 + "; requested per target=" + confirmed * tuning.damageScale() + "; accepted=" + accepted
                 + "; visited=" + budget.visitedIds() + "; attribution=defender/skill; LOS=defender; no recursive amplification");

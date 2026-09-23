@@ -5,8 +5,11 @@ import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.mixin.ProjectileNativeAccess;
 import com.mistaboom.essence_ascendance.skill.CommittedSkillService;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
+import com.mistaboom.essence_ascendance.network.CombatVisualFeedback;
+import com.mistaboom.essence_ascendance.visual.transientfx.SemanticVisualColor;
+import com.mistaboom.essence_ascendance.visual.transientfx.TransientVisualIds;
+import com.mistaboom.essence_ascendance.visual.transientfx.VisualIntensity;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -94,8 +97,11 @@ public final class ProjectileInterceptionService {
             if (!theft || result.startsWith("Destroyed")) projectile.discard();
             ProjectileControlService.release(projectile);
             ProjectileControlService.record(player, "theft", "Projectile #" + projectile.getId() + " " + ownership.decision() + " -> " + result);
-            player.serverLevel().sendParticles(theft && !projectile.isRemoved() ? ParticleTypes.CRIT : ParticleTypes.POOF,
-                    projectile.getX(), projectile.getY(), projectile.getZ(), 4, 0.08, 0.08, 0.08, 0.02);
+            CombatVisualFeedback.at(player.serverLevel(), TransientVisualIds.WORLD_PROJECTILE_INTERCEPT,
+                    projectile.position(), projectile.isRemoved() ? look : projectile.getDeltaMovement(), 1.0F, 1.0F,
+                    VisualIntensity.STANDARD, SemanticVisualColor.DEFENSE, 16,
+                    player.level().getGameTime() ^ projectile.getUUID().getLeastSignificantBits(),
+                    0.0F, 0.0F);
             successes++;
         }
         if (successes > 0) {
@@ -150,6 +156,11 @@ public final class ProjectileInterceptionService {
         ((ProjectileStateAccess) projectile).essenceAscendance$flightScale(1);
         control.physicsInput = null;
         com.mistaboom.essence_ascendance.skill.effect.SkillHudEvents.record(defender, SkillIds.TRAJECTORY_THEFT, "redirected", 1);
+        CombatVisualFeedback.link(defender.serverLevel(), TransientVisualIds.WORLD_PROJECTILE_REDIRECT,
+                projectile.position(), null, null, target.getBoundingBox().getCenter(), projectile.getDeltaMovement(),
+                1.10F, 1.10F, VisualIntensity.MAJOR, SemanticVisualColor.MAGIC, 20,
+                defender.level().getGameTime() ^ projectile.getUUID().getMostSignificantBits(),
+                control.remainingRedirects, 1.0F);
         return "Trajectory Theft " + decision + " target=" + target.getUUID() + " speed="
                 + String.format(java.util.Locale.ROOT, "%.2f", speed) + " homing=" + next.profile.turnDegreesPerTick()
                 + "deg/tick remaining redirects=" + control.remainingRedirects + "; native damage/physics retained; path/payload cleared";

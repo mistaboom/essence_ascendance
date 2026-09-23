@@ -104,7 +104,11 @@ public final class TargetConditionState implements SkillEffectState {
         for (UUID id : List.copyOf(targets.keySet())) {
             Entry entry = targets.get(id);
             LivingEntity target = entry == null ? null : entry.target.get();
-            if (entry == null || now >= entry.expiresAt || target == null || !target.isAlive()
+            // Native loot queries reconcile the owner while die() is still running. Preserve
+            // its timed condition until the completed-death callback consumes it; canceled
+            // deaths do not receive a payoff, and later reconciliation still cleans up.
+            if (entry == null || now >= entry.expiresAt || target == null
+                    || (!target.isAlive() && !SkillEffectRuntime.resolvingDeath(target))
                     || target.isRemoved() || target.level() != owner.level()
                     || owner.serverLevel().getEntity(id) != target) {
                 if (entry != null) remove(target == null ? id : target.getUUID());

@@ -4,7 +4,6 @@ import com.mistaboom.essence_ascendance.config.ProjectileBalanceSettings;
 import com.mistaboom.essence_ascendance.skill.CommittedSkillService;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -100,10 +99,9 @@ public final class ProjectileControlService {
             if (!ProjectileControlMath.finite(velocity)) { projectile.discard(); return; }
             projectile.setDeltaMovement(velocity); projectile.hasImpulse = true; state.dragFactor = factor;
             state.physicsInput = factor < 1 ? velocity : null;
-            if (factor < 0.9 && projectile.level() instanceof net.minecraft.server.level.ServerLevel level
-                    && Math.floorMod(now + projectile.getId(), 2) == 0)
-                level.sendParticles(ParticleTypes.REVERSE_PORTAL, projectile.getX(), projectile.getY(), projectile.getZ(),
-                        2, 0.06, 0.06, 0.06, 0.015);
+            if (factor < 0.999 && projectile.level() instanceof net.minecraft.server.level.ServerLevel level
+                    && (entered || Math.floorMod(now + projectile.getId(), 8) == 0))
+                com.mistaboom.essence_ascendance.network.CombatVisualFeedback.projectileDrag(level, projectile, factor);
             if (entered) projectile.level().playSound(null, projectile.blockPosition(), SoundEvents.HONEY_BLOCK_SLIDE,
                     SoundSource.PLAYERS, 0.35F, 0.8F);
             if (claims != null) for (var field : claims.values()) {

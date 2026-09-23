@@ -1,14 +1,18 @@
 package com.mistaboom.essence_ascendance.skill.effect;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
+import com.mistaboom.essence_ascendance.network.CombatVisualFeedback;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
-import net.minecraft.core.particles.ParticleTypes;
+import com.mistaboom.essence_ascendance.visual.transientfx.SemanticVisualColor;
+import com.mistaboom.essence_ascendance.visual.transientfx.TransientVisualIds;
+import com.mistaboom.essence_ascendance.visual.transientfx.VisualIntensity;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.HashSet;
 import java.util.List;
@@ -43,6 +47,34 @@ final class OffenseElementalImbuementEffects {
         return ids.size();
     }
 
+    private static Vec3 direction(Entity source, Entity target) {
+        Vec3 delta = target.getBoundingBox().getCenter().subtract(source.getBoundingBox().getCenter());
+        return delta.lengthSqr() > 1.0E-8 ? delta.normalize() : new Vec3(0, 1, 0);
+    }
+
+    private static long visualSeed(SkillEffectRuntime.Context context, Entity target, int salt) {
+        return context.now() * 31L ^ target.getUUID().getLeastSignificantBits() ^ salt * 0x9E3779B97F4A7C15L;
+    }
+
+    private static void elementalDrift(SkillEffectRuntime.Context context, LivingEntity target, boolean fire) {
+        if (!target.isAlive() || target.isRemoved()) return;
+        Vec3 center = target.getBoundingBox().getCenter();
+        CombatVisualFeedback.link(context.player().serverLevel(), fire ? TransientVisualIds.WORLD_KINDLING
+                        : TransientVisualIds.WORLD_FROSTBITE, center, null, target, center, new Vec3(0, 1, 0),
+                1.0F, 0.8F, VisualIntensity.STANDARD, fire ? SemanticVisualColor.FIRE : SemanticVisualColor.FROST,
+                fire ? 32 : 64, visualSeed(context, target, fire ? 1 : 20),
+                Math.clamp(target.getBbHeight(), 0.3F, 6.0F), Math.clamp(target.getBbWidth(), 0.2F, 4.0F));
+    }
+
+    private static void elementalDrifts(SkillEffectRuntime.Context context, SourceOwnedBuildupState buildup,
+                                       TargetConditionState condition, boolean fire) {
+        // Stagger packets across ticks and cap per owner; the shared client budget/coalescing bounds crowds.
+        java.util.stream.Stream.concat(buildup.snapshots(context.now()).stream().map(SourceOwnedBuildupState.Snapshot::target),
+                        condition.activeTargets(context.now()).stream()).distinct()
+                .filter(target -> Math.floorMod(context.now() + target.getId(), fire ? 20 : 40) == 0).limit(8)
+                .forEach(target -> elementalDrift(context, target, fire));
+    }
+
     private static final class Kindling implements SkillEffectHudHandler {
         private static final int BURN_PULSE_TICKS = 20;
 
@@ -55,6 +87,7 @@ final class OffenseElementalImbuementEffects {
             if (state.burning.active(result.target(), context.now())) {
                 state.ignite(result.target(), context.now(), settings.ignitionDurationTicks(),
                         result.damageDealt(), settings.burningDamagePercentPerSecond());
+                elementalDrift(context, result.target(), true);
                 return;
             }
             int heat = state.heat.add(result.target(), context.now(), settings.maxHeat(),
@@ -63,17 +96,19 @@ final class OffenseElementalImbuementEffects {
                 state.heat.remove(result.target());
                 state.ignite(result.target(), context.now(), settings.ignitionDurationTicks(),
                         result.damageDealt(), settings.burningDamagePercentPerSecond());
+                CombatVisualFeedback.at(context.player().serverLevel(), TransientVisualIds.WORLD_IGNITION,
+                        result.target().getBoundingBox().getCenter(), direction(context.player(), result.target()),
+                        1.05F, 1.15F, VisualIntensity.MAJOR, SemanticVisualColor.FIRE, 16,
+                        visualSeed(context, result.target(), 2), 1.0F, 0.0F);
+            } else {
+                elementalDrift(context, result.target(), true);
             }
         }
 
         @Override public void tick(SkillEffectRuntime.Context context) {
             KindlingState state = context.existingState(id());
             if (state == null) return;
-            for (LivingEntity target : state.burning.activeTargets(context.now())) {
-                // Keep the vanilla fire visual/status without allowing its fixed one-point tick
-                // to replace this source-owned, attack-scaled periodic damage.
-                target.setRemainingFireTicks(Math.max(target.getRemainingFireTicks(), 2));
-            }
+            elementalDrifts(context, state.heat, state.burning, true);
             for (TargetConditionState.Pulse pulse : state.burning.drainDuePulses(context.now())) {
                 if (pulse.magnitude() <= 0.0) continue;
                 var lineage = pulse.lineage();
@@ -168,13 +203,18 @@ final class OffenseElementalImbuementEffects {
             root.seed(death.victim().getUUID());
             if (!root.canContinue(generation)) return;
             double damage = settings.damage() * Math.pow(settings.generationDamageFalloff(), generation);
+            Vec3 center = death.victim().getBoundingBox().getCenter();
+            CombatVisualFeedback.at(context.player().serverLevel(), TransientVisualIds.WORLD_COMBUSTION,
+                    center, new Vec3(0, 1, 0), (float) Math.max(1.2, settings.radius() * 0.68),
+                    (float) Math.max(0.65, 1.35 - generation * 0.22), VisualIntensity.MAJOR,
+                    SemanticVisualColor.FIRE, 30, visualSeed(context, death.victim(), 10 + generation),
+                    generation, settings.maximumGeneration());
             SafeCreatureAreaService.burst(context.player(), death.victim().getBoundingBox().getCenter(),
                     settings.radius(), settings.targetsPerBurst(), (float) damage, id(),
                     SkillProcDamageService.DamageKind.COMBUSTION, root, generation, target -> {
                 state.ignite(target, context.now(), settings.seededIgnitionTicks(), damage,
                         context.settings().kindling().burningDamagePercentPerSecond(),
                         new TargetConditionState.Lineage(root, generation, id()));
-                SkillProcDamageService.particles(context.player(), target, ParticleTypes.FLAME, 10, 0.35, 0.02);
             });
         }
 
@@ -199,6 +239,7 @@ final class OffenseElementalImbuementEffects {
             if (state.frozen.active(result.target(), context.now())) {
                 state.frozen.apply(result.target(), context.now(), settings.freezeDurationTicks());
                 state.slow(result.target(), settings.frozenSlow());
+                elementalDrift(context, result.target(), false);
                 return;
             }
             int chill = state.chill.add(result.target(), context.now(), settings.maxChill(),
@@ -207,10 +248,20 @@ final class OffenseElementalImbuementEffects {
                 state.chill.remove(result.target());
                 state.frozen.apply(result.target(), context.now(), settings.freezeDurationTicks());
                 state.slow(result.target(), settings.frozenSlow());
+                CombatVisualFeedback.at(context.player().serverLevel(), TransientVisualIds.WORLD_FREEZE,
+                        result.target().getBoundingBox().getCenter(), direction(context.player(), result.target()),
+                        1.10F, 1.15F, VisualIntensity.MAJOR, SemanticVisualColor.FROST, 18,
+                        visualSeed(context, result.target(), 21), 1.0F, 0.0F);
             } else {
                 state.slow(result.target(), Math.min(settings.maximumProgressiveSlow(),
                         chill * settings.slowPerStack()));
+                elementalDrift(context, result.target(), false);
             }
+        }
+
+        @Override public void tick(SkillEffectRuntime.Context context) {
+            FrostbiteState state = context.existingState(id());
+            if (state != null) elementalDrifts(context, state.chill, state.frozen, false);
         }
 
         @Override public void reconcile(SkillEffectRuntime.Context context) {
@@ -275,10 +326,14 @@ final class OffenseElementalImbuementEffects {
             var settings = context.settings().shatter();
             PropagationBudget root = new PropagationBudget(0, settings.maximumTargets());
             root.seed(target.getUUID());
+            CombatVisualFeedback.at(context.player().serverLevel(), TransientVisualIds.WORLD_SHATTER,
+                    target.getBoundingBox().getCenter(), direction(context.player(), target),
+                    (float) Math.max(1.25, settings.radius() * 0.46), 1.25F,
+                    VisualIntensity.MAJOR, SemanticVisualColor.FROST, 22,
+                    visualSeed(context, target, 30), settings.maximumTargets(), 0.0F);
             for (LivingEntity candidate : SkillTargetingService.nearby(context.player(), target,
                     settings.radius(), root.visitedIds(), settings.maximumTargets())) {
                 if (!root.tryVisit(candidate.getUUID(), 0)) continue;
-                SkillProcDamageService.particles(context.player(), candidate, ParticleTypes.SNOWFLAKE, 8, 0.25, 0.01);
                 SkillProcDamageService.hurt(context.player(), candidate, (float) settings.shardDamage(),
                         SkillProcDamageService.DamageKind.ICE_SHARD, id(), root, 0);
             }
@@ -340,8 +395,11 @@ final class OffenseElementalImbuementEffects {
             if (state == null || !com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.canDischarge(result.source())
                     || !state.consumeIfFull(settings.maximumCharge(), context.now())) return;
             com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.discharged(result.source());
-            SkillProcDamageService.particles(context.player(), result.target(), ParticleTypes.ELECTRIC_SPARK,
-                    14, 0.30, 0.03);
+            CombatVisualFeedback.link(context.player().serverLevel(), TransientVisualIds.WORLD_STATIC_ARC,
+                    result.target().getBoundingBox().getCenter(), context.player(), result.target(),
+                    result.target().getBoundingBox().getCenter(), direction(context.player(), result.target()),
+                    1.0F, 1.25F, VisualIntensity.MAJOR, SemanticVisualColor.STATIC, 11,
+                    visualSeed(context, result.target(), 40), 0.0F, 0.0F);
             if (context.isEffective(SkillIds.CHAIN_STRIKE)) {
                 arc(context, result.target(), settings.lightningDamage());
             }
@@ -359,8 +417,12 @@ final class OffenseElementalImbuementEffects {
                 LivingEntity target = candidates.getFirst();
                 if (!root.tryVisit(target.getUUID(), jump)) break;
                 double damage = releaseDamage * Math.pow(settings.damageFalloff(), jump);
-                SkillProcDamageService.particles(context.player(), target, ParticleTypes.ELECTRIC_SPARK,
-                        10, 0.25, 0.03);
+                CombatVisualFeedback.link(context.player().serverLevel(), TransientVisualIds.WORLD_STATIC_ARC,
+                        target.getBoundingBox().getCenter(), origin, target,
+                        target.getBoundingBox().getCenter(), direction(origin, target),
+                        0.90F, (float) Math.max(0.58, 1.08 - jump * 0.12),
+                        VisualIntensity.STANDARD, SemanticVisualColor.STATIC, 10,
+                        visualSeed(context, target, 40 + jump), jump, settings.maximumJumps());
                 SkillProcDamageService.hurt(context.player(), target, (float) damage,
                         SkillProcDamageService.DamageKind.LIGHTNING_ARC, SkillIds.CHAIN_STRIKE, root, jump);
                 origin = target;
@@ -430,7 +492,6 @@ final class OffenseElementalImbuementEffects {
             double pulseDamage = SkillEffectMath.clamp(
                     triggeringDamage * damagePercentPerSecond / 100.0, 0.0, Float.MAX_VALUE);
             burning.apply(target, now, durationTicks, pulseDamage, Kindling.BURN_PULSE_TICKS, lineage);
-            target.setRemainingFireTicks(Math.max(target.getRemainingFireTicks(), 2));
         }
 
         boolean empty() { return heat.size() == 0 && burning.size() == 0; }

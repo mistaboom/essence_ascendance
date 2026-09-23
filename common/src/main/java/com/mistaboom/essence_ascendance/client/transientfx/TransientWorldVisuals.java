@@ -46,6 +46,12 @@ public final class TransientWorldVisuals {
         ClientLevel level = minecraft.level;
         if (level == null || !level.dimension().location().equals(event.dimension())
                 || WorldVisualRecipes.get(event.recipeId()) == null) return;
+        int repeatInterval = WorldVisualRecipes.get(event.recipeId()).repeatIntervalTicks();
+        if (repeatInterval > 0 && event.targetEntityId() != WorldVisualEvent.NO_ENTITY
+                && ACTIVE.stream().anyMatch(active -> active.level() == level
+                && active.event().recipeId().equals(event.recipeId())
+                && active.event().targetEntityId() == event.targetEntityId()
+                && level.getGameTime() - active.startedTick() < repeatInterval)) return;
         int incoming = event.presentation().budgetCost();
         while (budgetUsed() + incoming > ACTIVE_BUDGET) {
             Active victim = ACTIVE.stream()

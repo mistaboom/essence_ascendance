@@ -267,10 +267,8 @@ public final class StatusInterceptionService {
         try { action.run(); } finally { if (prior == null) INSTANT_NATIVE.remove(); else INSTANT_NATIVE.set(prior); }
     }
     private static void feedback(SkillEffectRuntime.Context context, boolean secondary) {
-        int particles = context.settings().projectiles().payloadParticleCount();
-        if (!secondary && particles > 0) context.player().serverLevel().sendParticles(
-                net.minecraft.core.particles.ParticleTypes.ENCHANT, context.player().getX(),
-                context.player().getY(.55), context.player().getZ(), particles, .2, .2, .2, 0);
+        if (!secondary) com.mistaboom.essence_ascendance.network.CombatVisualFeedback
+                .defenseImpact(context.player().serverLevel(), context.player());
     }
     private static void withTransfer(Runnable action) {
         int prior = TRANSFER_DEPTH.get(); TRANSFER_DEPTH.set(Math.min(StatusOutcome.MAX_CHAIN, prior + 1));

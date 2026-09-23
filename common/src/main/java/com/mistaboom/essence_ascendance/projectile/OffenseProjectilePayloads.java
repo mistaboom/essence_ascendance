@@ -6,7 +6,7 @@ import com.mistaboom.essence_ascendance.skill.effect.PropagationBudget;
 import com.mistaboom.essence_ascendance.skill.effect.SafeCreatureAreaService;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import com.mistaboom.essence_ascendance.skill.effect.SkillProcDamageService;
-import net.minecraft.core.particles.ParticleTypes;
+import com.mistaboom.essence_ascendance.network.CombatVisualFeedback;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -14,11 +14,9 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.phys.Vec3;
 
-import com.mistaboom.essence_ascendance.network.TransientVisualDispatch;
 import com.mistaboom.essence_ascendance.visual.transientfx.SemanticVisualColor;
 import com.mistaboom.essence_ascendance.visual.transientfx.TransientVisualIds;
 import com.mistaboom.essence_ascendance.visual.transientfx.VisualIntensity;
-import com.mistaboom.essence_ascendance.visual.transientfx.WorldVisualEvent;
 
 /** The catalog payload choice composes independently with every path and every opted-in launch source. */
 final class OffenseProjectilePayloads {
@@ -69,22 +67,16 @@ final class OffenseProjectilePayloads {
                     skillId(), SkillProcDamageService.DamageKind.EXPLOSIVE_PAYLOAD, budget, 0, target -> { });
             var level = impact.owner().serverLevel();
             var point = impact.hit().getLocation();
-            TransientVisualDispatch.nearby(level, new WorldVisualEvent(
-                    TransientVisualIds.WORLD_IMPACT_PULSE, level.dimension().location(), point,
-                    impact.projectile().getId(), impact.victim().getId(), null,
-                    impact.projectile().getDeltaMovement().lengthSqr() > 1.0E-8
-                            ? impact.projectile().getDeltaMovement().normalize() : new Vec3(0, 1, 0),
-                    (float) Math.max(0.6, data.getDouble("Radius") * 0.55), 1.0F,
-                    VisualIntensity.STANDARD, SemanticVisualColor.OFFENSE, 16,
+            Vec3 direction = impact.projectile().getDeltaMovement().lengthSqr() > 1.0E-8
+                    ? impact.projectile().getDeltaMovement().normalize() : new Vec3(0, 1, 0);
+            CombatVisualFeedback.at(level, TransientVisualIds.WORLD_EXPLOSIVE_PAYLOAD, point, direction,
+                    (float) Math.max(1.0, data.getDouble("Radius") * 0.68),
+                    1.15F + Math.min(0.35F, data.getInt("Particles") / 64.0F),
+                    VisualIntensity.MAJOR, SemanticVisualColor.OFFENSE, 20,
                     level.getGameTime() ^ impact.projectile().getUUID().getLeastSignificantBits(),
-                    0.0F, 0.0F), 72.0);
-            int count = data.getInt("Particles");
-            if (count > 0) {
-                impact.owner().serverLevel().sendParticles(ParticleTypes.POOF, point.x, point.y, point.z,
-                        count, data.getDouble("Radius") / 8, data.getDouble("Radius") / 8, data.getDouble("Radius") / 8, 0.02);
-                impact.owner().serverLevel().playSound(null, point.x, point.y, point.z, SoundEvents.GENERIC_EXPLODE,
-                        SoundSource.PLAYERS, 0.35F, 1.5F);
-            }
+                    (float) data.getDouble("Radius"), data.getInt("TargetLimit"));
+            impact.owner().serverLevel().playSound(null, point.x, point.y, point.z, SoundEvents.GENERIC_EXPLODE,
+                    SoundSource.PLAYERS, 0.35F, 1.5F);
         }
     }
     private static final class Rooting extends Base {
@@ -104,8 +96,15 @@ final class OffenseProjectilePayloads {
             if (ImmobilizationController.apply(impact.owner(), impact.victim(), data.getInt("Duration"),
                     data.getInt("MaximumDuration"), data.getDouble("MovementTolerance"))) {
                 com.mistaboom.essence_ascendance.skill.effect.SkillHudEvents.record(impact.owner(), SkillIds.ROOTING_PAYLOAD, "rooted", data.getInt("Duration") / 20.0);
-                if (data.getInt("Particles") > 0) SkillProcDamageService.particles(impact.owner(), impact.victim(), ParticleTypes.ENCHANT,
-                        data.getInt("Particles"), 0.25, 0.01);
+                Vec3 point = impact.victim().position();
+                CombatVisualFeedback.at(impact.owner().serverLevel(), TransientVisualIds.WORLD_ROOTING,
+                        point, new Vec3(0, 1, 0),
+                        (float) Math.max(0.9, impact.victim().getBbWidth() * 1.35),
+                        0.95F + Math.min(0.25F, data.getInt("Particles") / 64.0F),
+                        VisualIntensity.STANDARD, SemanticVisualColor.ROOTING, 18,
+                        impact.owner().serverLevel().getGameTime()
+                                ^ impact.projectile().getUUID().getMostSignificantBits(),
+                        data.getInt("Duration"), data.getInt("MaximumDuration"));
             }
         }
     }

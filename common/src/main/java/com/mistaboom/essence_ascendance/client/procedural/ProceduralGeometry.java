@@ -79,6 +79,21 @@ public final class ProceduralGeometry {
         quad(pose, out, ol, ot, it, il, rgb, alpha);
     }
 
+    /** Eight triangular facets with a true volume, readable from any world viewing angle. */
+    public static void shard(PoseStack pose, VertexConsumer out, Vec3 center, Vec3 right, Vec3 up,
+                             double width, double height, double thickness, int rgb, float alpha) {
+        Vec3 side = right.cross(up).normalize().scale(thickness);
+        Vec3 top = center.add(up.scale(height)), bottom = center.subtract(up.scale(height));
+        Vec3[] belt = {center.add(right.scale(width)), center.add(side),
+                center.subtract(right.scale(width)), center.subtract(side)};
+        for (int i = 0; i < 4; i++) {
+            Vec3 a = belt[i], b = belt[(i + 1) % 4];
+            float shade = 0.65F + i * 0.10F;
+            quad(pose, out, top, a, b, b, rgb, alpha * shade);
+            quad(pose, out, bottom, b, a, a, rgb, alpha * (1.0F - i * 0.08F));
+        }
+    }
+
     public static void billboardRect(PoseStack pose, VertexConsumer out, Vec3 center, Vec3 right, Vec3 up,
                                      double width, double height, int rgb, float alpha) {
         Vec3 h = right.scale(width * 0.5), v = up.scale(height * 0.5);

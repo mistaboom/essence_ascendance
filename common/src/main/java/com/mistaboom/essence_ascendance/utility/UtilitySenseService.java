@@ -239,7 +239,9 @@ public final class UtilitySenseService {
         ServerLevel level = player.serverLevel();
         AABB playerVolume = player.getBoundingBox();
         for (Projectile projectile : level.getEntitiesOfClass(Projectile.class, search,
-                entity -> entity.isAlive() && !entity.isRemoved() && entity.getOwner() != player)) {
+                entity -> entity.isAlive() && !entity.isRemoved()
+                        && !player.getUUID().equals(((com.mistaboom.essence_ascendance.mixin.ProjectileNativeAccess)
+                        entity).essenceAscendance$ownerUUID()))) {
             if (result.size() >= MAX_PROJECTILE_PATHS) break;
             ProjectilePath path = projectedProjectilePath(level, player, playerVolume, projectile, range);
             if (path != null) result.add(path);
@@ -254,6 +256,8 @@ public final class UtilitySenseService {
      */
     private static ProjectilePath projectedProjectilePath(ServerLevel level, ServerPlayer player, AABB playerVolume,
                                                           Projectile projectile, double range) {
+        if (((com.mistaboom.essence_ascendance.projectile.ProjectileStateAccess) projectile)
+                .essenceAscendance$embedded()) return null;
         Vec3 velocity = projectile.getDeltaMovement();
         if (velocity.lengthSqr() <= 1.0E-8) return null;
 
@@ -298,8 +302,10 @@ public final class UtilitySenseService {
         // trajectory-based rather than projectile- or mob-specific, so modded Projectile
         // subclasses receive the same behavior automatically.
         boolean aimedByHostile = projectile.getOwner() instanceof Mob mob && mob.getTarget() == player;
+        boolean otherPlayerShot = projectile.getOwner() instanceof net.minecraft.world.entity.player.Player shooter
+                && !shooter.getUUID().equals(player.getUUID());
         boolean stillClosing = closestFutureDistanceSq + 1.0E-6 < currentDistanceSq;
-        if ((!intersectsPlayer && !(aimedByHostile && stillClosing)) || points.size() < 2) return null;
+        if ((!otherPlayerShot && !intersectsPlayer && !(aimedByHostile && stillClosing)) || points.size() < 2) return null;
         return new ProjectilePath(points, Math.min(historyPoints, points.size()));
     }
 

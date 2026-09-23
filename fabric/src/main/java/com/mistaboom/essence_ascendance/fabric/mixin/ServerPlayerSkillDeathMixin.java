@@ -15,6 +15,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class ServerPlayerSkillDeathMixin {
     @Unique private boolean essenceAscendance$skillDeathNotified;
 
+    @com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod(method = "die")
+    private void essenceAscendance$preserveConditions(DamageSource source,
+            com.llamalad7.mixinextras.injector.wrapoperation.Operation<Void> original) {
+        SkillEffectRuntime.duringNativeDeath((ServerPlayer) (Object) this, () -> original.call(source));
+    }
+
     @Inject(method = "die", at = @At(value = "INVOKE", shift = At.Shift.AFTER,
             target = "Lnet/minecraft/server/level/ServerPlayer;setLastDeathLocation(Ljava/util/Optional;)V"))
     private void essenceAscendance$completedPlayerDeath(DamageSource source, CallbackInfo ci) {

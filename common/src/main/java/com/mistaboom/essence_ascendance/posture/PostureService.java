@@ -8,7 +8,6 @@ import com.mistaboom.essence_ascendance.projectile.ProjectileRuntime;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.effect.CombatHudActivity;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.DamageTypeTags;
@@ -252,8 +251,7 @@ public final class PostureService {
         if (decision.contains("rejected")) feedback(player);
     }
     private static void feedback(ServerPlayer player) {
-        int particles = SkillEffectRuntime.resolvedSettings(player).guard().reprisal().particleCount();
-        if (particles > 0) player.serverLevel().sendParticles(ParticleTypes.ENCHANT,player.getX(),player.getY()+1,player.getZ(),particles,.2,.2,.2,0);
+        com.mistaboom.essence_ascendance.network.CombatVisualFeedback.defenseImpact(player.serverLevel(), player);
     }
     public static boolean suppressKnockback(ServerPlayer player, Incoming event) {
         if (event == null || !event.eligible() || event.resistance() <= 0) return false;

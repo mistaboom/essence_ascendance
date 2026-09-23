@@ -1,43 +1,20 @@
 package com.mistaboom.essence_ascendance.nexus;
 
-import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.server.level.ServerLevel;
+import com.mistaboom.essence_ascendance.network.CombatVisualFeedback;
+import com.mistaboom.essence_ascendance.visual.transientfx.SemanticVisualColor;
+import com.mistaboom.essence_ascendance.visual.transientfx.TransientVisualIds;
+import com.mistaboom.essence_ascendance.visual.transientfx.VisualIntensity;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.Vec3;
 
-/**
- * Intentionally simple placeholder for successful tier-Ascension feedback.
- * Replace this class when the final Nexus ritual/animation exists.
- */
+/** World acknowledgment hosted by the shared procedural runtime; the Nexus ritual owns its full presentation. */
 public final class AscendanceTierFeedback {
-
-    private AscendanceTierFeedback() {
-    }
+    private AscendanceTierFeedback() { }
 
     public static void play(ServerPlayer player) {
-        ServerLevel level = player.serverLevel();
-
-        level.sendParticles(
-                ParticleTypes.END_ROD,
-                player.getX(),
-                player.getY() + 1.0,
-                player.getZ(),
-                42,
-                0.65,
-                1.0,
-                0.65,
-                0.08
-        );
-
-        level.sendParticles(
-                ParticleTypes.ENCHANT,
-                player.getX(),
-                player.getY() + 1.0,
-                player.getZ(),
-                30,
-                0.8,
-                1.1,
-                0.8,
-                0.12
-        );
+        CombatVisualFeedback.at(player.serverLevel(), TransientVisualIds.WORLD_UTILITY_ACKNOWLEDGE,
+                player.getBoundingBox().getCenter(), new Vec3(0, 1, 0), 1.8F, 1.0F,
+                VisualIntensity.MAJOR, SemanticVisualColor.UTILITY, 26,
+                player.level().getGameTime() ^ player.getId(), 0, 0);
     }
 }

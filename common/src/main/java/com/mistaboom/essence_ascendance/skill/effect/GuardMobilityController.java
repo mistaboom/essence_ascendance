@@ -6,7 +6,6 @@ import com.mistaboom.essence_ascendance.projectile.ProjectileTargeting;
 import com.mistaboom.essence_ascendance.skill.CommittedSkillService;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -134,8 +133,7 @@ public final class GuardMobilityController {
             Vec3 direction = CollisionAttackService.pushDirection(movement, target.position().subtract(player.position()), contact.id());
             target.knockback(tuning.knockback(), -direction.x, -direction.z);
             target.hurtMarked = true;
-            player.serverLevel().sendParticles(ParticleTypes.CLOUD, target.getX(), target.getY() + target.getBbHeight() / 2,
-                    target.getZ(), 3, .12, .12, .12, .01);
+            com.mistaboom.essence_ascendance.network.CombatVisualFeedback.defenseImpact(player.serverLevel(), target);
             player.serverLevel().playSound(null, target.blockPosition(), SoundEvents.SHIELD_BLOCK, SoundSource.PLAYERS, .35F, 1.15F);
             accepted++; reason = "accepted target=" + contact.id() + "; fraction=" + contact.fraction() + "; push=" + direction;
         }

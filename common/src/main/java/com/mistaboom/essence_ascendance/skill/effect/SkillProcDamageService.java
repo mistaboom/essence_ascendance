@@ -1,11 +1,9 @@
 package com.mistaboom.essence_ascendance.skill.effect;
 
 import com.mistaboom.essence_ascendance.equipment.EquipmentDamageService;
-import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
@@ -66,14 +64,6 @@ public final class SkillProcDamageService {
             if (previous == null) CURRENT.remove();
             else CURRENT.set(previous);
         }
-    }
-
-    public static void particles(ServerPlayer owner, LivingEntity target, ParticleOptions particle,
-                                 int count, double spread, double speed) {
-        ServerLevel level = owner.serverLevel();
-        if (target.level() != level) return;
-        level.sendParticles(particle, target.getX(), target.getY(0.55), target.getZ(),
-                Math.max(1, count), spread, spread, spread, speed);
     }
 
     public enum DamageKind {

@@ -28,6 +28,16 @@ import java.util.function.Supplier;
 public final class SkillEffectRuntime {
     private static final Map<UUID, PlayerRuntime> PLAYERS = new HashMap<>();
     private static long nextAttemptToken;
+    private static final java.util.Deque<LivingEntity> DEATH_SCOPES = new java.util.ArrayDeque<>();
+
+    /** Loot callbacks may query/reconcile skills inside native die(), before confirmed death dispatch. */
+    public static void duringNativeDeath(LivingEntity victim, Runnable action) {
+        DEATH_SCOPES.push(victim);
+        try { action.run(); }
+        finally { DEATH_SCOPES.pop(); }
+    }
+
+    public static boolean resolvingDeath(LivingEntity target) { return DEATH_SCOPES.contains(target); }
 
     private SkillEffectRuntime() { }
 
