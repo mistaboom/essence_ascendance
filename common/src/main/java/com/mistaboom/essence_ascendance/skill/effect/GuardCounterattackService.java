@@ -46,8 +46,10 @@ public final class GuardCounterattackService {
         }
         if (perfect && context.isEffective(SkillIds.RIPOSTE)) {
             BoundReward state = reward(context, SkillIds.RIPOSTE, shield, hand);
-            if (state.ledger.grant(event, context.now(), 1, 1,
-                    context.settings().guard().riposte().durationTicks(), true)) {
+            int duration = context.settings().guard().riposte().durationTicks();
+            if (state.ledger.grant(event, context.now(), 1, 1, duration, true)) {
+                com.mistaboom.essence_ascendance.network.CombatVisualFeedback.guardResponse(
+                        player.serverLevel(), player, duration);
                 player.serverLevel().playSound(null, player.blockPosition(), SoundEvents.NOTE_BLOCK_CHIME.value(),
                         SoundSource.PLAYERS, .35F, 1.5F);
             }
@@ -57,7 +59,12 @@ public final class GuardCounterattackService {
     private static BoundReward reward(SkillEffectRuntime.Context context, ResourceLocation id,
                                        ItemStack shield, InteractionHand hand) {
         BoundReward existing = context.existingState(id);
-        if (existing != null && (existing.shield != shield || existing.hand != hand)) context.discardState(id);
+        if (existing != null && (existing.shield != shield || existing.hand != hand)) {
+            if (id.equals(SkillIds.RIPOSTE) && existing.ledger.value() > 0)
+                com.mistaboom.essence_ascendance.network.CombatVisualFeedback.riposteEnd(
+                        context.player().serverLevel(), context.player(), false);
+            context.discardState(id);
+        }
         return context.state(id, () -> new BoundReward(shield, hand, context.player().level().dimension().location()));
     }
 
@@ -112,8 +119,9 @@ public final class GuardCounterattackService {
             state.stored.lastTarget = state.target.getUUID().toString();
             state.stored.lastRequestedBonus = state.storedBonus;
         }
+        double riposteSpent = 0;
         if (valid(context, SkillIds.RIPOSTE, state.riposte)) {
-            state.riposte.ledger.finish(state.riposteCharge, confirmed, loss, true);
+            riposteSpent = state.riposte.ledger.finish(state.riposteCharge, confirmed, loss, true);
             state.riposte.lastTarget = state.target.getUUID().toString();
             state.riposte.lastRequestedBonus = state.riposteBonus;
         }
@@ -126,8 +134,10 @@ public final class GuardCounterattackService {
                         -state.direction.x, -state.direction.z));
             }
         }
-        if (confirmed && (state.riposteBonus > 0 || state.storedBonus > 0)) {
-            com.mistaboom.essence_ascendance.network.CombatVisualFeedback.defenseImpact(state.player.serverLevel(), state.target);
+        if (confirmed && (riposteSpent > 0 || spent > 0)) {
+            com.mistaboom.essence_ascendance.network.CombatVisualFeedback.counterstrike(
+                    state.player.serverLevel(), state.player, state.target,
+                    riposteSpent > 0, spent > 0);
         }
     }
 
@@ -206,6 +216,10 @@ public final class GuardCounterattackService {
 
     private record CounterEffect(ResourceLocation id) implements SkillEffectHudHandler {
         @Override public void deactivate(SkillEffectRuntime.Context context) {
+            BoundReward state = context.existingState(id);
+            if (id.equals(SkillIds.RIPOSTE) && state != null && state.ledger.value() > 0)
+                com.mistaboom.essence_ascendance.network.CombatVisualFeedback.riposteEnd(
+                        context.player().serverLevel(), context.player(), false);
             context.discardState(id);
             com.mistaboom.essence_ascendance.guard.GuardLifecycle.invalidateTiming(context.player());
         }
@@ -213,8 +227,17 @@ public final class GuardCounterattackService {
         @Override public void reconcile(SkillEffectRuntime.Context context) {
             BoundReward state = context.existingState(id);
             if (state == null) return;
-            if (!state.valid(context.player())) context.discardState(id);
-            else state.ledger.expire(context.now());
+            boolean armedRiposte = id.equals(SkillIds.RIPOSTE) && state.ledger.value() > 0;
+            if (!state.valid(context.player())) {
+                if (armedRiposte) com.mistaboom.essence_ascendance.network.CombatVisualFeedback.riposteEnd(
+                        context.player().serverLevel(), context.player(), false);
+                context.discardState(id);
+            } else {
+                state.ledger.expire(context.now());
+                if (armedRiposte && state.ledger.value() <= 0)
+                    com.mistaboom.essence_ascendance.network.CombatVisualFeedback.riposteEnd(
+                            context.player().serverLevel(), context.player(), false);
+            }
         }
 
         @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {

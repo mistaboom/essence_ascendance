@@ -23,6 +23,14 @@ public final class TransientVisualIds {
     public static final ResourceLocation WORLD_PROJECTILE_PIERCE = id("projectile_pierce");
     public static final ResourceLocation WORLD_PROJECTILE_DRAG = id("projectile_drag");
     public static final ResourceLocation WORLD_PROJECTILE_INTERCEPT = id("projectile_intercept");
+    public static final ResourceLocation WORLD_SHIELD_RAM = id("shield_ram");
+    public static final ResourceLocation WORLD_GUARD_RESPONSE = id("guard_response");
+    public static final ResourceLocation WORLD_REFLECTION_RETURN = id("reflection_return");
+    public static final ResourceLocation WORLD_CROWD_REPRISAL = id("crowd_reprisal");
+    public static final ResourceLocation WORLD_RIPOSTE_RELEASE = id("riposte_release");
+    public static final ResourceLocation WORLD_STORED_FORCE = id("stored_force");
+    public static final ResourceLocation WORLD_STATUS_REJECTION = id("status_rejection");
+    public static final ResourceLocation WORLD_SHATTERING_WARD = id("shattering_ward");
 
     public static final ResourceLocation GUI_ANVIL_COMPRESSION = id("anvil_compression");
     public static final ResourceLocation GUI_GRINDSTONE_SWEEP = id("grindstone_sweep");

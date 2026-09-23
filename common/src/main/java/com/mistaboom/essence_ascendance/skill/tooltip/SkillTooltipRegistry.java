@@ -86,7 +86,7 @@ public final class SkillTooltipRegistry {
                 line("skill.essence_ascendance.stored_force.description.resolved" , pct(s -> s.guard().storedForce().conversion()), n(s -> s.guard().storedForce().capacity()), sec(s -> s.guard().storedForce().durationTicks())),
                 line("skill.essence_ascendance.stored_force.description.resolved.1" , n(s -> s.guard().storedForce().damageScale()), n(s -> s.guard().storedForce().knockbackScale())));
         define(SkillIds.GUARD_AMPLIFIER,
-                line("skill.essence_ascendance.guard_amplifier.description.resolved" , n(s -> s.guard().amplifier().perBlockGrowth()), n(s -> s.guard().amplifier().maximumMultiplier()), sec(s -> s.guard().amplifier().durationTicks())),
+                line("skill.essence_ascendance.guard_amplifier.description.resolved" , pct(s -> s.guard().amplifier().perBlockGrowth()), pct(s -> s.guard().amplifier().maximumMultiplier() - 1), sec(s -> s.guard().amplifier().durationTicks())),
                 line("skill.essence_ascendance.guard_amplifier.description.resolved.1" , sec(s -> s.guard().perfectGuard().windowTicks())));
         define(SkillIds.CROWD_REPRISAL,
                 line("skill.essence_ascendance.crowd_reprisal.description.resolved" , pct(s -> s.guard().reprisal().damageScale()), n(s -> s.guard().reprisal().maximumTargets()), n(s -> s.guard().reprisal().radius())));

@@ -135,7 +135,7 @@ public final class StatusInterceptionService {
             state.latest = outcome(event, context, selected, incoming.getEffect(), requested.values, before.values, direct,
                     responsible, "prevented_before_native_application", before.values, before.values, true, false,
                     List.of(), "not_requested", List.of(), state, secondary, "pure_state_no_cleansing");
-            feedback(context, secondary);
+            feedback(context, secondary, selected, responsible.target);
             return false;
         }
         boolean mirror = nonempty && !state.intercepting && StatusPolicy.mirrorReady(harmful, selected.equals(SkillIds.STATUS_MIRROR), secondary,
@@ -186,7 +186,7 @@ public final class StatusInterceptionService {
                             ? "native_rejected_unchanged" : "native_false_hidden_chain_changed";
                 } else transfer = "source_invalidated_after_interception";
                 reason = "confirmed_interception_cooldown_committed";
-                feedback(context, false);
+                feedback(context, false, selected, responsible.target);
             } else { removed = false; reason = "native_removal_or_restore_rejected"; }
         }
         var after = capture(defender.getEffect(incoming.getEffect()));
@@ -248,7 +248,7 @@ public final class StatusInterceptionService {
                         .filter(outcome -> outcome.eventId() > event && outcome.prevented()).isPresent())
                     transfer = "target_status_prevention";
             }
-            feedback(context, secondary);
+            feedback(context, secondary, selected, source.target);
         } else runInstant(effect, target, nativeApply);
         state.latest = outcome(event, context, selected, holder,
                 List.of(new StatusOutcome.Instance(1, amplifier, false, true, true)), before, direct, source,
@@ -266,9 +266,11 @@ public final class StatusInterceptionService {
         InstantDispatch prior = INSTANT_NATIVE.get(); INSTANT_NATIVE.set(new InstantDispatch(effect, target));
         try { action.run(); } finally { if (prior == null) INSTANT_NATIVE.remove(); else INSTANT_NATIVE.set(prior); }
     }
-    private static void feedback(SkillEffectRuntime.Context context, boolean secondary) {
-        if (!secondary) com.mistaboom.essence_ascendance.network.CombatVisualFeedback
-                .defenseImpact(context.player().serverLevel(), context.player());
+    private static void feedback(SkillEffectRuntime.Context context, boolean secondary,
+                                 ResourceLocation selected, LivingEntity responsible) {
+        if (!secondary) com.mistaboom.essence_ascendance.network.CombatVisualFeedback.statusRejection(
+                context.player().serverLevel(), context.player(), responsible,
+                selected.equals(SkillIds.STATUS_MIRROR));
     }
     private static void withTransfer(Runnable action) {
         int prior = TRANSFER_DEPTH.get(); TRANSFER_DEPTH.set(Math.min(StatusOutcome.MAX_CHAIN, prior + 1));

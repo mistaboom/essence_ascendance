@@ -130,6 +130,8 @@ public final class VitalityWardEffects {
             var tuning = settings(context).shatteringWard();
             context.state(id(), TimedStackState::shared).grant(context.now(), 1, tuning.regenerationTicks(), true);
             CrowdControlPulseService.knockback(context.player(), tuning.radius(), tuning.maximumTargets(), tuning.knockback());
+            com.mistaboom.essence_ascendance.network.CombatVisualFeedback.shatteringWard(
+                    context.player().serverLevel(), context.player(), tuning.radius());
         }
         @Override public void reconcile(SkillEffectRuntime.Context context) {
             TimedStackState state = state(context);

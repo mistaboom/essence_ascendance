@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.equipment;
 
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
+import com.mistaboom.essence_ascendance.network.CombatVisualFeedback;
 import com.mistaboom.essence_ascendance.stat.EssenceStats;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
@@ -689,6 +690,9 @@ public final class EquipmentDamageService {
         var echo = echoEligible && !frame.deferEcho
                 ? KnockbackEchoService.echo(victim, resolvedSource.target(), frame.attemptedKnockback, context.settings().guard().ward())
                 : KnockbackEchoService.Result.none(frame.deferEcho ? "awaiting_correlated_explosion_impulse" : "ineligible_hit");
+        if (resolvedSource.target() != null && (result.confirmed() > 0 || echo.accepted().lengthSqr() > 0))
+            CombatVisualFeedback.reflectionReturn(victim.serverLevel(), victim, resolvedSource.target(),
+                    extension > 0 || echo.accepted().lengthSqr() > 0);
         if (result.confirmed() > 0) ReflectionRouter.reprisal(victim, resolvedSource.target(), result.confirmed(), context);
         recordDamageDiagnostic(victim, source, frame.healthLost, frame.ordinaryPercent, (float) result.requested());
         LAST_REFLECTION.put(victim, new ReflectionEvaluation(blocked, frame.healthLost,

@@ -133,7 +133,8 @@ public final class GuardMobilityController {
             Vec3 direction = CollisionAttackService.pushDirection(movement, target.position().subtract(player.position()), contact.id());
             target.knockback(tuning.knockback(), -direction.x, -direction.z);
             target.hurtMarked = true;
-            com.mistaboom.essence_ascendance.network.CombatVisualFeedback.defenseImpact(player.serverLevel(), target);
+            com.mistaboom.essence_ascendance.network.CombatVisualFeedback.shieldRam(
+                    player.serverLevel(), player, target, direction);
             player.serverLevel().playSound(null, target.blockPosition(), SoundEvents.SHIELD_BLOCK, SoundSource.PLAYERS, .35F, 1.15F);
             accepted++; reason = "accepted target=" + contact.id() + "; fraction=" + contact.fraction() + "; push=" + direction;
         }

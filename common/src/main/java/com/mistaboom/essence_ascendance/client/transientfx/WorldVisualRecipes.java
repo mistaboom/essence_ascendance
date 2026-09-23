@@ -23,6 +23,7 @@ public final class WorldVisualRecipes {
         register(UTILITY_ACKNOWLEDGE, new UtilityAcknowledge());
         register(PROCESSOR_COMPLETE, new ProcessorComplete());
         CombatWorldVisualRecipes.registerAll();
+        DefenseWorldVisualRecipes.registerAll();
     }
 
     private WorldVisualRecipes() { }

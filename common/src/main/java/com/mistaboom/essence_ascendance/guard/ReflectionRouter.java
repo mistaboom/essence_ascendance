@@ -59,7 +59,8 @@ public final class ReflectionRouter {
                 tuning.maximumTargets(), ShieldMath.safeDamage(confirmed * tuning.damageScale()), SkillIds.CROWD_REPRISAL,
                 SkillProcDamageService.DamageKind.CROWD_REPRISAL, budget, 0, target -> {},
                 target -> ProjectileTargeting.hostile(player, target) && player.hasLineOfSight(target),
-                target -> com.mistaboom.essence_ascendance.network.CombatVisualFeedback.defenseImpact(player.serverLevel(), target));
+                target -> com.mistaboom.essence_ascendance.network.CombatVisualFeedback.crowdReprisal(
+                        player.serverLevel(), player, target));
         RECENT.put(player, "Crowd Reprisal: confirmed primary=" + confirmed + "; source=" + primary.getUUID()
                 + "; requested per target=" + confirmed * tuning.damageScale() + "; accepted=" + accepted
                 + "; visited=" + budget.visitedIds() + "; attribution=defender/skill; LOS=defender; no recursive amplification");

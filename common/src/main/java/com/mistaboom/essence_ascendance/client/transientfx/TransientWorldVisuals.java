@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mistaboom.essence_ascendance.client.ClientPacketDispatch;
 import com.mistaboom.essence_ascendance.client.procedural.ProceduralRenderTypes;
 import com.mistaboom.essence_ascendance.network.WorldVisualEventPayload;
+import com.mistaboom.essence_ascendance.visual.transientfx.TransientVisualIds;
 import com.mistaboom.essence_ascendance.visual.transientfx.WorldVisualEvent;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.client.Camera;
@@ -46,6 +47,18 @@ public final class TransientWorldVisuals {
         ClientLevel level = minecraft.level;
         if (level == null || !level.dimension().location().equals(event.dimension())
                 || WorldVisualRecipes.get(event.recipeId()) == null) return;
+        if (event.recipeId().equals(TransientVisualIds.WORLD_RIPOSTE_RELEASE)) {
+            ACTIVE.removeIf(active -> active.level() == level
+                    && active.event().recipeId().equals(TransientVisualIds.WORLD_GUARD_RESPONSE)
+                    && active.event().sourceEntityId() == event.sourceEntityId());
+            // A zero-parameter release is the server's early invalidation notice.
+            if (event.parameterA() <= 0.5F) return;
+        } else if (event.recipeId().equals(TransientVisualIds.WORLD_GUARD_RESPONSE)) {
+            // Re-arming replaces the earlier ring so its lifetime matches the refreshed charge.
+            ACTIVE.removeIf(active -> active.level() == level
+                    && active.event().recipeId().equals(TransientVisualIds.WORLD_GUARD_RESPONSE)
+                    && active.event().sourceEntityId() == event.sourceEntityId());
+        }
         int repeatInterval = WorldVisualRecipes.get(event.recipeId()).repeatIntervalTicks();
         if (repeatInterval > 0 && event.targetEntityId() != WorldVisualEvent.NO_ENTITY
                 && ACTIVE.stream().anyMatch(active -> active.level() == level

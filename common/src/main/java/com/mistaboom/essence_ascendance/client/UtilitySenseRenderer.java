@@ -13,6 +13,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
@@ -129,11 +130,15 @@ public final class UtilitySenseRenderer {
         Vec3 up = cameraUp(camera);
         for (UtilitySenseService.Threat threat : UtilitySenseClientState.threats()) {
             Entity entity = minecraft.level.getEntity(threat.entityId());
-            if (entity == null || entity.isRemoved()) continue;
+            if (!(entity instanceof LivingEntity living) || entity.isRemoved()) continue;
 
             float visibility = threat.active() ? 1.0F : 0.62F;
-            Vec3 center = entity.position().add(0, entity.getBbHeight() + 0.36, 0).subtract(cameraPos);
-            renderStatusRibbon(pose, fills, center, right, up, threat, visibility);
+            Vec3 center = entity.getPosition(camera.getPartialTickTime())
+                    .add(0, entity.getBbHeight() + 0.36, 0).subtract(cameraPos);
+            // Membership/memory remains server-selected. Health is native synchronized entity data:
+            // the five-tick threat scan must not freeze a pre-hit value over a dying creature.
+            float health = living.isDeadOrDying() ? 0 : living.getHealth();
+            renderStatusRibbon(pose, fills, center, right, up, threat, health, living.getMaxHealth(), visibility);
         }
     }
 
@@ -143,12 +148,12 @@ public final class UtilitySenseRenderer {
      * translucent sorting while keeping the readout light enough to scan in combat.
      */
     private static void renderStatusRibbon(PoseStack pose, VertexConsumer fills, Vec3 center, Vec3 right, Vec3 up,
-                                           UtilitySenseService.Threat threat, float visibility) {
+                                           UtilitySenseService.Threat threat, float health, float maxHealth, float visibility) {
         int accent = threat.active() ? AscendancePalette.UTILITY : AscendancePalette.TRANSCENDENT.metalRgb();
         int background = AscendancePalette.TRANSCENDENT.primaryRgb();
 
-        double healthFraction = threat.maxHealth() <= 0 ? 0.0
-                : Math.clamp(threat.health() / threat.maxHealth(), 0.0F, 1.0F);
+        double healthFraction = maxHealth <= 0 ? 0.0
+                : Math.clamp(health / maxHealth, 0.0F, 1.0F);
         renderSplitRibbon(pose, fills, center, right, up,
                 0.74, 0.052, healthFraction,
                 AscendancePalette.VITALITY, background, 0.94F * visibility);
