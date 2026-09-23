@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.skill.effect;
 
 import com.mistaboom.essence_ascendance.visual.AscendancePalette;
+import com.mistaboom.essence_ascendance.network.ProgressionVisualFeedback;
 import com.mistaboom.essence_ascendance.config.VitalityWardBalanceSettings;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudEntry.Text;
@@ -52,7 +53,10 @@ public final class VitalityWardEffects {
             if (!Double.isFinite(gain) || gain <= 0 || capacity(context) <= 0) return;
             WardState state = context.state(id(), WardState::new);
             reconcile(context);
+            double before = amount(context);
             AbsorptionPoolService.grant(player, id(), gain);
+            double added = amount(context) - before;
+            if (added > 0) ProgressionVisualFeedback.wardConvergence(player, victim, added);
             // Refresh even at capacity: a real kill can retain the reservoir without adding points.
             state.refresh(context);
         }

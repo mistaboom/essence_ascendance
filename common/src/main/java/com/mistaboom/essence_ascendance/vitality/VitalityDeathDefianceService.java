@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.vitality;
 
 import com.mistaboom.essence_ascendance.equipment.EquipmentDamageService;
+import com.mistaboom.essence_ascendance.network.ProgressionVisualFeedback;
 import com.mistaboom.essence_ascendance.skill.SkillGroups;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.effect.AbilityCooldownService;
@@ -58,6 +59,7 @@ public final class VitalityDeathDefianceService {
             state.damageBonus = tuning.strengthDamageBonus();
             state.clearedDebt = VitalityDamageService.clearDelayedDamage(player);
             state.clearedEffects = StatusInterceptionService.purgeHarmful(player);
+            ProgressionVisualFeedback.deathDefiance(player, false, false);
             return survivingHealth(player);
         }
 
@@ -70,6 +72,7 @@ public final class VitalityDeathDefianceService {
             state.window.activate(now, tuning.durationTicks());
             state.reformHealthFraction = tuning.reformHealthFraction();
             player.fallDistance = 0;
+            ProgressionVisualFeedback.deathDefiance(player, true, false);
             return survivingHealth(player);
         }
         return proposedHealth;
@@ -101,6 +104,7 @@ public final class VitalityDeathDefianceService {
                 if (player.getHealth() < target)
                     player.setHealth((float)Math.min(player.getMaxHealth(), target));
                 player.fallDistance = 0;
+                ProgressionVisualFeedback.deathDefiance(player, true, true);
                 context.discardState(SkillIds.SPIRIT_WALK);
             }
         }

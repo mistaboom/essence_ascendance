@@ -1508,7 +1508,7 @@
       "mechanicalConstraints": "None declared",
       "rankModel": "Generated meaningful native states; no fixed purchasable count",
       "domains": "M02",
-      "bonusCompatibility": "Wings+Vector prerequisite ownership and native firework-relative speed suffice; no invented Flight Speed multiplier.",
+      "bonusCompatibility": "Requires Essence Wings only, independent of jump style. Activates during an active Essence Wings glide with native firework-relative speed; no invented Flight Speed multiplier.",
       "outcomes": [
         {
           "path": "mobility/vectorBoost/rechargeTicks",

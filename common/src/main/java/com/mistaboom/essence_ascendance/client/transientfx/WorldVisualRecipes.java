@@ -24,6 +24,8 @@ public final class WorldVisualRecipes {
         register(PROCESSOR_COMPLETE, new ProcessorComplete());
         CombatWorldVisualRecipes.registerAll();
         DefenseWorldVisualRecipes.registerAll();
+        MobilityVitalityWorldVisualRecipes.registerAll();
+        UtilityWorldVisualRecipes.registerAll();
     }
 
     private WorldVisualRecipes() { }

@@ -5,6 +5,7 @@ import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectState;
 import com.mistaboom.essence_ascendance.network.MicroVisualFeedback;
+import com.mistaboom.essence_ascendance.network.ProgressionVisualFeedback;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerPlayer;
@@ -113,7 +114,7 @@ public final class UtilityPotionService {
         }
 
         int relayed = context.isEffective(SkillIds.POTION_RELAY) ? relay(context, resolved) : 0;
-        if (amplified || relayed > 0) MicroVisualFeedback.utility(player.serverLevel(),
+        if (amplified && relayed == 0) MicroVisualFeedback.utility(player.serverLevel(),
                 player.position().add(0, 1.0, 0), player.getUUID().getLeastSignificantBits() ^ context.now());
         return true;
     }
@@ -151,7 +152,10 @@ public final class UtilityPotionService {
         RELAY_DEPTH.set(depth + 1);
         try {
             for (LivingEntity ally : AllyTargetingService.nearby(context.player(), tuning.radiusBlocks(), tuning.maximumTargets())) {
-                if (ally.addEffect(withDuration(effect, relayDuration), context.player())) accepted++;
+                if (ally.addEffect(withDuration(effect, relayDuration), context.player())) {
+                    accepted++;
+                    ProgressionVisualFeedback.utilityTransfer(context.player(), ally);
+                }
             }
         } finally {
             if (depth == 0) RELAY_DEPTH.remove();

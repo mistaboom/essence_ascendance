@@ -3,6 +3,7 @@ package com.mistaboom.essence_ascendance.vitality;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.CommittedSkillService;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
+import com.mistaboom.essence_ascendance.network.ProgressionVisualFeedback;
 import net.minecraft.server.level.ServerPlayer;
 
 /** Shared recovery eligibility and accepted-heal side effects. Queue recovery is not another heal event. */
@@ -45,6 +46,7 @@ public final class HealingRecoveryService {
             if (recovered > 0) {
                 VitalityDamageService.dirty(player);
                 com.mistaboom.essence_ascendance.skill.effect.SkillHudEvents.record(player, SkillIds.PAIN_PURGE, "purged", recovered);
+                ProgressionVisualFeedback.vitalityPurge(player, recovered);
             }
         }
         ConsumableRecoveryService.overflow(player, Math.min(accepted, Math.max(0, proposed - player.getMaxHealth())));

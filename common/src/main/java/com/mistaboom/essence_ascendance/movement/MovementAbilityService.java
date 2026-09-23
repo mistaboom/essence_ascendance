@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.movement;
 
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.mixin.MovementAbilityNativeAccess;
+import com.mistaboom.essence_ascendance.network.ProgressionVisualFeedback;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
@@ -74,6 +75,10 @@ public final class MovementAbilityService {
         player.hasImpulse = true;
         player.hurtMarked = true;
         state.launched(context.now(), decision.action() == MovementAbilityState.Action.CHARGED_RELEASE);
+        Vec3 applied = new Vec3(next.x(), next.y(), next.z());
+        int style = id.equals(SkillIds.CHARGED_JUMP) ? 0 : id.equals(SkillIds.VECTOR_JUMP) ? 2 : 1;
+        ProgressionVisualFeedback.mobilityLaunch(player, player.position().add(0, 0.08, 0),
+                applied.subtract(before), (float) Math.min(1.5, applied.subtract(before).length()), style);
         // The local player is not physically predicted twice; only this accepted native motion is applied.
         player.connection.send(new ClientboundSetEntityMotionPacket(player));
     }

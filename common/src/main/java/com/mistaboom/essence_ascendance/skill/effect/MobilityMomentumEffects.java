@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.skill.effect;
 
 import com.mistaboom.essence_ascendance.config.MobilityBalanceSettings;
 import com.mistaboom.essence_ascendance.movement.PlayerMotionTracker;
+import com.mistaboom.essence_ascendance.network.ProgressionVisualFeedback;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudEntry.Text;
 import com.mistaboom.essence_ascendance.visual.AscendancePalette;
@@ -152,6 +153,7 @@ public final class MobilityMomentumEffects {
             context.state(SkillIds.RUNNING_MOMENTUM, State::new).momentum.fill();
             context.state(id(), TimedStackState::shared).grant(context.now(), 1, settings(context).rush().durationTicks(), true);
             apply(context);
+            ProgressionVisualFeedback.momentumSurge(player);
         }
         @Override public void reconcile(SkillEffectRuntime.Context context) {
             if (!context.isEffective(SkillIds.RUNNING_MOMENTUM) || !landMode(context.player())) {

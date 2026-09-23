@@ -31,6 +31,17 @@ public final class TransientVisualIds {
     public static final ResourceLocation WORLD_STORED_FORCE = id("stored_force");
     public static final ResourceLocation WORLD_STATUS_REJECTION = id("status_rejection");
     public static final ResourceLocation WORLD_SHATTERING_WARD = id("shattering_ward");
+    public static final ResourceLocation WORLD_MOBILITY_LAUNCH = id("mobility_launch");
+    public static final ResourceLocation WORLD_MOMENTUM_SURGE = id("momentum_surge");
+    public static final ResourceLocation WORLD_VITALITY_PURGE = id("vitality_purge");
+    public static final ResourceLocation WORLD_VITALITY_SURGE = id("vitality_surge");
+    public static final ResourceLocation WORLD_DEATH_DEFIANCE = id("death_defiance");
+    public static final ResourceLocation WORLD_RECOVERY_TRANSFER = id("recovery_transfer");
+    public static final ResourceLocation WORLD_WARD_CONVERGENCE = id("ward_convergence");
+    public static final ResourceLocation WORLD_UTILITY_TRANSFER = id("utility_transfer");
+    public static final ResourceLocation WORLD_CONTAINMENT_SEAL = id("containment_seal");
+    public static final ResourceLocation WORLD_SANCTUARY_RELEASE = id("sanctuary_release");
+    public static final ResourceLocation WORLD_COMPANION_RECALL = id("companion_recall");
 
     public static final ResourceLocation GUI_ANVIL_COMPRESSION = id("anvil_compression");
     public static final ResourceLocation GUI_GRINDSTONE_SWEEP = id("grindstone_sweep");

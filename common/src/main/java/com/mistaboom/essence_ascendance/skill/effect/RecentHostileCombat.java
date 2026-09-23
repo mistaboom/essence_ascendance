@@ -6,7 +6,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 
 /** Accepted hostile health/absorption loss, shared by sustain consumers; never inferred from swings.
- * Also remembers the outgoing subset so pacification effects can distinguish a player choosing to fight
+ * Also remembers deliberate outgoing damage so pacification effects can distinguish a player choosing to fight
  * from a hostile merely landing another hit. */
 public final class RecentHostileCombat implements SkillEffectState {
     private static final ResourceLocation KEY = ResourceLocation.fromNamespaceAndPath("essence_ascendance", "recent_hostile_combat");
@@ -21,11 +21,17 @@ public final class RecentHostileCombat implements SkillEffectState {
     }
 
     /** Accepted hostile damage dealt by this player. This is intentionally narrower than acceptedDamage:
-     * incoming hits still count as combat for sustain systems, but do not make Sanctuary self-renew forever. */
+     * incoming hits and automatic retaliation still count for sustain, but do not renew Sanctuary's aggression timer. */
     public static void acceptedOutgoingDamage(ServerPlayer player, LivingEntity other) {
         if (!acceptedHostile(player, other)) return;
         var context = SkillEffectRuntime.context(player);
-        context.state(KEY, RecentHostileCombat::new).markOutgoing(context.now(), player.level().dimension().location());
+        RecentHostileCombat state = context.state(KEY, RecentHostileCombat::new);
+        var proc = SkillProcDamageService.current();
+        boolean retaliation = com.mistaboom.essence_ascendance.equipment.EquipmentDamageService.isReflectionInProgress()
+                || proc != null && proc.owner() == player && proc.kind().reflectedOutcome();
+        // Retaliation still locks sustain recovery, but it is not a decision to break Sanctuary.
+        if (retaliation) state.mark(context.now(), player.level().dimension().location());
+        else state.markOutgoing(context.now(), player.level().dimension().location());
     }
 
     private static boolean acceptedHostile(ServerPlayer player, LivingEntity other) {

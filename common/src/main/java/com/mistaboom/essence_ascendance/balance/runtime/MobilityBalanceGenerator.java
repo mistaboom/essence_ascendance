@@ -53,7 +53,10 @@ final class MobilityBalanceGenerator {
                 new MobilityBalanceSettings.MomentumVault(fenceHeight, 1 / (1 + vaultPower)),
                 new MobilityBalanceSettings.Rush(ticks(window * rush.expectedAvailability() * (1 + rushPower))),
                 new MobilityBalanceSettings.ImpactControl(impact / (1 + impact)),
-                new MobilityBalanceSettings.ChargedJump(ticks(window * (1 - charged.expectedAvailability()) / (1 + chargedHeight)),
+                // Charging is a short input commitment. Do not make the player wait a combat
+                // recovery window for power comparable to the immediately available air jump.
+                new MobilityBalanceSettings.ChargedJump(Math.min(20,
+                        ticks(window * (1 - charged.expectedAvailability()) / (5 * (1 + chargedHeight)))),
                         Math.min(64, chargedHeight), Math.min(64, chargedControl)),
                 new MobilityBalanceSettings.AirJump(Math.min(64, doubleHeight), Math.min(64, doubleControl)),
                 new MobilityBalanceSettings.VectorJump(Math.min(64, vector), brake / (1 + brake)),

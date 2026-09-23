@@ -6,6 +6,7 @@ import com.mistaboom.essence_ascendance.movement.FlightAbilityState;
 import com.mistaboom.essence_ascendance.movement.MovementAbilityInput;
 import com.mistaboom.essence_ascendance.movement.MovementAbilityRules;
 import com.mistaboom.essence_ascendance.movement.MovementImpulseMath;
+import com.mistaboom.essence_ascendance.network.ProgressionVisualFeedback;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudEntry.Text;
 import com.mistaboom.essence_ascendance.visual.AscendancePalette;
@@ -252,7 +253,13 @@ public final class MobilityFlightEffects {
             Vec3 before = player.getDeltaMovement();
             Vec3 look = player.getLookAngle();
             if (!finite(before) || !finite(look)) return false;
-            return applyVelocity(player, MovementImpulseMath.vectorBoost(velocity(before), velocity(look), rocketSpeedBonus));
+            MovementImpulseMath.Velocity resolved = MovementImpulseMath.vectorBoost(
+                    velocity(before), velocity(look), rocketSpeedBonus);
+            if (!applyVelocity(player, resolved)) return false;
+            Vec3 after = new Vec3(resolved.x(), resolved.y(), resolved.z());
+            ProgressionVisualFeedback.mobilityLaunch(player, player.position().add(0, 0.20, 0),
+                    after.subtract(before), (float) Math.min(1.5, after.subtract(before).length()), 3);
+            return true;
         }
 
         @Override public void deactivate(SkillEffectRuntime.Context context) {

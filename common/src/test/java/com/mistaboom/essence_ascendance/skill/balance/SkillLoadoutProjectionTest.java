@@ -3,9 +3,11 @@ package com.mistaboom.essence_ascendance.skill.balance;
 import com.mistaboom.essence_ascendance.balance.engine.CapabilityAxis;
 import com.mistaboom.essence_ascendance.skill.SkillDefinition;
 import com.mistaboom.essence_ascendance.skill.SkillEvaluationContext;
+import com.mistaboom.essence_ascendance.skill.SkillGroups;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.SkillRankCurve;
 import com.mistaboom.essence_ascendance.skill.SkillRankPolicy;
+import com.mistaboom.essence_ascendance.skill.SkillRegistry;
 import com.mistaboom.essence_ascendance.skill.Skills;
 import com.mistaboom.essence_ascendance.skill.requirement.BonusInvestmentRequirement;
 import com.mistaboom.essence_ascendance.tier.AscendanceTiers;
@@ -98,10 +100,25 @@ public final class SkillLoadoutProjectionTest {
             check(!(active.contains(SkillIds.FATIGUE_FLIGHT) && (active.contains(SkillIds.ESSENCE_WINGS)
                     || active.contains(SkillIds.UNTETHERED_FLIGHT))), "Flight replacement suppresses its owned target");
             check(!(active.contains(SkillIds.ESSENCE_WINGS) && active.contains(SkillIds.UNTETHERED_FLIGHT)), "One flight replacement choice");
-            check(!active.contains(SkillIds.VECTOR_BOOST) || (active.contains(SkillIds.ESSENCE_WINGS)
-                    && active.contains(SkillIds.VECTOR_JUMP)), "Cross-branch prerequisites constrain boost");
+            check(!active.contains(SkillIds.VECTOR_BOOST) || active.contains(SkillIds.ESSENCE_WINGS),
+                    "Boost requires Wings, not a particular jump branch");
         }
         check(one.scenarios().stream().anyMatch(s -> s.activeRanks().containsKey(SkillIds.VECTOR_JUMP)), "Ownership-only replacement parent permits activation");
+        for (var jump : List.of(SkillIds.CHARGED_JUMP, SkillIds.DOUBLE_JUMP, SkillIds.VECTOR_JUMP)) {
+            var context = SkillEvaluationContext.committed(AscendanceTiers.TRANSCENDENT.id(), ranks(mobility, 1),
+                    Map.of(SkillGroups.MOBILITY_JUMP_STYLE, jump,
+                            SkillGroups.MOBILITY_FLIGHT_REPLACEMENT, SkillIds.ESSENCE_WINGS),
+                    SkillRegistry.referencedPermanentMilestoneIds(), Set.of(), Map.of());
+            var scenario = SkillLoadoutProjection.evaluate(mobility, context, (id, rank) -> Math.sqrt(rank),
+                    SkillLoadoutProjection.representativeEquipment().getFirst());
+            check(scenario.activeRanks().containsKey(SkillIds.VECTOR_BOOST) && scenario.activeRanks().containsKey(jump),
+                    "Loadout projections include Wings/Boost with each selected jump style: " + jump);
+        }
+        var vanillaRanks = new LinkedHashMap<>(ranks(mobility, 1));
+        for (var jump : List.of(SkillIds.CHARGED_JUMP, SkillIds.DOUBLE_JUMP, SkillIds.VECTOR_JUMP)) vanillaRanks.remove(jump);
+        check(project(mobility, vanillaRanks, true).scenarios().stream()
+                        .anyMatch(s -> s.activeRanks().containsKey(SkillIds.VECTOR_BOOST)),
+                "Generated loadout projections include Wings/Boost without any jump skill");
         check(one.axisEnvelope().get(CapabilityAxis.FLIGHT).equals(five.axisEnvelope().get(CapabilityAxis.FLIGHT)),
                 "Buying hypothetical repeated ranks does not multiply binary flight access");
         check(five.axisEnvelope().get(CapabilityAxis.GROUND_SPEED) > one.axisEnvelope().get(CapabilityAxis.GROUND_SPEED),

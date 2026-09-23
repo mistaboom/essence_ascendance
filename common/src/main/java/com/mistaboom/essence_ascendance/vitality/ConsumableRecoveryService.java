@@ -3,6 +3,7 @@ package com.mistaboom.essence_ascendance.vitality;
 import com.mistaboom.essence_ascendance.attunement.AttunementEvent;
 import com.mistaboom.essence_ascendance.attunement.AttunementGameplay;
 import com.mistaboom.essence_ascendance.equipment.EquipmentMaintenanceService;
+import com.mistaboom.essence_ascendance.network.ProgressionVisualFeedback;
 import com.mistaboom.essence_ascendance.skill.CommittedSkillService;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
@@ -77,7 +78,11 @@ public final class ConsumableRecoveryService {
                     try {
                         float beforeHealth = player.getHealth();
                         if (amount > 0) player.heal((float)Math.min(Float.MAX_VALUE, amount));
-                        if (player.getHealth() > beforeHealth) com.mistaboom.essence_ascendance.skill.effect.SkillHudEvents.record(player, SkillIds.METABOLIC_CONVERSION, "healed", player.getHealth() - beforeHealth);
+                        if (player.getHealth() > beforeHealth) {
+                            double healed = player.getHealth() - beforeHealth;
+                            com.mistaboom.essence_ascendance.skill.effect.SkillHudEvents.record(player, SkillIds.METABOLIC_CONVERSION, "healed", healed);
+                            ProgressionVisualFeedback.recoveryTransfer(player, healed, false);
+                        }
                     }
                     finally { if (previousHealing == null) FOOD_HEALING.remove(); else FOOD_HEALING.set(previousHealing); }
                 }
@@ -100,6 +105,7 @@ public final class ConsumableRecoveryService {
         VitalityDamageService.carry(player, SkillIds.METABOLIC_CONVERSION, restored.carry());
         double actual = AttunementGameplay.food(player) - before;
         if (actual > 0) com.mistaboom.essence_ascendance.skill.effect.SkillHudEvents.record(player, SkillIds.METABOLIC_CONVERSION, "food", actual);
+        if (actual > 0) ProgressionVisualFeedback.recoveryTransfer(player, actual, true);
         if (actual > 0) SkillEffectRuntime.reportOutcome(player,
                 new AttunementEvent(AttunementGameplay.action("metabolic_conversion"), List.of(
                         AttunementEvent.Outcome.eligible("restore_hunger", SkillIds.METABOLIC_CONVERSION.toString(), actual))));

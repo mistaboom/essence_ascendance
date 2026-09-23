@@ -3,7 +3,7 @@ package com.mistaboom.essence_ascendance.utility;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectState;
-import com.mistaboom.essence_ascendance.network.MicroVisualFeedback;
+import com.mistaboom.essence_ascendance.network.ProgressionVisualFeedback;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
 
@@ -27,9 +27,7 @@ public final class ExplosionContainmentService {
         }
         if (!matches.isEmpty()) {
             UtilityAuraService.Match first = matches.getFirst();
-            MicroVisualFeedback.utility(first.player().serverLevel(), center,
-                    Double.doubleToLongBits(center.x + center.y * 31.0 + center.z * 961.0)
-                            ^ first.context().now());
+            ProgressionVisualFeedback.containmentSeal(first.player().serverLevel(), center);
         }
     }
 

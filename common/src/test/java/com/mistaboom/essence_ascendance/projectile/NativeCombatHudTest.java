@@ -311,15 +311,15 @@ public final class NativeCombatHudTest {
         SkillEffectRuntime.reset(p);
         var data = f.saved.getPlayerData(p.getUUID());
         data.grantAllSkillsForAdmin(List.of(SkillRegistry.require(SkillIds.IMPACT_CONTROL),
-                SkillRegistry.require(SkillIds.DOUBLE_JUMP), SkillRegistry.require(SkillIds.VECTOR_JUMP),
                 SkillRegistry.require(SkillIds.FATIGUE_FLIGHT), SkillRegistry.require(SkillIds.ESSENCE_WINGS),
                 SkillRegistry.require(SkillIds.VECTOR_BOOST), SkillRegistry.require(SkillIds.UNTETHERED_FLIGHT)));
-        data.setLoadoutSelection(SkillGroups.MOBILITY_JUMP_STYLE, SkillIds.VECTOR_JUMP);
+        data.clearLoadoutSelection(SkillGroups.MOBILITY_JUMP_STYLE);
         data.setLoadoutSelection(SkillGroups.MOBILITY_FLIGHT_REPLACEMENT, SkillIds.ESSENCE_WINGS);
         var context = SkillEffectRuntime.context(p);
         check(context.isEffective(SkillIds.ESSENCE_WINGS) && context.isEffective(SkillIds.VECTOR_BOOST)
-                && !context.isEffective(SkillIds.FATIGUE_FLIGHT) && !context.isEffective(SkillIds.DOUBLE_JUMP),
-                "Native saved loadout activates Wings/Vector/Boost without their replaced behaviors");
+                && !context.isEffective(SkillIds.FATIGUE_FLIGHT) && !context.isEffective(SkillIds.DOUBLE_JUMP)
+                && !context.isEffective(SkillIds.VECTOR_JUMP) && !context.isEffective(SkillIds.CHARGED_JUMP),
+                "Native saved loadout activates Wings/Boost with no selected jump skill");
         var wingsHandler = com.mistaboom.essence_ascendance.skill.effect.SkillEffectRegistry.get(SkillIds.ESSENCE_WINGS);
         var wings = context.state(SkillIds.ESSENCE_WINGS, com.mistaboom.essence_ascendance.movement.FlightAbilityState::new);
         wings.startWings(f.level.tick); p.startFallFlying();

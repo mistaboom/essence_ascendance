@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.skill.effect;
 
 import com.mistaboom.essence_ascendance.skill.SkillIds;
+import com.mistaboom.essence_ascendance.network.ProgressionVisualFeedback;
 import com.mistaboom.essence_ascendance.vitality.VitalityDamageService;
 import com.mistaboom.essence_ascendance.visual.AscendancePalette;
 import net.minecraft.resources.ResourceLocation;
@@ -22,7 +23,10 @@ public final class VitalityDamageEffects {
         if (!context.isEffective(SkillIds.ADRENALINE) || !Double.isFinite(maximumBefore) || maximumBefore <= 0) return;
         var tuning = context.settings().vitality().damage().adrenaline();
         if (context.state(SkillIds.ADRENALINE, ThresholdBuffState::new).observeAbove(context.now(), lost,
-                maximumBefore * tuning.triggerHealthLossFraction(), tuning.durationTicks())) ADRENALINE.reconcile(context);
+                maximumBefore * tuning.triggerHealthLossFraction(), tuning.durationTicks())) {
+            ADRENALINE.reconcile(context);
+            ProgressionVisualFeedback.vitalitySurge(context.player(), lost / maximumBefore);
+        }
     }
 
     private static Text lastHit(SkillEffectRuntime.Context context, ResourceLocation skill) {

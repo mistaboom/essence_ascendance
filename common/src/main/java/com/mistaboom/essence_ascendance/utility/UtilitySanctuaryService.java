@@ -4,6 +4,7 @@ import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.effect.RecentHostileCombat;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectState;
+import com.mistaboom.essence_ascendance.network.ProgressionVisualFeedback;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -86,6 +87,7 @@ public final class UtilitySanctuaryService {
             pacified.retainAll(nearbyIds);
 
             int aggressionRemaining = RecentHostileCombat.outgoingRemaining(context, disengageDelayTicks);
+            int visualEvents = 0;
             for (Mob mob : mobs) {
                 UUID id = mob.getUUID();
                 boolean targeting = mob.getTarget() == player;
@@ -114,6 +116,7 @@ public final class UtilitySanctuaryService {
                     pacifiedHostiles++;
                     targetingSince.remove(id);
                     clearTarget(mob, player);
+                    if (visualEvents++ < 6) ProgressionVisualFeedback.sanctuaryRelease(player, mob);
                 } else {
                     nearbyHostiles++;
                     rememberNext(eligibleAt);

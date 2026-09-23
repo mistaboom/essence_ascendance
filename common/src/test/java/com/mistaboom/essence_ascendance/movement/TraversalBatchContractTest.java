@@ -230,10 +230,26 @@ public final class TraversalBatchContractTest {
                     check(result.get(sibling).effective() == sibling.equals(jump), "Only the selected jump branch operates: " + jump);
                 check(result.get(flight).effective() && !result.get(SkillIds.FATIGUE_FLIGHT).effective(),
                         "Selected flight replacement suppresses owned Fatigue behavior");
-                check(result.get(SkillIds.VECTOR_BOOST).effective() == (jump.equals(SkillIds.VECTOR_JUMP) && flight.equals(SkillIds.ESSENCE_WINGS)),
-                        "Boost requires both effective branches; ownership alone cannot bypass exclusions");
+                check(result.get(SkillIds.VECTOR_BOOST).effective() == flight.equals(SkillIds.ESSENCE_WINGS),
+                        "Boost requires effective Wings independently of the selected jump style: " + jump);
             }
         }
+        check(SkillRegistry.require(SkillIds.VECTOR_BOOST).prerequisites().equals(List.of(SkillIds.ESSENCE_WINGS)),
+                "The catalog driving purchase gates and procedural tree edges declares Wings as Boost's only parent");
+        var vanillaRanks = new LinkedHashMap<>(ranks);
+        for (var jump : List.of(SkillIds.CHARGED_JUMP, SkillIds.DOUBLE_JUMP, SkillIds.VECTOR_JUMP)) vanillaRanks.remove(jump);
+        var vanillaContext = SkillEvaluationContext.committed(AscendanceTiers.TRANSCENDENT.id(), vanillaRanks,
+                Map.of(SkillGroups.MOBILITY_FLIGHT_REPLACEMENT, SkillIds.ESSENCE_WINGS),
+                SkillRegistry.referencedPermanentMilestoneIds(), Set.of(), Map.of());
+        check(SkillStateEvaluator.evaluateAll(vanillaContext).get(SkillIds.VECTOR_BOOST).effective(),
+                "Wings and Boost operate with ordinary jumps and no jump skill owned");
+        vanillaRanks.remove(SkillIds.VECTOR_BOOST);
+        var purchaseContext = SkillEvaluationContext.committed(AscendanceTiers.TRANSCENDENT.id(), vanillaRanks,
+                Map.of(SkillGroups.MOBILITY_FLIGHT_REPLACEMENT, SkillIds.ESSENCE_WINGS),
+                SkillRegistry.referencedPermanentMilestoneIds(), Set.of(), Map.of());
+        check(SkillStateEvaluator.evaluatePurchaseEligibility(SkillRegistry.require(SkillIds.VECTOR_BOOST), purchaseContext)
+                        .prerequisitesSatisfied(),
+                "Boost purchase prerequisites are satisfied without owning any jump skill");
         var none = SkillStateEvaluator.evaluateAll(SkillEvaluationContext.committed(AscendanceTiers.TRANSCENDENT.id(),
                 ranks, Map.of(), SkillRegistry.referencedPermanentMilestoneIds(), Set.of(), Map.of()));
         check(none.get(SkillIds.FATIGUE_FLIGHT).effective() && !none.get(SkillIds.VECTOR_JUMP).effective()

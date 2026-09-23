@@ -238,7 +238,7 @@ public final class Skills {
                 .hint(SkillLayoutHint.CENTER).build());
         skills.add(skill(SkillIds.VECTOR_BOOST, essence, AscendanceTiers.TRANSCENDENT.id(),
                 SkillCostBand.KEYSTONE, 13)
-                .requires(SkillIds.ESSENCE_WINGS, SkillIds.VECTOR_JUMP)
+                .requires(SkillIds.ESSENCE_WINGS)
                 .hint(SkillLayoutHint.UPPER).build());
         skills.add(skill(SkillIds.UNTETHERED_FLIGHT, essence, AscendanceTiers.TRANSCENDENT.id(),
                 SkillCostBand.KEYSTONE, 14)
