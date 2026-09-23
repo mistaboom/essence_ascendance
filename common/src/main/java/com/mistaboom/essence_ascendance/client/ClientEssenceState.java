@@ -7,7 +7,6 @@ import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.network.PlayerEssenceSyncPayload;
 import com.mistaboom.essence_ascendance.network.BonusTrackSnapshot;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
-import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.resources.ResourceLocation;
 
@@ -364,12 +363,6 @@ public final class ClientEssenceState {
 
         Snapshot previousSnapshot = snapshot;
         boolean firstSnapshot = !previousSnapshot.ready();
-        boolean automaticOnboardingPromotion = previousSnapshot.ready()
-                && !Objects.equals(previousSnapshot.tierId(), tierId)
-                && AscendanceTierRegistry.get(previousSnapshot.tierId())
-                        .map(tier -> !tier.grantsPower()).orElse(false)
-                && AscendanceTierRegistry.get(tierId)
-                        .map(tier -> tier.grantsPower()).orElse(false);
 
         snapshot =
                 new Snapshot(
@@ -407,9 +400,6 @@ public final class ClientEssenceState {
                     balances.size(),
                     stats.size()
             );
-        }
-        if (automaticOnboardingPromotion) {
-            AscensionAnimation.confirmed(tierId);
         }
     }
 

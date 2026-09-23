@@ -1,92 +1,149 @@
 package com.mistaboom.essence_ascendance.client;
 
-import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.client.procedural.GuiProceduralGeometry;
+import com.mistaboom.essence_ascendance.client.transientfx.TransientWorldVisuals;
 import com.mistaboom.essence_ascendance.text.EssenceText;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
-import com.mistaboom.essence_ascendance.visual.AscendancePalette;
 import com.mistaboom.essence_ascendance.visual.ProceduralMotion;
+import com.mistaboom.essence_ascendance.visual.transientfx.TransientVisualIds;
+import com.mistaboom.essence_ascendance.visual.transientfx.WorldVisualEvent;
+import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.ResourceLocation;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.function.Consumer;
+import java.util.Locale;
 
-import com.mistaboom.essence_ascendance.client.transientfx.GuiAnchor;
-import com.mistaboom.essence_ascendance.client.transientfx.GuiVisualRecipes;
-import com.mistaboom.essence_ascendance.client.transientfx.TransientGuiVisuals;
-import com.mistaboom.essence_ascendance.visual.transientfx.SemanticVisualColor;
-import com.mistaboom.essence_ascendance.visual.transientfx.VisualIntensity;
-
-/** Client-only Ascension event and replaceable first presentation. Never infers success from a request. */
+/** Local handoff/camera lease and quiet announcement. All world art lives in the shared recipe runtime. */
 public final class AscensionAnimation {
-    private static final List<Consumer<ResourceLocation>> LISTENERS = new ArrayList<>();
-    private static final long DURATION_NANOS = 3_200_000_000L;
-    private static ResourceLocation tier;
-    private static long started;
+    private static WorldVisualEvent pending;
+    private static WorldVisualEvent active;
+    private static ClientLevel level;
+    private static LocalPlayer player;
+    private static CameraType previousPerspective;
+    private static long startedTick;
+    private static long pendingTick;
+    private static final int CAMERA_EASE_TICKS = 16;
 
     private AscensionAnimation() { }
 
-    /** Optional client presentation extensions may add final art, sound or world particles here. */
-    public static void register(Consumer<ResourceLocation> listener) { LISTENERS.add(Objects.requireNonNull(listener)); }
-
-    /** Called after a successful transaction acknowledgement AND its authoritative state snapshot. */
-    public static void confirmed(ResourceLocation newTier) {
-        tier = Objects.requireNonNull(newTier);
-        started = System.nanoTime();
-        TransientGuiVisuals.emit(GuiVisualRecipes.ACKNOWLEDGE,
-                GuiAnchor.dynamic((screen, width, height) ->
-                        GuiAnchor.Rect.point(width / 2, Math.max(36, height / 3))),
-                1.35F, 1.0F, VisualIntensity.SIGNATURE, tierColor(newTier),
-                38, newTier.hashCode(), 0.0F, 0.0F);
-        for (var listener : List.copyOf(LISTENERS)) listener.accept(newTier);
+    public static boolean ceremony(WorldVisualEvent event) {
+        return event.recipeId().equals(TransientVisualIds.WORLD_ASCENDANCE_CEREMONY);
     }
 
-    private static SemanticVisualColor tierColor(ResourceLocation tierId) {
-        try {
-            return SemanticVisualColor.valueOf(tierId.getPath().toUpperCase(java.util.Locale.ROOT));
-        } catch (IllegalArgumentException ignored) {
-            return SemanticVisualColor.LATENT;
+    /** The server event can precede the next screen tick that consumes the transaction ack. */
+    public static boolean defer(WorldVisualEvent event) {
+        Minecraft client = Minecraft.getInstance();
+        if (!ceremony(event) || event.parameterA() > 0.5F || client.player == null
+                || event.sourceEntityId() != client.player.getId()
+                || !(client.screen instanceof AscendanceNexusScreen)) return false;
+        clear();
+        pending = event;
+        level = client.level;
+        player = client.player;
+        pendingTick = level.getGameTime();
+        return true;
+    }
+
+    /** Called only after the Nexus has validated acceptance + matching snapshot and closed. */
+    public static void confirmed(ResourceLocation newTier) {
+        if (pending != null && pending.color().name().equalsIgnoreCase(newTier.getPath())) releasePending();
+    }
+
+    private static void releasePending() {
+        WorldVisualEvent event = pending;
+        pending = null;
+        if (event != null) TransientWorldVisuals.emit(event);
+    }
+
+    /** Runtime admission, rather than a tier snapshot, is the single local presentation trigger. */
+    public static void started(WorldVisualEvent event) {
+        Minecraft client = Minecraft.getInstance();
+        if (!ceremony(event) || client.player == null || client.player.getId() != event.sourceEntityId()) return;
+        clear();
+        active = event;
+        level = client.level;
+        player = client.player;
+        startedTick = level.getGameTime();
+        if (event.parameterA() < 0.5F && client.screen == null
+                && client.getCameraEntity() == player && !player.isSleeping() && !player.isSpectator()) {
+            previousPerspective = client.options.getCameraType();
+            client.options.setCameraType(CameraType.THIRD_PERSON_BACK);
         }
     }
 
-    public static void clear() { tier = null; started = 0; }
+    /** Runs even with hidden HUD, no world rendering, a changed dimension, or an open screen. */
+    public static void tick() {
+        if (level == null) return;
+        Minecraft client = Minecraft.getInstance();
+        if (client.level != level || client.player != player || player == null || !player.isAlive()
+                || player.isRemoved() || client.getConnection() == null
+                || !client.getConnection().getConnection().isConnected()) { clear(); return; }
+        if (pending != null) {
+            if (level.getGameTime() - pendingTick > 100) { clear(); return; }
+            // Also handles a manually closed Nexus while its accepted request was in flight.
+            if (!(client.screen instanceof AscendanceNexusScreen)) releasePending();
+        }
+        if (active == null) return;
+        long age = level.getGameTime() - startedTick;
+        if (age < 0 || age >= active.lifetimeTicks() + CAMERA_EASE_TICKS
+                || age < active.lifetimeTicks() && !TransientWorldVisuals.contains(active)) {
+            clear(); return;
+        }
+        if (previousPerspective != null && (client.screen != null || player.isSleeping()
+                || player.isSpectator() || client.getCameraEntity() != player
+                || client.options.getCameraType() != CameraType.THIRD_PERSON_BACK)) clear();
+    }
+
+    /** Modify the requested distance BEFORE vanilla collision clipping, never after it. */
+    public static float cameraDistance(float vanilla, float partialTick) {
+        Minecraft client = Minecraft.getInstance();
+        if (active == null || previousPerspective == null || client.level != level || client.player != player
+                || client.getCameraEntity() != player || !player.isAlive()
+                || client.options.getCameraType() != CameraType.THIRD_PERSON_BACK) return vanilla;
+        double age = level.getGameTime() - startedTick + partialTick;
+        double initial = previousPerspective.isFirstPerson() ? 0 : 1;
+        double arrival = ProceduralMotion.smoothStep(age / CAMERA_EASE_TICKS);
+        double departure = ProceduralMotion.smoothStep((age - active.lifetimeTicks()) / CAMERA_EASE_TICKS);
+        double distance = initial + (2.4 - initial) * arrival;
+        return (float) (vanilla * (distance + (initial - distance) * departure));
+    }
+
+    public static void clear() {
+        if (previousPerspective != null) Minecraft.getInstance().options.setCameraType(previousPerspective);
+        previousPerspective = null;
+        active = null;
+        pending = null;
+        level = null;
+        player = null;
+    }
 
     public static void render(GuiGraphics graphics) {
-        if (tier == null) return;
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.level == null) { clear(); return; }
-        double age = (System.nanoTime() - started) / (double) DURATION_NANOS;
-        if (age >= 1 || age < 0) { clear(); return; }
-        if (client.screen != null || client.options.hideGui) return;
-        double fade = ProceduralMotion.fadeEnvelope(age, 7, 4);
-        int cx = graphics.guiWidth() / 2;
-        int cy = Math.max(36, graphics.guiHeight() / 3);
-        int radius = 17 + (int) (age * 36);
-        int alpha = (int) (fade * 165);
-        var categories = EssenceRegistry.values().stream().toList();
-        for (int i = 0; i < categories.size(); i++) {
-            double angle = Math.PI * 2 * i / categories.size() + age * 0.6;
-            int x = cx + (int) (Math.cos(angle) * radius * 1.4);
-            int y = cy + (int) (Math.sin(angle) * radius * 0.6);
-            int color = GuiProceduralGeometry.opacity(AscendancePalette.categoryRgb(categories.get(i).id()), alpha);
-            GuiProceduralGeometry.orbit(graphics, x, y, 3, 4, 4, age, color);
-            GuiProceduralGeometry.beam(graphics, x, y, cx, cy, GuiProceduralGeometry.opacity(color, alpha / 3));
-        }
-        GuiProceduralGeometry.orbit(graphics, cx, cy, radius * 1.6, radius * 0.65, 48, age,
-                GuiProceduralGeometry.opacity(AscendancePalette.tierMetalRgb(tier), alpha / 2));
-        var tierName = AscendanceTierRegistry.get(tier).map(EssenceText::ascendanceTier)
+        if (active == null || client.level != level || client.player != player
+                || client.screen != null || client.options.hideGui) return;
+        double p = (level.getGameTime() - startedTick + client.getTimer().getGameTimeDeltaPartialTick(true))
+                / active.lifetimeTicks();
+        double caption = (p - 0.52) / 0.48;
+        if (caption <= 0 || caption >= 1) return;
+        float fade = (float) ProceduralMotion.fadeEnvelope(caption, 5, 4);
+        if (fade < 0.025F) return; // Font treats nearly zero packed alpha as opaque.
+        var tierId = ResourceLocation.fromNamespaceAndPath("essence_ascendance",
+                active.color().name().toLowerCase(Locale.ROOT));
+        var tierName = AscendanceTierRegistry.get(tierId).map(EssenceText::ascendanceTier)
                 .orElseGet(() -> EssenceText.gui("nexus.attunement.title"));
-        var title = EssenceText.gui("nexus.attunement.ascended", tierName);
-        float scale = Math.min(1, (graphics.guiWidth() - 24) / (float) Math.max(1, client.font.width(title)));
+        var title = EssenceText.gui(active.parameterA() > 0.5F ? "ceremony.awakening" : "nexus.attunement.ascended", tierName);
+        int cx = graphics.guiWidth() / 2, y = Math.max(16, graphics.guiHeight() / 5);
+        int color = GuiProceduralGeometry.opacity(active.color().rgb(), (int) (fade * 255));
+        float scale = Math.min(1, (graphics.guiWidth() - 24F) / Math.max(1, client.font.width(title)));
         graphics.pose().pushPose();
-        graphics.pose().translate(cx, cy - 4, 0);
+        graphics.pose().translate(cx, y, 0);
         graphics.pose().scale(scale, scale, 1);
-        graphics.drawCenteredString(client.font, title, 0, 0,
-                GuiProceduralGeometry.opacity(AscendancePalette.tierMetalRgb(tier), Math.max(8, (int) (fade * 255))));
+        graphics.drawCenteredString(client.font, title, 0, 0, color);
+        GuiProceduralGeometry.beam(graphics, -28, 13, 28, 13,
+                GuiProceduralGeometry.opacity(active.color().rgb(), (int) (fade * 90)));
         graphics.pose().popPose();
     }
 }

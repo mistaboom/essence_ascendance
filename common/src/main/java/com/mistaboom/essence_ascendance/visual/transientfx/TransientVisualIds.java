@@ -5,6 +5,7 @@ import net.minecraft.resources.ResourceLocation;
 
 /** Loader- and side-neutral recipe identities used by dispatchers and client registries. */
 public final class TransientVisualIds {
+    public static final ResourceLocation WORLD_ASCENDANCE_CEREMONY = id("ascendance_ceremony");
     public static final ResourceLocation WORLD_IMPACT_PULSE = id("impact_pulse");
     public static final ResourceLocation WORLD_GATHERING_SPRITZ = id("gathering_spritz");
     public static final ResourceLocation WORLD_UTILITY_ACKNOWLEDGE = id("utility_acknowledge");

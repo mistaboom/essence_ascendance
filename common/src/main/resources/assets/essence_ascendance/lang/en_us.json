@@ -936,6 +936,7 @@
   "gui.essence_ascendance.nexus.attunement.scroll": "Scroll or use arrow keys · %s / %s",
   "gui.essence_ascendance.nexus.attunement.no_payment": "Ascending spends no Essence. Earned progress survives Bonus respecs.",
   "gui.essence_ascendance.nexus.attunement.ascended": "%s · Ascended",
+  "gui.essence_ascendance.ceremony.awakening": "%s · Essence Awakens",
   "attunement.essence_ascendance.method.deal_damage": "Deal Damage",
   "attunement.essence_ascendance.method.deal_damage.description": "Deal real damage to enemies. Stronger enemies contribute more; repeated legitimate fights still count.",
   "attunement.essence_ascendance.method.defeat_enemies": "Defeat Enemies",

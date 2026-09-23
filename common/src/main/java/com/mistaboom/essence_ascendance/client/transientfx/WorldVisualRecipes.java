@@ -22,6 +22,7 @@ public final class WorldVisualRecipes {
         register(GATHERING_SPRITZ, new GatheringSpritz());
         register(UTILITY_ACKNOWLEDGE, new UtilityAcknowledge());
         register(PROCESSOR_COMPLETE, new ProcessorComplete());
+        register(TransientVisualIds.WORLD_ASCENDANCE_CEREMONY, new AscendanceCeremonyRecipe());
         CombatWorldVisualRecipes.registerAll();
         DefenseWorldVisualRecipes.registerAll();
         MobilityVitalityWorldVisualRecipes.registerAll();

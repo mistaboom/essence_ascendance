@@ -42,6 +42,7 @@ public final class AttunementService {
         if (shouldPromoteAutomatically(data, chapter)) {
             AscendanceAttemptResult promotion = AscendanceEngine.ascend(player);
             if (promotion.status() == AscendanceAttemptResult.Status.SUCCESS) {
+                com.mistaboom.essence_ascendance.nexus.AscendanceTierFeedback.play(player, true);
                 LAST_SENT.put(player, data.attunement().revision());
                 return List.copyOf(result);
             }
@@ -66,6 +67,7 @@ public final class AttunementService {
                 .chapter(data.getTier().id().toString());
         if (chapter != null && shouldPromoteAutomatically(data, chapter)
                 && AscendanceEngine.ascend(player).status() == AscendanceAttemptResult.Status.SUCCESS) {
+            com.mistaboom.essence_ascendance.nexus.AscendanceTierFeedback.play(player, true);
             LAST_SENT.put(player, data.attunement().revision());
             return;
         }

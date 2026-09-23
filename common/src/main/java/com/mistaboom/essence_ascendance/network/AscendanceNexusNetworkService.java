@@ -260,9 +260,7 @@ public final class AscendanceNexusNetworkService {
     ) {
         if (result.accepted()) {
             PlayerRuntimeLifecycleService.refreshProgressionState(player);
-            if (result.ascended()) {
-                AscendanceTierFeedback.play(player);
-            } else {
+            if (!result.ascended()) {
                 AscendanceAllocationFeedback.play(player);
             }
         } else {
@@ -289,6 +287,8 @@ public final class AscendanceNexusNetworkService {
                     )
             );
         }
+        // State and correlated acceptance precede the one observer-visible ceremony event.
+        if (result.accepted() && result.ascended()) AscendanceTierFeedback.play(player, false);
     }
 
     private static boolean validNexusMenu(

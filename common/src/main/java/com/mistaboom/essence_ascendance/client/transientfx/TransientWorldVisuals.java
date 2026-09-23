@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.client.transientfx;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mistaboom.essence_ascendance.client.ClientPacketDispatch;
+import com.mistaboom.essence_ascendance.client.AscensionAnimation;
 import com.mistaboom.essence_ascendance.client.procedural.ProceduralRenderTypes;
 import com.mistaboom.essence_ascendance.network.WorldVisualEventPayload;
 import com.mistaboom.essence_ascendance.visual.transientfx.TransientVisualIds;
@@ -37,7 +38,28 @@ public final class TransientWorldVisuals {
         initialized = true;
     }
 
-    public static void clear() { ACTIVE.clear(); }
+    public static void clear() {
+        ACTIVE.clear();
+        AscensionAnimation.clear();
+    }
+
+    public static boolean contains(WorldVisualEvent event) {
+        return ACTIVE.stream().anyMatch(active -> active.event() == event);
+    }
+
+    /** Tick cleanup also runs while the world pass is hidden or a screen is open. */
+    public static void tick() {
+        ClientLevel level = Minecraft.getInstance().level;
+        if (level == null) { clear(); return; }
+        ACTIVE.removeIf(active -> active.level() != level
+                || !active.event().dimension().equals(level.dimension().location())
+                || progress(active, level, 0) >= 1.0
+                || !WorldVisualRecipes.get(active.event().recipeId()).alive(active.event(), level));
+    }
+
+    private static Vec3 anchor(Active active) {
+        return WorldVisualRecipes.get(active.event().recipeId()).anchor(active.event(), active.level());
+    }
 
     /** Local entry point is useful for client-predicted acknowledgements and visual test harnesses. */
     public static void emit(WorldVisualEvent event) { accept(event); }
@@ -47,6 +69,13 @@ public final class TransientWorldVisuals {
         ClientLevel level = minecraft.level;
         if (level == null || !level.dimension().location().equals(event.dimension())
                 || WorldVisualRecipes.get(event.recipeId()) == null) return;
+        if (AscensionAnimation.defer(event)) return;
+        if (AscensionAnimation.ceremony(event)) {
+            // A new confirmed transition replaces this player's previous presentation.
+            ACTIVE.removeIf(active -> active.level() == level
+                    && AscensionAnimation.ceremony(active.event())
+                    && active.event().sourceEntityId() == event.sourceEntityId());
+        }
         if (event.recipeId().equals(TransientVisualIds.WORLD_RIPOSTE_RELEASE)) {
             ACTIVE.removeIf(active -> active.level() == level
                     && active.event().recipeId().equals(TransientVisualIds.WORLD_GUARD_RESPONSE)
@@ -75,6 +104,7 @@ public final class TransientWorldVisuals {
             ACTIVE.remove(victim);
         }
         ACTIVE.add(new Active(event, level, level.getGameTime()));
+        AscensionAnimation.started(event);
     }
 
     private static int budgetUsed() {
@@ -85,17 +115,15 @@ public final class TransientWorldVisuals {
         Minecraft minecraft = Minecraft.getInstance();
         ClientLevel level = minecraft.level;
         if (level == null) { clear(); return; }
-        ACTIVE.removeIf(active -> active.level() != level
-                || !active.event().dimension().equals(level.dimension().location())
-                || progress(active, level, partialTick) >= 1.0);
+        tick();
         if (ACTIVE.isEmpty()) return;
 
         Vec3 cameraPosition = camera.getPosition();
         List<Active> visible = ACTIVE.stream()
-                .filter(active -> active.event().position().distanceToSqr(cameraPosition)
+                .filter(active -> anchor(active).distanceToSqr(cameraPosition)
                         <= square(active.event().presentation().worldRange()))
                 .sorted(Comparator.comparingInt((Active active) -> active.event().presentation().ordinal()).reversed()
-                        .thenComparingDouble(active -> active.event().position().distanceToSqr(cameraPosition)))
+                        .thenComparingDouble(active -> anchor(active).distanceToSqr(cameraPosition)))
                 .toList();
         if (visible.isEmpty()) return;
 
@@ -106,7 +134,7 @@ public final class TransientWorldVisuals {
         int detailCost = 0;
         for (Active active : visible) {
             boolean allow = active.event().presentation().ordinal() > 0
-                    && active.event().position().distanceToSqr(cameraPosition)
+                    && anchor(active).distanceToSqr(cameraPosition)
                     <= square(active.event().presentation().detailRange())
                     && detailCost + active.event().presentation().budgetCost() <= DETAIL_BUDGET;
             detailed.put(active, allow);
@@ -114,7 +142,7 @@ public final class TransientWorldVisuals {
         }
         // Far-to-near submission is preferable for the shared translucent passes.
         visible = visible.stream().sorted(Comparator.comparingDouble(
-                (Active active) -> active.event().position().distanceToSqr(cameraPosition)).reversed()).toList();
+                (Active active) -> anchor(active).distanceToSqr(cameraPosition)).reversed()).toList();
 
         // The fallback BufferSource builder is shared by these custom render types. Finish every plane
         // submission before acquiring the line consumer; acquiring another type finalizes the prior builder.
