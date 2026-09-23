@@ -36,6 +36,8 @@ public final class ClientPacketDispatch {
         GatheringSurveyClientState.clear();
         UtilitySenseClientState.clear();
         TraversalFluidRenderState.clear();
+        com.mistaboom.essence_ascendance.client.transientfx.TransientWorldVisuals.clear();
+        com.mistaboom.essence_ascendance.client.transientfx.TransientGuiVisuals.clear();
     }
 
     private ClientPacketDispatch() {

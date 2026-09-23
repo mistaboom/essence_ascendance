@@ -15,6 +15,12 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
+import com.mistaboom.essence_ascendance.client.transientfx.GuiAnchor;
+import com.mistaboom.essence_ascendance.client.transientfx.GuiVisualRecipes;
+import com.mistaboom.essence_ascendance.client.transientfx.TransientGuiVisuals;
+import com.mistaboom.essence_ascendance.visual.transientfx.SemanticVisualColor;
+import com.mistaboom.essence_ascendance.visual.transientfx.VisualIntensity;
+
 /** Client-only Ascension event and replaceable first presentation. Never infers success from a request. */
 public final class AscensionAnimation {
     private static final List<Consumer<ResourceLocation>> LISTENERS = new ArrayList<>();
@@ -31,7 +37,20 @@ public final class AscensionAnimation {
     public static void confirmed(ResourceLocation newTier) {
         tier = Objects.requireNonNull(newTier);
         started = System.nanoTime();
+        TransientGuiVisuals.emit(GuiVisualRecipes.ACKNOWLEDGE,
+                GuiAnchor.dynamic((screen, width, height) ->
+                        GuiAnchor.Rect.point(width / 2, Math.max(36, height / 3))),
+                1.35F, 1.0F, VisualIntensity.SIGNATURE, tierColor(newTier),
+                38, newTier.hashCode(), 0.0F, 0.0F);
         for (var listener : List.copyOf(LISTENERS)) listener.accept(newTier);
+    }
+
+    private static SemanticVisualColor tierColor(ResourceLocation tierId) {
+        try {
+            return SemanticVisualColor.valueOf(tierId.getPath().toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException ignored) {
+            return SemanticVisualColor.LATENT;
+        }
     }
 
     public static void clear() { tier = null; started = 0; }

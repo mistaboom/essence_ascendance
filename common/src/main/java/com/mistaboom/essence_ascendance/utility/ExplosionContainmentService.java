@@ -3,6 +3,7 @@ package com.mistaboom.essence_ascendance.utility;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectState;
+import com.mistaboom.essence_ascendance.network.MicroVisualFeedback;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
 
@@ -19,10 +20,16 @@ public final class ExplosionContainmentService {
                 context -> context.settings().utility().containmentField().radiusBlocks());
     }
 
-    public static void record(List<UtilityAuraService.Match> matches) {
+    public static void record(List<UtilityAuraService.Match> matches, Vec3 center) {
         for (UtilityAuraService.Match match : matches) {
             State state = match.context().state(SkillIds.CONTAINMENT_FIELD, State::new);
             state.record(match.context().now());
+        }
+        if (!matches.isEmpty()) {
+            UtilityAuraService.Match first = matches.getFirst();
+            MicroVisualFeedback.utility(first.player().serverLevel(), center,
+                    Double.doubleToLongBits(center.x + center.y * 31.0 + center.z * 961.0)
+                            ^ first.context().now());
         }
     }
 

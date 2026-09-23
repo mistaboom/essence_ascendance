@@ -28,5 +28,7 @@ public abstract class MachineWorldVisualRendererMixin {
             Camera camera, GameRenderer gameRenderer, LightTexture lightTexture,
             Matrix4f positionMatrix, Matrix4f projectionMatrix, CallbackInfo ci) {
         MachineWorldVisualRenderer.render(camera, positionMatrix);
+        com.mistaboom.essence_ascendance.client.transientfx.TransientWorldVisuals.render(
+                camera, positionMatrix, deltaTracker.getGameTimeDeltaPartialTick(true));
     }
 }

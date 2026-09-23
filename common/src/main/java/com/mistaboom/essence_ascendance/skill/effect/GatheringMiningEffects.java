@@ -5,6 +5,7 @@ import com.mistaboom.essence_ascendance.gathering.GatheringToolResolver;
 import com.mistaboom.essence_ascendance.gathering.HotbarLightPlacementService;
 import com.mistaboom.essence_ascendance.gathering.NaturalOreDropService;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
+import com.mistaboom.essence_ascendance.network.MicroVisualFeedback;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudEntry.Text;
 import com.mistaboom.essence_ascendance.visual.AscendancePalette;
 import net.minecraft.core.BlockPos;
@@ -42,12 +43,18 @@ public final class GatheringMiningEffects {
             double chance = settings(context).naturesBoon().dropChance();
             if (chance > 0 && NaturalOreDropService.eligibleSource(player.serverLevel(), state)
                     && player.getRandom().nextDouble() < chance) {
-                if (NaturalOreDropService.dropRandomOre(player, pos, state, resolvedTool))
+                if (NaturalOreDropService.dropRandomOre(player, pos, state, resolvedTool)) {
                     SkillHudEvents.record(player, SkillIds.NATURES_BOON, "loot", 1);
+                    MicroVisualFeedback.gathering(player.serverLevel(), net.minecraft.world.phys.Vec3.atCenterOf(pos),
+                            pos.asLong() ^ context.now());
+                }
             }
         }
-        if (context.isEffective(SkillIds.TORCHBEARER) && HotbarLightPlacementService.placeAtFeetIfSpawnDark(player))
+        if (context.isEffective(SkillIds.TORCHBEARER) && HotbarLightPlacementService.placeAtFeetIfSpawnDark(player)) {
             SkillHudEvents.record(player, SkillIds.TORCHBEARER, "placed", 1);
+            MicroVisualFeedback.gathering(player.serverLevel(), player.position().add(0, 0.18, 0),
+                    player.getUUID().getLeastSignificantBits() ^ context.now());
+        }
     }
 
     private static void recordMomentum(SkillEffectRuntime.Context context, BlockState block) {

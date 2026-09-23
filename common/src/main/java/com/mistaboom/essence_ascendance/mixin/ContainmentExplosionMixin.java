@@ -77,6 +77,6 @@ public abstract class ContainmentExplosionMixin {
         explosion.clearToBlow();
         explosion.getHitPlayers().keySet().removeIf(player ->
                 essenceAscendance$protectedPlayers.contains(player.getUUID()));
-        ExplosionContainmentService.record(essenceAscendance$fields);
+        ExplosionContainmentService.record(essenceAscendance$fields, explosion.center());
     }
 }

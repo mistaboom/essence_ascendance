@@ -6,6 +6,7 @@ import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.essence.EssenceTypes;
 import com.mistaboom.essence_ascendance.gathering.GatheringLootService;
 import com.mistaboom.essence_ascendance.network.PlayerEssenceSyncService;
+import com.mistaboom.essence_ascendance.network.MicroVisualFeedback;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudEntry.Text;
 import com.mistaboom.essence_ascendance.visual.AscendancePalette;
@@ -80,6 +81,11 @@ public final class GatheringLootEffects {
                 PlayerEssenceSyncService.forceSync(player);
             }
             giveExperience(player, experience);
+
+            if (essence > 0 || experience > 0) {
+                MicroVisualFeedback.gathering(player.serverLevel(), target.getBoundingBox().getCenter(),
+                        target.getId() * 31L ^ context.now());
+            }
 
             BloomState state = context.state(id(), BloomState::new);
             if (!state.recent(context.now())) state.clearRewards();

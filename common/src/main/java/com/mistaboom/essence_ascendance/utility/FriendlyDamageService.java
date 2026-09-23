@@ -4,6 +4,7 @@ import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectState;
 import com.mistaboom.essence_ascendance.skill.effect.SkillProcDamageService;
+import com.mistaboom.essence_ascendance.network.MicroVisualFeedback;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
@@ -21,8 +22,11 @@ public final class FriendlyDamageService {
         if (owner == null || target == null || target.level() != owner.level()) return false;
         SkillEffectRuntime.Context context = SkillEffectRuntime.context(owner);
         if (!context.isEffective(SkillIds.FRIENDLY_FIRE_WARD) || !AllyTargetingService.allied(owner, target)) return false;
-        context.state(SkillIds.FRIENDLY_FIRE_WARD, State::new)
-                .record(context.now(), target.getDisplayName().getString());
+        State state = context.state(SkillIds.FRIENDLY_FIRE_WARD, State::new);
+        boolean firstThisTick = state.lastBlockedAt != context.now();
+        state.record(context.now(), target.getDisplayName().getString());
+        if (firstThisTick) MicroVisualFeedback.utility(owner.serverLevel(), target.getBoundingBox().getCenter(),
+                target.getId() * 31L ^ context.now());
         return true;
     }
 

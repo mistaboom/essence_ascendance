@@ -7,6 +7,9 @@ import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectMath;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectState;
+import com.mistaboom.essence_ascendance.network.MicroVisualFeedback;
+import com.mistaboom.essence_ascendance.visual.transientfx.SemanticVisualColor;
+import com.mistaboom.essence_ascendance.visual.transientfx.TransientVisualIds;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerPlayer;
@@ -78,6 +81,8 @@ public final class GatheringSalvageService {
         player.getInventory().setChanged();
         player.inventoryMenu.broadcastChanges();
         menu.broadcastChanges();
+        MicroVisualFeedback.guiSlot(player, TransientVisualIds.GUI_GRINDSTONE_SWEEP, slotIndex,
+                SemanticVisualColor.GATHERING, context.now() ^ salvaged.hashCode());
         return true;
     }
 

@@ -3,6 +3,10 @@ package com.mistaboom.essence_ascendance.mixin;
 import com.mistaboom.essence_ascendance.equipment.AnvilMenuCostView;
 import com.mistaboom.essence_ascendance.equipment.MenuCostModificationService;
 import com.mistaboom.essence_ascendance.equipment.ResourceCostEfficiencyService;
+import com.mistaboom.essence_ascendance.equipment.EquipmentMaintenanceData;
+import com.mistaboom.essence_ascendance.network.MicroVisualFeedback;
+import com.mistaboom.essence_ascendance.visual.transientfx.SemanticVisualColor;
+import com.mistaboom.essence_ascendance.visual.transientfx.TransientVisualIds;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -52,6 +56,12 @@ public abstract class AnvilMenuEfficiencyMixin implements AnvilMenuCostView {
     private ItemStack essenceAscendance$pendingMaterialRefund = ItemStack.EMPTY;
 
     @Unique
+    private ContainerLevelAccess essenceAscendance$access;
+
+    @Unique
+    private boolean essenceAscendance$pendingVisual;
+
+    @Unique
     private final int[] essenceAscendance$displayCost = {-1};
 
     @Inject(
@@ -67,6 +77,7 @@ public abstract class AnvilMenuEfficiencyMixin implements AnvilMenuCostView {
         if (inventory.player instanceof ServerPlayer serverPlayer) {
             essenceAscendance$owner = serverPlayer;
         }
+        essenceAscendance$access = access;
         ((AbstractContainerMenuAccessor) this)
                 .essenceAscendance$addDataSlot(
                         DataSlot.shared(essenceAscendance$displayCost, 0)
@@ -131,6 +142,10 @@ public abstract class AnvilMenuEfficiencyMixin implements AnvilMenuCostView {
         essenceAscendance$pendingExperience = essenceAscendance$experienceQuote;
         essenceAscendance$pendingMaterials = essenceAscendance$materialQuote;
         essenceAscendance$pendingMaterialRefund = ItemStack.EMPTY;
+        ItemStack input = ((AnvilMenu) (Object) this).getSlot(0).getItem();
+        essenceAscendance$pendingVisual = saved(essenceAscendance$pendingExperience)
+                || saved(essenceAscendance$pendingMaterials)
+                || EquipmentMaintenanceData.overdurability(result) > EquipmentMaintenanceData.overdurability(input);
 
         if (essenceAscendance$pendingMaterials != null
                 && essenceAscendance$pendingMaterials.saved() > 0) {
@@ -171,11 +186,31 @@ public abstract class AnvilMenuEfficiencyMixin implements AnvilMenuCostView {
                             essenceAscendance$pendingMaterialRefund
                     );
                 }
+                if (essenceAscendance$pendingVisual) {
+                    long seed = serverPlayer.getUUID().getLeastSignificantBits() ^ serverPlayer.level().getGameTime();
+                    MicroVisualFeedback.guiSlot(serverPlayer, TransientVisualIds.GUI_ANVIL_COMPRESSION, 2,
+                            SemanticVisualColor.UTILITY, seed);
+                    if (essenceAscendance$access != null) {
+                        essenceAscendance$access.execute((level, pos) -> {
+                            if (level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+                                MicroVisualFeedback.utility(serverLevel,
+                                        net.minecraft.world.phys.Vec3.atCenterOf(pos).add(0, 0.65, 0),
+                                        pos.asLong() ^ level.getGameTime());
+                            }
+                        });
+                    }
+                }
             }
         } finally {
             essenceAscendance$pendingExperience = null;
             essenceAscendance$pendingMaterials = null;
             essenceAscendance$pendingMaterialRefund = ItemStack.EMPTY;
+            essenceAscendance$pendingVisual = false;
         }
+    }
+
+    @Unique
+    private static boolean saved(ResourceCostEfficiencyService.CostQuote quote) {
+        return quote != null && quote.saved() > 0;
     }
 }

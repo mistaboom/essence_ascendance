@@ -4,6 +4,7 @@ import com.mistaboom.essence_ascendance.equipment.MobEffectDurationAccess;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectState;
+import com.mistaboom.essence_ascendance.network.MicroVisualFeedback;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerPlayer;
@@ -98,7 +99,9 @@ public final class UtilityPotionService {
         boolean applied = nativeApply.apply(resolved, source);
         if (!applied) return false;
 
-        if (context.isEffective(SkillIds.ALCHEMICAL_AMPLIFICATION) && resolved.getDuration() > originalDuration) {
+        boolean amplified = context.isEffective(SkillIds.ALCHEMICAL_AMPLIFICATION)
+                && resolved.getDuration() > originalDuration;
+        if (amplified) {
             MobEffectInstance active = player.getEffect(resolved.getEffect());
             int remaining = active == null ? resolved.getDuration() : active.getDuration();
             AmplificationState state = context.state(SkillIds.ALCHEMICAL_AMPLIFICATION, AmplificationState::new);
@@ -109,7 +112,9 @@ public final class UtilityPotionService {
             state.expiresAt = context.now() + Math.max(0, remaining);
         }
 
-        if (context.isEffective(SkillIds.POTION_RELAY)) relay(context, resolved);
+        int relayed = context.isEffective(SkillIds.POTION_RELAY) ? relay(context, resolved) : 0;
+        if (amplified || relayed > 0) MicroVisualFeedback.utility(player.serverLevel(),
+                player.position().add(0, 1.0, 0), player.getUUID().getLeastSignificantBits() ^ context.now());
         return true;
     }
 
@@ -137,9 +142,9 @@ public final class UtilityPotionService {
         return new RelaySnapshot(state.effectKey, state.targets, state.durationTicks, state.expiresAt);
     }
 
-    private static void relay(SkillEffectRuntime.Context context, MobEffectInstance effect) {
+    private static int relay(SkillEffectRuntime.Context context, MobEffectInstance effect) {
         var tuning = context.settings().utility().potionRelay();
-        if (tuning.durationFraction() <= 0 || tuning.radiusBlocks() <= 0 || tuning.maximumTargets() <= 0) return;
+        if (tuning.durationFraction() <= 0 || tuning.radiusBlocks() <= 0 || tuning.maximumTargets() <= 0) return 0;
         int relayDuration = Math.max(1, (int) Math.floor(effect.getDuration() * tuning.durationFraction()));
         int depth = RELAY_DEPTH.get();
         int accepted = 0;
@@ -152,12 +157,13 @@ public final class UtilityPotionService {
             if (depth == 0) RELAY_DEPTH.remove();
             else RELAY_DEPTH.set(depth);
         }
-        if (accepted <= 0) return;
+        if (accepted <= 0) return 0;
         RelayState state = context.state(SkillIds.POTION_RELAY, RelayState::new);
         state.effectKey = effect.getEffect().value().getDescriptionId();
         state.targets = accepted;
         state.durationTicks = relayDuration;
         state.expiresAt = context.now() + relayDuration;
+        return accepted;
     }
 
     private static int extendedDuration(int baseDuration,

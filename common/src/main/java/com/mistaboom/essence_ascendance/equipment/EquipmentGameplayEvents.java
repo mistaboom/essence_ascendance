@@ -42,6 +42,7 @@ public final class EquipmentGameplayEvents {
         SkillEffectHudSyncService.init();
         GatheringSurveySyncService.init();
         UtilitySenseSyncService.init();
+        com.mistaboom.essence_ascendance.network.TransientVisualDispatch.init();
         com.mistaboom.essence_ascendance.network.AttunementMovementIntentService.init();
         com.mistaboom.essence_ascendance.network.MovementAbilityInputService.init();
         EquipmentTooltipSyncService.init();

@@ -81,6 +81,8 @@ public final class EssenceAscendanceClient {
         SkillEffectHudClientState.init();
         GatheringSurveyClientState.init();
         UtilitySenseClientState.init();
+        com.mistaboom.essence_ascendance.client.transientfx.TransientWorldVisuals.init();
+        com.mistaboom.essence_ascendance.client.transientfx.TransientGuiVisuals.init();
 
         Item[] tierVisualItems = {
                 AscendanceItems.ASCENDANCE_MELEE_WEAPON.get(),

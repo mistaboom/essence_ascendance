@@ -5,6 +5,7 @@ import com.mistaboom.essence_ascendance.equipment.PlayerAttributedBlockHarvestSe
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectState;
+import com.mistaboom.essence_ascendance.network.MicroVisualFeedback;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -33,6 +34,7 @@ public final class GatheringRuralService {
         double rangeSqr = tuning.radiusBlocks() * tuning.radiusBlocks();
         int eligible = 0;
         int extraTicks = 0;
+        int visualEvents = 0;
 
         int side = range * 2 + 1;
         int volume = side * side * side;
@@ -53,7 +55,13 @@ public final class GatheringRuralService {
             eligible++;
             if (player.getRandom().nextDouble() >= tuning.growthChance()) continue;
             state.randomTick(level, mutable, level.random);
+            if (state.equals(level.getBlockState(mutable))) continue;
             extraTicks++;
+            // One pulse may visit a large farm. Keep the acknowledgement sampled and bounded.
+            if (visualEvents++ < 6) {
+                MicroVisualFeedback.gathering(level, net.minecraft.world.phys.Vec3.atCenterOf(mutable),
+                        mutable.asLong() ^ context.now());
+            }
         }
         pulse.lastEligibleTargets = eligible;
         pulse.lastSuccessfulEvents = extraTicks;
@@ -61,6 +69,7 @@ public final class GatheringRuralService {
 
     public static void tickHerdkeeper(SkillEffectRuntime.Context context) {
         GatheringBalanceSettings.Herdkeeper tuning = context.settings().gathering().herdkeeper();
+        int visualEvents = 0;
         for (Animal animal : nearbyLivestock(context.player(), tuning.radiusBlocks())) {
             if (!SharedTargetWork.visit(animal.level(), context.now())) break;
             var match = UtilityAuraService.strongest(context.player().serverLevel(), animal.position(), SkillIds.HERDKEEPER,
@@ -74,7 +83,14 @@ public final class GatheringRuralService {
             if (age <= 0) continue;
             int extraRecovery = stochasticWhole(tuning.breedingRecoveryMultiplier() - 1.0D,
                     context.player().getRandom().nextDouble());
-            if (extraRecovery > 0) animal.setAge(Math.max(0, age - extraRecovery));
+            if (extraRecovery > 0) {
+                int resolvedAge = Math.max(0, age - extraRecovery);
+                animal.setAge(resolvedAge);
+                if (resolvedAge == 0 && visualEvents++ < 4) {
+                    MicroVisualFeedback.gathering(context.player().serverLevel(), animal.getBoundingBox().getCenter(),
+                            animal.getId() * 31L ^ context.now());
+                }
+            }
         }
     }
 
@@ -86,6 +102,7 @@ public final class GatheringRuralService {
         ServerPlayer player = context.player();
         int eligible = 0;
         int gifts = 0;
+        int visualEvents = 0;
         for (Animal animal : nearbyLivestock(player, tuning.radiusBlocks())) {
             if (!SharedTargetWork.visit(animal.level(), context.now())) break;
             if (!giftEligible(player, animal)) continue;
@@ -96,7 +113,11 @@ public final class GatheringRuralService {
                     || !SharedTargetWork.claim(animal.level(), animal, "animal_gift", context.now(), tuning.giftPulseTicks())) continue;
             eligible++;
             if (player.getRandom().nextDouble() >= tuning.giftChance()) continue;
-            if (RenewableAnimalProductRegistry.provideOne(player, animal, player.getRandom())) gifts++;
+            if (RenewableAnimalProductRegistry.provideOne(player, animal, player.getRandom())) {
+                gifts++;
+                if (visualEvents++ < 4) MicroVisualFeedback.gathering(player.serverLevel(),
+                        animal.getBoundingBox().getCenter(), animal.getId() * 31L ^ context.now());
+            }
         }
         pulse.lastEligibleTargets = eligible;
         pulse.lastSuccessfulEvents = gifts;

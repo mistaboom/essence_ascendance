@@ -55,7 +55,7 @@ public abstract class GatheringFishingHookMixin implements GatheringFishingHookA
         luck = Math.max(0, nativeLuck + bonus);
         try {
             int result = original.call(rod);
-            GatheringFishingService.afterRetrieve(player, hook, rod, hadFishBite, luck);
+            GatheringFishingService.afterRetrieve(player, hook, rod, hadFishBite, luck, bonus);
             return result;
         } finally {
             luck = nativeLuck;

@@ -6,6 +6,7 @@ import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectState;
 import com.mistaboom.essence_ascendance.skill.effect.TimedStackState;
+import com.mistaboom.essence_ascendance.network.MicroVisualFeedback;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.projectile.FishingHook;
 import net.minecraft.world.item.ItemStack;
@@ -110,10 +111,12 @@ public final class GatheringFishingService {
 
     /** Commits Fisher's Call only after native retrieval completed, so canceled/failed retrieval cannot build a streak. */
     public static void afterRetrieve(ServerPlayer player, FishingHook hook, ItemStack rod,
-                                     boolean hadFishBite, int effectiveHookLuck) {
+                                     boolean hadFishBite, int effectiveHookLuck, int virtualLuckBonus) {
         SkillEffectRuntime.Context context = SkillEffectRuntime.context(player);
         if (!context.isEffective(SkillIds.FISHERS_CALL)) {
             context.discardState(SkillIds.FISHERS_CALL);
+            if (hadFishBite && virtualLuckBonus > 0) MicroVisualFeedback.gathering(
+                    player.serverLevel(), hook.position(), hook.getId() * 31L ^ context.now());
             return;
         }
         if (!hadFishBite) {
@@ -126,10 +129,13 @@ public final class GatheringFishingService {
         state.grant(context.now(), tuning.catchesToFullShoal(), tuning.chainTimeoutTicks(), true);
         double fraction = state.count() / (double) tuning.catchesToFullShoal();
         double chance = Math.clamp(tuning.maximumExtraCatchChance() * fraction, 0.0D, 1.0D);
-        if (player.getRandom().nextDouble() >= chance) return;
-
-        FishingLootService.giveOrDrop(player, FishingLootService.roll(player, hook, hook.position(), rod,
-                effectiveHookLuck + player.getLuck()));
+        int extraDrops = 0;
+        if (player.getRandom().nextDouble() < chance) {
+            extraDrops = FishingLootService.giveOrDrop(player, FishingLootService.roll(player, hook, hook.position(), rod,
+                    effectiveHookLuck + player.getLuck()));
+        }
+        if (virtualLuckBonus > 0 || extraDrops > 0) MicroVisualFeedback.gathering(player.serverLevel(), hook.position(),
+                hook.getId() * 31L ^ context.now());
     }
 
     public static void reconcileShoal(SkillEffectRuntime.Context context) {
@@ -175,6 +181,9 @@ public final class GatheringFishingService {
                 context.player(), context.player(), context.player().position(), contextRod, context.player().getLuck());
         if (!reward.isEmpty()) {
             state.lastDrops = FishingLootService.giveOrDrop(context.player(), java.util.List.of(reward));
+            if (state.lastDrops > 0) MicroVisualFeedback.gathering(context.player().serverLevel(),
+                    context.player().position().add(0, 0.6, 0),
+                    context.player().getUUID().getLeastSignificantBits() ^ context.now());
         }
     }
 

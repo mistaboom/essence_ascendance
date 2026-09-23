@@ -5,6 +5,7 @@ import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectAttributes;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectState;
+import com.mistaboom.essence_ascendance.network.MicroVisualFeedback;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.OwnableEntity;
@@ -39,6 +40,8 @@ public final class BondedCompanionService {
         var tuning = context.settings().utility().bondedCompanion();
         apply(companion, tuning.statBonusFraction());
         boolean teleported = SafeTeleportService.catchUp(companion, owner, tuning.catchupDistanceBlocks());
+        if (teleported) MicroVisualFeedback.utility(owner.serverLevel(), companion.getBoundingBox().getCenter(),
+                companion.getId() * 31L ^ context.now());
         State state = context.state(SkillIds.BONDED_COMPANION, State::new);
         state.lastSeenAt = context.now();
         state.lastName = companion.getName().getString();

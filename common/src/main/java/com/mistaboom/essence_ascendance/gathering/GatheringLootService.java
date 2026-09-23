@@ -6,6 +6,7 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentGatheringService;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.effect.KeyedProgressState;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
+import com.mistaboom.essence_ascendance.network.MicroVisualFeedback;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -60,7 +61,11 @@ public final class GatheringLootService {
         } finally {
             if (previous == null) ACTIVE_SCOPE.remove();
             else ACTIVE_SCOPE.set(previous);
-            if (completed) progress.advance(creature, tuning.killsToFullStudy());
+            if (completed) {
+                progress.advance(creature, tuning.killsToFullStudy());
+                if (virtualLooting > 0) MicroVisualFeedback.gathering(player.serverLevel(),
+                        victim.getBoundingBox().getCenter(), victim.getId() * 31L ^ context.now());
+            }
         }
     }
 

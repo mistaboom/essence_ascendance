@@ -13,6 +13,7 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentProfileDefinition;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectHudEntry.Text;
 import com.mistaboom.essence_ascendance.visual.AscendancePalette;
+import com.mistaboom.essence_ascendance.network.MicroVisualFeedback;
 import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.damagesource.DamageSource;
@@ -92,7 +93,10 @@ public final class UtilityMaintenanceEffects {
 
             state.items.keySet().removeIf(stack -> !seen.contains(stack));
             state.activeTarget = repairTarget.isEmpty() ? null : repairTarget;
-            if (repairTarget.isEmpty() || tuning.repairFractionPerSecond() <= 0) return;
+            if (repairTarget.isEmpty() || tuning.repairFractionPerSecond() <= 0) {
+                state.visualActive = false;
+                return;
+            }
 
             RestfulItemState item = state.items.get(repairTarget);
             double repair = repairTarget.getMaxDamage() * tuning.repairFractionPerSecond() / 20.0 + item.repairCarry;
@@ -102,6 +106,11 @@ public final class UtilityMaintenanceEffects {
             if (wholeRepair <= 0) return;
 
             repairTarget.setDamageValue(repairTarget.getDamageValue() - wholeRepair);
+            if (!state.visualActive) {
+                state.visualActive = true;
+                MicroVisualFeedback.utility(context.player().serverLevel(), context.player().position().add(0, 1.0, 0),
+                        context.player().getUUID().getLeastSignificantBits() ^ context.now());
+            }
             if (repairTarget.getDamageValue() <= 0) item.repairCarry = 0;
         }
 
@@ -112,6 +121,7 @@ public final class UtilityMaintenanceEffects {
             item.lastUseAt = context.now();
             item.repairCarry = 0;
             if (state.activeTarget == stack) state.activeTarget = null;
+            state.visualActive = false;
         }
 
         @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
@@ -160,7 +170,8 @@ public final class UtilityMaintenanceEffects {
     private static final class RestfulState implements SkillEffectState {
         final Map<ItemStack, RestfulItemState> items = new IdentityHashMap<>();
         ItemStack activeTarget;
-        @Override public void clear() { items.clear(); activeTarget = null; }
+        boolean visualActive;
+        @Override public void clear() { items.clear(); activeTarget = null; visualActive = false; }
     }
 
     private static final class RestfulItemState {
@@ -202,6 +213,9 @@ public final class UtilityMaintenanceEffects {
             state.lastRepaired = repaired;
             state.lastTarget = lastTarget;
             state.lastAt = context.now();
+            if (repaired > 0) MicroVisualFeedback.utility(context.player().serverLevel(),
+                    context.player().position().add(0, 1.0, 0),
+                    context.player().getUUID().getLeastSignificantBits() ^ context.now());
         }
 
         @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {

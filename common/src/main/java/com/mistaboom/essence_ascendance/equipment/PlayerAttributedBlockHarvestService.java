@@ -4,6 +4,7 @@ import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import com.mistaboom.essence_ascendance.stat.EssenceStats;
+import com.mistaboom.essence_ascendance.network.MicroVisualFeedback;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
@@ -117,6 +118,10 @@ public final class PlayerAttributedBlockHarvestService {
                         percent
                 )
         );
+        if (result.additionalUnits() > 0) {
+            MicroVisualFeedback.gathering(level, net.minecraft.world.phys.Vec3.atCenterOf(pos),
+                    pos.asLong() ^ level.getGameTime() ^ result.additionalUnits());
+        }
         /* Match vanilla's mutable drop-list behavior for later mixin hooks. */
         return new ArrayList<>(result.drops());
     }
