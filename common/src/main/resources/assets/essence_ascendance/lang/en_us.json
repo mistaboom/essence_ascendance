@@ -68,6 +68,7 @@
   "gui.essence_ascendance.nexus.skills.tooltip.owned_detail": "Owned: %1$s → %2$s",
   "gui.essence_ascendance.nexus.skills.tooltip.prerequisite_met": "✓ Owned: %1$s",
   "gui.essence_ascendance.nexus.skills.tooltip.prerequisite_missing": "× Missing: %1$s",
+  "gui.essence_ascendance.nexus.skills.tooltip.prerequisite_inactive": "× Must be active: %1$s",
   "gui.essence_ascendance.nexus.skills.tooltip.prerequisite_staged": "+ Staged: %1$s",
   "gui.essence_ascendance.nexus.skills.tooltip.prerequisites": "Prerequisites:",
   "gui.essence_ascendance.nexus.skills.tooltip.replaced_by": "Replaced by: %1$s",

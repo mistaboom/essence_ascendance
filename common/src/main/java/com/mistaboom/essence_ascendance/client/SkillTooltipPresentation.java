@@ -4,6 +4,8 @@ import com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceDefinition
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.skill.SkillDefinition;
 import com.mistaboom.essence_ascendance.skill.SkillEvaluationResult;
+import com.mistaboom.essence_ascendance.skill.SkillPrerequisiteStatus;
+import com.mistaboom.essence_ascendance.skill.SkillRequirementStatus;
 import com.mistaboom.essence_ascendance.skill.balance.SkillRankEffectScaling;
 import com.mistaboom.essence_ascendance.skill.tooltip.SkillTooltipRegistry;
 import com.mistaboom.essence_ascendance.text.EssenceText;
@@ -19,13 +21,30 @@ public final class SkillTooltipPresentation {
     private List<Component> cachedLines = List.of();
 
     public static int displayedRank(int current, int maximum, boolean shift) {
-        return current == 0 ? 1 : shift && current < maximum ? current + 1 : current;
+        int normal = Math.max(1, current);
+        return previewsNext(current, maximum, shift) ? normal + 1 : normal;
     }
     public static boolean previewsNext(int current, int maximum, boolean shift) {
-        return shift && current > 0 && current < maximum;
+        return shift && Math.max(1, current) < maximum;
     }
     public static Component rankPurchaseHint(boolean shift) {
         return EssenceText.gui("nexus.skills.tooltip." + (shift ? "rank_purchase_preview" : "rank_purchase"));
+    }
+    /** Normal hover explains only outstanding gates, using the complete staged loadout. */
+    public static List<SkillPrerequisiteStatus> unmetPrerequisites(SkillEvaluationResult state,
+            Map<ResourceLocation, SkillEvaluationResult> evaluations, boolean shift) {
+        if (shift) return List.of();
+        return state.prerequisites().stream().filter(status -> {
+            if (!status.projectedOwned()) return true;
+            // A replacement deliberately suppresses its direct target; ownership is its actual gate.
+            if (status.skillId().equals(state.definition().replacementTarget())) return false;
+            var prerequisite = evaluations.get(status.skillId());
+            return prerequisite == null || !prerequisite.projectedEffective();
+        }).toList();
+    }
+    public static List<SkillRequirementStatus> unmetRequirements(SkillEvaluationResult state, boolean shift) {
+        return shift ? List.of() : state.requirements().stream()
+                .filter(status -> !status.projectedSatisfied()).toList();
     }
     /** The node is the sole price display; always resolve the next committed rank's real cost. */
     public static Component nodePurchaseLabel(SkillDefinition skill,

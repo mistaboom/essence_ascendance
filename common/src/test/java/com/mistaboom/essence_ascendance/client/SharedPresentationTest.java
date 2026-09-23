@@ -22,6 +22,7 @@ import io.netty.buffer.Unpooled;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.server.Bootstrap;
@@ -42,7 +43,7 @@ public final class SharedPresentationTest {
         }
         var runtime = RuntimeBalanceDefinition.bootstrap();
         EssenceConfigManager.installClient(runtime);
-        latent(runtime); tooltips(runtime); bonuses(runtime); cards(); preferences();
+        latent(runtime); tooltips(runtime); lockedRankPreview(runtime); tooltipRequirements(); bonuses(runtime); cards(); preferences();
         EssenceConfigManager.clearClient();
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println("SharedPresentationTest: " + checks + " checks PASS");
     }
@@ -71,10 +72,13 @@ public final class SharedPresentationTest {
                 var context = SkillEvaluationContext.committed(AscendanceTiers.TRANSCENDENT.id(),
                         rank == 0 ? Map.of() : Map.of(skill.id(), rank), Map.of(), Set.of(), Set.of(), Map.of());
                 var states = SkillStateEvaluator.evaluateAll(context);
+                check(SkillTooltipPresentation.unmetPrerequisites(states.get(skill.id()), states, true).isEmpty()
+                                && SkillTooltipPresentation.unmetRequirements(states.get(skill.id()), true).isEmpty(),
+                        "Shift never shows requirement sections, including unowned and max-rank skills");
                 var current = new SemanticTooltip(); presenter.append(current, skill, states, false);
                 var preview = new SemanticTooltip(); presenter.append(preview, skill, states, true);
                 var released = new SemanticTooltip(); presenter.append(released, skill, states, false);
-                if (rank > 0 && rank < max) {
+                if (Math.max(1, rank) < max) {
                     current.hint(SkillTooltipPresentation.rankPurchaseHint(false));
                     preview.hint(SkillTooltipPresentation.rankPurchaseHint(true));
                     released.hint(SkillTooltipPresentation.rankPurchaseHint(false));
@@ -85,7 +89,7 @@ public final class SharedPresentationTest {
                             "Held Shift replaces the footer in place without duplicate hints");
                 }
                 check(text(current).equals(text(released)), "Releasing Shift immediately restores " + skill.id());
-                int shown = Math.max(1, rank), next = rank > 0 && rank < max ? rank + 1 : shown;
+                int shown = Math.max(1, rank), next = Math.min(max, shown + 1);
                 check(text(current).getFirst().equals("Rank " + shown + "/" + max), "Current purchased rank");
                 check(text(preview).getFirst().equals("Rank " + next + "/" + max), "Actual next rank, including unowned/max");
                 var resolved = SkillRankEffectScaling.applyResolved(runtime.config().skillEffects(), Map.of(skill.id(), next), runtime.skillCurves());
@@ -109,6 +113,111 @@ public final class SharedPresentationTest {
                     check(!line.contains("%s") && !line.contains(".resolved") && !line.contains("NaN"), "No unresolved values: " + line);
                     check(!line.matches(".*\\b(ticks?|generated|scalar|interpolation|event-hook|DMG|ATK)\\b.*"), "Player-facing prose: " + line);
                 }
+            }
+        }
+    }
+
+    private static void lockedRankPreview(RuntimeBalanceDefinition runtime) {
+        var presenter = new SkillTooltipPresentation();
+        var chain = SkillRegistry.require(SkillIds.CHAIN_STRIKE);
+        check(chain.maximumRank() > 1, "Chain Strike fixture has a real second rank");
+        for (boolean owned : new boolean[]{false, true}) {
+            for (boolean stagedEnabled : new boolean[]{false, true}) {
+                var ranks = owned ? Map.of(SkillIds.STATIC_CHARGE, 1, SkillIds.CHAIN_STRIKE, 1)
+                        : Map.of(SkillIds.STATIC_CHARGE, 1);
+                var context = new SkillEvaluationContext(AscendanceTiers.TRANSCENDENT.id(), ranks, ranks,
+                        Map.of(), stagedEnabled ? Map.of(SkillGroups.OFFENSE_ELEMENTAL_IMBUEMENT, SkillIds.STATIC_CHARGE) : Map.of(),
+                        Set.of(), Set.of(), Map.of(), Map.of());
+                var states = SkillStateEvaluator.evaluateAll(context);
+                check(SkillTooltipPresentation.unmetPrerequisites(states.get(chain.id()), states, false).isEmpty() == stagedEnabled,
+                        "Reproduce Static Charge purchased but disabled, then staged enabled");
+                assertRankTwoPreview(presenter, runtime, chain, states);
+            }
+        }
+        // Catalog-wide locked previews cover prerequisites only, requirements only, and both together.
+        var locked = SkillStateEvaluator.evaluateAll(SkillEvaluationContext.committed(
+                AscendanceTiers.TRANSCENDENT.id(), Map.of(), Map.of(), Set.of(), Set.of(), Map.of()));
+        int prerequisiteOnly = 0, requirementOnly = 0, both = 0;
+        for (var skill : SkillRegistry.values()) {
+            if (skill.maximumRank() <= 1) continue;
+            var state = locked.get(skill.id());
+            boolean prerequisites = !SkillTooltipPresentation.unmetPrerequisites(state, locked, false).isEmpty();
+            boolean requirements = !SkillTooltipPresentation.unmetRequirements(state, false).isEmpty();
+            if (prerequisites && requirements) both++;
+            else if (prerequisites) prerequisiteOnly++;
+            else if (requirements) requirementOnly++;
+            assertRankTwoPreview(presenter, runtime, skill, locked);
+        }
+        check(prerequisiteOnly > 0 && requirementOnly > 0 && both > 0, "Exercise all three unmet-gate combinations");
+    }
+
+    private static void assertRankTwoPreview(SkillTooltipPresentation presenter, RuntimeBalanceDefinition runtime,
+            SkillDefinition skill, Map<ResourceLocation, SkillEvaluationResult> states) {
+        var normal = new SemanticTooltip(); presenter.append(normal, skill, states, false);
+        var shifted = new SemanticTooltip(); presenter.append(shifted, skill, states, true);
+        var released = new SemanticTooltip(); presenter.append(released, skill, states, false);
+        check(text(normal).getFirst().equals("Rank 1/" + skill.maximumRank())
+                        && text(shifted).getFirst().equals("Rank 2/" + skill.maximumRank()),
+                "Locked or inactive skill previews rank two: " + skill.id());
+        var expected = SkillTooltipPresentation.resolve(runtime, skill.id(), Map.of(skill.id(), 2))
+                .stream().map(SharedPresentationTest::flatten).toList();
+        check(shifted.lines().stream().filter(line -> line.indentation() == 1)
+                        .map(line -> flatten(line.content())).toList().equals(expected),
+                "Preview uses actual resolved rank-two values, not merely a new rank label");
+        check(text(normal).equals(text(released)), "Releasing Shift restores rank-one values after a cached preview");
+        if (skill.id().equals(SkillIds.CHAIN_STRIKE))
+            check(!normal.lines().stream().filter(line -> line.indentation() == 1).map(line -> flatten(line.content())).toList().equals(expected),
+                    "Chain Strike's rank-two effect differs from rank one with Static Charge disabled or staged");
+    }
+
+    private static void tooltipRequirements() {
+        // Real selectable prerequisite: committed and staged ownership/selection are independent.
+        for (boolean owned : new boolean[]{false, true}) {
+            for (boolean purchased : new boolean[]{false, true}) {
+                for (boolean enabled : new boolean[]{false, true}) {
+                    for (boolean stagedEnabled : new boolean[]{false, true}) {
+                        var current = owned ? Map.of(SkillIds.FROSTBITE, 1, SkillIds.SHATTER, 1)
+                                : Map.<ResourceLocation, Integer>of();
+                        var projected = new HashMap<>(current);
+                        if (purchased) projected.put(SkillIds.FROSTBITE, 1);
+                        var context = new SkillEvaluationContext(AscendanceTiers.TRANSCENDENT.id(), current, projected,
+                                enabled ? Map.of(SkillGroups.OFFENSE_ELEMENTAL_IMBUEMENT, SkillIds.FROSTBITE) : Map.of(),
+                                stagedEnabled ? Map.of(SkillGroups.OFFENSE_ELEMENTAL_IMBUEMENT, SkillIds.FROSTBITE) : Map.of(),
+                                Set.of(), Set.of(), Map.of(), Map.of());
+                        var states = SkillStateEvaluator.evaluateAll(context);
+                        var child = states.get(SkillIds.SHATTER);
+                        var missing = SkillTooltipPresentation.unmetPrerequisites(child, states, false);
+                        boolean satisfied = (owned || purchased) && stagedEnabled;
+                        check(missing.isEmpty() == satisfied,
+                                "Prerequisite visibility follows staged purchase and enable/disable, not committed ownership alone");
+                        check(SkillTooltipPresentation.unmetPrerequisites(child, states, true).isEmpty(),
+                                "Even an inactive owned skill has no prerequisite section in Shift preview");
+                        if (!satisfied) check(missing.size() == 1 && missing.getFirst().skillId().equals(SkillIds.FROSTBITE),
+                                "Only the outstanding prerequisite survives the normal tooltip filter");
+                    }
+                }
+            }
+        }
+        for (boolean complete : new boolean[]{false, true}) {
+            var ranks = Map.of(SkillIds.IMPACT_CONTROL, 1, SkillIds.FATIGUE_FLIGHT, 1, SkillIds.ESSENCE_WINGS, 1);
+            var context = SkillEvaluationContext.committed(AscendanceTiers.TRANSCENDENT.id(), ranks,
+                    Map.of(SkillGroups.MOBILITY_FLIGHT_REPLACEMENT, SkillIds.ESSENCE_WINGS),
+                    complete ? Set.of(Milestones.SKY_LIMIT.id()) : Set.of(), Set.of(), Map.of());
+            var states = SkillStateEvaluator.evaluateAll(context);
+            var wings = states.get(SkillIds.ESSENCE_WINGS);
+            var requirements = SkillTooltipPresentation.unmetRequirements(wings, false);
+            check(requirements.isEmpty() == complete,
+                    "Normal tooltip removes a completed purchase milestone and retains an unmet one");
+            check(SkillTooltipPresentation.unmetRequirements(wings, true).isEmpty(),
+                    "Shift omits unmet as well as completed purchase requirements");
+            check(SkillTooltipPresentation.unmetPrerequisites(wings, states, false).isEmpty(),
+                    "Replacement target is not falsely reported inactive when the replacement suppresses it");
+            if (complete) check(wings.projectedEffective() && !states.get(SkillIds.FATIGUE_FLIGHT).projectedEffective(),
+                    "Replacement fixture exercises the real suppressed-target state");
+            for (var id : List.of(SkillIds.DAMAGE_CEILING, SkillIds.FEAST_REFLEX)) {
+                check(SkillTooltipPresentation.unmetPrerequisites(states.get(id), states, false).isEmpty()
+                                && SkillTooltipPresentation.unmetRequirements(states.get(id), false).isEmpty(),
+                        "Already-clean reference tooltips retain no requirement sections");
             }
         }
     }

@@ -5634,7 +5634,8 @@ public final class AscendanceNexusScreen
             int mouseY
     ) {
         SkillDefinition skill = SkillRegistry.get(skillId).orElse(null);
-        SkillEvaluationResult evaluation = skillEvaluations().get(skillId);
+        Map<ResourceLocation, SkillEvaluationResult> evaluations = skillEvaluations();
+        SkillEvaluationResult evaluation = evaluations.get(skillId);
         if (skill == null || evaluation == null) {
             return;
         }
@@ -5655,36 +5656,34 @@ public final class AscendanceNexusScreen
         SemanticTooltip tooltip = new SemanticTooltip();
         tooltip.title(Component.translatable(skill.nameTranslationKey()),
                 AscendancePalette.categoryRgb(skill.essenceId()));
-        skillTooltipPresentation.append(tooltip, skill, skillEvaluations(), hasShiftDown());
-        boolean purchasePreview = !evaluation.owned()
-                || SkillTooltipPresentation.previewsNext(evaluation.currentRank(), skill.maximumRank(), hasShiftDown());
+        boolean shift = hasShiftDown();
+        skillTooltipPresentation.append(tooltip, skill, evaluations, shift);
         tooltip.field(EssenceText.gui("nexus.skills.tooltip.status",
                 EssenceText.gui("nexus.skills.state." + visual.name().toLowerCase(Locale.ROOT))
                         .withStyle(style -> style.withColor(visual.textColor() & 0xFFFFFF))));
 
-        if ((purchasePreview || !evaluation.effective()) && !evaluation.prerequisites().isEmpty()) {
+        var unmetPrerequisites = SkillTooltipPresentation.unmetPrerequisites(evaluation, evaluations, shift);
+        if (!unmetPrerequisites.isEmpty()) {
             tooltip.gap().section(EssenceText.gui("nexus.skills.tooltip.prerequisites"));
             for (com.mistaboom.essence_ascendance.skill.SkillPrerequisiteStatus status :
-                    evaluation.prerequisites()) {
-                String statusPath = status.authoritativeOwned()
-                        ? "nexus.skills.tooltip.prerequisite_met"
-                        : status.projectedOwned()
-                        ? "nexus.skills.tooltip.prerequisite_staged"
+                    unmetPrerequisites) {
+                String statusPath = status.projectedOwned()
+                        ? "nexus.skills.tooltip.prerequisite_inactive"
                         : "nexus.skills.tooltip.prerequisite_missing";
                 tooltip.requirement(
                         EssenceText.gui(
                                 statusPath,
                                 EssenceText.gui("nexus.skills.tooltip.prerequisite_rank", skillName(status.skillId()), status.requiredRank())
-                        ), status.authoritativeOwned() ? SemanticTooltip.State.MET
-                                : status.projectedOwned() ? SemanticTooltip.State.STAGED : SemanticTooltip.State.MISSING
+                        ), SemanticTooltip.State.MISSING
                 );
             }
         }
 
-        if ((purchasePreview || !evaluation.effective()) && !evaluation.requirements().isEmpty()) {
+        var unmetRequirements = SkillTooltipPresentation.unmetRequirements(evaluation, shift);
+        if (!unmetRequirements.isEmpty()) {
             tooltip.gap().section(EssenceText.gui("nexus.skills.tooltip.requirements"));
             for (com.mistaboom.essence_ascendance.skill.SkillRequirementStatus status :
-                    evaluation.requirements()) {
+                    unmetRequirements) {
                 ClientEssenceState.MilestoneSnapshot milestone =
                         status.kind() == SkillRequirementKind.PERMANENT_MILESTONE
                                 ? milestoneRequirementState(
@@ -5697,16 +5696,11 @@ public final class AscendanceNexusScreen
                         : status.kind() == SkillRequirementKind.PERMANENT_MILESTONE;
                 String statusPath = unavailable
                         ? "nexus.skills.tooltip.requirement_unavailable"
-                        : status.authoritativeSatisfied()
-                        ? "nexus.skills.tooltip.requirement_met"
-                        : status.projectedSatisfied()
-                        ? "nexus.skills.tooltip.requirement_projected"
                         : "nexus.skills.tooltip.requirement_missing";
                 Component requirement = requirementDescription(skill, status.requirementId());
                 tooltip.requirement(EssenceText.gui(statusPath, requirement),
                         unavailable ? SemanticTooltip.State.UNAVAILABLE
-                                : status.authoritativeSatisfied() ? SemanticTooltip.State.MET
-                                : status.projectedSatisfied() ? SemanticTooltip.State.STAGED : SemanticTooltip.State.MISSING);
+                                : SemanticTooltip.State.MISSING);
             }
         }
 
@@ -5747,10 +5741,10 @@ public final class AscendanceNexusScreen
                 projectedBalance,
                 cost
         );
-        boolean nextRankHint = evaluation.owned() && evaluation.currentRank() < skill.maximumRank();
+        boolean nextRankHint = SkillTooltipPresentation.previewsNext(evaluation.currentRank(), skill.maximumRank(), true);
         if (clickHint != null || nextRankHint) {
             tooltip.gap();
-            if (nextRankHint) tooltip.hint(SkillTooltipPresentation.rankPurchaseHint(hasShiftDown()));
+            if (nextRankHint) tooltip.hint(SkillTooltipPresentation.rankPurchaseHint(shift));
             if (clickHint != null) tooltip.hint(clickHint);
         }
 
