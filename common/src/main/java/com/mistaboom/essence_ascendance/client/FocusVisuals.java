@@ -97,12 +97,20 @@ public final class FocusVisuals {
         double age = level.getGameTime() + partialTick;
         int light = LevelRenderer.getLightColor(level, pos.relative(context.axisDirection()));
         renderGem(context, pose, buffers, light, overlay, age);
+    }
+
+    /** Called after every installed gem/workpiece has established physical depth. */
+    public static void renderOrnament(Context context, Level level, BlockPos pos, float partialTick,
+                                     PoseStack pose, MultiBufferSource buffers) {
+        if (!context.installed()) return;
+        double age = level.getGameTime() + partialTick;
         // An installed gem remains a visible physical component, but its magical
         // ornament does not energize until the host has a machine link.
         if (!context.energized()) return;
 
-        // MachineWorldVisualRenderer submits this after the opaque world so normal
-        // depth testing can resolve the halo without transparent depth writes.
+        double distance = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition()
+                .distanceTo(Vec3.atLowerCornerOf(pos).add(center(context, age)));
+        float detail = (float) (1.0 - ProceduralMotion.smoothStep((distance - 16.0) / 8.0));
         double activity = context.active() ? Math.min(1.0, Math.log1p(context.ratePerSecond()) / 16.0) : 0.0;
         int tierLevel = context.tier() == null ? 0 : context.tier().ordinal() + 1;
         double refinement = tierLevel / 5.0;
@@ -125,6 +133,8 @@ public final class FocusVisuals {
                 center, localRight, localForward, radius,
                 phase, TAU, 3, 13, ornament.gap(), rgb, opacity);
 
+        if (detail <= 0) return;
+        opacity *= detail;
         if (ornament.secondarySweep() > 0) {
             ProceduralGeometry.arc(pose, lines, center, localRight,
                     frame.localVectorToWorld(TILTED),
@@ -147,9 +157,9 @@ public final class FocusVisuals {
                     center, localRight, localForward, radius, radius, angle);
             double s = 0.018 + (context.tier() == null ? 0 : context.tier().ordinal() * 0.002);
             ProceduralGeometry.line(pose, lines, orbit.subtract(localRight.scale(s)),
-                    orbit.add(localRight.scale(s)), rgb, 0.78F);
+                    orbit.add(localRight.scale(s)), rgb, 0.78F * detail);
             ProceduralGeometry.line(pose, lines, orbit.subtract(localAxis.scale(s)),
-                    orbit.add(localAxis.scale(s)), rgb, 0.78F);
+                    orbit.add(localAxis.scale(s)), rgb, 0.78F * detail);
         }
     }
 

@@ -26,6 +26,14 @@ final class MobilityVitalityWorldVisualRecipes {
 
     /** One broad impulse disc and long vector stroke; the small facets are deliberately subordinate. */
     private static final class MobilityLaunch implements WorldVisualRecipe {
+        @Override public Vec3 anchor(com.mistaboom.essence_ascendance.visual.transientfx.WorldVisualEvent event,
+                                     net.minecraft.client.multiplayer.ClientLevel level) {
+            return event.parameterA() >= 2 ? VECTOR.anchor(event, level) : event.position();
+        }
+        @Override public boolean alive(com.mistaboom.essence_ascendance.visual.transientfx.WorldVisualEvent event,
+                                       net.minecraft.client.multiplayer.ClientLevel level) {
+            return event.parameterA() < 2 || VECTOR.alive(event, level);
+        }
         private static final VectorStreaks VECTOR = new VectorStreaks();
         private double expansion(WorldVisualRenderContext c) {
             return 1 - Math.pow(1 - c.easedProgress(), 2);
@@ -97,7 +105,7 @@ final class MobilityVitalityWorldVisualRecipes {
     }
 
     /** A subtle temporary boost strip grows out from the player's feet. */
-    private static final class MomentumSurge implements WorldVisualRecipe {
+    private static final class MomentumSurge implements WorldVisualRecipe.SourceAttached {
         private Vec3 feet(WorldVisualRenderContext c) {
             var player = c.level().getEntity(c.event().sourceEntityId());
             return player == null ? c.position() : c.source().add(0, -player.getBbHeight() * 0.5 + 0.045, 0);
@@ -366,7 +374,7 @@ final class MobilityVitalityWorldVisualRecipes {
     }
 
     /** Fine world-space stars sweep from ahead of the launch toward the player's rear. */
-    private static final class VectorStreaks implements WorldVisualRecipe {
+    private static final class VectorStreaks implements WorldVisualRecipe.SourceAttached {
         private void streaks(WorldVisualRenderContext c, int count, int salt, double opacity) {
             Vec3 direction = normalized(c.event().direction(), Z);
             Basis basis = Basis.around(direction);

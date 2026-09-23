@@ -10,7 +10,8 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 
 /** A server-confirmed GUI recipe invocation; anchors resolve against the current screen. */
-public record GuiVisualEventPayload(GuiVisualEvent event) implements CustomPacketPayload {
+public record GuiVisualEventPayload(GuiVisualEvent event, int containerId) implements CustomPacketPayload {
+    public GuiVisualEventPayload(GuiVisualEvent event) { this(event, -1); }
     public static final Type<GuiVisualEventPayload> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(EssenceAscendance.MOD_ID, "gui_visual_event"));
     public static final StreamCodec<RegistryFriendlyByteBuf, GuiVisualEventPayload> CODEC =
@@ -33,6 +34,7 @@ public record GuiVisualEventPayload(GuiVisualEvent event) implements CustomPacke
         buffer.writeLong(event.seed());
         buffer.writeFloat(event.parameterA());
         buffer.writeFloat(event.parameterB());
+        buffer.writeVarInt(payload.containerId());
     }
 
     private static GuiVisualEventPayload read(RegistryFriendlyByteBuf buffer) {
@@ -41,6 +43,6 @@ public record GuiVisualEventPayload(GuiVisualEvent event) implements CustomPacke
                 buffer.readVarInt() - 1, buffer.readInt(), buffer.readInt(),
                 buffer.readFloat(), buffer.readFloat(), buffer.readEnum(VisualIntensity.class),
                 buffer.readEnum(SemanticVisualColor.class), buffer.readVarInt(), buffer.readLong(),
-                buffer.readFloat(), buffer.readFloat()));
+                buffer.readFloat(), buffer.readFloat()), buffer.readVarInt());
     }
 }

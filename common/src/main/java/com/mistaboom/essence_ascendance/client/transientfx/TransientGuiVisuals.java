@@ -9,6 +9,7 @@ import dev.architectury.networking.NetworkManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.ArrayList;
@@ -31,7 +32,13 @@ public final class TransientGuiVisuals {
         if (initialized) return;
         NetworkManager.registerReceiver(NetworkManager.Side.S2C,
                 GuiVisualEventPayload.TYPE, GuiVisualEventPayload.CODEC,
-                (payload, context) -> ClientPacketDispatch.queue(context, () -> emit(payload.event())));
+                (payload, context) -> ClientPacketDispatch.queue(context, () -> {
+                    var client = Minecraft.getInstance();
+                    if (payload.containerId() >= 0 && (client.player == null
+                            || client.player.containerMenu.containerId != payload.containerId()
+                            || !(client.screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>))) return;
+                    emit(payload.event());
+                }));
         initialized = true;
     }
 
@@ -56,6 +63,7 @@ public final class TransientGuiVisuals {
                 || !Float.isFinite(intensity) || intensity < 0 || intensity > 4
                 || lifetimeTicks < 1 || lifetimeTicks > 20 * 30
                 || !Float.isFinite(parameterA) || !Float.isFinite(parameterB)) return;
+        tick();
         int incoming = presentation.budgetCost();
         while (budgetUsed() + incoming > ACTIVE_BUDGET) {
             Active victim = ACTIVE.stream()
@@ -65,12 +73,20 @@ public final class TransientGuiVisuals {
             if (victim == null) return;
             ACTIVE.remove(victim);
         }
-        ACTIVE.add(new Active(recipeId, anchor, Minecraft.getInstance().screen,
+        ACTIVE.add(new Active(recipeId, anchor, Minecraft.getInstance().screen, Minecraft.getInstance().level,
                 System.nanoTime(), lifetimeTicks * 50_000_000L, scale, intensity,
                 presentation, color, seed, parameterA, parameterB));
     }
 
     public static void clear() { ACTIVE.clear(); }
+
+    /** Cleanup must also run with F1, a hidden world, or no GUI render pass. */
+    public static void tick() {
+        Minecraft client = Minecraft.getInstance();
+        long now = System.nanoTime();
+        ACTIVE.removeIf(active -> active.screen() != client.screen || active.level() != client.level
+                || now - active.startedNanos() >= active.durationNanos() || now < active.startedNanos());
+    }
 
     public static void renderHud(GuiGraphics graphics) { render(graphics, true); }
     public static void renderScreen(GuiGraphics graphics) { render(graphics, false); }
@@ -78,8 +94,7 @@ public final class TransientGuiVisuals {
     private static void render(GuiGraphics graphics, boolean hudPass) {
         Screen screen = Minecraft.getInstance().screen;
         long now = System.nanoTime();
-        ACTIVE.removeIf(active -> active.screen() != screen || now - active.startedNanos() >= active.durationNanos()
-                || now < active.startedNanos());
+        tick();
         if (ACTIVE.isEmpty() || hudPass != (screen == null)) return;
         Map<Active, Boolean> detailed = new IdentityHashMap<>();
         int detailCost = 0;
@@ -112,7 +127,7 @@ public final class TransientGuiVisuals {
         return ACTIVE.stream().mapToInt(active -> active.presentation().budgetCost()).sum();
     }
 
-    private record Active(ResourceLocation recipeId, GuiAnchor anchor, Screen screen,
+    private record Active(ResourceLocation recipeId, GuiAnchor anchor, Screen screen, ClientLevel level,
                           long startedNanos, long durationNanos, float scale, float intensity,
                           VisualIntensity presentation, SemanticVisualColor color, long seed,
                           float parameterA, float parameterB) { }

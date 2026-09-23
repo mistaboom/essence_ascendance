@@ -34,7 +34,7 @@ final class CombatWorldVisualRecipes {
     }
 
     /** Heat rises; snowflake-like Chill descends. Both follow the creature with staggered births. */
-    private record RisingDiamonds(boolean fire) implements WorldVisualRecipe {
+    private record RisingDiamonds(boolean fire) implements WorldVisualRecipe.TargetAttached {
         private double phase(WorldVisualRenderContext c, int i) {
             return (c.progress() - i * 0.055) / 0.62;
         }
@@ -382,8 +382,8 @@ final class CombatWorldVisualRecipes {
                 Vec3 ray = forward.scale(0.62 + context.variation(i + 12) * 0.42).add(spread.scale(0.74)).normalize();
                 Vec3 point = center.add(ray.scale(scale * (0.18 + p * (0.72 + context.variation(i + 24) * 0.24))));
                 ProceduralGeometry.shard(context.pose(), context.planes(), point,
-                        Basis.around(ray).a(), ray, scale * (i % 3 == 0 ? 0.17 : 0.085),
-                        scale * (0.24 + context.variation(i + 36) * 0.16), scale * 0.065,
+                        Basis.around(ray).a(), ray, scale * (i % 3 == 0 ? 0.102 : 0.051),
+                        scale * (0.144 + context.variation(i + 36) * 0.096), scale * 0.039,
                         brighten(context.rgb(), 0.28 + (i % 3 == 0 ? 0.30 : 0.0)), alpha);
             }
         }
@@ -510,7 +510,7 @@ final class CombatWorldVisualRecipes {
     }
 
     /** Short renewable wake, attached to the slowed projectile rather than left at a sampled position. */
-    private static final class ProjectileDrag implements WorldVisualRecipe {
+    private static final class ProjectileDrag implements WorldVisualRecipe.TargetAttached {
         @Override public int repeatIntervalTicks() { return 6; }
         private Vec3 axis(WorldVisualRenderContext c) {
             var entity = c.level().getEntity(c.event().targetEntityId());

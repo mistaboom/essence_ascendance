@@ -109,11 +109,6 @@ public final class InfuserVisuals {
         int luminous = towardWhite(rgb, 0.60);
         int frame = towardWhite(AscendancePalette.LATENT.metalRgb(), 0.22);
 
-        if (hasWorkpiece) {
-            renderWorkpiece(state, itemRenderer, level, pos, pose, buffers,
-                    packedOverlay, age, active, intensity);
-        }
-
         // Complete all plane work before acquiring the depth-line consumer. Some
         // BufferSource implementations end the current builder on a type switch.
         VertexConsumer planes = buffers.getBuffer(ProceduralRenderTypes.WORLD_PLANES);
@@ -141,6 +136,21 @@ public final class InfuserVisuals {
             renderFineDetail(pose, lines, age, phase, counterPhase, rgb, luminous,
                     frame, tier, hasWorkpiece, active, highIntensity, refinement);
         }
+    }
+
+    /** Physical item prepass, shared by every machine before any depth-writing linework. */
+    public static void renderWorkpiece(EssenceInfuserBlockEntity infuser, ItemRenderer itemRenderer,
+                                      float partialTick, PoseStack pose,
+                                      MultiBufferSource.BufferSource buffers, int overlay) {
+        Level level = infuser.getLevel();
+        MachineVisualState.Infuser state = infuser.visualState();
+        if (level == null || !state.linked() || !state.focus().installed() || state.workpiece() == null) return;
+        double progress = state.requiredTicks() <= 0 ? 0.0
+                : Math.clamp(state.processingTicks() / (double) state.requiredTicks(), 0.0, 1.0);
+        double intensity = state.processing()
+                ? 0.56 + throughput(state.throughputPerSecond()) * 0.24 + progress * 0.20 : 0.24;
+        renderWorkpiece(state, itemRenderer, level, infuser.getBlockPos(), pose, buffers,
+                overlay, level.getGameTime() + partialTick, state.processing(), intensity);
     }
 
     private static void renderWorkpiece(MachineVisualState.Infuser state,
@@ -248,7 +258,7 @@ public final class InfuserVisuals {
         double radius = hasWorkpiece ? 0.60 + refinement * 0.15 : 0.49 + refinement * 0.08;
         double gap = Math.max(0.055, 0.49 - refinement * 0.36 - intensity * 0.045);
         float strength = (float) (0.25 + refinement * 0.34 + intensity * 0.23);
-        double lock = active ? fieldLock(age, highIntensity ? 0.070 : 0.045) : 0.0;
+        double lock = active ? fieldLock(age, highIntensity ? 0.035 : 0.0225) : 0.0;
 
         ProceduralGeometry.brokenRing(pose, lines, WORK_CENTER, X, Z, radius,
                 phase + lock, TAU, 3 + (tier >= 3 ? 1 : 0), 6 + tier, gap, rgb, strength);

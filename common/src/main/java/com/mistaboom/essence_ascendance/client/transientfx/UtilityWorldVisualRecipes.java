@@ -105,7 +105,7 @@ final class UtilityWorldVisualRecipes {
     }
 
     /** Faceted question marks bob above a newly pacified mob's head. */
-    private static final class SanctuaryRelease implements WorldVisualRecipe {
+    private static final class SanctuaryRelease implements WorldVisualRecipe.TargetAttached {
         @Override public int repeatIntervalTicks() { return 8; }
 
         private Vec3 head(WorldVisualRenderContext c) {

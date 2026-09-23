@@ -25,12 +25,17 @@ public final class FlightVisualLayer extends RenderLayer<AbstractClientPlayer, P
     public void render(PoseStack poseStack, MultiBufferSource buffer, int packedLight,
                        AbstractClientPlayer player, float limbSwing, float limbSwingAmount,
                        float partialTick, float ageInTicks, float netHeadYaw, float headPitch) {
-        if (Minecraft.getInstance().player != player || player.isInvisible() || player.isSpectator()) return;
-        if (!FlightVisualRenderer.active()) return;
+        if (!player.isAlive() || player.isInvisible() || player.isSpectator()) return;
+        if (!FlightVisualRenderer.active(player)) return;
 
         poseStack.pushPose();
         this.getParentModel().body.translateAndRotate(poseStack);
-        FlightVisualRenderer.render(player, poseStack, buffer, partialTick);
+        // GUI player previews do not participate in the world-tail pass.
+        if (com.mistaboom.essence_ascendance.client.procedural.ProceduralWorldQueue.inWorldFrame()) {
+            com.mistaboom.essence_ascendance.client.procedural.ProceduralWorldQueue.enqueueEntity(
+                    poseStack, player.distanceToSqr(Minecraft.getInstance().gameRenderer.getMainCamera().getPosition()),
+                    (pose, buffers) -> FlightVisualRenderer.render(player, pose, buffers, partialTick));
+        } else FlightVisualRenderer.render(player, poseStack, buffer, partialTick);
         poseStack.popPose();
     }
 }

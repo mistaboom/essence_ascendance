@@ -12,8 +12,8 @@ public final class ProceduralRenderTypes {
 
     public static final RenderType WORLD_PLANES = planes("essence_ascendance_flight_planes", Depth.WORLD);
     public static final RenderType WORLD_LINES = lines("essence_ascendance_flight_edges", Depth.WORLD);
-    /** Depth-tested machine ornaments. Transparent lines never write depth. */
-    public static final RenderType WORLD_DEPTH_LINES = lines("essence_ascendance_world_depth_lines", Depth.WORLD, false);
+    /** Fine world structure tests and writes depth, after physical surfaces have been submitted. */
+    public static final RenderType WORLD_DEPTH_LINES = lines("essence_ascendance_world_depth_lines", Depth.WORLD, true);
     public static final RenderType PERCEPTION_PLANES = planes("essence_ascendance_utility_sense_fills", Depth.SEE_THROUGH);
     public static final RenderType PERCEPTION_LINES = lines("essence_ascendance_utility_sense_lines", Depth.SEE_THROUGH);
 
@@ -33,7 +33,7 @@ public final class ProceduralRenderTypes {
     }
 
     public static RenderType lines(String name, Depth depth) {
-        return lines(name, depth, false);
+        return lines(name, depth, depth == Depth.WORLD);
     }
 
     private static RenderType lines(String name, Depth depth, boolean writeDepth) {

@@ -35,6 +35,9 @@ public final class ClientPacketDispatch {
         SkillEffectHudClientState.clear();
         GatheringSurveyClientState.clear();
         UtilitySenseClientState.clear();
+        FlightVisualClientState.clear();
+        MachineWorldVisualRenderer.beginFrame();
+        com.mistaboom.essence_ascendance.client.procedural.ProceduralWorldQueue.clear();
         TraversalFluidRenderState.clear();
         com.mistaboom.essence_ascendance.client.transientfx.TransientWorldVisuals.clear();
         com.mistaboom.essence_ascendance.client.transientfx.TransientGuiVisuals.clear();

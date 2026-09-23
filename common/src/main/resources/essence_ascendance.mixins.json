@@ -33,6 +33,7 @@
     "UtilitySenseClientMixin"
   ],
   "mixins": [
+    "FlightVisualStateMixin",
     "FoodEffectOriginMixin",
     "AnimalFeedingMixin",
     "FoodDataRecoveryMixin",

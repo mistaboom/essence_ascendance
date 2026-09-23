@@ -13,6 +13,7 @@ abstract class TransientVisualClientMixin {
     @Inject(method = "tick", at = @At("TAIL"))
     private void essenceAscendance$transientLifecycle(CallbackInfo ci) {
         TransientWorldVisuals.tick();
+        com.mistaboom.essence_ascendance.client.transientfx.TransientGuiVisuals.tick();
         AscensionAnimation.tick();
     }
 }

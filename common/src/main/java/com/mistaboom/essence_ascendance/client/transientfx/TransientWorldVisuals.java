@@ -17,9 +17,7 @@ import org.joml.Matrix4f;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Map;
 
 /** Connection/world-scoped lifecycle, culling, budgeting and rendering for one-shot world cues. */
 public final class TransientWorldVisuals {
@@ -69,6 +67,7 @@ public final class TransientWorldVisuals {
         ClientLevel level = minecraft.level;
         if (level == null || !level.dimension().location().equals(event.dimension())
                 || WorldVisualRecipes.get(event.recipeId()) == null) return;
+        tick();
         if (AscensionAnimation.defer(event)) return;
         if (AscensionAnimation.ceremony(event)) {
             // A new confirmed transition replaces this player's previous presentation.
@@ -119,52 +118,54 @@ public final class TransientWorldVisuals {
         if (ACTIVE.isEmpty()) return;
 
         Vec3 cameraPosition = camera.getPosition();
-        List<Active> visible = ACTIVE.stream()
-                .filter(active -> anchor(active).distanceToSqr(cameraPosition)
-                        <= square(active.event().presentation().worldRange()))
-                .sorted(Comparator.comparingInt((Active active) -> active.event().presentation().ordinal()).reversed()
-                        .thenComparingDouble(active -> anchor(active).distanceToSqr(cameraPosition)))
-                .toList();
+        List<Visible> visible = new ArrayList<>(ACTIVE.size());
+        for (Active active : ACTIVE) {
+            double distanceSquared = anchor(active).distanceToSqr(cameraPosition);
+            if (distanceSquared <= square(active.event().presentation().worldRange()))
+                visible.add(new Visible(active, distanceSquared));
+        }
+        visible.sort(Comparator.comparingInt((Visible value) -> value.active.event().presentation().ordinal())
+                .reversed().thenComparingDouble(value -> value.distanceSquared));
         if (visible.isEmpty()) return;
 
         PoseStack pose = new PoseStack();
         pose.mulPose(positionMatrix);
         MultiBufferSource.BufferSource buffers = minecraft.renderBuffers().bufferSource();
-        Map<Active, Boolean> detailed = new IdentityHashMap<>();
         int detailCost = 0;
-        for (Active active : visible) {
+        for (Visible value : visible) {
+            Active active = value.active;
             boolean allow = active.event().presentation().ordinal() > 0
-                    && anchor(active).distanceToSqr(cameraPosition)
-                    <= square(active.event().presentation().detailRange())
+                    && value.distanceSquared <= square(active.event().presentation().detailRange())
                     && detailCost + active.event().presentation().budgetCost() <= DETAIL_BUDGET;
-            detailed.put(active, allow);
+            value.detailed = allow;
             if (allow) detailCost += active.event().presentation().budgetCost();
         }
         // Far-to-near submission is preferable for the shared translucent passes.
-        visible = visible.stream().sorted(Comparator.comparingDouble(
-                (Active active) -> anchor(active).distanceToSqr(cameraPosition)).reversed()).toList();
+        visible.sort(Comparator.comparingDouble((Visible value) -> value.distanceSquared).reversed());
 
         // The fallback BufferSource builder is shared by these custom render types. Finish every plane
         // submission before acquiring the line consumer; acquiring another type finalizes the prior builder.
         var planes = buffers.getBuffer(ProceduralRenderTypes.WORLD_PLANES);
-        for (Active active : visible) {
+        for (Visible value : visible) {
+            Active active = value.active;
             WorldVisualRecipe recipe = WorldVisualRecipes.get(active.event().recipeId());
             if (recipe == null) continue;
             WorldVisualRenderContext context = new WorldVisualRenderContext(active.event(), level,
                     pose, planes, planes, cameraPosition, partialTick, progress(active, level, partialTick));
             recipe.renderPrimaryPlanes(context);
-            if (detailed.getOrDefault(active, false)) recipe.renderDetailPlanes(context);
+            if (value.detailed) recipe.renderDetailPlanes(context);
         }
         buffers.endBatch(ProceduralRenderTypes.WORLD_PLANES);
 
         var lines = buffers.getBuffer(ProceduralRenderTypes.WORLD_DEPTH_LINES);
-        for (Active active : visible) {
+        for (Visible value : visible) {
+            Active active = value.active;
             WorldVisualRecipe recipe = WorldVisualRecipes.get(active.event().recipeId());
             if (recipe == null) continue;
             WorldVisualRenderContext context = new WorldVisualRenderContext(active.event(), level,
                     pose, lines, lines, cameraPosition, partialTick, progress(active, level, partialTick));
             recipe.renderPrimaryLines(context);
-            if (detailed.getOrDefault(active, false)) recipe.renderDetailLines(context);
+            if (value.detailed) recipe.renderDetailLines(context);
         }
         buffers.endBatch(ProceduralRenderTypes.WORLD_DEPTH_LINES);
     }
@@ -177,4 +178,15 @@ public final class TransientWorldVisuals {
     private static double square(double value) { return value * value; }
 
     private record Active(WorldVisualEvent event, ClientLevel level, long startedTick) { }
+
+    private static final class Visible {
+        final Active active;
+        final double distanceSquared;
+        boolean detailed;
+
+        Visible(Active active, double distanceSquared) {
+            this.active = active;
+            this.distanceSquared = distanceSquared;
+        }
+    }
 }

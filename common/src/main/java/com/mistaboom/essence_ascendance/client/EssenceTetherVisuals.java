@@ -230,7 +230,8 @@ public final class EssenceTetherVisuals {
                                           int edge, int core) {
         if (!stream.active()) return;
         int count = 1 + (int) Math.floor(rate * 3.0);
-        double speed = 0.026 + rate * 0.044;
+        // Cadence stays readable on short internal spans and long links alike.
+        double speed = 0.013 + rate * 0.022;
         for (int index = 0; index < count; index++) {
             double progress = ProceduralMotion.phase(
                     age + stream.phaseSeed() * 17.0 + index / (double) count / speed, speed);
@@ -300,14 +301,15 @@ public final class EssenceTetherVisuals {
                 edge, faint * 0.58F);
 
         int tinyCount = stream.active() ? 2 + (int) Math.floor(rate * 3.0) : 1;
-        double tinySpeed = stream.active() ? 0.038 + rate * 0.052 : 0.010;
+        double tinySpeed = stream.active() ? 0.019 + rate * 0.026 : 0.005;
         for (int index = 0; index < tinyCount; index++) {
             double progress = ProceduralMotion.phase(
                     age + stream.phaseSeed() * 9.0 + index / (double) tinyCount / tinySpeed,
                     tinySpeed);
             progress = directedProgress(progress, stream.flow(), index);
             Vec3 pulse = stream.start().lerp(stream.end(), progress);
-            Vec3 wake = stream.start().lerp(stream.end(), Math.max(0.0, progress - 0.045));
+            boolean reverse = stream.flow() == Flow.REVERSE || stream.flow() == Flow.BOTH && index % 2 != 0;
+            Vec3 wake = stream.start().lerp(stream.end(), Math.clamp(progress + (reverse ? 0.045 : -0.045), 0.0, 1.0));
             ProceduralGeometry.line(pose, lines, wake, pulse, core, faint * 1.15F);
             ProceduralGeometry.line(pose, lines,
                     pulse.subtract(lateral.scale(0.025)), pulse.add(lateral.scale(0.025)),

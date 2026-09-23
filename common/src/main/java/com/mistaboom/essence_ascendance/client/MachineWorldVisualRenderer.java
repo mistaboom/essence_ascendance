@@ -5,6 +5,7 @@ import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBlockEntity;
 import com.mistaboom.essence_ascendance.nexus.AscendanceNexusBlockEntity;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonBlockEntity;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonBlock;
+import com.mistaboom.essence_ascendance.client.procedural.ProceduralWorldQueue;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -78,7 +79,9 @@ public final class MachineWorldVisualRenderer {
             pose.translate(pos.getX() - cameraPosition.x,
                     pos.getY() - cameraPosition.y,
                     pos.getZ() - cameraPosition.z);
-            entry.render(pose, buffers);
+            entry.renderPhysical(pose, buffers);
+            ProceduralWorldQueue.enqueue(pose, Vec3.atCenterOf(pos).distanceToSqr(cameraPosition),
+                    entry::render);
             pose.popPose();
         }
 
@@ -91,6 +94,22 @@ public final class MachineWorldVisualRenderer {
 
     private record Entry(BlockEntity entity, Kind kind, ItemRenderer itemRenderer,
                          float partialTick, int packedOverlay) {
+        private void renderPhysical(PoseStack pose, MultiBufferSource.BufferSource buffers) {
+            if (kind == Kind.PYLON) {
+                EssencePylonBlockEntity pylon = (EssencePylonBlockEntity) entity;
+                FocusVisuals.renderInstalled(FocusVisuals.Context.installed(
+                                pylon.visualState().focus(), pylon.visualState().linked(),
+                                pylon.getBlockState().getValue(EssencePylonBlock.FACING)),
+                        pylon.getLevel(), pylon.getBlockPos(), partialTick, pose, buffers, packedOverlay);
+            } else if (kind == Kind.INFUSER) {
+                EssenceInfuserBlockEntity infuser = (EssenceInfuserBlockEntity) entity;
+                InfuserVisuals.renderWorkpiece(infuser, itemRenderer, partialTick, pose, buffers, packedOverlay);
+                FocusVisuals.renderInstalled(FocusVisuals.Context.installed(
+                                infuser.visualState().focus(), infuser.visualState().linked()),
+                        infuser.getLevel(), infuser.getBlockPos(), partialTick, pose, buffers, packedOverlay);
+            }
+        }
+
         private void render(PoseStack pose, MultiBufferSource.BufferSource buffers) {
             switch (kind) {
                 case CRUCIBLE -> CrucibleVisuals.render(
@@ -98,21 +117,21 @@ public final class MachineWorldVisualRenderer {
                 case PYLON -> {
                     EssencePylonBlockEntity pylon = (EssencePylonBlockEntity) entity;
                     PylonVisuals.render(pylon, partialTick, pose, buffers);
-                    FocusVisuals.renderInstalled(FocusVisuals.Context.installed(
+                    FocusVisuals.renderOrnament(FocusVisuals.Context.installed(
                                     pylon.visualState().focus(), pylon.visualState().linked(),
                                     pylon.getBlockState().getValue(EssencePylonBlock.FACING)),
                             pylon.getLevel(), pylon.getBlockPos(), partialTick,
-                            pose, buffers, packedOverlay);
+                            pose, buffers);
                     EssenceTetherVisuals.renderPylon(pylon, partialTick, pose, buffers);
                 }
                 case INFUSER -> {
                     EssenceInfuserBlockEntity infuser = (EssenceInfuserBlockEntity) entity;
                     InfuserVisuals.render(infuser, itemRenderer, partialTick, pose,
                             buffers, packedOverlay);
-                    FocusVisuals.renderInstalled(FocusVisuals.Context.installed(
+                    FocusVisuals.renderOrnament(FocusVisuals.Context.installed(
                                     infuser.visualState().focus(), infuser.visualState().linked()),
                             infuser.getLevel(), infuser.getBlockPos(), partialTick,
-                            pose, buffers, packedOverlay);
+                            pose, buffers);
                     EssenceTetherVisuals.renderInfuser(infuser, partialTick, pose, buffers);
                 }
                 case NEXUS -> NexusVisuals.render(

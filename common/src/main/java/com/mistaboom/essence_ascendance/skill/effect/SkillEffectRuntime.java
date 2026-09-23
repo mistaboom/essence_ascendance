@@ -68,6 +68,7 @@ public final class SkillEffectRuntime {
             for (SkillEffectHandler handler : SkillEffectRegistry.handlers()) {
                 if (context.isEffective(handler.id())) handler.tick(context);
             }
+            com.mistaboom.essence_ascendance.visual.FlightVisualState.synchronize(context);
         }
     }
 
@@ -461,6 +462,9 @@ public final class SkillEffectRuntime {
     }
 
     private static void clear(Context context) {
+        var flight = (com.mistaboom.essence_ascendance.visual.FlightVisualState) context.player();
+        flight.essenceAscendance$flightFlags(0);
+        flight.essenceAscendance$boostTick(Long.MIN_VALUE);
         CombatHudActivity.forget(context.player());
         for (SkillEffectHandler handler : SkillEffectRegistry.handlers()) handler.deactivate(context);
         SkillHudEvents.forget(context.player());

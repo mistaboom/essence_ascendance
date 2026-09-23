@@ -20,6 +20,7 @@ public abstract class MachineWorldVisualRendererMixin {
             Camera camera, GameRenderer gameRenderer, LightTexture lightTexture,
             Matrix4f positionMatrix, Matrix4f projectionMatrix, CallbackInfo ci) {
         MachineWorldVisualRenderer.beginFrame();
+        com.mistaboom.essence_ascendance.client.procedural.ProceduralWorldQueue.beginFrame(positionMatrix);
     }
 
     @Inject(method = "renderLevel", at = @At("TAIL"))
@@ -28,6 +29,7 @@ public abstract class MachineWorldVisualRendererMixin {
             Camera camera, GameRenderer gameRenderer, LightTexture lightTexture,
             Matrix4f positionMatrix, Matrix4f projectionMatrix, CallbackInfo ci) {
         MachineWorldVisualRenderer.render(camera, positionMatrix);
+        com.mistaboom.essence_ascendance.client.procedural.ProceduralWorldQueue.render();
         com.mistaboom.essence_ascendance.client.transientfx.TransientWorldVisuals.render(
                 camera, positionMatrix, deltaTracker.getGameTimeDeltaPartialTick(true));
     }

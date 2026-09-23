@@ -77,7 +77,7 @@ final class DefenseWorldVisualRecipes {
     }
 
     /** Eight low horizontal chevrons turn from inward to outward, then hover while Riposte is armed. */
-    private static final class RiposteReady implements WorldVisualRecipe {
+    private static final class RiposteReady implements WorldVisualRecipe.SourceAttached {
         private double age(WorldVisualRenderContext c) { return c.progress() * c.event().lifetimeTicks(); }
         private double radius(WorldVisualRenderContext c) {
             return c.event().scale() * (0.82 + Math.sin(age(c) * 0.16) * 0.035);
@@ -132,7 +132,7 @@ final class DefenseWorldVisualRecipes {
     }
 
     /** Spending Riposte releases the armed ring radially; no struck creature is implied as its owner. */
-    private static final class RiposteRelease implements WorldVisualRecipe {
+    private static final class RiposteRelease implements WorldVisualRecipe.SourceAttached {
         private double rush(WorldVisualRenderContext c) {
             return com.mistaboom.essence_ascendance.visual.ProceduralMotion.smoothStep(c.progress());
         }

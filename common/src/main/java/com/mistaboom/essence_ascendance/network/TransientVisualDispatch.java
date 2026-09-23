@@ -40,7 +40,7 @@ public final class TransientVisualDispatch {
     /** Sends a confirmed screen-space acknowledgement only to the acting player. */
     public static void gui(ServerPlayer player, GuiVisualEvent event) {
         if (NetworkManager.canPlayerReceive(player, GuiVisualEventPayload.TYPE)) {
-            NetworkManager.sendToPlayer(player, new GuiVisualEventPayload(event));
+            NetworkManager.sendToPlayer(player, new GuiVisualEventPayload(event, player.containerMenu.containerId));
         }
     }
 }

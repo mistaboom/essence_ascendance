@@ -256,6 +256,8 @@ public final class MobilityFlightEffects {
             MovementImpulseMath.Velocity resolved = MovementImpulseMath.vectorBoost(
                     velocity(before), velocity(look), rocketSpeedBonus);
             if (!applyVelocity(player, resolved)) return false;
+            ((com.mistaboom.essence_ascendance.visual.FlightVisualState) player)
+                    .essenceAscendance$boostTick(context.now());
             Vec3 after = new Vec3(resolved.x(), resolved.y(), resolved.z());
             ProgressionVisualFeedback.mobilityLaunch(player, player.position().add(0, 0.20, 0),
                     after.subtract(before), (float) Math.min(1.5, after.subtract(before).length()), 3);

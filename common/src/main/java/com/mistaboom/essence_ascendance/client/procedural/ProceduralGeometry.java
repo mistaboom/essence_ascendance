@@ -22,6 +22,7 @@ public final class ProceduralGeometry {
                             double cx, double cy, double cz, double dx, double dy, double dz,
                             int rgb, float alpha) {
         int opacity = opacity(alpha);
+        if (opacity == 0) return;
         vertex(pose, out, ax, ay, az, rgb, opacity);
         vertex(pose, out, bx, by, bz, rgb, opacity);
         vertex(pose, out, cx, cy, cz, rgb, opacity);
@@ -41,11 +42,12 @@ public final class ProceduralGeometry {
     public static void line(PoseStack pose, VertexConsumer out,
                             double ax, double ay, double az, double bx, double by, double bz,
                             int rgb, float alpha) {
+        int opacity = opacity(alpha);
+        if (opacity == 0) return; // Invisible line fragments must never occlude later effects.
         double nx = bx - ax, ny = by - ay, nz = bz - az;
         double lengthSquared = nx * nx + ny * ny + nz * nz;
         if (lengthSquared <= Math.ulp(1.0)) return;
         double inverseLength = 1.0 / Math.sqrt(lengthSquared);
-        int opacity = opacity(alpha);
         lineVertex(pose, out, ax, ay, az, nx * inverseLength, ny * inverseLength, nz * inverseLength, rgb, opacity);
         lineVertex(pose, out, bx, by, bz, nx * inverseLength, ny * inverseLength, nz * inverseLength, rgb, opacity);
     }

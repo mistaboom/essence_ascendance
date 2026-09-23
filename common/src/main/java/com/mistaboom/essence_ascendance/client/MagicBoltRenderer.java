@@ -35,6 +35,16 @@ public final class MagicBoltRenderer extends EntityRenderer<MagicBoltEntity> {
 
     @Override public void render(MagicBoltEntity bolt, float yaw, float partialTick,
                                  PoseStack pose, MultiBufferSource buffers, int packedLight) {
+        if (com.mistaboom.essence_ascendance.client.procedural.ProceduralWorldQueue.inWorldFrame()) {
+            com.mistaboom.essence_ascendance.client.procedural.ProceduralWorldQueue.enqueueEntity(
+                    pose, entityRenderDispatcher.distanceToSqr(bolt),
+                    (captured, deferredBuffers) -> renderVisual(bolt, partialTick, captured, deferredBuffers));
+        } else renderVisual(bolt, partialTick, pose, buffers);
+        super.render(bolt, yaw, partialTick, pose, buffers, packedLight);
+    }
+
+    private void renderVisual(MagicBoltEntity bolt, float partialTick,
+                              PoseStack pose, MultiBufferSource buffers) {
         Vec3 velocity = bolt.getDeltaMovement();
         Vec3 forward = velocity.lengthSqr() > 1.0E-8 ? velocity.normalize() : new Vec3(0, 0, 1);
         Basis basis = Basis.around(forward);
@@ -80,7 +90,6 @@ public final class MagicBoltRenderer extends EntityRenderer<MagicBoltEntity> {
             renderFlightTrace(bolt, partialTick, pose, lines, basis);
         }
 
-        super.render(bolt, yaw, partialTick, pose, buffers, packedLight);
     }
 
     private static void renderFlightTrace(MagicBoltEntity bolt, float partialTick, PoseStack pose,

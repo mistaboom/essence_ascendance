@@ -6,6 +6,8 @@ import com.mistaboom.essence_ascendance.client.procedural.ProceduralGeometry;
 import com.mistaboom.essence_ascendance.client.procedural.ProceduralRenderTypes;
 import com.mistaboom.essence_ascendance.visual.ProceduralColors;
 import com.mistaboom.essence_ascendance.visual.ProceduralMotion;
+import com.mistaboom.essence_ascendance.visual.FlightVisualState;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -18,8 +20,8 @@ import net.minecraft.client.renderer.RenderType;
  * geometry is therefore body-local and follows the real player pose. The
  * visual language intentionally mirrors Waylight: translucent purple planes,
  * sparse bright cores and separated floating pieces rather than a solid model.
- * The translucent plane pass writes depth so ordinary world/entity renderers
- * correctly occlude against the harness and wings.</p>
+ * Submission is deferred until physical world/entity surfaces have established
+ * depth. Fine lines write depth; broad translucent planes only test it.</p>
  */
 public final class FlightVisualRenderer {
     private static final ProceduralColors.Colors WISP_COLORS = ProceduralColors.canonicalWisp();
@@ -47,12 +49,24 @@ public final class FlightVisualRenderer {
                 || FlightVisualClientState.vectorBoostIntensity(0.0F) > 0.0;
     }
 
+    public static boolean active(AbstractClientPlayer player) {
+        return player == Minecraft.getInstance().player ? active()
+                : ((FlightVisualState) player).essenceAscendance$flightFlags() != 0;
+    }
+
     public static void render(AbstractClientPlayer player, PoseStack poseStack,
                               MultiBufferSource buffers, float partialTick) {
-        boolean fatigueEnabled = FlightVisualClientState.fatigueEnabled();
-        boolean wingsEnabled = FlightVisualClientState.wingsEnabled();
-        boolean fatigueThrusting = FlightVisualClientState.fatigueThrusting();
-        double boost = FlightVisualClientState.vectorBoostIntensity(partialTick);
+        boolean local = player == Minecraft.getInstance().player;
+        FlightVisualState state = (FlightVisualState) player;
+        int flags = state.essenceAscendance$flightFlags();
+        boolean fatigueEnabled = local ? FlightVisualClientState.fatigueEnabled() : (flags & FlightVisualState.FATIGUE) != 0;
+        boolean wingsEnabled = local ? FlightVisualClientState.wingsEnabled() : (flags & FlightVisualState.WINGS) != 0;
+        boolean fatigueThrusting = local ? FlightVisualClientState.fatigueThrusting() : (flags & FlightVisualState.THRUST) != 0;
+        long boostTick = state.essenceAscendance$boostTick();
+        double boostAge = player.level().getGameTime() - (double) boostTick + partialTick;
+        double boost = local ? FlightVisualClientState.vectorBoostIntensity(partialTick)
+                : boostTick != Long.MIN_VALUE && boostAge >= 0 && wingsEnabled
+                ? Math.clamp(1.0 - boostAge / FlightVisualState.BOOST_TICKS, 0.0, 1.0) : 0.0;
 
         boolean harnessVisible = fatigueEnabled || wingsEnabled || boost > 0.0;
         boolean wingVisual = wingsEnabled || boost > 0.0;
