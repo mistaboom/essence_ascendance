@@ -19,7 +19,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
@@ -37,7 +36,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -113,9 +111,6 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         }
         infuser.normalizeSelections();
         infuser.tickProcessing(level);
-        if (infuser.processingVisualActive && level.getGameTime() % 4L == 0L) {
-            infuser.spawnTransferParticles(level);
-        }
         if (level.getGameTime() % 5L == 0L
                 && !infuser.visualState().equals(infuser.lastSyncedVisualState)) {
             infuser.syncBlockEntity();
@@ -1378,30 +1373,6 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
 
         syncBlockEntity();
         return true;
-    }
-
-    private void spawnTransferParticles(ServerLevel level) {
-        if (linkedCruciblePos == null) {
-            return;
-        }
-        Vec3 start = Vec3.atCenterOf(linkedCruciblePos).add(0.0D, 0.45D, 0.0D);
-        Vec3 end = Vec3.atCenterOf(worldPosition).add(0.0D, 0.45D, 0.0D);
-        Vec3 delta = end.subtract(start);
-        for (int i = 1; i <= 5; i++) {
-            double t = i / 6.0D;
-            Vec3 at = start.add(delta.scale(t));
-            level.sendParticles(
-                    ParticleTypes.ENCHANT,
-                    at.x,
-                    at.y,
-                    at.z,
-                    1,
-                    0.01D,
-                    0.01D,
-                    0.01D,
-                    0.0D
-            );
-        }
     }
 
     @Nullable

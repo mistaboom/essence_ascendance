@@ -385,14 +385,14 @@ public final class InfuserVisuals {
         }
     }
 
-    /** Machine-local lower-field origin reserved for the later Crucible-to-Infuser tether. */
+    /** Machine-local receiver at Focus height, facing the linked Crucible. */
     public static Vec3 tetherAnchor(BlockPos infuserPos, MachineVisualState.Infuser state) {
-        if (state.linkedCrucible() == null) return new Vec3(0.5, 0.88, 0.5);
+        if (state.linkedCrucible() == null) return new Vec3(0.5, 1.5, 0.5);
         double dx = state.linkedCrucible().getX() - infuserPos.getX();
         double dz = state.linkedCrucible().getZ() - infuserPos.getZ();
         double length = Math.sqrt(dx * dx + dz * dz);
-        if (length < 0.001) return new Vec3(1.08, 0.88, 0.5);
-        return new Vec3(0.5 + dx / length * 0.58, 0.88,
+        if (length < 0.001) return new Vec3(1.08, 1.5, 0.5);
+        return new Vec3(0.5 + dx / length * 0.58, 1.5,
                 0.5 + dz / length * 0.58);
     }
 

@@ -9,12 +9,13 @@ import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingRegistry;
 import com.mistaboom.essence_ascendance.balance.economy.FractionalAmountService;
 import com.mistaboom.essence_ascendance.balance.economy.FractionalLedgerSavedData;
 import com.mistaboom.essence_ascendance.infuser.EssentiumCarrierData;
+import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBalance;
+import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBlockEntity;
 import com.mistaboom.essence_ascendance.visual.MachineVisualState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
@@ -30,6 +31,8 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
@@ -83,6 +86,8 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
     private boolean processingVisualActive = false;
     private MachineVisualState.Crucible clientVisualState;
     private MachineVisualState.Crucible lastSentVisualState;
+    private long infusionVisualCheckTick = Long.MIN_VALUE;
+    private boolean supplyingInfuserVisual;
 
     public EssenceCrucibleBlockEntity(
             BlockPos pos,
@@ -104,7 +109,6 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         crucible.processingVisualActive = false;
         crucible.tickDissolution();
         crucible.tickChanneling();
-        crucible.tickPylonSupportParticles(level);
         if (level.getGameTime() % 5L == 0L) {
             crucible.syncVisualState();
         }
@@ -137,7 +141,40 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             if (!stack.isEmpty()) inputs.add(BuiltInRegistries.ITEM.getKey(stack.getItem()));
         }
         return new MachineVisualState.Crucible(processingVisualActive, channelingPlayerId,
-                structure.stats().transferRatePerSecond(), predominant, fill, pylons, inputs);
+                structure.stats().transferRatePerSecond(), predominant, fill, pylons, inputs,
+                supplyingInfuserVisual());
+    }
+
+    /** Observer-only aggregation; inspects loaded chunks without requesting loads. */
+    private boolean supplyingInfuserVisual() {
+        if (!(level instanceof ServerLevel serverLevel) || ownerId == null) return false;
+        long tick = serverLevel.getGameTime();
+        if (infusionVisualCheckTick == tick) return supplyingInfuserVisual;
+        infusionVisualCheckTick = tick;
+        supplyingInfuserVisual = false;
+        int range = (int) Math.ceil(EssenceInfuserBalance.linkRange());
+        int minX = (worldPosition.getX() - range) >> 4;
+        int maxX = (worldPosition.getX() + range) >> 4;
+        int minZ = (worldPosition.getZ() - range) >> 4;
+        int maxZ = (worldPosition.getZ() + range) >> 4;
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                if (!(serverLevel.getChunk(x, z, ChunkStatus.FULL, false) instanceof LevelChunk chunk)) {
+                    continue;
+                }
+                for (BlockEntity entity : chunk.getBlockEntities().values()) {
+                    if (entity instanceof EssenceInfuserBlockEntity infuser
+                            && !infuser.isRemoved()
+                            && worldPosition.equals(infuser.linkedCruciblePos())
+                            && ownerId.equals(infuser.ownerId())
+                            && infuser.visualState().transferring()) {
+                        supplyingInfuserVisual = true;
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     private void syncVisualState() {
@@ -818,10 +855,6 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             }
         }
 
-        if (player.tickCount % 4 == 0) {
-            spawnChannelParticles(serverLevel, player, stats);
-        }
-
         if (totalStoredEssence() <= 0L) {
             stopChanneling();
         }
@@ -932,81 +965,6 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
 
         transferCursor = (transferCursor + 1) % essenceCount;
         return movedTotal;
-    }
-
-    private void tickPylonSupportParticles(ServerLevel level) {
-        if ((!processingVisualActive && !isChanneling())
-                || level.getGameTime() % 5L != 0L) {
-            return;
-        }
-
-        Vec3 target = new Vec3(
-                worldPosition.getX() + 0.5D,
-                worldPosition.getY() + 0.70D,
-                worldPosition.getZ() + 0.5D
-        );
-
-        for (EssenceCrucibleStructureSnapshot.ActivePylon pylon :
-                structureSnapshot().activePylons()) {
-            Vec3 start = new Vec3(
-                    pylon.pos().getX() + 0.5D,
-                    pylon.pos().getY() + 1.15D,
-                    pylon.pos().getZ() + 0.5D
-            );
-            Vec3 delta = target.subtract(start);
-
-            for (int point = 1; point <= 3; point++) {
-                double t = point / 4.0D;
-                Vec3 at = start.add(delta.scale(t));
-                level.sendParticles(
-                        ParticleTypes.END_ROD,
-                        at.x,
-                        at.y,
-                        at.z,
-                        1,
-                        0.005D,
-                        0.005D,
-                        0.005D,
-                        0.0D
-                );
-            }
-        }
-    }
-
-    private void spawnChannelParticles(
-            ServerLevel level,
-            ServerPlayer player,
-            EssenceCrucibleStructureStats stats
-    ) {
-        Vec3 target = player.position().add(0.0D, player.getBbHeight() * 0.55D, 0.0D);
-
-        for (EssenceCrucibleStructureService.TransferEndpoint endpoint :
-                EssenceCrucibleStructureService.transferEndpoints(level, worldPosition, stats)) {
-
-            Vec3 start = new Vec3(endpoint.x(), endpoint.y(), endpoint.z());
-            Vec3 delta = target.subtract(start);
-            int segments = Math.max(
-                    4,
-                    Math.min(12, (int) Math.ceil(delta.length() / 1.5D))
-            );
-
-            /* Include t=1.0 so the final particle remains attached to the player. */
-            for (int point = 1; point <= segments; point++) {
-                double t = point / (double) segments;
-                Vec3 at = start.add(delta.scale(t));
-                level.sendParticles(
-                        ParticleTypes.END_ROD,
-                        at.x,
-                        at.y,
-                        at.z,
-                        1,
-                        0.01D,
-                        0.01D,
-                        0.01D,
-                        0.0D
-                );
-            }
-        }
     }
 
     @Override

@@ -101,6 +101,7 @@ public final class MachineWorldVisualRenderer {
                                     pylon.visualState().focus(), pylon.visualState().linked()),
                             pylon.getLevel(), pylon.getBlockPos(), partialTick,
                             pose, buffers, packedOverlay);
+                    EssenceTetherVisuals.renderPylon(pylon, partialTick, pose, buffers);
                 }
                 case INFUSER -> {
                     EssenceInfuserBlockEntity infuser = (EssenceInfuserBlockEntity) entity;
@@ -110,9 +111,14 @@ public final class MachineWorldVisualRenderer {
                                     infuser.visualState().focus(), infuser.visualState().linked()),
                             infuser.getLevel(), infuser.getBlockPos(), partialTick,
                             pose, buffers, packedOverlay);
+                    EssenceTetherVisuals.renderInfuser(infuser, partialTick, pose, buffers);
                 }
                 case NEXUS -> NexusVisuals.render(
                         (AscendanceNexusBlockEntity) entity, partialTick, pose, buffers);
+            }
+            if (kind == Kind.CRUCIBLE) {
+                EssenceTetherVisuals.renderPlayerChannel(
+                        (EssenceCrucibleBlockEntity) entity, partialTick, pose, buffers);
             }
         }
     }

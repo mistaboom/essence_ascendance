@@ -15,7 +15,7 @@ import java.util.UUID;
 public final class MachineVisualState {
     public static final String TAG = "machine_visual";
     public static final Crucible IDLE_CRUCIBLE = new Crucible(false, null, 0L, -1, 0,
-            List.of(), List.of());
+            List.of(), List.of(), false);
     public static final Pylon IDLE_PYLON = new Pylon(null,
             new Focus(Host.PYLON, false, null, false, 0L));
     public static final Infuser IDLE_INFUSER = new Infuser(null, false, 11, 0, 1, 0L,
@@ -33,7 +33,7 @@ public final class MachineVisualState {
     public record Crucible(boolean dissolving, @Nullable UUID channelingPlayer,
                            long transferRatePerSecond, int predominantEssenceIndex,
                            int reservoirFillBasisPoints, List<BlockPos> activePylons,
-                           List<ResourceLocation> inputItems) {
+                           List<ResourceLocation> inputItems, boolean supplyingInfuser) {
         public Crucible {
             activePylons = List.copyOf(activePylons);
             inputItems = List.copyOf(inputItems);
@@ -41,10 +41,12 @@ public final class MachineVisualState {
 
         public boolean channeling() { return channelingPlayer != null; }
         public boolean active() { return dissolving || channeling(); }
+        public boolean needsPylonSupport() { return active() || supplyingInfuser; }
 
         public CompoundTag save() {
             CompoundTag tag = new CompoundTag();
             tag.putBoolean("dissolving", dissolving);
+            tag.putBoolean("supplying_infuser", supplyingInfuser);
             if (channelingPlayer != null) tag.putUUID("channeler", channelingPlayer);
             tag.putLong("rate", transferRatePerSecond);
             tag.putInt("predominant", predominantEssenceIndex);
@@ -65,7 +67,7 @@ public final class MachineVisualState {
             return new Crucible(tag.getBoolean("dissolving"),
                     tag.hasUUID("channeler") ? tag.getUUID("channeler") : null,
                     tag.getLong("rate"), tag.getInt("predominant"), tag.getInt("fill"),
-                    pylons, inputs);
+                    pylons, inputs, tag.getBoolean("supplying_infuser"));
         }
     }
 
@@ -90,6 +92,9 @@ public final class MachineVisualState {
                           @Nullable ResourceLocation workpiece, Focus focus) {
         public boolean linked() { return linkedCrucible != null; }
         public boolean processing() { return status == 5; }
+        public boolean transferring() {
+            return linked() && focus.installed() && processing() && throughputPerSecond > 0L;
+        }
 
         public CompoundTag save() {
             CompoundTag tag = new CompoundTag();

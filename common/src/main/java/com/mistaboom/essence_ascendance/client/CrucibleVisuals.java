@@ -18,8 +18,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
 
-import java.util.UUID;
-
 /** Persistent, state-driven dissolution fire inside and above the Essence Crucible. */
 public final class CrucibleVisuals {
     public static final int VIEW_DISTANCE = 72;
@@ -31,17 +29,11 @@ public final class CrucibleVisuals {
     private static final Vec3 Z = new Vec3(0, 0, 1);
     private static final Vec3 BOWL_SURFACE = new Vec3(0.5, 0.70, 0.5);
 
-    /*
-     * Reserved future tether origins sit on the four diagonal shoulders. Keeping
-     * them away from the cardinal axes and the vertical center bore preserves
-     * item-transfer approaches through every block face without collision work.
-     */
-    private static final Vec3[] CORNER_ANCHORS = {
-            new Vec3(0.27, 1.03, 0.27),
-            new Vec3(0.73, 1.03, 0.27),
-            new Vec3(0.73, 1.03, 0.73),
-            new Vec3(0.27, 1.03, 0.73)
-    };
+    // Every Crucible sender/receiver occupies the same circle around the fire.
+    private static final double TETHER_RADIUS = 0.5;
+    private static final double TETHER_HEIGHT = 1.5;
+    /** Local target for the incoming Pylon feeds inside the Crucible. */
+    public static final Vec3 TETHER_CONVERGENCE = new Vec3(0.5, 0.5, 0.5);
 
     private CrucibleVisuals() { }
 
@@ -332,37 +324,28 @@ public final class CrucibleVisuals {
                     0.285, 0.72, 18, core, faint * 0.55F);
         }
 
-        int anchorCount = Math.min(CORNER_ANCHORS.length, networkLevel);
-        for (int index = 0; index < anchorCount; index++) {
-            Vec3 anchor = CORNER_ANCHORS[index];
-            Vec3 outward = new Vec3(anchor.x - 0.5, 0, anchor.z - 0.5).normalize();
-            Vec3 tangent = new Vec3(-outward.z, 0, outward.x);
-            double breathe = ProceduralMotion.oscillate(age * 0.035 + index, 0.008);
-            Vec3 inner = anchor.add(outward.scale(-0.048 + breathe));
-            Vec3 outer = anchor.add(outward.scale(0.038 + breathe));
-            ProceduralGeometry.line(pose, lines,
-                    inner.add(tangent.scale(-0.030)), outer, accent, faint * 0.72F);
-            ProceduralGeometry.line(pose, lines,
-                    outer, inner.add(tangent.scale(0.030)), accent, faint * 0.72F);
-            ProceduralGeometry.line(pose, lines, anchor.add(0, -0.10, 0),
-                    anchor.add(0, state.channeling() ? 0.16 : 0.09, 0), core, faint * 0.58F);
-        }
     }
 
-    /** Corner-biased origin for a later Pylon tether; this method draws no tether. */
-    public static Vec3 pylonAnchor(BlockPos cruciblePos, BlockPos pylonPos) {
-        double dx = pylonPos.getX() - cruciblePos.getX();
-        double dz = pylonPos.getZ() - cruciblePos.getZ();
-        int east = dx > 0 ? 1 : 0;
-        int south = dz > 0 ? 1 : 0;
-        if (Math.abs(dx) < 0.001) east = Math.floorMod(pylonPos.hashCode(), 2);
-        if (Math.abs(dz) < 0.001) south = Math.floorMod(pylonPos.hashCode() / 2, 2);
-        return CORNER_ANCHORS[south == 0 ? east : 3 - east];
+    /**
+     * Block-local endpoint on the common Crucible attachment circle. Supply the
+     * actual remote diamond/body position in world space, never a rounded block
+     * position. Its XZ projection lies exactly on the remote-to-central-axis ray.
+     * At different heights, extending the straight beam still intersects that
+     * vertical axis. Neither link count nor ordering can change the radius.
+     */
+    public static Vec3 tetherAnchor(BlockPos cruciblePos, Vec3 worldTarget) {
+        double centerX = cruciblePos.getX() + 0.5;
+        double centerZ = cruciblePos.getZ() + 0.5;
+        double dx = worldTarget.x - centerX;
+        double dz = worldTarget.z - centerZ;
+        double length = Math.sqrt(dx * dx + dz * dz);
+        if (length < 1.0E-8) return new Vec3(0.5 + TETHER_RADIUS, TETHER_HEIGHT, 0.5);
+        return new Vec3(0.5 + dx / length * TETHER_RADIUS, TETHER_HEIGHT,
+                0.5 + dz / length * TETHER_RADIUS);
     }
 
-    /** Stable diagonal origin for a later player-channel tether; this method draws no tether. */
-    public static Vec3 channelAnchor(UUID playerId) {
-        return CORNER_ANCHORS[Math.floorMod(playerId.hashCode(), CORNER_ANCHORS.length)];
+    public static int streamColor(MachineVisualState.Crucible state) {
+        return accentColor(state);
     }
 
     private static int accentColor(MachineVisualState.Crucible state) {

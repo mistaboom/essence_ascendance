@@ -97,8 +97,7 @@ public final class FocusVisuals {
         double refinement = tierLevel / 5.0;
         double pulse = ProceduralMotion.oscillate(age * (0.07 + activity * 0.06), 0.018);
         double radius = 0.27 + refinement * 0.07 + pulse;
-        double y = context.y() + hover(context, age) - 0.015;
-        Vec3 center = new Vec3(context.x(), y, context.z());
+        Vec3 center = center(context, age).add(0, -0.015, 0);
         int rgb = color(context.tier());
         float opacity = (float) (0.18 + refinement * 0.28 + (context.active() ? 0.18 : 0.0));
         Ornament ornament = ornament(context.tier());
@@ -207,7 +206,8 @@ public final class FocusVisuals {
     private static void renderGem(Context context, PoseStack pose, MultiBufferSource buffers,
                                   int light, int overlay, double age) {
         pose.pushPose();
-        pose.translate(context.x(), context.y() + hover(context, age), context.z());
+        Vec3 center = center(context, age);
+        pose.translate(center.x, center.y, center.z);
         float rotation = context.yawDegrees() + (float) (age * (context.host() == Host.INFUSER
                 ? (context.active() ? -2.4 : -1.4) : (context.active() ? 2.2 : 1.25)));
         pose.mulPose(Axis.YP.rotationDegrees(rotation));
@@ -229,6 +229,11 @@ public final class FocusVisuals {
         int block = Math.max(packedLight & 0xFF, 12 << 4);
         int sky = Math.max((packedLight >>> 16) & 0xFF, 9 << 4);
         return (packedLight & 0xFF00FF00) | block | sky << 16;
+    }
+
+    /** Actual animated gem center in host-local coordinates, shared with attached beams. */
+    public static Vec3 center(Context context, double age) {
+        return new Vec3(context.x(), context.y() + hover(context, age), context.z());
     }
 
     private static double hover(Context context, double age) {
