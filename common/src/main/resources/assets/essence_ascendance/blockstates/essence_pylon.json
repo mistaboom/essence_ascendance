@@ -1,10 +1,9 @@
 {
-  "variants": {
-    "focus_lit=false": {
-      "model": "essence_ascendance:block/essence_pylon"
-    },
-    "focus_lit=true": {
-      "model": "essence_ascendance:block/essence_pylon"
+  "multipart": [
+    {
+      "apply": {
+        "model": "essence_ascendance:block/essence_pylon"
+      }
     }
-  }
+  ]
 }

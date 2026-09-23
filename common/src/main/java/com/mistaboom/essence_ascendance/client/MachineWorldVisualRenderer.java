@@ -4,6 +4,7 @@ import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleBlockEntity;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBlockEntity;
 import com.mistaboom.essence_ascendance.nexus.AscendanceNexusBlockEntity;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonBlockEntity;
+import com.mistaboom.essence_ascendance.pylon.EssencePylonBlock;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -98,7 +99,8 @@ public final class MachineWorldVisualRenderer {
                     EssencePylonBlockEntity pylon = (EssencePylonBlockEntity) entity;
                     PylonVisuals.render(pylon, partialTick, pose, buffers);
                     FocusVisuals.renderInstalled(FocusVisuals.Context.installed(
-                                    pylon.visualState().focus(), pylon.visualState().linked()),
+                                    pylon.visualState().focus(), pylon.visualState().linked(),
+                                    pylon.getBlockState().getValue(EssencePylonBlock.FACING)),
                             pylon.getLevel(), pylon.getBlockPos(), partialTick,
                             pose, buffers, packedOverlay);
                     EssenceTetherVisuals.renderPylon(pylon, partialTick, pose, buffers);

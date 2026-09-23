@@ -3,7 +3,9 @@ package com.mistaboom.essence_ascendance.client;
 import com.mistaboom.essence_ascendance.client.procedural.ProceduralGeometry;
 import com.mistaboom.essence_ascendance.client.procedural.ProceduralRenderTypes;
 import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
+import com.mistaboom.essence_ascendance.pylon.EssencePylonBlock;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonBlockEntity;
+import com.mistaboom.essence_ascendance.pylon.PylonLocalFrame;
 import com.mistaboom.essence_ascendance.visual.AscendancePalette;
 import com.mistaboom.essence_ascendance.visual.MachineVisualState;
 import com.mistaboom.essence_ascendance.visual.ProceduralMotion;
@@ -15,7 +17,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
-/** Tier-graded cylinder panels contained inside the Pylon's one-block XZ footprint. */
+/** Tier-graded panels authored upright in local Pylon space. */
 public final class PylonVisuals {
     public static final int VIEW_DISTANCE = 72;
     private static final double DETAIL_DISTANCE_SQUARED = 20.0 * 20.0;
@@ -36,14 +38,19 @@ public final class PylonVisuals {
         if (level == null) return;
         MachineVisualState.Pylon state = pylon.visualState();
         if (!state.linked()) return;
+        PylonLocalFrame frame = PylonLocalFrame.of(
+                pylon.getBlockState().getValue(EssencePylonBlock.FACING));
         double age = level.getGameTime() + partialTick;
         boolean close = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition()
                 .distanceToSqr(Vec3.atCenterOf(pylon.getBlockPos())) <= DETAIL_DISTANCE_SQUARED;
+        pose.pushPose();
+        PylonRenderTransform.applyAroundBlockCenter(pose, frame.direction());
         if (!state.focus().installed()) {
             renderEmpty(pose, buffers, age, close);
-            return;
+        } else {
+            renderFunctional(pylon.getBlockPos(), state, frame, pose, buffers, age, close);
         }
-        renderFunctional(pylon.getBlockPos(), state, pose, buffers, age, close);
+        pose.popPose();
     }
 
     private static void renderEmpty(PoseStack pose, MultiBufferSource buffers, double age, boolean close) {
@@ -61,6 +68,7 @@ public final class PylonVisuals {
     }
 
     private static void renderFunctional(BlockPos pos, MachineVisualState.Pylon state,
+                                         PylonLocalFrame frame,
                                          PoseStack pose, MultiBufferSource buffers,
                                          double age, boolean close) {
         MachineVisualState.Focus focus = state.focus();
@@ -87,7 +95,7 @@ public final class PylonVisuals {
                 3 + tier / 2, 0.30 + refinement * 0.35, 5 + tier,
                 -phase * 0.72, rgb, luminous, bodyAlpha * 0.72F);
         if (tier >= 1) orbitNodes(pose, planes, phase, tier, rgb, luminous, focus.active());
-        renderAnchorPlane(pos, state, pose, planes, luminous, focus.active());
+        renderAnchorPlane(pos, state, frame, pose, planes, luminous, focus.active());
 
         VertexConsumer lines = buffers.getBuffer(ProceduralRenderTypes.WORLD_DEPTH_LINES);
         shell(pose, lines, true, radius, CENTER.y, top, panels, coverage,
@@ -97,7 +105,7 @@ public final class PylonVisuals {
                 -phase * 0.72, rgb, luminous, edgeAlpha * 0.70F);
         if (tier >= 1) verticalPulse(pose, lines, age, radius + 0.008, top, tier,
                 rgb, luminous, focus.active(), rate);
-        ProceduralGeometry.line(pose, lines, UPPER_CENTER, tetherAnchor(pos, state),
+        ProceduralGeometry.line(pose, lines, UPPER_CENTER, localTetherAnchor(pos, state, frame),
                 luminous, focus.active() ? 0.52F : 0.31F);
         if (close) fineDetail(pose, lines, phase, radius, top, tier, rgb, luminous, activity);
     }
@@ -197,18 +205,28 @@ public final class PylonVisuals {
     }
 
     /** Shared compact sender; moving it also updates every attached tether. */
-    public static Vec3 tetherAnchor(BlockPos pylonPos, MachineVisualState.Pylon state) {
+    public static Vec3 tetherAnchor(BlockPos pylonPos, MachineVisualState.Pylon state,
+                                    PylonLocalFrame frame) {
+        return frame.localToBlock(localTetherAnchor(pylonPos, state, frame));
+    }
+
+    private static Vec3 localTetherAnchor(BlockPos pylonPos, MachineVisualState.Pylon state,
+                                          PylonLocalFrame frame) {
         if (state.linkedCrucible() == null) return UPPER_CENTER;
         double dx = state.linkedCrucible().getX() - pylonPos.getX();
+        double dy = state.linkedCrucible().getY() - pylonPos.getY();
         double dz = state.linkedCrucible().getZ() - pylonPos.getZ();
-        double length = Math.sqrt(dx * dx + dz * dz);
+        Vec3 local = frame.worldVectorToLocal(new Vec3(dx, dy, dz));
+        double length = Math.sqrt(local.x * local.x + local.z * local.z);
         if (length < 0.001) return UPPER_CENTER.add(SENDER_RADIUS, 0.08, 0);
-        return UPPER_CENTER.add(dx / length * SENDER_RADIUS, 0.08, dz / length * SENDER_RADIUS);
+        return UPPER_CENTER.add(local.x / length * SENDER_RADIUS, 0.08,
+                local.z / length * SENDER_RADIUS);
     }
 
     private static void renderAnchorPlane(BlockPos pos, MachineVisualState.Pylon state,
-                                          PoseStack pose, VertexConsumer planes, int rgb, boolean active) {
-        Vec3 anchor = tetherAnchor(pos, state);
+                                          PylonLocalFrame frame, PoseStack pose,
+                                          VertexConsumer planes, int rgb, boolean active) {
+        Vec3 anchor = localTetherAnchor(pos, state, frame);
         Vec3 radial = new Vec3(anchor.x - 0.5, 0, anchor.z - 0.5).normalize();
         Vec3 tangent = new Vec3(-radial.z, 0, radial.x);
         ProceduralGeometry.diamondRing(pose, planes, anchor, tangent, Y,

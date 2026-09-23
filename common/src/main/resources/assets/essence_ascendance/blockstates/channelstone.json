@@ -1,3 +1,16 @@
 {
-  "variants": { "": { "model": "essence_ascendance:block/channelstone" } }
+  "variants": {
+    "axis=x": {
+      "model": "essence_ascendance:block/channelstone_horizontal",
+      "x": 90,
+      "y": 90
+    },
+    "axis=y": {
+      "model": "essence_ascendance:block/channelstone"
+    },
+    "axis=z": {
+      "model": "essence_ascendance:block/channelstone_horizontal",
+      "x": 90
+    }
+  }
 }

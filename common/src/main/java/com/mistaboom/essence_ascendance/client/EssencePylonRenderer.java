@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.pylon.EssencePylonBlockEntity;
+import com.mistaboom.essence_ascendance.pylon.EssencePylonBlock;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
@@ -22,12 +23,16 @@ public final class EssencePylonRenderer
             int packedLight,
             int packedOverlay
     ) {
+        poseStack.pushPose();
+        PylonRenderTransform.applyAroundBlockCenter(
+                poseStack, pylon.getBlockState().getValue(EssencePylonBlock.FACING));
         EssenceMachineMeshes.PYLON.render(
                 poseStack,
                 bufferSource,
                 packedLight,
                 packedOverlay
         );
+        poseStack.popPose();
 
         if (pylon.getLevel() != null) {
             MachineWorldVisualRenderer.enqueue(pylon, partialTick, packedOverlay);

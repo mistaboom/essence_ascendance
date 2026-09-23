@@ -13,6 +13,7 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.PushReaction;
@@ -88,9 +89,9 @@ public final class EssenceInfuserContent {
                             .strength(5.0F)
             )
     );
-    public static final RegistrySupplier<Block> CHANNELSTONE = BLOCKS.register(
+    public static final RegistrySupplier<RotatedPillarBlock> CHANNELSTONE = BLOCKS.register(
             "channelstone",
-            () -> new Block(
+            () -> new RotatedPillarBlock(
                     BlockBehaviour.Properties.of()
                             .requiresCorrectToolForDrops()
                             .strength(3.5F, 6.0F)

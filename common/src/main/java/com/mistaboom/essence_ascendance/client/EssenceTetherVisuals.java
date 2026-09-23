@@ -4,7 +4,9 @@ import com.mistaboom.essence_ascendance.client.procedural.ProceduralGeometry;
 import com.mistaboom.essence_ascendance.client.procedural.ProceduralRenderTypes;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleBlockEntity;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBlockEntity;
+import com.mistaboom.essence_ascendance.pylon.EssencePylonBlock;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonBlockEntity;
+import com.mistaboom.essence_ascendance.pylon.PylonLocalFrame;
 import com.mistaboom.essence_ascendance.visual.MachineVisualState;
 import com.mistaboom.essence_ascendance.visual.ProceduralMotion;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -61,12 +63,19 @@ public final class EssenceTetherVisuals {
                 instanceof EssenceCrucibleBlockEntity crucible
                 ? crucible.visualState() : MachineVisualState.IDLE_CRUCIBLE;
         if (!crucibleState.needsPylonSupport()) return;
-        Vec3 start = PylonVisuals.tetherAnchor(pylon.getBlockPos(), state);
+        PylonLocalFrame pylonFrame = PylonLocalFrame.of(
+                pylon.getBlockState().getValue(EssencePylonBlock.FACING));
+        Vec3 start = PylonVisuals.tetherAnchor(pylon.getBlockPos(), state, pylonFrame);
         Vec3 end = blockOffset(pylon.getBlockPos(), cruciblePos)
                 .add(CrucibleVisuals.tetherAnchor(cruciblePos,
                         Vec3.atLowerCornerOf(pylon.getBlockPos()).add(start)));
         int rgb = FocusVisuals.color(state.focus().tier());
-        EndpointFrame startFrame = axialFrame(start.subtract(new Vec3(0.5, start.y, 0.5)));
+        Vec3 senderCenter = pylonFrame.localToBlock(new Vec3(0.5, 1.05, 0.5));
+        Vec3 senderRadial = start.subtract(senderCenter);
+        EndpointFrame startFrame = senderRadial.lengthSqr() < 1.0E-6
+                ? new EndpointFrame(pylonFrame.right(), pylonFrame.axis())
+                : new EndpointFrame(senderRadial.normalize().cross(pylonFrame.axis()),
+                        pylonFrame.axis());
         Vec3 crucibleLocalEnd = end.subtract(blockOffset(pylon.getBlockPos(), cruciblePos));
         EndpointFrame endFrame = axialFrame(
                 crucibleLocalEnd.subtract(new Vec3(0.5, crucibleLocalEnd.y, 0.5)));
@@ -74,7 +83,8 @@ public final class EssenceTetherVisuals {
         double age = level.getGameTime() + partialTick;
         Stream stream = new Stream(start, end, rgb, true, state.focus().ratePerSecond(),
                 Flow.FORWARD, positionPhase(pylon.getBlockPos()), startFrame, endFrame);
-        Vec3 focus = FocusVisuals.center(FocusVisuals.Context.installed(state.focus(), state.linked()), age);
+        Vec3 focus = FocusVisuals.center(FocusVisuals.Context.installed(
+                state.focus(), state.linked(), pylonFrame.direction()), age);
         renderContinuation(pylon.getBlockPos(), age, pose, buffers, stream, focus, start);
         render(pylon.getBlockPos(), age, pose, buffers, stream);
 
