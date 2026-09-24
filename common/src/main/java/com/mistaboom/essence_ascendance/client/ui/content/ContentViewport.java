@@ -31,6 +31,10 @@ public final class ContentViewport implements FullscreenComposition.Input {
 
     private record BlockLayout(int index, SemanticDocument.Block block, int y, int height, Object detail) { }
     private record LinkHit(UiBounds bounds, String target) { }
+    private record StatRowLayout(int y, int height, List<FormattedCharSequence> label,
+                                 List<FormattedCharSequence> value) { }
+    private record RequirementRowLayout(int y, int height, List<FormattedCharSequence> label,
+                                        List<FormattedCharSequence> detail) { }
 
     private final FullscreenScroll scroll = new FullscreenScroll();
     private final IllustrationView.Renderer illustrations;
@@ -99,17 +103,42 @@ public final class ContentViewport implements FullscreenComposition.Input {
                         new UiBounds(0, 0, width, illustration.preferredHeight() + font.lineHeight * 3 + 12));
                 detail = illustrationLayout;
                 height = illustrationLayout.bounds().height();
+            } else if (block instanceof SemanticDocument.Icon) {
+                detail = null;
+                height = 24;
             } else if (block instanceof SemanticDocument.StatRows stats) {
-                detail = null;
-                height = stats.rows().size() * 16 + 2;
+                List<StatRowLayout> rows = new ArrayList<>();
+                int rowY = 0;
+                int columnWidth = Math.max(1, (width - 12) / 2);
+                for (SemanticDocument.StatRow row : stats.rows()) {
+                    List<FormattedCharSequence> labels = font.split(row.label(), columnWidth);
+                    List<FormattedCharSequence> values = font.split(row.value(), columnWidth);
+                    int rowHeight = Math.max(16, Math.max(labels.size(), values.size()) * (font.lineHeight + 1) + 6);
+                    rows.add(new StatRowLayout(rowY, rowHeight, labels, values));
+                    rowY += rowHeight;
+                }
+                detail = List.copyOf(rows);
+                height = rowY + 2;
             } else if (block instanceof SemanticDocument.Requirements requirements) {
-                detail = null;
-                height = requirements.rows().size() * 19 + 2;
+                List<RequirementRowLayout> rows = new ArrayList<>();
+                int rowY = 0;
+                int detailWidth = Math.max(1, Math.min(110, (width - 29) / 3));
+                int labelWidth = Math.max(1, width - 29 - detailWidth);
+                for (SemanticDocument.Requirement requirement : requirements.rows()) {
+                    List<FormattedCharSequence> labels = font.split(requirement.label(), labelWidth);
+                    List<FormattedCharSequence> details = font.split(requirement.detail(), detailWidth);
+                    int rowHeight = Math.max(19, Math.max(labels.size(), details.size()) * (font.lineHeight + 1) + 6);
+                    rows.add(new RequirementRowLayout(rowY, rowHeight, labels, details));
+                    rowY += rowHeight;
+                }
+                detail = List.copyOf(rows);
+                height = rowY + 2;
             } else if (block instanceof SemanticDocument.Table<?> table) {
                 ReadOnlyDataTableView<?> view = tableViews.computeIfAbsent(index, ignored -> tableView(table));
                 int rows = table.data().rows().size();
+                int rowHeight = view.uniformRowHeight(font, width);
                 height = ReadOnlyDataTableView.HEADER_HEIGHT
-                        + Math.max(1, Math.min(7, rows)) * ReadOnlyDataTableView.ROW_HEIGHT + 2;
+                        + Math.max(1, Math.min(7, rows)) * rowHeight + 2;
                 detail = view;
             } else if (block instanceof SemanticDocument.Links links) {
                 detail = null;
@@ -250,19 +279,42 @@ public final class ContentViewport implements FullscreenComposition.Input {
             IllustrationView.Layout raw = (IllustrationView.Layout) measured.detail();
             IllustrationView.Layout shifted = shift(raw, x + Math.max(0, (width - raw.bounds().width()) / 2), y);
             IllustrationView.render(graphics, font, illustration, shifted, partialTick, illustrations);
+        } else if (block instanceof SemanticDocument.Icon icon) {
+            UiBounds figure = new UiBounds(x + 2, y + 2, 20, 20);
+            SemanticDocument.Illustration adapter = new SemanticDocument.Illustration(
+                    icon.resource(), Component.empty(), 20, 20);
+            graphics.flush();
+            graphics.pose().pushPose();
+            try {
+                FullscreenViewport.withClip(graphics, figure,
+                        () -> illustrations.render(graphics, adapter, figure, partialTick));
+                graphics.flush();
+            } finally {
+                graphics.pose().popPose();
+            }
+            graphics.drawString(font, icon.label(), x + 29, y + 7,
+                    AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT), false);
         } else if (block instanceof SemanticDocument.StatRows stats) {
-            int rowY = y;
-            for (SemanticDocument.StatRow row : stats.rows()) {
-                graphics.drawString(font, row.label(), x + 4, rowY + 3,
-                        AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT), false);
-                graphics.drawString(font, row.value(), x + width - 4 - font.width(row.value()), rowY + 3,
-                        AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT), false);
-                graphics.fill(x, rowY + 15, x + width, rowY + 16, 0x66535B68);
-                rowY += 16;
+            List<StatRowLayout> layouts = castStatRows(measured.detail());
+            for (int index = 0; index < stats.rows().size(); index++) {
+                StatRowLayout row = layouts.get(index);
+                int rowY = y + row.y();
+                drawLines(graphics, row.label(), x + 4, rowY + 3, font.lineHeight + 1,
+                        AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT));
+                int valueY = rowY + 3;
+                for (FormattedCharSequence line : row.value()) {
+                    graphics.drawString(font, line, x + width - 4 - font.width(line), valueY,
+                            AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT), false);
+                    valueY += font.lineHeight + 1;
+                }
+                graphics.fill(x, rowY + row.height() - 1, x + width, rowY + row.height(), 0x66535B68);
             }
         } else if (block instanceof SemanticDocument.Requirements requirements) {
-            int rowY = y;
-            for (SemanticDocument.Requirement requirement : requirements.rows()) {
+            List<RequirementRowLayout> layouts = castRequirementRows(measured.detail());
+            for (int index = 0; index < requirements.rows().size(); index++) {
+                SemanticDocument.Requirement requirement = requirements.rows().get(index);
+                RequirementRowLayout row = layouts.get(index);
+                int rowY = y + row.y();
                 int color = switch (requirement.status()) {
                     case MET -> AscendanceUiPalette.SUCCESS;
                     case UNMET -> AscendanceUiPalette.ERROR;
@@ -271,11 +323,14 @@ public final class ContentViewport implements FullscreenComposition.Input {
                 Component status = Component.translatable("gui.essence_ascendance.requirement."
                         + requirement.status().name().toLowerCase(java.util.Locale.ROOT));
                 graphics.drawString(font, status, x + 4, rowY + 3, AscendanceUiPalette.argb(color), false);
-                graphics.drawString(font, requirement.label(), x + 25, rowY + 3,
-                        AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT), false);
-                graphics.drawString(font, requirement.detail(), x + width - 4 - font.width(requirement.detail()), rowY + 3,
-                        AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT), false);
-                rowY += 19;
+                drawLines(graphics, row.label(), x + 25, rowY + 3, font.lineHeight + 1,
+                        AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT));
+                int detailY = rowY + 3;
+                for (FormattedCharSequence line : row.detail()) {
+                    graphics.drawString(font, line, x + width - 4 - font.width(line), detailY,
+                            AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT), false);
+                    detailY += font.lineHeight + 1;
+                }
             }
         } else if (measured.detail() instanceof ReadOnlyDataTableView<?> table) {
             table.render(graphics, font, mouseX, mouseY);
@@ -349,6 +404,16 @@ public final class ContentViewport implements FullscreenComposition.Input {
     @SuppressWarnings("unchecked")
     private static List<List<FormattedCharSequence>> castNestedLines(Object value) {
         return (List<List<FormattedCharSequence>>) value;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<StatRowLayout> castStatRows(Object value) {
+        return (List<StatRowLayout>) value;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<RequirementRowLayout> castRequirementRows(Object value) {
+        return (List<RequirementRowLayout>) value;
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

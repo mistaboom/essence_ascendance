@@ -9,6 +9,7 @@ import com.mistaboom.essence_ascendance.visual.AscendanceUiPalette;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.FormattedCharSequence;
 
 import java.util.List;
 import java.util.Objects;
@@ -29,6 +30,8 @@ public final class ReadOnlyDataTableView<R> {
     private List<ReadOnlyDataTable.ColumnWidth> widths = List.of();
     private List<ReadOnlyDataTable.Row<R>> ordered;
     private ToIntFunction<Component> measureText;
+    private Font wrappingFont;
+    private int rowHeight = ROW_HEIGHT;
 
     public ReadOnlyDataTableView(ReadOnlyDataTable<R> table) {
         this.table = Objects.requireNonNull(table, "Table definition");
@@ -38,6 +41,7 @@ public final class ReadOnlyDataTableView<R> {
     public String sortColumn() { return sortColumn; }
     public ReadOnlyDataTable.SortDirection sortDirection() { return sortDirection; }
     public int scrollOffset() { return scroll.offset(); }
+    public int rowHeight() { return rowHeight; }
     public boolean hasOverflow() { return scroll.maximumOffset() > 0; }
     public List<ReadOnlyDataTable.Row<R>> orderedRows() {
         if (ordered == null) ordered = table.ordered(sortColumn, sortDirection);
@@ -54,14 +58,27 @@ public final class ReadOnlyDataTableView<R> {
     }
 
     public void prepare(Font font, UiBounds bounds) {
-        prepare(bounds, font::width);
+        configure(bounds, font::width, font);
     }
 
     public void prepare(UiBounds bounds, ToIntFunction<Component> measureText) {
+        configure(bounds, measureText, null);
+    }
+
+    /** Uniform height required to show every wrapped cell in this table. */
+    public int uniformRowHeight(Font font, int availableWidth) {
+        List<ReadOnlyDataTable.ColumnWidth> measured = table.measure(
+                Math.max(0, availableWidth - 2), 1, font::width);
+        return measureUniformRowHeight(font, measured);
+    }
+
+    private void configure(UiBounds bounds, ToIntFunction<Component> measureText, Font wrappingFont) {
         this.bounds = bounds;
         this.measureText = Objects.requireNonNull(measureText);
+        this.wrappingFont = wrappingFont;
         widths = table.measure(Math.max(0, bounds.width() - 2), 1, measureText);
-        int visibleRows = Math.max(0, (bounds.height() - HEADER_HEIGHT - 2) / ROW_HEIGHT);
+        rowHeight = wrappingFont == null ? ROW_HEIGHT : measureUniformRowHeight(wrappingFont, widths);
+        int visibleRows = Math.max(0, (bounds.height() - HEADER_HEIGHT - 2) / rowHeight);
         scroll.configure(table.rows().size(), visibleRows);
     }
 
@@ -92,13 +109,13 @@ public final class ReadOnlyDataTableView<R> {
                 Math.max(0, bounds.bottom() - 1 - header.bottom()));
         List<ReadOnlyDataTable.Row<R>> rows = orderedRows();
         int first = Math.min(scroll.offset(), rows.size());
-        int count = Math.min(rows.size() - first, Math.max(0, body.height() / ROW_HEIGHT + 1));
+        int count = Math.min(rows.size() - first, Math.max(0, body.height() / rowHeight + 1));
         List<ReadOnlyDataTable.Row<R>> visibleRows = rows.subList(first, first + count);
         FullscreenViewport.withClip(graphics, body, () -> {
             for (int visible = 0; visible < visibleRows.size(); visible++) {
                 ReadOnlyDataTable.Row<R> row = visibleRows.get(visible);
-                int y = body.y() + visible * ROW_HEIGHT;
-                UiBounds rowBounds = new UiBounds(body.x(), y, body.width(), ROW_HEIGHT);
+                int y = body.y() + visible * rowHeight;
+                UiBounds rowBounds = new UiBounds(body.x(), y, body.width(), rowHeight);
                 boolean selected = row.key().equals(selectedKey);
                 boolean hovered = rowBounds.contains(mouseX, mouseY);
                 if (selected || hovered) {
@@ -108,8 +125,8 @@ public final class ReadOnlyDataTableView<R> {
                 for (int columnIndex = 0; columnIndex < widths.size(); columnIndex++) {
                     var measured = widths.get(columnIndex);
                     var column = table.columns().get(columnIndex);
-                    UiBounds cell = new UiBounds(bounds.x() + 1 + measured.x(), y, measured.width(), ROW_HEIGHT);
-                    drawCell(graphics, font, cell, column.display(row.value()), column.alignment(),
+                    UiBounds cell = new UiBounds(bounds.x() + 1 + measured.x(), y, measured.width(), rowHeight);
+                    drawWrappedCell(graphics, font, cell, column.display(row.value()), column.alignment(),
                             AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT));
                 }
                 graphics.fill(body.x(), rowBounds.bottom() - 1, body.right(), rowBounds.bottom(),
@@ -144,7 +161,7 @@ public final class ReadOnlyDataTableView<R> {
             }
             return true;
         }
-        int rowIndex = scroll.offset() + (int) ((y - bounds.y() - 1 - HEADER_HEIGHT) / ROW_HEIGHT);
+        int rowIndex = scroll.offset() + (int) ((y - bounds.y() - 1 - HEADER_HEIGHT) / rowHeight);
         List<ReadOnlyDataTable.Row<R>> rows = orderedRows();
         if (rowIndex >= 0 && rowIndex < rows.size()) selectedKey = rows.get(rowIndex).key();
         return true;
@@ -167,14 +184,14 @@ public final class ReadOnlyDataTableView<R> {
             scroll.ensureVisible(index, 1);
             return true;
         }
-        return scroll.key(key, 1, Math.max(1, (bounds.height() - HEADER_HEIGHT) / ROW_HEIGHT));
+        return scroll.key(key, 1, Math.max(1, (bounds.height() - HEADER_HEIGHT) / rowHeight));
     }
 
     /** Full styled value for compressed cells; render its tooltip outside enclosing clips. */
     public Optional<Component> overflowTextAt(double x, double y) {
         if (measureText == null || !bounds.inset(1).contains(x, y)) return Optional.empty();
         boolean header = y < bounds.y() + 1 + HEADER_HEIGHT;
-        int rowIndex = scroll.offset() + (int) ((y - bounds.y() - 1 - HEADER_HEIGHT) / ROW_HEIGHT);
+        int rowIndex = scroll.offset() + (int) ((y - bounds.y() - 1 - HEADER_HEIGHT) / rowHeight);
         List<ReadOnlyDataTable.Row<R>> rows = orderedRows();
         if (!header && (rowIndex < 0 || rowIndex >= rows.size())) return Optional.empty();
         for (int index = 0; index < widths.size(); index++) {
@@ -183,6 +200,7 @@ public final class ReadOnlyDataTableView<R> {
             if (x < left || x >= left + measured.width()) continue;
             var column = table.columns().get(index);
             Component value = header ? column.header() : column.display(rows.get(rowIndex).value());
+            if (!header && wrappingFont != null) return Optional.empty();
             return measureText.applyAsInt(value) > Math.max(0, measured.width() - 8)
                     ? Optional.of(value) : Optional.empty();
         }
@@ -199,9 +217,42 @@ public final class ReadOnlyDataTableView<R> {
                 bounds.y() + Math.max(1, (bounds.height() - font.lineHeight) / 2), color, false));
     }
 
+    private static void drawWrappedCell(GuiGraphics graphics, Font font, UiBounds bounds, Component value,
+                                        ReadOnlyDataTable.Alignment alignment, int color) {
+        int available = Math.max(1, bounds.width() - 8);
+        List<FormattedCharSequence> lines = font.split(value, available);
+        if (lines.isEmpty()) lines = List.of(FormattedCharSequence.EMPTY);
+        int lineStep = font.lineHeight + 1;
+        int textHeight = Math.max(font.lineHeight, lines.size() * lineStep - 1);
+        int y = bounds.y() + Math.max(2, (bounds.height() - textHeight) / 2);
+        List<FormattedCharSequence> rendered = lines;
+        int startY = y;
+        FullscreenViewport.withClip(graphics, bounds, () -> {
+            int lineY = startY;
+            for (FormattedCharSequence line : rendered) {
+                int x = alignment == ReadOnlyDataTable.Alignment.RIGHT
+                        ? bounds.right() - 4 - font.width(line) : bounds.x() + 4;
+                graphics.drawString(font, line, x, lineY, color, false);
+                lineY += lineStep;
+            }
+        });
+    }
+
+    private int measureUniformRowHeight(Font font, List<ReadOnlyDataTable.ColumnWidth> measuredWidths) {
+        int maximumLines = 1;
+        for (ReadOnlyDataTable.Row<R> row : table.rows()) {
+            for (int index = 0; index < measuredWidths.size(); index++) {
+                int available = Math.max(1, measuredWidths.get(index).width() - 8);
+                int lines = Math.max(1, font.split(table.columns().get(index).display(row.value()), available).size());
+                maximumLines = Math.max(maximumLines, lines);
+            }
+        }
+        return Math.max(ROW_HEIGHT, maximumLines * (font.lineHeight + 1) + 5);
+    }
+
     private void renderScrollbar(GuiGraphics graphics, UiBounds body, int rowCount) {
         if (scroll.maximumOffset() <= 0 || body.height() <= 0) return;
-        int visible = Math.max(1, body.height() / ROW_HEIGHT);
+        int visible = Math.max(1, body.height() / rowHeight);
         int thumbHeight = Math.max(8, body.height() * visible / Math.max(visible, rowCount));
         int travel = Math.max(0, body.height() - thumbHeight);
         int y = body.y() + travel * scroll.offset() / Math.max(1, scroll.maximumOffset());

@@ -1,6 +1,8 @@
 package com.mistaboom.essence_ascendance.skill.tooltip;
 
 import com.mistaboom.essence_ascendance.config.SkillEffectBalanceSettings;
+import com.mistaboom.essence_ascendance.presentation.PresentationBehavior;
+import com.mistaboom.essence_ascendance.presentation.PresentationMetric;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.network.chat.Component;
@@ -11,8 +13,11 @@ import java.util.function.ToDoubleFunction;
 /** Typed, localized descriptions shared by every skill UI. Values are read from resolved gameplay settings.
  * Add a definition here alongside a new effect handler; never compute a second balance profile for UI. */
 public final class SkillTooltipRegistry {
-    public record Value(ToDoubleFunction<SkillEffectBalanceSettings> read, double displayScale) {
-        public String format(SkillEffectBalanceSettings settings) { return SkillValueText.number(read.applyAsDouble(settings) * displayScale); }
+    public record Value(ToDoubleFunction<SkillEffectBalanceSettings> read,
+                        PresentationMetric.SemanticValueType valueType,
+                        PresentationMetric.DisplayConversion display) {
+        public Value { Objects.requireNonNull(read); Objects.requireNonNull(valueType); Objects.requireNonNull(display); }
+        public String format(SkillEffectBalanceSettings settings) { return display.format(read.applyAsDouble(settings)); }
     }
     public record Line(String key, List<Value> values) {
         public Line { values = List.copyOf(values); }
@@ -22,38 +27,49 @@ public final class SkillTooltipRegistry {
             return Component.translatable(key, args);
         }
     }
+    /**
+     * One localized prose binding. Numeric arguments and behavior-only lines
+     * retain stable identities without parsing the rendered sentence.
+     */
+    public record Binding(ResourceLocation id, Line line,
+                          List<PresentationMetric<SkillEffectBalanceSettings>> metrics,
+                          PresentationBehavior<SkillEffectBalanceSettings> behavior) {
+        public Binding { metrics = List.copyOf(metrics); }
+        public Component render(SkillEffectBalanceSettings settings) { return line.render(settings); }
+    }
     private static final Map<ResourceLocation, List<Line>> DEFINITIONS = new LinkedHashMap<>();
+    private static final Map<ResourceLocation, List<Binding>> BINDINGS = new LinkedHashMap<>();
     static {
         define(SkillIds.FRENZY,
-                line("skill.essence_ascendance.frenzy.description.resolved" , n(s -> s.frenzy().damageBonusPercentPerStack()), n(s -> s.frenzy().attackSpeedBonusPercentPerStack()), n(s -> s.frenzy().maxStacks())),
+                line("skill.essence_ascendance.frenzy.description.resolved" , pp(s -> s.frenzy().damageBonusPercentPerStack()), pp(s -> s.frenzy().attackSpeedBonusPercentPerStack()), count(s -> s.frenzy().maxStacks())),
                 line("skill.essence_ascendance.frenzy.description.resolved.1" , sec(s -> s.frenzy().chainTimeoutTicks())));
         define(SkillIds.ARMOR_CRACK,
-                line("skill.essence_ascendance.armor_crack.description.resolved" , n(s -> s.armorCrack().armorReductionPerStack()), n(s -> s.armorCrack().toughnessReductionPerStack()), n(s -> s.armorCrack().maxStacks())),
+                line("skill.essence_ascendance.armor_crack.description.resolved" , n(s -> s.armorCrack().armorReductionPerStack()), n(s -> s.armorCrack().toughnessReductionPerStack()), count(s -> s.armorCrack().maxStacks())),
                 line("skill.essence_ascendance.armor_crack.description.resolved.1" , sec(s -> s.armorCrack().stackTimeoutTicks())));
         define(SkillIds.DESPERATION,
-                line("skill.essence_ascendance.desperation.description.resolved" , n(s -> s.desperation().maxDamageBonusPercent())));
+                line("skill.essence_ascendance.desperation.description.resolved" , pp(s -> s.desperation().maxDamageBonusPercent())));
         define(SkillIds.DEATH_RUSH,
-                line("skill.essence_ascendance.death_rush.description.resolved" , pct(s -> s.deathRush().killHealthThreshold()), n(s -> s.deathRush().attackSpeedBonusPercentPerStack()), n(s -> s.deathRush().bowDrawSpeedBonusPercentPerStack()), n(s -> s.deathRush().castSpeedBonusPercentPerStack())),
-                line("skill.essence_ascendance.death_rush.description.resolved.1" , n(s -> s.deathRush().maxStacks()), sec(s -> s.deathRush().stackDurationTicks()), pct(s -> s.deathRush().nearDeathHealthThreshold())));
+                line("skill.essence_ascendance.death_rush.description.resolved" , pct(s -> s.deathRush().killHealthThreshold()), pp(s -> s.deathRush().attackSpeedBonusPercentPerStack()), pp(s -> s.deathRush().bowDrawSpeedBonusPercentPerStack()), pp(s -> s.deathRush().castSpeedBonusPercentPerStack())),
+                line("skill.essence_ascendance.death_rush.description.resolved.1" , count(s -> s.deathRush().maxStacks()), sec(s -> s.deathRush().stackDurationTicks()), pct(s -> s.deathRush().nearDeathHealthThreshold())));
         define(SkillIds.KINDLING,
                 line("skill.essence_ascendance.kindling.description.resolved" , n(s -> s.kindling().heatPerHit()), n(s -> s.kindling().maxHeat()), sec(s -> s.kindling().ignitionDurationTicks()), n(s -> s.kindling().burningDamageAmplificationPercent())),
                 line("skill.essence_ascendance.kindling.description.resolved.1" , n(s -> s.kindling().burningDamagePercentPerSecond()), sec(s -> s.kindling().heatExpiryTicks())));
         define(SkillIds.COMBUSTION,
-                line("skill.essence_ascendance.combustion.description.resolved" , n(s -> s.combustion().damage()), n(s -> s.combustion().radius()), n(s -> s.combustion().targetsPerBurst())),
-                line("skill.essence_ascendance.combustion.description.resolved.1" , pct(s -> s.combustion().generationDamageFalloff()), n(s -> s.combustion().maximumGeneration()), n(s -> s.combustion().rootTargetBudget()), sec(s -> s.combustion().seededIgnitionTicks())));
+                line("skill.essence_ascendance.combustion.description.resolved" , n(s -> s.combustion().damage()), blocks(s -> s.combustion().radius()), count(s -> s.combustion().targetsPerBurst())),
+                line("skill.essence_ascendance.combustion.description.resolved.1" , pct(s -> s.combustion().generationDamageFalloff()), count(s -> s.combustion().maximumGeneration()), count(s -> s.combustion().rootTargetBudget()), sec(s -> s.combustion().seededIgnitionTicks())));
         define(SkillIds.FROSTBITE,
                 line("skill.essence_ascendance.frostbite.description.resolved" , n(s -> s.frostbite().chillPerHit()), n(s -> s.frostbite().maxChill()), pct(s -> s.frostbite().slowPerStack()), pct(s -> s.frostbite().maximumProgressiveSlow())),
                 line("skill.essence_ascendance.frostbite.description.resolved.1" , sec(s -> s.frostbite().freezeDurationTicks()), pct(s -> s.frostbite().frozenSlow()), sec(s -> s.frostbite().chillExpiryTicks())));
         define(SkillIds.SHATTER,
-                line("skill.essence_ascendance.shatter.description.resolved" , n(s -> s.shatter().shardDamage()), n(s -> s.shatter().maximumTargets()), n(s -> s.shatter().radius())));
+                line("skill.essence_ascendance.shatter.description.resolved" , n(s -> s.shatter().shardDamage()), count(s -> s.shatter().maximumTargets()), blocks(s -> s.shatter().radius())));
         define(SkillIds.STATIC_CHARGE,
                 line("skill.essence_ascendance.static_charge.description.resolved" , n(s -> s.staticCharge().maximumCharge()), n(s -> s.staticCharge().lightningDamage())),
                 line("skill.essence_ascendance.static_charge.description.resolved.1" , n(s -> s.staticCharge().sprintPerTick() * 20), n(s -> s.staticCharge().jumpCharge()), n(s -> s.staticCharge().fallPerTick() * 20), n(s -> s.staticCharge().flightPerTick() * 20), n(s -> s.staticCharge().glidePerTick() * 20), sec(s -> s.staticCharge().idleGraceTicks()), n(s -> s.staticCharge().decayPerTick() * 20)));
         define(SkillIds.CHAIN_STRIKE,
-                line("skill.essence_ascendance.chain_strike.description.resolved" , n(s -> s.chainStrike().maximumJumps()), n(s -> s.chainStrike().radius()), pct(s -> s.chainStrike().damageFalloff())));
+                line("skill.essence_ascendance.chain_strike.description.resolved" , count(s -> s.chainStrike().maximumJumps()), blocks(s -> s.chainStrike().radius()), pct(s -> s.chainStrike().damageFalloff())));
         define(SkillIds.HOMING_PROJECTILE,
-                line("skill.essence_ascendance.homing_projectile.description.resolved" , n(s -> s.projectiles().arrow().acquisitionRange()), n(s -> s.projectiles().arrow().acquisitionConeDegrees()), n(s -> s.projectiles().arrow().turnDegreesPerTick() * 20)),
-                line("skill.essence_ascendance.homing_projectile.description.resolved.1" , n(s -> s.projectiles().caster().acquisitionRange()), n(s -> s.projectiles().caster().acquisitionConeDegrees()), n(s -> s.projectiles().caster().turnDegreesPerTick() * 20)));
+                line("skill.essence_ascendance.homing_projectile.description.resolved" , blocks(s -> s.projectiles().arrow().acquisitionRange()), n(s -> s.projectiles().arrow().acquisitionConeDegrees()), n(s -> s.projectiles().arrow().turnDegreesPerTick() * 20)),
+                line("skill.essence_ascendance.homing_projectile.description.resolved.1" , blocks(s -> s.projectiles().caster().acquisitionRange()), n(s -> s.projectiles().caster().acquisitionConeDegrees()), n(s -> s.projectiles().caster().turnDegreesPerTick() * 20)));
         define(SkillIds.RICOCHET,
                 line("skill.essence_ascendance.ricochet.description.resolved" , n(s -> Math.min(s.projectiles().ricochets(), s.projectiles().maximumImpacts() - 1)), n(s -> s.projectiles().ricochetRadius()), pct(s -> s.projectiles().ricochetDamageMultiplier())));
         define(SkillIds.PIERCING_PROJECTILE,
@@ -72,10 +88,10 @@ public final class SkillTooltipRegistry {
                 line("skill.essence_ascendance.interceptor.description.resolved" , pct(s -> s.projectiles().control().readinessThreshold()), n(s -> s.projectiles().control().swingBudget()), n(s -> s.projectiles().control().swingRange())),
                 line("skill.essence_ascendance.interceptor.description.resolved.1" , n(s -> s.projectiles().control().swingRadius()), n(s -> s.projectiles().control().swingHalfAngleDegrees())));
         define(SkillIds.TRAJECTORY_THEFT,
-                line("skill.essence_ascendance.trajectory_theft.description.resolved" , n(s -> s.projectiles().control().theftSpeedMultiplier()), n(s -> s.projectiles().control().theftTargetRange()), n(s -> s.projectiles().control().theftAimConeDegrees())),
+                line("skill.essence_ascendance.trajectory_theft.description.resolved" , multiplier(s -> s.projectiles().control().theftSpeedMultiplier()), blocks(s -> s.projectiles().control().theftTargetRange()), n(s -> s.projectiles().control().theftAimConeDegrees())),
                 line("skill.essence_ascendance.trajectory_theft.description.resolved.1" , n(s -> s.projectiles().control().theftTurnDegreesPerTick() * 20), n(s -> s.projectiles().control().redirectBudget())));
         define(SkillIds.GUARDED_ADVANCE,
-                line("skill.essence_ascendance.guarded_advance.description.resolved" , pct(s -> s.guard().mobility().slowdownRemoval()), n(s -> s.guard().mobility().stepHeight())));
+                line("skill.essence_ascendance.guarded_advance.description.resolved" , pct(s -> s.guard().mobility().slowdownRemoval()), blocks(s -> s.guard().mobility().stepHeight())));
         define(SkillIds.SHIELD_RAM,
                 line("skill.essence_ascendance.shield_ram.description.resolved" , sec(s -> s.guard().ram().staggerTicks()), n(s -> s.guard().ram().knockback())),
                 line("skill.essence_ascendance.shield_ram.description.resolved.1" , n(s -> s.guard().ram().minimumSpeed() * 20), pct(s -> s.guard().ram().staggerMovementMultiplier()), n(s -> s.guard().ram().contactLimit()), sec(s -> s.guard().ram().repeatCooldownTicks())));
@@ -89,9 +105,9 @@ public final class SkillTooltipRegistry {
                 line("skill.essence_ascendance.guard_amplifier.description.resolved" , pct(s -> s.guard().amplifier().perBlockGrowth()), pct(s -> s.guard().amplifier().maximumMultiplier() - 1), sec(s -> s.guard().amplifier().durationTicks())),
                 line("skill.essence_ascendance.guard_amplifier.description.resolved.1" , sec(s -> s.guard().perfectGuard().windowTicks())));
         define(SkillIds.CROWD_REPRISAL,
-                line("skill.essence_ascendance.crowd_reprisal.description.resolved" , pct(s -> s.guard().reprisal().damageScale()), n(s -> s.guard().reprisal().maximumTargets()), n(s -> s.guard().reprisal().radius())));
+                line("skill.essence_ascendance.crowd_reprisal.description.resolved" , pct(s -> s.guard().reprisal().damageScale()), count(s -> s.guard().reprisal().maximumTargets()), blocks(s -> s.guard().reprisal().radius())));
         define(SkillIds.RIPOSTE,
-                line("skill.essence_ascendance.riposte.description.resolved" , sec(s -> s.guard().riposte().durationTicks()), pct(s -> s.guard().riposte().damageScale()), n(s -> s.guard().riposte().bonusReach())),
+                line("skill.essence_ascendance.riposte.description.resolved" , sec(s -> s.guard().riposte().durationTicks()), pct(s -> s.guard().riposte().damageScale()), blocks(s -> s.guard().riposte().bonusReach())),
                 line("skill.essence_ascendance.riposte.description.resolved.1" , sec(s -> s.guard().perfectGuard().windowTicks()), sec(s -> s.guard().riposte().protectionTicks())));
         define(SkillIds.EVASIVE_CURRENT,
                 line("skill.essence_ascendance.evasive_current.description.resolved" , pct(s -> s.posture().evasive().maximumDodgeChance()), sec(s -> s.posture().evasive().buildTicks()), sec(s -> s.posture().evasive().drainTicks())),
@@ -108,7 +124,7 @@ public final class SkillTooltipRegistry {
         define(SkillIds.PURE_STATE,
                 line("skill.essence_ascendance.pure_state.description.resolved"));
         define(SkillIds.RISING_RECOVERY,
-                line("skill.essence_ascendance.rising_recovery.description.resolved" , n(s -> 1 + s.vitality().risingRecovery().maxSpeedBonus())),
+                line("skill.essence_ascendance.rising_recovery.description.resolved" , multiplier(s -> 1 + s.vitality().risingRecovery().maxSpeedBonus())),
                 line("skill.essence_ascendance.rising_recovery.description.resolved.1"));
         define(SkillIds.LIFE_STEAL,
                 line("skill.essence_ascendance.life_steal.description.resolved" , pct(s -> s.vitality().lifeSteal().baseHealingFraction()), pct(s -> s.vitality().lifeSteal().perHitHealingFraction()), n(s -> s.vitality().lifeSteal().maxChainHits())),
@@ -350,16 +366,65 @@ public final class SkillTooltipRegistry {
     }
     private SkillTooltipRegistry() { }
     public static List<Line> lines(ResourceLocation skill) { return DEFINITIONS.getOrDefault(skill, List.of()); }
+    public static List<Binding> bindings(ResourceLocation skill) {
+        return BINDINGS.getOrDefault(skill, List.of());
+    }
+    private static List<Binding> createBindings(ResourceLocation skill, List<Line> lines) {
+        List<Binding> result = new ArrayList<>();
+        for (int lineIndex = 0; lineIndex < lines.size(); lineIndex++) {
+            Line line = lines.get(lineIndex);
+            ResourceLocation bindingId = ResourceLocation.fromNamespaceAndPath(skill.getNamespace(),
+                    "presentation/skill/" + skill.getPath() + "/line_" + lineIndex);
+            List<PresentationMetric<SkillEffectBalanceSettings>> metrics = new ArrayList<>();
+            for (int valueIndex = 0; valueIndex < line.values().size(); valueIndex++) {
+                Value value = line.values().get(valueIndex);
+                metrics.add(PresentationMetric.always(bindingId + "/value_" + valueIndex,
+                        Component.translatable(line.key()), value.read(), value.valueType(), value.display()));
+            }
+            PresentationBehavior<SkillEffectBalanceSettings> behavior = metrics.isEmpty()
+                    ? new PresentationBehavior<>(bindingId.toString(), Component.translatable(line.key()), ignored -> true)
+                    : null;
+            result.add(new Binding(bindingId, line, metrics, behavior));
+        }
+        return List.copyOf(result);
+    }
     public static Set<ResourceLocation> supportedIds() { return Collections.unmodifiableSet(DEFINITIONS.keySet()); }
     public static List<ResourceLocation> missingDefinitions(Collection<ResourceLocation> implemented) {
         return implemented.stream().filter(id -> !DEFINITIONS.containsKey(id)).sorted().toList();
     }
     private static void define(ResourceLocation skill, Line... lines) {
-        if (lines.length == 0 || DEFINITIONS.putIfAbsent(skill, List.of(lines)) != null)
+        List<Line> definition = List.of(lines);
+        if (lines.length == 0 || DEFINITIONS.putIfAbsent(skill, definition) != null)
             throw new IllegalArgumentException("Missing or duplicate skill description: " + skill);
+        BINDINGS.put(skill, createBindings(skill, definition));
     }
     private static Line line(String key, Value... values) { return new Line(key, List.of(values)); }
-    private static Value n(ToDoubleFunction<SkillEffectBalanceSettings> value) { return new Value(value, 1); }
-    private static Value pct(ToDoubleFunction<SkillEffectBalanceSettings> value) { return new Value(value, 100); }
-    private static Value sec(ToDoubleFunction<SkillEffectBalanceSettings> value) { return new Value(value, 1.0 / 20); }
+    private static Value n(ToDoubleFunction<SkillEffectBalanceSettings> value) {
+        return new Value(value, PresentationMetric.SemanticValueType.SCALAR,
+                PresentationMetric.DisplayConversion.NATIVE);
+    }
+    private static Value pct(ToDoubleFunction<SkillEffectBalanceSettings> value) {
+        return new Value(value, PresentationMetric.SemanticValueType.PERCENTAGE,
+                PresentationMetric.DisplayConversion.FRACTION_TO_PERCENT);
+    }
+    private static Value sec(ToDoubleFunction<SkillEffectBalanceSettings> value) {
+        return new Value(value, PresentationMetric.SemanticValueType.SECONDS,
+                PresentationMetric.DisplayConversion.TICKS_TO_SECONDS);
+    }
+    private static Value pp(ToDoubleFunction<SkillEffectBalanceSettings> value) {
+        return new Value(value, PresentationMetric.SemanticValueType.PERCENTAGE_POINTS,
+                PresentationMetric.DisplayConversion.NATIVE);
+    }
+    private static Value count(ToDoubleFunction<SkillEffectBalanceSettings> value) {
+        return new Value(value, PresentationMetric.SemanticValueType.COUNT,
+                PresentationMetric.DisplayConversion.NATIVE);
+    }
+    private static Value blocks(ToDoubleFunction<SkillEffectBalanceSettings> value) {
+        return new Value(value, PresentationMetric.SemanticValueType.BLOCKS,
+                PresentationMetric.DisplayConversion.NATIVE);
+    }
+    private static Value multiplier(ToDoubleFunction<SkillEffectBalanceSettings> value) {
+        return new Value(value, PresentationMetric.SemanticValueType.MULTIPLIER,
+                PresentationMetric.DisplayConversion.NATIVE);
+    }
 }

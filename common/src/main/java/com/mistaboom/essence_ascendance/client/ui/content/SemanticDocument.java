@@ -25,8 +25,14 @@ public record SemanticDocument(Component title, List<Block> blocks) {
     public enum LinkRelation { RELATED, PREVIOUS, NEXT }
 
     public sealed interface Block permits Heading, Paragraph, OrderedSteps, Callout,
-            Illustration, StatRows, Requirements, Table, Links {
+            Illustration, Icon, StatRows, Requirements, Table, Links {
         List<Component> searchableText();
+    }
+
+    /** Compact item-model identity used by articles without requiring custom art. */
+    public record Icon(ResourceLocation resource, Component label) implements Block {
+        public Icon { Objects.requireNonNull(resource); Objects.requireNonNull(label); }
+        @Override public List<Component> searchableText() { return List.of(label); }
     }
 
     public record Heading(HeadingLevel level, Component text) implements Block {

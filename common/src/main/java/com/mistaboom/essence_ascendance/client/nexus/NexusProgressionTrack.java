@@ -4,6 +4,7 @@ import com.mistaboom.essence_ascendance.client.ClientEssenceState;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
 import com.mistaboom.essence_ascendance.stat.StatUnit;
 import com.mistaboom.essence_ascendance.progression.BonusTrackCurve;
+import com.mistaboom.essence_ascendance.client.presentation.BonusPresentationData;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.List;
@@ -34,10 +35,7 @@ public record NexusProgressionTrack(
     public double progression(long target, ResourceLocation tierId) {
         var resolved = state.track();
         long effective = Math.clamp(target, 0L, state.currentInvestmentCap());
-        if (!resolved.purchaseStyle().continuousBenefits())
-            return BonusTrackCurve.realizedProgressionForInvestment(resolved.checkpoints(), resolved.investmentExponent(),
-                    resolved.snapPoints(), effective, tierId);
-        return BonusTrackCurve.progressionForInvestment(resolved.checkpoints(), resolved.investmentExponent(), effective, tierId);
+        return BonusPresentationData.benefitProgression(resolved, effective, tierId);
     }
 
     /** Handle position follows exact funding, independently of completed gameplay benefits. */

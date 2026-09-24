@@ -15,6 +15,7 @@ import com.mistaboom.essence_ascendance.client.ui.content.ContentViewport;
 import com.mistaboom.essence_ascendance.client.ui.content.EntryListView;
 import com.mistaboom.essence_ascendance.client.ui.content.ItemIllustrationRenderer;
 import com.mistaboom.essence_ascendance.client.ui.content.SemanticDocument;
+import com.mistaboom.essence_ascendance.client.presentation.PresentationContext;
 import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenComposition;
 import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenControls;
 import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenLayout;
@@ -40,6 +41,10 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
     private Object listStateKey;
     private ResourceLocation articleEntry;
     private SemanticDocument articleDocument;
+    private PresentationContext.Revision articleRevision;
+    private PresentationContext.Revision searchRevision;
+    private String cachedSearchQuery;
+    private List<ArchiveEntry> cachedSearchResults = List.of();
 
     public AscendanceArchiveScreen() {
         super(EssenceText.guide("archive.title"));
@@ -123,9 +128,11 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
 
         ArchiveEntry selected = navigation.entry();
         if (selected == null) return;
-        if (!selected.id().equals(articleEntry)) {
+        PresentationContext.Revision revision = PresentationContext.capture().revision();
+        if (!selected.id().equals(articleEntry) || !Objects.equals(articleRevision, revision)) {
             articleEntry = selected.id();
             articleDocument = selected.content().get();
+            articleRevision = revision;
             article.restore(navigation.articleScroll());
         }
         article.prepare(font, split.detail(), articleDocument);
@@ -141,7 +148,13 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
         builder.region(new FullscreenComposition.Region("archive/search/field", fieldBounds,
                 (graphics, x, y, tick) -> searchField.render(graphics, font), searchField, true));
 
-        List<ArchiveEntry> results = ArchiveSearch.results(catalog, navigation.query());
+        PresentationContext.Revision revision = PresentationContext.capture().revision();
+        if (!Objects.equals(searchRevision, revision) || !Objects.equals(cachedSearchQuery, navigation.query())) {
+            cachedSearchResults = ArchiveSearch.results(catalog, navigation.query());
+            cachedSearchQuery = navigation.query();
+            searchRevision = revision;
+        }
+        List<ArchiveEntry> results = cachedSearchResults;
         if (results.isEmpty()) navigation.selectSearchResult(null);
         else if (navigation.selectedResult() == null
                 || results.stream().noneMatch(entry -> entry.id().equals(navigation.selectedResult()))) {
@@ -186,6 +199,7 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
     private void invalidateLocation() {
         listStateKey = null;
         articleEntry = null;
+        articleRevision = null;
     }
 
     private void captureCurrentOffsets() {

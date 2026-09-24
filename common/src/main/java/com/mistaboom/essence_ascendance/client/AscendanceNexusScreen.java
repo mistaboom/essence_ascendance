@@ -2709,8 +2709,13 @@ public final class AscendanceNexusScreen
         }
         try {
             var receipt = ClientEssenceState.snapshot().ownedSkills().get(definition.id());
-            int targetRank = Math.min(definition.maximumRank(), receipt == null ? 1 : receipt.rank() + 1);
-            return definition.cost(profile, targetRank);
+            var runtime = EssenceConfigManager.clientRuntime();
+            if (runtime == null) runtime = EssenceConfigManager.serverRuntime();
+            int maximum = com.mistaboom.essence_ascendance.client.presentation.SkillPresentationData
+                    .maximumRank(runtime, definition);
+            int targetRank = Math.min(maximum, receipt == null ? 1 : receipt.rank() + 1);
+            return com.mistaboom.essence_ascendance.client.presentation.SkillPresentationData
+                    .rankCost(runtime, definition, targetRank);
         } catch (RuntimeException ignored) {
             return Long.MAX_VALUE;
         }
@@ -4501,14 +4506,21 @@ public final class AscendanceNexusScreen
 
         var unmetRequirements = SkillTooltipPresentation.unmetRequirements(evaluation, shift);
         if (!unmetRequirements.isEmpty()) {
+            var installedRuntime = EssenceConfigManager.clientRuntime();
+            if (installedRuntime == null) installedRuntime = EssenceConfigManager.serverRuntime();
+            int eligibilityRank = Math.min(
+                    com.mistaboom.essence_ascendance.client.presentation.SkillPresentationData
+                            .maximumRank(installedRuntime, skill),
+                    evaluation.currentRank() + 1);
             tooltip.gap().section(EssenceText.gui("nexus.skills.tooltip.requirements"));
             for (com.mistaboom.essence_ascendance.skill.SkillRequirementStatus status :
                     unmetRequirements) {
                 ClientEssenceState.MilestoneSnapshot milestone =
                         status.kind() == SkillRequirementKind.PERMANENT_MILESTONE
-                                ? milestoneRequirementState(
-                                        skill,
-                                        status.requirementId()
+                                 ? milestoneRequirementState(
+                                         skill,
+                                         eligibilityRank,
+                                         status.requirementId()
                                 )
                                 : null;
                 boolean unavailable = milestone != null
@@ -4517,7 +4529,7 @@ public final class AscendanceNexusScreen
                 String statusPath = unavailable
                         ? "nexus.skills.tooltip.requirement_unavailable"
                         : "nexus.skills.tooltip.requirement_missing";
-                Component requirement = requirementDescription(skill, status.requirementId());
+                Component requirement = requirementDescription(skill, eligibilityRank, status.requirementId());
                 tooltip.requirement(EssenceText.gui(statusPath, requirement),
                         unavailable ? SemanticTooltip.State.UNAVAILABLE
                                 : SemanticTooltip.State.MISSING);
@@ -4687,62 +4699,25 @@ public final class AscendanceNexusScreen
 
     private ClientEssenceState.MilestoneSnapshot milestoneRequirementState(
             SkillDefinition skill,
+            int rank,
             ResourceLocation requirementId
     ) {
-        for (SkillRequirement requirement : skill.requirements()) {
-            if (requirement.id().equals(requirementId)
-                    && requirement instanceof PermanentMilestoneRequirement milestone) {
-                return ClientEssenceState.snapshot()
-                        .skillMilestones()
-                        .get(milestone.milestoneId());
-            }
-        }
-        return null;
+        return com.mistaboom.essence_ascendance.client.presentation.SkillPresentationData.milestoneState(
+                skill, rank, requirementId, ClientEssenceState.snapshot());
     }
 
     private Component requirementDescription(
             SkillDefinition skill,
+            int rank,
             ResourceLocation requirementId
     ) {
-        for (SkillRequirement requirement : skill.requirements()) {
-            if (!requirement.id().equals(requirementId)) {
-                continue;
-            }
-            if (requirement instanceof BonusInvestmentRequirement bonus) {
-                NexusCategoryView category = categoryForEssence(bonus.essenceId());
-                Component essence = category == null
-                        ? Component.literal(bonus.essenceId().getPath())
-                        : EssenceText.essenceShort(category.essence());
-                long projectedInvestment = draft.projectedBonusInvestment(
-                        bonus.essenceId(),
-                        ClientEssenceState.snapshot(),
-                        statEssenceIds()
-                );
-                return Component.translatable(
-                        requirement.translationKey(),
-                        formatLong(projectedInvestment),
-                        formatLong(bonus.minimumInvestment()),
-                        essence
-                );
-            }
-            if (requirement instanceof PermanentMilestoneRequirement milestone) {
-                ClientEssenceState.MilestoneSnapshot state =
-                        ClientEssenceState.snapshot()
-                                .skillMilestones()
-                                .get(milestone.milestoneId());
-                if (state != null) {
-                    return Component.literal(state.displayName());
-                }
-            }
-            return Component.translatable(requirement.translationKey());
-        }
-        return Component.literal(requirementId.getPath());
+        ClientEssenceState.Snapshot snapshot = ClientEssenceState.snapshot();
+        return com.mistaboom.essence_ascendance.client.presentation.SkillPresentationData.requirementDescription(
+                skill, rank, requirementId, snapshot, bonusTotals(snapshot, true));
     }
 
     private Component skillName(ResourceLocation skillId) {
-        return SkillRegistry.get(skillId)
-                .map(skill -> (Component) Component.translatable(skill.nameTranslationKey()))
-                .orElseGet(() -> Component.literal(skillId.getPath()));
+        return com.mistaboom.essence_ascendance.client.presentation.SkillPresentationData.skillName(skillId);
     }
 
     private Component tierNameComponent(ResourceLocation tierId) {

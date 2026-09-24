@@ -15,6 +15,9 @@ import java.util.function.ToIntFunction;
  * keys independently of presentation order; sorting is opt-in per column.
  */
 public final class ReadOnlyDataTable<R> {
+    /** Canonical width for compact rank/index columns across shared data views. */
+    public static final int RANK_COLUMN_WIDTH = 48;
+
     public enum Alignment { LEFT, RIGHT }
     public enum SortDirection { ASCENDING, DESCENDING }
 
@@ -121,9 +124,12 @@ public final class ReadOnlyDataTable<R> {
     }
 
     /**
-     * Measure headers and cell values, then distribute spare width by
-     * declared column weight. If the viewport is narrower, minimums compress
-     * proportionally. A zero-width viewport may collapse columns completely.
+     * Measure the schema (declared minimums and localized headers), then
+     * distribute spare width by declared column weight. Row content never
+     * changes column allocation, so equivalent tables retain identical
+     * geometry even when one page contains much longer values. If the
+     * viewport is narrower, minimums compress proportionally. A zero-width
+     * viewport may collapse columns completely.
      */
     public List<ColumnWidth> measure(int availableWidth, int gap, ToIntFunction<Component> measureText) {
         int width = Math.max(0, availableWidth);
@@ -135,7 +141,6 @@ public final class ReadOnlyDataTable<R> {
         for (int index = 0; index < columns.size(); index++) {
             Column<R, ?> column = columns.get(index);
             int measured = measureText.applyAsInt(column.header()) + 10;
-            for (Row<R> row : rows) measured = Math.max(measured, measureText.applyAsInt(column.display(row.value())) + 10);
             desired[index] = Math.max(column.minimumWidth(), measured);
             desiredTotal += desired[index];
             totalWeight += column.weight();

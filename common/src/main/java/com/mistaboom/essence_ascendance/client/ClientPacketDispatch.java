@@ -10,6 +10,7 @@ import net.minecraft.client.player.LocalPlayer;
 public final class ClientPacketDispatch {
     private static ClientPacketListener activeConnection;
     private static volatile long sessionEpoch;
+    private static volatile long presentationEpoch;
     private static boolean initialized;
 
     public static void init() {
@@ -24,6 +25,7 @@ public final class ClientPacketDispatch {
     }
 
     private static void clearPresentation() {
+        presentationEpoch++;
         com.mistaboom.essence_ascendance.client.nexus.NexusNavigationState.clearSession();
         com.mistaboom.essence_ascendance.client.archive.ArchiveNavigationState.clearSession();
         RuntimeBalanceClientState.clear();
@@ -44,6 +46,9 @@ public final class ClientPacketDispatch {
         com.mistaboom.essence_ascendance.client.transientfx.TransientWorldVisuals.clear();
         com.mistaboom.essence_ascendance.client.transientfx.TransientGuiVisuals.clear();
     }
+
+    /** Stable cache boundary for connection-scoped presentation models. */
+    public static long presentationEpoch() { return presentationEpoch; }
 
     private ClientPacketDispatch() {
     }

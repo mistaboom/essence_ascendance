@@ -8,6 +8,7 @@ import com.mistaboom.essence_ascendance.skill.SkillPrerequisiteStatus;
 import com.mistaboom.essence_ascendance.skill.SkillRequirementStatus;
 import com.mistaboom.essence_ascendance.skill.balance.SkillRankEffectScaling;
 import com.mistaboom.essence_ascendance.skill.tooltip.SkillTooltipRegistry;
+import com.mistaboom.essence_ascendance.client.presentation.SkillPresentationData;
 import com.mistaboom.essence_ascendance.text.EssenceText;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -50,9 +51,14 @@ public final class SkillTooltipPresentation {
     public static Component nodePurchaseLabel(SkillDefinition skill,
             com.mistaboom.essence_ascendance.balance.BalanceProfileDefinition profile,
             int purchasedRank, java.util.function.LongFunction<String> format) {
-        if (purchasedRank >= skill.maximumRank()) return EssenceText.gui("nexus.skills.node.max");
-        if (profile == null) return Component.literal("—");
-        return Component.literal(format.apply(skill.cost(profile, purchasedRank + 1)));
+        RuntimeBalanceDefinition runtime = EssenceConfigManager.clientRuntime();
+        if (runtime == null) runtime = EssenceConfigManager.serverRuntime();
+        if (profile == null || runtime == null
+                || !runtime.config().balanceProfile().id().equals(profile.id())) return Component.literal("—");
+        int maximum = SkillPresentationData.maximumRank(runtime, skill);
+        if (maximum == 0) return Component.literal("—");
+        if (purchasedRank >= maximum) return EssenceText.gui("nexus.skills.node.max");
+        return Component.literal(format.apply(SkillPresentationData.rankCost(runtime, skill, purchasedRank + 1)));
     }
     public void append(SemanticTooltip tooltip, SkillDefinition skill, Map<ResourceLocation, SkillEvaluationResult> evaluations) {
         append(tooltip, skill, evaluations, false);
@@ -61,15 +67,16 @@ public final class SkillTooltipPresentation {
                        Map<ResourceLocation, SkillEvaluationResult> evaluations, boolean shift) {
         var state = evaluations.get(skill.id());
         if (state == null) return;
-        int rank = displayedRank(state.currentRank(), skill.maximumRank(), shift);
-        tooltip.field(EssenceText.gui("nexus.skills.tooltip.display_rank",
-                SemanticTooltip.value(rank), SemanticTooltip.value(skill.maximumRank())));
         RuntimeBalanceDefinition profile = EssenceConfigManager.clientRuntime();
         if (profile == null) profile = EssenceConfigManager.serverRuntime();
-        if (profile == null) {
+        int maximum = SkillPresentationData.maximumRank(profile, skill);
+        if (profile == null || maximum == 0) {
             tooltip.hint(EssenceText.gui("nexus.skills.tooltip.generated_waiting"));
             return;
         }
+        int rank = displayedRank(state.currentRank(), maximum, shift);
+        tooltip.field(EssenceText.gui("nexus.skills.tooltip.display_rank",
+                SemanticTooltip.value(rank), SemanticTooltip.value(maximum)));
         // A hover never projects unrelated staged purchases or selections.
         var ranks = new TreeMap<ResourceLocation, Integer>();
         evaluations.forEach((id, evaluation) -> {
@@ -83,12 +90,11 @@ public final class SkillTooltipPresentation {
         // One shared paragraph treatment for every skill, including wrapped continuation lines.
         cachedLines.forEach(line -> tooltip.gap().detail(line));
         tooltip.gap();
-        if (state.currentRank() >= skill.maximumRank())
+        if (state.currentRank() >= maximum)
             tooltip.hint(EssenceText.gui("nexus.skills.tooltip.max_rank"));
     }
     public static List<Component> resolve(RuntimeBalanceDefinition profile, ResourceLocation skill,
                                           Map<ResourceLocation, Integer> ranks) {
-        var resolved = SkillRankEffectScaling.applyResolved(profile.config().skillEffects(), ranks, profile.skillCurves());
-        return SkillTooltipRegistry.lines(skill).stream().map(line -> line.render(resolved)).toList();
+        return SkillPresentationData.resolveEffects(profile, skill, ranks);
     }
 }

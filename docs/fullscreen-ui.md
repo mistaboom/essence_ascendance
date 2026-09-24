@@ -78,7 +78,7 @@ Do not reconcile a temporary unavailable list as authoritative content. Nexus on
 
 `AscendanceArchiveScreen` is the shipping ordinary-screen consumer. It declares Guide, Reference, and Search through `Builder.modes`, Guide/Reference sections through `Builder.sections`, shared list/detail regions for documents, and aligned field/results regions for Search. Search results distinguish selection from activation: arrows move selection, while a primary click or Enter/Space opens the selected entry. It has no menu or copied fullscreen router. Archive session state is typed and backed by its own `UiNavigationMemory` instance; Guide, Reference, and Search retain independent locations and offsets.
 
-Archive's reusable content and read-only data-view APIs are documented in `docs/ascendance-archive.md`. The Skill Rank Reference uses the shared typed table component, and illustrations resolve real registered item presentations inside shared fit/clip/render-state boundaries.
+Archive's reusable content and read-only data-view APIs are documented in `docs/ascendance-archive.md`. Every Skill and Bonus article uses the shared typed table component, and illustrations resolve real registered item presentations inside shared fit/clip/render-state boundaries.
 
 The earlier executable `FullscreenCompositionTest` proof remains as a deliberately small alternate-consumer fixture. The shipping Archive now exercises the same host with real localized content, catalog navigation, entry/article components and Search state. Neither introduces a shared screen-ID switch.
 

@@ -53,6 +53,12 @@ public final class ArchiveFoundationTest {
             check(!catalog.searchableText(entry).isEmpty(), "Semantic entry cannot feed global search");
             check(entry.content().get().blocks().size() > 0, "Entry provider returned an empty shell");
         }
+        for (ArchiveSection section : List.of(ArchiveSection.REFERENCE_SKILLS, ArchiveSection.REFERENCE_BONUSES)) {
+            List<String> labels = catalog.entries(ArchiveMode.REFERENCE, section.id()).stream()
+                    .map(entry -> entry.title().getString()).toList();
+            List<String> alphabetical = labels.stream().sorted(String.CASE_INSENSITIVE_ORDER).toList();
+            check(labels.equals(alphabetical), "Reference side-panel entries are not alphabetical: " + section.id());
+        }
         ArchiveEntry guideMachines = catalog.entry(id("guide/machines/first_network"));
         ArchiveEntry referenceMachines = catalog.entry(id("reference/machines/overview"));
         check(guideMachines != null && referenceMachines != null && !guideMachines.id().equals(referenceMachines.id())
@@ -95,7 +101,8 @@ public final class ArchiveFoundationTest {
         navigator.setListScroll(3);
         navigator.selectMode(ArchiveMode.REFERENCE);
         navigator.selectSection(ArchiveSection.REFERENCE_SKILLS.id());
-        navigator.selectEntry(id("reference/skills/ranks"));
+        navigator.selectEntry(catalog.entries(ArchiveMode.REFERENCE,
+                ArchiveSection.REFERENCE_SKILLS.id()).getFirst().id());
         navigator.setArticleScroll(41);
         navigator.selectMode(ArchiveMode.GUIDE);
         check(navigator.articleScroll() == 27 && navigator.listScroll() == 3,
@@ -190,6 +197,17 @@ public final class ArchiveFoundationTest {
         List<ReadOnlyDataTable.ColumnWidth> widths = table.measure(220, 1, component -> component.getString().length() * 6);
         check(widths.size() == 3 && widths.getLast().x() + widths.getLast().width() == 220,
                 "Measured columns did not consume the available width exactly");
+        ReadOnlyDataTable<String> shortContent = new ReadOnlyDataTable<>(List.of(
+                ReadOnlyDataTable.Column.text("value", Component.literal("Value"), 40, 1,
+                        Component::literal, null)),
+                List.of(new ReadOnlyDataTable.Row<>("short", "Short")));
+        ReadOnlyDataTable<String> longContent = new ReadOnlyDataTable<>(List.of(
+                ReadOnlyDataTable.Column.text("value", Component.literal("Value"), 40, 1,
+                        Component::literal, null)),
+                List.of(new ReadOnlyDataTable.Row<>("long", "A much longer value that must wrap without changing the schema")));
+        check(shortContent.measure(120, 1, component -> component.getString().length() * 6)
+                        .equals(longContent.measure(120, 1, component -> component.getString().length() * 6)),
+                "Row content changed schema-driven table column widths");
         check(table.rows().stream().map(ReadOnlyDataTable.Row::key).distinct().count() == table.rows().size(),
                 "Stable table row keys were lost");
         check(table.visibleRows("rank", ReadOnlyDataTable.SortDirection.ASCENDING, 1, 1)
@@ -282,6 +300,30 @@ public final class ArchiveFoundationTest {
                 return List.of(FormattedCharSequence.forward(text.getString(), Style.EMPTY));
             }
         };
+        Font wrappingFont = new Font(ignored -> null, false) {
+            @Override public int width(FormattedText text) { return text.getString().length() * 6; }
+            @Override public List<FormattedCharSequence> split(FormattedText text, int width) {
+                String value = text.getString();
+                int characters = Math.max(1, width / 6);
+                int lines = Math.max(1, (value.length() + characters - 1) / characters);
+                return IntStream.range(0, lines).mapToObj(line -> {
+                    int start = Math.min(value.length(), line * characters);
+                    int end = Math.min(value.length(), start + characters);
+                    return FormattedCharSequence.forward(value.substring(start, end), Style.EMPTY);
+                }).toList();
+            }
+        };
+        ReadOnlyDataTable<String> wrappedData = new ReadOnlyDataTable<>(List.of(
+                ReadOnlyDataTable.Column.text("effect", Component.literal("Native effects"), 50, 1,
+                        Component::literal, null)), List.of(
+                new ReadOnlyDataTable.Row<>("short", "Short"),
+                new ReadOnlyDataTable.Row<>("long", "A long native effect that occupies several wrapped lines")));
+        ReadOnlyDataTableView<String> wrappedView = new ReadOnlyDataTableView<>(wrappedData);
+        int uniformHeight = wrappedView.uniformRowHeight(wrappingFont, 80);
+        wrappedView.prepare(wrappingFont, new UiBounds(0, 0, 80,
+                ReadOnlyDataTableView.HEADER_HEIGHT + uniformHeight * 2 + 2));
+        check(uniformHeight > ReadOnlyDataTableView.ROW_HEIGHT && wrappedView.rowHeight() == uniformHeight,
+                "Wrapped table rows did not share the height required by their longest value");
         ContentViewport article = new ContentViewport((graphics, illustration, bounds, tick) -> { }, ignored -> { });
         SemanticDocument document = new SemanticDocument(Component.literal("Table"),
                 List.of(new SemanticDocument.Table<>(data), new SemanticDocument.Paragraph(Component.literal("After table"))));
