@@ -15,9 +15,13 @@ public abstract class FullscreenScreen extends Screen {
 
     @Override protected void init() { super.init(); fullscreen.resized(); refreshFullscreen(); }
     @Override public void removed() { fullscreen.clear(); super.removed(); }
+    @Override public final void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        // Screen.render invokes this before widgets. The fullscreen composition owns
+        // its background; vanilla's implementation would blur the already drawn UI.
+        fullscreen.renderBase(graphics, font, mouseX, mouseY, partialTick);
+    }
     @Override public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         beforeFullscreenFrame(); refreshFullscreen();
-        fullscreen.renderBase(graphics, font, mouseX, mouseY, partialTick);
         super.render(graphics, mouseX, mouseY, partialTick);
         fullscreen.renderOverlays(graphics, font, mouseX, mouseY, partialTick);
         if (fullscreen.allowsTooltip(mouseX, mouseY)) renderFullscreenTooltips(graphics, mouseX, mouseY);

@@ -25,6 +25,7 @@ public final class ClientPacketDispatch {
 
     private static void clearPresentation() {
         com.mistaboom.essence_ascendance.client.nexus.NexusNavigationState.clearSession();
+        com.mistaboom.essence_ascendance.client.archive.ArchiveNavigationState.clearSession();
         RuntimeBalanceClientState.clear();
         ClientEssenceState.clear();
         AscendanceNexusTransactionClientState.clear();

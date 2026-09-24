@@ -131,12 +131,22 @@ public final class FullscreenLayout {
     }
 
     public static Bands bands(UiBounds bounds, int topHeight, int bottomHeight) {
+        return bands(bounds, topHeight, bottomHeight, 0);
+    }
+
+    /** Partition vertical content with a shared gap between each populated band. */
+    public static Bands bands(UiBounds bounds, int topHeight, int bottomHeight, int gap) {
         int headerHeight = Math.min(Math.max(0, topHeight), bounds.height());
         int footerHeight = Math.min(Math.max(0, bottomHeight), bounds.height() - headerHeight);
+        int separators = (headerHeight > 0 ? 1 : 0) + (footerHeight > 0 ? 1 : 0);
+        int remaining = bounds.height() - headerHeight - footerHeight;
+        int actualGap = separators == 0 ? 0 : Math.min(Math.max(0, gap), remaining / separators);
+        int headerGap = headerHeight > 0 ? actualGap : 0;
+        int footerGap = footerHeight > 0 ? actualGap : 0;
         UiBounds header = new UiBounds(bounds.x(), bounds.y(), bounds.width(), headerHeight);
-        UiBounds body = new UiBounds(bounds.x(), header.bottom(), bounds.width(),
-                bounds.height() - headerHeight - footerHeight);
-        UiBounds footer = new UiBounds(bounds.x(), body.bottom(), bounds.width(), footerHeight);
+        UiBounds body = new UiBounds(bounds.x(), header.bottom() + headerGap, bounds.width(),
+                remaining - headerGap - footerGap);
+        UiBounds footer = new UiBounds(bounds.x(), body.bottom() + footerGap, bounds.width(), footerHeight);
         return new Bands(header, body, footer);
     }
 

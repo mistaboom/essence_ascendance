@@ -39,6 +39,9 @@ public final class AscendanceItems {
                     Registries.ITEM
             );
 
+    public static final RegistrySupplier<AscendanceArchiveItem> ASCENDANCE_ARCHIVE =
+            ITEMS.register("ascendance_archive", () -> new AscendanceArchiveItem(new Item.Properties().stacksTo(1)));
+
 
     /*
      * ============================================================
@@ -272,6 +275,11 @@ public final class AscendanceItems {
 
         ITEMS.register();
         CreativeTabRegistry.append(CreativeModeTabs.COMBAT, ASCENDANCE_SHIELD);
+
+        CreativeTabRegistry.append(
+                CreativeModeTabs.TOOLS_AND_UTILITIES,
+                ASCENDANCE_ARCHIVE
+        );
 
 
         CreativeTabRegistry.append(

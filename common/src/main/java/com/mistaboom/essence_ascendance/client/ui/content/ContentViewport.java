@@ -1,0 +1,370 @@
+package com.mistaboom.essence_ascendance.client.ui.content;
+
+import com.mistaboom.essence_ascendance.client.ui.UiBounds;
+import com.mistaboom.essence_ascendance.client.ui.data.ReadOnlyDataTable;
+import com.mistaboom.essence_ascendance.client.ui.data.ReadOnlyDataTableView;
+import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenComposition;
+import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenControls;
+import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenScroll;
+import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenViewport;
+import com.mistaboom.essence_ascendance.visual.AscendanceUiPalette;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.FormattedCharSequence;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Consumer;
+
+/**
+ * Reusable article viewport for semantic documents. It owns wrapping,
+ * clipping, scrolling, link hit testing and embedded read-only data views;
+ * documents only declare content.
+ */
+public final class ContentViewport implements FullscreenComposition.Input {
+    private static final int PADDING = 9;
+    private static final int GAP = 8;
+
+    private record BlockLayout(int index, SemanticDocument.Block block, int y, int height, Object detail) { }
+    private record LinkHit(UiBounds bounds, String target) { }
+
+    private final FullscreenScroll scroll = new FullscreenScroll();
+    private final IllustrationView.Renderer illustrations;
+    private final Consumer<String> navigate;
+    private final Map<Integer, ReadOnlyDataTableView<?>> tableViews = new HashMap<>();
+    private SemanticDocument document;
+    private UiBounds bounds = new UiBounds(0, 0, 0, 0);
+    private Font font;
+    private List<BlockLayout> layout = List.of();
+    private List<LinkHit> linkHits = List.of();
+    private int contentHeight;
+    private Integer activeTable;
+
+    public ContentViewport(IllustrationView.Renderer illustrations, Consumer<String> navigate) {
+        this.illustrations = Objects.requireNonNull(illustrations, "Illustration renderer");
+        this.navigate = Objects.requireNonNull(navigate, "Navigation callback");
+    }
+
+    public int scrollOffset() { return scroll.offset(); }
+    public void restore(int offset) { scroll.restore(offset); }
+
+    public void prepare(Font font, UiBounds bounds, SemanticDocument document) {
+        this.font = Objects.requireNonNull(font, "Font");
+        this.bounds = bounds;
+        boolean changedDocument = this.document != document;
+        this.document = Objects.requireNonNull(document, "Document");
+        if (changedDocument) {
+            tableViews.clear();
+            activeTable = null;
+        }
+        int width = Math.max(1, bounds.width() - PADDING * 2 - 3);
+        int y = PADDING;
+        List<BlockLayout> measured = new ArrayList<>();
+        int titleHeight = wrappedHeight(font, document.title(), width, font.lineHeight + 2);
+        measured.add(new BlockLayout(-1, null, y, titleHeight, font.split(document.title(), width)));
+        y += titleHeight + GAP;
+        for (int index = 0; index < document.blocks().size(); index++) {
+            SemanticDocument.Block block = document.blocks().get(index);
+            Object detail;
+            int height;
+            if (block instanceof SemanticDocument.Heading heading) {
+                int lineHeight = heading.level() == SemanticDocument.HeadingLevel.SECTION
+                        ? font.lineHeight + 2 : font.lineHeight + 1;
+                List<FormattedCharSequence> lines = font.split(heading.text(), width);
+                detail = lines;
+                height = Math.max(lineHeight, lines.size() * lineHeight + 2);
+            } else if (block instanceof SemanticDocument.Paragraph paragraph) {
+                List<FormattedCharSequence> lines = font.split(paragraph.text(), width);
+                detail = lines;
+                height = Math.max(font.lineHeight, lines.size() * (font.lineHeight + 2));
+            } else if (block instanceof SemanticDocument.OrderedSteps steps) {
+                List<List<FormattedCharSequence>> lines = new ArrayList<>();
+                height = 0;
+                for (Component step : steps.steps()) {
+                    List<FormattedCharSequence> wrapped = font.split(step, Math.max(1, width - 22));
+                    lines.add(wrapped);
+                    height += Math.max(1, wrapped.size()) * (font.lineHeight + 2) + 3;
+                }
+                detail = List.copyOf(lines);
+            } else if (block instanceof SemanticDocument.Callout callout) {
+                List<FormattedCharSequence> lines = font.split(callout.text(), Math.max(1, width - 14));
+                detail = lines;
+                height = font.lineHeight + 8 + Math.max(1, lines.size()) * (font.lineHeight + 2) + 6;
+            } else if (block instanceof SemanticDocument.Illustration illustration) {
+                IllustrationView.Layout illustrationLayout = IllustrationView.layout(font, illustration,
+                        new UiBounds(0, 0, width, illustration.preferredHeight() + font.lineHeight * 3 + 12));
+                detail = illustrationLayout;
+                height = illustrationLayout.bounds().height();
+            } else if (block instanceof SemanticDocument.StatRows stats) {
+                detail = null;
+                height = stats.rows().size() * 16 + 2;
+            } else if (block instanceof SemanticDocument.Requirements requirements) {
+                detail = null;
+                height = requirements.rows().size() * 19 + 2;
+            } else if (block instanceof SemanticDocument.Table<?> table) {
+                ReadOnlyDataTableView<?> view = tableViews.computeIfAbsent(index, ignored -> tableView(table));
+                int rows = table.data().rows().size();
+                height = ReadOnlyDataTableView.HEADER_HEIGHT
+                        + Math.max(1, Math.min(7, rows)) * ReadOnlyDataTableView.ROW_HEIGHT + 2;
+                detail = view;
+            } else if (block instanceof SemanticDocument.Links links) {
+                detail = null;
+                height = links.links().size() * 18;
+            } else {
+                throw new IllegalStateException("Unknown semantic content block " + block);
+            }
+            measured.add(new BlockLayout(index, block, y, height, detail));
+            y += height + GAP;
+        }
+        contentHeight = Math.max(0, y - GAP + PADDING);
+        layout = List.copyOf(measured);
+        scroll.configure(contentHeight, bounds.height());
+        prepareInteractiveChildren();
+    }
+
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        FullscreenControls.panel(graphics, bounds, AscendanceUiPalette.argb(AscendanceUiPalette.SURFACE),
+                AscendanceUiPalette.argb(AscendanceUiPalette.BORDER));
+        UiBounds clip = bounds.inset(1);
+        FullscreenViewport.withClip(graphics, clip, () -> {
+            for (BlockLayout block : layout) {
+                int y = screenY(block.y());
+                if (y + block.height() < clip.y() || y >= clip.bottom()) continue;
+                if (block.index() == -1) {
+                    drawLines(graphics, castLines(block.detail()), bounds.x() + PADDING, y,
+                            font.lineHeight + 2, AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT));
+                } else {
+                    renderBlock(graphics, block, y, mouseX, mouseY, partialTick);
+                }
+            }
+        });
+        renderScrollbar(graphics);
+    }
+
+    @Override public boolean click(double x, double y, int button) {
+        if (!bounds.contains(x, y)) return false;
+        for (LinkHit link : linkHits) {
+            if (link.bounds().contains(x, y)) {
+                activeTable = null;
+                if (button == 0) navigate.accept(link.target());
+                return true;
+            }
+        }
+        for (BlockLayout block : layout) {
+            if (!(block.detail() instanceof ReadOnlyDataTableView<?> table)) continue;
+            UiBounds tableBounds = blockBounds(block);
+            if (tableBounds.contains(x, y)) {
+                activeTable = block.index();
+                return table.click(x, y, button);
+            }
+        }
+        activeTable = null;
+        return true;
+    }
+
+    @Override public boolean scroll(double x, double y, double dx, double dy) {
+        for (BlockLayout block : layout) {
+            if (block.detail() instanceof ReadOnlyDataTableView<?> table && blockBounds(block).contains(x, y)
+                    && table.hasOverflow() && table.scroll(dy)) return true;
+        }
+        scroll.wheel(dy, 28);
+        prepareInteractiveChildren();
+        return true;
+    }
+
+    @Override public boolean key(int key, int scan, int modifiers) {
+        if (activeTable != null) {
+            for (BlockLayout block : layout) {
+                if (block.index() == activeTable && block.detail() instanceof ReadOnlyDataTableView<?> table
+                        && table.key(key)) return true;
+            }
+        }
+        boolean handled = scroll.key(key, 14, Math.max(14, bounds.height() - 24));
+        if (handled) prepareInteractiveChildren();
+        return handled;
+    }
+
+    @Override public void focused(boolean focused) {
+        if (!focused) activeTable = null;
+    }
+
+    /** Called by the host's foreground tooltip pass, after article/table scissors are released. */
+    public void renderTooltips(GuiGraphics graphics, int mouseX, int mouseY) {
+        if (!bounds.inset(1).contains(mouseX, mouseY)) return;
+        for (BlockLayout block : layout) {
+            if (!(block.detail() instanceof ReadOnlyDataTableView<?> table)) continue;
+            var overflow = table.overflowTextAt(mouseX, mouseY);
+            if (overflow.isPresent()) {
+                graphics.renderTooltip(font, font.split(overflow.get(), Math.max(1, Math.min(320, graphics.guiWidth() - 24))),
+                        mouseX, mouseY);
+                return;
+            }
+        }
+    }
+
+    private void renderBlock(GuiGraphics graphics, BlockLayout measured, int y,
+                             int mouseX, int mouseY, float partialTick) {
+        int x = bounds.x() + PADDING;
+        int width = Math.max(0, bounds.width() - PADDING * 2 - 3);
+        SemanticDocument.Block block = measured.block();
+        if (block instanceof SemanticDocument.Heading heading) {
+            int color = heading.level() == SemanticDocument.HeadingLevel.SECTION
+                    ? AscendanceUiPalette.argb(AscendanceUiPalette.INFORMATION)
+                    : AscendanceUiPalette.argb(AscendanceUiPalette.SPECIAL);
+            drawLines(graphics, castLines(measured.detail()), x, y,
+                    heading.level() == SemanticDocument.HeadingLevel.SECTION ? font.lineHeight + 2 : font.lineHeight + 1,
+                    color);
+            graphics.fill(x, y + measured.height() - 1, x + width, y + measured.height(),
+                    AscendanceUiPalette.argb(AscendanceUiPalette.DIVIDER));
+        } else if (block instanceof SemanticDocument.Paragraph) {
+            drawLines(graphics, castLines(measured.detail()), x, y, font.lineHeight + 2,
+                    AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT));
+        } else if (block instanceof SemanticDocument.OrderedSteps) {
+            int lineY = y;
+            List<List<FormattedCharSequence>> all = castNestedLines(measured.detail());
+            for (int index = 0; index < all.size(); index++) {
+                Component marker = Component.translatable("gui.essence_ascendance.content.step", index + 1);
+                graphics.drawString(font, marker, x, lineY,
+                        AscendanceUiPalette.argb(AscendanceUiPalette.INTERACTIVE), false);
+                drawLines(graphics, all.get(index), x + 22, lineY, font.lineHeight + 2,
+                        AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT));
+                lineY += Math.max(1, all.get(index).size()) * (font.lineHeight + 2) + 3;
+            }
+        } else if (block instanceof SemanticDocument.Callout callout) {
+            UiBounds calloutBounds = new UiBounds(x, y, width, measured.height());
+            int accent = switch (callout.kind()) {
+                case NOTE -> AscendanceUiPalette.INFORMATION;
+                case WARNING -> AscendanceUiPalette.WARNING;
+                case TIP -> AscendanceUiPalette.SUCCESS;
+            };
+            FullscreenControls.panel(graphics, calloutBounds,
+                    AscendanceUiPalette.controlHoverArgb(accent), AscendanceUiPalette.argb(accent));
+            graphics.drawString(font, callout.title(), x + 7, y + 5, AscendanceUiPalette.argb(accent), false);
+            drawLines(graphics, castLines(measured.detail()), x + 7, y + font.lineHeight + 10,
+                    font.lineHeight + 2, AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT));
+        } else if (block instanceof SemanticDocument.Illustration illustration) {
+            IllustrationView.Layout raw = (IllustrationView.Layout) measured.detail();
+            IllustrationView.Layout shifted = shift(raw, x + Math.max(0, (width - raw.bounds().width()) / 2), y);
+            IllustrationView.render(graphics, font, illustration, shifted, partialTick, illustrations);
+        } else if (block instanceof SemanticDocument.StatRows stats) {
+            int rowY = y;
+            for (SemanticDocument.StatRow row : stats.rows()) {
+                graphics.drawString(font, row.label(), x + 4, rowY + 3,
+                        AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT), false);
+                graphics.drawString(font, row.value(), x + width - 4 - font.width(row.value()), rowY + 3,
+                        AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT), false);
+                graphics.fill(x, rowY + 15, x + width, rowY + 16, 0x66535B68);
+                rowY += 16;
+            }
+        } else if (block instanceof SemanticDocument.Requirements requirements) {
+            int rowY = y;
+            for (SemanticDocument.Requirement requirement : requirements.rows()) {
+                int color = switch (requirement.status()) {
+                    case MET -> AscendanceUiPalette.SUCCESS;
+                    case UNMET -> AscendanceUiPalette.ERROR;
+                    case INFORMATION -> AscendanceUiPalette.INFORMATION;
+                };
+                Component status = Component.translatable("gui.essence_ascendance.requirement."
+                        + requirement.status().name().toLowerCase(java.util.Locale.ROOT));
+                graphics.drawString(font, status, x + 4, rowY + 3, AscendanceUiPalette.argb(color), false);
+                graphics.drawString(font, requirement.label(), x + 25, rowY + 3,
+                        AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT), false);
+                graphics.drawString(font, requirement.detail(), x + width - 4 - font.width(requirement.detail()), rowY + 3,
+                        AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT), false);
+                rowY += 19;
+            }
+        } else if (measured.detail() instanceof ReadOnlyDataTableView<?> table) {
+            table.render(graphics, font, mouseX, mouseY);
+        } else if (block instanceof SemanticDocument.Links links) {
+            int rowY = y;
+            for (SemanticDocument.Link link : links.links()) {
+                UiBounds linkBounds = new UiBounds(x, rowY, width, 16);
+                int color = linkBounds.contains(mouseX, mouseY)
+                        ? AscendanceUiPalette.argb(AscendanceUiPalette.INTERACTIVE)
+                        : AscendanceUiPalette.argb(AscendanceUiPalette.INFORMATION);
+                Component relation = Component.translatable("gui.essence_ascendance.link."
+                        + link.relation().name().toLowerCase(java.util.Locale.ROOT), link.label());
+                graphics.drawString(font, relation, x + 5, rowY + 3, color, false);
+                rowY += 18;
+            }
+        }
+    }
+
+    private void prepareInteractiveChildren() {
+        if (font == null || document == null) return;
+        List<LinkHit> hits = new ArrayList<>();
+        for (BlockLayout block : layout) {
+            UiBounds blockBounds = blockBounds(block);
+            if (block.detail() instanceof ReadOnlyDataTableView<?> table) table.prepare(font, blockBounds);
+            if (block.block() instanceof SemanticDocument.Links links) {
+                int rowY = blockBounds.y();
+                for (SemanticDocument.Link link : links.links()) {
+                    hits.add(new LinkHit(new UiBounds(blockBounds.x(), rowY, blockBounds.width(), 16), link.target()));
+                    rowY += 18;
+                }
+            }
+        }
+        linkHits = List.copyOf(hits);
+    }
+
+    private UiBounds blockBounds(BlockLayout block) {
+        return new UiBounds(bounds.x() + PADDING, screenY(block.y()),
+                Math.max(0, bounds.width() - PADDING * 2 - 3), block.height());
+    }
+
+    private int screenY(int contentY) { return bounds.y() + contentY - scroll.offset(); }
+
+    private void renderScrollbar(GuiGraphics graphics) {
+        if (scroll.maximumOffset() <= 0 || bounds.height() <= 2) return;
+        int trackHeight = bounds.height() - 2;
+        int thumbHeight = Math.max(10, trackHeight * bounds.height() / Math.max(bounds.height(), contentHeight));
+        int travel = Math.max(0, trackHeight - thumbHeight);
+        int y = bounds.y() + 1 + travel * scroll.offset() / Math.max(1, scroll.maximumOffset());
+        graphics.fill(bounds.right() - 3, bounds.y() + 1, bounds.right() - 1, bounds.bottom() - 1, 0x88535B68);
+        graphics.fill(bounds.right() - 3, y, bounds.right() - 1, y + thumbHeight,
+                AscendanceUiPalette.argb(AscendanceUiPalette.BORDER));
+    }
+
+    private static int wrappedHeight(Font font, Component component, int width, int lineHeight) {
+        return Math.max(lineHeight, font.split(component, Math.max(1, width)).size() * lineHeight);
+    }
+
+    private void drawLines(GuiGraphics graphics, List<FormattedCharSequence> lines,
+                           int x, int y, int lineHeight, int color) {
+        for (FormattedCharSequence line : lines) {
+            graphics.drawString(font, line, x, y, color, false);
+            y += lineHeight;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<FormattedCharSequence> castLines(Object value) {
+        return (List<FormattedCharSequence>) value;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<List<FormattedCharSequence>> castNestedLines(Object value) {
+        return (List<List<FormattedCharSequence>>) value;
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static ReadOnlyDataTableView<?> tableView(SemanticDocument.Table<?> table) {
+        return new ReadOnlyDataTableView((ReadOnlyDataTable) table.data());
+    }
+
+    private static IllustrationView.Layout shift(IllustrationView.Layout raw, int x, int y) {
+        int dx = x - raw.bounds().x();
+        int dy = y - raw.bounds().y();
+        return new IllustrationView.Layout(shift(raw.bounds(), dx, dy), shift(raw.figure(), dx, dy),
+                shift(raw.caption(), dx, dy), raw.captionLines());
+    }
+
+    private static UiBounds shift(UiBounds bounds, int dx, int dy) {
+        return new UiBounds(bounds.x() + dx, bounds.y() + dy, bounds.width(), bounds.height());
+    }
+
+}

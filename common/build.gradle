@@ -111,6 +111,7 @@ def balanceInvariantMains = [
         machineUiFoundationInvariants: 'com.mistaboom.essence_ascendance.client.MachineUiFoundationTest',
         fullscreenCompositionInvariants: 'com.mistaboom.essence_ascendance.client.FullscreenCompositionTest',
         fullscreenNavigationInvariants: 'com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenNavigationTest',
+        archiveFoundationInvariants: 'com.mistaboom.essence_ascendance.client.archive.ArchiveFoundationTest',
         balanceRankInvariants: 'com.mistaboom.essence_ascendance.skill.SkillRankCurveTest',
         balanceLedgerInvariants: 'com.mistaboom.essence_ascendance.skill.balance.SkillRankLedgerTest',
         balanceIntegrationInvariants: 'com.mistaboom.essence_ascendance.balance.generated.GeneratedBalanceIntegrationTest',

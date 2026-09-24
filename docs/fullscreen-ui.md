@@ -1,6 +1,6 @@
 # Fullscreen composition
 
-The fullscreen presentation layer lives in `client.ui.fullscreen`. Nexus is its shipping menu-backed consumer. `FullscreenCompositionTest.ArchiveScreenExample` is a nonshipping ordinary-screen consumer. The framework has no Nexus mode, essence/category, screen-ID switch, transaction, network, or menu dependency.
+The fullscreen presentation layer lives in `client.ui.fullscreen`. Nexus is its shipping menu-backed consumer and the Ascendance Archive is its shipping ordinary-screen consumer. `FullscreenCompositionTest.ArchiveScreenExample` remains a small nonshipping composition fixture. The framework has no Nexus or Archive mode, essence/category, screen-ID switch, transaction, network, or menu dependency.
 
 ## Host and lifecycle boundary
 
@@ -13,6 +13,14 @@ The fullscreen presentation layer lives in `client.ui.fullscreen`. Nexus is its 
 - `renderFullscreenTooltips(...)`: host content tooltips, called only when the overlay stack allows them.
 - `fullscreen`: the instance-owned composition controller. Neither adapter saves navigation or chooses a close policy for its host.
 
+### Native background rendering contract
+
+Minecraft 1.21.1 `Screen.render` calls the virtual `renderBackground` hook before widgets. The default ordinary-screen background runs the blur post-process. `FullscreenScreen` therefore renders the composition in its final `renderBackground` override and delegates to `Screen.render` once; it must never render the composition first and then invoke the default background. The composition already supplies the fullscreen surface. Widgets follow that surface, then shared overlays and tooltips render in the foreground.
+
+`FullscreenContainerScreen` retains the native container `renderBackground` → `renderBg` dispatch. Fabric invokes that dispatch through `Screen.render`; NeoForge inlines it to insert its background event. Both draw it once. `MachineContainerScreen` also relies on this single native pass instead of calling `renderBackground` explicitly before `super.render`.
+
+`FullscreenRenderContractTest`, included in `fullscreenCompositionInvariants`, checks these actual mapped loader methods and the production host call order without requiring an OpenGL context. `FullscreenScroll.ensureVisible(start, size)` provides the common measured selection-reveal operation used by entry lists and data tables.
+
 Nexus continues to own `onClose`, `removed`, `submitDraft`, `consumeTransactionResult`, and the accepted ascension handoff. A generic control emits an action callback. It cannot authorize an allocation, commit a transaction, discard a draft, acknowledge ascension, or decide when the menu should close.
 
 ## Shared API and ownership
@@ -20,7 +28,7 @@ Nexus continues to own `onClose`, `removed`, `submitDraft`, `consumeTransactionR
 | API | Responsibility |
 | --- | --- |
 | `FullscreenLayout.Spec`, `frame` | Fullscreen bounds, centered mode band, optional secondary band, content region, margins and reflow. Dimensions are configurable. |
-| `segments`, `tabs`, `bands`, `listDetail`, `fixedWidthsRow`, `centered` | Reusable layout policies returning the exact bounds used for rendering and input. Arbitrary mode/tab/control counts; no mandatory secondary navigation. |
+| `segments`, `tabs`, `bands`, `listDetail`, `fixedWidthsRow`, `centered` | Reusable layout policies returning the exact bounds used for rendering and input. Bands optionally reserve bounded gutters while retaining aligned widths. Arbitrary mode/tab/control counts; no mandatory secondary navigation. |
 | `FullscreenComposition.Builder` | Explicit assembly of mode descriptors, optional sections, panels, content regions, controls, and overlays. |
 | `Region` | Stable ID, bounds, render callback, content input callback, and focus participation. Content may be a list, detail page, field, tree, or custom view. |
 | `Control` / `FullscreenControls` | Stable ID, styled `Component` label, enabled/selected state, bounds, accent, common skin and action. The controller owns hit testing, focus, keyboard activation and disabled-event consumption. |
@@ -66,11 +74,13 @@ Capture the session token at screen construction, recall using that token, and u
 
 Do not reconcile a temporary unavailable list as authoritative content. Nexus only reconciles categories/attunement once its synchronized snapshot is ready. Generic navigation's `authoritative=false` and unmeasured scroll restoration preserve remembered locations during waits. Once authoritative content is available, removed sections fall back safely and scroll/windows clamp to current dimensions.
 
-## Archive consumption and executable proof
+## Archive consumer
 
-Use `FullscreenScreen` for Archive unless its actual gameplay lifecycle requires a menu. Keep Guide, Reference, and Search as Archive-owned stable mode IDs and declare their descriptors with `Builder.modes`. Supply section descriptors and `Builder.sections` for Guide and Reference only. Compose Search from a field and results region using `bands`; use `listDetail` for Guide and a full content region for Reference. Give each mode its own location and content offsets in an Archive-typed snapshot backed by its own `UiNavigationMemory` instance.
+`AscendanceArchiveScreen` is the shipping ordinary-screen consumer. It declares Guide, Reference, and Search through `Builder.modes`, Guide/Reference sections through `Builder.sections`, shared list/detail regions for documents, and aligned field/results regions for Search. Search results distinguish selection from activation: arrows move selection, while a primary click or Enter/Space opens the selected entry. It has no menu or copied fullscreen router. Archive session state is typed and backed by its own `UiNavigationMemory` instance; Guide, Reference, and Search retain independent locations and offsets.
 
-The executable `FullscreenCompositionTest` includes `ArchiveScreenExample extends FullscreenScreen`, using exactly the same pure scene factory exercised by the fixture. It demonstrates Guide list/detail with secondary tabs, Reference with secondary tabs and a different content layout, and Search with a focused field/results layout and no secondary tabs. It also composes five arbitrary modes. It copies no Nexus layout/input code and introduces no shared screen-ID switch or player-facing interface.
+Archive's reusable content and read-only data-view APIs are documented in `docs/ascendance-archive.md`. The Skill Rank Reference uses the shared typed table component, and illustrations resolve real registered item presentations inside shared fit/clip/render-state boundaries.
+
+The earlier executable `FullscreenCompositionTest` proof remains as a deliberately small alternate-consumer fixture. The shipping Archive now exercises the same host with real localized content, catalog navigation, entry/article components and Search state. Neither introduces a shared screen-ID switch.
 
 Register content input through `Region` and actions through `Control`; do not add a new screen-local generic tab, focus, pan, modal or scroll router. Supply content rendering and semantic actions; use shared layout/viewport policies to make draw/hit geometry agree. Use the existing styled/semantic tooltip systems for Archive content when appropriate.
 

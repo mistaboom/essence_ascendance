@@ -29,6 +29,13 @@ public final class EssenceMachineMeshes {
     private EssenceMachineMeshes() {
     }
 
+    public static void invalidateAll() {
+        CRUCIBLE.invalidate();
+        PYLON.invalidate();
+        NEXUS.invalidate();
+        INFUSER.invalidate();
+    }
+
     private static ResourceLocation id(String path) {
         return ResourceLocation.fromNamespaceAndPath(
                 EssenceAscendance.MOD_ID,

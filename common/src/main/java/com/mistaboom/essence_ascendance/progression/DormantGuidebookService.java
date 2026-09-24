@@ -2,21 +2,18 @@ package com.mistaboom.essence_ascendance.progression;
 
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
+import com.mistaboom.essence_ascendance.item.AscendanceItems;
 import com.mistaboom.essence_ascendance.text.EssenceText;
 import com.mistaboom.essence_ascendance.visual.AscendancePalette;
-import net.minecraft.ChatFormatting;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.component.ItemLore;
 
-import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
-/** One persistent welcome gift when a player first reaches a powered tier. */
+/** One persistent Ascendance Archive welcome gift when a player first reaches a powered tier. */
 public final class DormantGuidebookService {
     public enum DeliveryResult {
         INVENTORY, DROPPED, FAILED;
@@ -36,8 +33,8 @@ public final class DormantGuidebookService {
         EssenceSavedData saved = EssenceSavedData.get(player.server);
         PlayerEssenceData data = saved.getPlayerData(player.getUUID());
         var placement = new java.util.concurrent.atomic.AtomicReference<>(DeliveryResult.FAILED);
-        boolean delivered = deliverIfEligible(data, book -> {
-            placement.set(placeBook(player, book));
+        boolean delivered = deliverIfEligible(data, archive -> {
+            placement.set(placeBook(player, archive));
             return placement.get().delivered();
         });
         if (delivered) {
@@ -58,7 +55,12 @@ public final class DormantGuidebookService {
     }
 
     static DeliveryResult giveForAdmin(PlayerEssenceData data, Function<ItemStack, DeliveryResult> delivery) {
-        DeliveryResult result = delivery.apply(createPlaceholder());
+        return giveForAdmin(data, delivery, DormantGuidebookService::createArchive);
+    }
+
+    static DeliveryResult giveForAdmin(PlayerEssenceData data, Function<ItemStack, DeliveryResult> delivery,
+                                       Supplier<ItemStack> archive) {
+        DeliveryResult result = delivery.apply(archive.get());
         if (result.delivered()) data.markDormantGuidebookReceived();
         return result;
     }
@@ -78,8 +80,13 @@ public final class DormantGuidebookService {
 
     /** Shared delivery decision: only successful inventory/drop delivery earns a receipt. */
     static boolean deliverIfEligible(PlayerEssenceData data, Predicate<ItemStack> delivery) {
+        return deliverIfEligible(data, delivery, DormantGuidebookService::createArchive);
+    }
+
+    static boolean deliverIfEligible(PlayerEssenceData data, Predicate<ItemStack> delivery,
+                                     Supplier<ItemStack> archive) {
         if (!data.getTier().grantsPower() || data.hasReceivedDormantGuidebook()) return false;
-        if (!delivery.test(createPlaceholder())) return false;
+        if (!delivery.test(archive.get())) return false;
         data.markDormantGuidebookReceived();
         return true;
     }
@@ -97,14 +104,5 @@ public final class DormantGuidebookService {
         return drop.test(book) ? DeliveryResult.DROPPED : DeliveryResult.FAILED;
     }
 
-    public static ItemStack createPlaceholder() {
-        ItemStack book = new ItemStack(Items.BOOK);
-        book.set(DataComponents.ITEM_NAME, EssenceText.guide("placeholder.title")
-                .withStyle(style -> style.withColor(AscendancePalette.DORMANT.metalRgb())));
-        book.set(DataComponents.LORE, new ItemLore(List.of(
-                EssenceText.guide("placeholder.welcome").withStyle(ChatFormatting.GRAY),
-                EssenceText.guide("placeholder.contents").withStyle(ChatFormatting.DARK_GRAY)
-        )));
-        return book;
-    }
+    public static ItemStack createArchive() { return new ItemStack(AscendanceItems.ASCENDANCE_ARCHIVE.get()); }
 }

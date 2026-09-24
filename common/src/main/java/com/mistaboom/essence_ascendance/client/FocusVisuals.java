@@ -41,6 +41,8 @@ public final class FocusVisuals {
 
     private FocusVisuals() { }
 
+    public static void invalidateResources() { GEM.invalidate(); }
+
     public enum Host { GENERIC, PYLON, INFUSER }
 
     /** Anchor is block-local for installed Foci; yaw is in world degrees. */

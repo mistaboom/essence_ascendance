@@ -194,7 +194,6 @@ public abstract class MachineContainerScreen<M extends AbstractContainerMenu>
             int mouseY,
             float partialTick
     ) {
-        renderBackground(graphics, mouseX, mouseY, partialTick);
         updateMachineWidgets();
         synchronizeWidgetFocus();
         super.render(graphics, mouseX, mouseY, partialTick);

@@ -17,9 +17,9 @@ import java.util.Locale;
 /**
  * Central translation-key vocabulary for Essence Ascendance.
  *
- * <p>Short machine labels, tooltips, commands, and future guidebook pages
+ * <p>Short machine labels, tooltips, commands, and Archive documents
  * should reference semantic keys instead of embedding English in Java. Long
- * guidebook prose can live under {@code guide.essence_ascendance.*} while
+ * Archive prose can live under {@code guide.essence_ascendance.*} while
  * reusing the canonical Essence/stat/tier names exposed here.</p>
  */
 public final class EssenceText {

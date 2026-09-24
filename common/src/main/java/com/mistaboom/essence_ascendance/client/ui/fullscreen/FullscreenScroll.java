@@ -30,6 +30,16 @@ public final class FullscreenScroll {
         return measured ? viewport.maximumOffset() : 0;
     }
 
+    /** Reveal an item in the same units as configure, without discarding measurement. */
+    public void ensureVisible(int start, int size) {
+        if (!measured || viewport.viewportSize() == 0) return;
+        int target = viewport.offset();
+        if (start < target) target = start;
+        else if ((long) start + size > (long) target + viewport.viewportSize())
+            target = start + Math.min(Math.max(1, size), viewport.viewportSize()) - viewport.viewportSize();
+        viewport = UiViewport.create(viewport.contentSize(), viewport.viewportSize(), target);
+    }
+
     public void wheel(double amount, int step) {
         if (measured) viewport = viewport.scrollBy(-(int) Math.signum(amount) * Math.max(1, step));
     }

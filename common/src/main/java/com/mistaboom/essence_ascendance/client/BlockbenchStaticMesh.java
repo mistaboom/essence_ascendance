@@ -36,6 +36,13 @@ public final class BlockbenchStaticMesh {
 
     private volatile float[] vertexData;
 
+    /** Client resource reload boundary; the next render resolves the current mesh asset. */
+    public void invalidate() {
+        synchronized (this) {
+            vertexData = null;
+        }
+    }
+
     public BlockbenchStaticMesh(
             ResourceLocation meshResource,
             ResourceLocation texture

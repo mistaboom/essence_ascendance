@@ -21,7 +21,8 @@ public final class FullscreenCompositionTest {
     private static int checks;
     private static final FullscreenComposition.Renderer NO_RENDER = (graphics, x, y, tick) -> { };
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
+        checks += FullscreenRenderContractTest.run();
         archiveFixture();
         reflow();
         focusAndRouting();
@@ -98,6 +99,12 @@ public final class FullscreenCompositionTest {
                     check(bands.header().bottom() == bands.body().y() && bands.body().bottom() == bands.footer().y()
                                     && bands.footer().bottom() == frame.content().bottom(),
                             "Bands partition available height without overlap");
+                    var spaced = FullscreenLayout.bands(frame.content(), 24, 0, 6);
+                    check(spaced.header().x() == spaced.body().x()
+                                    && spaced.header().width() == spaced.body().width()
+                                    && spaced.body().y() - spaced.header().bottom() <= 6
+                                    && spaced.body().bottom() == frame.content().bottom(),
+                            "Spaced bands align widths and retain their bounded vertical gutter");
                     var tabs = FullscreenLayout.tabs(frame.secondary(), List.of(30, 80, 42, 150), 64, 102, 18, 3);
                     check(tabs.items().stream().allMatch(item -> inside(item, frame.secondary())),
                             "Tab draw/hit bounds remain inside their shared band");
@@ -412,6 +419,20 @@ public final class FullscreenCompositionTest {
         rows.restore(12);
         check(rows.offset() == 12, "A fresh restore is not erased by an earlier measurement");
         check(!rows.key(267, 1, 8) && rows.offset() == 12, "Input before current measurement preserves restored offsets");
+        rows.ensureVisible(0, 1);
+        check(rows.offset() == 12, "Reveal before measurement does not erase restoration");
+        rows.configure(100, 5);
+        rows.ensureVisible(20, 1);
+        check(rows.offset() == 16, "Keyboard selection below the viewport reveals its full row");
+        rows.ensureVisible(9, 1);
+        check(rows.offset() == 9, "Keyboard selection above the viewport scrolls back into view");
+        rows.ensureVisible(11, 1);
+        check(rows.offset() == 9, "An already visible selection does not move the viewport");
+        rows.ensureVisible(99, 1);
+        check(rows.offset() == 95, "Reveal at the last row clamps to the measured end");
+        rows.configure(100, 0);
+        rows.ensureVisible(0, 1);
+        check(rows.offset() == 95, "A collapsed viewport does not change selection scroll");
     }
 
     /** Compile-time host proof: the same factory plugs into an ordinary screen without menu rules. */
