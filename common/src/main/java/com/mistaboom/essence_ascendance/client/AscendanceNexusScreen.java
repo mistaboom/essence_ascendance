@@ -16,6 +16,7 @@ import com.mistaboom.essence_ascendance.network.AscendanceNexusTransactionPayloa
 import com.mistaboom.essence_ascendance.network.PlayerEssenceSyncPayload;
 import com.mistaboom.essence_ascendance.progression.BonusTrackCurve;
 import com.mistaboom.essence_ascendance.visual.AscendancePalette;
+import com.mistaboom.essence_ascendance.visual.AscendanceUiPalette;
 import com.mistaboom.essence_ascendance.client.procedural.GuiProceduralGeometry;
 import com.mistaboom.essence_ascendance.skill.requirement.BonusInvestmentRequirement;
 import com.mistaboom.essence_ascendance.skill.requirement.PermanentMilestoneRequirement;
@@ -86,7 +87,7 @@ public final class AscendanceNexusScreen
     private static final int TRACK_LOCKED_TICK = 0xFF626269;
     private static final int TIER_LINE = 0x66606068;
     private static final int LOCKED = 0x552F2F34;
-    private static final int COMPLETE = 0xFF78C69A;
+    // These legacy warning/error accents belong to the protected skill presentation.
     private static final int INCOMPLETE = 0xFFD1B36A;
     private static final int ERROR = 0xFFD47A7A;
     private static final int[] SKILL_CHOICE_GROUP_COLORS = {
@@ -415,7 +416,10 @@ public final class AscendanceNexusScreen
                     MODE_SELECTOR_Y,
                     segmentRight,
                     MODE_SELECTOR_Y + MODE_SELECTOR_HEIGHT,
-                    !available ? 0x33201E27 : selected ? PANEL_INNER : hovered ? 0xAA292733 : 0x44292733
+                    !available ? GuiProceduralGeometry.opacity(AscendanceUiPalette.SURFACE, 0x33)
+                            : selected ? AscendanceUiPalette.argb(AscendanceUiPalette.RAISED_SURFACE)
+                            : hovered ? AscendanceUiPalette.controlHoverArgb(AscendanceUiPalette.INTERACTIVE)
+                            : GuiProceduralGeometry.opacity(AscendanceUiPalette.RAISED_SURFACE, 0x44)
             );
             outline(
                     graphics,
@@ -423,7 +427,9 @@ public final class AscendanceNexusScreen
                     MODE_SELECTOR_Y,
                     segmentActualWidth,
                     MODE_SELECTOR_HEIGHT,
-                    !available ? 0x554B4652 : selected || hovered ? BORDER_BRIGHT : 0x8877658E
+                    !available ? GuiProceduralGeometry.opacity(AscendanceUiPalette.DIVIDER, 0x55)
+                            : selected || hovered ? AscendanceUiPalette.argb(AscendanceUiPalette.INTERACTIVE)
+                            : GuiProceduralGeometry.opacity(AscendanceUiPalette.BORDER, 0x88)
             );
             graphics.drawCenteredString(
                     font,
@@ -436,7 +442,8 @@ public final class AscendanceNexusScreen
                             2,
                             (MODE_SELECTOR_HEIGHT - font.lineHeight) / 2
                     ),
-                    !available ? DIM : selected ? TEXT : MUTED
+                    AscendanceUiPalette.argb(selected && available
+                            ? AscendanceUiPalette.PRIMARY_TEXT : AscendanceUiPalette.MUTED_TEXT)
             );
         }
     }
@@ -704,30 +711,30 @@ public final class AscendanceNexusScreen
             int statusColor;
             if (transactionFeedback != null) {
                 status = transactionFeedback.getString();
-                statusColor = ERROR;
+                statusColor = AscendanceUiPalette.argb(AscendanceUiPalette.ERROR);
             } else if (action.kind() == NexusAscendanceAction.Kind.APPLYING) {
                 status = EssenceText.gui("nexus.transaction.waiting").getString();
-                statusColor = INCOMPLETE;
+                statusColor = AscendanceUiPalette.argb(AscendanceUiPalette.INFORMATION);
             } else if (action.kind() == NexusAscendanceAction.Kind.DISCARD_DRAFT) {
                 status = EssenceText.gui("nexus.draft.outdated").getString();
-                statusColor = ERROR;
+                statusColor = AscendanceUiPalette.argb(AscendanceUiPalette.ERROR);
             } else if (action.kind() == NexusAscendanceAction.Kind.APPLY_CHANGES) {
                 status = EssenceText.gui("nexus.pending_ready_to_apply").getString();
-                statusColor = COMPLETE;
+                statusColor = AscendanceUiPalette.argb(AscendanceUiPalette.SUCCESS);
             } else if (progress.status()
                     == PlayerEssenceSyncPayload.ProgressStatus.MAX_TIER) {
                 status = EssenceText.gui("nexus.maximum").getString();
-                statusColor = MUTED;
+                statusColor = AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT);
             } else if (progress.status()
                     == PlayerEssenceSyncPayload.ProgressStatus.CONFIGURATION_ERROR) {
                 status = EssenceText.gui("nexus.unavailable").getString();
-                statusColor = MUTED;
+                statusColor = AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT);
             } else if (action.enabled()) {
                 status = EssenceText.gui("nexus.ready_to_ascend").getString();
-                statusColor = COMPLETE;
+                statusColor = AscendanceUiPalette.argb(AscendanceUiPalette.SUCCESS);
             } else {
                 status = EssenceText.gui("nexus.requirements_incomplete").getString();
-                statusColor = MUTED;
+                statusColor = AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT);
             }
             graphics.drawCenteredString(
                     font,
@@ -765,14 +772,17 @@ public final class AscendanceNexusScreen
             boolean hovered
     ) {
         boolean enabled = action.enabled();
+        ResourceLocation nextTier = ClientEssenceState.snapshot().progress().nextTierId();
+        int accent = action.kind() == NexusAscendanceAction.Kind.ASCEND && nextTier != null
+                ? AscendancePalette.tierMetalRgb(nextTier) : AscendanceUiPalette.INTERACTIVE;
         graphics.fill(
                 x,
                 y,
                 x + ASCEND_BUTTON_WIDTH,
                 y + BOTTOM_CONTROL_HEIGHT,
                 enabled
-                        ? hovered ? 0xFF41364F : PANEL_INNER
-                        : 0x88201E26
+                        ? hovered ? AscendanceUiPalette.controlHoverArgb(accent) : AscendanceUiPalette.argb(AscendanceUiPalette.RAISED_SURFACE)
+                        : GuiProceduralGeometry.opacity(AscendanceUiPalette.argb(AscendanceUiPalette.SURFACE), 0x88)
         );
         outline(
                 graphics,
@@ -781,8 +791,8 @@ public final class AscendanceNexusScreen
                 ASCEND_BUTTON_WIDTH,
                 BOTTOM_CONTROL_HEIGHT,
                 enabled
-                        ? hovered ? 0xFFD0ADEB : BORDER_BRIGHT
-                        : 0xFF4A4650
+                        ? AscendanceUiPalette.argb(accent)
+                        : AscendanceUiPalette.argb(AscendanceUiPalette.DIVIDER)
         );
         graphics.drawCenteredString(
                 font,
@@ -795,7 +805,7 @@ public final class AscendanceNexusScreen
                         2,
                         (BOTTOM_CONTROL_HEIGHT - font.lineHeight) / 2
                 ),
-                enabled ? TEXT : DIM
+                enabled ? AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT) : AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT)
         );
     }
 
@@ -835,7 +845,7 @@ public final class AscendanceNexusScreen
                 EssenceText.gui("nexus.ascension_unavailable").getString(),
                 centerX,
                 centerY - 12,
-                ERROR
+                AscendanceUiPalette.argb(AscendanceUiPalette.ERROR)
         );
         List<FormattedCharSequence> guidance = new SemanticTooltip()
                 .description(EssenceText.gui("nexus.ascension_config_error"))
@@ -3584,7 +3594,7 @@ public final class AscendanceNexusScreen
                 y,
                 x + ALLOCATE_BUTTON_WIDTH,
                 y + BOTTOM_CONTROL_HEIGHT,
-                enabled ? PANEL_INNER : 0x88201E26
+                enabled ? AscendanceUiPalette.argb(AscendanceUiPalette.RAISED_SURFACE) : GuiProceduralGeometry.opacity(AscendanceUiPalette.argb(AscendanceUiPalette.SURFACE), 0x88)
         );
         outline(
                 graphics,
@@ -3592,7 +3602,7 @@ public final class AscendanceNexusScreen
                 y,
                 ALLOCATE_BUTTON_WIDTH,
                 BOTTOM_CONTROL_HEIGHT,
-                enabled ? BORDER_BRIGHT : 0xFF4A4650
+                enabled ? AscendanceUiPalette.argb(AscendanceUiPalette.INTERACTIVE) : AscendanceUiPalette.argb(AscendanceUiPalette.DIVIDER)
         );
         graphics.drawCenteredString(
                 font,
@@ -3602,7 +3612,7 @@ public final class AscendanceNexusScreen
                         2,
                         (BOTTOM_CONTROL_HEIGHT - font.lineHeight) / 2
                 ),
-                enabled ? TEXT : DIM
+                enabled ? AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT) : AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT)
         );
     }
 
@@ -3757,16 +3767,16 @@ public final class AscendanceNexusScreen
             ContentLayout layout
     ) {
         String instruction;
-        int color = MUTED;
+        int color = AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT);
         if (transactionFeedback != null) {
             instruction = transactionFeedback.getString();
-            color = ERROR;
+            color = AscendanceUiPalette.argb(AscendanceUiPalette.ERROR);
         } else if (draft.invalidated()) {
             instruction = EssenceText.gui("nexus.draft.outdated").getString();
-            color = ERROR;
+            color = AscendanceUiPalette.argb(AscendanceUiPalette.ERROR);
         } else if (pendingRequestId >= 0L) {
             instruction = EssenceText.gui("nexus.transaction.waiting").getString();
-            color = INCOMPLETE;
+            color = AscendanceUiPalette.argb(AscendanceUiPalette.INFORMATION);
         } else {
             instruction = hasStagedChanges()
                     ? EssenceText.gui("nexus.footer_staged_global").getString()
@@ -5953,7 +5963,7 @@ public final class AscendanceNexusScreen
                 layout.top(),
                 layout.right(),
                 layout.bottom(),
-                0xFF1C1B25
+                AscendanceUiPalette.argb(AscendanceUiPalette.SURFACE)
         );
         outline(
                 graphics,
@@ -5961,7 +5971,7 @@ public final class AscendanceNexusScreen
                 layout.top(),
                 layout.width(),
                 layout.height(),
-                BORDER_BRIGHT
+                AscendanceUiPalette.argb(AscendanceUiPalette.BORDER)
         );
 
         String title = EssenceText.gui("nexus.modal.exit_title").getString();
@@ -5970,7 +5980,7 @@ public final class AscendanceNexusScreen
                 trimToWidth(title, layout.width() - 16),
                 width / 2,
                 layout.top() + 10,
-                TEXT
+                AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT)
         );
 
         ClientEssenceState.Snapshot snapshot = ClientEssenceState.snapshot();
@@ -5985,7 +5995,7 @@ public final class AscendanceNexusScreen
                 trimToWidth(summary, layout.width() - 20),
                 width / 2,
                 layout.top() + 28,
-                MUTED
+                AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT)
         );
 
         if (transactionFeedback != null) {
@@ -5997,7 +6007,7 @@ public final class AscendanceNexusScreen
                     ),
                     width / 2,
                     layout.top() + 43,
-                    ERROR
+                    AscendanceUiPalette.argb(AscendanceUiPalette.ERROR)
             );
         } else if (pendingRequestId >= 0L) {
             graphics.drawCenteredString(
@@ -6005,7 +6015,7 @@ public final class AscendanceNexusScreen
                     EssenceText.gui("nexus.transaction.waiting").getString(),
                     width / 2,
                     layout.top() + 43,
-                    INCOMPLETE
+                    AscendanceUiPalette.argb(AscendanceUiPalette.WARNING)
             );
         }
 
@@ -6047,8 +6057,8 @@ public final class AscendanceNexusScreen
                 rect.right(),
                 rect.bottom(),
                 enabled
-                        ? hovered ? 0xFF41364F : 0xFF292733
-                        : 0xFF201E26
+                        ? hovered ? AscendanceUiPalette.controlHoverArgb(AscendanceUiPalette.INTERACTIVE) : AscendanceUiPalette.argb(AscendanceUiPalette.RAISED_SURFACE)
+                        : AscendanceUiPalette.argb(AscendanceUiPalette.SURFACE)
         );
         outline(
                 graphics,
@@ -6057,15 +6067,15 @@ public final class AscendanceNexusScreen
                 rect.width(),
                 rect.height(),
                 enabled
-                        ? hovered ? 0xFFD0ADEB : BORDER_BRIGHT
-                        : 0xFF4A4650
+                        ? hovered ? AscendanceUiPalette.argb(AscendanceUiPalette.INTERACTIVE) : AscendanceUiPalette.argb(AscendanceUiPalette.BORDER)
+                        : AscendanceUiPalette.argb(AscendanceUiPalette.DIVIDER)
         );
         graphics.drawCenteredString(
                 font,
                 trimToWidth(label, rect.width() - 6),
                 (rect.left() + rect.right()) / 2,
                 rect.top() + Math.max(2, (rect.height() - font.lineHeight) / 2),
-                enabled ? TEXT : DIM
+                enabled ? AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT) : AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT)
         );
     }
 
@@ -6309,7 +6319,7 @@ public final class AscendanceNexusScreen
                 y,
                 x + arrowWidth,
                 y + arrowHeight,
-                enabled ? PANEL_INNER : 0x88201E26
+                enabled ? AscendanceUiPalette.argb(AscendanceUiPalette.RAISED_SURFACE) : GuiProceduralGeometry.opacity(AscendanceUiPalette.argb(AscendanceUiPalette.SURFACE), 0x88)
         );
         outline(
                 graphics,
@@ -6317,14 +6327,14 @@ public final class AscendanceNexusScreen
                 y,
                 arrowWidth,
                 arrowHeight,
-                enabled ? BORDER : 0xFF4A4650
+                enabled ? AscendanceUiPalette.argb(AscendanceUiPalette.INTERACTIVE) : AscendanceUiPalette.argb(AscendanceUiPalette.DIVIDER)
         );
         graphics.drawCenteredString(
                 font,
                 glyph,
                 x + arrowWidth / 2,
                 y + Math.max(2, (arrowHeight - font.lineHeight) / 2),
-                enabled ? TEXT : DIM
+                enabled ? AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT) : AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT)
         );
     }
 

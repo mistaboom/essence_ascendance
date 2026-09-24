@@ -4,7 +4,8 @@ import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBlockEntity;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBalance;
 import com.mistaboom.essence_ascendance.infuser.FocusInfusionData;
 import com.mistaboom.essence_ascendance.text.EssenceText;
-import net.minecraft.ChatFormatting;
+import com.mistaboom.essence_ascendance.visual.AscendancePalette;
+import com.mistaboom.essence_ascendance.visual.AscendanceUiPalette;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -63,14 +64,21 @@ public final class EssenceFocusItem extends Item {
         Component tierName = tier == null
                 ? EssenceText.equipmentTier(com.mistaboom.essence_ascendance.equipment.EquipmentTier.LATENT)
                 : EssenceText.focusTier(tier);
+        int tierColor = tier == null
+                ? AscendancePalette.LATENT.metalRgb()
+                : AscendancePalette.tierMetalRgb(
+                        com.mistaboom.essence_ascendance.equipment.EquipmentTier.fromSerializedName(
+                                tier.serializedName()
+                        )
+                );
         tooltipComponents.add(
                 Component.literal("  ")
                         .append(EssenceText.tooltip("tier", tierName))
-                        .withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.BOLD)
+                        .withStyle(style -> style.withColor(tierColor).withBold(true))
         );
         tooltipComponents.add(Component.empty());
 
-        tooltipComponents.add(section(EssenceText.term("pylon"), ChatFormatting.GREEN));
+        tooltipComponents.add(section(EssenceText.term("pylon")));
         if (tier == null) {
             tooltipComponents.add(muted(EssenceText.tooltip("focus.latent_baseline")));
         } else {
@@ -89,7 +97,7 @@ public final class EssenceFocusItem extends Item {
         }
 
         tooltipComponents.add(Component.empty());
-        tooltipComponents.add(section(EssenceText.term("infuser"), ChatFormatting.AQUA));
+        tooltipComponents.add(section(EssenceText.term("infuser")));
         if (tier == null) {
             tooltipComponents.add(muted(EssenceText.tooltip("focus.latent_baseline")));
             EssenceInfuserBalance.Profile profile = EssenceInfuserBalance.profile((EssenceFocusTier) null);
@@ -116,16 +124,16 @@ public final class EssenceFocusItem extends Item {
         FocusInfusionData.appendTooltip(stack, tooltipComponents);
     }
 
-    private static Component section(Component title, ChatFormatting color) {
-        return title.copy().withStyle(color, ChatFormatting.BOLD);
+    private static Component section(Component title) {
+        return title.copy().withStyle(style -> style.withColor(AscendanceUiPalette.PRIMARY_TEXT).withBold(true));
     }
 
     private static Component value(Component text) {
-        return Component.literal("  ").append(text).withStyle(ChatFormatting.WHITE);
+        return Component.literal("  ").append(text).withStyle(style -> style.withColor(AscendanceUiPalette.PRIMARY_TEXT));
     }
 
     private static Component muted(Component text) {
-        return Component.literal("  ").append(text).withStyle(ChatFormatting.DARK_GRAY);
+        return Component.literal("  ").append(text).withStyle(style -> style.withColor(AscendanceUiPalette.MUTED_TEXT));
     }
 
     private static String format(long value) {

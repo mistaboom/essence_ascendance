@@ -1,10 +1,12 @@
 package com.mistaboom.essence_ascendance.infuser;
 
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
+import com.mistaboom.essence_ascendance.equipment.EquipmentTier;
 import com.mistaboom.essence_ascendance.pylon.EssenceFocusData;
 import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
 import com.mistaboom.essence_ascendance.text.EssenceText;
-import net.minecraft.ChatFormatting;
+import com.mistaboom.essence_ascendance.visual.AscendancePalette;
+import com.mistaboom.essence_ascendance.visual.AscendanceUiPalette;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -229,13 +231,17 @@ public final class FocusInfusionData {
         Progress progress = progressOptional.get();
         tooltip.add(Component.empty());
         tooltip.add(EssenceText.tooltip("infusion_progress")
-                .withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.BOLD));
+                .withStyle(style -> style
+                        .withColor(AscendancePalette.tierMetalRgb(
+                                EquipmentTier.fromSerializedName(progress.targetTier().serializedName())
+                        ))
+                        .withBold(true)));
         tooltip.add(Component.literal("  ")
                 .append(EssenceText.tooltip("target", EssenceText.focusTier(progress.targetTier())))
-                .withStyle(ChatFormatting.WHITE));
+                .withStyle(style -> style.withColor(AscendanceUiPalette.PRIMARY_TEXT)));
         tooltip.add(Component.literal("  ")
                 .append(EssenceText.tooltip("infused_essence", format(progress.totalContributed())))
-                .withStyle(ChatFormatting.GRAY));
+                .withStyle(style -> style.withColor(AscendanceUiPalette.MUTED_TEXT)));
     }
 
     private static Map<EssenceDefinition, Long> zeroContributions() {

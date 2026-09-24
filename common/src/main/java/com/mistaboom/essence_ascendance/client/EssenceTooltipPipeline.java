@@ -1,8 +1,9 @@
 package com.mistaboom.essence_ascendance.client;
 
+import com.mistaboom.essence_ascendance.equipment.EquipmentTier;
 import com.mistaboom.essence_ascendance.infuser.EssentiumCarrierData;
 import com.mistaboom.essence_ascendance.text.EssenceText;
-import net.minecraft.ChatFormatting;
+import com.mistaboom.essence_ascendance.visual.AscendancePalette;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -57,10 +58,11 @@ public final class EssenceTooltipPipeline {
                 tooltip.add(
                         Component.literal(" ")
                                 .append(EssenceText.tooltip("tier", EssenceText.focusTier(value.grade())))
-                                .withStyle(
-                                        ChatFormatting.LIGHT_PURPLE,
-                                        ChatFormatting.BOLD
-                                )
+                                .withStyle(style -> style
+                                        .withColor(AscendancePalette.tierMetalRgb(
+                                                EquipmentTier.fromSerializedName(value.grade().serializedName())
+                                        ))
+                                        .withBold(true))
                 );
                 ItemEssenceTooltipClientState.appendDirectEssenceTooltipMicros(
                         value.essence().id(),

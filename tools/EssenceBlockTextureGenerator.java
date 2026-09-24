@@ -1,3 +1,5 @@
+import com.mistaboom.essence_ascendance.visual.CanonicalPaletteValues;
+
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -27,18 +29,18 @@ public final class EssenceBlockTextureGenerator {
     private static final Map<String, Integer> TIER_COLORS = new LinkedHashMap<>();
 
     static {
-        ESSENCE_COLORS.put("offense", 0xD65368);
-        ESSENCE_COLORS.put("defense", 0x5B8FD9);
-        ESSENCE_COLORS.put("vitality", 0xE889B5);
-        ESSENCE_COLORS.put("mobility", 0x55C7D6);
-        ESSENCE_COLORS.put("gathering", 0x58B88B);
-        ESSENCE_COLORS.put("utility", 0xAC7ADD);
+        ESSENCE_COLORS.put("offense", CanonicalPaletteValues.OFFENSE);
+        ESSENCE_COLORS.put("defense", CanonicalPaletteValues.DEFENSE);
+        ESSENCE_COLORS.put("vitality", CanonicalPaletteValues.VITALITY);
+        ESSENCE_COLORS.put("mobility", CanonicalPaletteValues.MOBILITY);
+        ESSENCE_COLORS.put("gathering", CanonicalPaletteValues.GATHERING);
+        ESSENCE_COLORS.put("utility", CanonicalPaletteValues.UTILITY);
 
-        TIER_COLORS.put("dormant", 0x9FA6AF);
-        TIER_COLORS.put("awakened", 0x858F9A);
-        TIER_COLORS.put("resonant", 0x6B7785);
-        TIER_COLORS.put("ascendant", 0x515E6D);
-        TIER_COLORS.put("transcendent", 0x394655);
+        TIER_COLORS.put("dormant", CanonicalPaletteValues.DORMANT_PRIMARY);
+        TIER_COLORS.put("awakened", CanonicalPaletteValues.AWAKENED_PRIMARY);
+        TIER_COLORS.put("resonant", CanonicalPaletteValues.RESONANT_PRIMARY);
+        TIER_COLORS.put("ascendant", CanonicalPaletteValues.ASCENDANT_PRIMARY);
+        TIER_COLORS.put("transcendent", CanonicalPaletteValues.TRANSCENDENT_PRIMARY);
     }
 
     private EssenceBlockTextureGenerator() {

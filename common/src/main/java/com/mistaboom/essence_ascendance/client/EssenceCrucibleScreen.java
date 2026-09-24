@@ -422,7 +422,7 @@ public final class EssenceCrucibleScreen
 
             int border = menu.isMachineSlotCurrentlyAvailable(slot)
                     ? BORDER
-                    : 0xFF6E5151;
+                    : MachineScreenUi.MUTED_BAD;
             MachineScreenUi.itemSlot(graphics, x, y, menu.getSlot(slot), border);
         }
 

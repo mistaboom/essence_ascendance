@@ -4,11 +4,11 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentTier;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTierData;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.text.EssenceText;
+import com.mistaboom.essence_ascendance.visual.AscendancePalette;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.ChatFormatting;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 
@@ -121,7 +121,9 @@ public final class EquipmentInfusionData {
                         "equipment_infusing_toward",
                         EssenceText.equipmentTier(progress.targetTier()),
                         format(progress.totalContributed())
-                ).withStyle(ChatFormatting.DARK_PURPLE)
+                ).withStyle(style -> style.withColor(
+                        AscendancePalette.tierMetalRgb(progress.targetTier())
+                ))
         ));
     }
 

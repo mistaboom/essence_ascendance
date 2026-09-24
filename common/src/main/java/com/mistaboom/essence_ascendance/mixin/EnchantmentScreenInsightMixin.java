@@ -4,7 +4,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mistaboom.essence_ascendance.client.ClientCommittedSkills;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
-import net.minecraft.ChatFormatting;
+import com.mistaboom.essence_ascendance.visual.AscendancePalette;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -57,7 +57,7 @@ public abstract class EnchantmentScreenInsightMixin {
 
         List<Component> lines = new ArrayList<>(result.size() + vanillaLines.size() + 1);
         lines.add(Component.translatable("screen.essence_ascendance.enchanting_insight.preview")
-                .withStyle(ChatFormatting.GOLD));
+                .withStyle(style -> style.withColor(AscendancePalette.UTILITY)));
         for (EnchantmentInstance enchantment : result) {
             lines.add(Enchantment.getFullname(enchantment.enchantment, enchantment.level));
         }

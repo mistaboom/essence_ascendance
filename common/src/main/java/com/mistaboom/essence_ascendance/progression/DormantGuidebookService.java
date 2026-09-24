@@ -3,6 +3,7 @@ package com.mistaboom.essence_ascendance.progression;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import com.mistaboom.essence_ascendance.text.EssenceText;
+import com.mistaboom.essence_ascendance.visual.AscendancePalette;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerPlayer;
@@ -42,7 +43,8 @@ public final class DormantGuidebookService {
         if (delivered) {
             saved.setDirty();
             player.sendSystemMessage(EssenceText.guide(placement.get() == DeliveryResult.INVENTORY
-                    ? "delivery.inventory" : "delivery.dropped").withStyle(ChatFormatting.AQUA));
+                    ? "delivery.inventory" : "delivery.dropped")
+                    .withStyle(style -> style.withColor(AscendancePalette.DORMANT.metalRgb())));
         }
         return delivered;
     }
@@ -98,7 +100,7 @@ public final class DormantGuidebookService {
     public static ItemStack createPlaceholder() {
         ItemStack book = new ItemStack(Items.BOOK);
         book.set(DataComponents.ITEM_NAME, EssenceText.guide("placeholder.title")
-                .withStyle(ChatFormatting.AQUA));
+                .withStyle(style -> style.withColor(AscendancePalette.DORMANT.metalRgb())));
         book.set(DataComponents.LORE, new ItemLore(List.of(
                 EssenceText.guide("placeholder.welcome").withStyle(ChatFormatting.GRAY),
                 EssenceText.guide("placeholder.contents").withStyle(ChatFormatting.DARK_GRAY)

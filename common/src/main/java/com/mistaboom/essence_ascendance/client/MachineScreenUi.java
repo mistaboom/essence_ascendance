@@ -1,6 +1,6 @@
 package com.mistaboom.essence_ascendance.client;
 
-import com.mistaboom.essence_ascendance.visual.AscendancePalette;
+import com.mistaboom.essence_ascendance.visual.AscendanceUiPalette;
 import com.mistaboom.essence_ascendance.client.procedural.GuiProceduralGeometry;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -20,15 +20,16 @@ import java.util.List;
  */
 public final class MachineScreenUi {
 
-    public static final int PANEL = 0xFF20242B;
-    public static final int PANEL_INNER = 0xFF2D333D;
-    public static final int BORDER = AscendancePalette.opaque(AscendancePalette.AWAKENED.primaryRgb());
-    public static final int DIVIDER = 0xFF535B68;
-    public static final int TEXT = 0xFFE9E9EF;
-    public static final int MUTED = 0xFFAEB4C0;
-    public static final int GOOD = 0xFF86D98C;
-    public static final int WARN = 0xFFE4C36A;
-    public static final int BAD = 0xFFE27777;
+    public static final int PANEL = AscendanceUiPalette.argb(AscendanceUiPalette.SURFACE);
+    public static final int PANEL_INNER = AscendanceUiPalette.argb(AscendanceUiPalette.RAISED_SURFACE);
+    public static final int BORDER = AscendanceUiPalette.argb(AscendanceUiPalette.BORDER);
+    public static final int DIVIDER = AscendanceUiPalette.argb(AscendanceUiPalette.DIVIDER);
+    public static final int TEXT = AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT);
+    public static final int MUTED = AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT);
+    public static final int GOOD = AscendanceUiPalette.argb(AscendanceUiPalette.SUCCESS);
+    public static final int WARN = AscendanceUiPalette.argb(AscendanceUiPalette.WARNING);
+    public static final int BAD = AscendanceUiPalette.argb(AscendanceUiPalette.ERROR);
+    public static final int MUTED_BAD = AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_ERROR);
 
     private static final int ITEM_SLOT_SIZE = 20;
     private static final int ITEM_SLOT_INSET = 2; // (20px frame - 16px item) / 2

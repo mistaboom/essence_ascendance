@@ -12,13 +12,14 @@ architectury {
 def generatedEssenceTextureResources = layout.buildDirectory.dir('generated-resources/essence-block-textures')
 def essenceTextureGeneratorClasses = layout.buildDirectory.dir('essence-block-texture-generator/classes')
 def essenceTextureGeneratorSource = rootProject.file('tools/EssenceBlockTextureGenerator.java')
+def canonicalPaletteSource = file('src/main/java/com/mistaboom/essence_ascendance/visual/CanonicalPaletteValues.java')
 def essenceBaseMask = file('src/main/resources/assets/essence_ascendance/textures/item/essence_block/base.png')
 def essenceAccentMask = file('src/main/resources/assets/essence_ascendance/textures/item/essence_block/accent.png')
 
 sourceSets.main.resources.srcDir(generatedEssenceTextureResources)
 
 tasks.register('compileEssenceBlockTextureGenerator', JavaCompile) {
-    source = files(essenceTextureGeneratorSource)
+    source = files(essenceTextureGeneratorSource, canonicalPaletteSource)
     destinationDirectory = essenceTextureGeneratorClasses
     classpath = files()
     options.release = 21
@@ -29,6 +30,7 @@ tasks.register('generateEssenceBlockTextures', JavaExec) {
     classpath = files(essenceTextureGeneratorClasses)
     mainClass = 'EssenceBlockTextureGenerator'
     inputs.file(essenceTextureGeneratorSource)
+    inputs.file(canonicalPaletteSource)
     inputs.file(essenceBaseMask)
     inputs.file(essenceAccentMask)
     outputs.dir(generatedEssenceTextureResources)

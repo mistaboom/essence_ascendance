@@ -62,6 +62,7 @@ public final class NexusAttunementView {
         int cx = layout.centerX(), cy = layout.centerY(), centerRadius = layout.medallionRadius();
         boolean maximum = state.maximumTier();
         boolean ready = maximum || state.ready();
+        ClientEssenceState.Snapshot clientSnapshot = ClientEssenceState.snapshot();
         graphics.enableScissor(left, top, left + this.width, top + this.height);
         try {
             // Faint procedural star field: stable across frames, independent of category identity.
@@ -83,19 +84,22 @@ public final class NexusAttunementView {
                             phase, 2, 1, color);
                 }
             }
-            int centralColor = AscendancePalette.tierPrimaryArgb(ClientEssenceState.snapshot().tierId());
-            int centralMetal = AscendancePalette.tierMetalArgb(ClientEssenceState.snapshot().tierId());
+            int centralColor = AscendancePalette.tierPrimaryArgb(clientSnapshot.tierId());
+            int centralMetal = AscendancePalette.tierMetalArgb(clientSnapshot.tierId());
+            int destinationMetal = maximum || clientSnapshot.progress().nextTierId() == null
+                    ? centralMetal
+                    : AscendancePalette.tierMetalArgb(clientSnapshot.progress().nextTierId());
             GuiProceduralGeometry.orbit(graphics, cx, cy, centerRadius + 4, centerRadius + 4,
                     12, time / 240, GuiProceduralGeometry.opacity(centralMetal, ready ? 170 : 100));
             GuiProceduralGeometry.crystal(graphics, cx, cy, centerRadius,
                     maximum ? 1 : state.completedCategories() / (double) Math.max(1, state.requiredCategories()), centralColor);
             // Tier names remain inside the medallion and scale to the allocated central width.
             centeredFit(graphics, font, currentTier, cx, cy - 11, centerRadius * 2 - 2,
-                    AscendancePalette.tierMetalArgb(ClientEssenceState.snapshot().tierId()));
+                    centralMetal);
             centeredFit(graphics, font, maximum ? EssenceText.gui("nexus.maximum") : Component.literal("↓"),
                     cx, cy - 1, centerRadius * 2 - 2, TEXT);
             centeredFit(graphics, font, maximum ? currentTier : nextTier, cx, cy + 9,
-                    centerRadius * 2 - 2, TEXT);
+                    centerRadius * 2 - 2, destinationMetal);
             int sockets = maximum ? state.categories().size() : state.requiredCategories();
             for (int i = 0; i < sockets; i++) {
                 double a = Math.PI * 2 * i / Math.max(1, sockets) - Math.PI / 2;

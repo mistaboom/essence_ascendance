@@ -7,19 +7,19 @@ import net.minecraft.resources.ResourceLocation;
 
 /** Canonical identity colors. Interaction state changes emphasis, never the category or tier hue. */
 public final class AscendancePalette {
-    public static final int OFFENSE = 0xD65368;
-    public static final int DEFENSE = 0x5B8FD9;
-    public static final int MOBILITY = 0x55C7D6;
-    public static final int UTILITY = 0xAC7ADD;
-    public static final int VITALITY = 0xE889B5;
-    public static final int GATHERING = 0x58B88B;
+    public static final int OFFENSE = CanonicalPaletteValues.OFFENSE;
+    public static final int DEFENSE = CanonicalPaletteValues.DEFENSE;
+    public static final int MOBILITY = CanonicalPaletteValues.MOBILITY;
+    public static final int UTILITY = CanonicalPaletteValues.UTILITY;
+    public static final int VITALITY = CanonicalPaletteValues.VITALITY;
+    public static final int GATHERING = CanonicalPaletteValues.GATHERING;
 
-    public static final TierColors LATENT = new TierColors(0xB8BDC4, 0xA86E4B);
-    public static final TierColors DORMANT = new TierColors(0x9FA6AF, 0xB78650);
-    public static final TierColors AWAKENED = new TierColors(0x858F9A, 0xC99F54);
-    public static final TierColors RESONANT = new TierColors(0x6B7785, 0xDFB95F);
-    public static final TierColors ASCENDANT = new TierColors(0x515E6D, 0xF2CF78);
-    public static final TierColors TRANSCENDENT = new TierColors(0x394655, 0xFFE7AA);
+    public static final TierColors LATENT = new TierColors(CanonicalPaletteValues.LATENT_PRIMARY, CanonicalPaletteValues.LATENT_METAL);
+    public static final TierColors DORMANT = new TierColors(CanonicalPaletteValues.DORMANT_PRIMARY, CanonicalPaletteValues.DORMANT_METAL);
+    public static final TierColors AWAKENED = new TierColors(CanonicalPaletteValues.AWAKENED_PRIMARY, CanonicalPaletteValues.AWAKENED_METAL);
+    public static final TierColors RESONANT = new TierColors(CanonicalPaletteValues.RESONANT_PRIMARY, CanonicalPaletteValues.RESONANT_METAL);
+    public static final TierColors ASCENDANT = new TierColors(CanonicalPaletteValues.ASCENDANT_PRIMARY, CanonicalPaletteValues.ASCENDANT_METAL);
+    public static final TierColors TRANSCENDENT = new TierColors(CanonicalPaletteValues.TRANSCENDENT_PRIMARY, CanonicalPaletteValues.TRANSCENDENT_METAL);
 
     private AscendancePalette() { }
 

@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.mixin;
 
 import com.mistaboom.essence_ascendance.equipment.AnvilMenuCostView;
+import com.mistaboom.essence_ascendance.visual.AscendancePalette;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AnvilScreen;
 import net.minecraft.client.gui.screens.inventory.ItemCombinerScreen;
@@ -21,7 +22,7 @@ public abstract class AnvilScreenCostMixin
         extends ItemCombinerScreen<AnvilMenu> {
 
     @Unique
-    private static final int LABEL_COLOR = 0x80FF20;
+    private static final int LABEL_COLOR = AscendancePalette.UTILITY;
 
     @Unique
     private static final int LABEL_BACKGROUND = 0x4F000000;
