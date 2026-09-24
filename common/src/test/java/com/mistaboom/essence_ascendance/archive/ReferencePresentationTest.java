@@ -8,14 +8,25 @@ import com.mistaboom.essence_ascendance.client.ClientEssenceState;
 import com.mistaboom.essence_ascendance.client.presentation.BonusPresentationData;
 import com.mistaboom.essence_ascendance.client.presentation.PresentationContext;
 import com.mistaboom.essence_ascendance.client.presentation.SkillPresentationData;
+import com.mistaboom.essence_ascendance.client.presentation.EssencePresentationData;
+import com.mistaboom.essence_ascendance.client.presentation.MachinePresentationData;
+import com.mistaboom.essence_ascendance.client.presentation.EquipmentPresentationData;
+import com.mistaboom.essence_ascendance.client.presentation.MechanicsPresentationData;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.essence.EssenceTypes;
+import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
+import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineService;
+import com.mistaboom.essence_ascendance.equipment.EquipmentProfileRegistry;
+import com.mistaboom.essence_ascendance.equipment.EquipmentProfiles;
+import com.mistaboom.essence_ascendance.equipment.EquipmentTier;
+import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
 import com.mistaboom.essence_ascendance.network.BonusTrackSnapshot;
 import com.mistaboom.essence_ascendance.network.PlayerEssenceSyncPayload;
 import com.mistaboom.essence_ascendance.presentation.PresentationMetric;
 import com.mistaboom.essence_ascendance.progression.BonusTrackCurve;
 import com.mistaboom.essence_ascendance.progression.MilestoneProviders;
 import com.mistaboom.essence_ascendance.progression.Milestones;
+import com.mistaboom.essence_ascendance.progression.MilestoneRequirement;
 import com.mistaboom.essence_ascendance.skill.SkillIds;
 import com.mistaboom.essence_ascendance.skill.SkillDefinition;
 import com.mistaboom.essence_ascendance.skill.SkillRankPolicy;
@@ -78,10 +89,292 @@ public final class ReferencePresentationTest {
             readinessAndProfileChanges(runtime);
             semanticFormatting(runtime);
             isolatedChangedValueFixture(runtime);
+            remainingReferenceParity(runtime);
+            playerReferenceContracts(runtime);
         } finally {
             EssenceConfigManager.clearClient();
         }
         System.out.println("ReferencePresentationTest: " + checks + " shared reference assertions PASS");
+    }
+
+    private static void remainingReferenceParity(RuntimeBalanceDefinition runtime) {
+        PresentationContext context = PresentationContext.catalog(runtime);
+        ArchiveCatalog catalog = ArchiveCatalog.DEFAULT;
+        check(catalog.entries(ArchiveMode.REFERENCE, ArchiveSection.REFERENCE_ESSENCES.id()).size()
+                        == EssenceRegistry.size() + 1,
+                "Essence Reference must contain every registry Essence and Item Yields, without an overview");
+        check(catalog.entry(id("reference/essences/item_yields")) != null,
+                "Item Yields lacks a stable canonical Archive destination");
+        check(catalog.entries(ArchiveMode.REFERENCE, ArchiveSection.REFERENCE_MACHINES.id()).size() == 6,
+                "Machine Reference does not cover Crucible, Pylon, Infuser, Focus, Nexus, and Channelstone");
+        check(catalog.entries(ArchiveMode.REFERENCE, ArchiveSection.REFERENCE_EQUIPMENT.id()).size()
+                        == EquipmentProfileRegistry.size() + 2,
+                "Equipment Reference does not cover every profile plus infusion/lifecycle");
+        check(catalog.entries(ArchiveMode.REFERENCE, ArchiveSection.REFERENCE_MECHANICS.id()).size() == 6,
+                "Mechanics Reference is missing a cross-cutting semantic provider");
+
+        for (var essence : EssenceRegistry.values()) {
+            var projection = EssencePresentationData.project(essence);
+            check(projection.bonuses().stream().allMatch(stat -> stat.essenceType().id().equals(essence.id()))
+                            && projection.bonuses().size() == EssenceStatRegistry.values().stream()
+                            .filter(stat -> stat.essenceType().id().equals(essence.id())).count(),
+                    "Essence Bonus associations diverge from the stat registry " + essence.id());
+            check(projection.skills().stream().allMatch(skill -> skill.essenceId().equals(essence.id()))
+                            && projection.skills().size() == SkillRegistry.values().stream()
+                            .filter(skill -> skill.essenceId().equals(essence.id())).count(),
+                    "Essence Skill associations diverge from the Skill registry " + essence.id());
+        }
+
+        var machines = MachinePresentationData.project(context);
+        check(machines.ready() && machines.crucibleBaseline() == runtime.crucible()
+                        && machines.pylonLinkRadius() == runtime.config().pylonRadius()
+                        && machines.maximumActivePylons() == runtime.config().maxActivePylons()
+                        && machines.infuserLinkRange() == runtime.config().infuserBalance().linkRange(),
+                "Machine projection is not reading the explicit synchronized runtime");
+        check(machines.focusProfiles().size() == EssenceFocusTier.values().length + 2,
+                "Focus projection does not separate empty, Latent, and upgraded states");
+        var none = machines.focusProfiles().getFirst();
+        var latent = machines.focusProfiles().get(1);
+        check(none.state() == MachinePresentationData.FocusState.NONE && !none.installed()
+                        && !none.pylonOperational() && !none.infuserOperational()
+                        && none.infuserThroughputPerSecond() == 0,
+                "No-Focus state was presented as an installed/operational Focus");
+        check(latent.state() == MachinePresentationData.FocusState.LATENT && latent.installed()
+                        && latent.completedTier() == null && latent.pylonOperational() && latent.infuserOperational()
+                        && latent.pylonContribution().equals(runtime.pylon("empty"))
+                        && latent.infuserEfficiencyBasisPoints()
+                        == runtime.config().infuserBalance().noFocusEfficiencyBasisPoints()
+                        && latent.infuserThroughputPerSecond()
+                        == runtime.config().infuserBalance().noFocusInfusionThroughputPerSecond()
+                        && latent.essentiumIngotCapacity() == runtime.config().infuserBalance()
+                        .grade(EssenceFocusTier.DORMANT.serializedName()).ingotCapacity(),
+                "Installed Latent Focus lost baseline Pylon/Infuser operation or gained a fake Dormant tier");
+        for (EssenceFocusTier tier : EssenceFocusTier.values()) {
+            var row = machines.focusProfiles().stream().filter(value -> value.completedTier() == tier).findFirst().orElseThrow();
+            var grade = runtime.config().infuserBalance().grade(tier.serializedName());
+            check(row.state() == MachinePresentationData.FocusState.UPGRADED && row.installed()
+                            && row.pylonContribution().equals(runtime.pylon(tier.serializedName()))
+                            && row.infuserEfficiencyBasisPoints() == grade.efficiencyBasisPoints()
+                            && row.infuserThroughputPerSecond() == grade.infusionThroughputPerSecond()
+                            && row.essentiumIngotCapacity() == grade.ingotCapacity(),
+                    "Upgraded Focus row diverges from native runtime values " + tier);
+        }
+        check(machines.focusUpgrades().getFirst().requiredInstalledTier() == null
+                        && machines.focusUpgrades().getFirst().targetTier() == EssenceFocusTier.DORMANT,
+                "Latent-to-Dormant Focus upgrade prerequisite was mislabeled as a completed tier");
+
+        EquipmentProfiles.init();
+        var equipment = EquipmentPresentationData.project(context);
+        check(equipment.ready() && equipment.profiles().size() == EquipmentProfileRegistry.size()
+                        && equipment.tierBaselines().size() == EquipmentTier.values().length,
+                "Equipment projection does not cover the registered profiles and tiers");
+        for (var profile : equipment.profiles()) {
+            check(profile.baselineMultipliers().equals(profile.definition().baselineMultipliers()),
+                    "Equipment baseline multipliers were copied incorrectly " + profile.definition().id());
+            for (var tier : equipment.tierBaselines()) for (var property : profile.baselineMultipliers().keySet()) {
+                double expected = EquipmentBaselineService.resolvedValue(tier.baseline().value(property),
+                        profile.definition(), property, equipment.quantizedBaselines());
+                check(Double.isFinite(expected) && expected >= 0,
+                        "Equipment effective baseline resolver produced an invalid presentation value");
+            }
+        }
+        check(equipment.infusionTargets().size() == EquipmentTier.values().length - 1
+                        && equipment.repairEssencePerDurability() == runtime.config().infuserBalance().repair().essencePerDurability()
+                        && equipment.fracturedLatentIngotCount() == runtime.config().infuserBalance().repair().fracturedLatentIngotCount(),
+                "Equipment infusion/repair projection diverges from authoritative settings");
+
+        var mechanics = MechanicsPresentationData.project(context);
+        check(mechanics.ready() && mechanics.attunementChapters().size() == runtime.attunement().chapters().size(),
+                "Mechanics projection omitted Attunement chapters");
+        for (String retired : List.of("essences/overview", "machines/overview", "equipment/overview", "mechanics/progression"))
+            check(catalog.entry(id("reference/" + retired)) == null, "Retired Reference entry is still visible: " + retired);
+        check(MechanicsPresentationData.maximumInvestmentMultiplier(mechanics.attunementPolicy())
+                        == 1 + mechanics.attunementPolicy().maximumAcceleration(),
+                "Attunement maximum acceleration was mislabeled as the final multiplier");
+        mechanics.attunementChapters().forEach(chapter -> chapter.activities().forEach(activity -> {
+            double expected = activity.rate().contributionPerUnit()
+                    / chapter.chapter().categories().get(activity.rate().categoryId()).target() * 100;
+            double actual = MechanicsPresentationData.baseSealPercent(activity.rate(),
+                    chapter.chapter().categories().get(activity.rate().categoryId()));
+            check(Math.abs(actual - expected) < Math.max(1e-12, expected * 1e-12),
+                    "Seal percentage diverges from native contribution normalization");
+        }));
+        mechanics.attunementChapters().forEach(chapter -> check(chapter.categories().size()
+                        == chapter.chapter().categories().size()
+                        && chapter.activities().size() == chapter.chapter().activities().size(),
+                "Attunement Reference omitted categories or registered activity rates"));
+
+        for (var document : List.of(ReferenceDocuments.focus(context), ReferenceDocuments.infuser(context),
+                ReferenceDocuments.pylon(context))) {
+            for (var block : document.blocks()) if (block instanceof SemanticDocument.Table<?> table
+                    && table.data().column("focus") != null) {
+                check(cell(table, "focus", 0).equals("None") && cell(table, "focus", 1).equals("Latent")
+                                && cell(table, "focus", 2).equals("Dormant"),
+                        "Focus cells must distinguish all states without repeating their column header");
+                for (int row = 0; row < table.data().rows().size(); row++)
+                    check(!cell(table, "focus", row).contains("Focus"), "Focus table repeats the column header in a cell");
+            }
+        }
+        for (ArchiveEntry entry : catalog.entries()) if (entry.mode() == ArchiveMode.REFERENCE) {
+            requireLocalized(entry.content().get());
+        }
+    }
+
+    private static void playerReferenceContracts(RuntimeBalanceDefinition runtime) {
+        var context = PresentationContext.catalog(runtime);
+        var catalog = ArchiveCatalog.DEFAULT;
+        for (var entry : catalog.entries()) {
+            requireLocalized(entry.navigationSummary());
+            check(!entry.navigationSummary().getString().isBlank(), "Navigation description missing");
+            // Rich article and summary text remain available to Search independently of the short navigation label.
+            check(catalog.searchableText(entry).contains(entry.summary()), "Search discarded the detailed summary");
+        }
+        for (var essence : EssenceRegistry.values()) {
+            var document = ReferenceDocuments.essence(essence);
+            var models = document.blocks().stream().filter(SemanticDocument.ItemRow.class::isInstance)
+                    .map(SemanticDocument.ItemRow.class::cast).toList();
+            check(models.size() == 3, "Essence needs nugget, ingot, and block rows");
+            for (int form = 0; form < models.size(); form++) {
+                check(models.get(form).items().size() == EssenceFocusTier.values().length, "Missing Essentium grades");
+                for (int grade = 0; grade < EssenceFocusTier.values().length; grade++) {
+                    var model = models.get(form).items().get(grade);
+                    check(model.resource().equals(id(List.of("essentium_nugget", "essentium_ingot", "essentium_block").get(form))),
+                            "Essentium forms are out of order");
+                    var expected = com.mistaboom.essence_ascendance.infuser.EssentiumCarrierData.carrierData(
+                            new com.mistaboom.essence_ascendance.infuser.EssentiumCarrierData.Value(essence, EssenceFocusTier.values()[grade], 1));
+                    check(model.components().get(net.minecraft.core.component.DataComponents.CUSTOM_DATA).orElseThrow().equals(expected),
+                            "Essentium image lacks the category and grade components used by the native model");
+                    check(model.label().getString().isBlank() == false, "Essentium image is not searchable");
+                }
+            }
+            var tables = document.blocks().stream().filter(SemanticDocument.Table.class::isInstance)
+                    .map(block -> (SemanticDocument.Table<?>) block).toList();
+            check(tables.size() == 2 && tables.getFirst().data().columns().size() == 2,
+                    "Essence associations contain a redundant category column");
+            for (var table : tables) {
+                check(table.expanded(), "Reference association table has nested scrolling");
+                for (var row : table.data().rows())
+                    check(row.target() != null && catalog.entry(ResourceLocation.parse(row.target())) != null,
+                            "Bonus/Skill association is not a working navigation target");
+            }
+            String text = flattenAll(document);
+            check(!text.contains(essence.id().toString()) && !text.contains("derived from"),
+                    "Essence article leaks internal identity or registry prose");
+        }
+
+        var data = EquipmentPresentationData.project(context);
+        var armor = data.profiles().stream().filter(p -> p.definition().id().equals(EquipmentProfiles.ARMOR.id())).findFirst().orElseThrow();
+        var armorDoc = ReferenceDocuments.equipmentProfile(EquipmentProfiles.ARMOR.id(), "ascendance_helmet", context);
+        var armorTables = armorDoc.blocks().stream().filter(SemanticDocument.Table.class::isInstance)
+                .map(block -> (SemanticDocument.Table<?>) block).toList();
+        check(armorTables.size() == EquipmentTier.values().length, "Armor needs one table per tier");
+        var slots = List.of(net.minecraft.world.entity.EquipmentSlot.HEAD, net.minecraft.world.entity.EquipmentSlot.CHEST,
+                net.minecraft.world.entity.EquipmentSlot.LEGS, net.minecraft.world.entity.EquipmentSlot.FEET);
+        for (int tierIndex = 0; tierIndex < data.tierBaselines().size(); tierIndex++) {
+            var tier = data.tierBaselines().get(tierIndex);
+            var table = armorTables.get(tierIndex);
+            check(armorDoc.blocks().stream().filter(SemanticDocument.Heading.class::isInstance)
+                            .map(SemanticDocument.Heading.class::cast).anyMatch(heading -> heading.text().getStyle().getColor() != null
+                                    && heading.text().getStyle().getColor().getValue() == AscendancePalette.tierMetalRgb(tier.tier())),
+                    "Armor tier heading must use the readable canonical tier-metal color");
+            check(table.expanded() && table.data().rows().size() == 4, "Armor rows or full-height scrolling are wrong");
+            check(table.data().columns().stream().map(column -> column.id()).toList()
+                            .equals(List.of("item", "armor", "toughness", "durability", "bonus_share")),
+                    "Armor table is not item, armor, toughness, durability, worn share");
+            double sum = 0;
+            for (int slotIndex = 0; slotIndex < slots.size(); slotIndex++) {
+                var slot = slots.get(slotIndex);
+                double physical = EquipmentPresentationData.physicalValue(armor, tier,
+                        com.mistaboom.essence_ascendance.equipment.EquipmentBaselineProperty.ARMOR, data.quantizedBaselines(), slot);
+                sum += physical;
+                check(Math.abs(Double.parseDouble(cell(table, "armor", slotIndex)) - physical) <= 0.00005,
+                        "Armor displayed value is not the slot's native physical share");
+                check(EquipmentPresentationData.wornShare(tier.tier(), slot) == (tier.tier() == EquipmentTier.LATENT ? 0
+                                : com.mistaboom.essence_ascendance.equipment.ArmorStatWeights.weightFor(slot)),
+                        "Latent armor grants an Essence share, or upgraded armor uses the wrong share");
+                assertTierModel(table, slotIndex, tier.tier());
+            }
+            double whole = EquipmentBaselineService.resolvedValue(tier.baseline().fullSetArmor(), armor.definition(),
+                    com.mistaboom.essence_ascendance.equipment.EquipmentBaselineProperty.ARMOR, data.quantizedBaselines());
+            check(Math.abs(sum - whole) < 1e-8, "Armor slot projection lost full-set physical points");
+            check(EquipmentPresentationData.nativeDurability(armor, tier, ResourceLocation.parse("minecraft:iron_helmet"))
+                            .orElseThrow() == net.minecraft.world.item.Items.IRON_HELMET.getDefaultInstance().getMaxDamage(),
+                    "Displayed non-shield durability uses a generated target instead of current usable durability");
+            check(EquipmentPresentationData.nativeDurability(armor, tier, id("missing_test_item")).isEmpty(),
+                    "Missing item data silently became real zero durability");
+        }
+        for (var profile : data.profiles()) {
+            if (profile.definition().id().equals(EquipmentProfiles.ARMOR.id())) continue;
+            String path = profile.definition().id().getPath();
+            String item = path.equals("magic_caster") ? "ascendance_caster" : "ascendance_" + path;
+            var document = ReferenceDocuments.equipmentProfile(profile.definition().id(), item, context);
+            var table = (SemanticDocument.Table<?>) document.blocks().stream().filter(SemanticDocument.Table.class::isInstance).findFirst().orElseThrow();
+            check(table.expanded() && table.data().rows().size() == EquipmentTier.values().length,
+                    "Equipment must show all tier rows without a nested scrollbar");
+            for (int tier = 0; tier < EquipmentTier.values().length; tier++) assertTierModel(table, tier, EquipmentTier.values()[tier]);
+            var links = document.blocks().stream().filter(SemanticDocument.Links.class::isInstance)
+                    .map(SemanticDocument.Links.class::cast).flatMap(block -> block.links().stream())
+                    .map(SemanticDocument.Link::target).collect(java.util.stream.Collectors.toSet());
+            for (var bonus : profile.applicability()) check(links.contains(id("reference/bonuses/" + bonus.statId().getPath()).toString()),
+                    "Applicable equipment Bonus is not clickable");
+            if (profile.definition().id().equals(EquipmentProfiles.SHIELD.id())) {
+                for (int i = 0; i < data.tierBaselines().size(); i++) {
+                    var tier = data.tierBaselines().get(i);
+                    check(cell(table, "durability", i).equals(Integer.toString(tier.shieldDurability())),
+                            "Shield durability does not use native shield tier settings");
+                    double reflect = com.mistaboom.essence_ascendance.equipment.ShieldMath.blockedPercent(
+                            tier.shieldNativeReflectionPercent(), 0, tier.shieldBlockAmplification());
+                    check(cell(table, "block_reflection", i).contains(PresentationMetric.DisplayConversion.NATIVE.format(reflect)),
+                            "Shield block reflection diverges from native math");
+                }
+            }
+        }
+        var infusion = ReferenceDocuments.equipmentInfusion(context);
+        int tableIndex = 0;
+        while (!(infusion.blocks().get(tableIndex) instanceof SemanticDocument.Table)) tableIndex++;
+        check(infusion.blocks().get(tableIndex - 1) instanceof SemanticDocument.Heading heading
+                        && flatten(heading.text()).equals("Ascension Costs"), "Infusion cost table lacks its heading");
+
+        var focus = ReferenceDocuments.focus(context);
+        var upgrades = (SemanticDocument.Table<?>) focus.blocks().getLast();
+        for (int width : List.of(300, 340, 480, 800)) {
+            var widths = upgrades.data().measure(width, 1, value -> flatten(value).length() * 6);
+            for (int column = 0; column < 2; column++) for (int row = 0; row < upgrades.data().rows().size(); row++)
+                check(cell(upgrades, column == 0 ? "target" : "installed", row).length() * 6 <= widths.get(column).width() - 8,
+                        "A Focus upgrade tier wraps a trailing letter at article width " + width);
+        }
+        for (var document : List.of(armorDoc, ArchiveDocuments.beginningGuide(), ArchiveDocuments.essenceGuide())) {
+            check(document.blocks().getLast() instanceof SemanticDocument.Links
+                            && document.blocks().get(document.blocks().size() - 2) instanceof SemanticDocument.Heading heading
+                            && heading.level() == SemanticDocument.HeadingLevel.SECTION && flatten(heading.text()).equals("See Also"),
+                    "Footer navigation needs a See Also heading and section divider");
+        }
+        var lifecycle = ReferenceDocuments.equipmentLifecycle(context);
+        for (var block : lifecycle.blocks()) if (block instanceof SemanticDocument.Requirements requirements)
+            for (var requirement : requirements.rows()) {
+                String keyword = flatten(requirement.label());
+                Integer expected = switch (keyword) {
+                    case "Soulbound" -> com.mistaboom.essence_ascendance.visual.AscendanceUiPalette.SOULBOUND;
+                    case "Fractured" -> com.mistaboom.essence_ascendance.visual.AscendanceUiPalette.FRACTURED;
+                    default -> null;
+                };
+                if (expected != null) check(requirement.label().getStyle().getColor() != null
+                                && requirement.label().getStyle().getColor().getValue() == expected,
+                        "Lifecycle keyword lost its canonical tooltip color: " + keyword);
+            }
+    }
+
+    private static <R> String cell(SemanticDocument.Table<R> table, String column, int row) {
+        return flatten(table.data().column(column).display(table.data().rows().get(row).value()));
+    }
+
+    private static <R> void assertTierModel(SemanticDocument.Table<R> table, int row, EquipmentTier tier) {
+        var column = table.data().columns().getFirst();
+        check(column.isItem(), "First equipment column is not an item image");
+        var model = column.item(table.data().rows().get(row).value());
+        var encoded = model.components().get(net.minecraft.core.component.DataComponents.CUSTOM_DATA).orElseThrow();
+        check(encoded.equals(com.mistaboom.essence_ascendance.equipment.EquipmentTierData.tierData(tier)),
+                "Equipment illustration lost its completed tier");
     }
 
     private static void registryCoverage(RuntimeBalanceDefinition runtime) {

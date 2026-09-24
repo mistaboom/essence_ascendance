@@ -179,14 +179,21 @@ public final class EssentiumCarrierData {
         CustomData.update(
                 DataComponents.CUSTOM_DATA,
                 stack,
-                outer -> {
-                    CompoundTag carrier = new CompoundTag();
-                    carrier.putString(ESSENCE_TAG, value.essence().id().toString());
-                    carrier.putString(GRADE_TAG, value.grade().serializedName());
-                    carrier.putLong(AMOUNT_TAG, value.amount());
-                    outer.put(ROOT_TAG, carrier);
-                }
+                outer -> outer.put(ROOT_TAG, carrierData(value).copyTag().getCompound(ROOT_TAG))
         );
+    }
+
+    /** Pure component encoding; presentation does not need to install a global balance profile. */
+    public static CustomData carrierData(Value value) {
+        if (value == null || !isSupportedEssence(value.essence()) || value.grade() == null || value.amount() <= 0)
+            throw new IllegalArgumentException("Invalid Essentium carrier data");
+        CompoundTag carrier = new CompoundTag();
+        carrier.putString(ESSENCE_TAG, value.essence().id().toString());
+        carrier.putString(GRADE_TAG, value.grade().serializedName());
+        carrier.putLong(AMOUNT_TAG, value.amount());
+        CompoundTag outer = new CompoundTag();
+        outer.put(ROOT_TAG, carrier);
+        return CustomData.of(outer);
     }
 
     private static EssenceFocusTier parseGrade(String serializedName) {

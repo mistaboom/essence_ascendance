@@ -57,6 +57,10 @@ public final class ArmorStatWeights {
         return WEIGHTS;
     }
 
+    public static double pointsForSlot(double fullSetPoints, EquipmentSlot slot, boolean quantized) {
+        return quantized ? physicalPointsForSlot(fullSetPoints, slot) : fullSetPoints * weightFor(slot);
+    }
+
     /** Whole physical points, with deterministic largest-remainder allocation preserving the full-set total. */
     public static double physicalPointsForSlot(double fullSetPoints,EquipmentSlot requested) {
         if(!WEIGHTS.containsKey(requested)||fullSetPoints<=0)return 0;

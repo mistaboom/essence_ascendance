@@ -19,6 +19,10 @@ public final class AscendanceUiPalette {
     public static final int INTERACTIVE = 0xD0ADEB;
     public static final int SPECIAL = 0xC8B0C5;
 
+    /** Equipment keywords retain their canonical tooltip roles in every presentation. */
+    public static final int SOULBOUND = SPECIAL;
+    public static final int FRACTURED = ERROR;
+
     private AscendanceUiPalette() { }
 
     public static int argb(int rgb) {

@@ -17,16 +17,22 @@ public final class ItemIllustrationRenderer implements IllustrationView.Renderer
         Item item = BuiltInRegistries.ITEM.get(illustration.resource());
         if (item == null) return;
         ItemStack stack = item.getDefaultInstance();
+        renderStack(graphics, stack, figureBounds);
+    }
+
+    public static void renderStack(GuiGraphics graphics, ItemStack stack, UiBounds figureBounds) {
         if (stack.isEmpty()) return;
-        int scale = Math.max(1, Math.min(figureBounds.width(), figureBounds.height()) / 18);
-        int rendered = 16 * scale;
+        float scale = Math.max(0, Math.min(figureBounds.width(), figureBounds.height())) / 18.0F;
+        int rendered = Math.round(16 * scale);
         int x = figureBounds.x() + (figureBounds.width() - rendered) / 2;
         int y = figureBounds.y() + (figureBounds.height() - rendered) / 2;
+        graphics.flush();
         graphics.pose().pushPose();
         try {
             graphics.pose().translate(x, y, 150);
             graphics.pose().scale(scale, scale, 1.0F);
             graphics.renderItem(stack, 0, 0);
+            graphics.flush();
         } finally {
             graphics.pose().popPose();
         }

@@ -21,7 +21,8 @@ public final class ArchiveNavigator {
     private final FullscreenNavigation<ArchiveMode, ResourceLocation> navigation =
             new FullscreenNavigation<>(ArchiveMode.GUIDE);
     private final Map<ArchiveMode, ArchiveNavigationState.Page> pages = new EnumMap<>(ArchiveMode.class);
-    private final List<ArchiveLocation> history = new ArrayList<>();
+    private final List<ArchiveNavigationState.Visit> history = new ArrayList<>();
+    private final List<ArchiveNavigationState.Visit> future = new ArrayList<>();
     private ArchiveNavigationState.Search search = ArchiveNavigationState.Search.initial();
 
     public ArchiveNavigator(ArchiveCatalog catalog, ArchiveNavigationState.Snapshot restored) {
@@ -29,6 +30,7 @@ public final class ArchiveNavigator {
         pages.putAll(restored.pages());
         search = restored.search();
         history.addAll(restored.history().stream().skip(Math.max(0, restored.history().size() - HISTORY_LIMIT)).toList());
+        future.addAll(restored.future().stream().skip(Math.max(0, restored.future().size() - HISTORY_LIMIT)).toList());
         for (ArchiveMode mode : List.of(ArchiveMode.GUIDE, ArchiveMode.REFERENCE)) {
             ArchiveNavigationState.Page page = validPage(mode, pages.get(mode));
             pages.put(mode, page);
@@ -49,6 +51,7 @@ public final class ArchiveNavigator {
     public String query() { return search.query(); }
     public ResourceLocation selectedResult() { return search.selectedResult(); }
     public boolean canGoBack() { return !history.isEmpty(); }
+    public boolean canGoForward() { return !future.isEmpty(); }
     public FullscreenNavigation<ArchiveMode, ResourceLocation> fullscreenNavigation() { return navigation; }
 
     /** Capture tab paging performed by the shared section controls. */
@@ -95,7 +98,7 @@ public final class ArchiveNavigator {
     public void openTarget(String target) {
         ResourceLocation id = ResourceLocation.tryParse(target);
         ArchiveEntry candidate = id == null ? null : catalog.entry(id);
-        if (candidate == null) return;
+        if (candidate == null || candidate.mode() == mode() && candidate.id().equals(entryId())) return;
         pushCurrent();
         navigation.selectMode(candidate.mode());
         navigation.selectSection(candidate.section());
@@ -132,8 +135,14 @@ public final class ArchiveNavigator {
 
     public void back() {
         if (history.isEmpty()) return;
-        ArchiveLocation location = history.removeLast();
-        apply(location);
+        appendVisit(future, currentVisit());
+        apply(history.removeLast());
+    }
+
+    public void forward() {
+        if (future.isEmpty()) return;
+        appendVisit(history, currentVisit());
+        apply(future.removeLast());
     }
 
     public ArchiveLocation currentLocation() {
@@ -144,17 +153,26 @@ public final class ArchiveNavigator {
 
     public ArchiveNavigationState.Snapshot snapshot() {
         if (mode() != ArchiveMode.SEARCH) syncCurrentPage();
-        return new ArchiveNavigationState.Snapshot(mode(), pages, search, history);
+        return new ArchiveNavigationState.Snapshot(mode(), pages, search, history, future);
     }
 
     private void pushCurrent() {
-        ArchiveLocation current = currentLocation();
-        if (!history.isEmpty() && history.getLast().equals(current)) return;
-        history.add(current);
-        while (history.size() > HISTORY_LIMIT) history.removeFirst();
+        appendVisit(history, currentVisit());
+        future.clear();
     }
 
-    private void apply(ArchiveLocation location) {
+    private ArchiveNavigationState.Visit currentVisit() {
+        return new ArchiveNavigationState.Visit(currentLocation(), sectionWindow(), listScroll(), articleScroll());
+    }
+
+    private static void appendVisit(List<ArchiveNavigationState.Visit> stack, ArchiveNavigationState.Visit visit) {
+        if (!stack.isEmpty() && stack.getLast().location().equals(visit.location())) stack.removeLast();
+        stack.add(visit);
+        while (stack.size() > HISTORY_LIMIT) stack.removeFirst();
+    }
+
+    private void apply(ArchiveNavigationState.Visit visit) {
+        ArchiveLocation location = visit.location();
         if (location instanceof ArchiveLocation.Article article) {
             ArchiveEntry entry = catalog.entry(article.entry());
             if (entry == null) {
@@ -162,13 +180,14 @@ public final class ArchiveNavigator {
                 navigation.selectMode(article.mode()); navigation.selectSection(fallback.section());
                 pages.put(article.mode(), fallback);
             } else {
-                navigation.selectMode(entry.mode()); navigation.selectSection(entry.section());
+                navigation.selectMode(entry.mode());
+                navigation.restoreMode(entry.mode(), entry.section(), visit.sectionWindow());
                 pages.put(entry.mode(), new ArchiveNavigationState.Page(entry.section(), entry.id(),
-                        navigation.sectionWindow(), 0, 0));
+                        visit.sectionWindow(), visit.listScroll(), visit.articleScroll()));
             }
         } else if (location instanceof ArchiveLocation.Search searched) {
             navigation.selectMode(ArchiveMode.SEARCH);
-            search = new ArchiveNavigationState.Search(searched.query(), searched.selectedResult(), search.scroll());
+            search = new ArchiveNavigationState.Search(searched.query(), searched.selectedResult(), visit.listScroll());
             reconcileSearch();
         } else if (location instanceof ArchiveLocation.YieldBrowser) {
             navigation.selectMode(ArchiveMode.REFERENCE);

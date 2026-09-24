@@ -6,6 +6,8 @@ import com.mistaboom.essence_ascendance.client.presentation.PresentationContext;
 import com.mistaboom.essence_ascendance.client.presentation.SkillPresentationData;
 import com.mistaboom.essence_ascendance.client.ui.content.SemanticDocument;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
+import com.mistaboom.essence_ascendance.equipment.EquipmentProfileDefinition;
+import com.mistaboom.essence_ascendance.equipment.EquipmentProfiles;
 import com.mistaboom.essence_ascendance.skill.SkillRegistry;
 import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
 import com.mistaboom.essence_ascendance.text.EssenceText;
@@ -110,14 +112,50 @@ public final class ArchiveCatalog {
         entries.add(entry("guide/infusion/first_focus", ArchiveSection.GUIDE_INFUSION, "infusion", ArchiveDocuments::infusionGuide));
         entries.add(entry("guide/ascendance/nexus", ArchiveSection.GUIDE_ASCENDANCE, "ascendance", () -> ArchiveDocuments.illustrated("guide.ascendance.nexus", "ascendance_nexus")));
         entries.add(entry("guide/skills/choosing", ArchiveSection.GUIDE_SKILLS, "skills", ArchiveDocuments::skillsGuide));
-        entries.add(entry("reference/essences/overview", ArchiveSection.REFERENCE_ESSENCES, "essence", () -> ArchiveDocuments.reference("reference.essences.overview", "essentium_nugget")));
-        entries.add(entry("reference/machines/overview", ArchiveSection.REFERENCE_MACHINES, "machines", () -> ArchiveDocuments.reference("reference.machines.overview", "essence_pylon")));
-        entries.add(entry("reference/equipment/overview", ArchiveSection.REFERENCE_EQUIPMENT, "equipment", () -> ArchiveDocuments.reference("reference.equipment.overview", "ascendance_melee_weapon")));
+        for (var essence : EssenceRegistry.values()) {
+            entries.add(customEntry("reference/essences/" + essence.id().getPath(), ArchiveSection.REFERENCE_ESSENCES,
+                    "essence", EssenceText.essenceShort(essence).withStyle(style -> style.withColor(
+                            AscendancePalette.categoryRgb(essence.id()))),
+                    g("archive.entry.reference.essences.category.summary", EssenceText.essenceShort(essence)),
+                    g("archive.nav.essences"),
+                    () -> ReferenceDocuments.essence(essence)));
+        }
+        entries.add(entry("reference/essences/item_yields", ArchiveSection.REFERENCE_ESSENCES, "essence",
+                ReferenceDocuments::itemYieldsDestination));
+
+        entries.add(entry("reference/machines/crucible", ArchiveSection.REFERENCE_MACHINES, "machines",
+                () -> ReferenceDocuments.crucible(PresentationContext.capture())));
+        entries.add(entry("reference/machines/pylon", ArchiveSection.REFERENCE_MACHINES, "machines",
+                () -> ReferenceDocuments.pylon(PresentationContext.capture())));
+        entries.add(entry("reference/machines/infuser", ArchiveSection.REFERENCE_MACHINES, "infusion",
+                () -> ReferenceDocuments.infuser(PresentationContext.capture())));
+        entries.add(entry("reference/machines/focus", ArchiveSection.REFERENCE_MACHINES, "infusion",
+                () -> ReferenceDocuments.focus(PresentationContext.capture())));
+        entries.add(entry("reference/machines/nexus", ArchiveSection.REFERENCE_MACHINES, "ascendance",
+                ReferenceDocuments::nexus));
+        entries.add(entry("reference/machines/channelstone", ArchiveSection.REFERENCE_MACHINES, "machines",
+                ReferenceDocuments::channelstone));
+
+        EquipmentProfiles.init();
+        addEquipment(entries, EquipmentProfiles.ARMOR, "ascendance_helmet");
+        addEquipment(entries, EquipmentProfiles.MELEE_WEAPON, "ascendance_melee_weapon");
+        addEquipment(entries, EquipmentProfiles.RANGED_WEAPON, "ascendance_ranged_weapon");
+        addEquipment(entries, EquipmentProfiles.MAGIC_CASTER, "ascendance_caster");
+        addEquipment(entries, EquipmentProfiles.PICKAXE, "ascendance_pickaxe");
+        addEquipment(entries, EquipmentProfiles.AXE, "ascendance_axe");
+        addEquipment(entries, EquipmentProfiles.SHOVEL, "ascendance_shovel");
+        addEquipment(entries, EquipmentProfiles.HOE, "ascendance_hoe");
+        addEquipment(entries, EquipmentProfiles.SHIELD, "ascendance_shield");
+        entries.add(entry("reference/equipment/infusion", ArchiveSection.REFERENCE_EQUIPMENT, "infusion",
+                () -> ReferenceDocuments.equipmentInfusion(PresentationContext.capture())));
+        entries.add(entry("reference/equipment/lifecycle", ArchiveSection.REFERENCE_EQUIPMENT, "equipment",
+                () -> ReferenceDocuments.equipmentLifecycle(PresentationContext.capture())));
         for (var stat : EssenceStatRegistry.values()) {
             entries.add(customEntry("reference/bonuses/" + stat.id().getPath(), ArchiveSection.REFERENCE_BONUSES,
                     "bonuses", BonusPresentationData.name(stat), g("archive.entry.reference.bonuses.stat.summary",
                             EssenceText.category(stat.category()).withStyle(style -> style.withColor(
                                     AscendancePalette.categoryRgb(stat.category())))),
+                    EssenceText.category(stat.category()).withStyle(style -> style.withColor(AscendancePalette.categoryRgb(stat.category()))),
                     () -> ArchiveDocuments.bonusReference(stat, PresentationContext.capture())));
         }
         for (var skill : SkillRegistry.values()) {
@@ -127,10 +165,24 @@ public final class ArchiveCatalog {
             entries.add(customEntry("reference/skills/" + skill.id().getPath(), ArchiveSection.REFERENCE_SKILLS,
                     "skills", SkillPresentationData.skillName(skill),
                     g("archive.entry.reference.skills.skill.summary", category),
+                    category,
                     () -> ArchiveDocuments.skillReference(skill, PresentationContext.capture())));
         }
-        entries.add(entry("reference/mechanics/status", ArchiveSection.REFERENCE_MECHANICS, "mechanics", ArchiveDocuments::mechanicsReference));
+        for (String topic : List.of("status", "allocation_storage", "attunement",
+                "repair_durability", "death_retention", "overcap")) {
+            entries.add(entry("reference/mechanics/" + topic, ArchiveSection.REFERENCE_MECHANICS, "mechanics",
+                    () -> ReferenceDocuments.mechanics(topic, PresentationContext.capture())));
+        }
         return new ArchiveCatalog(sections, subjects, entries);
+    }
+
+    private static void addEquipment(List<ArchiveEntry> entries, EquipmentProfileDefinition profile, String item) {
+        String path = profile.id().getPath();
+        entries.add(customEntry("reference/equipment/" + path, ArchiveSection.REFERENCE_EQUIPMENT, "equipment",
+                ReferenceDocuments.profileTitle(profile.id()),
+                g("archive.entry.reference.equipment.profile.summary"),
+                g("archive.nav.equipment"),
+                () -> ReferenceDocuments.equipmentProfile(profile.id(), item, PresentationContext.capture())));
     }
 
     private static ArchiveSubject subject(String id) {
@@ -142,14 +194,14 @@ public final class ArchiveCatalog {
                                       java.util.function.Supplier<SemanticDocument> provider) {
         String key = "archive.entry." + id.replace('/', '.');
         return new ArchiveEntry(id(id), section.mode(), section.id(), id("subject/" + subject),
-                g(key + ".title"), g(key + ".summary"), provider);
+                g(key + ".title"), g(key + ".summary"), g(key + ".nav"), provider);
     }
 
     private static ArchiveEntry customEntry(String id, ArchiveSection section, String subject,
-                                            Component title, Component summary,
+                                            Component title, Component summary, Component navigationSummary,
                                             java.util.function.Supplier<SemanticDocument> provider) {
         return new ArchiveEntry(id(id), section.mode(), section.id(), id("subject/" + subject),
-                title, summary, provider);
+                title, summary, navigationSummary, provider);
     }
 
     private static Component g(String path, Object... args) { return EssenceText.guide(path, args); }

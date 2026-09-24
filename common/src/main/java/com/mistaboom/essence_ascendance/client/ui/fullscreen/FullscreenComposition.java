@@ -126,6 +126,18 @@ public final class FullscreenComposition {
             return this;
         }
 
+        /** Complete, optionally wrapped section navigation without section-paging arrows. */
+        public <S> Builder sections(List<Section<S>> sections, S selected, List<UiBounds> slots, Consumer<S> choose) {
+            if (sections.size() != slots.size()) throw new IllegalArgumentException("Each section needs a tab");
+            for (int index = 0; index < sections.size(); index++) {
+                Section<S> section = sections.get(index);
+                control(new Control("section/" + section.id(), slots.get(index), section.label(), true,
+                        Objects.equals(selected, section.id()), FullscreenControls.Style.TAB,
+                        section.accent(), () -> choose.accept(section.id())));
+            }
+            return this;
+        }
+
         public Scene build() { return new Scene(pageKey, frame, top, bottom, regions, controls, overlays, primary); }
     }
 

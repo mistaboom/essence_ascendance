@@ -29,6 +29,9 @@ public final class FullscreenLayout {
     public record Frame(UiBounds screen, UiBounds modes, UiBounds secondary, UiBounds content) { }
     public record Bands(UiBounds header, UiBounds body, UiBounds footer) { }
     public record Split(UiBounds list, UiBounds detail) { }
+    public record SectionBar(UiBounds back, UiBounds forward, List<UiBounds> items, UiBounds content) {
+        public SectionBar { items = List.copyOf(items); }
+    }
     public record Tabs(UiBounds leftArrow, UiBounds rightArrow, List<UiBounds> items, int visibleCount) {
         public Tabs {
             items = List.copyOf(items);
@@ -128,6 +131,41 @@ public final class FullscreenLayout {
             x += desiredWidth + actualGap;
         }
         return new Tabs(leftArrow, rightArrow, items, visibleCount);
+    }
+
+    /** History controls flank complete section navigation; overflow wraps, never pages sections. */
+    public static SectionBar sectionBar(Frame frame, List<Integer> measuredWidths,
+                                         int backWidth, int forwardWidth, int gap) {
+        UiBounds band = frame.secondary();
+        int back = Math.min(Math.max(0, backWidth), band.width() / 2);
+        int forward = Math.min(Math.max(0, forwardWidth), band.width() / 2);
+        int actualGap = Math.min(Math.max(0, gap), (band.width() - back - forward) / 2);
+        int available = band.width() - back - forward - 2 * actualGap;
+        UiBounds backBounds = new UiBounds(band.x(), band.y(), back, band.height());
+        UiBounds forwardBounds = new UiBounds(band.right() - forward, band.y(), forward, band.height());
+        List<UiBounds> items = new ArrayList<>();
+        int start = 0;
+        int y = band.y();
+        while (start < measuredWidths.size()) {
+            List<Integer> row = new ArrayList<>();
+            int used = 0;
+            while (start + row.size() < measuredWidths.size()) {
+                int desired = Math.min(available, Math.max(70, measuredWidths.get(start + row.size()) + 14));
+                int next = used + (row.isEmpty() ? 0 : actualGap) + desired;
+                if (!row.isEmpty() && next > available) break;
+                row.add(desired);
+                used = next;
+            }
+            items.addAll(fixedWidthsRow(boundedBand(frame.screen(), backBounds.right() + actualGap,
+                    y, available, band.height()), row, actualGap));
+            start += row.size();
+            y += band.height() + actualGap;
+        }
+        int lastBottom = items.isEmpty() ? band.bottom() : items.getLast().bottom();
+        int contentTop = Math.min(frame.content().bottom(), Math.max(frame.content().y(), lastBottom + 4));
+        UiBounds content = new UiBounds(frame.content().x(), contentTop, frame.content().width(),
+                frame.content().bottom() - contentTop);
+        return new SectionBar(backBounds, forwardBounds, items, content);
     }
 
     public static Bands bands(UiBounds bounds, int topHeight, int bottomHeight) {

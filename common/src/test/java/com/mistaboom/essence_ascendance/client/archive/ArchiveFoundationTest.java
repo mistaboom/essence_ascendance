@@ -34,6 +34,8 @@ public final class ArchiveFoundationTest {
     private static int checks;
 
     public static void main(String[] args) throws Exception {
+        net.minecraft.SharedConstants.tryDetectVersion();
+        net.minecraft.server.Bootstrap.bootStrap();
         catalogAndContent();
         localization();
         navigationAndHistory();
@@ -60,7 +62,7 @@ public final class ArchiveFoundationTest {
             check(labels.equals(alphabetical), "Reference side-panel entries are not alphabetical: " + section.id());
         }
         ArchiveEntry guideMachines = catalog.entry(id("guide/machines/first_network"));
-        ArchiveEntry referenceMachines = catalog.entry(id("reference/machines/overview"));
+        ArchiveEntry referenceMachines = catalog.entry(id("reference/machines/crucible"));
         check(guideMachines != null && referenceMachines != null && !guideMachines.id().equals(referenceMachines.id())
                         && guideMachines.subject().equals(referenceMachines.subject()),
                 "Guide and Reference documents about one subject must remain distinct entries");
@@ -109,12 +111,12 @@ public final class ArchiveFoundationTest {
                 "Guide location was not independent of Reference location");
         navigator.selectMode(ArchiveMode.SEARCH);
         navigator.setQuery("machine");
-        navigator.selectSearchResult(id("reference/machines/overview"));
+        navigator.selectSearchResult(id("reference/machines/crucible"));
         navigator.setListScroll(4);
         ArchiveNavigationState.Snapshot saved = navigator.snapshot();
         ArchiveNavigator restored = new ArchiveNavigator(catalog, saved);
         check(restored.mode() == ArchiveMode.SEARCH && restored.query().equals("machine")
-                        && restored.selectedResult().equals(id("reference/machines/overview"))
+                        && restored.selectedResult().equals(id("reference/machines/crucible"))
                         && restored.listScroll() == 4,
                 "Search query/result/scroll did not restore independently");
         restored.selectMode(ArchiveMode.REFERENCE);
@@ -124,7 +126,8 @@ public final class ArchiveFoundationTest {
         ArchiveNavigationState.Snapshot invalid = new ArchiveNavigationState.Snapshot(ArchiveMode.GUIDE,
                 Map.of(ArchiveMode.GUIDE, new ArchiveNavigationState.Page(id("guide/removed"), id("guide/removed/page"),
                         99, 4, 8)), ArchiveNavigationState.Search.initial(),
-                List.of(new ArchiveLocation.YieldBrowser(id("subject/essence"), null)));
+                List.of(new ArchiveNavigationState.Visit(new ArchiveLocation.YieldBrowser(id("subject/essence"), null),
+                        0, 0, 0)), List.of());
         ArchiveNavigator reconciled = new ArchiveNavigator(catalog, invalid);
         check(reconciled.section().equals(ArchiveSection.GUIDE_BEGINNING.id())
                         && reconciled.entryId().equals(id("guide/beginning/welcome")),
@@ -134,7 +137,7 @@ public final class ArchiveFoundationTest {
                 "Canonical navigation history is not bounded");
         ArchiveNavigator missing = new ArchiveNavigator(catalog, new ArchiveNavigationState.Snapshot(ArchiveMode.GUIDE,
                 Map.of(ArchiveMode.GUIDE, new ArchiveNavigationState.Page(ArchiveSection.GUIDE_BEGINNING.id(), null, 0, 0, 0)),
-                ArchiveNavigationState.Search.initial(), List.of()));
+                ArchiveNavigationState.Search.initial(), List.of(), List.of()));
         check(missing.entryId().equals(id("guide/beginning/welcome")) && catalog.entry(null) == null,
                 "An absent remembered entry falls back safely without an immutable-map null lookup");
         missing.selectMode(ArchiveMode.SEARCH);
@@ -144,6 +147,57 @@ public final class ArchiveFoundationTest {
         missing.back();
         check(missing.mode() == ArchiveMode.SEARCH && missing.listScroll() == 5,
                 "Opening a search result and returning preserves the captured results viewport");
+
+        ArchiveNavigator browser = new ArchiveNavigator(catalog, ArchiveNavigationState.Snapshot.initial());
+        check(!browser.canGoBack() && !browser.canGoForward(), "A fresh Archive has no history");
+        browser.setArticleScroll(120);
+        browser.setListScroll(3);
+        browser.openTarget("essence_ascendance:reference/machines/crucible");
+        browser.setArticleScroll(240);
+        browser.setListScroll(4);
+        browser.selectMode(ArchiveMode.SEARCH);
+        browser.setQuery("Focus");
+        browser.selectSearchResult(id("reference/machines/focus"));
+        browser.setListScroll(7);
+        browser.openSelectedSearchResult();
+        browser.setArticleScroll(360);
+        browser.back();
+        check(browser.mode() == ArchiveMode.SEARCH && browser.query().equals("Focus")
+                        && browser.selectedResult().equals(id("reference/machines/focus")) && browser.listScroll() == 7,
+                "Back must restore the exact search visit");
+        browser.back();
+        check(browser.entryId().equals(id("reference/machines/crucible"))
+                        && browser.articleScroll() == 240 && browser.listScroll() == 4,
+                "Back must restore article and navigation-list scroll positions");
+        browser.back();
+        check(browser.mode() == ArchiveMode.GUIDE && browser.articleScroll() == 120 && browser.listScroll() == 3
+                        && !browser.canGoBack() && browser.canGoForward(),
+                "Back must reach the first visit without losing its viewport");
+        browser.back();
+        browser = new ArchiveNavigator(catalog, browser.snapshot());
+        browser.forward();
+        check(browser.entryId().equals(id("reference/machines/crucible")) && browser.articleScroll() == 240,
+                "Forward history must survive closing/reopening the Archive");
+        browser.forward();
+        check(browser.mode() == ArchiveMode.SEARCH && browser.listScroll() == 7 && browser.query().equals("Focus"),
+                "Forward must restore the search visit rather than page section tabs");
+        browser.forward();
+        check(browser.entryId().equals(id("reference/machines/focus")) && browser.articleScroll() == 360
+                        && !browser.canGoForward(), "Forward must return to the latest article and viewport");
+        browser.forward();
+        browser.back();
+        browser.selectMode(ArchiveMode.SEARCH);
+        browser.openTarget("invalid:missing");
+        check(browser.canGoForward(), "No-op or invalid navigation must not clear forward history");
+        browser.openTarget("essence_ascendance:reference/machines/infuser");
+        check(!browser.canGoForward(), "Following a new destination after Back must discard the old forward branch");
+        browser.back();
+        browser.back();
+        browser.openTarget(browser.entryId().toString());
+        check(browser.canGoForward(), "Opening the current article must not add a visit or clear Forward");
+        for (int index = 0; index < 80; index++) reconciled.back();
+        check(reconciled.snapshot().future().size() <= ArchiveNavigator.HISTORY_LIMIT,
+                "Forward history is not bounded");
     }
 
     private static void localization() throws Exception {
@@ -163,7 +217,8 @@ public final class ArchiveFoundationTest {
                     "gui.essence_ascendance.requirement.unmet", "gui.essence_ascendance.requirement.information",
                     "gui.essence_ascendance.link.related", "gui.essence_ascendance.link.previous",
                     "gui.essence_ascendance.link.next", "guide.essence_ascendance.archive.title",
-                    "guide.essence_ascendance.archive.control.back", "guide.essence_ascendance.archive.search.placeholder"))
+                    "guide.essence_ascendance.archive.control.back", "guide.essence_ascendance.archive.control.forward",
+                    "guide.essence_ascendance.archive.search.placeholder"))
                 check(language.has(key), "Missing Archive localization " + key);
         }
     }
@@ -324,6 +379,31 @@ public final class ArchiveFoundationTest {
                 ReadOnlyDataTableView.HEADER_HEIGHT + uniformHeight * 2 + 2));
         check(uniformHeight > ReadOnlyDataTableView.ROW_HEIGHT && wrappedView.rowHeight() == uniformHeight,
                 "Wrapped table rows did not share the height required by their longest value");
+        var measuredLinks = new java.util.ArrayList<Component>();
+        Font linkFont = new Font(ignored -> null, false) {
+            @Override public int width(FormattedText text) { return text.getString().length() * 6; }
+            @Override public List<FormattedCharSequence> split(FormattedText text, int width) {
+                if (text instanceof Component component
+                        && component.getContents() instanceof TranslatableContents translated
+                        && translated.getKey().equals("gui.essence_ascendance.link.related")) measuredLinks.add(component);
+                return List.of(FormattedCharSequence.forward(text.getString(), Style.EMPTY));
+            }
+        };
+        ContentViewport linkArticle = new ContentViewport((graphics, illustration, bounds, tick) -> { }, ignored -> { });
+        linkArticle.prepare(linkFont, new UiBounds(0, 0, 300, 200), new SemanticDocument(Component.literal("Links"),
+                List.of(new SemanticDocument.Links(List.of(
+                        new SemanticDocument.Link("target/plain", Component.literal("Plain").withStyle(ChatFormatting.GOLD),
+                                SemanticDocument.LinkRelation.RELATED),
+                        new SemanticDocument.Link("target/emphasis", Component.literal("Emphasis").withStyle(ChatFormatting.UNDERLINE),
+                                SemanticDocument.LinkRelation.RELATED))))));
+        check(measuredLinks.size() == 2 && measuredLinks.stream().noneMatch(value -> value.getStyle().isUnderlined()),
+                "Arrow links must not acquire automatic hyperlink underlining");
+        var plainLabel = (Component) ((TranslatableContents) measuredLinks.getFirst().getContents()).getArgs()[0];
+        var emphasisLabel = (Component) ((TranslatableContents) measuredLinks.getLast().getContents()).getArgs()[0];
+        check(plainLabel.getStyle().getColor().getValue() == ChatFormatting.GOLD.getColor()
+                        && !plainLabel.getStyle().isUnderlined() && emphasisLabel.getStyle().isUnderlined(),
+                "Arrow links must retain canonical colors and explicitly authored emphasis");
+
         ContentViewport article = new ContentViewport((graphics, illustration, bounds, tick) -> { }, ignored -> { });
         SemanticDocument document = new SemanticDocument(Component.literal("Table"),
                 List.of(new SemanticDocument.Table<>(data), new SemanticDocument.Paragraph(Component.literal("After table"))));
@@ -339,6 +419,43 @@ public final class ArchiveFoundationTest {
                 new SemanticDocument(Component.literal("New table"), document.blocks()));
         article.key(269, 0, 0);
         check(article.scrollOffset() > 0, "A replaced document does not inherit the previous embedded table's focus");
+
+        SemanticDocument.Table<Integer> expanded = new SemanticDocument.Table<>(data, true);
+        check(ContentViewport.visibleTableRows(expanded) == data.rows().size(), "Expanded table clips rows into a nested viewport");
+        article.restore(0);
+        article.prepare(metricFont, new UiBounds(0, 0, 200, 100),
+                new SemanticDocument(Component.literal("Expanded"), List.of(expanded)));
+        article.click(20, 55, 0);
+        article.scroll(20, 55, 0, -1);
+        check(article.scrollOffset() > 0, "Wheel over an expanded table must scroll the article immediately");
+        article.restore(0);
+        article.prepare(metricFont, new UiBounds(0, 0, 200, 100),
+                new SemanticDocument(Component.literal("Expanded"), List.of(expanded)));
+        article.click(20, 55, 0);
+        article.key(269, 0, 0);
+        check(article.scrollOffset() > 0, "End over an expanded table must scroll the article");
+        for (int width : List.of(180, 320, 640))
+            check(ContentViewport.requirementTextWidth(width) == width - 29,
+                    "Requirement explanations still have a narrow secondary column");
+
+        var linkTarget = new java.util.concurrent.atomic.AtomicReference<String>();
+        ReadOnlyDataTable<Integer> linkedData = new ReadOnlyDataTable<>(List.of(
+                ReadOnlyDataTable.Column.number("value", Component.literal("Value"), 40, 1,
+                        value -> value, value -> Component.literal(value.toString()))),
+                List.of(new ReadOnlyDataTable.Row<>("first", 2, "target/first"),
+                        new ReadOnlyDataTable.Row<>("second", 1, "target/second")));
+        var linkedView = new ReadOnlyDataTableView<>(linkedData, linkTarget::set);
+        linkedView.prepare(new UiBounds(0, 0, 100, 80), value -> value.getString().length() * 6);
+        linkedView.click(10, 23, 1);
+        check(linkTarget.get() == null, "Secondary click activated a table link");
+        linkedView.click(10, 23, 0);
+        check("target/first".equals(linkTarget.get()), "Primary click did not activate the row's target");
+        linkedView.click(10, 5, 0);
+        linkedView.click(10, 23, 0);
+        check("target/second".equals(linkTarget.get()), "Sorting detached the target from its row");
+        linkedView.key(264);
+        linkedView.key(257);
+        check("target/first".equals(linkTarget.get()), "Keyboard selection and Enter did not activate the stable row target");
 
         ReadOnlyDataTable<Integer> equal = new ReadOnlyDataTable<>(List.of(new ReadOnlyDataTable.Column<Integer, Integer>(
                 "equal", Component.literal("Equal"), 1, 0, ReadOnlyDataTable.Alignment.LEFT,

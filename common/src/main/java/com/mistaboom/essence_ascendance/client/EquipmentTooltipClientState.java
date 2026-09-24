@@ -140,7 +140,7 @@ public final class EquipmentTooltipClientState {
                 tooltip.add(
                         Component.literal(" ")
                                 .append(EssenceText.tooltip("soulbound", binding.displayOwner()))
-                                .withStyle(style -> style.withColor(AscendanceUiPalette.SPECIAL))
+                                .withStyle(style -> style.withColor(AscendanceUiPalette.SOULBOUND))
                 )
         );
 
@@ -148,7 +148,7 @@ public final class EquipmentTooltipClientState {
             tooltip.add(
                     Component.literal(" ")
                             .append(EssenceText.tooltip("fractured"))
-                            .withStyle(style -> style.withColor(AscendanceUiPalette.ERROR).withBold(true))
+                            .withStyle(style -> style.withColor(AscendanceUiPalette.FRACTURED).withBold(true))
             );
         }
 

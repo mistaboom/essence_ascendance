@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.client.ui.data;
 
+import com.mistaboom.essence_ascendance.client.ui.content.ItemPresentation;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -21,7 +22,8 @@ public final class ReadOnlyDataTable<R> {
     public enum Alignment { LEFT, RIGHT }
     public enum SortDirection { ASCENDING, DESCENDING }
 
-    public record Row<R>(String key, R value) {
+    public record Row<R>(String key, R value, String target) {
+        public Row(String key, R value) { this(key, value, null); }
         public Row {
             if (key == null || key.isBlank()) throw new IllegalArgumentException("Table row key cannot be blank");
             Objects.requireNonNull(value, "Table row value");
@@ -37,6 +39,7 @@ public final class ReadOnlyDataTable<R> {
         private final Function<R, T> value;
         private final Function<T, Component> presentation;
         private final Comparator<T> comparator;
+        private Function<R, ItemPresentation> item;
 
         public Column(String id, Component header, int minimumWidth, int weight, Alignment alignment,
                       Function<R, T> value, Function<T, Component> presentation, Comparator<T> comparator) {
@@ -57,6 +60,19 @@ public final class ReadOnlyDataTable<R> {
             return new Column<>(id, header, minimumWidth, weight, Alignment.LEFT, value, Function.identity(), comparator);
         }
 
+        public static <R> Column<R, ItemPresentation> item(String id, Component header,
+                                                          Function<R, ItemPresentation> value) {
+            return item(id, header, 36, value);
+        }
+
+        public static <R> Column<R, ItemPresentation> item(String id, Component header, int width,
+                                                          Function<R, ItemPresentation> value) {
+            Column<R, ItemPresentation> column = new Column<>(id, header, width, 0, Alignment.LEFT,
+                    value, ItemPresentation::label, null);
+            column.item = value;
+            return column;
+        }
+
         public static <R, N extends Number & Comparable<N>> Column<R, N> number(
                 String id, Component header, int minimumWidth, int weight,
                 Function<R, N> value, Function<N, Component> presentation) {
@@ -71,6 +87,8 @@ public final class ReadOnlyDataTable<R> {
         public Alignment alignment() { return alignment; }
         public boolean sortable() { return comparator != null; }
         public Component display(R row) { return presentation.apply(value.apply(row)); }
+        public boolean isItem() { return item != null; }
+        public ItemPresentation item(R row) { return item == null ? null : item.apply(row); }
 
         private int compare(R left, R right) {
             if (comparator == null) return 0;

@@ -31,6 +31,8 @@ public final class ContentViewport implements FullscreenComposition.Input {
 
     private record BlockLayout(int index, SemanticDocument.Block block, int y, int height, Object detail) { }
     private record LinkHit(UiBounds bounds, String target) { }
+    private record ItemHit(UiBounds bounds, Component label) { }
+    private record LinkRowLayout(int y, int height, List<FormattedCharSequence> lines) { }
     private record StatRowLayout(int y, int height, List<FormattedCharSequence> label,
                                  List<FormattedCharSequence> value) { }
     private record RequirementRowLayout(int y, int height, List<FormattedCharSequence> label,
@@ -45,6 +47,7 @@ public final class ContentViewport implements FullscreenComposition.Input {
     private Font font;
     private List<BlockLayout> layout = List.of();
     private List<LinkHit> linkHits = List.of();
+    private List<ItemHit> itemHits = List.of();
     private int contentHeight;
     private Integer activeTable;
 
@@ -106,6 +109,10 @@ public final class ContentViewport implements FullscreenComposition.Input {
             } else if (block instanceof SemanticDocument.Icon) {
                 detail = null;
                 height = 24;
+            } else if (block instanceof SemanticDocument.ItemRow items) {
+                int columns = Math.max(1, width / 38);
+                detail = columns;
+                height = Math.max(1, (items.items().size() + columns - 1) / columns) * 38;
             } else if (block instanceof SemanticDocument.StatRows stats) {
                 List<StatRowLayout> rows = new ArrayList<>();
                 int rowY = 0;
@@ -122,12 +129,12 @@ public final class ContentViewport implements FullscreenComposition.Input {
             } else if (block instanceof SemanticDocument.Requirements requirements) {
                 List<RequirementRowLayout> rows = new ArrayList<>();
                 int rowY = 0;
-                int detailWidth = Math.max(1, Math.min(110, (width - 29) / 3));
-                int labelWidth = Math.max(1, width - 29 - detailWidth);
+                int textWidth = requirementTextWidth(width);
                 for (SemanticDocument.Requirement requirement : requirements.rows()) {
-                    List<FormattedCharSequence> labels = font.split(requirement.label(), labelWidth);
-                    List<FormattedCharSequence> details = font.split(requirement.detail(), detailWidth);
-                    int rowHeight = Math.max(19, Math.max(labels.size(), details.size()) * (font.lineHeight + 1) + 6);
+                    List<FormattedCharSequence> labels = font.split(requirement.label(), textWidth);
+                    List<FormattedCharSequence> details = font.split(requirement.detail(), textWidth);
+                    int rowHeight = Math.max(1, labels.size()) * (font.lineHeight + 1)
+                            + Math.max(1, details.size()) * (font.lineHeight + 2) + 10;
                     rows.add(new RequirementRowLayout(rowY, rowHeight, labels, details));
                     rowY += rowHeight;
                 }
@@ -135,14 +142,21 @@ public final class ContentViewport implements FullscreenComposition.Input {
                 height = rowY + 2;
             } else if (block instanceof SemanticDocument.Table<?> table) {
                 ReadOnlyDataTableView<?> view = tableViews.computeIfAbsent(index, ignored -> tableView(table));
-                int rows = table.data().rows().size();
                 int rowHeight = view.uniformRowHeight(font, width);
                 height = ReadOnlyDataTableView.HEADER_HEIGHT
-                        + Math.max(1, Math.min(7, rows)) * rowHeight + 2;
+                        + visibleTableRows(table) * rowHeight + 2;
                 detail = view;
             } else if (block instanceof SemanticDocument.Links links) {
-                detail = null;
-                height = links.links().size() * 18;
+                List<LinkRowLayout> rows = new ArrayList<>();
+                int rowY = 0;
+                for (SemanticDocument.Link link : links.links()) {
+                    var lines = font.split(linkLabel(link), Math.max(1, width - 10));
+                    int rowHeight = Math.max(18, lines.size() * (font.lineHeight + 1) + 6);
+                    rows.add(new LinkRowLayout(rowY, rowHeight, lines));
+                    rowY += rowHeight;
+                }
+                detail = List.copyOf(rows);
+                height = rowY;
             } else {
                 throw new IllegalStateException("Unknown semantic content block " + block);
             }
@@ -208,7 +222,19 @@ public final class ContentViewport implements FullscreenComposition.Input {
     @Override public boolean key(int key, int scan, int modifiers) {
         if (activeTable != null) {
             for (BlockLayout block : layout) {
+                if (block.index() == activeTable && block.block() instanceof SemanticDocument.Table<?> definition
+                        && definition.expanded() && block.detail() instanceof ReadOnlyDataTableView<?> table
+                        && (key == 264 || key == 265)) {
+                    table.key(key);
+                    var rows = table.orderedRows();
+                    for (int index = 0; index < rows.size(); index++) if (rows.get(index).key().equals(table.selectedKey()))
+                        scroll.ensureVisible(block.y() + ReadOnlyDataTableView.HEADER_HEIGHT + 1 + index * table.rowHeight(), table.rowHeight());
+                    prepareInteractiveChildren();
+                    return true;
+                }
                 if (block.index() == activeTable && block.detail() instanceof ReadOnlyDataTableView<?> table
+                        && (!(block.block() instanceof SemanticDocument.Table<?> definition) || !definition.expanded()
+                            || key == 257 || key == 335 || key == 32)
                         && table.key(key)) return true;
             }
         }
@@ -224,6 +250,12 @@ public final class ContentViewport implements FullscreenComposition.Input {
     /** Called by the host's foreground tooltip pass, after article/table scissors are released. */
     public void renderTooltips(GuiGraphics graphics, int mouseX, int mouseY) {
         if (!bounds.inset(1).contains(mouseX, mouseY)) return;
+        for (ItemHit hit : itemHits) {
+            if (!hit.bounds().contains(mouseX, mouseY)) continue;
+            graphics.renderTooltip(font, font.split(hit.label(), Math.max(1, Math.min(320, graphics.guiWidth() - 24))),
+                    mouseX, mouseY);
+            return;
+        }
         for (BlockLayout block : layout) {
             if (!(block.detail() instanceof ReadOnlyDataTableView<?> table)) continue;
             var overflow = table.overflowTextAt(mouseX, mouseY);
@@ -294,6 +326,12 @@ public final class ContentViewport implements FullscreenComposition.Input {
             }
             graphics.drawString(font, icon.label(), x + 29, y + 7,
                     AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT), false);
+        } else if (block instanceof SemanticDocument.ItemRow items) {
+            int columns = (Integer) measured.detail();
+            for (int index = 0; index < items.items().size(); index++) {
+                UiBounds figure = itemBounds(x, y, columns, index);
+                ItemIllustrationRenderer.renderStack(graphics, items.items().get(index).stack(), figure);
+            }
         } else if (block instanceof SemanticDocument.StatRows stats) {
             List<StatRowLayout> layouts = castStatRows(measured.detail());
             for (int index = 0; index < stats.rows().size(); index++) {
@@ -325,26 +363,21 @@ public final class ContentViewport implements FullscreenComposition.Input {
                 graphics.drawString(font, status, x + 4, rowY + 3, AscendanceUiPalette.argb(color), false);
                 drawLines(graphics, row.label(), x + 25, rowY + 3, font.lineHeight + 1,
                         AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT));
-                int detailY = rowY + 3;
-                for (FormattedCharSequence line : row.detail()) {
-                    graphics.drawString(font, line, x + width - 4 - font.width(line), detailY,
-                            AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT), false);
-                    detailY += font.lineHeight + 1;
-                }
+                int detailY = rowY + 6 + Math.max(1, row.label().size()) * (font.lineHeight + 1);
+                drawLines(graphics, row.detail(), x + 25, detailY, font.lineHeight + 2,
+                        AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT));
             }
         } else if (measured.detail() instanceof ReadOnlyDataTableView<?> table) {
             table.render(graphics, font, mouseX, mouseY);
         } else if (block instanceof SemanticDocument.Links links) {
-            int rowY = y;
-            for (SemanticDocument.Link link : links.links()) {
-                UiBounds linkBounds = new UiBounds(x, rowY, width, 16);
+            List<LinkRowLayout> rows = castLinkRows(measured.detail());
+            for (int index = 0; index < links.links().size(); index++) {
+                LinkRowLayout row = rows.get(index);
+                UiBounds linkBounds = new UiBounds(x, y + row.y(), width, row.height());
                 int color = linkBounds.contains(mouseX, mouseY)
                         ? AscendanceUiPalette.argb(AscendanceUiPalette.INTERACTIVE)
                         : AscendanceUiPalette.argb(AscendanceUiPalette.INFORMATION);
-                Component relation = Component.translatable("gui.essence_ascendance.link."
-                        + link.relation().name().toLowerCase(java.util.Locale.ROOT), link.label());
-                graphics.drawString(font, relation, x + 5, rowY + 3, color, false);
-                rowY += 18;
+                drawLines(graphics, row.lines(), x + 5, y + row.y() + 3, font.lineHeight + 1, color);
             }
         }
     }
@@ -352,18 +385,26 @@ public final class ContentViewport implements FullscreenComposition.Input {
     private void prepareInteractiveChildren() {
         if (font == null || document == null) return;
         List<LinkHit> hits = new ArrayList<>();
+        List<ItemHit> figures = new ArrayList<>();
         for (BlockLayout block : layout) {
             UiBounds blockBounds = blockBounds(block);
             if (block.detail() instanceof ReadOnlyDataTableView<?> table) table.prepare(font, blockBounds);
+            if (block.block() instanceof SemanticDocument.ItemRow items) {
+                for (int index = 0; index < items.items().size(); index++)
+                    figures.add(new ItemHit(itemBounds(blockBounds.x(), blockBounds.y(), (Integer) block.detail(), index),
+                            items.items().get(index).label()));
+            }
             if (block.block() instanceof SemanticDocument.Links links) {
-                int rowY = blockBounds.y();
-                for (SemanticDocument.Link link : links.links()) {
-                    hits.add(new LinkHit(new UiBounds(blockBounds.x(), rowY, blockBounds.width(), 16), link.target()));
-                    rowY += 18;
+                List<LinkRowLayout> rows = castLinkRows(block.detail());
+                for (int index = 0; index < links.links().size(); index++) {
+                    LinkRowLayout row = rows.get(index);
+                    hits.add(new LinkHit(new UiBounds(blockBounds.x(), blockBounds.y() + row.y(),
+                            blockBounds.width(), row.height()), links.links().get(index).target()));
                 }
             }
         }
         linkHits = List.copyOf(hits);
+        itemHits = List.copyOf(figures);
     }
 
     private UiBounds blockBounds(BlockLayout block) {
@@ -417,9 +458,28 @@ public final class ContentViewport implements FullscreenComposition.Input {
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private static ReadOnlyDataTableView<?> tableView(SemanticDocument.Table<?> table) {
-        return new ReadOnlyDataTableView((ReadOnlyDataTable) table.data());
+    private ReadOnlyDataTableView<?> tableView(SemanticDocument.Table<?> table) {
+        return new ReadOnlyDataTableView((ReadOnlyDataTable) table.data(), navigate);
     }
+
+    /** Labels and explanations share the available line width, not competing columns. */
+    public static int requirementTextWidth(int width) { return Math.max(1, width - 29); }
+
+    public static int visibleTableRows(SemanticDocument.Table<?> table) {
+        return Math.max(1, table.expanded() ? table.data().rows().size() : Math.min(7, table.data().rows().size()));
+    }
+
+    private static UiBounds itemBounds(int x, int y, int columns, int index) {
+        return new UiBounds(x + (index % columns) * 38 + 3, y + (index / columns) * 38 + 3, 32, 32);
+    }
+
+    private static Component linkLabel(SemanticDocument.Link link) {
+        return Component.translatable("gui.essence_ascendance.link."
+                + link.relation().name().toLowerCase(java.util.Locale.ROOT), link.label());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<LinkRowLayout> castLinkRows(Object detail) { return (List<LinkRowLayout>) detail; }
 
     private static IllustrationView.Layout shift(IllustrationView.Layout raw, int x, int y) {
         int dx = x - raw.bounds().x();

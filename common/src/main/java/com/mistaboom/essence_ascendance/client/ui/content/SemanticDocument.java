@@ -25,7 +25,7 @@ public record SemanticDocument(Component title, List<Block> blocks) {
     public enum LinkRelation { RELATED, PREVIOUS, NEXT }
 
     public sealed interface Block permits Heading, Paragraph, OrderedSteps, Callout,
-            Illustration, Icon, StatRows, Requirements, Table, Links {
+            Illustration, Icon, ItemRow, StatRows, Requirements, Table, Links {
         List<Component> searchableText();
     }
 
@@ -33,6 +33,12 @@ public record SemanticDocument(Component title, List<Block> blocks) {
     public record Icon(ResourceLocation resource, Component label) implements Block {
         public Icon { Objects.requireNonNull(resource); Objects.requireNonNull(label); }
         @Override public List<Component> searchableText() { return List.of(label); }
+    }
+
+    /** Related item variants, kept together in order and wrapped only when necessary. */
+    public record ItemRow(List<ItemPresentation> items) implements Block {
+        public ItemRow { items = List.copyOf(items); }
+        @Override public List<Component> searchableText() { return items.stream().map(ItemPresentation::label).toList(); }
     }
 
     public record Heading(HeadingLevel level, Component text) implements Block {
@@ -91,7 +97,8 @@ public record SemanticDocument(Component title, List<Block> blocks) {
         }
     }
 
-    public record Table<R>(ReadOnlyDataTable<R> data) implements Block {
+    public record Table<R>(ReadOnlyDataTable<R> data, boolean expanded) implements Block {
+        public Table(ReadOnlyDataTable<R> data) { this(data, false); }
         public Table { Objects.requireNonNull(data); }
         @Override public List<Component> searchableText() {
             List<Component> text = new ArrayList<>();

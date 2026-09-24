@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.client.ui.data;
 
 import com.mistaboom.essence_ascendance.client.ui.StyledTextLayout;
 import com.mistaboom.essence_ascendance.client.ui.UiBounds;
+import com.mistaboom.essence_ascendance.client.ui.content.ItemIllustrationRenderer;
 import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenControls;
 import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenScroll;
 import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenViewport;
@@ -15,6 +16,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.ToIntFunction;
+import java.util.function.Consumer;
 
 /** Shared focus, selection, hit testing, clipping, scrolling and visible-row rendering for read-only tables. */
 public final class ReadOnlyDataTableView<R> {
@@ -22,6 +24,7 @@ public final class ReadOnlyDataTableView<R> {
     public static final int ROW_HEIGHT = 17;
 
     private final ReadOnlyDataTable<R> table;
+    private final Consumer<String> navigate;
     private final FullscreenScroll scroll = new FullscreenScroll();
     private String selectedKey;
     private String sortColumn;
@@ -34,7 +37,12 @@ public final class ReadOnlyDataTableView<R> {
     private int rowHeight = ROW_HEIGHT;
 
     public ReadOnlyDataTableView(ReadOnlyDataTable<R> table) {
+        this(table, ignored -> { });
+    }
+
+    public ReadOnlyDataTableView(ReadOnlyDataTable<R> table, Consumer<String> navigate) {
         this.table = Objects.requireNonNull(table, "Table definition");
+        this.navigate = Objects.requireNonNull(navigate);
     }
 
     public String selectedKey() { return selectedKey; }
@@ -126,8 +134,23 @@ public final class ReadOnlyDataTableView<R> {
                     var measured = widths.get(columnIndex);
                     var column = table.columns().get(columnIndex);
                     UiBounds cell = new UiBounds(bounds.x() + 1 + measured.x(), y, measured.width(), rowHeight);
-                    drawWrappedCell(graphics, font, cell, column.display(row.value()), column.alignment(),
-                            AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT));
+                    if (column.isItem()) {
+                        var item = column.item(row.value());
+                        boolean captioned = !item.caption().getString().isEmpty();
+                        int size = Math.min(28, Math.min(cell.width(), cell.height()) - 4);
+                        UiBounds figure = new UiBounds(cell.x() + (cell.width() - size) / 2,
+                                captioned ? cell.y() + 2 : cell.y() + (cell.height() - size) / 2,
+                                Math.max(0, size), Math.max(0, size));
+                        ItemIllustrationRenderer.renderStack(graphics, item.stack(), figure);
+                        if (captioned) drawWrappedCell(graphics, font,
+                                new UiBounds(cell.x(), figure.bottom(), cell.width(), Math.max(0, cell.bottom() - figure.bottom())),
+                                item.caption(), ReadOnlyDataTable.Alignment.LEFT,
+                                AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT));
+                    } else {
+                        Component value = column.display(row.value());
+                        drawWrappedCell(graphics, font, cell, value, column.alignment(),
+                                AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT));
+                    }
                 }
                 graphics.fill(body.x(), rowBounds.bottom() - 1, body.right(), rowBounds.bottom(),
                         0x66535B68);
@@ -163,7 +186,11 @@ public final class ReadOnlyDataTableView<R> {
         }
         int rowIndex = scroll.offset() + (int) ((y - bounds.y() - 1 - HEADER_HEIGHT) / rowHeight);
         List<ReadOnlyDataTable.Row<R>> rows = orderedRows();
-        if (rowIndex >= 0 && rowIndex < rows.size()) selectedKey = rows.get(rowIndex).key();
+        if (rowIndex >= 0 && rowIndex < rows.size()) {
+            var row = rows.get(rowIndex);
+            selectedKey = row.key();
+            if (row.target() != null) navigate.accept(row.target());
+        }
         return true;
     }
 
@@ -174,6 +201,11 @@ public final class ReadOnlyDataTableView<R> {
     }
 
     public boolean key(int key) {
+        if (key == 257 || key == 335 || key == 32) {
+            orderedRows().stream().filter(row -> row.key().equals(selectedKey) && row.target() != null)
+                    .findFirst().ifPresent(row -> navigate.accept(row.target()));
+            return true;
+        }
         if (key == 264 || key == 265) {
             List<ReadOnlyDataTable.Row<R>> rows = orderedRows();
             if (rows.isEmpty()) return true;
@@ -200,6 +232,7 @@ public final class ReadOnlyDataTableView<R> {
             if (x < left || x >= left + measured.width()) continue;
             var column = table.columns().get(index);
             Component value = header ? column.header() : column.display(rows.get(rowIndex).value());
+            if (!header && column.isItem()) return Optional.of(value);
             if (!header && wrappingFont != null) return Optional.empty();
             return measureText.applyAsInt(value) > Math.max(0, measured.width() - 8)
                     ? Optional.of(value) : Optional.empty();
@@ -240,14 +273,21 @@ public final class ReadOnlyDataTableView<R> {
 
     private int measureUniformRowHeight(Font font, List<ReadOnlyDataTable.ColumnWidth> measuredWidths) {
         int maximumLines = 1;
+        int imageHeight = ROW_HEIGHT;
         for (ReadOnlyDataTable.Row<R> row : table.rows()) {
             for (int index = 0; index < measuredWidths.size(); index++) {
                 int available = Math.max(1, measuredWidths.get(index).width() - 8);
+                if (table.columns().get(index).isItem()) {
+                    Component caption = table.columns().get(index).item(row.value()).caption();
+                    imageHeight = Math.max(imageHeight, 32 + (caption.getString().isEmpty() ? 0
+                            : font.split(caption, available).size() * (font.lineHeight + 1) + 5));
+                    continue;
+                }
                 int lines = Math.max(1, font.split(table.columns().get(index).display(row.value()), available).size());
                 maximumLines = Math.max(maximumLines, lines);
             }
         }
-        return Math.max(ROW_HEIGHT, maximumLines * (font.lineHeight + 1) + 5);
+        return Math.max(imageHeight, maximumLines * (font.lineHeight + 1) + 5);
     }
 
     private void renderScrollbar(GuiGraphics graphics, UiBounds body, int rowCount) {

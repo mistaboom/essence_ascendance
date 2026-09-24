@@ -65,7 +65,14 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
         navigation.captureSectionWindow();
         ArchiveMode mode = navigation.mode();
         boolean secondary = mode != ArchiveMode.SEARCH;
-        FullscreenLayout.Frame frame = FullscreenLayout.frame(FullscreenLayout.Spec.standard(), width, height, secondary);
+        FullscreenLayout.Frame initialFrame = FullscreenLayout.frame(FullscreenLayout.Spec.standard(), width, height, true);
+        List<ArchiveSection> sections = secondary ? catalog.sections(mode) : List.of();
+        FullscreenLayout.SectionBar sectionBar = FullscreenLayout.sectionBar(initialFrame,
+                sections.stream().map(section -> font.width(section.label())).toList(),
+                font.width(EssenceText.guide("archive.control.back")) + 14,
+                font.width(EssenceText.guide("archive.control.forward")) + 14, 3);
+        FullscreenLayout.Frame frame = new FullscreenLayout.Frame(initialFrame.screen(), initialFrame.modes(),
+                initialFrame.secondary(), sectionBar.content());
         // Selecting another entry keeps the list's keyboard focus in this section.
         Object pageKey = mode == ArchiveMode.SEARCH ? mode : java.util.Arrays.asList(mode, navigation.section());
         FullscreenComposition.Builder builder = new FullscreenComposition.Builder(pageKey, frame)
@@ -79,26 +86,23 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
                         this::renderTitle, FullscreenComposition.Input.NONE, false));
 
         if (secondary) {
-            List<ArchiveSection> sections = catalog.sections(mode);
-            FullscreenLayout.Tabs tabs = FullscreenLayout.tabs(frame.secondary(),
-                    sections.stream().map(section -> font.width(section.label())).toList(), 70, 112, 18, 3);
             navigation.fullscreenNavigation().reconcileSections(sections.stream().map(ArchiveSection::id).toList(),
-                    tabs.visibleCount(), true);
-            builder.sections(navigation.fullscreenNavigation(), sections.stream()
+                    sections.size(), true);
+            builder.sections(sections.stream()
                             .map(section -> new FullscreenComposition.Section<>(section.id(), section.label(),
                                     mode == ArchiveMode.GUIDE ? AscendanceUiPalette.INFORMATION : AscendanceUiPalette.SPECIAL))
-                            .toList(), tabs, this::chooseSection);
+                            .toList(), navigation.section(), sectionBar.items(), this::chooseSection);
             composeArticle(builder, frame.content());
         } else {
             composeSearch(builder, frame.content());
         }
 
-        if (navigation.canGoBack()) {
-            builder.control(new FullscreenComposition.Control("archive/back",
-                    new UiBounds(14, Math.max(0, height - 16), Math.min(84, Math.max(0, width - 28)), 14),
-                    EssenceText.guide("archive.control.back"), true, false, FullscreenControls.Style.LINK,
-                    AscendanceUiPalette.INTERACTIVE, this::back));
-        }
+        builder.control(new FullscreenComposition.Control("archive/back", sectionBar.back(),
+                EssenceText.guide("archive.control.back"), navigation.canGoBack(), false, FullscreenControls.Style.TAB,
+                AscendanceUiPalette.INTERACTIVE, this::back));
+        builder.control(new FullscreenComposition.Control("archive/forward", sectionBar.forward(),
+                EssenceText.guide("archive.control.forward"), navigation.canGoForward(), false, FullscreenControls.Style.TAB,
+                AscendanceUiPalette.INTERACTIVE, this::forward));
         return builder.build();
     }
 
@@ -180,7 +184,7 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
     }
 
     private EntryListView.Entry<ArchiveEntry> listEntry(ArchiveEntry entry) {
-        return new EntryListView.Entry<>(entry.id().toString(), entry.title(), entry.summary(), entry);
+        return new EntryListView.Entry<>(entry.id().toString(), entry.title(), entry.navigationSummary(), entry);
     }
 
     private void chooseMode(ArchiveMode mode) { captureCurrentOffsets(); navigation.selectMode(mode); invalidateLocation(); }
@@ -195,6 +199,7 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
         invalidateLocation();
     }
     private void back() { captureCurrentOffsets(); navigation.back(); invalidateLocation(); }
+    private void forward() { captureCurrentOffsets(); navigation.forward(); invalidateLocation(); }
 
     private void invalidateLocation() {
         listStateKey = null;

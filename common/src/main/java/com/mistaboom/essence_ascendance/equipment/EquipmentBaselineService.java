@@ -176,9 +176,19 @@ public final class EquipmentBaselineService {
             EquipmentProfileDefinition profile,
             EquipmentBaselineProperty property
     ) {
+        return resolvedValue(base, profile, property, true);
+    }
+
+    /** Pure baseline projection used by gameplay and read-only presentation with an explicit runtime policy. */
+    public static double resolvedValue(
+            double base,
+            EquipmentProfileDefinition profile,
+            EquipmentBaselineProperty property,
+            boolean quantized
+    ) {
         double raw=base * profile.baselineMultiplier(property);
         if(!Double.isFinite(raw))throw new IllegalArgumentException("Equipment archetype value exceeds finite gameplay arithmetic");
-        if(raw<=0)return 0;
+        if(raw<=0 || !quantized)return Math.max(0, raw);
         return switch(property) {
             case MELEE_ATTACK_SPEED,RANGED_ATTACK_SPEED,MAGIC_CAST_SPEED -> Math.max(.1,rounded(raw,1));
             case MELEE_DAMAGE,RANGED_DAMAGE,MAGIC_DAMAGE,MINING_SPEED,DURABILITY -> Math.max(1,rounded(raw,0));
@@ -191,7 +201,7 @@ public final class EquipmentBaselineService {
     }
 
     private static double multiply(double base,EquipmentProfileDefinition profile,EquipmentBaselineProperty property) {
-        return quantizationEnabled()?resolvedValue(base,profile,property):base*profile.baselineMultiplier(property);
+        return resolvedValue(base, profile, property, quantizationEnabled());
     }
 
     public static boolean quantizationEnabled() {

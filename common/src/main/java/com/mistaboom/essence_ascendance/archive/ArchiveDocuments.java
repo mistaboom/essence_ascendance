@@ -33,6 +33,7 @@ final class ArchiveDocuments {
                 new SemanticDocument.OrderedSteps(List.of(g(key + ".step.1"), g(key + ".step.2"), g(key + ".step.3"))),
                 new SemanticDocument.Callout(SemanticDocument.CalloutKind.TIP, g("archive.callout.tip"), g(key + ".tip")),
                 new SemanticDocument.Illustration(id("ascendance_archive"), g(key + ".caption"), 124, 68),
+                new SemanticDocument.Heading(SemanticDocument.HeadingLevel.SECTION, g("archive.see_also")),
                 new SemanticDocument.Links(List.of(new SemanticDocument.Link(id("guide/essence/collecting").toString(),
                         g("archive.entry.guide.essence.collecting.title"), SemanticDocument.LinkRelation.NEXT)))));
     }
@@ -73,13 +74,14 @@ final class ArchiveDocuments {
                 new SemanticDocument.Paragraph(g(key + ".body")),
                 new SemanticDocument.Illustration(id("latent_ore"), g(key + ".caption"), 140, 82),
                 new SemanticDocument.Callout(SemanticDocument.CalloutKind.NOTE, g("archive.callout.note"), g(key + ".note")),
+                new SemanticDocument.Heading(SemanticDocument.HeadingLevel.SECTION, g("archive.see_also")),
                 new SemanticDocument.Links(List.of(
                         new SemanticDocument.Link(id("guide/beginning/welcome").toString(),
                                 g("archive.entry.guide.beginning.welcome.title"), SemanticDocument.LinkRelation.PREVIOUS),
                         new SemanticDocument.Link(id("guide/machines/first_network").toString(),
                                 g("archive.entry.guide.machines.first_network.title"), SemanticDocument.LinkRelation.NEXT),
-                        new SemanticDocument.Link(id("reference/essences/overview").toString(),
-                                g("archive.entry.reference.essences.overview.title"), SemanticDocument.LinkRelation.RELATED)))));
+                        new SemanticDocument.Link(id("reference/essences/item_yields").toString(),
+                                g("archive.entry.reference.essences.item_yields.title"), SemanticDocument.LinkRelation.RELATED)))));
     }
 
     static SemanticDocument infusionGuide() {

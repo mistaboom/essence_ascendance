@@ -28,15 +28,25 @@ public final class ArchiveNavigationState {
         public static Search initial() { return new Search("", null, 0); }
     }
 
+    /** One history visit, including the viewport at the moment the player left it. */
+    public record Visit(ArchiveLocation location, int sectionWindow, int listScroll, int articleScroll) {
+        public Visit {
+            sectionWindow = Math.max(0, sectionWindow);
+            listScroll = Math.max(0, listScroll);
+            articleScroll = Math.max(0, articleScroll);
+        }
+    }
+
     public record Snapshot(ArchiveMode mode, Map<ArchiveMode, Page> pages, Search search,
-                           List<ArchiveLocation> history) {
+                           List<Visit> history, List<Visit> future) {
         public Snapshot {
             mode = mode == null ? ArchiveMode.GUIDE : mode;
             pages = Map.copyOf(pages);
             search = search == null ? Search.initial() : search;
             history = List.copyOf(history);
+            future = List.copyOf(future);
         }
-        public static Snapshot initial() { return new Snapshot(ArchiveMode.GUIDE, Map.of(), Search.initial(), List.of()); }
+        public static Snapshot initial() { return new Snapshot(ArchiveMode.GUIDE, Map.of(), Search.initial(), List.of(), List.of()); }
     }
 
     public static UiNavigationMemory.Session session() { return MEMORY.session(); }

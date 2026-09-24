@@ -31,13 +31,35 @@ Entry lists and tables reveal arrow-key selection through `FullscreenScroll.ensu
 
 ## Navigation and Search contracts
 
-`ArchiveNavigator` stores canonical `ArchiveLocation` values, never screens or runtime objects. Its bounded history is limited to 32 locations. Guide and Reference independently remember section, entry, section-tab window, entry-list scroll, and article scroll. Search independently remembers query, selected result, and result scroll. First use resolves to Guide → Beginning; missing sections, entries, or results reconcile safely.
+### Player-facing Reference content and shared extensions
+
+Reference Essences, Machines, and Equipment contain real entries without temporary overview pages. `ReferenceDocuments` composes the remaining articles from `EssencePresentationData`, `MachinePresentationData`, `EquipmentPresentationData`, and `MechanicsPresentationData`. The canonical future Item Yields destination is `reference/essences/item_yields`; its browser is still deferred. The retired investment/milestone progression entry is removed. Current Ascension, chapter seal requirements, investment acceleration, and normalized activity rates are documented together under Category Attunement.
+
+`ArchiveEntry.navigationSummary` is a concise sidebar description independent of its richer searchable `summary`. Search still traverses catalog metadata and semantic content; it does not maintain a second index of authored facts.
+
+Shared content additions:
+
+- `ItemPresentation` describes a registered resource, immutable component patch, searchable/hover label, and optional caption. It resolves a detached stack only for rendering. `EquipmentTierData.tierData` and `EssentiumCarrierData.carrierData` are the same pure encoders used by their gameplay writers, so equipment tiers and filled Essentium categories/grades select the real native models without installing configuration or mutating a live item.
+- `SemanticDocument.ItemRow` lays out ordered model variants. `ReadOnlyDataTable.Column.item` supports image cells with optional tier captions. Item labels remain searchable and appear in the foreground hover pass.
+- Table rows may carry a canonical navigation `target`. Primary click or Enter/Space activates it; stable row identity keeps targets attached through sorting. Existing row hover/focus signals clickability without adding underlines or replacing category colors. Standalone links retain directional arrows; neither renderer adds hyperlink underlining. Explicitly authored emphasis is preserved.
+- `SemanticDocument.Table(data, true)` expands to all rows. The article owns wheel/Page/Home/End scrolling; row-key keyboard selection reveals its row using the article scroll. The existing one-argument table constructor retains the bounded-table contract for other consumers.
+- Requirement rows now stack their label above a full-width explanation. Links wrap with the same measured bounds used for drawing and activation.
+
+Armor tables show per-slot physical allocation and worn Bonus share. `ArmorStatWeights.pointsForSlot` is shared with `EquipmentBaselineResult`; Latent armor has zero Essence share. Other equipment uses compact per-tier item/stat rows and grouped clickable Bonus lists. Shield reflection uses `ShieldMath` and synchronized shield settings. Maximum durability displays the actual non-shield item value, or the shield's applied tier value—not the currently unused non-shield generated durability target. No durability progression gameplay change is included.
+
+Essence/category labels retain canonical category colors; all new tier text uses the same tier-metal palette as existing Skills and Bonuses. Player prose omits registry/persistence/synchronization implementation explanations while preserving useful formulas, limitations, and failure conditions.
+
+Focus cells use only `None`, `Latent`, or their upgraded tier name beneath the Focus header; the provider's three distinct operational states are unchanged. Upgrade tier columns receive usable minimum widths and share spare width, with concise cost headers. Footer navigation is authored beneath a localized `See Also` section heading/divider; applicable Bonus groups remain under their own headings. Soulbound and Fractured labels use `AscendanceUiPalette.SOULBOUND`/`FRACTURED`, semantic aliases for the existing canonical SPECIAL/ERROR tooltip colors. Equipment tooltips share those aliases.
+
+`ArchiveNavigator` stores canonical `ArchiveLocation` values in immutable `Visit` snapshots, never screens or runtime objects. Back and Forward each have a bounded 32-visit stack. Visits capture article/list scroll and search query/selection/scroll, so history restores the actual viewport. New navigation clears the forward branch; no-op/invalid targets do not. Both stacks survive closing and reopening within the same session. Guide and Reference independently remember section, entry, legacy section-tab window, entry-list scroll, and article scroll. First use resolves to Guide → Beginning; missing sections, entries, or results reconcile safely.
+
+Archive history controls always occupy the left/right ends of the section row, including Search; unavailable actions are visibly disabled. `FullscreenLayout.sectionBar` wraps complete section navigation between them and moves the article below all rows. The unpaged `FullscreenComposition.Builder.sections` overload consumes those bounds. Other consumers retain the existing paged-tabs overload; Archive no longer exposes section-paging arrows or a bottom Back control.
 
 `ArchiveNavigationState` uses `UiNavigationMemory` and captures its session token when the screen opens. `ClientPacketDispatch` clears the Archive session on a connection boundary, and a late screen removal cannot write into the new session. `ArchiveLocation.YieldBrowser` reserves a typed future destination without adding a current browser screen.
 
 The current Search foundation edits and remembers a query, derives simple matching results directly from catalog metadata and semantic content, and remembers a stable selected result. Clicking a result opens it directly; keyboard arrows move selection and Enter/Space opens it. Search uses shared gap-aware bands so the field and result list have identical horizontal bounds and a consistent gutter. Ranking, filters, highlighting, and expanded search behavior remain later work.
 
-Every explicit location transition captures current offsets and invalidates the displayed location, including Search's Open action and revisits to the same entry. Selecting another entry within a section preserves its list offset and focus; a mode/section change starts a new shared interaction scope. Missing/null catalog targets resolve safely.
+Every explicit location transition captures current offsets and invalidates the displayed location, including Search's Open action and history traversal. Opening the current entry is a navigation no-op. Selecting another entry within a section preserves its list offset and focus; a mode/section change starts a new shared interaction scope. Missing/null catalog targets resolve safely.
 
 ## Item and delivery
 
