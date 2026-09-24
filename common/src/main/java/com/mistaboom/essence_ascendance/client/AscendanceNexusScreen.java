@@ -40,7 +40,18 @@ import com.mistaboom.essence_ascendance.text.EssenceText;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import dev.architectury.networking.NetworkManager;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import com.mistaboom.essence_ascendance.client.ui.UiBounds;
+import com.mistaboom.essence_ascendance.client.ui.UiViewport;
+import com.mistaboom.essence_ascendance.client.ui.UiOverlayStack;
+import com.mistaboom.essence_ascendance.client.ui.UiNavigationMemory;
+import com.mistaboom.essence_ascendance.client.ui.StyledTextLayout;
+import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenComposition;
+import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenContainerScreen;
+import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenControls;
+import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenLayout;
+import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenNavigation;
+import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenViewport;
+import com.mistaboom.essence_ascendance.client.nexus.NexusPageLayout;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
@@ -71,10 +82,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * staged plan to the server; the server validates and commits it atomically.
  */
 public final class AscendanceNexusScreen
-        extends AbstractContainerScreen<AscendanceNexusMenu> {
+        extends FullscreenContainerScreen<AscendanceNexusMenu> {
 
-    private static final int BACKGROUND_TOP = 0xFF151518;
-    private static final int BACKGROUND_BOTTOM = 0xFF29292D;
     private static final int PANEL = 0xCC1C1C20;
     private static final int PANEL_INNER = 0xCC29292D;
     private static final int BORDER = 0xFF777780;
@@ -99,16 +108,7 @@ public final class AscendanceNexusScreen
     };
 
     private static final int SAFE_MARGIN = 14;
-    private static final int MODE_SELECTOR_WIDTH = 306;
-    private static final int MODE_SELECTOR_HEIGHT = 24;
-    private static final int MODE_SELECTOR_Y = 5;
-    private static final int TAB_HEIGHT = 20;
-    private static final int TAB_GAP = 3;
-    private static final int TAB_ARROW_WIDTH = 18;
-    private static final int TAB_MIN_WIDTH = 64;
-    private static final int TAB_MAX_WIDTH = 102;
     private static final int TRACK_PREFERRED_WIDTH = 66;
-    private static final int MIN_SIDE_SECTION_WIDTH = 58;
     private static final int TRACK_GAP = 4;
     private static final int TRACK_ARROW_WIDTH = 20;
     private static final int TRACK_KNOB_HEIGHT = 7;
@@ -118,8 +118,6 @@ public final class AscendanceNexusScreen
     private static final int BOTTOM_CONTROL_HEIGHT = 16;
     private static final int BOTTOM_CONTROL_GAP = 5;
     private static final int GAUGE_TEXT_GAP = 4;
-    private static final int SECTION_HEIGHT = 34;
-    private static final int NARROW_SECTION_HEIGHT = 30;
     private static final int SKILL_LEGEND_HEIGHT = 34;
     private static final int SKILL_SCROLL_STEP = 28;
     private static final int SKILL_ROUTE_CLEARANCE =
@@ -136,21 +134,15 @@ public final class AscendanceNexusScreen
     private static final int SKILL_SCROLL_ARROW_INSET = 2;
     private static final float SKILL_SCROLL_ARROW_GLYPH_SCALE = 2.0F;
     private static final float SKILL_OVERLAY_RENDER_DEPTH = 100.0F;
-    /*
-     * Vanilla tooltips render above ordinary GUI content.  The pending-change
-     * confirmation is a true modal, so it must sit above both the page and any
-     * tooltip that AbstractContainerScreen may already have queued.
-     */
-    private static final float MODAL_RENDER_DEPTH = 500.0F;
     private static final AtomicLong NEXT_REQUEST_ID = new AtomicLong(1L);
 
     private int selectedCategoryIndex = 0;
-    private int tabWindowStart = 0;
     private int trackWindowStart = 0;
 
     private int draggingTrackIndex = -1;
-    private NexusMode mode = NexusMode.ASCENDANCE;
+    private final FullscreenNavigation<NexusMode, ResourceLocation> navigation = new FullscreenNavigation<>(NexusMode.ASCENDANCE);
     private final UUID navigationPlayer;
+    private final UiNavigationMemory.Session navigationSession;
     private final Map<NexusMode, NexusNavigationState.Page> navigationPages = new EnumMap<>(NexusMode.class);
     private final NexusDraft draft = new NexusDraft();
     private final NexusAttunementView attunementView = new NexusAttunementView();
@@ -162,24 +154,15 @@ public final class AscendanceNexusScreen
     private long pendingRequestId = -1L;
     private long acceptedRevision = -1L;
     private Component transactionFeedback;
-    private final Map<ResourceLocation, Double> skillScrollX =
-            new LinkedHashMap<>();
-    private final Map<ResourceLocation, Double> skillScrollY =
-            new LinkedHashMap<>();
+    private final Map<ResourceLocation, FullscreenViewport> skillViewports = new LinkedHashMap<>();
     private final Map<ResourceLocation, NexusSkillTreeLayout.Layout> skillLayouts =
             new LinkedHashMap<>();
-    private boolean panningSkills;
-    private double lastSkillPanX;
-    private double lastSkillPanY;
     private ResourceLocation hoveredSkillId;
     private final SkillTooltipPresentation skillTooltipPresentation = new SkillTooltipPresentation();
     private ResourceLocation tooltipSkillId;
     private int skillTooltipScroll;
     private int skillTooltipMaximumScroll;
     private NexusProgressionTrack hoveredTrack;
-    private NexusMode hoveredLockedMode;
-
-    private ResourceLocation selectedEssenceId;
 
     public AscendanceNexusScreen(
             AscendanceNexusMenu menu,
@@ -187,189 +170,292 @@ public final class AscendanceNexusScreen
             Component title
     ) {
         super(menu, playerInventory, title);
-        imageWidth = 0;
-        imageHeight = 0;
-        titleLabelX = 0;
-        titleLabelY = 0;
-        inventoryLabelX = 0;
-        inventoryLabelY = 0;
         navigationPlayer = playerInventory.player.getUUID();
-        NexusNavigationState.Snapshot remembered = NexusNavigationState.recall(navigationPlayer);
-        mode = remembered.mode();
+        ClientPacketDispatch.preparePresentationConnection();
+        navigationSession = NexusNavigationState.session();
+        NexusNavigationState.Snapshot remembered = NexusNavigationState.recall(navigationSession, navigationPlayer);
+        navigation.selectMode(remembered.mode());
+        remembered.pages().forEach((key, page) -> navigation.restoreMode(key, page.category(), page.tabWindow()));
         navigationPages.putAll(remembered.pages());
         restoreCategoryNavigation();
         attunementView.restoreNavigation(remembered.attunement());
-        skillScrollX.putAll(remembered.skillScrollX());
-        skillScrollY.putAll(remembered.skillScrollY());
-    }
-
-    @Override
-    protected void init() {
-        super.init();
-        draggingTrackIndex = -1;
+        Set<ResourceLocation> scrolled = new HashSet<>(remembered.skillScrollX().keySet());
+        scrolled.addAll(remembered.skillScrollY().keySet());
+        for (ResourceLocation id : scrolled) {
+            FullscreenViewport viewport = new FullscreenViewport();
+            viewport.restore(remembered.skillScrollX().getOrDefault(id, 0.0), remembered.skillScrollY().getOrDefault(id, 0.0));
+            skillViewports.put(id, viewport);
+        }
     }
 
     @Override
     public void removed() {
         rememberCategoryNavigation();
-        NexusNavigationState.remember(navigationPlayer, new NexusNavigationState.Snapshot(mode, navigationPages,
-                attunementView.navigation(), skillScrollX, skillScrollY));
+        Map<ResourceLocation, Double> scrollX = new LinkedHashMap<>(), scrollY = new LinkedHashMap<>();
+        skillViewports.forEach((id, viewport) -> { scrollX.put(id, viewport.x()); scrollY.put(id, viewport.y()); });
+        NexusNavigationState.remember(navigationSession, navigationPlayer,
+                new NexusNavigationState.Snapshot(navigation.mode(), navigationPages,
+                        attunementView.navigation(), scrollX, scrollY));
         super.removed();
     }
 
     private void rememberCategoryNavigation() {
-        if (mode != NexusMode.ASCENDANCE) navigationPages.put(mode,
-                new NexusNavigationState.Page(selectedEssenceId, tabWindowStart, trackWindowStart));
+        if (navigation.mode() != NexusMode.ASCENDANCE) navigationPages.put(navigation.mode(),
+                new NexusNavigationState.Page(navigation.section(), navigation.sectionWindow(), trackWindowStart));
     }
 
     private void restoreCategoryNavigation() {
-        var page = navigationPages.getOrDefault(mode, NexusNavigationState.Page.initial());
-        selectedEssenceId = page.category(); selectedCategoryIndex = 0;
-        tabWindowStart = page.tabWindow(); trackWindowStart = page.trackWindow();
+        selectedCategoryIndex = 0;
+        trackWindowStart = navigationPages.getOrDefault(navigation.mode(), NexusNavigationState.Page.initial()).trackWindow();
     }
 
     private void changeMode(NexusMode requested) {
-        if (requested == mode) return;
-        rememberCategoryNavigation(); mode = requested; restoreCategoryNavigation();
+        if (requested == navigation.mode()) return;
+        rememberCategoryNavigation();
+        navigation.selectMode(requested);
+        restoreCategoryNavigation();
+        cancelContentInteraction();
+    }
+
+    private FullscreenLayout.Frame fullscreenFrame() {
+        return FullscreenLayout.frame(FullscreenLayout.Spec.standard(), width, height,
+                navigation.mode() != NexusMode.ASCENDANCE);
     }
 
     @Override
-    protected void renderBg(
-            GuiGraphics graphics,
-            float partialTick,
-            int mouseX,
-            int mouseY
-    ) {
+    protected FullscreenComposition.Scene composeFullscreen() {
+        draft.synchronize(ClientEssenceState.snapshot());
+        changeMode(NexusNavigationState.availableMode(navigation.mode(), ClientEssenceState.ready(), this::modeAvailable));
+        List<NexusCategoryView> categories = categories();
+        boolean ready = ClientEssenceState.ready();
+        if (ready && navigation.mode() != NexusMode.ASCENDANCE) stabilizeSelection(categories);
+        boolean attunementVisible = ready && navigation.mode() == NexusMode.ASCENDANCE
+                && ClientEssenceState.snapshot().progress().status() != PlayerEssenceSyncPayload.ProgressStatus.CONFIGURATION_ERROR;
+        if (attunementVisible) attunementView.prepare(ClientEssenceState.snapshot().attunement(), attunementBounds());
+        var frame = fullscreenFrame();
+        var builder = new FullscreenComposition.Builder(
+                List.of(navigation.mode(), navigation.section() == null ? "" : navigation.section(), ready,
+                        attunementView.navigation().category() == null ? "" : attunementView.navigation().category()), frame);
+        if (modeAvailable(NexusMode.BONUSES)) {
+            builder.modes(java.util.Arrays.stream(NexusMode.values())
+                    .map(mode -> new FullscreenComposition.Mode<>(mode, EssenceText.gui(mode.translationPath()),
+                            modeAvailable(mode), AscendanceUiPalette.INTERACTIVE)).toList(), navigation.mode(), this::changeMode);
+        }
+        if (ready && navigation.mode() != NexusMode.ASCENDANCE && !categories.isEmpty()) {
+            builder.sections(navigation, categories.stream().map(category -> new FullscreenComposition.Section<>(
+                            category.essence().id(), EssenceText.essenceShort(category.essence()),
+                            AscendancePalette.categoryArgb(category.essence().id()))).toList(),
+                    tabLayout(categories), id -> {
+                        navigation.selectSection(id);
+                        trackWindowStart = 0;
+                        cancelContentInteraction();
+                    });
+        }
+        if (ready && (navigation.mode() == NexusMode.ASCENDANCE || !categories.isEmpty())) {
+            builder.panel("nexus/panel", frame.content(), PANEL, BORDER);
+        }
+        builder.region(new FullscreenComposition.Region("nexus/content", frame.content(),
+                (graphics, x, y, tick) -> renderNexusPage(graphics, x, y), nexusInput(), true))
+                .primaryInput("nexus/content");
+        if (ready && (navigation.mode() == NexusMode.ASCENDANCE || !categories.isEmpty())) {
+            declareActions(builder, categories);
+        }
+        if (attunementVisible) attunementView.controls(attunementBounds(), font.lineHeight).forEach(builder::control);
+        // These overlays express presentation ownership only. Nexus owns their exit/request semantics.
+        if (!ready || pendingRequestId >= 0L) {
+            builder.overlay(new FullscreenComposition.Overlay(new UiOverlayStack.Layer("nexus/wait", frame.screen(),
+                    400, UiOverlayStack.PointerPolicy.MODAL, UiOverlayStack.TooltipPolicy.SUPPRESS_ALL, true),
+                    (graphics, x, y, tick) -> { }, List.of(), new FullscreenComposition.Input() {
+                        @Override public boolean key(int key, int scan, int modifiers) {
+                            if (key == 256) onClose();
+                            return true;
+                        }
+                    }));
+        }
+        if (pendingDecision != PendingDecision.NONE) builder.overlay(exitOverlay());
+        return builder.build();
+    }
+
+    private void renderNexusPage(GuiGraphics graphics, int mouseX, int mouseY) {
         hoveredSkillId = null;
         hoveredTrack = null;
-        hoveredLockedMode = null;
-        graphics.fillGradient(
-                0,
-                0,
-                width,
-                height,
-                BACKGROUND_TOP,
-                BACKGROUND_BOTTOM
-        );
-
-        draft.synchronize(ClientEssenceState.snapshot());
-
-        List<NexusCategoryView> categories =
-                categories();
-
-        changeMode(NexusNavigationState.availableMode(mode, ClientEssenceState.ready(), this::modeAvailable));
-        renderModeSelector(
-                graphics,
-                mouseX,
-                mouseY
-        );
-
-        if (!ClientEssenceState.ready()) {
-            renderWaitingState(graphics);
-            return;
-        }
-
-        if (mode != NexusMode.ASCENDANCE
-                && !categories.isEmpty()) {
-            stabilizeSelection(categories);
-            renderTabs(graphics, categories);
-        }
-
-        if (mode == NexusMode.ASCENDANCE) {
-            renderAscensionPage(
-                    graphics,
-                    mouseX,
-                    mouseY
-            );
-            return;
-        }
-
-        if (categories.isEmpty()) {
-            renderWaitingState(graphics);
-            return;
-        }
-
-        NexusCategoryView category =
-                categories.get(selectedCategoryIndex);
-
-        if (mode == NexusMode.SKILLS) {
-            renderSkillsCategory(graphics, category, mouseX, mouseY);
-        } else {
-            renderEssenceCategory(
-                    graphics,
-                    category,
-                    mouseX,
-                    mouseY
-            );
+        if (!ClientEssenceState.ready()) { renderWaitingState(graphics); return; }
+        if (navigation.mode() == NexusMode.ASCENDANCE) { renderAscensionPage(graphics, mouseX, mouseY); return; }
+        List<NexusCategoryView> categories = categories();
+        if (categories.isEmpty()) { renderWaitingState(graphics); return; }
+        NexusCategoryView category = categories.get(selectedCategoryIndex);
+        if (navigation.mode() == NexusMode.SKILLS) renderSkillsCategory(graphics, category, mouseX, mouseY);
+        else {
+            renderEssenceCategory(graphics, category, mouseX, mouseY);
             hoveredTrack = NexusProgressionTrack.tooltipTrack(category.tracks(), draggingTrackIndex, hoveredTrack);
         }
     }
 
+    @Override protected void beforeFullscreenFrame() { consumeTransactionResult(); }
+
     @Override
-    protected void renderLabels(
-            GuiGraphics graphics,
-            int mouseX,
-            int mouseY
-    ) {
-        /* Fullscreen shell renders all labels in absolute screen coordinates. */
+    protected void renderFullscreenTooltips(GuiGraphics graphics, int mouseX, int mouseY) {
+        if (navigation.mode() == NexusMode.ASCENDANCE) {
+            attunementView.renderTooltip(graphics, font, mouseX, mouseY, width);
+            renderPrimaryActionTooltip(graphics, mouseX, mouseY);
+        } else if (navigation.mode() == NexusMode.SKILLS && hoveredSkillId != null) {
+            renderSkillTooltip(graphics, hoveredSkillId, mouseX, mouseY);
+        } else if (navigation.mode() == NexusMode.BONUSES && hoveredTrack != null) {
+            renderTrackTooltip(graphics, hoveredTrack, mouseX, mouseY);
+        } else renderPrimaryActionTooltip(graphics, mouseX, mouseY);
     }
 
-    @Override
-    public void render(
-            GuiGraphics graphics,
-            int mouseX,
-            int mouseY,
-            float partialTick
-    ) {
-        consumeTransactionResult();
-        super.render(
-                graphics,
-                mouseX,
-                mouseY,
-                partialTick
-        );
+    private void declareActions(FullscreenComposition.Builder builder, List<NexusCategoryView> categories) {
+        if (navigation.mode() == NexusMode.ASCENDANCE) {
+            NexusAscendanceAction action = ascendanceAction();
+            ResourceLocation tier = ClientEssenceState.snapshot().progress().nextTierId();
+            int accent = action.kind() == NexusAscendanceAction.Kind.ASCEND && tier != null
+                    ? AscendancePalette.tierMetalRgb(tier) : AscendanceUiPalette.INTERACTIVE;
+            builder.control(new FullscreenComposition.Control("nexus/primary", actionBounds(), ascendanceActionLabel(action),
+                    action.enabled(), false, FullscreenControls.Style.PRIMARY, accent, this::activateAscendanceAction));
+            return;
+        }
+        NexusPageLayout layout = contentLayout();
+        var row = footerControls(layout);
+        builder.control(new FullscreenComposition.Control("nexus/primary", row.get(1), primaryActionLabel(),
+                primaryActionEnabled(), false, FullscreenControls.Style.PRIMARY, AscendanceUiPalette.INTERACTIVE, () -> {
+                    if (draft.invalidated()) {
+                        draft.clearAndCapture(ClientEssenceState.snapshot()); transactionFeedback = null;
+                    } else submitDraft(false, PendingCompletion.NONE);
+                }));
+        if (navigation.mode() != NexusMode.BONUSES) return;
+        int count = categories.get(selectedCategoryIndex).tracks().size();
+        int visible = effectiveVisibleTrackCount(count, layout);
+        clampTrackWindow(count, visible);
+        builder.control(new FullscreenComposition.Control("tracks/previous", row.get(0), Component.literal("‹"),
+                trackWindowStart > 0, false, FullscreenControls.Style.ARROW, AscendanceUiPalette.INTERACTIVE,
+                () -> trackWindowStart = UiViewport.create(count, visible, trackWindowStart).scrollBy(-visible).offset()));
+        builder.control(new FullscreenComposition.Control("tracks/next", row.get(2), Component.literal("›"),
+                trackWindowStart + visible < count, false, FullscreenControls.Style.ARROW, AscendanceUiPalette.INTERACTIVE,
+                () -> trackWindowStart = UiViewport.create(count, visible, trackWindowStart).scrollBy(visible).offset()));
+    }
 
-        if (pendingDecision != PendingDecision.NONE) {
-            /*
-             * GuiGraphics batches fills and glyphs by render type.  Flush the
-             * page first so a delayed skill label or vanilla tooltip cannot be
-             * submitted after the modal backdrop, then render the complete
-             * modal at tooltip-level depth as one isolated layer.
-             */
-            hoveredSkillId = null;
-            graphics.flush();
-            graphics.pose().pushPose();
-            graphics.pose().translate(0.0F, 0.0F, MODAL_RENDER_DEPTH);
-            try {
-                renderPendingDecision(
-                        graphics,
-                        mouseX,
-                        mouseY
-                );
-                graphics.flush();
-            } finally {
-                graphics.pose().popPose();
+    private FullscreenComposition.Overlay exitOverlay() {
+        UiBounds modal = modalLayout();
+        int buttonWidth = Math.max(0, (modal.width() - 26) / 3);
+        var row = FullscreenLayout.fixedWidthsRow(new UiBounds(modal.x() + 8, modal.bottom() - BOTTOM_CONTROL_HEIGHT - 9,
+                Math.max(0, modal.width() - 16), BOTTOM_CONTROL_HEIGHT), List.of(buttonWidth, buttonWidth, buttonWidth), 5);
+        boolean idle = pendingRequestId < 0L;
+        List<FullscreenComposition.Control> controls = List.of(
+                modalControl("apply", row.get(0), "nexus.modal.apply_exit", idle && !draft.invalidated(),
+                        () -> submitDraft(false, PendingCompletion.EXIT)),
+                modalControl("discard", row.get(1), "nexus.modal.discard_exit", idle, () -> {
+                    draft.clearAndCapture(ClientEssenceState.snapshot()); transactionFeedback = null;
+                    pendingDecision = PendingDecision.NONE; super.onClose();
+                }),
+                modalControl("back", row.get(2), "nexus.modal.go_back", idle, () -> {
+                    pendingDecision = PendingDecision.NONE; pendingCompletion = PendingCompletion.NONE; transactionFeedback = null;
+                }));
+        return new FullscreenComposition.Overlay(new UiOverlayStack.Layer("nexus/exit", modal, 500,
+                UiOverlayStack.PointerPolicy.MODAL, UiOverlayStack.TooltipPolicy.SUPPRESS_ALL, true),
+                (graphics, x, y, tick) -> renderPendingDecision(graphics, x, y), controls,
+                new FullscreenComposition.Input() {
+                    @Override public boolean key(int key, int scan, int modifiers) {
+                        if (key == 256 && pendingRequestId < 0L) {
+                            pendingDecision = PendingDecision.NONE; pendingCompletion = PendingCompletion.NONE;
+                        }
+                        return true;
+                    }
+                });
+    }
+
+    private FullscreenComposition.Control modalControl(String id, UiBounds bounds, String label, boolean enabled, Runnable action) {
+        return new FullscreenComposition.Control("exit/" + id, bounds, EssenceText.gui(label), enabled, false,
+                FullscreenControls.Style.ACTION, AscendanceUiPalette.INTERACTIVE, action);
+    }
+
+    /** Only domain hit targets live here: crystals, skill nodes/HUD circles, and allocation tracks. */
+    private FullscreenComposition.Input nexusInput() {
+        return new FullscreenComposition.Input() {
+            @Override public boolean click(double x, double y, int button) {
+                if (handleHudControlClick(x, y, button)) return true;
+                if (button != 0) return false;
+                if (navigation.mode() == NexusMode.ASCENDANCE) {
+                    var action = attunementView.click(x, y);
+                    if (action == NexusAttunementView.Click.ASCEND) requestAscension();
+                    return action != NexusAttunementView.Click.NONE;
+                }
+                var categories = categories();
+                if (categories.isEmpty()) return false;
+                var category = categories.get(selectedCategoryIndex);
+                var layout = contentLayout();
+                if (navigation.mode() == NexusMode.SKILLS) {
+                    SkillDefinition clicked = skillAt(category, x, y, layout);
+                    if (clicked != null) { handleSkillClick(clicked, category); return true; }
+                    var viewport = activeSkillViewport();
+                    if (viewport != null && viewport.bounds().contains(x, y)) { viewport.beginPan(x, y); return true; }
+                    return false;
+                }
+                int clicked = trackAt(x, y, category, layout, effectiveVisibleTrackCount(category.tracks().size(), layout));
+                if (clicked < 0) return false;
+                draggingTrackIndex = clicked;
+                updateStagedDrag(y, category, category.tracks().get(clicked), layout);
+                return true;
             }
-        } else {
-            if (mode == NexusMode.ASCENDANCE) {
-                attunementView.renderTooltip(graphics, font, mouseX, mouseY, width);
-                renderPrimaryActionTooltip(graphics, mouseX, mouseY);
-            } else if (mode == NexusMode.SKILLS && hoveredSkillId != null) {
-                renderSkillTooltip(graphics, hoveredSkillId, mouseX, mouseY);
-            } else if (mode == NexusMode.BONUSES && hoveredTrack != null) {
-                renderTrackTooltip(graphics, hoveredTrack, mouseX, mouseY);
-            } else {
-                renderPrimaryActionTooltip(
-                        graphics,
-                        mouseX,
-                        mouseY
-                );
+            @Override public boolean drag(double x, double y, int button, double dx, double dy) {
+                if (navigation.mode() == NexusMode.SKILLS) {
+                    var viewport = activeSkillViewport();
+                    if (viewport != null) viewport.pan(x, y);
+                    return true;
+                }
+                var categories = categories();
+                if (draggingTrackIndex >= 0 && !categories.isEmpty()) {
+                    var category = categories.get(selectedCategoryIndex);
+                    if (draggingTrackIndex < category.tracks().size())
+                        updateStagedDrag(y, category, category.tracks().get(draggingTrackIndex), contentLayout());
+                }
+                return true;
             }
-        }
-        if (pendingDecision == PendingDecision.NONE && hoveredLockedMode != null) {
-            graphics.renderTooltip(font, List.of(EssenceText.gui("nexus.mode.locked_until_dormant")
-                    .withStyle(ChatFormatting.DARK_GRAY).getVisualOrderText()), mouseX, mouseY);
-        }
+            @Override public boolean release(double x, double y, int button) {
+                // Release retains the staged allocation; only the primary action submits it.
+                cancelContentInteraction(); return true;
+            }
+            @Override public void cancel() { cancelContentInteraction(); }
+            @Override public boolean scroll(double x, double y, double dx, double dy) {
+                if (navigation.mode() == NexusMode.ASCENDANCE) return attunementView.scroll(x, y, dy);
+                if (navigation.mode() != NexusMode.SKILLS) return false;
+                var viewport = activeSkillViewport();
+                if (viewport == null || !viewport.bounds().contains(x, y)) return false;
+                if (hoveredSkillId != null && hoveredSkillId.equals(tooltipSkillId) && skillTooltipMaximumScroll > 0 && dy != 0) {
+                    skillTooltipScroll = UiViewport.create(skillTooltipMaximumScroll + 1, 1, skillTooltipScroll)
+                            .scrollBy(-(int) Math.signum(dy) * 3).offset();
+                } else viewport.scroll(dx, dy, SKILL_SCROLL_STEP, hasShiftDown(), true);
+                return true;
+            }
+            @Override public boolean key(int key, int scan, int modifiers) {
+                if (navigation.mode() == NexusMode.ASCENDANCE) {
+                    var action = attunementView.key(key, (modifiers & 1) != 0);
+                    if (action == NexusAttunementView.Click.ASCEND) requestAscension();
+                    return action != NexusAttunementView.Click.NONE;
+                }
+                var viewport = activeSkillViewport();
+                return viewport != null && viewport.keyboard(key, (modifiers & 1) != 0, SKILL_SCROLL_STEP);
+            }
+        };
+    }
+
+    private FullscreenViewport activeSkillViewport() {
+        if (navigation.mode() != NexusMode.SKILLS || !ClientEssenceState.ready()) return null;
+        var categories = categories();
+        if (categories.isEmpty()) return null;
+        ResourceLocation id = categories.get(selectedCategoryIndex).essence().id();
+        return clampedSkillScroll(id, skillLayout(id), skillViewport(contentLayout()));
+    }
+
+    private void cancelContentInteraction() {
+        draggingTrackIndex = -1;
+        skillViewports.values().forEach(FullscreenViewport::endPan);
+    }
+
+    private UiBounds attunementBounds() {
+        NexusPageLayout layout = contentLayout();
+        return new UiBounds(layout.left() + 4, layout.middleTop(), Math.max(0, layout.width() - 8),
+                Math.max(1, layout.middleBottom() - layout.middleTop()));
     }
 
     private boolean modeAvailable(NexusMode candidate) {
@@ -378,192 +464,11 @@ public final class AscendanceNexusScreen
         return state.ready() && com.mistaboom.essence_ascendance.client.nexus.NexusHudControl.progressionAvailable(state.tierId());
     }
 
-    private void renderModeSelector(
-            GuiGraphics graphics,
-            int mouseX,
-            int mouseY
-    ) {
-        if (!modeAvailable(NexusMode.BONUSES)) return;
-        int selectorWidth = Math.min(
-                MODE_SELECTOR_WIDTH,
-                Math.max(3, width - 2 * SAFE_MARGIN)
-        );
-        int left = (width - selectorWidth) / 2;
-        int segmentWidth = selectorWidth / NexusMode.values().length;
-
-        for (int i = 0; i < NexusMode.values().length; i++) {
-            NexusMode candidate = NexusMode.values()[i];
-            int x = left + i * segmentWidth;
-            int segmentRight = i == NexusMode.values().length - 1
-                    ? left + selectorWidth
-                    : x + segmentWidth;
-            int segmentActualWidth = segmentRight - x;
-            boolean available = modeAvailable(candidate);
-            boolean selected = candidate == mode;
-            boolean inside = inside(
-                    mouseX,
-                    mouseY,
-                    x,
-                    MODE_SELECTOR_Y,
-                    segmentActualWidth,
-                    MODE_SELECTOR_HEIGHT
-            );
-            boolean hovered = available && inside;
-            if (inside && !available) hoveredLockedMode = candidate;
-
-            graphics.fill(
-                    x,
-                    MODE_SELECTOR_Y,
-                    segmentRight,
-                    MODE_SELECTOR_Y + MODE_SELECTOR_HEIGHT,
-                    !available ? GuiProceduralGeometry.opacity(AscendanceUiPalette.SURFACE, 0x33)
-                            : selected ? AscendanceUiPalette.argb(AscendanceUiPalette.RAISED_SURFACE)
-                            : hovered ? AscendanceUiPalette.controlHoverArgb(AscendanceUiPalette.INTERACTIVE)
-                            : GuiProceduralGeometry.opacity(AscendanceUiPalette.RAISED_SURFACE, 0x44)
-            );
-            outline(
-                    graphics,
-                    x,
-                    MODE_SELECTOR_Y,
-                    segmentActualWidth,
-                    MODE_SELECTOR_HEIGHT,
-                    !available ? GuiProceduralGeometry.opacity(AscendanceUiPalette.DIVIDER, 0x55)
-                            : selected || hovered ? AscendanceUiPalette.argb(AscendanceUiPalette.INTERACTIVE)
-                            : GuiProceduralGeometry.opacity(AscendanceUiPalette.BORDER, 0x88)
-            );
-            graphics.drawCenteredString(
-                    font,
-                    trimToWidth(
-                            EssenceText.gui(candidate.translationPath()).getString(),
-                            Math.max(1, segmentActualWidth - 8)
-                    ),
-                    x + segmentActualWidth / 2,
-                    MODE_SELECTOR_Y + Math.max(
-                            2,
-                            (MODE_SELECTOR_HEIGHT - font.lineHeight) / 2
-                    ),
-                    AscendanceUiPalette.argb(selected && available
-                            ? AscendanceUiPalette.PRIMARY_TEXT : AscendanceUiPalette.MUTED_TEXT)
-            );
-        }
-    }
-
-    private void renderWaitingState(
-            GuiGraphics graphics
-    ) {
-        int panelWidth =
-                Math.min(320, Math.max(180, width - 2 * SAFE_MARGIN));
-        int panelHeight = 54;
-        int left = (width - panelWidth) / 2;
-        int top = Math.max(52, (height - panelHeight) / 2);
-
-        graphics.fill(
-                left,
-                top,
-                left + panelWidth,
-                top + panelHeight,
-                PANEL
-        );
-        outline(
-                graphics,
-                left,
-                top,
-                panelWidth,
-                panelHeight,
-                BORDER
-        );
-
-        graphics.drawCenteredString(
-                font,
-                EssenceText.gui("nexus.synchronizing").getString(),
-                width / 2,
-                top + 24,
-                TEXT
-        );
-    }
-
-    private void renderTabs(
-            GuiGraphics graphics,
-            List<NexusCategoryView> categories
-    ) {
-        TabLayout layout =
-                tabLayout(categories);
-
-        boolean canPageLeft =
-                tabWindowStart > 0;
-        boolean canPageRight =
-                tabWindowStart + layout.visibleCount()
-                        < categories.size();
-
-        renderArrow(
-                graphics,
-                layout.leftArrowX(),
-                layout.y(),
-                TAB_ARROW_WIDTH,
-                TAB_HEIGHT,
-                "‹",
-                canPageLeft
-        );
-
-        renderArrow(
-                graphics,
-                layout.rightArrowX(),
-                layout.y(),
-                TAB_ARROW_WIDTH,
-                TAB_HEIGHT,
-                "›",
-                canPageRight
-        );
-
-        int x = layout.tabsLeft();
-        int end = Math.min(
-                categories.size(),
-                tabWindowStart + layout.visibleCount()
-        );
-
-        for (int i = tabWindowStart; i < end; i++) {
-            NexusCategoryView category =
-                    categories.get(i);
-
-            boolean selected =
-                    i == selectedCategoryIndex;
-            int accent = AscendancePalette.categoryArgb(category.essence().id());
-
-            graphics.fill(
-                    x,
-                    layout.y(),
-                    x + layout.tabWidth(),
-                    layout.y() + TAB_HEIGHT,
-                    selected ? PANEL_INNER : PANEL
-            );
-
-            outline(
-                    graphics,
-                    x,
-                    layout.y(),
-                    layout.tabWidth(),
-                    TAB_HEIGHT,
-                    selected ? accent : GuiProceduralGeometry.opacity(accent, 120)
-            );
-            if (selected) graphics.fill(x + 2, layout.y() + TAB_HEIGHT - 3,
-                    x + layout.tabWidth() - 2, layout.y() + TAB_HEIGHT - 1, accent);
-
-            String tabName =
-                    trimToWidth(
-                            EssenceText.essenceShort(category.essence()).getString(),
-                            layout.tabWidth() - 10
-                    );
-
-            graphics.drawCenteredString(
-                    font,
-                    tabName,
-                    x + layout.tabWidth() / 2,
-                    layout.y() + 6,
-                    accent
-            );
-
-            x += layout.tabWidth() + TAB_GAP;
-        }
+    private void renderWaitingState(GuiGraphics graphics) {
+        UiBounds bounds = FullscreenLayout.centered(fullscreenFrame().screen(), 320, 54, SAFE_MARGIN);
+        FullscreenControls.panel(graphics, bounds, PANEL, BORDER);
+        graphics.drawCenteredString(font, EssenceText.gui("nexus.synchronizing"),
+                bounds.x() + bounds.width() / 2, bounds.y() + 24, TEXT);
     }
 
     private void renderAscensionPage(
@@ -571,24 +476,8 @@ public final class AscendanceNexusScreen
             int mouseX,
             int mouseY
     ) {
-        ContentLayout layout =
+        NexusPageLayout layout =
                 contentLayout();
-
-        graphics.fill(
-                layout.left(),
-                layout.top(),
-                layout.right(),
-                layout.bottom(),
-                PANEL
-        );
-        outline(
-                graphics,
-                layout.left(),
-                layout.top(),
-                layout.width(),
-                layout.height(),
-                BORDER_BRIGHT
-        );
 
         ClientEssenceState.Snapshot snapshot =
                 ClientEssenceState.snapshot();
@@ -609,25 +498,19 @@ public final class AscendanceNexusScreen
             Component nextTier = progress.nextTierId() == null ? currentTier
                     : Component.literal(tierDisplayName(progress.nextTierId()));
             double time = minecraft != null && minecraft.level != null ? minecraft.level.getGameTime() : 0;
+            UiBounds bounds = attunementBounds();
             attunementView.render(graphics, font, snapshot.attunement(), currentTier, nextTier,
-                    layout.left() + 4, layout.middleTop(), layout.width() - 8,
-                    Math.max(1, layout.middleBottom() - layout.middleTop()), mouseX, mouseY, time);
+                    bounds.x(), bounds.y(), bounds.width(), bounds.height(), mouseX, mouseY, time);
         }
 
-        renderAscendControls(
-                graphics,
-                progress,
-                layout,
-                mouseX,
-                mouseY
-        );
+        renderAscendanceStatus(graphics, progress, layout);
     }
 
     private void renderAscensionTransition(
             GuiGraphics graphics,
             ClientEssenceState.Snapshot snapshot,
             ClientEssenceState.ProgressSnapshot progress,
-            ContentLayout layout
+            NexusPageLayout layout
     ) {
         String current =
                 tierDisplayName(snapshot.tierId());
@@ -691,55 +574,43 @@ public final class AscendanceNexusScreen
                 && snapshot.attunement().ready();
     }
 
-    private void renderAscendControls(
-            GuiGraphics graphics,
-            ClientEssenceState.ProgressSnapshot progress,
-            ContentLayout layout,
-            int mouseX,
-            int mouseY
-    ) {
+    private void renderAscendanceStatus(GuiGraphics graphics, ClientEssenceState.ProgressSnapshot progress,
+                                         NexusPageLayout layout) {
         NexusAscendanceAction action = ascendanceAction();
-        int buttonY =
-                layout.bottom()
-                        - BOTTOM_CONTROL_HEIGHT
-                        - 3;
-        int buttonX =
-                (layout.left() + layout.right() - ASCEND_BUTTON_WIDTH) / 2;
-
         if (layout.sectionHeight() >= 28) {
-            String status;
+            Component status;
             int statusColor;
             if (transactionFeedback != null) {
-                status = transactionFeedback.getString();
+                status = transactionFeedback;
                 statusColor = AscendanceUiPalette.argb(AscendanceUiPalette.ERROR);
             } else if (action.kind() == NexusAscendanceAction.Kind.APPLYING) {
-                status = EssenceText.gui("nexus.transaction.waiting").getString();
+                status = EssenceText.gui("nexus.transaction.waiting");
                 statusColor = AscendanceUiPalette.argb(AscendanceUiPalette.INFORMATION);
             } else if (action.kind() == NexusAscendanceAction.Kind.DISCARD_DRAFT) {
-                status = EssenceText.gui("nexus.draft.outdated").getString();
+                status = EssenceText.gui("nexus.draft.outdated");
                 statusColor = AscendanceUiPalette.argb(AscendanceUiPalette.ERROR);
             } else if (action.kind() == NexusAscendanceAction.Kind.APPLY_CHANGES) {
-                status = EssenceText.gui("nexus.pending_ready_to_apply").getString();
+                status = EssenceText.gui("nexus.pending_ready_to_apply");
                 statusColor = AscendanceUiPalette.argb(AscendanceUiPalette.SUCCESS);
             } else if (progress.status()
                     == PlayerEssenceSyncPayload.ProgressStatus.MAX_TIER) {
-                status = EssenceText.gui("nexus.maximum").getString();
+                status = EssenceText.gui("nexus.maximum");
                 statusColor = AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT);
             } else if (progress.status()
                     == PlayerEssenceSyncPayload.ProgressStatus.CONFIGURATION_ERROR) {
-                status = EssenceText.gui("nexus.unavailable").getString();
+                status = EssenceText.gui("nexus.unavailable");
                 statusColor = AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT);
             } else if (action.enabled()) {
-                status = EssenceText.gui("nexus.ready_to_ascend").getString();
+                status = EssenceText.gui("nexus.ready_to_ascend");
                 statusColor = AscendanceUiPalette.argb(AscendanceUiPalette.SUCCESS);
             } else {
-                status = EssenceText.gui("nexus.requirements_incomplete").getString();
+                status = EssenceText.gui("nexus.requirements_incomplete");
                 statusColor = AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT);
             }
             graphics.drawCenteredString(
                     font,
-                    trimToWidth(
-                            status,
+                    StyledTextLayout.fit(
+                            font, status,
                             Math.max(40, layout.width() - 20)
                     ),
                     (layout.left() + layout.right()) / 2,
@@ -748,65 +619,6 @@ public final class AscendanceNexusScreen
             );
         }
 
-        renderAscendButton(
-                graphics,
-                buttonX,
-                buttonY,
-                action,
-                inside(
-                        mouseX,
-                        mouseY,
-                        buttonX,
-                        buttonY,
-                        ASCEND_BUTTON_WIDTH,
-                        BOTTOM_CONTROL_HEIGHT
-                )
-        );
-    }
-
-    private void renderAscendButton(
-            GuiGraphics graphics,
-            int x,
-            int y,
-            NexusAscendanceAction action,
-            boolean hovered
-    ) {
-        boolean enabled = action.enabled();
-        ResourceLocation nextTier = ClientEssenceState.snapshot().progress().nextTierId();
-        int accent = action.kind() == NexusAscendanceAction.Kind.ASCEND && nextTier != null
-                ? AscendancePalette.tierMetalRgb(nextTier) : AscendanceUiPalette.INTERACTIVE;
-        graphics.fill(
-                x,
-                y,
-                x + ASCEND_BUTTON_WIDTH,
-                y + BOTTOM_CONTROL_HEIGHT,
-                enabled
-                        ? hovered ? AscendanceUiPalette.controlHoverArgb(accent) : AscendanceUiPalette.argb(AscendanceUiPalette.RAISED_SURFACE)
-                        : GuiProceduralGeometry.opacity(AscendanceUiPalette.argb(AscendanceUiPalette.SURFACE), 0x88)
-        );
-        outline(
-                graphics,
-                x,
-                y,
-                ASCEND_BUTTON_WIDTH,
-                BOTTOM_CONTROL_HEIGHT,
-                enabled
-                        ? AscendanceUiPalette.argb(accent)
-                        : AscendanceUiPalette.argb(AscendanceUiPalette.DIVIDER)
-        );
-        graphics.drawCenteredString(
-                font,
-                trimToWidth(
-                        ascendanceActionLabel(action).getString(),
-                        ASCEND_BUTTON_WIDTH - 6
-                ),
-                x + ASCEND_BUTTON_WIDTH / 2,
-                y + Math.max(
-                        2,
-                        (BOTTOM_CONTROL_HEIGHT - font.lineHeight) / 2
-                ),
-                enabled ? AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT) : AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT)
-        );
     }
 
     private NexusAscendanceAction ascendanceAction() {
@@ -833,7 +645,7 @@ public final class AscendanceNexusScreen
 
     private void renderAscensionConfigurationError(
             GuiGraphics graphics,
-            ContentLayout layout
+            NexusPageLayout layout
     ) {
         int centerX =
                 (layout.left() + layout.right()) / 2;
@@ -863,24 +675,8 @@ public final class AscendanceNexusScreen
             int mouseX,
             int mouseY
     ) {
-        ContentLayout layout =
+        NexusPageLayout layout =
                 contentLayout();
-
-        graphics.fill(
-                layout.left(),
-                layout.top(),
-                layout.right(),
-                layout.bottom(),
-                PANEL
-        );
-        outline(
-                graphics,
-                layout.left(),
-                layout.top(),
-                layout.width(),
-                layout.height(),
-                BORDER
-        );
 
         renderCategoryTitle(
                 graphics,
@@ -917,22 +713,7 @@ public final class AscendanceNexusScreen
             int mouseX,
             int mouseY
     ) {
-        ContentLayout layout = contentLayout();
-        graphics.fill(
-                layout.left(),
-                layout.top(),
-                layout.right(),
-                layout.bottom(),
-                PANEL
-        );
-        outline(
-                graphics,
-                layout.left(),
-                layout.top(),
-                layout.width(),
-                layout.height(),
-                BORDER
-        );
+        NexusPageLayout layout = contentLayout();
 
         renderCategoryTitle(
                 graphics,
@@ -943,19 +724,12 @@ public final class AscendanceNexusScreen
         renderSkillLegend(graphics, layout);
         renderSkillTree(graphics, category, layout, mouseX, mouseY);
 
-        BottomControls controls = bottomControls(layout);
-        renderAllocateButton(
-                graphics,
-                controls.allocateX(),
-                controls.y(),
-                primaryActionEnabled()
-        );
         renderSkillsFooter(graphics, layout);
     }
 
     private void renderSkillLegend(
             GuiGraphics graphics,
-            ContentLayout layout
+            NexusPageLayout layout
     ) {
         int center = (layout.tracksLeft() + layout.right()) / 2;
         int maximumWidth = Math.max(20, layout.right() - layout.tracksLeft() - 8);
@@ -986,22 +760,22 @@ public final class AscendanceNexusScreen
     private void renderSkillTree(
             GuiGraphics graphics,
             NexusCategoryView category,
-            ContentLayout layout,
+            NexusPageLayout layout,
             int mouseX,
             int mouseY
     ) {
-        SkillViewport viewport = skillViewport(layout);
+        UiBounds viewport = skillViewport(layout);
         graphics.fill(
-                viewport.left(),
-                viewport.top(),
+                viewport.x(),
+                viewport.y(),
                 viewport.right(),
                 viewport.bottom(),
                 PANEL_INNER
         );
-        outline(
+        FullscreenControls.outline(
                 graphics,
-                viewport.left(),
-                viewport.top(),
+                viewport.x(),
+                viewport.y(),
                 viewport.width(),
                 viewport.height(),
                 BORDER
@@ -1013,15 +787,15 @@ public final class AscendanceNexusScreen
             graphics.drawCenteredString(
                     font,
                     EssenceText.gui("nexus.skills.none").getString(),
-                    (viewport.left() + viewport.right()) / 2,
-                    (viewport.top() + viewport.bottom()) / 2,
+                    (viewport.x() + viewport.right()) / 2,
+                    (viewport.y() + viewport.bottom()) / 2,
                     MUTED
             );
             return;
         }
 
         NexusSkillTreeLayout.Layout tree = skillLayout(category.essence().id());
-        SkillScroll scroll = clampedSkillScroll(
+        FullscreenViewport scroll = clampedSkillScroll(
                 category.essence().id(),
                 tree,
                 viewport
@@ -1030,13 +804,7 @@ public final class AscendanceNexusScreen
                 skillEvaluations();
         long projectedBalance = stagedAvailableEssence(category);
 
-        graphics.enableScissor(
-                viewport.left() + 1,
-                viewport.top() + 1,
-                viewport.right() - 1,
-                viewport.bottom() - 1
-        );
-
+        FullscreenViewport.withClip(graphics, viewport.inset(1), () -> {
         List<SkillChoiceFrame> choiceFrames = skillChoiceFrames(
                 definitions,
                 tree,
@@ -1075,15 +843,15 @@ public final class AscendanceNexusScreen
             }
         }
 
-        graphics.disableScissor();
+        });
         renderSkillScrollIndicators(graphics, tree, viewport, scroll);
     }
 
     private List<SkillChoiceFrame> skillChoiceFrames(
             List<SkillDefinition> definitions,
             NexusSkillTreeLayout.Layout tree,
-            SkillViewport viewport,
-            SkillScroll scroll
+            UiBounds viewport,
+            FullscreenViewport scroll
     ) {
         List<SkillChoiceFrame> frames = new ArrayList<>();
         Set<ResourceLocation> visibleIds = new LinkedHashSet<>();
@@ -1174,8 +942,8 @@ public final class AscendanceNexusScreen
     private void addSkillChoiceFrame(
             List<SkillChoiceFrame> frames,
             List<NexusSkillTreeLayout.Node> members,
-            SkillViewport viewport,
-            SkillScroll scroll,
+            UiBounds viewport,
+            FullscreenViewport scroll,
             int color,
             int markerCount
     ) {
@@ -1220,7 +988,7 @@ public final class AscendanceNexusScreen
                     bounds.bottom(),
                     0x18000000 | (color & 0x00FFFFFF)
             );
-            outline(
+            FullscreenControls.outline(
                     graphics,
                     bounds.left(),
                     bounds.top(),
@@ -1246,8 +1014,8 @@ public final class AscendanceNexusScreen
     private void renderSkillConnections(
             GuiGraphics graphics,
             NexusSkillTreeLayout.Layout tree,
-            SkillViewport viewport,
-            SkillScroll scroll,
+            UiBounds viewport,
+            FullscreenViewport scroll,
             List<SkillChoiceFrame> choiceFrames
     ) {
         Map<ResourceLocation, Rect> boundsById = new LinkedHashMap<>();
@@ -2622,12 +2390,12 @@ public final class AscendanceNexusScreen
     private void renderSkillTierHeaders(
             GuiGraphics graphics,
             NexusSkillTreeLayout.Layout tree,
-            SkillViewport viewport,
-            SkillScroll scroll
+            UiBounds viewport,
+            FullscreenViewport scroll
     ) {
         for (int column = 0; column < tree.tiers().size(); column++) {
             AscendanceTierDefinition tier = tree.tiers().get(column);
-            int centerX = skillOriginX(viewport, tree, scroll)
+            int centerX = scroll.pixelOriginX(true)
                     + NexusSkillTreeLayout.CONTENT_PADDING
                     + column * (NexusSkillTreeLayout.NODE_WIDTH
                     + NexusSkillTreeLayout.COLUMN_GAP)
@@ -2639,7 +2407,7 @@ public final class AscendanceNexusScreen
                             NexusSkillTreeLayout.NODE_WIDTH
                     ),
                     centerX,
-                    skillOriginY(viewport, tree, scroll)
+                    scroll.pixelOriginY(true)
                             + NexusSkillTreeLayout.CONTENT_PADDING,
                     MUTED
             );
@@ -2661,7 +2429,7 @@ public final class AscendanceNexusScreen
                 bounds.bottom(),
                 state.fillColor()
         );
-        outline(
+        FullscreenControls.outline(
                 graphics,
                 bounds.left(),
                 bounds.top(),
@@ -2723,8 +2491,8 @@ public final class AscendanceNexusScreen
     private void renderSkillScrollIndicators(
             GuiGraphics graphics,
             NexusSkillTreeLayout.Layout tree,
-            SkillViewport viewport,
-            SkillScroll scroll
+            UiBounds viewport,
+            FullscreenViewport scroll
     ) {
         boolean canScrollLeft = scroll.maximumX() > 0.0
                 && scroll.x() > 0.0;
@@ -2732,7 +2500,7 @@ public final class AscendanceNexusScreen
                 && scroll.x() < scroll.maximumX();
 
         if (canScrollLeft || canScrollRight) {
-            int arrowY = (viewport.top() + viewport.bottom()
+            int arrowY = (viewport.y() + viewport.bottom()
                     - SKILL_SCROLL_ARROW_HEIGHT) / 2;
 
             /*
@@ -2748,7 +2516,7 @@ public final class AscendanceNexusScreen
                 if (canScrollLeft) {
                     renderSkillScrollArrow(
                             graphics,
-                            viewport.left() + SKILL_SCROLL_ARROW_INSET,
+                            viewport.x() + SKILL_SCROLL_ARROW_INSET,
                             arrowY,
                             "‹"
                     );
@@ -2777,7 +2545,7 @@ public final class AscendanceNexusScreen
             graphics.drawString(
                     font,
                     trimToWidth(progress, Math.max(1, viewport.width() - 8)),
-                    viewport.left() + 4,
+                    viewport.x() + 4,
                     viewport.bottom() - font.lineHeight - 2,
                     DIM,
                     false
@@ -2812,7 +2580,7 @@ public final class AscendanceNexusScreen
 
     private void renderSkillsFooter(
             GuiGraphics graphics,
-            ContentLayout layout
+            NexusPageLayout layout
     ) {
         String text;
         int color = MUTED;
@@ -2840,68 +2608,28 @@ public final class AscendanceNexusScreen
         );
     }
 
-    private SkillViewport skillViewport(ContentLayout layout) {
+    private UiBounds skillViewport(NexusPageLayout layout) {
         int left = Math.min(layout.right() - 2, layout.tracksLeft() + 3);
-        int top = Math.min(
-                layout.middleBottom() - 2,
-                layout.middleTop() + SKILL_LEGEND_HEIGHT + 2
-        );
-        return new SkillViewport(
-                left,
-                top,
-                Math.max(left + 1, layout.right() - 4),
-                Math.max(top + 1, layout.middleBottom() - 2)
-        );
+        int top = Math.min(layout.middleBottom() - 2, layout.middleTop() + SKILL_LEGEND_HEIGHT + 2);
+        return new UiBounds(left, top, Math.max(1, layout.right() - 4 - left),
+                Math.max(1, layout.middleBottom() - 2 - top));
     }
 
-    private SkillScroll clampedSkillScroll(
-            ResourceLocation essenceId,
-            NexusSkillTreeLayout.Layout tree,
-            SkillViewport viewport
-    ) {
-        double maximumX = Math.max(0.0, tree.contentWidth() - viewport.width());
-        double maximumY = Math.max(0.0, tree.contentHeight() - viewport.height());
-        double x = Math.max(
-                0.0,
-                Math.min(maximumX, skillScrollX.getOrDefault(essenceId, 0.0))
-        );
-        double y = Math.max(
-                0.0,
-                Math.min(maximumY, skillScrollY.getOrDefault(essenceId, 0.0))
-        );
-        skillScrollX.put(essenceId, x);
-        skillScrollY.put(essenceId, y);
-        return new SkillScroll(x, y, maximumX, maximumY);
-    }
-
-    private int skillOriginX(
-            SkillViewport viewport,
-            NexusSkillTreeLayout.Layout tree,
-            SkillScroll scroll
-    ) {
-        return viewport.left()
-                + Math.max(0, (viewport.width() - tree.contentWidth()) / 2)
-                - (int) Math.round(scroll.x());
-    }
-
-    private int skillOriginY(
-            SkillViewport viewport,
-            NexusSkillTreeLayout.Layout tree,
-            SkillScroll scroll
-    ) {
-        return viewport.top()
-                + Math.max(0, (viewport.height() - tree.contentHeight()) / 2)
-                - (int) Math.round(scroll.y());
+    private FullscreenViewport clampedSkillScroll(ResourceLocation essenceId,
+                                                   NexusSkillTreeLayout.Layout tree, UiBounds bounds) {
+        FullscreenViewport viewport = skillViewports.computeIfAbsent(essenceId, ignored -> new FullscreenViewport());
+        viewport.configure(bounds, tree.contentWidth(), tree.contentHeight());
+        return viewport;
     }
 
     private Rect skillNodeBounds(
             NexusSkillTreeLayout.Node node,
-            SkillViewport viewport,
-            SkillScroll scroll
+            UiBounds viewport,
+            FullscreenViewport scroll
     ) {
         NexusSkillTreeLayout.Layout tree = skillLayout(node.definition().essenceId());
-        int left = skillOriginX(viewport, tree, scroll) + node.x();
-        int top = skillOriginY(viewport, tree, scroll) + node.y();
+        int left = scroll.pixelOriginX(true) + node.x();
+        int top = scroll.pixelOriginY(true) + node.y();
         return new Rect(
                 left,
                 top,
@@ -3056,7 +2784,7 @@ public final class AscendanceNexusScreen
     private void renderCategoryTitle(
             GuiGraphics graphics,
             NexusCategoryView category,
-            ContentLayout layout
+            NexusPageLayout layout
     ) {
         String value =
                 EssenceText.essenceShort(category.essence()).getString().toUpperCase(Locale.ROOT);
@@ -3107,7 +2835,7 @@ public final class AscendanceNexusScreen
     private void renderAvailableGauge(
             GuiGraphics graphics,
             NexusCategoryView category,
-            ContentLayout layout
+            NexusPageLayout layout
     ) {
         int left = layout.gaugeLeft();
         int right = layout.gaugeRight();
@@ -3141,7 +2869,7 @@ public final class AscendanceNexusScreen
                 bottom,
                 PANEL_INNER
         );
-        outline(
+        FullscreenControls.outline(
                 graphics,
                 left,
                 top,
@@ -3200,7 +2928,7 @@ public final class AscendanceNexusScreen
     private void renderTierGuides(
             GuiGraphics graphics,
             NexusCategoryView category,
-            ContentLayout layout
+            NexusPageLayout layout
     ) {
         List<AscendanceTierDefinition> tiers =
                 orderedTiers();
@@ -3247,7 +2975,7 @@ public final class AscendanceNexusScreen
     private void renderTracks(
             GuiGraphics graphics,
             NexusCategoryView category,
-            ContentLayout layout,
+            NexusPageLayout layout,
             int mouseX,
             int mouseY
     ) {
@@ -3272,12 +3000,6 @@ public final class AscendanceNexusScreen
                     (layout.tracksLeft() + layout.tracksRight()) / 2,
                     layout.trackTop() + 24,
                     MUTED
-            );
-            renderBottomControls(
-                    graphics,
-                    0,
-                    1,
-                    layout
             );
             return;
         }
@@ -3341,13 +3063,6 @@ public final class AscendanceNexusScreen
             x += trackWidth + TRACK_GAP;
         }
 
-        renderBottomControls(
-                graphics,
-                tracks.size(),
-                visibleCount,
-                layout
-        );
-
         if (tracks.size() > visibleCount) {
             String page =
                     (trackWindowStart + 1)
@@ -3371,7 +3086,7 @@ public final class AscendanceNexusScreen
             int absoluteIndex,
             int left,
             int trackWidth,
-            ContentLayout layout,
+            NexusPageLayout layout,
             int mouseX,
             int mouseY
     ) {
@@ -3495,7 +3210,7 @@ public final class AscendanceNexusScreen
                 !available || track.state().currentInvestmentCap() == 0 ? DIM : fill
         );
         graphics.fill(centerX - 4, knobY, centerX + 4, knobY + 1, 0xAAFFFFFF);
-        if (changed || dragging) outline(graphics, centerX - knobWidth / 2 - 1,
+        if (changed || dragging) FullscreenControls.outline(graphics, centerX - knobWidth / 2 - 1,
                 knobY - TRACK_KNOB_HEIGHT / 2 - 1, knobWidth + 2, TRACK_KNOB_HEIGHT + 2, 0xBBFFFFFF);
 
         int hitTop =
@@ -3515,7 +3230,7 @@ public final class AscendanceNexusScreen
         }
 
         if (hovered && !dragging) {
-            outline(
+            FullscreenControls.outline(
                     graphics,
                     left + 1,
                     hitTop,
@@ -3545,77 +3260,6 @@ public final class AscendanceNexusScreen
         graphics.renderTooltip(font, tooltip.wrap(font, TooltipLayout.compactWidth(280, width)), mouseX, mouseY);
     }
 
-    private void renderBottomControls(
-            GuiGraphics graphics,
-            int trackCount,
-            int visibleCount,
-            ContentLayout layout
-    ) {
-        BottomControls controls =
-                bottomControls(layout);
-
-        renderArrow(
-                graphics,
-                controls.leftArrowX(),
-                controls.y(),
-                TRACK_ARROW_WIDTH,
-                BOTTOM_CONTROL_HEIGHT,
-                "‹",
-                trackWindowStart > 0
-        );
-
-        renderAllocateButton(
-                graphics,
-                controls.allocateX(),
-                controls.y(),
-                primaryActionEnabled()
-        );
-
-        renderArrow(
-                graphics,
-                controls.rightArrowX(),
-                controls.y(),
-                TRACK_ARROW_WIDTH,
-                BOTTOM_CONTROL_HEIGHT,
-                "›",
-                trackCount > visibleCount
-                        && trackWindowStart + visibleCount < trackCount
-        );
-    }
-
-    private void renderAllocateButton(
-            GuiGraphics graphics,
-            int x,
-            int y,
-            boolean enabled
-    ) {
-        graphics.fill(
-                x,
-                y,
-                x + ALLOCATE_BUTTON_WIDTH,
-                y + BOTTOM_CONTROL_HEIGHT,
-                enabled ? AscendanceUiPalette.argb(AscendanceUiPalette.RAISED_SURFACE) : GuiProceduralGeometry.opacity(AscendanceUiPalette.argb(AscendanceUiPalette.SURFACE), 0x88)
-        );
-        outline(
-                graphics,
-                x,
-                y,
-                ALLOCATE_BUTTON_WIDTH,
-                BOTTOM_CONTROL_HEIGHT,
-                enabled ? AscendanceUiPalette.argb(AscendanceUiPalette.INTERACTIVE) : AscendanceUiPalette.argb(AscendanceUiPalette.DIVIDER)
-        );
-        graphics.drawCenteredString(
-                font,
-                primaryActionLabel().getString(),
-                x + ALLOCATE_BUTTON_WIDTH / 2,
-                y + Math.max(
-                        2,
-                        (BOTTOM_CONTROL_HEIGHT - font.lineHeight) / 2
-                ),
-                enabled ? AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT) : AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT)
-        );
-    }
-
     private boolean primaryActionEnabled() {
         ClientEssenceState.Snapshot snapshot = ClientEssenceState.snapshot();
         return snapshot.ready()
@@ -3640,26 +3284,26 @@ public final class AscendanceNexusScreen
 
         if (kinds == 1
                 && bonus
-                && mode == NexusMode.BONUSES
+                && navigation.mode() == NexusMode.BONUSES
                 && bonusChangesBelongTo(visibleEssence, snapshot)) {
             return EssenceText.gui("nexus.allocate");
         }
         if (kinds == 1
                 && purchase
-                && mode == NexusMode.SKILLS
+                && navigation.mode() == NexusMode.SKILLS
                 && purchaseChangesBelongTo(visibleEssence)) {
             return EssenceText.gui("nexus.purchase");
         }
         if (kinds == 1
                 && loadout
-                && mode == NexusMode.SKILLS
+                && navigation.mode() == NexusMode.SKILLS
                 && loadoutChangesBelongTo(visibleEssence, snapshot)) {
             return EssenceText.gui("nexus.apply_loadout");
         }
         if (kinds > 0) {
             return EssenceText.gui("nexus.apply_changes");
         }
-        return mode == NexusMode.SKILLS
+        return navigation.mode() == NexusMode.SKILLS
                 ? EssenceText.gui("nexus.purchase")
                 : EssenceText.gui("nexus.allocate");
     }
@@ -3733,28 +3377,20 @@ public final class AscendanceNexusScreen
         return true;
     }
 
-    private BottomControls bottomControls(
-            ContentLayout layout
-    ) {
-        int centerX =
-                (layout.left() + layout.right()) / 2;
-        int allocateX =
-                centerX - ALLOCATE_BUTTON_WIDTH / 2;
-        int leftArrowX =
-                allocateX - BOTTOM_CONTROL_GAP - TRACK_ARROW_WIDTH;
-        int rightArrowX =
-                allocateX + ALLOCATE_BUTTON_WIDTH + BOTTOM_CONTROL_GAP;
+    private List<UiBounds> footerControls(NexusPageLayout layout) {
+        return FullscreenLayout.fixedWidthsRow(new UiBounds(layout.left(), bottomControlsY(layout), layout.width(), BOTTOM_CONTROL_HEIGHT),
+                List.of(TRACK_ARROW_WIDTH, ALLOCATE_BUTTON_WIDTH, TRACK_ARROW_WIDTH), BOTTOM_CONTROL_GAP);
+    }
 
-        return new BottomControls(
-                bottomControlsY(layout),
-                leftArrowX,
-                allocateX,
-                rightArrowX
-        );
+    private UiBounds actionBounds() {
+        NexusPageLayout layout = contentLayout();
+        if (navigation.mode() != NexusMode.ASCENDANCE) return footerControls(layout).get(1);
+        return FullscreenLayout.fixedWidthsRow(new UiBounds(layout.left(), bottomControlsY(layout), layout.width(), BOTTOM_CONTROL_HEIGHT),
+                List.of(ASCEND_BUTTON_WIDTH), 0).getFirst();
     }
 
     private int bottomControlsY(
-            ContentLayout layout
+            NexusPageLayout layout
     ) {
         return layout.bottom()
                 - BOTTOM_CONTROL_HEIGHT
@@ -3764,7 +3400,7 @@ public final class AscendanceNexusScreen
     private void renderFooter(
             GuiGraphics graphics,
             NexusCategoryView category,
-            ContentLayout layout
+            NexusPageLayout layout
     ) {
         String instruction;
         int color = AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT);
@@ -3796,200 +3432,6 @@ public final class AscendanceNexusScreen
     }
 
     @Override
-    public boolean mouseClicked(
-            double mouseX,
-            double mouseY,
-            int button
-    ) {
-        if (pendingDecision != PendingDecision.NONE) {
-            return handlePendingDecisionClick(
-                    mouseX,
-                    mouseY,
-                    button
-            );
-        }
-        if (pendingRequestId >= 0L) {
-            return true;
-        }
-
-        if (handleHudControlClick(mouseX, mouseY, button)) return true;
-        if (button != 0) {
-            return super.mouseClicked(
-                    mouseX,
-                    mouseY,
-                    button
-            );
-        }
-
-        if (handleModeSelectorClick(
-                mouseX,
-                mouseY
-        )) {
-            return true;
-        }
-
-        List<NexusCategoryView> categories =
-                categories();
-
-        if (mode != NexusMode.ASCENDANCE
-                && !categories.isEmpty()) {
-            stabilizeSelection(categories);
-
-            if (handleTabClick(
-                    mouseX,
-                    mouseY,
-                    categories
-            )) {
-                return true;
-            }
-        }
-
-        if (mode == NexusMode.ASCENDANCE) {
-            NexusAttunementView.Click click = attunementView.click(mouseX, mouseY);
-            if (click == NexusAttunementView.Click.ASCEND) {
-                requestAscension();
-                return true;
-            }
-            if (click == NexusAttunementView.Click.HANDLED) return true;
-            if (handleAscendClick(
-                    mouseX,
-                    mouseY
-            )) {
-                return true;
-            }
-
-            return super.mouseClicked(
-                    mouseX,
-                    mouseY,
-                    button
-            );
-        }
-
-        if (categories.isEmpty()) {
-            return super.mouseClicked(
-                    mouseX,
-                    mouseY,
-                    button
-            );
-        }
-
-        NexusCategoryView category =
-                categories.get(selectedCategoryIndex);
-
-        ContentLayout layout =
-                contentLayout();
-
-        if (mode == NexusMode.SKILLS) {
-            if (handleAllocateClick(mouseX, mouseY, layout)) {
-                return true;
-            }
-
-            SkillDefinition clickedSkill = skillAt(
-                    category,
-                    mouseX,
-                    mouseY,
-                    layout
-            );
-            if (clickedSkill != null) {
-                handleSkillClick(clickedSkill, category);
-                return true;
-            }
-
-            SkillViewport viewport = skillViewport(layout);
-            if (viewport.contains(mouseX, mouseY)) {
-                panningSkills = true;
-                lastSkillPanX = mouseX;
-                lastSkillPanY = mouseY;
-                return true;
-            }
-
-            return super.mouseClicked(mouseX, mouseY, button);
-        }
-
-        int visibleCount =
-                effectiveVisibleTrackCount(
-                        category.tracks().size(),
-                        layout
-                );
-
-        if (handleTrackPagingClick(
-                mouseX,
-                mouseY,
-                category.tracks().size(),
-                visibleCount,
-                layout
-        )) {
-            return true;
-        }
-
-        if (handleAllocateClick(
-                mouseX,
-                mouseY,
-                layout
-        )) {
-            return true;
-        }
-
-        int clickedTrack =
-                trackAt(
-                        mouseX,
-                        mouseY,
-                        category,
-                        layout,
-                        visibleCount
-                );
-
-        if (clickedTrack >= 0) {
-            draggingTrackIndex = clickedTrack;
-            updateStagedDrag(
-                    mouseY,
-                    category,
-                    category.tracks().get(clickedTrack),
-                    layout
-            );
-            return true;
-        }
-
-        return super.mouseClicked(
-                mouseX,
-                mouseY,
-                button
-        );
-    }
-
-    @Override
-    public boolean keyPressed(
-            int keyCode,
-            int scanCode,
-            int modifiers
-    ) {
-        if (mode == NexusMode.ASCENDANCE && pendingDecision == PendingDecision.NONE && pendingRequestId < 0L) {
-            NexusAttunementView.Click action = attunementView.key(keyCode, hasShiftDown());
-            if (action == NexusAttunementView.Click.ASCEND) requestAscension();
-            if (action != NexusAttunementView.Click.NONE) return true;
-        }
-        if (keyCode == 256) {
-            if (pendingDecision != PendingDecision.NONE) {
-                if (pendingRequestId < 0L) {
-                    pendingDecision = PendingDecision.NONE;
-                    pendingCompletion = PendingCompletion.NONE;
-                }
-                return true;
-            }
-            onClose();
-            return true;
-        }
-
-        if (pendingDecision != PendingDecision.NONE) {
-            return true;
-        }
-        if (pendingRequestId >= 0L) {
-            return true;
-        }
-        return super.keyPressed(keyCode, scanCode, modifiers);
-    }
-
-    @Override
     public void onClose() {
         if (!canPromptForExit()) {
             super.onClose();
@@ -4012,223 +3454,6 @@ public final class AscendanceNexusScreen
         super.onClose();
     }
 
-    @Override
-    public boolean mouseDragged(
-            double mouseX,
-            double mouseY,
-            int button,
-            double dragX,
-            double dragY
-    ) {
-        if (pendingDecision != PendingDecision.NONE) {
-            return true;
-        }
-        if (pendingRequestId >= 0L) {
-            return true;
-        }
-
-        if (mode == NexusMode.SKILLS
-                && button == 0
-                && panningSkills) {
-            List<NexusCategoryView> categories = categories();
-            if (!categories.isEmpty()) {
-                stabilizeSelection(categories);
-                ResourceLocation essenceId = categories
-                        .get(selectedCategoryIndex)
-                        .essence()
-                        .id();
-                skillScrollX.put(
-                        essenceId,
-                        skillScrollX.getOrDefault(essenceId, 0.0)
-                                - (mouseX - lastSkillPanX)
-                );
-                skillScrollY.put(
-                        essenceId,
-                        skillScrollY.getOrDefault(essenceId, 0.0)
-                                - (mouseY - lastSkillPanY)
-                );
-                lastSkillPanX = mouseX;
-                lastSkillPanY = mouseY;
-                return true;
-            }
-        }
-
-        if (mode == NexusMode.BONUSES
-                && button == 0
-                && draggingTrackIndex >= 0) {
-            List<NexusCategoryView> categories =
-                    categories();
-
-            if (!categories.isEmpty()) {
-                stabilizeSelection(categories);
-                NexusCategoryView category =
-                        categories.get(selectedCategoryIndex);
-
-                if (draggingTrackIndex < category.tracks().size()) {
-                    updateStagedDrag(
-                            mouseY,
-                            category,
-                            category.tracks().get(draggingTrackIndex),
-                            contentLayout()
-                    );
-                    return true;
-                }
-            }
-        }
-
-        return super.mouseDragged(
-                mouseX,
-                mouseY,
-                button,
-                dragX,
-                dragY
-        );
-    }
-
-    @Override
-    public boolean mouseReleased(
-            double mouseX,
-            double mouseY,
-            int button
-    ) {
-        if (pendingDecision != PendingDecision.NONE) {
-            return true;
-        }
-        if (pendingRequestId >= 0L) {
-            return true;
-        }
-
-        if (button == 0 && panningSkills) {
-            panningSkills = false;
-            return true;
-        }
-
-        if (button == 0
-                && draggingTrackIndex >= 0) {
-            /*
-             * Released sliders keep their staged target. The complete staged
-             * reallocation is sent only when ALLOCATE is pressed.
-             */
-            draggingTrackIndex = -1;
-            return true;
-        }
-
-        return super.mouseReleased(
-                mouseX,
-                mouseY,
-                button
-        );
-    }
-
-    @Override
-    public boolean mouseScrolled(
-            double mouseX,
-            double mouseY,
-            double scrollXAmount,
-            double scrollYAmount
-    ) {
-        if (pendingDecision != PendingDecision.NONE) {
-            return true;
-        }
-        if (pendingRequestId >= 0L) {
-            return true;
-        }
-        if (mode == NexusMode.ASCENDANCE && attunementView.scroll(mouseX, mouseY, scrollYAmount)) return true;
-        if (mode != NexusMode.SKILLS) {
-            return super.mouseScrolled(
-                    mouseX,
-                    mouseY,
-                    scrollXAmount,
-                    scrollYAmount
-            );
-        }
-
-        List<NexusCategoryView> categories = categories();
-        if (categories.isEmpty()) {
-            return super.mouseScrolled(
-                    mouseX,
-                    mouseY,
-                    scrollXAmount,
-                    scrollYAmount
-            );
-        }
-        stabilizeSelection(categories);
-        NexusCategoryView category = categories.get(selectedCategoryIndex);
-        SkillViewport viewport = skillViewport(contentLayout());
-        if (!viewport.contains(mouseX, mouseY)) {
-            return super.mouseScrolled(
-                    mouseX,
-                    mouseY,
-                    scrollXAmount,
-                    scrollYAmount
-            );
-        }
-
-        if (hoveredSkillId != null && hoveredSkillId.equals(tooltipSkillId)
-                && skillTooltipMaximumScroll > 0 && scrollYAmount != 0.0) {
-            skillTooltipScroll = Math.clamp(skillTooltipScroll
-                    - (int) Math.signum(scrollYAmount) * 3, 0, skillTooltipMaximumScroll);
-            return true;
-        }
-
-        ResourceLocation essenceId = category.essence().id();
-        NexusSkillTreeLayout.Layout tree = skillLayout(essenceId);
-        SkillScroll scroll = clampedSkillScroll(essenceId, tree, viewport);
-        double horizontal = scrollXAmount;
-        double vertical = scrollYAmount;
-        if (hasShiftDown()) {
-            horizontal += vertical;
-            vertical = 0.0;
-        } else if (scroll.maximumY() <= 0.0 && scroll.maximumX() > 0.0) {
-            horizontal += vertical;
-            vertical = 0.0;
-        }
-
-        skillScrollX.put(
-                essenceId,
-                scroll.x() - horizontal * SKILL_SCROLL_STEP
-        );
-        skillScrollY.put(
-                essenceId,
-                scroll.y() - vertical * SKILL_SCROLL_STEP
-        );
-        clampedSkillScroll(essenceId, tree, viewport);
-        return true;
-    }
-
-    private boolean handleModeSelectorClick(
-            double mouseX,
-            double mouseY
-    ) {
-        int selectorWidth = Math.min(
-                MODE_SELECTOR_WIDTH,
-                Math.max(3, width - 2 * SAFE_MARGIN)
-        );
-        int left = (width - selectorWidth) / 2;
-
-        if (!inside(
-                mouseX,
-                mouseY,
-                left,
-                MODE_SELECTOR_Y,
-                selectorWidth,
-                MODE_SELECTOR_HEIGHT
-        )) {
-            return false;
-        }
-
-        int relativeX = Math.max(0, (int) mouseX - left);
-        int selected = Math.min(
-                NexusMode.values().length - 1,
-                relativeX * NexusMode.values().length / Math.max(1, selectorWidth)
-        );
-        NexusMode requested = NexusMode.values()[selected];
-        if (modeAvailable(requested)) changeMode(requested);
-        draggingTrackIndex = -1;
-        panningSkills = false;
-        return true;
-    }
-
     private boolean hudControlVisible(SkillDefinition skill) {
         var evaluation = skillEvaluations().get(skill.id());
         return evaluation != null && com.mistaboom.essence_ascendance.client.nexus.NexusHudControl.visible(
@@ -4236,7 +3461,7 @@ public final class AscendanceNexusScreen
     }
 
     private boolean handleHudControlClick(double mouseX, double mouseY, int button) {
-        if (mode != NexusMode.SKILLS || !modeAvailable(NexusMode.SKILLS)) return false;
+        if (navigation.mode() != NexusMode.SKILLS || !modeAvailable(NexusMode.SKILLS)) return false;
         var categories = categories();
         if (categories.isEmpty()) return false;
         stabilizeSelection(categories);
@@ -4264,15 +3489,15 @@ public final class AscendanceNexusScreen
             NexusCategoryView category,
             double mouseX,
             double mouseY,
-            ContentLayout layout
+            NexusPageLayout layout
     ) {
-        SkillViewport viewport = skillViewport(layout);
+        UiBounds viewport = skillViewport(layout);
         if (!viewport.contains(mouseX, mouseY)) {
             return null;
         }
 
         NexusSkillTreeLayout.Layout tree = skillLayout(category.essence().id());
-        SkillScroll scroll = clampedSkillScroll(
+        FullscreenViewport scroll = clampedSkillScroll(
                 category.essence().id(),
                 tree,
                 viewport
@@ -4555,34 +3780,6 @@ public final class AscendanceNexusScreen
         }
     }
 
-    private boolean handleAscendClick(
-            double mouseX,
-            double mouseY
-    ) {
-        ContentLayout layout =
-                contentLayout();
-        int buttonY =
-                layout.bottom()
-                        - BOTTOM_CONTROL_HEIGHT
-                        - 3;
-        int buttonX =
-                (layout.left() + layout.right() - ASCEND_BUTTON_WIDTH) / 2;
-
-        if (!inside(
-                mouseX,
-                mouseY,
-                buttonX,
-                buttonY,
-                ASCEND_BUTTON_WIDTH,
-                BOTTOM_CONTROL_HEIGHT
-        )) {
-            return false;
-        }
-
-        activateAscendanceAction();
-        return true;
-    }
-
     private void activateAscendanceAction() {
         if (!ClientEssenceState.ready()) return;
 
@@ -4609,157 +3806,6 @@ public final class AscendanceNexusScreen
                 && action.enabled()) {
             submitDraft(true, PendingCompletion.NONE);
         }
-    }
-
-    private boolean handleTabClick(
-            double mouseX,
-            double mouseY,
-            List<NexusCategoryView> categories
-    ) {
-        TabLayout layout =
-                tabLayout(categories);
-
-        if (!inside(
-                mouseX,
-                mouseY,
-                layout.leftArrowX(),
-                layout.y(),
-                TAB_ARROW_WIDTH,
-                TAB_HEIGHT
-        )) {
-            if (inside(
-                    mouseX,
-                    mouseY,
-                    layout.rightArrowX(),
-                    layout.y(),
-                    TAB_ARROW_WIDTH,
-                    TAB_HEIGHT
-            )) {
-                if (tabWindowStart + layout.visibleCount()
-                        < categories.size()) {
-                    tabWindowStart++;
-                }
-                return true;
-            }
-        } else {
-            if (tabWindowStart > 0) {
-                tabWindowStart--;
-            }
-            return true;
-        }
-
-        int x = layout.tabsLeft();
-        int end = Math.min(
-                categories.size(),
-                tabWindowStart + layout.visibleCount()
-        );
-
-        for (int i = tabWindowStart; i < end; i++) {
-            if (inside(
-                    mouseX,
-                    mouseY,
-                    x,
-                    layout.y(),
-                    layout.tabWidth(),
-                    TAB_HEIGHT
-            )) {
-                selectedCategoryIndex = i;
-                selectedEssenceId =
-                        categories.get(i).essence().id();
-                trackWindowStart = 0;
-                draggingTrackIndex = -1;
-                return true;
-            }
-
-            x += layout.tabWidth() + TAB_GAP;
-        }
-
-        return false;
-    }
-
-    private boolean handleTrackPagingClick(
-            double mouseX,
-            double mouseY,
-            int trackCount,
-            int visibleCount,
-            ContentLayout layout
-    ) {
-        BottomControls controls =
-                bottomControls(layout);
-
-        if (inside(
-                mouseX,
-                mouseY,
-                controls.leftArrowX(),
-                controls.y(),
-                TRACK_ARROW_WIDTH,
-                BOTTOM_CONTROL_HEIGHT
-        )) {
-            if (trackWindowStart > 0) {
-                trackWindowStart =
-                        Math.max(
-                                0,
-                                trackWindowStart - visibleCount
-                        );
-            }
-            return true;
-        }
-
-        if (inside(
-                mouseX,
-                mouseY,
-                controls.rightArrowX(),
-                controls.y(),
-                TRACK_ARROW_WIDTH,
-                BOTTOM_CONTROL_HEIGHT
-        )) {
-            if (trackCount > visibleCount) {
-                int maximumStart =
-                        Math.max(0, trackCount - visibleCount);
-                trackWindowStart =
-                        Math.min(
-                                maximumStart,
-                                trackWindowStart + visibleCount
-                        );
-            }
-            return true;
-        }
-
-        return false;
-    }
-
-    private boolean handleAllocateClick(
-            double mouseX,
-            double mouseY,
-            ContentLayout layout
-    ) {
-        BottomControls controls =
-                bottomControls(layout);
-
-        if (!inside(
-                mouseX,
-                mouseY,
-                controls.allocateX(),
-                controls.y(),
-                ALLOCATE_BUTTON_WIDTH,
-                BOTTOM_CONTROL_HEIGHT
-        )) {
-            return false;
-        }
-
-        if (!primaryActionEnabled()) {
-            return true;
-        }
-
-        if (draft.invalidated()) {
-            draft.clearAndCapture(ClientEssenceState.snapshot());
-            transactionFeedback = null;
-            return true;
-        }
-
-        submitDraft(false, PendingCompletion.NONE);
-
-        return true;
     }
 
     private void submitDraft(
@@ -4910,7 +3956,7 @@ public final class AscendanceNexusScreen
             double mouseX,
             double mouseY,
             NexusCategoryView category,
-            ContentLayout layout,
+            NexusPageLayout layout,
             int visibleCount
     ) {
         int hitTop =
@@ -4959,7 +4005,7 @@ public final class AscendanceNexusScreen
             double mouseY,
             NexusCategoryView category,
             NexusProgressionTrack track,
-            ContentLayout layout
+            NexusPageLayout layout
     ) {
         var tierId = ClientEssenceState.snapshot().tierId();
         double requestedProgress = track.layout(layout.trackTop(), layout.trackBottom()).effectForY(mouseY);
@@ -5069,257 +4115,31 @@ public final class AscendanceNexusScreen
         return result;
     }
 
-    private void stabilizeSelection(
-            List<NexusCategoryView> categories
-    ) {
-        if (categories.isEmpty()) {
-            selectedCategoryIndex = 0;
-            selectedEssenceId = null;
-            return;
-        }
-
-        selectedCategoryIndex = NexusNavigationState.categoryIndex(selectedEssenceId,
+    private void stabilizeSelection(List<NexusCategoryView> categories) {
+        if (!ClientEssenceState.ready()) return;
+        var tabs = tabLayout(categories);
+        navigation.reconcileSections(categories.stream().map(category -> category.essence().id()).toList(),
+                tabs.visibleCount(), true);
+        selectedCategoryIndex = NexusNavigationState.categoryIndex(navigation.section(),
                 categories.stream().map(category -> category.essence().id()).toList());
-
-        selectedCategoryIndex =
-                Math.max(
-                        0,
-                        Math.min(
-                                selectedCategoryIndex,
-                                categories.size() - 1
-                        )
-                );
-        selectedEssenceId =
-                categories.get(selectedCategoryIndex).essence().id();
-
-        TabLayout layout =
-                tabLayout(categories);
-
-        /*
-         * Tab paging is independent of the active category. The selected tab is
-         * allowed to scroll completely off-screen so the player can browse the
-         * rest of a long category list without the active tab forcing the
-         * window back into view every frame.
-         */
-        tabWindowStart =
-                Math.max(
-                        0,
-                        Math.min(
-                                tabWindowStart,
-                                Math.max(0, categories.size() - layout.visibleCount())
-                        )
-                );
     }
 
-    private TabLayout tabLayout(
-            List<NexusCategoryView> categories
-    ) {
-        int y = 34;
-        int leftArrowX = SAFE_MARGIN;
-        int rightArrowX = width - SAFE_MARGIN - TAB_ARROW_WIDTH;
-        int tabsLeft = leftArrowX + TAB_ARROW_WIDTH + TAB_GAP;
-        int tabsRight = rightArrowX - TAB_GAP;
-        int available =
-                Math.max(1, tabsRight - tabsLeft);
-
-        int desiredWidth = TAB_MIN_WIDTH;
-        for (NexusCategoryView category : categories) {
-            desiredWidth =
-                    Math.max(
-                            desiredWidth,
-                            font.width(EssenceText.essenceShort(category.essence()).getString()) + 14
-                    );
-        }
-        desiredWidth =
-                Math.max(
-                        1,
-                        Math.min(
-                                Math.min(TAB_MAX_WIDTH, desiredWidth),
-                                available
-                        )
-                );
-
-        int visibleCount =
-                Math.max(
-                        1,
-                        (available + TAB_GAP)
-                                / (desiredWidth + TAB_GAP)
-                );
-        visibleCount =
-                Math.min(
-                        visibleCount,
-                        Math.max(1, categories.size())
-                );
-
-        int usedWidth =
-                desiredWidth * visibleCount
-                        + TAB_GAP * Math.max(0, visibleCount - 1);
-        int centeredLeft =
-                tabsLeft + Math.max(0, (available - usedWidth) / 2);
-
-        return new TabLayout(
-                y,
-                leftArrowX,
-                rightArrowX,
-                centeredLeft,
-                desiredWidth,
-                visibleCount
-        );
+    private FullscreenLayout.Tabs tabLayout(List<NexusCategoryView> categories) {
+        return FullscreenLayout.tabs(fullscreenFrame().secondary(),
+                categories.stream().map(category -> font.width(EssenceText.essenceShort(category.essence()))).toList(),
+                64, 102, 18, 3);
     }
 
-    private ContentLayout contentLayout() {
-        int left = SAFE_MARGIN;
-        int right = Math.max(left + 1, width - SAFE_MARGIN);
-        int top = mode == NexusMode.ASCENDANCE ? 34 : 58;
-        int bottom = Math.max(top + 1, height - 18);
-
-        int totalWidth = right - left;
-
-        /*
-         * Horizontal layout is intentionally step-driven around whole stat
-         * columns. The middle section is exactly as wide as N preferred-width
-         * tracks (plus their gaps). Any width that is not yet enough to add the
-         * next complete track is split evenly between the left and right
-         * sections. Once another complete track fits, that space is reclaimed by
-         * the middle in one column-sized step.
-         *
-         * This keeps stat widths stable, prevents tier guides from extending
-         * through a useless partial-column area, and guarantees symmetric side
-         * sections whose contents can simply stay centered.
-         */
-        int centerBudget =
-                Math.max(
-                        1,
-                        totalWidth - 2 * MIN_SIDE_SECTION_WIDTH
-                );
-
-        int wholeTrackCount;
-        int centerWidth;
-
-        if (centerBudget < TRACK_PREFERRED_WIDTH) {
-            wholeTrackCount = 1;
-            centerWidth = centerBudget;
-        } else {
-            wholeTrackCount =
-                    Math.max(
-                            1,
-                            (centerBudget + TRACK_GAP)
-                                    / (TRACK_PREFERRED_WIDTH + TRACK_GAP)
-                    );
-            centerWidth =
-                    TRACK_PREFERRED_WIDTH * wholeTrackCount
-                            + TRACK_GAP * Math.max(0, wholeTrackCount - 1);
-        }
-
-        centerWidth =
-                Math.max(
-                        1,
-                        Math.min(centerBudget, centerWidth)
-                );
-
-        int sideSectionWidth =
-                Math.max(
-                        0,
-                        (totalWidth - centerWidth) / 2
-                );
-
-        /*
-         * Preserve the established 42 px reservoir whenever the side section has
-         * enough room. Only genuinely tiny windows are allowed to compress it.
-         */
-        int gaugeWidth;
-        if (sideSectionWidth >= 20) {
-            gaugeWidth =
-                    Math.min(
-                            42,
-                            Math.max(
-                                    20,
-                                    sideSectionWidth - 12
-                            )
-                    );
-        } else {
-            gaugeWidth =
-                    Math.max(
-                            1,
-                            sideSectionWidth
-                    );
-        }
-
-        int gaugeLeft =
-                left + (sideSectionWidth - gaugeWidth) / 2;
-        int gaugeRight = gaugeLeft + gaugeWidth;
-        int tracksLeft = left + sideSectionWidth;
-        int tracksRight = Math.max(
-                tracksLeft + 1,
-                right - sideSectionWidth
-        );
-
-        /*
-         * The panel is also split vertically into three explicit bands:
-         *
-         *   category title | slider content | paging/allocation controls
-         *
-         * The top and bottom bands are always the same height. Everything that
-         * belongs to a stat track is constrained to the middle band.
-         */
-        int desiredSectionHeight =
-                height < 230 ? NARROW_SECTION_HEIGHT : SECTION_HEIGHT;
-        int maximumSectionHeight =
-                Math.max(
-                        18,
-                        (bottom - top - 72) / 2
-                );
-        int sectionHeight =
-                Math.max(
-                        18,
-                        Math.min(desiredSectionHeight, maximumSectionHeight)
-                );
-
-        int middleTop = top + sectionHeight;
-        int middleBottom = Math.max(
-                middleTop + 1,
-                bottom - sectionHeight
-        );
-
-        int trackHeaderReserve = height < 230 ? 32 : 38;
-        int trackInfoReserve = height < 230 ? 29 : 33;
-
-        int trackTop = Math.min(
-                middleBottom - 1,
-                middleTop + trackHeaderReserve
-        );
-        int trackBottom = Math.max(
-                trackTop + 1,
-                middleBottom - trackInfoReserve
-        );
-        trackBottom = Math.min(
-                middleBottom - 1,
-                trackBottom
-        );
-
-        return new ContentLayout(
-                left,
-                top,
-                right,
-                bottom,
-                gaugeLeft,
-                gaugeRight,
-                tracksLeft,
-                tracksRight,
-                sectionHeight,
-                middleTop,
-                middleBottom,
-                trackTop,
-                trackBottom
-        );
+    private NexusPageLayout contentLayout() {
+        return NexusPageLayout.compose(fullscreenFrame().content(), height);
     }
 
-    private int visibleTrackCount(ContentLayout layout) {
+    private int visibleTrackCount(NexusPageLayout layout) {
         return com.mistaboom.essence_ascendance.client.nexus.NexusBonusTrackLayout.visibleCount(
                 layout.tracksRight() - layout.tracksLeft(), Integer.MAX_VALUE, TRACK_PREFERRED_WIDTH, TRACK_GAP);
     }
 
-    private int effectiveVisibleTrackCount(int trackCount, ContentLayout layout) {
+    private int effectiveVisibleTrackCount(int trackCount, NexusPageLayout layout) {
         return com.mistaboom.essence_ascendance.client.nexus.NexusBonusTrackLayout.visibleCount(
                 layout.tracksRight() - layout.tracksLeft(), trackCount, TRACK_PREFERRED_WIDTH, TRACK_GAP);
     }
@@ -5330,7 +4150,7 @@ public final class AscendanceNexusScreen
     }
 
     private int trackContentLeft(
-            ContentLayout layout,
+            NexusPageLayout layout,
             int visibleCount,
             int trackWidth
     ) {
@@ -5345,18 +4165,8 @@ public final class AscendanceNexusScreen
                 + Math.max(0, (viewportWidth - usedWidth) / 2);
     }
 
-    private void clampTrackWindow(
-            int trackCount,
-            int visibleCount
-    ) {
-        trackWindowStart =
-                Math.max(
-                        0,
-                        Math.min(
-                                trackWindowStart,
-                                Math.max(0, trackCount - visibleCount)
-                        )
-                );
+    private void clampTrackWindow(int trackCount, int visibleCount) {
+        trackWindowStart = UiViewport.create(trackCount, visibleCount, trackWindowStart).offset();
     }
 
     private List<AscendanceTierDefinition> orderedTiers() {
@@ -5955,165 +4765,54 @@ public final class AscendanceNexusScreen
             int mouseX,
             int mouseY
     ) {
-        graphics.fill(0, 0, width, height, 0xB0000000);
+        UiBounds layout = modalLayout();
+        FullscreenControls.modalBackdrop(graphics, fullscreenFrame().screen(), layout);
 
-        ModalLayout layout = modalLayout();
-        graphics.fill(
-                layout.left(),
-                layout.top(),
-                layout.right(),
-                layout.bottom(),
-                AscendanceUiPalette.argb(AscendanceUiPalette.SURFACE)
-        );
-        outline(
-                graphics,
-                layout.left(),
-                layout.top(),
-                layout.width(),
-                layout.height(),
-                AscendanceUiPalette.argb(AscendanceUiPalette.BORDER)
-        );
-
-        String title = EssenceText.gui("nexus.modal.exit_title").getString();
+        Component title = EssenceText.gui("nexus.modal.exit_title");
         graphics.drawCenteredString(
                 font,
-                trimToWidth(title, layout.width() - 16),
+                StyledTextLayout.fit(font, title, layout.width() - 16),
                 width / 2,
-                layout.top() + 10,
+                layout.y() + 10,
                 AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT)
         );
 
         ClientEssenceState.Snapshot snapshot = ClientEssenceState.snapshot();
-        String summary = EssenceText.gui(
+        Component summary = EssenceText.gui(
                 "nexus.modal.pending_summary",
                 draft.bonusChangeCount(snapshot),
                 draft.purchaseCount(),
                 draft.loadoutChangeCount(snapshot)
-        ).getString();
+        );
         graphics.drawCenteredString(
                 font,
-                trimToWidth(summary, layout.width() - 20),
+                StyledTextLayout.fit(font, summary, layout.width() - 20),
                 width / 2,
-                layout.top() + 28,
+                layout.y() + 28,
                 AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT)
         );
 
         if (transactionFeedback != null) {
             graphics.drawCenteredString(
                     font,
-                    trimToWidth(
-                            transactionFeedback.getString(),
+                    StyledTextLayout.fit(
+                            font, transactionFeedback,
                             layout.width() - 20
                     ),
                     width / 2,
-                    layout.top() + 43,
+                    layout.y() + 43,
                     AscendanceUiPalette.argb(AscendanceUiPalette.ERROR)
             );
         } else if (pendingRequestId >= 0L) {
             graphics.drawCenteredString(
                     font,
-                    EssenceText.gui("nexus.transaction.waiting").getString(),
+                    EssenceText.gui("nexus.transaction.waiting"),
                     width / 2,
-                    layout.top() + 43,
+                    layout.y() + 43,
                     AscendanceUiPalette.argb(AscendanceUiPalette.WARNING)
             );
         }
 
-        boolean enabled = pendingRequestId < 0L && !draft.invalidated();
-        ModalButtons buttons = modalButtons(layout);
-        renderModalButton(
-                graphics,
-                buttons.apply(),
-                EssenceText.gui("nexus.modal.apply_exit").getString(),
-                enabled,
-                buttons.apply().contains(mouseX, mouseY)
-        );
-        renderModalButton(
-                graphics,
-                buttons.discard(),
-                EssenceText.gui("nexus.modal.discard_exit").getString(),
-                pendingRequestId < 0L,
-                buttons.discard().contains(mouseX, mouseY)
-        );
-        renderModalButton(
-                graphics,
-                buttons.goBack(),
-                EssenceText.gui("nexus.modal.go_back").getString(),
-                pendingRequestId < 0L,
-                buttons.goBack().contains(mouseX, mouseY)
-        );
-    }
-
-    private void renderModalButton(
-            GuiGraphics graphics,
-            Rect rect,
-            String label,
-            boolean enabled,
-            boolean hovered
-    ) {
-        graphics.fill(
-                rect.left(),
-                rect.top(),
-                rect.right(),
-                rect.bottom(),
-                enabled
-                        ? hovered ? AscendanceUiPalette.controlHoverArgb(AscendanceUiPalette.INTERACTIVE) : AscendanceUiPalette.argb(AscendanceUiPalette.RAISED_SURFACE)
-                        : AscendanceUiPalette.argb(AscendanceUiPalette.SURFACE)
-        );
-        outline(
-                graphics,
-                rect.left(),
-                rect.top(),
-                rect.width(),
-                rect.height(),
-                enabled
-                        ? hovered ? AscendanceUiPalette.argb(AscendanceUiPalette.INTERACTIVE) : AscendanceUiPalette.argb(AscendanceUiPalette.BORDER)
-                        : AscendanceUiPalette.argb(AscendanceUiPalette.DIVIDER)
-        );
-        graphics.drawCenteredString(
-                font,
-                trimToWidth(label, rect.width() - 6),
-                (rect.left() + rect.right()) / 2,
-                rect.top() + Math.max(2, (rect.height() - font.lineHeight) / 2),
-                enabled ? AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT) : AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT)
-        );
-    }
-
-    private boolean handlePendingDecisionClick(
-            double mouseX,
-            double mouseY,
-            int button
-    ) {
-        if (button != 0 || pendingRequestId >= 0L) {
-            return true;
-        }
-
-        ModalButtons buttons = modalButtons(modalLayout());
-        ClientEssenceState.Snapshot snapshot = ClientEssenceState.snapshot();
-
-        if (buttons.apply().contains(mouseX, mouseY)) {
-            if (!draft.invalidated()) {
-                submitDraft(false, PendingCompletion.EXIT);
-            }
-            return true;
-        }
-
-        if (buttons.discard().contains(mouseX, mouseY)) {
-            draft.clearAndCapture(snapshot);
-            transactionFeedback = null;
-            pendingDecision = PendingDecision.NONE;
-            super.onClose();
-            return true;
-        }
-
-        if (buttons.goBack().contains(mouseX, mouseY)) {
-            pendingDecision = PendingDecision.NONE;
-            pendingCompletion = PendingCompletion.NONE;
-            transactionFeedback = null;
-            return true;
-        }
-
-        return true;
     }
 
     private boolean canPromptForExit() {
@@ -6123,36 +4822,8 @@ public final class AscendanceNexusScreen
                 && minecraft.player.containerMenu == menu;
     }
 
-    private ModalLayout modalLayout() {
-        int modalWidth = Math.min(344, Math.max(210, width - 28));
-        int modalHeight = 94;
-        int left = (width - modalWidth) / 2;
-        int top = Math.max(8, (height - modalHeight) / 2);
-        return new ModalLayout(left, top, left + modalWidth, top + modalHeight);
-    }
-
-    private ModalButtons modalButtons(ModalLayout modal) {
-        int gap = 5;
-        int available = modal.width() - 16 - gap * 2;
-        int buttonWidth = Math.max(50, available / 3);
-        int used = buttonWidth * 3 + gap * 2;
-        int left = modal.left() + (modal.width() - used) / 2;
-        int top = modal.bottom() - BOTTOM_CONTROL_HEIGHT - 9;
-        return new ModalButtons(
-                new Rect(left, top, left + buttonWidth, top + BOTTOM_CONTROL_HEIGHT),
-                new Rect(
-                        left + buttonWidth + gap,
-                        top,
-                        left + buttonWidth * 2 + gap,
-                        top + BOTTOM_CONTROL_HEIGHT
-                ),
-                new Rect(
-                        left + buttonWidth * 2 + gap * 2,
-                        top,
-                        left + buttonWidth * 3 + gap * 2,
-                        top + BOTTOM_CONTROL_HEIGHT
-                )
-        );
+    private UiBounds modalLayout() {
+        return FullscreenLayout.centered(fullscreenFrame().screen(), 344, 94, 14);
     }
 
     private void renderPrimaryActionTooltip(
@@ -6178,7 +4849,7 @@ public final class AscendanceNexusScreen
             lines.add(EssenceText.gui("nexus.draft.outdated"));
         } else if (pendingRequestId >= 0L) {
             lines.add(EssenceText.gui("nexus.transaction.waiting"));
-        } else if (mode == NexusMode.ASCENDANCE) {
+        } else if (navigation.mode() == NexusMode.ASCENDANCE) {
             NexusAscendanceAction ascendanceActionState = ascendanceAction();
             if (ascendanceActionState.kind()
                     == NexusAscendanceAction.Kind.APPLY_CHANGES) {
@@ -6284,91 +4955,8 @@ public final class AscendanceNexusScreen
     }
 
     private Rect primaryActionRect() {
-        ContentLayout layout = contentLayout();
-        if (mode == NexusMode.ASCENDANCE) {
-            int x = (layout.left() + layout.right() - ASCEND_BUTTON_WIDTH) / 2;
-            int y = layout.bottom() - BOTTOM_CONTROL_HEIGHT - 3;
-            return new Rect(
-                    x,
-                    y,
-                    x + ASCEND_BUTTON_WIDTH,
-                    y + BOTTOM_CONTROL_HEIGHT
-            );
-        }
-
-        BottomControls controls = bottomControls(layout);
-        return new Rect(
-                controls.allocateX(),
-                controls.y(),
-                controls.allocateX() + ALLOCATE_BUTTON_WIDTH,
-                controls.y() + BOTTOM_CONTROL_HEIGHT
-        );
-    }
-
-    private void renderArrow(
-            GuiGraphics graphics,
-            int x,
-            int y,
-            int arrowWidth,
-            int arrowHeight,
-            String glyph,
-            boolean enabled
-    ) {
-        graphics.fill(
-                x,
-                y,
-                x + arrowWidth,
-                y + arrowHeight,
-                enabled ? AscendanceUiPalette.argb(AscendanceUiPalette.RAISED_SURFACE) : GuiProceduralGeometry.opacity(AscendanceUiPalette.argb(AscendanceUiPalette.SURFACE), 0x88)
-        );
-        outline(
-                graphics,
-                x,
-                y,
-                arrowWidth,
-                arrowHeight,
-                enabled ? AscendanceUiPalette.argb(AscendanceUiPalette.INTERACTIVE) : AscendanceUiPalette.argb(AscendanceUiPalette.DIVIDER)
-        );
-        graphics.drawCenteredString(
-                font,
-                glyph,
-                x + arrowWidth / 2,
-                y + Math.max(2, (arrowHeight - font.lineHeight) / 2),
-                enabled ? AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT) : AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT)
-        );
-    }
-
-    private void outline(
-            GuiGraphics graphics,
-            int x,
-            int y,
-            int outlineWidth,
-            int outlineHeight,
-            int color
-    ) {
-        if (outlineWidth <= 0
-                || outlineHeight <= 0) {
-            return;
-        }
-
-        graphics.fill(x, y, x + outlineWidth, y + 1, color);
-        graphics.fill(x, y + outlineHeight - 1, x + outlineWidth, y + outlineHeight, color);
-        graphics.fill(x, y, x + 1, y + outlineHeight, color);
-        graphics.fill(x + outlineWidth - 1, y, x + outlineWidth, y + outlineHeight, color);
-    }
-
-    private boolean inside(
-            double mouseX,
-            double mouseY,
-            int x,
-            int y,
-            int areaWidth,
-            int areaHeight
-    ) {
-        return mouseX >= x
-                && mouseX < x + areaWidth
-                && mouseY >= y
-                && mouseY < y + areaHeight;
+        UiBounds bounds = actionBounds();
+        return new Rect(bounds.x(), bounds.y(), bounds.right(), bounds.bottom());
     }
 
     private double clamp01(
@@ -6381,48 +4969,6 @@ public final class AscendanceNexusScreen
                         value
                 )
         );
-    }
-
-    private record TabLayout(
-            int y,
-            int leftArrowX,
-            int rightArrowX,
-            int tabsLeft,
-            int tabWidth,
-            int visibleCount
-    ) {
-    }
-
-    private record BottomControls(
-            int y,
-            int leftArrowX,
-            int allocateX,
-            int rightArrowX
-    ) {
-    }
-
-    private record ContentLayout(
-            int left,
-            int top,
-            int right,
-            int bottom,
-            int gaugeLeft,
-            int gaugeRight,
-            int tracksLeft,
-            int tracksRight,
-            int sectionHeight,
-            int middleTop,
-            int middleBottom,
-            int trackTop,
-            int trackBottom
-    ) {
-        int width() {
-            return right - left;
-        }
-
-        int height() {
-            return bottom - top;
-        }
     }
 
     private record Rect(
@@ -6503,55 +5049,6 @@ public final class AscendanceNexusScreen
     private record SkillRouteGridVisit(
             SkillRouteGridState state,
             long distance
-    ) {
-    }
-
-    private record ModalLayout(
-            int left,
-            int top,
-            int right,
-            int bottom
-    ) {
-        int width() {
-            return right - left;
-        }
-
-        int height() {
-            return bottom - top;
-        }
-    }
-
-    private record ModalButtons(
-            Rect apply,
-            Rect discard,
-            Rect goBack
-    ) {
-    }
-
-    private record SkillViewport(
-            int left,
-            int top,
-            int right,
-            int bottom
-    ) {
-        int width() {
-            return right - left;
-        }
-
-        int height() {
-            return bottom - top;
-        }
-
-        boolean contains(double x, double y) {
-            return x >= left && x < right && y >= top && y < bottom;
-        }
-    }
-
-    private record SkillScroll(
-            double x,
-            double y,
-            double maximumX,
-            double maximumY
     ) {
     }
 

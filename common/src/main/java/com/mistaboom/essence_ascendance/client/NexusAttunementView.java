@@ -5,6 +5,12 @@ import com.mistaboom.essence_ascendance.attunement.AttunementSnapshot;
 import com.mistaboom.essence_ascendance.client.nexus.NexusConstellationLayout;
 import com.mistaboom.essence_ascendance.client.nexus.NexusNavigationState;
 import com.mistaboom.essence_ascendance.client.procedural.GuiProceduralGeometry;
+import com.mistaboom.essence_ascendance.client.ui.UiBounds;
+import com.mistaboom.essence_ascendance.client.ui.UiFocusController;
+import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenComposition;
+import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenControls;
+import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenScroll;
+import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenViewport;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.text.EssenceText;
 import com.mistaboom.essence_ascendance.visual.AscendancePalette;
@@ -16,6 +22,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 
 import java.util.List;
+import java.util.stream.Stream;
 
 /** The Nexus constellation and its flowing semantic detail page share one registry-derived model. */
 public final class NexusAttunementView {
@@ -24,47 +31,85 @@ public final class NexusAttunementView {
     private static final int MUTED = 0xFFB6AFBF;
     private static final int DIM = 0xFF7F7889;
     private static final int COMPLETE = 0xFF78C69A;
+    private static final String MEDALLION_FOCUS = "nexus/ascension";
     private String selectedCategory;
-    private int focusedIndex = -1;
-    private int scroll;
-    private int maximumScroll;
+    private final UiFocusController<String> focus = new UiFocusController<>();
+    private final FullscreenScroll detailScroll = new FullscreenScroll();
+    private List<String> focusOrder = List.of();
+    private Integer restoredFocusIndex = -1;
+    private String restoredFocusId;
     private int left, top, width, height;
     private NexusConstellationLayout layout;
     private AttunementSnapshot snapshot = AttunementSnapshot.empty();
     private SemanticTooltip hovered;
 
     public NexusNavigationState.Attunement navigation() {
-        return new NexusNavigationState.Attunement(selectedCategory, scroll, focusedIndex);
+        int focusedIndex = restoredFocusIndex != null ? restoredFocusIndex
+                : focus.focused().map(focusOrder::indexOf).orElse(-1);
+        String focusedId = restoredFocusIndex != null ? restoredFocusId : focus.focused().orElse(null);
+        return new NexusNavigationState.Attunement(selectedCategory, detailScroll.offset(), focusedIndex, focusedId);
     }
 
     public void restoreNavigation(NexusNavigationState.Attunement navigation) {
-        selectedCategory = navigation.category(); scroll = navigation.scroll(); focusedIndex = navigation.focusedIndex();
+        selectedCategory = navigation.category();
+        detailScroll.restore(navigation.scroll());
+        restoredFocusIndex = navigation.focusedIndex();
+        restoredFocusId = navigation.focusedId();
+        focus.clear();
         // The next authoritative render resolves removed categories and clamps scrolling to the current layout.
     }
 
     public void render(GuiGraphics graphics, Font font, AttunementSnapshot state,
                        Component currentTier, Component nextTier, int left, int top,
                        int width, int height, int mouseX, int mouseY, double time) {
-        this.snapshot = state;
-        focusedIndex = Math.clamp(focusedIndex, -1, state.categories().size());
-        this.left = left;
-        this.top = top;
-        this.width = Math.max(1, width);
-        this.height = Math.max(1, height);
+        prepare(state, new UiBounds(left, top, Math.max(1, width), Math.max(1, height)));
         hovered = null;
         AttunementSnapshot.Category selected = selected();
         if (selected != null) {
             renderDetail(graphics, font, selected);
             return;
         }
-        selectedCategory = null;
-        layout = NexusConstellationLayout.create(left, top, this.width, this.height, state.categories().size());
+        renderOverview(graphics, font, state, currentTier, nextTier, mouseX, mouseY, time);
+    }
+
+    /** Called by composition before controls and input are assembled, including the first restored frame. */
+    public void prepare(AttunementSnapshot state, UiBounds bounds) {
+        this.snapshot = state;
+        focusOrder = Stream.concat(state.categories().stream().map(AttunementSnapshot.Category::categoryId),
+                Stream.of(MEDALLION_FOCUS)).toList();
+        focus.setOrder(focusOrder);
+        if (restoredFocusIndex != null) {
+            if (restoredFocusId != null) focus.focus(restoredFocusId);
+            else if (restoredFocusIndex >= 0) focus.focus(focusOrder.get(Math.min(restoredFocusIndex, focusOrder.size() - 1)));
+            restoredFocusIndex = null;
+            restoredFocusId = null;
+        }
+        left = bounds.x();
+        top = bounds.y();
+        width = Math.max(1, bounds.width());
+        height = Math.max(1, bounds.height());
+        if (selected() == null) selectedCategory = null;
+        layout = NexusConstellationLayout.create(left, top, width, height, state.categories().size());
+    }
+
+    /** Detail navigation is a standard control; the Nexus owns only the Back action and accent. */
+    public List<FullscreenComposition.Control> controls(UiBounds bounds, int lineHeight) {
+        AttunementSnapshot.Category category = selected();
+        if (category == null) return List.of();
+        UiBounds back = new UiBounds(bounds.x() + 3, bounds.y() + 1,
+                Math.max(0, Math.min(bounds.width() - 6, 112)), Math.max(0, lineHeight + 14));
+        return List.of(new FullscreenComposition.Control("attunement/back", back,
+                EssenceText.gui("nexus.attunement.back"), true, false, FullscreenControls.Style.LINK,
+                color(category), this::back));
+    }
+
+    private void renderOverview(GuiGraphics graphics, Font font, AttunementSnapshot state,
+                                Component currentTier, Component nextTier, int mouseX, int mouseY, double time) {
         int cx = layout.centerX(), cy = layout.centerY(), centerRadius = layout.medallionRadius();
         boolean maximum = state.maximumTier();
         boolean ready = maximum || state.ready();
         ClientEssenceState.Snapshot clientSnapshot = ClientEssenceState.snapshot();
-        graphics.enableScissor(left, top, left + this.width, top + this.height);
-        try {
+        FullscreenViewport.withClip(graphics, bounds(), () -> {
             // Faint procedural star field: stable across frames, independent of category identity.
             for (int i = 0; i < 32; i++) {
                 int sx = left + Math.floorMod(i * 127 + 29, this.width);
@@ -114,7 +159,7 @@ public final class NexusAttunementView {
                 boolean complete = maximum || category.completed();
                 boolean available = category.methods().stream().anyMatch(AttunementSnapshot.Method::available);
                 boolean active = complete || category.progress() > 0;
-                boolean focus = focusedIndex == node.index() || node.contains(mouseX, mouseY);
+                boolean focus = this.focus.isFocused(category.categoryId()) || node.contains(mouseX, mouseY);
                 int radius = node.radius();
                 if (active || focus) {
                     int alpha = focus ? 180 : 60 + (int) (30 * (1 + Math.sin(time / 15 + node.index())));
@@ -142,13 +187,13 @@ public final class NexusAttunementView {
                         node.x(), labelY + 10, Math.max(24, this.width / 4 - 4), complete ? COMPLETE : MUTED);
                 if (focus) hovered = overview(category, maximum);
             }
-            if (layout.medallionContains(mouseX, mouseY) || focusedIndex == state.categories().size()) {
+            if (layout.medallionContains(mouseX, mouseY) || focus.isFocused(MEDALLION_FOCUS)) {
                 hovered = new SemanticTooltip().title(EssenceText.gui("nexus.attunement.title"), centralMetal)
                         .description(maximum ? EssenceText.gui("nexus.maximum_achieved")
                                 : EssenceText.gui("nexus.attunement.seals", state.completedCategories(), state.requiredCategories()))
                         .hint(EssenceText.gui(ready && !maximum ? "nexus.ready_to_ascend" : "nexus.attunement.choice"));
             }
-        } finally { graphics.disableScissor(); }
+        });
     }
 
     private SemanticTooltip overview(AttunementSnapshot.Category category, boolean maximum) {
@@ -163,22 +208,19 @@ public final class NexusAttunementView {
 
     private void renderDetail(GuiGraphics graphics, Font font, AttunementSnapshot.Category category) {
         int headerHeight = font.lineHeight + 14;
-        MachineScreenUi.outline(graphics, left + 3, top + 1, Math.min(width - 6, 112), headerHeight, color(category));
-        graphics.drawString(font, EssenceText.gui("nexus.attunement.back"), left + 8, top + 6, TEXT, false);
         List<FormattedCharSequence> lines = detail(category).wrap(font, Math.max(1, width - 28));
         int lineHeight = font.lineHeight + 3;
         int bodyTop = top + headerHeight + 7;
         int bodyBottom = top + height - lineHeight - 4;
         int rows = Math.max(1, (bodyBottom - bodyTop) / lineHeight);
-        maximumScroll = Math.max(0, lines.size() - rows);
-        scroll = Math.clamp(scroll, 0, maximumScroll);
-        graphics.enableScissor(left + 6, bodyTop, left + width - 6, Math.max(bodyTop + 1, bodyBottom));
-        try {
-            for (int i = scroll; i < Math.min(lines.size(), scroll + rows); i++)
-                graphics.drawString(font, lines.get(i), left + 12, bodyTop + (i - scroll) * lineHeight, TEXT, false);
-        } finally { graphics.disableScissor(); }
-        if (maximumScroll > 0) {
-            Component hint = EssenceText.gui("nexus.attunement.scroll", scroll + 1, maximumScroll + 1);
+        detailScroll.configure(lines.size(), rows);
+        FullscreenViewport.withClip(graphics,
+                new UiBounds(left + 6, bodyTop, Math.max(0, width - 12), Math.max(1, bodyBottom - bodyTop)), () -> {
+            for (int i = detailScroll.offset(); i < Math.min(lines.size(), detailScroll.offset() + rows); i++)
+                graphics.drawString(font, lines.get(i), left + 12, bodyTop + (i - detailScroll.offset()) * lineHeight, TEXT, false);
+        });
+        if (detailScroll.maximumOffset() > 0) {
+            Component hint = EssenceText.gui("nexus.attunement.scroll", detailScroll.offset() + 1, detailScroll.maximumOffset() + 1);
             centeredFit(graphics, font, hint, left + width / 2, top + height - font.lineHeight - 2, width - 20, MUTED);
         }
     }
@@ -218,11 +260,11 @@ public final class NexusAttunementView {
 
     public Click click(double x, double y) {
         if (selectedCategory != null) {
-            if (x >= left + 3 && x < left + Math.min(width - 3, 115) && y >= top && y < top + 25) back();
             return within(x, y) ? Click.HANDLED : Click.NONE;
         }
         if (layout == null) return Click.NONE;
         for (var node : layout.nodes()) if (node.contains(x, y)) {
+            focus.focus(snapshot.categories().get(node.index()).categoryId());
             open(node.index());
             return Click.HANDLED;
         }
@@ -231,7 +273,7 @@ public final class NexusAttunementView {
 
     public boolean scroll(double x, double y, double amount) {
         if (selectedCategory == null || !within(x, y)) return false;
-        scroll = Math.clamp(scroll - (int) Math.signum(amount) * 3, 0, maximumScroll);
+        detailScroll.wheel(amount, 3);
         return true;
     }
 
@@ -239,18 +281,17 @@ public final class NexusAttunementView {
     public Click key(int key, boolean backwards) {
         if (selectedCategory != null) {
             if (key == 256 || key == 259) { back(); return Click.HANDLED; }
-            if (key == 264 || key == 267) { scroll = Math.min(maximumScroll, scroll + (key == 267 ? 8 : 1)); return Click.HANDLED; }
-            if (key == 265 || key == 266) { scroll = Math.max(0, scroll - (key == 266 ? 8 : 1)); return Click.HANDLED; }
+            if (detailScroll.key(key, 1, 8)) return Click.HANDLED;
             return Click.NONE;
         }
         if (key == 258 || key == 262 || key == 263 || key == 264 || key == 265) {
             int delta = key == 263 || key == 265 || (key == 258 && backwards) ? -1 : 1;
-            focusedIndex = Math.floorMod(focusedIndex + delta, snapshot.categories().size() + 1);
+            focus.move(delta);
             return Click.HANDLED;
         }
-        if ((key == 257 || key == 335 || key == 32) && focusedIndex >= 0) {
-            if (focusedIndex >= snapshot.categories().size()) return Click.ASCEND;
-            open(focusedIndex);
+        if ((key == 257 || key == 335 || key == 32) && focus.focused().isPresent()) {
+            if (focus.isFocused(MEDALLION_FOCUS)) return Click.ASCEND;
+            open(focusOrder.indexOf(focus.focused().orElseThrow()));
             return Click.HANDLED;
         }
         return Click.NONE;
@@ -259,12 +300,13 @@ public final class NexusAttunementView {
     public boolean back() {
         if (selectedCategory == null) return false;
         selectedCategory = null;
-        scroll = 0;
+        detailScroll.restore(0);
         return true;
     }
 
-    private void open(int index) { selectedCategory = snapshot.categories().get(index).categoryId(); scroll = 0; }
-    private boolean within(double x, double y) { return x >= left && x < left + width && y >= top && y < top + height; }
+    private void open(int index) { selectedCategory = snapshot.categories().get(index).categoryId(); detailScroll.restore(0); }
+    private UiBounds bounds() { return new UiBounds(left, top, width, height); }
+    private boolean within(double x, double y) { return bounds().contains(x, y); }
     private AttunementSnapshot.Category selected() {
         return snapshot.categories().stream().filter(c -> c.categoryId().equals(selectedCategory)).findFirst().orElse(null);
     }

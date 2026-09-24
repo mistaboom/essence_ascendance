@@ -24,6 +24,7 @@ public final class ClientPacketDispatch {
     }
 
     private static void clearPresentation() {
+        com.mistaboom.essence_ascendance.client.nexus.NexusNavigationState.clearSession();
         RuntimeBalanceClientState.clear();
         ClientEssenceState.clear();
         AscendanceNexusTransactionClientState.clear();
@@ -46,6 +47,23 @@ public final class ClientPacketDispatch {
     private ClientPacketDispatch() {
     }
 
+    /**
+     * Screens can open before the first mod snapshot arrives. Establish the same
+     * connection boundary here so they never restore a previous server's state.
+     * Called on the client thread, as are queued packet updates and screen init.
+     */
+    public static void preparePresentationConnection() {
+        preparePresentationConnection(Minecraft.getInstance().getConnection());
+    }
+
+    private static void preparePresentationConnection(ClientPacketListener connection) {
+        if (activeConnection != connection) {
+            // Also covers a failed/early disconnect without a player-quit event.
+            clearPresentation();
+            activeConnection = connection;
+        }
+    }
+
     public static void queue(NetworkManager.PacketContext context, Runnable update) {
         // The context retains the receiving player; do not accidentally capture
         // a new server's global connection for an old callback. Respawned players
@@ -58,11 +76,7 @@ public final class ClientPacketDispatch {
                     && connection != null
                     && Minecraft.getInstance().getConnection() == connection
                     && connection.getConnection().isConnected()) {
-                if (activeConnection != connection) {
-                    // Also covers a failed/early disconnect without a player-quit event.
-                    clearPresentation();
-                    activeConnection = connection;
-                }
+                preparePresentationConnection(connection);
                 update.run();
             }
         });

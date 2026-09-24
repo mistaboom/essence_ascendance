@@ -24,7 +24,7 @@ public final class UiFocusController<T> {
     }
 
     public Optional<T> focus(T key) {
-        focused = order.contains(key) ? key : null;
+        focused = key != null && order.contains(key) ? key : null;
         return focused();
     }
 

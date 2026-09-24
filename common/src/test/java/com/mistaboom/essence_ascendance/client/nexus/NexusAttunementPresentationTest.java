@@ -79,6 +79,7 @@ public final class NexusAttunementPresentationTest {
                 "A pending server request disables the shared action");
     }
     private static void navigation() {
+        NexusNavigationState.clearSession();
         var firstPlayer = new java.util.UUID(4, 1);
         var otherPlayer = new java.util.UUID(4, 2);
         var offense = net.minecraft.resources.ResourceLocation.parse("essence_ascendance:offense");
@@ -126,6 +127,12 @@ public final class NexusAttunementPresentationTest {
         var recreated = new com.mistaboom.essence_ascendance.client.NexusAttunementView();
         recreated.restoreNavigation(view.navigation());
         check(recreated.navigation().category() == null, "Constellation overview remains the overview on recreation");
+        var oldSession = NexusNavigationState.session();
+        var previous = NexusNavigationState.recall(oldSession, firstPlayer);
+        NexusNavigationState.clearSession();
+        NexusNavigationState.remember(oldSession, firstPlayer, previous);
+        check(NexusNavigationState.recall(firstPlayer).equals(NexusNavigationState.Snapshot.initial()),
+                "A removed Nexus from the previous connection cannot reinsert navigation after session reset");
     }
     private static void check(boolean condition, String message) {
         checks++;
