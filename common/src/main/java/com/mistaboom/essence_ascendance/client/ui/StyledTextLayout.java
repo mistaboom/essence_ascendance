@@ -42,6 +42,13 @@ public final class StyledTextLayout {
         return List.copyOf(font.split(text, maximumWidth));
     }
 
+    /** Recolors every visual run while retaining emphasis and interaction metadata. */
+    public static FormattedCharSequence recolor(FormattedCharSequence line, int rgb) {
+        if (line == null) return FormattedCharSequence.EMPTY;
+        return sink -> line.accept((index, style, codePoint) ->
+                sink.accept(index, style.withColor(rgb), codePoint));
+    }
+
     /**
      * Fits one styled visual line. The prefix retains click/hover/color styles;
      * only the synthetic ellipsis uses the default draw color.

@@ -25,7 +25,7 @@ public record SemanticDocument(Component title, List<Block> blocks) {
     public enum LinkRelation { RELATED, PREVIOUS, NEXT }
 
     public sealed interface Block permits Heading, Paragraph, OrderedSteps, Callout,
-            Illustration, Icon, ItemRow, StatRows, Requirements, Table, Links {
+            Illustration, ItemIllustration, Icon, ItemRow, StatRows, Requirements, Table, Links {
         List<Component> searchableText();
     }
 
@@ -69,6 +69,16 @@ public record SemanticDocument(Component title, List<Block> blocks) {
             if (preferredWidth < 1 || preferredHeight < 1) throw new IllegalArgumentException("Invalid illustration size");
         }
         @Override public List<Component> searchableText() { return List.of(caption); }
+    }
+
+    /** A large registered item figure whose component data selects the real model variant. */
+    public record ItemIllustration(ItemPresentation item, int preferredWidth,
+                                   int preferredHeight) implements Block {
+        public ItemIllustration {
+            Objects.requireNonNull(item);
+            if (preferredWidth < 1 || preferredHeight < 1) throw new IllegalArgumentException("Invalid illustration size");
+        }
+        @Override public List<Component> searchableText() { return List.of(item.label(), item.caption()); }
     }
 
     public record StatRow(Component label, Component value) {

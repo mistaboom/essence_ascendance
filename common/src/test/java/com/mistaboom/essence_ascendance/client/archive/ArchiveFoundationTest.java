@@ -7,6 +7,7 @@ import com.mistaboom.essence_ascendance.archive.ArchiveLocation;
 import com.mistaboom.essence_ascendance.archive.ArchiveMode;
 import com.mistaboom.essence_ascendance.archive.ArchiveSection;
 import com.mistaboom.essence_ascendance.client.ui.UiBounds;
+import com.mistaboom.essence_ascendance.client.ui.StyledTextLayout;
 import com.mistaboom.essence_ascendance.client.ItemEssenceTooltipClientState;
 import com.mistaboom.essence_ascendance.client.ui.content.ContentViewport;
 import com.mistaboom.essence_ascendance.client.ui.content.EntryListView;
@@ -17,6 +18,7 @@ import com.mistaboom.essence_ascendance.client.ui.data.ReadOnlyDataTableView;
 import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenComposition;
 import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenLayout;
 import com.mistaboom.essence_ascendance.client.presentation.PresentationContext;
+import com.mistaboom.essence_ascendance.visual.AscendanceUiPalette;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.Font;
 import net.minecraft.core.component.DataComponentPatch;
@@ -562,6 +564,17 @@ public final class ArchiveFoundationTest {
         check(plainLabel.getStyle().getColor().getValue() == ChatFormatting.GOLD.getColor()
                         && !plainLabel.getStyle().isUnderlined() && emphasisLabel.getStyle().isUnderlined(),
                 "Arrow links must retain canonical colors and explicitly authored emphasis");
+        var hoverColors = new java.util.ArrayList<Integer>();
+        FormattedCharSequence coloredLink = Component.literal("Category").withStyle(ChatFormatting.GOLD)
+                .append(Component.literal(" →").withStyle(ChatFormatting.AQUA)).getVisualOrderText();
+        StyledTextLayout.recolor(coloredLink, AscendanceUiPalette.INTERACTIVE)
+                .accept((index, style, codePoint) -> {
+                    hoverColors.add(style.getColor() == null ? -1 : style.getColor().getValue());
+                    return true;
+                });
+        check(!hoverColors.isEmpty() && hoverColors.stream().allMatch(
+                        color -> color == AscendanceUiPalette.INTERACTIVE),
+                "Standalone link hover does not override canonical child-run colors");
 
         ContentViewport article = new ContentViewport((graphics, illustration, bounds, tick) -> { }, ignored -> { });
         SemanticDocument document = new SemanticDocument(Component.literal("Table"),

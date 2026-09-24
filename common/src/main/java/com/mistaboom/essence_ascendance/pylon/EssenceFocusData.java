@@ -57,13 +57,16 @@ public final class EssenceFocusData {
         if (!isFocusItem(stack) || tier == null) {
             throw new IllegalArgumentException("Essence Focus tier may only be stored on an Essence Focus");
         }
-        CustomData.update(DataComponents.CUSTOM_DATA, stack, outer -> {
-            CompoundTag root = outer.contains(ROOT_TAG, Tag.TAG_COMPOUND)
-                    ? outer.getCompound(ROOT_TAG)
-                    : new CompoundTag();
-            root.putString(TIER_TAG, tier.serializedName());
-            outer.put(ROOT_TAG, root);
-        });
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, outer -> outer.merge(tierData(tier).copyTag()));
+    }
+
+    /** Pure component encoding shared by gameplay writes and detached item-model presentations. */
+    public static CustomData tierData(EssenceFocusTier tier) {
+        CompoundTag root = new CompoundTag();
+        root.putString(TIER_TAG, java.util.Objects.requireNonNull(tier).serializedName());
+        CompoundTag outer = new CompoundTag();
+        outer.put(ROOT_TAG, root);
+        return CustomData.of(outer);
     }
 
     /** Returns the evolving Focus to its pre-Dormant Latent state. */

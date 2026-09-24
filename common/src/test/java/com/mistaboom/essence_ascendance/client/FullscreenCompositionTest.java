@@ -23,6 +23,10 @@ public final class FullscreenCompositionTest {
 
     public static void main(String[] args) throws Exception {
         checks += FullscreenRenderContractTest.run();
+        check(!AscendanceArchiveScreen.usesEntryList(com.mistaboom.essence_ascendance.archive.ArchiveMode.GUIDE)
+                        && AscendanceArchiveScreen.usesEntryList(
+                        com.mistaboom.essence_ascendance.archive.ArchiveMode.REFERENCE),
+                "Archive must reserve its entry pane for multi-entry Reference sections");
         archiveFixture();
         reflow();
         wrappedSectionBar();

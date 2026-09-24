@@ -130,16 +130,22 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
                     PresentationContext.capture().revision());
             return;
         }
-        FullscreenLayout.Split split = FullscreenLayout.listDetail(content, Math.min(190, Math.max(112, content.width() / 3)), 8);
-        List<ArchiveEntry> available = catalog.entries(navigation.mode(), navigation.section());
-        Object nextListKey = java.util.Arrays.asList(navigation.mode(), navigation.section(), navigation.entryId());
-        if (!Objects.equals(listStateKey, nextListKey)) {
-            entries.restore(navigation.entryId() == null ? null : navigation.entryId().toString(), navigation.listScroll());
-            listStateKey = nextListKey;
+        UiBounds articleBounds = content;
+        if (usesEntryList(navigation.mode())) {
+            FullscreenLayout.Split split = FullscreenLayout.listDetail(content,
+                    Math.min(190, Math.max(112, content.width() / 3)), 8);
+            List<ArchiveEntry> available = catalog.entries(navigation.mode(), navigation.section());
+            Object nextListKey = java.util.Arrays.asList(navigation.mode(), navigation.section(), navigation.entryId());
+            if (!Objects.equals(listStateKey, nextListKey)) {
+                entries.restore(navigation.entryId() == null ? null : navigation.entryId().toString(),
+                        navigation.listScroll());
+                listStateKey = nextListKey;
+            }
+            entries.prepare(split.list(), available.stream().map(this::listEntry).toList());
+            builder.region(new FullscreenComposition.Region("archive/entries", split.list(),
+                    (graphics, x, y, tick) -> entries.render(graphics, font, x, y), entries, true));
+            articleBounds = split.detail();
         }
-        entries.prepare(split.list(), available.stream().map(this::listEntry).toList());
-        builder.region(new FullscreenComposition.Region("archive/entries", split.list(),
-                (graphics, x, y, tick) -> entries.render(graphics, font, x, y), entries, true));
 
         if (selected == null) return;
         PresentationContext.Revision revision = PresentationContext.capture().revision();
@@ -149,8 +155,8 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
             articleRevision = revision;
             article.restore(navigation.articleScroll());
         }
-        article.prepare(font, split.detail(), articleDocument);
-        builder.region(new FullscreenComposition.Region("archive/article", split.detail(), article::render, article, true))
+        article.prepare(font, articleBounds, articleDocument);
+        builder.region(new FullscreenComposition.Region("archive/article", articleBounds, article::render, article, true))
                 .primaryInput("archive/article");
     }
 
@@ -221,13 +227,16 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
         navigation.captureSectionWindow();
         if (navigation.mode() == ArchiveMode.SEARCH) navigation.setListScroll(searchResults.scrollOffset());
         else if (isYieldBrowser()) navigation.setYieldBrowser(yieldBrowser.state());
-        else {
+        else if (usesEntryList(navigation.mode())) {
             navigation.setListScroll(entries.scrollOffset());
             navigation.setArticleScroll(article.scrollOffset());
-        }
+        } else navigation.setArticleScroll(article.scrollOffset());
     }
 
     private boolean isYieldBrowser() {
         return navigation.mode() == ArchiveMode.REFERENCE && ArchiveNavigator.ITEM_YIELDS.equals(navigation.entryId());
     }
+
+    /** Guide sections contain one lesson each; only Reference needs the entry-navigation pane. */
+    static boolean usesEntryList(ArchiveMode mode) { return mode == ArchiveMode.REFERENCE; }
 }

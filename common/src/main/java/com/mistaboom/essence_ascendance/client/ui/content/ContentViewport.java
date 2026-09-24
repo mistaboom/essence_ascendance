@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.client.ui.content;
 
 import com.mistaboom.essence_ascendance.client.ui.UiBounds;
+import com.mistaboom.essence_ascendance.client.ui.StyledTextLayout;
 import com.mistaboom.essence_ascendance.client.ui.data.ReadOnlyDataTable;
 import com.mistaboom.essence_ascendance.client.ui.data.ReadOnlyDataTableView;
 import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenComposition;
@@ -103,6 +104,12 @@ public final class ContentViewport implements FullscreenComposition.Input {
                 height = font.lineHeight + 8 + Math.max(1, lines.size()) * (font.lineHeight + 2) + 6;
             } else if (block instanceof SemanticDocument.Illustration illustration) {
                 IllustrationView.Layout illustrationLayout = IllustrationView.layout(font, illustration,
+                        new UiBounds(0, 0, width, illustration.preferredHeight() + font.lineHeight * 3 + 12));
+                detail = illustrationLayout;
+                height = illustrationLayout.bounds().height();
+            } else if (block instanceof SemanticDocument.ItemIllustration illustration) {
+                SemanticDocument.Illustration adapter = itemIllustrationAdapter(illustration);
+                IllustrationView.Layout illustrationLayout = IllustrationView.layout(font, adapter,
                         new UiBounds(0, 0, width, illustration.preferredHeight() + font.lineHeight * 3 + 12));
                 detail = illustrationLayout;
                 height = illustrationLayout.bounds().height();
@@ -311,6 +318,12 @@ public final class ContentViewport implements FullscreenComposition.Input {
             IllustrationView.Layout raw = (IllustrationView.Layout) measured.detail();
             IllustrationView.Layout shifted = shift(raw, x + Math.max(0, (width - raw.bounds().width()) / 2), y);
             IllustrationView.render(graphics, font, illustration, shifted, partialTick, illustrations);
+        } else if (block instanceof SemanticDocument.ItemIllustration illustration) {
+            IllustrationView.Layout raw = (IllustrationView.Layout) measured.detail();
+            IllustrationView.Layout shifted = shift(raw, x + Math.max(0, (width - raw.bounds().width()) / 2), y);
+            IllustrationView.render(graphics, font, itemIllustrationAdapter(illustration), shifted, partialTick,
+                    (draw, ignored, figure, tick) -> ItemIllustrationRenderer.renderStack(
+                            draw, illustration.item().stack(), figure));
         } else if (block instanceof SemanticDocument.Icon icon) {
             UiBounds figure = new UiBounds(x + 2, y + 2, 20, 20);
             SemanticDocument.Illustration adapter = new SemanticDocument.Illustration(
@@ -374,10 +387,14 @@ public final class ContentViewport implements FullscreenComposition.Input {
             for (int index = 0; index < links.links().size(); index++) {
                 LinkRowLayout row = rows.get(index);
                 UiBounds linkBounds = new UiBounds(x, y + row.y(), width, row.height());
-                int color = linkBounds.contains(mouseX, mouseY)
+                boolean hovered = linkBounds.contains(mouseX, mouseY);
+                int color = hovered
                         ? AscendanceUiPalette.argb(AscendanceUiPalette.INTERACTIVE)
                         : AscendanceUiPalette.argb(AscendanceUiPalette.INFORMATION);
-                drawLines(graphics, row.lines(), x + 5, y + row.y() + 3, font.lineHeight + 1, color);
+                List<FormattedCharSequence> lines = hovered ? row.lines().stream()
+                        .map(line -> StyledTextLayout.recolor(line, AscendanceUiPalette.INTERACTIVE)).toList()
+                        : row.lines();
+                drawLines(graphics, lines, x + 5, y + row.y() + 3, font.lineHeight + 1, color);
             }
         }
     }
@@ -393,6 +410,13 @@ public final class ContentViewport implements FullscreenComposition.Input {
                 for (int index = 0; index < items.items().size(); index++)
                     figures.add(new ItemHit(itemBounds(blockBounds.x(), blockBounds.y(), (Integer) block.detail(), index),
                             items.items().get(index).label()));
+            }
+            if (block.block() instanceof SemanticDocument.ItemIllustration illustration) {
+                IllustrationView.Layout raw = (IllustrationView.Layout) block.detail();
+                int width = Math.max(0, bounds.width() - PADDING * 2 - 3);
+                IllustrationView.Layout shifted = shift(raw,
+                        blockBounds.x() + Math.max(0, (width - raw.bounds().width()) / 2), blockBounds.y());
+                figures.add(new ItemHit(shifted.figure(), illustration.item().label()));
             }
             if (block.block() instanceof SemanticDocument.Links links) {
                 List<LinkRowLayout> rows = castLinkRows(block.detail());
@@ -413,6 +437,12 @@ public final class ContentViewport implements FullscreenComposition.Input {
     }
 
     private int screenY(int contentY) { return bounds.y() + contentY - scroll.offset(); }
+
+    private static SemanticDocument.Illustration itemIllustrationAdapter(
+            SemanticDocument.ItemIllustration illustration) {
+        return new SemanticDocument.Illustration(illustration.item().resource(), illustration.item().caption(),
+                illustration.preferredWidth(), illustration.preferredHeight());
+    }
 
     private void renderScrollbar(GuiGraphics graphics) {
         if (scroll.maximumOffset() <= 0 || bounds.height() <= 2) return;

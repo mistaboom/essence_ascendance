@@ -106,12 +106,16 @@ public final class ArchiveCatalog {
                 subject("beginning"), subject("essence"), subject("machines"), subject("infusion"),
                 subject("ascendance"), subject("skills"), subject("equipment"), subject("bonuses"), subject("mechanics"));
         List<ArchiveEntry> entries = new ArrayList<>();
-        entries.add(entry("guide/beginning/welcome", ArchiveSection.GUIDE_BEGINNING, "beginning", ArchiveDocuments::beginningGuide));
-        entries.add(entry("guide/essence/collecting", ArchiveSection.GUIDE_ESSENCE, "essence", ArchiveDocuments::essenceGuide));
-        entries.add(entry("guide/machines/first_network", ArchiveSection.GUIDE_MACHINES, "machines", () -> ArchiveDocuments.illustrated("guide.machines.first_network", "essence_crucible")));
-        entries.add(entry("guide/infusion/first_focus", ArchiveSection.GUIDE_INFUSION, "infusion", ArchiveDocuments::infusionGuide));
-        entries.add(entry("guide/ascendance/nexus", ArchiveSection.GUIDE_ASCENDANCE, "ascendance", () -> ArchiveDocuments.illustrated("guide.ascendance.nexus", "ascendance_nexus")));
-        entries.add(entry("guide/skills/choosing", ArchiveSection.GUIDE_SKILLS, "skills", ArchiveDocuments::skillsGuide));
+        entries.add(entry("guide/beginning/welcome", ArchiveSection.GUIDE_BEGINNING, "beginning",
+                () -> GuideDocuments.beginning(PresentationContext.capture())));
+        entries.add(entry("guide/essence/collecting", ArchiveSection.GUIDE_ESSENCE, "essence", GuideDocuments::essence));
+        entries.add(entry("guide/machines/first_network", ArchiveSection.GUIDE_MACHINES, "machines",
+                () -> GuideDocuments.machines(PresentationContext.capture())));
+        entries.add(entry("guide/infusion/first_focus", ArchiveSection.GUIDE_INFUSION, "infusion",
+                () -> GuideDocuments.infusion(PresentationContext.capture())));
+        entries.add(entry("guide/ascendance/nexus", ArchiveSection.GUIDE_ASCENDANCE, "ascendance",
+                () -> GuideDocuments.ascendance(PresentationContext.capture())));
+        entries.add(entry("guide/skills/choosing", ArchiveSection.GUIDE_SKILLS, "skills", GuideDocuments::skills));
         for (var essence : EssenceRegistry.values()) {
             entries.add(customEntry("reference/essences/" + essence.id().getPath(), ArchiveSection.REFERENCE_ESSENCES,
                     "essence", EssenceText.essenceShort(essence).withStyle(style -> style.withColor(

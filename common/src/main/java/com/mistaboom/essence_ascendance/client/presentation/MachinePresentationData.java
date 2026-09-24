@@ -4,7 +4,15 @@ import com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceDefinition
 import com.mistaboom.essence_ascendance.config.InfuserBalanceSettings;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleStructureStats;
 import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
+import com.mistaboom.essence_ascendance.pylon.EssenceFocusData;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonContribution;
+import com.mistaboom.essence_ascendance.client.ui.content.ItemPresentation;
+import com.mistaboom.essence_ascendance.text.EssenceText;
+import com.mistaboom.essence_ascendance.visual.AscendancePalette;
+import com.mistaboom.essence_ascendance.EssenceAscendance;
+import net.minecraft.core.component.DataComponentPatch;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -65,6 +73,21 @@ public final class MachinePresentationData {
                 runtime.config().pylonRadius(), runtime.config().maxActivePylons(), infuser.linkRange(),
                 infuser.conversionEfficiencyBasisPoints(), infuser.carrierExtractionEfficiencyBasisPoints(),
                 List.copyOf(profiles), List.copyOf(upgrades));
+    }
+
+    /** Real Latent or completed-tier Focus model with a localized hover label and caption. */
+    public static ItemPresentation focusModel(EssenceFocusTier completedTier, net.minecraft.network.chat.Component caption) {
+        DataComponentPatch components = completedTier == null ? DataComponentPatch.EMPTY
+                : DataComponentPatch.builder().set(DataComponents.CUSTOM_DATA, EssenceFocusData.tierData(completedTier)).build();
+        var tierName = completedTier == null
+                ? EssenceText.equipmentTier(com.mistaboom.essence_ascendance.equipment.EquipmentTier.LATENT)
+                        .withColor(AscendancePalette.tierMetalRgb(
+                                com.mistaboom.essence_ascendance.equipment.EquipmentTier.LATENT))
+                : EssenceText.focusTier(completedTier).withColor(AscendancePalette.tierMetalRgb(
+                        ResourceLocation.fromNamespaceAndPath(EssenceAscendance.MOD_ID, completedTier.serializedName())));
+        return new ItemPresentation(ResourceLocation.fromNamespaceAndPath(EssenceAscendance.MOD_ID, "essence_focus"),
+                components, EssenceText.guide("archive.value.item_variant", tierName,
+                net.minecraft.network.chat.Component.translatable("item." + EssenceAscendance.MOD_ID + ".essence_focus")), caption);
     }
 
     private static EssencePylonContribution zeroContribution() {

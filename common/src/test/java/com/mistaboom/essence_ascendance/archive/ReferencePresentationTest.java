@@ -343,7 +343,7 @@ public final class ReferencePresentationTest {
                 check(cell(upgrades, column == 0 ? "target" : "installed", row).length() * 6 <= widths.get(column).width() - 8,
                         "A Focus upgrade tier wraps a trailing letter at article width " + width);
         }
-        for (var document : List.of(armorDoc, ArchiveDocuments.beginningGuide(), ArchiveDocuments.essenceGuide())) {
+        for (var document : List.of(armorDoc, GuideDocuments.beginning(context), GuideDocuments.essence())) {
             check(document.blocks().getLast() instanceof SemanticDocument.Links
                             && document.blocks().get(document.blocks().size() - 2) instanceof SemanticDocument.Heading heading
                             && heading.level() == SemanticDocument.HeadingLevel.SECTION && flatten(heading.text()).equals("See Also"),
