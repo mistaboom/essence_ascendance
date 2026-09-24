@@ -6,19 +6,20 @@ import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleMenu;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.network.EssenceCrucibleStatePayload;
 import com.mistaboom.essence_ascendance.text.EssenceText;
+import com.mistaboom.essence_ascendance.client.ui.UiBounds;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.world.entity.player.Inventory;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
 /* Shared-style normal machine screen for the Essence Crucible. */
 public final class EssenceCrucibleScreen
-        extends AbstractContainerScreen<EssenceCrucibleMenu> {
+        extends MachineContainerScreen<EssenceCrucibleMenu> {
 
     private static final int BORDER = MachineScreenUi.BORDER;
     private static final int TEXT = MachineScreenUi.TEXT;
@@ -60,131 +61,93 @@ public final class EssenceCrucibleScreen
             Inventory playerInventory,
             Component title
     ) {
-        super(menu, playerInventory, title);
-        imageWidth = MachineScreenLayout.MAIN_PANEL_WIDTH;
-        imageHeight = 319;
-        inventoryLabelX = 34;
-        inventoryLabelY = 224;
+        super(
+                menu,
+                playerInventory,
+                title,
+                new MachineScreenLayout.Spec(
+                        MachineScreenLayout.MAIN_PANEL_WIDTH,
+                        319,
+                        new UiBounds(32, 235, 166, 80),
+                        34,
+                        224
+                )
+        );
     }
 
     @Override
-    protected void init() {
-        super.init();
-
-        channelButton = addRenderableWidget(
-                Button.builder(
-                                EssenceText.gui("crucible.button.start_channeling"),
-                                button -> toggleChannel()
-                        )
-                        .bounds(
-                                leftPos + 35,
-                                topPos + 202,
-                                160,
-                                20
-                        )
-                        .build()
+    protected void initMachineWidgets() {
+        channelButton = addMachineButton(
+                EssenceText.gui("crucible.button.start_channeling"),
+                button -> toggleChannel(),
+                new UiBounds(leftPos + 35, topPos + 202, 160, 20)
         );
 
-
-        settingsButton = addRenderableWidget(
-                Button.builder(
-                                Component.literal("\u2699"),
-                                button -> {
-                                    settingsOpen = !settingsOpen;
-                                    if (settingsOpen) {
-                                        infoOpen = false;
-                                    }
-                                }
-                        )
-                        .bounds(
-                                leftPos + 5,
-                                topPos + 5,
-                                15,
-                                15
-                        )
-                        .build()
+        settingsButton = addHeaderButton(
+                Component.literal("\u2699"),
+                false,
+                button -> {
+                    settingsOpen = !settingsOpen;
+                    if (settingsOpen) {
+                        infoOpen = false;
+                    }
+                }
         );
 
-        infoButton = addRenderableWidget(
-                Button.builder(
-                                Component.literal("i"),
-                                button -> {
-                                    infoOpen = !infoOpen;
-                                    if (infoOpen) {
-                                        settingsOpen = false;
-                                    }
-                                }
-                        )
-                        .bounds(
-                                leftPos + imageWidth - 20,
-                                topPos + 5,
-                                15,
-                                15
-                        )
-                        .build()
+        infoButton = addHeaderButton(
+                Component.literal("i"),
+                true,
+                button -> {
+                    infoOpen = !infoOpen;
+                    if (infoOpen) {
+                        settingsOpen = false;
+                    }
+                }
         );
 
-        infoCloseButton = addRenderableWidget(
-                Button.builder(
-                                Component.literal("X"),
-                                button -> infoOpen = false
-                        )
-                        .bounds(
-                                infoPanelX() + INFO_PANEL_WIDTH - 18,
-                                topPos + 8,
-                                12,
-                                12
-                        )
-                        .build()
+        infoCloseButton = addOverlayCloseButton(
+                button -> infoOpen = false,
+                infoPanelBounds()
         );
         infoCloseButton.visible = false;
 
-        settingsCloseButton = addRenderableWidget(
-                Button.builder(
-                                Component.literal("X"),
-                                button -> settingsOpen = false
-                        )
-                        .bounds(
-                                ventPanelX() + VENT_PANEL_WIDTH - 18,
-                                topPos + 8,
-                                12,
-                                12
-                        )
-                        .build()
+        UiBounds initialVentBounds = sidePanel(
+                VENT_PANEL_WIDTH,
+                SETTINGS_HEADER_HEIGHT + VENT_SECTION_HEIGHT + VENT_FOOTER_HEIGHT,
+                MachineScreenLayout.SidePreference.LEFT_FIRST
+        ).bounds();
+        settingsCloseButton = addOverlayCloseButton(
+                button -> settingsOpen = false,
+                initialVentBounds
         );
         settingsCloseButton.visible = false;
 
-        dissolutionModeButton = addRenderableWidget(
-                Button.builder(
-                                EssenceText.dissolutionMode(EssenceCrucibleDissolutionMode.SMART_ROUND_ROBIN),
-                                button -> cycleDissolutionMode()
-                        )
-                        .bounds(
-                                ventPanelX() + 7,
-                                topPos + 4 + SETTINGS_HEADER_HEIGHT + 12,
-                                VENT_PANEL_WIDTH - 14,
-                                16
-                        )
-                        .build()
+        dissolutionModeButton = addMachineButton(
+                EssenceText.dissolutionMode(EssenceCrucibleDissolutionMode.SMART_ROUND_ROBIN),
+                button -> cycleDissolutionMode(),
+                new UiBounds(
+                        initialVentBounds.x() + 7,
+                        initialVentBounds.y() + SETTINGS_HEADER_HEIGHT + 12,
+                        VENT_PANEL_WIDTH - 14,
+                        16
+                )
         );
         dissolutionModeButton.visible = false;
 
-        int ventPanelX = ventPanelX();
-        int ventPanelY = topPos + 4;
         for (int i = 0; i < ventButtons.length; i++) {
             final int essenceIndex = i;
-            Button ventButton = addRenderableWidget(
-                    Button.builder(
-                                    EssenceText.gui("crucible.button.vent"),
-                                    button -> ventEssence(essenceIndex)
-                            )
-                            .bounds(
-                                    ventPanelX + VENT_PANEL_WIDTH - VENT_BUTTON_WIDTH - 6,
-                                    ventPanelY + SETTINGS_HEADER_HEIGHT + DISSOLUTION_MODE_SECTION_HEIGHT + VENT_SECTION_HEIGHT + i * VENT_ROW_HEIGHT,
-                                    VENT_BUTTON_WIDTH,
-                                    VENT_BUTTON_HEIGHT
-                            )
-                            .build()
+            Button ventButton = addMachineButton(
+                    EssenceText.gui("crucible.button.vent"),
+                    button -> ventEssence(essenceIndex),
+                    new UiBounds(
+                            initialVentBounds.right() - VENT_BUTTON_WIDTH - 6,
+                            initialVentBounds.y() + SETTINGS_HEADER_HEIGHT
+                                    + DISSOLUTION_MODE_SECTION_HEIGHT
+                                    + VENT_SECTION_HEIGHT
+                                    + i * VENT_ROW_HEIGHT,
+                            VENT_BUTTON_WIDTH,
+                            VENT_BUTTON_HEIGHT
+                    )
             );
             ventButton.visible = false;
             ventButtons[i] = ventButton;
@@ -270,56 +233,37 @@ public final class EssenceCrucibleScreen
     }
 
     @Override
-    public void render(
-            GuiGraphics graphics,
-            int mouseX,
-            int mouseY,
-            float partialTick
-    ) {
-        renderBackground(graphics, mouseX, mouseY, partialTick);
-        updateButtons();
-        super.render(graphics, mouseX, mouseY, partialTick);
-
+    protected List<MachineOverlay> machineOverlays() {
         EssenceCrucibleStatePayload state =
                 EssenceCrucibleClientState.snapshotFor(menu.containerId);
-
-        /*
-         * Side panels are deliberately rendered after the normal container
-         * screen. This makes a narrow-screen fallback a true opaque overlay
-         * instead of allowing the Crucible labels, slots, or widgets to show
-         * through it. Popup-owned buttons are then rendered one final time on
-         * top of the panel itself.
-         */
-        if ((settingsOpen && state != null && state.allowed())
-                || (infoOpen && state != null)) {
-            /*
-             * Vanilla button labels are rendered slightly in front of their
-             * button backgrounds. A later same-depth fill can therefore hide
-             * the button body while leaving glyphs such as the gear or "i"
-             * visible. Put the complete popup pass on its own foreground Z
-             * layer so the panel occludes every covered main-GUI element,
-             * including widget text, while popup-owned controls remain above
-             * the panel.
-             */
-            graphics.pose().pushPose();
-            graphics.pose().translate(0.0F, 0.0F, 300.0F);
-            if (settingsOpen && state.allowed()) {
-                renderVentPopup(graphics, state);
-                renderVentPopupWidgets(graphics, mouseX, mouseY, partialTick);
-            } else {
-                renderInfoPopup(graphics, state);
-                renderInfoPopupWidgets(graphics, mouseX, mouseY, partialTick);
-            }
-            graphics.pose().popPose();
+        if (settingsOpen && state != null && state.allowed()) {
+            UiBounds bounds = ventPanelBounds(state);
+            List<AbstractWidget> controls = new ArrayList<>();
+            controls.add(settingsCloseButton);
+            controls.add(dissolutionModeButton);
+            controls.addAll(List.of(ventButtons));
+            return List.of(panelOverlay(
+                    "crucible_settings",
+                    bounds,
+                    controls,
+                    (graphics, mouseX, mouseY, partialTick, scrollOffset) ->
+                            renderVentPopup(graphics, state, bounds)
+            ));
         }
-
-        /* Do not leak covered slot/tooltips through an overlapping popup. */
-        if (!mouseInsideOpenPopup(mouseX, mouseY, state)) {
-            renderTooltip(graphics, mouseX, mouseY);
+        if (infoOpen && state != null) {
+            UiBounds bounds = infoPanelBounds();
+            return List.of(infoOverlay(
+                    "crucible_info",
+                    bounds,
+                    infoPanel(state),
+                    List.of(infoCloseButton)
+            ));
         }
+        return List.of();
     }
 
-    private void updateButtons() {
+    @Override
+    protected void updateMachineWidgets() {
         EssenceCrucibleStatePayload state =
                 EssenceCrucibleClientState.snapshotFor(menu.containerId);
 
@@ -351,11 +295,15 @@ public final class EssenceCrucibleScreen
 
         if (infoCloseButton != null) {
             infoCloseButton.visible = infoOpen && state != null;
+            place(infoCloseButton, overlayCloseBounds(infoPanelBounds()));
         }
         if (settingsCloseButton != null) {
             settingsCloseButton.visible = settingsOpen
                     && state != null
                     && state.allowed();
+            if (state != null) {
+                place(settingsCloseButton, overlayCloseBounds(ventPanelBounds(state)));
+            }
         }
 
         if (dissolutionModeButton != null) {
@@ -365,6 +313,13 @@ public final class EssenceCrucibleScreen
                     && menu.activeMachineSlots() > 1;
             dissolutionModeButton.visible = showMode;
             if (showMode) {
+                UiBounds bounds = ventPanelBounds(state);
+                place(dissolutionModeButton, new UiBounds(
+                        bounds.x() + 7,
+                        bounds.y() + SETTINGS_HEADER_HEIGHT + 12,
+                        bounds.width() - 14,
+                        16
+                ));
                 EssenceCrucibleDissolutionMode mode =
                         EssenceCrucibleDissolutionMode.fromSerializedName(
                                 state.dissolutionMode()
@@ -394,9 +349,15 @@ public final class EssenceCrucibleScreen
         long[] values = enabledEssenceValues(state);
 
         int firstVentRowY = ventPanelFirstRowY(state);
+        UiBounds panelBounds = ventPanelBounds(state);
         for (int i = 0; i < values.length && i < ventButtons.length; i++) {
             Button button = ventButtons[i];
-            button.setY(firstVentRowY + i * VENT_ROW_HEIGHT);
+            place(button, new UiBounds(
+                    panelBounds.right() - VENT_BUTTON_WIDTH - 6,
+                    firstVentRowY + i * VENT_ROW_HEIGHT,
+                    VENT_BUTTON_WIDTH,
+                    VENT_BUTTON_HEIGHT
+            ));
             button.visible = true;
             button.active = values[i] > 0L;
         }
@@ -532,19 +493,19 @@ public final class EssenceCrucibleScreen
 
     private void renderVentPopup(
             GuiGraphics graphics,
-            EssenceCrucibleStatePayload state
+            EssenceCrucibleStatePayload state,
+            UiBounds bounds
     ) {
-        int panelX = ventPanelX();
-        int panelY = topPos + 4;
+        int panelX = bounds.x();
+        int panelY = bounds.y();
         long[] values = enabledEssenceValues(state);
-        int panelHeight = ventPanelHeight(state);
 
         MachineScreenUi.panel(
                 graphics,
                 panelX,
                 panelY,
-                VENT_PANEL_WIDTH,
-                panelHeight
+                bounds.width(),
+                bounds.height()
         );
 
         int textX = panelX + 7;
@@ -620,114 +581,12 @@ public final class EssenceCrucibleScreen
         return EssenceText.gui("crucible.dissolution_mode." + mode.serializedName() + ".description");
     }
 
-    private void renderVentPopupWidgets(
-            GuiGraphics graphics,
-            int mouseX,
-            int mouseY,
-            float partialTick
-    ) {
-        if (settingsCloseButton != null && settingsCloseButton.visible) {
-            settingsCloseButton.render(graphics, mouseX, mouseY, partialTick);
-        }
-        if (dissolutionModeButton != null && dissolutionModeButton.visible) {
-            dissolutionModeButton.render(graphics, mouseX, mouseY, partialTick);
-        }
-        for (Button button : ventButtons) {
-            if (button != null && button.visible) {
-                button.render(graphics, mouseX, mouseY, partialTick);
-            }
-        }
-    }
-
-    private void renderInfoPopupWidgets(
-            GuiGraphics graphics,
-            int mouseX,
-            int mouseY,
-            float partialTick
-    ) {
-        if (infoCloseButton != null && infoCloseButton.visible) {
-            infoCloseButton.render(graphics, mouseX, mouseY, partialTick);
-        }
-    }
-
-    @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        EssenceCrucibleStatePayload state =
-                EssenceCrucibleClientState.snapshotFor(menu.containerId);
-
-        if (settingsOpen && state != null && state.allowed()
-                && pointInsideVentPanel(mouseX, mouseY, state)) {
-            if (settingsCloseButton != null
-                    && settingsCloseButton.mouseClicked(mouseX, mouseY, button)) {
-                return true;
-            }
-            if (dissolutionModeButton != null
-                    && dissolutionModeButton.visible
-                    && dissolutionModeButton.mouseClicked(mouseX, mouseY, button)) {
-                return true;
-            }
-            for (Button ventButton : ventButtons) {
-                if (ventButton != null
-                        && ventButton.visible
-                        && ventButton.mouseClicked(mouseX, mouseY, button)) {
-                    return true;
-                }
-            }
-            /* Consume all remaining clicks inside the popup. */
-            return true;
-        }
-
-        if (infoOpen && state != null
-                && pointInsideInfoPanel(mouseX, mouseY)) {
-            if (infoCloseButton != null
-                    && infoCloseButton.mouseClicked(mouseX, mouseY, button)) {
-                return true;
-            }
-            return true;
-        }
-
-        return super.mouseClicked(mouseX, mouseY, button);
-    }
-
-    private boolean mouseInsideOpenPopup(
-            double mouseX,
-            double mouseY,
-            EssenceCrucibleStatePayload state
-    ) {
-        if (settingsOpen && state != null && state.allowed()) {
-            return pointInsideVentPanel(mouseX, mouseY, state);
-        }
-        return infoOpen && state != null && pointInsideInfoPanel(mouseX, mouseY);
-    }
-
-    private boolean pointInsideInfoPanel(double mouseX, double mouseY) {
-        int x = infoPanelX();
-        int y = topPos + MachineScreenLayout.SIDE_PANEL_TOP_OFFSET;
-        return MachineScreenLayout.contains(
-                mouseX, mouseY, x, y, INFO_PANEL_WIDTH, INFO_PANEL_HEIGHT
-        );
-    }
-
-    private boolean pointInsideVentPanel(
-            double mouseX,
-            double mouseY,
-            EssenceCrucibleStatePayload state
-    ) {
-        int x = ventPanelX();
-        int y = topPos + 4;
-        int height = ventPanelHeight(state);
-        return mouseX >= x
-                && mouseX < x + VENT_PANEL_WIDTH
-                && mouseY >= y
-                && mouseY < y + height;
-    }
-
     private boolean showDissolutionModeSetting(EssenceCrucibleStatePayload state) {
         return state != null && menu.activeMachineSlots() > 1;
     }
 
     private int ventPanelFirstRowY(EssenceCrucibleStatePayload state) {
-        return topPos + 4
+        return ventPanelBounds(state).y()
                 + SETTINGS_HEADER_HEIGHT
                 + (showDissolutionModeSetting(state)
                         ? DISSOLUTION_MODE_SECTION_HEIGHT
@@ -757,25 +616,12 @@ public final class EssenceCrucibleScreen
         return EssenceText.essenceShort(essence);
     }
 
-    private int ventPanelX() {
-        int preferredLeft =
-                leftPos - MachineScreenLayout.SIDE_PANEL_GAP - VENT_PANEL_WIDTH;
-        if (preferredLeft >= 4) {
-            return preferredLeft;
-        }
-
-        int alternateRight =
-                leftPos + imageWidth + MachineScreenLayout.SIDE_PANEL_GAP;
-        if (alternateRight + VENT_PANEL_WIDTH <= width - 4) {
-            return alternateRight;
-        }
-
-        /*
-         * Narrow-screen fallback: neither external side can fit the panel.
-         * Clamp it against the left screen edge, allowing only the amount of
-         * overlap with the main Crucible rectangle that is actually required.
-         */
-        return clampPanelX(preferredLeft, VENT_PANEL_WIDTH);
+    private UiBounds ventPanelBounds(EssenceCrucibleStatePayload state) {
+        return sidePanel(
+                VENT_PANEL_WIDTH,
+                ventPanelHeight(state),
+                MachineScreenLayout.SidePreference.LEFT_FIRST
+        ).bounds();
     }
 
     /*
@@ -783,16 +629,8 @@ public final class EssenceCrucibleScreen
      * but on narrow screens may overlap the Crucible as an opaque foreground
      * panel so it is never clipped off-screen.
      */
-    private void renderInfoPopup(
-            GuiGraphics graphics,
-            EssenceCrucibleStatePayload state
-    ) {
-        int panelX = infoPanelX();
-        int panelY = topPos + MachineScreenLayout.SIDE_PANEL_TOP_OFFSET;
-
-        new MachineInfoPanel(
-                graphics, font, panelX, panelY, INFO_PANEL_WIDTH, INFO_PANEL_HEIGHT
-        )
+    private MachineInfoPanel infoPanel(EssenceCrucibleStatePayload state) {
+        return new MachineInfoPanel()
                 .title(EssenceText.term("info"))
                 .metadata(EssenceText.gui("owner", state.ownerName()))
                 .metadata(EssenceText.gui("access", accessText(state.accessMode())))
@@ -847,58 +685,12 @@ public final class EssenceCrucibleScreen
         return MachineScreenUi.MUTED;
     }
 
-    /**
-     * Dynamic screen-space areas owned by an open machine popup. Optional
-     * recipe-viewer integrations can use these bounds to keep mouse input from
-     * falling through the foreground popup without coupling this screen to a
-     * specific viewer API.
-     */
-    public List<Rect2i> overlayInteractionAreas() {
-        EssenceCrucibleStatePayload state =
-                EssenceCrucibleClientState.snapshotFor(menu.containerId);
-        if (settingsOpen && state != null && state.allowed()) {
-            return List.of(new Rect2i(
-                    ventPanelX(),
-                    topPos + 4,
-                    VENT_PANEL_WIDTH,
-                    ventPanelHeight(state)
-            ));
-        }
-        if (infoOpen && state != null) {
-            return List.of(new Rect2i(
-                    infoPanelX(),
-                    topPos + MachineScreenLayout.SIDE_PANEL_TOP_OFFSET,
-                    INFO_PANEL_WIDTH,
-                    INFO_PANEL_HEIGHT
-            ));
-        }
-        return List.of();
-    }
-
-    private int infoPanelX() {
-        return MachineScreenLayout.infoPanelX(leftPos, imageWidth, width);
-    }
-
-    private int clampPanelX(int desiredX, int panelWidth) {
-        int minX = 4;
-        int maxX = Math.max(minX, width - 4 - panelWidth);
-        return Math.max(minX, Math.min(desiredX, maxX));
-    }
-
-    private void drawCentered(
-            GuiGraphics graphics,
-            Component text,
-            int y,
-            int color
-    ) {
-        graphics.drawString(
-                font,
-                text,
-                (imageWidth - font.width(text)) / 2,
-                y,
-                color,
-                false
-        );
+    private UiBounds infoPanelBounds() {
+        return sidePanel(
+                INFO_PANEL_WIDTH,
+                INFO_PANEL_HEIGHT,
+                MachineScreenLayout.SidePreference.RIGHT_FIRST
+        ).bounds();
     }
 
     private void drawRightAlignedAbsolute(
@@ -918,39 +710,6 @@ public final class EssenceCrucibleScreen
         );
     }
 
-    private void drawFittedAbsolute(
-            GuiGraphics graphics,
-            String text,
-            int x,
-            int y,
-            int maxWidth,
-            int color
-    ) {
-        graphics.drawString(
-                font,
-                fit(text, maxWidth),
-                x,
-                y,
-                color,
-                false
-        );
-    }
-
-    private String fit(String text, int maxWidth) {
-        if (font.width(text) <= maxWidth) {
-            return text;
-        }
-
-        String suffix = "...";
-        int suffixWidth = font.width(suffix);
-        int end = text.length();
-        while (end > 0
-                && font.width(text.substring(0, end)) + suffixWidth > maxWidth) {
-            end--;
-        }
-        return text.substring(0, end) + suffix;
-    }
-
     private static String batchesPerSecond(EssenceCrucibleStatePayload state) {
         int ticks = Math.max(1, state.dissolutionTicksPerItem());
         double perSecond = 20.0D / ticks;
@@ -964,15 +723,4 @@ public final class EssenceCrucibleScreen
         return String.format(Locale.ROOT, "%,d", value);
     }
 
-
-    private static void outline(
-            GuiGraphics graphics,
-            int x,
-            int y,
-            int width,
-            int height,
-            int color
-    ) {
-        MachineScreenUi.outline(graphics, x, y, width, height, color);
-    }
 }

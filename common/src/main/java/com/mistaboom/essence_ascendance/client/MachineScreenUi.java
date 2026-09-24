@@ -1,7 +1,7 @@
 package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.visual.AscendanceUiPalette;
-import com.mistaboom.essence_ascendance.client.procedural.GuiProceduralGeometry;
+import com.mistaboom.essence_ascendance.client.ui.StyledTextLayout;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
@@ -20,6 +20,23 @@ import java.util.List;
  */
 public final class MachineScreenUi {
 
+    public enum TextRole {
+        PRIMARY,
+        MUTED,
+        SUCCESS,
+        WARNING,
+        ERROR,
+        MUTED_ERROR
+    }
+
+    public enum VisualState {
+        DEFAULT,
+        ACTIVE,
+        WARNING,
+        ERROR,
+        DISABLED
+    }
+
     public static final int PANEL = AscendanceUiPalette.argb(AscendanceUiPalette.SURFACE);
     public static final int PANEL_INNER = AscendanceUiPalette.argb(AscendanceUiPalette.RAISED_SURFACE);
     public static final int BORDER = AscendanceUiPalette.argb(AscendanceUiPalette.BORDER);
@@ -37,24 +54,25 @@ public final class MachineScreenUi {
     private MachineScreenUi() {
     }
 
-    /** Compatibility forwards for existing screen callers; new effects use GuiProceduralGeometry. */
-    public static void beam(GuiGraphics graphics, int x1, int y1, int x2, int y2, int color) {
-        GuiProceduralGeometry.beam(graphics, x1, y1, x2, y2, color);
+    public static int color(TextRole role) {
+        return switch (role) {
+            case PRIMARY -> TEXT;
+            case MUTED -> MUTED;
+            case SUCCESS -> GOOD;
+            case WARNING -> WARN;
+            case ERROR -> BAD;
+            case MUTED_ERROR -> MUTED_BAD;
+        };
     }
 
-    public static void orbit(GuiGraphics graphics, int x, int y, double rx, double ry,
-                             int sides, double rotation, int color) {
-        GuiProceduralGeometry.orbit(graphics, x, y, rx, ry, sides, rotation, color);
-    }
-
-    public static int opacity(int color, int alpha) {
-        return GuiProceduralGeometry.opacity(color, alpha);
-    }
-
-    /** A rising faceted diamond, with a bright edge and a darker opposing face. */
-    public static void crystal(GuiGraphics graphics, int x, int y, int radius, double fraction, int color) {
-        GuiProceduralGeometry.crystal(graphics, x, y, radius, fraction, color,
-                PANEL_INNER, PANEL, 0xFFF0EDF4);
+    public static int color(VisualState state) {
+        return switch (state) {
+            case DEFAULT -> TEXT;
+            case ACTIVE -> GOOD;
+            case WARNING -> WARN;
+            case ERROR -> BAD;
+            case DISABLED -> MUTED;
+        };
     }
 
     public static void panel(GuiGraphics graphics, int x, int y, int width, int height) {
@@ -292,10 +310,17 @@ public final class MachineScreenUi {
             int maxWidth,
             int color
     ) {
-        if (text == null) {
+        if (text == null || maxWidth <= 0) {
             return;
         }
-        fitted(graphics, font, text.getString(), x, y, maxWidth, color);
+        graphics.drawString(
+                font,
+                StyledTextLayout.fit(font, text, maxWidth),
+                x,
+                y,
+                color,
+                false
+        );
     }
 
     public static void fitted(

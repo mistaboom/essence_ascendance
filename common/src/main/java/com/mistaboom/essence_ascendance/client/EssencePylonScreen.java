@@ -3,19 +3,18 @@ package com.mistaboom.essence_ascendance.client;
 import com.mistaboom.essence_ascendance.network.EssencePylonStatePayload;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonMenu;
 import com.mistaboom.essence_ascendance.text.EssenceText;
+import com.mistaboom.essence_ascendance.client.ui.UiBounds;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.world.entity.player.Inventory;
 
 import java.util.List;
 import java.util.Locale;
 
 public final class EssencePylonScreen
-        extends AbstractContainerScreen<EssencePylonMenu> {
+        extends MachineContainerScreen<EssencePylonMenu> {
 
     private static final int INFO_PANEL_WIDTH = MachineScreenLayout.INFO_PANEL_WIDTH;
     private static final int INFO_PANEL_HEIGHT = 172;
@@ -29,33 +28,32 @@ public final class EssencePylonScreen
             Inventory playerInventory,
             Component title
     ) {
-        super(menu, playerInventory, title);
-        imageWidth = 230;
-        imageHeight = 258;
-        inventoryLabelX = 34;
-        inventoryLabelY = 163;
+        super(
+                menu,
+                playerInventory,
+                title,
+                new MachineScreenLayout.Spec(
+                        230,
+                        258,
+                        new UiBounds(32, 174, 166, 80),
+                        34,
+                        163
+                )
+        );
     }
 
     @Override
-    protected void init() {
-        super.init();
+    protected void initMachineWidgets() {
         EssencePylonClientState.requestState(menu.containerId);
 
-        infoButton = addRenderableWidget(
-                Button.builder(
-                                Component.literal("i"),
-                                button -> infoOpen = !infoOpen
-                        )
-                        .bounds(leftPos + imageWidth - 20, topPos + 5, 15, 15)
-                        .build()
+        infoButton = addHeaderButton(
+                Component.literal("i"),
+                true,
+                button -> infoOpen = !infoOpen
         );
-        infoCloseButton = addRenderableWidget(
-                Button.builder(
-                                Component.literal("X"),
-                                button -> infoOpen = false
-                        )
-                        .bounds(infoPanelX() + INFO_PANEL_WIDTH - 18, topPos + 8, 12, 12)
-                        .build()
+        infoCloseButton = addOverlayCloseButton(
+                button -> infoOpen = false,
+                infoPanelBounds()
         );
         infoCloseButton.visible = false;
     }
@@ -119,54 +117,34 @@ public final class EssencePylonScreen
     }
 
     @Override
-    public void render(
-            GuiGraphics graphics,
-            int mouseX,
-            int mouseY,
-            float partialTick
-    ) {
-        renderBackground(graphics, mouseX, mouseY, partialTick);
-        super.render(graphics, mouseX, mouseY, partialTick);
-
+    protected void updateMachineWidgets() {
         EssencePylonStatePayload state = EssencePylonClientState.snapshotFor(menu.containerId);
         if (infoButton != null) {
             infoButton.active = state != null;
         }
         if (infoCloseButton != null) {
             infoCloseButton.visible = infoOpen && state != null;
-        }
-
-        if (infoOpen && state != null) {
-            graphics.pose().pushPose();
-            graphics.pose().translate(0.0F, 0.0F, 300.0F);
-            renderInfoPopup(graphics, state);
-            infoCloseButton.render(graphics, mouseX, mouseY, partialTick);
-            graphics.pose().popPose();
-        }
-
-        if (!mouseInsideInfo(mouseX, mouseY, state)) {
-            renderTooltip(graphics, mouseX, mouseY);
+            place(infoCloseButton, overlayCloseBounds(infoPanelBounds()));
         }
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    protected List<MachineOverlay> machineOverlays() {
         EssencePylonStatePayload state = EssencePylonClientState.snapshotFor(menu.containerId);
-        if (infoOpen && mouseInsideInfo(mouseX, mouseY, state)) {
-            if (infoCloseButton != null
-                    && infoCloseButton.mouseClicked(mouseX, mouseY, button)) {
-                return true;
-            }
-            return true;
+        if (!infoOpen || state == null) {
+            return List.of();
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        UiBounds bounds = infoPanelBounds();
+        return List.of(infoOverlay(
+                "pylon_info",
+                bounds,
+                infoPanel(state),
+                List.of(infoCloseButton)
+        ));
     }
 
-    private void renderInfoPopup(GuiGraphics graphics, EssencePylonStatePayload state) {
-        int x = infoPanelX();
-        int y = topPos + MachineScreenLayout.SIDE_PANEL_TOP_OFFSET;
-
-        new MachineInfoPanel(graphics, font, x, y, INFO_PANEL_WIDTH, INFO_PANEL_HEIGHT)
+    private MachineInfoPanel infoPanel(EssencePylonStatePayload state) {
+        return new MachineInfoPanel()
                 .title(EssenceText.term("info"))
                 .metadata(EssenceText.gui("owner", state.ownerName()))
                 .section(EssenceText.term("link"))
@@ -227,37 +205,12 @@ public final class EssencePylonScreen
         return Component.literal(linked.getX() + ", " + linked.getY() + ", " + linked.getZ());
     }
 
-    /** Screen-space area owned by the foreground Info popup, when open. */
-    public List<Rect2i> overlayInteractionAreas() {
-        EssencePylonStatePayload state = EssencePylonClientState.snapshotFor(menu.containerId);
-        if (!infoOpen || state == null) {
-            return List.of();
-        }
-        return List.of(new Rect2i(
-                infoPanelX(),
-                topPos + MachineScreenLayout.SIDE_PANEL_TOP_OFFSET,
+    private UiBounds infoPanelBounds() {
+        return sidePanel(
                 INFO_PANEL_WIDTH,
-                INFO_PANEL_HEIGHT
-        ));
-    }
-
-    private int infoPanelX() {
-        return MachineScreenLayout.infoPanelX(leftPos, imageWidth, width);
-    }
-
-    private boolean mouseInsideInfo(double mouseX, double mouseY, EssencePylonStatePayload state) {
-        if (!infoOpen || state == null) {
-            return false;
-        }
-        int x = infoPanelX();
-        int y = topPos + MachineScreenLayout.SIDE_PANEL_TOP_OFFSET;
-        return MachineScreenLayout.contains(
-                mouseX, mouseY, x, y, INFO_PANEL_WIDTH, INFO_PANEL_HEIGHT
-        );
-    }
-
-    private void drawCentered(GuiGraphics graphics, Component text, int y, int color) {
-        graphics.drawString(font, text, (imageWidth - font.width(text)) / 2, y, color, false);
+                INFO_PANEL_HEIGHT,
+                MachineScreenLayout.SidePreference.RIGHT_FIRST
+        ).bounds();
     }
 
     private static String format(long value) {

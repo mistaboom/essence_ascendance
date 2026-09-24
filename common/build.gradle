@@ -108,6 +108,7 @@ def balanceInvariantMains = [
         balanceFractionalLedgerInvariants: 'com.mistaboom.essence_ascendance.balance.economy.FractionalLedgerTest',
         balanceTooltipInvariants: 'com.mistaboom.essence_ascendance.client.EssenceYieldFormatTest',
         balanceTooltipPresentationInvariants: 'com.mistaboom.essence_ascendance.client.TooltipPresentationTest',
+        machineUiFoundationInvariants: 'com.mistaboom.essence_ascendance.client.MachineUiFoundationTest',
         balanceRankInvariants: 'com.mistaboom.essence_ascendance.skill.SkillRankCurveTest',
         balanceLedgerInvariants: 'com.mistaboom.essence_ascendance.skill.balance.SkillRankLedgerTest',
         balanceIntegrationInvariants: 'com.mistaboom.essence_ascendance.balance.generated.GeneratedBalanceIntegrationTest',

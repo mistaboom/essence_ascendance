@@ -11,11 +11,10 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentTierData;
 import com.mistaboom.essence_ascendance.pylon.EssenceFocusData;
 import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
 import com.mistaboom.essence_ascendance.text.EssenceText;
+import com.mistaboom.essence_ascendance.client.ui.UiBounds;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.world.entity.player.Inventory;
 
 import java.util.List;
@@ -23,7 +22,7 @@ import java.util.Locale;
 
 /** Procedural machine GUI using the shared normal-machine presentation system. */
 public final class EssenceInfuserScreen
-        extends AbstractContainerScreen<EssenceInfuserMenu> {
+        extends MachineContainerScreen<EssenceInfuserMenu> {
 
     private static final int INFO_PANEL_WIDTH = MachineScreenLayout.INFO_PANEL_WIDTH;
     private static final int INFO_PANEL_HEIGHT = 224;
@@ -42,17 +41,22 @@ public final class EssenceInfuserScreen
             Inventory playerInventory,
             Component title
     ) {
-        super(menu, playerInventory, title);
-        imageWidth = 230;
-        imageHeight = 338;
-        inventoryLabelX = 34;
-        inventoryLabelY = 243;
+        super(
+                menu,
+                playerInventory,
+                title,
+                new MachineScreenLayout.Spec(
+                        230,
+                        338,
+                        new UiBounds(32, 254, 166, 80),
+                        34,
+                        243
+                )
+        );
     }
 
     @Override
-    protected void init() {
-        super.init();
-
+    protected void initMachineWidgets() {
         sourcePreviousButton = addCycleButton(
                 leftPos + 66, topPos + 84, "<", EssenceInfuserMenu.BUTTON_SOURCE_PREVIOUS
         );
@@ -66,43 +70,30 @@ public final class EssenceInfuserScreen
                 leftPos + 198, topPos + 108, ">", EssenceInfuserMenu.BUTTON_TARGET_NEXT
         );
 
-        processingButton = addRenderableWidget(
-                Button.builder(
-                                EssenceText.gui("infuser.button.start_processing"),
-                                button -> clickMenuButton(EssenceInfuserMenu.BUTTON_TOGGLE_PROCESSING)
-                        )
-                        .bounds(leftPos + 45, topPos + 220, 140, 20)
-                        .build()
+        processingButton = addMachineButton(
+                EssenceText.gui("infuser.button.start_processing"),
+                button -> clickMenuButton(EssenceInfuserMenu.BUTTON_TOGGLE_PROCESSING),
+                new UiBounds(leftPos + 45, topPos + 220, 140, 20)
         );
 
-        infoButton = addRenderableWidget(
-                Button.builder(
-                                Component.literal("i"),
-                                button -> infoOpen = !infoOpen
-                        )
-                        .bounds(leftPos + imageWidth - 20, topPos + 5, 15, 15)
-                        .build()
+        infoButton = addHeaderButton(
+                Component.literal("i"),
+                true,
+                button -> infoOpen = !infoOpen
         );
 
-        infoCloseButton = addRenderableWidget(
-                Button.builder(
-                                Component.literal("X"),
-                                button -> infoOpen = false
-                        )
-                        .bounds(infoPanelX() + INFO_PANEL_WIDTH - 18, topPos + 8, 12, 12)
-                        .build()
+        infoCloseButton = addOverlayCloseButton(
+                button -> infoOpen = false,
+                infoPanelBounds()
         );
         infoCloseButton.visible = false;
     }
 
     private Button addCycleButton(int x, int y, String label, int id) {
-        return addRenderableWidget(
-                Button.builder(
-                                Component.literal(label),
-                                button -> clickMenuButton(id)
-                        )
-                        .bounds(x, y, 18, 18)
-                        .build()
+        return addMachineButton(
+                Component.literal(label),
+                button -> clickMenuButton(id),
+                new UiBounds(x, y, 18, 18)
         );
     }
 
@@ -437,30 +428,7 @@ public final class EssenceInfuserScreen
     }
 
     @Override
-    public void render(
-            GuiGraphics graphics,
-            int mouseX,
-            int mouseY,
-            float partialTick
-    ) {
-        renderBackground(graphics, mouseX, mouseY, partialTick);
-        updateButtons();
-        super.render(graphics, mouseX, mouseY, partialTick);
-
-        if (infoOpen) {
-            graphics.pose().pushPose();
-            graphics.pose().translate(0.0F, 0.0F, 300.0F);
-            renderInfoPopup(graphics);
-            infoCloseButton.render(graphics, mouseX, mouseY, partialTick);
-            graphics.pose().popPose();
-        }
-
-        if (!mouseInsideInfo(mouseX, mouseY)) {
-            renderTooltip(graphics, mouseX, mouseY);
-        }
-    }
-
-    private void updateButtons() {
+    protected void updateMachineWidgets() {
         EssenceInfuserWorkpieceMode mode = menu.workpieceMode();
         boolean carrierMode = mode == EssenceInfuserWorkpieceMode.ESSENTIUM;
         boolean focusMode = mode == EssenceInfuserWorkpieceMode.FOCUS;
@@ -503,29 +471,26 @@ public final class EssenceInfuserScreen
         }
         if (infoCloseButton != null) {
             infoCloseButton.visible = infoOpen;
-            infoCloseButton.setX(infoPanelX() + INFO_PANEL_WIDTH - 18);
+            place(infoCloseButton, overlayCloseBounds(infoPanelBounds()));
         }
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (infoOpen && mouseInsideInfo(mouseX, mouseY)) {
-            if (infoCloseButton != null
-                    && infoCloseButton.mouseClicked(mouseX, mouseY, button)) {
-                return true;
-            }
-            return true;
+    protected List<MachineOverlay> machineOverlays() {
+        if (!infoOpen) {
+            return List.of();
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        UiBounds bounds = infoPanelBounds();
+        return List.of(infoOverlay(
+                "infuser_info",
+                bounds,
+                infoPanel(),
+                List.of(infoCloseButton)
+        ));
     }
 
-    private void renderInfoPopup(GuiGraphics graphics) {
-        int x = infoPanelX();
-        int y = topPos + MachineScreenLayout.SIDE_PANEL_TOP_OFFSET;
-
-        MachineInfoPanel info = new MachineInfoPanel(
-                graphics, font, x, y, INFO_PANEL_WIDTH, INFO_PANEL_HEIGHT
-        )
+    private MachineInfoPanel infoPanel() {
+        MachineInfoPanel info = new MachineInfoPanel()
                 .title(EssenceText.term("info"))
                 .metadata(EssenceText.gui("owner", ownerText()))
                 .section(EssenceText.term("link"))
@@ -548,6 +513,7 @@ public final class EssenceInfuserScreen
             info.section(EssenceText.term("workpiece"))
                     .line(EssenceText.gui("infuser.info.insert_workpiece"));
         }
+        return info;
     }
 
     private void renderCarrierInfo(MachineInfoPanel info) {
@@ -614,32 +580,12 @@ public final class EssenceInfuserScreen
                 .line(EssenceText.gui("infuser.info.output_focus"));
     }
 
-    /** Screen-space area owned by the foreground Info popup, when open. */
-    public List<Rect2i> overlayInteractionAreas() {
-        if (!infoOpen) {
-            return List.of();
-        }
-        return List.of(new Rect2i(
-                infoPanelX(),
-                topPos + MachineScreenLayout.SIDE_PANEL_TOP_OFFSET,
+    private UiBounds infoPanelBounds() {
+        return sidePanel(
                 INFO_PANEL_WIDTH,
-                INFO_PANEL_HEIGHT
-        ));
-    }
-
-    private int infoPanelX() {
-        return MachineScreenLayout.infoPanelX(leftPos, imageWidth, width);
-    }
-
-    private boolean mouseInsideInfo(double mouseX, double mouseY) {
-        if (!infoOpen) {
-            return false;
-        }
-        int x = infoPanelX();
-        int y = topPos + MachineScreenLayout.SIDE_PANEL_TOP_OFFSET;
-        return MachineScreenLayout.contains(
-                mouseX, mouseY, x, y, INFO_PANEL_WIDTH, INFO_PANEL_HEIGHT
-        );
+                INFO_PANEL_HEIGHT,
+                MachineScreenLayout.SidePreference.RIGHT_FIRST
+        ).bounds();
     }
 
     private Component ownerText() {
@@ -695,10 +641,6 @@ public final class EssenceInfuserScreen
             case EssenceInfuserBlockEntity.STATUS_STOPPED -> MachineScreenUi.MUTED;
             default -> MachineScreenUi.WARN;
         };
-    }
-
-    private void drawCentered(GuiGraphics graphics, Component text, int y, int color) {
-        graphics.drawString(font, text, (imageWidth - font.width(text)) / 2, y, color, false);
     }
 
     private static Component shortName(EssenceDefinition essence) {
