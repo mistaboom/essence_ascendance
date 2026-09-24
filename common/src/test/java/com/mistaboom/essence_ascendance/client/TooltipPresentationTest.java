@@ -25,6 +25,7 @@ public final class TooltipPresentationTest {
         scrolling();
         styles();
         codec();
+        completedYieldSnapshots();
         AscendancePaletteTest.main(args);
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println("TooltipPresentationTest: " + assertions
                 + " token wrapping, bounded scroll, semantic styling and exact payload assertions passed");
@@ -128,6 +129,47 @@ public final class TooltipPresentationTest {
         }
         check(ItemEssenceTooltipPayload.TYPE.id().getPath().endsWith("_v2"),
                 "Changed wire format reused old negotiation channel");
+    }
+
+    private static void completedYieldSnapshots() {
+        ItemEssenceTooltipClientState.clearForTesting();
+        check(!ItemEssenceTooltipClientState.yieldSnapshot().ready(),
+                "A cleared connection exposed believable yield data");
+        ItemEssenceTooltipClientState.acceptForTesting(payload(7, 1, 2, "minecraft:coal", 250_000L));
+        check(!ItemEssenceTooltipClientState.yieldSnapshot().ready(),
+                "A non-starting or incomplete chunk published a snapshot");
+        ItemEssenceTooltipClientState.acceptForTesting(payload(7, 0, 2, "minecraft:diamond", 2_000_000L));
+        check(!ItemEssenceTooltipClientState.yieldSnapshot().ready(),
+                "Chunk zero published before the completed snapshot");
+        ItemEssenceTooltipClientState.acceptForTesting(payload(7, 1, 2, "minecraft:coal", 250_000L));
+        var first = ItemEssenceTooltipClientState.yieldSnapshot();
+        check(first.ready() && first.generation() == 7 && first.rows().size() == 2,
+                "Completed chunks were not atomically installed");
+        check(first.rows().stream().filter(row -> row.itemId().toString().equals("minecraft:coal"))
+                        .findFirst().orElseThrow().outputs().getFirst().microUnits() == 250_000L,
+                "Fractional positive yield lost exact micro-units");
+        ItemEssenceTooltipClientState.acceptForTesting(payload(6, 0, 1, "minecraft:stick", 1_000_000L));
+        check(ItemEssenceTooltipClientState.yieldSnapshot() == first,
+                "An older generation replaced the installed snapshot");
+        ItemEssenceTooltipClientState.acceptForTesting(payload(8, 0, 2, "minecraft:stick", 1_000_000L));
+        check(ItemEssenceTooltipClientState.yieldSnapshot() == first,
+                "An incomplete replacement erased completed data");
+        ItemEssenceTooltipClientState.acceptForTesting(payload(8, 1, 2, "minecraft:apple", 125_000L));
+        var replacement = ItemEssenceTooltipClientState.yieldSnapshot();
+        check(replacement.ready() && replacement.generation() == 8 && replacement.rows().size() == 2
+                        && replacement != first,
+                "A completed newer generation did not replace the snapshot once");
+        ItemEssenceTooltipClientState.clearForTesting();
+        check(!ItemEssenceTooltipClientState.yieldSnapshot().ready()
+                        && ItemEssenceTooltipClientState.yieldSnapshot().rows().isEmpty(),
+                "Disconnect retained rows from the previous connection");
+    }
+
+    private static ItemEssenceTooltipPayload payload(long generation, int index, int count,
+                                                      String item, long microUnits) {
+        return new ItemEssenceTooltipPayload(generation, index, count, List.of(
+                new ItemEssenceTooltipPayload.Entry(item, List.of(
+                        new ItemEssenceTooltipPayload.Output("essence_ascendance:offense", microUnits)))));
     }
 
     private static void check(boolean value, String message) {

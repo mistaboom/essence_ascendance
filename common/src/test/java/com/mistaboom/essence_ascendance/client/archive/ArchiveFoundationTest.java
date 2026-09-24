@@ -7,13 +7,19 @@ import com.mistaboom.essence_ascendance.archive.ArchiveLocation;
 import com.mistaboom.essence_ascendance.archive.ArchiveMode;
 import com.mistaboom.essence_ascendance.archive.ArchiveSection;
 import com.mistaboom.essence_ascendance.client.ui.UiBounds;
+import com.mistaboom.essence_ascendance.client.ItemEssenceTooltipClientState;
 import com.mistaboom.essence_ascendance.client.ui.content.ContentViewport;
 import com.mistaboom.essence_ascendance.client.ui.content.EntryListView;
+import com.mistaboom.essence_ascendance.client.ui.content.ItemPresentation;
 import com.mistaboom.essence_ascendance.client.ui.content.SemanticDocument;
 import com.mistaboom.essence_ascendance.client.ui.data.ReadOnlyDataTable;
 import com.mistaboom.essence_ascendance.client.ui.data.ReadOnlyDataTableView;
+import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenComposition;
+import com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenLayout;
+import com.mistaboom.essence_ascendance.client.presentation.PresentationContext;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.Font;
+import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.Style;
@@ -26,6 +32,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
@@ -39,6 +46,8 @@ public final class ArchiveFoundationTest {
         catalogAndContent();
         localization();
         navigationAndHistory();
+        yieldBrowserData();
+        yieldBrowserLayout();
         tables();
         componentInput();
         itemAsset();
@@ -198,6 +207,142 @@ public final class ArchiveFoundationTest {
         for (int index = 0; index < 80; index++) reconciled.back();
         check(reconciled.snapshot().future().size() <= ArchiveNavigator.HISTORY_LIMIT,
                 "Forward history is not bounded");
+
+        ResourceLocation diamond = ResourceLocation.withDefaultNamespace("diamond");
+        ResourceLocation coal = ResourceLocation.withDefaultNamespace("coal");
+        browser.openYieldItem(diamond);
+        ArchiveNavigationState.YieldBrowser configured = new ArchiveNavigationState.YieldBrowser("dia",
+                Set.of(id("offense"), id("defense")), ArchiveNavigationState.YieldMatch.ALL,
+                id("offense").toString(), ArchiveNavigationState.YieldSortDirection.DESCENDING, diamond, 9);
+        browser.setYieldBrowser(configured);
+        browser.selectSection(ArchiveSection.REFERENCE_ESSENCES.id());
+        check(browser.entryId().equals(catalog.first(ArchiveMode.REFERENCE, ArchiveSection.REFERENCE_ESSENCES.id()).id())
+                        && !browser.entryId().equals(ArchiveNavigator.ITEM_YIELDS),
+                "Clicking Essences from Item Yields must return to the parent article list");
+        browser.back();
+        check(browser.currentLocation() instanceof ArchiveLocation.YieldBrowser && browser.yieldBrowser().equals(configured),
+                "Returning from the parent list must restore the exact yield browser state");
+        browser.openTarget("essence_ascendance:reference/machines/crucible");
+        browser.back();
+        check(browser.currentLocation() instanceof ArchiveLocation.YieldBrowser
+                        && browser.yieldBrowser().equals(configured),
+                "Back did not restore yield filters, sort, selection and results scroll");
+        check(browser.canGoForward(), "Returning to the yield browser lost Forward");
+        browser.openYieldItem(diamond);
+        check(browser.canGoForward(), "Opening the current yield destination cleared Forward");
+        browser.openTarget(ArchiveNavigator.yieldTarget(coal));
+        check(!browser.canGoForward() && browser.yieldBrowser().selectedRow().equals(coal)
+                        && browser.yieldBrowser().query().isEmpty()
+                        && browser.yieldBrowser().selectedEssences().isEmpty(),
+                "A new deep-linked row did not branch history and reveal itself predictably");
+    }
+
+    private static void yieldBrowserData() {
+        ResourceLocation offense = id("offense");
+        ResourceLocation defense = id("defense");
+        List<ItemYieldBrowser.BrowserRow> rows = List.of(
+                browserRow("minecraft:apple", "Apple", Map.of(offense, 125_000L)),
+                browserRow("minecraft:coal", "Coal", Map.of(defense, 1_000_000L)),
+                browserRow("minecraft:diamond", "Diamond", Map.of(offense, 2_000_000L, defense, 500_000L)));
+        check(ItemYieldBrowser.filterRows(rows, "", Set.of(), ArchiveNavigationState.YieldMatch.ALL).equals(rows),
+                "No selected category imposed an Essence restriction");
+        check(ItemYieldBrowser.filterRows(rows, "", Set.of(offense, defense), ArchiveNavigationState.YieldMatch.ANY)
+                        .equals(rows), "Any-selected filtering rejected a positive category");
+        check(ItemYieldBrowser.filterRows(rows, "", Set.of(offense, defense), ArchiveNavigationState.YieldMatch.ALL)
+                        .stream().map(ItemYieldBrowser.BrowserRow::itemId).toList()
+                        .equals(List.of(ResourceLocation.withDefaultNamespace("diamond"))),
+                "All-selected filtering did not require every exact positive yield");
+        check(ItemYieldBrowser.filterRows(rows, "DIAM", Set.of(), ArchiveNavigationState.YieldMatch.ANY)
+                        .equals(List.of(rows.getLast())), "Localized item-name filtering is not case-insensitive");
+        check(ItemYieldBrowser.sortRows(rows, offense.toString(), ArchiveNavigationState.YieldSortDirection.ASCENDING)
+                        .stream().map(ItemYieldBrowser.BrowserRow::itemId).toList()
+                        .equals(List.of(ResourceLocation.withDefaultNamespace("coal"),
+                                ResourceLocation.withDefaultNamespace("apple"), ResourceLocation.withDefaultNamespace("diamond"))),
+                "Ascending Essence sort did not use exact raw fractional values");
+        check(ItemYieldBrowser.sortRows(rows, offense.toString(), ArchiveNavigationState.YieldSortDirection.DESCENDING)
+                        .stream().map(ItemYieldBrowser.BrowserRow::itemId).toList()
+                        .equals(List.of(ResourceLocation.withDefaultNamespace("diamond"),
+                                ResourceLocation.withDefaultNamespace("apple"), ResourceLocation.withDefaultNamespace("coal"))),
+                "Descending Essence sort or deterministic tie-breaking failed");
+        check(rows.getFirst().item().resource().equals(rows.getFirst().itemId()),
+                "A yield row's representative image does not belong to that item");
+        ReadOnlyDataTable<ItemYieldBrowser.BrowserRow> schema = ItemYieldBrowser.tableData(rows);
+        for (int width = 0; width <= 1000; width++) {
+            List<ReadOnlyDataTable.ColumnWidth> measured = measureYieldSchema(schema, width);
+            check(measured.stream().mapToInt(ReadOnlyDataTable.ColumnWidth::width).sum()
+                            + Math.min(1, width / (measured.size() - 1)) * (measured.size() - 1) == width,
+                    "Item Yields columns did not consume the actual available width at " + width);
+            int essenceWidth = measured.get(2).width();
+            check(measured.subList(2, measured.size()).stream().allMatch(column -> column.width() == essenceWidth),
+                    "Essence columns must be exactly equal even at compressed or odd viewport widths: " + width);
+        }
+        List<ReadOnlyDataTable.ColumnWidth> wide = measureYieldSchema(schema, 800);
+        for (int index = 0; index < schema.columns().size(); index++)
+            check(wide.get(index).width() >= schema.columns().get(index).minimumWidth(),
+                    "A meaningful Item Yields header was squeezed at normal width: "
+                            + schema.columns().get(index).header().getString());
+        var networkRow = new ItemEssenceTooltipClientState.YieldRow(
+                ResourceLocation.withDefaultNamespace("diamond"),
+                List.of(new ItemEssenceTooltipClientState.Yield(offense, 125_000L)));
+        var snapshot = new ItemEssenceTooltipClientState.YieldSnapshot(4, true,
+                Map.of(networkRow.itemId(), networkRow.outputs()), List.of(networkRow));
+        var projected = ItemYieldBrowser.project(snapshot).getFirst();
+        check(projected.itemId().equals(projected.item().resource())
+                        && projected.item().stack().is(net.minecraft.world.item.Items.DIAMOND)
+                        && projected.yield(offense) == 125_000L,
+                "Server-fed row did not retain its exact yield and registered representative image");
+        check(ItemYieldBrowser.searchMetadata(snapshot).getFirst().target()
+                        .equals(ArchiveNavigator.yieldTarget(networkRow.itemId())),
+                "Yield rows do not expose the canonical reveal target for global Search");
+    }
+
+    private static void yieldBrowserLayout() {
+        Font metricFont = new Font(ignored -> null, false) {
+            @Override public int width(FormattedText text) { return text.getString().length() * 6; }
+            @Override public List<FormattedCharSequence> split(FormattedText text, int width) {
+                return List.of(FormattedCharSequence.forward(text.getString(), Style.EMPTY));
+            }
+        };
+        var browser = new ItemYieldBrowser(ArchiveNavigationState.YieldBrowser.initial(), ignored -> { });
+        var snapshot = new ItemEssenceTooltipClientState.YieldSnapshot(0, false, Map.of(), List.of());
+        for (int width : List.of(300, 480, 800, 1600)) {
+            var frame = FullscreenLayout.frame(FullscreenLayout.Spec.standard(), width, 600, true);
+            var builder = new FullscreenComposition.Builder("yield-layout", frame);
+            browser.compose(builder, frame.content(), metricFont, snapshot, new PresentationContext.Revision(0, 0, false, 0, 0));
+            var scene = builder.build();
+            UiBounds query = scene.regions().stream().filter(region -> region.id().equals("archive/yields/query"))
+                    .findFirst().orElseThrow().bounds();
+            check(query.equals(FullscreenLayout.bands(frame.content(), 24, 0, 6).header()),
+                    "Yield filtering must use exactly the Archive Search field geometry");
+            UiBounds table = scene.regions().stream().filter(region -> region.id().equals("archive/yields/table"))
+                    .findFirst().orElseThrow().bounds();
+            check(table.bottom() == frame.content().bottom() && table.width() == frame.content().width(),
+                    "Yield results must fill the existing content boundaries with no footer reservation");
+            check(scene.regions().stream().noneMatch(region -> region.id().contains("heading") || region.id().contains("see_also"))
+                            && scene.controls().stream().noneMatch(control -> control.id().equals("archive/yields/essentium")),
+                    "Removed explanatory heading and See Also footer must not return");
+            check(scene.controls().stream().filter(control -> control.id().startsWith("archive/yields/category/")).count() == 6,
+                    "Compact browser must retain all six category toggles");
+            check(scene.controls().stream().allMatch(control -> control.bounds().y() >= query.bottom()
+                            && control.bounds().bottom() <= table.y()
+                            && control.bounds().x() >= frame.content().x() && control.bounds().right() <= frame.content().right()),
+                    "Browser controls must stay between the full-width search field and table");
+        }
+    }
+
+    private static ItemYieldBrowser.BrowserRow browserRow(String itemId, String name,
+                                                           Map<ResourceLocation, Long> yields) {
+        ResourceLocation id = ResourceLocation.parse(itemId);
+        Component label = Component.literal(name);
+        return new ItemYieldBrowser.BrowserRow(id, label,
+                new ItemPresentation(id, DataComponentPatch.EMPTY, label), yields);
+    }
+
+    private static List<ReadOnlyDataTable.ColumnWidth> measureYieldSchema(
+            ReadOnlyDataTable<ItemYieldBrowser.BrowserRow> schema, int width) {
+        int[] localizedHeaderWidths = {24, 24, 42, 42, 48, 48, 54, 42};
+        AtomicInteger index = new AtomicInteger();
+        return schema.measure(width, 1, ignored -> localizedHeaderWidths[index.getAndIncrement()]);
     }
 
     private static void localization() throws Exception {
@@ -217,8 +362,22 @@ public final class ArchiveFoundationTest {
                     "gui.essence_ascendance.requirement.unmet", "gui.essence_ascendance.requirement.information",
                     "gui.essence_ascendance.link.related", "gui.essence_ascendance.link.previous",
                     "gui.essence_ascendance.link.next", "guide.essence_ascendance.archive.title",
-                    "guide.essence_ascendance.archive.control.back", "guide.essence_ascendance.archive.control.forward",
-                    "guide.essence_ascendance.archive.search.placeholder"))
+                     "guide.essence_ascendance.archive.control.back", "guide.essence_ascendance.archive.control.forward",
+                     "guide.essence_ascendance.archive.search.placeholder",
+                     "guide.essence_ascendance.archive.reference.item_yields.caption",
+                     "guide.essence_ascendance.archive.reference.item_yields.unavailable",
+                     "guide.essence_ascendance.archive.reference.item_yields.unavailable_short",
+                     "guide.essence_ascendance.archive.reference.item_yields.table.item",
+                     "guide.essence_ascendance.archive.reference.item_yields.filter.placeholder",
+                     "guide.essence_ascendance.archive.reference.item_yields.match.any",
+                     "guide.essence_ascendance.archive.reference.item_yields.match.all",
+                     "guide.essence_ascendance.archive.reference.item_yields.result_count",
+                     "guide.essence_ascendance.archive.reference.item_yields.essentium_note",
+                     "guide.essence_ascendance.archive.reference.item_yields.essentium_link",
+                     "guide.essence_ascendance.archive.control.clear",
+                     "guide.essence_ascendance.archive.control.reset",
+                     "guide.essence_ascendance.archive.table.item",
+                     "guide.essence_ascendance.archive.table.name"))
                 check(language.has(key), "Missing Archive localization " + key);
         }
     }
@@ -421,6 +580,10 @@ public final class ArchiveFoundationTest {
         check(article.scrollOffset() > 0, "A replaced document does not inherit the previous embedded table's focus");
 
         SemanticDocument.Table<Integer> expanded = new SemanticDocument.Table<>(data, true);
+        check(expanded.layoutPolicy() == SemanticDocument.TableLayoutPolicy.ARTICLE_FLOW
+                        && new SemanticDocument.Table<>(data).layoutPolicy()
+                        == SemanticDocument.TableLayoutPolicy.BOUNDED_RESULTS,
+                "Article-flow and bounded-results table scrolling policies are not explicit");
         check(ContentViewport.visibleTableRows(expanded) == data.rows().size(), "Expanded table clips rows into a nested viewport");
         article.restore(0);
         article.prepare(metricFont, new UiBounds(0, 0, 200, 100),

@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.client.archive;
 
+import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.archive.ArchiveCatalog;
 import com.mistaboom.essence_ascendance.archive.ArchiveEntry;
 import com.mistaboom.essence_ascendance.archive.ArchiveLocation;
@@ -16,6 +17,9 @@ import java.util.Map;
 /** Archive-owned typed navigation, independent mode locations and bounded canonical history. */
 public final class ArchiveNavigator {
     public static final int HISTORY_LIMIT = 32;
+    public static final String YIELD_TARGET_PREFIX = "yield:";
+    public static final ResourceLocation ITEM_YIELDS = ResourceLocation.fromNamespaceAndPath(
+            EssenceAscendance.MOD_ID, "reference/essences/item_yields");
 
     private final ArchiveCatalog catalog;
     private final FullscreenNavigation<ArchiveMode, ResourceLocation> navigation =
@@ -24,11 +28,13 @@ public final class ArchiveNavigator {
     private final List<ArchiveNavigationState.Visit> history = new ArrayList<>();
     private final List<ArchiveNavigationState.Visit> future = new ArrayList<>();
     private ArchiveNavigationState.Search search = ArchiveNavigationState.Search.initial();
+    private ArchiveNavigationState.YieldBrowser yieldBrowser = ArchiveNavigationState.YieldBrowser.initial();
 
     public ArchiveNavigator(ArchiveCatalog catalog, ArchiveNavigationState.Snapshot restored) {
         this.catalog = catalog;
         pages.putAll(restored.pages());
         search = restored.search();
+        yieldBrowser = restored.yieldBrowser();
         history.addAll(restored.history().stream().skip(Math.max(0, restored.history().size() - HISTORY_LIMIT)).toList());
         future.addAll(restored.future().stream().skip(Math.max(0, restored.future().size() - HISTORY_LIMIT)).toList());
         for (ArchiveMode mode : List.of(ArchiveMode.GUIDE, ArchiveMode.REFERENCE)) {
@@ -50,6 +56,7 @@ public final class ArchiveNavigator {
     public int articleScroll() { return mode() == ArchiveMode.SEARCH ? 0 : page(mode()).articleScroll(); }
     public String query() { return search.query(); }
     public ResourceLocation selectedResult() { return search.selectedResult(); }
+    public ArchiveNavigationState.YieldBrowser yieldBrowser() { return yieldBrowser; }
     public boolean canGoBack() { return !history.isEmpty(); }
     public boolean canGoForward() { return !future.isEmpty(); }
     public FullscreenNavigation<ArchiveMode, ResourceLocation> fullscreenNavigation() { return navigation; }
@@ -71,7 +78,14 @@ public final class ArchiveNavigator {
 
     public void selectSection(ResourceLocation section) {
         ArchiveSection candidate = catalog.section(section);
-        if (candidate == null || candidate.mode() != mode() || section.equals(this.section())) return;
+        if (candidate == null || candidate.mode() != mode()) return;
+        if (section.equals(this.section())) {
+            if (ITEM_YIELDS.equals(entryId())) {
+                ArchiveEntry first = catalog.first(mode(), section);
+                if (first != null) selectEntry(first.id());
+            }
+            return;
+        }
         pushCurrent();
         navigation.selectSection(section);
         ArchiveEntry first = catalog.first(mode(), section);
@@ -96,6 +110,11 @@ public final class ArchiveNavigator {
     }
 
     public void openTarget(String target) {
+        if (target != null && target.startsWith(YIELD_TARGET_PREFIX)) {
+            ResourceLocation item = ResourceLocation.tryParse(target.substring(YIELD_TARGET_PREFIX.length()));
+            if (item != null) openYieldItem(item);
+            return;
+        }
         ResourceLocation id = ResourceLocation.tryParse(target);
         ArchiveEntry candidate = id == null ? null : catalog.entry(id);
         if (candidate == null || candidate.mode() == mode() && candidate.id().equals(entryId())) return;
@@ -128,6 +147,29 @@ public final class ArchiveNavigator {
         search = new ArchiveNavigationState.Search(search.query(), entry, search.scroll());
     }
 
+    /** Updates the current browser location without creating per-keystroke history. */
+    public void setYieldBrowser(ArchiveNavigationState.YieldBrowser state) {
+        yieldBrowser = state == null ? ArchiveNavigationState.YieldBrowser.initial() : state;
+    }
+
+    /** Canonical deep link used by future global row search results. */
+    public static String yieldTarget(ResourceLocation itemId) { return YIELD_TARGET_PREFIX + itemId; }
+
+    public void openYieldItem(ResourceLocation itemId) {
+        if (itemId == null || currentLocation() instanceof ArchiveLocation.YieldBrowser current
+                && itemId.equals(current.selectedRow())) return;
+        pushCurrent();
+        ArchiveEntry destination = catalog.entry(ITEM_YIELDS);
+        if (destination == null) return;
+        navigation.selectMode(ArchiveMode.REFERENCE);
+        navigation.selectSection(destination.section());
+        pages.put(ArchiveMode.REFERENCE, new ArchiveNavigationState.Page(destination.section(), destination.id(),
+                navigation.sectionWindow(), 0, 0));
+        yieldBrowser = new ArchiveNavigationState.YieldBrowser("", java.util.Set.of(),
+                ArchiveNavigationState.YieldMatch.ANY, yieldBrowser.sortColumn(), yieldBrowser.sortDirection(),
+                itemId, 0);
+    }
+
     public void openSelectedSearchResult() {
         ArchiveEntry selected = catalog.entry(search.selectedResult());
         if (selected != null) openTarget(selected.id().toString());
@@ -146,14 +188,14 @@ public final class ArchiveNavigator {
     }
 
     public ArchiveLocation currentLocation() {
-        return mode() == ArchiveMode.SEARCH
-                ? new ArchiveLocation.Search(search.query(), search.selectedResult())
-                : new ArchiveLocation.Article(mode(), section(), entryId());
+        if (mode() == ArchiveMode.SEARCH) return new ArchiveLocation.Search(search.query(), search.selectedResult());
+        if (ITEM_YIELDS.equals(entryId())) return new ArchiveLocation.YieldBrowser(ITEM_YIELDS, yieldBrowser.selectedRow());
+        return new ArchiveLocation.Article(mode(), section(), entryId());
     }
 
     public ArchiveNavigationState.Snapshot snapshot() {
         if (mode() != ArchiveMode.SEARCH) syncCurrentPage();
-        return new ArchiveNavigationState.Snapshot(mode(), pages, search, history, future);
+        return new ArchiveNavigationState.Snapshot(mode(), pages, search, yieldBrowser, history, future);
     }
 
     private void pushCurrent() {
@@ -162,7 +204,7 @@ public final class ArchiveNavigator {
     }
 
     private ArchiveNavigationState.Visit currentVisit() {
-        return new ArchiveNavigationState.Visit(currentLocation(), sectionWindow(), listScroll(), articleScroll());
+        return new ArchiveNavigationState.Visit(currentLocation(), sectionWindow(), listScroll(), articleScroll(), yieldBrowser);
     }
 
     private static void appendVisit(List<ArchiveNavigationState.Visit> stack, ArchiveNavigationState.Visit visit) {
@@ -189,10 +231,19 @@ public final class ArchiveNavigator {
             navigation.selectMode(ArchiveMode.SEARCH);
             search = new ArchiveNavigationState.Search(searched.query(), searched.selectedResult(), visit.listScroll());
             reconcileSearch();
-        } else if (location instanceof ArchiveLocation.YieldBrowser) {
-            navigation.selectMode(ArchiveMode.REFERENCE);
-            pages.put(ArchiveMode.REFERENCE, validPage(ArchiveMode.REFERENCE, pages.get(ArchiveMode.REFERENCE)));
-            syncCurrentPage();
+        } else if (location instanceof ArchiveLocation.YieldBrowser browser) {
+            ArchiveEntry destination = catalog.entry(browser.subject());
+            if (destination == null) {
+                navigation.selectMode(ArchiveMode.REFERENCE);
+                pages.put(ArchiveMode.REFERENCE, validPage(ArchiveMode.REFERENCE, null));
+                syncCurrentPage();
+            } else {
+                navigation.selectMode(ArchiveMode.REFERENCE);
+                navigation.restoreMode(ArchiveMode.REFERENCE, destination.section(), visit.sectionWindow());
+                pages.put(ArchiveMode.REFERENCE, new ArchiveNavigationState.Page(destination.section(), destination.id(),
+                        visit.sectionWindow(), visit.listScroll(), visit.articleScroll()));
+                yieldBrowser = visit.yieldBrowser();
+            }
         }
     }
 

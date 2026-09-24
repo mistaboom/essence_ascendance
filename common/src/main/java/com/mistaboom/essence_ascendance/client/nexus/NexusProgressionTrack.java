@@ -49,6 +49,28 @@ public record NexusProgressionTrack(
         return layout(top, bottom).yForEffect(fundingProgression(target, tierId));
     }
 
+    /** A handle grab retains the exact funding value, which cannot be recovered from a rounded pixel. */
+    public record Drag(long initialTarget, double pointerY, double initialPosition, boolean grabbedHandle) { }
+
+    public Drag beginDrag(double mouseY, long target, ResourceLocation tierId, int top, int bottom, int handleHeight) {
+        var geometry = layout(top, bottom);
+        int handle = handleY(target, tierId, top, bottom);
+        boolean grabbed = mouseY >= handle - handleHeight / 2
+                && mouseY < handle + (handleHeight + 1) / 2;
+        return new Drag(target, mouseY, geometry.positionForEffect(fundingProgression(target, tierId)), grabbed);
+    }
+
+    public long dragTarget(Drag drag, double mouseY, long affordableTarget, ResourceLocation tierId, int top, int bottom) {
+        var geometry = layout(top, bottom);
+        if (drag.grabbedHandle()) {
+            // Horizontal motion (or returning to the grab position) is an exact no-op.
+            if (mouseY == drag.pointerY()) return drag.initialTarget();
+            double position = drag.initialPosition() + (drag.pointerY() - mouseY) / (geometry.bottom() - geometry.top());
+            return dragTarget(geometry.effectForPosition(position), affordableTarget, tierId);
+        }
+        return dragTarget(geometry.effectForY(mouseY), affordableTarget, tierId);
+    }
+
     /** Exact final target for a drag; affordability is supplied by the shared cross-mode draft. */
     public long dragTarget(double effect, long affordableTarget, ResourceLocation tierId) {
         var resolved = state.track();

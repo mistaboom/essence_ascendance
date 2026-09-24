@@ -15,7 +15,7 @@ public sealed interface ArchiveLocation permits ArchiveLocation.Article, Archive
         public Search { query = query == null ? "" : query; }
         @Override public ArchiveMode mode() { return ArchiveMode.SEARCH; }
     }
-    /** Reserved typed destination for the later read-only yield browser. */
+    /** Read-only yield browser destination, optionally revealing one stable item row. */
     record YieldBrowser(ResourceLocation subject, ResourceLocation selectedRow) implements ArchiveLocation {
         @Override public ArchiveMode mode() { return ArchiveMode.REFERENCE; }
     }

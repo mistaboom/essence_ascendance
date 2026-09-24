@@ -6,7 +6,9 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
@@ -40,6 +42,7 @@ public final class ReadOnlyDataTable<R> {
         private final Function<T, Component> presentation;
         private final Comparator<T> comparator;
         private Function<R, ItemPresentation> item;
+        private String equalWidthGroup;
 
         public Column(String id, Component header, int minimumWidth, int weight, Alignment alignment,
                       Function<R, T> value, Function<T, Component> presentation, Comparator<T> comparator) {
@@ -81,6 +84,12 @@ public final class ReadOnlyDataTable<R> {
         }
 
         public String id() { return id; }
+        /** Opt-in equal sizing; ungrouped columns absorb indivisible pixel remainders. */
+        public Column<R, T> equalWidthGroup(String group) {
+            if (group == null || group.isBlank()) throw new IllegalArgumentException("Blank width group");
+            equalWidthGroup = group;
+            return this;
+        }
         public Component header() { return header; }
         public int minimumWidth() { return minimumWidth; }
         public int weight() { return weight; }
@@ -156,13 +165,20 @@ public final class ReadOnlyDataTable<R> {
         int[] desired = new int[columns.size()];
         long desiredTotal = 0;
         int totalWeight = 0;
+        Map<String, List<Integer>> groups = new LinkedHashMap<>();
         for (int index = 0; index < columns.size(); index++) {
             Column<R, ?> column = columns.get(index);
             int measured = measureText.applyAsInt(column.header()) + 10;
             desired[index] = Math.max(column.minimumWidth(), measured);
-            desiredTotal += desired[index];
             totalWeight += column.weight();
+            if (column.equalWidthGroup != null)
+                groups.computeIfAbsent(column.equalWidthGroup, ignored -> new ArrayList<>()).add(index);
         }
+        for (List<Integer> group : groups.values()) {
+            int maximum = group.stream().mapToInt(index -> desired[index]).max().orElse(0);
+            for (int index : group) desired[index] = maximum;
+        }
+        for (int value : desired) desiredTotal += value;
         int[] assigned = new int[columns.size()];
         if (desiredTotal > cellBudget && desiredTotal > 0) {
             int used = 0;
@@ -185,6 +201,20 @@ public final class ReadOnlyDataTable<R> {
             }
             if (assigned.length > 0) assigned[assigned.length - 1] += spare - used;
         }
+        int remainder = 0;
+        for (List<Integer> group : groups.values()) {
+            int total = group.stream().mapToInt(index -> assigned[index]).sum();
+            int equal = total / group.size();
+            for (int index : group) assigned[index] = equal;
+            remainder += total % group.size();
+        }
+        // Prefer the flexible text column; all-grouped schemas leave at most a few trailing pixels.
+        int remainderColumn = -1;
+        for (int index = 0; index < columns.size(); index++) {
+            if (columns.get(index).equalWidthGroup == null && (remainderColumn < 0
+                    || columns.get(index).weight() > columns.get(remainderColumn).weight())) remainderColumn = index;
+        }
+        if (remainderColumn >= 0) assigned[remainderColumn] += remainder;
         int x = 0;
         List<ColumnWidth> result = new ArrayList<>(columns.size());
         for (int index = 0; index < columns.size(); index++) {

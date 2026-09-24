@@ -204,6 +204,29 @@ public final class NexusBonusPresentationTest {
         }
         check(step.handleY(step.dragTarget(1, 50, TIER), TIER, 20, 320) == partialY,
                 "Affordability clamps at partial funding rather than a completed tier");
+        for (int bottom : new int[] {80, 320}) {
+            for (long amount = 0; amount <= 600; amount++) {
+                int handle = step.handleY(amount, TIER, 20, bottom);
+                for (int offset = -3; offset <= 3; offset++) {
+                    double pointer = handle + offset;
+                    var drag = step.beginDrag(pointer, amount, TIER, 20, bottom, 7);
+                    check(drag.grabbedHandle() && step.dragTarget(drag, pointer, 600, TIER, 20, bottom) == amount,
+                            "Clicking anywhere on a rounded handle must retain the exact investment, including zero");
+                    long raised = step.dragTarget(drag, pointer - 12, 600, TIER, 20, bottom);
+                    long lowered = step.dragTarget(drag, pointer + 12, 600, TIER, 20, bottom);
+                    check(raised >= amount && raised <= 600 && lowered <= amount && lowered >= 0,
+                            "Relative handle motion must respect direction and investment bounds");
+                    check(step.dragTarget(drag, pointer, 600, TIER, 20, bottom) == amount,
+                            "Returning to the grab position must restore the exact starting amount");
+                }
+            }
+        }
+        var railClick = step.beginDrag(20, 0, TIER, 20, 320, 7);
+        check(!railClick.grabbedHandle() && step.dragTarget(railClick, 20, 600, TIER, 20, 320) == 600,
+                "Clicking the rail outside the handle must still select that position");
+        var affordableDrag = step.beginDrag(partialY, 50, TIER, 20, 320, 7);
+        check(step.dragTarget(affordableDrag, -1000, 123, TIER, 20, 320) == 123,
+                "Handle dragging must retain the shared draft's affordability cap");
         for (long amount = 1; amount <= 600; amount++) {
             check(step.progression(amount, TIER) >= step.progression(amount - 1, TIER), "Complete-state preview is monotonic");
             double funding = step.fundingProgression(amount, TIER);

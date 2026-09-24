@@ -97,9 +97,20 @@ public record SemanticDocument(Component title, List<Block> blocks) {
         }
     }
 
-    public record Table<R>(ReadOnlyDataTable<R> data, boolean expanded) implements Block {
-        public Table(ReadOnlyDataTable<R> data) { this(data, false); }
-        public Table { Objects.requireNonNull(data); }
+    public enum TableLayoutPolicy {
+        /** The enclosing article owns scrolling and the table expands to every row. */
+        ARTICLE_FLOW,
+        /** The table owns one bounded, virtualized results viewport. */
+        BOUNDED_RESULTS
+    }
+
+    public record Table<R>(ReadOnlyDataTable<R> data, TableLayoutPolicy layoutPolicy) implements Block {
+        public Table(ReadOnlyDataTable<R> data) { this(data, TableLayoutPolicy.BOUNDED_RESULTS); }
+        public Table(ReadOnlyDataTable<R> data, boolean expanded) {
+            this(data, expanded ? TableLayoutPolicy.ARTICLE_FLOW : TableLayoutPolicy.BOUNDED_RESULTS);
+        }
+        public Table { Objects.requireNonNull(data); Objects.requireNonNull(layoutPolicy); }
+        public boolean expanded() { return layoutPolicy == TableLayoutPolicy.ARTICLE_FLOW; }
         @Override public List<Component> searchableText() {
             List<Component> text = new ArrayList<>();
             data.columns().forEach(column -> text.add(column.header()));

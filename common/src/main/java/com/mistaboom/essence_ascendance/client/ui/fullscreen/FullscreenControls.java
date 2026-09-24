@@ -81,9 +81,6 @@ public final class FullscreenControls {
         if (enabled && selected && style == Style.TAB && bounds.width() > 4 && bounds.height() > 4) {
             graphics.fill(bounds.x() + 2, bounds.bottom() - 3, bounds.right() - 2, bounds.bottom() - 1, opaqueAccent);
         }
-        if (enabled && focused && bounds.width() > 4 && bounds.height() > 4) {
-            outline(graphics, bounds.inset(2), opacity(AscendanceUiPalette.PRIMARY_TEXT, 0xCC));
-        }
         int padding = style == Style.TAB || style == Style.LINK ? 10 : style == Style.MODE ? 8 : 6;
         FormattedCharSequence fitted = StyledTextLayout.fit(font, label, Math.max(0, bounds.width() - padding));
         int textY = bounds.y() + (style == Style.TAB ? TAB_TEXT_OFFSET : style == Style.LINK ? 5

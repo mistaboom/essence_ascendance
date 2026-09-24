@@ -26,6 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.LinkedHashSet;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
 import java.util.Map;
 
@@ -46,8 +47,7 @@ import java.util.Map;
  */
 public final class ItemEssenceTooltipClientState {
 
-    private static volatile Map<ResourceLocation, List<DisplayOutput>>
-            OUTPUTS_BY_ITEM = Map.of();
+    private static volatile YieldSnapshot YIELD_SNAPSHOT = YieldSnapshot.unavailable();
 
     private static long installedGeneration = -1L;
 
@@ -91,9 +91,17 @@ public final class ItemEssenceTooltipClientState {
         );
     }
 
-    private static void accept(
+    static void accept(
             ItemEssenceTooltipPayload payload
     ) {
+        accept(payload, JeiTooltipSearchRefreshBridge::requestRefresh);
+    }
+
+    static void acceptForTesting(ItemEssenceTooltipPayload payload) {
+        accept(payload, () -> { });
+    }
+
+    private static void accept(ItemEssenceTooltipPayload payload, Runnable refreshSearch) {
         // Only chunk zero may start a snapshot. A late older chunk must neither
         // replace an installed table nor destroy a newer in-progress assembly.
         long generation = payload.mappingGeneration();
@@ -115,7 +123,7 @@ public final class ItemEssenceTooltipClientState {
             return;
         }
 
-        Map<ResourceLocation, List<DisplayOutput>> rebuilt =
+        Map<ResourceLocation, List<Yield>> rebuilt =
                 new LinkedHashMap<>();
 
         for (int chunkIndex = 0;
@@ -144,7 +152,7 @@ public final class ItemEssenceTooltipClientState {
                     return;
                 }
 
-                List<DisplayOutput> outputs =
+                List<Yield> outputs =
                         new ArrayList<>();
 
                 for (ItemEssenceTooltipPayload.Output output :
@@ -163,7 +171,7 @@ public final class ItemEssenceTooltipClientState {
                     }
 
                     outputs.add(
-                            new DisplayOutput(
+                            new Yield(
                                     essenceId,
                                     output.microUnits()
                             )
@@ -181,12 +189,16 @@ public final class ItemEssenceTooltipClientState {
             }
         }
 
-        OUTPUTS_BY_ITEM =
-                Map.copyOf(
-                        rebuilt
-                );
-
-        installedGeneration = pendingGeneration;
+        long completedGeneration = pendingGeneration;
+        Map<ResourceLocation, List<Yield>> completed = Map.copyOf(rebuilt);
+        List<YieldRow> rows = completed.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> new YieldRow(entry.getKey(), entry.getValue()))
+                .toList();
+        // Publish every completed projection together. Readers can never observe
+        // tooltip data from one generation and browser rows from another.
+        YIELD_SNAPSHOT = new YieldSnapshot(completedGeneration, true, completed, rows);
+        installedGeneration = completedGeneration;
         PENDING_CHUNKS.clear();
         pendingGeneration =
                 -1L;
@@ -197,7 +209,7 @@ public final class ItemEssenceTooltipClientState {
          * If JEI has already indexed ingredients, make its $ tooltip-search
          * index pick up this new authoritative server mapping snapshot.
          */
-        JeiTooltipSearchRefreshBridge.requestRefresh();
+        refreshSearch.run();
     }
 
     public static void appendToGeneratedTooltip(
@@ -217,8 +229,8 @@ public final class ItemEssenceTooltipClientState {
                                 stack.getItem()
                         );
 
-        List<DisplayOutput> outputs =
-                OUTPUTS_BY_ITEM.get(
+        List<Yield> outputs =
+                YIELD_SNAPSHOT.outputsByItem().get(
                         itemId
                 );
 
@@ -256,10 +268,10 @@ public final class ItemEssenceTooltipClientState {
     public static void appendDirectEssenceTooltipMicros(ResourceLocation essenceId, long microUnits,
                                                        List<Component> tooltip) {
         if (essenceId == null || microUnits <= 0 || tooltip == null) return;
-        appendOutputs(List.of(new DisplayOutput(essenceId, microUnits)), tooltip);
+        appendOutputs(List.of(new Yield(essenceId, microUnits)), tooltip);
     }
 
-    private static void appendOutputs(List<DisplayOutput> outputs, List<Component> tooltip) {
+    private static void appendOutputs(List<Yield> outputs, List<Component> tooltip) {
         Minecraft client = Minecraft.getInstance();
         Font font = client.font;
         int existingWidth = tooltip.stream().mapToInt(font::width).max().orElse(0);
@@ -318,8 +330,8 @@ public final class ItemEssenceTooltipClientState {
                                 stack.getItem()
                         );
 
-        List<DisplayOutput> outputs =
-                OUTPUTS_BY_ITEM.get(
+        List<Yield> outputs =
+                YIELD_SNAPSHOT.outputsByItem().get(
                         itemId
                 );
 
@@ -335,7 +347,7 @@ public final class ItemEssenceTooltipClientState {
                 "essence"
         );
 
-        for (DisplayOutput output :
+        for (Yield output :
                 outputs) {
 
             result.add(
@@ -448,9 +460,14 @@ public final class ItemEssenceTooltipClientState {
     }
 
     static void clear() {
+        clear(true);
+    }
+
+    static void clearForTesting() { clear(false); }
+
+    private static void clear(boolean refreshSearch) {
         installedGeneration = -1L;
-        OUTPUTS_BY_ITEM =
-                Map.of();
+        YIELD_SNAPSHOT = YieldSnapshot.unavailable();
 
         PENDING_CHUNKS.clear();
 
@@ -459,12 +476,40 @@ public final class ItemEssenceTooltipClientState {
 
         pendingChunkCount =
                 0;
-        JeiTooltipSearchRefreshBridge.requestRefresh();
+        if (refreshSearch) JeiTooltipSearchRefreshBridge.requestRefresh();
     }
 
-    private record DisplayOutput(
-            ResourceLocation essenceId,
-            long microUnits
-    ) {
+    /** Atomic, connection-scoped read model shared by tooltips and read-only browsers. */
+    public record YieldSnapshot(long generation, boolean ready,
+                                Map<ResourceLocation, List<Yield>> outputsByItem,
+                                List<YieldRow> rows) {
+        public YieldSnapshot {
+            Map<ResourceLocation, List<Yield>> copied = new LinkedHashMap<>();
+            outputsByItem.forEach((item, yields) -> copied.put(
+                    Objects.requireNonNull(item), List.copyOf(yields)));
+            outputsByItem = Map.copyOf(copied);
+            rows = List.copyOf(rows);
+        }
+
+        private static YieldSnapshot unavailable() {
+            return new YieldSnapshot(-1L, false, Map.of(), List.of());
+        }
     }
+
+    public record YieldRow(ResourceLocation itemId, List<Yield> outputs) {
+        public YieldRow { Objects.requireNonNull(itemId); outputs = List.copyOf(outputs); }
+        public long microUnits(ResourceLocation essenceId) {
+            return outputs.stream().filter(output -> output.essenceId().equals(essenceId))
+                    .mapToLong(Yield::microUnits).findFirst().orElse(0L);
+        }
+    }
+
+    public record Yield(ResourceLocation essenceId, long microUnits) {
+        public Yield {
+            Objects.requireNonNull(essenceId);
+            if (microUnits <= 0L) throw new IllegalArgumentException("Yield must be positive");
+        }
+    }
+
+    public static YieldSnapshot yieldSnapshot() { return YIELD_SNAPSHOT; }
 }

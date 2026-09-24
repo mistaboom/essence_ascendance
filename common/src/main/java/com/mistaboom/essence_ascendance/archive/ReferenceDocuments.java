@@ -70,7 +70,12 @@ final class ReferenceDocuments {
                 new SemanticDocument.Icon(id("ascendance_archive"), g("archive.entry.reference.essences.item_yields.title")),
                 new SemanticDocument.Paragraph(g("archive.reference.item_yields.body")),
                 new SemanticDocument.Callout(SemanticDocument.CalloutKind.NOTE, g("archive.callout.note"),
-                        g("archive.reference.item_yields.next_phase"))));
+                        g("archive.reference.item_yields.essentium_explanation")),
+                new SemanticDocument.Heading(SemanticDocument.HeadingLevel.SECTION, g("archive.see_also")),
+                new SemanticDocument.Links(List.of(new SemanticDocument.Link(
+                        "essence_ascendance:reference/machines/infuser",
+                        g("archive.reference.item_yields.essentium_mechanic"),
+                        SemanticDocument.LinkRelation.RELATED)))));
     }
 
     static SemanticDocument crucible(PresentationContext context) {
@@ -296,7 +301,8 @@ final class ReferenceDocuments {
             columns.add(ReadOnlyDataTable.Column.text(headers.get(index), g("archive.equipment.table." + headers.get(index)),
                     58, 1, row -> row.stats().get(cell), null));
         }
-        return new SemanticDocument.Table<>(new ReadOnlyDataTable<>(columns, rows), true);
+        return new SemanticDocument.Table<>(new ReadOnlyDataTable<>(columns, rows),
+                SemanticDocument.TableLayoutPolicy.ARTICLE_FLOW);
     }
 
     static SemanticDocument equipmentInfusion(PresentationContext context) {
@@ -544,7 +550,8 @@ final class ReferenceDocuments {
     }
     private static SemanticDocument.Table<Cells> table(List<ReadOnlyDataTable.Column<Cells, ?>> columns,
                                                         List<ReadOnlyDataTable.Row<Cells>> rows) {
-        return new SemanticDocument.Table<>(new ReadOnlyDataTable<>(columns, rows), true);
+        return new SemanticDocument.Table<>(new ReadOnlyDataTable<>(columns, rows),
+                SemanticDocument.TableLayoutPolicy.ARTICLE_FLOW);
     }
     private static ReadOnlyDataTable.Column<Cells, Component> textColumn(String id, Component header, int width,
                                                                          int weight,

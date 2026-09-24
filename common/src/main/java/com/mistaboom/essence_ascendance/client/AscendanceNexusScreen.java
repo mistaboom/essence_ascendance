@@ -140,6 +140,7 @@ public final class AscendanceNexusScreen
     private int trackWindowStart = 0;
 
     private int draggingTrackIndex = -1;
+    private NexusProgressionTrack.Drag trackDrag;
     private final FullscreenNavigation<NexusMode, ResourceLocation> navigation = new FullscreenNavigation<>(NexusMode.ASCENDANCE);
     private final UUID navigationPlayer;
     private final UiNavigationMemory.Session navigationSession;
@@ -394,7 +395,10 @@ public final class AscendanceNexusScreen
                 int clicked = trackAt(x, y, category, layout, effectiveVisibleTrackCount(category.tracks().size(), layout));
                 if (clicked < 0) return false;
                 draggingTrackIndex = clicked;
-                updateStagedDrag(y, category, category.tracks().get(clicked), layout);
+                var track = category.tracks().get(clicked);
+                trackDrag = track.beginDrag(y, stagedInvestment(track), ClientEssenceState.snapshot().tierId(),
+                        layout.trackTop(), layout.trackBottom(), TRACK_KNOB_HEIGHT);
+                updateStagedDrag(y, category, track, layout);
                 return true;
             }
             @Override public boolean drag(double x, double y, int button, double dx, double dy) {
@@ -449,6 +453,7 @@ public final class AscendanceNexusScreen
 
     private void cancelContentInteraction() {
         draggingTrackIndex = -1;
+        trackDrag = null;
         skillViewports.values().forEach(FullscreenViewport::endPan);
     }
 
@@ -4013,9 +4018,10 @@ public final class AscendanceNexusScreen
             NexusPageLayout layout
     ) {
         var tierId = ClientEssenceState.snapshot().tierId();
-        double requestedProgress = track.layout(layout.trackTop(), layout.trackBottom()).effectForY(mouseY);
+        if (trackDrag == null) return;
         long affordable = safeAddNonNegative(stagedInvestment(track), stagedAvailableEssence(category));
-        long target = track.dragTarget(requestedProgress, affordable, tierId);
+        long target = track.dragTarget(trackDrag, mouseY, affordable, tierId, layout.trackTop(), layout.trackBottom());
+        if (target == stagedInvestment(track)) return;
         transactionFeedback = null;
         draft.stageBonus(track.stat().id(), target);
     }

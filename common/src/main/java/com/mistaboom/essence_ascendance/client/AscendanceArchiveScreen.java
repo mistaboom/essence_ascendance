@@ -8,6 +8,7 @@ import com.mistaboom.essence_ascendance.client.archive.ArchiveNavigationState;
 import com.mistaboom.essence_ascendance.client.archive.ArchiveNavigator;
 import com.mistaboom.essence_ascendance.client.archive.ArchiveSearch;
 import com.mistaboom.essence_ascendance.client.archive.ArchiveSearchField;
+import com.mistaboom.essence_ascendance.client.archive.ItemYieldBrowser;
 import com.mistaboom.essence_ascendance.client.ui.StyledTextLayout;
 import com.mistaboom.essence_ascendance.client.ui.UiBounds;
 import com.mistaboom.essence_ascendance.client.ui.UiNavigationMemory;
@@ -38,6 +39,7 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
     private final EntryListView<ArchiveEntry> searchResults;
     private final ContentViewport article;
     private final ArchiveSearchField searchField;
+    private final ItemYieldBrowser yieldBrowser;
     private Object listStateKey;
     private ResourceLocation articleEntry;
     private SemanticDocument articleDocument;
@@ -56,6 +58,7 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
         article = new ContentViewport(ItemIllustrationRenderer.INSTANCE, this::openTarget);
         searchField = new ArchiveSearchField(navigation.query(), EssenceText.guide("archive.search.placeholder"),
                 navigation::setQuery);
+        yieldBrowser = new ItemYieldBrowser(navigation.yieldBrowser(), navigation::setYieldBrowser);
     }
 
     public static void open() { Minecraft.getInstance().setScreen(new AscendanceArchiveScreen()); }
@@ -115,10 +118,18 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
     @Override public boolean isPauseScreen() { return false; }
 
     @Override protected void renderFullscreenTooltips(GuiGraphics graphics, int mouseX, int mouseY) {
-        if (navigation.mode() != ArchiveMode.SEARCH) article.renderTooltips(graphics, mouseX, mouseY);
+        if (isYieldBrowser()) yieldBrowser.renderTooltips(graphics, mouseX, mouseY);
+        else if (navigation.mode() != ArchiveMode.SEARCH) article.renderTooltips(graphics, mouseX, mouseY);
     }
 
     private void composeArticle(FullscreenComposition.Builder builder, UiBounds content) {
+        ArchiveEntry selected = navigation.entry();
+        if (selected != null && selected.id().equals(ArchiveNavigator.ITEM_YIELDS)) {
+            yieldBrowser.restore(navigation.yieldBrowser());
+            yieldBrowser.compose(builder, content, font, ItemEssenceTooltipClientState.yieldSnapshot(),
+                    PresentationContext.capture().revision());
+            return;
+        }
         FullscreenLayout.Split split = FullscreenLayout.listDetail(content, Math.min(190, Math.max(112, content.width() / 3)), 8);
         List<ArchiveEntry> available = catalog.entries(navigation.mode(), navigation.section());
         Object nextListKey = java.util.Arrays.asList(navigation.mode(), navigation.section(), navigation.entryId());
@@ -130,7 +141,6 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
         builder.region(new FullscreenComposition.Region("archive/entries", split.list(),
                 (graphics, x, y, tick) -> entries.render(graphics, font, x, y), entries, true));
 
-        ArchiveEntry selected = navigation.entry();
         if (selected == null) return;
         PresentationContext.Revision revision = PresentationContext.capture().revision();
         if (!selected.id().equals(articleEntry) || !Objects.equals(articleRevision, revision)) {
@@ -210,9 +220,14 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
     private void captureCurrentOffsets() {
         navigation.captureSectionWindow();
         if (navigation.mode() == ArchiveMode.SEARCH) navigation.setListScroll(searchResults.scrollOffset());
+        else if (isYieldBrowser()) navigation.setYieldBrowser(yieldBrowser.state());
         else {
             navigation.setListScroll(entries.scrollOffset());
             navigation.setArticleScroll(article.scrollOffset());
         }
+    }
+
+    private boolean isYieldBrowser() {
+        return navigation.mode() == ArchiveMode.REFERENCE && ArchiveNavigator.ITEM_YIELDS.equals(navigation.entryId());
     }
 }
