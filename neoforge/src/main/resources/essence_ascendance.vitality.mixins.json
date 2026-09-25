@@ -23,6 +23,7 @@
     "TraversalMiningMixin"
   ],
   "client": [
+    "LatentOreModelDataMixin",
     "ItemInHandRendererMixin",
     "AbstractClientPlayerFovMixin",
     "ItemStackTooltipMixin",

@@ -32,7 +32,7 @@ import java.util.Map;
 
 /** Server-thread transaction: collect, construct, validate, persist, publish, then synchronize. */
 public final class GeneratedBalanceService {
-    static final String GENERATION_REVISION = "meaningful-progression-44";
+    static final String GENERATION_REVISION = "latent-ore-supply-45";
     private static final String DISSOLUTION_ACCOUNTING = "whole_essence_v1";
     private static volatile Active active;
     private static volatile boolean resourcesChanged;
@@ -98,6 +98,8 @@ public final class GeneratedBalanceService {
             validation.addProperty("vitality", "validated native-unit recovery, damage routing, ward and death-defiance settings with developed-build headroom; live gameplay remains manual");
             validation.addProperty("liveGameplay", "not performed by generator");
             validation.add("bonusTracks", com.mistaboom.essence_ascendance.balance.runtime.BonusTrackGenerator.diagnostics(runtime));
+            validation.add("latentOre", com.mistaboom.essence_ascendance.balance.runtime.LatentOreBalanceGenerator.diagnostics(
+                    evidence, economy, inputs.settings().latentOre(), runtime.config().latentOreWorldgen()));
             JsonObject document = new JsonObject();
             document.add("metadata", metadata);
             document.add("settings", BalanceDocument.GSON.toJsonTree(inputs.settings()));

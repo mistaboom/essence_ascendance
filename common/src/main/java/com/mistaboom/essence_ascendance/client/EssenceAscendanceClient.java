@@ -72,6 +72,7 @@ public final class EssenceAscendanceClient {
                 com.mistaboom.essence_ascendance.projectile.ProjectileContent.MAGIC_BOLT,
                 MagicBoltRenderer::new);
         ClientPacketDispatch.init();
+        com.mistaboom.essence_ascendance.client.ore.LatentOreClientCatalog.init();
         com.mistaboom.essence_ascendance.archive.ArchiveClientBridge.install(AscendanceArchiveScreen::open);
         ReloadListenerRegistry.register(
                 PackType.CLIENT_RESOURCES,

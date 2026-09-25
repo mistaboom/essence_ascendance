@@ -15,6 +15,7 @@ import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleContent;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserContent;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonContent;
 import com.mistaboom.essence_ascendance.nexus.AscendanceNexusContent;
+import com.mistaboom.essence_ascendance.neoforge.client.LatentOreNeoForgeModels;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.client.renderer.item.ItemProperties;
 import net.neoforged.api.distmarker.Dist;
@@ -35,6 +36,7 @@ public final class EssenceAscendanceNeoForgeClient {
     public EssenceAscendanceNeoForgeClient(
             IEventBus modBus
     ) {
+        modBus.addListener(LatentOreNeoForgeModels::modifyBakingResult);
         modBus.addListener(
                 this::onClientSetup
         );

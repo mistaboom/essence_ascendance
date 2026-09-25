@@ -1,6 +1,11 @@
 package com.mistaboom.essence_ascendance.balance.engine;
 
-/** Optional integrations register before generation. Providers must be deterministic and server-safe. */
+/**
+ * Optional integrations register before generation. Initial analysis runs when
+ * the Overworld is available, before spawn chunks and other levels are created.
+ * Providers must use loaded data, remain deterministic, and never request chunk
+ * generation, mutate worlds, or depend on players or fully started dimensions.
+ */
 public interface PackEvidenceProvider {
     String id();
     default int priority() { return 0; }

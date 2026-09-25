@@ -9,6 +9,7 @@ import com.mistaboom.essence_ascendance.balance.economy.*;
 import com.mistaboom.essence_ascendance.balance.engine.*;
 import com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceDefinition;
 import com.mistaboom.essence_ascendance.balance.runtime.RuntimeBuildScenarios;
+import com.mistaboom.essence_ascendance.balance.runtime.LatentOreBalanceGenerator;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.essence.EssenceTypes;
 import com.mistaboom.essence_ascendance.progression.*;
@@ -42,10 +43,16 @@ public final class GeneratedBalanceIntegrationTest {
         com.mistaboom.essence_ascendance.equipment.EquipmentProfiles.init();
 
         BalanceSettings settings = BalanceSettings.defaults();
-        BalanceOverrides overrides = BalanceOverrides.empty();
+        // Exercise exact ore policy precedence in the existing generation/replay fixture.
+        BalanceOverrides overrides = new BalanceOverrides(List.of(), Map.of(
+                "/runtime/worldgen/overworld/veinSize", 2L,
+                "/runtime/worldgen/overworld/veinsPerChunk", 3L));
         PackEvidence evidence = evidence();
         EconomyProfile economy = economy(evidence, settings);
         RuntimeBalanceDefinition runtime = RuntimeBalanceDefinition.generate(evidence, economy, settings, overrides);
+        check(runtime.config().latentOreWorldgen().overworld().veinSize() == 2
+                        && runtime.config().latentOreWorldgen().overworld().veinsPerChunk() == 3,
+                "Exact runtime worldgen overrides must remain authoritative below the automatic size/attempt floors");
         BalanceDocument document = document(evidence, economy, runtime, settings, overrides);
         GeneratedBalanceService.Active decoded = GeneratedBalanceService.decode(BalanceDocument.parse(document.text()));
 
@@ -203,11 +210,13 @@ public final class GeneratedBalanceIntegrationTest {
                     "warnings.csv", "equipment_capabilities.csv", "build_skill_ranks.csv", "build_selections.csv", "build_category_pressure.csv",
                     "combat_assumptions.csv", "evidence.csv", "evidence_dependencies.csv", "runtime_parameters.csv", "generated_equipment.csv",
                     "attunement_targets.csv", "attunement_breadth.csv", "attunement_methods.csv", "attunement_calibration.csv",
-                    "attunement_investment.csv", "attunement_repetition.csv", "attunement_reachability.csv", "projectile_policy.csv"))
+                    "attunement_investment.csv", "attunement_repetition.csv", "attunement_reachability.csv", "projectile_policy.csv",
+                    "latent_ore_supply.csv", "latent_ore_worldgen.csv", "latent_ore_policy.csv"))
                 check(Files.isRegularFile(reports.resolve(name)) && Files.size(reports.resolve(name)) > 0,
                         "Complete profile report export omitted " + name);
             for (String name : List.of("pack_metadata.json", "report_text.json"))
                 check(Files.isRegularFile(folder.resolve("diagnostics").resolve(name)), "Missing detailed diagnostic " + name);
+            verifyLatentOreReports(decoded, reports);
             var attunement = decoded.runtime().attunement();
             var nativeRanks = csv(Files.readString(reports.resolve("skill_rank_parameters.csv")));
             check(nativeRanks.size() - 1 == decoded.runtime().skillCurves().values().stream()
@@ -292,6 +301,9 @@ public final class GeneratedBalanceIntegrationTest {
             String report = Files.readString(reports.resolve("balance_report.md"));
             check(report.contains("Resolved numeric combat checks") && report.contains("combat_builds.csv"),
                     "Human report omitted the resolved numeric checks");
+            check(report.contains("Latent Ore supply") && report.contains("latent_ore_supply.csv")
+                            && report.contains("latent_ore_worldgen.csv"),
+                    "Human report omitted generated Latent Ore evidence and final distributions");
             check(!report.contains("This saved profile has no combined-build numeric analysis"),
                     "Human report fell back to illustrative policy formulas despite saved numeric cases");
             check(!report.matches("(?s).*\\b(?:NaN|Infinity)\\b.*"), "Human report contains unexpected nonfinite values");
@@ -320,6 +332,86 @@ public final class GeneratedBalanceIntegrationTest {
                 for (Path path : paths.sorted(java.util.Comparator.reverseOrder()).toList()) Files.deleteIfExists(path);
             }
         }
+    }
+
+    private static void verifyLatentOreReports(GeneratedBalanceService.Active decoded, Path reports) throws Exception {
+        JsonObject diagnostics = decoded.document().section("validation").getAsJsonObject("latentOre");
+        check(diagnostics != null, "Saved profile omitted Latent Ore diagnostics");
+        var settings = decoded.runtime().config().latentOreWorldgen();
+        check(diagnostics.getAsJsonObject("resolved").equals(RuntimeBalanceDefinition.worldgenJson(settings)),
+                "Latent Ore diagnostics must preserve final overridden runtime settings");
+        Map<String, JsonObject> expectedCategories = new TreeMap<>();
+        for (JsonElement element : diagnostics.getAsJsonArray("categories")) {
+            JsonObject category = element.getAsJsonObject();
+            check(expectedCategories.put(category.get("essenceId").getAsString(), category) == null,
+                    "Saved Latent Ore diagnostics duplicated an Essence category");
+        }
+        List<List<String>> supply = csv(Files.readString(reports.resolve("latent_ore_supply.csv")));
+        List<String> supplyHeader = supply.getFirst();
+        check(supplyHeader.equals(List.of("essence_id", "source_families", "effective_sources", "coverage",
+                        "target_effective_sources", "attempt_multiplier", "early_conversion_fuel_available")),
+                "Latent Ore supply export changed its normalized category shape");
+        check(supply.size() == 7 && expectedCategories.size() == 6, "Latent Ore supply export must include all six categories");
+        java.util.Set<String> categoryIds = new java.util.HashSet<>();
+        for (List<String> row : supply.subList(1, supply.size())) {
+            String id = cell(row, supplyHeader, "essence_id");
+            check(categoryIds.add(id) && expectedCategories.containsKey(id), "Latent Ore supply has duplicate or unknown categories");
+            JsonObject category = expectedCategories.get(id);
+            close(csvNumber(row, supplyHeader, "source_families"), category.get("sourceFamilies").getAsDouble(),
+                    "Latent Ore source counts differ from saved diagnostics");
+            close(csvNumber(row, supplyHeader, "effective_sources"), category.get("effectiveSources").getAsDouble(),
+                    "Latent Ore effective supply differs from saved diagnostics");
+            close(csvNumber(row, supplyHeader, "coverage"), category.get("coverage").getAsDouble(),
+                    "Latent Ore coverage differs from saved diagnostics");
+            double multiplier = csvNumber(row, supplyHeader, "attempt_multiplier");
+            check(multiplier >= 0.75 && multiplier <= 1.5, "Latent Ore report multiplier exceeds the scarcity policy bounds");
+            close(multiplier, diagnostics.get("multiplier").getAsDouble(), "Latent Ore report changed the applied multiplier");
+            close(csvNumber(row, supplyHeader, "target_effective_sources"), 4, "Latent Ore report lost its category coverage target");
+            check(cell(row, supplyHeader, "early_conversion_fuel_available")
+                            .equals(diagnostics.get("earlyConversionFuelAvailable").getAsString()),
+                    "Latent Ore fuel availability differs from saved evidence diagnostics");
+        }
+        check(categoryIds.equals(EssenceRegistry.values().stream().map(value -> value.id().toString())
+                        .collect(java.util.stream.Collectors.toSet())),
+                "Latent Ore supply rows do not cover the registered Essence identities");
+
+        List<List<String>> worldgen = csv(Files.readString(reports.resolve("latent_ore_worldgen.csv")));
+        List<String> worldgenHeader = worldgen.getFirst();
+        check(worldgenHeader.equals(List.of("dimension", "enabled", "vein_size", "attempts_per_chunk", "min_y", "max_y",
+                        "air_discard", "selection")), "Latent Ore worldgen export changed its dimension row shape");
+        check(worldgen.size() == 5, "Fixture must export three vanilla distributions and one automatic-dimension policy");
+        java.util.Set<String> dimensions = new java.util.HashSet<>();
+        for (List<String> row : worldgen.subList(1, worldgen.size())) {
+            String id = cell(row, worldgenHeader, "dimension");
+            check(dimensions.add(id), "Latent Ore worldgen export duplicated a dimension");
+            check(!cell(row, worldgenHeader, "selection").isBlank(), "Latent Ore worldgen row omitted selection policy");
+            if (id.equals("other supported dimensions")) {
+                check(cell(row, worldgenHeader, "enabled").equals(Boolean.toString(settings.automaticDimensions())),
+                        "Automatic-dimension enable policy differs from runtime");
+                close(csvNumber(row, worldgenHeader, "vein_size"), settings.overworld().veinSize(), "Custom dimensions lost inherited vein size");
+                close(csvNumber(row, worldgenHeader, "attempts_per_chunk"), settings.overworld().veinsPerChunk(), "Custom dimensions lost inherited attempts");
+                check(cell(row, worldgenHeader, "min_y").equals("usable generator/dimension minimum")
+                                && cell(row, worldgenHeader, "max_y").equals("usable generator/dimension maximum"),
+                        "Custom dimension report must describe generator-specific heights without inventing fixed bounds");
+            } else {
+                var distribution = settings.distribution(net.minecraft.resources.ResourceLocation.parse(id), -2048, 2048);
+                check(cell(row, worldgenHeader, "enabled").equals(Boolean.toString(distribution.enabled())), "Ore enable state differs from runtime");
+                close(csvNumber(row, worldgenHeader, "vein_size"), distribution.veinSize(), "Ore report lost exact final vein size");
+                close(csvNumber(row, worldgenHeader, "attempts_per_chunk"), distribution.veinsPerChunk(), "Ore report lost exact final attempts");
+                close(csvNumber(row, worldgenHeader, "min_y"), distribution.minY(), "Ore report changed lower generation bound");
+                close(csvNumber(row, worldgenHeader, "max_y"), distribution.maxY(), "Ore report changed upper generation bound");
+                close(csvNumber(row, worldgenHeader, "air_discard"), distribution.discardChanceOnAirExposure(), "Ore report changed exposure policy");
+            }
+        }
+        check(dimensions.equals(java.util.Set.of("minecraft:overworld", "minecraft:the_nether", "minecraft:the_end", "other supported dimensions")),
+                "Latent Ore worldgen report omitted a baseline or automatic policy");
+
+        List<List<String>> policy = csv(Files.readString(reports.resolve("latent_ore_policy.csv")));
+        check(policy.getFirst().equals(List.of("assumption")), "Latent Ore policy export must keep one assumption per row");
+        check(policy.size() == diagnostics.getAsJsonArray("assumptions").size() + 1, "Latent Ore policy export lost assumptions");
+        for (int index = 1; index < policy.size(); index++)
+            check(policy.get(index).equals(List.of(diagnostics.getAsJsonArray("assumptions").get(index - 1).getAsString())),
+                    "Latent Ore policy export changed a saved assumption");
     }
 
     private static void assertFinite(JsonElement value) {
@@ -417,6 +509,8 @@ public final class GeneratedBalanceIntegrationTest {
         validation.addProperty("runtime", "passed"); validation.addProperty("economy", "passed");
         validation.addProperty("serialization", "passed"); validation.addProperty("liveGameplay", "not performed by integration test");
         validation.add("bonusTracks", com.mistaboom.essence_ascendance.balance.runtime.BonusTrackGenerator.diagnostics(runtime));
+        validation.add("latentOre", LatentOreBalanceGenerator.diagnostics(evidence, economy,
+                settings.latentOre(), runtime.config().latentOreWorldgen()));
         JsonObject document = new JsonObject();
         document.add("metadata", metadata);
         document.add("settings", BalanceDocument.GSON.toJsonTree(settings));

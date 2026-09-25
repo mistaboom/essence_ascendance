@@ -32,6 +32,7 @@ public final class EssenceAscendanceFabricClient
 
     @Override
     public void onInitializeClient() {
+        LatentOreFabricModels.register();
         EssenceAscendanceClient.init(
                 ItemProperties::register
         );

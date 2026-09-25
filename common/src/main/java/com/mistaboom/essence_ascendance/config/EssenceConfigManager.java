@@ -26,6 +26,12 @@ public final class EssenceConfigManager {
         return bootstrap;
     }
     public static RuntimeBalanceDefinition serverRuntime() { return serverRuntime; }
+    /** Terrain must never use a bootstrap/client preview while the server profile is unresolved. */
+    public static LatentOreWorldgenSettings serverWorldgen() {
+        RuntimeBalanceDefinition active = serverRuntime;
+        if (active == null) throw new IllegalStateException("Latent Ore generation requires the authoritative server balance profile before chunks are generated");
+        return active.config().latentOreWorldgen();
+    }
     public static RuntimeBalanceDefinition clientRuntime() { return clientRuntime; }
     public static boolean authoritativeReady() { return serverRuntime!=null; }
     public static SkillEffectBalanceSettings skillEffects() { return get().skillEffects(); }
@@ -57,6 +63,7 @@ public final class EssenceConfigManager {
         if(serverRuntime==null)SkillBalanceRuntime.clear();
     }
     public static void reset() {
+        com.mistaboom.essence_ascendance.worldgen.PrimarySubstrateDiscovery.clear();
         serverRuntime=null;
         com.mistaboom.essence_ascendance.balance.BalanceProfileRegistry.clearRuntime();
         com.mistaboom.essence_ascendance.network.RuntimeBalanceSyncService.clear();

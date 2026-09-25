@@ -29,6 +29,7 @@ public final class ClientPacketDispatch {
         com.mistaboom.essence_ascendance.client.nexus.NexusNavigationState.clearSession();
         com.mistaboom.essence_ascendance.client.archive.ArchiveNavigationState.clearSession();
         RuntimeBalanceClientState.clear();
+        com.mistaboom.essence_ascendance.client.ore.LatentOreClientCatalog.clear();
         ClientEssenceState.clear();
         AscendanceNexusTransactionClientState.clear();
         AscensionAnimation.clear();

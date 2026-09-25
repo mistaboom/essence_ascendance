@@ -1,7 +1,11 @@
 package com.mistaboom.essence_ascendance.gathering;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
+import com.mistaboom.essence_ascendance.infuser.EssenceInfuserContent;
+import com.mistaboom.essence_ascendance.ore.LatentOreBlock;
+import com.mistaboom.essence_ascendance.ore.LatentOreBlockEntity;
 import com.mistaboom.essence_ascendance.valuation.ProceduralValuationEngine;
+import com.mistaboom.essence_ascendance.worldgen.PrimarySubstrateDiscovery;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -17,6 +21,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayList;
@@ -46,6 +51,7 @@ public final class NaturalOreDropService {
     private NaturalOreDropService() { }
 
     public static boolean eligibleSource(ServerLevel level, BlockState state) {
+        if (PrimarySubstrateDiscovery.selection(level).hosts().containsKey(state.getBlock())) return true;
         Ground ground = Ground.resolve(level.dimension());
         if (ground == Ground.OVERWORLD && state.is(BlockTags.BASE_STONE_OVERWORLD)) return true;
         if (ground == Ground.NETHER && state.is(BlockTags.BASE_STONE_NETHER)) return true;
@@ -56,12 +62,24 @@ public final class NaturalOreDropService {
     public static boolean dropRandomOre(ServerPlayer player, BlockPos pos, BlockState source, ItemStack tool) {
         ServerLevel level = player.serverLevel();
         if (!eligibleSource(level, source)) return false;
-        List<Candidate> candidates = candidates(player, level.dimension());
+        var primary = PrimarySubstrateDiscovery.selection(level);
+        List<Candidate> candidates = candidates(player, level.dimension()).stream()
+                .filter(candidate -> !(candidate.block() instanceof LatentOreBlock)
+                        || primary.hosts().containsKey(source.getBlock()))
+                .toList();
         if (candidates.isEmpty()) return false;
         Candidate selected = weighted(candidates, player.getRandom().nextDouble());
         if (selected == null) return false;
-        List<ItemStack> drops = Block.getDrops(selected.block().defaultBlockState(), level,
-                pos, null, player, tool == null ? ItemStack.EMPTY : tool);
+        BlockState oreState = selected.block().defaultBlockState();
+        BlockEntity lootEntity = null;
+        if (selected.block() instanceof LatentOreBlock) {
+            // A synthetic native loot context still needs the selected host for Silk Touch.
+            LatentOreBlockEntity ore = new LatentOreBlockEntity(pos, oreState);
+            ore.setHost(source);
+            lootEntity = ore;
+        }
+        List<ItemStack> drops = Block.getDrops(oreState, level,
+                pos, lootEntity, player, tool == null ? ItemStack.EMPTY : tool);
         boolean produced = false;
         for (ItemStack drop : drops) {
             if (drop.isEmpty()) continue;
@@ -125,6 +143,10 @@ public final class NaturalOreDropService {
         }
         addTagged(blocks, dimensionTag("ores", dimension));
         addVanillaFallbacks(blocks, ground);
+
+        ServerLevel level = player.server.getLevel(dimension);
+        if (level != null && PrimarySubstrateDiscovery.selection(level).enabled())
+            blocks.add(EssenceInfuserContent.LATENT_ORE.get());
 
         return valuedBlocks(player, blocks);
     }

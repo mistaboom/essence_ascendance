@@ -4,6 +4,12 @@
   "compatibilityLevel": "JAVA_21",
   "minVersion": "0.8",
   "client": [
+    "LatentOreParticleDataMixin",
+    "LatentOreTerrainParticleMixin",
+    "LatentOreSpriteLoaderMixin",
+    "LatentOreCreativeTabCacheAccess",
+    "LatentOreItemModelMixin",
+    "LatentOreModelReloadMixin",
     "AscendanceCameraMixin",
     "TransientVisualClientMixin",
     "RiposteReachRendererMixin",

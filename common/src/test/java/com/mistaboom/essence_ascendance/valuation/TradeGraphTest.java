@@ -7,6 +7,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.trading.ItemCost;
 import net.minecraft.world.item.trading.MerchantOffer;
+import net.minecraft.world.entity.npc.VillagerTrades;
 
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;
@@ -21,6 +22,22 @@ public final class TradeGraphTest {
                 failure.printStackTrace(new PrintStream(new FileOutputStream(FileDescriptor.err))));
         SharedConstants.tryDetectVersion();
         Bootstrap.bootStrap();
+        var worldDependent = new VillagerTrades.TreasureMapForEmeralds(12, null, "fixture.map", null, 1, 1) {
+            @Override
+            public MerchantOffer getOffer(net.minecraft.world.entity.Entity trader, net.minecraft.util.RandomSource random) {
+                throw new AssertionError("Balance analysis invoked a world-dependent structure/map operation");
+            }
+        };
+        var skipped = new java.util.TreeMap<String, Integer>();
+        var skippedOutput = new java.util.HashMap<net.minecraft.world.item.Item, java.util.List<ProceduralTradeIndex.TradeSource>>();
+        require(ProceduralTradeIndex.sampleListing(skippedOutput, worldDependent, null, ResourceLocation.parse("test:cartographer"),
+                1, 1, false, 0, skipped) == 0, "World-dependent map listing must not be invoked or invent acquisition");
+        require(skippedOutput.isEmpty() && skipped.values().stream().mapToInt(Integer::intValue).sum() == 1,
+                "Skipped world-dependent listing must be diagnosed without manufacturing a resource source");
+        var wrapped = new VillagerTrades.TypeSpecificTrade(java.util.Map.of(net.minecraft.world.entity.npc.VillagerType.PLAINS, worldDependent));
+        require(ProceduralTradeIndex.sampleListing(skippedOutput, wrapped, null, ResourceLocation.parse("test:cartographer"),
+                1, 1, false, 0, skipped) == 0 && skipped.values().stream().mapToInt(Integer::intValue).sum() == 2,
+                "Vanilla trade-rebalance wrappers must not bypass the world-dependent listing guard");
         var offer = new MerchantOffer(new ItemCost(Items.EMERALD, 20),
                 Optional.of(new ItemCost(Items.DIAMOND, 8)), new ItemStack(Items.DIAMOND_CHESTPLATE), 12, 10, .05f);
         var source = source(offer, false);

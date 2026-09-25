@@ -63,6 +63,7 @@ public final class BiologicalSourceEvidenceTest {
                 Blocks.CAVE_VINES, Blocks.CAVE_VINES_PLANT, Blocks.SUGAR_CANE, Blocks.CACTUS))
             check(ValuationEvidenceSnapshot.renewableGrowth(block), "known growth capability is renewable: " + block);
         check(!ValuationEvidenceSnapshot.renewableGrowth(Blocks.COBBLESTONE), "ordinary solid block is not biological growth");
+        blockSourceProjection();
         check(ProceduralBlockHarvest.supportedProperties(Blocks.CAVE_VINES).contains("berries")
                 && ProceduralBlockHarvest.supportedProperties(Blocks.CAVE_VINES_PLANT).contains("berries"),
                 "reachable cave-vine berry state is included in loot evaluation");
@@ -91,6 +92,56 @@ public final class BiologicalSourceEvidenceTest {
         boolean rejected = false;
         try { action.run(); } catch (IllegalArgumentException expected) { rejected = true; }
         check(rejected, "invalid or duplicate evidence rejected");
+    }
+
+    private static void blockSourceProjection() {
+        var clay = new ProceduralValuationIndex.BlockDropSource(ResourceLocation.parse("minecraft:clay"),
+                1, 4, 0, ProceduralValuationResult.ProgressionBand.OVERWORLD, 1, false,
+                List.of("fixture verified clay-ball drop"), null, false);
+        var natural = ValuationEvidenceSnapshot.blockSource(clay, Blocks.CLAY, List.of("configured feature minecraft:disk_clay"));
+        check(natural.kind() == AcquisitionSource.Kind.WORLD_GENERATION && natural.dependencies().isEmpty(),
+                "Collected placement evidence establishes a direct natural block source");
+        check(natural.reason().contains("minecraft:disk_clay"), "Natural-source provenance remains visible");
+        var supplied = ValuationEvidenceSnapshot.blockSource(clay, Blocks.CLAY, List.of());
+        check(supplied.kind() == AcquisitionSource.Kind.PLAYER_ACTION,
+                "A manufactured or unproven block break cannot masquerade as world generation");
+        check(supplied.dependencies().equals(List.of("minecraft:clay")),
+                "An unproven clay-ball break route requires an actual clay block");
+        check(supplied.stage() == natural.stage() && supplied.expectedOutput() == natural.expectedOutput()
+                        && supplied.confidence() == natural.confidence(),
+                "Natural-provenance correction preserves existing stage, count and confidence observations");
+        check(!supplied.rateKnown() && supplied.unitsPerSecond() == 0,
+                "Missing natural provenance never invents a source rate");
+        var crop = new ProceduralValuationIndex.BlockDropSource(ResourceLocation.parse("minecraft:wheat"),
+                1, 1, 0, ProceduralValuationResult.ProgressionBand.OVERWORLD, 1, false,
+                List.of("fixture crop drop"), Items.SHEARS, false);
+        var growing = ValuationEvidenceSnapshot.blockSource(crop, Blocks.WHEAT, List.of("fixture explicitly placed crop"));
+        check(growing.kind() == AcquisitionSource.Kind.FARMING && growing.renewable(),
+                "Known growth plus natural placement is a renewable farming source");
+        check(growing.dependencies().equals(List.of("minecraft:shears")), "Known farming retains real tool prerequisites");
+        var planted = ValuationEvidenceSnapshot.blockSource(crop, Blocks.WHEAT, List.of());
+        check(planted.kind() == AcquisitionSource.Kind.PLAYER_ACTION && planted.renewable(),
+                "Unproven planting retains growth capability without claiming independent natural access");
+        check(planted.dependencies().contains("minecraft:shears") && planted.dependencies().contains("minecraft:wheat_seeds"),
+                "Player-grown crops retain tool and planting-item prerequisites");
+        var withoutItem = ValuationEvidenceSnapshot.blockSource(crop, Blocks.WATER, List.of());
+        check(!withoutItem.dependencies().contains("minecraft:air"), "Blocks without items do not invent an air dependency");
+        var silkSource = new ProceduralValuationIndex.BlockDropSource(ResourceLocation.parse("minecraft:stone"),
+                1, 1, 0, ProceduralValuationResult.ProgressionBand.OVERWORLD, 1, false,
+                List.of("fixture silk drop"), Items.IRON_PICKAXE, true);
+        var silk = ValuationEvidenceSnapshot.blockSource(silkSource, Blocks.STONE, List.of("terrain definition minecraft:overworld"));
+        check(silk.kind() == AcquisitionSource.Kind.PLAYER_ACTION && silk.reason().contains("Silk Touch"),
+                "Natural placement alone cannot prove early access to a Silk Touch drop");
+        check(silk.dependencies().equals(List.of("minecraft:iron_pickaxe")) && silk.stage() == ProgressionBand.ENTRY,
+                "Silk uncertainty preserves original stage and observed tool without inventing an enchantment item");
+        var conditionalSource = new ProceduralValuationIndex.BlockDropSource(ResourceLocation.parse("minecraft:clay"),
+                1, 4, 2, ProceduralValuationResult.ProgressionBand.NETHER, 1, false,
+                List.of("fixture conditional drop"), null, false);
+        var conditional = ValuationEvidenceSnapshot.blockSource(conditionalSource, Blocks.CLAY, List.of("fixture terrain placement"));
+        check(conditional.kind() == AcquisitionSource.Kind.PLAYER_ACTION && conditional.reason().contains("Unresolved harvest conditions: 2"),
+                "Unresolved loot conditions cannot establish directly accessible natural supply");
+        check(conditional.stage() == ProgressionBand.LATE && conditional.expectedOutput() == 4 && conditional.dependencies().isEmpty(),
+                "Conditional source preserves observations without fabricated prerequisites or stage changes");
     }
     private static void check(boolean condition, String detail) {
         assertions++;

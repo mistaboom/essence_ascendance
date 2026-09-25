@@ -14,6 +14,35 @@
 # are intentionally unsupported. Use quoted keys for exact JSON Pointer overrides.
 schema_version = 1
 
+[latent_ore]
+# Ordinary noise generators expose their primary default solid terrain.
+# The balance generator scales supply from final usable early Essence sources.
+# Weakest-category coverage controls attempts: scarce 1.5x, broadly supplied 0.75x.
+# Defaults resolve to 12..24 size-9 attempts, with no cave-exposure discard.
+# Unknown generators
+# are skipped with a diagnostic; this never scans or generates chunks.
+automatic_dimensions = true
+# Optional distribution tables: [latent_ore.overworld], [latent_ore.nether],
+# [latent_ore.end]. Keys: enabled, vein_size, veins_per_chunk, min_y, max_y,
+# discard_chance_on_air_exposure. These are baseline inputs; generation scales
+# attempts and keeps enabled nonzero baselines at least 12 attempts of size 9.
+# Disabled/zero-count inputs remain off. Default Overworld Y is -48..64.
+# Exact dimension overrides take ownership; enabled=false always excludes it.
+# hosts replaces automatic selection with exact primary rock block ids.
+# Empty/omitted hosts means automatic discovery. No tags or separate ore blocks.
+# Ordinary custom dimensions inherit the generated Overworld abundance over
+# their usable heights. Exact dimension distributions and /runtime/worldgen
+# exact overrides bypass automatic supply tuning, including its floor.
+# [[latent_ore.dimension]]
+# dimension = "example:deep_caverns"
+# enabled = true
+# hosts = ["example:base_rock", "example:lower_rock"]
+# vein_size = 9
+# veins_per_chunk = 16
+# [[latent_ore.dimension]]
+# dimension = "example:void_realm"
+# enabled = false
+
 [power]
 # Overall desired position relative to attainable external pack references.
 # Base equipment is normalized to Transcendent pack-reference parity; this

@@ -27,6 +27,7 @@ public final class RuntimeLifecycleTest {
         provisionalPlayer.attunement().chapter("preserved_earned_chapter");
         var beforeProvisional = provisionalPlayer.save();
         check(!EssenceConfigManager.authoritativeReady(), "A bootstrap became authoritative without validated installation");
+        worldgenUnavailable("Initial worldgen used an unresolved bootstrap policy");
         EssenceConfigManager.runtime(); // Force the provisional object to exist, as it does during loader startup.
         check(com.mistaboom.essence_ascendance.attunement.AttunementService.snapshot(provisionalPlayer).categories().isEmpty(),
                 "Provisional balance exposed live Attunement readiness");
@@ -87,11 +88,16 @@ public final class RuntimeLifecycleTest {
         EssenceConfigManager.installClient(client);
         check(EssenceConfigManager.runtime() == client && !EssenceConfigManager.authoritativeReady(),
                 "Remote client preview became server authority");
+        worldgenUnavailable("Worldgen accepted a remote client's preview as server policy");
         EssenceConfigManager.install(server);
+        check(EssenceConfigManager.serverWorldgen() == server.config().latentOreWorldgen(),
+                "Worldgen did not use the single installed server profile");
         check(EssenceConfigManager.runtime() == server && EssenceConfigManager.authoritativeReady(),
                 "Integrated server did not replace client preview");
         EssenceConfigManager.installClient(client);
         check(EssenceConfigManager.runtime() == server, "Late client packet replaced server authority");
+        check(EssenceConfigManager.serverWorldgen() == server.config().latentOreWorldgen(),
+                "Late client packet replaced worldgen policy");
         check(SkillBalanceRuntime.snapshot().equals(server.skillCurves()), "Client packet replaced authoritative skill prices");
         EssenceConfigManager.clearClient();
         check(EssenceConfigManager.runtime() == server && SkillBalanceRuntime.snapshot().equals(server.skillCurves()),
@@ -117,6 +123,7 @@ public final class RuntimeLifecycleTest {
         var savedEarned = activePlayer.save();
 
         EssenceConfigManager.reset();
+        worldgenUnavailable("Stopped server leaked a usable worldgen policy");
         check(!com.mistaboom.essence_ascendance.attunement.AttunementService.snapshot(activePlayer).ready()
                         && AscendanceEngine.evaluate(activePlayer, EssenceConfigManager.serverRuntime()).status() == AscendanceEvaluationResult.Status.CONFIGURATION_ERROR,
                 "Cleared authority retained stale Ascension readiness");
@@ -132,6 +139,11 @@ public final class RuntimeLifecycleTest {
     }
     private static void rejected(Runnable work, String message) {
         try { work.run(); } catch (IllegalArgumentException | NullPointerException expected) { assertions++; return; }
+        throw new AssertionError(message);
+    }
+    private static void worldgenUnavailable(String message) {
+        try { EssenceConfigManager.serverWorldgen(); }
+        catch (IllegalStateException expected) { assertions++; return; }
         throw new AssertionError(message);
     }
     private static void check(boolean condition, String message) {

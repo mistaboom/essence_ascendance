@@ -87,6 +87,9 @@ public final class BalanceReportLayout {
                   curves.csv                      Nexus investment and skill rank samples.
                   bonus_tracks.csv                Per-Bonus tiers, effects, exact segment costs and evidence.
                   runtime_parameters.csv          All scalar runtime values and exact paths.
+                  latent_ore_supply.csv            Per-Essence early source coverage and ore attempt multiplier.
+                  latent_ore_worldgen.csv          Final distributions and exact dimension overrides.
+                  latent_ore_policy.csv            Supply assumptions, limits and accessibility floor.
                   projectile_policy.csv           Payload, ownership and defensive control contracts.
                   guard_policy.csv                Guard, perfect-block, reflection and counterattack contracts.
                   posture_status_policy.csv       Posture, harmful-status and binary rank contracts.

@@ -1,5 +1,7 @@
 package com.mistaboom.essence_ascendance.balance.config;
 
+import com.mistaboom.essence_ascendance.config.LatentOreWorldgenSettings;
+
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -13,7 +15,8 @@ public record BalanceSettings(
         double automationPressure, double bulkResourcePenalty, double conversionLossPressure,
         double compositionSafeguard, FlightPolicy flightPolicy, MiningPolicy miningPolicy,
         ResourcePolicy resourcePolicy, OutlierPolicy outlierPolicy,
-        double warningConfidence, boolean expandedDiagnostics, RuntimeGenerationPolicy generation, AttunementPolicy attunement
+        double warningConfidence, boolean expandedDiagnostics, RuntimeGenerationPolicy generation, AttunementPolicy attunement,
+        LatentOreWorldgenSettings latentOre
 ) {
     public enum FlightPolicy { PRESERVE_PROGRESSION, MATCH_PACK, RESTRICT }
     public enum MiningPolicy { PRESERVE_PROGRESSION, MATCH_PACK, RESTRICT }
@@ -36,6 +39,7 @@ public record BalanceSettings(
     public BalanceSettings {
         if(generation==null)generation=RuntimeGenerationPolicy.defaults();
         if(attunement==null)attunement=AttunementPolicy.defaults();
+        java.util.Objects.requireNonNull(latentOre, "Latent Ore settings are required");
         range("power.overall", overallPower, 0.1, 4.0);
         range("power.early", earlyPower, 0.1, 4.0);
         range("power.mid", midPower, 0.1, 4.0);
@@ -71,7 +75,7 @@ public record BalanceSettings(
         this(overallPower,earlyPower,midPower,latePower,apexPower,progressionLength,costPressure,partialBuildViability,
                 equipmentShare,nexusShare,skillShare,automationPressure,bulkResourcePenalty,conversionLossPressure,
                 compositionSafeguard,flightPolicy,miningPolicy,resourcePolicy,outlierPolicy,warningConfidence,
-                expandedDiagnostics,RuntimeGenerationPolicy.defaults(),AttunementPolicy.defaults());
+                expandedDiagnostics,RuntimeGenerationPolicy.defaults(),AttunementPolicy.defaults(),LatentOreWorldgenSettings.defaults());
     }
 
     public BalanceSettings(double overallPower,double earlyPower,double midPower,double latePower,double apexPower,
@@ -84,7 +88,7 @@ public record BalanceSettings(
         this(overallPower,earlyPower,midPower,latePower,apexPower,progressionLength,costPressure,partialBuildViability,
                 equipmentShare,nexusShare,skillShare,automationPressure,bulkResourcePenalty,conversionLossPressure,
                 compositionSafeguard,flightPolicy,miningPolicy,resourcePolicy,outlierPolicy,warningConfidence,
-                expandedDiagnostics,generation,AttunementPolicy.defaults());
+                expandedDiagnostics,generation,AttunementPolicy.defaults(),LatentOreWorldgenSettings.defaults());
     }
 
     public static BalanceSettings defaults() {
@@ -99,7 +103,12 @@ public record BalanceSettings(
     public static BalanceSettings parse(String toml, String source) {
         Map<String, BalanceToml.Value> values = new LinkedHashMap<>();
         Map<String, Integer> tableLines = new LinkedHashMap<>();
+        java.util.List<BalanceToml.Table> oreTables = new java.util.ArrayList<>();
         for (BalanceToml.Table table : BalanceToml.parse(toml, source)) {
+            if (table.name().equals("latent_ore") || table.name().startsWith("latent_ore.")) {
+                oreTables.add(table);
+                continue;
+            }
             if (table.array() || !KEYS.containsKey(table.name())) {
                 throw BalanceToml.error(source, table.line(), "Unknown settings table '" + table.name()
                         + "'; expected power, progression, builds, budget, economy, generation, attunement, policies or diagnostics");
@@ -135,7 +144,8 @@ public record BalanceSettings(
                             read.integer("attunement.history_window",d.attunement.historyWindow()),
                             read.number("attunement.early_effort_fraction",d.attunement.earlyEffortFraction()),
                             read.number("attunement.onboarding_effort_fraction",d.attunement.onboardingEffortFraction()),
-                            read.number("attunement.breadth_exponent",d.attunement.breadthExponent())));
+                            read.number("attunement.breadth_exponent",d.attunement.breadthExponent())),
+                    LatentOreSettingsParser.parse(oreTables, source));
         } catch (BalanceConfigException exception) {
             throw exception;
         } catch (IllegalArgumentException exception) {

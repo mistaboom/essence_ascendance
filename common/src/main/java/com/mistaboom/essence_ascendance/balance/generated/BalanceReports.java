@@ -41,6 +41,7 @@ public final class BalanceReports {
         invariants(tables, current);
         evidence(tables, current);
         runtimeTables(tables, current);
+        latentOre(tables, current);
         ascension(tables, current);
         attunement(tables, current.runtime().attunement());
         var projectileRules = tables.table("projectile_policy.csv", "contract", "rule");
@@ -130,6 +131,7 @@ public final class BalanceReports {
                 .append("`attunement_breadth.csv` resolves increasing optional-category breadth; `attunement_targets.csv` joins it by chapter_id. `attunement_pacing.csv` compares raw and sustained single-source amounts per seal, with no investment or variety. Repetition measures reference work, never callback count; diversification restores efficiency. Reachability distinguishes registered base methods from stage-accessible acquisition estimates. Estimates do not impose gates, and opaque quests, world generators or scripted recipes require pack evidence. Exploration discoveries reset each chapter and remain optional.\n\n")
                 .append("### Attunement calibration assumptions\n\n");
         current.runtime().attunement().assumptions().forEach(assumption -> out.append("- ").append(assumption).append('\n'));
+        latentOreSummary(out, current);
         combatSummary(out, skills);
         out.append("\nThe runtime curve table is in `curves.csv`. Bonus funding uses the shared concave investment curve; applied power stays at the previous complete state until the next checkpoint is fully funded. `bonus_tracks.csv` contains generated tier windows, complete values and costs. Skill curve multipliers describe nominal allocation; `skill_rank_parameters.csv` exports the exact generated native values consumed by gameplay and previews. First-state floor excess is local ignored overage, excluded from nominal allocation envelopes and repricing. Bonus refunds are exact differences between final allocated targets; skill refunds retain historical paid receipts.\n\n");
         skillSummary(out, current, skills);
@@ -559,6 +561,69 @@ public final class BalanceReports {
             fact.dependencies().forEach(dependency -> dependencies.row(id, dependency));
         }
     }
+    private static void latentOre(SpreadsheetReports tables, GeneratedBalanceService.Active current) {
+        JsonObject validation = current.document().section("validation");
+        if (!validation.has("latentOre")) return;
+        JsonObject supply = validation.getAsJsonObject("latentOre");
+        var categories = tables.table("latent_ore_supply.csv", "essence_id", "source_families", "effective_sources",
+                "coverage", "target_effective_sources", "attempt_multiplier", "early_conversion_fuel_available");
+        supply.getAsJsonArray("categories").forEach(element -> {
+            JsonObject category = element.getAsJsonObject();
+            categories.row(category.get("essenceId").getAsString(), scalarNumber(category.get("sourceFamilies")),
+                    scalarNumber(category.get("effectiveSources")), scalarNumber(category.get("coverage")),
+                    scalarNumber(supply.get("targetEffectiveSources")), scalarNumber(supply.get("multiplier")),
+                    supply.get("earlyConversionFuelAvailable").getAsString());
+        });
+        var rules = tables.table("latent_ore_policy.csv", "assumption");
+        supply.getAsJsonArray("assumptions").forEach(rule -> rules.row(rule.getAsString()));
+        var distributions = tables.table("latent_ore_worldgen.csv", "dimension", "enabled", "vein_size",
+                "attempts_per_chunk", "min_y", "max_y", "air_discard", "selection");
+        var settings = current.runtime().config().latentOreWorldgen();
+        var exact = current.document().section("overrides").getAsJsonObject("exactValues");
+        for (String id : List.of("minecraft:overworld", "minecraft:the_nether", "minecraft:the_end")) {
+            var key = ResourceLocation.parse(id);
+            String slot = switch (key.getPath()) { case "the_nether" -> "nether"; case "the_end" -> "end"; default -> "overworld"; };
+            boolean exactRuntime = exact.keySet().stream().anyMatch(path -> path.startsWith("/runtime/worldgen/" + slot + "/"));
+            oreDistribution(distributions, id, settings.distribution(key, -2048, 2048),
+                    settings.dimensions().containsKey(key) ? "exact dimension override"
+                            : exactRuntime ? "exact runtime override" : "generated baseline");
+        }
+        distributions.row("other supported dimensions", Boolean.toString(settings.automaticDimensions()),
+                Integer.toString(settings.overworld().veinSize()), Integer.toString(settings.overworld().veinsPerChunk()),
+                "usable generator/dimension minimum", "usable generator/dimension maximum",
+                number(settings.overworld().discardChanceOnAirExposure()), "automatic primary-host discovery");
+        settings.dimensions().keySet().stream().sorted()
+                .filter(id -> !com.mistaboom.essence_ascendance.config.LatentOreWorldgenSettings.isVanillaDimension(id))
+                .forEach(id -> {
+                    var override = settings.dimensions().get(id);
+                    if (override.distribution() != null) oreDistribution(distributions, id.toString(),
+                            settings.distribution(id, -2048, 2048), "exact override");
+                    else distributions.row(id.toString(), Boolean.toString(override.enabled()),
+                            Integer.toString(settings.overworld().veinSize()), Integer.toString(settings.overworld().veinsPerChunk()),
+                            "usable generator/dimension minimum", "usable generator/dimension maximum",
+                            number(settings.overworld().discardChanceOnAirExposure()), "exact hosts/enabled; inherited generated distribution");
+                });
+    }
+
+    private static void oreDistribution(SpreadsheetReports.Table table, String id,
+                                        com.mistaboom.essence_ascendance.config.LatentOreWorldgenSettings.DimensionSettings distribution,
+                                        String selection) {
+        table.row(id, Boolean.toString(distribution.enabled()), Integer.toString(distribution.veinSize()),
+                Integer.toString(distribution.veinsPerChunk()), Integer.toString(distribution.minY()),
+                Integer.toString(distribution.maxY()), number(distribution.discardChanceOnAirExposure()), selection);
+    }
+
+    private static void latentOreSummary(StringBuilder out, GeneratedBalanceService.Active current) {
+        JsonObject validation = current.document().section("validation");
+        if (!validation.has("latentOre")) return;
+        JsonObject supply = validation.getAsJsonObject("latentOre");
+        out.append("\n## Latent Ore supply\n\nGenerated attempt multiplier: ")
+                .append(scalarNumber(supply.get("multiplier"))).append(". The least-covered Essence category controls supply; abundant categories cannot conceal a missing source. ")
+                .append("`latent_ore_supply.csv` shows the evidence scores; `latent_ore_worldgen.csv` shows final distributions including overrides. These are placement opportunities, not measured mining rates.\n\n");
+        supply.getAsJsonArray("assumptions").forEach(rule -> out.append("- ").append(rule.getAsString()).append('\n'));
+        out.append('\n');
+    }
+
     private static void runtimeTables(SpreadsheetReports tables, GeneratedBalanceService.Active current) {
         JsonObject runtime = current.runtime().toJson();
         var parameters = tables.table("runtime_parameters.csv", "json_pointer", "section", "entry_key", "property", "value_type", "value_number", "value_text", "value_flag");

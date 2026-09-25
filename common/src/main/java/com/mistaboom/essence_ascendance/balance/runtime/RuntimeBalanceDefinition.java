@@ -5,6 +5,7 @@ import com.google.gson.reflect.TypeToken;
 import com.mistaboom.essence_ascendance.balance.BalanceProfileDefinition;
 import com.mistaboom.essence_ascendance.balance.config.BalanceSettings;
 import com.mistaboom.essence_ascendance.balance.config.BalanceOverrides;
+import com.mistaboom.essence_ascendance.balance.config.ResourceLocationJsonAdapter;
 import com.mistaboom.essence_ascendance.balance.engine.PackEvidence;
 import com.mistaboom.essence_ascendance.balance.economy.EconomyProfile;
 import com.mistaboom.essence_ascendance.attunement.AttunementProfile;
@@ -26,7 +27,7 @@ import java.util.*;
 /** Fully resolved, immutable runtime subset. Evidence never travels to clients. */
 public final class RuntimeBalanceDefinition {
     private static final Gson JSON = new GsonBuilder().disableHtmlEscaping()
-            .registerTypeAdapter(ResourceLocation.class, new IdAdapter())
+            .registerTypeAdapter(ResourceLocation.class, new ResourceLocationJsonAdapter())
             .registerTypeAdapter(MilestoneRequirement.class, new RequirementAdapter()).create();
     private final EssenceServerConfig config;
     private final EssenceCrucibleStructureStats crucible;
@@ -244,21 +245,33 @@ public final class RuntimeBalanceDefinition {
         var worldgen = config.latentOreWorldgen();
         Wire wire = new Wire(config.configVersion(), config.pylonRadius(), config.maxActivePylons(),
                 config.infuserBalance(), config.shieldBalance(), config.skillEffects(),
-                new WorldgenWire(worldgen.overworld(), worldgen.nether(), worldgen.end(), worldgen.customDimensions()),
+                worldgen,
                 new ProfileWire(profile.id(), profile.displayName(), profile.defaultTierCaps(), profile.statOverrides(), profile.tierFractions(), profile.investmentExponent(), profile.bonusTracks()),
                 config.milestones(), config.advancements(), config.statMaxBonuses(), config.equipmentBaselineConfig().tierBaselines(),
                 crucible, pylons, skillCurves, composition, attunement);
         return JSON.toJsonTree(wire).getAsJsonObject();
+    }
+
+    /** Uses the same validated format before spawn generation, without resolving unrelated gameplay data. */
+    public static JsonObject worldgenJson(LatentOreWorldgenSettings settings) {
+        return JSON.toJsonTree(settings).getAsJsonObject();
+    }
+
+    public static LatentOreWorldgenSettings worldgenFromJson(JsonObject json) {
+        var settings = Objects.requireNonNull(JSON.fromJson(json, LatentOreWorldgenSettings.class), "Missing worldgen policy");
+        if (!worldgenJson(settings).equals(json))
+            throw new IllegalArgumentException("Worldgen policy has missing, unknown, or invalid fields; regenerate generated_balance.json");
+        return settings;
     }
     /** Strict round trip rejects unknown/missing fields and silent clamping by value records. */
     public static RuntimeBalanceDefinition fromJson(JsonObject json) {
         Wire wire = JSON.fromJson(json, Wire.class);
         Objects.requireNonNull(wire, "Missing runtime profile");
         ProfileWire p = Objects.requireNonNull(wire.balanceProfile);
-        WorldgenWire w = Objects.requireNonNull(wire.worldgen);
+        LatentOreWorldgenSettings w = Objects.requireNonNull(wire.worldgen);
         var profile = new BalanceProfileDefinition(p.id, p.displayName, p.defaultTierCaps, p.statOverrides, p.tierFractions, p.investmentExponent, Objects.requireNonNull(p.bonusTracks, "Missing resolved Bonus tracks; explicitly rebuild generated balance"));
         var config = new EssenceServerConfig(wire.configVersion, wire.pylonRadius, wire.maxActivePylons,
-                wire.infuser, wire.shield, wire.effects, new LatentOreWorldgenSettings(w.overworld,w.nether,w.end,w.customDimensions),
+                wire.infuser, wire.shield, wire.effects, w,
                 profile, wire.milestones, wire.advancements, wire.statMaxBonuses, new EquipmentBaselineConfig(wire.equipment));
         var result = new RuntimeBalanceDefinition(config, wire.crucible, wire.pylons, wire.skillCurves, wire.composition,
                 Objects.requireNonNull(wire.attunement, "Missing Category Attunement calibration; use /essence admin balance rebuild"));
@@ -266,7 +279,7 @@ public final class RuntimeBalanceDefinition {
         return result;
     }
     private record Wire(int configVersion, double pylonRadius, int maxActivePylons, InfuserBalanceSettings infuser,
-            ShieldBalanceSettings shield, SkillEffectBalanceSettings effects, WorldgenWire worldgen, ProfileWire balanceProfile,
+            ShieldBalanceSettings shield, SkillEffectBalanceSettings effects, LatentOreWorldgenSettings worldgen, ProfileWire balanceProfile,
             Map<ResourceLocation,MilestoneDefinition> milestones, Map<ResourceLocation,AscendanceAdvancementDefinition> advancements,
             Map<ResourceLocation,Double> statMaxBonuses, Map<ResourceLocation,EquipmentBaselineConfig.TierBaseline> equipment,
             EssenceCrucibleStructureStats crucible, Map<String,EssencePylonContribution> pylons,
@@ -274,16 +287,6 @@ public final class RuntimeBalanceDefinition {
     private record ProfileWire(ResourceLocation id, String displayName, Map<ResourceLocation,Long> defaultTierCaps,
             Map<ResourceLocation,Map<ResourceLocation,Long>> statOverrides, Map<ResourceLocation,Double> tierFractions, double investmentExponent,
             Map<ResourceLocation,BonusTrackDefinition> bonusTracks) {}
-    private record WorldgenWire(LatentOreWorldgenSettings.DimensionSettings overworld, LatentOreWorldgenSettings.DimensionSettings nether,
-            LatentOreWorldgenSettings.DimensionSettings end, Map<String,LatentOreWorldgenSettings.CustomDimensionSettings> customDimensions) {}
-    private static final class IdAdapter implements JsonSerializer<ResourceLocation>, JsonDeserializer<ResourceLocation> {
-        public JsonElement serialize(ResourceLocation value, Type type, JsonSerializationContext context) { return new JsonPrimitive(value.toString()); }
-        public ResourceLocation deserialize(JsonElement value, Type type, JsonDeserializationContext context) {
-            ResourceLocation result = ResourceLocation.tryParse(value.getAsString());
-            if (result == null) throw new JsonParseException("Invalid resource identifier: " + value);
-            return result;
-        }
-    }
     private static final class RequirementAdapter implements JsonSerializer<MilestoneRequirement>, JsonDeserializer<MilestoneRequirement> {
         public JsonElement serialize(MilestoneRequirement value, Type type, JsonSerializationContext context) {
             JsonObject result = new JsonObject();

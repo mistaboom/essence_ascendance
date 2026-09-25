@@ -16,7 +16,7 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
 
-/** NeoForge-only registration used to attach config-driven custom ore rules to every biome. */
+/** NeoForge-only registration used to attach dimension-aware ore generation to every biome. */
 public final class EssenceAscendanceNeoForgeWorldgen {
 
     private static final DeferredRegister<MapCodec<? extends BiomeModifier>> BIOME_MODIFIER_SERIALIZERS =
@@ -49,9 +49,7 @@ public final class EssenceAscendanceNeoForgeWorldgen {
 
     /**
      * Adds the configured feature to every biome at one consistent generation
-     * step. The LatentOreFeature itself performs the exact-dimension or
-     * dimension-type-tag check and immediately no-ops when no custom rule
-     * matches the currently generating dimension.
+     * step. LatentOreFeature resolves the actual dimension and its single generation policy.
      */
     public record AllBiomesAddFeaturesBiomeModifier(
             HolderSet<PlacedFeature> features,
@@ -70,7 +68,9 @@ public final class EssenceAscendanceNeoForgeWorldgen {
 
             BiomeGenerationSettingsBuilder generationSettings =
                     builder.getGenerationSettings();
-            features.forEach(holder -> generationSettings.addFeature(step, holder));
+            features.forEach(holder -> {
+                if (!generationSettings.getFeatures(step).contains(holder)) generationSettings.addFeature(step, holder);
+            });
         }
 
         @Override

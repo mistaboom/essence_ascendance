@@ -12,6 +12,7 @@ architectury {
 def generatedEssenceTextureResources = layout.buildDirectory.dir('generated-resources/essence-block-textures')
 def essenceTextureGeneratorClasses = layout.buildDirectory.dir('essence-block-texture-generator/classes')
 def essenceTextureGeneratorSource = rootProject.file('tools/EssenceBlockTextureGenerator.java')
+def texturePixelSource = file('src/main/java/com/mistaboom/essence_ascendance/visual/TexturePixels.java')
 def canonicalPaletteSource = file('src/main/java/com/mistaboom/essence_ascendance/visual/CanonicalPaletteValues.java')
 def essenceBaseMask = file('src/main/resources/assets/essence_ascendance/textures/item/essence_block/base.png')
 def essenceAccentMask = file('src/main/resources/assets/essence_ascendance/textures/item/essence_block/accent.png')
@@ -19,7 +20,7 @@ def essenceAccentMask = file('src/main/resources/assets/essence_ascendance/textu
 sourceSets.main.resources.srcDir(generatedEssenceTextureResources)
 
 tasks.register('compileEssenceBlockTextureGenerator', JavaCompile) {
-    source = files(essenceTextureGeneratorSource, canonicalPaletteSource)
+    source = files(essenceTextureGeneratorSource, canonicalPaletteSource, texturePixelSource)
     destinationDirectory = essenceTextureGeneratorClasses
     classpath = files()
     options.release = 21
@@ -31,6 +32,7 @@ tasks.register('generateEssenceBlockTextures', JavaExec) {
     mainClass = 'EssenceBlockTextureGenerator'
     inputs.file(essenceTextureGeneratorSource)
     inputs.file(canonicalPaletteSource)
+    inputs.file(texturePixelSource)
     inputs.file(essenceBaseMask)
     inputs.file(essenceAccentMask)
     outputs.dir(generatedEssenceTextureResources)
@@ -64,6 +66,7 @@ dependencies {
     // Keep a fallback here so older checkouts without jei_version in gradle.properties still configure cleanly.
     def jeiVersion = rootProject.findProperty('jei_version') ?: '19.43.0.395'
     compileOnly "mezz.jei:jei-1.21.1-common-api:${jeiVersion}"
+    testImplementation "mezz.jei:jei-1.21.1-common-api:${jeiVersion}"
 }
 
 loom {
@@ -72,6 +75,12 @@ loom {
 
 // Executable invariant suites use the real mapped Minecraft classpath and add no test library.
 def balanceInvariantMains = [
+        latentOreBalanceInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.LatentOreBalanceTest',
+        latentOreJeiInvariants: 'com.mistaboom.essence_ascendance.compat.jei.LatentOreJeiTest',
+        texturePixelInvariants: 'com.mistaboom.essence_ascendance.visual.TexturePixelsTest',
+        latentOreResourceInvariants: 'com.mistaboom.essence_ascendance.client.ore.LatentOreResourcesTest',
+        latentOreHostInvariants: 'com.mistaboom.essence_ascendance.ore.LatentOreHostTest',
+        primarySubstrateInvariants: 'com.mistaboom.essence_ascendance.worldgen.PrimarySubstrateDiscoveryTest',
         vitalityBatchContractInvariants: 'com.mistaboom.essence_ascendance.skill.effect.VitalityBatchContractTest',
         vitalityBalanceInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.VitalityBalanceTest',
         vitalityRecoveryInvariants: 'com.mistaboom.essence_ascendance.vitality.RecoveryTest',

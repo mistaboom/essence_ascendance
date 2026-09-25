@@ -44,7 +44,9 @@ final class GuideDocuments {
     static SemanticDocument beginning(PresentationContext context) {
         MechanicsPresentationData.Projection progression = MechanicsPresentationData.project(context);
         List<SemanticDocument.Block> blocks = new ArrayList<>();
-        blocks.add(itemFigure("latent_ore", "archive.guide.beginning.ore_caption", HERO_WIDTH, HERO_HEIGHT));
+        blocks.add(new SemanticDocument.ItemIllustration(new ItemPresentation(id("adaptive_latent_ore"),
+                com.mistaboom.essence_ascendance.ore.LatentOreHost.components(net.minecraft.world.level.block.Blocks.STONE.defaultBlockState()),
+                blockName("adaptive_latent_ore"), g("archive.guide.beginning.ore_caption")), HERO_WIDTH, HERO_HEIGHT));
         blocks.add(paragraph("archive.guide.beginning.intro"));
         blocks.add(heading("archive.guide.beginning.path"));
         blocks.add(new SemanticDocument.OrderedSteps(List.of(

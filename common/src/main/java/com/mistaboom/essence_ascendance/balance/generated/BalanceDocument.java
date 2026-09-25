@@ -6,6 +6,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mistaboom.essence_ascendance.balance.config.ResourceLocationJsonAdapter;
+import net.minecraft.resources.ResourceLocation;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -17,7 +19,8 @@ import java.util.Set;
 public final class BalanceDocument {
     public static final int SCHEMA = 1;
     public static final String GENERATOR = "pack-balance-1";
-    public static final Gson GSON = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
+    public static final Gson GSON = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting()
+            .registerTypeAdapter(ResourceLocation.class, new ResourceLocationJsonAdapter()).create();
     private static final Set<String> SECTIONS = Set.of("metadata", "settings", "overrides", "evidence",
             "runtime", "economy", "skills", "validation");
     private final JsonObject document;

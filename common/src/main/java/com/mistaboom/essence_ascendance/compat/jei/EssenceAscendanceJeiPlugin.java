@@ -5,6 +5,8 @@ import com.mistaboom.essence_ascendance.client.AscendanceNexusScreen;
 import com.mistaboom.essence_ascendance.client.EssenceCrucibleScreen;
 import com.mistaboom.essence_ascendance.client.EssenceInfuserScreen;
 import com.mistaboom.essence_ascendance.client.EssencePylonScreen;
+import com.mistaboom.essence_ascendance.client.ore.LatentOreClientCatalog;
+import com.mistaboom.essence_ascendance.ore.LatentOreHost;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserContent;
 import com.mistaboom.essence_ascendance.infuser.EssentiumBlockCompactingRecipe;
 import com.mistaboom.essence_ascendance.infuser.EssentiumBlockUncompactingRecipe;
@@ -14,6 +16,7 @@ import com.mistaboom.essence_ascendance.infuser.EssentiumNuggetCompactingRecipe;
 import com.mistaboom.essence_ascendance.infuser.EssentiumNuggetUncompactingRecipe;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
+import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.gui.handlers.IGuiContainerHandler;
 import mezz.jei.api.gui.ingredient.ICraftingGridHelper;
@@ -102,6 +105,23 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
                 }
             };
 
+    // Hosts distinguish browsing/bookmarks, but every host uses the same tag-based recipes.
+    static final ISubtypeInterpreter<ItemStack> LATENT_ORE_SUBTYPE = new ISubtypeInterpreter<>() {
+        @Override
+        public Object getSubtypeData(ItemStack stack, UidContext context) {
+            return context == UidContext.Ingredient ? LatentOreHost.read(stack).orElse(null) : null;
+        }
+
+        @Override
+        @SuppressWarnings("removal")
+        public String getLegacyStringSubtypeInfo(ItemStack stack, UidContext context) {
+            return "";
+        }
+    };
+
+    private IJeiRuntime runtime;
+    private List<ItemStack> listedOreVariants = List.of();
+
     @Override
     public ResourceLocation getPluginUid() {
         return UID;
@@ -109,6 +129,7 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
 
     @Override
     public void registerItemSubtypes(ISubtypeRegistration registration) {
+        registration.registerSubtypeInterpreter(EssenceInfuserContent.LATENT_ORE_ITEM.get(), LATENT_ORE_SUBTYPE);
         registration.registerSubtypeInterpreter(
                 EssenceInfuserContent.ESSENTIUM_NUGGET.get(),
                 ESSENTIUM_SUBTYPE
@@ -129,6 +150,7 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
         variants.addAll(carrierVariants(EssentiumItem.CarrierForm.NUGGET, 1));
         variants.addAll(carrierVariants(EssentiumItem.CarrierForm.INGOT, 1));
         variants.addAll(carrierVariants(EssentiumItem.CarrierForm.BLOCK, 1));
+        variants.addAll(LatentOreHost.creativeStacks());
         registration.addExtraItemStacks(variants);
     }
 
@@ -160,6 +182,34 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
     @Override
     public void onRuntimeAvailable(IJeiRuntime jeiRuntime) {
         hideTagInformationCategories(jeiRuntime);
+        runtime = jeiRuntime;
+        listedOreVariants = jeiRuntime.getIngredientManager().getAllItemStacks().stream()
+                .filter(stack -> stack.is(EssenceInfuserContent.LATENT_ORE_ITEM.get()))
+                .map(ItemStack::copy).toList();
+        LatentOreClientCatalog.setIngredientRefreshListener(this::refreshLatentOreIngredients);
+        refreshLatentOreIngredients();
+    }
+
+    @Override
+    public void onRuntimeUnavailable() {
+        LatentOreClientCatalog.setIngredientRefreshListener(null);
+        runtime = null;
+        listedOreVariants = List.of();
+    }
+
+    /** Reconcile either startup order: JEI may start before or after the server catalog arrives. */
+    private void refreshLatentOreIngredients() {
+        if (runtime == null) return;
+        var manager = runtime.getIngredientManager();
+        var desired = LatentOreHost.creativeStacks();
+        var existing = listedOreVariants;
+        var removed = existing.stream().filter(stack -> desired.stream()
+                .noneMatch(wanted -> ItemStack.isSameItemSameComponents(stack, wanted))).toList();
+        var added = desired.stream().filter(stack -> existing.stream()
+                .noneMatch(known -> ItemStack.isSameItemSameComponents(stack, known))).toList();
+        if (!removed.isEmpty()) manager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, removed);
+        if (!added.isEmpty()) manager.addIngredientsAtRuntime(VanillaTypes.ITEM_STACK, added);
+        listedOreVariants = desired;
     }
 
     @Override

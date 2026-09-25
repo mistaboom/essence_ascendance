@@ -1,6 +1,10 @@
 package com.mistaboom.essence_ascendance.infuser;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
+import com.mistaboom.essence_ascendance.ore.LatentOreBlock;
+import com.mistaboom.essence_ascendance.ore.LatentOreBlockEntity;
+import com.mistaboom.essence_ascendance.ore.LatentOreBlockItem;
+import com.mistaboom.essence_ascendance.ore.LatentOreHost;
 import dev.architectury.registry.CreativeTabRegistry;
 import dev.architectury.registry.registries.DeferredRegister;
 import dev.architectury.registry.registries.RegistrySupplier;
@@ -32,36 +36,13 @@ public final class EssenceInfuserContent {
     private static final DeferredRegister<RecipeSerializer<?>> RECIPE_SERIALIZERS =
             DeferredRegister.create(EssenceAscendance.MOD_ID, Registries.RECIPE_SERIALIZER);
 
-    public static final RegistrySupplier<Block> LATENT_ORE = BLOCKS.register(
-            "latent_ore",
-            () -> new Block(
+    public static final RegistrySupplier<LatentOreBlock> LATENT_ORE = BLOCKS.register(
+            "adaptive_latent_ore",
+            () -> new LatentOreBlock(
                     BlockBehaviour.Properties.of()
                             .requiresCorrectToolForDrops()
                             .strength(3.0F)
-            )
-    );
-    public static final RegistrySupplier<Block> DEEPSLATE_LATENT_ORE = BLOCKS.register(
-            "deepslate_latent_ore",
-            () -> new Block(
-                    BlockBehaviour.Properties.of()
-                            .requiresCorrectToolForDrops()
-                            .strength(4.5F)
-            )
-    );
-    public static final RegistrySupplier<Block> NETHERRACK_LATENT_ORE = BLOCKS.register(
-            "netherrack_latent_ore",
-            () -> new Block(
-                    BlockBehaviour.Properties.of()
-                            .requiresCorrectToolForDrops()
-                            .strength(3.0F)
-            )
-    );
-    public static final RegistrySupplier<Block> END_STONE_LATENT_ORE = BLOCKS.register(
-            "end_stone_latent_ore",
-            () -> new Block(
-                    BlockBehaviour.Properties.of()
-                            .requiresCorrectToolForDrops()
-                            .strength(3.0F)
+                            .pushReaction(PushReaction.BLOCK)
             )
     );
     public static final RegistrySupplier<Block> RAW_LATENT_ORE_BLOCK = BLOCKS.register(
@@ -108,21 +89,9 @@ public final class EssenceInfuserContent {
             )
     );
 
-    public static final RegistrySupplier<Item> LATENT_ORE_ITEM = blockItem(
-            "latent_ore",
-            LATENT_ORE
-    );
-    public static final RegistrySupplier<Item> DEEPSLATE_LATENT_ORE_ITEM = blockItem(
-            "deepslate_latent_ore",
-            DEEPSLATE_LATENT_ORE
-    );
-    public static final RegistrySupplier<Item> NETHERRACK_LATENT_ORE_ITEM = blockItem(
-            "netherrack_latent_ore",
-            NETHERRACK_LATENT_ORE
-    );
-    public static final RegistrySupplier<Item> END_STONE_LATENT_ORE_ITEM = blockItem(
-            "end_stone_latent_ore",
-            END_STONE_LATENT_ORE
+    public static final RegistrySupplier<Item> LATENT_ORE_ITEM = ITEMS.register(
+            "adaptive_latent_ore",
+            () -> new LatentOreBlockItem(LATENT_ORE.get(), new Item.Properties())
     );
     public static final RegistrySupplier<Item> RAW_LATENT_ORE = ITEMS.register(
             "raw_latent_ore",
@@ -185,6 +154,12 @@ public final class EssenceInfuserContent {
                             EssenceInfuserBlockEntity::new,
                             ESSENCE_INFUSER.get()
                     ).build(null)
+            );
+
+    public static final RegistrySupplier<BlockEntityType<LatentOreBlockEntity>> LATENT_ORE_BLOCK_ENTITY =
+            BLOCK_ENTITIES.register(
+                    "adaptive_latent_ore",
+                    () -> BlockEntityType.Builder.of(LatentOreBlockEntity::new, LATENT_ORE.get()).build(null)
             );
 
     public static final RegistrySupplier<BlockEntityType<EssentiumBlockEntity>> ESSENTIUM_BLOCK_BLOCK_ENTITY =
@@ -258,12 +233,12 @@ public final class EssenceInfuserContent {
 
         CreativeTabRegistry.append(
                 CreativeModeTabs.NATURAL_BLOCKS,
-                LATENT_ORE_ITEM,
-                DEEPSLATE_LATENT_ORE_ITEM,
-                NETHERRACK_LATENT_ORE_ITEM,
-                END_STONE_LATENT_ORE_ITEM,
                 RAW_LATENT_ORE,
                 RAW_LATENT_ORE_BLOCK_ITEM
+        );
+        CreativeTabRegistry.modify(
+                CreativeTabRegistry.defer(CreativeModeTabs.NATURAL_BLOCKS),
+                (flags, output, canUseGameMasterBlocks) -> LatentOreHost.creativeStacks().forEach(output::accept)
         );
         CreativeTabRegistry.append(
                 CreativeModeTabs.INGREDIENTS,

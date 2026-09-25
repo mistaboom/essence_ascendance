@@ -63,6 +63,7 @@ final class ProceduralTradeIndex {
 
     static ProceduralTradeIndex build(MinecraftServer server) {
         Map<Item, List<TradeSource>> output = new IdentityHashMap<>();
+        Map<String, Integer> worldDependentListings = new java.util.TreeMap<>();
         ServerLevel level = server.overworld();
         int professionTables = 0;
         int listings = 0;
@@ -108,7 +109,8 @@ final class ProceduralTradeIndex {
                                 villagerLevel,
                                 visibleFactoryCount,
                                 false,
-                                listingIndex
+                                listingIndex,
+                                worldDependentListings
                         );
                     }
                     professionTables++;
@@ -145,7 +147,8 @@ final class ProceduralTradeIndex {
                             tradeTier,
                             visibleFactoryCount,
                             true,
-                            listingIndex
+                            listingIndex,
+                            worldDependentListings
                     );
                 }
             }
@@ -166,6 +169,9 @@ final class ProceduralTradeIndex {
                         .thenComparingInt(TradeSource::maxUses)
         ));
 
+        if (!worldDependentListings.isEmpty()) EssenceAscendance.LOGGER.info(
+                "Procedural trade evidence skipped world-dependent offer factories {}: structure searches and map creation are not balance inputs",
+                worldDependentListings);
         EssenceAscendance.LOGGER.info(
                 "Procedural trade index built: {} villager level tables, {} listing factories, {} sampled offer variants, {} output items",
                 professionTables,
@@ -193,7 +199,7 @@ final class ProceduralTradeIndex {
         return offerCount;
     }
 
-    private static int sampleListing(
+    static int sampleListing(
             Map<Item, List<TradeSource>> output,
             VillagerTrades.ItemListing factory,
             Entity trader,
@@ -201,8 +207,16 @@ final class ProceduralTradeIndex {
             int level,
             int listingPoolSize,
             boolean wandering,
-            int listingIndex
+            int listingIndex,
+            Map<String, Integer> worldDependentListings
     ) {
+        // Vanilla's map offer locates structures, requests chunks and creates
+        // saved map data. Evaluating it is unsafe during pre-spawn analysis (or
+        // any read-only valuation). Its acquisition stays unknown instead.
+        if (worldDependentListing(factory, 0)) {
+            worldDependentListings.merge(factory.getClass().getName(), 1, Integer::sum);
+            return 0;
+        }
         Map<String, TradeSource> unique = new LinkedHashMap<>();
 
         for (int sample = 0; sample < SAMPLES_PER_LISTING; sample++) {
@@ -254,6 +268,13 @@ final class ProceduralTradeIndex {
                     .add(source);
         }
         return unique.size();
+    }
+
+    private static boolean worldDependentListing(VillagerTrades.ItemListing listing, int depth) {
+        if (depth > 16 || listing instanceof VillagerTrades.TreasureMapForEmeralds) return true;
+        // The vanilla trade-rebalance table wraps exploration maps in this public record.
+        return listing instanceof VillagerTrades.TypeSpecificTrade typed
+                && typed.trades().values().stream().anyMatch(child -> worldDependentListing(child, depth + 1));
     }
 
     record TradeSource(

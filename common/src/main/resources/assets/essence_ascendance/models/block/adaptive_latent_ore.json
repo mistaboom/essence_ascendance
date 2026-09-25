@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "essence_ascendance:block/latent_ore/unresolved"
+  }
+}

@@ -17,7 +17,6 @@ import com.mistaboom.essence_ascendance.visual.AscendancePalette;
 import com.mistaboom.essence_ascendance.visual.AscendanceUiPalette;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -217,7 +216,7 @@ public final class ItemYieldBrowser {
             Map<ResourceLocation, Long> yields = new LinkedHashMap<>();
             source.outputs().forEach(output -> yields.put(output.essenceId(), output.microUnits()));
             result.add(new BrowserRow(source.itemId(), name,
-                    new ItemPresentation(source.itemId(), DataComponentPatch.EMPTY, name), Map.copyOf(yields)));
+                    new ItemPresentation(source.itemId(), stack.getComponentsPatch(), name), Map.copyOf(yields)));
         }
         return List.copyOf(result);
     }

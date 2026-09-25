@@ -2,7 +2,7 @@
   "type": "minecraft:smelting",
   "category": "misc",
   "ingredient": {
-    "item": "essence_ascendance:latent_ore"
+    "tag": "essence_ascendance:latent_ores"
   },
   "result": {
     "id": "essence_ascendance:latent_ingot"

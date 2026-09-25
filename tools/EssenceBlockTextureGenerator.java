@@ -1,4 +1,5 @@
 import com.mistaboom.essence_ascendance.visual.CanonicalPaletteValues;
+import com.mistaboom.essence_ascendance.visual.TexturePixels;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -94,9 +95,9 @@ public final class EssenceBlockTextureGenerator {
 
         for (int y = 0; y < 16; y++) {
             for (int x = 0; x < 16; x++) {
-                int base = tint(baseMask.getRGB(x, y), baseColor);
-                int accent = tint(accentMask.getRGB(x, y), accentColor);
-                int pixel = over(accent, base);
+                int base = TexturePixels.tintArgb(baseMask.getRGB(x, y), baseColor);
+                int accent = TexturePixels.tintArgb(accentMask.getRGB(x, y), accentColor);
+                int pixel = TexturePixels.overArgb(accent, base);
                 if (((pixel >>> 24) & 0xFF) != 0xFF) {
                     throw new IllegalStateException(
                             "Essentium masks leave a transparent pixel at " + x + "," + y
@@ -122,37 +123,4 @@ public final class EssenceBlockTextureGenerator {
         Files.writeString(path, json, StandardCharsets.UTF_8);
     }
 
-    private static int tint(int argb, int color) {
-        int alpha = (argb >>> 24) & 0xFF;
-        int red = ((argb >>> 16) & 0xFF) * ((color >>> 16) & 0xFF) / 255;
-        int green = ((argb >>> 8) & 0xFF) * ((color >>> 8) & 0xFF) / 255;
-        int blue = (argb & 0xFF) * (color & 0xFF) / 255;
-        return alpha << 24 | red << 16 | green << 8 | blue;
-    }
-
-    private static int over(int foreground, int background) {
-        int foregroundAlpha = (foreground >>> 24) & 0xFF;
-        int backgroundAlpha = (background >>> 24) & 0xFF;
-        int outputAlpha = foregroundAlpha
-                + (backgroundAlpha * (255 - foregroundAlpha) + 127) / 255;
-        if (outputAlpha == 0) {
-            return 0;
-        }
-
-        int foregroundRed = (foreground >>> 16) & 0xFF;
-        int foregroundGreen = (foreground >>> 8) & 0xFF;
-        int foregroundBlue = foreground & 0xFF;
-        int backgroundRed = (background >>> 16) & 0xFF;
-        int backgroundGreen = (background >>> 8) & 0xFF;
-        int backgroundBlue = background & 0xFF;
-        int remainingBackground = (backgroundAlpha * (255 - foregroundAlpha) + 127) / 255;
-
-        int red = (foregroundRed * foregroundAlpha + backgroundRed * remainingBackground)
-                / outputAlpha;
-        int green = (foregroundGreen * foregroundAlpha + backgroundGreen * remainingBackground)
-                / outputAlpha;
-        int blue = (foregroundBlue * foregroundAlpha + backgroundBlue * remainingBackground)
-                / outputAlpha;
-        return outputAlpha << 24 | red << 16 | green << 8 | blue;
-    }
 }

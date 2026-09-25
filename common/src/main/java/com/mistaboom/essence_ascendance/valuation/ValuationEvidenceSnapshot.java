@@ -6,6 +6,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.CactusBlock;
 import net.minecraft.world.level.block.CocoaBlock;
@@ -36,12 +37,8 @@ public record ValuationEvidenceSnapshot(Map<String, List<AcquisitionSource>> sou
             Item item = BuiltInRegistries.ITEM.get(value.itemId());
             List<AcquisitionSource> entries = new ArrayList<>();
             for (var source : index.blockDropSources(item)) {
-                boolean farming = renewableGrowth(BuiltInRegistries.BLOCK.get(source.blockId()));
-                entries.add(new AcquisitionSource(source.blockId().toString(), farming
-                        ? AcquisitionSource.Kind.FARMING : AcquisitionSource.Kind.WORLD_GENERATION,
-                        band(source.progressionBand()), source.expectedCount(), farming, false, 0, 0.76,
-                        source.reusableTool() == null ? List.of() : List.of(BuiltInRegistries.ITEM.getKey(source.reusableTool()).toString()),
-                        String.join("; ", source.signals())));
+                entries.add(blockSource(source, BuiltInRegistries.BLOCK.get(source.blockId()),
+                        index.naturalBlockEvidence(source.blockId())));
             }
             for (var source : index.biologicalSources(item)) entries.add(biologicalSource(source,
                     ProgressionBand.at((int) Math.floor(index.progressionForEntity(source.event().producerId()).score() * 4))));
@@ -99,6 +96,32 @@ public record ValuationEvidenceSnapshot(Map<String, List<AcquisitionSource>> sou
             case NETHER -> ProgressionBand.LATE;
             case END, BOSS_SCALE -> ProgressionBand.APEX;
         };
+    }
+
+    /** Reuses collected placement evidence; a block's loot alone does not prove a natural source. */
+    static AcquisitionSource blockSource(ProceduralValuationIndex.BlockDropSource source, Block block,
+                                         List<String> naturalEvidence) {
+        boolean natural = !naturalEvidence.isEmpty();
+        boolean ungated = !source.silkTouchRequired() && source.complexConditionCount() == 0;
+        boolean farming = renewableGrowth(block);
+        List<String> dependencies = new ArrayList<>();
+        if (source.reusableTool() != null)
+            dependencies.add(BuiltInRegistries.ITEM.getKey(source.reusableTool()).toString());
+        // An unproven block-break path requires the placed block. Keep its original stage semantics:
+        // PLAYER_ACTION remains an acquisition observation, not a fabricated loaded crafting recipe.
+        if (!natural && block.asItem() != Items.AIR)
+            dependencies.add(BuiltInRegistries.ITEM.getKey(block.asItem()).toString());
+        List<String> reasons = new ArrayList<>(source.signals());
+        if (natural) reasons.add("Natural placement evidence: " + String.join("; ", naturalEvidence));
+        else reasons.add("No collected natural-placement evidence; breaking a supplied block is a player action, not an independent natural source");
+        if (source.silkTouchRequired()) reasons.add("Silk Touch is required; the source snapshot does not establish accessible enchantment prerequisites");
+        if (source.complexConditionCount() > 0) reasons.add("Unresolved harvest conditions: " + source.complexConditionCount()
+                + "; conditional player action does not establish directly accessible supply");
+        return new AcquisitionSource(source.blockId().toString(), natural && ungated
+                ? farming ? AcquisitionSource.Kind.FARMING : AcquisitionSource.Kind.WORLD_GENERATION
+                : AcquisitionSource.Kind.PLAYER_ACTION,
+                band(source.progressionBand()), source.expectedCount(), farming, false, 0, 0.76,
+                dependencies, String.join("; ", reasons));
     }
 
     static AcquisitionSource biologicalSource(ProceduralValuationIndex.BiologicalSource source, ProgressionBand stage) {

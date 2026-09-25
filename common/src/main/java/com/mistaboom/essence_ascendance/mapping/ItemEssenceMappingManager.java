@@ -7,6 +7,7 @@ import dev.architectury.event.events.common.LifecycleEvent;
 import dev.architectury.event.events.common.TickEvent;
 import dev.architectury.platform.Platform;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.Level;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -20,12 +21,26 @@ public final class ItemEssenceMappingManager {
     public static synchronized void init() {
         if (initialized) return;
         initialized = true;
-        LifecycleEvent.SERVER_STARTED.register(server -> {
+        /*
+         * Both loaders publish the Overworld after inserting it into the server's
+         * level map, before MinecraftServer.setInitialSpawn can request chunks.
+         * Recipes, tags, registries and an unspawned-entity context are available.
+         * Later dimensions reuse the one installed profile; SERVER_STARTED is too
+         * late because initial spawn search has already generated terrain by then.
+         */
+        LifecycleEvent.SERVER_LEVEL_LOAD.register(level -> {
+            if (level.dimension() != Level.OVERWORLD) return;
+            MinecraftServer server = level.getServer();
+            if (activeServer == server) return;
+            if (activeServer != null) throw new IllegalStateException("A previous server's balance lifecycle was not stopped");
             activeServer = server;
             observedResources = server.getResourceManager();
             observedRecipes = server.getRecipeManager();
             if (!reload().successful()) throw new IllegalStateException(
-                    "Essence Ascendance generated balance could not load: " + ItemEssenceMappingRegistry.lastReload().errors());
+                    "Essence Ascendance generated balance could not load before initial chunk generation: "
+                            + ItemEssenceMappingRegistry.lastReload().errors()
+                            + ". For an obsolete development profile, delete " + generatedCachePath()
+                            + " and restart to regenerate it; retain the human TOML inputs.");
         });
         LifecycleEvent.SERVER_STOPPED.register(server -> {
             if (activeServer != server) return;
@@ -40,6 +55,7 @@ public final class ItemEssenceMappingManager {
                 observedResources = server.getResourceManager();
                 observedRecipes = server.getRecipeManager();
                 ProceduralValuationEngine.clear();
+                com.mistaboom.essence_ascendance.worldgen.PrimarySubstrateDiscovery.clear();
                 GeneratedBalanceService.markResourcesChanged();
                 EssenceAscendance.LOGGER.warn("Server resources reloaded. Existing generated balance remains active; use /essence admin balance rebuild to analyze changed recipes, tags or loot.");
             }

@@ -178,7 +178,8 @@ public final class RuntimeBalanceGenerator {
         // Rank-one effects and additional rank growth have separate calibration.
         double resolvedSkillScale=skillScale*Math.sqrt(apex);
         var effects=effects(resolvedSkillScale, evidence, settings);
-        var config=new EssenceServerConfig(1,6,8,infuser,shield,effects,LatentOreWorldgenSettings.defaults(),profile,milestones,advancements,bonuses,new EquipmentBaselineConfig(equipment));
+        var worldgen=LatentOreBalanceGenerator.generate(evidence,economy,settings.latentOre());
+        var config=new EssenceServerConfig(1,6,8,infuser,shield,effects,worldgen,profile,milestones,advancements,bonuses,new EquipmentBaselineConfig(equipment));
         var crucible=new EssenceCrucibleStructureStats(1,positiveLong(entry*48.0),8,positiveLong(entry/2.0),20,1,6,1,0);
         Map<String,Double> composition=new TreeMap<>(encounterBudgets);
         composition.put("equipment_quantization",1.0);

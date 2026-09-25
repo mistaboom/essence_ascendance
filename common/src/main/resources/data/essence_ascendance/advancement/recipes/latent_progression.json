@@ -6,43 +6,7 @@
         "items": [
           {
             "items": [
-              "essence_ascendance:latent_ore"
-            ]
-          }
-        ]
-      }
-    },
-    "has_deepslate_latent_ore": {
-      "trigger": "minecraft:inventory_changed",
-      "conditions": {
-        "items": [
-          {
-            "items": [
-              "essence_ascendance:deepslate_latent_ore"
-            ]
-          }
-        ]
-      }
-    },
-    "has_netherrack_latent_ore": {
-      "trigger": "minecraft:inventory_changed",
-      "conditions": {
-        "items": [
-          {
-            "items": [
-              "essence_ascendance:netherrack_latent_ore"
-            ]
-          }
-        ]
-      }
-    },
-    "has_end_stone_latent_ore": {
-      "trigger": "minecraft:inventory_changed",
-      "conditions": {
-        "items": [
-          {
-            "items": [
-              "essence_ascendance:end_stone_latent_ore"
+              "essence_ascendance:adaptive_latent_ore"
             ]
           }
         ]
@@ -112,9 +76,6 @@
   "requirements": [
     [
       "has_latent_ore",
-      "has_deepslate_latent_ore",
-      "has_netherrack_latent_ore",
-      "has_end_stone_latent_ore",
       "has_raw_latent_ore",
       "has_raw_latent_ore_block",
       "has_latent_ingot",
@@ -149,12 +110,6 @@
       "essence_ascendance:latent_block",
       "essence_ascendance:latent_ingot_from_blasting_raw_latent_ore",
       "essence_ascendance:latent_ingot_from_block",
-      "essence_ascendance:latent_ingot_from_deepslate_ore",
-      "essence_ascendance:latent_ingot_from_deepslate_ore_blasting",
-      "essence_ascendance:latent_ingot_from_end_stone_ore",
-      "essence_ascendance:latent_ingot_from_end_stone_ore_blasting",
-      "essence_ascendance:latent_ingot_from_netherrack_ore",
-      "essence_ascendance:latent_ingot_from_netherrack_ore_blasting",
       "essence_ascendance:latent_ingot_from_nuggets",
       "essence_ascendance:latent_ingot_from_ore",
       "essence_ascendance:latent_ingot_from_ore_blasting",

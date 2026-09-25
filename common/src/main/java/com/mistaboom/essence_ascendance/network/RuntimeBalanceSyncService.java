@@ -33,6 +33,7 @@ public final class RuntimeBalanceSyncService {
         if(encoded!=current) { payload=new RuntimeBalancePayload(current.toJson().toString());encoded=current; }
         NetworkManager.sendToPlayer(player,payload);
         SENT.put(player,current);
+        LatentOreCatalogSync.send(player);
     }
     public static void syncAll(MinecraftServer server) {for(var player:server.getPlayerList().getPlayers())send(player);}
     public static void clear() {SENT.clear();encoded=null;payload=null;}

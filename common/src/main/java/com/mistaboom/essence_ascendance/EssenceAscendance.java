@@ -70,6 +70,7 @@ public final class EssenceAscendance {
         EssencePylonContent.init();
         EssenceInfuserContent.init();
         LatentOreWorldgen.init();
+        com.mistaboom.essence_ascendance.network.LatentOreCatalogSync.init();
         AscendanceNexusContent.init();
         EssenceCrucibleGameplayEvents.init();
 

@@ -26,26 +26,10 @@ public final class EssenceAscendanceFabric implements ModInitializer {
         EssenceAscendance.init();
 
         BiomeModifications.addFeature(
-                BiomeSelectors.tag(ConventionalBiomeTags.IS_OVERWORLD),
-                GenerationStep.Decoration.UNDERGROUND_ORES,
-                LatentOreWorldgen.OVERWORLD_PLACED
-        );
-        BiomeModifications.addFeature(
-                BiomeSelectors.tag(ConventionalBiomeTags.IS_NETHER),
-                GenerationStep.Decoration.UNDERGROUND_ORES,
-                LatentOreWorldgen.NETHER_PLACED
-        );
-        BiomeModifications.addFeature(
-                BiomeSelectors.tag(ConventionalBiomeTags.IS_END),
-                GenerationStep.Decoration.UNDERGROUND_ORES,
-                LatentOreWorldgen.END_PLACED
-        );
-        BiomeModifications.addFeature(
                 BiomeSelectors.all(),
                 GenerationStep.Decoration.UNDERGROUND_ORES,
-                LatentOreWorldgen.CUSTOM_PLACED
+                LatentOreWorldgen.PLACED
         );
-
         /*
          * Register a specific provider ahead of Fabric's vanilla-inventory
          * fallback so pipes and hoppers see the Crucible as insertion-only.

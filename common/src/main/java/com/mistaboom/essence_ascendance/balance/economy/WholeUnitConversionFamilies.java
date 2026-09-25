@@ -17,9 +17,20 @@ import java.util.TreeSet;
  * Reconciling that family together prevents repeated independent flooring from
  * eroding a perfectly safe positive conversion family to zero.
  */
-final class WholeUnitConversionFamilies {
+public final class WholeUnitConversionFamilies {
     private final Map<String, Family> byItem = new TreeMap<>();
     private final List<Family> families = new ArrayList<>();
+
+    /** Stable identities for consumers that must not count reversible material forms as new resources. */
+    public static Map<String, String> canonicalMaterials(ProductionGraph graph) {
+        var groups = new WholeUnitConversionFamilies(graph);
+        Map<String, String> result = new TreeMap<>();
+        for (Family family : groups.families) {
+            String canonical = family.weights().keySet().stream().sorted().findFirst().orElseThrow();
+            family.weights().keySet().forEach(item -> result.put(item, canonical));
+        }
+        return java.util.Collections.unmodifiableMap(result);
+    }
 
     WholeUnitConversionFamilies(ProductionGraph graph) {
         Map<String, List<Edge>> edges = new TreeMap<>();

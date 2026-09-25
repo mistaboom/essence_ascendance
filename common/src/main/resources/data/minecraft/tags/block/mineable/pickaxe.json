@@ -4,14 +4,11 @@
     "essence_ascendance:essence_crucible",
     "essence_ascendance:essence_pylon",
     "essence_ascendance:ascendance_nexus",
-    "essence_ascendance:latent_ore",
-    "essence_ascendance:deepslate_latent_ore",
     "essence_ascendance:raw_latent_ore_block",
     "essence_ascendance:latent_block",
     "essence_ascendance:essentium_block",
     "essence_ascendance:essence_infuser",
-    "essence_ascendance:netherrack_latent_ore",
-    "essence_ascendance:end_stone_latent_ore",
-    "essence_ascendance:channelstone"
+    "essence_ascendance:channelstone",
+    "essence_ascendance:adaptive_latent_ore"
   ]
 }
