@@ -2,4 +2,5 @@
 *.bbmodel -text
 *.png binary
 *.eamesh binary
-art/history/** -text
+# Historical artifacts keep their original line endings and formatting.
+art/history/** -text -whitespace
