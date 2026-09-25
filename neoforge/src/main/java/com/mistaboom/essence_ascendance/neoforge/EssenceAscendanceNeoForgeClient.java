@@ -17,6 +17,13 @@ import com.mistaboom.essence_ascendance.pylon.EssencePylonContent;
 import com.mistaboom.essence_ascendance.nexus.AscendanceNexusContent;
 import com.mistaboom.essence_ascendance.neoforge.client.LatentOreNeoForgeModels;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
+import com.mistaboom.essence_ascendance.client.armor.AscendanceArmorModel;
+import com.mistaboom.essence_ascendance.item.AscendanceArmorItem;
+import com.mistaboom.essence_ascendance.item.AscendanceItems;
+import net.minecraft.client.model.HumanoidModel;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.client.renderer.item.ItemProperties;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
@@ -26,6 +33,9 @@ import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
+
+import java.util.EnumMap;
+import java.util.Map;
 
 @Mod(
         value = EssenceAscendance.MOD_ID,
@@ -96,6 +106,21 @@ public final class EssenceAscendanceNeoForgeClient {
     private void registerClientExtensions(
             RegisterClientExtensionsEvent event
     ) {
+        event.registerItem(new IClientItemExtensions() {
+            private final Map<EquipmentSlot, HumanoidModel<LivingEntity>> armorModels =
+                    new EnumMap<>(EquipmentSlot.class);
+
+            @Override
+            public HumanoidModel<?> getHumanoidArmorModel(LivingEntity entity, ItemStack stack,
+                    EquipmentSlot slot, HumanoidModel<?> original) {
+                if (!(stack.getItem() instanceof AscendanceArmorItem armor)
+                        || armor.ascendanceSlot() != slot) return original;
+                // The default getGenericArmorModel copies the original pose and visibility.
+                return armorModels.computeIfAbsent(slot, AscendanceArmorModel::new);
+            }
+        }, AscendanceItems.ASCENDANCE_HELMET.get(), AscendanceItems.ASCENDANCE_CHESTPLATE.get(),
+                AscendanceItems.ASCENDANCE_LEGGINGS.get(), AscendanceItems.ASCENDANCE_BOOTS.get());
+
         IClientItemExtensions machineRenderer = new IClientItemExtensions() {
             @Override
             public BlockEntityWithoutLevelRenderer getCustomRenderer() {

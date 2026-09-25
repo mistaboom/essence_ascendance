@@ -26,7 +26,7 @@ public final class AscendancePaletteTest {
             check(AscendancePalette.categoryRgb(StatCategory.valueOf(entry.getKey().toUpperCase(java.util.Locale.ROOT)))
                     == entry.getValue(), "Stat and Essence category mappings disagree");
         }
-        int[] primary = {0xB8BDC4, 0x9FA6AF, 0x858F9A, 0x6B7785, 0x515E6D, 0x394655};
+        int[] primary = {0xB9BDC4, 0x9FA6AF, 0x858F9A, 0x6B7785, 0x515E6D, 0x394655};
         int[] accent = {0xA86E4B, 0xB78650, 0xC99F54, 0xDFB95F, 0xF2CF78, 0xFFE7AA};
         for (EquipmentTier tier : EquipmentTier.values()) {
             int index = tier.ordinal();
@@ -50,7 +50,7 @@ public final class AscendancePaletteTest {
             check(EssentiumCarrierVisuals.accentRgb(value) == categories.get(essence.id().getPath()),
                     "Infused ingot accent lost Essence identity");
         }
-        check(AscendancePalette.categoryRgb(ResourceLocation.parse("test:unrecognized")) == 0xB8BDC4,
+        check(AscendancePalette.categoryRgb(ResourceLocation.parse("test:unrecognized")) == 0xB9BDC4,
                 "Unrecognized category has unstable fallback");
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out))
                 .println("AscendancePaletteTest: " + assertions + " checks PASS");

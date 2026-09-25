@@ -1,4 +1,4 @@
-"""Export the authored Focus.bbmodel into the existing EAM1 static mesh format.
+"""Export art/source/models/item/focus.bbmodel into the existing EAM1 static mesh format.
 
 The source mesh is authored in Blockbench with its long axis on Z. Its center
 is (7, 7, 24) pixels; the installed center is (8, 24, 8) block pixels.
@@ -12,7 +12,7 @@ import zlib
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / "tools" / "source_assets" / "Focus.bbmodel"
+SOURCE = ROOT / "art" / "source" / "models" / "item" / "focus.bbmodel"
 ASSETS = ROOT / "common" / "src" / "main" / "resources" / "assets" / "essence_ascendance"
 
 

@@ -1,5 +1,4 @@
 import com.mistaboom.essence_ascendance.visual.CanonicalPaletteValues;
-import com.mistaboom.essence_ascendance.visual.TexturePixels;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -91,26 +90,7 @@ public final class EssenceBlockTextureGenerator {
             int baseColor,
             int accentColor
     ) throws IOException {
-        BufferedImage composite = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
-
-        for (int y = 0; y < 16; y++) {
-            for (int x = 0; x < 16; x++) {
-                int base = TexturePixels.tintArgb(baseMask.getRGB(x, y), baseColor);
-                int accent = TexturePixels.tintArgb(accentMask.getRGB(x, y), accentColor);
-                int pixel = TexturePixels.overArgb(accent, base);
-                if (((pixel >>> 24) & 0xFF) != 0xFF) {
-                    throw new IllegalStateException(
-                            "Essentium masks leave a transparent pixel at " + x + "," + y
-                    );
-                }
-                composite.setRGB(x, y, pixel);
-            }
-        }
-
-        Files.createDirectories(path.getParent());
-        if (!ImageIO.write(composite, "png", path.toFile())) {
-            throw new IOException("No PNG writer is available for " + path);
-        }
+        MaskedTextureWriter.write(path, baseMask, accentMask, baseColor, accentColor, true);
     }
 
     private static void writeModel(Path path, String modelName) throws IOException {

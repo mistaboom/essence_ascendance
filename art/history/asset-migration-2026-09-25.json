@@ -1,0 +1,434 @@
+{
+  "date": "2026-09-25",
+  "scope": "Art assets only. Workbook, unrelated validation, and dependency caches remain in the auxiliary folder.",
+  "verification": "Each destination matched the original source SHA-256 before source removal. Identical duplicates share one destination.",
+  "files": [
+    {
+      "source_root": "auxiliary",
+      "source": "Armor.bbmodel",
+      "destination": "art/source/models/armor/ascendance_armor.bbmodel",
+      "bytes": 270038,
+      "sha256": "710740bfdb5c60ef8b14201791628f0fd9730a960e3c2d1b292fa191f8c8a6a6"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "Armor.before-directional-shading.bbmodel",
+      "destination": "art/history/armor/Armor.before-directional-shading.bbmodel",
+      "bytes": 254774,
+      "sha256": "722d3810987b808185970fd1534a278f9dedb28f10b327ff008fed160d3a7a1d"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "channelstone.bbmodel",
+      "destination": "art/source/models/block/channelstone.bbmodel",
+      "bytes": 264226,
+      "sha256": "6d07c4700ed1d011a1f4044a426ccd917b0ae05ac6ad3840f437aa253ab6becf"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "crucible.bbmodel",
+      "destination": "art/source/models/block/crucible.bbmodel",
+      "bytes": 23346,
+      "sha256": "aae87cab5f1398693563da68194f7db338d944498340d8eeac159eb258cc2c87"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "essence_block.bbmodel",
+      "destination": "art/source/models/block/essence_block.bbmodel",
+      "bytes": 3131,
+      "sha256": "c5f3feb1c700c39b5ccd7c443980490a8f0e92a2fbe8e01201a627a777e50133"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "essence_ore.bbmodel",
+      "destination": "art/source/models/block/essence_ore.bbmodel",
+      "bytes": 2538,
+      "sha256": "78d768872e688365deba8ab435a942de0bf34e204496965a73d4a07319020634"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "Infuser.bbmodel",
+      "destination": "art/source/models/block/infuser.bbmodel",
+      "bytes": 17935,
+      "sha256": "88ad4be15ef3873d2ed31321814dbcf5b4d0876988709051f9ec79291e9a5205"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "nexus.bbmodel",
+      "destination": "art/source/models/block/nexus.bbmodel",
+      "bytes": 22557,
+      "sha256": "a0441785b6e9f7b6acbf3cf0ba0aa9070ae49298a4faae88e995edb74a07b800"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "pylon.bbmodel",
+      "destination": "art/source/models/block/pylon.bbmodel",
+      "bytes": 28371,
+      "sha256": "bca37c3847626bc6e2f1804926a271f4ffc5e0f2fbc622408c6b234b5402783e"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "Focus.bbmodel",
+      "destination": "art/source/models/item/focus.bbmodel",
+      "bytes": 2475,
+      "sha256": "81066b7213637e0a2ad13a52456cdf5659b30b815945a322d7c0032078aa3114"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "essence_ingot.bbmodel",
+      "destination": "art/source/models/item/essence_ingot.bbmodel",
+      "bytes": 3359,
+      "sha256": "37615d7a67998d4604f352d5f39c1215e4de51028dfb7272abb15a4885d62ce6"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "essence_nugget.bbmodel",
+      "destination": "art/source/models/item/essence_nugget.bbmodel",
+      "bytes": 2995,
+      "sha256": "3ad072c1e2956e529d851dd9c314a60236d108f1da9382eb68f4fa36e9b4326d"
+    },
+    {
+      "source_root": "project",
+      "source": "tools/source_assets/Armor.bbmodel",
+      "destination": "art/source/models/armor/ascendance_armor.bbmodel",
+      "bytes": 270038,
+      "sha256": "710740bfdb5c60ef8b14201791628f0fd9730a960e3c2d1b292fa191f8c8a6a6"
+    },
+    {
+      "source_root": "project",
+      "source": "tools/source_assets/Focus.bbmodel",
+      "destination": "art/source/models/item/focus.bbmodel",
+      "bytes": 2475,
+      "sha256": "81066b7213637e0a2ad13a52456cdf5659b30b815945a322d7c0032078aa3114"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "Armor Textures/armor-directional-preview.png",
+      "destination": "art/previews/armor/armor-directional-preview.png",
+      "bytes": 120479,
+      "sha256": "7290bc9773f1bd0a38c13d1df003d0b7ed185981f542e4d538c29e11ee16562c"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "Armor Textures/armor-tier-preview.png",
+      "destination": "art/previews/armor/armor-tier-preview.png",
+      "bytes": 120976,
+      "sha256": "ba1d79f8a7cb170a58b78b416f9fe7e7ab6ab8262cb027d75d63e0f3a51d79df"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "Armor Textures/Chest_Accent.png",
+      "destination": "art/source/textures/armor/ascendance/chest_accent.png",
+      "bytes": 4025,
+      "sha256": "adec57c2354ef7ec776d6b19e35f4e8df5ec55b74458d0790d72ad2d94ba801c"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "Armor Textures/Chest_Base.png",
+      "destination": "art/source/textures/armor/ascendance/chest_base.png",
+      "bytes": 4981,
+      "sha256": "45303189d03c6c432f6cae93b6b644456a6cabe1b41b0ba8eed8729fd9bd01cd"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "Armor Textures/Head_Accent.png",
+      "destination": "art/source/textures/armor/ascendance/head_accent.png",
+      "bytes": 2382,
+      "sha256": "5cd745079287f546a6a98dc03cef40ed9f7498241d0d69f5cdd653c8b76d8f10"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "Armor Textures/Head_Base.png",
+      "destination": "art/source/textures/armor/ascendance/head_base.png",
+      "bytes": 3810,
+      "sha256": "477bcbde5225e5e3a1bb24bcea20cbd53cdbf9614fa9e9e3105502218100da27"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "Armor Textures/Left_Arm_Accent.png",
+      "destination": "art/source/textures/armor/ascendance/left_arm_accent.png",
+      "bytes": 1770,
+      "sha256": "2ed207570c17c37bf30c32815f4378ee91ec9297c3240680160c38b2fbeaf4ba"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "Armor Textures/Left_Arm_Base.png",
+      "destination": "art/source/textures/armor/ascendance/left_arm_base.png",
+      "bytes": 3277,
+      "sha256": "121f5ab8ef20bc0e31af6952bed935138c1640cb925bdedd089b6cda4e675e9d"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "Armor Textures/Left_Foot_Accent.png",
+      "destination": "art/source/textures/armor/ascendance/left_foot_accent.png",
+      "bytes": 1047,
+      "sha256": "23aacc935545aeab8af607b6e2f1035f1301ed7364328d486b53b86003f1081a"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "Armor Textures/Left_Foot_Base.png",
+      "destination": "art/source/textures/armor/ascendance/left_foot_base.png",
+      "bytes": 1791,
+      "sha256": "921bca306149d9144c3566a9e3e11390f2069437d4e2d29f11a29b92173df492"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "Armor Textures/Left_Leg_Accent.png",
+      "destination": "art/source/textures/armor/ascendance/left_leg_accent.png",
+      "bytes": 935,
+      "sha256": "96f6630522df44a61ec2f12268ec59da5580b51030ef7ee2d8b57fa3d926ec3a"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "Armor Textures/Left_Leg_Base.png",
+      "destination": "art/source/textures/armor/ascendance/left_leg_base.png",
+      "bytes": 3288,
+      "sha256": "bdb1ad0a9b8f40bb667ae0d6bfb3f488388c17d388fa8d82e1a21e8653305cfc"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "Armor Textures/Right_Arm_Accent.png",
+      "destination": "art/source/textures/armor/ascendance/right_arm_accent.png",
+      "bytes": 1595,
+      "sha256": "a4488b167cbfa99e217c14f9366e9973ad08ec41d577e35c45d8de32e4efde8e"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "Armor Textures/Right_Arm_Base.png",
+      "destination": "art/source/textures/armor/ascendance/right_arm_base.png",
+      "bytes": 3578,
+      "sha256": "13868fcf4ce154eff3c29726b4ecd69e110412f01cf759be42b65f9878d2c54d"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "Armor Textures/Right_Foot_Accent.png",
+      "destination": "art/source/textures/armor/ascendance/right_foot_accent.png",
+      "bytes": 959,
+      "sha256": "7a175b3816177760a90c936ed848edb3dc0bc55297a43aa41b92ec8262bb2b1a"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "Armor Textures/Right_Foot_Base.png",
+      "destination": "art/source/textures/armor/ascendance/right_foot_base.png",
+      "bytes": 1722,
+      "sha256": "6a7eb770e6a2bb46a0317392394f0553769d532b978792a50635f759e6e5a4ff"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "Armor Textures/Right_Leg_Accent.png",
+      "destination": "art/source/textures/armor/ascendance/right_leg_accent.png",
+      "bytes": 933,
+      "sha256": "5a3a74c0994cd4f7a2724fcc9f8c94719d40977a15159863d2a01f816b1ddf11"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "Armor Textures/Right_Leg_Base.png",
+      "destination": "art/source/textures/armor/ascendance/right_leg_base.png",
+      "bytes": 3939,
+      "sha256": "ac4a7bd3ec87ebd4a3945d17c4bd27e98cc25fc22128eeb10edb6dee22b56177"
+    },
+    {
+      "source_root": "project",
+      "source": "common/src/main/resources/assets/essence_ascendance/textures/armor/ascendance/source/chest_accent.png",
+      "destination": "art/source/textures/armor/ascendance/chest_accent.png",
+      "bytes": 4025,
+      "sha256": "adec57c2354ef7ec776d6b19e35f4e8df5ec55b74458d0790d72ad2d94ba801c"
+    },
+    {
+      "source_root": "project",
+      "source": "common/src/main/resources/assets/essence_ascendance/textures/armor/ascendance/source/chest_base.png",
+      "destination": "art/source/textures/armor/ascendance/chest_base.png",
+      "bytes": 4981,
+      "sha256": "45303189d03c6c432f6cae93b6b644456a6cabe1b41b0ba8eed8729fd9bd01cd"
+    },
+    {
+      "source_root": "project",
+      "source": "common/src/main/resources/assets/essence_ascendance/textures/armor/ascendance/source/head_accent.png",
+      "destination": "art/source/textures/armor/ascendance/head_accent.png",
+      "bytes": 2382,
+      "sha256": "5cd745079287f546a6a98dc03cef40ed9f7498241d0d69f5cdd653c8b76d8f10"
+    },
+    {
+      "source_root": "project",
+      "source": "common/src/main/resources/assets/essence_ascendance/textures/armor/ascendance/source/head_base.png",
+      "destination": "art/source/textures/armor/ascendance/head_base.png",
+      "bytes": 3810,
+      "sha256": "477bcbde5225e5e3a1bb24bcea20cbd53cdbf9614fa9e9e3105502218100da27"
+    },
+    {
+      "source_root": "project",
+      "source": "common/src/main/resources/assets/essence_ascendance/textures/armor/ascendance/source/left_arm_accent.png",
+      "destination": "art/source/textures/armor/ascendance/left_arm_accent.png",
+      "bytes": 1770,
+      "sha256": "2ed207570c17c37bf30c32815f4378ee91ec9297c3240680160c38b2fbeaf4ba"
+    },
+    {
+      "source_root": "project",
+      "source": "common/src/main/resources/assets/essence_ascendance/textures/armor/ascendance/source/left_arm_base.png",
+      "destination": "art/source/textures/armor/ascendance/left_arm_base.png",
+      "bytes": 3277,
+      "sha256": "121f5ab8ef20bc0e31af6952bed935138c1640cb925bdedd089b6cda4e675e9d"
+    },
+    {
+      "source_root": "project",
+      "source": "common/src/main/resources/assets/essence_ascendance/textures/armor/ascendance/source/left_foot_accent.png",
+      "destination": "art/source/textures/armor/ascendance/left_foot_accent.png",
+      "bytes": 1047,
+      "sha256": "23aacc935545aeab8af607b6e2f1035f1301ed7364328d486b53b86003f1081a"
+    },
+    {
+      "source_root": "project",
+      "source": "common/src/main/resources/assets/essence_ascendance/textures/armor/ascendance/source/left_foot_base.png",
+      "destination": "art/source/textures/armor/ascendance/left_foot_base.png",
+      "bytes": 1791,
+      "sha256": "921bca306149d9144c3566a9e3e11390f2069437d4e2d29f11a29b92173df492"
+    },
+    {
+      "source_root": "project",
+      "source": "common/src/main/resources/assets/essence_ascendance/textures/armor/ascendance/source/left_leg_accent.png",
+      "destination": "art/source/textures/armor/ascendance/left_leg_accent.png",
+      "bytes": 935,
+      "sha256": "96f6630522df44a61ec2f12268ec59da5580b51030ef7ee2d8b57fa3d926ec3a"
+    },
+    {
+      "source_root": "project",
+      "source": "common/src/main/resources/assets/essence_ascendance/textures/armor/ascendance/source/left_leg_base.png",
+      "destination": "art/source/textures/armor/ascendance/left_leg_base.png",
+      "bytes": 3288,
+      "sha256": "bdb1ad0a9b8f40bb667ae0d6bfb3f488388c17d388fa8d82e1a21e8653305cfc"
+    },
+    {
+      "source_root": "project",
+      "source": "common/src/main/resources/assets/essence_ascendance/textures/armor/ascendance/source/right_arm_accent.png",
+      "destination": "art/source/textures/armor/ascendance/right_arm_accent.png",
+      "bytes": 1595,
+      "sha256": "a4488b167cbfa99e217c14f9366e9973ad08ec41d577e35c45d8de32e4efde8e"
+    },
+    {
+      "source_root": "project",
+      "source": "common/src/main/resources/assets/essence_ascendance/textures/armor/ascendance/source/right_arm_base.png",
+      "destination": "art/source/textures/armor/ascendance/right_arm_base.png",
+      "bytes": 3578,
+      "sha256": "13868fcf4ce154eff3c29726b4ecd69e110412f01cf759be42b65f9878d2c54d"
+    },
+    {
+      "source_root": "project",
+      "source": "common/src/main/resources/assets/essence_ascendance/textures/armor/ascendance/source/right_foot_accent.png",
+      "destination": "art/source/textures/armor/ascendance/right_foot_accent.png",
+      "bytes": 959,
+      "sha256": "7a175b3816177760a90c936ed848edb3dc0bc55297a43aa41b92ec8262bb2b1a"
+    },
+    {
+      "source_root": "project",
+      "source": "common/src/main/resources/assets/essence_ascendance/textures/armor/ascendance/source/right_foot_base.png",
+      "destination": "art/source/textures/armor/ascendance/right_foot_base.png",
+      "bytes": 1722,
+      "sha256": "6a7eb770e6a2bb46a0317392394f0553769d532b978792a50635f759e6e5a4ff"
+    },
+    {
+      "source_root": "project",
+      "source": "common/src/main/resources/assets/essence_ascendance/textures/armor/ascendance/source/right_leg_accent.png",
+      "destination": "art/source/textures/armor/ascendance/right_leg_accent.png",
+      "bytes": 933,
+      "sha256": "5a3a74c0994cd4f7a2724fcc9f8c94719d40977a15159863d2a01f816b1ddf11"
+    },
+    {
+      "source_root": "project",
+      "source": "common/src/main/resources/assets/essence_ascendance/textures/armor/ascendance/source/right_leg_base.png",
+      "destination": "art/source/textures/armor/ascendance/right_leg_base.png",
+      "bytes": 3939,
+      "sha256": "ac4a7bd3ec87ebd4a3945d17c4bd27e98cc25fc22128eeb10edb6dee22b56177"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "validation/helmet-repaint/generated-material-reference.png",
+      "destination": "art/history/armor/helmet-repaint/generated-material-reference.png",
+      "bytes": 363777,
+      "sha256": "d6573d8a20a96490d1c21bff2a4c09ec54b53dafef92ee145e8cd2c3c18e0b9f"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "validation/helmet-repaint/repaint-notes.md",
+      "destination": "art/history/armor/helmet-repaint/repaint-notes.md",
+      "bytes": 2657,
+      "sha256": "597eede1f7402d422f9990b0f903fbd0a084fbda627b8d49221465e9b471c136"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "validation/helmet-repaint/RepaintHelmet.java",
+      "destination": "art/history/armor/helmet-repaint/RepaintHelmet.java",
+      "bytes": 2962,
+      "sha256": "86d88f1bd90c10d5ae79221a9ffc48bf227271e6c201953a028b597c66dd8746"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "validation/smooth-armor-repaint/ArmorPreview.java",
+      "destination": "art/history/armor/smooth-armor-repaint/ArmorPreview.java",
+      "bytes": 4478,
+      "sha256": "0ec27fb05a902a9f6247bf2ad1bb689981ed0f1fe2608bc16d5c756eef3feb58"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "validation/smooth-armor-repaint/pixel-verification.json",
+      "destination": "art/history/armor/smooth-armor-repaint/pixel-verification.json",
+      "bytes": 5040,
+      "sha256": "e3ad580bf28abb8e8dc3fc51d0f80fea87837a5adf0fcda100590005fde7759a"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "validation/smooth-armor-repaint/repaint-notes.md",
+      "destination": "art/history/armor/smooth-armor-repaint/repaint-notes.md",
+      "bytes": 3162,
+      "sha256": "13f68a6c8cf74b157e6ac420c1c255ced3b91014cf64dff01f73916e6a3d070d"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "validation/smooth-armor-repaint/smooth-white-material-reference.png",
+      "destination": "art/history/armor/smooth-armor-repaint/smooth-white-material-reference.png",
+      "bytes": 1136902,
+      "sha256": "ca66f5c942294530df9ba2a98ff63adbd3f22ca881e17fdad86baf70e157dc3b"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "validation/smooth-armor-repaint/SmoothArmorRepaint.java",
+      "destination": "art/history/armor/smooth-armor-repaint/SmoothArmorRepaint.java",
+      "bytes": 5928,
+      "sha256": "c68bd699e5774a3a8ccc5d8febe4d20126a7cafe054e87074b7878f9f0a4789a"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "validation/directional-armor-repaint/directional-white-material-reference.png",
+      "destination": "art/history/armor/directional-armor-repaint/directional-white-material-reference.png",
+      "bytes": 1199425,
+      "sha256": "33f36a1e0ea1301ed07dedf70044eb636e71406d79a26d2b23dcd818259d35df"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "validation/directional-armor-repaint/DirectionalArmorPreview.java",
+      "destination": "art/history/armor/directional-armor-repaint/DirectionalArmorPreview.java",
+      "bytes": 4661,
+      "sha256": "4eb129c303d6e1c25562a228dd27be111e01c42c99888dfa4a423bc520674ed5"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "validation/directional-armor-repaint/DirectionalArmorRepaint.java",
+      "destination": "art/history/armor/directional-armor-repaint/DirectionalArmorRepaint.java",
+      "bytes": 8357,
+      "sha256": "3f65b22af350b7d0abdee6b3eb9135a38880ffc88ac218406aed6e851a5fbcd4"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "validation/directional-armor-repaint/pixel-verification.json",
+      "destination": "art/history/armor/directional-armor-repaint/pixel-verification.json",
+      "bytes": 4201,
+      "sha256": "f3287aedda440d011346896d2fd59ce97b6117d10ad6b697320a659023f444d9"
+    },
+    {
+      "source_root": "auxiliary",
+      "source": "validation/directional-armor-repaint/README.md",
+      "destination": "art/history/armor/directional-armor-repaint/README.md",
+      "bytes": 3681,
+      "sha256": "e0b2c02b619682cdf5599085cbf2dc23b9053c5a09285e8f63c69aa6a9294bc4"
+    }
+  ]
+}

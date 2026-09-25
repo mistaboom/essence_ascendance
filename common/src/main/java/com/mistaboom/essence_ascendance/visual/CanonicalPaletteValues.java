@@ -9,7 +9,8 @@ public final class CanonicalPaletteValues {
     public static final int VITALITY = 0xE889B5;
     public static final int GATHERING = 0x58B88B;
 
-    public static final int LATENT_PRIMARY = 0xB8BDC4;
+    // Continue the light-to-dark grey series one step before Dormant: 2 * Dormant - Awakened.
+    public static final int LATENT_PRIMARY = 0xB9BDC4;
     public static final int LATENT_METAL = 0xA86E4B;
     public static final int DORMANT_PRIMARY = 0x9FA6AF;
     public static final int DORMANT_METAL = 0xB78650;

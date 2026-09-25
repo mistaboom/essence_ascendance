@@ -1,0 +1,66 @@
+# Art assets
+
+This folder is the version-controlled home for authoring assets. It is backed up with the project in Git/Gitea and is **not** a Minecraft resource directory. Open and save the project copies directly; the auxiliary folder is no longer an art source.
+
+## Layout
+
+| Location | Contents | Included in production jars? |
+| --- | --- | --- |
+| `source/models/armor/` | Current Ascendance armor Blockbench project | No |
+| `source/models/block/` | Current block and machine Blockbench projects | No |
+| `source/models/item/` | Current item Blockbench projects | No |
+| `source/textures/armor/ascendance/` | The 16 editable white base/accent masks | No |
+| `previews/armor/` | Whole-set visual previews | No |
+| `history/armor/` | Previous armor source, material references, repaint scripts, notes and verification | No |
+| `../common/src/main/resources/assets/essence_ascendance/` | Runtime PNGs, JSON models, EAM1 meshes, and other game resources | Yes |
+
+All paths in the following table are relative to this folder, except runtime paths, which are relative to `common/src/main/resources/assets/essence_ascendance/`.
+
+## Model index
+
+| Editable model | Runtime assets |
+| --- | --- |
+| [Ascendance armor](source/models/armor/ascendance_armor.bbmodel) | `meshes/armor/ascendance/*.eamesh`; `textures/armor/ascendance/generated/*.png` |
+| [Channelstone](source/models/block/channelstone.bbmodel) | `models/block/channelstone*.json`; `textures/block/channelstone.png` |
+| [Crucible](source/models/block/crucible.bbmodel) | `meshes/essence_crucible.eamesh`; `textures/block/essence_crucible.png` |
+| [Essence block](source/models/block/essence_block.bbmodel) | `models/item/essence_block_layers.json`; `textures/item/essence_block/`; baked block tier variants |
+| [Essence ore](source/models/block/essence_ore.bbmodel) | `textures/block/latent_ore/`; adaptive ore models and sprites |
+| [Infuser](source/models/block/infuser.bbmodel) | `meshes/essence_infuser.eamesh`; `textures/block/essence_infuser.png` |
+| [Nexus](source/models/block/nexus.bbmodel) | `meshes/ascendance_nexus.eamesh`; `textures/block/ascendance_nexus.png` |
+| [Pylon](source/models/block/pylon.bbmodel) | `meshes/essence_pylon.eamesh`; `textures/block/essence_pylon.png` |
+| [Focus](source/models/item/focus.bbmodel) | `meshes/focus.eamesh`; `textures/item/focus.png` |
+| [Essence ingot](source/models/item/essence_ingot.bbmodel) | `models/item/essence_ingot.json`; `textures/item/essence_ingot/` |
+| [Essence nugget](source/models/item/essence_nugget.bbmodel) | `models/item/essence_nugget.json`; `textures/item/essence_nugget/` |
+
+Blockbench projects retain all original embedded textures, including reference images. They were moved without changing their contents. Only armor and Focus currently have automated model importers; storing another model here does not automatically replace its runtime exports.
+
+## Editing and building
+
+Run commands from the repository root:
+
+```powershell
+# Rebuild armor meshes and all 24 slot/tier atlases from the current model and source PNGs.
+.\gradlew.bat :common:generateAscendanceArmor
+
+# Explicitly import all embedded armor textures after editing them in Blockbench, then rebake.
+# This replaces all 16 editable source PNGs. Normal builds never do this import.
+.\gradlew.bat :common:importAscendanceArmorTextures :common:generateAscendanceArmor
+
+# Re-export the Focus mesh and its runtime texture.
+python tools/export_focus_mesh.py
+
+# Build the production jars for both loaders.
+.\gradlew.bat :fabric:remapJar :neoforge:remapJar
+```
+
+For armor shading changes, edit `source/textures/armor/ascendance/` directly. Preserve each mask's coverage and image dimensions. The generator stitches the base and accent into a single tinted texture per armor slot and tier; it never fills holes or adds painted pixels. Geometry and UV changes belong in `source/models/armor/ascendance_armor.bbmodel`. See [the armor documentation](../docs/ascendance-armor.md) for more detail.
+
+The other base/accent textures already under the runtime resources are used by Minecraft's layered item rendering, particle textures, or ore sprite generation. They intentionally remain packaged. The block texture generator also produces required block models/textures under `common/build/generated-resources/essence-block-textures`; builds recreate those outputs from version-controlled inputs.
+
+Commit source artwork, exporter/generator changes, and changed runtime resources together. Keep the `art/` tree out of resource source sets. New authoring files should use lowercase names with underscores, with current work in `source`, viewable exports in `previews`, and superseded work in `history`. Build outputs and dependency caches do not belong here.
+
+## Migration record
+
+[The migration manifest](history/asset-migration-2026-09-25.json) records the original location, destination, size, and SHA-256 of every moved file. The 43 auxiliary art files and 18 duplicate project copies were verified before their old copies were removed. Identical files share one canonical destination. The workbook, unrelated validation material, and dependencies were outside this migration's scope.
+
+Historical repaint notes and scripts are retained byte-for-byte for provenance. Their old auxiliary paths and older mesh formats describe their original run; use the paths and commands above for current work. [The latest preview](previews/armor/armor-directional-preview.png) is a software rendering, not an in-game screenshot.

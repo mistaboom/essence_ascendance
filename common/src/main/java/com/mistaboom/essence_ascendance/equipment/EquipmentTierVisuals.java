@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.equipment;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
+import com.mistaboom.essence_ascendance.item.AscendanceArmorItem;
 import com.mistaboom.essence_ascendance.visual.AscendancePalette;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
@@ -9,8 +10,7 @@ import net.minecraft.world.item.ItemStack;
  * Client-facing visual mapping for one evolving Ascendance equipment stack.
  *
  * Gameplay tier data remains owned by {@link EquipmentTierData}.  This class
- * deliberately contains only lightweight placeholder presentation mapping so
- * final custom art can replace resources without changing progression logic.
+ * maps custom armor art without changing progression logic.
  */
 public final class EquipmentTierVisuals {
 
@@ -44,10 +44,8 @@ public final class EquipmentTierVisuals {
     }
 
     /**
-     * Vanilla armor texture used as a temporary worn-model placeholder.
-     * These baked textures have no separate body/fitting tint masks. The palette
-     * above is authoritative for replacement art; this resource lookup does not
-     * pretend that a single multiplication can recolor both materials correctly.
+     * Each armor slot has one baked atlas combining independently tinted
+     * base/accent masks at build time, including Latent's lighter grey base.
      *
      * The ItemStack remains the same Ascendance item; only the client texture
      * changes.  Enchantment foil/glint is intentionally left to vanilla.
@@ -56,26 +54,23 @@ public final class EquipmentTierVisuals {
             ItemStack stack,
             boolean innerLayer
     ) {
-        if (!EquipmentTierData.isAscendanceEquipment(stack)) {
+        if (stack == null || !(stack.getItem() instanceof AscendanceArmorItem armor)) {
             return null;
         }
 
-        String material = switch (EquipmentTierData.tier(stack)) {
-            case LATENT -> "leather";
-            case DORMANT -> "chainmail";
-            case AWAKENED -> "iron";
-            case RESONANT -> "gold";
-            case ASCENDANT -> "diamond";
-            case TRANSCENDENT -> "netherite";
+        String piece = switch (armor.ascendanceSlot()) {
+            case HEAD -> "helmet";
+            case CHEST -> "chestplate";
+            case LEGS -> "leggings";
+            case FEET -> "boots";
+            default -> null;
         };
+        if (piece == null) return null;
 
         return ResourceLocation.fromNamespaceAndPath(
-                "minecraft",
-                "textures/models/armor/"
-                        + material
-                        + "_layer_"
-                        + (innerLayer ? "2" : "1")
-                        + ".png"
+                EssenceAscendance.MOD_ID,
+                "textures/armor/ascendance/generated/" + piece + "_"
+                        + EquipmentTierData.tier(stack).serializedName() + ".png"
         );
     }
 }

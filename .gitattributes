@@ -1,0 +1,5 @@
+# Preserve authored models, archived evidence, and binary assets exactly in Git.
+*.bbmodel -text
+*.png binary
+*.eamesh binary
+art/history/** -text
