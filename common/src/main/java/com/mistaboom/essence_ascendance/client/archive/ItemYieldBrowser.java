@@ -98,6 +98,7 @@ public final class ItemYieldBrowser {
         FullscreenLayout.Bands bands = FullscreenLayout.bands(bounds, 24, 0, 6);
         UiBounds query = bands.header();
         search.bounds(query);
+        search.prepare(font);
         builder.region(new FullscreenComposition.Region("archive/yields/query", query,
                 (graphics, x, ignored, tick) -> search.render(graphics, font), search, true));
         int y = bands.body().y();
@@ -165,8 +166,18 @@ public final class ItemYieldBrowser {
 
     public static List<SearchMetadata> searchMetadata(ItemEssenceTooltipClientState.YieldSnapshot snapshot) {
         if (!snapshot.ready()) return List.of();
-        return project(snapshot).stream().map(row -> new SearchMetadata(row.itemId(), row.name(),
-                ArchiveNavigator.yieldTarget(row.itemId()), List.of(row.name()))).toList();
+        return project(snapshot).stream().map(row -> {
+            List<Component> terms = new ArrayList<>();
+            terms.add(row.name());
+            terms.add(com.mistaboom.essence_ascendance.archive.ArchiveMode.REFERENCE.label());
+            terms.add(g("archive.entry.reference.essences.item_yields.title"));
+            for (EssenceDefinition essence : EssenceRegistry.values())
+                if (row.yield(essence.id()) > 0) {
+                    terms.add(EssenceText.essence(essence));
+                    terms.add(EssenceText.essenceShort(essence));
+                }
+            return new SearchMetadata(row.itemId(), row.name(), ArchiveNavigator.yieldTarget(row.itemId()), List.copyOf(terms));
+        }).toList();
     }
 
     private void rebuild(ItemEssenceTooltipClientState.YieldSnapshot snapshot, CacheKey nextKey) {

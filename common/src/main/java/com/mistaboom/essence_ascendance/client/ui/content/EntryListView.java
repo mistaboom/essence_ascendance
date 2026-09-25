@@ -103,6 +103,18 @@ public final class EntryListView<T> implements FullscreenComposition.Input {
         return true;
     }
 
+    /** Full localized text remains accessible when a compact row has to elide it. */
+    public java.util.Optional<Component> overflowTextAt(Font font, double x, double y) {
+        if (!bounds.inset(1).contains(x, y)) return java.util.Optional.empty();
+        int local = (int) (y - bounds.y() - 1);
+        int index = scroll.offset() + local / ROW_HEIGHT;
+        if (index >= entries.size()) return java.util.Optional.empty();
+        Entry<T> entry = entries.get(index);
+        Component text = local % ROW_HEIGHT >= 17 ? entry.summary() : entry.label();
+        return font.width(text) > Math.max(0, bounds.width() - 12)
+                ? java.util.Optional.of(text) : java.util.Optional.empty();
+    }
+
     @Override public boolean scroll(double x, double y, double dx, double dy) {
         scroll.wheel(dy, 2);
         return true;

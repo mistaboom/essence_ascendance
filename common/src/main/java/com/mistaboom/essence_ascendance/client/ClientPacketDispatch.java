@@ -50,6 +50,9 @@ public final class ClientPacketDispatch {
     /** Stable cache boundary for connection-scoped presentation models. */
     public static long presentationEpoch() { return presentationEpoch; }
 
+    /** Rebuild derived localized/resource content without clearing navigation or connection state. */
+    public static void resourcesReloaded() { presentationEpoch++; }
+
     private ClientPacketDispatch() {
     }
 

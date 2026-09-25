@@ -44,10 +44,9 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
     private ResourceLocation articleEntry;
     private SemanticDocument articleDocument;
     private PresentationContext.Revision articleRevision;
-    private PresentationContext.Revision searchRevision;
     private String cachedSearchQuery;
     private ArchiveSearch.Index searchIndex;
-    private ItemEssenceTooltipClientState.YieldSnapshot searchYields;
+    private final ArchiveSearch.Cache searchCache = new ArchiveSearch.Cache();
     private List<ArchiveSearch.Result> cachedSearchResults = List.of();
 
     public AscendanceArchiveScreen() {
@@ -121,6 +120,8 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
 
     @Override protected void renderFullscreenTooltips(GuiGraphics graphics, int mouseX, int mouseY) {
         if (isYieldBrowser()) yieldBrowser.renderTooltips(graphics, mouseX, mouseY);
+        else if (navigation.mode() == ArchiveMode.SEARCH) searchResults.overflowTextAt(font, mouseX, mouseY)
+                .ifPresent(text -> graphics.renderTooltip(font, text, mouseX, mouseY));
         else if (navigation.mode() != ArchiveMode.SEARCH) article.renderTooltips(graphics, mouseX, mouseY);
     }
 
@@ -169,15 +170,15 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
         if (!searchField.query().equals(navigation.query())) searchField.query(navigation.query());
         UiBounds fieldBounds = bands.header();
         searchField.bounds(fieldBounds);
+        searchField.prepare(font);
         builder.region(new FullscreenComposition.Region("archive/search/field", fieldBounds,
                 (graphics, x, y, tick) -> searchField.render(graphics, font), searchField, true));
 
         PresentationContext.Revision revision = PresentationContext.capture().revision();
         var yields = ItemEssenceTooltipClientState.yieldSnapshot();
-        if (!Objects.equals(searchRevision, revision) || searchYields != yields || searchIndex == null) {
-            searchIndex = ArchiveSearch.index(catalog, yields);
-            searchYields = yields;
-            searchRevision = revision;
+        ArchiveSearch.Index nextIndex = searchCache.get(catalog, yields, revision);
+        if (searchIndex != nextIndex) {
+            searchIndex = nextIndex;
             cachedSearchQuery = null;
         }
         if (!Objects.equals(cachedSearchQuery, navigation.query())) {
@@ -196,7 +197,19 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
                     navigation.listScroll());
             listStateKey = nextListKey;
         }
-        UiBounds resultBounds = bands.body();
+        var status = ArchiveSearch.status(results.size(), yields.ready());
+        var statusLines = font.split(status, Math.max(1, bands.body().width()));
+        FullscreenLayout.Bands resultsBands = FullscreenLayout.bands(bands.body(),
+                statusLines.size() * (font.lineHeight + 1), 0, 4);
+        UiBounds statusBounds = resultsBands.header();
+        builder.region(new FullscreenComposition.Region("archive/search/status", statusBounds,
+                (graphics, x, y, tick) -> {
+                    for (int line = 0; line < statusLines.size(); line++)
+                        graphics.drawString(font, statusLines.get(line), statusBounds.x(),
+                                statusBounds.y() + line * (font.lineHeight + 1),
+                                AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT), false);
+                }, FullscreenComposition.Input.NONE, false));
+        UiBounds resultBounds = resultsBands.body();
         searchResults.prepare(resultBounds, results.stream().map(result -> new EntryListView.Entry<>(
                 result.target(), result.title(), result.summary(), result)).toList());
         builder.region(new FullscreenComposition.Region("archive/search/results", resultBounds,

@@ -90,6 +90,7 @@ public final class ArchiveCatalog {
         if (cached != null) return cached;
         List<Component> text = new ArrayList<>();
         text.add(entry.title()); text.add(entry.summary());
+        text.add(entry.mode().label()); text.add(section(entry.section()).label());
         subjects.stream().filter(subject -> subject.id().equals(entry.subject())).findFirst().ifPresent(subject -> {
             text.add(subject.name()); text.addAll(subject.keywords());
         });

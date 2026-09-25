@@ -113,6 +113,7 @@ def balanceInvariantMains = [
         fullscreenNavigationInvariants: 'com.mistaboom.essence_ascendance.client.ui.fullscreen.FullscreenNavigationTest',
         archiveFoundationInvariants: 'com.mistaboom.essence_ascendance.client.archive.ArchiveFoundationTest',
         archiveAuditInvariants: 'com.mistaboom.essence_ascendance.archive.ArchiveAuditTest',
+        archiveSearchInvariants: 'com.mistaboom.essence_ascendance.archive.ArchiveSearchTest',
         guidePresentationInvariants: 'com.mistaboom.essence_ascendance.archive.GuidePresentationTest',
         referencePresentationInvariants: 'com.mistaboom.essence_ascendance.archive.ReferencePresentationTest',
         balanceRankInvariants: 'com.mistaboom.essence_ascendance.skill.SkillRankCurveTest',
