@@ -223,6 +223,13 @@ public abstract class MachineContainerScreen<M extends AbstractContainerMenu>
     }
 
     @Override
+    protected boolean isHovering(int x, int y, int width, int height, double mouseX, double mouseY) {
+        // Vanilla derives hoveredSlot (including drop/hotbar/offhand keys) through this hook.
+        return pointerOwner(currentOverlays(), mouseX, mouseY) == null
+                && super.isHovering(x, y, width, height, mouseX, mouseY);
+    }
+
+    @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         updateMachineWidgets();
         List<MachineOverlay> overlays = currentOverlays();

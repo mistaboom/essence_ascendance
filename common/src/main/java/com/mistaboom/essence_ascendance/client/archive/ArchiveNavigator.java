@@ -49,13 +49,13 @@ public final class ArchiveNavigator {
 
     public ArchiveMode mode() { return navigation.mode(); }
     public ResourceLocation section() { return mode() == ArchiveMode.SEARCH ? null : page(mode()).section(); }
-    public ResourceLocation entryId() { return mode() == ArchiveMode.SEARCH ? search.selectedResult() : page(mode()).entry(); }
+    public ResourceLocation entryId() { return mode() == ArchiveMode.SEARCH ? null : page(mode()).entry(); }
     public ArchiveEntry entry() { return catalog.entry(entryId()); }
     public int sectionWindow() { return mode() == ArchiveMode.SEARCH ? 0 : navigation.sectionWindow(); }
     public int listScroll() { return mode() == ArchiveMode.SEARCH ? search.scroll() : page(mode()).listScroll(); }
     public int articleScroll() { return mode() == ArchiveMode.SEARCH ? 0 : page(mode()).articleScroll(); }
     public String query() { return search.query(); }
-    public ResourceLocation selectedResult() { return search.selectedResult(); }
+    public String selectedResult() { return search.selectedResult(); }
     public ArchiveNavigationState.YieldBrowser yieldBrowser() { return yieldBrowser; }
     public boolean canGoBack() { return !history.isEmpty(); }
     public boolean canGoForward() { return !future.isEmpty(); }
@@ -110,6 +110,7 @@ public final class ArchiveNavigator {
     }
 
     public void openTarget(String target) {
+        if (target == null) return;
         if (target != null && target.startsWith(YIELD_TARGET_PREFIX)) {
             ResourceLocation item = ResourceLocation.tryParse(target.substring(YIELD_TARGET_PREFIX.length()));
             if (item != null) openYieldItem(item);
@@ -142,9 +143,8 @@ public final class ArchiveNavigator {
     }
 
     public void setQuery(String query) { search = new ArchiveNavigationState.Search(query, search.selectedResult(), 0); reconcileSearch(); }
-    public void selectSearchResult(ResourceLocation entry) {
-        if (entry != null && catalog.entry(entry) == null) entry = null;
-        search = new ArchiveNavigationState.Search(search.query(), entry, search.scroll());
+    public void selectSearchResult(String target) {
+        search = new ArchiveNavigationState.Search(search.query(), validSearchTarget(target) ? target : null, search.scroll());
     }
 
     /** Updates the current browser location without creating per-keystroke history. */
@@ -152,27 +152,26 @@ public final class ArchiveNavigator {
         yieldBrowser = state == null ? ArchiveNavigationState.YieldBrowser.initial() : state;
     }
 
-    /** Canonical deep link used by future global row search results. */
+    /** Canonical deep link shared by the browser and global item search results. */
     public static String yieldTarget(ResourceLocation itemId) { return YIELD_TARGET_PREFIX + itemId; }
 
     public void openYieldItem(ResourceLocation itemId) {
         if (itemId == null || currentLocation() instanceof ArchiveLocation.YieldBrowser current
                 && itemId.equals(current.selectedRow())) return;
-        pushCurrent();
         ArchiveEntry destination = catalog.entry(ITEM_YIELDS);
         if (destination == null) return;
+        pushCurrent();
         navigation.selectMode(ArchiveMode.REFERENCE);
         navigation.selectSection(destination.section());
         pages.put(ArchiveMode.REFERENCE, new ArchiveNavigationState.Page(destination.section(), destination.id(),
                 navigation.sectionWindow(), 0, 0));
         yieldBrowser = new ArchiveNavigationState.YieldBrowser("", java.util.Set.of(),
                 ArchiveNavigationState.YieldMatch.ANY, yieldBrowser.sortColumn(), yieldBrowser.sortDirection(),
-                itemId, 0);
+                itemId, 0, true);
     }
 
     public void openSelectedSearchResult() {
-        ArchiveEntry selected = catalog.entry(search.selectedResult());
-        if (selected != null) openTarget(selected.id().toString());
+        openTarget(search.selectedResult());
     }
 
     public void back() {
@@ -266,8 +265,15 @@ public final class ArchiveNavigator {
     }
 
     private void reconcileSearch() {
-        if (search.selectedResult() != null && catalog.entry(search.selectedResult()) == null)
+        if (search.selectedResult() != null && !validSearchTarget(search.selectedResult()))
             search = new ArchiveNavigationState.Search(search.query(), null, search.scroll());
+    }
+
+    private boolean validSearchTarget(String target) {
+        if (target == null) return false;
+        if (target.startsWith(YIELD_TARGET_PREFIX))
+            return ResourceLocation.tryParse(target.substring(YIELD_TARGET_PREFIX.length())) != null;
+        return catalog.entry(ResourceLocation.tryParse(target)) != null;
     }
 
     private ArchiveNavigationState.Page page(ArchiveMode mode) { return pages.get(mode); }

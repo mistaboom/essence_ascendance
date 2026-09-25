@@ -69,6 +69,7 @@ public record PresentationMetric<S>(
 
         public String formatConverted(double converted) {
             if (!Double.isFinite(converted)) throw new IllegalArgumentException("Nonfinite display value");
+            if (converted == Math.rint(converted)) return BigDecimal.valueOf(converted).toBigIntegerExact().toString();
             return BigDecimal.valueOf(converted)
                     .round(new MathContext(significantFigures, RoundingMode.HALF_UP))
                     .stripTrailingZeros().toPlainString();

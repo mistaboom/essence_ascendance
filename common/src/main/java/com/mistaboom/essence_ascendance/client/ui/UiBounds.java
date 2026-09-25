@@ -32,6 +32,12 @@ public record UiBounds(int x, int y, int width, int height) {
                 && y < other.bottom() && bottom() > other.y;
     }
 
+    public UiBounds intersection(UiBounds other) {
+        int left = Math.max(x, other.x), top = Math.max(y, other.y);
+        return new UiBounds(left, top, Math.max(0, Math.min(right(), other.right()) - left),
+                Math.max(0, Math.min(bottom(), other.bottom()) - top));
+    }
+
     public UiBounds translate(int deltaX, int deltaY) {
         return new UiBounds(x + deltaX, y + deltaY, width, height);
     }

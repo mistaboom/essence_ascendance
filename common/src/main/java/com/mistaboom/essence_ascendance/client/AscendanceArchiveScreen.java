@@ -36,7 +36,7 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
     private final UiNavigationMemory.Session navigationSession;
     private final ArchiveNavigator navigation;
     private final EntryListView<ArchiveEntry> entries;
-    private final EntryListView<ArchiveEntry> searchResults;
+    private final EntryListView<ArchiveSearch.Result> searchResults;
     private final ContentViewport article;
     private final ArchiveSearchField searchField;
     private final ItemYieldBrowser yieldBrowser;
@@ -46,7 +46,9 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
     private PresentationContext.Revision articleRevision;
     private PresentationContext.Revision searchRevision;
     private String cachedSearchQuery;
-    private List<ArchiveEntry> cachedSearchResults = List.of();
+    private ArchiveSearch.Index searchIndex;
+    private ItemEssenceTooltipClientState.YieldSnapshot searchYields;
+    private List<ArchiveSearch.Result> cachedSearchResults = List.of();
 
     public AscendanceArchiveScreen() {
         super(EssenceText.guide("archive.title"));
@@ -148,14 +150,16 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
         }
 
         if (selected == null) return;
-        PresentationContext.Revision revision = PresentationContext.capture().revision();
+        PresentationContext context = PresentationContext.capture();
+        PresentationContext.Revision revision = context.revision();
         if (!selected.id().equals(articleEntry) || !Objects.equals(articleRevision, revision)) {
+            int offset = selected.id().equals(articleEntry) ? article.scrollOffset() : navigation.articleScroll();
             articleEntry = selected.id();
             articleDocument = selected.content().get();
             articleRevision = revision;
-            article.restore(navigation.articleScroll());
+            article.restore(offset);
         }
-        article.prepare(font, articleBounds, articleDocument);
+        article.prepare(font, articleBounds, articleDocument, context.runtime().ready() && context.player().ready());
         builder.region(new FullscreenComposition.Region("archive/article", articleBounds, article::render, article, true))
                 .primaryInput("archive/article");
     }
@@ -169,16 +173,22 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
                 (graphics, x, y, tick) -> searchField.render(graphics, font), searchField, true));
 
         PresentationContext.Revision revision = PresentationContext.capture().revision();
-        if (!Objects.equals(searchRevision, revision) || !Objects.equals(cachedSearchQuery, navigation.query())) {
-            cachedSearchResults = ArchiveSearch.results(catalog, navigation.query());
-            cachedSearchQuery = navigation.query();
+        var yields = ItemEssenceTooltipClientState.yieldSnapshot();
+        if (!Objects.equals(searchRevision, revision) || searchYields != yields || searchIndex == null) {
+            searchIndex = ArchiveSearch.index(catalog, yields);
+            searchYields = yields;
             searchRevision = revision;
+            cachedSearchQuery = null;
         }
-        List<ArchiveEntry> results = cachedSearchResults;
+        if (!Objects.equals(cachedSearchQuery, navigation.query())) {
+            cachedSearchResults = searchIndex.results(navigation.query());
+            cachedSearchQuery = navigation.query();
+        }
+        List<ArchiveSearch.Result> results = cachedSearchResults;
         if (results.isEmpty()) navigation.selectSearchResult(null);
         else if (navigation.selectedResult() == null
-                || results.stream().noneMatch(entry -> entry.id().equals(navigation.selectedResult()))) {
-            navigation.selectSearchResult(results.getFirst().id());
+                || results.stream().noneMatch(entry -> entry.target().equals(navigation.selectedResult()))) {
+            navigation.selectSearchResult(results.getFirst().target());
         }
         Object nextListKey = List.of(ArchiveMode.SEARCH, navigation.query());
         if (!Objects.equals(listStateKey, nextListKey)) {
@@ -187,7 +197,8 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
             listStateKey = nextListKey;
         }
         UiBounds resultBounds = bands.body();
-        searchResults.prepare(resultBounds, results.stream().map(this::listEntry).toList());
+        searchResults.prepare(resultBounds, results.stream().map(result -> new EntryListView.Entry<>(
+                result.target(), result.title(), result.summary(), result)).toList());
         builder.region(new FullscreenComposition.Region("archive/search/results", resultBounds,
                 (graphics, x, y, tick) -> searchResults.render(graphics, font, x, y), searchResults, true));
     }
@@ -206,11 +217,11 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
     private void chooseMode(ArchiveMode mode) { captureCurrentOffsets(); navigation.selectMode(mode); invalidateLocation(); }
     private void chooseSection(ResourceLocation section) { captureCurrentOffsets(); navigation.selectSection(section); invalidateLocation(); }
     private void chooseEntry(ArchiveEntry entry) { captureCurrentOffsets(); navigation.selectEntry(entry.id()); }
-    private void selectSearchResult(ArchiveEntry entry) { navigation.selectSearchResult(entry.id()); }
+    private void selectSearchResult(ArchiveSearch.Result entry) { navigation.selectSearchResult(entry.target()); }
     private void openTarget(String target) { captureCurrentOffsets(); navigation.openTarget(target); invalidateLocation(); }
-    private void openSearchResult(ArchiveEntry entry) {
+    private void openSearchResult(ArchiveSearch.Result entry) {
         captureCurrentOffsets();
-        navigation.selectSearchResult(entry.id());
+        navigation.selectSearchResult(entry.target());
         navigation.openSelectedSearchResult();
         invalidateLocation();
     }

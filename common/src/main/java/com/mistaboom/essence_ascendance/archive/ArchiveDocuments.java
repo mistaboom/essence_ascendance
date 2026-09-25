@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.archive;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.client.ui.content.SemanticDocument;
+import com.mistaboom.essence_ascendance.client.ui.StyledTextLayout;
 import com.mistaboom.essence_ascendance.client.ui.data.ReadOnlyDataTable;
 import com.mistaboom.essence_ascendance.client.presentation.BonusPresentationData;
 import com.mistaboom.essence_ascendance.client.presentation.PresentationContext;
@@ -26,16 +27,6 @@ import java.util.Map;
 final class ArchiveDocuments {
     private ArchiveDocuments() { }
 
-    static SemanticDocument reference(String key, String item) {
-        String entryKey = "archive.entry." + key;
-        return new SemanticDocument(g(entryKey + ".title"), List.of(
-                new SemanticDocument.Illustration(id(item), g(entryKey + ".caption"), 132, 76),
-                new SemanticDocument.Paragraph(g(entryKey + ".body")),
-                new SemanticDocument.StatRows(List.of(
-                        new SemanticDocument.StatRow(g("archive.reference.identity"), g(entryKey + ".identity")),
-                        new SemanticDocument.StatRow(g("archive.reference.role"), g(entryKey + ".role"))))));
-    }
-
     private record SkillRankRow(Integer rank, Long cost, Component effects) { }
     private record SkillGateRow(Integer rank, Component tier, Component prerequisites, Component requirements) { }
 
@@ -43,9 +34,7 @@ final class ArchiveDocuments {
         SkillPresentationData.Projection projection = SkillPresentationData.project(skill, context);
         Component title = SkillPresentationData.skillName(skill);
         List<SemanticDocument.Block> blocks = new ArrayList<>();
-        blocks.add(new SemanticDocument.Icon(id("ascendance_nexus"),
-                g("archive.reference.skill.icon", title)));
-        blocks.add(new SemanticDocument.Paragraph(Component.translatable(skill.descriptionTranslationKey())));
+        blocks.add(new SemanticDocument.Paragraph(ArchiveText.decorate(Component.translatable(skill.descriptionTranslationKey()))));
 
         List<SemanticDocument.StatRow> identity = new ArrayList<>();
         identity.add(new SemanticDocument.StatRow(g("archive.reference.category"), skillCategory(skill)));
@@ -64,7 +53,7 @@ final class ArchiveDocuments {
                     g("archive.reference.skill.rank_effects")));
             List<ReadOnlyDataTable.Row<SkillRankRow>> rows = projection.ranks().stream().map(rank ->
                     new ReadOnlyDataTable.Row<>("rank/" + rank.rank(), new SkillRankRow(rank.rank(), rank.cost(),
-                            join(rank.effects().stream().map(SkillPresentationData.EffectLine::prose).toList(), "  •  ")))).toList();
+                            join(rank.effects().stream().map(line -> ArchiveText.decorate(line.prose())).toList(), "  •  ")))).toList();
             blocks.add(new SemanticDocument.Table<>(new ReadOnlyDataTable<>(List.of(
                     column("rank", g("archive.table.rank"), ReadOnlyDataTable.RANK_COLUMN_WIDTH, 0,
                             ReadOnlyDataTable.Alignment.RIGHT, SkillRankRow::rank,
@@ -73,7 +62,7 @@ final class ArchiveDocuments {
                             SkillRankRow::cost, value -> essenceAmount(skill, value)),
                     column("effects", g("archive.table.effects"), 150, 1, ReadOnlyDataTable.Alignment.LEFT,
                             SkillRankRow::effects, value -> value)
-            ), rows)));
+            ), rows), SemanticDocument.TableLayoutPolicy.ARTICLE_FLOW));
 
             blocks.add(new SemanticDocument.Heading(SemanticDocument.HeadingLevel.SECTION,
                     g("archive.reference.skill.rank_gates")));
@@ -91,7 +80,7 @@ final class ArchiveDocuments {
                             ReadOnlyDataTable.Alignment.LEFT, SkillGateRow::prerequisites, value -> value),
                     column("requirements", g("archive.table.requirements"), 110, 1,
                             ReadOnlyDataTable.Alignment.LEFT, SkillGateRow::requirements, value -> value)
-            ), gates)));
+            ), gates), SemanticDocument.TableLayoutPolicy.ARTICLE_FLOW));
         }
         appendPlayerSkillContext(blocks, projection, context);
         return new SemanticDocument(title, blocks);
@@ -105,17 +94,18 @@ final class ArchiveDocuments {
                     Component.translatable(projection.choiceGroup().translationKey())));
         if (!projection.exclusions().isEmpty())
             relationships.add(new SemanticDocument.StatRow(g("archive.reference.excludes"),
-                    join(projection.exclusions().stream().map(SkillPresentationData::skillName).toList(), ", ")));
+                    join(projection.exclusions().stream().map(skill -> skillLink(skill.id())).toList(), ", ")));
         if (projection.replacementTarget() != null)
             relationships.add(new SemanticDocument.StatRow(g("archive.reference.replaces"),
-                    SkillPresentationData.skillName(projection.replacementTarget())));
+                    skillLink(projection.replacementTarget().id())));
         if (!projection.replacedBy().isEmpty())
             relationships.add(new SemanticDocument.StatRow(g("archive.reference.replaced_by"),
-                    join(projection.replacedBy().stream().map(SkillPresentationData::skillName).toList(), ", ")));
+                    join(projection.replacedBy().stream().map(skill -> skillLink(skill.id())).toList(), ", ")));
         if (!relationships.isEmpty()) {
             blocks.add(new SemanticDocument.Heading(SemanticDocument.HeadingLevel.SECTION,
                     g("archive.reference.relationships")));
-            blocks.add(new SemanticDocument.StatRows(relationships));
+            blocks.add(new SemanticDocument.Requirements(relationships.stream().map(row ->
+                    new SemanticDocument.Requirement(row.label(), row.value(), SemanticDocument.RequirementStatus.INFORMATION)).toList()));
             blocks.add(new SemanticDocument.Paragraph(g(projection.replacementTarget() == null
                     ? "archive.reference.choice.consequence" : "archive.reference.replacement.consequence")));
         }
@@ -128,6 +118,10 @@ final class ArchiveDocuments {
                 g("archive.reference.current_player")));
         if (!projection.playerReady()) {
             blocks.add(stateCallout(projection.playerAvailability(), "archive.reference.player"));
+            return;
+        }
+        if (!projection.runtimeReady()) {
+            blocks.add(stateCallout(projection.runtimeAvailability(), "archive.reference.runtime"));
             return;
         }
         blocks.add(new SemanticDocument.StatRows(List.of(
@@ -147,7 +141,7 @@ final class ArchiveDocuments {
                 SkillPresentationData.tierName(projection.ranks().get(projection.nextRank() - 1).requiredTier()),
                 eligibility.tierSatisfied() ? SemanticDocument.RequirementStatus.MET : SemanticDocument.RequirementStatus.UNMET));
         for (SkillPrerequisiteStatus status : eligibility.prerequisites())
-            statuses.add(new SemanticDocument.Requirement(SkillPresentationData.skillName(status.skillId()),
+            statuses.add(new SemanticDocument.Requirement(skillLink(status.skillId()),
                     g("archive.value.rank_requirement", status.requiredRank()), status.projectedOwned()
                     ? SemanticDocument.RequirementStatus.MET : SemanticDocument.RequirementStatus.UNMET));
         for (SkillRequirementStatus status : eligibility.requirements())
@@ -168,13 +162,11 @@ final class ArchiveDocuments {
         BonusPresentationData.Projection projection = BonusPresentationData.project(stat, context);
         Component title = BonusPresentationData.name(stat);
         List<SemanticDocument.Block> blocks = new ArrayList<>();
-        blocks.add(new SemanticDocument.Icon(id("ascendance_nexus"),
-                g("archive.reference.bonus.icon", title)));
         if (!projection.runtimeReady()) {
             blocks.add(stateCallout(projection.runtimeAvailability(), "archive.reference.runtime"));
             return new SemanticDocument(title, blocks);
         }
-        blocks.add(new SemanticDocument.Paragraph(BonusPresentationData.description(stat, projection.maximumEffect())));
+        blocks.add(new SemanticDocument.Paragraph(ArchiveText.decorate(BonusPresentationData.description(stat, projection.maximumEffect()))));
         blocks.add(new SemanticDocument.StatRows(List.of(
                 new SemanticDocument.StatRow(g("archive.reference.category"),
                         EssenceText.category(stat.category()).withStyle(style -> style.withColor(
@@ -208,7 +200,7 @@ final class ArchiveDocuments {
                         BonusCheckpointRow::cumulativeCap, value -> essenceAmount(stat, value)),
                 column("benefit", g("archive.table.benefit"), 72, 1, ReadOnlyDataTable.Alignment.LEFT,
                         BonusCheckpointRow::benefit, value -> value)
-        ), rows)));
+        ), rows), SemanticDocument.TableLayoutPolicy.ARTICLE_FLOW));
         blocks.add(new SemanticDocument.Heading(SemanticDocument.HeadingLevel.SECTION,
                 g("archive.reference.current_player")));
         if (!projection.playerReady()) {
@@ -235,7 +227,11 @@ final class ArchiveDocuments {
     private static Component prerequisites(Map<ResourceLocation, Integer> prerequisites) {
         if (prerequisites.isEmpty()) return g("archive.value.none");
         return join(prerequisites.entrySet().stream().map(entry ->
-                g("archive.value.named_rank", SkillPresentationData.skillName(entry.getKey()), entry.getValue())).toList(), ", ");
+                g("archive.value.named_rank", skillLink(entry.getKey()), entry.getValue())).toList(), ", ");
+    }
+
+    private static Component skillLink(ResourceLocation skill) {
+        return StyledTextLayout.link(SkillPresentationData.skillName(skill), id("reference/skills/" + skill.getPath()).toString());
     }
 
     private static Component requirements(SkillDefinition skill, int rank, List<SkillRequirement> requirements,
@@ -306,7 +302,7 @@ final class ArchiveDocuments {
                                 SemanticDocument.RequirementStatus.INFORMATION)))));
     }
 
-    private static Component g(String path, Object... args) { return EssenceText.guide(path, args); }
+    private static Component g(String path, Object... args) { return ArchiveText.guide(path, args); }
     private static ResourceLocation id(String path) {
         return ResourceLocation.fromNamespaceAndPath(EssenceAscendance.MOD_ID, path);
     }

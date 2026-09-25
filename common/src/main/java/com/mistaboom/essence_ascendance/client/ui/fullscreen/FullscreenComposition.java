@@ -35,6 +35,8 @@ public final class FullscreenComposition {
         default boolean release(double x, double y, int button) { return false; }
         default boolean scroll(double x, double y, double dx, double dy) { return false; }
         default boolean key(int key, int scan, int modifiers) { return false; }
+        /** Traverse a composite region's children before moving to the next host control. */
+        default boolean focusStep(int direction) { return false; }
         default boolean character(char character, int modifiers) { return false; }
         default void focused(boolean focused) { }
         /** Called when a page, overlay, resize or removed target invalidates capture. */
@@ -153,9 +155,11 @@ public final class FullscreenComposition {
     private boolean capturedOverlay;
     private int capturedButton = -1;
     private Input capturedInput;
+    private boolean keyboardNavigation;
 
     public Scene scene() { return scene; }
     public String focusedId() { return focus.focused().orElse(null); }
+    public boolean keyboardFocused(String id) { return keyboardNavigation && focus.isFocused(id); }
 
     public void update(Scene next) {
         String previousFocus = focusedId();
@@ -192,6 +196,7 @@ public final class FullscreenComposition {
         Input current = input(focusedId());
         if (current != null) current.focused(false);
         focus.clear(); scene = null; focusScope = null; savedFocus.clear();
+        keyboardNavigation = false;
         overlays = new UiOverlayStack(List.of());
     }
 
@@ -225,6 +230,7 @@ public final class FullscreenComposition {
     public boolean allowsTooltip(double x, double y) { return overlays.allowsTooltip(x, y); }
 
     public boolean mouseClicked(double x, double y, int button) {
+        keyboardNavigation = false;
         cancelCapture();
         Scene clickedScene = scene;
         String clickedScope = focusScope;
@@ -253,6 +259,7 @@ public final class FullscreenComposition {
     }
 
     public boolean mouseDragged(double x, double y, int button, double dx, double dy) {
+        keyboardNavigation = false;
         if (capturedInput != null && capturedButton == button) {
             capturedInput.drag(x, y, button, dx, dy); return true;
         }
@@ -268,6 +275,7 @@ public final class FullscreenComposition {
     }
 
     public boolean mouseScrolled(double x, double y, double dx, double dy) {
+        keyboardNavigation = false;
         var owner = overlays.pointerOwner(x, y);
         if (owner.isPresent()) { overlay(owner.get().id()).input().scroll(x, y, dx, dy); return true; }
         for (int index = scene.regions().size() - 1; index >= 0; index--) {
@@ -278,7 +286,14 @@ public final class FullscreenComposition {
     }
 
     public boolean keyPressed(int key, int scan, int modifiers) {
-        if (key == 258) { moveFocus((modifiers & 1) != 0 ? -1 : 1); return true; }
+        if (key == 258 || key == 257 || key == 335 || key == 32 || key >= 262 && key <= 269)
+            keyboardNavigation = true;
+        if (key == 258) {
+            int direction = (modifiers & 1) != 0 ? -1 : 1;
+            Input current = input(focusedId());
+            if (current == null || !current.focusStep(direction)) moveFocus(direction);
+            return true;
+        }
         Control control = activeControls().stream().filter(c -> c.id().equals(focusedId())).findFirst().orElse(null);
         if (control != null && (key == 257 || key == 335 || key == 32)) {
             if (control.enabled()) control.action().run();
@@ -299,7 +314,7 @@ public final class FullscreenComposition {
 
     private void renderControl(GuiGraphics graphics, Font font, Control control, int x, int y) {
         FullscreenControls.button(graphics, font, control.bounds(), control.label(), control.enabled(), control.selected(),
-                control.bounds().contains(x, y), activeControls().contains(control) && focus.isFocused(control.id()),
+                control.bounds().contains(x, y), activeControls().contains(control) && keyboardFocused(control.id()),
                 control.style(), control.accent());
     }
     private boolean clickControls(List<Control> controls, double x, double y, int button) {

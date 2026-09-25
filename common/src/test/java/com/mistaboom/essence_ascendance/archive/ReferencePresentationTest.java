@@ -552,6 +552,15 @@ public final class ReferencePresentationTest {
                 "Current Bonus state is not sourced from the synchronized snapshot");
         check(SkillBalanceRuntime.snapshot() == installed && snapshot.ownedSkills().get(skill.id()) == receipt,
                 "A read-only projection mutated or replaced gameplay/player state");
+        PresentationContext mixed = new PresentationContext(
+                new PresentationContext.Runtime(PresentationContext.Availability.LOADING, null),
+                PresentationContext.Player.ready(snapshot), new PresentationContext.Revision(0, 19, true, 4, 7));
+        String waiting = flattenAll(ArchiveDocuments.skillReference(skill, mixed));
+        check(!waiting.contains("1/0") && ArchiveDocuments.skillReference(skill, mixed).blocks().stream()
+                        .noneMatch(block -> block instanceof SemanticDocument.StatRows rows && rows.rows().stream()
+                                .anyMatch(row -> row.label().getContents() instanceof TranslatableContents translated
+                                        && translated.getKey().endsWith("next_rank"))),
+                "Ready player plus loading profile invents zero maximum rank or maximum-rank completion");
     }
 
     private static void readinessAndProfileChanges(RuntimeBalanceDefinition runtime) {

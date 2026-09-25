@@ -63,6 +63,7 @@ public final class ItemYieldBrowser {
     private ReadOnlyDataTableView<BrowserRow> table;
     private List<BrowserRow> visibleRows = List.of();
     private UiBounds tableBounds = new UiBounds(0, 0, 0, 0);
+    private final TableInput tableInput = new TableInput();
 
     public ItemYieldBrowser(ArchiveNavigationState.YieldBrowser initial,
                             Consumer<ArchiveNavigationState.YieldBrowser> changed) {
@@ -144,10 +145,16 @@ public final class ItemYieldBrowser {
         y += CONTROL_HEIGHT + GAP;
 
         tableBounds = new UiBounds(bounds.x(), y, bounds.width(), Math.max(0, bounds.bottom() - y));
-        if (table != null) table.prepare(font, tableBounds);
+        if (table != null) {
+            table.prepare(font, tableBounds);
+            if (state.revealSelection() && snapshot.ready()) {
+                table.revealSelection();
+            }
+            if (snapshot.ready()) publishTableState();
+        }
         builder.region(new FullscreenComposition.Region("archive/yields/table", tableBounds,
                 (graphics, x, mouseY, tick) -> { if (table != null) table.render(graphics, font, x, mouseY); },
-                new TableInput(), true)).primaryInput("archive/yields/table");
+                tableInput, true)).primaryInput("archive/yields/table");
     }
 
     public void renderTooltips(GuiGraphics graphics, int mouseX, int mouseY) {
@@ -279,6 +286,7 @@ public final class ItemYieldBrowser {
     }
 
     private final class TableInput implements FullscreenComposition.Input {
+        @Override public void focused(boolean focused) { if (!focused && table != null) table.blur(); }
         @Override public boolean click(double x, double y, int button) {
             if (table == null) return false;
             boolean result = table.click(x, y, button); publishTableState(); return result;

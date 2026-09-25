@@ -24,7 +24,7 @@ public final class ArchiveNavigationState {
         }
     }
 
-    public record Search(String query, ResourceLocation selectedResult, int scroll) {
+    public record Search(String query, String selectedResult, int scroll) {
         public Search { query = query == null ? "" : query; scroll = Math.max(0, scroll); }
         public static Search initial() { return new Search("", null, 0); }
     }
@@ -35,7 +35,11 @@ public final class ArchiveNavigationState {
     /** Mutable browser controls represented as one immutable current-location value. */
     public record YieldBrowser(String query, Set<ResourceLocation> selectedEssences, YieldMatch match,
                                String sortColumn, YieldSortDirection sortDirection,
-                               ResourceLocation selectedRow, int scroll) {
+                               ResourceLocation selectedRow, int scroll, boolean revealSelection) {
+        public YieldBrowser(String query, Set<ResourceLocation> selectedEssences, YieldMatch match,
+                            String sortColumn, YieldSortDirection sortDirection, ResourceLocation selectedRow, int scroll) {
+            this(query, selectedEssences, match, sortColumn, sortDirection, selectedRow, scroll, false);
+        }
         public YieldBrowser {
             query = query == null ? "" : query;
             selectedEssences = Set.copyOf(selectedEssences == null ? Set.of() : selectedEssences);

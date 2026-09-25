@@ -208,7 +208,7 @@ public final class ArchiveCatalog {
                 title, summary, navigationSummary, provider);
     }
 
-    private static Component g(String path, Object... args) { return EssenceText.guide(path, args); }
+    private static Component g(String path, Object... args) { return ArchiveText.guide(path, args); }
     private static ResourceLocation id(String path) {
         return ResourceLocation.fromNamespaceAndPath(EssenceAscendance.MOD_ID, path);
     }

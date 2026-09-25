@@ -53,7 +53,7 @@ final class ReferenceDocuments {
                         g("archive.value.unit." + stat.unit().name().toLowerCase(Locale.ROOT)))).toList();
         blocks.add(heading("archive.reference.essence.bonuses"));
         blocks.add(table(List.of(textColumn("name", g("archive.table.bonus"), 125, 1, Cells::first),
-                textColumn("unit", g("archive.reference.unit"), 116, 0, Cells::second)), bonusRows));
+                textColumn("unit", g("archive.reference.unit"), 116, 0, Cells::second).keepValuesTogether()), bonusRows));
         List<ReadOnlyDataTable.Row<Cells>> skillRows = value.skills().stream().map(skill ->
                 linkedRow(skill.id().toString(), "reference/skills/" + skill.id().getPath(),
                         SkillPresentationData.skillName(skill),
@@ -390,7 +390,7 @@ final class ReferenceDocuments {
                 blocks.add(table(List.of(textColumn("category", g("archive.reference.category"), 72, 0, Cells::first),
                         textColumn("activity", g("archive.table.activity"), 112, 1, Cells::second),
                         textColumn("rate", g("archive.table.seal_rate"), 72, 0, Cells::third),
-                        textColumn("unit", g("archive.reference.unit"), 92, 0, Cells::fourth)), activities));
+                        textColumn("unit", g("archive.reference.unit"), 92, 0, Cells::fourth).keepValuesTogether()), activities));
             }
             blocks.add(heading("archive.reference.mechanics.attunement.activities"));
             if (!data.attunementChapters().isEmpty())
@@ -525,7 +525,8 @@ final class ReferenceDocuments {
         ResourceLocation parsed = value.contains(":") ? ResourceLocation.tryParse(value)
                 : ResourceLocation.fromNamespaceAndPath(EssenceAscendance.MOD_ID, value);
         return parsed == null ? Component.literal(value) : EssenceRegistry.get(parsed)
-                .<Component>map(EssenceText::essenceShort).orElse(Component.literal(value));
+                .<Component>map(essence -> EssenceText.essenceShort(essence).withColor(AscendancePalette.categoryRgb(essence)))
+                .orElse(Component.literal(value));
     }
     private static Component tierName(String value) {
         ResourceLocation parsed = ResourceLocation.tryParse(value);
@@ -571,6 +572,6 @@ final class ReferenceDocuments {
     private static ReadOnlyDataTable.Row<Cells> linkedRow(String key, String target, Component... values) {
         return new ReadOnlyDataTable.Row<>(key, row(key, values).value(), id(target).toString());
     }
-    private static Component g(String path, Object... args) { return EssenceText.guide(path, args); }
+    private static Component g(String path, Object... args) { return ArchiveText.guide(path, args); }
     private static ResourceLocation id(String path) { return ResourceLocation.fromNamespaceAndPath(EssenceAscendance.MOD_ID, path); }
 }

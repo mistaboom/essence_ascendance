@@ -205,8 +205,8 @@ final class GuideDocuments {
                             g("archive.guide.infusion.soulbound").copy().withColor(AscendanceUiPalette.SOULBOUND))),
                     info("archive.guide.infusion.enchantments", g("archive.guide.infusion.enchantments.detail")),
                     info("archive.guide.infusion.reinforcement", g("archive.guide.infusion.reinforcement.detail",
-                            SkillPresentationData.skillName(SkillIds.MASTERWORK_TEMPERING))),
-                    new SemanticDocument.Requirement(BonusPresentationData.name(EssenceStats.DURABILITY_EFFICIENCY),
+                            ArchiveText.term("skill:masterwork_tempering"))),
+                    new SemanticDocument.Requirement(ArchiveText.term("bonus:durability_efficiency"),
                             g("archive.guide.infusion.durability_efficiency.detail"),
                             SemanticDocument.RequirementStatus.INFORMATION))));
         }
@@ -221,9 +221,9 @@ final class GuideDocuments {
                 link("reference/equipment/lifecycle", "archive.entry.reference.equipment.lifecycle.title",
                         SemanticDocument.LinkRelation.RELATED),
                 new SemanticDocument.Link(id("reference/bonuses/" + EssenceStats.DURABILITY_EFFICIENCY.id().getPath()).toString(),
-                        BonusPresentationData.name(EssenceStats.DURABILITY_EFFICIENCY), SemanticDocument.LinkRelation.RELATED),
+                        ArchiveText.term("bonus:durability_efficiency"), SemanticDocument.LinkRelation.RELATED),
                 new SemanticDocument.Link(id("reference/skills/" + SkillIds.MASTERWORK_TEMPERING.getPath()).toString(),
-                        SkillPresentationData.skillName(SkillIds.MASTERWORK_TEMPERING), SemanticDocument.LinkRelation.RELATED));
+                        ArchiveText.term("skill:masterwork_tempering"), SemanticDocument.LinkRelation.RELATED));
         return document("archive.entry.guide.infusion.first_focus.title", blocks);
     }
 
@@ -452,7 +452,7 @@ final class GuideDocuments {
     private static Component itemName(String path) {
         return Component.translatable("item." + EssenceAscendance.MOD_ID + "." + path);
     }
-    private static Component g(String key, Object... args) { return EssenceText.guide(key, args); }
+    private static Component g(String key, Object... args) { return ArchiveText.guide(key, args); }
     private static ResourceLocation id(String path) {
         return ResourceLocation.fromNamespaceAndPath(EssenceAscendance.MOD_ID, path);
     }

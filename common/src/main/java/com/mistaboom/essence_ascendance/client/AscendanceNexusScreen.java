@@ -262,6 +262,11 @@ public final class AscendanceNexusScreen
             declareActions(builder, categories);
         }
         if (attunementVisible) attunementView.controls(attunementBounds(), font.lineHeight).forEach(builder::control);
+        Component archiveLabel = EssenceText.gui("nexus.archive");
+        UiBounds archiveBounds = departureFooter().detail();
+        builder.control(new FullscreenComposition.Control("nexus/archive", archiveBounds, archiveLabel,
+                ready && pendingRequestId < 0L && canPromptForExit(), false,
+                FullscreenControls.Style.ACTION, AscendanceUiPalette.INFORMATION, this::requestArchive));
         // These overlays express presentation ownership only. Nexus owns their exit/request semantics.
         if (!ready || pendingRequestId >= 0L) {
             builder.overlay(new FullscreenComposition.Overlay(new UiOverlayStack.Layer("nexus/wait", frame.screen(),
@@ -343,13 +348,18 @@ public final class AscendanceNexusScreen
                 Math.max(0, modal.width() - 16), BOTTOM_CONTROL_HEIGHT), List.of(buttonWidth, buttonWidth, buttonWidth), 5);
         boolean idle = pendingRequestId < 0L;
         List<FullscreenComposition.Control> controls = List.of(
-                modalControl("apply", row.get(0), "nexus.modal.apply_exit", idle && !draft.invalidated(),
-                        () -> submitDraft(false, PendingCompletion.EXIT)),
-                modalControl("discard", row.get(1), "nexus.modal.discard_exit", idle, () -> {
+                modalControl("apply", row.get(0), pendingDecision == PendingDecision.ARCHIVE
+                                ? "nexus.modal.apply_archive" : "nexus.modal.apply_exit", idle && !draft.invalidated(),
+                        this::applyDeparture),
+                modalControl("discard", row.get(1), pendingDecision == PendingDecision.ARCHIVE
+                                ? "nexus.modal.discard_archive" : "nexus.modal.discard_exit", idle, () -> {
+                    boolean archive = pendingDecision == PendingDecision.ARCHIVE;
                     draft.clearAndCapture(ClientEssenceState.snapshot()); transactionFeedback = null;
                     pendingDecision = PendingDecision.NONE; super.onClose();
+                    if (archive) AscendanceArchiveScreen.open();
                 }),
-                modalControl("back", row.get(2), "nexus.modal.go_back", idle, () -> {
+                modalControl("back", row.get(2), pendingDecision == PendingDecision.ARCHIVE
+                        ? "nexus.modal.cancel" : "nexus.modal.go_back", idle, () -> {
                     pendingDecision = PendingDecision.NONE; pendingCompletion = PendingCompletion.NONE; transactionFeedback = null;
                 }));
         return new FullscreenComposition.Overlay(new UiOverlayStack.Layer("nexus/exit", modal, 500,
@@ -542,7 +552,7 @@ public final class AscendanceNexusScreen
                         (int) ((layout.width() - 20) / scale)
                 );
         String rendered =
-                trimToWidth(
+                StyledTextLayout.fitPlain(font,
                         transition.toUpperCase(Locale.ROOT),
                         maximumWidth
                 );
@@ -740,7 +750,7 @@ public final class AscendanceNexusScreen
         int maximumWidth = Math.max(20, layout.right() - layout.tracksLeft() - 8);
         graphics.drawCenteredString(
                 font,
-                trimToWidth(
+                StyledTextLayout.fitPlain(font,
                         EssenceText.gui("nexus.skills.legend.one").getString(),
                         maximumWidth
                 ),
@@ -750,7 +760,7 @@ public final class AscendanceNexusScreen
         );
         graphics.drawCenteredString(
                 font,
-                trimToWidth(
+                StyledTextLayout.fitPlain(font,
                         EssenceText.gui("nexus.skills.legend.two").getString(),
                         maximumWidth
                 ),
@@ -2407,7 +2417,7 @@ public final class AscendanceNexusScreen
                     + NexusSkillTreeLayout.NODE_WIDTH / 2;
             graphics.drawCenteredString(
                     font,
-                    trimToWidth(
+                    StyledTextLayout.fitPlain(font,
                             EssenceText.ascendanceTier(tier).getString(),
                             NexusSkillTreeLayout.NODE_WIDTH
                     ),
@@ -2444,7 +2454,7 @@ public final class AscendanceNexusScreen
         );
 
         String name = Component.translatable(definition.nameTranslationKey()).getString();
-        String[] lines = wrapTwoLines(
+        String[] lines = StyledTextLayout.wrapTwoPlainLines(font,
                 name,
                 Math.max(1, bounds.width() - 18)
         );
@@ -2549,7 +2559,7 @@ public final class AscendanceNexusScreen
             ).getString();
             graphics.drawString(
                     font,
-                    trimToWidth(progress, Math.max(1, viewport.width() - 8)),
+                    StyledTextLayout.fitPlain(font, progress, Math.max(1, viewport.width() - 8)),
                     viewport.x() + 4,
                     viewport.bottom() - font.lineHeight - 2,
                     DIM,
@@ -2606,8 +2616,8 @@ public final class AscendanceNexusScreen
 
         graphics.drawCenteredString(
                 font,
-                trimToWidth(text, Math.max(80, layout.width() - 20)),
-                (layout.left() + layout.right()) / 2,
+                StyledTextLayout.fitPlain(font, text, Math.max(0, departureFooter().list().width() - 8)),
+                departureFooter().list().x() + departureFooter().list().width() / 2,
                 height - 12,
                 color
         );
@@ -2808,7 +2818,7 @@ public final class AscendanceNexusScreen
         int availableWidth =
                 Math.max(40, layout.width() - 20);
         String rendered =
-                trimToWidth(
+                StyledTextLayout.fitPlain(font,
                         value,
                         Math.max(
                                 1,
@@ -2859,7 +2869,7 @@ public final class AscendanceNexusScreen
                         layout.tracksLeft() - layout.left() - 6
                 );
         String availableLabel =
-                trimToWidth(
+                StyledTextLayout.fitPlain(font,
                         EssenceText.gui("nexus.available").getString(),
                         availableLabelWidth
                 );
@@ -3109,7 +3119,7 @@ public final class AscendanceNexusScreen
         int capColor = AscendancePalette.tierMetalArgb(geometry.capUnlockTier(ClientEssenceState.snapshot().tierId()));
 
         String[] nameLines =
-                wrapTwoLines(
+                StyledTextLayout.wrapTwoPlainLines(font,
                         EssenceText.stat(track.stat()).getString(),
                         trackWidth - 6
                 );
@@ -3134,7 +3144,7 @@ public final class AscendanceNexusScreen
         String cap = formatLongForWidth(track.state().currentInvestmentCap(), Math.max(1, trackWidth - 4));
         graphics.drawCenteredString(
                 font,
-                trimToWidth(cap, trackWidth - 2),
+                StyledTextLayout.fitPlain(font, cap, trackWidth - 2),
                 centerX,
                 layout.trackTop() - 11,
                 capColor
@@ -3255,7 +3265,7 @@ public final class AscendanceNexusScreen
         graphics.pose().pushPose();
         graphics.pose().translate(centerX, bottom + 9, 0);
         graphics.pose().scale(bonusScale, bonusScale, 1);
-        graphics.drawCenteredString(font, trimToWidth(bonus, (int) ((trackWidth - 2) / bonusScale)),
+        graphics.drawCenteredString(font, StyledTextLayout.fitPlain(font, bonus, (int) ((trackWidth - 2) / bonusScale)),
                 0, 0, available ? TEXT : DIM);
         graphics.pose().popPose();
     }
@@ -3431,11 +3441,11 @@ public final class AscendanceNexusScreen
 
         graphics.drawCenteredString(
                 font,
-                trimToWidth(
+                StyledTextLayout.fitPlain(font,
                         instruction,
-                        Math.max(80, layout.width() - 20)
+                        Math.max(0, departureFooter().list().width() - 8)
                 ),
-                (layout.left() + layout.right()) / 2,
+                departureFooter().list().x() + departureFooter().list().width() / 2,
                 height - 12,
                 color
         );
@@ -3462,6 +3472,38 @@ public final class AscendanceNexusScreen
         }
 
         super.onClose();
+    }
+
+    private void requestArchive() {
+        if (!canPromptForExit() || pendingRequestId >= 0L) return;
+        cancelContentInteraction();
+        if (hasStagedChanges()) {
+            pendingDecision = PendingDecision.ARCHIVE;
+            pendingCompletion = PendingCompletion.NONE;
+            transactionFeedback = null;
+        } else {
+            super.onClose();
+            AscendanceArchiveScreen.open();
+        }
+    }
+
+    private void applyDeparture() {
+        if (pendingRequestId >= 0L || draft.invalidated()) return;
+        if (hasStagedChanges()) {
+            submitDraft(false, pendingDecision == PendingDecision.ARCHIVE ? PendingCompletion.ARCHIVE : PendingCompletion.EXIT);
+        } else {
+            boolean archive = pendingDecision == PendingDecision.ARCHIVE;
+            pendingDecision = PendingDecision.NONE;
+            super.onClose();
+            if (archive) AscendanceArchiveScreen.open();
+        }
+    }
+
+    private FullscreenLayout.Split departureFooter() {
+        UiBounds screen = fullscreenFrame().screen();
+        UiBounds band = FullscreenLayout.bands(screen, 0, 16, 0).footer();
+        int actionWidth = Math.min(band.width(), font.width(EssenceText.gui("nexus.archive")) + 16);
+        return FullscreenLayout.listDetail(band, Math.max(0, band.width() - actionWidth - 6), 6);
     }
 
     private boolean hudControlVisible(SkillDefinition skill) {
@@ -3959,6 +4001,9 @@ public final class AscendanceNexusScreen
             AscensionAnimation.confirmed(snapshot.tierId());
         } else if (completion == PendingCompletion.EXIT) {
             super.onClose();
+        } else if (completion == PendingCompletion.ARCHIVE) {
+            super.onClose();
+            AscendanceArchiveScreen.open();
         }
     }
 
@@ -4145,11 +4190,6 @@ public final class AscendanceNexusScreen
         return NexusPageLayout.compose(fullscreenFrame().content(), height);
     }
 
-    private int visibleTrackCount(NexusPageLayout layout) {
-        return com.mistaboom.essence_ascendance.client.nexus.NexusBonusTrackLayout.visibleCount(
-                layout.tracksRight() - layout.tracksLeft(), Integer.MAX_VALUE, TRACK_PREFERRED_WIDTH, TRACK_GAP);
-    }
-
     private int effectiveVisibleTrackCount(int trackCount, NexusPageLayout layout) {
         return com.mistaboom.essence_ascendance.client.nexus.NexusBonusTrackLayout.visibleCount(
                 layout.tracksRight() - layout.tracksLeft(), trackCount, TRACK_PREFERRED_WIDTH, TRACK_GAP);
@@ -4204,56 +4244,8 @@ public final class AscendanceNexusScreen
                 .orElse(tierId.getPath());
     }
 
-    private String formatBonus(
-            StatUnit unit,
-            double value
-    ) {
-        String number =
-                formatDecimal(value);
-
-        return switch (unit) {
-            case PERCENT -> EssenceText.gui("nexus.bonus.percent", number).getString();
-            case HEARTS -> EssenceText.gui("nexus.bonus.hearts", number).getString();
-            case HEARTS_PER_SECOND -> EssenceText.gui("nexus.bonus.hearts_per_second", number).getString();
-            case BLOCKS -> EssenceText.gui("nexus.bonus.blocks", number).getString();
-            case SECONDS -> EssenceText.gui("nexus.bonus.seconds", number).getString();
-            case LEVELS -> EssenceText.gui("nexus.bonus.levels", number).getString();
-            case FLAT -> EssenceText.gui("nexus.bonus.flat", number).getString();
-        };
-    }
-
     private String compactBonus(StatUnit unit, double value) {
         return NexusProgressionTrack.effectLabel(unit, value);
-    }
-
-    private String formatDecimal(
-            double value
-    ) {
-        double rounded =
-                Math.rint(value * 100.0) / 100.0;
-
-        if (Math.abs(rounded - Math.rint(rounded)) < 0.000001) {
-            return String.format(
-                    Locale.ROOT,
-                    "%.0f",
-                    rounded
-            );
-        }
-
-        if (Math.abs(rounded * 10.0 - Math.rint(rounded * 10.0))
-                < 0.000001) {
-            return String.format(
-                    Locale.ROOT,
-                    "%.1f",
-                    rounded
-            );
-        }
-
-        return String.format(
-                Locale.ROOT,
-                "%.2f",
-                rounded
-        );
     }
 
     private String formatLongForWidth(
@@ -4282,7 +4274,7 @@ public final class AscendanceNexusScreen
             }
         }
 
-        return trimToWidth(
+        return StyledTextLayout.fitPlain(font,
                 formatCompactLong(value, 0),
                 maximumWidth
         );
@@ -4354,108 +4346,6 @@ public final class AscendanceNexusScreen
                 "%,d",
                 value
         );
-    }
-
-    private String trimToWidth(
-            String text,
-            int maximumWidth
-    ) {
-        if (maximumWidth <= 0) {
-            return "";
-        }
-
-        if (font.width(text) <= maximumWidth) {
-            return text;
-        }
-
-        String ellipsis = "…";
-        int allowed =
-                Math.max(1, maximumWidth - font.width(ellipsis));
-
-        return font.plainSubstrByWidth(
-                text,
-                allowed
-        ) + ellipsis;
-    }
-
-    private String[] wrapTwoLines(
-            String text,
-            int maximumWidth
-    ) {
-        String normalized =
-                text == null ? "" : text.trim();
-
-        if (maximumWidth <= 0
-                || normalized.isEmpty()) {
-            return new String[]{"", ""};
-        }
-
-        if (font.width(normalized) <= maximumWidth) {
-            return new String[]{normalized, ""};
-        }
-
-        /*
-         * Wrap first, then ellipsize only the final visible line. The old helper
-         * required BOTH candidate lines to fit completely; if the second line
-         * was a little too long it abandoned wrapping entirely and produced a
-         * single "Melee Atta…" line.
-         *
-         * Instead, use the furthest word boundary that still fits on line one,
-         * then let trimToWidth() preserve as much as possible on line two.
-         */
-        int split = -1;
-        for (int i = 0; i < normalized.length(); i++) {
-            if (normalized.charAt(i) != ' ') {
-                continue;
-            }
-
-            String firstCandidate =
-                    normalized.substring(0, i).trim();
-            if (!firstCandidate.isEmpty()
-                    && font.width(firstCandidate) <= maximumWidth) {
-                split = i;
-            } else if (!firstCandidate.isEmpty()) {
-                break;
-            }
-        }
-
-        if (split >= 0) {
-            String first =
-                    normalized.substring(0, split).trim();
-            String second =
-                    normalized.substring(split + 1).trim();
-
-            return new String[]{
-                    first,
-                    trimToWidth(second, maximumWidth)
-            };
-        }
-
-        /*
-         * A single word can itself exceed the column. Split by rendered width so
-         * the second line is still available instead of discarding it.
-         */
-        String first =
-                font.plainSubstrByWidth(
-                        normalized,
-                        maximumWidth
-                );
-        if (first.isEmpty()) {
-            return new String[]{
-                    trimToWidth(normalized, maximumWidth),
-                    ""
-            };
-        }
-
-        String second =
-                normalized.substring(
-                        Math.min(first.length(), normalized.length())
-                ).stripLeading();
-
-        return new String[]{
-                first,
-                trimToWidth(second, maximumWidth)
-        };
     }
 
     private void renderSkillTooltip(
@@ -4608,29 +4498,6 @@ public final class AscendanceNexusScreen
         graphics.renderTooltip(font, visible, mouseX, mouseY);
     }
 
-    private Component skillBooleanStatus(boolean value) {
-        return EssenceText.gui(
-                value
-                        ? "nexus.skills.tooltip.value.yes"
-                        : "nexus.skills.tooltip.value.no"
-        ).withStyle(value ? ChatFormatting.GREEN : ChatFormatting.DARK_GRAY);
-    }
-
-    private Component projectedSkillBooleanStatus(boolean current, boolean projected, boolean positiveMeaning) {
-        return skillBooleanStatus(projected).copy().withStyle(current != projected ? ChatFormatting.AQUA
-                : projected == positiveMeaning ? ChatFormatting.GREEN : ChatFormatting.RED);
-    }
-
-    private Component skillSelectionStatus(
-            SkillDefinition skill,
-            boolean selected
-    ) {
-        if (skill.activationPolicy() == SkillActivationPolicy.AUTOMATIC) {
-            return EssenceText.gui("nexus.skills.tooltip.value.not_applicable").withStyle(ChatFormatting.DARK_GRAY);
-        }
-        return skillBooleanStatus(selected);
-    }
-
     private Component skillClickHint(
             SkillDefinition skill,
             SkillEvaluationResult evaluation,
@@ -4726,12 +4593,6 @@ public final class AscendanceNexusScreen
         return com.mistaboom.essence_ascendance.client.presentation.SkillPresentationData.skillName(skillId);
     }
 
-    private Component tierNameComponent(ResourceLocation tierId) {
-        return AscendanceTierRegistry.get(tierId)
-                .map(tier -> (Component) EssenceText.ascendanceTier(tier))
-                .orElseGet(() -> Component.literal(tierId.getPath()));
-    }
-
     private NexusCategoryView categoryForEssence(ResourceLocation essenceId) {
         for (NexusCategoryView category : categories()) {
             if (category.essence().id().equals(essenceId)) {
@@ -4749,7 +4610,8 @@ public final class AscendanceNexusScreen
         UiBounds layout = modalLayout();
         FullscreenControls.modalBackdrop(graphics, fullscreenFrame().screen(), layout);
 
-        Component title = EssenceText.gui("nexus.modal.exit_title");
+        Component title = EssenceText.gui(pendingDecision == PendingDecision.ARCHIVE
+                ? "nexus.modal.archive_title" : "nexus.modal.exit_title");
         graphics.drawCenteredString(
                 font,
                 StyledTextLayout.fit(font, title, layout.width() - 16),
@@ -4940,18 +4802,6 @@ public final class AscendanceNexusScreen
         return new Rect(bounds.x(), bounds.y(), bounds.right(), bounds.bottom());
     }
 
-    private double clamp01(
-            double value
-    ) {
-        return Math.max(
-                0.0,
-                Math.min(
-                        1.0,
-                        value
-                )
-        );
-    }
-
     private record Rect(
             int left,
             int top,
@@ -5082,11 +4932,13 @@ public final class AscendanceNexusScreen
 
     private enum PendingDecision {
         NONE,
-        EXIT
+        EXIT,
+        ARCHIVE
     }
 
     private enum PendingCompletion {
         NONE,
-        EXIT
+        EXIT,
+        ARCHIVE
     }
 }

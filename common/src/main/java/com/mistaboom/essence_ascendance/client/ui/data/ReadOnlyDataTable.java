@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.client.ui.data;
 
 import com.mistaboom.essence_ascendance.client.ui.content.ItemPresentation;
+import com.mistaboom.essence_ascendance.client.ui.StyledTextLayout;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -43,6 +44,7 @@ public final class ReadOnlyDataTable<R> {
         private final Comparator<T> comparator;
         private Function<R, ItemPresentation> item;
         private String equalWidthGroup;
+        private boolean keepTogether;
 
         public Column(String id, Component header, int minimumWidth, int weight, Alignment alignment,
                       Function<R, T> value, Function<T, Component> presentation, Comparator<T> comparator) {
@@ -91,6 +93,8 @@ public final class ReadOnlyDataTable<R> {
             return this;
         }
         public Component header() { return header; }
+        /** A localized unit or other short semantic value must remain a complete phrase. */
+        public Column<R, T> keepValuesTogether() { keepTogether = true; return this; }
         public int minimumWidth() { return minimumWidth; }
         public int weight() { return weight; }
         public Alignment alignment() { return alignment; }
@@ -148,6 +152,81 @@ public final class ReadOnlyDataTable<R> {
         int from = Math.min(ordered.size(), Math.max(0, start));
         int to = Math.min(ordered.size(), from + Math.max(0, count));
         return ordered.subList(from, to);
+    }
+
+    private int[] protectedWidths(ToIntFunction<Component> measureText) {
+        int[] result = new int[columns.size()];
+        for (int index = 0; index < columns.size(); index++) {
+            Column<R, ?> column = columns.get(index);
+            int longest = wordWidth(column.header(), measureText);
+            for (Row<R> row : rows) {
+                Component text = column.isItem() ? column.item(row.value()).caption() : column.display(row.value());
+                longest = Math.max(longest, column.keepTogether ? measureText.applyAsInt(text) : wordWidth(text, measureText));
+            }
+            result[index] = Math.max(column.isItem() ? 36 : 16, longest + 8);
+        }
+        for (int index = 0; index < columns.size(); index++) {
+            String group = columns.get(index).equalWidthGroup;
+            if (group == null) continue;
+            int maximum = result[index];
+            for (int other = 0; other < columns.size(); other++)
+                if (group.equals(columns.get(other).equalWidthGroup)) maximum = Math.max(maximum, result[other]);
+            for (int other = 0; other < columns.size(); other++)
+                if (group.equals(columns.get(other).equalWidthGroup)) result[other] = maximum;
+        }
+        return result;
+    }
+
+    private static int wordWidth(Component text, ToIntFunction<Component> measure) {
+        int maximum = 0;
+        for (var run : StyledTextLayout.runs(text)) for (String word : run.text().split("\\s+"))
+            maximum = Math.max(maximum, measure.applyAsInt(Component.literal(word).setStyle(run.style())));
+        return maximum;
+    }
+
+    public int minimumContentWidth(ToIntFunction<Component> measureText) {
+        return java.util.Arrays.stream(protectedWidths(measureText)).sum() + columns.size() - 1;
+    }
+
+    /** Preserve complete words and declared units before distributing preferred schema widths. */
+    public List<ColumnWidth> measureContent(int availableWidth, ToIntFunction<Component> measureText) {
+        int[] minimum = protectedWidths(measureText);
+        int available = Math.max(0, availableWidth - columns.size() + 1);
+        int total = java.util.Arrays.stream(minimum).sum();
+        if (total > available) return measure(availableWidth, 1, measureText);
+        var preferred = measure(availableWidth, 1, measureText);
+        int[] assigned = new int[minimum.length];
+        int used = 0;
+        for (int index = 0; index < assigned.length; index++) {
+            assigned[index] = Math.max(minimum[index], preferred.get(index).width());
+            used += assigned[index];
+        }
+        while (used > available) {
+            boolean reduced = false;
+            for (int index = assigned.length - 1; index >= 0 && used > available; index--)
+                if (assigned[index] > minimum[index]) { assigned[index]--; used--; reduced = true; }
+            if (!reduced) break;
+        }
+        // Equal groups retain the same protected width; redistribute their rounding pixels to flexible text.
+        Map<String, List<Integer>> groups = new LinkedHashMap<>();
+        for (int i = 0; i < columns.size(); i++) if (columns.get(i).equalWidthGroup != null)
+            groups.computeIfAbsent(columns.get(i).equalWidthGroup, ignored -> new ArrayList<>()).add(i);
+        int remainder = 0;
+        for (var group : groups.values()) {
+            int sum = group.stream().mapToInt(i -> assigned[i]).sum();
+            for (int i : group) assigned[i] = sum / group.size();
+            remainder += sum % group.size();
+        }
+        for (int i = 0; i < columns.size(); i++) if (columns.get(i).equalWidthGroup == null) {
+            assigned[i] += remainder; break;
+        }
+        int x = 0;
+        List<ColumnWidth> result = new ArrayList<>();
+        for (int i = 0; i < assigned.length; i++) {
+            result.add(new ColumnWidth(columns.get(i).id(), x, assigned[i]));
+            x += assigned[i] + 1;
+        }
+        return List.copyOf(result);
     }
 
     /**

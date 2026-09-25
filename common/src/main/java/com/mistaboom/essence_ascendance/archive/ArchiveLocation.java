@@ -11,7 +11,7 @@ public sealed interface ArchiveLocation permits ArchiveLocation.Article, Archive
             if (mode == ArchiveMode.SEARCH) throw new IllegalArgumentException("Search is not an article location");
         }
     }
-    record Search(String query, ResourceLocation selectedResult) implements ArchiveLocation {
+    record Search(String query, String selectedResult) implements ArchiveLocation {
         public Search { query = query == null ? "" : query; }
         @Override public ArchiveMode mode() { return ArchiveMode.SEARCH; }
     }

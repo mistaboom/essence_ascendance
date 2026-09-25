@@ -78,6 +78,8 @@ public final class FullscreenControls {
         }
         if (style != Style.LINK) graphics.fill(bounds.x(), bounds.y(), bounds.right(), bounds.bottom(), surface);
         outline(graphics, bounds, border);
+        if (enabled && focused && bounds.width() > 6 && bounds.height() > 6)
+            outline(graphics, bounds.inset(2), 0xFFFFFFFF);
         if (enabled && selected && style == Style.TAB && bounds.width() > 4 && bounds.height() > 4) {
             graphics.fill(bounds.x() + 2, bounds.bottom() - 3, bounds.right() - 2, bounds.bottom() - 1, opaqueAccent);
         }

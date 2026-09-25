@@ -31,7 +31,7 @@ public final class ContentViewport implements FullscreenComposition.Input {
     private static final int GAP = 8;
 
     private record BlockLayout(int index, SemanticDocument.Block block, int y, int height, Object detail) { }
-    private record LinkHit(UiBounds bounds, String target) { }
+    private record LinkHit(UiBounds bounds, String target, int block) { }
     private record ItemHit(UiBounds bounds, Component label) { }
     private record LinkRowLayout(int y, int height, List<FormattedCharSequence> lines) { }
     private record StatRowLayout(int y, int height, List<FormattedCharSequence> label,
@@ -51,16 +51,28 @@ public final class ContentViewport implements FullscreenComposition.Input {
     private List<ItemHit> itemHits = List.of();
     private int contentHeight;
     private Integer activeTable;
+    private String activeLink;
+    private boolean focused;
+    private record FocusTarget(int block, int row, String target) { }
+    private List<FocusTarget> focusTargets = List.of();
+    private int focusIndex = -1;
+    private Integer suspendedScroll;
 
     public ContentViewport(IllustrationView.Renderer illustrations, Consumer<String> navigate) {
         this.illustrations = Objects.requireNonNull(illustrations, "Illustration renderer");
         this.navigate = Objects.requireNonNull(navigate, "Navigation callback");
     }
 
-    public int scrollOffset() { return scroll.offset(); }
-    public void restore(int offset) { scroll.restore(offset); }
+    public int scrollOffset() { return suspendedScroll == null ? scroll.offset() : suspendedScroll; }
+    public void restore(int offset) { scroll.restore(offset); suspendedScroll = null; }
 
     public void prepare(Font font, UiBounds bounds, SemanticDocument document) {
+        prepare(font, bounds, document, true);
+    }
+
+    public void prepare(Font font, UiBounds bounds, SemanticDocument document, boolean ready) {
+        if (!ready && suspendedScroll == null) suspendedScroll = scroll.offset();
+        if (ready && suspendedScroll != null) { scroll.restore(suspendedScroll); suspendedScroll = null; }
         this.font = Objects.requireNonNull(font, "Font");
         this.bounds = bounds;
         boolean changedDocument = this.document != document;
@@ -68,6 +80,8 @@ public final class ContentViewport implements FullscreenComposition.Input {
         if (changedDocument) {
             tableViews.clear();
             activeTable = null;
+            activeLink = null;
+            focusIndex = -1;
         }
         int width = Math.max(1, bounds.width() - PADDING * 2 - 3);
         int y = PADDING;
@@ -150,7 +164,7 @@ public final class ContentViewport implements FullscreenComposition.Input {
             } else if (block instanceof SemanticDocument.Table<?> table) {
                 ReadOnlyDataTableView<?> view = tableViews.computeIfAbsent(index, ignored -> tableView(table));
                 int rowHeight = view.uniformRowHeight(font, width);
-                height = ReadOnlyDataTableView.HEADER_HEIGHT
+                height = view.headerHeight()
                         + visibleTableRows(table) * rowHeight + 2;
                 detail = view;
             } else if (block instanceof SemanticDocument.Links links) {
@@ -178,12 +192,18 @@ public final class ContentViewport implements FullscreenComposition.Input {
 
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         FullscreenControls.panel(graphics, bounds, AscendanceUiPalette.argb(AscendanceUiPalette.SURFACE),
-                AscendanceUiPalette.argb(AscendanceUiPalette.BORDER));
+                AscendanceUiPalette.argb(focused ? AscendanceUiPalette.INTERACTIVE : AscendanceUiPalette.BORDER));
         UiBounds clip = bounds.inset(1);
         FullscreenViewport.withClip(graphics, clip, () -> {
             for (BlockLayout block : layout) {
                 int y = screenY(block.y());
                 if (y + block.height() < clip.y() || y >= clip.bottom()) continue;
+                if (!(block.block() instanceof SemanticDocument.Links)) for (LinkHit link : linkHits) {
+                    if (link.block() == block.index() && (focused && link.target().equals(activeLink)
+                            || bounds.contains(mouseX, mouseY) && link.bounds().contains(mouseX, mouseY)))
+                        graphics.fill(link.bounds().x(), link.bounds().y(), link.bounds().right(), link.bounds().bottom(),
+                                AscendanceUiPalette.controlHoverArgb(AscendanceUiPalette.INTERACTIVE));
+                }
                 if (block.index() == -1) {
                     drawLines(graphics, castLines(block.detail()), bounds.x() + PADDING, y,
                             font.lineHeight + 2, AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT));
@@ -200,6 +220,9 @@ public final class ContentViewport implements FullscreenComposition.Input {
         for (LinkHit link : linkHits) {
             if (link.bounds().contains(x, y)) {
                 activeTable = null;
+                activeLink = link.target();
+                for (int i = 0; i < focusTargets.size(); i++)
+                    if (focusTargets.get(i).block() == link.block() && link.target().equals(focusTargets.get(i).target())) focusIndex = i;
                 if (button == 0) navigate.accept(link.target());
                 return true;
             }
@@ -209,17 +232,22 @@ public final class ContentViewport implements FullscreenComposition.Input {
             UiBounds tableBounds = blockBounds(block);
             if (tableBounds.contains(x, y)) {
                 activeTable = block.index();
+                activeLink = null;
+                for (int i = 0; i < focusTargets.size(); i++)
+                    if (focusTargets.get(i).block() == activeTable && focusTargets.get(i).row() < 0) focusIndex = i;
                 return table.click(x, y, button);
             }
         }
         activeTable = null;
+        activeLink = null;
+        focusIndex = -1;
         return true;
     }
 
     @Override public boolean scroll(double x, double y, double dx, double dy) {
         for (BlockLayout block : layout) {
             if (block.detail() instanceof ReadOnlyDataTableView<?> table && blockBounds(block).contains(x, y)
-                    && table.hasOverflow() && table.scroll(dy)) return true;
+                    && table.hasOverflow() && table.scroll(dy)) { prepareInteractiveChildren(); return true; }
         }
         scroll.wheel(dy, 28);
         prepareInteractiveChildren();
@@ -227,6 +255,10 @@ public final class ContentViewport implements FullscreenComposition.Input {
     }
 
     @Override public boolean key(int key, int scan, int modifiers) {
+        if (focused && activeLink != null && (key == 257 || key == 335 || key == 32)) {
+            navigate.accept(activeLink);
+            return true;
+        }
         if (activeTable != null) {
             for (BlockLayout block : layout) {
                 if (block.index() == activeTable && block.block() instanceof SemanticDocument.Table<?> definition
@@ -235,14 +267,14 @@ public final class ContentViewport implements FullscreenComposition.Input {
                     table.key(key);
                     var rows = table.orderedRows();
                     for (int index = 0; index < rows.size(); index++) if (rows.get(index).key().equals(table.selectedKey()))
-                        scroll.ensureVisible(block.y() + ReadOnlyDataTableView.HEADER_HEIGHT + 1 + index * table.rowHeight(), table.rowHeight());
+                        scroll.ensureVisible(block.y() + table.headerHeight() + 1 + index * table.rowHeight(), table.rowHeight());
                     prepareInteractiveChildren();
                     return true;
                 }
                 if (block.index() == activeTable && block.detail() instanceof ReadOnlyDataTableView<?> table
                         && (!(block.block() instanceof SemanticDocument.Table<?> definition) || !definition.expanded()
-                            || key == 257 || key == 335 || key == 32)
-                        && table.key(key)) return true;
+                            || key == 257 || key == 335 || key == 32 || key == 262 || key == 263)
+                        && table.key(key)) { prepareInteractiveChildren(); return true; }
             }
         }
         boolean handled = scroll.key(key, 14, Math.max(14, bounds.height() - 24));
@@ -251,7 +283,37 @@ public final class ContentViewport implements FullscreenComposition.Input {
     }
 
     @Override public void focused(boolean focused) {
-        if (!focused) activeTable = null;
+        this.focused = focused;
+        if (!focused) {
+            tableViews.values().forEach(ReadOnlyDataTableView::blur);
+            activeTable = null; activeLink = null; focusIndex = -1;
+        }
+    }
+
+    @Override public boolean focusStep(int direction) {
+        int next = focusIndex < 0 ? (direction > 0 ? 0 : focusTargets.size() - 1) : focusIndex + direction;
+        if (next < 0 || next >= focusTargets.size()) return false;
+        focusIndex = next;
+        tableViews.values().forEach(ReadOnlyDataTableView::blur);
+        FocusTarget target = focusTargets.get(next);
+        activeTable = target.row() == -1 ? target.block() : null;
+        activeLink = target.target();
+        for (BlockLayout block : layout) if (block.index() == target.block()) {
+            if (target.row() == -1 && block.detail() instanceof ReadOnlyDataTableView<?> table) {
+                if (table.selectedKey() == null) table.key(264);
+                int index = 0;
+                for (var row : table.orderedRows()) { if (row.key().equals(table.selectedKey())) break; index++; }
+                scroll.ensureVisible(block.y() + table.headerHeight() + 1 + index * table.rowHeight(), table.rowHeight());
+            } else {
+                for (LinkHit hit : linkHits) if (hit.block() == target.block() && hit.target().equals(target.target())) {
+                    scroll.ensureVisible(hit.bounds().y() - bounds.y() + scroll.offset(), hit.bounds().height());
+                    break;
+                }
+            }
+            break;
+        }
+        prepareInteractiveChildren();
+        return true;
     }
 
     /** Called by the host's foreground tooltip pass, after article/table scissors are released. */
@@ -381,20 +443,21 @@ public final class ContentViewport implements FullscreenComposition.Input {
                         AscendanceUiPalette.argb(AscendanceUiPalette.MUTED_TEXT));
             }
         } else if (measured.detail() instanceof ReadOnlyDataTableView<?> table) {
+            table.activeLink(focused ? activeLink : null);
             table.render(graphics, font, mouseX, mouseY);
         } else if (block instanceof SemanticDocument.Links links) {
             List<LinkRowLayout> rows = castLinkRows(measured.detail());
             for (int index = 0; index < links.links().size(); index++) {
                 LinkRowLayout row = rows.get(index);
                 UiBounds linkBounds = new UiBounds(x, y + row.y(), width, row.height());
-                boolean hovered = linkBounds.contains(mouseX, mouseY);
-                int color = hovered
+                boolean hovered = bounds.contains(mouseX, mouseY) && linkBounds.contains(mouseX, mouseY);
+                boolean selected = focused && links.links().get(index).target().equals(activeLink);
+                if (hovered || selected) graphics.fill(linkBounds.x(), linkBounds.y(), linkBounds.right(), linkBounds.bottom(),
+                        AscendanceUiPalette.controlHoverArgb(AscendanceUiPalette.INTERACTIVE));
+                int color = hovered || selected
                         ? AscendanceUiPalette.argb(AscendanceUiPalette.INTERACTIVE)
                         : AscendanceUiPalette.argb(AscendanceUiPalette.INFORMATION);
-                List<FormattedCharSequence> lines = hovered ? row.lines().stream()
-                        .map(line -> StyledTextLayout.recolor(line, AscendanceUiPalette.INTERACTIVE)).toList()
-                        : row.lines();
-                drawLines(graphics, lines, x + 5, y + row.y() + 3, font.lineHeight + 1, color);
+                drawLines(graphics, row.lines(), x + 5, y + row.y() + 3, font.lineHeight + 1, color);
             }
         }
     }
@@ -405,7 +468,33 @@ public final class ContentViewport implements FullscreenComposition.Input {
         List<ItemHit> figures = new ArrayList<>();
         for (BlockLayout block : layout) {
             UiBounds blockBounds = blockBounds(block);
-            if (block.detail() instanceof ReadOnlyDataTableView<?> table) table.prepare(font, blockBounds);
+            if (block.detail() instanceof ReadOnlyDataTableView<?> table) {
+                table.prepare(font, blockBounds);
+                for (var link : table.textLinks()) hits.add(new LinkHit(link.bounds(), link.target(), block.index()));
+            }
+            if (block.block() instanceof SemanticDocument.Paragraph)
+                addTextLinks(hits, block, castLines(block.detail()), blockBounds.x(), blockBounds.y(), font.lineHeight + 2);
+            if (block.block() instanceof SemanticDocument.StatRows stats) {
+                var rows = castStatRows(block.detail());
+                for (int index = 0; index < stats.rows().size(); index++) {
+                    var row = rows.get(index);
+                    addTextLinks(hits, block, row.label(), blockBounds.x() + 4, blockBounds.y() + row.y() + 3, font.lineHeight + 1);
+                    int y = blockBounds.y() + row.y() + 3;
+                    for (var line : row.value()) {
+                        if (StyledTextLayout.hasLink(line)) addTextLinks(hits, block, List.of(line),
+                                blockBounds.right() - 4 - font.width(line), y, font.lineHeight + 1);
+                        y += font.lineHeight + 1;
+                    }
+                }
+            }
+            if (block.block() instanceof SemanticDocument.Requirements) {
+                for (var row : castRequirementRows(block.detail())) {
+                    int y = blockBounds.y() + row.y();
+                    addTextLinks(hits, block, row.label(), blockBounds.x() + 25, y + 3, font.lineHeight + 1);
+                    addTextLinks(hits, block, row.detail(), blockBounds.x() + 25,
+                            y + 6 + Math.max(1, row.label().size()) * (font.lineHeight + 1), font.lineHeight + 2);
+                }
+            }
             if (block.block() instanceof SemanticDocument.ItemRow items) {
                 for (int index = 0; index < items.items().size(); index++)
                     figures.add(new ItemHit(itemBounds(blockBounds.x(), blockBounds.y(), (Integer) block.detail(), index),
@@ -418,17 +507,41 @@ public final class ContentViewport implements FullscreenComposition.Input {
                         blockBounds.x() + Math.max(0, (width - raw.bounds().width()) / 2), blockBounds.y());
                 figures.add(new ItemHit(shifted.figure(), illustration.item().label()));
             }
+            if (block.block() instanceof SemanticDocument.Illustration illustration) {
+                IllustrationView.Layout raw = (IllustrationView.Layout) block.detail();
+                IllustrationView.Layout shifted = shift(raw, blockBounds.x()
+                        + Math.max(0, (blockBounds.width() - raw.bounds().width()) / 2), blockBounds.y());
+                var stack = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(illustration.resource()).getDefaultInstance();
+                if (!stack.isEmpty()) figures.add(new ItemHit(shifted.figure(), stack.getHoverName()));
+            }
+            if (block.block() instanceof SemanticDocument.Icon icon) {
+                var stack = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(icon.resource()).getDefaultInstance();
+                if (!stack.isEmpty()) figures.add(new ItemHit(new UiBounds(blockBounds.x() + 2, blockBounds.y() + 2, 20, 20), stack.getHoverName()));
+            }
             if (block.block() instanceof SemanticDocument.Links links) {
                 List<LinkRowLayout> rows = castLinkRows(block.detail());
                 for (int index = 0; index < links.links().size(); index++) {
                     LinkRowLayout row = rows.get(index);
                     hits.add(new LinkHit(new UiBounds(blockBounds.x(), blockBounds.y() + row.y(),
-                            blockBounds.width(), row.height()), links.links().get(index).target()));
+                            blockBounds.width(), row.height()), links.links().get(index).target(), block.index()));
                 }
             }
         }
         linkHits = List.copyOf(hits);
         itemHits = List.copyOf(figures);
+        List<FocusTarget> targets = new ArrayList<>();
+        for (BlockLayout block : layout) {
+            if (block.detail() instanceof ReadOnlyDataTableView<?>) targets.add(new FocusTarget(block.index(), -1, null));
+            hits.stream().filter(hit -> hit.block() == block.index()).map(LinkHit::target).distinct()
+                    .forEach(target -> targets.add(new FocusTarget(block.index(), -2, target)));
+        }
+        focusTargets = List.copyOf(targets);
+    }
+
+    private void addTextLinks(List<LinkHit> hits, BlockLayout block, List<FormattedCharSequence> lines,
+                              int x, int y, int step) {
+        for (var link : StyledTextLayout.links(font, lines, x, y, step))
+            hits.add(new LinkHit(link.bounds(), link.target(), block.index()));
     }
 
     private UiBounds blockBounds(BlockLayout block) {

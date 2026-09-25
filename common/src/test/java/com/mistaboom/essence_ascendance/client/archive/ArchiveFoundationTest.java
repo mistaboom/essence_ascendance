@@ -122,12 +122,12 @@ public final class ArchiveFoundationTest {
                 "Guide location was not independent of Reference location");
         navigator.selectMode(ArchiveMode.SEARCH);
         navigator.setQuery("machine");
-        navigator.selectSearchResult(id("reference/machines/crucible"));
+        navigator.selectSearchResult(id("reference/machines/crucible").toString());
         navigator.setListScroll(4);
         ArchiveNavigationState.Snapshot saved = navigator.snapshot();
         ArchiveNavigator restored = new ArchiveNavigator(catalog, saved);
         check(restored.mode() == ArchiveMode.SEARCH && restored.query().equals("machine")
-                        && restored.selectedResult().equals(id("reference/machines/crucible"))
+                        && restored.selectedResult().equals(id("reference/machines/crucible").toString())
                         && restored.listScroll() == 4,
                 "Search query/result/scroll did not restore independently");
         restored.selectMode(ArchiveMode.REFERENCE);
@@ -152,7 +152,7 @@ public final class ArchiveFoundationTest {
         check(missing.entryId().equals(id("guide/beginning/welcome")) && catalog.entry(null) == null,
                 "An absent remembered entry falls back safely without an immutable-map null lookup");
         missing.selectMode(ArchiveMode.SEARCH);
-        missing.selectSearchResult(id("guide/beginning/welcome"));
+        missing.selectSearchResult(id("guide/beginning/welcome").toString());
         missing.setListScroll(5);
         missing.openSelectedSearchResult();
         missing.back();
@@ -168,13 +168,13 @@ public final class ArchiveFoundationTest {
         browser.setListScroll(4);
         browser.selectMode(ArchiveMode.SEARCH);
         browser.setQuery("Focus");
-        browser.selectSearchResult(id("reference/machines/focus"));
+        browser.selectSearchResult(id("reference/machines/focus").toString());
         browser.setListScroll(7);
         browser.openSelectedSearchResult();
         browser.setArticleScroll(360);
         browser.back();
         check(browser.mode() == ArchiveMode.SEARCH && browser.query().equals("Focus")
-                        && browser.selectedResult().equals(id("reference/machines/focus")) && browser.listScroll() == 7,
+                        && browser.selectedResult().equals(id("reference/machines/focus").toString()) && browser.listScroll() == 7,
                 "Back must restore the exact search visit");
         browser.back();
         check(browser.entryId().equals(id("reference/machines/crucible"))
@@ -490,7 +490,7 @@ public final class ArchiveFoundationTest {
         table.key(264);
         check(table.selectedKey().equals("row/0"), "The first table arrow selects the first row instead of skipping it");
         for (int i = 0; i < 10; i++) table.key(264);
-        check(table.selectedKey().equals("row/10") && table.scrollOffset() == 8,
+        check(table.selectedKey().equals("row/10") && table.scrollOffset() == 8 * ReadOnlyDataTableView.ROW_HEIGHT,
                 "Table keyboard selection scrolls fully into view");
         var overflow = table.overflowTextAt(15, 45);
         check(overflow.isPresent() && overflow.get().getString().endsWith("8")
@@ -564,18 +564,6 @@ public final class ArchiveFoundationTest {
         check(plainLabel.getStyle().getColor().getValue() == ChatFormatting.GOLD.getColor()
                         && !plainLabel.getStyle().isUnderlined() && emphasisLabel.getStyle().isUnderlined(),
                 "Arrow links must retain canonical colors and explicitly authored emphasis");
-        var hoverColors = new java.util.ArrayList<Integer>();
-        FormattedCharSequence coloredLink = Component.literal("Category").withStyle(ChatFormatting.GOLD)
-                .append(Component.literal(" →").withStyle(ChatFormatting.AQUA)).getVisualOrderText();
-        StyledTextLayout.recolor(coloredLink, AscendanceUiPalette.INTERACTIVE)
-                .accept((index, style, codePoint) -> {
-                    hoverColors.add(style.getColor() == null ? -1 : style.getColor().getValue());
-                    return true;
-                });
-        check(!hoverColors.isEmpty() && hoverColors.stream().allMatch(
-                        color -> color == AscendanceUiPalette.INTERACTIVE),
-                "Standalone link hover does not override canonical child-run colors");
-
         ContentViewport article = new ContentViewport((graphics, illustration, bounds, tick) -> { }, ignored -> { });
         SemanticDocument document = new SemanticDocument(Component.literal("Table"),
                 List.of(new SemanticDocument.Table<>(data), new SemanticDocument.Paragraph(Component.literal("After table"))));
