@@ -32,6 +32,9 @@ tasks.register('armorJarInvariants') {
                     throw new GradleException("${loader}: packaged armor authoring files")
                 if (!names.contains('com/mistaboom/essence_ascendance/mixin/ArmorPresentationMixin.class'))
                     throw new GradleException("${loader}: missing common armor presentation hook")
+                if (names.any { it.startsWith('com/mistaboom/essence_ascendance/client/armor/ArmorOrnaments')
+                        || it.startsWith('com/mistaboom/essence_ascendance/visual/ArmorVisualStyle') })
+                    throw new GradleException("${loader}: obsolete floating armor ornament classes packaged")
                 logger.lifecycle("${loader}: all 37 generated armor resources match source; authoring files excluded")
             }
         }

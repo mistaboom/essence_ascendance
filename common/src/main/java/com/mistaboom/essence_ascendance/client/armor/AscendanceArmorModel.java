@@ -18,29 +18,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BiConsumer;
 
 /**
  * One armor slot's meshes attached to vanilla humanoid bones. Vanilla owns the
  * animated transforms, visibility, baby scaling and enchantment foil passes.
  */
 public final class AscendanceArmorModel<T extends LivingEntity> extends HumanoidModel<T> {
-    private static final ThreadLocal<BiConsumer<String, PoseStack.Pose>> ATTACHMENT_VISITOR = new ThreadLocal<>();
-
     public AscendanceArmorModel(EquipmentSlot slot) {
         super(root(slot));
-    }
-
-    /** Traverse the very same vanilla transforms (including young scaling and visibility) as the mesh. */
-    public void visitAttachments(PoseStack pose, BiConsumer<String, PoseStack.Pose> visitor) {
-        var previous = ATTACHMENT_VISITOR.get();
-        ATTACHMENT_VISITOR.set(visitor);
-        try {
-            renderToBuffer(pose, null, 0, 0, -1);
-        } finally {
-            if (previous == null) ATTACHMENT_VISITOR.remove();
-            else ATTACHMENT_VISITOR.set(previous);
-        }
     }
 
     private static ModelPart root(EquipmentSlot slot) {
@@ -79,22 +64,15 @@ public final class AscendanceArmorModel<T extends LivingEntity> extends Humanoid
         private static final int[] QUAD_VERTICES = {0, 1, 2, 2};
 
         private final List<Triangle> triangles;
-        private final String name;
 
         private ArmorMesh(String name) {
             // No vanilla cube faces: compile emits the imported triangles instead.
             super(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false, 64, 64, Set.of());
-            this.name = name;
             triangles = MESHES.computeIfAbsent(name, ArmorMesh::load);
         }
 
         @Override
         public void compile(PoseStack.Pose pose, VertexConsumer buffer, int light, int overlay, int color) {
-            var visitor = ATTACHMENT_VISITOR.get();
-            if (visitor != null) {
-                visitor.accept(name, pose);
-                return;
-            }
             for (Triangle triangle : triangles) {
                 // Entity buffers consume quads. A repeated last vertex encodes one exact triangle.
                 for (int i : QUAD_VERTICES) {

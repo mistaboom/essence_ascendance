@@ -38,6 +38,8 @@ public final class AscendanceArmorTest {
             new Piece("Right_Foot", "right_foot", EquipmentSlot.FEET, "right_leg", "boots", 128, 32, 128, 256, 128, -1.9f, 12, true));
 
     public static void main(String[] args) throws Exception {
+        net.minecraft.SharedConstants.tryDetectVersion();
+        net.minecraft.server.Bootstrap.bootStrap();
         check(args.length == 2, "Expected the authored Armor.bbmodel path and source PNG directory");
         var source = JsonParser.parseString(Files.readString(Path.of(args[0]))).getAsJsonObject();
         Path sourceMasks = Path.of(args[1]);
@@ -81,7 +83,40 @@ public final class AscendanceArmorTest {
             checkEmissionTexture(slot, textures);
         }
         checkBeltGaitIndependence();
+        checkEmissionModels();
         System.out.println("AscendanceArmorTest: nine EAM1 meshes, independent belt/leg animation, slot isolation, UVs and 24 tier atlases from 17 source masks PASS");
+    }
+
+    private static void checkEmissionModels() {
+        for (EquipmentSlot slot : List.of(EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET)) {
+            var parent = new AscendanceArmorModel<LivingEntity>(slot);
+            var normal = new AscendanceArmorModel<LivingEntity>(slot);
+            var emission = new AscendanceArmorModel<LivingEntity>(slot);
+            for (boolean young : new boolean[]{false, true}) {
+                parent.young = young;
+                parent.head.yRot = .7f;
+                parent.body.xRot = .35f;
+                parent.leftArm.xRot = .8f;
+                parent.rightArm.xRot = -.6f;
+                parent.leftLeg.xRot = -.7f;
+                parent.rightLeg.xRot = .6f;
+                parent.body.y = 2;
+                // Skin/wooden limbs can be hidden while armor remains visible (default armor stands).
+                parent.setAllVisible(false);
+                parent.copyPropertiesTo(normal);
+                normal.setAllVisible(true);
+                if (slot == EquipmentSlot.LEGS) normal.body.visible = false;
+                ArmorPresentation.prepareModel(parent, emission, slot);
+                checkSameVertices(render(normal), render(emission), "Emission matches normal posed mesh including hidden wearer limbs and baby scaling");
+                if (slot == EquipmentSlot.CHEST) {
+                    check(!renderOnly(emission, emission.leftArm).vertices.isEmpty(), "Left sleeve must emit even if wearer arm is hidden");
+                    ArmorPresentation.prepareModel(parent, emission, slot);
+                    check(!renderOnly(emission, emission.rightArm).vertices.isEmpty(), "Right sleeve must emit even if wearer arm is hidden");
+                }
+                if (slot == EquipmentSlot.LEGS) check(!emission.body.visible, "Belt never submitted for emission");
+                check(!parent.leftArm.visible && !parent.rightArm.visible, "Emission cannot change wearer visibility");
+            }
+        }
     }
 
     private static void checkEmissionTexture(EquipmentSlot slot, Map<String, BufferedImage> textures) throws Exception {
@@ -113,7 +148,6 @@ public final class AscendanceArmorTest {
         close(bone.z, 0, piece.resource + " pivot Z");
         bone.visible = true;
         RecordingBuffer resting = render(model);
-        checkAttachment(model, piece, resting.vertices.getFirst(), resting.vertices.getFirst());
         JsonObject faces = source.getAsJsonObject("faces");
         check(resting.vertices.size() == faces.size() * 4, piece.resource + " must emit one degenerate quad per source triangle");
         try (var input = new DataInputStream(resource("meshes/armor/ascendance/" + piece.resource + ".eamesh"))) {
@@ -159,10 +193,6 @@ public final class AscendanceArmorTest {
         bone.y += 3;
         bone.z -= 2;
         RecordingBuffer animated = render(model);
-        checkAttachment(model, piece, resting.vertices.getFirst(), animated.vertices.getFirst());
-        model.young = true;
-        checkAttachment(model, piece, resting.vertices.getFirst(), render(model).vertices.getFirst());
-        model.young = false;
         check(animated.vertices.size() == resting.vertices.size(), "Animation must not add or drop geometry");
         for (int i = 0; i < resting.vertices.size(); i++) {
             float[] original = resting.vertices.get(i), actual = animated.vertices.get(i);
@@ -183,26 +213,6 @@ public final class AscendanceArmorTest {
         bone.z = 0;
         bone.visible = false;
         check(render(model).vertices.isEmpty(), piece.resource + " must obey bone visibility");
-        model.visitAttachments(new PoseStack(), (name, pose) -> {
-            throw new AssertionError("Hidden bones must not receive ornaments: " + name);
-        });
-    }
-
-    private static void checkAttachment(AscendanceArmorModel<LivingEntity> model, Piece piece,
-                                         float[] resting, float[] rendered) {
-        int[] count = {0};
-        model.visitAttachments(new PoseStack(), (name, pose) -> {
-            check(name.equals(piece.resource), "Ornament must follow the corresponding mesh");
-            check(com.mistaboom.essence_ascendance.visual.ArmorVisualStyle.motif(name).bone.equals(piece.bone),
-                    "Defined ornament bone must match the authored mesh bone");
-            var actual = pose.pose().transformPosition(new org.joml.Vector3f(
-                    resting[0] - piece.pivotX / 16, resting[1] - piece.pivotY / 16, resting[2]));
-            close(actual.x, rendered[0], "Ornament/mesh animated X including young scaling");
-            close(actual.y, rendered[1], "Ornament/mesh animated Y including young scaling");
-            close(actual.z, rendered[2], "Ornament/mesh animated Z including young scaling");
-            count[0]++;
-        });
-        check(count[0] == 1, "One attachment per visible mesh");
     }
 
     private static void checkTextures(EquipmentSlot slot, Map<String, BufferedImage> textures) throws Exception {

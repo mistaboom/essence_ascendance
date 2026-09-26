@@ -127,7 +127,7 @@ def balanceInvariantMains = [
         latentOreBalanceInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.LatentOreBalanceTest',
         latentOreJeiInvariants: 'com.mistaboom.essence_ascendance.compat.jei.LatentOreJeiTest',
         ascendanceArmorInvariants: 'com.mistaboom.essence_ascendance.client.armor.AscendanceArmorTest',
-        armorVisualInvariants: 'com.mistaboom.essence_ascendance.client.armor.ArmorOrnamentsTest',
+        armorVisualInvariants: 'com.mistaboom.essence_ascendance.client.armor.ArmorEmissionTest',
         ascendancePaletteInvariants: 'com.mistaboom.essence_ascendance.client.AscendancePaletteTest',
         texturePixelInvariants: 'com.mistaboom.essence_ascendance.visual.TexturePixelsTest',
         latentOreResourceInvariants: 'com.mistaboom.essence_ascendance.client.ore.LatentOreResourcesTest',

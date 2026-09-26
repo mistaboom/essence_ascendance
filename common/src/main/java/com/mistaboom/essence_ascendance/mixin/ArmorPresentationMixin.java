@@ -25,6 +25,6 @@ public abstract class ArmorPresentationMixin<T extends LivingEntity, M extends H
     private void essenceAscendance$present(PoseStack pose, MultiBufferSource buffers, int light, T entity,
                                            float limbSwing, float limbSwingAmount, float partialTick,
                                            float age, float yaw, float pitch, CallbackInfo ci) {
-        essenceAscendance$presentation.render(getParentModel(), entity, partialTick, pose, buffers);
+        essenceAscendance$presentation.render(getParentModel(), entity, pose, buffers);
     }
 }
