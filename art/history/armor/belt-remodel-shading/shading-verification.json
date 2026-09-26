@@ -1,0 +1,189 @@
+[
+  {
+    "texture": "Left_Foot_Base",
+    "painted_pixels": 2196,
+    "recolored_pixels": 2185,
+    "gray_min": 152,
+    "gray_max": 255,
+    "gray_mean": 210.12340619307832,
+    "gray_standard_deviation": 24.101745820659534,
+    "alpha_sha256": "3a62003dfb201e9f57aced91b0436cbbd32fc963623be022253377135a03592e",
+    "alpha_and_hidden_rgb_unchanged": true
+  },
+  {
+    "texture": "Left_Foot_Accent",
+    "painted_pixels": 1392,
+    "recolored_pixels": 1382,
+    "gray_min": 170,
+    "gray_max": 255,
+    "gray_mean": 222.02514367816093,
+    "gray_standard_deviation": 23.285184105562195,
+    "alpha_sha256": "b0809791d8c1aa9350617574828aaefcf85efc63bdc5bdb2802b2400ff1ed5f5",
+    "alpha_and_hidden_rgb_unchanged": true
+  },
+  {
+    "texture": "Right_Foot_Base",
+    "painted_pixels": 2100,
+    "recolored_pixels": 2088,
+    "gray_min": 152,
+    "gray_max": 255,
+    "gray_mean": 208.91238095238094,
+    "gray_standard_deviation": 23.096298178910917,
+    "alpha_sha256": "6f921614fc5fd6a130778061f5fb7358a9cfb1160cbac38ae3811f9faabadd25",
+    "alpha_and_hidden_rgb_unchanged": true
+  },
+  {
+    "texture": "Right_Foot_Accent",
+    "painted_pixels": 1174,
+    "recolored_pixels": 1164,
+    "gray_min": 170,
+    "gray_max": 255,
+    "gray_mean": 224.39522998296422,
+    "gray_standard_deviation": 22.98841670559851,
+    "alpha_sha256": "65f32389c68fb2f9c930f849bd8f63b2eb429e17a77cc5bb574000e6324fe133",
+    "alpha_and_hidden_rgb_unchanged": true
+  },
+  {
+    "texture": "Left_Arm_Base",
+    "painted_pixels": 7232,
+    "recolored_pixels": 7162,
+    "gray_min": 152,
+    "gray_max": 255,
+    "gray_mean": 212.05378871681415,
+    "gray_standard_deviation": 22.810402152871234,
+    "alpha_sha256": "086ff837812007409bd6ccc2bbfe7eedff455b26a900502ed1989ec6476ef52e",
+    "alpha_and_hidden_rgb_unchanged": true
+  },
+  {
+    "texture": "Left_Arm_Accent",
+    "painted_pixels": 2632,
+    "recolored_pixels": 2602,
+    "gray_min": 170,
+    "gray_max": 255,
+    "gray_mean": 219.504179331307,
+    "gray_standard_deviation": 22.961146927962155,
+    "alpha_sha256": "919300e1ae88805f53b1f1a01569d9869823fed84a11f4cd88aead424a72543e",
+    "alpha_and_hidden_rgb_unchanged": true
+  },
+  {
+    "texture": "Right_Arm_Base",
+    "painted_pixels": 7408,
+    "recolored_pixels": 7370,
+    "gray_min": 152,
+    "gray_max": 255,
+    "gray_mean": 211.5572354211663,
+    "gray_standard_deviation": 22.597382647295504,
+    "alpha_sha256": "69049f29517e5b8f57f69f7959978147690cf87a8b9c89ab3d99432a58c8d9c3",
+    "alpha_and_hidden_rgb_unchanged": true
+  },
+  {
+    "texture": "Right_Arm_Accent",
+    "painted_pixels": 2552,
+    "recolored_pixels": 2532,
+    "gray_min": 170,
+    "gray_max": 255,
+    "gray_mean": 219.75117554858934,
+    "gray_standard_deviation": 23.52235810684134,
+    "alpha_sha256": "9a7d9653001b15636a21a03bbb4fb77583bba5a06ea1061eabdfc173af0b25ae",
+    "alpha_and_hidden_rgb_unchanged": true
+  },
+  {
+    "texture": "Head_Base",
+    "painted_pixels": 7476,
+    "recolored_pixels": 7421,
+    "gray_min": 152,
+    "gray_max": 255,
+    "gray_mean": 212.59483681112894,
+    "gray_standard_deviation": 23.46381889871119,
+    "alpha_sha256": "6f030f3b21794fbb5d6f40a806af94cf8c2b5297cfa05aa8b8252327e6a8ea1f",
+    "alpha_and_hidden_rgb_unchanged": true
+  },
+  {
+    "texture": "Head_Accent",
+    "painted_pixels": 3264,
+    "recolored_pixels": 3231,
+    "gray_min": 170,
+    "gray_max": 255,
+    "gray_mean": 222.83333333333334,
+    "gray_standard_deviation": 22.99154878122563,
+    "alpha_sha256": "4483d68c4d198dee3a988fa8fdc2c13473364a6d6864ef4fc8407835a80937fb",
+    "alpha_and_hidden_rgb_unchanged": true
+  },
+  {
+    "texture": "Left_Leg_Base",
+    "painted_pixels": 7984,
+    "recolored_pixels": 7984,
+    "gray_min": 152,
+    "gray_max": 255,
+    "gray_mean": 211.90280561122245,
+    "gray_standard_deviation": 22.928415702737915,
+    "alpha_sha256": "b9e124c19d702e0f559ef9f739ad2d126570fb0a2b47ab8a83a0afa5c24f8045",
+    "alpha_and_hidden_rgb_unchanged": true
+  },
+  {
+    "texture": "Left_Leg_Accent",
+    "painted_pixels": 982,
+    "recolored_pixels": 982,
+    "gray_min": 170,
+    "gray_max": 255,
+    "gray_mean": 222.19551934826885,
+    "gray_standard_deviation": 23.509942003312382,
+    "alpha_sha256": "0ab58c0a09023153a87e69dda570dd4ff427bbb89358f8ec9d0d3be5c39d2d52",
+    "alpha_and_hidden_rgb_unchanged": true
+  },
+  {
+    "texture": "Right_Leg_Base",
+    "painted_pixels": 8008,
+    "recolored_pixels": 8008,
+    "gray_min": 152,
+    "gray_max": 255,
+    "gray_mean": 211.80844155844156,
+    "gray_standard_deviation": 22.983424046210764,
+    "alpha_sha256": "a157059b382fc94a075484660b0460d7f3bee014a6584c76b89c635b9c5963a1",
+    "alpha_and_hidden_rgb_unchanged": true
+  },
+  {
+    "texture": "Right_Leg_Accent",
+    "painted_pixels": 970,
+    "recolored_pixels": 970,
+    "gray_min": 170,
+    "gray_max": 255,
+    "gray_mean": 221.62783505154638,
+    "gray_standard_deviation": 23.44769675132001,
+    "alpha_sha256": "db893903b210074b64cf8aff90600611b593050779fdfa929bb94f46e679b8d7",
+    "alpha_and_hidden_rgb_unchanged": true
+  },
+  {
+    "texture": "Belt_Base",
+    "painted_pixels": 4512,
+    "recolored_pixels": 4512,
+    "gray_min": 152,
+    "gray_max": 255,
+    "gray_mean": 214.89915780141843,
+    "gray_standard_deviation": 24.48458552576955,
+    "alpha_sha256": "286f51e233d61e4cf44e19ca1c308bb566f59d29c2c08aa12d51db1285fe805a",
+    "alpha_and_hidden_rgb_unchanged": true
+  },
+  {
+    "texture": "Chest_Base",
+    "painted_pixels": 9880,
+    "recolored_pixels": 9880,
+    "gray_min": 152,
+    "gray_max": 255,
+    "gray_mean": 210.7405870445344,
+    "gray_standard_deviation": 23.510709345028122,
+    "alpha_sha256": "f0895d204962f484a054b0372da0ddf4c59ad0ad8b07a9dcba7cf131c6fcd007",
+    "alpha_and_hidden_rgb_unchanged": true
+  },
+  {
+    "texture": "Chest_Accent",
+    "painted_pixels": 7056,
+    "recolored_pixels": 7056,
+    "gray_min": 170,
+    "gray_max": 255,
+    "gray_mean": 220.54109977324262,
+    "gray_standard_deviation": 22.74238952551345,
+    "alpha_sha256": "6b4cca308acfd81613ad37988cab3f06e9bfe260b7621fce890fb89c8803d61d",
+    "alpha_and_hidden_rgb_unchanged": true
+  }
+]

@@ -64,6 +64,7 @@ def armorTextureDirectory = file('src/main/resources/assets/essence_ascendance/t
 def armorMeshDirectory = file('src/main/resources/assets/essence_ascendance/meshes/armor/ascendance')
 def armorMaskFiles = ['head', 'chest', 'left_arm', 'right_arm', 'left_leg', 'right_leg', 'left_foot', 'right_foot']
         .collectMany { part -> ['base', 'accent'].collect { suffix -> new File(armorMaskDirectory, "${part}_${suffix}.png") } }
+armorMaskFiles.add(new File(armorMaskDirectory, 'belt_base.png'))
 def armorGeneratorClasses = layout.buildDirectory.dir('armor-generator/classes')
 def armorSource = rootProject.file('art/source/models/armor/ascendance_armor.bbmodel')
 tasks.register('compileAscendanceArmorGenerator', JavaCompile) {

@@ -37,7 +37,9 @@ public final class AscendanceArmorModel<T extends LivingEntity> extends Humanoid
         Map<String, ModelPart> parts = new LinkedHashMap<>();
         parts.put("head", part(slot == EquipmentSlot.HEAD ? "head" : null, 0, 0, 0));
         parts.put("hat", part(null, 0, 0, 0));
-        parts.put("body", part(slot == EquipmentSlot.CHEST ? "chest" : null, 0, 0, 0));
+        // The leggings' belt follows torso crouching/rotation independently of leg motion.
+        parts.put("body", part(slot == EquipmentSlot.CHEST ? "chest"
+                : slot == EquipmentSlot.LEGS ? "belt" : null, 0, 0, 0));
         parts.put("right_arm", part(slot == EquipmentSlot.CHEST ? "right_arm" : null, -5, 2, 0));
         parts.put("left_arm", part(slot == EquipmentSlot.CHEST ? "left_arm" : null, 5, 2, 0));
         parts.put("right_leg", part(slot == EquipmentSlot.LEGS ? "right_leg"

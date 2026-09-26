@@ -2,6 +2,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mistaboom.essence_ascendance.visual.CanonicalPaletteValues;
+import com.mistaboom.essence_ascendance.visual.TexturePixels;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -35,6 +36,7 @@ public final class AscendanceArmorGenerator {
             new PartSpec("Right_Arm", 128, 128, -5, 2, 0),
             new PartSpec("Left_Leg", 128, 128, 1.9f, 12, 0),
             new PartSpec("Right_Leg", 128, 128, -1.9f, 12, 0),
+            new PartSpec("Belt", 128, 128, 0, 0, 0, false),
             new PartSpec("Left_Foot", 128, 128, 1.9f, 12, 0),
             new PartSpec("Right_Foot", 128, 128, -1.9f, 12, 0));
 
@@ -53,7 +55,7 @@ public final class AscendanceArmorGenerator {
         List<Atlas> atlases = List.of(
                 atlas("helmet", parts, "Head"),
                 atlas("chestplate", parts, "Chest", "Left_Arm", "Right_Arm"),
-                atlas("leggings", parts, "Left_Leg", "Right_Leg"),
+                atlas("leggings", parts, "Left_Leg", "Right_Leg", "Belt"),
                 atlas("boots", parts, "Left_Foot", "Right_Foot"));
         int triangles = 0;
         for (Atlas atlas : atlases) {
@@ -69,13 +71,14 @@ public final class AscendanceArmorGenerator {
 
     private static Part loadPart(JsonObject project, PartSpec spec, Path masks) throws IOException {
         JsonObject baseTexture = named(project.getAsJsonArray("textures"), spec.name + "_Base");
-        JsonObject accentTexture = named(project.getAsJsonArray("textures"), spec.name + "_Accent");
+        JsonObject accentTexture = spec.hasAccent
+                ? named(project.getAsJsonArray("textures"), spec.name + "_Accent") : null;
         // Normal builds read the editable PNGs; embedded Blockbench pixels are import-only.
         BufferedImage base = sourceImage(masks.resolve(maskName(spec, "base")));
-        BufferedImage accent = sourceImage(masks.resolve(maskName(spec, "accent")));
+        BufferedImage accent = spec.hasAccent ? sourceImage(masks.resolve(maskName(spec, "accent"))) : null;
         if (base.getWidth() != spec.width || base.getHeight() != spec.height
-                || accent.getWidth() != spec.width || accent.getHeight() != spec.height)
-            throw new IllegalArgumentException(spec.name + " masks must both be " + spec.width + "x" + spec.height);
+                || (accent != null && (accent.getWidth() != spec.width || accent.getHeight() != spec.height)))
+            throw new IllegalArgumentException(spec.name + " masks must be " + spec.width + "x" + spec.height);
         JsonObject mesh = named(project.getAsJsonArray("elements"), spec.name);
         // Fail instead of silently changing placement after an incompatible art edit.
         if (!mesh.get("type").getAsString().equals("mesh")
@@ -85,8 +88,8 @@ public final class AscendanceArmorGenerator {
         float uvWidth = baseTexture.get("uv_width").getAsFloat();
         float uvHeight = baseTexture.get("uv_height").getAsFloat();
         if (!Float.isFinite(uvWidth) || !Float.isFinite(uvHeight) || uvWidth <= 0 || uvHeight <= 0
-                || uvWidth != accentTexture.get("uv_width").getAsFloat()
-                || uvHeight != accentTexture.get("uv_height").getAsFloat())
+                || (accentTexture != null && (uvWidth != accentTexture.get("uv_width").getAsFloat()
+                || uvHeight != accentTexture.get("uv_height").getAsFloat())))
             throw new IllegalArgumentException(spec.name + " masks must use the same positive UV resolution");
         return new Part(spec, mesh, base, accent, uvWidth, uvHeight);
     }
@@ -109,7 +112,9 @@ public final class AscendanceArmorGenerator {
         BufferedImage image = new BufferedImage(atlas.width, atlas.height, BufferedImage.TYPE_INT_ARGB);
         for (Placement placement : atlas.parts) {
             Part part = placement.part;
-            BufferedImage composite = MaskedTextureWriter.compose(part.base, part.accent, BASE[tier], ACCENT[tier], false);
+            BufferedImage composite = part.spec.hasAccent
+                    ? MaskedTextureWriter.compose(part.base, part.accent, BASE[tier], ACCENT[tier], false)
+                    : tintBase(part.base, BASE[tier]);
             // Copy exact ARGB pixels, avoiding interpolation, alpha rounding, padding or hole filling.
             int width = composite.getWidth();
             int height = composite.getHeight();
@@ -118,6 +123,14 @@ public final class AscendanceArmorGenerator {
         }
         MaskedTextureWriter.writeImage(output.resolve(ROOT + "textures/armor/ascendance/generated/"
                 + atlas.name + "_" + TIERS[tier] + ".png"), image);
+    }
+
+    /** Base-only authored pieces need no synthesized accent mask or source file. */
+    private static BufferedImage tintBase(BufferedImage base, int color) {
+        BufferedImage tinted = new BufferedImage(base.getWidth(), base.getHeight(), BufferedImage.TYPE_INT_ARGB);
+        for (int y = 0; y < base.getHeight(); y++) for (int x = 0; x < base.getWidth(); x++)
+            tinted.setRGB(x, y, TexturePixels.tintArgb(base.getRGB(x, y), color));
+        return tinted;
     }
 
     private static void writeMesh(Path output, Atlas atlas, Placement placement) throws IOException {
@@ -202,7 +215,7 @@ public final class AscendanceArmorGenerator {
     private static void exportMasks(Path source, Path masks) throws IOException {
         JsonObject project = JsonParser.parseString(Files.readString(source)).getAsJsonObject();
         Map<String, byte[]> images = new LinkedHashMap<>();
-        for (PartSpec spec : PARTS) for (String suffix : List.of("Base", "Accent")) {
+        for (PartSpec spec : PARTS) for (String suffix : spec.maskSuffixes()) {
             JsonObject texture = named(project.getAsJsonArray("textures"), spec.name + "_" + suffix);
             byte[] png = embeddedPng(texture);
             BufferedImage image = ImageIO.read(new ByteArrayInputStream(png));
@@ -223,7 +236,16 @@ public final class AscendanceArmorGenerator {
         return Base64.getDecoder().decode(source.substring(source.indexOf(',') + 1));
     }
 
-    private record PartSpec(String name, int width, int height, float pivotX, float pivotY, float pivotZ) { }
+    private record PartSpec(String name, int width, int height, float pivotX, float pivotY, float pivotZ,
+                            boolean hasAccent) {
+        private PartSpec(String name, int width, int height, float pivotX, float pivotY, float pivotZ) {
+            this(name, width, height, pivotX, pivotY, pivotZ, true);
+        }
+
+        private List<String> maskSuffixes() {
+            return hasAccent ? List.of("Base", "Accent") : List.of("Base");
+        }
+    }
     private record Part(PartSpec spec, JsonObject mesh, BufferedImage base, BufferedImage accent,
                         float uvWidth, float uvHeight) { }
     private record Placement(Part part, int x, int y) { }

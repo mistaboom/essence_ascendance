@@ -27,14 +27,15 @@ public final class AscendanceArmorTest {
     private static final String ROOT = "/assets/essence_ascendance/";
     private static final List<String> BONES = List.of("head", "hat", "body", "left_arm", "right_arm", "left_leg", "right_leg");
     private static final List<Piece> PIECES = List.of(
-            new Piece("Head", "head", EquipmentSlot.HEAD, "head", "helmet", 256, 64, 0, 256, 256, 0, 0),
-            new Piece("Chest", "chest", EquipmentSlot.CHEST, "body", "chestplate", 256, 64, 0, 512, 256, 0, 0),
-            new Piece("Left_Arm", "left_arm", EquipmentSlot.CHEST, "left_arm", "chestplate", 128, 32, 256, 512, 256, 5, 2),
-            new Piece("Right_Arm", "right_arm", EquipmentSlot.CHEST, "right_arm", "chestplate", 128, 32, 384, 512, 256, -5, 2),
-            new Piece("Left_Leg", "left_leg", EquipmentSlot.LEGS, "left_leg", "leggings", 128, 32, 0, 256, 128, 1.9f, 12),
-            new Piece("Right_Leg", "right_leg", EquipmentSlot.LEGS, "right_leg", "leggings", 128, 32, 128, 256, 128, -1.9f, 12),
-            new Piece("Left_Foot", "left_foot", EquipmentSlot.FEET, "left_leg", "boots", 128, 32, 0, 256, 128, 1.9f, 12),
-            new Piece("Right_Foot", "right_foot", EquipmentSlot.FEET, "right_leg", "boots", 128, 32, 128, 256, 128, -1.9f, 12));
+            new Piece("Head", "head", EquipmentSlot.HEAD, "head", "helmet", 256, 64, 0, 256, 256, 0, 0, true),
+            new Piece("Chest", "chest", EquipmentSlot.CHEST, "body", "chestplate", 256, 64, 0, 512, 256, 0, 0, true),
+            new Piece("Left_Arm", "left_arm", EquipmentSlot.CHEST, "left_arm", "chestplate", 128, 32, 256, 512, 256, 5, 2, true),
+            new Piece("Right_Arm", "right_arm", EquipmentSlot.CHEST, "right_arm", "chestplate", 128, 32, 384, 512, 256, -5, 2, true),
+            new Piece("Left_Leg", "left_leg", EquipmentSlot.LEGS, "left_leg", "leggings", 128, 32, 0, 384, 128, 1.9f, 12, true),
+            new Piece("Right_Leg", "right_leg", EquipmentSlot.LEGS, "right_leg", "leggings", 128, 32, 128, 384, 128, -1.9f, 12, true),
+            new Piece("Belt", "belt", EquipmentSlot.LEGS, "body", "leggings", 128, 32, 256, 384, 128, 0, 0, false),
+            new Piece("Left_Foot", "left_foot", EquipmentSlot.FEET, "left_leg", "boots", 128, 32, 0, 256, 128, 1.9f, 12, true),
+            new Piece("Right_Foot", "right_foot", EquipmentSlot.FEET, "right_leg", "boots", 128, 32, 128, 256, 128, -1.9f, 12, true));
 
     public static void main(String[] args) throws Exception {
         check(args.length == 2, "Expected the authored Armor.bbmodel path and source PNG directory");
@@ -43,7 +44,7 @@ public final class AscendanceArmorTest {
         Map<String, JsonObject> elements = namedEntries(source, "elements");
         Map<String, JsonObject> textureEntries = namedEntries(source, "textures");
         Map<String, BufferedImage> textures = new LinkedHashMap<>();
-        for (Piece piece : PIECES) for (String suffix : List.of("_Base", "_Accent")) {
+        for (Piece piece : PIECES) for (String suffix : piece.hasAccent ? List.of("_Base", "_Accent") : List.of("_Base")) {
             String name = piece.sourceName + suffix;
             JsonObject texture = textureEntries.get(name);
             check(texture != null, "Missing artist texture " + name);
@@ -57,6 +58,7 @@ public final class AscendanceArmorTest {
                     && texture.get("uv_height").getAsInt() == piece.uvSize, "Unexpected source UV size: " + name);
             textures.put(name, image);
         }
+        check(textures.size() == 17, "Armor uses 17 source masks, including the belt's base-only mask");
         for (EquipmentSlot slot : List.of(EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET)) {
             var model = new AscendanceArmorModel<LivingEntity>(slot);
             model.young = false;
@@ -77,7 +79,8 @@ public final class AscendanceArmorTest {
             check(render(model).vertices.size() == triangleCount * 4, slot + " must draw its own geometry exactly once");
             checkTextures(slot, textures);
         }
-        System.out.println("AscendanceArmorTest: eight EAM1 meshes, animated pivots/normals, slot isolation, UVs and 24 PNG-sourced tier atlases PASS");
+        checkBeltGaitIndependence();
+        System.out.println("AscendanceArmorTest: nine EAM1 meshes, independent belt/leg animation, slot isolation, UVs and 24 tier atlases from 17 source masks PASS");
     }
 
     private static void checkMeshAndAnimation(AscendanceArmorModel<LivingEntity> model, Piece piece,
@@ -172,9 +175,10 @@ public final class AscendanceArmorTest {
                 BufferedImage base = textures.get(piece.sourceName + "_Base");
                 BufferedImage accent = textures.get(piece.sourceName + "_Accent");
                 for (int y = 0; y < piece.textureSize; y++) for (int x = 0; x < piece.textureSize; x++) {
-                    expected[y * atlas.atlasWidth + piece.atlasX + x] = TexturePixels.overArgb(
-                            TexturePixels.tintArgb(accent.getRGB(x, y), AscendancePalette.tierMetalRgb(tier)),
-                            TexturePixels.tintArgb(base.getRGB(x, y), AscendancePalette.tierPrimaryRgb(tier)));
+                    int tintedBase = TexturePixels.tintArgb(base.getRGB(x, y), AscendancePalette.tierPrimaryRgb(tier));
+                    expected[y * atlas.atlasWidth + piece.atlasX + x] = piece.hasAccent
+                            ? TexturePixels.overArgb(TexturePixels.tintArgb(accent.getRGB(x, y), AscendancePalette.tierMetalRgb(tier)), tintedBase)
+                            : tintedBase;
                 }
             }
             for (int y = 0; y < atlas.atlasHeight; y++) for (int x = 0; x < atlas.atlasWidth; x++) {
@@ -182,6 +186,51 @@ public final class AscendanceArmorTest {
                         name + " changed source coverage, shading or canonical tint at " + x + "," + y);
             }
         }
+    }
+
+    private static void checkBeltGaitIndependence() {
+        var model = new AscendanceArmorModel<LivingEntity>(EquipmentSlot.LEGS);
+        model.young = false;
+        RecordingBuffer restingBelt = renderOnly(model, model.body);
+        RecordingBuffer restingLeftLeg = renderOnly(model, model.leftLeg);
+        RecordingBuffer restingRightLeg = renderOnly(model, model.rightLeg);
+
+        // A crouched torso moves the belt while each leg keeps its own hip transform.
+        model.body.xRot = .6f;
+        model.body.y = 2;
+        model.body.z = 1;
+        RecordingBuffer crouchedBelt = renderOnly(model, model.body);
+        checkMoved(restingBelt, crouchedBelt, "Belt must follow torso pitch and translation");
+        checkSameVertices(restingLeftLeg, renderOnly(model, model.leftLeg), "Torso must not drive left-leg gait");
+        checkSameVertices(restingRightLeg, renderOnly(model, model.rightLeg), "Torso must not drive right-leg gait");
+
+        // Walking poses can change both legs without pulling the belt away from the torso.
+        model.leftLeg.xRot = .8f;
+        model.rightLeg.xRot = -.8f;
+        model.leftLeg.yRot = .2f;
+        model.rightLeg.yRot = -.2f;
+        checkSameVertices(crouchedBelt, renderOnly(model, model.body), "Leg rotations must not move or relight the belt");
+        checkMoved(restingLeftLeg, renderOnly(model, model.leftLeg), "Left-leg geometry must follow its gait pose");
+        checkMoved(restingRightLeg, renderOnly(model, model.rightLeg), "Right-leg geometry must follow its gait pose");
+    }
+
+    private static RecordingBuffer renderOnly(AscendanceArmorModel<LivingEntity> model, ModelPart part) {
+        model.setAllVisible(false);
+        part.visible = true;
+        return render(model);
+    }
+
+    private static void checkSameVertices(RecordingBuffer expected, RecordingBuffer actual, String message) {
+        check(!expected.vertices.isEmpty() && actual.vertices.size() == expected.vertices.size(), message + " (vertex count)");
+        for (int i = 0; i < expected.vertices.size(); i++) for (int axis = 0; axis < 8; axis++)
+            close(actual.vertices.get(i)[axis], expected.vertices.get(i)[axis], message);
+    }
+
+    private static void checkMoved(RecordingBuffer before, RecordingBuffer after, String message) {
+        check(!before.vertices.isEmpty() && after.vertices.size() == before.vertices.size(), message + " (vertex count)");
+        for (int i = 0; i < before.vertices.size(); i++) for (int axis = 0; axis < 3; axis++)
+            if (Math.abs(before.vertices.get(i)[axis] - after.vertices.get(i)[axis]) > 2e-6f) return;
+        throw new AssertionError(message);
     }
 
     private static void checkNormal(List<float[]> vertices, int index, String part) {
@@ -241,7 +290,7 @@ public final class AscendanceArmorTest {
 
     private record Piece(String sourceName, String resource, EquipmentSlot slot, String bone, String atlas,
                          int textureSize, int uvSize, int atlasX, int atlasWidth, int atlasHeight,
-                         float pivotX, float pivotY) { }
+                         float pivotX, float pivotY, boolean hasAccent) { }
 
     private static final class RecordingBuffer implements VertexConsumer {
         private final List<float[]> vertices = new ArrayList<>();
