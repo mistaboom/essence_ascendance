@@ -12,7 +12,7 @@ public final class ArmorEmissionTest {
     public static void main(String[] args) throws Exception {
         net.minecraft.SharedConstants.tryDetectVersion();
         net.minecraft.server.Bootstrap.bootStrap();
-        int[] expected = {0, 48, 96, 144, 192, 240};
+        int[] expected = {0, 41, 82, 122, 163, 204};
         int previous = -1;
         for (EquipmentTier tier : EquipmentTier.values()) {
             int alpha = ArmorEmission.alpha(tier);
@@ -20,7 +20,7 @@ public final class ArmorEmissionTest {
                     "Zero Latent, strictly increasing scaled emission, brighter Transcendent endpoint");
             previous = alpha;
         }
-        check(ArmorEmission.alpha(EquipmentTier.TRANSCENDENT) > 2 * 112, "Transcendent exceeds twice the old overlay strength");
+        check(ArmorEmission.alpha(EquipmentTier.TRANSCENDENT) == Math.round(240 * .85f), "Transcendent endpoint reduced by 15 percent");
         check(ArmorEmission.luminousColor(0x804020) == 0x9f6f57, "Retain Focus's 3:1 accent/white tint");
         var texture = ResourceLocation.fromNamespaceAndPath("essence_ascendance",
                 "textures/armor/ascendance/generated/chestplate_emission.png");
@@ -36,7 +36,7 @@ public final class ArmorEmissionTest {
             check(stateField(emission, field) == stateField(focus, field), "Preserve masked alpha blend/color-only semantics: " + field);
         check(stateField(emission, "transparencyState") != stateField(eyes, "transparencyState"), "Use scaled alpha, not additive eye blending");
         check(stateField(emission, "writeMaskState") != stateField(armor, "writeMaskState"), "Transparent accent pixels cannot write depth");
-        System.out.println("ArmorEmissionTest: scaled 0..240 emission, luminous tint, unlit shader, armor depth and masked alpha blending PASS");
+        System.out.println("ArmorEmissionTest: scaled 0..204 emission, luminous tint, unlit shader, armor depth and masked alpha blending PASS");
     }
 
     private static Object stateField(RenderType type, String name) throws Exception {

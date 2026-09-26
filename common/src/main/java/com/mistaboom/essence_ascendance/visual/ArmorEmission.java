@@ -4,11 +4,14 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentTier;
 
 /** Accent-only emission, independent of environmental and directional lighting. */
 public final class ArmorEmission {
-    private static final int[] ALPHA = {0, 48, 96, 144, 192, 240};
+    // Tune this endpoint (0..255); lower tiers scale proportionally and Latent stays at zero.
+    private static final int MAX_ALPHA = 204;
 
     private ArmorEmission() { }
 
-    public static int alpha(EquipmentTier tier) { return ALPHA[tier.ordinal()]; }
+    public static int alpha(EquipmentTier tier) {
+        return Math.round(MAX_ALPHA * tier.ordinal() / (float) EquipmentTier.TRANSCENDENT.ordinal());
+    }
 
     /** Keep the Focus's 3:1 accent/white luminous tint. */
     public static int luminousColor(int rgb) {

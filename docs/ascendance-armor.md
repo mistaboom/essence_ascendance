@@ -62,13 +62,13 @@ Armor has no floating ornaments, planes, rings, ticks or satellites. The normal 
 | Tier | Emission alpha (0–255) |
 | --- | --- |
 | Latent | 0 |
-| Dormant | 48 |
-| Awakened | 96 |
-| Resonant | 144 |
-| Ascendant | 192 |
-| Transcendent | 240 |
+| Dormant | 41 |
+| Awakened | 82 |
+| Resonant | 122 |
+| Ascendant | 163 |
+| Transcendent | 204 |
 
-`ArmorEmission` preserves an evenly scaled progression from no emission to a substantially stronger Transcendent endpoint. The new endpoint is more than twice the previous alpha of 112. Tint still uses the Focus's 3:1 accent/white mix, starting from `EquipmentTierVisuals.armorAccentRgb(tier)`. Base metal and the belt retain normal lighting at every tier.
+`ArmorEmission` preserves an evenly scaled progression from no emission to a substantially stronger Transcendent endpoint. The endpoint is 204, a 15% reduction from the unlit value of 240. To tune it, change `MAX_ALPHA` in `common/src/main/java/com/mistaboom/essence_ascendance/visual/ArmorEmission.java`; lower tiers scale automatically, with Latent staying at zero. The unlit rendering method is unchanged. Tint still uses the Focus's 3:1 accent/white mix, starting from `EquipmentTierVisuals.armorAccentRgb(tier)`. Base metal and the belt retain normal lighting at every tier.
 
 `ArmorRenderTypes` uses Minecraft's unlit eyes shader with **ordinary alpha blending**, not its additive eye blend. Unlike `entityTranslucentEmissive`, this shader does not call `minecraft_mix_light`, so directional normals cannot darken side-facing sleeve accents. The former armor effect also lacked the Focus's raised base lighting, making equal overlay alpha look much weaker in darkness. Armor now supplies its stronger light contribution entirely through the authored accent mask; it does not raise lighting on the base metal.
 
