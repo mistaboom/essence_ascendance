@@ -1,6 +1,7 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "minecraft:item/golden_chestplate"
+    "layer0": "essence_ascendance:item/ascendance_chestplate/base",
+    "layer1": "essence_ascendance:item/ascendance_chestplate/accent"
   }
 }

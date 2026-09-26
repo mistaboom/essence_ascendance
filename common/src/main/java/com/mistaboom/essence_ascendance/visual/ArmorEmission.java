@@ -5,7 +5,7 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentTier;
 /** Accent-only emission, independent of environmental and directional lighting. */
 public final class ArmorEmission {
     // Tune this endpoint (0..255); lower tiers scale proportionally and Latent stays at zero.
-    private static final int MAX_ALPHA = 200;
+    private static final int MAX_ALPHA = 180;
 
     private ArmorEmission() { }
 

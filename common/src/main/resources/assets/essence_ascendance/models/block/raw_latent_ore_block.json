@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:block/cube_all",
   "textures": {
-    "all": "minecraft:block/raw_iron_block"
+    "all": "essence_ascendance:block/raw_latent_ore_block"
   }
 }

@@ -14,6 +14,9 @@ import net.minecraft.world.item.ItemStack;
  */
 public final class EquipmentTierVisuals {
 
+    /** White leaves a grayscale or deliberately colored layer unchanged. */
+    public static final int CLEAR_TINT = 0xFFFFFFFF;
+
     public static final ResourceLocation MODEL_PROPERTY =
             ResourceLocation.fromNamespaceAndPath(
                     EssenceAscendance.MOD_ID,
@@ -31,6 +34,19 @@ public final class EquipmentTierVisuals {
 
     public static int primaryRgb(ItemStack stack) { return primaryRgb(EquipmentTierData.tier(stack)); }
     public static int armorAccentRgb(ItemStack stack) { return armorAccentRgb(EquipmentTierData.tier(stack)); }
+
+    /** Base, accent and optional unchanged layers use tint indices 0, 1 and 2. */
+    public static int itemTint(ItemStack stack, int tintIndex) {
+        return switch (tintIndex) {
+            case 0 -> opaque(primaryRgb(stack));
+            case 1 -> opaque(armorAccentRgb(stack));
+            default -> CLEAR_TINT;
+        };
+    }
+
+    private static int opaque(int rgb) {
+        return 0xFF000000 | (rgb & 0xFFFFFF);
+    }
 
     /**
      * Item-model predicates are clamped floats, so the six tiers are evenly

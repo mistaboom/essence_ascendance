@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.item;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
+import com.mistaboom.essence_ascendance.equipment.EquipmentCatalogStacks;
 import dev.architectury.registry.CreativeTabRegistry;
 import dev.architectury.registry.registries.DeferredRegister;
 import dev.architectury.registry.registries.RegistrySupplier;
@@ -14,6 +15,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.PickaxeItem;
 import net.minecraft.world.item.ShovelItem;
 import net.minecraft.world.item.SwordItem;
+
+import java.util.List;
 
 public final class AscendanceItems {
 
@@ -284,11 +287,6 @@ public final class AscendanceItems {
 
         CreativeTabRegistry.append(
                 CreativeModeTabs.COMBAT,
-                ASCENDANCE_MELEE_WEAPON
-        );
-
-        CreativeTabRegistry.append(
-                CreativeModeTabs.COMBAT,
                 ASCENDANCE_RANGED_WEAPON
         );
 
@@ -319,13 +317,25 @@ public final class AscendanceItems {
                 ASCENDANCE_HOE
         );
 
-        CreativeTabRegistry.append(
-                CreativeModeTabs.COMBAT,
+        // Inventory-art equipment exposes all six visual tiers. These are
+        // ordinary zero-investment stacks: tier data is present where needed,
+        // but ownership remains absent until real Infuser progress begins.
+        CreativeTabRegistry.modify(
+                CreativeTabRegistry.defer(CreativeModeTabs.COMBAT),
+                (flags, output, canUseGameMasterBlocks) ->
+                        EquipmentCatalogStacks.allTiers(tieredInventoryArtItems())
+                                .forEach(output::accept)
+        );
+    }
 
-                ASCENDANCE_HELMET,
-                ASCENDANCE_CHESTPLATE,
-                ASCENDANCE_LEGGINGS,
-                ASCENDANCE_BOOTS
+    /** Equipment whose authored inventory sprites support all tier tints. */
+    public static List<Item> tieredInventoryArtItems() {
+        return List.of(
+                ASCENDANCE_MELEE_WEAPON.get(),
+                ASCENDANCE_HELMET.get(),
+                ASCENDANCE_CHESTPLATE.get(),
+                ASCENDANCE_LEGGINGS.get(),
+                ASCENDANCE_BOOTS.get()
         );
     }
 }

@@ -126,6 +126,8 @@ loom {
 def balanceInvariantMains = [
         latentOreBalanceInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.LatentOreBalanceTest',
         latentOreJeiInvariants: 'com.mistaboom.essence_ascendance.compat.jei.LatentOreJeiTest',
+        equipmentInventoryCatalogInvariants: 'com.mistaboom.essence_ascendance.compat.jei.EquipmentInventoryCatalogTest',
+        inventoryItemAssetInvariants: 'com.mistaboom.essence_ascendance.client.InventoryItemAssetsTest',
         ascendanceArmorInvariants: 'com.mistaboom.essence_ascendance.client.armor.AscendanceArmorTest',
         armorVisualInvariants: 'com.mistaboom.essence_ascendance.client.armor.ArmorEmissionTest',
         ascendancePaletteInvariants: 'com.mistaboom.essence_ascendance.client.AscendancePaletteTest',

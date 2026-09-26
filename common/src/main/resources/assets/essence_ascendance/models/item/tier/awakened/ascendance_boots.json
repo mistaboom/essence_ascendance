@@ -1,6 +1,7 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "minecraft:item/iron_boots"
+    "layer0": "essence_ascendance:item/ascendance_boots/base",
+    "layer1": "essence_ascendance:item/ascendance_boots/accent"
   }
 }

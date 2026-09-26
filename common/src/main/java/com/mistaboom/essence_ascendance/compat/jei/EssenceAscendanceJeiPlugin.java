@@ -6,6 +6,9 @@ import com.mistaboom.essence_ascendance.client.EssenceCrucibleScreen;
 import com.mistaboom.essence_ascendance.client.EssenceInfuserScreen;
 import com.mistaboom.essence_ascendance.client.EssencePylonScreen;
 import com.mistaboom.essence_ascendance.client.ore.LatentOreClientCatalog;
+import com.mistaboom.essence_ascendance.equipment.EquipmentCatalogStacks;
+import com.mistaboom.essence_ascendance.equipment.EquipmentTier;
+import com.mistaboom.essence_ascendance.equipment.EquipmentTierData;
 import com.mistaboom.essence_ascendance.ore.LatentOreHost;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserContent;
 import com.mistaboom.essence_ascendance.infuser.EssentiumBlockCompactingRecipe;
@@ -14,6 +17,7 @@ import com.mistaboom.essence_ascendance.infuser.EssentiumCarrierData;
 import com.mistaboom.essence_ascendance.infuser.EssentiumItem;
 import com.mistaboom.essence_ascendance.infuser.EssentiumNuggetCompactingRecipe;
 import com.mistaboom.essence_ascendance.infuser.EssentiumNuggetUncompactingRecipe;
+import com.mistaboom.essence_ascendance.item.AscendanceItems;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.constants.VanillaTypes;
@@ -119,6 +123,22 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
         }
     };
 
+    /** Tier components distinguish the authored equipment sprites in JEI's ingredient list. */
+    static final ISubtypeInterpreter<ItemStack> EQUIPMENT_TIER_SUBTYPE = new ISubtypeInterpreter<>() {
+        @Override
+        public Object getSubtypeData(ItemStack stack, UidContext context) {
+            return context == UidContext.Ingredient && EquipmentTierData.isAscendanceEquipment(stack)
+                    ? EquipmentTierData.tier(stack)
+                    : null;
+        }
+
+        @Override
+        @SuppressWarnings("removal")
+        public String getLegacyStringSubtypeInfo(ItemStack stack, UidContext context) {
+            return "";
+        }
+    };
+
     private IJeiRuntime runtime;
     private List<ItemStack> listedOreVariants = List.of();
 
@@ -130,6 +150,9 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
     @Override
     public void registerItemSubtypes(ISubtypeRegistration registration) {
         registration.registerSubtypeInterpreter(EssenceInfuserContent.LATENT_ORE_ITEM.get(), LATENT_ORE_SUBTYPE);
+        for (var item : AscendanceItems.tieredInventoryArtItems()) {
+            registration.registerSubtypeInterpreter(item, EQUIPMENT_TIER_SUBTYPE);
+        }
         registration.registerSubtypeInterpreter(
                 EssenceInfuserContent.ESSENTIUM_NUGGET.get(),
                 ESSENTIUM_SUBTYPE
@@ -151,6 +174,11 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
         variants.addAll(carrierVariants(EssentiumItem.CarrierForm.INGOT, 1));
         variants.addAll(carrierVariants(EssentiumItem.CarrierForm.BLOCK, 1));
         variants.addAll(LatentOreHost.creativeStacks());
+        // JEI already discovers each item's ordinary untagged Latent stack.
+        // Add only the component-bearing upgrades to avoid a duplicate Latent entry.
+        variants.addAll(EquipmentCatalogStacks.allTiers(AscendanceItems.tieredInventoryArtItems()).stream()
+                .filter(stack -> EquipmentTierData.tier(stack) != EquipmentTier.LATENT)
+                .toList());
         registration.addExtraItemStacks(variants);
     }
 

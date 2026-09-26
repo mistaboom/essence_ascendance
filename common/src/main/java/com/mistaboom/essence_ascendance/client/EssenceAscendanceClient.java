@@ -147,6 +147,10 @@ public final class EssenceAscendanceClient {
                 EssentiumCarrierVisuals::itemTint,
                 essenceCarrierTintItems
         );
+        ColorHandlerRegistry.registerItemColors(
+                EquipmentTierVisuals::itemTint,
+                AscendanceItems.tieredInventoryArtItems().toArray(Item[]::new)
+        );
         ColorHandlerRegistry.registerBlockColors(
                 (state, level, pos, tintIndex) -> EssentiumCarrierVisuals.CLEAR_TINT,
                 EssenceInfuserContent.LATENT_BLOCK.get()
