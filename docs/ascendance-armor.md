@@ -54,3 +54,57 @@ Run `:common:clean` once after migrating an existing checkout, before building, 
 To compare in game, hold each Ascendance armor item in your main hand and use `/essence admin item tier set latent` (or `dormant`, `awakened`, `resonant`, `ascendant`, `transcendent`), then equip it and use third-person view. The admin command requires cheats/operator permission and applies the existing equipment tier/soulbinding behavior.
 
 Verification: `:common:ascendanceArmorInvariants` covers the full armor import, canonical palette and all generated slot/tier atlases against the source masks. `:common:texturePixelInvariants` covers shared compositing math; `:common:ascendancePaletteInvariants` covers the shared canonical palette contract. Build both platform jars with `:fabric:remapJar :neoforge:remapJar`. These automated checks do not replace an in-game visual fit and animation check.
+
+## Emission and magical ornamentation
+
+The normal pass still uses the combined base/accent atlas and ordinary armor lighting. Four additional generated resources, `{helmet,chestplate,leggings,boots}_emission.png`, copy the exact grayscale accent ARGB pixels into the same atlas positions. There is no resampling, expansion, padding, or new paint. Belt and unused atlas space are transparent; the renderer also skips the belt mesh entirely in the emission pass. Edit only the existing 17 source masks, then regenerate normally. The four emission PNGs are derived runtime resources, not new authoring inputs.
+
+| Tier | Accent emission alpha (0–255) | Ornament refinement |
+| --- | --- | --- |
+| Latent | 0 | One small static fragment at each primary attachment; no arm/thigh ornaments |
+| Dormant | 22 | Two opposed floating fragments |
+| Awakened | 45 | Four sections establish the primary form; shoulder/thigh forms and two close-view ticks appear |
+| Resonant | 67 | A second broken band; slow movement of the gaps |
+| Ascendant | 90 | A broader outer band and four sparse ticks |
+| Transcendent | 112 | Nearly complete separated bands, two small counter-moving inset planes and luminous fine cores |
+
+Emission uses the same shader and blend/depth-write semantics as `entityTranslucentEmissive`, full-bright packed light `0xF000F0`, and 3:1 accent/white luminous tint as Focus. Its endpoint is the **passive** Transcendent Focus alpha of 112, excluding the active-machine +12. All magic derives its color from `EquipmentTierVisuals.armorAccentRgb(tier)`; the neutral `primaryRgb` is not used. Coplanar emission uses exactly the normal mesh vertices and UVs with the standard depth-tested, color-only emissive blend. `ArmorRenderTypes` adds the same `VIEW_OFFSET_Z_LAYERING` as vanilla armor, so the two passes share their view-depth transform; a generic unadjusted entity overlay would sit behind the armor. There is no inflated shell or polygon offset to create edge halos; the combined normal texture remains under all accent edges. Enchantment foil remains in the original loader armor pipeline.
+
+| Piece | Primary form | Animated attachments and later refinement |
+| --- | --- | --- |
+| Helmet | Flattened broken crown ellipse above the brow | Head bone; concentric refinement and two inset planes stay above the eyes |
+| Chestplate | Frontal lozenge collar | Body bone; paired shoulder lozenges begin at Awakened on their respective arm bones |
+| Leggings | Wide, shallow frontal waist lozenge | Belt/body bone; paired long thigh lozenges begin at Awakened on their respective leg bones |
+| Boots | Small stabilizer lozenges ahead of each ankle | Corresponding leg bones; broken bands become layered fins with sparse close-view marks |
+
+Each slot supplies a primary form when worn alone. The full set repeats the same gaps, luminous cores and tier color at restrained sizes. Lower-tier arm/thigh omissions keep the initial set quiet. The belt ornament is procedural magic in front of the waist; the belt texture itself never emits.
+
+`ArmorPresentationMixin` adds one common post-armor hook for Fabric and NeoForge. `AscendanceArmorModel.visitAttachments` traverses the actual model cube transforms, so ornaments inherit exactly the mesh's head/torso/limb animation, visibility and baby scaling. The visitor captures immutable frame-local poses before another entity can mutate the shared model. The incoming entity transform supplies crouching, swimming, fall-flying and body rotation. Invisible entities and spectators get no added presentation. Texture resources use Minecraft's normal reload path; no additional pixel or resource cache is introduced.
+
+Broad planes and sparse lines use `ProceduralGeometry`, `ProceduralMotion`, `ProceduralRenderTypes` and the world-tail queue. Physical surfaces establish depth first; planes test depth without writing it and fine lines test/write depth. Lines/cores fade between 12 and 24 blocks, then broad forms fade between 32 and 48 blocks. Animation uses entity age, partial tick, stable entity identity, equipment slot and tier, with no tick particles, gameplay mutations or network messages. The maximum close-view full set is **2,160 ornament vertices in two shared batches**, plus at most four accent mesh passes. It queues one entry per wearer and stores at most nine small pose snapshots; there are no unbounded per-frame geometry collections.
+
+All authored ornament bounds lie in front of the torso. `ArmorVisualStyle` records a conservative reserved rear half-space beginning at torso-local `z=0.12`, ahead of the harness, outward wing fan and thruster columns (including their renderer translation). While any flight visual is active, each animated motif's eight bound corners are transformed back into torso coordinates. A motif that reaches that half-space is omitted for that frame, preserving flight space even when a limb swings backward. This deliberately favors flight readability over a rear-swinging armor detail. Physical armor/accent emission stays unchanged.
+
+## Visual verification
+
+Run these from the repository root:
+
+```powershell
+.\gradlew.bat :common:ascendanceArmorInvariants :common:armorVisualInvariants :common:texturePixelInvariants :common:ascendancePaletteInvariants
+.\gradlew.bat :fabric:remapJar :neoforge:remapJar armorJarInvariants
+```
+
+The armor suite checks all normal and emission pixels (including hidden RGB, the transparent belt and unused atlas space), mesh/motif bone correspondence, visibility, animated placement and baby scaling. The visual suite verifies actual render-state shards against vanilla armor depth layering and Focus emission semantics, then executes the real procedural emitter across all tiers, motifs and sampled motion phases; checks nondecreasing actual vertex counts, deterministic/static behavior, bounds, distance reduction and posed flight clearance; and caps the close-view set at 2,600 vertices. `armorJarInvariants` builds both production jars, compares all 37 generated armor resources byte-for-byte with the runtime sources, and rejects packaged authoring assets.
+
+For manual review, use a disposable creative world with cheats on each loader. Give yourself the four `essence_ascendance:ascendance_*` armor items. Hold each in your main hand and use `/essence admin item tier set <tier>` before equipping it. Test `latent`, `dormant`, `awakened`, `resonant`, `ascendant`, and `transcendent` in that order.
+
+1. For every tier, wear each of the four slots alone, then the complete set. Inspect front, rear and both sides in third person at roughly 3, 12, 24 and 48 blocks (a second player or equipped armor stands help with distance checks). Confirm the crown clears the eyes and the same motif remains recognizable as its bands complete.
+2. Compare `/time set noon` with an enclosed unlit room or night. Latent accents must have no added glow; the belt and base metal must remain normally lit at all tiers. Inspect accent boundaries up close against bright sky and dark blocks for seams, flicker or halos.
+3. Hold and enchant a piece with `/enchant @s minecraft:unbreaking 1`, then re-equip it. Confirm the normal foil remains visible through the accent blend. Reload resources with F3+T and repeat the close-view check.
+4. Walk, sprint, crouch, turn the head/body, swim and fall-fly. Check independent leg gait and torso-anchored waist ornaments. Equip a baby zombie in a protected test enclosure to verify small humanoid scaling. Test invisibility and spectator mode for absent added effects.
+5. On the complete Transcendent set, use the existing skill loadout/toggles to compare **no flight**, **Fatigue Flight harness only**, **active Fatigue Flight thrust**, **Essence Wings**, and **Vector Boost**. Inspect from front, side and rear while moving, including backward limb swings. The harness/wing fan/thruster silhouette must stay clear; conflicting limb ornaments may disappear while the flight visual is active.
+6. Repeat with several visible equipped entities and mixed-tier sets. Check that fine detail disappears before the broad forms and that no magic shows through the wearer or a nearby solid wall.
+
+Automated geometry and resource checks do not establish perceived brightness, glint strength, motion comfort or the final in-game silhouette. Those remain visual review criteria; client startup alone is not an in-game review of this matrix.
+
+Implementation verification (2026-09-25): the automated suites and both production jar inspections pass. Fabric client startup reached the title screen and loaded a separate review world without an armor mixin error. Visual review was stopped at the user's request before the tier/flight matrix was inspected; the user will perform those inspections. No claim of completed in-game visual validation is made.

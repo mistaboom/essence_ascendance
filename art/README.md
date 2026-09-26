@@ -41,7 +41,7 @@ The current armor contains nine meshes and 17 source masks. The base-only belt e
 Run commands from the repository root:
 
 ```powershell
-# Rebuild armor meshes and all 24 slot/tier atlases from the current model and source PNGs.
+# Rebuild armor meshes, 24 slot/tier atlases and four exact accent-only emission atlases.
 .\gradlew.bat :common:generateAscendanceArmor
 
 # Explicitly import all embedded armor textures after editing them in Blockbench, then rebake.
@@ -56,6 +56,10 @@ python tools/export_focus_mesh.py
 ```
 
 For armor shading changes, edit `source/textures/armor/ascendance/` directly. Preserve each mask's coverage and image dimensions. The generator stitches base/accent pairs into a single tinted texture per armor slot and tier; `belt_base.png` receives only the canonical base grey. It never fills holes or adds painted pixels. Geometry and UV changes belong in `source/models/armor/ascendance_armor.bbmodel`. See [the armor documentation](../docs/ascendance-armor.md) for more detail.
+
+The same generator also writes `{helmet,chestplate,leggings,boots}_emission.png` in the runtime generated texture folder. These atlases copy the source accent pixels exactly, including alpha and hidden RGB, at their existing atlas coordinates. The belt region and unused space stay transparent. Do not paint these outputs: edit the original accent masks and regenerate. Runtime code supplies the Focus-style luminous tint and tier alpha `0, 22, 45, 67, 90, 112`; it preserves the combined normally lit atlas beneath the emission. Procedural crown, collar, waist, thigh and ankle forms need no additional authored textures. Their bounded design lives in `ArmorVisualStyle`, with animation/geometry in `ArmorOrnaments`.
+
+Run `:common:armorVisualInvariants` with the existing armor/texture checks for procedural bounds, complexity and flight clearance. Run `armorJarInvariants` to build and inspect both production jars for the 37 generated armor resources and excluded authoring assets. The existing texture-only previews below do not show emission or procedural ornaments; use the [in-game review matrix](../docs/ascendance-armor.md#visual-verification) to evaluate those effects.
 
 The current repaint uses consistent upper front-left lighting `(-0.35, +0.75, -0.56)` in display axes X/right, Y/up, Z/back. Smooth panel gradients, highlights along actual bevel edges and soft shadows within each part are painted into grayscale. Coplanar triangle diagonals remain unaccented. Observed base shades span 152–255 and accents 170–255; every source alpha byte and hidden RGB value is preserved.
 

@@ -4,6 +4,40 @@ plugins {
     id 'com.gradleup.shadow' version '9.4.3' apply false
 }
 
+tasks.register('armorJarInvariants') {
+    group = 'verification'
+    description = 'Verify both production jars contain generated armor assets and exclude authoring files.'
+    dependsOn ':fabric:remapJar', ':neoforge:remapJar'
+    doLast {
+        def root = 'assets/essence_ascendance/'
+        def tiers = ['latent', 'dormant', 'awakened', 'resonant', 'ascendant', 'transcendent']
+        def pieces = ['helmet', 'chestplate', 'leggings', 'boots']
+        def meshes = ['head', 'chest', 'left_arm', 'right_arm', 'left_leg', 'right_leg', 'belt', 'left_foot', 'right_foot']
+        ['fabric', 'neoforge'].each { loader ->
+            def jar = project(":${loader}").tasks.named('remapJar').get().archiveFile.get().asFile
+            new java.util.zip.ZipFile(jar).withCloseable { zip ->
+                def names = zip.entries().collect { it.name }
+                def expected = pieces.collectMany { piece ->
+                    (tiers + ['emission']).collect { tier -> "${root}textures/armor/ascendance/generated/${piece}_${tier}.png".toString() }
+                } + meshes.collect { "${root}meshes/armor/ascendance/${it}.eamesh".toString() }
+                expected.each { name ->
+                    if (!names.contains(name)) throw new GradleException("${loader}: missing generated armor resource ${name}")
+                    def source = project(':common').file("src/main/resources/${name}")
+                    if (!java.util.Arrays.equals(source.bytes, zip.getInputStream(zip.getEntry(name)).bytes))
+                        throw new GradleException("${loader}: stale generated armor resource ${name}")
+                }
+                if (names.any { it.startsWith('art/') || it.endsWith('.bbmodel')
+                        || it.contains('textures/armor/ascendance/source/')
+                        || it.contains('textures/models/armor/source/') })
+                    throw new GradleException("${loader}: packaged armor authoring files")
+                if (!names.contains('com/mistaboom/essence_ascendance/mixin/ArmorPresentationMixin.class'))
+                    throw new GradleException("${loader}: missing common armor presentation hook")
+                logger.lifecycle("${loader}: all 37 generated armor resources match source; authoring files excluded")
+            }
+        }
+    }
+}
+
 architectury {
     minecraft = project.minecraft_version
 }

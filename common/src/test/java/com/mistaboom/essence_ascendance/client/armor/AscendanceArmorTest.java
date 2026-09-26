@@ -78,9 +78,30 @@ public final class AscendanceArmorTest {
             model.setAllVisible(true);
             check(render(model).vertices.size() == triangleCount * 4, slot + " must draw its own geometry exactly once");
             checkTextures(slot, textures);
+            checkEmissionTexture(slot, textures);
         }
         checkBeltGaitIndependence();
         System.out.println("AscendanceArmorTest: nine EAM1 meshes, independent belt/leg animation, slot isolation, UVs and 24 tier atlases from 17 source masks PASS");
+    }
+
+    private static void checkEmissionTexture(EquipmentSlot slot, Map<String, BufferedImage> textures) throws Exception {
+        List<Piece> pieces = PIECES.stream().filter(piece -> piece.slot == slot).toList();
+        Piece atlas = pieces.getFirst();
+        BufferedImage image;
+        try (InputStream input = resource("textures/armor/ascendance/generated/" + atlas.atlas + "_emission.png")) {
+            image = ImageIO.read(input);
+        }
+        check(image.getWidth() == atlas.atlasWidth && image.getHeight() == atlas.atlasHeight, "Emission atlas dimensions");
+        int[] expected = new int[atlas.atlasWidth * atlas.atlasHeight];
+        for (Piece piece : pieces) {
+            if (!piece.hasAccent) continue;
+            BufferedImage accent = textures.get(piece.sourceName + "_Accent");
+            for (int y = 0; y < piece.textureSize; y++) for (int x = 0; x < piece.textureSize; x++)
+                expected[y * atlas.atlasWidth + piece.atlasX + x] = accent.getRGB(x, y);
+        }
+        for (int y = 0; y < atlas.atlasHeight; y++) for (int x = 0; x < atlas.atlasWidth; x++)
+            check(image.getRGB(x, y) == expected[y * atlas.atlasWidth + x],
+                    "Emission must copy exact accent ARGB, leaving belt/unused pixels zero: " + slot + " " + x + "," + y);
     }
 
     private static void checkMeshAndAnimation(AscendanceArmorModel<LivingEntity> model, Piece piece,
@@ -92,6 +113,7 @@ public final class AscendanceArmorTest {
         close(bone.z, 0, piece.resource + " pivot Z");
         bone.visible = true;
         RecordingBuffer resting = render(model);
+        checkAttachment(model, piece, resting.vertices.getFirst(), resting.vertices.getFirst());
         JsonObject faces = source.getAsJsonObject("faces");
         check(resting.vertices.size() == faces.size() * 4, piece.resource + " must emit one degenerate quad per source triangle");
         try (var input = new DataInputStream(resource("meshes/armor/ascendance/" + piece.resource + ".eamesh"))) {
@@ -137,6 +159,10 @@ public final class AscendanceArmorTest {
         bone.y += 3;
         bone.z -= 2;
         RecordingBuffer animated = render(model);
+        checkAttachment(model, piece, resting.vertices.getFirst(), animated.vertices.getFirst());
+        model.young = true;
+        checkAttachment(model, piece, resting.vertices.getFirst(), render(model).vertices.getFirst());
+        model.young = false;
         check(animated.vertices.size() == resting.vertices.size(), "Animation must not add or drop geometry");
         for (int i = 0; i < resting.vertices.size(); i++) {
             float[] original = resting.vertices.get(i), actual = animated.vertices.get(i);
@@ -157,6 +183,26 @@ public final class AscendanceArmorTest {
         bone.z = 0;
         bone.visible = false;
         check(render(model).vertices.isEmpty(), piece.resource + " must obey bone visibility");
+        model.visitAttachments(new PoseStack(), (name, pose) -> {
+            throw new AssertionError("Hidden bones must not receive ornaments: " + name);
+        });
+    }
+
+    private static void checkAttachment(AscendanceArmorModel<LivingEntity> model, Piece piece,
+                                         float[] resting, float[] rendered) {
+        int[] count = {0};
+        model.visitAttachments(new PoseStack(), (name, pose) -> {
+            check(name.equals(piece.resource), "Ornament must follow the corresponding mesh");
+            check(com.mistaboom.essence_ascendance.visual.ArmorVisualStyle.motif(name).bone.equals(piece.bone),
+                    "Defined ornament bone must match the authored mesh bone");
+            var actual = pose.pose().transformPosition(new org.joml.Vector3f(
+                    resting[0] - piece.pivotX / 16, resting[1] - piece.pivotY / 16, resting[2]));
+            close(actual.x, rendered[0], "Ornament/mesh animated X including young scaling");
+            close(actual.y, rendered[1], "Ornament/mesh animated Y including young scaling");
+            close(actual.z, rendered[2], "Ornament/mesh animated Z including young scaling");
+            count[0]++;
+        });
+        check(count[0] == 1, "One attachment per visible mesh");
     }
 
     private static void checkTextures(EquipmentSlot slot, Map<String, BufferedImage> textures) throws Exception {

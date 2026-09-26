@@ -59,6 +59,7 @@ public final class AscendanceArmorGenerator {
                 atlas("boots", parts, "Left_Foot", "Right_Foot"));
         int triangles = 0;
         for (Atlas atlas : atlases) {
+            bakeEmission(output, atlas);
             for (int tier = 0; tier < TIERS.length; tier++) bakeAtlas(output, atlas, tier);
             for (Placement placement : atlas.parts) {
                 writeMesh(output, atlas, placement);
@@ -123,6 +124,20 @@ public final class AscendanceArmorGenerator {
         }
         MaskedTextureWriter.writeImage(output.resolve(ROOT + "textures/armor/ascendance/generated/"
                 + atlas.name + "_" + TIERS[tier] + ".png"), image);
+    }
+
+    /** Exact authored grayscale accents; tier luminous tint and opacity are applied at render time. */
+    private static void bakeEmission(Path output, Atlas atlas) throws IOException {
+        BufferedImage image = new BufferedImage(atlas.width, atlas.height, BufferedImage.TYPE_INT_ARGB);
+        for (Placement placement : atlas.parts) {
+            BufferedImage accent = placement.part.accent;
+            if (accent == null) continue; // The belt remains completely transparent.
+            int width = accent.getWidth(), height = accent.getHeight();
+            image.setRGB(placement.x, placement.y, width, height,
+                    accent.getRGB(0, 0, width, height, null, 0, width), 0, width);
+        }
+        MaskedTextureWriter.writeImage(output.resolve(ROOT + "textures/armor/ascendance/generated/"
+                + atlas.name + "_emission.png"), image);
     }
 
     /** Base-only authored pieces need no synthesized accent mask or source file. */
