@@ -23,7 +23,7 @@ import java.util.List;
  */
 public final class AscendanceMeleeWeaponItem
         extends SwordItem
-        implements EquipmentProfileItem {
+        implements EquipmentProfileItem, EmissiveAccentItem {
 
     public AscendanceMeleeWeaponItem(
             Tier tier,

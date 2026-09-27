@@ -26,7 +26,7 @@ import java.util.List;
  */
 public final class AscendanceRangedWeaponItem
         extends BowItem
-        implements EquipmentProfileItem {
+        implements EquipmentProfileItem, EmissiveAccentItem {
 
     public AscendanceRangedWeaponItem(Item.Properties properties) {
         super(properties);

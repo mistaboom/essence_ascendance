@@ -18,7 +18,7 @@ import java.util.List;
 
 public final class AscendanceShovelItem
         extends ShovelItem
-        implements EquipmentProfileItem {
+        implements EquipmentProfileItem, EmissiveAccentItem {
 
     public AscendanceShovelItem(
             Tier tier,

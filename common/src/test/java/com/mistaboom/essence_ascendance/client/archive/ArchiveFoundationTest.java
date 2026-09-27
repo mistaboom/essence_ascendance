@@ -444,8 +444,13 @@ public final class ArchiveFoundationTest {
             check(stream != null, "Archive item model is absent");
             var json = JsonParser.parseReader(new InputStreamReader(stream, StandardCharsets.UTF_8)).getAsJsonObject();
             check(json.get("parent").getAsString().equals("minecraft:item/generated")
-                            && json.getAsJsonObject("textures").get("layer0").getAsString().equals("minecraft:item/book"),
-                    "Archive placeholder is not a normal generated item using minecraft:item/book");
+                            && json.getAsJsonObject("textures").get("layer0").getAsString()
+                            .equals("essence_ascendance:item/ascendance_archive"),
+                    "Archive does not use its pipeline-generated inventory texture");
+        }
+        try (var stream = ArchiveFoundationTest.class.getResourceAsStream(
+                "/assets/essence_ascendance/textures/item/ascendance_archive.png")) {
+            check(stream != null, "Archive inventory texture is absent");
         }
     }
 

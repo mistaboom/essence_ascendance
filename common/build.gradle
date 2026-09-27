@@ -40,6 +40,7 @@ def balanceInvariantMains = [
         latentOreJeiInvariants: 'com.mistaboom.essence_ascendance.compat.jei.LatentOreJeiTest',
         equipmentInventoryCatalogInvariants: 'com.mistaboom.essence_ascendance.compat.jei.EquipmentInventoryCatalogTest',
         inventoryItemAssetInvariants: 'com.mistaboom.essence_ascendance.client.InventoryItemAssetsTest',
+        inventoryItemEmissionInvariants: 'com.mistaboom.essence_ascendance.client.InventoryItemEmissionTest',
         ascendanceArmorInvariants: 'com.mistaboom.essence_ascendance.client.armor.AscendanceArmorTest',
         ascendanceShieldInvariants: 'com.mistaboom.essence_ascendance.client.AscendanceShieldTest',
         armorVisualInvariants: 'com.mistaboom.essence_ascendance.client.armor.ArmorEmissionTest',

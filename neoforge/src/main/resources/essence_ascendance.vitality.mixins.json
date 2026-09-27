@@ -24,6 +24,7 @@
   ],
   "client": [
     "LatentOreModelDataMixin",
+    "ItemRendererEmissionMixin",
     "ItemInHandRendererMixin",
     "AbstractClientPlayerFovMixin",
     "ItemStackTooltipMixin",

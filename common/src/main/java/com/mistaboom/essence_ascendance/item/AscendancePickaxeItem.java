@@ -18,7 +18,7 @@ import java.util.List;
 
 public final class AscendancePickaxeItem
         extends PickaxeItem
-        implements EquipmentProfileItem {
+        implements EquipmentProfileItem, EmissiveAccentItem {
 
     public AscendancePickaxeItem(
             Tier tier,

@@ -31,6 +31,14 @@ public final class InventoryItemAssetsTest {
         checkBowState("ascendance_ranged_weapon_pulling_0", "minecraft:item/bow_pulling_0", "pulling_0_");
         checkBowState("ascendance_ranged_weapon_pulling_1", "minecraft:item/bow_pulling_1", "pulling_1_");
         checkBowState("ascendance_ranged_weapon_pulling_2", "minecraft:item/bow_pulling_2", "pulling_2_");
+        checkLayered("ascendance_caster", "minecraft:item/handheld", linked(
+                "layer0", "essence_ascendance:item/ascendance_caster/base",
+                "layer1", "essence_ascendance:item/ascendance_caster/accent",
+                "layer2", "essence_ascendance:item/ascendance_caster/nochange"
+        ));
+        checkOpaquePixel(ROOT + "textures/item/ascendance_caster/nochange.png", 12, 12,
+                "Caster grip remains at its authored pivot");
+        checkCasterHandOffset();
         checkLayered("ascendance_pickaxe", "minecraft:item/handheld", linked(
                 "layer0", "essence_ascendance:item/ascendance_pickaxe/base",
                 "layer1", "essence_ascendance:item/ascendance_pickaxe/accent",
@@ -137,6 +145,28 @@ public final class InventoryItemAssetsTest {
             var image = ImageIO.read(stream);
             check(image != null && image.getWidth() == 16 && image.getHeight() == 16,
                     resource + " is a readable 16x16 PNG");
+        }
+    }
+
+    private static void checkOpaquePixel(String resource, int x, int y, String message) throws Exception {
+        try (var stream = InventoryItemAssetsTest.class.getResourceAsStream(resource)) {
+            check(stream != null, "Missing texture " + resource);
+            var image = ImageIO.read(stream);
+            check(image != null && x >= 0 && y >= 0 && x < image.getWidth() && y < image.getHeight()
+                    && (image.getRGB(x, y) >>> 24) != 0, message);
+        }
+    }
+
+    private static void checkCasterHandOffset() throws Exception {
+        for (String tier : TIERS) {
+            JsonObject display = json(ROOT + "models/item/tier/" + tier + "/ascendance_caster.json")
+                    .getAsJsonObject("display");
+            check(display.getAsJsonObject("thirdperson_righthand").getAsJsonArray("translation")
+                            .equals(JsonParser.parseString("[0,-2,-3.5]")),
+                    "Caster right-hand model keeps its vertical offset and moves one additional unit behind the arm");
+            check(display.getAsJsonObject("thirdperson_lefthand").getAsJsonArray("translation")
+                            .equals(JsonParser.parseString("[0,-2,-3.5]")),
+                    "Caster left-hand model mirrors the same arm-relative offset");
         }
     }
 

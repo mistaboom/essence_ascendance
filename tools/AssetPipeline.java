@@ -139,6 +139,7 @@ public final class AssetPipeline {
                     textures.addProperty("layer" + layer, NAMESPACE + ":" + texture);
                 }
                 model.add("textures", textures);
+                if (state.has("display")) model.add("display", state.getAsJsonObject("display").deepCopy());
                 model("item/" + modelId, model);
                 if (tiered && (tier > 0 || stateIndex > 0)) {
                     JsonObject predicate = new JsonObject();

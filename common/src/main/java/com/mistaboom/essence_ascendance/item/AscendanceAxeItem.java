@@ -18,7 +18,7 @@ import java.util.List;
 
 public final class AscendanceAxeItem
         extends AxeItem
-        implements EquipmentProfileItem {
+        implements EquipmentProfileItem, EmissiveAccentItem {
 
     public AscendanceAxeItem(
             Tier tier,

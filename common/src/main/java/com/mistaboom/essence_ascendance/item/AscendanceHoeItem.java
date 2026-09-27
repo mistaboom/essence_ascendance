@@ -18,7 +18,7 @@ import java.util.List;
 
 public final class AscendanceHoeItem
         extends HoeItem
-        implements EquipmentProfileItem {
+        implements EquipmentProfileItem, EmissiveAccentItem {
 
     public AscendanceHoeItem(
             Tier tier,

@@ -286,13 +286,6 @@ public final class AscendanceItems {
         );
 
 
-        CreativeTabRegistry.append(
-                CreativeModeTabs.COMBAT,
-                ASCENDANCE_CASTER
-        );
-
-
-
         // Inventory-art equipment exposes all six visual tiers. These are
         // ordinary zero-investment stacks: tier data is present where needed,
         // but ownership remains absent until real Infuser progress begins.
@@ -321,6 +314,7 @@ public final class AscendanceItems {
         return List.of(
                 ASCENDANCE_MELEE_WEAPON.get(),
                 ASCENDANCE_RANGED_WEAPON.get(),
+                ASCENDANCE_CASTER.get(),
                 ASCENDANCE_HELMET.get(),
                 ASCENDANCE_CHESTPLATE.get(),
                 ASCENDANCE_LEGGINGS.get(),

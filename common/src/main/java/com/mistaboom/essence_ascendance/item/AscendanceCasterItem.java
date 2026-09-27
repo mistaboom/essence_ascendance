@@ -19,7 +19,7 @@ import java.util.List;
 /** Semi-automatic magic projectile weapon. Native use/release packets latch each press. */
 public final class AscendanceCasterItem
         extends Item
-        implements EquipmentProfileItem {
+        implements EquipmentProfileItem, EmissiveAccentItem {
 
     private static final int ENCHANTMENT_VALUE = 15;
 
