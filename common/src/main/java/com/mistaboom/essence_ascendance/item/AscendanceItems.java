@@ -16,6 +16,7 @@ import net.minecraft.world.item.PickaxeItem;
 import net.minecraft.world.item.ShovelItem;
 import net.minecraft.world.item.SwordItem;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public final class AscendanceItems {
@@ -287,35 +288,10 @@ public final class AscendanceItems {
 
         CreativeTabRegistry.append(
                 CreativeModeTabs.COMBAT,
-                ASCENDANCE_RANGED_WEAPON
-        );
-
-        CreativeTabRegistry.append(
-                CreativeModeTabs.COMBAT,
                 ASCENDANCE_CASTER
         );
 
 
-
-        CreativeTabRegistry.append(
-                CreativeModeTabs.TOOLS_AND_UTILITIES,
-                ASCENDANCE_PICKAXE
-        );
-
-        CreativeTabRegistry.append(
-                CreativeModeTabs.TOOLS_AND_UTILITIES,
-                ASCENDANCE_AXE
-        );
-
-        CreativeTabRegistry.append(
-                CreativeModeTabs.TOOLS_AND_UTILITIES,
-                ASCENDANCE_SHOVEL
-        );
-
-        CreativeTabRegistry.append(
-                CreativeModeTabs.TOOLS_AND_UTILITIES,
-                ASCENDANCE_HOE
-        );
 
         // Inventory-art equipment exposes all six visual tiers. These are
         // ordinary zero-investment stacks: tier data is present where needed,
@@ -323,19 +299,41 @@ public final class AscendanceItems {
         CreativeTabRegistry.modify(
                 CreativeTabRegistry.defer(CreativeModeTabs.COMBAT),
                 (flags, output, canUseGameMasterBlocks) ->
-                        EquipmentCatalogStacks.allTiers(tieredInventoryArtItems())
+                        EquipmentCatalogStacks.allTiers(tieredCombatInventoryArtItems())
+                                .forEach(output::accept)
+        );
+        CreativeTabRegistry.modify(
+                CreativeTabRegistry.defer(CreativeModeTabs.TOOLS_AND_UTILITIES),
+                (flags, output, canUseGameMasterBlocks) ->
+                        EquipmentCatalogStacks.allTiers(tieredToolInventoryArtItems())
                                 .forEach(output::accept)
         );
     }
 
     /** Equipment whose authored inventory sprites support all tier tints. */
     public static List<Item> tieredInventoryArtItems() {
+        List<Item> items = new ArrayList<>(tieredCombatInventoryArtItems());
+        items.addAll(tieredToolInventoryArtItems());
+        return List.copyOf(items);
+    }
+
+    private static List<Item> tieredCombatInventoryArtItems() {
         return List.of(
                 ASCENDANCE_MELEE_WEAPON.get(),
+                ASCENDANCE_RANGED_WEAPON.get(),
                 ASCENDANCE_HELMET.get(),
                 ASCENDANCE_CHESTPLATE.get(),
                 ASCENDANCE_LEGGINGS.get(),
                 ASCENDANCE_BOOTS.get()
+        );
+    }
+
+    private static List<Item> tieredToolInventoryArtItems() {
+        return List.of(
+                ASCENDANCE_PICKAXE.get(),
+                ASCENDANCE_AXE.get(),
+                ASCENDANCE_SHOVEL.get(),
+                ASCENDANCE_HOE.get()
         );
     }
 }

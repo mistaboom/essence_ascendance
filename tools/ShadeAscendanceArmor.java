@@ -17,7 +17,8 @@ public final class ShadeAscendanceArmor {
     private static final Gson JSON = new GsonBuilder().disableHtmlEscaping().create();
 
     public static void main(String[] args) throws Exception {
-        if (args.length != 3) throw new IllegalArgumentException("Expected <input.bbmodel> <material-reference.png> <output-directory>");
+        if (args.length != 3 && args.length != 6) throw new IllegalArgumentException(
+                "Expected <input.bbmodel> <material-reference.png> <output-directory> [<mesh-name> <base-texture> <accent-texture>]");
         JsonObject project = JsonParser.parseString(Files.readString(Path.of(args[0]))).getAsJsonObject();
         JsonObject originalProject = project.deepCopy();
         readMaterial(ImageIO.read(Path.of(args[1]).toFile()));
@@ -32,8 +33,11 @@ public final class ShadeAscendanceArmor {
         for (var value : project.getAsJsonArray("elements")) {
             JsonObject mesh = value.getAsJsonObject();
             String name = mesh.get("name").getAsString();
-            JsonObject baseMeta = Objects.requireNonNull(textures.get(name + "_Base"));
-            BufferedImage base = decode(baseMeta), accent = textures.containsKey(name + "_Accent") ? decode(textures.get(name + "_Accent")) : null;
+            if (args.length == 6 && !name.equals(args[3])) continue;
+            String baseName = args.length == 6 ? args[4] : name + "_Base";
+            String accentName = args.length == 6 ? args[5] : name + "_Accent";
+            JsonObject baseMeta = Objects.requireNonNull(textures.get(baseName), "Missing base texture " + baseName);
+            BufferedImage base = decode(baseMeta), accent = textures.containsKey(accentName) ? decode(textures.get(accentName)) : null;
             int width = base.getWidth(), height = base.getHeight();
             List<Triangle> triangles = triangles(mesh, width / baseMeta.get("uv_width").getAsDouble(), height / baseMeta.get("uv_height").getAsDouble());
             List<Patch> patches = patches(triangles);
@@ -68,7 +72,7 @@ public final class ShadeAscendanceArmor {
                 baseField[i] /= samples[i]; accentField[i] /= samples[i];
             }
             for (String suffix : accent == null ? List.of("_Base") : List.of("_Base", "_Accent")) {
-                String textureName = name + suffix;
+                String textureName = suffix.equals("_Base") ? baseName : accentName;
                 BufferedImage input = suffix.equals("_Base") ? base : accent;
                 double[] field = suffix.equals("_Base") ? baseField : accentField;
                 BufferedImage painted = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
@@ -116,7 +120,8 @@ public final class ShadeAscendanceArmor {
         for (int i = 0; i < comparison.getAsJsonArray("textures").size(); i++) comparison.getAsJsonArray("textures").get(i).getAsJsonObject()
                 .add("source", originalProject.getAsJsonArray("textures").get(i).getAsJsonObject().get("source"));
         if (!comparison.equals(originalProject)) throw new IllegalStateException("Non-texture Blockbench data changed");
-        Files.writeString(output.resolve("ascendance_armor.bbmodel"), JSON.toJson(project));
+        if (report.isEmpty()) throw new IllegalArgumentException("No matching mesh was shaded");
+        Files.writeString(output.resolve(Path.of(args[0]).getFileName()), JSON.toJson(project));
         Files.writeString(output.resolve("shading-verification.json"), new GsonBuilder().setPrettyPrinting().create().toJson(report) + "\n");
     }
 

@@ -4,41 +4,57 @@ plugins {
     id 'com.gradleup.shadow' version '9.4.3' apply false
 }
 
-tasks.register('armorJarInvariants') {
+tasks.register('assetJarInvariants') {
     group = 'verification'
-    description = 'Verify both production jars contain generated armor assets and exclude authoring files.'
-    dependsOn ':fabric:remapJar', ':neoforge:remapJar'
+    description = 'Verify every common runtime asset is packaged unchanged in both production jars.'
+    dependsOn ':common:processResources', ':fabric:remapJar', ':neoforge:remapJar'
     doLast {
-        def root = 'assets/essence_ascendance/'
-        def tiers = ['latent', 'dormant', 'awakened', 'resonant', 'ascendant', 'transcendent']
-        def pieces = ['helmet', 'chestplate', 'leggings', 'boots']
-        def meshes = ['head', 'chest', 'left_arm', 'right_arm', 'left_leg', 'right_leg', 'belt', 'left_foot', 'right_foot']
+        def resourceRoot = project(':common').tasks.named('processResources').get().destinationDir
+        def expected = [:]
+        fileTree(resourceRoot).matching { include 'assets/**' }.visit { entry ->
+            if (!entry.directory) expected[entry.relativePath.pathString] = entry.file
+        }
+        if (expected.empty) throw new GradleException('Common processed assets are missing.')
+        def sourcePaths = [] as Set
+        project(':common').sourceSets.main.resources.matching { include 'assets/**' }.visit { entry ->
+            if (!entry.directory) sourcePaths.add(entry.relativePath.pathString)
+        }
+        if (sourcePaths != expected.keySet())
+            throw new GradleException('Processed assets differ from current source/generated ownership: missing='
+                    + (sourcePaths - expected.keySet()) + ', stale=' + (expected.keySet() - sourcePaths))
         ['fabric', 'neoforge'].each { loader ->
             def jar = project(":${loader}").tasks.named('remapJar').get().archiveFile.get().asFile
             new java.util.zip.ZipFile(jar).withCloseable { zip ->
                 def names = zip.entries().collect { it.name }
-                def expected = pieces.collectMany { piece ->
-                    (tiers + ['emission']).collect { tier -> "${root}textures/armor/ascendance/generated/${piece}_${tier}.png".toString() }
-                } + meshes.collect { "${root}meshes/armor/ascendance/${it}.eamesh".toString() }
-                expected.each { name ->
-                    if (!names.contains(name)) throw new GradleException("${loader}: missing generated armor resource ${name}")
-                    def source = project(':common').file("src/main/resources/${name}")
+                def nameCounts = names.countBy { it }
+                def unexpected = names.findAll { it.startsWith('assets/essence_ascendance/')
+                        && !it.endsWith('/') && !expected.containsKey(it) }
+                if (!unexpected.empty) throw new GradleException("${loader}: stale/unowned runtime assets ${unexpected}")
+                expected.each { name, source ->
+                    if (!nameCounts.containsKey(name)) throw new GradleException("${loader}: missing runtime asset ${name}")
+                    if (nameCounts[name] != 1) throw new GradleException("${loader}: duplicate runtime asset ${name}")
                     if (!java.util.Arrays.equals(source.bytes, zip.getInputStream(zip.getEntry(name)).bytes))
-                        throw new GradleException("${loader}: stale generated armor resource ${name}")
+                        throw new GradleException("${loader}: stale runtime asset ${name}")
                 }
                 if (names.any { it.startsWith('art/') || it.endsWith('.bbmodel')
                         || it.contains('textures/armor/ascendance/source/')
                         || it.contains('textures/models/armor/source/') })
-                    throw new GradleException("${loader}: packaged armor authoring files")
+                    throw new GradleException("${loader}: packaged asset authoring files")
                 if (!names.contains('com/mistaboom/essence_ascendance/mixin/ArmorPresentationMixin.class'))
                     throw new GradleException("${loader}: missing common armor presentation hook")
                 if (names.any { it.startsWith('com/mistaboom/essence_ascendance/client/armor/ArmorOrnaments')
                         || it.startsWith('com/mistaboom/essence_ascendance/visual/ArmorVisualStyle') })
                     throw new GradleException("${loader}: obsolete floating armor ornament classes packaged")
-                logger.lifecycle("${loader}: all 37 generated armor resources match source; authoring files excluded")
+                logger.lifecycle("${loader}: all ${expected.size()} runtime assets match processed resources; authoring files excluded")
             }
         }
     }
+}
+
+tasks.register('armorJarInvariants') {
+    group = 'verification'
+    description = 'Compatibility alias for the complete production asset verification.'
+    dependsOn tasks.named('assetJarInvariants')
 }
 
 architectury {

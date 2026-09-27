@@ -1,3 +1,6 @@
 {
-  "parent": "minecraft:item/shield_blocking"
+  "parent": "minecraft:item/shield_blocking",
+  "textures": {
+    "particle": "essence_ascendance:item/ascendance_shield/latent"
+  }
 }

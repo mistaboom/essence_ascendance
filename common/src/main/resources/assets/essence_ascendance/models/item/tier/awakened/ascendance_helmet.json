@@ -1,7 +1,0 @@
-{
-  "parent": "minecraft:item/generated",
-  "textures": {
-    "layer0": "essence_ascendance:item/ascendance_helmet/base",
-    "layer1": "essence_ascendance:item/ascendance_helmet/accent"
-  }
-}

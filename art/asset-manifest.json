@@ -1,0 +1,723 @@
+{
+  "schemaVersion": 1,
+  "namespace": "essence_ascendance",
+  "assets": [
+    {
+      "source": "source/models/item/ascendance_sword.bbmodel",
+      "category": "layered_item",
+      "textures": [
+        {
+          "name": "ascendance_sword_base",
+          "path": "item/ascendance_melee_weapon/base"
+        },
+        {
+          "name": "ascendance_sword_accent",
+          "path": "item/ascendance_melee_weapon/accent"
+        },
+        {
+          "name": "ascendance_sword_nochange",
+          "path": "item/ascendance_melee_weapon/nochange"
+        }
+      ],
+      "item": {
+        "id": "ascendance_melee_weapon",
+        "tiered": true,
+        "states": [
+          {
+            "suffix": "",
+            "parent": "minecraft:item/handheld",
+            "layers": [
+              "item/ascendance_melee_weapon/base",
+              "item/ascendance_melee_weapon/accent",
+              "item/ascendance_melee_weapon/nochange"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "source": "source/models/item/ascendance_bow.bbmodel",
+      "category": "layered_item",
+      "textures": [
+        {
+          "name": "ascendance_bow_base",
+          "path": "item/ascendance_ranged_weapon/base"
+        },
+        {
+          "name": "ascendance_bow_accent",
+          "path": "item/ascendance_ranged_weapon/accent"
+        },
+        {
+          "name": "ascendance_bow_nochange",
+          "path": "item/ascendance_ranged_weapon/nochange"
+        },
+        {
+          "name": "ascendance_bow_pulling_0_base",
+          "path": "item/ascendance_ranged_weapon/pulling_0_base"
+        },
+        {
+          "name": "ascendance_bow_pulling_0_accent",
+          "path": "item/ascendance_ranged_weapon/pulling_0_accent"
+        },
+        {
+          "name": "ascendance_bow_pulling_0_nochange",
+          "path": "item/ascendance_ranged_weapon/pulling_0_nochange"
+        },
+        {
+          "name": "ascendance_bow_pulling_1_base",
+          "path": "item/ascendance_ranged_weapon/pulling_1_base"
+        },
+        {
+          "name": "ascendance_bow_pulling_1_accent",
+          "path": "item/ascendance_ranged_weapon/pulling_1_accent"
+        },
+        {
+          "name": "ascendance_bow_pulling_1_nochange",
+          "path": "item/ascendance_ranged_weapon/pulling_1_nochange"
+        },
+        {
+          "name": "ascendance_bow_pulling_2_base",
+          "path": "item/ascendance_ranged_weapon/pulling_2_base"
+        },
+        {
+          "name": "ascendance_bow_pulling_2_accent",
+          "path": "item/ascendance_ranged_weapon/pulling_2_accent"
+        },
+        {
+          "name": "ascendance_bow_pulling_2_nochange",
+          "path": "item/ascendance_ranged_weapon/pulling_2_nochange"
+        }
+      ],
+      "item": {
+        "id": "ascendance_ranged_weapon",
+        "tiered": true,
+        "states": [
+          {
+            "suffix": "",
+            "parent": "minecraft:item/bow",
+            "layers": [
+              "item/ascendance_ranged_weapon/base",
+              "item/ascendance_ranged_weapon/accent",
+              "item/ascendance_ranged_weapon/nochange"
+            ]
+          },
+          {
+            "suffix": "_pulling_0",
+            "parent": "minecraft:item/bow_pulling_0",
+            "layers": [
+              "item/ascendance_ranged_weapon/pulling_0_base",
+              "item/ascendance_ranged_weapon/pulling_0_accent",
+              "item/ascendance_ranged_weapon/pulling_0_nochange"
+            ],
+            "predicate": {
+              "minecraft:pulling": 1
+            }
+          },
+          {
+            "suffix": "_pulling_1",
+            "parent": "minecraft:item/bow_pulling_1",
+            "layers": [
+              "item/ascendance_ranged_weapon/pulling_1_base",
+              "item/ascendance_ranged_weapon/pulling_1_accent",
+              "item/ascendance_ranged_weapon/pulling_1_nochange"
+            ],
+            "predicate": {
+              "minecraft:pulling": 1,
+              "minecraft:pull": 0.65
+            }
+          },
+          {
+            "suffix": "_pulling_2",
+            "parent": "minecraft:item/bow_pulling_2",
+            "layers": [
+              "item/ascendance_ranged_weapon/pulling_2_base",
+              "item/ascendance_ranged_weapon/pulling_2_accent",
+              "item/ascendance_ranged_weapon/pulling_2_nochange"
+            ],
+            "predicate": {
+              "minecraft:pulling": 1,
+              "minecraft:pull": 0.9
+            }
+          }
+        ]
+      }
+    },
+    {
+      "source": "source/models/item/ascendance_pickaxe.bbmodel",
+      "category": "layered_item",
+      "textures": [
+        {
+          "name": "ascendance_pickaxe_base",
+          "path": "item/ascendance_pickaxe/base"
+        },
+        {
+          "name": "ascendance_pickaxe_accent",
+          "path": "item/ascendance_pickaxe/accent"
+        },
+        {
+          "name": "ascendance_pickaxe_nochange",
+          "path": "item/ascendance_pickaxe/nochange"
+        }
+      ],
+      "item": {
+        "id": "ascendance_pickaxe",
+        "tiered": true,
+        "states": [
+          {
+            "suffix": "",
+            "parent": "minecraft:item/handheld",
+            "layers": [
+              "item/ascendance_pickaxe/base",
+              "item/ascendance_pickaxe/accent",
+              "item/ascendance_pickaxe/nochange"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "source": "source/models/item/ascendance_axe.bbmodel",
+      "category": "layered_item",
+      "textures": [
+        {
+          "name": "ascendance_axe_base",
+          "path": "item/ascendance_axe/base"
+        },
+        {
+          "name": "ascendance_axe_accent",
+          "path": "item/ascendance_axe/accent"
+        },
+        {
+          "name": "ascendance_axe_nochange",
+          "path": "item/ascendance_axe/nochange"
+        }
+      ],
+      "item": {
+        "id": "ascendance_axe",
+        "tiered": true,
+        "states": [
+          {
+            "suffix": "",
+            "parent": "minecraft:item/handheld",
+            "layers": [
+              "item/ascendance_axe/base",
+              "item/ascendance_axe/accent",
+              "item/ascendance_axe/nochange"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "source": "source/models/item/ascendance_shovel.bbmodel",
+      "category": "layered_item",
+      "textures": [
+        {
+          "name": "ascendance_shovel_base",
+          "path": "item/ascendance_shovel/base"
+        },
+        {
+          "name": "ascendance_shovel_accent",
+          "path": "item/ascendance_shovel/accent"
+        },
+        {
+          "name": "ascendance_shovel_nochange",
+          "path": "item/ascendance_shovel/nochange"
+        }
+      ],
+      "item": {
+        "id": "ascendance_shovel",
+        "tiered": true,
+        "states": [
+          {
+            "suffix": "",
+            "parent": "minecraft:item/handheld",
+            "layers": [
+              "item/ascendance_shovel/base",
+              "item/ascendance_shovel/accent",
+              "item/ascendance_shovel/nochange"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "source": "source/models/item/ascendance_hoe.bbmodel",
+      "category": "layered_item",
+      "textures": [
+        {
+          "name": "ascendance_hoe_base",
+          "path": "item/ascendance_hoe/base"
+        },
+        {
+          "name": "ascendance_hoe_accent",
+          "path": "item/ascendance_hoe/accent"
+        },
+        {
+          "name": "ascendance_hoe_nochange",
+          "path": "item/ascendance_hoe/nochange"
+        }
+      ],
+      "item": {
+        "id": "ascendance_hoe",
+        "tiered": true,
+        "states": [
+          {
+            "suffix": "",
+            "parent": "minecraft:item/handheld",
+            "layers": [
+              "item/ascendance_hoe/base",
+              "item/ascendance_hoe/accent",
+              "item/ascendance_hoe/nochange"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "source": "source/models/item/ascendance_helmet.bbmodel",
+      "category": "layered_item",
+      "textures": [
+        {
+          "name": "ascendance_helmet_base",
+          "path": "item/ascendance_helmet/base"
+        },
+        {
+          "name": "ascendance_helmet_accent",
+          "path": "item/ascendance_helmet/accent"
+        }
+      ],
+      "item": {
+        "id": "ascendance_helmet",
+        "tiered": true,
+        "states": [
+          {
+            "suffix": "",
+            "parent": "minecraft:item/generated",
+            "layers": [
+              "item/ascendance_helmet/base",
+              "item/ascendance_helmet/accent"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "source": "source/models/item/ascendance_chestplate.bbmodel",
+      "category": "layered_item",
+      "textures": [
+        {
+          "name": "ascendance_chestplate_base",
+          "path": "item/ascendance_chestplate/base"
+        },
+        {
+          "name": "ascendance_chestplate_accent",
+          "path": "item/ascendance_chestplate/accent"
+        }
+      ],
+      "item": {
+        "id": "ascendance_chestplate",
+        "tiered": true,
+        "states": [
+          {
+            "suffix": "",
+            "parent": "minecraft:item/generated",
+            "layers": [
+              "item/ascendance_chestplate/base",
+              "item/ascendance_chestplate/accent"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "source": "source/models/item/ascendance_leggings.bbmodel",
+      "category": "layered_item",
+      "textures": [
+        {
+          "name": "ascendance_leggings_base",
+          "path": "item/ascendance_leggings/base"
+        },
+        {
+          "name": "ascendance_leggings_accent",
+          "path": "item/ascendance_leggings/accent"
+        }
+      ],
+      "item": {
+        "id": "ascendance_leggings",
+        "tiered": true,
+        "states": [
+          {
+            "suffix": "",
+            "parent": "minecraft:item/generated",
+            "layers": [
+              "item/ascendance_leggings/base",
+              "item/ascendance_leggings/accent"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "source": "source/models/item/ascendance_boots.bbmodel",
+      "category": "layered_item",
+      "textures": [
+        {
+          "name": "ascendance_boots_base",
+          "path": "item/ascendance_boots/base"
+        },
+        {
+          "name": "ascendance_boots_accent",
+          "path": "item/ascendance_boots/accent"
+        }
+      ],
+      "item": {
+        "id": "ascendance_boots",
+        "tiered": true,
+        "states": [
+          {
+            "suffix": "",
+            "parent": "minecraft:item/generated",
+            "layers": [
+              "item/ascendance_boots/base",
+              "item/ascendance_boots/accent"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "source": "source/models/item/raw_latent.bbmodel",
+      "category": "layered_item",
+      "textures": [
+        {
+          "name": "raw_latent",
+          "path": "item/raw_latent_ore"
+        }
+      ],
+      "item": {
+        "id": "raw_latent_ore",
+        "tiered": false,
+        "states": [
+          {
+            "suffix": "",
+            "parent": "minecraft:item/generated",
+            "layers": [
+              "item/raw_latent_ore"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "source": "source/models/item/essence_ingot.bbmodel",
+      "category": "layered_item",
+      "textures": [
+        {
+          "name": "essentium_ingot_base.png",
+          "path": "item/essence_ingot/base"
+        },
+        {
+          "name": "essentium_ingot_accent.png",
+          "path": "item/essence_ingot/accent"
+        }
+      ],
+      "item": {
+        "id": "essence_ingot",
+        "tiered": false,
+        "states": [
+          {
+            "suffix": "",
+            "parent": "minecraft:item/generated",
+            "layers": [
+              "item/essence_ingot/base",
+              "item/essence_ingot/accent"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "source": "source/models/item/essence_nugget.bbmodel",
+      "category": "layered_item",
+      "textures": [
+        {
+          "name": "essentium_nugget_base.png",
+          "path": "item/essence_nugget/base"
+        },
+        {
+          "name": "essentium_nugget_accent.png",
+          "path": "item/essence_nugget/accent"
+        }
+      ],
+      "item": {
+        "id": "essence_nugget",
+        "tiered": false,
+        "states": [
+          {
+            "suffix": "",
+            "parent": "minecraft:item/generated",
+            "layers": [
+              "item/essence_nugget/base",
+              "item/essence_nugget/accent"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "source": "source/models/block/raw_latent_block.bbmodel",
+      "category": "block",
+      "textures": [
+        {
+          "name": "raw_latent_block",
+          "path": "block/raw_latent_ore_block"
+        }
+      ],
+      "block": {
+        "id": "raw_latent_ore_block",
+        "shape": "cube",
+        "texture": "block/raw_latent_ore_block"
+      }
+    },
+    {
+      "source": "source/models/block/channelstone.bbmodel",
+      "category": "block",
+      "textures": [
+        {
+          "name": "channelstone",
+          "path": "block/channelstone"
+        }
+      ],
+      "block": {
+        "id": "channelstone",
+        "shape": "column",
+        "texture": "block/channelstone"
+      }
+    },
+    {
+      "source": "source/models/block/essence_ore.bbmodel",
+      "category": "runtime_composite",
+      "textures": [
+        {
+          "name": "latent_ore_base.png",
+          "path": "block/latent_ore/latent_ore_base"
+        },
+        {
+          "name": "latent_ore_transition.png",
+          "path": "block/latent_ore/latent_ore_transition"
+        }
+      ]
+    },
+    {
+      "source": "source/models/block/essence_block.bbmodel",
+      "category": "stitched_block",
+      "textures": [
+        {
+          "name": "essentium_block_base.png",
+          "path": "item/essence_block/base"
+        },
+        {
+          "name": "essentium_block_accent.png",
+          "path": "item/essence_block/accent"
+        }
+      ],
+      "bake": {
+        "base": "item/essence_block/base",
+        "accent": "item/essence_block/accent"
+      }
+    },
+    {
+      "source": "source/models/block/crucible.bbmodel",
+      "category": "static_mesh",
+      "textures": [
+        {
+          "name": "texture",
+          "path": "block/essence_crucible"
+        }
+      ],
+      "mesh": {
+        "output": "meshes/essence_crucible.eamesh",
+        "axes": [
+          "x",
+          "z",
+          "-y"
+        ],
+        "offset": [
+          0,
+          0,
+          16
+        ],
+        "sourceOrigin": [
+          -8,
+          0,
+          8
+        ],
+        "sourceRotation": [
+          -90,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "source": "source/models/block/infuser.bbmodel",
+      "category": "static_mesh",
+      "textures": [
+        {
+          "name": "texture",
+          "path": "block/essence_infuser"
+        }
+      ],
+      "mesh": {
+        "output": "meshes/essence_infuser.eamesh",
+        "axes": [
+          "y",
+          "z",
+          "x"
+        ],
+        "sourceOrigin": [
+          -8,
+          0,
+          8
+        ],
+        "sourceRotation": [
+          -90,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "source": "source/models/block/nexus.bbmodel",
+      "category": "static_mesh",
+      "textures": [
+        {
+          "name": "texture",
+          "path": "block/ascendance_nexus"
+        }
+      ],
+      "mesh": {
+        "output": "meshes/ascendance_nexus.eamesh",
+        "axes": [
+          "y",
+          "z",
+          "x"
+        ],
+        "sourceOrigin": [
+          -8,
+          0,
+          8
+        ],
+        "sourceRotation": [
+          -90,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "source": "source/models/block/pylon.bbmodel",
+      "category": "static_mesh",
+      "textures": [
+        {
+          "name": "texture",
+          "path": "block/essence_pylon"
+        }
+      ],
+      "mesh": {
+        "output": "meshes/essence_pylon.eamesh",
+        "axes": [
+          "x",
+          "z",
+          "-y"
+        ],
+        "offset": [
+          1,
+          0,
+          15
+        ],
+        "sourceOrigin": [
+          -7,
+          0,
+          7
+        ],
+        "sourceRotation": [
+          -90,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "source": "source/models/item/focus.bbmodel",
+      "category": "static_mesh",
+      "textures": [
+        {
+          "name": "texture",
+          "path": "item/focus",
+          "transform": "opaque_white"
+        }
+      ],
+      "mesh": {
+        "output": "meshes/focus.eamesh",
+        "axes": [
+          "x",
+          "z",
+          "y"
+        ],
+        "offset": [
+          1,
+          0,
+          1
+        ],
+        "sourceOrigin": [
+          -7,
+          0,
+          7
+        ],
+        "sourceRotation": [
+          -90,
+          0,
+          0
+        ],
+        "outwardCenter": [
+          0.5,
+          1.5,
+          0.5
+        ]
+      }
+    },
+    {
+      "source": "source/models/item/ascendance_shield.bbmodel",
+      "category": "stitched_mesh",
+      "bake": {
+        "base": "ascendance_shield_base",
+        "accent": "ascendance_shield_accent",
+        "output": "textures/item/ascendance_shield"
+      },
+      "mesh": {
+        "output": "meshes/item/ascendance_shield.eamesh",
+        "axes": [
+          "x",
+          "-z",
+          "y"
+        ],
+        "sourceOrigin": [
+          0,
+          0,
+          0
+        ],
+        "sourceRotation": [
+          90,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "source": "source/models/armor/ascendance_armor.bbmodel",
+      "category": "armor_atlas"
+    }
+  ]
+}

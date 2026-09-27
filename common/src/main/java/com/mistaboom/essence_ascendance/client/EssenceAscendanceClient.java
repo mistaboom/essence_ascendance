@@ -79,6 +79,7 @@ public final class EssenceAscendanceClient {
                 (ResourceManagerReloadListener) resources -> {
                     EssenceMachineMeshes.invalidateAll();
                     FocusVisuals.invalidateResources();
+                    AscendanceShieldRenderer.invalidateResources();
                     ClientPacketDispatch.resourcesReloaded();
                 },
                 ResourceLocation.fromNamespaceAndPath(EssenceAscendance.MOD_ID, "machine_meshes")

@@ -1,0 +1,113 @@
+// Applied by :common. Art sources have one importer and one build-owned output tree.
+def artDirectory = rootProject.file('art')
+def generatedAssetResources = layout.buildDirectory.dir('generated-resources/assets')
+def assetWorkDirectory = layout.buildDirectory.dir('asset-work')
+def assetPipelineClasses = layout.buildDirectory.dir('asset-pipeline/classes')
+def assetPipelineSources = files(
+        rootProject.file('tools/AssetPipeline.java'),
+        rootProject.file('tools/BlockbenchSource.java'),
+        rootProject.file('tools/BlockbenchMeshExporter.java'),
+        rootProject.file('tools/AscendanceArmorGenerator.java'),
+        rootProject.file('tools/EssenceBlockTextureGenerator.java'),
+        rootProject.file('tools/MaskedTextureWriter.java'),
+        file('src/main/java/com/mistaboom/essence_ascendance/visual/CanonicalPaletteValues.java'),
+        file('src/main/java/com/mistaboom/essence_ascendance/visual/TexturePixels.java'))
+
+tasks.register('compileAssetPipeline', JavaCompile) {
+    group = 'asset pipeline'
+    description = 'Compiles the shared Blockbench import and texture baking tools.'
+    source = assetPipelineSources
+    destinationDirectory = assetPipelineClasses
+    classpath = configurations.compileClasspath
+    options.release = 21
+}
+
+def generateAssets = tasks.register('generateAssets', JavaExec) {
+    group = 'asset pipeline'
+    description = 'Imports current art sources and generates all runtime textures, models and meshes.'
+    dependsOn tasks.named('compileAssetPipeline')
+    classpath = files(assetPipelineClasses) + configurations.compileClasspath
+    mainClass = 'AssetPipeline'
+    inputs.files(fileTree(artDirectory) { include 'asset-manifest.json', 'source/models/**/*.bbmodel' })
+            .withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.files(assetPipelineSources).withPathSensitivity(PathSensitivity.RELATIVE)
+    outputs.dirs(generatedAssetResources, assetWorkDirectory)
+    doFirst {
+        setArgs([artDirectory.absolutePath, generatedAssetResources.get().asFile.absolutePath,
+                 assetWorkDirectory.get().asFile.absolutePath])
+    }
+}
+
+sourceSets.main.resources.srcDir(generatedAssetResources)
+sourceSets.main.resources.exclude('**/*.bbmodel', '**/textures/armor/ascendance/source/**',
+        '**/textures/models/armor/source/**')
+
+def assetOwnershipInvariants = tasks.register('assetOwnershipInvariants') {
+    group = 'verification'
+    description = 'Rejects runtime resources supplied by both generated assets and checked-in resources.'
+    dependsOn generateAssets
+    inputs.files(sourceSets.main.resources).withPathSensitivity(PathSensitivity.RELATIVE)
+    doLast {
+        def generatedRoot = generatedAssetResources.get().asFile.canonicalFile
+        def authoredRoots = sourceSets.main.resources.srcDirs.findAll { it.canonicalFile != generatedRoot }
+        def collisions = []
+        fileTree(generatedRoot).visit { entry ->
+            if (!entry.directory) {
+                def relative = entry.relativePath.pathString
+                authoredRoots.each { sourceRoot ->
+                    if (new File(sourceRoot, relative).exists()) collisions.add(relative)
+                }
+            }
+        }
+        if (!collisions.empty) {
+            throw new GradleException('Assets must have one owner. Remove checked-in copies of generated resources:\n'
+                    + collisions.unique().sort().join('\n'))
+        }
+    }
+}
+
+tasks.named('processResources') {
+    dependsOn generateAssets, assetOwnershipInvariants
+    duplicatesStrategy = DuplicatesStrategy.FAIL
+}
+tasks.named('sourcesJar') {
+    dependsOn generateAssets, assetOwnershipInvariants
+    duplicatesStrategy = DuplicatesStrategy.FAIL
+}
+tasks.named('check') {
+    dependsOn assetOwnershipInvariants, 'assetPipelineInvariants', ':assetJarInvariants'
+}
+
+def assetPipelineTestClasses = layout.buildDirectory.dir('asset-pipeline/test-classes')
+tasks.register('compileAssetPipelineTests', JavaCompile) {
+    dependsOn tasks.named('compileAssetPipeline')
+    source = rootProject.files('tools/AssetPipelineTest.java')
+    destinationDirectory = assetPipelineTestClasses
+    classpath = files(assetPipelineClasses) + configurations.compileClasspath
+    options.release = 21
+}
+tasks.register('assetPipelineInvariants', JavaExec) {
+    group = 'verification'
+    description = 'Checks source edits, deterministic exports, stitched shield geometry/materials and failed-import isolation.'
+    dependsOn tasks.named('compileAssetPipelineTests'), generateAssets
+    classpath = files(assetPipelineTestClasses, assetPipelineClasses) + configurations.compileClasspath
+    mainClass = 'AssetPipelineTest'
+    args layout.buildDirectory.dir('asset-pipeline-tests').get().asFile.absolutePath,
+            artDirectory.absolutePath, generatedAssetResources.get().asFile.absolutePath
+}
+
+// Existing developer commands now use the same import and generation path as ordinary builds.
+['compileEssenceBlockTextureGenerator', 'compileAscendanceArmorGenerator', 'compileAscendanceHelmetGenerator'].each { name ->
+    tasks.register(name) {
+        group = 'asset pipeline'
+        description = 'Compatibility alias for compileAssetPipeline.'
+        dependsOn tasks.named('compileAssetPipeline')
+    }
+}
+['generateEssenceBlockTextures', 'generateAscendanceArmor', 'generateAscendanceHelmet', 'importAscendanceArmorTextures'].each { name ->
+    tasks.register(name) {
+        group = 'asset pipeline'
+        description = 'Compatibility alias for generateAssets; authoring sources remain under art/.'
+        dependsOn generateAssets
+    }
+}

@@ -63,15 +63,20 @@ public final class BlockbenchStaticMesh {
     /** Tint a shared white mesh; optional translucent emission keeps the lit facets visible. */
     public void render(PoseStack poseStack, MultiBufferSource bufferSource, int packedLight,
                        int packedOverlay, int rgb, int alpha, boolean emissive) {
-        float[] data = vertexData();
-        if (data.length == 0) {
-            return;
-        }
-
         VertexConsumer consumer = bufferSource.getBuffer(
                 emissive ? RenderType.entityTranslucentEmissive(texture)
                         : RenderType.entityCutoutNoCull(texture)
         );
+        render(poseStack, consumer, packedLight, packedOverlay, rgb, alpha);
+    }
+
+    /** Reuse identical geometry and UVs with a caller-owned tier, foil or masked-emission buffer. */
+    public void render(PoseStack poseStack, VertexConsumer consumer, int packedLight,
+                       int packedOverlay, int rgb, int alpha) {
+        float[] data = vertexData();
+        if (data.length == 0) {
+            return;
+        }
         PoseStack.Pose pose = poseStack.last();
 
         for (int triangle = 0; triangle < data.length; triangle += FLOATS_PER_TRIANGLE) {

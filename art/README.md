@@ -1,85 +1,86 @@
 # Art assets
 
-This folder is the version-controlled home for authoring assets. It is backed up with the project in Git/Gitea and is **not** a Minecraft resource directory. Open and save the project copies directly; the auxiliary folder is no longer an art source.
+Edit the Blockbench projects in `source/models/`, save their embedded textures, and build. The same asset pipeline imports every registered model automatically. Changes to an existing named texture, including the sword's accent, are picked up without a separate extraction command.
 
-## Layout
+## Source and output locations
 
-| Location | Contents | Included in production jars? |
+| Location | Purpose |
+| --- | --- |
+| `source/models/block/` | Block textures and machine meshes |
+| `source/models/item/` | Inventory sprites, layered equipment sprites, and held item meshes such as Focus and shield |
+| `source/models/armor/` | Equipped armor geometry and its embedded material masks |
+| `asset-manifest.json` | Source files, named texture mappings, asset categories, and import settings |
+| `../common/build/generated-resources/assets/assets/essence_ascendance/` | Generated runtime textures, models, and meshes |
+| `../common/build/asset-work/armor-masks/` | Extracted armor masks used during generation and verification |
+| `../common/src/main/resources/assets/essence_ascendance/` | Hand-authored runtime configuration, including blockstates, renderer models, and language text |
+
+The BBModels and manifest are the authoring sources. Generated files belong under `build/`, are ignored by Git, and are recreated after `clean`. Do not edit generated PNGs or copy them into `src/main/resources`. The `art/` tree and intermediate masks are never packaged in production jars; Minecraft receives the generated runtime resources alongside hand-authored configuration.
+
+## Editing and building
+
+Run these commands from the repository root:
+
+```powershell
+# Import all registered BBModels and regenerate their runtime resources.
+.\gradlew.bat :common:generateAssets
+
+# Build both loaders; resource processing runs generateAssets automatically.
+.\gradlew.bat build
+
+# Build and verify that both production jars contain the generated assets.
+.\gradlew.bat assetJarInvariants
+```
+
+An ordinary build is enough after saving a BBModel. Gradle tracks the manifest, source models, and generator code, so unchanged inputs can reuse existing outputs. Older asset generation task names remain aliases for the unified pipeline.
+
+To add an asset, place its BBModel in the appropriate source folder and register its named textures and category in [asset-manifest.json](asset-manifest.json). Use lowercase filenames with underscores. Reuse the existing category and importer for comparable assets. Texture names are part of the mapping: rename a source texture only when updating its manifest mapping too. Commit source artwork, manifest changes, and generator changes; generated outputs do not need committing.
+
+## Asset categories
+
+| Category | Build behavior | Runtime behavior |
 | --- | --- | --- |
-| `source/models/armor/` | Current Ascendance armor Blockbench project | No |
-| `source/models/block/` | Current block and machine Blockbench projects | No |
-| `source/models/item/` | Current item Blockbench projects | No |
-| `source/textures/armor/ascendance/` | 17 editable grayscale masks: eight base/accent pairs and base-only belt | No |
-| `previews/armor/` | Whole-set visual previews | No |
-| `history/armor/` | Previous armor source, material references, repaint scripts, notes and verification | No |
-| `../common/src/main/resources/assets/essence_ascendance/` | Runtime PNGs, JSON models, EAM1 meshes, and other game resources | Yes |
+| Untinted sprites and block textures | Extract the selected embedded PNG unchanged | Raw Latent is a flat sprite; Raw Latent Block uses the placed cube model for its corner-view item |
+| Layered inventory sprites | Extract named layers and generate the configured item models | `base` uses primary tint, `accent` uses accent tint, and `nochange` stays untinted |
+| Stitched block textures | Extract base/accent masks and compose the required variants using the shared palette and pixel compositor | Placed Essentium blocks use one composite texture per variant |
+| Static meshes | Export the configured geometry transform and texture through the shared mesh importer | Machines and Focus use their existing mesh renderers |
+| Stitched item meshes (`stitched_mesh`) | Bake named base/accent masks into six tier textures and an exact accent emission mask; export one mesh in its declared coordinate frame | The shield shares armor's palette, normal composite pass, and current emission settings |
+| Equipped armor | Extract the 17 masks, export nine meshes, and bake 24 tier atlases plus four emission atlases | Armor animates with the wearer and uses the established tier palette and emission progression |
+| Adaptive ore masks | Extract the ore and transition masks unchanged | Compose against the actual host block texture during resource loading |
 
-All paths in the following table are relative to this folder, except runtime paths, which are relative to `common/src/main/resources/assets/essence_ascendance/`.
+Adaptive ore composition belongs at runtime because resource packs and installed mods determine the host textures. It uses the shared pixel compositor. Essentium inventory blocks retain their layered, tinted item models, while placed blocks use the stitched variants.
+
+The Focus import applies its declared opaque-white texture transform to preserve its current tint-neutral appearance and avoid transparency at its narrow UV strip. Other extracted PNGs retain their embedded bytes. Unused Blockbench reference images are not exported.
 
 ## Model index
+
+Paths below are relative to this folder. Runtime identifiers are relative to `assets/essence_ascendance/` inside the generated resource directory.
 
 | Editable model | Runtime assets |
 | --- | --- |
 | [Ascendance armor](source/models/armor/ascendance_armor.bbmodel) | `meshes/armor/ascendance/*.eamesh`; `textures/armor/ascendance/generated/*.png` |
-| [Channelstone](source/models/block/channelstone.bbmodel) | `models/block/channelstone*.json`; `textures/block/channelstone.png` |
+| [Ascendance shield](source/models/item/ascendance_shield.bbmodel) | `meshes/item/ascendance_shield.eamesh`; `textures/item/ascendance_shield/{tier,emission}.png` |
+| [Channelstone](source/models/block/channelstone.bbmodel) | `textures/block/channelstone.png` |
 | [Crucible](source/models/block/crucible.bbmodel) | `meshes/essence_crucible.eamesh`; `textures/block/essence_crucible.png` |
-| [Essence block](source/models/block/essence_block.bbmodel) | `models/item/essence_block_layers.json`; `textures/item/essence_block/`; baked block tier variants |
-| [Essence ore](source/models/block/essence_ore.bbmodel) | `textures/block/latent_ore/`; adaptive ore models and sprites |
+| [Essence block](source/models/block/essence_block.bbmodel) | `textures/item/essence_block/`; stitched block variants |
+| [Essence ore](source/models/block/essence_ore.bbmodel) | `textures/block/latent_ore/` |
 | [Infuser](source/models/block/infuser.bbmodel) | `meshes/essence_infuser.eamesh`; `textures/block/essence_infuser.png` |
 | [Nexus](source/models/block/nexus.bbmodel) | `meshes/ascendance_nexus.eamesh`; `textures/block/ascendance_nexus.png` |
 | [Pylon](source/models/block/pylon.bbmodel) | `meshes/essence_pylon.eamesh`; `textures/block/essence_pylon.png` |
+| [Raw Latent block](source/models/block/raw_latent_block.bbmodel) | `textures/block/raw_latent_ore_block.png`; cube and inherited item models |
 | [Focus](source/models/item/focus.bbmodel) | `meshes/focus.eamesh`; `textures/item/focus.png` |
-| [Essence ingot](source/models/item/essence_ingot.bbmodel) | `models/item/essence_ingot.json`; `textures/item/essence_ingot/` |
-| [Essence nugget](source/models/item/essence_nugget.bbmodel) | `models/item/essence_nugget.json`; `textures/item/essence_nugget/` |
-| [Raw Latent](source/models/block/raw_latent.bbmodel) | `models/item/raw_latent_ore.json`; `textures/item/raw_latent_ore.png` |
-| [Raw Latent block](source/models/block/raw_latent_block.bbmodel) | `models/block/raw_latent_ore_block.json`; inherited block item model; `textures/block/raw_latent_ore_block.png` |
-| [Ascendance sword](source/models/block/ascendance_sword.bbmodel) | tiered `models/item/ascendance_melee_weapon.json`; `textures/item/ascendance_melee_weapon/` |
-| [Ascendance armor inventory sprites](source/models/block/ascendance_helmet.bbmodel) | tiered armor item models; `textures/item/ascendance_{helmet,chestplate,leggings,boots}/` |
+| [Essence ingot](source/models/item/essence_ingot.bbmodel) | `textures/item/essence_ingot/`; layered item model |
+| [Essence nugget](source/models/item/essence_nugget.bbmodel) | `textures/item/essence_nugget/`; layered item model |
+| [Raw Latent](source/models/item/raw_latent.bbmodel) | `textures/item/raw_latent_ore.png`; untinted item model |
+| [Ascendance sword](source/models/item/ascendance_sword.bbmodel) | `textures/item/ascendance_melee_weapon/`; six-tier item models |
+| [Ascendance bow](source/models/item/ascendance_bow.bbmodel) | `textures/item/ascendance_ranged_weapon/`; four bow states at all six tiers |
+| [Ascendance pickaxe](source/models/item/ascendance_pickaxe.bbmodel) | `textures/item/ascendance_pickaxe/`; six-tier item models |
+| [Ascendance axe](source/models/item/ascendance_axe.bbmodel) | `textures/item/ascendance_axe/`; six-tier item models |
+| [Ascendance shovel](source/models/item/ascendance_shovel.bbmodel) | `textures/item/ascendance_shovel/`; six-tier item models |
+| [Ascendance hoe](source/models/item/ascendance_hoe.bbmodel) | `textures/item/ascendance_hoe/`; six-tier item models |
+| [Helmet](source/models/item/ascendance_helmet.bbmodel), [chestplate](source/models/item/ascendance_chestplate.bbmodel), [leggings](source/models/item/ascendance_leggings.bbmodel), [boots](source/models/item/ascendance_boots.bbmodel) | `textures/item/ascendance_{helmet,chestplate,leggings,boots}/`; six-tier armor inventory models |
 
-The initial migration preserved Blockbench projects and embedded textures byte-for-byte. Current sources may receive subsequent intentional art edits; previous armor paint passes are retained in `history/armor/`. Only armor and Focus currently have automated model importers; storing another model here does not automatically replace its runtime exports.
+The equipment catalog supplies all six item tiers to JEI and the creative menu. Texture import does not change the existing equipment binding rules. Inventory armor uses base/accent layers; the sword, tools, and all four bow states also include `nochange`.
 
-The current armor contains nine meshes and 17 source masks. The base-only belt equips with leggings and follows the torso at pivot `(0,0,0)`. Its 128×128 image occupies x=256 in the 384×128 leggings atlas, after the left and right leg images. The latest prepaint remodel is [preserved here](history/armor/belt-remodel-shading/ascendance_armor.before-shading.bbmodel).
+See [Ascendance armor art](../docs/ascendance-armor.md) for equipped-armor atlas layouts, emission settings, and visual verification. Optional `tools/ShadeAscendanceArmor.java` and `tools/PreviewAscendanceArmor.java` support separate authoring and preview work; they do not run during ordinary builds. The preview tool reads the generated asset namespace directory listed above.
 
-## Editing and building
-
-Run commands from the repository root:
-
-```powershell
-# Rebuild armor meshes, 24 slot/tier atlases and four exact accent-only emission atlases.
-.\gradlew.bat :common:generateAscendanceArmor
-
-# Explicitly import all embedded armor textures after editing them in Blockbench, then rebake.
-# This replaces all 17 editable source PNGs. Normal builds never do this import.
-.\gradlew.bat :common:importAscendanceArmorTextures :common:generateAscendanceArmor
-
-# Re-export the Focus mesh and its runtime texture.
-python tools/export_focus_mesh.py
-
-# Build the production jars for both loaders.
-.\gradlew.bat :fabric:remapJar :neoforge:remapJar
-```
-
-For armor shading changes, edit `source/textures/armor/ascendance/` directly. Preserve each mask's coverage and image dimensions. The generator stitches base/accent pairs into a single tinted texture per armor slot and tier; `belt_base.png` receives only the canonical base grey. It never fills holes or adds painted pixels. Geometry and UV changes belong in `source/models/armor/ascendance_armor.bbmodel`. See [the armor documentation](../docs/ascendance-armor.md) for more detail.
-
-The same generator also writes `{helmet,chestplate,leggings,boots}_emission.png` in the runtime generated texture folder. These atlases copy the source accent pixels exactly, including alpha and hidden RGB, at their existing atlas coordinates. The belt region and unused space stay transparent. Do not paint these outputs: edit the original accent masks and regenerate. Runtime code supplies the Focus-style luminous tint and tier alpha `0, 36, 72, 108, 144, 180`; it preserves the combined normally lit atlas beneath the emission. `ArmorEmission` defines the progression. The emission shader is unlit so side-facing accents remain bright. All floating armor ornaments have been removed.
-
-Run `:common:armorVisualInvariants` with the existing armor/texture checks for the scaled emission progression, unlit shader and armor depth behavior. Run `armorJarInvariants` to build and inspect both production jars for the 37 generated armor resources and excluded authoring assets. The existing texture-only previews below do not show emission; use the [in-game review matrix](../docs/ascendance-armor.md#visual-verification) to evaluate those effects.
-
-The current repaint uses consistent upper front-left lighting `(-0.35, +0.75, -0.56)` in display axes X/right, Y/up, Z/back. Smooth panel gradients, highlights along actual bevel edges and soft shadows within each part are painted into grayscale. Coplanar triangle diagonals remain unaccented. Observed base shades span 152–255 and accents 170–255; every source alpha byte and hidden RGB value is preserved.
-
-Two optional tools support explicit art work and never run during a normal build:
-
-- `tools/ShadeAscendanceArmor.java`: `<input.bbmodel> <material-reference.png> <output-directory>`; requires Gson when compiling/running and writes a separate repaint for review.
-- `tools/PreviewAscendanceArmor.java`: `<asset-namespace-directory> <preview.png> [before-asset-namespace-directory]`; uses standard Java libraries and renders the exported meshes without added lighting. The asset namespace directory is `common/src/main/resources/assets/essence_ascendance` for current resources.
-
-The committed inventory exports preserve each labeled embedded PNG byte-for-byte. Raw Latent uses a single untinted sprite. Raw Latent Block uses its untinted authored texture on the placed cube, and its item inherits that block model for the normal corner view. Ascendance armor uses independently tinted `base` and `accent` layers; the sword adds a third untinted `nochange` layer. All six equipment tiers share the authored masks and receive the canonical tier colors at runtime.
-
-The other base/accent textures already under the runtime resources are used by Minecraft's layered item rendering, particle textures, or ore sprite generation. They intentionally remain packaged. The block texture generator also produces required block models/textures under `common/build/generated-resources/essence-block-textures`; builds recreate those outputs from version-controlled inputs.
-
-Commit source artwork, exporter/generator changes, and changed runtime resources together. Keep the `art/` tree out of resource source sets. New authoring files should use lowercase names with underscores, with current work in `source`, viewable exports in `previews`, and superseded work in `history`. Build outputs and dependency caches do not belong here.
-
-## Migration record
-
-[The migration manifest](history/asset-migration-2026-09-25.json) records the original location, destination, size, and SHA-256 of every moved file. The 43 auxiliary art files and 18 duplicate project copies were verified before their old copies were removed. Identical files share one canonical destination. The workbook, unrelated validation material, and dependencies were outside this migration's scope.
-
-Historical repaint notes and scripts are retained byte-for-byte for provenance. Their old auxiliary paths and older mesh formats describe their original run; use the paths and commands above for current work. [The latest six-tier preview](previews/armor/armor-shaded-belt-preview.png) shows the actual exported meshes with their baked textures and no added lighting. [The before/after comparison](previews/armor/armor-shading-comparison.png) shows input authoring colors beside the final repaint. Both are software renders, not in-game screenshots.
+See [Ascendance shield art](../docs/ascendance-shield.md) for its embedded mask names, hand-space transform, and visual checks. The shield belongs under `source/models/item/` because it is a held item, even though its material and emission workflow matches armor. Its base/accent masks stay embedded in the BBModel; no duplicate source PNGs are required.

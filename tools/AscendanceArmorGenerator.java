@@ -1,6 +1,5 @@
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.mistaboom.essence_ascendance.visual.CanonicalPaletteValues;
 import com.mistaboom.essence_ascendance.visual.TexturePixels;
 
@@ -12,7 +11,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -47,7 +45,7 @@ public final class AscendanceArmorGenerator {
         }
         if (args.length != 3) throw new IllegalArgumentException(
                 "Expected <Armor.bbmodel> <resource-root> <mask-directory> or --export-masks <Armor.bbmodel> <mask-directory>");
-        JsonObject project = JsonParser.parseString(Files.readString(Path.of(args[0]))).getAsJsonObject();
+        JsonObject project = BlockbenchSource.read(Path.of(args[0]));
         Path output = Path.of(args[1]);
         Path masks = Path.of(args[2]);
         Map<String, Part> parts = new LinkedHashMap<>();
@@ -74,7 +72,7 @@ public final class AscendanceArmorGenerator {
         JsonObject baseTexture = named(project.getAsJsonArray("textures"), spec.name + "_Base");
         JsonObject accentTexture = spec.hasAccent
                 ? named(project.getAsJsonArray("textures"), spec.name + "_Accent") : null;
-        // Normal builds read the editable PNGs; embedded Blockbench pixels are import-only.
+        // The shared pipeline extracts these exact embedded masks into build/ before baking.
         BufferedImage base = sourceImage(masks.resolve(maskName(spec, "base")));
         BufferedImage accent = spec.hasAccent ? sourceImage(masks.resolve(maskName(spec, "accent"))) : null;
         if (base.getWidth() != spec.width || base.getHeight() != spec.height
@@ -83,8 +81,8 @@ public final class AscendanceArmorGenerator {
         JsonObject mesh = named(project.getAsJsonArray("elements"), spec.name);
         // Fail instead of silently changing placement after an incompatible art edit.
         if (!mesh.get("type").getAsString().equals("mesh")
-                || !mesh.getAsJsonArray("origin").equals(JsonParser.parseString("[0,0,0]"))
-                || !mesh.getAsJsonArray("rotation").equals(JsonParser.parseString("[-90,0,0]")))
+                || !mesh.getAsJsonArray("origin").equals(com.google.gson.JsonParser.parseString("[0,0,0]"))
+                || !mesh.getAsJsonArray("rotation").equals(com.google.gson.JsonParser.parseString("[-90,0,0]")))
             throw new IllegalArgumentException("Expected " + spec.name + " mesh at origin 0,0,0 with rotation -90,0,0");
         float uvWidth = baseTexture.get("uv_width").getAsFloat();
         float uvHeight = baseTexture.get("uv_height").getAsFloat();
@@ -209,11 +207,7 @@ public final class AscendanceArmorGenerator {
     }
 
     private static JsonObject named(JsonArray entries, String name) {
-        for (var entry : entries) {
-            JsonObject object = entry.getAsJsonObject();
-            if (object.get("name").getAsString().equals(name)) return object;
-        }
-        throw new IllegalArgumentException("Missing Blockbench entry: " + name);
+        return BlockbenchSource.named(entries, name);
     }
 
     private static BufferedImage sourceImage(Path path) throws IOException {
@@ -226,9 +220,9 @@ public final class AscendanceArmorGenerator {
         return spec.name.toLowerCase(Locale.ROOT) + "_" + suffix + ".png";
     }
 
-    /** Explicit authoring action only; never called by the normal generation path. */
+    /** Extract masks for the shared build pipeline without changing any PNG bytes. */
     private static void exportMasks(Path source, Path masks) throws IOException {
-        JsonObject project = JsonParser.parseString(Files.readString(source)).getAsJsonObject();
+        JsonObject project = BlockbenchSource.read(source);
         Map<String, byte[]> images = new LinkedHashMap<>();
         for (PartSpec spec : PARTS) for (String suffix : spec.maskSuffixes()) {
             JsonObject texture = named(project.getAsJsonArray("textures"), spec.name + "_" + suffix);
@@ -241,14 +235,11 @@ public final class AscendanceArmorGenerator {
         // Validate all inputs first and preserve the embedded PNG bytes, including hidden RGB values.
         Files.createDirectories(masks);
         for (var image : images.entrySet()) Files.write(masks.resolve(image.getKey()), image.getValue());
-        System.out.println("Explicitly imported " + images.size() + " editable armor masks from " + source);
+        System.out.println("Imported " + images.size() + " embedded armor masks from " + source);
     }
 
     private static byte[] embeddedPng(JsonObject texture) throws IOException {
-        String source = texture.get("source").getAsString();
-        if (!source.startsWith("data:image/png;base64,"))
-            throw new IOException("Expected embedded PNG texture: " + texture.get("name"));
-        return Base64.getDecoder().decode(source.substring(source.indexOf(',') + 1));
+        return BlockbenchSource.png(texture);
     }
 
     private record PartSpec(String name, int width, int height, float pivotX, float pivotY, float pivotZ,

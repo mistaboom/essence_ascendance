@@ -49,7 +49,7 @@ public final class EquipmentInventoryCatalogTest {
                             == (0xFF000000 | EquipmentTierVisuals.armorAccentRgb(tier)),
                     "Accent layer uses the tier metal tint");
             check(EquipmentTierVisuals.itemTint(stack, 2) == EquipmentTierVisuals.CLEAR_TINT,
-                    "Sword nochange layer remains untinted");
+                    "Equipment nochange layers remain untinted");
 
             Object identity = EssenceAscendanceJeiPlugin.EQUIPMENT_TIER_SUBTYPE
                     .getSubtypeData(stack, UidContext.Ingredient);

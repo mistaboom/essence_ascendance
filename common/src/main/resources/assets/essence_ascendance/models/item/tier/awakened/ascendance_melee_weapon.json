@@ -1,8 +1,0 @@
-{
-  "parent": "minecraft:item/handheld",
-  "textures": {
-    "layer0": "essence_ascendance:item/ascendance_melee_weapon/base",
-    "layer1": "essence_ascendance:item/ascendance_melee_weapon/accent",
-    "layer2": "essence_ascendance:item/ascendance_melee_weapon/nochange"
-  }
-}

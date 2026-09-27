@@ -27,6 +27,30 @@ public final class InventoryItemAssetsTest {
                 "layer1", "essence_ascendance:item/ascendance_melee_weapon/accent",
                 "layer2", "essence_ascendance:item/ascendance_melee_weapon/nochange"
         ));
+        checkBowState("ascendance_ranged_weapon", "minecraft:item/bow", "");
+        checkBowState("ascendance_ranged_weapon_pulling_0", "minecraft:item/bow_pulling_0", "pulling_0_");
+        checkBowState("ascendance_ranged_weapon_pulling_1", "minecraft:item/bow_pulling_1", "pulling_1_");
+        checkBowState("ascendance_ranged_weapon_pulling_2", "minecraft:item/bow_pulling_2", "pulling_2_");
+        checkLayered("ascendance_pickaxe", "minecraft:item/handheld", linked(
+                "layer0", "essence_ascendance:item/ascendance_pickaxe/base",
+                "layer1", "essence_ascendance:item/ascendance_pickaxe/accent",
+                "layer2", "essence_ascendance:item/ascendance_pickaxe/nochange"
+        ));
+        checkLayered("ascendance_axe", "minecraft:item/handheld", linked(
+                "layer0", "essence_ascendance:item/ascendance_axe/base",
+                "layer1", "essence_ascendance:item/ascendance_axe/accent",
+                "layer2", "essence_ascendance:item/ascendance_axe/nochange"
+        ));
+        checkLayered("ascendance_shovel", "minecraft:item/handheld", linked(
+                "layer0", "essence_ascendance:item/ascendance_shovel/base",
+                "layer1", "essence_ascendance:item/ascendance_shovel/accent",
+                "layer2", "essence_ascendance:item/ascendance_shovel/nochange"
+        ));
+        checkLayered("ascendance_hoe", "minecraft:item/handheld", linked(
+                "layer0", "essence_ascendance:item/ascendance_hoe/base",
+                "layer1", "essence_ascendance:item/ascendance_hoe/accent",
+                "layer2", "essence_ascendance:item/ascendance_hoe/nochange"
+        ));
         checkLayered("ascendance_helmet", "minecraft:item/generated", armorLayers("ascendance_helmet"));
         checkLayered("ascendance_chestplate", "minecraft:item/generated", armorLayers("ascendance_chestplate"));
         checkLayered("ascendance_leggings", "minecraft:item/generated", armorLayers("ascendance_leggings"));
@@ -41,6 +65,15 @@ public final class InventoryItemAssetsTest {
                 "layer0", "essence_ascendance:item/" + item + "/base",
                 "layer1", "essence_ascendance:item/" + item + "/accent"
         );
+    }
+
+    private static void checkBowState(String model, String parent, String texturePrefix) throws Exception {
+        String textureRoot = "essence_ascendance:item/ascendance_ranged_weapon/" + texturePrefix;
+        checkLayered(model, parent, linked(
+                "layer0", textureRoot + "base",
+                "layer1", textureRoot + "accent",
+                "layer2", textureRoot + "nochange"
+        ));
     }
 
     private static LinkedHashMap<String, String> linked(String... keysAndValues) {

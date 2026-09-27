@@ -1,6 +1,0 @@
-{
-  "parent": "minecraft:item/generated",
-  "textures": {
-    "layer0": "essence_ascendance:item/raw_latent_ore"
-  }
-}

@@ -1,5 +1,8 @@
 {
   "parent": "minecraft:item/shield",
+  "textures": {
+    "particle": "essence_ascendance:item/ascendance_shield/latent"
+  },
   "overrides": [
     {
       "predicate": {

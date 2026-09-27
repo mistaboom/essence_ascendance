@@ -1,7 +1,0 @@
-{
-  "parent": "minecraft:block/cube_column_horizontal",
-  "textures": {
-    "end": "essence_ascendance:block/channelstone",
-    "side": "essence_ascendance:block/channelstone"
-  }
-}

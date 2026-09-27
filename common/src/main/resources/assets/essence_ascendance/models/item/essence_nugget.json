@@ -1,7 +1,0 @@
-{
-  "parent": "minecraft:item/generated",
-  "textures": {
-    "layer0": "essence_ascendance:item/essence_nugget/base",
-    "layer1": "essence_ascendance:item/essence_nugget/accent"
-  }
-}

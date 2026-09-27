@@ -9,98 +9,10 @@ architectury {
     common rootProject.enabled_platforms.split(',')
 }
 
-def generatedEssenceTextureResources = layout.buildDirectory.dir('generated-resources/essence-block-textures')
-def essenceTextureGeneratorClasses = layout.buildDirectory.dir('essence-block-texture-generator/classes')
-def essenceTextureGeneratorSource = rootProject.file('tools/EssenceBlockTextureGenerator.java')
-def texturePixelSource = file('src/main/java/com/mistaboom/essence_ascendance/visual/TexturePixels.java')
-def canonicalPaletteSource = file('src/main/java/com/mistaboom/essence_ascendance/visual/CanonicalPaletteValues.java')
-def essenceBaseMask = file('src/main/resources/assets/essence_ascendance/textures/item/essence_block/base.png')
-def essenceAccentMask = file('src/main/resources/assets/essence_ascendance/textures/item/essence_block/accent.png')
+apply from: rootProject.file('gradle/assets.gradle')
 
-sourceSets.main.resources.srcDir(generatedEssenceTextureResources)
-// Authoring files belong under art/; keep legacy armor masks out of runtime resources as well.
-sourceSets.main.resources.exclude('**/*.bbmodel', 'assets/essence_ascendance/textures/armor/ascendance/source/**')
-
-tasks.register('compileEssenceBlockTextureGenerator', JavaCompile) {
-    source = files(essenceTextureGeneratorSource, canonicalPaletteSource, texturePixelSource,
-            rootProject.file('tools/MaskedTextureWriter.java'))
-    destinationDirectory = essenceTextureGeneratorClasses
-    classpath = files()
-    options.release = 21
-}
-
-tasks.register('generateEssenceBlockTextures', JavaExec) {
-    dependsOn tasks.named('compileEssenceBlockTextureGenerator')
-    classpath = files(essenceTextureGeneratorClasses)
-    mainClass = 'EssenceBlockTextureGenerator'
-    inputs.file(essenceTextureGeneratorSource)
-    inputs.file(canonicalPaletteSource)
-    inputs.file(texturePixelSource)
-    inputs.file(essenceBaseMask)
-    inputs.file(essenceAccentMask)
-    outputs.dir(generatedEssenceTextureResources)
-    doFirst {
-        args(
-                essenceBaseMask.absolutePath,
-                essenceAccentMask.absolutePath,
-                generatedEssenceTextureResources.get().asFile.absolutePath
-        )
-    }
-}
-
-tasks.named('processResources') {
-    dependsOn tasks.named('generateEssenceBlockTextures')
-}
-
-tasks.named('sourcesJar') {
-    dependsOn tasks.named('generateEssenceBlockTextures')
-}
-
-// Editable armor sources live under art/; only baked textures and meshes enter runtime resources.
-// Only the explicit import task may replace source PNGs from the Blockbench file.
-def armorResourceRoot = file('src/main/resources')
-def armorMaskDirectory = rootProject.file('art/source/textures/armor/ascendance')
-def armorTextureDirectory = file('src/main/resources/assets/essence_ascendance/textures/armor/ascendance/generated')
-def armorMeshDirectory = file('src/main/resources/assets/essence_ascendance/meshes/armor/ascendance')
-def armorMaskFiles = ['head', 'chest', 'left_arm', 'right_arm', 'left_leg', 'right_leg', 'left_foot', 'right_foot']
-        .collectMany { part -> ['base', 'accent'].collect { suffix -> new File(armorMaskDirectory, "${part}_${suffix}.png") } }
-armorMaskFiles.add(new File(armorMaskDirectory, 'belt_base.png'))
-def armorGeneratorClasses = layout.buildDirectory.dir('armor-generator/classes')
 def armorSource = rootProject.file('art/source/models/armor/ascendance_armor.bbmodel')
-tasks.register('compileAscendanceArmorGenerator', JavaCompile) {
-    source = files(rootProject.file('tools/AscendanceArmorGenerator.java'),
-            rootProject.file('tools/MaskedTextureWriter.java'), canonicalPaletteSource, texturePixelSource)
-    destinationDirectory = armorGeneratorClasses
-    classpath = configurations.compileClasspath
-    options.release = 21
-}
-tasks.register('generateAscendanceArmor', JavaExec) {
-    dependsOn tasks.named('compileAscendanceArmorGenerator')
-    classpath = files(armorGeneratorClasses) + configurations.compileClasspath
-    mainClass = 'AscendanceArmorGenerator'
-    inputs.file(armorSource)
-    inputs.files(armorMaskFiles)
-    inputs.files(tasks.named('compileAscendanceArmorGenerator').map { it.source })
-    outputs.dirs(armorMeshDirectory, armorTextureDirectory)
-    mustRunAfter 'importAscendanceArmorTextures'
-    doFirst { args armorSource.absolutePath, armorResourceRoot.absolutePath, armorMaskDirectory.absolutePath }
-}
-tasks.register('importAscendanceArmorTextures', JavaExec) {
-    group = 'development tools'
-    description = 'Explicitly replaces editable armor source PNGs with embedded Blockbench masks; never runs during normal builds.'
-    dependsOn tasks.named('compileAscendanceArmorGenerator')
-    classpath = files(armorGeneratorClasses) + configurations.compileClasspath
-    mainClass = 'AscendanceArmorGenerator'
-    inputs.file(armorSource)
-    inputs.files(tasks.named('compileAscendanceArmorGenerator').map { it.source })
-    outputs.files(armorMaskFiles)
-    doFirst { args '--export-masks', armorSource.absolutePath, armorMaskDirectory.absolutePath }
-}
-tasks.named('processResources') { dependsOn tasks.named('generateAscendanceArmor') }
-tasks.named('sourcesJar') { dependsOn tasks.named('generateAscendanceArmor') }
-// Preserve existing developer entry points while the implementation covers every armor slot.
-tasks.register('compileAscendanceHelmetGenerator') { dependsOn tasks.named('compileAscendanceArmorGenerator') }
-tasks.register('generateAscendanceHelmet') { dependsOn tasks.named('generateAscendanceArmor') }
+def armorMaskDirectory = layout.buildDirectory.dir('asset-work/armor-masks').get().asFile
 
 dependencies {
     // We depend on Fabric Loader here to use the Fabric @Environment annotations,
@@ -129,6 +41,7 @@ def balanceInvariantMains = [
         equipmentInventoryCatalogInvariants: 'com.mistaboom.essence_ascendance.compat.jei.EquipmentInventoryCatalogTest',
         inventoryItemAssetInvariants: 'com.mistaboom.essence_ascendance.client.InventoryItemAssetsTest',
         ascendanceArmorInvariants: 'com.mistaboom.essence_ascendance.client.armor.AscendanceArmorTest',
+        ascendanceShieldInvariants: 'com.mistaboom.essence_ascendance.client.AscendanceShieldTest',
         armorVisualInvariants: 'com.mistaboom.essence_ascendance.client.armor.ArmorEmissionTest',
         ascendancePaletteInvariants: 'com.mistaboom.essence_ascendance.client.AscendancePaletteTest',
         texturePixelInvariants: 'com.mistaboom.essence_ascendance.visual.TexturePixelsTest',
@@ -216,6 +129,8 @@ balanceInvariantMains.each { taskName, className ->
     }
 }
 tasks.register('ascendanceHelmetInvariants') { dependsOn tasks.named('ascendanceArmorInvariants') }
+// The shield hook test inspects both native loaders, including on a fresh common-only run.
+tasks.named('ascendanceShieldInvariants') { dependsOn ':fabric:compileJava', ':neoforge:compileJava' }
 // These eight suites own local fixtures only: no game bootstrap or installed runtime profile.
 // Keep each original JavaExec task for isolated debugging. Never run both paths from check.
 def lightweightTasks = [

@@ -40,7 +40,7 @@ public final class AscendanceArmorTest {
     public static void main(String[] args) throws Exception {
         net.minecraft.SharedConstants.tryDetectVersion();
         net.minecraft.server.Bootstrap.bootStrap();
-        check(args.length == 2, "Expected the authored Armor.bbmodel path and source PNG directory");
+        check(args.length == 2, "Expected the authored armor BBModel path and extracted mask directory");
         var source = JsonParser.parseString(Files.readString(Path.of(args[0]))).getAsJsonObject();
         Path sourceMasks = Path.of(args[1]);
         Map<String, JsonObject> elements = namedEntries(source, "elements");
@@ -50,9 +50,9 @@ public final class AscendanceArmorTest {
             String name = piece.sourceName + suffix;
             JsonObject texture = textureEntries.get(name);
             check(texture != null, "Missing artist texture " + name);
-            // PNGs are the editable material authority; Blockbench supplies mesh/UV metadata only.
+            // The pipeline extracts these intermediate PNGs from the canonical Blockbench textures.
             Path png = sourceMasks.resolve(piece.resource + suffix.toLowerCase(java.util.Locale.ROOT) + ".png");
-            check(Files.isRegularFile(png), "Missing editable source mask " + png);
+            check(Files.isRegularFile(png), "Missing extracted source mask " + png);
             BufferedImage image = ImageIO.read(png.toFile());
             check(image != null && image.getWidth() == piece.textureSize && image.getHeight() == piece.textureSize,
                     "Preserve authored resolution: " + name);
