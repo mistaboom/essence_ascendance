@@ -4,6 +4,7 @@ import com.mistaboom.essence_ascendance.balance.config.BalanceOverrides;
 import com.mistaboom.essence_ascendance.balance.config.BalanceSettings;
 import com.mistaboom.essence_ascendance.balance.engine.PackEvidence;
 import com.mistaboom.essence_ascendance.balance.engine.ResourceEvidence;
+import com.mistaboom.essence_ascendance.balance.generated.BalancePerformance;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.valuation.ProceduralValuationEngine;
 import com.mistaboom.essence_ascendance.valuation.ProductionGraphAdapter;
@@ -30,7 +31,10 @@ public final class EconomyGenerator {
 
     public static EconomyProfile generate(MinecraftServer server, PackEvidence evidence,
                                            BalanceSettings settings, BalanceOverrides overrides) {
-        ProductionGraph generic = ProductionGraphAdapter.collect(server);
+        ProductionGraph generic;
+        try (var phase = BalancePerformance.phase("production_graph_adapter")) {
+            generic = ProductionGraphAdapter.collect(server);
+        }
         Map<String, ProductionGraph.Process> processes = new TreeMap<>();
         generic.processes().forEach(process -> processes.put(process.id(), process));
         List<String> warnings = new ArrayList<>(generic.warnings());
@@ -39,17 +43,21 @@ public final class EconomyGenerator {
         providers.stream().sorted(Comparator.comparingInt((ProductionProvider provider) -> priority(provider, overrides))
                         .thenComparing(ProductionProvider::id))
                 .filter(provider -> !disabledProvider(provider, overrides)).forEach(provider -> {
-                    ProductionGraph supplied = provider.collect(server, evidence);
-                    supplied.processes().forEach(process -> processes.put(process.id(), process));
-                    warnings.addAll(supplied.warnings());
+                    try (var phase = BalancePerformance.phase("production_provider/" + provider.id())) {
+                        ProductionGraph supplied = provider.collect(server, evidence);
+                        supplied.processes().forEach(process -> processes.put(process.id(), process));
+                        warnings.addAll(supplied.warnings());
+                    }
                 });
         ProductionGraph graph = new ProductionGraph(List.copyOf(processes.values()), warnings);
         Map<String, Map<String, Long>> routeWeights = new TreeMap<>();
+        try (var phase = BalancePerformance.phase("reuse_valuation_routes")) {
         ProceduralValuationEngine.evaluateAll(server).forEach(value -> {
             Map<String, Long> weights = new TreeMap<>();
             value.routedEssence().forEach((essence, weight) -> weights.put(essence.id().toString(), weight));
             routeWeights.put(value.itemId().toString(), weights);
         });
+        }
         return generate(evidence, graph, routeWeights, settings, overrides);
     }
 
@@ -87,12 +95,19 @@ public final class EconomyGenerator {
         Map<String, DissolutionYield> proposed = new TreeMap<>();
         proposedRoutes.forEach((id, routes) -> proposed.put(id,
                 new DissolutionYield(Math.multiplyExact(sum(routes), FractionalAmountService.SCALE))));
-        EconomyConservationSolver.Result result = EconomyConservationSolver.solveWholeUnits(resolvedGraph, proposed);
+        EconomyConservationSolver.Result result;
+        try (var phase = BalancePerformance.phase("conservation_solve")) {
+            result = EconomyConservationSolver.solveWholeUnits(resolvedGraph, proposed);
+        }
+        BalancePerformance.count("production_processes", resolvedGraph.processes().size());
+        BalancePerformance.count("conservation_passes", result.passes());
         java.util.Set<String> adjustedItems = new java.util.HashSet<>(result.adjustedItems());
         Map<String, Map<String, Long>> finalWholeRoutes = new TreeMap<>();
         evidence.resources().keySet().forEach(id -> finalWholeRoutes.put(id, scaleRoutes(proposedRoutes.get(id),
                 result.yields().getOrDefault(id, new DissolutionYield(0)).microUnits() / FractionalAmountService.SCALE)));
-        new WholeUnitConversionFamilies(resolvedGraph).reconcileRoutes(finalWholeRoutes, proposedRoutes, result.yields());
+        try (var phase = BalancePerformance.phase("conversion_family_reconciliation")) {
+            new WholeUnitConversionFamilies(resolvedGraph).reconcileRoutes(finalWholeRoutes, proposedRoutes, result.yields());
+        }
         validateExactYieldBounds(finalWholeRoutes, overrides);
         Map<String, EconomyProfile.ResourceValue> resources = new TreeMap<>();
         evidence.resources().forEach((id, resource) -> {
@@ -120,7 +135,9 @@ public final class EconomyGenerator {
         });
         EconomyProfile profile = new EconomyProfile(resources, result.invariants(), resolvedGraph.processes(), result.warnings(), result.passes(),
                 EconomyProcessingPolicy.derive(settings));
-        validateWhole(profile);
+        try (var phase = BalancePerformance.phase("economy_validation")) {
+            validateWhole(profile);
+        }
         return profile;
     }
 

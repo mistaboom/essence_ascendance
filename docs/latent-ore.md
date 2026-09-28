@@ -2,6 +2,8 @@
 
 ## Initial switch from placeholder ores
 
+The transition notes below describe the earlier development format. Current pack profiles use `generated_balance.json.gz`; follow [pack compatibility](pack-compatibility.md) for current storage, explicit rebuilds and preservation of existing worlds and human inputs.
+
 Delete the old development world and create a new one. All four placeholder ore
 registrations and their worldgen features were removed. There is no save migration
 or retrogen. No existing world was deleted by this implementation.

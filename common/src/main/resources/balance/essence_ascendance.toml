@@ -1,9 +1,9 @@
 # Essence Ascendance: pack-maker balance intent
-# These are GENERATOR INPUTS. The server runs from essence_ascendance/generated_balance.json.
+# These are GENERATOR INPUTS. The server runs from essence_ascendance/generated_balance.json.gz.
 # Edit this file, then run /essence admin balance rebuild as an operator to apply changes.
 # A normal restart or datapack reload warns about changed inputs but does not regenerate.
 # Existing valid generated data remains active if a rebuild fails.
-# Do not edit generated_balance.json; inspect reports/balance_report.md for its values.
+# Do not edit generated_balance.json.gz; inspect reports/balance_report.md for its values.
 # Sort/filter reports/*.csv in a spreadsheet; these exports do not change gameplay.
 # Full troubleshooting evidence stays in the generated JSON and diagnostics/.
 #

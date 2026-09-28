@@ -101,18 +101,28 @@ final class EssenceBalanceCommands {
         return fingerprint(source);
     }
     private static int fingerprint(CommandSourceStack source) {
-        var changes=GeneratedBalanceService.status(source.getServer());
+        var changes=GeneratedBalanceService.status(source.getServer(), "debug_balance_fingerprint");
         section(source, "Profile status");
         if(changes.isEmpty())tell(source,"current");
         else changes.forEach(change -> EssenceCommandUtil.send(source, EssenceCommandUtil.warn("  " + change)));
         return 1;
     }
     private static int validate(CommandSourceStack source) throws Exception {
+        try (var operation = com.mistaboom.essence_ascendance.balance.generated.BalancePerformance.begin(
+                "explicit_profile_validation", "debug_balance_validate")) {
+        try {
         var disk=BalanceProfileStore.read(GeneratedBalanceService.profilePath());
         GeneratedBalanceService.decode(disk);
         if(!disk.integrity().equals(GeneratedBalanceService.active().document().integrity()))
             throw new IllegalArgumentException("Saved profile differs from active snapshot; use /essence admin mappings reload or /essence admin balance rebuild");
-        tell(source,"valid");return 1;
+        tell(source,"valid");
+        operation.complete("validated_matches_active");
+        return 1;
+        } catch (Exception | Error error) {
+            operation.fail(error);
+            throw error;
+        }
+        }
     }
     private static int rebuild(CommandSourceStack source) {
         tell(source,"rebuilding");
@@ -196,7 +206,7 @@ final class EssenceBalanceCommands {
         tell(source,"details");return 1;
     }
     private static int cost(CommandSourceStack source,String pointer) {
-        if(!pointer.startsWith("/runtime/"))throw new IllegalArgumentException("Use a quoted /runtime/... path from generated_balance.json or reports/runtime_parameters.csv");
+        if(!pointer.startsWith("/runtime/"))throw new IllegalArgumentException("Use a quoted /runtime/... path from generated_balance.json.gz or reports/runtime_parameters.csv");
         JsonElement value=GeneratedBalanceService.active().document().section("runtime");
         for(String token:pointer.substring("/runtime/".length()).split("/")) {
             String key=token.replace("~1","/").replace("~0","~");

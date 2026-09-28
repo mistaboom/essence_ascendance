@@ -42,6 +42,14 @@ final class ProceduralTradeIndex {
 
     private static final int SAMPLES_PER_LISTING = 4;
 
+    // Optional Supplementaries 1.21.1 / 3.9.9 map factories implement Moonlight's
+    // ModItemListing, not vanilla TreasureMapForEmeralds. Their getOffer paths
+    // locate structures and call MapItem.create/renderBiomePreviewMap. Keep
+    // exact binary names here so neither optional mod is loaded or required.
+    private static final java.util.Set<String> WORLD_DEPENDENT_MOD_LISTINGS = java.util.Set.of(
+            "net.mehvahdjukaar.supplementaries.common.entities.trades.RandomAdventurerMapListing",
+            "net.mehvahdjukaar.supplementaries.common.entities.trades.StructureMapListing");
+
     private final Map<Item, List<TradeSource>> sourcesByOutput;
     private final int professionTableCount;
     private final int listingCount;
@@ -210,7 +218,7 @@ final class ProceduralTradeIndex {
             int listingIndex,
             Map<String, Integer> worldDependentListings
     ) {
-        // Vanilla's map offer locates structures, requests chunks and creates
+        // Map offers can locate structures, request chunks and create
         // saved map data. Evaluating it is unsafe during pre-spawn analysis (or
         // any read-only valuation). Its acquisition stays unknown instead.
         if (worldDependentListing(factory, 0)) {
@@ -272,6 +280,7 @@ final class ProceduralTradeIndex {
 
     private static boolean worldDependentListing(VillagerTrades.ItemListing listing, int depth) {
         if (depth > 16 || listing instanceof VillagerTrades.TreasureMapForEmeralds) return true;
+        if (WORLD_DEPENDENT_MOD_LISTINGS.contains(listing.getClass().getName())) return true;
         // The vanilla trade-rebalance table wraps exploration maps in this public record.
         return listing instanceof VillagerTrades.TypeSpecificTrade typed
                 && typed.trades().values().stream().anyMatch(child -> worldDependentListing(child, depth + 1));

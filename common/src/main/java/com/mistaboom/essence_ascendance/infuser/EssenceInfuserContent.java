@@ -236,9 +236,8 @@ public final class EssenceInfuserContent {
                 RAW_LATENT_ORE,
                 RAW_LATENT_ORE_BLOCK_ITEM
         );
-        CreativeTabRegistry.modify(
-                CreativeTabRegistry.defer(CreativeModeTabs.NATURAL_BLOCKS),
-                (flags, output, canUseGameMasterBlocks) -> LatentOreHost.creativeStacks().forEach(output::accept)
+        com.mistaboom.essence_ascendance.item.CreativeVariantRegistry.register(
+                CreativeModeTabs.NATURAL_BLOCKS, LatentOreHost::creativeStacks
         );
         CreativeTabRegistry.append(
                 CreativeModeTabs.INGREDIENTS,
@@ -249,17 +248,18 @@ public final class EssenceInfuserContent {
         );
         // Resolve full carrier stacks when the tab is rebuilt, not during
         // registry initialization. Empty/uninfused carriers stay hidden.
-        CreativeTabRegistry.modify(
-                CreativeTabRegistry.defer(CreativeModeTabs.INGREDIENTS),
-                (flags, output, canUseGameMasterBlocks) -> {
+        com.mistaboom.essence_ascendance.item.CreativeVariantRegistry.register(
+                CreativeModeTabs.INGREDIENTS,
+                () -> {
+                    var stacks = new java.util.ArrayList<net.minecraft.world.item.ItemStack>();
                     for (Item item : new Item[]{
                             ESSENTIUM_NUGGET.get(),
                             ESSENTIUM_INGOT.get(),
                             ESSENTIUM_BLOCK.get()
                     }) {
-                        EssentiumCarrierData.createFullVariants((EssentiumItem) item, 1)
-                                .forEach(output::accept);
+                        stacks.addAll(EssentiumCarrierData.createFullVariants((EssentiumItem) item, 1));
                     }
+                    return java.util.List.copyOf(stacks);
                 }
         );
         CreativeTabRegistry.append(

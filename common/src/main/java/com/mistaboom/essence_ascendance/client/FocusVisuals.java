@@ -49,10 +49,10 @@ public final class FocusVisuals {
     public record Context(Host host, boolean installed, boolean energized, EssenceFocusTier tier,
                           boolean active, long ratePerSecond,
                           double x, double y, double z, float yawDegrees,
-                          Direction axisDirection) {
+                          Direction axisDirection, int quarterTurns) {
         public static Context generic(EssenceFocusTier tier) {
             return new Context(Host.GENERIC, true, true, tier, false, 0,
-                    0.5, 1.5, 0.5, 0, Direction.UP);
+                    0.5, 1.5, 0.5, 0, Direction.UP, 0);
         }
 
         public static Context installed(MachineVisualState.Focus focus, boolean linked) {
@@ -61,13 +61,18 @@ public final class FocusVisuals {
 
         public static Context installed(MachineVisualState.Focus focus, boolean linked,
                                         Direction axisDirection) {
+            return installed(focus, linked, PylonLocalFrame.of(axisDirection));
+        }
+
+        public static Context installed(MachineVisualState.Focus focus, boolean linked,
+                                        PylonLocalFrame frame) {
             Host host = focus.host() == MachineVisualState.Host.PYLON ? Host.PYLON : Host.INFUSER;
             return new Context(host, focus.installed(), linked, focus.tier(), focus.active(), focus.ratePerSecond(),
-                    0.5, 1.5, 0.5, 0, axisDirection);
+                    0.5, 1.5, 0.5, 0, frame.direction(), frame.quarterTurns());
         }
 
         public PylonLocalFrame frame() {
-            return PylonLocalFrame.of(axisDirection);
+            return PylonLocalFrame.of(axisDirection, quarterTurns);
         }
     }
 
@@ -241,7 +246,7 @@ public final class FocusVisuals {
         pose.pushPose();
         Vec3 center = center(context, age);
         pose.translate(center.x, center.y, center.z);
-        PylonRenderTransform.applyRotation(pose, context.axisDirection());
+        PylonRenderTransform.applyRotation(pose, context.frame());
         float rotation = context.yawDegrees() + (float) (age * (context.host() == Host.INFUSER
                 ? (context.active() ? -2.4 : -1.4) : (context.active() ? 2.2 : 1.25)));
         pose.mulPose(Axis.YP.rotationDegrees(rotation));

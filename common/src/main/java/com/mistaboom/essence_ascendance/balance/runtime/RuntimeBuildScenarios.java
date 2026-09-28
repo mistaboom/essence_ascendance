@@ -48,6 +48,14 @@ public final class RuntimeBuildScenarios {
             return cases.stream().flatMap(row -> row.evaluation().violations().stream())
                     .noneMatch(v -> channel == null || channel.includes(v.metric()));
         }
+        public String firstViolation(Channel channel) {
+            for (var row : cases) {
+                var relevant = row.evaluation().violations().stream()
+                        .filter(v -> channel == null || channel.includes(v.metric())).toList();
+                if (!relevant.isEmpty()) return row.evaluation().id() + " " + relevant;
+            }
+            return "no " + channel + " violation";
+        }
     }
     public record Plan(Map<ResourceLocation, List<SkillLoadoutProjection.Scenario>> full,
                        Map<ResourceLocation, List<SkillLoadoutProjection.Scenario>> moderate, boolean developed,
@@ -202,10 +210,10 @@ public final class RuntimeBuildScenarios {
                             // Frozen before exact overrides: a raised weapon stat
                             // cannot authorize its own higher equipment ceiling.
                             var base = BuildComposition.compose(item==external?external:originalEquipment, Modifier.none(), Modifier.none(), incoming, window);
-                            limits.put(participation, new Limits(Math.max(reference.dps() * target, base.sustainedDamage()),
-                                    Math.max(reference.burst() * burst, base.burstDamage()), reference.dps() * Math.max(0, target - 1) * 2,
-                                    Math.max(externalMetrics.effectiveHealth() * target, base.effectiveHealth()),
-                                    Math.max(externalMetrics.effectiveHealth() * healingTarget * 1.35, base.sustainedHealth()), health * Math.max(0, healingTarget - 1) / window));
+                            limits.put(participation, new Limits(withNativeAllowance(reference.dps(), base.sustainedDamage(), target),
+                                    withNativeAllowance(reference.burst(), base.burstDamage(), burst), reference.dps() * Math.max(0, target - 1) * 2,
+                                    withNativeAllowance(externalMetrics.effectiveHealth(), base.effectiveHealth(), target),
+                                    withNativeAllowance(externalMetrics.effectiveHealth(), base.sustainedHealth(), healingTarget * 1.35), health * Math.max(0, healingTarget - 1) / window));
                         }
                         List<Violation> violations = new ArrayList<>();
                         metrics.forEach((participation, value) -> {
@@ -248,6 +256,13 @@ public final class RuntimeBuildScenarios {
                 "Life Steal uses direct primary weapon hit damage and cadence, including native primary Static Charge and direct counter damage, with same-target chain progress derived from the native timeout and accepted-hit rate. Native Ricochet/Piercing continuation hits contribute bounded base-fraction healing because each distinct victim resets the chain; primary chain plus continuation is a conservative capacity envelope, not a promise of simultaneous maintained chains. Separate elemental/payload/returned damage does not heal. Healing Effectiveness applies to Life Steal; actual healing is bounded by useful missing HP or, with Pain Purge, recoverable delayed damage.",
                 "Hunger Ward protection is bounded by BOTH its damage-share survival budget and one full native food+saturation reservoir. Damage Ceiling adds at most its finite Trauma capacity divided by its cost, only when the reference hit crosses the cap; ignoring the reduced maximum health is a conservative upper bound. Staggered Pain adds no permanent EHP. Pain Purge mirrors actual generated healing plus conditional native saturated-food regeneration into debt, at its calibrated ratio; no potion or food throughput is invented. Metabolic Conversion remains a conditional resource conversion. Adrenaline contributes its real peak attack-speed multiplier in all weapon families. Feast Reflex duration and Inner Sustenance food/saturation restoration retain native resource/time units in vitalityPolicy. Food inventory, consumption side effects and phantom/sleep immunity are conditional capabilities, not invented health or damage. Out-of-combat hunger recovery never counts as in-combat healing.",
                 "Pack parity preserves existing equipment curves and attainable weapon/armor pairings. Physical quantization and tool archetype baselines are not nerfed to make a bonus budget fit. External-gear projections assume required equipment access; gameplay still enforces eligibility, ownership and worn-slot coverage."));
+    }
+
+    /** Native identity is already allowed independently of purchases. Do not spend the
+     * external added-power budget a second time on that protected equipment floor.
+     * Only the frozen pre-override baseline may supply nativeBase. */
+    static double withNativeAllowance(double external, double nativeBase, double multiplier) {
+        return Math.max(external, nativeBase) + external * Math.max(0, multiplier - 1);
     }
 
     static SkillEffectBalanceSettings rankedEffects(RuntimeBalanceDefinition runtime, Map<ResourceLocation, Integer> ranks) {

@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.network;
 
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
+import com.mistaboom.essence_ascendance.balance.generated.BalancePerformance;
 import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingRegistry;
 import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingResult;
 import dev.architectury.event.events.common.PlayerEvent;
@@ -173,6 +174,11 @@ public final class ItemEssenceTooltipSyncService {
             return;
         }
 
+        var operation = BalancePerformance.currentSnapshot() == null
+                ? BalancePerformance.begin("player_tooltip_sync", force ? "forced_join_or_admin_sync" : "pending_generation_retry") : null;
+        try (var phase = BalancePerformance.phase("tooltip_snapshot_send")) {
+        BalancePerformance.count("tooltip_snapshot_chunks", snapshot.chunks().size());
+        BalancePerformance.detail("mapping_generation", Long.toString(snapshot.generation()));
         for (ItemEssenceTooltipPayload chunk :
                 snapshot.chunks()) {
 
@@ -186,6 +192,13 @@ public final class ItemEssenceTooltipSyncService {
                 player,
                 snapshot.generation()
         );
+        if (operation != null) operation.complete("sent");
+        } catch (RuntimeException | Error error) {
+            if (operation != null) operation.fail(error);
+            throw error;
+        } finally {
+            if (operation != null) operation.close();
+        }
     }
 
     private static Snapshot snapshot() {
@@ -211,10 +224,11 @@ public final class ItemEssenceTooltipSyncService {
                 return existing;
             }
 
-            Snapshot rebuilt =
-                    buildSnapshot(
-                            generation
-                    );
+            Snapshot rebuilt;
+            try (var phase = BalancePerformance.phase("tooltip_snapshot_build")) {
+                BalancePerformance.increment("tooltip_snapshot_builds");
+                rebuilt = buildSnapshot(generation);
+            }
 
             cachedSnapshot =
                     rebuilt;

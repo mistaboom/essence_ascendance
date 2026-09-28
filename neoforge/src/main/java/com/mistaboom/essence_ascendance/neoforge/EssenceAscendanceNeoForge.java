@@ -24,6 +24,7 @@ public final class EssenceAscendanceNeoForge {
     public EssenceAscendanceNeoForge(IEventBus modBus) {
         EssenceAscendanceNeoForgeWorldgen.register(modBus);
         EssenceAscendance.init();
+        modBus.addListener(EssenceAscendanceNeoForge::appendCreativeVariants);
 
         modBus.addListener(
                 EssenceAscendanceNeoForge::registerCapabilities
@@ -46,6 +47,10 @@ public final class EssenceAscendanceNeoForge {
                 EssenceAscendanceNeoForge::onGetEnchantmentLevel
         );
 
+    }
+
+    private static void appendCreativeVariants(net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent event) {
+        com.mistaboom.essence_ascendance.item.CreativeVariantRegistry.append(event.getTabKey(), event);
     }
 
     private static void registerCapabilities(

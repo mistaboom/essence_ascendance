@@ -1,0 +1,40 @@
+plugins {
+    id 'application'
+}
+
+repositories { mavenCentral() }
+dependencies {
+    implementation 'com.google.code.gson:gson:2.11.0'
+    implementation 'org.tomlj:tomlj:1.1.1'
+}
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+tasks.withType(JavaCompile).configureEach { options.release = 21 }
+application { mainClass = 'dev.essence.packtester.Main' }
+
+// A stable executable JAR lets IntelliJ launch directly even when ordinary
+// Application configurations are delegated to Gradle in the user's IDE settings.
+tasks.named('jar') {
+    archiveFileName = 'pack-tester.jar'
+    inputs.files(configurations.runtimeClasspath)
+    manifest { attributes 'Main-Class': application.mainClass.get() }
+    doFirst {
+        manifest.attributes 'Class-Path': configurations.runtimeClasspath.files.collect { it.name }.sort().join(' ')
+    }
+}
+
+// A desktop launch must outlive its bootstrap Gradle invocation, not hold its locks.
+tasks.named('run') {
+    doFirst { throw new GradleException('Use the IntelliJ Application configuration or tools/pack-tester.ps1; do not run the GUI inside Gradle.') }
+}
+tasks.register('regression', JavaExec) {
+    group = 'verification'
+    description = 'Pack Tester fixture tests; never writes to an installed Prism instance.'
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.essence.packtester.PackTesterTest'
+    args rootProject.projectDir.absolutePath
+}
+tasks.named('check') { dependsOn 'regression' }

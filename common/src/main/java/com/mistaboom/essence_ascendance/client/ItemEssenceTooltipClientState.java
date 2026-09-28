@@ -94,14 +94,15 @@ public final class ItemEssenceTooltipClientState {
     static void accept(
             ItemEssenceTooltipPayload payload
     ) {
-        accept(payload, JeiTooltipSearchRefreshBridge::requestRefresh);
+        accept(payload, () -> JeiTooltipSearchRefreshBridge.requestRefresh(
+                "item-yields-generation-" + payload.mappingGeneration(), YIELD_SNAPSHOT.outputsByItem().size()));
     }
 
     static void acceptForTesting(ItemEssenceTooltipPayload payload) {
         accept(payload, () -> { });
     }
 
-    private static void accept(ItemEssenceTooltipPayload payload, Runnable refreshSearch) {
+    static void accept(ItemEssenceTooltipPayload payload, Runnable refreshSearch) {
         // Only chunk zero may start a snapshot. A late older chunk must neither
         // replace an installed table nor destroy a newer in-progress assembly.
         long generation = payload.mappingGeneration();
@@ -191,6 +192,7 @@ public final class ItemEssenceTooltipClientState {
 
         long completedGeneration = pendingGeneration;
         Map<ResourceLocation, List<Yield>> completed = Map.copyOf(rebuilt);
+        boolean changed = !YIELD_SNAPSHOT.outputsByItem().equals(completed);
         List<YieldRow> rows = completed.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
                 .map(entry -> new YieldRow(entry.getKey(), entry.getValue()))
@@ -209,7 +211,9 @@ public final class ItemEssenceTooltipClientState {
          * If JEI has already indexed ingredients, make its $ tooltip-search
          * index pick up this new authoritative server mapping snapshot.
          */
-        refreshSearch.run();
+        // A forced resend/new generation may carry identical searchable yields.
+        // Publish its generation/readiness but do not reindex the whole pack for it.
+        if (changed) refreshSearch.run();
     }
 
     public static void appendToGeneratedTooltip(
@@ -460,12 +464,14 @@ public final class ItemEssenceTooltipClientState {
     }
 
     static void clear() {
-        clear(true);
+        int previousEntries = YIELD_SNAPSHOT.outputsByItem().size();
+        clear(() -> JeiTooltipSearchRefreshBridge.requestRefresh("item-yields-cleared", previousEntries));
     }
 
-    static void clearForTesting() { clear(false); }
+    static void clearForTesting() { clear(() -> { }); }
 
-    private static void clear(boolean refreshSearch) {
+    static void clear(Runnable refreshSearch) {
+        boolean changed = !YIELD_SNAPSHOT.outputsByItem().isEmpty();
         installedGeneration = -1L;
         YIELD_SNAPSHOT = YieldSnapshot.unavailable();
 
@@ -476,7 +482,7 @@ public final class ItemEssenceTooltipClientState {
 
         pendingChunkCount =
                 0;
-        if (refreshSearch) JeiTooltipSearchRefreshBridge.requestRefresh();
+        if (changed) refreshSearch.run();
     }
 
     /** Atomic, connection-scoped read model shared by tooltips and read-only browsers. */

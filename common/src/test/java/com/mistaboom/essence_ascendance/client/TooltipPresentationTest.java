@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.network.ItemEssenceTooltipPayload;
+import com.mistaboom.essence_ascendance.network.EquipmentTooltipPayload;
 import io.netty.buffer.Unpooled;
 import net.minecraft.ChatFormatting;
 import net.minecraft.SharedConstants;
@@ -11,6 +12,8 @@ import net.minecraft.server.Bootstrap;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /** Reusable presentation contracts and real Minecraft payload codec, without a running client. */
 public final class TooltipPresentationTest {
@@ -26,6 +29,7 @@ public final class TooltipPresentationTest {
         styles();
         codec();
         completedYieldSnapshots();
+        changedTooltipSearchSnapshots();
         AscendancePaletteTest.main(args);
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println("TooltipPresentationTest: " + assertions
                 + " token wrapping, bounded scroll, semantic styling and exact payload assertions passed");
@@ -170,6 +174,73 @@ public final class TooltipPresentationTest {
         return new ItemEssenceTooltipPayload(generation, index, count, List.of(
                 new ItemEssenceTooltipPayload.Entry(item, List.of(
                         new ItemEssenceTooltipPayload.Output("essence_ascendance:offense", microUnits)))));
+    }
+
+    private static void changedTooltipSearchSnapshots() {
+        AtomicInteger refreshes = new AtomicInteger();
+        Runnable refresh = refreshes::incrementAndGet;
+        ItemEssenceTooltipClientState.clearForTesting();
+        ItemEssenceTooltipClientState.clear(refresh);
+        check(refreshes.get() == 0, "Clearing empty yield state invalidated JEI");
+        ItemEssenceTooltipClientState.accept(new ItemEssenceTooltipPayload(1, 0, 1, List.of()), refresh);
+        check(refreshes.get() == 0 && ItemEssenceTooltipClientState.yieldSnapshot().ready(),
+                "Empty authoritative snapshot must publish readiness without reindexing identical tooltip content");
+        ItemEssenceTooltipClientState.accept(payload(2, 0, 2, "minecraft:diamond", 2_000_000L), refresh);
+        check(refreshes.get() == 0, "Incomplete yields invalidated JEI before publication");
+        ItemEssenceTooltipClientState.accept(payload(2, 1, 2, "minecraft:coal", 250_000L), refresh);
+        check(refreshes.get() == 1, "First genuine yield snapshot must invalidate even after JEI startup");
+        ItemEssenceTooltipClientState.accept(payload(2, 0, 2, "minecraft:diamond", 2_000_000L), refresh);
+        ItemEssenceTooltipClientState.accept(payload(2, 1, 2, "minecraft:coal", 250_000L), refresh);
+        check(refreshes.get() == 1, "Identical forced yield resend invalidated JEI");
+        ItemEssenceTooltipClientState.accept(payload(3, 0, 2, "minecraft:coal", 250_000L), refresh);
+        ItemEssenceTooltipClientState.accept(payload(3, 1, 2, "minecraft:diamond", 2_000_000L), refresh);
+        check(refreshes.get() == 1 && ItemEssenceTooltipClientState.yieldSnapshot().generation() == 3,
+                "Identical yields in a newer generation must publish generation without invalidating search");
+        ItemEssenceTooltipClientState.accept(payload(4, 0, 2, "minecraft:diamond", 3_000_000L), refresh);
+        ItemEssenceTooltipClientState.accept(payload(4, 1, 2, "minecraft:coal", 250_000L), refresh);
+        check(refreshes.get() == 2, "Changed amount did not invalidate search");
+        ItemEssenceTooltipClientState.accept(payload(5, 0, 1, "minecraft:diamond", 3_000_000L), refresh);
+        check(refreshes.get() == 3, "Removed yield did not invalidate search");
+        ItemEssenceTooltipClientState.accept(payload(4, 0, 1, "minecraft:coal", 1L), refresh);
+        check(refreshes.get() == 3, "Stale snapshot invalidated search");
+        ItemEssenceTooltipClientState.clear(refresh);
+        ItemEssenceTooltipClientState.clear(refresh);
+        check(refreshes.get() == 4 && !ItemEssenceTooltipClientState.yieldSnapshot().ready(),
+                "Disconnect must clear and invalidate existing yields exactly once");
+
+        EquipmentTooltipClientState.clear(() -> { });
+        refreshes.set(0);
+        EquipmentTooltipClientState.clear(refresh);
+        check(refreshes.get() == 0, "Clearing empty equipment state invalidated JEI");
+        String key = "essence_ascendance:shield#latent";
+        var line = new EquipmentTooltipPayload.Line(EquipmentTooltipPayload.Group.STATS,
+                EquipmentTooltipPayload.Tone.PRIMARY, "test.stat", List.of("14"));
+        var snapshot = new EquipmentTooltipPayload(List.of(new EquipmentTooltipPayload.Entry(key, List.of(line), 0D)));
+        EquipmentTooltipClientState.accept(snapshot, refresh);
+        check(refreshes.get() == 1, "First equipment snapshot must invalidate search");
+        EquipmentTooltipClientState.accept(snapshot, refresh);
+        check(refreshes.get() == 1, "Identical equipment resend invalidated search");
+        EquipmentTooltipClientState.accept(new EquipmentTooltipPayload(List.of(
+                new EquipmentTooltipPayload.Entry(key, List.of(line), 10D))), refresh);
+        check(refreshes.get() == 1, "Movement-only update invalidated unchanged searchable lines");
+        try {
+            var field = EquipmentTooltipClientState.class.getDeclaredField("GUARDED_MOVEMENT_BY_ITEM");
+            field.setAccessible(true);
+            check(((Map<?, ?>) field.get(null)).get(key).equals(10D),
+                    "Suppressing duplicate search refresh discarded synchronized movement state");
+        } catch (ReflectiveOperationException exception) { throw new AssertionError(exception); }
+        var changedLine = new EquipmentTooltipPayload.Line(line.group(), line.tone(), line.translationKey(), List.of("23"));
+        EquipmentTooltipClientState.accept(new EquipmentTooltipPayload(List.of(
+                new EquipmentTooltipPayload.Entry(key, List.of(changedLine), 10D))), refresh);
+        check(refreshes.get() == 2, "Changed equipment argument did not invalidate search");
+        EquipmentTooltipClientState.accept(new EquipmentTooltipPayload(List.of()), refresh);
+        check(refreshes.get() == 3, "Removed equipment lines did not invalidate search");
+        EquipmentTooltipClientState.clear(refresh);
+        check(refreshes.get() == 3, "Disconnect invalidated already-empty equipment state");
+        EquipmentTooltipClientState.accept(snapshot, refresh);
+        EquipmentTooltipClientState.clear(refresh);
+        EquipmentTooltipClientState.clear(refresh);
+        check(refreshes.get() == 5, "Equipment disconnect must invalidate nonempty state exactly once");
     }
 
     private static void check(boolean value, String message) {

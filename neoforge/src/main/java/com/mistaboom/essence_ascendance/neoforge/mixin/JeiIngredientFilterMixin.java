@@ -7,6 +7,7 @@ import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.lang.reflect.InvocationTargetException;
@@ -22,6 +23,8 @@ import java.util.List;
  * Right before JEI returns the ingredient/search list, compare the last indexed
  * Essence revision to the current one. If it changed, rebuild JEI's index
  * synchronously first.
+ * JEI's own initial indexing and resource-reload rebuilds also satisfy that
+ * revision, so opening the inventory does not repeat work JEI already did.
  *
  * This is intentionally lazy:
  * - no JEI-startup race;
@@ -41,12 +44,48 @@ public abstract class JeiIngredientFilterMixin {
             -1L;
 
     @Unique
+    private long essenceAscendance$rebuildRevision;
+
+    @Unique
+    private long essenceAscendance$indexStartedNanos;
+
+    @Unique
     private boolean essenceAscendance$rebuilding =
             false;
 
     @Unique
     private static boolean essenceAscendance$reflectionWarningLogged =
             false;
+
+    @Inject(method = "<init>", at = @At("RETURN"), require = 0, remap = false)
+    private void essenceAscendance$initialIndexComplete(CallbackInfo callback) {
+        // Initial indexing and queued tooltip updates both run on the client thread.
+        essenceAscendance$indexedRevision = JeiTooltipSearchRefreshBridge.revision();
+        EssenceAscendance.LOGGER.info(
+                "JEI initial index complete: indexed Essence revision={}",
+                essenceAscendance$indexedRevision);
+    }
+
+    @Inject(method = "rebuildItemFilter", at = @At("HEAD"), require = 0, remap = false)
+    private void essenceAscendance$indexRebuildStarted(CallbackInfo callback) {
+        essenceAscendance$rebuildRevision = JeiTooltipSearchRefreshBridge.revision();
+        essenceAscendance$indexStartedNanos = System.nanoTime();
+        EssenceAscendance.LOGGER.info(
+                "JEI index rebuild started: cause={}, indexed Essence revision={}, current={}",
+                essenceAscendance$rebuilding ? "essence-tooltip-change" : "jei",
+                essenceAscendance$indexedRevision, essenceAscendance$rebuildRevision);
+    }
+
+    @Inject(method = "rebuildItemFilter", at = @At("RETURN"), require = 0, remap = false)
+    private void essenceAscendance$indexRebuildComplete(CallbackInfo callback) {
+        // A later revision still needs indexing; a failed rebuild never reaches RETURN.
+        essenceAscendance$indexedRevision = essenceAscendance$rebuildRevision;
+        EssenceAscendance.LOGGER.info(
+                "JEI index rebuild complete: cause={}, indexed Essence revision={}, current={}, elapsed={} ms",
+                essenceAscendance$rebuilding ? "essence-tooltip-change" : "jei",
+                essenceAscendance$indexedRevision, JeiTooltipSearchRefreshBridge.revision(),
+                (System.nanoTime() - essenceAscendance$indexStartedNanos) / 1_000_000L);
+    }
 
     @Inject(
             method = "getElements",
@@ -72,6 +111,7 @@ public abstract class JeiIngredientFilterMixin {
         try {
             essenceAscendance$rebuilding =
                     true;
+            long started = System.nanoTime();
 
             Method rebuild =
                     this.getClass()
@@ -87,8 +127,8 @@ public abstract class JeiIngredientFilterMixin {
                     currentRevision;
 
             EssenceAscendance.LOGGER.info(
-                    "Rebuilt JEI search index for Essence tooltip revision {}",
-                    currentRevision
+                    "Rebuilt JEI search index for Essence tooltip revision {} in {} ms",
+                    currentRevision, (System.nanoTime() - started) / 1_000_000L
             );
 
         } catch (NoSuchMethodException

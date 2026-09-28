@@ -3,6 +3,8 @@ package com.mistaboom.essence_ascendance.client;
 import com.mistaboom.essence_ascendance.client.procedural.ProceduralGeometry;
 import com.mistaboom.essence_ascendance.client.procedural.ProceduralRenderTypes;
 import com.mistaboom.essence_ascendance.nexus.AscendanceNexusBlockEntity;
+import com.mistaboom.essence_ascendance.machine.HorizontalMachineBlock;
+import com.mistaboom.essence_ascendance.pylon.PylonLocalFrame;
 import com.mistaboom.essence_ascendance.visual.AscendancePalette;
 import com.mistaboom.essence_ascendance.visual.ProceduralMotion;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -42,6 +44,10 @@ public final class NexusVisuals {
                               PoseStack pose, MultiBufferSource buffers) {
         Level level = nexus.getLevel();
         if (level == null) return;
+        PylonLocalFrame frame = HorizontalMachineBlock.frame(
+                nexus.getBlockState().getValue(HorizontalMachineBlock.FACING));
+        pose.pushPose();
+        PylonRenderTransform.applyAroundBlockCenter(pose, frame);
 
         boolean active = nexus.visualState().inUse();
         double age = level.getGameTime() + partialTick;
@@ -64,7 +70,7 @@ public final class NexusVisuals {
         renderCorePlanes(pose, planes, center, age, active);
         renderOrbitNodePlanes(pose, planes, center, orbitAngle, age, active);
         if (close) {
-            renderTravelingDetailPulses(pose, planes, center, orbitAngle, age, active);
+            renderTravelingDetailPulses(pose, planes, frame, center, orbitAngle, age, active);
         }
 
         VertexConsumer lines = buffers.getBuffer(ProceduralRenderTypes.WORLD_DEPTH_LINES);
@@ -74,6 +80,7 @@ public final class NexusVisuals {
         if (close) {
             renderFineDetail(pose, lines, center, fanHalfAngle, flip, orbitAngle, age, active);
         }
+        pose.popPose();
     }
 
     /** Low, physical-looking registration that visually seats the floating codex on the lectern. */
@@ -286,13 +293,14 @@ public final class NexusVisuals {
     }
 
     private static void renderTravelingDetailPulses(PoseStack pose, VertexConsumer planes,
+                                                     PylonLocalFrame frame,
                                                      Vec3 center, double rotation, double age,
                                                      boolean active) {
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
         Vector3f left = camera.getLeftVector();
         Vector3f cameraUp = camera.getUpVector();
-        Vec3 right = new Vec3(-left.x(), -left.y(), -left.z());
-        Vec3 up = new Vec3(cameraUp.x(), cameraUp.y(), cameraUp.z());
+        Vec3 right = frame.worldVectorToLocal(new Vec3(-left.x(), -left.y(), -left.z()));
+        Vec3 up = frame.worldVectorToLocal(new Vec3(cameraUp.x(), cameraUp.y(), cameraUp.z()));
         int count = active ? 3 : 1;
         for (int index = 0; index < count; index++) {
             int nodeIndex = active ? index * 2 : 3;

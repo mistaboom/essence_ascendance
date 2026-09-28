@@ -4,7 +4,8 @@ import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleBlockEntity;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBlockEntity;
 import com.mistaboom.essence_ascendance.nexus.AscendanceNexusBlockEntity;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonBlockEntity;
-import com.mistaboom.essence_ascendance.pylon.EssencePylonBlock;
+import com.mistaboom.essence_ascendance.pylon.PylonLocalFrame;
+import com.mistaboom.essence_ascendance.machine.HorizontalMachineBlock;
 import com.mistaboom.essence_ascendance.client.procedural.ProceduralWorldQueue;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
@@ -99,13 +100,14 @@ public final class MachineWorldVisualRenderer {
                 EssencePylonBlockEntity pylon = (EssencePylonBlockEntity) entity;
                 FocusVisuals.renderInstalled(FocusVisuals.Context.installed(
                                 pylon.visualState().focus(), pylon.visualState().linked(),
-                                pylon.getBlockState().getValue(EssencePylonBlock.FACING)),
+                                PylonLocalFrame.of(pylon.getBlockState())),
                         pylon.getLevel(), pylon.getBlockPos(), partialTick, pose, buffers, packedOverlay);
             } else if (kind == Kind.INFUSER) {
                 EssenceInfuserBlockEntity infuser = (EssenceInfuserBlockEntity) entity;
                 InfuserVisuals.renderWorkpiece(infuser, itemRenderer, partialTick, pose, buffers, packedOverlay);
                 FocusVisuals.renderInstalled(FocusVisuals.Context.installed(
-                                infuser.visualState().focus(), infuser.visualState().linked()),
+                                infuser.visualState().focus(), infuser.visualState().linked(),
+                                HorizontalMachineBlock.frame(infuser.getBlockState().getValue(HorizontalMachineBlock.FACING))),
                         infuser.getLevel(), infuser.getBlockPos(), partialTick, pose, buffers, packedOverlay);
             }
         }
@@ -119,7 +121,7 @@ public final class MachineWorldVisualRenderer {
                     PylonVisuals.render(pylon, partialTick, pose, buffers);
                     FocusVisuals.renderOrnament(FocusVisuals.Context.installed(
                                     pylon.visualState().focus(), pylon.visualState().linked(),
-                                    pylon.getBlockState().getValue(EssencePylonBlock.FACING)),
+                                    PylonLocalFrame.of(pylon.getBlockState())),
                             pylon.getLevel(), pylon.getBlockPos(), partialTick,
                             pose, buffers);
                     EssenceTetherVisuals.renderPylon(pylon, partialTick, pose, buffers);
@@ -129,7 +131,8 @@ public final class MachineWorldVisualRenderer {
                     InfuserVisuals.render(infuser, itemRenderer, partialTick, pose,
                             buffers, packedOverlay);
                     FocusVisuals.renderOrnament(FocusVisuals.Context.installed(
-                                    infuser.visualState().focus(), infuser.visualState().linked()),
+                                    infuser.visualState().focus(), infuser.visualState().linked(),
+                                    HorizontalMachineBlock.frame(infuser.getBlockState().getValue(HorizontalMachineBlock.FACING))),
                             infuser.getLevel(), infuser.getBlockPos(), partialTick,
                             pose, buffers);
                     EssenceTetherVisuals.renderInfuser(infuser, partialTick, pose, buffers);

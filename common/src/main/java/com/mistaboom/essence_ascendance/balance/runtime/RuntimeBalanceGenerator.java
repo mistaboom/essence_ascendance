@@ -507,8 +507,8 @@ public final class RuntimeBalanceGenerator {
         if(RuntimeBuildScenarios.analyze(source,evidence,settings,plan).safeFor(channel))return 1;
         var zero=RuntimeBuildScenarios.analyze(adjusted(source,0,channel,rankGrowth,settings),evidence,settings,plan);
         if(!zero.safeFor(channel)) {
-            zero.requireSafe();
-            throw new IllegalArgumentException("Cannot calibrate "+channel+" without changing base equipment");
+            throw new IllegalArgumentException("Cannot calibrate "+channel+" without changing base equipment; "
+                    +zero.firstViolation(channel));
         }
         double low=0,high=1;
         for(int pass=0;pass<20;pass++) {
@@ -518,8 +518,7 @@ public final class RuntimeBalanceGenerator {
         }
         if(low<.02)throw new IllegalArgumentException("Requested "+channel+" targets leave less than 2% of "
                 +(rankGrowth?"additional rank growth":"rank-one added power")+"; revise external evidence or friendly power controls; "
-                +RuntimeBuildScenarios.analyze(adjusted(source,.02,channel,rankGrowth,settings),evidence,settings,plan).cases().stream()
-                    .filter(c->!c.evaluation().safe()).findFirst().map(c->c.evaluation().id()+" "+c.evaluation().violations()).orElse("unknown constraint"));
+                +RuntimeBuildScenarios.analyze(adjusted(source,.02,channel,rankGrowth,settings),evidence,settings,plan).firstViolation(channel));
         return low;
     }
     private static RuntimeBalanceDefinition adjusted(RuntimeBalanceDefinition source,double factor,

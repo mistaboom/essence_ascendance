@@ -31,33 +31,35 @@ public final class BalanceReports {
     public static void export(GeneratedBalanceService.Active current, GeneratedBalanceService.Active previous,
                               Path folder, long generationMillis) throws IOException {
         JsonObject skills = current.document().section("skills");
-        SpreadsheetReports tables = new SpreadsheetReports();
-        valuation(tables, current);
-        equipment(tables, current);
-        curves(tables, current, skills);
-        bonusTracks(tables, current);
-        builds(tables, current, skills);
-        combatBuilds(tables, skills);
-        invariants(tables, current);
-        evidence(tables, current);
-        runtimeTables(tables, current);
-        latentOre(tables, current);
-        ascension(tables, current);
-        attunement(tables, current.runtime().attunement());
-        var projectileRules = tables.table("projectile_policy.csv", "contract", "rule");
-        if (skills.has("projectilePolicy")) skills.getAsJsonObject("projectilePolicy").entrySet().stream()
-                .sorted(Map.Entry.comparingByKey()).forEach(entry -> projectileRules.row(entry.getKey(), entry.getValue().getAsString()));
-        var guardRules = tables.table("guard_policy.csv", "contract", "rule");
-        if (skills.has("guardPolicy")) skills.getAsJsonObject("guardPolicy").entrySet().stream()
-                .sorted(Map.Entry.comparingByKey()).forEach(entry -> guardRules.row(entry.getKey(), entry.getValue().getAsString()));
-        var postureRules = tables.table("posture_status_policy.csv", "contract", "rule");
-        if (skills.has("postureStatusPolicy")) skills.getAsJsonObject("postureStatusPolicy").entrySet().stream()
-                .sorted(Map.Entry.comparingByKey()).forEach(entry -> postureRules.row(entry.getKey(), entry.getValue().getAsString()));
-        var vitalityRules = tables.table("vitality_policy.csv", "contract", "rule");
-        if (skills.has("vitalityPolicy")) skills.getAsJsonObject("vitalityPolicy").entrySet().stream()
-                .sorted(Map.Entry.comparingByKey()).forEach(entry -> vitalityRules.row(entry.getKey(), entry.getValue().getAsString()));
+        try (SpreadsheetReports tables = new SpreadsheetReports()) {
+            valuation(tables, current);
+            equipment(tables, current);
+            curves(tables, current, skills);
+            bonusTracks(tables, current);
+            builds(tables, current, skills);
+            combatBuilds(tables, skills);
+            invariants(tables, current);
+            evidence(tables, current);
+            runtimeTables(tables, current);
+            latentOre(tables, current);
+            ascension(tables, current);
+            attunement(tables, current.runtime().attunement());
+            var projectileRules = tables.table("projectile_policy.csv", "contract", "rule");
+            if (skills.has("projectilePolicy")) skills.getAsJsonObject("projectilePolicy").entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey()).forEach(entry -> projectileRules.row(entry.getKey(), entry.getValue().getAsString()));
+            var guardRules = tables.table("guard_policy.csv", "contract", "rule");
+            if (skills.has("guardPolicy")) skills.getAsJsonObject("guardPolicy").entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey()).forEach(entry -> guardRules.row(entry.getKey(), entry.getValue().getAsString()));
+            var postureRules = tables.table("posture_status_policy.csv", "contract", "rule");
+            if (skills.has("postureStatusPolicy")) skills.getAsJsonObject("postureStatusPolicy").entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey()).forEach(entry -> postureRules.row(entry.getKey(), entry.getValue().getAsString()));
+            var vitalityRules = tables.table("vitality_policy.csv", "contract", "rule");
+            if (skills.has("vitalityPolicy")) skills.getAsJsonObject("vitalityPolicy").entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey()).forEach(entry -> vitalityRules.row(entry.getKey(), entry.getValue().getAsString()));
+            Path reports = BalanceReportLayout.reports(folder), diagnostics = BalanceReportLayout.diagnostics(folder);
+            tables.write(reports, diagnostics);
+            }
         Path reports = BalanceReportLayout.reports(folder), diagnostics = BalanceReportLayout.diagnostics(folder);
-        tables.write(reports, diagnostics);
         BalanceProfileStore.writeAtomically(reports.resolve("balance_report.md"), report(current, previous, generationMillis, skills));
         BalanceProfileStore.writeAtomically(diagnostics.resolve("pack_metadata.json"), BalanceDocument.GSON.toJson(current.document().section("metadata")) + "\n");
         BalanceProfileStore.writeAtomically(diagnostics.resolve("bonus_tracks.json"), BalanceDocument.GSON.toJson(
@@ -193,8 +195,8 @@ public final class BalanceReports {
                     .append(!current.runtime().toJson().equals(previous.runtime().toJson())).append(".\n");
         }
         out.append("\n## Export layout and calibration handoff\n\nCSV tables in reports/ contain one observation per row, with numeric essence categories in separate columns. Join resource details by item_id, and skill details by projection_id plus scenario_id. Equipment.csv describes external references; generated_equipment.csv describes Ascendance's saved tier baselines. Runtime_parameters.csv contains the complete saved runtime as scalar rows with exact JSON pointers. Combat assumptions are stored once in combat_assumptions.csv and join to combat_builds.csv by case_id; a blank case_id is an assumption shared by the entire analysis.\n\n")
-                .append("A rare text field longer than a spreadsheet cell is replaced by a reference into diagnostics/report_text.json; no text is truncated. Potential formula text is escaped with a leading apostrophe. All original evidence and analysis remain in generated_balance.json. CSV values are inspection exports, never runtime inputs.\n\n")
-                .append("Preserve generated_balance.json, the complete reports/ and diagnostics/ folders, both TOML inputs, latest.log, loader/version and the actual pack version. Correct factual analysis with providers/overrides and balance preferences with policy; do not alter generated JSON.\n");
+                .append("A rare text field longer than a spreadsheet cell is replaced by a reference into diagnostics/report_text.json; no text is truncated. Potential formula text is escaped with a leading apostrophe. All original evidence and analysis remain in generated_balance.json.gz. CSV values are inspection exports, never runtime inputs.\n\n")
+                .append("Preserve generated_balance.json.gz, the complete reports/ and diagnostics/ folders, both TOML inputs, latest.log, loader/version and the actual pack version. Correct factual analysis with providers/overrides and balance preferences with policy; do not alter generated JSON.\n");
         return out.toString();
     }
     private static void valuation(SpreadsheetReports tables, GeneratedBalanceService.Active current) {
@@ -319,7 +321,7 @@ public final class BalanceReports {
                     Integer.toString(projection.getAsJsonArray("scenarios").size()), projection.get("evaluatedComponentStates").getAsString(),
                     axisSummary(projection.getAsJsonObject("axisEnvelope"), 3));
         }
-        out.append("\nRepresentative generalist scenarios are shown below. The full stable scenario/axis export is `builds.csv`; `curves.csv` also includes scenario-axis rows. Full semantics, selected choices, rank maps, envelopes, conservative bounds and solver explanations are retained under `skills` in generated_balance.json.\n\n")
+        out.append("\nRepresentative generalist scenarios are shown below. The full stable scenario/axis export is `builds.csv`; `curves.csv` also includes scenario-axis rows. Full semantics, selected choices, rank maps, envelopes, conservative bounds and solver explanations are retained under `skills` in generated_balance.json.gz.\n\n")
                 .append("| Tier | Catalog | Scenario | Contributing skills | Active ranks | Active-rank curve cost | Largest axis pressures | Confidence |\n|---|---|---|---:|---:|---:|---|---:|\n");
         for (var entry : projections(skills)) {
             JsonObject projection = entry.getValue().getAsJsonObject();

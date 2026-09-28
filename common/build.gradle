@@ -38,7 +38,9 @@ loom {
 def balanceInvariantMains = [
         latentOreBalanceInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.LatentOreBalanceTest',
         latentOreJeiInvariants: 'com.mistaboom.essence_ascendance.compat.jei.LatentOreJeiTest',
+        jeiSearchRefreshInvariants: 'com.mistaboom.essence_ascendance.client.JeiSearchRefreshTest',
         equipmentInventoryCatalogInvariants: 'com.mistaboom.essence_ascendance.compat.jei.EquipmentInventoryCatalogTest',
+        creativeVariantInvariants: 'com.mistaboom.essence_ascendance.item.CreativeVariantRegistryTest',
         inventoryItemAssetInvariants: 'com.mistaboom.essence_ascendance.client.InventoryItemAssetsTest',
         inventoryItemEmissionInvariants: 'com.mistaboom.essence_ascendance.client.InventoryItemEmissionTest',
         ascendanceArmorInvariants: 'com.mistaboom.essence_ascendance.client.armor.AscendanceArmorTest',
@@ -80,6 +82,12 @@ def balanceInvariantMains = [
         balanceCompositionInvariants: 'com.mistaboom.essence_ascendance.balance.engine.BuildCompositionTest',
         balanceEconomyInvariants: 'com.mistaboom.essence_ascendance.balance.economy.EconomyInvariantTest',
         balanceTradeInvariants: 'com.mistaboom.essence_ascendance.valuation.TradeGraphTest',
+        valuationPerformanceInvariants: 'com.mistaboom.essence_ascendance.valuation.ValuationPerformanceTest',
+        runtimeBalancePayloadInvariants: 'com.mistaboom.essence_ascendance.network.RuntimeBalancePayloadTest',
+        balanceFailureEvidenceInvariants: 'com.mistaboom.essence_ascendance.balance.generated.FailureEvidenceTest',
+        balanceDocumentStreamingInvariants: 'com.mistaboom.essence_ascendance.balance.generated.BalanceDocumentStreamingTest',
+        balancePerformanceInvariants: 'com.mistaboom.essence_ascendance.balance.generated.BalancePerformanceTest',
+        machinePlacementInvariants: 'com.mistaboom.essence_ascendance.machine.MachinePlacementTest',
         balanceBiologicalSourceInvariants: 'com.mistaboom.essence_ascendance.valuation.BiologicalSourceEvidenceTest',
         balanceNaturalBlockInvariants: 'com.mistaboom.essence_ascendance.valuation.NaturalBlockEvidenceTest',
         balanceFractionalLedgerInvariants: 'com.mistaboom.essence_ascendance.balance.economy.FractionalLedgerTest',
@@ -98,6 +106,7 @@ def balanceInvariantMains = [
         balanceIntegrationInvariants: 'com.mistaboom.essence_ascendance.balance.generated.GeneratedBalanceIntegrationTest',
         balanceLoadoutInvariants: 'com.mistaboom.essence_ascendance.skill.balance.SkillLoadoutProjectionTest',
         balanceRuntimeInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceTest',
+        nativeEquipmentHeadroomInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.NativeEquipmentHeadroomTest',
         balanceAscensionPolicyInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.RuntimeAscensionPolicyTest',
         attunementAccountingTest: 'com.mistaboom.essence_ascendance.attunement.AttunementAccountingTest',
         essenceCommandInvariants: 'com.mistaboom.essence_ascendance.command.EssenceCommandTest',
@@ -121,6 +130,10 @@ balanceInvariantMains.each { taskName, className ->
         dependsOn tasks.named('testClasses')
         classpath = sourceSets.test.runtimeClasspath
         mainClass = className
+        if (taskName == 'balanceDocumentStreamingInvariants') maxHeapSize = '128m'
+        if (taskName == 'nativeEquipmentHeadroomInvariants') maxHeapSize = '2g'
+        if (taskName == 'valuationPerformanceInvariants' && rootProject.hasProperty('captureValuationReference'))
+            args '--capture-reference'
         if (taskName == 'ascendanceArmorInvariants') args armorSource.absolutePath, armorMaskDirectory.absolutePath
         if (taskName == 'balanceAscensionPolicyInvariants' && rootProject.hasProperty('attunementReplayProfile')) {
             // Optional read-only integration replay of a real saved evidence profile; output stays in build/.
@@ -132,6 +145,7 @@ balanceInvariantMains.each { taskName, className ->
 tasks.register('ascendanceHelmetInvariants') { dependsOn tasks.named('ascendanceArmorInvariants') }
 // The shield hook test inspects both native loaders, including on a fresh common-only run.
 tasks.named('ascendanceShieldInvariants') { dependsOn ':fabric:compileJava', ':neoforge:compileJava' }
+tasks.named('jeiSearchRefreshInvariants') { dependsOn ':fabric:compileJava', ':neoforge:compileJava' }
 // These eight suites own local fixtures only: no game bootstrap or installed runtime profile.
 // Keep each original JavaExec task for isolated debugging. Never run both paths from check.
 def lightweightTasks = [
@@ -144,7 +158,8 @@ def nativeShapeTasks = [
         'postureNativeHookShapeInvariants', 'statusNativeHookShapeInvariants', 'guardNativeHookShapeInvariants'
 ]
 // Full generated-profile sweeps/replays are intentionally expensive and have a named opt-in owner.
-def generationTasks = ['balanceIntegrationInvariants', 'balanceRuntimeInvariants', 'balanceAscensionPolicyInvariants']
+def generationTasks = ['balanceIntegrationInvariants', 'balanceRuntimeInvariants', 'balanceAscensionPolicyInvariants',
+                       'nativeEquipmentHeadroomInvariants', 'balanceDocumentStreamingInvariants']
 tasks.register('lightweightInvariants', JavaExec) {
     group = 'verification'
     description = 'Runs reviewed local-fixture invariants in one JVM, reporting each failing class.'
@@ -177,6 +192,8 @@ tasks.register('regenerateSavedBalance', JavaExec) {
             throw new GradleException('Supply -PsavedBalanceConfig and -PsavedBalanceOutput')
         args rootProject.file(rootProject.property('savedBalanceConfig')).absolutePath,
                 rootProject.file(rootProject.property('savedBalanceOutput')).absolutePath
+        if (rootProject.hasProperty('savedBalanceSource'))
+            args rootProject.file(rootProject.property('savedBalanceSource')).absolutePath
     }
 }
 
@@ -191,6 +208,10 @@ tasks.register('exportSavedBalance', JavaExec) {
         if (!rootProject.hasProperty('balanceConfigDir'))
             throw new GradleException('Supply -PbalanceConfigDir with the existing Minecraft config directory')
         args rootProject.file(rootProject.property('balanceConfigDir')).absolutePath
+        if (rootProject.hasProperty('balanceMemoryProbe') && rootProject.hasProperty('balancePhaseProbe'))
+            throw new GradleException('Choose one isolated probe: balanceMemoryProbe or balancePhaseProbe')
+        if (rootProject.hasProperty('balanceMemoryProbe')) args '--measure-heap'
+        if (rootProject.hasProperty('balancePhaseProbe')) args '--measure-phases'
     }
 }
 

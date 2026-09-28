@@ -12,7 +12,7 @@ public final class BalanceReportLayoutTest {
     public static void main(String[] args) throws Exception {
         Path root = Files.createTempDirectory("balance-report-layout-");
         try {
-            List<String> protectedNames = List.of("generated_balance.json", "balance_overrides.toml", "my_notes.csv");
+            List<String> protectedNames = List.of("generated_balance.json", BalanceProfileStore.PROFILE_FILE, "balance_overrides.toml", "my_notes.csv");
             for (String name : protectedNames) Files.writeString(root.resolve(name), "preserve " + name);
             Files.createDirectory(root.resolve("equipment.csv"));
             Files.writeString(root.resolve("equipment.csv/notes.txt"), "directory must not move");

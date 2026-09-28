@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.network;
 
 import com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceDefinition;
+import com.mistaboom.essence_ascendance.balance.generated.BalancePerformance;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import dev.architectury.event.events.common.PlayerEvent;
 import dev.architectury.event.events.common.TickEvent;
@@ -30,10 +31,28 @@ public final class RuntimeBalanceSyncService {
     public static void send(ServerPlayer player) {
         RuntimeBalanceDefinition current=EssenceConfigManager.serverRuntime();
         if(current==null||SENT.get(player)==current||!NetworkManager.canPlayerReceive(player,RuntimeBalancePayload.TYPE))return;
-        if(encoded!=current) { payload=new RuntimeBalancePayload(current.toJson().toString());encoded=current; }
-        NetworkManager.sendToPlayer(player,payload);
-        SENT.put(player,current);
-        LatentOreCatalogSync.send(player);
+        var operation = BalancePerformance.currentSnapshot() == null
+                ? BalancePerformance.begin("player_runtime_sync", "join_or_pending_profile_retry") : null;
+        try {
+            try (var phase = BalancePerformance.phase("runtime_payload_preparation")) {
+                if(encoded!=current) { payload=current.networkPayload();encoded=current; }
+            }
+            try (var phase = BalancePerformance.phase("runtime_payload_send")) {
+                NetworkManager.sendToPlayer(player,payload);
+                SENT.put(player,current);
+                BalancePerformance.count("runtime_payload_compressed_bytes", payload.encodedBytes());
+                BalancePerformance.increment("runtime_payload_recipients");
+            }
+            try (var phase = BalancePerformance.phase("ore_catalog_sync")) {
+                LatentOreCatalogSync.send(player);
+            }
+            if (operation != null) operation.complete("sent");
+        } catch (RuntimeException | Error error) {
+            if (operation != null) operation.fail(error);
+            throw error;
+        } finally {
+            if (operation != null) operation.close();
+        }
     }
     public static void syncAll(MinecraftServer server) {for(var player:server.getPlayerList().getPlayers())send(player);}
     public static void clear() {SENT.clear();encoded=null;payload=null;}

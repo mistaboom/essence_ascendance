@@ -289,17 +289,13 @@ public final class AscendanceItems {
         // Inventory-art equipment exposes all six visual tiers. These are
         // ordinary zero-investment stacks: tier data is present where needed,
         // but ownership remains absent until real Infuser progress begins.
-        CreativeTabRegistry.modify(
-                CreativeTabRegistry.defer(CreativeModeTabs.COMBAT),
-                (flags, output, canUseGameMasterBlocks) ->
-                        EquipmentCatalogStacks.allTiers(tieredCombatInventoryArtItems())
-                                .forEach(output::accept)
+        CreativeVariantRegistry.register(
+                CreativeModeTabs.COMBAT,
+                () -> EquipmentCatalogStacks.allTiers(tieredCombatInventoryArtItems())
         );
-        CreativeTabRegistry.modify(
-                CreativeTabRegistry.defer(CreativeModeTabs.TOOLS_AND_UTILITIES),
-                (flags, output, canUseGameMasterBlocks) ->
-                        EquipmentCatalogStacks.allTiers(tieredToolInventoryArtItems())
-                                .forEach(output::accept)
+        CreativeVariantRegistry.register(
+                CreativeModeTabs.TOOLS_AND_UTILITIES,
+                () -> EquipmentCatalogStacks.allTiers(tieredToolInventoryArtItems())
         );
     }
 

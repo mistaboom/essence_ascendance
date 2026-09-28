@@ -4,6 +4,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mistaboom.essence_ascendance.EssenceAscendance;
+import com.mistaboom.essence_ascendance.balance.generated.BalancePerformance;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -104,6 +105,7 @@ final class ProceduralValuationIndex {
         int ingredientLinks = 0;
         Set<ResourceLocation> indexedRecipeIds = new HashSet<>();
 
+        try (var phase = BalancePerformance.phase("recipe_ingredient_scan")) {
         for (RecipeHolder<?> holder : server.getRecipeManager().getRecipes()) {
             Recipe<?> recipe = holder.value();
             if (!ValuationGenerationInputs.recipeAllowed(holder.id(), recipe.getType())) continue;
@@ -170,17 +172,25 @@ final class ProceduralValuationIndex {
             }
         }
 
-        FallbackRecipeStats smithingFallbacks = scanSmithingTransformRecipeFallbacks(
+        }
+        FallbackRecipeStats smithingFallbacks;
+        try (var phase = BalancePerformance.phase("smithing_recipe_fallbacks")) {
+        smithingFallbacks = scanSmithingTransformRecipeFallbacks(
                 server,
                 byOutput,
                 byIngredient,
                 indexedRecipeIds
         );
+        }
         recipeCount += smithingFallbacks.recipeCount();
         ingredientLinks += smithingFallbacks.ingredientLinks();
 
-        ProceduralNaturalBlockIndex naturalBlockIndex = ProceduralNaturalBlockIndex.build(server);
+        ProceduralNaturalBlockIndex naturalBlockIndex;
+        try (var phase = BalancePerformance.phase("natural_block_index")) {
+            naturalBlockIndex = ProceduralNaturalBlockIndex.build(server);
+        }
         // Positive runtime interaction relationships (no hand-authored item prices).
+        try (var phase = BalancePerformance.phase("interaction_recipe_discovery")) {
         for (RecipeModel model : ProceduralInteractionRecipes.discover(server, naturalBlockIndex)) {
             if (!ValuationGenerationInputs.recipeAllowed(model.id(), model.type()) || !ValuationGenerationInputs.itemAllowed(model.outputItem())) continue;
             byOutput.computeIfAbsent(model.outputItem(), ignored -> new ArrayList<>()).add(model);
@@ -192,25 +202,54 @@ final class ProceduralValuationIndex {
             }
             recipeCount++;
         }
+        }
 
-        Map<Item, List<ConservationEdge>> conservationEdges = buildConservationEdges(byOutput);
-        Map<Item, List<Item>> conservationGroups = buildConservationGroups(conservationEdges);
-        ProceduralStructureIndex structureIndex = ProceduralStructureIndex.build(server);
-        ProceduralMobSpawnIndex mobSpawnIndex = ProceduralMobSpawnIndex.build(server, structureIndex);
+        Map<Item, List<ConservationEdge>> conservationEdges;
+        Map<Item, List<Item>> conservationGroups;
+        try (var phase = BalancePerformance.phase("conversion_family_graph")) {
+            conservationEdges = buildConservationEdges(byOutput);
+            conservationGroups = buildConservationGroups(conservationEdges);
+        }
+        ProceduralStructureIndex structureIndex;
+        try (var phase = BalancePerformance.phase("structure_index")) {
+            structureIndex = ProceduralStructureIndex.build(server);
+        }
+        ProceduralMobSpawnIndex mobSpawnIndex;
+        try (var phase = BalancePerformance.phase("mob_spawn_index")) {
+            mobSpawnIndex = ProceduralMobSpawnIndex.build(server, structureIndex);
+        }
         Map<Item, List<BiologicalSource>> biologicalSources = biologicalSources(mobSpawnIndex);
-        ProceduralTradeIndex tradeIndex = ProceduralTradeIndex.build(server);
+        ProceduralTradeIndex tradeIndex;
+        try (var phase = BalancePerformance.phase("trade_index")) {
+            tradeIndex = ProceduralTradeIndex.build(server);
+        }
 
-        int lootTablesScanned = scanEntityLootTables(server, drops, mobSpawnIndex);
-        addVanillaHardcodedEntitySources(drops, mobSpawnIndex);
+        int lootTablesScanned;
+        try (var phase = BalancePerformance.phase("entity_loot_index")) {
+            lootTablesScanned = scanEntityLootTables(server, drops, mobSpawnIndex);
+            addVanillaHardcodedEntitySources(drops, mobSpawnIndex);
+        }
         int dropLinks = drops.values().stream().mapToInt(List::size).sum();
-        int blockLootTablesScanned = scanBlockLootTables(server, blockDrops);
+        int blockLootTablesScanned;
+        try (var phase = BalancePerformance.phase("block_loot_index")) {
+            blockLootTablesScanned = scanBlockLootTables(server, blockDrops);
+        }
         int blockDropLinks = blockDrops.values().stream().mapToInt(List::size).sum();
-        int containerLootTablesScanned = scanContainerLootTables(server, containerLoot, structureIndex);
-        addVanillaFixedStructureSources(containerLoot, structureIndex);
+        int containerLootTablesScanned;
+        try (var phase = BalancePerformance.phase("container_loot_index")) {
+            containerLootTablesScanned = scanContainerLootTables(server, containerLoot, structureIndex);
+            addVanillaFixedStructureSources(containerLoot, structureIndex);
+        }
         int containerLootLinks = containerLoot.values().stream().mapToInt(List::size).sum();
-        int fishingLootTablesScanned = scanFishingLootTables(server, fishingLoot);
+        int fishingLootTablesScanned;
+        try (var phase = BalancePerformance.phase("fishing_loot_index")) {
+            fishingLootTablesScanned = scanFishingLootTables(server, fishingLoot);
+        }
         int fishingLootLinks = fishingLoot.values().stream().mapToInt(List::size).sum();
-        ProceduralProgressionIndex progressionIndex = ProceduralProgressionIndex.build(server);
+        ProceduralProgressionIndex progressionIndex;
+        try (var phase = BalancePerformance.phase("advancement_progression_index")) {
+            progressionIndex = ProceduralProgressionIndex.build(server);
+        }
         ProceduralProgressionIndex.Summary progressionSummary = progressionIndex.summary();
 
         byOutput.values().forEach(list -> list.sort(Comparator.comparing(model -> model.id().toString())));

@@ -3,6 +3,7 @@ package com.mistaboom.essence_ascendance.balance.engine;
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.balance.config.BalanceOverrides;
 import com.mistaboom.essence_ascendance.balance.config.BalanceSettings;
+import com.mistaboom.essence_ascendance.balance.generated.BalancePerformance;
 import com.mistaboom.essence_ascendance.valuation.ProceduralValuationEngine;
 import com.mistaboom.essence_ascendance.valuation.ProceduralValuationResult;
 import com.mistaboom.essence_ascendance.valuation.ValuationEvidenceSnapshot;
@@ -44,6 +45,7 @@ public final class PackEvidenceCollector {
     public static Map<String, Long> lastProviderTimingsMillis() { return providerTimings; }
 
     public static PackEvidence collect(MinecraftServer server, BalanceSettings settings, BalanceOverrides overrides) {
+        BalancePerformance.flag("environment_analysis_rescanned", true);
         Map<String, Integer> priorities = new TreeMap<>();
         overrides.facts().stream().filter(f -> f.kind() == BalanceOverrides.SubjectKind.PROVIDER)
                 .sorted(Comparator.comparingInt(BalanceOverrides.FactOverride::priority).reversed()
@@ -55,25 +57,44 @@ public final class PackEvidenceCollector {
         Map<String, Long> timings = new TreeMap<>();
         for (PackEvidenceProvider provider : providers) {
             long started = System.nanoTime();
-            provider.beforeAcquisition(server, settings, sink);
+            try (var phase = BalancePerformance.phase("provider_before_acquisition/" + provider.id())) {
+                provider.beforeAcquisition(server, settings, sink);
+            }
             timings.put(provider.id() + "/before_acquisition", (System.nanoTime() - started) / 1_000_000);
         }
         ProceduralValuationEngine.prepareGeneration(acquisitionInputs(overrides, sink));
-        List<ProceduralValuationResult> valuations = ProceduralValuationEngine.evaluateAll(server);
-        ValuationEvidenceSnapshot snapshot = ValuationEvidenceSnapshot.collect(server, valuations);
+        List<ProceduralValuationResult> valuations;
+        try (var phase = BalancePerformance.phase("procedural_valuation")) {
+            valuations = ProceduralValuationEngine.evaluateAll(server);
+        }
+        ValuationEvidenceSnapshot snapshot;
+        try (var phase = BalancePerformance.phase("valuation_evidence_snapshot")) {
+            snapshot = ValuationEvidenceSnapshot.collect(server, valuations);
+        }
         PackEvidenceContext context = new PackEvidenceContext(server, settings, overrides, valuations, snapshot);
-        collectAcquisition(context, sink);
-        collectVanillaMechanics(context, sink);
-        Map<String, EquipmentReference> baseEquipment = collectEquipment(context, sink);
-        List<EnemyReference> baseEnemies = collectEnemies(context, sink);
+        try (var phase = BalancePerformance.phase("acquisition_facts")) {
+            collectAcquisition(context, sink);
+            collectVanillaMechanics(context, sink);
+        }
+        Map<String, EquipmentReference> baseEquipment;
+        try (var phase = BalancePerformance.phase("equipment_measurement")) {
+            baseEquipment = collectEquipment(context, sink);
+        }
+        List<EnemyReference> baseEnemies;
+        try (var phase = BalancePerformance.phase("enemy_measurement")) {
+            baseEnemies = collectEnemies(context, sink);
+        }
         for (PackEvidenceProvider provider : providers) {
             long started = System.nanoTime();
-            provider.collect(context, sink);
+            try (var phase = BalancePerformance.phase("evidence_provider/" + provider.id())) {
+                provider.collect(context, sink);
+            }
             long millis = (System.nanoTime() - started) / 1_000_000;
             timings.put(provider.id(), millis);
             if (millis > 5000) EssenceAscendance.LOGGER.warn("Slow evidence provider {} took {} ms", provider.id(), millis);
         }
         providerTimings = java.util.Collections.unmodifiableMap(timings);
+        try (var phase = BalancePerformance.phase("resolve_evidence_frontiers")) {
         applyOverrides(context, sink);
         Map<String, ResourceEvidence> resources = resolveResources(context, sink);
         List<EquipmentReference> equipment = resolveEquipment(baseEquipment, resources, sink, settings);
@@ -90,7 +111,13 @@ public final class PackEvidenceCollector {
         if (snapshot.summary().getOrDefault("unsupported_recipes", 0L) > 0)
             sink.warn("Unsupported recipes: " + snapshot.summary().get("unsupported_recipes") + "; use recipe-family providers for dynamic or machine outputs");
         sink.warn("Custom spells, affixes, set bonuses, dynamic attributes, quest gates and machine rates require providers or factual overrides when they are not exposed by loaded data");
+        BalancePerformance.count("evidence_resources", resources.size());
+        BalancePerformance.count("evidence_equipment", equipment.size());
+        BalancePerformance.count("evidence_enemies", enemies.size());
+        BalancePerformance.count("evidence_providers", providers.size());
+        snapshot.summary().forEach((key, count) -> BalancePerformance.count("acquisition_" + key, count));
         return new PackEvidence(resources, equipment, enemies, frontiers, sink.facts(), sink.warnings(), snapshot.summary(), capabilities);
+        }
     }
 
     private static List<PackEvidenceProvider> enabledProviders(BalanceOverrides overrides) {

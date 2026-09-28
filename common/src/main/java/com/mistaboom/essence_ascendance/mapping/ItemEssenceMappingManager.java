@@ -36,11 +36,11 @@ public final class ItemEssenceMappingManager {
             activeServer = server;
             observedResources = server.getResourceManager();
             observedRecipes = server.getRecipeManager();
-            if (!reload().successful()) throw new IllegalStateException(
+            if (!load(false, "overworld_server_level_load").successful()) throw new IllegalStateException(
                     "Essence Ascendance generated balance could not load before initial chunk generation: "
                             + ItemEssenceMappingRegistry.lastReload().errors()
-                            + ". For an obsolete development profile, delete " + generatedCachePath()
-                            + " and restart to regenerate it; retain the human TOML inputs.");
+                            + ". Inspect the preceding balance error in latest.log. Saved profile: " + generatedCachePath()
+                            + "; retain the profile and human TOML inputs for diagnosis.");
         });
         LifecycleEvent.SERVER_STOPPED.register(server -> {
             if (activeServer != server) return;
@@ -56,7 +56,7 @@ public final class ItemEssenceMappingManager {
                 observedRecipes = server.getRecipeManager();
                 ProceduralValuationEngine.clear();
                 com.mistaboom.essence_ascendance.worldgen.PrimarySubstrateDiscovery.clear();
-                GeneratedBalanceService.markResourcesChanged();
+                GeneratedBalanceService.markResourcesChanged("server_resource_or_recipe_manager_replaced");
                 EssenceAscendance.LOGGER.warn("Server resources reloaded. Existing generated balance remains active; use /essence admin balance rebuild to analyze changed recipes, tags or loot.");
             }
         });
@@ -64,14 +64,14 @@ public final class ItemEssenceMappingManager {
     public static Path configDirectory() {
         return Platform.getConfigFolder().resolve(EssenceAscendance.MOD_ID);
     }
-    public static Path generatedCachePath() { return configDirectory().resolve("generated_balance.json"); }
-    public static synchronized ItemEssenceMappingRegistry.ReloadReport reload() { return load(false); }
-    public static synchronized ItemEssenceMappingRegistry.ReloadReport rebuild() { return load(true); }
-    private static ItemEssenceMappingRegistry.ReloadReport load(boolean rebuild) {
+    public static Path generatedCachePath() { return GeneratedBalanceService.profilePath(); }
+    public static synchronized ItemEssenceMappingRegistry.ReloadReport reload() { return load(false, "explicit_profile_reload"); }
+    public static synchronized ItemEssenceMappingRegistry.ReloadReport rebuild() { return load(true, "explicit_balance_rebuild"); }
+    private static ItemEssenceMappingRegistry.ReloadReport load(boolean rebuild, String reason) {
         try {
             if (activeServer == null) throw new IllegalStateException("A running server is required");
             if (!activeServer.isSameThread()) throw new IllegalStateException("Balance changes must run on the server thread");
-            GeneratedBalanceService.load(activeServer, rebuild);
+            GeneratedBalanceService.load(activeServer, rebuild, reason);
         } catch (Exception error) {
             ItemEssenceMappingRegistry.rejectReload(new ItemEssenceMappingRegistry.LoadSummary(0, 0, 0, 0, 0, List.of()),
                     List.of(error.getMessage() == null ? error.getClass().getName() : error.getMessage()));

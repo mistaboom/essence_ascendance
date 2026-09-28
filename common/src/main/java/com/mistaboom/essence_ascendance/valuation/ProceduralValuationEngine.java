@@ -1,5 +1,7 @@
 package com.mistaboom.essence_ascendance.valuation;
 
+import com.mistaboom.essence_ascendance.balance.generated.BalancePerformance;
+
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceTypes;
 import net.minecraft.core.component.DataComponents;
@@ -84,16 +86,36 @@ public final class ProceduralValuationEngine {
     public static List<ProceduralValuationResult> evaluateAll(MinecraftServer server) {
         if (server == null) throw new IllegalArgumentException("Server cannot be null");
         synchronized (INDEX_LOCK) {
-            ProceduralValuationIndex snapshot = ensureIndex(server);
-            if (cachedResults != null) return cachedResults;
+            ProceduralValuationIndex snapshot;
+            try (var phase = BalancePerformance.phase("valuation_index")) {
+                snapshot = ensureIndex(server);
+            }
+            if (cachedResults != null) {
+                BalancePerformance.flag("valuation_results_reused", true);
+                BalancePerformance.increment("valuation_result_cache_hits");
+                return cachedResults;
+            }
             EvaluationContext context = new EvaluationContext(snapshot);
             List<Item> items = BuiltInRegistries.ITEM.stream().filter(item -> item != Items.AIR)
                     .sorted(Comparator.comparing(item -> BuiltInRegistries.ITEM.getKey(item).toString())).toList();
-            solveAcquisitionGraph(items, context);
-            List<ProceduralValuationResult> complete = items.stream()
-                    .map(item -> evaluateItem(snapshot, item, context)).toList();
-            cachedResults = complete;
-            return complete;
+            long started = System.nanoTime();
+            try (var phase = BalancePerformance.phase("acquisition_solve")) {
+                solveAcquisitionGraph(items, context);
+            }
+            com.mistaboom.essence_ascendance.EssenceAscendance.LOGGER.info(
+                    "Pack balance acquisition solved: {} items in {} ms; routing next", items.size(), (System.nanoTime() - started) / 1_000_000);
+            started = System.nanoTime();
+            List<ProceduralValuationResult> complete = new ArrayList<>(items.size());
+            try (var phase = BalancePerformance.phase("essence_routing")) {
+            for (Item item : items) {
+                complete.add(evaluateItem(snapshot, item, context));
+            }
+            }
+            BalancePerformance.count("valuation_items", items.size());
+            com.mistaboom.essence_ascendance.EssenceAscendance.LOGGER.info(
+                    "Pack balance routing complete: {} items in {} ms", items.size(), (System.nanoTime() - started) / 1_000_000);
+            cachedResults = List.copyOf(complete);
+            return cachedResults;
         }
     }
 
@@ -207,7 +229,7 @@ public final class ProceduralValuationEngine {
                 // Ceil economics here; final integer unit/Essence payout rounds DOWN once.
                 List<String> factors = new ArrayList<>(local.factors());
                 if (member != anchor) {
-                    factors = new ArrayList<>(intrinsic(member).factors());
+                    factors = new ArrayList<>(intrinsic(member, context).factors());
                     factors.add("Conservation external anchor: " + BuiltInRegistries.ITEM.getKey(anchor)
                             + " -> " + converted + "; anchor costs propagated before recipe selection");
                     factors.addAll(anchorNode.factors().stream().filter(f -> !f.startsWith("Conservation external anchor"))
@@ -236,8 +258,8 @@ public final class ProceduralValuationEngine {
         );
         node = normalizeConservationGroupCached(item, node, context);
 
-        DownstreamInfo downstream = downstreamInfo(item, snapshot);
-        double downstreamMultiplier = conservationDownstreamMultiplier(item, snapshot, downstream);
+        DownstreamInfo downstream = downstreamInfo(item, context);
+        double downstreamMultiplier = conservationDownstreamMultiplier(item, context, downstream);
         long finalValue = clampValue(node.acquisitionValue() * downstreamMultiplier);
 
         RoutingResolution routing = resolveRouting(item, node, snapshot, context);
@@ -370,7 +392,7 @@ public final class ProceduralValuationEngine {
             EvaluationNode local = locals.get(member);
             long units = plan.units().get(member);
             maximumUnits = Math.max(maximumUnits, units);
-            demand = Math.max(demand, downstreamInfo(member, context.index()).multiplier());
+            demand = Math.max(demand, downstreamInfo(member, context).multiplier());
             if (!hasKnownAnchor || local.knownAcquisition()) {
                 perUnit = Math.min(perUnit, (double) local.acquisitionValue() / units);
             }
@@ -537,15 +559,15 @@ public final class ProceduralValuationEngine {
 
     private static double conservationDownstreamMultiplier(
             Item item,
-            ProceduralValuationIndex index,
+            EvaluationContext context,
             DownstreamInfo own
     ) {
         double multiplier = own.multiplier();
-        for (Item member : index.conservationGroup(item)) {
+        for (Item member : context.index().conservationGroup(item)) {
             if (member == item) {
                 continue;
             }
-            multiplier = Math.max(multiplier, downstreamInfo(member, index).multiplier());
+            multiplier = Math.max(multiplier, downstreamInfo(member, context).multiplier());
         }
         return multiplier;
     }
@@ -594,10 +616,12 @@ public final class ProceduralValuationEngine {
     private static ProceduralValuationIndex ensureIndex(MinecraftServer server) {
         ProceduralValuationIndex current = index;
         if (current != null && indexedServer == server) {
+            BalancePerformance.increment("valuation_index_cache_hits");
             return current;
         }
         synchronized (INDEX_LOCK) {
             if (index == null || indexedServer != server) {
+                BalancePerformance.increment("valuation_index_builds");
                 ProceduralValuationIndex built = ProceduralValuationIndex.build(server);
                 indexedServer = server;
                 index = built;
@@ -614,14 +638,14 @@ public final class ProceduralValuationEngine {
             int depth
     ) {
         if (!ValuationGenerationInputs.itemAllowed(item)) {
-            Intrinsic base = intrinsic(item);
+            Intrinsic base = intrinsic(item, context);
             return new EvaluationNode(base.value(), base.value(), Optional.empty(), base.progressionBand(),
                     1.0, 0, false, false, 0, 0, List.of("Acquisition excluded by factual generation override"), Set.of(item));
         }
         if (context.solving && !visiting.isEmpty()) {
             EvaluationNode input = context.previous.get(item);
             if (input != null && !input.dependencies().contains(context.activeRoot)) return input;
-            Intrinsic base = intrinsic(item);
+            Intrinsic base = intrinsic(item, context);
             return new EvaluationNode(base.value(), base.value(), Optional.empty(), base.progressionBand(),
                     Math.min(0.42, base.confidence()), 0, false, input != null, 0.0, 0,
                     List.of("Unresolved graph input; cannot establish acquisition evidence"), Set.of(item));
@@ -631,7 +655,7 @@ public final class ProceduralValuationEngine {
             return memoized;
         }
 
-        Intrinsic intrinsic = intrinsic(item);
+        Intrinsic intrinsic = intrinsic(item, context);
 
         if ((!context.solving && depth >= ProceduralValuationSettings.MAX_RECIPE_DEPTH) || visiting.contains(item)) {
             return new EvaluationNode(
@@ -996,9 +1020,11 @@ public final class ProceduralValuationEngine {
             return IngredientSelection.NONE;
         }
 
-        List<Item> shortlist = alternatives.stream().distinct()
-                .sorted(Comparator.comparing(candidate -> BuiltInRegistries.ITEM.getKey(candidate).toString()))
-                .toList();
+        // Ingredient lists are immutable in the index. Preserve their original
+        // order for composition's separate capped traversal; canonicalize only
+        // the solver's alternatives, once for this generation rather than per pass.
+        List<Item> shortlist = context.ingredientOrder.computeIfAbsent(alternatives, values -> values.stream().distinct()
+                .sorted(Comparator.comparing(candidate -> BuiltInRegistries.ITEM.getKey(candidate).toString())).toList());
 
         Item best = null;
         EvaluationNode bestNode = null;
@@ -1955,7 +1981,11 @@ public final class ProceduralValuationEngine {
         return 1.0 + clamped * (ProceduralValuationSettings.ADVANCEMENT_PROGRESSION_MAX_MULTIPLIER - 1.0);
     }
 
-    private static Intrinsic intrinsic(Item item) {
+    private static Intrinsic intrinsic(Item item, EvaluationContext context) {
+        return context.intrinsicMemo.computeIfAbsent(item, ProceduralValuationEngine::measureIntrinsic);
+    }
+
+    private static Intrinsic measureIntrinsic(Item item) {
         ItemStack stack = new ItemStack(item);
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
         long base = ProceduralValuationSettings.DEFAULT_BASE;
@@ -2395,20 +2425,7 @@ public final class ProceduralValuationEngine {
         }
 
         RouteWeights downstream = new RouteWeights();
-        LinkedHashSet<ResourceLocation> seenRecipes = new LinkedHashSet<>();
-        List<ProceduralValuationIndex.RecipeUse> uses = new ArrayList<>(index.recipesUsing(item));
-        uses.sort(Comparator.comparing((ProceduralValuationIndex.RecipeUse use) -> use.recipe().id().toString()));
-
-        int considered = 0;
-        for (ProceduralValuationIndex.RecipeUse use : uses) {
-            ProceduralValuationIndex.RecipeModel recipe = use.recipe();
-            if (index.isReversibleTransform(recipe) || !seenRecipes.add(recipe.id())) {
-                continue;
-            }
-            if (++considered > ProceduralValuationSettings.MAX_ROUTING_DOWNSTREAM_RECIPES) {
-                break;
-            }
-
+        for (ProceduralValuationIndex.RecipeModel recipe : routingRecipes(item, context)) {
             Item output = recipe.outputItem();
             if (output == item) {
                 continue;
@@ -2428,7 +2445,7 @@ public final class ProceduralValuationEngine {
                 continue;
             }
 
-            double vote = isProgressionOutput(output) ? 1.35 : 1.0;
+            double vote = isProgressionOutput(output, context) ? 1.35 : 1.0;
             downstream.addNormalized(outputRoute, vote);
         }
 
@@ -2447,6 +2464,25 @@ public final class ProceduralValuationEngine {
             context.routeMemo().put(item, route.copy());
         }
         return route;
+    }
+
+    private static List<ProceduralValuationIndex.RecipeModel> routingRecipes(Item item, EvaluationContext context) {
+        return context.routingRecipes.computeIfAbsent(item, key -> {
+            // Preserve the old stable recipe-ID ordering, distinct-ID semantics
+            // and cap (including self-output slots). Recursive routes retain
+            // their original ancestor/cycle checks; only fixed inputs are cached.
+            var uses = new ArrayList<>(context.index().recipesUsing(key));
+            uses.sort(Comparator.comparing(use -> use.recipe().id().toString()));
+            Set<ResourceLocation> seen = new LinkedHashSet<>();
+            List<ProceduralValuationIndex.RecipeModel> selected = new ArrayList<>();
+            for (var use : uses) {
+                var recipe = use.recipe();
+                if (context.index().isReversibleTransform(recipe) || !seen.add(recipe.id())) continue;
+                selected.add(recipe);
+                if (selected.size() == ProceduralValuationSettings.MAX_ROUTING_DOWNSTREAM_RECIPES) break;
+            }
+            return List.copyOf(selected);
+        });
     }
 
     private static RouteWeights recipeCompositionRoute(
@@ -2538,8 +2574,13 @@ public final class ProceduralValuationEngine {
 
     private static DownstreamInfo downstreamInfo(
             Item item,
-            ProceduralValuationIndex index
+            EvaluationContext context
     ) {
+        return context.downstreamMemo.computeIfAbsent(item, key -> measureDownstream(key, context));
+    }
+
+    private static DownstreamInfo measureDownstream(Item item, EvaluationContext context) {
+        ProceduralValuationIndex index = context.index();
         List<ProceduralValuationIndex.RecipeUse> uses = index.recipesUsing(item);
         if (uses.isEmpty()) {
             return DownstreamInfo.EMPTY;
@@ -2568,10 +2609,10 @@ public final class ProceduralValuationEngine {
                 examples.add(outputId);
             }
 
-            Intrinsic outputIntrinsic = intrinsic(recipe.outputItem());
+            Intrinsic outputIntrinsic = intrinsic(recipe.outputItem(), context);
 
             if (outputIntrinsic.value() >= ProceduralValuationSettings.RARE_INGREDIENT_THRESHOLD
-                    || isProgressionOutput(recipe.outputItem())) {
+                    || isProgressionOutput(recipe.outputItem(), context)) {
                 significant++;
             }
 
@@ -2601,7 +2642,11 @@ public final class ProceduralValuationEngine {
         );
     }
 
-    private static boolean isProgressionOutput(Item item) {
+    private static boolean isProgressionOutput(Item item, EvaluationContext context) {
+        return context.progressionOutputMemo.computeIfAbsent(item, ProceduralValuationEngine::measureProgressionOutput);
+    }
+
+    private static boolean measureProgressionOutput(Item item) {
         ItemStack stack = new ItemStack(item);
         return stack.is(ProceduralValuationTags.ARMORS)
                 || stack.is(ProceduralValuationTags.MINING_TOOLS)
@@ -2791,6 +2836,13 @@ public final class ProceduralValuationEngine {
 
     private static final class EvaluationContext {
         private final ProceduralValuationIndex index;
+        // All measurements belong to this immutable generation, never to a world
+        // tick or a later datapack reload. No previous-round graph nodes are cached here.
+        private final Map<Item, Intrinsic> intrinsicMemo = new IdentityHashMap<>();
+        private final Map<Item, Boolean> progressionOutputMemo = new IdentityHashMap<>();
+        private final Map<Item, DownstreamInfo> downstreamMemo = new IdentityHashMap<>();
+        private final Map<List<Item>, List<Item>> ingredientOrder = new IdentityHashMap<>();
+        private final Map<Item, List<ProceduralValuationIndex.RecipeModel>> routingRecipes = new IdentityHashMap<>();
         private final Map<Item, EvaluationNode> memo = new IdentityHashMap<>();
         private final Map<Item, RouteWeights> routeMemo = new IdentityHashMap<>();
         private final Map<Item, DirectRouting> directRouteMemo = new IdentityHashMap<>();

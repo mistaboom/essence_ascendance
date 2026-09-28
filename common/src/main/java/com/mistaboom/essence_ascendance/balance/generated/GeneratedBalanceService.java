@@ -32,7 +32,7 @@ import java.util.Map;
 
 /** Server-thread transaction: collect, construct, validate, persist, publish, then synchronize. */
 public final class GeneratedBalanceService {
-    static final String GENERATION_REVISION = "latent-ore-supply-45";
+    static final String GENERATION_REVISION = "native-equipment-headroom-46";
     private static final String DISSOLUTION_ACCOUNTING = "whole_essence_v1";
     private static volatile Active active;
     private static volatile boolean resourcesChanged;
@@ -48,44 +48,116 @@ public final class GeneratedBalanceService {
         return result;
     }
     public static Path directory() { return Platform.getConfigFolder().resolve(EssenceAscendance.MOD_ID); }
-    public static Path profilePath() { return directory().resolve("generated_balance.json"); }
+    public static Path profilePath() { return BalanceProfileStore.profilePath(directory()); }
     public static long lastLoadMillis() { return lastLoadMillis; }
     public static long lastGenerationMillis() { return lastGenerationMillis; }
     public static Map<String, Long> phaseTimingsMillis() { return phaseTimings; }
-    public static void markResourcesChanged() { resourcesChanged = true; }
+    public static void markResourcesChanged() { markResourcesChanged("resource_reload"); }
+    public static void markResourcesChanged(String reason) {
+        try (var operation = BalancePerformance.begin("resource_reload_notice", reason)) {
+            resourcesChanged = true;
+            BalancePerformance.flag("environment_rescanned", false);
+            BalancePerformance.flag("profile_present_in_memory", active != null);
+            operation.complete("marked_stale");
+        }
+    }
     public static void clear() { active = null; resourcesChanged = false; phaseTimings = Map.of(); lastGenerationMillis = 0; EssenceConfigManager.reset(); RuntimeBalanceSyncService.clear(); }
 
     public static void load(MinecraftServer server, boolean rebuild) throws IOException {
+        load(server, rebuild, rebuild ? "explicit_rebuild_unspecified" : "server_load_unspecified");
+    }
+    public static void load(MinecraftServer server, boolean rebuild, String reason) throws IOException {
         if (!server.isSameThread()) throw new IllegalStateException("Balance generation must run on the server thread");
+        Active previous = active;
+        try (var operation = BalancePerformance.begin(rebuild ? "explicit_rebuild" : "profile_load_attempt", reason)) {
+            BalancePerformance.flag("previous_active_present", previous != null);
+            BalancePerformance.flag("saved_data_reused", false);
+            BalancePerformance.flag("environment_rescanned", false);
+            BalancePerformance.flag("reports_regenerated", false);
+            BalancePerformance.flag("profile_published", false);
+            try { operation.complete(loadMeasured(server, rebuild, operation)); }
+            catch (IOException | RuntimeException | Error failure) {
+                BalancePerformance.flag("previous_active_retained", previous != null && active == previous);
+                operation.fail(failure);
+                throw failure;
+            }
+        }
+    }
+
+    private static String loadMeasured(MinecraftServer server, boolean rebuild, BalancePerformance.Operation operation) throws IOException {
         long start = System.nanoTime();
-        BalanceInputs.scaffold(Platform.getConfigFolder());
-        PackFingerprint environment = PackFingerprint.capture(server);
-        boolean generate = rebuild || !Files.exists(profilePath());
+        try (var phase = BalancePerformance.phase("input_scaffold")) { BalanceInputs.scaffold(Platform.getConfigFolder()); }
+        PackFingerprint environment;
+        try (var phase = BalancePerformance.phase("environment_fingerprint")) { environment = PackFingerprint.capture(server); }
+        BalancePerformance.detail("environment_digest", environment.digest());
+        boolean generate;
+        try (var phase = BalancePerformance.phase("profile_storage_selection")) {
+            BalanceProfileStore.requireCurrentStorage(directory(), rebuild);
+            generate = rebuild || !Files.exists(profilePath());
+        }
+        operation.type(rebuild ? "explicit_rebuild" : generate ? "full_generation" : "saved_profile_load");
+        BalancePerformance.flag("saved_data_reused", !generate);
+        BalancePerformance.flag("environment_rescanned", generate);
         Active previous = active;
         Active candidate;
         Map<String, Long> timings = new java.util.TreeMap<>();
         long measuredGenerationMillis = 0;
         if (generate) {
-            BalanceInputs inputs = BalanceInputs.read(Platform.getConfigFolder());
+            BalanceInputs inputs;
+            try (var phaseScope = BalancePerformance.phase("generation_inputs")) { inputs = BalanceInputs.read(Platform.getConfigFolder()); }
             for (String exact : inputs.overrides().exactValues().keySet()) {
                 if (!exact.startsWith("/runtime/") && !exact.startsWith("/economy/"))
                     throw new IllegalArgumentException("Unsupported exact override path " + exact + "; supported roots: /runtime/ and /economy/");
             }
             EssenceAscendance.LOGGER.info("Generating pack balance: {} mods; previous profile retained until validation completes", environment.mods().size());
             long phase = System.nanoTime();
-            PackEvidence evidence = PackEvidenceCollector.collect(server, inputs.settings(), inputs.overrides());
-            timings.put("evidence", elapsedMillis(phase)); phase = System.nanoTime();
-            EconomyProfile economy = EconomyGenerator.generate(server, evidence, inputs.settings(), inputs.overrides());
-            timings.put("economy", elapsedMillis(phase)); phase = System.nanoTime();
-            RuntimeBalanceDefinition runtime = RuntimeBalanceDefinition.generate(evidence, economy, inputs.settings(), inputs.overrides());
-            timings.put("runtime", elapsedMillis(phase)); phase = System.nanoTime();
+            PackEvidence evidence;
+            try (var phaseScope = BalancePerformance.phase("evidence_collection")) {
+                evidence = PackEvidenceCollector.collect(server, inputs.settings(), inputs.overrides());
+            }
+            timings.put("evidence", elapsedMillis(phase));
+            EssenceAscendance.LOGGER.info("Pack balance evidence complete: {} ms; economy next", timings.get("evidence"));
+            phase = System.nanoTime();
+            EconomyProfile economy;
+            try (var phaseScope = BalancePerformance.phase("economy_generation")) {
+                economy = EconomyGenerator.generate(server, evidence, inputs.settings(), inputs.overrides());
+            }
+            timings.put("economy", elapsedMillis(phase));
+            EssenceAscendance.LOGGER.info("Pack balance economy complete: {} ms; runtime calibration next", timings.get("economy"));
+            phase = System.nanoTime();
+            RuntimeBalanceDefinition runtime;
+            try (var phaseScope = BalancePerformance.phase("runtime_generation")) {
+                runtime = RuntimeBalanceDefinition.generate(evidence, economy, inputs.settings(), inputs.overrides());
+            } catch (RuntimeException failure) {
+                operation.fail(failure);
+                EssenceAscendance.LOGGER.error("Balance runtime calibration failed before diagnostic capture: {}", failure.getMessage());
+                // Capture only balance inputs, never players/worlds. Reuse the existing
+                // saved-evidence replay path without committing an invalid live profile.
+                Path diagnostic = BalanceReportLayout.diagnostics(directory()).resolve(
+                        "failed-generation-" + java.util.UUID.randomUUID() + ".json.gz");
+                try (var phaseScope = BalancePerformance.phase("failure_evidence_serialization")) {
+                    BalanceProfileStore.writeDiagnostic(diagnostic, SavedEvidenceRegenerator.failureSnapshot(
+                            environment, inputs, evidence, economy, failure));
+                    EssenceAscendance.LOGGER.error("Balance runtime failed; diagnostic evidence for isolated replay saved to {}", diagnostic);
+                } catch (IOException | RuntimeException captureFailure) {
+                    failure.addSuppressed(captureFailure);
+                    EssenceAscendance.LOGGER.error("Could not save failed-generation evidence", captureFailure);
+                }
+                throw failure;
+            }
+            timings.put("runtime", elapsedMillis(phase));
+            EssenceAscendance.LOGGER.info("Pack balance runtime complete: {} ms; validation next", timings.get("runtime"));
+            phase = System.nanoTime();
+            try (var phaseScope = BalancePerformance.phase("generated_document_construction")) {
             JsonObject metadata = new JsonObject();
             metadata.addProperty("generatorRevision", GENERATION_REVISION);
             metadata.addProperty("dissolutionAccounting", DISSOLUTION_ACCOUNTING);
             metadata.add("environment", BalanceDocument.GSON.toJsonTree(environment));
             metadata.addProperty("settingsFingerprint", inputs.settingsFingerprint());
             metadata.addProperty("overridesFingerprint", inputs.overridesFingerprint());
-            metadata.addProperty("evidenceDigest", BalanceDocument.hash(BalanceDocument.GSON.toJsonTree(evidence)));
+            com.google.gson.JsonElement evidenceJson;
+            try (var serializationPhase = BalancePerformance.phase("evidence_json_construction")) { evidenceJson = BalanceDocument.GSON.toJsonTree(evidence); }
+            try (var hashPhase = BalancePerformance.phase("evidence_digest")) { metadata.addProperty("evidenceDigest", BalanceDocument.hash(evidenceJson)); }
             metadata.addProperty("freshnessPolicy", "Explicit rebuild required after changed inputs or resources; identity checks do not prove unchanged script or recipe behavior");
             JsonObject validation = new JsonObject();
             validation.addProperty("runtime", "passed");
@@ -104,41 +176,82 @@ public final class GeneratedBalanceService {
             document.add("metadata", metadata);
             document.add("settings", BalanceDocument.GSON.toJsonTree(inputs.settings()));
             document.add("overrides", BalanceDocument.GSON.toJsonTree(inputs.overrides()));
-            document.add("evidence", BalanceDocument.GSON.toJsonTree(evidence));
+            document.add("evidence", evidenceJson);
             document.add("runtime", runtime.toJson());
-            document.add("economy", BalanceDocument.GSON.toJsonTree(economy));
-            JsonObject skills = skillDiagnostics(runtime);
+            try (var serializationPhase = BalancePerformance.phase("economy_json_construction")) { document.add("economy", BalanceDocument.GSON.toJsonTree(economy)); }
+            JsonObject skills;
+            try (var diagnosticsPhase = BalancePerformance.phase("skill_diagnostics")) { skills = skillDiagnostics(runtime); }
             timings.put("skill_diagnostics", elapsedMillis(phase)); phase = System.nanoTime();
             document.add("skills", skills);
             document.add("validation", validation);
-            candidate = decode(BalanceDocument.seal(document));
+            BalanceDocument sealed;
+            try (var sealPhase = BalancePerformance.phase("seal_integrity")) { sealed = BalanceDocument.sealOwned(document); }
+            candidate = decode(sealed);
             timings.put("serialization_validation", elapsedMillis(phase));
+            }
             measuredGenerationMillis = elapsedMillis(start);
         } else {
-            candidate = decode(BalanceProfileStore.read(profilePath()));
-            EssenceAscendance.LOGGER.info("Loaded generated_balance.json; evidence collection, graph solving and curve generation skipped");
+            BalanceDocument saved;
+            try (var phaseScope = BalancePerformance.phase("saved_profile_read")) { saved = BalanceProfileStore.read(profilePath()); }
+            candidate = decode(saved);
+            EssenceAscendance.LOGGER.info("Loaded {}; evidence collection, graph solving and curve generation skipped", BalanceProfileStore.PROFILE_FILE);
         }
+        BalancePerformance.detail("profile_integrity", candidate.document().integrity());
+        BalancePerformance.count("resources", candidate.economy().resources().size());
+        BalancePerformance.count("equipment_references", candidate.evidence().equipment().size());
+        BalancePerformance.count("enemy_references", candidate.evidence().enemies().size());
         long commitStart = System.nanoTime();
+        // Preflight transport before replacing the saved profile or publishing authority.
+        try (var phaseScope = BalancePerformance.phase("transport_preflight")) {
+        candidate.runtime().networkPayload();
+        EssenceAscendance.LOGGER.info("Pack balance transport preflight: {} JSON bytes -> {} compressed bytes",
+                candidate.runtime().networkPayload().runtimeJson().getBytes(java.nio.charset.StandardCharsets.UTF_8).length,
+                candidate.runtime().networkPayload().encodedBytes());
+        BalancePerformance.count("runtime_payload_compressed_bytes", candidate.runtime().networkPayload().encodedBytes());
+        }
         List<String> warnings = new ArrayList<>(candidate.evidence().warnings());
         warnings.addAll(candidate.economy().warnings());
+        boolean stale = false;
         if (!generate) {
-            List<String> staleness = status(candidate, environment);
+            List<String> staleness;
+            try (var phaseScope = BalancePerformance.phase("staleness_check")) { staleness = status(candidate, environment); }
+            stale = !staleness.isEmpty();
+            BalancePerformance.count("staleness_warnings", staleness.size());
+            BalancePerformance.flag("profile_stale", stale);
             warnings.addAll(staleness);
             staleness.forEach(warning -> EssenceAscendance.LOGGER.warn("Generated balance: {}", warning));
         }
-        Map<ResourceLocation, Map<EssenceDefinition, Long>> yields = resolvedMappings(candidate.economy(), warnings);
+        Map<ResourceLocation, Map<EssenceDefinition, Long>> yields;
+        try (var phaseScope = BalancePerformance.phase("runtime_item_mapping_conversion")) { yields = resolvedMappings(candidate.economy(), warnings); }
+        BalancePerformance.count("resolved_item_mappings", yields.size());
         Active prepared = candidate;
         // Registry prepares every item before invoking the durable commit. No tick
         // or player transaction can interleave on this server thread.
+        try (var phaseScope = BalancePerformance.phase("mapping_install_and_publish")) {
         ItemEssenceMappingRegistry.installResolved(yields,
                 new ItemEssenceMappingRegistry.LoadSummary(yields.size(), 0, 0, 0, 0, warnings), () -> {
                     if (generate) {
-                        try { BalanceProfileStore.replace(profilePath(), prepared.document()); }
-                        catch (IOException error) { throw new UncheckedIOException(error); }
+                        try (var persistPhase = BalancePerformance.phase("profile_serialization_commit")) {
+                            BalanceProfileStore.replace(profilePath(), prepared.document());
+                            EssenceAscendance.LOGGER.info("Pack balance profile saved: {} compressed bytes", Files.size(profilePath()));
+                        }
+                        catch (IOException error) {
+                            Path diagnostic = BalanceReportLayout.diagnostics(directory()).resolve(
+                                    "uncommitted-profile-" + java.util.UUID.randomUUID() + ".json.gz");
+                            try {
+                                BalanceProfileStore.writeDiagnostic(diagnostic, prepared.document());
+                                EssenceAscendance.LOGGER.error("Profile commit failed; validated but uncommitted candidate saved for isolated replay to {}", diagnostic);
+                            } catch (IOException | RuntimeException captureFailure) { error.addSuppressed(captureFailure); }
+                            throw new UncheckedIOException(error);
+                        }
                     }
-                    EssenceConfigManager.install(prepared.runtime());
-                    active = prepared;
+                    try (var publishPhase = BalancePerformance.phase("active_publication")) {
+                        EssenceConfigManager.install(prepared.runtime());
+                        active = prepared;
+                        BalancePerformance.flag("profile_published", true);
+                    }
                 });
+        }
         timings.put("commit", elapsedMillis(commitStart));
         if (generate) {
             phaseTimings = java.util.Collections.unmodifiableMap(new java.util.TreeMap<>(timings));
@@ -150,19 +263,24 @@ public final class GeneratedBalanceService {
                 candidate.document().integrity().substring(0, 12), candidate.economy().resources().size(),
                 candidate.evidence().equipment().size(), candidate.evidence().enemies().size(), lastLoadMillis);
         if (generate) {
-            try { BalanceReports.export(candidate, previous, directory(), lastGenerationMillis); }
+            BalancePerformance.flag("reports_regenerated", true);
+            try (var phaseScope = BalancePerformance.phase("report_regeneration")) { BalanceReports.export(candidate, previous, directory(), lastGenerationMillis); }
             catch (IOException | RuntimeException error) {
+                BalancePerformance.flag("report_regeneration_failed", true);
                 // Diagnostics are derived output; failure cannot invalidate an already committed profile.
                 EssenceAscendance.LOGGER.error("Profile installed, but balance diagnostics could not be written. Use /essence admin balance export", error);
             }
         }
-        try {
-            RuntimeBalanceSyncService.syncAll(server);
-            PlayerRuntimeLifecycleService.refreshAll(server);
-            ItemEssenceTooltipSyncService.syncAll(server);
+        try (var phaseScope = BalancePerformance.phase("server_player_synchronization")) {
+            BalancePerformance.count("online_players", server.getPlayerList().getPlayerCount());
+            try (var syncPhase = BalancePerformance.phase("runtime_sync")) { RuntimeBalanceSyncService.syncAll(server); }
+            try (var syncPhase = BalancePerformance.phase("player_runtime_refresh")) { PlayerRuntimeLifecycleService.refreshAll(server); }
+            try (var syncPhase = BalancePerformance.phase("item_tooltip_sync")) { ItemEssenceTooltipSyncService.syncAll(server); }
         } catch (RuntimeException error) {
+            BalancePerformance.flag("synchronization_failed", true);
             EssenceAscendance.LOGGER.error("Profile installed; client synchronization failed and must be retried by reconnecting", error);
         }
+        return generate ? (rebuild ? "rebuilt" : "generated") : stale ? "loaded_marked_stale" : "loaded_current";
     }
 
     static JsonObject skillDiagnostics(RuntimeBalanceDefinition runtime) {
@@ -381,33 +499,71 @@ public final class GeneratedBalanceService {
     }
 
     public static Active decode(BalanceDocument document) {
+        BalancePerformance.increment("profile_decodes");
+        try (var decodePhase = BalancePerformance.phase("profile_decode_and_validate")) {
+        try (var phase = BalancePerformance.phase("metadata_schema_decode")) {
         JsonObject revision = document.section("metadata");
+        if (revision.has("diagnosticOnly"))
+            throw new IllegalArgumentException("Failed-generation evidence is diagnostic only, never an installable profile");
         if (!revision.has("generatorRevision")
                 || !GENERATION_REVISION.equals(revision.get("generatorRevision").getAsString()))
             throw new IllegalArgumentException("Generated balance revision changed; explicitly rebuild with /essence admin balance rebuild. No legacy runtime migration is supported");
-        PackEvidence evidence = BalanceDocument.GSON.fromJson(document.section("evidence"), PackEvidence.class);
-        EconomyProfile economy = BalanceDocument.GSON.fromJson(document.section("economy"), EconomyProfile.class);
-        RuntimeBalanceDefinition runtime = RuntimeBalanceDefinition.fromJson(document.section("runtime"));
+        }
+        PackEvidence evidence;
+        try (var phase = BalancePerformance.phase("evidence_typed_decode")) { evidence = document.decodeSection("evidence", PackEvidence.class); }
+        EconomyProfile economy;
+        try (var phase = BalancePerformance.phase("economy_typed_decode")) { economy = document.decodeSection("economy", EconomyProfile.class); }
+        RuntimeBalanceDefinition runtime;
+        try (var phase = BalancePerformance.phase("runtime_decode_and_constructor_validation")) {
+            runtime = RuntimeBalanceDefinition.fromJson(document.section("runtime"));
+        }
         if (evidence == null || economy == null) throw new IllegalArgumentException("Incomplete generated evidence/economy");
-        if (!document.section("metadata").get("evidenceDigest").getAsString().equals(BalanceDocument.hash(BalanceDocument.GSON.toJsonTree(evidence))))
+        try (var phase = BalancePerformance.phase("evidence_serialization_validation")) {
+        document.verifySection("evidence", evidence);
+        JsonObject revision = document.section("metadata");
+        if (!revision.get("evidenceDigest").getAsString().equals(document.sectionHash("evidence")))
             throw new IllegalArgumentException("Evidence digest mismatch");
-        EconomyGenerator.validate(economy);
+        }
+        try (var phase = BalancePerformance.phase("economy_validation")) { EconomyGenerator.validate(economy); }
         JsonObject metadata = document.section("metadata");
         if (metadata.has("dissolutionAccounting")) {
             if (!DISSOLUTION_ACCOUNTING.equals(metadata.get("dissolutionAccounting").getAsString()))
                 throw new IllegalArgumentException("Unsupported generated dissolution accounting policy; explicitly rebuild with this mod version");
-            EconomyGenerator.validateWhole(economy);
+            try (var phase = BalancePerformance.phase("whole_essence_validation")) { EconomyGenerator.validateWhole(economy); }
         }
-        runtime.validate();
-        runtime.validateServerReferences();
+        try (var phase = BalancePerformance.phase("runtime_validation_explicit")) { runtime.validate(); }
+        try (var phase = BalancePerformance.phase("runtime_server_reference_validation")) { runtime.validateServerReferences(); }
+        try (var phase = BalancePerformance.phase("processing_policy_validation")) {
         var processing = economy.processingPolicy();
         var infuser = runtime.config().infuserBalance();
         if (infuser.conversionEfficiencyBasisPoints() != processing.conversionEfficiencyBasisPoints()
                 || infuser.carrierExtractionEfficiencyBasisPoints() != processing.carrierExtractionEfficiencyBasisPoints())
             throw new IllegalArgumentException("Runtime conversion/extraction projections differ from the canonical economy policy");
-        return new Active(document, evidence, economy, runtime);
+        }
+        try (var phase = BalancePerformance.phase("profile_retention_compaction")) {
+            return new Active(document.compactEvidenceAndEconomy(), evidence, economy, runtime);
+        }
+        }
     }
-    public static List<String> status(MinecraftServer server) { return status(active(), PackFingerprint.capture(server)); }
+    public static List<String> status(MinecraftServer server) { return status(server, "status_unspecified"); }
+    public static List<String> status(MinecraftServer server, String reason) {
+        try (var operation = BalancePerformance.begin("stale_profile_check", reason)) {
+            BalancePerformance.flag("environment_rescanned", false);
+            BalancePerformance.flag("reports_regenerated", false);
+            BalancePerformance.flag("saved_data_reused", true);
+            try {
+                PackFingerprint current;
+                try (var phase = BalancePerformance.phase("environment_fingerprint")) { current = PackFingerprint.capture(server); }
+                List<String> changes;
+                try (var phase = BalancePerformance.phase("staleness_check")) { changes = status(active(), current); }
+                BalancePerformance.detail("environment_digest", current.digest());
+                BalancePerformance.count("staleness_warnings", changes.size());
+                BalancePerformance.flag("profile_stale", !changes.isEmpty());
+                operation.complete(changes.isEmpty() ? "current" : "marked_stale");
+                return changes;
+            } catch (RuntimeException | Error failure) { operation.fail(failure); throw failure; }
+        }
+    }
     private static List<String> status(Active profile, PackFingerprint current) {
         JsonObject metadata = profile.document().section("metadata");
         List<String> changes = new ArrayList<>();
@@ -425,7 +581,17 @@ public final class GeneratedBalanceService {
         if (resourcesChanged) changes.add("Server resources reloaded since profile load; explicit rebuild required");
         return List.copyOf(changes);
     }
-    public static void export() throws IOException { BalanceReports.export(active(), null, directory(), lastGenerationMillis); }
+    public static void export() throws IOException {
+        try (var operation = BalancePerformance.begin("explicit_report_export", "admin_balance_export")) {
+            BalancePerformance.flag("saved_data_reused", true);
+            BalancePerformance.flag("environment_rescanned", false);
+            BalancePerformance.flag("reports_regenerated", true);
+            try (var phase = BalancePerformance.phase("report_regeneration")) {
+                BalanceReports.export(active(), null, directory(), lastGenerationMillis);
+                operation.complete("exported");
+            } catch (IOException | RuntimeException | Error failure) { operation.fail(failure); throw failure; }
+        }
+    }
     private static Map<ResourceLocation, Map<EssenceDefinition, Long>> resolvedMappings(EconomyProfile economy, List<String> warnings) {
         Map<ResourceLocation, Map<EssenceDefinition, Long>> result = new LinkedHashMap<>();
         int absent = 0;

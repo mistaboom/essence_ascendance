@@ -19,3 +19,6 @@ crash-reports/
 # OS junk
 Thumbs.db
 .DS_Store
+
+# Pack Tester: machine paths, selections and build handoff files
+.pack-tester/

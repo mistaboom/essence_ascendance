@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.nexus.AscendanceNexusBlockEntity;
+import com.mistaboom.essence_ascendance.machine.HorizontalMachineBlock;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
@@ -24,12 +25,16 @@ public final class AscendanceNexusRenderer
             int packedLight,
             int packedOverlay
     ) {
+        poseStack.pushPose();
+        PylonRenderTransform.applyAroundBlockCenter(poseStack,
+                HorizontalMachineBlock.frame(nexus.getBlockState().getValue(HorizontalMachineBlock.FACING)));
         EssenceMachineMeshes.NEXUS.render(
                 poseStack,
                 bufferSource,
                 packedLight,
                 packedOverlay
         );
+        poseStack.popPose();
 
         if (nexus.getLevel() != null) {
             MachineWorldVisualRenderer.enqueue(nexus, partialTick);

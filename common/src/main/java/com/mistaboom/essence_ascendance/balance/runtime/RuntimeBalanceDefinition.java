@@ -36,6 +36,7 @@ public final class RuntimeBalanceDefinition {
     private final Map<String, Double> composition;
     private final RuntimeBuildScenarios.Analysis generationAnalysis;
     private final AttunementProfile attunement;
+    private volatile com.mistaboom.essence_ascendance.network.RuntimeBalancePayload networkPayload;
 
     public RuntimeBalanceDefinition(EssenceServerConfig config, EssenceCrucibleStructureStats crucible,
             Map<String, EssencePylonContribution> pylons,
@@ -60,6 +61,12 @@ public final class RuntimeBalanceDefinition {
         validate();
     }
     public RuntimeBuildScenarios.Analysis generationAnalysis() { return generationAnalysis; }
+    /** Immutable profile: encode once for preflight and reuse bounded bytes on joins. */
+    public com.mistaboom.essence_ascendance.network.RuntimeBalancePayload networkPayload() {
+        var current = networkPayload;
+        if (current == null) networkPayload = current = new com.mistaboom.essence_ascendance.network.RuntimeBalancePayload(toJson().toString());
+        return current;
+    }
     public RuntimeBalanceDefinition withAnalysis(RuntimeBuildScenarios.Analysis analysis) {
         return new RuntimeBalanceDefinition(config,crucible,pylons,skillCurves,composition,attunement,analysis);
     }
@@ -218,8 +225,7 @@ public final class RuntimeBalanceDefinition {
         config.skillEffects().validate();
         if (composition.getOrDefault("meaningful_progression", 0.0) == 1)
             com.mistaboom.essence_ascendance.skill.balance.SkillBalanceGenerator.validatePublished(config.skillEffects(), skillCurves);
-        if(toJson().toString().getBytes(java.nio.charset.StandardCharsets.UTF_8).length > com.mistaboom.essence_ascendance.network.RuntimeBalancePayload.MAX_BYTES)
-            throw new IllegalArgumentException("Resolved runtime profile exceeds network limit; reduce oversized exact overrides");
+        com.mistaboom.essence_ascendance.network.RuntimeBalancePayload.validateJsonSize(toJson().toString());
     }
 
     /** Provider implementations may be installed only on the logical server; clients need only their resolved display data. */
@@ -260,7 +266,7 @@ public final class RuntimeBalanceDefinition {
     public static LatentOreWorldgenSettings worldgenFromJson(JsonObject json) {
         var settings = Objects.requireNonNull(JSON.fromJson(json, LatentOreWorldgenSettings.class), "Missing worldgen policy");
         if (!worldgenJson(settings).equals(json))
-            throw new IllegalArgumentException("Worldgen policy has missing, unknown, or invalid fields; regenerate generated_balance.json");
+            throw new IllegalArgumentException("Worldgen policy has missing, unknown, or invalid fields; regenerate generated_balance.json.gz");
         return settings;
     }
     /** Strict round trip rejects unknown/missing fields and silent clamping by value records. */

@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBlockEntity;
+import com.mistaboom.essence_ascendance.machine.HorizontalMachineBlock;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
@@ -25,12 +26,16 @@ public final class EssenceInfuserRenderer
             int packedLight,
             int packedOverlay
     ) {
+        poseStack.pushPose();
+        PylonRenderTransform.applyAroundBlockCenter(poseStack,
+                HorizontalMachineBlock.frame(infuser.getBlockState().getValue(HorizontalMachineBlock.FACING)));
         EssenceMachineMeshes.INFUSER.render(
                 poseStack,
                 bufferSource,
                 packedLight,
                 packedOverlay
         );
+        poseStack.popPose();
 
         if (infuser.getLevel() != null) {
             MachineWorldVisualRenderer.enqueue(infuser, itemRenderer,

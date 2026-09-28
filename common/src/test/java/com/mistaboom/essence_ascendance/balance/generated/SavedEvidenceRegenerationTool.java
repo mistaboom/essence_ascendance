@@ -16,16 +16,18 @@ import java.nio.file.Path;
 public final class SavedEvidenceRegenerationTool {
     public static void main(String[] args) throws Exception {
         Thread.currentThread().setUncaughtExceptionHandler((thread,error) -> error.printStackTrace(new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.err))));
-        if (args.length != 2) throw new IllegalArgumentException("Expected existing config directory and output generated-profile directory");
+        if (args.length < 2 || args.length > 3) throw new IllegalArgumentException("Expected existing config directory, isolated output directory and optional diagnostic source");
         Path config = Path.of(args[0]).toAbsolutePath().normalize();
         Path output = Path.of(args[1]).toAbsolutePath().normalize();
-        Path source = config.resolve("essence_ascendance/generated_balance.json");
-        if (output.equals(source.getParent()))
+        Path installed = BalanceProfileStore.profilePath(config.resolve("essence_ascendance"));
+        Path source = args.length == 3 ? Path.of(args[2]).toAbsolutePath().normalize() : installed;
+        if (output.startsWith(config) || output.equals(source.getParent()))
             throw new IllegalArgumentException("Saved-evidence audit output must be isolated from the installed profile directory");
         if (!Files.isRegularFile(source) || !Files.isRegularFile(BalanceInputs.settingsPath(config))
                 || !Files.isRegularFile(BalanceInputs.overridesPath(config)))
             throw new IllegalArgumentException("Saved generated evidence and both existing human TOML inputs are required");
-        byte[] originalBytes = Files.readAllBytes(source);
+        String originalBytes = fileHash(source);
+        String installedBytes = Files.exists(installed) ? fileHash(installed) : null;
         var original = BalanceProfileStore.read(source);
         String settingsBytes = Files.readString(BalanceInputs.settingsPath(config));
         String overridesBytes = Files.readString(BalanceInputs.overridesPath(config));
@@ -36,27 +38,39 @@ public final class SavedEvidenceRegenerationTool {
         com.mistaboom.essence_ascendance.equipment.EquipmentProfiles.init();
         var first = SavedEvidenceRegenerator.regenerate(original, inputs);
         var repeated = SavedEvidenceRegenerator.regenerate(original, inputs);
-        if (!first.document().text().equals(repeated.document().text())) throw new AssertionError("Saved evidence replay is not deterministic");
-        if (!first.document().section("evidence").equals(original.section("evidence"))
-                || !first.document().section("economy").equals(original.section("economy")))
+        if (!first.document().integrity().equals(repeated.document().integrity())) throw new AssertionError("Saved evidence replay is not deterministic");
+        if (!first.document().sectionHash("evidence").equals(original.sectionHash("evidence"))
+                || !first.document().sectionHash("economy").equals(original.sectionHash("economy")))
             throw new AssertionError("Offline runtime rebuild altered authoritative saved evidence/economy");
         // Bonus prices and normalized development references are regenerated together.
         // Historical player skill receipts are world data and are never opened here.
         first.runtime().validate();
-        if (!java.util.Arrays.equals(originalBytes, Files.readAllBytes(source)))
+        if (!originalBytes.equals(fileHash(source)))
             throw new AssertionError("Installed profile changed during isolated replay");
+        if (installedBytes == null ? Files.exists(installed)
+                : !Files.exists(installed) || !installedBytes.equals(fileHash(installed)))
+            throw new AssertionError("Live profile changed during isolated replay");
         if (!settingsBytes.equals(Files.readString(BalanceInputs.settingsPath(config)))
                 || !overridesBytes.equals(Files.readString(BalanceInputs.overridesPath(config))))
             throw new AssertionError("Human inputs changed during replay");
-        BalanceProfileStore.replace(output.resolve("generated_balance.json"), first.document());
+        BalanceProfileStore.replace(BalanceProfileStore.profilePath(output), first.document());
         BalanceReports.export(first, null, output, 0);
-        BalanceProfileStore.writeAtomically(output.resolve("diagnostics/generation_comparison.json"),
-                BalanceDocument.GSON.toJson(comparison(original, first.document())) + "\n");
+        if (!original.section("metadata").has("diagnosticOnly"))
+            BalanceProfileStore.writeAtomically(output.resolve("diagnostics/generation_comparison.json"),
+                    BalanceDocument.GSON.toJson(comparison(original, first.document())) + "\n");
         if (original.section("metadata").get("generatorRevision").getAsString().equals("smooth-bonus-tracks-19"))
             requireVitalityPreservation(original, first.document());
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println(
-                "SavedEvidenceRegenerationTool PASS: deterministic current runtime installed in " + output
+                "SavedEvidenceRegenerationTool PASS: deterministic candidate written only to " + output
                 + "; integrity=" + first.document().integrity() + "; saved evidence/economy and human inputs unchanged; Bonus tracks and Attunement regenerated; no world opened");
+    }
+
+    private static String fileHash(Path path) throws Exception {
+        var digest = java.security.MessageDigest.getInstance("SHA-256");
+        try (var input = new java.security.DigestInputStream(Files.newInputStream(path), digest)) {
+            input.transferTo(java.io.OutputStream.nullOutputStream());
+        }
+        return java.util.HexFormat.of().formatHex(digest.digest());
     }
 
     private static void requireVitalityPreservation(BalanceDocument previous, BalanceDocument current) {

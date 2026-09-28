@@ -37,7 +37,7 @@ public final class BalanceReportLayout {
                 Existing input files are never replaced with bundled defaults.
 
                 SAVED RUNTIME CONFIGURATION
-                  generated_balance.json     Authoritative validated server profile.
+                  generated_balance.json.gz     Authoritative validated server profile.
                 Generated on first run or explicit rebuild, then loaded on later starts.
                 It also retains complete evidence, acquisition sources, production paths,
                 resolved values, skill selections, assumptions and validation results.

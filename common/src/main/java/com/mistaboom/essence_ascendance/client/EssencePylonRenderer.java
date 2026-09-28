@@ -1,7 +1,7 @@
 package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.pylon.EssencePylonBlockEntity;
-import com.mistaboom.essence_ascendance.pylon.EssencePylonBlock;
+import com.mistaboom.essence_ascendance.pylon.PylonLocalFrame;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
@@ -25,7 +25,7 @@ public final class EssencePylonRenderer
     ) {
         poseStack.pushPose();
         PylonRenderTransform.applyAroundBlockCenter(
-                poseStack, pylon.getBlockState().getValue(EssencePylonBlock.FACING));
+                poseStack, PylonLocalFrame.of(pylon.getBlockState()));
         EssenceMachineMeshes.PYLON.render(
                 poseStack,
                 bufferSource,

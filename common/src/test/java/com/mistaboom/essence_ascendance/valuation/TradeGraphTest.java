@@ -38,6 +38,29 @@ public final class TradeGraphTest {
         require(ProceduralTradeIndex.sampleListing(skippedOutput, wrapped, null, ResourceLocation.parse("test:cartographer"),
                 1, 1, false, 0, skipped) == 0 && skipped.values().stream().mapToInt(Integer::intValue).sum() == 2,
                 "Vanilla trade-rebalance wrappers must not bypass the world-dependent listing guard");
+        for (VillagerTrades.ItemListing moddedMap : java.util.List.of(
+                new net.mehvahdjukaar.supplementaries.common.entities.trades.RandomAdventurerMapListing(),
+                new net.mehvahdjukaar.supplementaries.common.entities.trades.StructureMapListing())) {
+            require(ProceduralTradeIndex.sampleListing(skippedOutput, moddedMap, null,
+                    ResourceLocation.parse("test:cartographer"), 1, 1, false, 0, skipped) == 0,
+                    "Optional map factory must be skipped before any structure search or saved-map write");
+            var wrappedModdedMap = new VillagerTrades.TypeSpecificTrade(java.util.Map.of(
+                    net.minecraft.world.entity.npc.VillagerType.PLAINS, moddedMap));
+            require(ProceduralTradeIndex.sampleListing(skippedOutput, wrappedModdedMap, null,
+                    ResourceLocation.parse("test:cartographer"), 1, 1, false, 0, skipped) == 0,
+                    "Wrapped optional map factory must also be skipped before invocation");
+        }
+        require(skippedOutput.isEmpty() && skipped.values().stream().mapToInt(Integer::intValue).sum() == 6,
+                "Every excluded factory is diagnosed without inventing an acquisition source");
+        int[] ordinaryCalls = {0};
+        VillagerTrades.ItemListing ordinaryModdedTrade = (trader, random) -> {
+            ordinaryCalls[0]++;
+            return new MerchantOffer(new ItemCost(Items.EMERALD, 2), new ItemStack(Items.BREAD), 7, 1, .05f);
+        };
+        require(ProceduralTradeIndex.sampleListing(skippedOutput, ordinaryModdedTrade, null,
+                ResourceLocation.parse("test:ordinary_modded_trader"), 1, 1, false, 0, skipped) == 1
+                        && ordinaryCalls[0] == 4 && skippedOutput.containsKey(Items.BREAD),
+                "Ordinary custom factories retain deterministic sampling and deduplication");
         var offer = new MerchantOffer(new ItemCost(Items.EMERALD, 20),
                 Optional.of(new ItemCost(Items.DIAMOND, 8)), new ItemStack(Items.DIAMOND_CHESTPLATE), 12, 10, .05f);
         var source = source(offer, false);

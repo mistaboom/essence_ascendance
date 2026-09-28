@@ -3,7 +3,6 @@ package com.mistaboom.essence_ascendance.client;
 import com.mistaboom.essence_ascendance.client.procedural.ProceduralGeometry;
 import com.mistaboom.essence_ascendance.client.procedural.ProceduralRenderTypes;
 import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
-import com.mistaboom.essence_ascendance.pylon.EssencePylonBlock;
 import com.mistaboom.essence_ascendance.pylon.EssencePylonBlockEntity;
 import com.mistaboom.essence_ascendance.pylon.PylonLocalFrame;
 import com.mistaboom.essence_ascendance.visual.AscendancePalette;
@@ -38,13 +37,12 @@ public final class PylonVisuals {
         if (level == null) return;
         MachineVisualState.Pylon state = pylon.visualState();
         if (!state.linked()) return;
-        PylonLocalFrame frame = PylonLocalFrame.of(
-                pylon.getBlockState().getValue(EssencePylonBlock.FACING));
+        PylonLocalFrame frame = PylonLocalFrame.of(pylon.getBlockState());
         double age = level.getGameTime() + partialTick;
         boolean close = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition()
                 .distanceToSqr(Vec3.atCenterOf(pylon.getBlockPos())) <= DETAIL_DISTANCE_SQUARED;
         pose.pushPose();
-        PylonRenderTransform.applyAroundBlockCenter(pose, frame.direction());
+        PylonRenderTransform.applyAroundBlockCenter(pose, frame);
         if (!state.focus().installed()) {
             renderEmpty(pose, buffers, age, close);
         } else {

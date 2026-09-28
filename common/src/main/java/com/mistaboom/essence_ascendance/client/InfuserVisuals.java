@@ -3,6 +3,8 @@ package com.mistaboom.essence_ascendance.client;
 import com.mistaboom.essence_ascendance.client.procedural.ProceduralGeometry;
 import com.mistaboom.essence_ascendance.client.procedural.ProceduralRenderTypes;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBlockEntity;
+import com.mistaboom.essence_ascendance.machine.HorizontalMachineBlock;
+import com.mistaboom.essence_ascendance.pylon.PylonLocalFrame;
 import com.mistaboom.essence_ascendance.pylon.EssenceFocusTier;
 import com.mistaboom.essence_ascendance.visual.AscendancePalette;
 import com.mistaboom.essence_ascendance.visual.MachineVisualState;
@@ -54,13 +56,17 @@ public final class InfuserVisuals {
         // Absence of a procedural field is the deliberate unlinked read.
         if (!state.linked()) return;
 
+        PylonLocalFrame frame = HorizontalMachineBlock.frame(
+                infuser.getBlockState().getValue(HorizontalMachineBlock.FACING));
+        pose.pushPose();
+        PylonRenderTransform.applyAroundBlockCenter(pose, frame);
         if (!state.focus().installed()) {
             renderEmpty(pose, buffers, age, close);
-            return;
+        } else {
+            renderFunctional(infuser.getBlockPos(), state, frame, itemRenderer, level, pose, buffers,
+                    packedOverlay, age, close);
         }
-
-        renderFunctional(infuser.getBlockPos(), state, itemRenderer, level, pose, buffers,
-                packedOverlay, age, close);
+        pose.popPose();
     }
 
     private static void renderEmpty(PoseStack pose, MultiBufferSource buffers,
@@ -88,6 +94,7 @@ public final class InfuserVisuals {
     }
 
     private static void renderFunctional(BlockPos pos, MachineVisualState.Infuser state,
+                                         PylonLocalFrame localFrame,
                                          ItemRenderer itemRenderer, Level level,
                                          PoseStack pose, MultiBufferSource.BufferSource buffers,
                                          int packedOverlay, double age, boolean close) {
@@ -114,10 +121,10 @@ public final class InfuserVisuals {
         VertexConsumer planes = buffers.getBuffer(ProceduralRenderTypes.WORLD_PLANES);
         renderCompressionBands(pose, planes, age, phase, rgb, luminous, hasWorkpiece,
                 active, highIntensity, intensity, tier, refinement);
-        renderShellPieces(pose, planes, age, phase, rgb, luminous, tier,
+        renderShellPieces(pose, planes, localFrame, age, phase, rgb, luminous, tier,
                 hasWorkpiece, active, intensity);
         if (state.linked()) {
-            renderAnchorPlane(pos, state, pose, planes, frame, active);
+            renderAnchorPlane(pos, state, localFrame, pose, planes, frame, active);
         }
 
         VertexConsumer lines = buffers.getBuffer(ProceduralRenderTypes.WORLD_DEPTH_LINES);
@@ -130,7 +137,7 @@ public final class InfuserVisuals {
                     intensity, tier);
         }
         if (state.linked()) {
-            renderAnchorLine(pos, state, pose, lines, frame, active);
+            renderAnchorLine(pos, state, localFrame, pose, lines, frame, active);
         }
         if (close) {
             renderFineDetail(pose, lines, age, phase, counterPhase, rgb, luminous,
@@ -149,8 +156,12 @@ public final class InfuserVisuals {
                 : Math.clamp(state.processingTicks() / (double) state.requiredTicks(), 0.0, 1.0);
         double intensity = state.processing()
                 ? 0.56 + throughput(state.throughputPerSecond()) * 0.24 + progress * 0.20 : 0.24;
+        pose.pushPose();
+        PylonRenderTransform.applyAroundBlockCenter(pose, HorizontalMachineBlock.frame(
+                infuser.getBlockState().getValue(HorizontalMachineBlock.FACING)));
         renderWorkpiece(state, itemRenderer, level, infuser.getBlockPos(), pose, buffers,
                 overlay, level.getGameTime() + partialTick, state.processing(), intensity);
+        pose.popPose();
     }
 
     private static void renderWorkpiece(MachineVisualState.Infuser state,
@@ -222,14 +233,15 @@ public final class InfuserVisuals {
     }
 
     private static void renderShellPieces(PoseStack pose, VertexConsumer planes,
+                                          PylonLocalFrame frame,
                                           double age, double phase, int rgb, int luminous,
                                           int tier, boolean hasWorkpiece, boolean active,
                                           double intensity) {
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
         Vector3f left = camera.getLeftVector();
         Vector3f cameraUp = camera.getUpVector();
-        Vec3 right = new Vec3(-left.x(), -left.y(), -left.z());
-        Vec3 up = new Vec3(cameraUp.x(), cameraUp.y(), cameraUp.z());
+        Vec3 right = frame.worldVectorToLocal(new Vec3(-left.x(), -left.y(), -left.z()));
+        Vec3 up = frame.worldVectorToLocal(new Vec3(cameraUp.x(), cameraUp.y(), cameraUp.z()));
         int count = tier == 0 ? 0 : (hasWorkpiece ? Math.min(6, tier + 1) : Math.min(4, tier));
         double radius = hasWorkpiece ? 0.57 + tier * 0.012 : 0.43;
 
@@ -407,9 +419,10 @@ public final class InfuserVisuals {
     }
 
     private static void renderAnchorPlane(BlockPos pos, MachineVisualState.Infuser state,
+                                          PylonLocalFrame frame,
                                           PoseStack pose, VertexConsumer planes,
                                           int rgb, boolean active) {
-        Vec3 anchor = tetherAnchor(pos, state);
+        Vec3 anchor = frame.blockToLocal(tetherAnchor(pos, state));
         Vec3 radial = new Vec3(anchor.x - 0.5, 0, anchor.z - 0.5).normalize();
         Vec3 tangent = new Vec3(-radial.z, 0, radial.x);
         ProceduralGeometry.diamondRing(pose, planes, anchor, tangent, Y,
@@ -419,9 +432,10 @@ public final class InfuserVisuals {
     }
 
     private static void renderAnchorLine(BlockPos pos, MachineVisualState.Infuser state,
+                                         PylonLocalFrame frame,
                                          PoseStack pose, VertexConsumer lines,
                                          int rgb, boolean active) {
-        Vec3 anchor = tetherAnchor(pos, state);
+        Vec3 anchor = frame.blockToLocal(tetherAnchor(pos, state));
         Vec3 inner = WORK_CENTER.lerp(anchor, 0.68).add(0, -0.08, 0);
         ProceduralGeometry.line(pose, lines, inner, anchor, rgb, active ? 0.50F : 0.27F);
     }

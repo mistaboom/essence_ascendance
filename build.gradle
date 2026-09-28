@@ -66,7 +66,8 @@ allprojects {
     version = rootProject.mod_version
 }
 
-subprojects {
+// Desktop developer tools must never inherit Loom or Minecraft dependencies.
+configure([project(':common'), project(':fabric'), project(':neoforge')]) {
     apply plugin: 'dev.architectury.loom'
     apply plugin: 'architectury-plugin'
     apply plugin: 'maven-publish'
@@ -125,3 +126,5 @@ subprojects {
         }
     }
 }
+
+apply from: 'gradle/pack-tester.gradle'

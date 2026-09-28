@@ -18,14 +18,31 @@ public record PackFingerprint(String digest, Map<String, String> mods, String mi
     }
     public static PackFingerprint capture(MinecraftServer server) {
         Map<String, String> mods = new TreeMap<>();
-        Platform.getMods().forEach(mod -> mods.put(mod.getModId(), mod.getVersion()));
+        try (var phase = BalancePerformance.phase("fingerprint_mods")) {
+            Platform.getMods().forEach(mod -> mods.put(mod.getModId(), mod.getVersion()));
+        }
         String minecraft = SharedConstants.getCurrentVersion().getName();
         String loader = Platform.isFabric() ? "fabric" : Platform.isNeoForge() ? "neoforge" : "unknown";
         var packs = server.getPackRepository().getSelectedIds().stream().sorted().toList();
-        String registry = BalanceDocument.hash(BuiltInRegistries.ITEM.keySet().stream().map(Object::toString).sorted().toList().toString()
-                + BuiltInRegistries.ENTITY_TYPE.keySet().stream().map(Object::toString).sorted().toList());
-        String recipes = BalanceDocument.hash(server.getRecipeManager().getRecipeIds().map(Object::toString).sorted().toList().toString());
-        String tags = BalanceDocument.hash(tagIdentity(BuiltInRegistries.ITEM) + tagIdentity(BuiltInRegistries.BLOCK));
+        String registry;
+        try (var phase = BalancePerformance.phase("fingerprint_registry_ids")) {
+            registry = BalanceDocument.hash(BuiltInRegistries.ITEM.keySet().stream().map(Object::toString).sorted().toList().toString()
+                    + BuiltInRegistries.ENTITY_TYPE.keySet().stream().map(Object::toString).sorted().toList());
+            BalancePerformance.count("fingerprint_items", BuiltInRegistries.ITEM.size());
+            BalancePerformance.count("fingerprint_entities", BuiltInRegistries.ENTITY_TYPE.size());
+        }
+        String recipes;
+        try (var phase = BalancePerformance.phase("fingerprint_recipe_ids")) {
+            var ids = server.getRecipeManager().getRecipeIds().map(Object::toString).sorted().toList();
+            recipes = BalanceDocument.hash(ids.toString());
+            BalancePerformance.count("fingerprint_recipes", ids.size());
+        }
+        String tags;
+        try (var phase = BalancePerformance.phase("fingerprint_tag_members")) {
+            tags = BalanceDocument.hash(tagIdentity(BuiltInRegistries.ITEM) + tagIdentity(BuiltInRegistries.BLOCK));
+        }
+        BalancePerformance.count("fingerprint_mods", mods.size());
+        BalancePerformance.flag("identity_rescanned", true);
         JsonObject identity = new JsonObject();
         identity.add("mods", BalanceDocument.GSON.toJsonTree(mods));
         identity.addProperty("minecraft", minecraft);

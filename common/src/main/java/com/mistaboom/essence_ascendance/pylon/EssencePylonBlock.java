@@ -25,9 +25,8 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
-import net.minecraft.world.phys.AABB;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -40,6 +39,8 @@ public final class EssencePylonBlock extends Block implements EntityBlock {
     public static final BooleanProperty FOCUS_LIT = BooleanProperty.create("focus_lit");
     /** Direction from the attached base/support side toward the tower tip and Focus. */
     public static final DirectionProperty FACING = BlockStateProperties.FACING;
+    /** Quarter-turn twist around FACING; zero preserves the appearance of existing saves. */
+    public static final IntegerProperty ROLL = IntegerProperty.create("roll", 0, 3);
 
     /* Exact 1/16-voxel decomposition of the authored Blockbench mesh. */
     private static final VoxelShape SHAPE = Shapes.or(
@@ -62,34 +63,50 @@ public final class EssencePylonBlock extends Block implements EntityBlock {
             Block.box(5.0D, 14.0D, 4.0D, 12.0D, 16.0D, 5.0D),
             Block.box(11.0D, 14.0D, 5.0D, 12.0D, 16.0D, 7.0D)
     );
-    private static final Map<Direction, VoxelShape> SHAPES = directionalShapes();
+    private static final Map<Direction, VoxelShape[]> SHAPES = directionalShapes();
 
     public EssencePylonBlock(Properties properties) {
         super(properties);
         registerDefaultState(stateDefinition.any()
                 .setValue(FACING, Direction.UP)
+                .setValue(ROLL, 0)
                 .setValue(FOCUS_LIT, false));
     }
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING, FOCUS_LIT);
+        builder.add(FACING, ROLL, FOCUS_LIT);
     }
 
     @Nullable
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
-        return defaultBlockState().setValue(FACING, context.getClickedFace());
+        Direction axis = context.getClickedFace();
+        // Pick the strongest player-look component in the attachment plane. Looking
+        // straight into a wall still has a deterministic perpendicular fallback.
+        for (Direction look : context.getNearestLookingDirections()) {
+            if (look.getAxis() != axis.getAxis()) {
+                return defaultBlockState().setValue(FACING, axis)
+                        .setValue(ROLL, PylonLocalFrame.rollForForward(axis, look.getOpposite()));
+            }
+        }
+        return defaultBlockState().setValue(FACING, axis);
     }
 
     @Override
     protected BlockState rotate(BlockState state, Rotation rotation) {
-        return state.setValue(FACING, rotation.rotate(state.getValue(FACING)));
+        PylonLocalFrame frame = PylonLocalFrame.of(state);
+        Direction axis = rotation.rotate(frame.direction());
+        return state.setValue(FACING, axis).setValue(ROLL,
+                PylonLocalFrame.rollForForward(axis, rotation.rotate(frame.forwardDirection())));
     }
 
     @Override
     protected BlockState mirror(BlockState state, Mirror mirror) {
-        return state.rotate(mirror.getRotation(state.getValue(FACING)));
+        PylonLocalFrame frame = PylonLocalFrame.of(state);
+        Direction axis = mirror.mirror(frame.direction());
+        return state.setValue(FACING, axis).setValue(ROLL,
+                PylonLocalFrame.rollForForward(axis, mirror.mirror(frame.forwardDirection())));
     }
 
     @Override
@@ -99,26 +116,17 @@ public final class EssencePylonBlock extends Block implements EntityBlock {
             BlockPos pos,
             CollisionContext context
     ) {
-        return SHAPES.get(state.getValue(FACING));
+        return SHAPES.get(state.getValue(FACING))[state.getValue(ROLL)];
     }
 
-    private static Map<Direction, VoxelShape> directionalShapes() {
-        Map<Direction, VoxelShape> shapes = new EnumMap<>(Direction.class);
+    private static Map<Direction, VoxelShape[]> directionalShapes() {
+        Map<Direction, VoxelShape[]> shapes = new EnumMap<>(Direction.class);
         for (Direction direction : Direction.values()) {
-            PylonLocalFrame frame = PylonLocalFrame.of(direction);
-            VoxelShape shape = Shapes.empty();
-            for (AABB box : SHAPE.toAabbs()) {
-                Vec3 first = frame.localToBlock(new Vec3(box.minX, box.minY, box.minZ));
-                Vec3 second = frame.localToBlock(new Vec3(box.maxX, box.maxY, box.maxZ));
-                shape = Shapes.or(shape, Block.box(
-                        Math.min(first.x, second.x) * 16.0,
-                        Math.min(first.y, second.y) * 16.0,
-                        Math.min(first.z, second.z) * 16.0,
-                        Math.max(first.x, second.x) * 16.0,
-                        Math.max(first.y, second.y) * 16.0,
-                        Math.max(first.z, second.z) * 16.0));
+            VoxelShape[] rolls = new VoxelShape[4];
+            for (int roll = 0; roll < 4; roll++) {
+                rolls[roll] = PylonLocalFrame.of(direction, roll).transformShape(SHAPE);
             }
-            shapes.put(direction, shape.optimize());
+            shapes.put(direction, rolls);
         }
         return shapes;
     }

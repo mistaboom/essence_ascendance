@@ -917,7 +917,7 @@
   "command.essence_ascendance.balance.rebuilt": "Generated balance installed with %s dissolution mappings. Diagnostics were requested; check the server log for export errors.",
   "command.essence_ascendance.balance.exported": "Saved report, CSV diagnostics and pack metadata to %s. No analysis was rerun.",
   "command.essence_ascendance.balance.error": "Balance diagnostic failed: %s",
-  "command.essence_ascendance.balance.details": "Full evidence and resolved values are in generated_balance.json and balance_report.md.",
+  "command.essence_ascendance.balance.details": "Full evidence and resolved values are in generated_balance.json.gz and balance_report.md.",
   "gui.essence_ascendance.nexus.attunement.title": "Attunement Constellation",
   "gui.essence_ascendance.nexus.attunement.percent": "%s%%",
   "gui.essence_ascendance.nexus.attunement.seals": "%s / %s category seals complete",

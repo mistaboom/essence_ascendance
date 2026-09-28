@@ -554,14 +554,24 @@ public final class EquipmentTooltipClientState {
 
 
     public static void clear() {
+        int previousEntries = LINES_BY_ITEM.size();
+        clear(() -> JeiTooltipSearchRefreshBridge.requestRefresh("equipment-cleared", previousEntries));
+    }
+
+    static void clear(Runnable refreshSearch) {
+        boolean changed = !LINES_BY_ITEM.isEmpty();
         LINES_BY_ITEM = Map.of();
         GUARDED_MOVEMENT_BY_ITEM = Map.of();
-        JeiTooltipSearchRefreshBridge.requestRefresh();
+        if (changed) refreshSearch.run();
     }
 
     private static void accept(
             EquipmentTooltipPayload payload
     ) {
+        accept(payload, () -> JeiTooltipSearchRefreshBridge.requestRefresh("equipment-snapshot", payload.entries().size()));
+    }
+
+    static void accept(EquipmentTooltipPayload payload, Runnable refreshSearch) {
         Map<String, List<EquipmentTooltipPayload.Line>> next =
                 new LinkedHashMap<>();
 
@@ -573,6 +583,8 @@ public final class EquipmentTooltipClientState {
             }
         }
 
+        // Movement state still updates even if searchable semantic lines are identical.
+        boolean changed = !LINES_BY_ITEM.equals(next);
         GUARDED_MOVEMENT_BY_ITEM = Map.copyOf(movement);
         LINES_BY_ITEM =
                 Map.copyOf(
@@ -585,6 +597,6 @@ public final class EquipmentTooltipClientState {
          * player-aware tooltip snapshot has changed. If JEI has not initialized
          * yet, its normal initial index build will see this state later.
          */
-        JeiTooltipSearchRefreshBridge.requestRefresh();
+        if (changed) refreshSearch.run();
     }
 }

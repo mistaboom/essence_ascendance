@@ -24,6 +24,10 @@ public final class EssenceAscendanceFabric implements ModInitializer {
 
         // Run our common setup.
         EssenceAscendance.init();
+        for (var tab : com.mistaboom.essence_ascendance.item.CreativeVariantRegistry.tabs()) {
+            net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents.modifyEntriesEvent(tab).register(entries ->
+                    com.mistaboom.essence_ascendance.item.CreativeVariantRegistry.append(tab, entries));
+        }
 
         BiomeModifications.addFeature(
                 BiomeSelectors.all(),

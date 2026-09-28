@@ -1,0 +1,2424 @@
+{
+  "forward": {
+    "minecraft:apple": {
+      "confidence": 0.97,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [],
+      "downstreamMultiplier": 1.0,
+      "downstreamRecipeCount": 0,
+      "factors": [
+        "Bucket: food tag/component",
+        "Acquisition path: cheapest loaded recipe fixture:r070 -> 8 Essence/output",
+        "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 1",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: no loaded non-conservation recipes consume this item",
+        "Nomenclature hint [registry_path]: food:apple (routing only; no price, tier, rarity or acquisition-confidence boost)",
+        "Essence routing: structured_function + name_hint + dominant_categories; routing confidence HIGH",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 55,
+      "itemId": "minecraft:apple",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 6,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 1,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 2,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r070",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 1,
+        "valuePerOutput": 8
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:vitality": 39
+      },
+      "routingDiagnostics": {
+        "confidence": "HIGH",
+        "evidence": [
+          "structured_function",
+          "name_hint",
+          "dominant_categories"
+        ],
+        "nameHintSource": "registry_path",
+        "nameHints": [
+          "food:apple"
+        ],
+        "structuredSignals": [
+          "food_tag/component"
+        ]
+      },
+      "significantDownstreamRecipeCount": 0,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 39
+    },
+    "minecraft:bow": {
+      "confidence": 0.97,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [],
+      "downstreamMultiplier": 1.0,
+      "downstreamRecipeCount": 0,
+      "factors": [
+        "Shape: weapon class",
+        "Acquisition path: cheapest loaded recipe fixture:r030 -> 17 Essence/output",
+        "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 1",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: no loaded non-conservation recipes consume this item",
+        "Nomenclature hint [registry_path]: weapon:bow (routing only; no price, tier, rarity or acquisition-confidence boost)",
+        "Essence routing: structured_function + name_hint + dominant_categories; routing confidence HIGH",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 280,
+      "itemId": "minecraft:bow",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 6,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 1,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 1,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r030",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 1,
+        "valuePerOutput": 17
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 196
+      },
+      "routingDiagnostics": {
+        "confidence": "HIGH",
+        "evidence": [
+          "structured_function",
+          "name_hint",
+          "dominant_categories"
+        ],
+        "nameHintSource": "registry_path",
+        "nameHints": [
+          "weapon:bow"
+        ],
+        "structuredSignals": [
+          "ranged_weapon/projectile"
+        ]
+      },
+      "significantDownstreamRecipeCount": 0,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 196
+    },
+    "minecraft:brick": {
+      "confidence": 0.96,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [
+        "minecraft:brick",
+        "minecraft:clay_ball",
+        "minecraft:paper",
+        "minecraft:flint",
+        "minecraft:charcoal",
+        "minecraft:echo_shard"
+      ],
+      "downstreamMultiplier": 1.32,
+      "downstreamRecipeCount": 125,
+      "factors": [
+        "Acquisition path: cheapest loaded recipe fixture:r000 -> 17 Essence/output",
+        "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 1",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: 125 recipe(s), 13 significant, 0 cross-mod -> x1.320",
+        "Essence routing: downstream_recipes + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 24,
+      "itemId": "minecraft:brick",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 7,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 1,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 1,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r000",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 1,
+        "valuePerOutput": 17
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 16,
+        "essence_ascendance:vitality": 6
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "downstream_recipes",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 13,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 22
+    },
+    "minecraft:charcoal": {
+      "confidence": 0.96,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [
+        "minecraft:brick",
+        "minecraft:clay_ball",
+        "minecraft:paper",
+        "minecraft:flint",
+        "minecraft:charcoal",
+        "minecraft:echo_shard"
+      ],
+      "downstreamMultiplier": 1.32,
+      "downstreamRecipeCount": 125,
+      "factors": [
+        "Acquisition path: cheapest loaded recipe fixture:r080 -> 6 Essence/output",
+        "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 1",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: 125 recipe(s), 13 significant, 0 cross-mod -> x1.320",
+        "Essence routing: downstream_recipes + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 24,
+      "itemId": "minecraft:charcoal",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 7,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 1,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 3,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r080",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 1,
+        "valuePerOutput": 6
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 16,
+        "essence_ascendance:vitality": 6
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "downstream_recipes",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 13,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 22
+    },
+    "minecraft:clay_ball": {
+      "confidence": 0.8600000000000001,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [
+        "minecraft:brick",
+        "minecraft:clay_ball",
+        "minecraft:paper",
+        "minecraft:flint",
+        "minecraft:charcoal",
+        "minecraft:echo_shard"
+      ],
+      "downstreamMultiplier": 1.32,
+      "downstreamRecipeCount": 125,
+      "factors": [
+        "Factual source/economic override applied before recipe graph relaxation",
+        "Acquisition path: recognized direct source is cheaper than loaded recipes -> 8",
+        "Downstream demand: 125 recipe(s), 13 significant, 0 cross-mod -> x1.320",
+        "Essence routing: downstream_recipes + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 24,
+      "itemId": "minecraft:clay_ball",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 7,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 8,
+        "essence_ascendance:vitality": 3
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "downstream_recipes",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 13,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 11
+    },
+    "minecraft:diamond_sword": {
+      "confidence": 0.97,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [],
+      "downstreamMultiplier": 1.0,
+      "downstreamRecipeCount": 0,
+      "factors": [
+        "Shape: weapon class",
+        "Acquisition path: cheapest loaded recipe fixture:r010 -> 8 Essence/output",
+        "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 1",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: no loaded non-conservation recipes consume this item",
+        "Nomenclature hint [registry_path]: weapon:sword (routing only; no price, tier, rarity or acquisition-confidence boost)",
+        "Essence routing: structured_function + name_hint + dominant_categories; routing confidence HIGH",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 280,
+      "itemId": "minecraft:diamond_sword",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 7,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 1,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 2,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r010",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 1,
+        "valuePerOutput": 8
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 196
+      },
+      "routingDiagnostics": {
+        "confidence": "HIGH",
+        "evidence": [
+          "structured_function",
+          "name_hint",
+          "dominant_categories"
+        ],
+        "nameHintSource": "registry_path",
+        "nameHints": [
+          "weapon:sword"
+        ],
+        "structuredSignals": [
+          "melee_weapon"
+        ]
+      },
+      "significantDownstreamRecipeCount": 0,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 196
+    },
+    "minecraft:echo_shard": {
+      "confidence": 0.96,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [
+        "minecraft:brick",
+        "minecraft:clay_ball",
+        "minecraft:paper",
+        "minecraft:flint",
+        "minecraft:charcoal",
+        "minecraft:echo_shard"
+      ],
+      "downstreamMultiplier": 1.32,
+      "downstreamRecipeCount": 125,
+      "factors": [
+        "Acquisition path: cheapest loaded recipe fixture:r100 -> 8 Essence/output",
+        "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 1",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: 125 recipe(s), 13 significant, 0 cross-mod -> x1.320",
+        "Essence routing: downstream_recipes + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 24,
+      "itemId": "minecraft:echo_shard",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 7,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 1,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 2,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r100",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 1,
+        "valuePerOutput": 8
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 16,
+        "essence_ascendance:vitality": 6
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "downstream_recipes",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 13,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 22
+    },
+    "minecraft:emerald": {
+      "confidence": 0.9,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [],
+      "downstreamMultiplier": 1.0,
+      "downstreamRecipeCount": 0,
+      "factors": [
+        "Acquisition path: cheapest loaded recipe fixture:r110 -> 6 Essence/output",
+        "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 1",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: no loaded non-conservation recipes consume this item",
+        "Essence routing: recipe_composition + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 24,
+      "itemId": "minecraft:emerald",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 6,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 1,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 3,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r110",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 1,
+        "valuePerOutput": 6
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 12,
+        "essence_ascendance:vitality": 5
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "recipe_composition",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 0,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 17
+    },
+    "minecraft:flint": {
+      "confidence": 0.96,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [
+        "minecraft:brick",
+        "minecraft:clay_ball",
+        "minecraft:paper",
+        "minecraft:flint",
+        "minecraft:charcoal",
+        "minecraft:echo_shard"
+      ],
+      "downstreamMultiplier": 1.32,
+      "downstreamRecipeCount": 125,
+      "factors": [
+        "Acquisition path: cheapest loaded recipe fixture:r060 -> 17 Essence/output",
+        "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 1",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: 125 recipe(s), 13 significant, 0 cross-mod -> x1.320",
+        "Essence routing: downstream_recipes + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 24,
+      "itemId": "minecraft:flint",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 7,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 1,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 1,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r060",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 1,
+        "valuePerOutput": 17
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 16,
+        "essence_ascendance:vitality": 6
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "downstream_recipes",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 13,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 22
+    },
+    "minecraft:gunpowder": {
+      "confidence": 0.96,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [
+        "minecraft:brick",
+        "minecraft:clay_ball",
+        "minecraft:paper",
+        "minecraft:flint",
+        "minecraft:charcoal",
+        "minecraft:echo_shard"
+      ],
+      "downstreamMultiplier": 1.32,
+      "downstreamRecipeCount": 125,
+      "factors": [
+        "Acquisition path: cheapest loaded recipe fixture:r104 -> 9 Essence/output",
+        "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 2",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: 125 recipe(s), 13 significant, 0 cross-mod -> x1.320",
+        "Essence routing: downstream_recipes + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 24,
+      "itemId": "minecraft:gunpowder",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 7,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 2,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 3,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r104",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 2,
+        "valuePerOutput": 9
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 16,
+        "essence_ascendance:vitality": 6
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "downstream_recipes",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 13,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 22
+    },
+    "minecraft:iron_block": {
+      "confidence": 0.9,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [],
+      "downstreamMultiplier": 1.0,
+      "downstreamRecipeCount": 0,
+      "factors": [
+        "Shape: block item baseline",
+        "Acquisition path: cheapest loaded recipe fixture:r113 -> 9 Essence/output",
+        "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 2",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: no loaded non-conservation recipes consume this item",
+        "Essence routing: recipe_composition + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 32,
+      "itemId": "minecraft:iron_block",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 6,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 2,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 3,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r113",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 2,
+        "valuePerOutput": 9
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 16,
+        "essence_ascendance:vitality": 6
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "recipe_composition",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 0,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 22
+    },
+    "minecraft:iron_ingot": {
+      "confidence": 0.9,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [],
+      "downstreamMultiplier": 1.0,
+      "downstreamRecipeCount": 0,
+      "factors": [
+        "Acquisition path: cheapest loaded recipe fixture:r035 -> 9 Essence/output",
+        "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 2",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: no loaded non-conservation recipes consume this item",
+        "Essence routing: recipe_composition + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 24,
+      "itemId": "minecraft:iron_ingot",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 6,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 2,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 3,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r035",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 2,
+        "valuePerOutput": 9
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 12,
+        "essence_ascendance:vitality": 5
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "recipe_composition",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 0,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 17
+    },
+    "minecraft:iron_nugget": {
+      "confidence": 0.9,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [],
+      "downstreamMultiplier": 1.0,
+      "downstreamRecipeCount": 0,
+      "factors": [
+        "Acquisition path: cheapest loaded recipe fixture:r074 -> 9 Essence/output",
+        "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 2",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: no loaded non-conservation recipes consume this item",
+        "Essence routing: recipe_composition + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 24,
+      "itemId": "minecraft:iron_nugget",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 6,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 2,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 3,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r074",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 2,
+        "valuePerOutput": 9
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 12,
+        "essence_ascendance:vitality": 5
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "recipe_composition",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 0,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 17
+    },
+    "minecraft:iron_pickaxe": {
+      "confidence": 0.97,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [],
+      "downstreamMultiplier": 1.0,
+      "downstreamRecipeCount": 0,
+      "factors": [
+        "Bucket: harvesting tool tag/runtime class",
+        "Acquisition path: cheapest loaded recipe fixture:r090 -> 17 Essence/output",
+        "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 1",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: no loaded non-conservation recipes consume this item",
+        "Nomenclature hint [registry_path]: harvesting:pickaxe (routing only; no price, tier, rarity or acquisition-confidence boost)",
+        "Essence routing: structured_function + name_hint + dominant_categories; routing confidence HIGH",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 240,
+      "itemId": "minecraft:iron_pickaxe",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 6,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 1,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 1,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r090",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 1,
+        "valuePerOutput": 17
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:gathering": 168
+      },
+      "routingDiagnostics": {
+        "confidence": "HIGH",
+        "evidence": [
+          "structured_function",
+          "name_hint",
+          "dominant_categories"
+        ],
+        "nameHintSource": "registry_path",
+        "nameHints": [
+          "harvesting:pickaxe"
+        ],
+        "structuredSignals": [
+          "harvesting_tool"
+        ]
+      },
+      "significantDownstreamRecipeCount": 0,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 168
+    },
+    "minecraft:nautilus_shell": {
+      "confidence": 0.96,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [
+        "minecraft:brick",
+        "minecraft:clay_ball",
+        "minecraft:paper",
+        "minecraft:flint",
+        "minecraft:charcoal",
+        "minecraft:echo_shard"
+      ],
+      "downstreamMultiplier": 1.32,
+      "downstreamRecipeCount": 125,
+      "factors": [
+        "Acquisition path: cheapest loaded recipe fixture:r065 -> 9 Essence/output",
+        "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 2",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: 125 recipe(s), 13 significant, 0 cross-mod -> x1.320",
+        "Essence routing: downstream_recipes + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 24,
+      "itemId": "minecraft:nautilus_shell",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 7,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 2,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 3,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r065",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 2,
+        "valuePerOutput": 9
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 16,
+        "essence_ascendance:vitality": 6
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "downstream_recipes",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 13,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 22
+    },
+    "minecraft:paper": {
+      "confidence": 0.96,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [
+        "minecraft:brick",
+        "minecraft:clay_ball",
+        "minecraft:paper",
+        "minecraft:flint",
+        "minecraft:charcoal",
+        "minecraft:echo_shard"
+      ],
+      "downstreamMultiplier": 1.32,
+      "downstreamRecipeCount": 125,
+      "factors": [
+        "Acquisition path: cheapest loaded recipe fixture:r040 -> 8 Essence/output",
+        "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 1",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: 125 recipe(s), 13 significant, 0 cross-mod -> x1.320",
+        "Essence routing: downstream_recipes + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 24,
+      "itemId": "minecraft:paper",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 7,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 1,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 2,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r040",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 1,
+        "valuePerOutput": 8
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 16,
+        "essence_ascendance:vitality": 6
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "downstream_recipes",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 13,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 22
+    },
+    "minecraft:popped_chorus_fruit": {
+      "confidence": 0.96,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [
+        "minecraft:brick",
+        "minecraft:clay_ball",
+        "minecraft:paper",
+        "minecraft:flint",
+        "minecraft:charcoal",
+        "minecraft:echo_shard"
+      ],
+      "downstreamMultiplier": 1.32,
+      "downstreamRecipeCount": 125,
+      "factors": [
+        "Progression/source: End-native identity heuristic -> x1.700",
+        "Acquisition path: cheapest loaded recipe fixture:r083 -> 9 Essence/output",
+        "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 2",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: 125 recipe(s), 13 significant, 0 cross-mod -> x1.320",
+        "Essence routing: downstream_recipes + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 41,
+      "itemId": "minecraft:popped_chorus_fruit",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 7,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 2,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 3,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r083",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 2,
+        "valuePerOutput": 9
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 27,
+        "essence_ascendance:vitality": 11
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "downstream_recipes",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 13,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 38
+    },
+    "minecraft:prismarine_shard": {
+      "confidence": 0.96,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [
+        "minecraft:brick",
+        "minecraft:clay_ball",
+        "minecraft:paper",
+        "minecraft:flint",
+        "minecraft:charcoal",
+        "minecraft:echo_shard"
+      ],
+      "downstreamMultiplier": 1.32,
+      "downstreamRecipeCount": 125,
+      "factors": [
+        "Acquisition path: cheapest loaded recipe fixture:r120 -> 17 Essence/output",
+        "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 1",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: 125 recipe(s), 13 significant, 0 cross-mod -> x1.320",
+        "Essence routing: downstream_recipes + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 24,
+      "itemId": "minecraft:prismarine_shard",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 7,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 1,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 1,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r120",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 1,
+        "valuePerOutput": 17
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 16,
+        "essence_ascendance:vitality": 6
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "downstream_recipes",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 13,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 22
+    },
+    "minecraft:shield": {
+      "confidence": 0.97,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [],
+      "downstreamMultiplier": 1.0,
+      "downstreamRecipeCount": 0,
+      "factors": [
+        "Bucket: armor/equipment",
+        "Acquisition path: cheapest loaded recipe fixture:r050 -> 6 Essence/output",
+        "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 1",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: no loaded non-conservation recipes consume this item",
+        "Nomenclature hint [registry_path]: armor:shield (routing only; no price, tier, rarity or acquisition-confidence boost)",
+        "Essence routing: structured_function + name_hint + dominant_categories; routing confidence HIGH",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 300,
+      "itemId": "minecraft:shield",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 6,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 1,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 3,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r050",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 1,
+        "valuePerOutput": 6
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:defense": 210
+      },
+      "routingDiagnostics": {
+        "confidence": "HIGH",
+        "evidence": [
+          "structured_function",
+          "name_hint",
+          "dominant_categories"
+        ],
+        "nameHintSource": "registry_path",
+        "nameHints": [
+          "armor:shield"
+        ],
+        "structuredSignals": [
+          "shield"
+        ]
+      },
+      "significantDownstreamRecipeCount": 0,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 210
+    }
+  },
+  "reverse": {
+    "minecraft:apple": {
+      "confidence": 0.97,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [],
+      "downstreamMultiplier": 1.0,
+      "downstreamRecipeCount": 0,
+      "factors": [
+        "Bucket: food tag/component",
+        "Acquisition path: cheapest loaded recipe fixture:r070 -> 8 Essence/output",
+        "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 1",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: no loaded non-conservation recipes consume this item",
+        "Nomenclature hint [registry_path]: food:apple (routing only; no price, tier, rarity or acquisition-confidence boost)",
+        "Essence routing: structured_function + name_hint + dominant_categories; routing confidence HIGH",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 55,
+      "itemId": "minecraft:apple",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 6,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 1,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 2,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r070",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 1,
+        "valuePerOutput": 8
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:vitality": 39
+      },
+      "routingDiagnostics": {
+        "confidence": "HIGH",
+        "evidence": [
+          "structured_function",
+          "name_hint",
+          "dominant_categories"
+        ],
+        "nameHintSource": "registry_path",
+        "nameHints": [
+          "food:apple"
+        ],
+        "structuredSignals": [
+          "food_tag/component"
+        ]
+      },
+      "significantDownstreamRecipeCount": 0,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 39
+    },
+    "minecraft:bow": {
+      "confidence": 0.97,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [],
+      "downstreamMultiplier": 1.0,
+      "downstreamRecipeCount": 0,
+      "factors": [
+        "Shape: weapon class",
+        "Acquisition path: cheapest loaded recipe fixture:r030 -> 17 Essence/output",
+        "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 1",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: no loaded non-conservation recipes consume this item",
+        "Nomenclature hint [registry_path]: weapon:bow (routing only; no price, tier, rarity or acquisition-confidence boost)",
+        "Essence routing: structured_function + name_hint + dominant_categories; routing confidence HIGH",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 280,
+      "itemId": "minecraft:bow",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 6,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 1,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 1,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r030",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 1,
+        "valuePerOutput": 17
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 196
+      },
+      "routingDiagnostics": {
+        "confidence": "HIGH",
+        "evidence": [
+          "structured_function",
+          "name_hint",
+          "dominant_categories"
+        ],
+        "nameHintSource": "registry_path",
+        "nameHints": [
+          "weapon:bow"
+        ],
+        "structuredSignals": [
+          "ranged_weapon/projectile"
+        ]
+      },
+      "significantDownstreamRecipeCount": 0,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 196
+    },
+    "minecraft:brick": {
+      "confidence": 0.96,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [
+        "minecraft:brick",
+        "minecraft:clay_ball",
+        "minecraft:paper",
+        "minecraft:flint",
+        "minecraft:charcoal",
+        "minecraft:echo_shard"
+      ],
+      "downstreamMultiplier": 1.32,
+      "downstreamRecipeCount": 125,
+      "factors": [
+        "Acquisition path: cheapest loaded recipe fixture:r000 -> 17 Essence/output",
+        "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 1",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: 125 recipe(s), 13 significant, 0 cross-mod -> x1.320",
+        "Essence routing: downstream_recipes + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 24,
+      "itemId": "minecraft:brick",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 7,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 1,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 1,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r000",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 1,
+        "valuePerOutput": 17
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 16,
+        "essence_ascendance:vitality": 6
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "downstream_recipes",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 13,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 22
+    },
+    "minecraft:charcoal": {
+      "confidence": 0.96,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [
+        "minecraft:brick",
+        "minecraft:clay_ball",
+        "minecraft:paper",
+        "minecraft:flint",
+        "minecraft:charcoal",
+        "minecraft:echo_shard"
+      ],
+      "downstreamMultiplier": 1.32,
+      "downstreamRecipeCount": 125,
+      "factors": [
+        "Acquisition path: cheapest loaded recipe fixture:r080 -> 6 Essence/output",
+        "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 1",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: 125 recipe(s), 13 significant, 0 cross-mod -> x1.320",
+        "Essence routing: downstream_recipes + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 24,
+      "itemId": "minecraft:charcoal",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 7,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 1,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 3,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r080",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 1,
+        "valuePerOutput": 6
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 16,
+        "essence_ascendance:vitality": 6
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "downstream_recipes",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 13,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 22
+    },
+    "minecraft:clay_ball": {
+      "confidence": 0.8600000000000001,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [
+        "minecraft:brick",
+        "minecraft:clay_ball",
+        "minecraft:paper",
+        "minecraft:flint",
+        "minecraft:charcoal",
+        "minecraft:echo_shard"
+      ],
+      "downstreamMultiplier": 1.32,
+      "downstreamRecipeCount": 125,
+      "factors": [
+        "Factual source/economic override applied before recipe graph relaxation",
+        "Acquisition path: recognized direct source is cheaper than loaded recipes -> 8",
+        "Downstream demand: 125 recipe(s), 13 significant, 0 cross-mod -> x1.320",
+        "Essence routing: downstream_recipes + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 24,
+      "itemId": "minecraft:clay_ball",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 7,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 8,
+        "essence_ascendance:vitality": 3
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "downstream_recipes",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 13,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 11
+    },
+    "minecraft:diamond_sword": {
+      "confidence": 0.97,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [],
+      "downstreamMultiplier": 1.0,
+      "downstreamRecipeCount": 0,
+      "factors": [
+        "Shape: weapon class",
+        "Acquisition path: cheapest loaded recipe fixture:r010 -> 8 Essence/output",
+        "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 1",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: no loaded non-conservation recipes consume this item",
+        "Nomenclature hint [registry_path]: weapon:sword (routing only; no price, tier, rarity or acquisition-confidence boost)",
+        "Essence routing: structured_function + name_hint + dominant_categories; routing confidence HIGH",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 280,
+      "itemId": "minecraft:diamond_sword",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 7,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 1,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 2,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r010",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 1,
+        "valuePerOutput": 8
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 196
+      },
+      "routingDiagnostics": {
+        "confidence": "HIGH",
+        "evidence": [
+          "structured_function",
+          "name_hint",
+          "dominant_categories"
+        ],
+        "nameHintSource": "registry_path",
+        "nameHints": [
+          "weapon:sword"
+        ],
+        "structuredSignals": [
+          "melee_weapon"
+        ]
+      },
+      "significantDownstreamRecipeCount": 0,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 196
+    },
+    "minecraft:echo_shard": {
+      "confidence": 0.96,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [
+        "minecraft:brick",
+        "minecraft:clay_ball",
+        "minecraft:paper",
+        "minecraft:flint",
+        "minecraft:charcoal",
+        "minecraft:echo_shard"
+      ],
+      "downstreamMultiplier": 1.32,
+      "downstreamRecipeCount": 125,
+      "factors": [
+        "Acquisition path: cheapest loaded recipe fixture:r100 -> 8 Essence/output",
+        "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 1",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: 125 recipe(s), 13 significant, 0 cross-mod -> x1.320",
+        "Essence routing: downstream_recipes + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 24,
+      "itemId": "minecraft:echo_shard",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 7,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 1,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 2,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r100",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 1,
+        "valuePerOutput": 8
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 16,
+        "essence_ascendance:vitality": 6
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "downstream_recipes",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 13,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 22
+    },
+    "minecraft:emerald": {
+      "confidence": 0.9,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [],
+      "downstreamMultiplier": 1.0,
+      "downstreamRecipeCount": 0,
+      "factors": [
+        "Acquisition path: cheapest loaded recipe fixture:r110 -> 6 Essence/output",
+        "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 1",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: no loaded non-conservation recipes consume this item",
+        "Essence routing: recipe_composition + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 24,
+      "itemId": "minecraft:emerald",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 6,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 1,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 3,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r110",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 1,
+        "valuePerOutput": 6
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 12,
+        "essence_ascendance:vitality": 5
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "recipe_composition",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 0,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 17
+    },
+    "minecraft:flint": {
+      "confidence": 0.96,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [
+        "minecraft:brick",
+        "minecraft:clay_ball",
+        "minecraft:paper",
+        "minecraft:flint",
+        "minecraft:charcoal",
+        "minecraft:echo_shard"
+      ],
+      "downstreamMultiplier": 1.32,
+      "downstreamRecipeCount": 125,
+      "factors": [
+        "Acquisition path: cheapest loaded recipe fixture:r060 -> 17 Essence/output",
+        "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 1",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: 125 recipe(s), 13 significant, 0 cross-mod -> x1.320",
+        "Essence routing: downstream_recipes + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 24,
+      "itemId": "minecraft:flint",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 7,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 1,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 1,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r060",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 1,
+        "valuePerOutput": 17
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 16,
+        "essence_ascendance:vitality": 6
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "downstream_recipes",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 13,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 22
+    },
+    "minecraft:gunpowder": {
+      "confidence": 0.96,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [
+        "minecraft:brick",
+        "minecraft:clay_ball",
+        "minecraft:paper",
+        "minecraft:flint",
+        "minecraft:charcoal",
+        "minecraft:echo_shard"
+      ],
+      "downstreamMultiplier": 1.32,
+      "downstreamRecipeCount": 125,
+      "factors": [
+        "Acquisition path: cheapest loaded recipe fixture:r104 -> 9 Essence/output",
+        "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 2",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: 125 recipe(s), 13 significant, 0 cross-mod -> x1.320",
+        "Essence routing: downstream_recipes + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 24,
+      "itemId": "minecraft:gunpowder",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 7,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 2,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 3,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r104",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 2,
+        "valuePerOutput": 9
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 16,
+        "essence_ascendance:vitality": 6
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "downstream_recipes",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 13,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 22
+    },
+    "minecraft:iron_block": {
+      "confidence": 0.9,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [],
+      "downstreamMultiplier": 1.0,
+      "downstreamRecipeCount": 0,
+      "factors": [
+        "Shape: block item baseline",
+        "Acquisition path: cheapest loaded recipe fixture:r113 -> 9 Essence/output",
+        "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 2",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: no loaded non-conservation recipes consume this item",
+        "Essence routing: recipe_composition + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 32,
+      "itemId": "minecraft:iron_block",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 6,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 2,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 3,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r113",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 2,
+        "valuePerOutput": 9
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 16,
+        "essence_ascendance:vitality": 6
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "recipe_composition",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 0,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 22
+    },
+    "minecraft:iron_ingot": {
+      "confidence": 0.9,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [],
+      "downstreamMultiplier": 1.0,
+      "downstreamRecipeCount": 0,
+      "factors": [
+        "Acquisition path: cheapest loaded recipe fixture:r035 -> 9 Essence/output",
+        "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 2",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: no loaded non-conservation recipes consume this item",
+        "Essence routing: recipe_composition + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 24,
+      "itemId": "minecraft:iron_ingot",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 6,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 2,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 3,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r035",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 2,
+        "valuePerOutput": 9
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 12,
+        "essence_ascendance:vitality": 5
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "recipe_composition",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 0,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 17
+    },
+    "minecraft:iron_nugget": {
+      "confidence": 0.9,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [],
+      "downstreamMultiplier": 1.0,
+      "downstreamRecipeCount": 0,
+      "factors": [
+        "Acquisition path: cheapest loaded recipe fixture:r074 -> 9 Essence/output",
+        "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 2",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: no loaded non-conservation recipes consume this item",
+        "Essence routing: recipe_composition + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 24,
+      "itemId": "minecraft:iron_nugget",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 6,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 2,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 3,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r074",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 2,
+        "valuePerOutput": 9
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 12,
+        "essence_ascendance:vitality": 5
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "recipe_composition",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 0,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 17
+    },
+    "minecraft:iron_pickaxe": {
+      "confidence": 0.97,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [],
+      "downstreamMultiplier": 1.0,
+      "downstreamRecipeCount": 0,
+      "factors": [
+        "Bucket: harvesting tool tag/runtime class",
+        "Acquisition path: cheapest loaded recipe fixture:r090 -> 17 Essence/output",
+        "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 1",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: no loaded non-conservation recipes consume this item",
+        "Nomenclature hint [registry_path]: harvesting:pickaxe (routing only; no price, tier, rarity or acquisition-confidence boost)",
+        "Essence routing: structured_function + name_hint + dominant_categories; routing confidence HIGH",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 240,
+      "itemId": "minecraft:iron_pickaxe",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 6,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 1,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 1,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r090",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 1,
+        "valuePerOutput": 17
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:gathering": 168
+      },
+      "routingDiagnostics": {
+        "confidence": "HIGH",
+        "evidence": [
+          "structured_function",
+          "name_hint",
+          "dominant_categories"
+        ],
+        "nameHintSource": "registry_path",
+        "nameHints": [
+          "harvesting:pickaxe"
+        ],
+        "structuredSignals": [
+          "harvesting_tool"
+        ]
+      },
+      "significantDownstreamRecipeCount": 0,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 168
+    },
+    "minecraft:nautilus_shell": {
+      "confidence": 0.96,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [
+        "minecraft:brick",
+        "minecraft:clay_ball",
+        "minecraft:paper",
+        "minecraft:flint",
+        "minecraft:charcoal",
+        "minecraft:echo_shard"
+      ],
+      "downstreamMultiplier": 1.32,
+      "downstreamRecipeCount": 125,
+      "factors": [
+        "Acquisition path: cheapest loaded recipe fixture:r065 -> 9 Essence/output",
+        "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 2",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: 125 recipe(s), 13 significant, 0 cross-mod -> x1.320",
+        "Essence routing: downstream_recipes + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 24,
+      "itemId": "minecraft:nautilus_shell",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 7,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 2,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 3,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r065",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 2,
+        "valuePerOutput": 9
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 16,
+        "essence_ascendance:vitality": 6
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "downstream_recipes",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 13,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 22
+    },
+    "minecraft:paper": {
+      "confidence": 0.96,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [
+        "minecraft:brick",
+        "minecraft:clay_ball",
+        "minecraft:paper",
+        "minecraft:flint",
+        "minecraft:charcoal",
+        "minecraft:echo_shard"
+      ],
+      "downstreamMultiplier": 1.32,
+      "downstreamRecipeCount": 125,
+      "factors": [
+        "Acquisition path: cheapest loaded recipe fixture:r040 -> 8 Essence/output",
+        "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 1",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: 125 recipe(s), 13 significant, 0 cross-mod -> x1.320",
+        "Essence routing: downstream_recipes + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 24,
+      "itemId": "minecraft:paper",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 7,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 1,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 2,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r040",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 1,
+        "valuePerOutput": 8
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 16,
+        "essence_ascendance:vitality": 6
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "downstream_recipes",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 13,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 22
+    },
+    "minecraft:popped_chorus_fruit": {
+      "confidence": 0.96,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [
+        "minecraft:brick",
+        "minecraft:clay_ball",
+        "minecraft:paper",
+        "minecraft:flint",
+        "minecraft:charcoal",
+        "minecraft:echo_shard"
+      ],
+      "downstreamMultiplier": 1.32,
+      "downstreamRecipeCount": 125,
+      "factors": [
+        "Progression/source: End-native identity heuristic -> x1.700",
+        "Acquisition path: cheapest loaded recipe fixture:r083 -> 9 Essence/output",
+        "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 2",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: 125 recipe(s), 13 significant, 0 cross-mod -> x1.320",
+        "Essence routing: downstream_recipes + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 41,
+      "itemId": "minecraft:popped_chorus_fruit",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 7,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 2,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 3,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r083",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 2,
+        "valuePerOutput": 9
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 27,
+        "essence_ascendance:vitality": 11
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "downstream_recipes",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 13,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 38
+    },
+    "minecraft:prismarine_shard": {
+      "confidence": 0.96,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [
+        "minecraft:brick",
+        "minecraft:clay_ball",
+        "minecraft:paper",
+        "minecraft:flint",
+        "minecraft:charcoal",
+        "minecraft:echo_shard"
+      ],
+      "downstreamMultiplier": 1.32,
+      "downstreamRecipeCount": 125,
+      "factors": [
+        "Acquisition path: cheapest loaded recipe fixture:r120 -> 17 Essence/output",
+        "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 1",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: 125 recipe(s), 13 significant, 0 cross-mod -> x1.320",
+        "Essence routing: downstream_recipes + dominant_categories; routing confidence MEDIUM",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 24,
+      "itemId": "minecraft:prismarine_shard",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 7,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 1,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 1,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r120",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 1,
+        "valuePerOutput": 17
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:offense": 16,
+        "essence_ascendance:vitality": 6
+      },
+      "routingDiagnostics": {
+        "confidence": "MEDIUM",
+        "evidence": [
+          "downstream_recipes",
+          "dominant_categories"
+        ],
+        "nameHintSource": "none",
+        "nameHints": [],
+        "structuredSignals": []
+      },
+      "significantDownstreamRecipeCount": 13,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 22
+    },
+    "minecraft:shield": {
+      "confidence": 0.97,
+      "conservationStatus": "not_applicable",
+      "crossModDownstreamRecipeCount": 0,
+      "downstreamExamples": [],
+      "downstreamMultiplier": 1.0,
+      "downstreamRecipeCount": 0,
+      "factors": [
+        "Bucket: armor/equipment",
+        "Acquisition path: cheapest loaded recipe fixture:r050 -> 6 Essence/output",
+        "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 1",
+        "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
+        "Downstream demand: no loaded non-conservation recipes consume this item",
+        "Nomenclature hint [registry_path]: armor:shield (routing only; no price, tier, rarity or acquisition-confidence boost)",
+        "Essence routing: structured_function + name_hint + dominant_categories; routing confidence HIGH",
+        "Essence routing: at most two dominant categories; a secondary category must carry at least 25% of the strongest semantic vote; reversible forms share this selection"
+      ],
+      "inferredProgressionScore": 0.0,
+      "intrinsicValue": 300,
+      "itemId": "minecraft:shield",
+      "modeledAcquisition": true,
+      "producingRecipeCount": 6,
+      "progressionBand": "OVERWORLD",
+      "progressionEvidenceCount": 0,
+      "recipeChoice": {
+        "depth": 1,
+        "easyChosenIngredients": 2,
+        "ingredientSlots": 2,
+        "modSpecificChosenIngredients": 0,
+        "outputCount": 3,
+        "rareChosenIngredients": 0,
+        "recipeId": "fixture:r050",
+        "recipeType": "crafting",
+        "reversibleTransform": false,
+        "uniqueChosenIngredients": 1,
+        "valuePerOutput": 6
+      },
+      "renewabilityMultiplier": 1.0,
+      "routedEssence": {
+        "essence_ascendance:defense": 210
+      },
+      "routingDiagnostics": {
+        "confidence": "HIGH",
+        "evidence": [
+          "structured_function",
+          "name_hint",
+          "dominant_categories"
+        ],
+        "nameHintSource": "registry_path",
+        "nameHints": [
+          "armor:shield"
+        ],
+        "structuredSignals": [
+          "shield"
+        ]
+      },
+      "significantDownstreamRecipeCount": 0,
+      "sourceArchaeologyCount": 0,
+      "sourceBlockCount": 0,
+      "sourceContainerCount": 0,
+      "sourceEntityCount": 0,
+      "sourceFishingCount": 0,
+      "sourceTradeCount": 0,
+      "totalValue": 210
+    }
+  }
+}
