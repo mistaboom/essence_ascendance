@@ -178,7 +178,7 @@ final class ProceduralValuationIndex {
         try (var phase = BalancePerformance.phase("container_loot_index")) {
             containerLootTablesScanned = scanContainerLootTables(server, containerLoot, structureIndex);
             if (data.structureEligible(ResourceLocation.parse("minecraft:end_city")))
-                addVanillaFixedStructureSources(containerLoot, structureIndex);
+                addVanillaFixedStructureSources(containerLoot, structureIndex, data);
         }
         int containerLootLinks = containerLoot.values().stream().mapToInt(List::size).sum();
         int fishingLootTablesScanned;
@@ -606,7 +606,8 @@ final class ProceduralValuationIndex {
 
     private static void addVanillaFixedStructureSources(
             Map<Item, List<ContainerLootSource>> output,
-            ProceduralStructureIndex structureIndex
+            ProceduralStructureIndex structureIndex,
+            GenerationDataSnapshot data
     ) {
         Item elytra = BuiltInRegistries.ITEM.getOptional(
                 ResourceLocation.fromNamespaceAndPath("minecraft", "elytra")
@@ -643,7 +644,10 @@ final class ProceduralValuationIndex {
                 occurrence.structureId(),
                 occurrence.templateReferenceCount(),
                 List.copyOf(signals),
-                false
+                false,
+                data.lootr().describe("minecraft:containers/end_city_ship_fixed_elytra", occurrence.structureId() == null ? "" : occurrence.structureId().toString(),
+                        occurrence.structureId() == null ? List.of() : data.structureDimensions(occurrence.structureId()), false,
+                        occurrence.structureId() != null && data.structureEligible(occurrence.structureId()) && occurrence.structureFrequencyKnown(), 1, 1, 0)
         ));
     }
 
@@ -654,7 +658,7 @@ final class ProceduralValuationIndex {
     ) {
         Map<ResourceLocation, JsonObject> tables = ProceduralValuationEngine.generationData(server).json("loot_evidence");
 
-        Map<ResourceLocation, Map<Item, ContainerEstimate>> memo = new HashMap<>();
+        Map<ResourceLocation, Map<Item, ContainerEstimate>> memo = ProceduralValuationEngine.generationData(server).lootEstimates();
         int scanned = 0;
         for (Map.Entry<ResourceLocation, JsonObject> entry : tables.entrySet()) {
             ResourceLocation tableId = entry.getKey();
@@ -686,6 +690,16 @@ final class ProceduralValuationIndex {
                     new HashSet<>()
             );
 
+            var data = ProceduralValuationEngine.generationData(server);
+            data.retainLootSemantics(tableId);
+            String structure = context.structureId() == null ? "" : context.structureId().toString();
+            List<String> dimensions = context.structureId() == null ? List.of() : data.structureDimensions(context.structureId());
+            var availability = data.lootr().describe(tableId.toString(), structure, dimensions, false,
+                    configuredStructure, 0, 0, 0);
+            data.lootAvailability(tableId.toString(), availability);
+            if (data.lootr().installed() && availability.scope() != com.mistaboom.essence_ascendance.balance.engine.SourceAvailability.Scope.SHARED)
+                BalancePerformance.increment("lootr_supported_source_rules");
+
             for (Map.Entry<Item, ContainerEstimate> estimateEntry : estimates.entrySet()) {
                 ContainerEstimate estimate = estimateEntry.getValue();
                 if (estimate.occurrenceChance() <= 0.0 || estimate.expectedCount() <= 0.0) continue;
@@ -701,7 +715,8 @@ final class ProceduralValuationIndex {
                         context.structureId(),
                         context.templateReferenceCount(),
                         context.signals(),
-                        archaeology
+                        archaeology,
+                        availability.event(clampProbability(estimate.occurrenceChance()), Math.max(0.01, estimate.expectedCount()), estimate.complexConditionCount())
                 );
                 output.computeIfAbsent(estimateEntry.getKey(), ignored -> new ArrayList<>())
                         .add(source);
@@ -718,7 +733,7 @@ final class ProceduralValuationIndex {
     ) {
         Map<ResourceLocation, JsonObject> tables = ProceduralValuationEngine.generationData(server).json("loot_evidence");
 
-        Map<ResourceLocation, Map<Item, ContainerEstimate>> memo = new HashMap<>();
+        Map<ResourceLocation, Map<Item, ContainerEstimate>> memo = ProceduralValuationEngine.generationData(server).lootEstimates();
         int scanned = 0;
         for (Map.Entry<ResourceLocation, JsonObject> entry : tables.entrySet()) {
             ResourceLocation tableId = entry.getKey();
@@ -728,6 +743,7 @@ final class ProceduralValuationIndex {
             }
 
             FishingContext context = fishingContext(tableId);
+            ProceduralValuationEngine.generationData(server).retainLootSemantics(tableId);
             Map<Item, ContainerEstimate> estimates = estimateContainerTable(
                     tableId,
                     tables,
@@ -817,7 +833,7 @@ final class ProceduralValuationIndex {
                 || path.contains("/containers/");
     }
 
-    private static Map<Item, ContainerEstimate> estimateContainerTable(
+    static Map<Item, ContainerEstimate> estimateContainerTable(
             ResourceLocation tableId,
             Map<ResourceLocation, JsonObject> tables,
             Map<ResourceLocation, Map<Item, ContainerEstimate>> memo,
@@ -859,7 +875,8 @@ final class ProceduralValuationIndex {
         Map<Item, ContainerEstimate> frozen = new IdentityHashMap<>();
         combined.forEach((item, estimate) -> frozen.put(item, estimate.freeze()));
         Map<Item, ContainerEstimate> result = Map.copyOf(frozen);
-        if (visiting.isEmpty()) memo.put(tableId, result);
+        // Cyclic tables are marked unresolved by the shared audit, so cached expansions never certify a cycle.
+        memo.put(tableId, result);
         return result;
     }
 
@@ -965,7 +982,8 @@ final class ProceduralValuationIndex {
             return;
         }
 
-        if (type != null && type.endsWith(":loot_table")) {
+        if (type != null && type.equals("minecraft:loot_table")) {
+            BalancePerformance.increment("loot_nested_references_expanded");
             ResourceLocation referenced = referencedLootTableId(entry);
             if (referenced == null || visiting.contains(referenced)) {
                 return;
@@ -1009,7 +1027,7 @@ final class ProceduralValuationIndex {
             return;
         }
 
-        boolean alternatives = type != null && type.endsWith(":alternatives");
+        boolean alternatives = type != null && type.equals("minecraft:alternatives");
         double childSelection = alternatives
                 ? perRollSelection / children.size()
                 : perRollSelection;
@@ -1226,9 +1244,13 @@ final class ProceduralValuationIndex {
                 .sorted(Comparator.comparing(e -> BuiltInRegistries.BLOCK.getKey(e.getKey()).toString())).toList()) {
             ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(entry.getKey());
             BlockSourceStats stats = blockSourceStats(blockId, entry.getKey());
+            Map<List<String>, List<String>> sharedSignals = new HashMap<>();
             for (ProceduralBlockHarvest.HarvestDrop drop : entry.getValue()) {
-                List<String> signals = new ArrayList<>(stats.signals());
-                signals.addAll(drop.signals());
+                List<String> signals = sharedSignals.computeIfAbsent(drop.signals(), dropSignals -> {
+                    List<String> combined = new ArrayList<>(stats.signals());
+                    combined.addAll(dropSignals);
+                    return List.copyOf(combined);
+                });
                 output.computeIfAbsent(drop.output(), ignored -> new ArrayList<>()).add(new BlockDropSource(
                         blockId, drop.chance(), drop.countWhenPresent(), drop.unresolved(),
                         stats.progressionBand(), stats.sourceMultiplier(), stats.oreLike(), signals,
@@ -1444,16 +1466,16 @@ final class ProceduralValuationIndex {
                 continue;
             }
 
-            if (conditionType.endsWith("random_chance") && condition.has("chance")) {
+            if (conditionType.equals("minecraft:random_chance") && condition.has("chance") && LootSemanticsAudit.supportedNumber(condition.get("chance"))) {
                 multiplier *= estimateNumberProvider(condition.get("chance"), 1.0);
                 continue;
             }
-            if (conditionType.endsWith("random_chance_with_enchanted_bonus")
+            if (conditionType.equals("minecraft:random_chance_with_enchanted_bonus")
                     && condition.has("unenchanted_chance")) {
                 multiplier *= estimateNumberProvider(condition.get("unenchanted_chance"), 1.0);
                 continue;
             }
-            if (conditionType.endsWith("table_bonus")
+            if (conditionType.equals("minecraft:table_bonus")
                     && condition.has("chances")
                     && condition.get("chances").isJsonArray()
                     && !condition.getAsJsonArray("chances").isEmpty()) {
@@ -1463,11 +1485,11 @@ final class ProceduralValuationIndex {
                 );
                 continue;
             }
-            if (conditionType.endsWith("killed_by_player")
-                    || conditionType.endsWith("survives_explosion")) {
+            if (conditionType.equals("minecraft:killed_by_player")
+                    || conditionType.equals("minecraft:survives_explosion")) {
                 continue;
             }
-            if (conditionType.endsWith("entity_properties")) {
+            if (conditionType.equals("minecraft:entity_properties")) {
                 MobStats variant = slimeVariantStats(condition, entityId, stats);
                 if (variant != null) {
                     stats = variant;
@@ -1475,7 +1497,7 @@ final class ProceduralValuationIndex {
                     continue;
                 }
             }
-            if (conditionType.endsWith("inverted")
+            if (conditionType.equals("minecraft:inverted")
                     && condition.has("term")
                     && condition.get("term").isJsonObject()
                     && isFrogDamageSourceCondition(condition.getAsJsonObject("term"))) {
@@ -1484,7 +1506,7 @@ final class ProceduralValuationIndex {
                 signals.add("ordinary non-frog kill branch modeled");
                 continue;
             }
-            if (conditionType.endsWith("damage_source_properties")
+            if (conditionType.equals("minecraft:damage_source_properties")
                     && isFrogDamageSourceCondition(condition)) {
                 // Frog-only branch is a real acquisition path, but it needs a
                 // frog interaction model before it can compete with ordinary
@@ -1527,7 +1549,7 @@ final class ProceduralValuationIndex {
         }
         JsonObject typeSpecific = typeSpecificElement.getAsJsonObject();
         String type = readString(typeSpecific, "type");
-        if (type == null || !type.endsWith("slime") || !typeSpecific.has("size")) {
+        if (type == null || !type.equals("minecraft:slime") || !typeSpecific.has("size")) {
             return null;
         }
 
@@ -1539,7 +1561,7 @@ final class ProceduralValuationIndex {
 
     private static boolean isFrogDamageSourceCondition(JsonObject condition) {
         String conditionType = readString(condition, "condition");
-        if (conditionType == null || !conditionType.endsWith("damage_source_properties")) {
+        if (conditionType == null || !conditionType.equals("minecraft:damage_source_properties")) {
             return false;
         }
         JsonElement predicateElement = condition.get("predicate");
@@ -1584,15 +1606,16 @@ final class ProceduralValuationIndex {
                 continue;
             }
 
-            if (conditionType.endsWith("random_chance") && condition.has("chance")) {
+            if (conditionType.equals("minecraft:random_chance") && condition.has("chance")
+                    && LootSemanticsAudit.supportedNumber(condition.get("chance"))) {
                 multiplier *= estimateNumberProvider(condition.get("chance"), 1.0);
-            } else if (conditionType.endsWith("random_chance_with_enchanted_bonus")
+            } else if (conditionType.equals("minecraft:random_chance_with_enchanted_bonus")
                     && condition.has("unenchanted_chance")) {
                 // Use the deterministic no-Looting baseline. Looting can only
                 // make the real acquisition easier, so this remains a safe
                 // baseline without making the source conditional/unknown.
                 multiplier *= estimateNumberProvider(condition.get("unenchanted_chance"), 1.0);
-            } else if (conditionType.endsWith("table_bonus")
+            } else if (conditionType.equals("minecraft:table_bonus")
                     && condition.has("chances")
                     && condition.get("chances").isJsonArray()
                     && !condition.getAsJsonArray("chances").isEmpty()) {
@@ -1601,11 +1624,11 @@ final class ProceduralValuationIndex {
                         condition.getAsJsonArray("chances").get(0),
                         1.0
                 );
-            } else if (conditionType.endsWith("killed_by_player")
-                    || conditionType.endsWith("survives_explosion")) {
+            } else if (conditionType.equals("minecraft:killed_by_player")
+                    || conditionType.equals("minecraft:survives_explosion")) {
                 // These are ordinary acquisition-context conditions. They do
                 // not make the source ambiguous for a player-centric valuation.
-            } else if (conditionType.endsWith("entity_properties")
+            } else if (conditionType.equals("minecraft:entity_properties")
                     && isRecognizedFishingHookCondition(condition)) {
                 // Vanilla fishing treasure uses a fishing-hook in_open_water
                 // predicate. Open-water fishing is a normal deterministic
@@ -1640,7 +1663,7 @@ final class ProceduralValuationIndex {
         JsonObject typeSpecific = typeSpecificElement.getAsJsonObject();
         String type = readString(typeSpecific, "type");
         return type != null
-                && type.endsWith("fishing_hook")
+                && type.equals("minecraft:fishing_hook")
                 && typeSpecific.has("in_open_water");
     }
 
@@ -1659,7 +1682,7 @@ final class ProceduralValuationIndex {
             if (GenerationLootEvidence.unresolvedFunctions(function) > 0) continue;
             String functionType = readString(function, "function");
             if (functionType != null
-                    && functionType.endsWith("set_count")
+                    && functionType.equals("minecraft:set_count")
                     && function.has("count")) {
                 multiplier *= estimateNumberProvider(function.get("count"), 1.0);
             }
@@ -1857,8 +1880,18 @@ final class ProceduralValuationIndex {
             ResourceLocation structureId,
             int templateReferenceCount,
             List<String> signals,
-            boolean archaeology
+            boolean archaeology,
+            com.mistaboom.essence_ascendance.balance.engine.SourceAvailability availability
     ) {
+        ContainerLootSource(ResourceLocation lootTableId, double estimatedChance, double expectedCount, int complexConditionCount,
+                            String tierLabel, ProceduralValuationResult.ProgressionBand progressionBand, double contextMultiplier,
+                            boolean structureFrequencyKnown, ResourceLocation structureId, int templateReferenceCount,
+                            List<String> signals, boolean archaeology) {
+            this(lootTableId, estimatedChance, expectedCount, complexConditionCount, tierLabel, progressionBand, contextMultiplier,
+                    structureFrequencyKnown, structureId, templateReferenceCount, signals, archaeology,
+                    LootrPolicy.ABSENT.describe(lootTableId.toString(), structureId == null ? "" : structureId.toString(), List.of(),
+                            false, structureFrequencyKnown, estimatedChance, expectedCount, complexConditionCount));
+        }
         ContainerLootSource {
             signals = List.copyOf(signals);
         }
@@ -1899,7 +1932,7 @@ final class ProceduralValuationIndex {
     ) {
     }
 
-    private record ContainerEstimate(
+    record ContainerEstimate(
             double occurrenceChance,
             double expectedCount,
             int complexConditionCount

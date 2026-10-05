@@ -3,6 +3,7 @@ package com.mistaboom.essence_ascendance.valuation;
 import com.mistaboom.essence_ascendance.balance.engine.AcquisitionSource;
 import com.mistaboom.essence_ascendance.balance.engine.ProgressionBand;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -19,6 +20,7 @@ import net.minecraft.world.level.block.SweetBerryBushBlock;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -34,11 +36,12 @@ public record ValuationEvidenceSnapshot(Map<String, List<AcquisitionSource>> sou
         Map<String, List<AcquisitionSource>> sources = new TreeMap<>();
         Map<String, List<List<String>>> recipes = new TreeMap<>();
         Map<String, Double> entityProgression = new TreeMap<>();
+        BlockSourceProjection blockSources = new BlockSourceProjection();
         for (ProceduralValuationResult value : valuations) {
             Item item = BuiltInRegistries.ITEM.get(value.itemId());
             List<AcquisitionSource> entries = new ArrayList<>();
             for (var source : index.blockDropSources(item)) {
-                entries.add(blockSource(source, BuiltInRegistries.BLOCK.get(source.blockId()),
+                entries.add(blockSources.source(source, BuiltInRegistries.BLOCK.get(source.blockId()),
                         index.naturalBlockEvidence(source.blockId())));
             }
             for (var source : index.biologicalSources(item)) entries.add(biologicalSource(source,
@@ -49,9 +52,7 @@ public record ValuationEvidenceSnapshot(Map<String, List<AcquisitionSource>> sou
                         source.repeatableSpawn(), false, 0, 0.68, List.of(), String.join("; ", source.signals())));
             }
             for (var source : index.containerLootSources(item)) {
-                entries.add(new AcquisitionSource(source.lootTableId().toString(), AcquisitionSource.Kind.LOOT,
-                        band(source.progressionBand()), source.expectedCount(), false, false, 0,
-                        source.structureFrequencyKnown() ? 0.78 : 0.52, List.of(), String.join("; ", source.signals())));
+                entries.add(containerSource(source));
             }
             for (var source : index.fishingLootSources(item)) {
                 entries.add(new AcquisitionSource(source.lootTableId().toString(), AcquisitionSource.Kind.FISHING,
@@ -107,9 +108,48 @@ public record ValuationEvidenceSnapshot(Map<String, List<AcquisitionSource>> sou
         };
     }
 
+    static AcquisitionSource containerSource(ProceduralValuationIndex.ContainerLootSource source) {
+        return new AcquisitionSource(source.lootTableId().toString(), AcquisitionSource.Kind.LOOT,
+                band(source.progressionBand()), source.expectedCount(), source.availability().provenRenewable(), false, 0,
+                source.availability().accessProven() ? .78 : .35, List.of(), String.join("; ", source.signals())
+                        + "; source_availability=" + source.availability().category() + "; scope=" + source.availability().scope()
+                        + "; no population multiplier or passive throughput", source.availability());
+    }
+
     /** Reuses collected placement evidence; a block's loot alone does not prove a natural source. */
     static AcquisitionSource blockSource(ProceduralValuationIndex.BlockDropSource source, Block block,
                                          List<String> naturalEvidence) {
+        return blockSource(source, block, naturalEvidence, blockReason(source, naturalEvidence));
+    }
+
+    /** Consecutive tool alternatives share full diagnostics without retaining a pack-wide cache. */
+    static final class BlockSourceProjection {
+        private ResourceLocation currentBlock;
+        private final Map<BlockReasonKey, String> reasons = new HashMap<>();
+
+        AcquisitionSource source(ProceduralValuationIndex.BlockDropSource source, Block block,
+                                 List<String> naturalEvidence) {
+            if (!source.blockId().equals(currentBlock)) {
+                reasons.clear();
+                currentBlock = source.blockId();
+            }
+            var key = new BlockReasonKey(source.signals(), naturalEvidence,
+                    source.silkTouchRequired(), source.complexConditionCount());
+            String reason = reasons.computeIfAbsent(key, ignored -> blockReason(source, naturalEvidence));
+            return blockSource(source, block, naturalEvidence, reason);
+        }
+    }
+
+    private record BlockReasonKey(List<String> signals, List<String> naturalEvidence,
+                                  boolean silkTouch, int unresolved) {
+        BlockReasonKey {
+            signals = List.copyOf(signals);
+            naturalEvidence = List.copyOf(naturalEvidence);
+        }
+    }
+
+    private static AcquisitionSource blockSource(ProceduralValuationIndex.BlockDropSource source, Block block,
+                                                  List<String> naturalEvidence, String reason) {
         boolean natural = !naturalEvidence.isEmpty();
         boolean ungated = !source.silkTouchRequired() && source.complexConditionCount() == 0;
         boolean farming = renewableGrowth(block);
@@ -120,17 +160,21 @@ public record ValuationEvidenceSnapshot(Map<String, List<AcquisitionSource>> sou
         // PLAYER_ACTION remains an acquisition observation, not a fabricated loaded crafting recipe.
         if (!natural && block.asItem() != Items.AIR)
             dependencies.add(BuiltInRegistries.ITEM.getKey(block.asItem()).toString());
-        List<String> reasons = new ArrayList<>(source.signals());
-        if (natural) reasons.add("Natural placement evidence: " + String.join("; ", naturalEvidence));
-        else reasons.add("No collected natural-placement evidence; breaking a supplied block is a player action, not an independent natural source");
-        if (source.silkTouchRequired()) reasons.add("Silk Touch is required; the source snapshot does not establish accessible enchantment prerequisites");
-        if (source.complexConditionCount() > 0) reasons.add("Unresolved harvest conditions: " + source.complexConditionCount()
-                + "; conditional player action does not establish directly accessible supply");
         return new AcquisitionSource(source.blockId().toString(), natural && ungated
                 ? farming ? AcquisitionSource.Kind.FARMING : AcquisitionSource.Kind.WORLD_GENERATION
                 : AcquisitionSource.Kind.PLAYER_ACTION,
                 band(source.progressionBand()), source.expectedCount(), farming, false, 0, 0.76,
-                dependencies, String.join("; ", reasons));
+                dependencies, reason);
+    }
+
+    private static String blockReason(ProceduralValuationIndex.BlockDropSource source, List<String> naturalEvidence) {
+        List<String> reasons = new ArrayList<>(source.signals());
+        if (!naturalEvidence.isEmpty()) reasons.add("Natural placement evidence: " + String.join("; ", naturalEvidence));
+        else reasons.add("No collected natural-placement evidence; breaking a supplied block is a player action, not an independent natural source");
+        if (source.silkTouchRequired()) reasons.add("Silk Touch is required; the source snapshot does not establish accessible enchantment prerequisites");
+        if (source.complexConditionCount() > 0) reasons.add("Unresolved harvest conditions: " + source.complexConditionCount()
+                + "; conditional player action does not establish directly accessible supply");
+        return String.join("; ", reasons);
     }
 
     static AcquisitionSource biologicalSource(ProceduralValuationIndex.BiologicalSource source, ProgressionBand stage) {

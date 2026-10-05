@@ -104,6 +104,12 @@ final class ProceduralBlockLoot {
             throw new UnsupportedOperationException("block loot evaluation budget exceeded");
     }
 
+    static boolean conditionsMayApply(Object conditions, Context context) {
+        var model = new ProceduralBlockLoot(context, ignored -> Map.of(), ignored -> List.of());
+        try { var gate = model.conditions(conditions, 0); return gate.probability() > 0 || !gate.unknown().isEmpty(); }
+        catch (UnsupportedOperationException unsupported) { return true; }
+    }
+
     private Map<String, Amount> table(Map<String, Object> root, int depth, List<Object> inheritedFunctions) {
         guard(depth);
         Map<String, Amount> result = new LinkedHashMap<>();
@@ -337,6 +343,9 @@ final class ProceduralBlockLoot {
                         }
                     }
                 }
+                case "components" -> value = and(value, entry.getValue() instanceof Map<?, ?> components
+                        ? components.isEmpty() ? truth(true) : context.toolId().equals("minecraft:air") ? truth(false)
+                        : unknown("unmodeled tool component values") : unknown("malformed tool components"));
                 case "count" -> value = and(value, matchesRange(context.toolId().equals("minecraft:air") ? "0" : "1", entry.getValue()));
                 default -> value = and(value, unknown("unmodeled tool field: " + entry.getKey()));
             }
@@ -377,6 +386,7 @@ final class ProceduralBlockLoot {
             guard(depth);
             Map<String, Object> fn = object(raw);
             String type = text(fn.get("function"));
+            if (Boolean.TRUE.equals(fn.get(RuntimeLootAudit.RUNTIME_MARKER))) continue; // audited separately for this concrete harvest
             Truth gate = conditions(fn.get("conditions"), depth + 1);
             if (gate.probability() <= 0) continue;
             StackCounts changed = counts;

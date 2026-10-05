@@ -480,7 +480,9 @@ public final class GeneratedBalanceIntegrationTest {
             resources.put(item, new ResourceEvidence(item, stage, Availability.FINITE, Automation.NONE,
                     true, true, 80 + i * 40, .85,
                     List.of(new AcquisitionSource("fixture:" + i, AcquisitionSource.Kind.LOOT, stage,
-                            1, false, false, 0, .85, List.of(), "Synthetic source using a registered vanilla item")), List.of()));
+                            1, false, false, 0, .85, List.of(), "Synthetic source using a registered vanilla item",
+                            i == 0 ? com.mistaboom.essence_ascendance.valuation.LootrPolicy.ABSENT.describe("fixture:" + i,
+                                    "fixture:structure", List.of("minecraft:overworld"), false, true, 1, 1, 0) : null)), List.of()));
             facts.add(new EvidenceFact(EvidenceFact.Subject.ITEM, item, "attainable", EvidenceFact.Value.flag(true),
                     "integration_fixture", EvidenceFact.Origin.OBSERVED, .85, 0, stage, List.of(), "Synthetic acquisition evidence"));
         }

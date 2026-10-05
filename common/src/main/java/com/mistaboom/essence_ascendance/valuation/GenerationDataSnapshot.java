@@ -57,6 +57,39 @@ public final class GenerationDataSnapshot implements AutoCloseable {
     private final Set<ResourceLocation> eligibleStructures = new java.util.TreeSet<>(), eligibleStructureSets = new java.util.TreeSet<>();
     private final Map<String, Long> unsupportedRecipeFamilies = new TreeMap<>();
     private final Map<String, Long> unsupportedLootFunctions = new TreeMap<>();
+    private LootrPolicy lootr = LootrPolicy.ABSENT;
+    private final Map<ResourceLocation, List<String>> structureDimensions = new TreeMap<>();
+    private final Map<String, com.mistaboom.essence_ascendance.balance.engine.SourceAvailability> lootAvailability = new TreeMap<>();
+    private final Map<String, List<String>> lootSemantics = new TreeMap<>();
+    private List<RuntimeLootAudit.Modifier> runtimeLootModifiers = List.of();
+    List<RuntimeLootAudit.Modifier> runtimeLootModifiers() { requireOpen(); return runtimeLootModifiers; }
+    private final Map<ResourceLocation, Map<Item, ProceduralValuationIndex.ContainerEstimate>> lootEstimates = new TreeMap<>();
+    Map<ResourceLocation, Map<Item, ProceduralValuationIndex.ContainerEstimate>> lootEstimates() { requireOpen(); return lootEstimates; }
+    public void lootr(LootrPolicy policy) { requireOpen(); lootr = policy; }
+    LootrPolicy lootr() { requireOpen(); return lootr; }
+    List<String> structureDimensions(ResourceLocation structure) { requireOpen(); return structureDimensions.getOrDefault(structure, List.of()); }
+    void lootAvailability(String key, com.mistaboom.essence_ascendance.balance.engine.SourceAvailability value) {
+        requireOpen(); lootAvailability.putIfAbsent(key, value);
+    }
+    void retainLootSemantics(ResourceLocation table) {
+        if (lootSemantics.containsKey(table.toString())) return;
+        var definition = json("loot_evidence").get(table);
+        if (definition == null) return;
+        lootSemantics.put(table.toString(), LootSemanticsAudit.facts(definition));
+        retainNestedLootSemantics(definition);
+    }
+    private void retainNestedLootSemantics(com.google.gson.JsonElement element) {
+        if (element == null || element.isJsonPrimitive() || element.isJsonNull()) return;
+        if (element.isJsonArray()) { element.getAsJsonArray().forEach(this::retainNestedLootSemantics); return; }
+        var object = element.getAsJsonObject();
+        if (object.has("type") && "minecraft:loot_table".equals(object.get("type").getAsString())) {
+            var reference = object.has("value") ? object.get("value") : object.get("name");
+            if (reference != null && reference.isJsonPrimitive()) {
+                var id = ResourceLocation.tryParse(reference.getAsString()); if (id != null) retainLootSemantics(id);
+            }
+        }
+        object.entrySet().forEach(field -> retainNestedLootSemantics(field.getValue()));
+    }
 
     public record DimensionEvidence(String id, boolean levelAvailable, String generator, String support,
                                     List<String> biomes, String geology) {
@@ -150,7 +183,17 @@ public final class GenerationDataSnapshot implements AutoCloseable {
                 case "worldgen/structure_settings" -> structureSettings();
                 case "worldgen/structure_set" -> encodeRegistry(server.registryAccess().registryOrThrow(Registries.STRUCTURE_SET), StructureSet.DIRECT_CODEC);
                 case "loot_table" -> encodeRegistry(server.reloadableRegistries().get().registryOrThrow(Registries.LOOT_TABLE), LootTable.DIRECT_CODEC);
-                case "loot_evidence" -> encodeRegistry(server.reloadableRegistries().get().registryOrThrow(Registries.LOOT_TABLE), LootTable.DIRECT_CODEC, true);
+                case "loot_evidence" -> {
+                    var tables = encodeRegistry(server.reloadableRegistries().get().registryOrThrow(Registries.LOOT_TABLE), LootTable.DIRECT_CODEC, true);
+                    try (var audit = BalancePerformance.phase("effective_runtime_loot_audit")) {
+                        runtimeLootModifiers = RuntimeLootAudit.capture(this);
+                        RuntimeLootAudit.mark(tables, runtimeLootModifiers, lootr.unsupported());
+                        LootSemanticsAudit.auditTables(tables);
+                    }
+                    BalancePerformance.count("loot_tables_inspected", tables.size());
+                    BalancePerformance.count("loot_unsupported_runtime_modifiers", runtimeLootModifiers.size() + lootr.unsupported().size());
+                    yield tables;
+                }
                 default -> readResources(family);
             };
         }
@@ -228,6 +271,7 @@ public final class GenerationDataSnapshot implements AutoCloseable {
             dimensions.add(captured.evidence()); limitations.addAll(captured.limitations());
             var structureData = GenerationStructureData.capture(generator, server.registries().compositeAccess(), structuresEnabled);
             eligibleStructures.addAll(structureData.structures()); eligibleStructureSets.addAll(structureData.sets());
+            structureData.structures().forEach(structure -> structureDimensions.computeIfAbsent(structure, ignored -> new ArrayList<>()).add(dimension.toString()));
         });
         definitions.put("worldgen/biome", Collections.unmodifiableMap(selectedBiomes));
         workloads.put("normalized/worldgen/biome", (long) selectedBiomes.size()); workloads.put("configured_dimensions", (long) dimensions.size());
@@ -270,6 +314,14 @@ public final class GenerationDataSnapshot implements AutoCloseable {
         }
         JsonObject unsupportedLoot = new JsonObject(); unsupportedLootFunctions.forEach(unsupportedLoot::addProperty);
         result.add("unsupportedLootFunctions", unsupportedLoot);
+        JsonObject loot = new JsonObject();
+        loot.add("lootr", new com.google.gson.Gson().toJsonTree(lootr));
+        loot.add("availability", new com.google.gson.Gson().toJsonTree(lootAvailability));
+        loot.add("tableSemantics", new com.google.gson.Gson().toJsonTree(lootSemantics));
+        loot.add("runtimeModifiers", new com.google.gson.Gson().toJsonTree(runtimeLootModifiers));
+        loot.addProperty("effectiveScope", "Effective reloadable registry includes supported reload-time table changes. Runtime callbacks are captured, never executed; affected paths remain unresolved. Unexposed event/mixin behavior is unsupported.");
+        loot.addProperty("availabilityScope", "One underlying table/source opportunity; personal/shared alternatives do not multiply supply. Per-event chance/count are approximate, zero luck. Position, container eligibility, access and rates are never inferred from player/container history.");
+        result.add("loot", loot);
         result.addProperty("lootEvidenceScope", "Unrepresentable function parameters remain explicit unresolved markers. Affected acquisition paths are diagnostic-only; full loot_table access still requires complete encoding.");
         result.add("dimensions", levels); result.addProperty("structuresEnabled", structuresEnabled);
         result.addProperty("provenance", "Effective server registries, recipe holders and configured dimension generators captured for this generation only");
@@ -288,5 +340,6 @@ public final class GenerationDataSnapshot implements AutoCloseable {
         items = List.of(); recipeHolders = List.of(); mods = Map.of(); itemTags = null; definitions.clear(); naturalBiomes = Map.of(); terrain = Map.of();
         dimensions.clear(); limitations.clear(); workloads.clear(); unsupportedRecipeFamilies.clear(); unsupportedLootFunctions.clear();
         eligibleStructures.clear(); eligibleStructureSets.clear();
+        lootr = LootrPolicy.ABSENT; structureDimensions.clear(); lootAvailability.clear(); lootSemantics.clear(); runtimeLootModifiers = List.of(); lootEstimates.clear();
     }
 }

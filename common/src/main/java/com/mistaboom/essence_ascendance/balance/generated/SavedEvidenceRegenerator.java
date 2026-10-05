@@ -14,11 +14,17 @@ public final class SavedEvidenceRegenerator {
     /** Diagnostic envelope only: deliberately lacks an installable runtime. */
     static BalanceDocument failureSnapshot(BalanceInputs inputs,
             PackEvidence evidence, EconomyProfile economy, RuntimeException failure) {
+        return failureSnapshot(inputs, evidence, economy, failure, new JsonObject());
+    }
+
+    static BalanceDocument failureSnapshot(BalanceInputs inputs,
+            PackEvidence evidence, EconomyProfile economy, RuntimeException failure, JsonObject generationProvenance) {
         JsonObject metadata = new JsonObject();
         metadata.addProperty("generatorRevision", GeneratedBalanceService.GENERATION_REVISION);
         metadata.addProperty("dissolutionAccounting", "whole_essence_v1");
         metadata.addProperty("capturedAt", java.time.Instant.now().toString());
         metadata.addProperty("diagnosticOnly", true);
+        metadata.add("generation", generationProvenance);
         JsonObject validation = new JsonObject();
         validation.addProperty("runtime", "failed");
         validation.addProperty("failure", failure.toString());

@@ -15,6 +15,9 @@ public final class GenerationProviderContractTest {
     }
     private static GenerationProviders runs(Map<String, String> installed) { return new GenerationProviders(null, installed::get); }
     private static void absentDependency() {
+        var lootr = runs(Map.of());
+        check(!lootr.prepare("loot", new com.mistaboom.essence_ascendance.valuation.LootrProvider(), false), "Absent Lootr skips its reflective reader");
+        check(lootr.diagnostics().get(0).getAsJsonObject().get("status").getAsString().equals("ABSENT"), "Lootr absence explicit in provider diagnostics");
         AtomicInteger probes = new AtomicInteger();
         GenerationProvider optional = new GenerationProvider() {
             public String id() { return "optional"; }

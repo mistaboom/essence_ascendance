@@ -12,6 +12,7 @@ import java.util.stream.Stream;
 /** Acquisition projection only: an unrepresentable function remains explicit, unresolved evidence. */
 final class GenerationLootEvidence {
     static final String UNRESOLVED = "essence_evidence_unresolved_function";
+    static final String CONTAINER_UNRESOLVED = "essence_evidence_container_unresolved_function";
 
     static <F> MapCodec<F> functionCodec(MapCodec<F> original, GenerationRegistrySerialization scope) {
         return new MapCodec<>() {
@@ -42,6 +43,7 @@ final class GenerationLootEvidence {
         if (functions.isJsonArray()) return functions.getAsJsonArray().asList().stream().mapToInt(GenerationLootEvidence::unresolvedFunctions).sum();
         var object = functions.getAsJsonObject();
         if (object.has(UNRESOLVED) && object.get(UNRESOLVED).getAsBoolean()) return 1;
+        if (object.has(CONTAINER_UNRESOLVED) && object.get(CONTAINER_UNRESOLVED).getAsBoolean()) return 1;
         return object.entrySet().stream().mapToInt(field -> unresolvedFunctions(field.getValue())).sum();
     }
 }

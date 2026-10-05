@@ -13,14 +13,16 @@ final class GenerationSelectionChecks {
         int checks = 0;
         var folder = Files.createTempDirectory("generation-selection");
         var path = folder.resolve(BalanceProfileStore.PROFILE_FILE);
-        AtomicInteger collectors = new AtomicInteger(), environment = new AtomicInteger(1), questScans = new AtomicInteger();
+        AtomicInteger collectors = new AtomicInteger(), environment = new AtomicInteger(1), questScans = new AtomicInteger(), lootScans = new AtomicInteger();
         ProfileGenerationSelection.Source<GeneratedBalanceService.Active> generation = () -> {
             collectors.incrementAndGet();
             questScans.incrementAndGet(); BalancePerformance.increment("quest_definition_normalizations");
+            lootScans.incrementAndGet(); BalancePerformance.increment("loot_settings_captures");
             var body = JsonParser.parseString(initial.text()).getAsJsonObject();
             var production = com.mistaboom.essence_ascendance.valuation.EffectiveProductionTest.currentEffectiveFixture(environment.get());
             body.getAsJsonObject("metadata").add("fixtureEffectiveProduction", BalanceDocument.GSON.toJsonTree(production));
             body.getAsJsonObject("metadata").addProperty("fixtureGenerationInput", environment.get());
+            body.getAsJsonObject("metadata").addProperty("fixtureLootRefreshTicks", 24000 * environment.get());
             var quest = new com.mistaboom.essence_ascendance.balance.quest.QuestEvidence(
                     java.util.List.of(new com.mistaboom.essence_ascendance.balance.quest.QuestEvidence.Quest("fixture", java.util.List.of(), 0,
                             true, "all_completed", false, 0, false, java.util.List.of(),
@@ -46,11 +48,12 @@ final class GenerationSelectionChecks {
             }
             check(collectors.get() == 1, "Saved schema 2 load never calls evidence collection"); checks++;
             check(questScans.get() == 1, "Valid saved profile performs no quest definition scan"); checks++;
+            check(lootScans.get() == 1, "Valid saved profile performs no loot definition/config analysis"); checks++;
             check(active.document().section("metadata").get("fixtureGenerationInput").getAsInt() == 1,
                     "Changed external fixture does not alter saved authority"); checks++;
             check(Arrays.equals(first, Files.readAllBytes(path)), "Saved profile reused without replacement"); checks++;
             var telemetry = BalancePerformance.lastSnapshot();
-            for (String name : new String[]{"generation_snapshot_captures", "evidence_collection_runs", "production_graph_collections", "production_recipes_inspected", "conservation_solve_runs", "runtime_generation_runs", "quest_definition_normalizations", "quest_progression_rule_evaluations"}) {
+            for (String name : new String[]{"generation_snapshot_captures", "evidence_collection_runs", "production_graph_collections", "production_recipes_inspected", "conservation_solve_runs", "runtime_generation_runs", "quest_definition_normalizations", "quest_progression_rule_evaluations", "loot_settings_captures", "loot_tables_inspected", "loot_unsupported_runtime_modifiers"}) {
                 check(!telemetry.counts().containsKey(name), "Saved load has no generation workload: " + name); checks++;
             }
             check(telemetry.counts().get("profile_reads") == 1, "Saved data read once"); checks++;
@@ -65,6 +68,8 @@ final class GenerationSelectionChecks {
                 operation.complete("fixture_validated_and_saved");
             }
             check(collectors.get() == 2, "Explicit rebuild invokes fixture generation once"); checks++;
+            check(lootScans.get() == 2 && active.document().section("metadata").get("fixtureLootRefreshTicks").getAsInt() == 48000,
+                    "Explicit rebuild captures changed loot/config; saved reuse did not"); checks++;
             check(questScans.get() == 2 && active.document().section("metadata").getAsJsonObject("fixtureQuestDefinitions").getAsJsonArray("quests")
                     .get(0).getAsJsonObject().getAsJsonArray("rewards").get(0).getAsJsonObject().get("count").getAsInt() == 2,
                     "Explicit rebuild captures changed quest definitions"); checks++;
@@ -77,6 +82,14 @@ final class GenerationSelectionChecks {
                 throw new AssertionError("Failed generation accepted");
             } catch (IllegalStateException expected) { checks++; }
             check(active == previous && Arrays.equals(current, Files.readAllBytes(path)), "Provider failure retains active and persisted profile"); checks++;
+            try {
+                ProfileGenerationSelection.select(true, saved, () -> {
+                    com.mistaboom.essence_ascendance.valuation.LootrProvider.readiness("1.21.1-1.11.38.126", false).requireSafe("lootr", true);
+                    throw new AssertionError("Unready Lootr provider accepted");
+                });
+                throw new AssertionError("Failed Lootr generation accepted");
+            } catch (IllegalStateException expected) { checks++; }
+            check(active == previous && Arrays.equals(current, Files.readAllBytes(path)), "Lootr readiness failure retains previous authority"); checks++;
             try {
                 ProfileGenerationSelection.select(true, saved, () -> {
                     var invalid = JsonParser.parseString(initial.text()).getAsJsonObject();

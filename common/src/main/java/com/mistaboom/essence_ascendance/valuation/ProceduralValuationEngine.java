@@ -1197,7 +1197,8 @@ public final class ProceduralValuationEngine {
                 if (source.reusableTool() != null) {
                     factors.add("Reusable-tool wear: " + format(selectedBlock.reusableWear())
                             + " Essence/harvest; full tool is not consumed; prerequisite acquisition "
-                            + (selectedBlock.prerequisiteKnown() ? "modeled" : "unresolved"));
+                            + (selectedBlock.prerequisiteKnown() ? "modeled" : "unresolved")
+                            + "; tool " + BuiltInRegistries.ITEM.getKey(source.reusableTool()));
                 }
                 if (!reliable) {
                     factors.add("Conditional block source is diagnostic fallback only; it cannot undercut a fully modeled recipe/source");

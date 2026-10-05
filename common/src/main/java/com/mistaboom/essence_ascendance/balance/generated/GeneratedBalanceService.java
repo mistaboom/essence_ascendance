@@ -552,7 +552,7 @@ public final class GeneratedBalanceService {
                         "failed-generation-" + java.util.UUID.randomUUID() + ".json.gz");
                 try (var phaseScope = BalancePerformance.phase("failure_evidence_serialization")) {
                     BalanceProfileStore.writeDiagnostic(diagnostic, SavedEvidenceRegenerator.failureSnapshot(
-                            inputs, evidence, economy, failure));
+                            inputs, evidence, economy, failure, generationProvenance));
                     EssenceAscendance.LOGGER.error("Balance runtime failed; diagnostic evidence for isolated replay saved to {}", diagnostic);
                 } catch (IOException | RuntimeException captureFailure) {
                     failure.addSuppressed(captureFailure);

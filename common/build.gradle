@@ -36,6 +36,9 @@ loom {
 
 // Executable invariant suites use the real mapped Minecraft classpath and add no test library.
 def balanceInvariantMains = [
+        balanceLootAcquisitionInvariants: 'com.mistaboom.essence_ascendance.valuation.LootAcquisitionTest',
+        balanceLootAuditMemoryInvariants: 'com.mistaboom.essence_ascendance.valuation.LootAuditMemoryTest',
+        balanceBlockSourceMemoryInvariants: 'com.mistaboom.essence_ascendance.valuation.BlockSourceMemoryTest',
         balanceQuestAcquisitionInvariants: 'com.mistaboom.essence_ascendance.balance.engine.QuestAcquisitionTest',
         latentOreBalanceInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.LatentOreBalanceTest',
         latentOreJeiInvariants: 'com.mistaboom.essence_ascendance.compat.jei.LatentOreJeiTest',
@@ -141,8 +144,19 @@ balanceInvariantMains.each { taskName, className ->
         dependsOn tasks.named('testClasses')
         classpath = sourceSets.test.runtimeClasspath
         mainClass = className
+        if (taskName == 'balanceLootAcquisitionInvariants' && rootProject.hasProperty('lootModifierFixture'))
+            args rootProject.file(rootProject.property('lootModifierFixture')).absolutePath
+        if (taskName == 'balanceLootAuditMemoryInvariants') {
+            maxHeapSize = '128m'
+            if (rootProject.hasProperty('lootAuditBaselineJar'))
+                classpath = files(rootProject.file(rootProject.property('lootAuditBaselineJar'))) + classpath
+        }
         if (taskName in ['balanceKubeRecipeIdInvariants', 'balanceRuntimePackInvariants']) dependsOn ':neoforge:compileJava'
         if (taskName == 'balanceDocumentStreamingInvariants') maxHeapSize = '128m'
+        if (taskName == 'balanceBlockSourceMemoryInvariants') {
+            maxHeapSize = '256m'
+            if (rootProject.hasProperty('blockSourceUnshared')) args '--unshared'
+        }
         if (taskName == 'balanceGeneratedSectionsInvariants') { maxHeapSize = '128m'; args '--stress' }
         if (taskName == 'nativeEquipmentHeadroomInvariants') maxHeapSize = '2g'
         if (taskName in ['balanceKubeRecipeIdInvariants', 'balanceRuntimePackInvariants']) {

@@ -297,7 +297,8 @@ public final class BalanceReports {
         columns.addAll(List.of("source_count", "override_count", "warning_count"));
         var out = tables.table("valuation.csv", columns.toArray(String[]::new));
         var sources = tables.table("valuation_sources.csv", "item_id", "source_index", "source_id", "kind", "stage", "output_per_event",
-                "renewable", "rate_known", "units_per_second", "confidence", "dependency_count", "reason");
+                "renewable", "rate_known", "units_per_second", "confidence", "dependency_count", "reason", "source_category", "source_scope",
+                "occurrence_chance", "refresh_applicability", "refresh_ticks", "decay_applicability", "decay_ticks", "access_proven", "availability_evidence");
         var dependencies = tables.table("valuation_source_dependencies.csv", "item_id", "source_index", "source_id", "dependency_id");
         var warnings = tables.table("warnings.csv", "scope", "subject_id", "warning_index", "warning");
         // A pack can have tens of thousands of resources and many claims per item.
@@ -317,9 +318,15 @@ public final class BalanceReports {
             out.row(cells.toArray(String[]::new));
             for (int i = 0; i < resource.sources().size(); i++) {
                 var source = resource.sources().get(i);
+                var availability = source.availability();
                 sources.row(id, Integer.toString(i), source.id(), source.kind().name(), source.stage().name(), number(source.expectedOutput()),
                         Boolean.toString(source.renewable()), Boolean.toString(source.rateKnown()), source.rateKnown() ? number(source.unitsPerSecond()) : "",
-                        number(source.confidence()), Integer.toString(source.dependencies().size()), source.reason());
+                        number(source.confidence()), Integer.toString(source.dependencies().size()), source.reason(),
+                        availability == null ? "" : availability.category().name(), availability == null ? "" : availability.scope().name(),
+                        availability == null ? "" : number(availability.occurrenceChance()),
+                        availability == null ? "" : availability.refresh().applicability().name(), availability == null ? "" : Integer.toString(availability.refresh().ticks()),
+                        availability == null ? "" : availability.decay().applicability().name(), availability == null ? "" : Integer.toString(availability.decay().ticks()),
+                        availability == null ? "" : Boolean.toString(availability.accessProven()), availability == null ? "" : BalanceDocument.GSON.toJson(availability));
                 for (String dependency : source.dependencies()) dependencies.row(id, Integer.toString(i), source.id(), dependency);
             }
             warningRows(warnings, "resource_evidence", id, resource.warnings());

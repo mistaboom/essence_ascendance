@@ -49,6 +49,7 @@ public final class PackEvidenceCollector {
         BalancePerformance.increment("evidence_collection_runs");
         BalancePerformance.flag("environment_analysis_rescanned", true);
         com.mistaboom.essence_ascendance.balance.quest.FtbQuestProvider.capture(inputs, runs, overrides);
+        com.mistaboom.essence_ascendance.valuation.LootrProvider.capture(inputs, runs, overrides);
         Map<String, Integer> priorities = new TreeMap<>();
         overrides.facts().stream().filter(f -> f.kind() == BalanceOverrides.SubjectKind.PROVIDER)
                 .sorted(Comparator.comparingInt(BalanceOverrides.FactOverride::priority).reversed()
@@ -80,6 +81,7 @@ public final class PackEvidenceCollector {
         try (var phase = BalancePerformance.phase("valuation_evidence_snapshot")) {
             snapshot = ValuationEvidenceSnapshot.collect(server, valuations);
         }
+        com.mistaboom.essence_ascendance.valuation.LootrProvider.recordSources(inputs, runs, snapshot);
         QuestProjection questProjection = projectQuests(inputs, valuations, snapshot);
         snapshot = questProjection.snapshot();
         PackEvidenceContext context = new PackEvidenceContext(server, settings, overrides, valuations, snapshot, inputs);

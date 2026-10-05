@@ -14,10 +14,13 @@ public final class FailureEvidenceTest {
         var inputs = new BalanceInputs(BalanceSettings.defaults(), new BalanceOverrides(List.of(), Map.of()));
         var evidence = new PackEvidence(Map.of(), List.of(), List.of(), Map.of(), List.of(), List.of("captured warning"), Map.of());
         var economy = new EconomyProfile(Map.of(), List.of(), List.of(), List.of(), 1, EconomyProcessingPolicy.defaults());
+        var provenance = new com.google.gson.JsonObject();
+        provenance.addProperty("lootAudit", "captured effective definitions");
         var snapshot = SavedEvidenceRegenerator.failureSnapshot(inputs, evidence, economy,
-                new IllegalArgumentException("offense constraint"));
+                new IllegalArgumentException("offense constraint"), provenance);
         var parsed = BalanceDocument.parse(snapshot.text());
         check(parsed.integrity().equals(snapshot.integrity()), "Failure envelope round trip");
+        check(parsed.section("metadata").getAsJsonObject("generation").equals(provenance), "Failed calibration retains already captured generation diagnostics without recollection");
         check(parsed.section("evidence").equals(BalanceDocument.GSON.toJsonTree(evidence)), "Exact evidence retained");
         check(parsed.section("economy").equals(BalanceDocument.GSON.toJsonTree(economy)), "Exact economy retained");
         check(parsed.decodeSection("evidence", PackEvidence.class).equals(evidence), "Direct typed evidence decoding");
