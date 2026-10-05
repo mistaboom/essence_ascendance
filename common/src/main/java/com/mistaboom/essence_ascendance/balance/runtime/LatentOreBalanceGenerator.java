@@ -184,7 +184,7 @@ public final class LatentOreBalanceGenerator {
             case MOB_DROP, FISHING -> 0.75;
             case TRADE -> 0.5;
             case LOOT -> 0.25;
-            case RECIPE, PLAYER_ACTION, MACHINE, BYPRODUCT, ADMINISTRATIVE -> 0;
+            case RECIPE, PLAYER_ACTION, MACHINE, BYPRODUCT, ADMINISTRATIVE, QUEST_REWARD -> 0;
         };
     }
 

@@ -7,7 +7,6 @@ import com.google.gson.JsonObject;
 import com.mistaboom.essence_ascendance.balance.engine.CapabilityAxis;
 import com.mistaboom.essence_ascendance.balance.engine.BuildComposition;
 import com.mistaboom.essence_ascendance.balance.engine.EvidenceFact;
-import com.mistaboom.essence_ascendance.balance.engine.PackEvidenceCollector;
 import com.mistaboom.essence_ascendance.balance.engine.ProgressionBand;
 import com.mistaboom.essence_ascendance.balance.runtime.RuntimeBuildScenarios;
 import com.mistaboom.essence_ascendance.progression.StatScalingService;
@@ -30,6 +29,8 @@ public final class BalanceReports {
     private BalanceReports() { }
     public static void export(GeneratedBalanceService.Active current, GeneratedBalanceService.Active previous,
                               Path folder, long generationMillis) throws IOException {
+        BalancePerformance.increment("report_export_runs");
+        writeManifest(folder, current.document().integrity(), "incomplete");
         JsonObject skills = current.document().section("skills");
         try (SpreadsheetReports tables = new SpreadsheetReports()) {
             valuation(tables, current);
@@ -40,6 +41,7 @@ public final class BalanceReports {
             combatBuilds(tables, skills);
             invariants(tables, current);
             evidence(tables, current);
+            questEvidence(tables, current.document().section("metadata"));
             runtimeTables(tables, current);
             latentOre(tables, current);
             ascension(tables, current);
@@ -64,25 +66,84 @@ public final class BalanceReports {
         BalanceProfileStore.writeAtomically(diagnostics.resolve("pack_metadata.json"), BalanceDocument.GSON.toJson(current.document().section("metadata")) + "\n");
         BalanceProfileStore.writeAtomically(diagnostics.resolve("bonus_tracks.json"), BalanceDocument.GSON.toJson(
                 com.mistaboom.essence_ascendance.balance.runtime.BonusTrackGenerator.diagnostics(current.runtime())) + "\n");
+        JsonObject metadata = current.document().section("metadata");
+        if (metadata.has("generation")) BalanceProfileStore.writeAtomically(diagnostics.resolve("generation_evidence.json"),
+                BalanceDocument.GSON.toJson(metadata.getAsJsonObject("generation")) + "\n");
+        if (metadata.has("generation") && metadata.getAsJsonObject("generation").has("routing"))
+            BalanceProfileStore.writeAtomically(diagnostics.resolve("routing_classification.json"),
+                    BalanceDocument.GSON.toJson(metadata.getAsJsonObject("generation").get("routing")) + "\n");
         BalanceReportLayout.finishExport(folder, current.document().integrity());
+        writeManifest(folder, current.document().integrity(), "complete");
+    }
+    static void questEvidence(SpreadsheetReports tables, JsonObject metadata) {
+        if (!metadata.has("generation") || !metadata.getAsJsonObject("generation").has("quests")) return;
+        var quests = metadata.getAsJsonObject("generation").getAsJsonObject("quests");
+        var table = tables.table("quest_evidence.csv", "quest_id", "source_id", "evidence_category", "type", "prerequisites",
+                "required_prerequisites", "dependencies_enforced", "repeatable", "cooldown_seconds", "scope", "items",
+                "quantity", "probability", "exclusive_group", "progression_contribution", "confidence", "unsupported", "predicate");
+        for (var element : quests.getAsJsonArray("quests")) {
+            var q = element.getAsJsonObject();
+            String contribution = "unresolved";
+            if (quests.has("progression")) {
+                var placements = quests.getAsJsonObject("progression").getAsJsonObject("quests");
+                if (placements.has(q.get("id").getAsString())) contribution = placements.getAsJsonObject(q.get("id").getAsString()).get("stage").getAsString();
+            }
+            questRow(table, q.get("id"), q.get("id"), "suggested_progression", q.get("dependencyMode"), q.get("prerequisites"), q.get("required"),
+                    q.get("enforced"), q.get("repeatable"), q.get("cooldownSeconds"), "team_task_progress", "", "", "", "",
+                    contribution, "inferred availability only", q.get("unresolved"), "No external crafting/use gate inferred");
+            for (var task : q.getAsJsonArray("tasks")) {
+                var t = task.getAsJsonObject();
+                questRow(table, q.get("id"), t.get("id"), "task_requirement", t.get("type"), q.get("prerequisites"), q.get("required"), q.get("enforced"),
+                        q.get("repeatable"), q.get("cooldownSeconds"), "team_task_progress", t.get("items"), t.get("count"), "", "", contribution,
+                        t.get("supported").getAsBoolean() ? ".85" : "unresolved", t.get("unresolved"), t.get("predicate"));
+                if (t.get("consumed").getAsBoolean()) questRow(table, q.get("id"), t.get("id"), "consumed_task_cost", t.get("type"), q.get("prerequisites"),
+                        q.get("required"), q.get("enforced"), q.get("repeatable"), q.get("cooldownSeconds"), "team_task_progress", t.get("items"),
+                        t.get("count"), "", "", "Required per repeated submission; prerequisite setup not charged every repeat",
+                        t.get("supported").getAsBoolean() ? ".85" : "unresolved task cost", t.get("unresolved"), t.get("predicate"));
+            }
+            for (var reward : q.getAsJsonArray("rewards")) {
+                var r = reward.getAsJsonObject();
+                questRow(table, q.get("id"), r.get("id"), "reward_acquisition", r.get("type"), q.get("prerequisites"), q.get("required"), q.get("enforced"),
+                        q.get("repeatable"), q.get("cooldownSeconds"), r.get("scope"), r.get("item"), r.get("count"), r.get("probability"), r.get("group"),
+                        contribution, r.get("item") != null && !r.get("item").isJsonNull() && r.getAsJsonArray("unresolved").isEmpty()
+                                ? ".85 factual semantics; opportunity only" : "unresolved acquisition", r.get("unresolved"), r.get("predicate"));
+            }
+        }
+    }
+    private static void questRow(SpreadsheetReports.Table table, Object... cells) {
+        table.row(java.util.Arrays.stream(cells).map(value -> value == null || value instanceof JsonElement e && e.isJsonNull() ? ""
+                : value instanceof JsonElement e && e.isJsonPrimitive() ? e.getAsString() : value.toString()).toArray(String[]::new));
+    }
+    private static void writeManifest(Path folder, String integrity, String state) throws IOException {
+        var manifest = new JsonObject(); manifest.addProperty("profileIntegrity", integrity); manifest.addProperty("state", state);
+        BalanceProfileStore.writeAtomically(BalanceReportLayout.diagnostics(folder).resolve("report_manifest.json"),
+                BalanceDocument.GSON.toJson(manifest) + "\n");
+    }
+    /** Bounded provenance check only. Missing/stale reports never cause startup analysis or export. */
+    static String state(Path folder, String integrity) {
+        var manifest = BalanceReportLayout.diagnostics(folder).resolve("report_manifest.json");
+        try {
+            if (!java.nio.file.Files.isRegularFile(manifest)) return "unverified_existing_or_missing";
+            byte[] bytes;
+            try (var input = java.nio.file.Files.newInputStream(manifest)) { bytes = input.readNBytes(4097); }
+            if (bytes.length > 4096) return "invalid_manifest";
+            String json = java.nio.charset.StandardCharsets.UTF_8.newDecoder().decode(java.nio.ByteBuffer.wrap(bytes)).toString();
+            var value = com.google.gson.JsonParser.parseString(json).getAsJsonObject();
+            if (!value.get("profileIntegrity").getAsString().equals(integrity)) return "different_profile";
+            return value.get("state").getAsString().equals("complete") ? "current" : "incomplete";
+        } catch (IOException | RuntimeException error) { return "invalid_manifest"; }
     }
     private static String report(GeneratedBalanceService.Active current, GeneratedBalanceService.Active previous, long millis, JsonObject skills) {
         var doc = current.document();
         var evidence = current.evidence();
-        JsonObject environment = doc.section("metadata").getAsJsonObject("environment");
         StringBuilder out = new StringBuilder("# Essence Ascendance pack balance\n\n");
         out.append("Generator: `").append(BalanceDocument.GENERATOR).append("`  \nProfile integrity: `").append(doc.integrity())
-                .append("`  \nPack fingerprint: `").append(environment.get("digest").getAsString()).append("`\n\n")
+                .append("`\n\n")
                 .append("This report explains the saved server profile. Edit the commented TOML inputs, then run `/essence admin balance rebuild`. The generated JSON is inspection-only.\n\n")
-                .append("## Environment and confidence boundary\n\n")
-                .append("Minecraft ").append(environment.get("minecraft").getAsString()).append("; loader ")
-                .append(environment.get("loader").getAsString()).append(".\n\n")
+                .append("Rebuild explicitly after changing the pack's recipes, loot, scripts, mods or balance inputs. Saved profiles are validated for integrity and usable data; loading does not detect pack changes.\n\n")
+                .append("## Evidence and confidence boundary\n\n")
                 .append("Direct observations, engine inferences, user overrides and policy decisions retain separate evidence origins. Generic data cannot reveal arbitrary scripted quest gates, dynamic item effects, machine outputs or boss phases. Unknown systems require a factual override or a typed optional provider.\n\n")
-                .append("Cheap startup fingerprints compare mod versions, datapack selection, registry identifiers and recipe identifiers. Unchanged identifiers do not prove unchanged recipe contents, loot, scripts or third-party configuration. Explicitly rebuild after those edits.\n\n")
-                .append("### Installed mods\n\n| Mod | Version |\n|---|---|\n");
-        environment.getAsJsonObject("mods").entrySet().stream().sorted(Map.Entry.comparingByKey())
-                .forEach(entry -> row(out, entry.getKey(), entry.getValue().getAsString()));
-        out.append("\nEnabled datapacks: ").append(environment.get("datapacks")).append("\n\n## Applied policy settings\n\n| Setting | Value |\n|---|---|\n");
+                .append("## Applied policy settings\n\n| Setting | Value |\n|---|---|\n");
         doc.section("settings").entrySet().stream().sorted(Map.Entry.comparingByKey())
                 .forEach(entry -> row(out, entry.getKey(), entry.getValue().toString()));
         out.append("\n## Overrides\n\n```json\n").append(BalanceDocument.GSON.toJson(doc.section("overrides"))).append("\n```\n\n")
@@ -115,12 +176,32 @@ public final class BalanceReports {
                 .sorted(Comparator.comparing(EvidenceFact::key).thenComparing(EvidenceFact::provider))
                 .forEach(fact -> row(out, fact.subjectId(), fact.subject().name(), fact.property(), evidenceValue(fact.value()),
                         fact.origin().name(), number(fact.confidence()), fact.reason()));
+        JsonObject generationMetadata = doc.section("metadata");
+        if (generationMetadata.has("generation")) {
+            JsonObject generation = generationMetadata.getAsJsonObject("generation");
+            out.append("\n## Generation evidence providers\n\nThese are saved generation facts. They are never compared with the current installed environment. Source reachability and measured capability remain separate evidence.\n\n")
+                    .append("| Provider | Status | Version | Required evidence complete | Facts | Sources | Minimum confidence | Detail |\n|---|---|---|---|---:|---:|---:|---|\n");
+            generation.getAsJsonArray("providers").forEach(value -> {
+                JsonObject provider = value.getAsJsonObject();
+                row(out, provider.get("family").getAsString() + "/" + provider.get("id").getAsString(), provider.get("status").getAsString(),
+                        provider.get("version").getAsString(), provider.get("requiredEvidenceComplete").getAsString(), provider.get("facts").getAsString(),
+                        provider.get("sources").getAsString(), provider.has("minimumConfidence") ? provider.get("minimumConfidence").getAsString() : "unknown", provider.get("detail").getAsString());
+            });
+            out.append("\nNormalized workload counts: ").append(generation.get("workloads")).append(". Detailed dimension readiness, source provenance, unsupported recipe families and provider timings are in `diagnostics/generation_evidence.json`.\n\n");
+            if (generation.has("routing")) out.append("Routing evidence counts: ")
+                    .append(generation.getAsJsonObject("routing").get("counts"))
+                    .append(". Matched rules, fallback-only functions, ambiguous hints, conflicts and suppressed false-positive candidates are in `diagnostics/routing_classification.json`. Classification coverage does not establish reachability, economic correctness or measured capability correctness.\n\n");
+        }
         out.append("\n## Resource supply and automation\n\n| Classification | Items |\n|---|---:|\n");
         Map<String, Long> classes = new TreeMap<>();
         evidence.resources().values().forEach(resource -> classes.merge(resource.availability() + " / " + resource.automation(), 1L, Long::sum));
         classes.forEach((key, value) -> row(out, key, value.toString()));
         out.append("\nEconomic value measures opportunity cost. Dissolution yield is the separately constrained spendable output. Automation and source pressure affect yield; conservation runs after all yield overrides. `valuation.csv` contains every resource and its routing.\n\n")
                 .append("### Production graph\n\n").append(evidence.graphSummary()).append("\n\n")
+                .append("Saved normalized processes: ").append(current.economy().processes().size())
+                .append("; incomplete processes excluded from hard conservation: ")
+                .append(current.economy().processes().stream().filter(process -> !process.conservationComplete()).count())
+                .append(". Exact effective definitions, native resource quantities/units, component predicates, setup, operating requirements and adapter provenance remain in the profile's economy/processes. Unknown energy, fuel, access or variant behavior is not treated as free. Recipe duration alone does not establish throughput.\n\n")
                 .append("Final conservation passes: ").append(current.economy().solverPasses()).append(". Checked production paths: ")
                 .append(current.economy().invariants().size()).append(". All accepted paths pass their final production budget. Ordinary crafting shares only consumed material value across outputs and byproducts. Verified finite-stock trading additionally has a capped renewable-source allowance derived from uninflated proposed yields; the invariant explanation separates material and source credit. Workstations, stock and restocking are productive constraints, so profitable trading is permitted without increasing direct item proposals.\n\n")
                 .append("## Generated policy parameters\n\n")
@@ -180,10 +261,15 @@ public final class BalanceReports {
                     .append("| Generation phase | Milliseconds |\n|---|---:|\n");
             phases.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(phase -> row(out, phase.getKey(), phase.getValue().toString()));
             out.append("\n| Evidence provider | Milliseconds |\n|---|---:|\n");
-            PackEvidenceCollector.lastProviderTimingsMillis().entrySet().stream().sorted(Map.Entry.comparingByKey())
-                    .forEach(provider -> row(out, provider.getKey(), provider.getValue().toString()));
+            JsonObject metadata = current.document().section("metadata");
+            if (metadata.has("generation")) metadata.getAsJsonObject("generation").getAsJsonArray("providers").forEach(value -> {
+                JsonObject provider = value.getAsJsonObject();
+                row(out, provider.get("family").getAsString() + "/" + provider.get("id").getAsString()
+                        + " [" + provider.get("status").getAsString() + "]",
+                        Long.toString(provider.get("collectionNanos").getAsLong() / 1_000_000));
+            });
         }
-        out.append("\nTimings are rounded down to whole milliseconds; zero is a valid measured duration. They do not participate in deterministic balance values or profile integrity. Graph traversal is bounded; normal loads skip providers and solvers. Gameplay, loader transformation and multiplayer acceptance require the supplied local tests.\n\n")
+        out.append("\nTimings are rounded down to whole milliseconds; zero is a valid measured duration. They do not participate in deterministic balance values. Saved generation timing provenance is protected by the profile integrity. Graph traversal is bounded; normal loads skip providers and solvers. Gameplay, loader transformation and multiplayer acceptance require the supplied local tests.\n\n")
                 .append("## Comparison with previous active profile\n\n");
         if (previous == null) out.append("No previous active profile was supplied for this export.\n");
         else {

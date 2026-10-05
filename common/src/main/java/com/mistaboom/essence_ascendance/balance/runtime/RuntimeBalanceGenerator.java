@@ -30,6 +30,7 @@ public final class RuntimeBalanceGenerator {
         return generate(evidence, null, settings, overrides);
     }
     public static RuntimeBalanceDefinition generate(PackEvidence evidence, EconomyProfile economy, BalanceSettings settings, BalanceOverrides overrides) {
+        com.mistaboom.essence_ascendance.balance.generated.BalancePerformance.increment("runtime_generation_runs");
         var allTiers = AscendanceTierRegistry.values().stream().sorted(Comparator.comparingInt(AscendanceTierDefinition::order)).toList();
         var tiers = allTiers.stream().filter(AscendanceTierDefinition::grantsPower).toList();
         if (tiers.isEmpty()) throw new IllegalArgumentException("At least one powered Ascendance tier must be registered");

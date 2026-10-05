@@ -1,7 +1,6 @@
 package com.mistaboom.essence_ascendance.balance.generated;
 
 import java.io.IOException;
-import java.io.BufferedWriter;
 import java.io.OutputStreamWriter;
 import java.io.FilterOutputStream;
 import java.io.Writer;
@@ -28,12 +27,6 @@ public final class BalanceProfileStore {
 
     public static Path profilePath(Path folder) { return folder.resolve(PROFILE_FILE); }
 
-    static void requireCurrentStorage(Path folder, boolean rebuild) throws IOException {
-        if (!rebuild && !Files.exists(profilePath(folder)) && Files.exists(folder.resolve("generated_balance.json")))
-            throw new IOException("Uncompressed development profile retained at " + folder.resolve("generated_balance.json")
-                    + "; explicit balance rebuild is required for compressed storage. No profile was deleted or migrated");
-    }
-
     public static BalanceDocument read(Path path) throws IOException {
         BalancePerformance.increment("profile_reads");
         try (var phase = BalancePerformance.phase("profile_locate")) {
@@ -45,12 +38,14 @@ public final class BalanceProfileStore {
         try (var phase = BalancePerformance.phase("profile_open")) { stored = Files.newInputStream(path); }
         try (stored) {
             InputStreamReader reader;
+            byte[] snapshot = null;
             try (var phase = BalancePerformance.phase("profile_reader_open")) {
                 boolean compressed = path.getFileName().toString().endsWith(".gz");
-                reader = new InputStreamReader(limitedInput(compressed ? new GZIPInputStream(stored) : stored,
+                if (compressed) snapshot = limitedInput(stored, MAX_PROFILE_BYTES).readAllBytes();
+                reader = new InputStreamReader(limitedInput(compressed ? new GZIPInputStream(new java.io.ByteArrayInputStream(snapshot)) : stored,
                         compressed ? MAX_JSON_BYTES : MAX_PROFILE_BYTES), StandardCharsets.UTF_8.newDecoder());
             }
-            try (reader) { return BalanceDocument.parse(reader); }
+            try (reader) { return BalanceDocument.parse(reader, snapshot); }
         }
     }
 
@@ -58,6 +53,14 @@ public final class BalanceProfileStore {
         // The authoritative .json.gz keeps every field with the same canonical integrity.
         // Plain JSON remains supported for explicit small offline fixtures/exports only.
         writeAtomically(path, candidate::writeCompactTo, path.getFileName().toString().endsWith(".gz"));
+    }
+
+    /** One compression pass supplies both durable authority and the immutable in-memory snapshot. */
+    static BalanceDocument replaceAndRetain(Path path, BalanceDocument candidate) throws IOException {
+        if (!path.getFileName().toString().endsWith(".gz")) throw new IllegalArgumentException("Compressed authority required");
+        var snapshot = new java.io.ByteArrayOutputStream();
+        byte[] bytes = writeAtomically(path, candidate::writeCompactTo, true, MAX_PROFILE_BYTES, snapshot);
+        return candidate.compactFromSnapshot(bytes);
     }
 
     /** Lossless failure evidence for the existing offline reader, never the live profile path. */
@@ -82,18 +85,32 @@ public final class BalanceProfileStore {
         writeAtomically(path, action, compressed, MAX_PROFILE_BYTES);
     }
     private static void writeAtomically(Path path, WriteAction action, boolean compressed, long storedLimit) throws IOException {
+        writeAtomically(path, action, compressed, storedLimit, null);
+    }
+    private static byte[] writeAtomically(Path path, WriteAction action, boolean compressed, long storedLimit,
+                                        java.io.ByteArrayOutputStream snapshot) throws IOException {
         Files.createDirectories(path.toAbsolutePath().getParent());
         Path temp = Files.createTempFile(path.toAbsolutePath().getParent(), path.getFileName().toString(), ".pending");
         try {
             try (FileChannel channel = FileChannel.open(temp, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)) {
-                var stored = limitedOutput(Channels.newOutputStream(channel), storedLimit, false);
+                OutputStream target = Channels.newOutputStream(channel);
+                if (snapshot != null) target = new FilterOutputStream(target) {
+                    @Override public void write(int value) throws IOException { out.write(value); snapshot.write(value); }
+                    @Override public void write(byte[] bytes, int offset, int length) throws IOException {
+                        out.write(bytes, offset, length); snapshot.write(bytes, offset, length);
+                    }
+                };
+                var stored = limitedOutput(target, storedLimit, false);
                 var bounded = compressed ? limitedOutput(new GZIPOutputStream(stored), MAX_JSON_BYTES, true) : stored;
-                try (var output = new BufferedWriter(new OutputStreamWriter(bounded, StandardCharsets.UTF_8))) {
+                try (var output = new BalanceJsonBuffer(new OutputStreamWriter(bounded, StandardCharsets.UTF_8))) {
                     action.write(output);
                 }
                 channel.force(true);
             }
+            // Finish the potentially large allocation before replacing the previous authority.
+            byte[] bytes = snapshot == null ? null : snapshot.toByteArray();
             Files.move(temp, path, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            return bytes;
         } finally { Files.deleteIfExists(temp); }
     }
 

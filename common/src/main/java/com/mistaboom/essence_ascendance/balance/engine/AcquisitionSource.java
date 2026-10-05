@@ -8,5 +8,5 @@ public record AcquisitionSource(String id, Kind kind, ProgressionBand stage, dou
                                 double confidence, List<String> dependencies, String reason) {
     public AcquisitionSource { dependencies = dependencies.stream().sorted().distinct().toList(); }
     public enum Kind { WORLD_GENERATION, MOB_DROP, FARMING, FISHING, TRADE, LOOT, RECIPE,
-        PASSIVE_GENERATION, MACHINE, BYPRODUCT, PLAYER_ACTION, INFINITE_BULK, ADMINISTRATIVE }
+        PASSIVE_GENERATION, MACHINE, BYPRODUCT, PLAYER_ACTION, INFINITE_BULK, ADMINISTRATIVE, QUEST_REWARD }
 }

@@ -25,16 +25,16 @@ public final class EconomyGenerator {
     private EconomyGenerator() { }
 
     public static synchronized void register(ProductionProvider provider) {
+        if (provider == null || provider.id() == null || provider.id().isBlank()) throw new IllegalArgumentException("Production provider needs a stable ID");
         if (PROVIDERS.putIfAbsent(provider.id(), provider) != null)
             throw new IllegalArgumentException("Duplicate production provider " + provider.id());
     }
 
-    public static EconomyProfile generate(MinecraftServer server, PackEvidence evidence,
-                                           BalanceSettings settings, BalanceOverrides overrides) {
-        ProductionGraph generic;
-        try (var phase = BalancePerformance.phase("production_graph_adapter")) {
-            generic = ProductionGraphAdapter.collect(server);
-        }
+    /** Provider facts are resolved once, before any acquisition or economy consumer runs. */
+    public static void prepareProduction(com.mistaboom.essence_ascendance.valuation.GenerationDataSnapshot inputs,
+                                         BalanceOverrides overrides,
+                                         com.mistaboom.essence_ascendance.balance.engine.GenerationProviders runs) {
+        ProductionGraph generic = inputs.production();
         Map<String, ProductionGraph.Process> processes = new TreeMap<>();
         generic.processes().forEach(process -> processes.put(process.id(), process));
         List<String> warnings = new ArrayList<>(generic.warnings());
@@ -42,14 +42,35 @@ public final class EconomyGenerator {
         synchronized (EconomyGenerator.class) { providers = List.copyOf(PROVIDERS.values()); }
         providers.stream().sorted(Comparator.comparingInt((ProductionProvider provider) -> priority(provider, overrides))
                         .thenComparing(ProductionProvider::id))
-                .filter(provider -> !disabledProvider(provider, overrides)).forEach(provider -> {
+                .filter(provider -> runs.prepare("production", provider,
+                        com.mistaboom.essence_ascendance.balance.engine.GenerationProviders.disabled(provider.id(), overrides))).forEach(provider -> {
                     try (var phase = BalancePerformance.phase("production_provider/" + provider.id())) {
-                        ProductionGraph supplied = provider.collect(server, evidence);
-                        supplied.processes().forEach(process -> processes.put(process.id(), process));
+                        ProductionGraph supplied = runs.run("production", provider, "collect", () -> provider.collect(inputs, generic));
+                        runs.emitted("production", provider, 0, supplied.processes().size(),
+                                supplied.processes().stream().mapToDouble(ProductionGraph.Process::confidence).min().orElse(1));
+                        supplied.processes().forEach(process -> {
+                            var previous = processes.put(process.id(), process);
+                            if (previous != null && !previous.equals(process)) warnings.add("Production conflict " + process.id()
+                                    + ": " + provider.id() + " replaces " + previous.provider() + " by priority/ID order");
+                        });
                         warnings.addAll(supplied.warnings());
                     }
                 });
-        ProductionGraph graph = new ProductionGraph(List.copyOf(processes.values()), warnings);
+        warnings.addAll(runs.warnings());
+        applyProcessFacts(processes, overrides, warnings);
+        inputs.quests().processes().forEach(process -> {
+            if (processes.putIfAbsent(process.id(), process) != null) throw new IllegalStateException("Quest/source process ID collision " + process.id());
+        });
+        inputs.production(new ProductionGraph(List.copyOf(processes.values()), warnings));
+    }
+
+    public static EconomyProfile generate(MinecraftServer server, PackEvidence evidence,
+                                           BalanceSettings settings, BalanceOverrides overrides,
+                                           com.mistaboom.essence_ascendance.valuation.GenerationDataSnapshot inputs,
+                                           com.mistaboom.essence_ascendance.balance.engine.GenerationProviders runs) {
+        inputs.requireCurrent(server);
+        ProductionGraph graph;
+        try (var phase = BalancePerformance.phase("production_graph_adapter")) { graph = ProductionGraphAdapter.collect(server); }
         Map<String, Map<String, Long>> routeWeights = new TreeMap<>();
         try (var phase = BalancePerformance.phase("reuse_valuation_routes")) {
         ProceduralValuationEngine.evaluateAll(server).forEach(value -> {
@@ -58,7 +79,7 @@ public final class EconomyGenerator {
             routeWeights.put(value.itemId().toString(), weights);
         });
         }
-        return generate(evidence, graph, routeWeights, settings, overrides);
+        return generateResolved(evidence, graph, routeWeights, settings, overrides);
     }
 
     /** Pure generation seam for deterministic replay of captured pack evidence and recipe graphs. */
@@ -70,6 +91,13 @@ public final class EconomyGenerator {
         List<String> warnings = new ArrayList<>(graph.warnings());
         applyProcessFacts(processes, overrides, warnings);
         ProductionGraph resolvedGraph = new ProductionGraph(List.copyOf(processes.values()), warnings);
+        return generateResolved(evidence, resolvedGraph, routeWeights, settings, overrides);
+    }
+
+    private static EconomyProfile generateResolved(PackEvidence evidence, ProductionGraph resolvedGraph,
+                                           Map<String, Map<String, Long>> routeWeights,
+                                           BalanceSettings settings, BalanceOverrides overrides) {
+        List<String> warnings = new ArrayList<>(resolvedGraph.warnings());
 
         com.mistaboom.essence_ascendance.balance.engine.EvidenceSink sourceFacts = new com.mistaboom.essence_ascendance.balance.engine.EvidenceSink();
         evidence.facts().forEach(sourceFacts::add);
@@ -240,23 +268,19 @@ public final class EconomyGenerator {
                 .max().orElse(provider.priority());
     }
 
-    private static boolean disabledProvider(ProductionProvider provider, BalanceOverrides overrides) {
-        return overrides.facts().stream().filter(fact -> fact.kind() == BalanceOverrides.SubjectKind.PROVIDER
-                        && fact.selector().equals(provider.id())).max(Comparator.comparingInt(BalanceOverrides.FactOverride::priority)
-                        .thenComparing(BalanceOverrides.FactOverride::id)).flatMap(fact -> fact.flag("disabled")).orElse(false);
-    }
-
     private static void applyProcessFacts(Map<String, ProductionGraph.Process> processes,
                                            BalanceOverrides overrides, List<String> warnings) {
         List<BalanceOverrides.FactOverride> facts = overrides.facts().stream()
                 .filter(fact -> fact.kind() == BalanceOverrides.SubjectKind.RECIPE || fact.kind() == BalanceOverrides.SubjectKind.RECIPE_FAMILY)
-                .sorted(Comparator.comparingInt(BalanceOverrides.FactOverride::priority).thenComparing(BalanceOverrides.FactOverride::id)).toList();
+                .sorted(Comparator.comparingInt(BalanceOverrides.FactOverride::priority)
+                        .thenComparingDouble(fact -> fact.number("confidence").orElse(1.0)).thenComparing(BalanceOverrides.FactOverride::id)).toList();
         java.util.Set<String> matched = new java.util.HashSet<>();
         for (ProductionGraph.Process before : List.copyOf(processes.values())) {
             Map<String, Object> resolved = new TreeMap<>();
             List<String> applied = new ArrayList<>();
             for (BalanceOverrides.FactOverride fact : facts) {
-                if (!fact.selector().equals(fact.kind() == BalanceOverrides.SubjectKind.RECIPE ? before.id() : before.family())) continue;
+                String subject = fact.kind() == BalanceOverrides.SubjectKind.RECIPE ? before.id() : before.family();
+                if (!subject.matches(java.util.regex.Pattern.quote(fact.selector()).replace("*", "\\E.*\\Q"))) continue;
                 matched.add(fact.id());
                 resolved.putAll(fact.values());
                 applied.add(fact.id());
@@ -272,9 +296,10 @@ public final class EconomyGenerator {
                 double probability = output.byproduct() ? output.probability() : number(resolved, "probability", output.probability());
                 if (count > 0 && probability > 0) outputs.add(new ProductionGraph.Output(output.itemId(), count, probability, output.byproduct()));
             }
-            if (outputs.isEmpty()) { processes.remove(before.id()); continue; }
+            if (outputs.isEmpty() && before.resources().stream().noneMatch(flow -> flow.direction().equals("output"))) { processes.remove(before.id()); continue; }
             Map<String, String> metadata = new TreeMap<>(before.metadata());
             metadata.put("overrides", String.join(",", applied));
+            if (resolved.get("processing_time") instanceof Number) metadata.put("duration_known", "true");
             processes.put(before.id(), new ProductionGraph.Process(before.id(), before.family(), before.inputs(), outputs,
                     number(resolved, "processing_time", before.processingTicks()), before.externalCost(), before.provider(),
                     number(resolved, "confidence", before.confidence()), metadata));
@@ -361,10 +386,11 @@ public final class EconomyGenerator {
     public static void validate(EconomyProfile profile) {
         if (profile == null || profile.resources().isEmpty() || profile.solverPasses() < 1 || profile.solverPasses() > 256)
             throw new IllegalArgumentException("Incomplete generated economy");
-        if (profile.invariants().size() != profile.processes().size()) throw new IllegalArgumentException("Missing economy invariant results");
+        List<ProductionGraph.Process> constrained = profile.processes().stream().filter(ProductionGraph.Process::conservationComplete).toList();
+        if (profile.invariants().size() != constrained.size()) throw new IllegalArgumentException("Missing economy invariant results");
         for (int i = 0; i < profile.invariants().size(); i++) {
             EconomyConservationSolver.Invariant invariant = profile.invariants().get(i);
-            if (!invariant.path().equals(profile.processes().get(i).id()) || !invariant.passed()
+            if (!invariant.path().equals(constrained.get(i).id()) || !invariant.passed()
                     || !Double.isFinite(invariant.inputValue()) || !Double.isFinite(invariant.expectedOutputValue())
                     || !Double.isFinite(invariant.maximumOutputValue()) || !Double.isFinite(invariant.netGain())
                     || invariant.inputValue() < 0 || invariant.expectedOutputValue() < 0 || invariant.maximumOutputValue() < 0

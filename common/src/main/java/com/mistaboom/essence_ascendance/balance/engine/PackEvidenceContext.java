@@ -8,4 +8,7 @@ import net.minecraft.server.MinecraftServer;
 import java.util.List;
 
 public record PackEvidenceContext(MinecraftServer server, BalanceSettings settings, BalanceOverrides overrides,
-                                  List<ProceduralValuationResult> valuations, ValuationEvidenceSnapshot acquisition) { }
+                                  List<ProceduralValuationResult> valuations, ValuationEvidenceSnapshot acquisition,
+                                  com.mistaboom.essence_ascendance.valuation.GenerationDataSnapshot inputs) {
+    public PackEvidenceContext { valuations = List.copyOf(valuations); inputs.requireCurrent(server); }
+}

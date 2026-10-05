@@ -38,3 +38,10 @@ tasks.register('regression', JavaExec) {
     args rootProject.projectDir.absolutePath
 }
 tasks.named('check') { dependsOn 'regression' }
+
+tasks.named('test', Test) {
+    dependsOn tasks.named('regression')
+    // This module's executable fixture suite runs through regression, not JUnit.
+    // Keep the discovery task enabled for any future framework tests.
+    failOnNoDiscoveredTests = false
+}

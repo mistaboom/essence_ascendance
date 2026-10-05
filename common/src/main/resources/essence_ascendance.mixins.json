@@ -40,6 +40,9 @@
     "UtilitySenseClientMixin"
   ],
   "mixins": [
+    "GenerationFixedHolderCodecMixin",
+    "GenerationNamedHolderCodecMixin",
+    "GenerationLootFunctionCodecMixin",
     "FlightVisualStateMixin",
     "FoodEffectOriginMixin",
     "AnimalFeedingMixin",

@@ -40,40 +40,51 @@ import static com.mistaboom.essence_ascendance.balance.engine.EvidenceFact.Subje
 
 /** Orchestrates one generation; ordinary profile loading never invokes this collector. */
 public final class PackEvidenceCollector {
-    private static volatile Map<String, Long> providerTimings = Map.of();
     private PackEvidenceCollector() { }
-    public static Map<String, Long> lastProviderTimingsMillis() { return providerTimings; }
 
-    public static PackEvidence collect(MinecraftServer server, BalanceSettings settings, BalanceOverrides overrides) {
+    public static PackEvidence collect(MinecraftServer server, BalanceSettings settings, BalanceOverrides overrides,
+                                       com.mistaboom.essence_ascendance.valuation.GenerationDataSnapshot inputs,
+                                       GenerationProviders runs) {
+        inputs.requireCurrent(server);
+        BalancePerformance.increment("evidence_collection_runs");
         BalancePerformance.flag("environment_analysis_rescanned", true);
+        com.mistaboom.essence_ascendance.balance.quest.FtbQuestProvider.capture(inputs, runs, overrides);
         Map<String, Integer> priorities = new TreeMap<>();
         overrides.facts().stream().filter(f -> f.kind() == BalanceOverrides.SubjectKind.PROVIDER)
                 .sorted(Comparator.comparingInt(BalanceOverrides.FactOverride::priority).reversed()
                         .thenComparing(BalanceOverrides.FactOverride::id))
                 .forEach(f -> priorities.putIfAbsent(f.selector(), f.priority()));
-        List<PackEvidenceProvider> providers = enabledProviders(overrides);
+        List<PackEvidenceProvider> providers = PackEvidenceProviders.all().stream()
+                .filter(provider -> runs.prepare("evidence", provider, GenerationProviders.disabled(provider.id(), overrides))).toList();
         providers.forEach(provider -> priorities.putIfAbsent(provider.id(), provider.priority()));
         EvidenceSink sink = new EvidenceSink(priorities);
-        Map<String, Long> timings = new TreeMap<>();
         for (PackEvidenceProvider provider : providers) {
-            long started = System.nanoTime();
-            try (var phase = BalancePerformance.phase("provider_before_acquisition/" + provider.id())) {
-                provider.beforeAcquisition(server, settings, sink);
-            }
-            timings.put(provider.id() + "/before_acquisition", (System.nanoTime() - started) / 1_000_000);
+            int start = sink.size();
+            runs.run("evidence", provider, "before_acquisition", () -> {
+                provider.beforeAcquisition(inputs, settings, sink); return true;
+            });
+            var emitted = sink.emittedSince(start);
+            runs.emitted("evidence", provider, emitted.facts(), emitted.sources(), emitted.minimumConfidence());
         }
-        ProceduralValuationEngine.prepareGeneration(acquisitionInputs(overrides, sink));
+        ProceduralValuationEngine.prepareGeneration(acquisitionInputs(overrides, sink), inputs);
+        com.mistaboom.essence_ascendance.balance.economy.EconomyGenerator.prepareProduction(inputs, overrides, runs);
         List<ProceduralValuationResult> valuations;
         try (var phase = BalancePerformance.phase("procedural_valuation")) {
             valuations = ProceduralValuationEngine.evaluateAll(server);
+        }
+        try (var phase = BalancePerformance.phase("routing_diagnostics")) {
+            inputs.recordRoutingDiagnostics(valuations);
+            BalancePerformance.count("routing_diagnostic_items", valuations.size());
         }
         ValuationEvidenceSnapshot snapshot;
         try (var phase = BalancePerformance.phase("valuation_evidence_snapshot")) {
             snapshot = ValuationEvidenceSnapshot.collect(server, valuations);
         }
-        PackEvidenceContext context = new PackEvidenceContext(server, settings, overrides, valuations, snapshot);
+        QuestProjection questProjection = projectQuests(inputs, valuations, snapshot);
+        snapshot = questProjection.snapshot();
+        PackEvidenceContext context = new PackEvidenceContext(server, settings, overrides, valuations, snapshot, inputs);
         try (var phase = BalancePerformance.phase("acquisition_facts")) {
-            collectAcquisition(context, sink);
+            collectAcquisition(context, sink, questProjection.placements());
             collectVanillaMechanics(context, sink);
         }
         Map<String, EquipmentReference> baseEquipment;
@@ -85,16 +96,14 @@ public final class PackEvidenceCollector {
             baseEnemies = collectEnemies(context, sink);
         }
         for (PackEvidenceProvider provider : providers) {
-            long started = System.nanoTime();
-            try (var phase = BalancePerformance.phase("evidence_provider/" + provider.id())) {
-                provider.collect(context, sink);
-            }
-            long millis = (System.nanoTime() - started) / 1_000_000;
-            timings.put(provider.id(), millis);
-            if (millis > 5000) EssenceAscendance.LOGGER.warn("Slow evidence provider {} took {} ms", provider.id(), millis);
+            int start = sink.size();
+            runs.run("evidence", provider, "collect", () -> { provider.collect(context, sink); return true; });
+            var emitted = sink.emittedSince(start);
+            runs.emitted("evidence", provider, emitted.facts(), emitted.sources(), emitted.minimumConfidence());
         }
-        providerTimings = java.util.Collections.unmodifiableMap(timings);
         try (var phase = BalancePerformance.phase("resolve_evidence_frontiers")) {
+        inputs.limitations().forEach(sink::warn);
+        runs.warnings().forEach(sink::warn);
         applyOverrides(context, sink);
         Map<String, ResourceEvidence> resources = resolveResources(context, sink);
         List<EquipmentReference> equipment = resolveEquipment(baseEquipment, resources, sink, settings);
@@ -111,6 +120,7 @@ public final class PackEvidenceCollector {
         if (snapshot.summary().getOrDefault("unsupported_recipes", 0L) > 0)
             sink.warn("Unsupported recipes: " + snapshot.summary().get("unsupported_recipes") + "; use recipe-family providers for dynamic or machine outputs");
         sink.warn("Custom spells, affixes, set bonuses, dynamic attributes, quest gates and machine rates require providers or factual overrides when they are not exposed by loaded data");
+        BalancePerformance.count("evidence_conflicts", sink.conflicts());
         BalancePerformance.count("evidence_resources", resources.size());
         BalancePerformance.count("evidence_equipment", equipment.size());
         BalancePerformance.count("evidence_enemies", enemies.size());
@@ -118,15 +128,6 @@ public final class PackEvidenceCollector {
         snapshot.summary().forEach((key, count) -> BalancePerformance.count("acquisition_" + key, count));
         return new PackEvidence(resources, equipment, enemies, frontiers, sink.facts(), sink.warnings(), snapshot.summary(), capabilities);
         }
-    }
-
-    private static List<PackEvidenceProvider> enabledProviders(BalanceOverrides overrides) {
-        return PackEvidenceProviders.all().stream().filter(provider -> overrides.facts().stream()
-                .filter(fact -> fact.kind() == BalanceOverrides.SubjectKind.PROVIDER && fact.selector().equals(provider.id()))
-                .sorted(java.util.Comparator.comparingInt(BalanceOverrides.FactOverride::priority).reversed()
-                        .thenComparing(BalanceOverrides.FactOverride::id))
-                .filter(fact -> fact.flag("disabled").isPresent()).findFirst()
-                .map(fact -> !fact.flag("disabled").orElse(false)).orElse(true)).toList();
     }
 
     private static BalanceOverrides acquisitionInputs(BalanceOverrides human, EvidenceSink initial) {
@@ -150,17 +151,20 @@ public final class PackEvidenceCollector {
         return new BalanceOverrides(facts, human.exactValues());
     }
 
-    private static void collectAcquisition(PackEvidenceContext context, EvidenceSink sink) {
+    private static void collectAcquisition(PackEvidenceContext context, EvidenceSink sink, Map<String, AcquisitionProgressionGraph.Placement> placements) {
         for (ProceduralValuationResult value : context.valuations()) {
             String id = value.itemId().toString();
             List<AcquisitionSource> sources = context.acquisition().sources().getOrDefault(id, List.of());
             ProgressionBand stage = inferStage(value, BuiltInRegistries.ITEM.get(value.itemId()), sources);
+            var placement = placements.get(id);
+            if (placement != null) stage = placement.stage();
+            boolean attainable = value.modeledAcquisition() || placement != null;
             boolean renewable = value.renewabilityMultiplier() < 1 || sources.stream().anyMatch(AcquisitionSource::renewable);
-            Availability availability = !value.modeledAcquisition() ? Availability.UNKNOWN
+            Availability availability = !attainable ? Availability.UNKNOWN
                     : renewable ? Availability.RENEWABLE_MANUAL : Availability.FINITE;
             Automation automation = renewable ? Automation.PLAYER_GATED : Automation.NONE;
             if (sources.stream().anyMatch(s -> s.kind() == AcquisitionSource.Kind.MOB_DROP && s.renewable())) automation = Automation.SCALABLE;
-            fact(sink, ITEM, id, "attainable", EvidenceFact.Value.flag(value.modeledAcquisition()), "acquisition", value.confidence(), stage,
+            fact(sink, ITEM, id, "attainable", EvidenceFact.Value.flag(attainable), "acquisition", value.confidence(), stage,
                     "Bounded acquisition solver requires an external starting source; recipe-only cycles do not seed reachability");
             fact(sink, ITEM, id, "stage", EvidenceFact.Value.text(stage.name()), "acquisition", value.confidence(), stage,
                     "Cheapest modeled acquisition, direct sources, recipe depth and typed tool tier; unrelated late loot does not force a gate");
@@ -168,6 +172,59 @@ public final class PackEvidenceCollector {
                     "Opportunity value from shared valuation graph; dissolution pressure is applied separately");
             fact(sink, ITEM, id, "availability", EvidenceFact.Value.text(availability.name()), "acquisition", .62, stage, "Loaded sources and renewability evidence");
             fact(sink, ITEM, id, "automation", EvidenceFact.Value.text(automation.name()), "acquisition", .5, stage, "Broad source class; production rates remain unknown");
+        }
+    }
+
+    private record QuestProjection(ValuationEvidenceSnapshot snapshot, Map<String, AcquisitionProgressionGraph.Placement> placements) { }
+    private static QuestProjection projectQuests(com.mistaboom.essence_ascendance.valuation.GenerationDataSnapshot inputs,
+            List<ProceduralValuationResult> values, ValuationEvidenceSnapshot snapshot) {
+        if (inputs.quests() == com.mistaboom.essence_ascendance.balance.quest.QuestEvidence.EMPTY) return new QuestProjection(snapshot, Map.of());
+        try (var phase = BalancePerformance.phase("shared_quest_acquisition_progression")) {
+            Map<String, AcquisitionProgressionGraph.Placement> seeds = new TreeMap<>();
+            for (var value : values) if (value.modeledAcquisition()) seeds.put(value.itemId().toString(), AcquisitionProgressionGraph.Placement.ordinary(
+                    inferStage(value, BuiltInRegistries.ITEM.get(value.itemId()), snapshot.sources().getOrDefault(value.itemId().toString(), List.of())),
+                    value.renewabilityMultiplier() < 1 || snapshot.sources().getOrDefault(value.itemId().toString(), List.of()).stream().anyMatch(AcquisitionSource::renewable)));
+            var solved = AcquisitionProgressionGraph.solve(seeds, inputs.production(), inputs.quests());
+            List<com.mistaboom.essence_ascendance.balance.economy.ProductionGraph.Process> resolved = new ArrayList<>();
+            for (var process : inputs.production().processes()) {
+                if (!process.metadata().containsKey("quest_id")) { resolved.add(process); continue; }
+                Map<String, String> metadata = new TreeMap<>(process.metadata());
+                var placement = solved.quests().get(metadata.get("quest_id"));
+                boolean supported = placement != null && process.confidence() >= .85;
+                metadata.put("acquisition_complete", Boolean.toString(supported));
+                if (!supported) metadata.put("conservation_complete", "false");
+                metadata.put("repeat_supply_proven", Boolean.toString(supported && placement.renewable()));
+                if ("renewable".equals(metadata.get("renewability")) && (placement == null || !placement.renewable()))
+                    metadata.put("renewability", placement != null && placement.finite() ? "finite" : "unknown");
+                metadata.put("availability_stage", supported ? placement.stage().name() : "unresolved");
+                metadata.put("acquisition_semantics", "Marginal reward opportunity, not guaranteed stock or unrestricted material conversion");
+                resolved.add(new com.mistaboom.essence_ascendance.balance.economy.ProductionGraph.Process(process.id(), process.family(), process.inputs(),
+                        process.outputs(), process.processingTicks(), process.externalCost(), process.provider(), process.confidence(), metadata));
+            }
+            inputs.production(new com.mistaboom.essence_ascendance.balance.economy.ProductionGraph(resolved, inputs.production().warnings()));
+            Map<String, List<AcquisitionSource>> sources = new TreeMap<>(snapshot.sources());
+            for (var q : inputs.quests().quests()) {
+                var placement = solved.quests().get(q.id());
+                if (placement == null) continue;
+                for (var r : q.rewards()) if (r.supported()) {
+                    List<AcquisitionSource> entries = new ArrayList<>(sources.getOrDefault(r.item(), List.of()));
+                    entries.add(new AcquisitionSource("essence_ascendance:quest/" + q.id() + "/" + r.id(), AcquisitionSource.Kind.QUEST_REWARD,
+                            placement.stage(), r.count() * r.probability(), q.repeatable() && placement.renewable(), false, 0, .85,
+                            q.tasks().stream().flatMap(t -> t.items().stream()).distinct().toList(),
+                            "Reward acquisition opportunity; " + r.type() + "; scope=" + r.scope() + "; group=" + r.group()
+                                    + "; repeatable=" + q.repeatable() + "; cooldown_seconds=" + q.cooldownSeconds()
+                                    + "; dependencies=" + q.prerequisites() + "; enforced=" + q.enforced()
+                                    + "; consumes=" + q.tasks().stream().filter(t -> t.consumed()).map(t -> t.id() + ":" + t.count()).toList()
+                                    + "; player activity required; no passive rate, population multiplier or capability-strength inference"));
+                    sources.put(r.item(), List.copyOf(entries));
+                }
+            }
+            var diagnostics = new com.google.gson.Gson().toJsonTree(solved).getAsJsonObject();
+            inputs.questProgression(diagnostics);
+            BalancePerformance.count("quest_progression_rule_evaluations", solved.ruleEvaluations());
+            BalancePerformance.count("quest_reachable_completions", solved.quests().size());
+            return new QuestProjection(new ValuationEvidenceSnapshot(java.util.Collections.unmodifiableMap(sources), snapshot.recipeInputs(),
+                    snapshot.entityProgression(), snapshot.summary()), solved.items());
         }
     }
 

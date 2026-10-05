@@ -11,11 +11,10 @@ import static com.mistaboom.essence_ascendance.balance.engine.BuildComposition.*
 public final class FailureEvidenceTest {
     private static int checks;
     public static void main(String[] args) {
-        var inputs = new BalanceInputs(BalanceSettings.defaults(), new BalanceOverrides(List.of(), Map.of()), "settings", "overrides");
+        var inputs = new BalanceInputs(BalanceSettings.defaults(), new BalanceOverrides(List.of(), Map.of()));
         var evidence = new PackEvidence(Map.of(), List.of(), List.of(), Map.of(), List.of(), List.of("captured warning"), Map.of());
         var economy = new EconomyProfile(Map.of(), List.of(), List.of(), List.of(), 1, EconomyProcessingPolicy.defaults());
-        var environment = new PackFingerprint("pack", Map.of("fixture", "1"), "1.21.1", "neoforge", List.of(), "registry", "recipes", "tags");
-        var snapshot = SavedEvidenceRegenerator.failureSnapshot(environment, inputs, evidence, economy,
+        var snapshot = SavedEvidenceRegenerator.failureSnapshot(inputs, evidence, economy,
                 new IllegalArgumentException("offense constraint"));
         var parsed = BalanceDocument.parse(snapshot.text());
         check(parsed.integrity().equals(snapshot.integrity()), "Failure envelope round trip");
@@ -26,6 +25,8 @@ public final class FailureEvidenceTest {
         check(true, "Typed evidence and saved tree agree without serialization allocation");
         check(parsed.sectionHash("evidence").equals(BalanceDocument.hash(parsed.section("evidence"))), "Section digest without tree copy");
         check(parsed.section("settings").equals(BalanceDocument.GSON.toJsonTree(inputs.settings())), "Settings retained");
+        check(!parsed.section("metadata").has("environment") && !parsed.section("metadata").has("settingsFingerprint")
+                && !parsed.section("metadata").has("overridesFingerprint"), "Failure capture requires no pack fingerprint");
         check(parsed.section("metadata").get("evidenceDigest").getAsString().equals(BalanceDocument.hash(parsed.section("evidence"))), "Evidence digest retained");
         check(parsed.section("runtime").isEmpty() && parsed.section("skills").isEmpty(), "No fabricated runtime");
         try { GeneratedBalanceService.decode(parsed); throw new AssertionError("Diagnostic installed"); }

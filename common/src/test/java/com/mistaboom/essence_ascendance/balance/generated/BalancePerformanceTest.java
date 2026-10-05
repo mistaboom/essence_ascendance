@@ -42,7 +42,7 @@ public final class BalancePerformanceTest {
         BalancePerformance.flag("saved_data_reused", true);
         BalancePerformance.detail("profile_integrity", "same");
         operation.type("saved_profile_load");
-        operation.complete("loaded_marked_stale");
+        operation.complete("loaded_validated");
         clock.set(42); operation.close(); operation.close();
         var result = operation.snapshot();
         check(result.elapsedNanos() == 42, "monotonic elapsed");
@@ -54,7 +54,7 @@ public final class BalancePerformanceTest {
         check(result.phases().stream().mapToLong(BalancePerformance.PhaseTiming::exclusiveNanos).sum()
                 + result.unattributedNanos() == result.elapsedNanos(), "no nested double count");
         check(result.finished() && result.activePhase().isEmpty(), "closed status");
-        check(result.operation().equals("saved_profile_load") && result.outcome().equals("loaded_marked_stale"), "classify and retain stale outcome");
+        check(result.operation().equals("saved_profile_load") && result.outcome().equals("loaded_validated"), "classify and retain validated load outcome");
         check(result.counts().get("items") == 64341 && result.counts().get("decodes") == 2, "workloads and invocation counts");
         check(result.flags().get("saved_data_reused") && result.details().get("profile_integrity").equals("same"), "reuse identity");
         check(result.equals(BalancePerformance.lastSnapshot()) && BalancePerformance.currentSnapshot() == null, "completed operation detached");
@@ -92,12 +92,12 @@ public final class BalancePerformanceTest {
         check(BalancePerformance.lastSnapshot().outcome().equals("validated"), "logger failure cannot invalidate operation");
         try (var outer = BalancePerformance.begin("load", "outer", clock::get, ignored -> { })) {
             String outerId = outer.snapshot().id();
-            try (var inner = BalancePerformance.begin("resource_reload_notice", "nested", clock::get, ignored -> { })) {
+            try (var inner = BalancePerformance.begin("profile_validation", "nested", clock::get, ignored -> { })) {
                 check(inner.snapshot().details().get("parent_operation_id").equals(outerId), "unexpected nested operation identified");
-                inner.complete("marked_stale");
+                inner.complete("validated");
             }
             check(BalancePerformance.currentSnapshot().id().equals(outerId), "nested operation restores outer context");
-            outer.complete("loaded_marked_stale");
+            outer.complete("loaded_validated");
         }
     }
 
@@ -143,9 +143,25 @@ public final class BalancePerformanceTest {
             check(result.counts().get("profile_reads") == 1 && result.counts().get("profile_json_parses") == 1, "actual read parse invocation counts");
             check(result.counts().get("profile_stored_bytes") == Files.size(target), "actual stored byte workload");
             for (String name : new String[]{"profile_locate", "profile_open", "profile_reader_open", "json_parse_and_decompress",
-                    "schema_and_integrity_validation", "compact_evidence", "compact_economy"})
+                    "schema_and_integrity_validation"})
                 check(result.phases().stream().anyMatch(phase -> phase.path().equals(name) && phase.invocations() == 1), "actual phase " + name);
-            check(result.counts().get("compacted_evidence_bytes") > 0 && result.counts().get("compacted_economy_bytes") > 0, "compacted byte workloads");
+            check(result.counts().get("profile_compressed_snapshot_reuses") == 1, "reuse validated compressed authority once");
+            check(result.phases().stream().noneMatch(phase -> phase.path().contains("section_serialization_gzip")),
+                    "saved profile must not recompress validated evidence");
+            check(result.counts().get("section_hash_computations/economy") == 1, "economy digest piggybacks mandatory envelope validation");
+            BalanceDocument retained;
+            try (var operation = BalancePerformance.begin("generated_commit", "test", System::nanoTime, ignored -> { })) {
+                retained = BalanceProfileStore.replaceAndRetain(target, original);
+                operation.complete("committed");
+            }
+            var commit = BalancePerformance.lastSnapshot();
+            check(commit.counts().get("profile_compressed_snapshot_reuses") == 1, "generated commit reuses exactly its written bytes");
+            check(!commit.counts().containsKey("profile_reads"), "generated commit never rereads/parses the file");
+            Files.delete(target);
+            check(retained.text().equals(original.text()), "committed snapshot survives file deletion with exact canonical output");
+            check(retained.sectionHash("economy").equals(original.sectionHash("economy")), "lazy economy hash retains exact contract");
+            retained.section("evidence").addProperty("value", 77);
+            check(retained.section("evidence").equals(original.section("evidence")), "snapshot public readers stay isolated");
         } finally { Files.deleteIfExists(target); Files.deleteIfExists(directory); }
     }
 

@@ -58,8 +58,6 @@ public final class SavedEvidenceRegenerationTool {
         if (!original.section("metadata").has("diagnosticOnly"))
             BalanceProfileStore.writeAtomically(output.resolve("diagnostics/generation_comparison.json"),
                     BalanceDocument.GSON.toJson(comparison(original, first.document())) + "\n");
-        if (original.section("metadata").get("generatorRevision").getAsString().equals("smooth-bonus-tracks-19"))
-            requireVitalityPreservation(original, first.document());
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println(
                 "SavedEvidenceRegenerationTool PASS: deterministic candidate written only to " + output
                 + "; integrity=" + first.document().integrity() + "; saved evidence/economy and human inputs unchanged; Bonus tracks and Attunement regenerated; no world opened");
@@ -73,42 +71,14 @@ public final class SavedEvidenceRegenerationTool {
         return java.util.HexFormat.of().formatHex(digest.digest());
     }
 
-    private static void requireVitalityPreservation(BalanceDocument previous, BalanceDocument current) {
-        var before = previous.section("runtime"); var after = current.section("runtime");
-        for (String key : new String[]{"equipment", "statMaxBonuses", "infuser", "shield", "pylons", "crucible", "attunement", "milestones", "advancements", "worldgen"})
-            if (!before.get(key).equals(after.get(key))) throw new AssertionError("Vitality changed unrelated runtime section " + key);
-        var oldProfile = before.getAsJsonObject("balanceProfile").deepCopy();
-        var newProfile = after.getAsJsonObject("balanceProfile").deepCopy();
-        oldProfile.remove("id"); newProfile.remove("id");
-        stripNativeDiagnostics(oldProfile); stripNativeDiagnostics(newProfile);
-        if (!oldProfile.equals(newProfile)) throw new AssertionError("Vitality changed Bonus tracks, costs or tier policy");
-        for (var entry : before.getAsJsonObject("effects").entrySet())
-            if (!entry.getValue().equals(after.getAsJsonObject("effects").get(entry.getKey())))
-                throw new AssertionError("Vitality changed prior skill settings " + entry.getKey());
-        var vitalityIds = java.util.Set.of("essence_ascendance:rising_recovery", "essence_ascendance:life_steal", "essence_ascendance:feast_reflex", "essence_ascendance:inner_sustenance");
-        var projectedPostures = java.util.Set.of("essence_ascendance:evasive_current", "essence_ascendance:bulwark_stance", "essence_ascendance:adaptive_guard");
-        for (var entry : before.getAsJsonObject("skillCurves").entrySet()) {
-            var changed = after.getAsJsonObject("skillCurves").getAsJsonObject(entry.getKey());
-            if (!vitalityIds.contains(entry.getKey()) && !projectedPostures.contains(entry.getKey()) && !entry.getValue().equals(changed))
-                throw new AssertionError("Vitality changed prior skill curve " + entry.getKey());
-            var oldRanks = entry.getValue().getAsJsonObject().getAsJsonArray("ranks");
-            for (int i = 0; i < oldRanks.size(); i++)
-                if (!oldRanks.get(i).getAsJsonObject().get("cost").equals(changed.getAsJsonArray("ranks").get(i).getAsJsonObject().get("cost")))
-                    throw new AssertionError("Vitality changed skill price " + entry.getKey());
-            if (changed.get("maximumRank").getAsInt() != 1) throw new AssertionError("Vitality enabled purchasable ranks");
-            if (!oldRanks.get(0).equals(changed.getAsJsonArray("ranks").get(0)))
-                throw new AssertionError("Vitality changed current purchasable rank " + entry.getKey());
-        }
-    }
-
-    /** Compare raw validated evidence documents; no discarded runtime-schema adapter is needed. */
+    /** Compare validated evidence documents from the current profile format. */
     private static com.google.gson.JsonObject comparison(BalanceDocument previous, BalanceDocument current) {
         var result = new com.google.gson.JsonObject();
         result.addProperty("baselineIntegrity", previous.integrity());
         result.addProperty("currentIntegrity", current.integrity());
         result.add("baselineGeneratorRevision", previous.section("metadata").get("generatorRevision"));
         result.add("currentGeneratorRevision", current.section("metadata").get("generatorRevision"));
-        result.addProperty("provenance", "Saved evidence and economy replay with exact original human-input fingerprints; no world opened or evidence recollected");
+        result.addProperty("provenance", "Saved evidence and economy replay with matching parsed settings and overrides; no world opened or evidence recollected");
         result.addProperty("baselineCombatCases", previous.section("skills").getAsJsonObject("combinedBuilds").getAsJsonArray("cases").size());
         result.addProperty("currentCombatCases", current.section("skills").getAsJsonObject("combinedBuilds").getAsJsonArray("cases").size());
         var unchanged = new com.google.gson.JsonObject();

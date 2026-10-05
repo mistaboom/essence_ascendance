@@ -35,8 +35,8 @@ final class ProceduralItemNomenclature {
     );
     private static final List<String> COMPOUND_NOUNS = List.of(
             "greatsword", "longsword", "shortsword", "crossbow", "pickaxe", "chestplate",
-            "jetpack", "chainsaw", "helmet", "leggings", "shovel", "sword", "shield",
-            "drill", "glider", "boots", "sickle", "scythe", "hatchet", "hammer"
+            "jetpack", "chainsaw", "paxel", "helmet", "leggings", "shovel", "sword", "shield",
+            "drill", "glider", "boots", "sickle", "scythe", "hatchet", "hammer", "axe", "hoe"
     );
 
     private ProceduralItemNomenclature() {
@@ -115,6 +115,34 @@ final class ProceduralItemNomenclature {
             out.add("form:smithing_template", 0, 1.2, 0, 0, 0, 1.2);
             return out.finish();
         }
+        if (words.any("chair seat bench stool sofa couch cabinet cupboard drawer drawers")
+                || words.phrase("display case")) {
+            out.add("form:furnishing", 0, 0, 0, 0, 0, 1);
+            return out.finish();
+        }
+
+        // The object form wins over the depicted weapon or the machine it fits.
+        // A module/unit is not the equipped machine; a blade/head is not a tool.
+        if (words.any("statue statuette trophy plush plushie replica decorative ornament")) {
+            out.add("form:depiction", 0, 0, 0, 0, 0, 1);
+            return out.finish();
+        }
+        if (words.any("part parts component components module attachment casing housing frame blueprint pattern")
+                || words.phrase("upgrade unit") || words.phrase("jetpack unit")
+                || words.phrase("sword blade") || words.phrase("turbine blade")
+                || words.phrase("rotary blade") || words.phrase("windmill blade")
+                || words.phrase("pickaxe head") || words.phrase("axe head")
+                || words.phrase("shovel head") || words.phrase("hammer head")
+                || words.any("sawblade turbinerotorblade capacitorcell")) {
+            out.add("form:component", 0, 0, 0, 0, 0, 0.6);
+            return out.finish();
+        }
+        // Singular wings in this pack are anatomy or crafting parts. Even the
+        // plural is merely a routing hypothesis, never a measured flight axis.
+        if (words.has("wing")) {
+            out.add("form:wing_component", 0, 0, 0, 0, 0, 0.6);
+            return out.finish();
+        }
 
         // A compound's functional meaning wins over a homonymous component.
         if (words.phrase("bone meal") || words.has("bonemeal")) {
@@ -153,7 +181,7 @@ final class ProceduralItemNomenclature {
                 "compass map sextant navigator navigation lodestone");
         out.collect(words, "harvesting", 0, 0, 0, 0, 3, 0.3,
                 "pickaxe shovel hoe axe hatchet sickle scythe drill excavator quarry miner mining "
-                        + "harvester harvest saw chainsaw hammer shears brush mattock lumberjack");
+                        + "harvester harvest saw chainsaw buzzsaw hammer shears brush mattock lumberjack paxel aiot chisel crook");
         out.collect(words, "agriculture", 0, 0, 1, 0, 2, 0.3,
                 "seed seeds sapling saplings propagule crop crops planter fertilizer fertiliser "
                         + "composter apiary beehive");
@@ -166,18 +194,20 @@ final class ProceduralItemNomenclature {
         out.collect(words, "textile", 0, 0.8, 1.2, 0, 0, 0.8,
                 "carpet blanket cushion");
         out.collect(words, "processing", 0, 0, 0, 0, 1.4, 1.6,
-                "crusher pulverizer grinder smelter furnace foundry mill sawmill extractor sifter sieve");
+                "crusher pulverizer grinder smelter furnace foundry mill sawmill extractor sifter sieve "
+                        + "macerator centrifuge electrolyzer crystallizer washer evaporator cutting sawing enriching crushing smelting");
         out.collect(words, "automation", 0, 0, 0, 0, 0, 2.4,
                 "generator processor controller circuit infuser crucible nexus pylon altar ritual "
                         + "anvil forge workbench assembler assembly enchanter enchanting brewing brewer "
                         + "mixer press pump pipe tube cable wire battery capacitor storage barrel chest "
                         + "backpack wrench gearbox redstone repeater comparator observer hopper piston "
-                        + "crafter dispenser dropper sensor detector switch lever button");
+                        + "crafter dispenser dropper sensor detector switch lever button factory conduit transmitter "
+                        + "transporter conveyor connector router terminal disk drive cell coil wirecoil computer monitor");
         // Generic component nouns are deliberately weaker than a specific role.
         out.collect(words, "component", 0, 0, 0, 0, 0, 0.6,
                 "machine component upgrade matrix focus motor engine tank gear capacitorcell");
         out.collect(words, "knowledge", 0, 0, 0, 0, 0, 2,
-                "book bookshelf lectern scroll tome experience potion");
+                "book bookshelf lectern scroll tome experience potion wand grimoire tablet glyph rune");
         out.collect(words, "light", 0, 0, 0, 0, 0, 2,
                 "torch lantern lamp bulb candle glowstone light");
         out.collect(words, "decoration", 0, 0, 0, 0, 0, 1.4,
@@ -204,7 +234,8 @@ final class ProceduralItemNomenclature {
         if (words.phrase("fire charge") || words.phrase("end crystal")) {
             out.add("weapon:explosive_charge", 2.8, 0, 0, 0, 0.4, 0.6);
         }
-        if (words.has("conduit")) {
+        // A transport/energy conduit is not the standalone aquatic support object.
+        if (words.has("conduit") && words.tokens.size() == 1) {
             out.add("support:conduit", 0, 0, 1.4, 1.4, 1, 1);
         }
         if (words.has("beacon")) {
@@ -238,6 +269,11 @@ final class ProceduralItemNomenclature {
         boolean present() {
             return !matches.isEmpty();
         }
+
+        boolean suppressesInheritedFunction() {
+            return matches.contains("form:component") || matches.contains("form:depiction")
+                    || matches.contains("form:wing_component") || matches.contains("form:furnishing");
+        }
     }
 
     private static final class Words {
@@ -264,6 +300,11 @@ final class ProceduralItemNomenclature {
 
         boolean has(String term) {
             return tokens.contains(term);
+        }
+
+        boolean any(String vocabulary) {
+            for (String term : vocabulary.split(" ")) if (has(term)) return true;
+            return false;
         }
 
         boolean phrase(String phrase) {

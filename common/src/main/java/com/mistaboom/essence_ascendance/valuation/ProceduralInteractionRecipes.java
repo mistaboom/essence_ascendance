@@ -91,7 +91,7 @@ final class ProceduralInteractionRecipes {
         List<Item> boxes = BuiltInRegistries.ITEM.stream().filter(item -> item instanceof BlockItem bi
                 && bi.getBlock() instanceof ShulkerBoxBlock).toList();
         List<Item> dyes = BuiltInRegistries.ITEM.stream().filter(item -> item instanceof DyeItem).toList();
-        for (RecipeHolder<?> holder : server.getRecipeManager().getRecipes()) {
+        for (RecipeHolder<?> holder : ProceduralValuationEngine.generationData(server).recipes()) {
             // Probe only the known stateless vanilla recipe implementation. Arbitrary
             // custom assemble() callbacks must NOT run for every possible pair.
             if (holder.value().getClass() != ShulkerBoxColoring.class) continue;

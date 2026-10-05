@@ -36,6 +36,7 @@ loom {
 
 // Executable invariant suites use the real mapped Minecraft classpath and add no test library.
 def balanceInvariantMains = [
+        balanceQuestAcquisitionInvariants: 'com.mistaboom.essence_ascendance.balance.engine.QuestAcquisitionTest',
         latentOreBalanceInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.LatentOreBalanceTest',
         latentOreJeiInvariants: 'com.mistaboom.essence_ascendance.compat.jei.LatentOreJeiTest',
         jeiSearchRefreshInvariants: 'com.mistaboom.essence_ascendance.client.JeiSearchRefreshTest',
@@ -79,14 +80,24 @@ def balanceInvariantMains = [
         balanceReportLayoutInvariants: 'com.mistaboom.essence_ascendance.balance.generated.BalanceReportLayoutTest',
         balanceEvidenceInvariants: 'com.mistaboom.essence_ascendance.balance.engine.BalanceEvidenceSelfTest',
         balanceProviderInvariants: 'com.mistaboom.essence_ascendance.balance.engine.ProviderReferenceTest',
+        balanceGenerationProviderInvariants: 'com.mistaboom.essence_ascendance.balance.engine.GenerationProviderContractTest',
+        balanceGenerationEnvironmentInvariants: 'com.mistaboom.essence_ascendance.valuation.GenerationEnvironmentTest',
         balanceCompositionInvariants: 'com.mistaboom.essence_ascendance.balance.engine.BuildCompositionTest',
         balanceEconomyInvariants: 'com.mistaboom.essence_ascendance.balance.economy.EconomyInvariantTest',
+        effectiveProductionInvariants: 'com.mistaboom.essence_ascendance.valuation.EffectiveProductionTest',
         balanceTradeInvariants: 'com.mistaboom.essence_ascendance.valuation.TradeGraphTest',
         valuationPerformanceInvariants: 'com.mistaboom.essence_ascendance.valuation.ValuationPerformanceTest',
+        nomenclatureInvariants: 'com.mistaboom.essence_ascendance.valuation.NomenclatureTest',
+        routingEvidenceInvariants: 'com.mistaboom.essence_ascendance.valuation.RoutingEvidenceTest',
         runtimeBalancePayloadInvariants: 'com.mistaboom.essence_ascendance.network.RuntimeBalancePayloadTest',
         balanceFailureEvidenceInvariants: 'com.mistaboom.essence_ascendance.balance.generated.FailureEvidenceTest',
         balanceDocumentStreamingInvariants: 'com.mistaboom.essence_ascendance.balance.generated.BalanceDocumentStreamingTest',
         balancePerformanceInvariants: 'com.mistaboom.essence_ascendance.balance.generated.BalancePerformanceTest',
+        balanceRecipeReadinessInvariants: 'com.mistaboom.essence_ascendance.balance.generated.GenerationRecipeReadinessTest',
+        balanceKubeRecipeIdInvariants: 'com.mistaboom.essence_ascendance.balance.generated.StableKubeRecipeIdsTest',
+        balanceRuntimePackInvariants: 'com.mistaboom.essence_ascendance.balance.generated.StableRuntimePackResourcesTest',
+        balanceStructureTemplateInvariants: 'com.mistaboom.essence_ascendance.valuation.StructureTemplateScanTest',
+        balanceGeneratedSectionsInvariants: 'com.mistaboom.essence_ascendance.balance.generated.GeneratedBalanceSectionsTest',
         machinePlacementInvariants: 'com.mistaboom.essence_ascendance.machine.MachinePlacementTest',
         balanceBiologicalSourceInvariants: 'com.mistaboom.essence_ascendance.valuation.BiologicalSourceEvidenceTest',
         balanceNaturalBlockInvariants: 'com.mistaboom.essence_ascendance.valuation.NaturalBlockEvidenceTest',
@@ -130,8 +141,15 @@ balanceInvariantMains.each { taskName, className ->
         dependsOn tasks.named('testClasses')
         classpath = sourceSets.test.runtimeClasspath
         mainClass = className
+        if (taskName in ['balanceKubeRecipeIdInvariants', 'balanceRuntimePackInvariants']) dependsOn ':neoforge:compileJava'
         if (taskName == 'balanceDocumentStreamingInvariants') maxHeapSize = '128m'
+        if (taskName == 'balanceGeneratedSectionsInvariants') { maxHeapSize = '128m'; args '--stress' }
         if (taskName == 'nativeEquipmentHeadroomInvariants') maxHeapSize = '2g'
+        if (taskName in ['balanceKubeRecipeIdInvariants', 'balanceRuntimePackInvariants']) {
+            maxHeapSize = '512m'
+            if (rootProject.hasProperty('balanceNativeGenerationModsDir'))
+                systemProperty 'balance.nativeGeneration.auditedModsDir', rootProject.property('balanceNativeGenerationModsDir')
+        }
         if (taskName == 'valuationPerformanceInvariants' && rootProject.hasProperty('captureValuationReference'))
             args '--capture-reference'
         if (taskName == 'ascendanceArmorInvariants') args armorSource.absolutePath, armorMaskDirectory.absolutePath
@@ -216,6 +234,72 @@ tasks.register('exportSavedBalance', JavaExec) {
 }
 
 // Standard test is a useful entry point even though framework discovery is empty.
+tasks.register('balancePerformanceReplay', JavaExec) {
+    group = 'development tools'
+    description = 'Read-only saved ATM profile/load or runtime replay; optional bounded isolated JFR.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.mistaboom.essence_ascendance.balance.generated.BalancePerformanceReplay'
+    maxHeapSize = '5g'
+    doFirst {
+        // Read an explicitly selected prior production artifact first on the isolated
+        // replay classpath. Never install it or modify the live source to time a baseline.
+        if (rootProject.hasProperty('balanceReplayBaselineJar')) {
+            def baseline = rootProject.file(rootProject.property('balanceReplayBaselineJar'))
+            if (!baseline.isFile()) throw new GradleException("Replay baseline JAR is missing: ${baseline}")
+            classpath = files(baseline) + sourceSets.test.runtimeClasspath
+            systemProperty 'balance.replay.expectedCodeSource', baseline.toURI().toString()
+        }
+        args rootProject.property('balanceConfigDir'), rootProject.property('balanceReplayOutput'),
+                rootProject.findProperty('balanceReplayMode') ?: 'load',
+                rootProject.hasProperty('balanceReplayJfr').toString()
+    }
+}
+
+// Explicit scalability measurement; ordinary builds retain the small invariant suite only.
+tasks.register('productionNormalizationReplay', JavaExec) {
+    group = 'development tools'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.mistaboom.essence_ascendance.valuation.EffectiveProductionTest'
+    maxHeapSize = '1g'
+    args '--benchmark', rootProject.layout.buildDirectory.dir('chat05-production-scalability').get().asFile.absolutePath
+}
+
+// Explicit read-only installed quest definition audit; never part of normal build/deploy.
+tasks.register('questDefinitionReplay', JavaExec) {
+    group = 'development tools'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.mistaboom.essence_ascendance.balance.quest.QuestDefinitionReplay'
+    maxHeapSize = '1g'
+    doFirst {
+        if (!rootProject.hasProperty('balanceFtbModsDir') || !rootProject.hasProperty('balanceQuestDefinitions'))
+            throw new GradleException('Supply -PbalanceFtbModsDir and -PbalanceQuestDefinitions')
+        classpath += files(rootProject.file(rootProject.property('balanceFtbModsDir')).toPath()
+                .resolve('ftb-library-neoforge-2101.1.36.jar').toFile())
+        args rootProject.property('balanceQuestDefinitions'),
+                rootProject.layout.buildDirectory.dir('chat06-quest-definition-replay').get().asFile.absolutePath
+    }
+}
+
+// Isolated real-input verification; never part of ordinary build/deploy.
+tasks.register('balanceGenerationMemoryReplay', JavaExec) {
+    group = 'development tools'
+    description = 'Verifies bounded generated-profile serialization against an isolated copy of real saved inputs.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.mistaboom.essence_ascendance.balance.generated.BalanceGenerationMemoryReplay'
+    maxHeapSize = '2g'
+    doFirst {
+        if (!rootProject.hasProperty('balanceConfigDir') || !rootProject.hasProperty('balanceReplayOutput'))
+            throw new GradleException('Supply -PbalanceConfigDir and -PbalanceReplayOutput')
+        args rootProject.property('balanceConfigDir'), rootProject.property('balanceReplayOutput')
+        if (rootProject.hasProperty('balanceRetainPrior')) args '--retain-prior'
+        if (rootProject.hasProperty('balanceWriteCandidate')) args '--write-candidate'
+    }
+}
+
 // testClasses does not depend on test, so this introduces no dependency cycle.
 tasks.named('test', Test) {
     dependsOn tasks.named('balanceInvariants')

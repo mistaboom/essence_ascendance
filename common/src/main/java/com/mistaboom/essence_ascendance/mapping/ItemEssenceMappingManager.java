@@ -56,8 +56,6 @@ public final class ItemEssenceMappingManager {
                 observedRecipes = server.getRecipeManager();
                 ProceduralValuationEngine.clear();
                 com.mistaboom.essence_ascendance.worldgen.PrimarySubstrateDiscovery.clear();
-                GeneratedBalanceService.markResourcesChanged("server_resource_or_recipe_manager_replaced");
-                EssenceAscendance.LOGGER.warn("Server resources reloaded. Existing generated balance remains active; use /essence admin balance rebuild to analyze changed recipes, tags or loot.");
             }
         });
     }
@@ -72,7 +70,8 @@ public final class ItemEssenceMappingManager {
             if (activeServer == null) throw new IllegalStateException("A running server is required");
             if (!activeServer.isSameThread()) throw new IllegalStateException("Balance changes must run on the server thread");
             GeneratedBalanceService.load(activeServer, rebuild, reason);
-        } catch (Exception error) {
+        } catch (Exception | LinkageError error) {
+            // Optional integration linkage is a candidate failure, not a server-tick failure.
             ItemEssenceMappingRegistry.rejectReload(new ItemEssenceMappingRegistry.LoadSummary(0, 0, 0, 0, 0, List.of()),
                     List.of(error.getMessage() == null ? error.getClass().getName() : error.getMessage()));
             EssenceAscendance.LOGGER.error("Balance load/rebuild rejected; previous valid profile retained", error);

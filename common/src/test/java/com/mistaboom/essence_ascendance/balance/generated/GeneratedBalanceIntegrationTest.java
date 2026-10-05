@@ -54,14 +54,26 @@ public final class GeneratedBalanceIntegrationTest {
                         && runtime.config().latentOreWorldgen().overworld().veinsPerChunk() == 3,
                 "Exact runtime worldgen overrides must remain authoritative below the automatic size/attempt floors");
         BalanceDocument document = document(evidence, economy, runtime, settings, overrides);
+        checks += GenerationSelectionChecks.verify(document);
+        check(!document.section("metadata").has("environment") && !document.section("metadata").has("settingsFingerprint")
+                && !document.section("metadata").has("overridesFingerprint"), "Generated profiles contain no pack fingerprint metadata");
         GeneratedBalanceService.Active decoded = GeneratedBalanceService.decode(BalanceDocument.parse(document.text()));
+
+        JsonObject generatedEnvelope = JsonParser.parseString(document.text()).getAsJsonObject();
+        generatedEnvelope.remove("evidence"); generatedEnvelope.remove("economy");
+        BalanceDocument streamed = BalanceDocument.sealGeneratedOwned(generatedEnvelope, evidence, economy);
+        check(streamed.text().equals(document.text()), "Streamed generation changed the complete canonical profile");
+        GeneratedBalanceService.Active streamedDecoded = GeneratedBalanceService.decode(streamed);
+        check(streamedDecoded.evidence().equals(decoded.evidence()), "Streamed generation changed typed evidence");
+        check(streamedDecoded.economy().equals(decoded.economy()), "Streamed generation changed typed economy");
+        check(streamedDecoded.runtime().toJson().equals(decoded.runtime().toJson()), "Streamed generation changed runtime policy");
 
         check(document.text().equals(decoded.document().text()), "Complete document bytes changed on parse/decode");
         verifyWholeAccounting(document);
         check(runtime.toJson().equals(decoded.runtime().toJson()), "Resolved runtime changed across the document codec");
         verifyGeneratedBonusViews(decoded.runtime());
         check(BalanceDocument.GSON.toJsonTree(economy).equals(BalanceDocument.GSON.toJsonTree(decoded.economy())),
-                "Economic values, fractional yields or processing policy changed on decode");
+                "Economic values, whole yields or processing policy changed on decode");
         check(evidence.equals(decoded.evidence()), "Typed evidence or provenance changed on decode");
         check(BalanceDocument.hash(BalanceDocument.GSON.toJsonTree(evidence)).equals(
                         BalanceDocument.hash(BalanceDocument.GSON.toJsonTree(decoded.evidence()))),
@@ -115,38 +127,44 @@ public final class GeneratedBalanceIntegrationTest {
         reject(document, root -> root.getAsJsonObject("evidence").remove("capabilities"), "Missing evidence collection was accepted");
         verifyNumericReportExport(decoded);
         verifySavedEvidenceRegeneration(document, settings, overrides);
+        verifyMachineProfile(evidence, economy, settings);
 
         output(FileDescriptor.out).println("GeneratedBalanceIntegrationTest: " + checks
                 + " complete-profile codec, digest, generation determinism, strict-runtime and economy-policy checks PASS");
     }
 
-    private static void verifyWholeAccounting(BalanceDocument legacy) {
-        // A compatible saved fractional profile remains loadable until an explicit
-        // rebuild. A new whole-accounting profile must not relabel those fractions.
-        reject(legacy, root -> root.getAsJsonObject("metadata")
-                .addProperty("dissolutionAccounting", "whole_essence_v1"),
-                "Whole-accounting marker accepted legacy fractional yields");
-        reject(legacy, root -> root.getAsJsonObject("metadata")
+    private static void verifyMachineProfile(PackEvidence base, EconomyProfile original, BalanceSettings settings) throws Exception {
+        var machine = com.mistaboom.essence_ascendance.valuation.EffectiveProductionTest.machineCase();
+        Map<String, ResourceEvidence> resources = new TreeMap<>(base.resources()); resources.putAll(machine.evidence().resources());
+        PackEvidence evidence = new PackEvidence(resources, base.equipment(), base.enemies(), base.frontiers(), base.facts(), base.warnings(), base.graphSummary(), base.capabilities());
+        Map<String, EconomyProfile.ResourceValue> values = new TreeMap<>(original.resources()); values.putAll(machine.economy().resources());
+        var economy = new EconomyProfile(values, machine.economy().invariants(), machine.economy().processes(), machine.economy().warnings(), machine.economy().solverPasses(), original.processingPolicy());
+        var runtime = RuntimeBalanceDefinition.generate(evidence, economy, settings, BalanceOverrides.empty());
+        var candidate = document(evidence, economy, runtime, settings, BalanceOverrides.empty());
+        var decoded = GeneratedBalanceService.decode(BalanceDocument.parse(candidate.text()));
+        check(decoded.evidence().resources().get("minecraft:barrier").reachable(), "Machine-only acquisition reaches complete generated profile");
+        check(decoded.economy().resources().get("minecraft:barrier").dissolutionYield().microUnits() > 0, "Machine-only payout retained in validated profile");
+        check(decoded.economy().processes().equals(machine.economy().processes()), "Shared machine inputs, setup and outputs survive profile validation");
+        check(decoded.economy().invariants().getFirst().passed(), "Machine-only conservation result retained");
+    }
+
+    private static void verifyWholeAccounting(BalanceDocument document) {
+        reject(document, root -> root.getAsJsonObject("metadata").remove("dissolutionAccounting"),
+                "Missing dissolution accounting policy was accepted");
+        reject(document, root -> root.getAsJsonObject("metadata")
                 .addProperty("dissolutionAccounting", "unknown_policy"),
                 "Unknown dissolution accounting policy was silently accepted");
-
-        JsonObject wholeJson = JsonParser.parseString(legacy.text()).getAsJsonObject();
-        wholeJson.getAsJsonObject("metadata").addProperty("dissolutionAccounting", "whole_essence_v1");
-        // This codec fixture has no processes; individual quantization is safe
-        // here only. Real generation uses the whole-unit conservation solver.
-        for (var entry : wholeJson.getAsJsonObject("economy").getAsJsonObject("resources").entrySet()) {
-            JsonObject resource = entry.getValue().getAsJsonObject();
+        reject(document, root -> {
+            JsonObject resource = root.getAsJsonObject("economy").getAsJsonObject("resources")
+                    .entrySet().iterator().next().getValue().getAsJsonObject();
             JsonObject routes = resource.getAsJsonObject("routedYields");
-            long total = 0;
-            for (String essence : List.copyOf(routes.keySet())) {
-                long amount = Math.round(routes.get(essence).getAsDouble());
-                routes.addProperty(essence, amount);
-                total = Math.addExact(total, amount);
-            }
+            String route = routes.keySet().iterator().next();
+            routes.addProperty(route, routes.get(route).getAsDouble() + 0.25);
+            double total = routes.entrySet().stream().mapToDouble(entry -> entry.getValue().getAsDouble()).sum();
             resource.getAsJsonObject("dissolutionYield").addProperty("microUnits",
-                    Math.multiplyExact(total, FractionalAmountService.SCALE));
-        }
-        var whole = GeneratedBalanceService.decode(BalanceDocument.seal(wholeJson));
+                    Math.round(total * FractionalAmountService.SCALE));
+        }, "Fractional yields with internally consistent totals were accepted");
+        var whole = GeneratedBalanceService.decode(document);
         EconomyGenerator.validateWhole(whole.economy());
         check(whole.document().section("metadata").get("dissolutionAccounting").getAsString()
                 .equals("whole_essence_v1"), "Whole accounting mode did not survive the codec");
@@ -169,7 +187,7 @@ public final class GeneratedBalanceIntegrationTest {
                 for (long count : new long[]{1, 2, 9, 64}) for (long carry : new long[]{0, 999_999}) {
                     var credit = FractionalAmountService.accumulate(micros, count, carry);
                     check(credit.wholeAmount() == (micros / FractionalAmountService.SCALE) * count,
-                            "Whole item payout depends on batch size or old fractional carry");
+                            "Whole item payout depends on batch size or unrelated fractional carry");
                     check(credit.nextCarry() == carry, "Whole item payout created or spent hidden fractional credit");
                 }
             });
@@ -298,7 +316,14 @@ public final class GeneratedBalanceIntegrationTest {
                 check(cell(row, header, "passes").equals("true") && predicted <= allowed + 1e-9 * Math.max(1, allowed),
                         "Combat CSV marked an unsafe case as passed");
             }
+            JsonObject generationReport = JsonParser.parseString(Files.readString(BalanceReportLayout.diagnostics(folder).resolve("generation_evidence.json"))).getAsJsonObject();
+            check(generationReport.equals(decoded.document().section("metadata").getAsJsonObject("generation")), "Export preserves saved generation provenance without recollection");
             String report = Files.readString(reports.resolve("balance_report.md"));
+            check(report.contains("fixture:provider") && report.contains("PARTIALLY_SUPPORTED"), "Report exposes saved provider readiness and support");
+            check(report.contains(decoded.document().integrity()) && report.contains("/essence admin balance rebuild"),
+                    "Human report retains integrity and explicit author rebuild guidance");
+            check(!report.contains("Pack fingerprint:") && !report.contains("Compatibility signatures"),
+                    "Human report must not require or report pack fingerprints");
             check(report.contains("Resolved numeric combat checks") && report.contains("combat_builds.csv"),
                     "Human report omitted the resolved numeric checks");
             check(report.contains("Latent Ore supply") && report.contains("latent_ore_supply.csv")
@@ -486,7 +511,7 @@ public final class GeneratedBalanceIntegrationTest {
         var essences = EssenceRegistry.values().stream().sorted(java.util.Comparator.comparing(value -> value.id().toString())).toList();
         int i = 0;
         for (ResourceEvidence resource : evidence.resources().values()) {
-            double amount = 8.25 + i * 3;
+            double amount = 8 + i * 3;
             resources.put(resource.itemId(), new EconomyProfile.ResourceValue(new EconomicValue(resource.economicValue()),
                     DissolutionYield.of(amount), Map.of(essences.get(i++).id().toString(), amount), List.of()));
         }
@@ -497,14 +522,14 @@ public final class GeneratedBalanceIntegrationTest {
                                              BalanceSettings settings, BalanceOverrides overrides) throws Exception {
         JsonObject metadata = new JsonObject();
         metadata.addProperty("generatorRevision", GeneratedBalanceService.GENERATION_REVISION);
-        PackFingerprint environment = new PackFingerprint(BalanceDocument.hash("integration-fixture"),
-                Map.of("minecraft", "1.21.1", "essence_ascendance", "integration-fixture"), "1.21.1", "bootstrap_test",
-                List.of("vanilla"), BalanceDocument.hash("registered-items"), BalanceDocument.hash("synthetic-recipes"), BalanceDocument.hash("synthetic-tags"));
-        metadata.add("environment", BalanceDocument.GSON.toJsonTree(environment));
-        metadata.addProperty("settingsFingerprint", BalanceDocument.hash(BalanceDocument.GSON.toJsonTree(settings)));
-        metadata.addProperty("overridesFingerprint", BalanceDocument.hash(BalanceDocument.GSON.toJsonTree(overrides)));
+        metadata.addProperty("dissolutionAccounting", "whole_essence_v1");
+        metadata.add("generation", JsonParser.parseString("""
+                {"workloads":{"synthetic_items":2},"provenance":"synthetic generation fixture",
+                 "providers":[{"id":"fixture:provider","family":"evidence","status":"PARTIALLY_SUPPORTED","version":"fixture-1",
+                   "ready":true,"requiredEvidenceComplete":true,"facts":1,"sources":0,"minimumConfidence":0.7,
+                   "detail":"Supported fixture facts complete; player state unsupported","probeNanos":0,"collectionNanos":0}]}
+                """).getAsJsonObject());
         metadata.addProperty("evidenceDigest", BalanceDocument.hash(BalanceDocument.GSON.toJsonTree(evidence)));
-        metadata.addProperty("freshnessPolicy", "Explicit rebuild required after changed inputs or resources");
         JsonObject validation = new JsonObject();
         validation.addProperty("runtime", "passed"); validation.addProperty("economy", "passed");
         validation.addProperty("serialization", "passed"); validation.addProperty("liveGameplay", "not performed by integration test");
@@ -571,35 +596,19 @@ public final class GeneratedBalanceIntegrationTest {
     }
 
     private static void verifySavedEvidenceRegeneration(BalanceDocument original, BalanceSettings settings, BalanceOverrides overrides) throws Exception {
-        var inputs = new com.mistaboom.essence_ascendance.balance.config.BalanceInputs(settings, overrides, "fixture-settings", "fixture-overrides");
-        try { SavedEvidenceRegenerator.regenerate(original, inputs); throw new AssertionError("Offline rebuild accepted obsolete fractional accounting evidence"); }
-        catch (IllegalArgumentException expected) { checks++; }
-        // The legacy codec fixture intentionally tests fractional accounting. Build
-        // a separate coherent whole-unit fixture for the current replay contract.
-        var fixtureEvidence = BalanceDocument.GSON.fromJson(original.section("evidence"), PackEvidence.class);
-        var fixtureEconomy = BalanceDocument.GSON.fromJson(original.section("economy"), EconomyProfile.class);
-        var wholeResources = new TreeMap<String, EconomyProfile.ResourceValue>();
-        fixtureEconomy.resources().forEach((id, value) -> {
-            var routes = new TreeMap<String, Double>();
-            value.routedYields().forEach((essence, amount) -> routes.put(essence, Math.floor(amount)));
-            wholeResources.put(id, new EconomyProfile.ResourceValue(value.economicValue(),
-                    DissolutionYield.of(routes.values().stream().mapToDouble(Double::doubleValue).sum()), routes, value.warnings()));
-        });
-        var wholeEconomy = new EconomyProfile(wholeResources, List.of(), List.of(), fixtureEconomy.warnings(),
-                fixtureEconomy.solverPasses(), fixtureEconomy.processingPolicy());
-        original = document(fixtureEvidence, wholeEconomy, RuntimeBalanceDefinition.generate(fixtureEvidence, wholeEconomy, settings, overrides), settings, overrides);
+        var inputs = new com.mistaboom.essence_ascendance.balance.config.BalanceInputs(settings, overrides);
         String originalText = original.text();
-        // An obsolete runtime cannot be loaded, but its validated evidence may be
-        // used by the same current generator without any runtime migration branch.
-        JsonObject old = JsonParser.parseString(original.text()).getAsJsonObject();
-        old.getAsJsonObject("runtime").getAsJsonObject("effects").getAsJsonObject("projectiles").remove("payload");
-        old.getAsJsonObject("runtime").getAsJsonObject("effects").getAsJsonObject("projectiles").remove("control");
-        old.getAsJsonObject("runtime").getAsJsonObject("effects").remove("guard");
-        old.getAsJsonObject("runtime").getAsJsonObject("balanceProfile").remove("bonusTracks");
-        old.getAsJsonObject("metadata").addProperty("generatorRevision", "old-test-runtime");
-        var evidenceSource = BalanceDocument.seal(old);
-        try { GeneratedBalanceService.decode(evidenceSource); throw new AssertionError("Old projectile runtime silently migrated"); }
+        // Current-format failed generation can replay its validated evidence;
+        // the diagnostic envelope itself remains noninstallable.
+        var evidenceSource = SavedEvidenceRegenerator.failureSnapshot(inputs,
+                original.decodeSection("evidence", PackEvidence.class), original.decodeSection("economy", EconomyProfile.class),
+                new IllegalArgumentException("fixture calibration failure"));
+        try { GeneratedBalanceService.decode(evidenceSource); throw new AssertionError("Failed-generation diagnostic was installed"); }
         catch (RuntimeException expected) { checks++; }
+        JsonObject obsolete = JsonParser.parseString(evidenceSource.text()).getAsJsonObject();
+        obsolete.getAsJsonObject("metadata").addProperty("generatorRevision", "obsolete-test-generator");
+        try { SavedEvidenceRegenerator.regenerate(BalanceDocument.seal(obsolete), inputs); throw new AssertionError("Obsolete generator evidence was replayed"); }
+        catch (IllegalArgumentException expected) { checks++; }
         var regenerated = SavedEvidenceRegenerator.regenerate(evidenceSource, inputs);
         var repeated = SavedEvidenceRegenerator.regenerate(evidenceSource, inputs);
         check(regenerated.document().text().equals(repeated.document().text()), "Saved evidence regeneration is nondeterministic");
@@ -607,16 +616,22 @@ public final class GeneratedBalanceIntegrationTest {
         for (String section : List.of("settings", "overrides", "evidence", "economy"))
             check(regenerated.document().section(section).equals(original.section(section)), "Offline rebuild altered " + section);
         check(regenerated.runtime().toJson().get("attunement").equals(original.section("runtime").get("attunement")), "Offline rebuild changed Attunement");
-        check(regenerated.document().section("metadata").get("generatorRevision").getAsString().equals(GeneratedBalanceService.GENERATION_REVISION), "Replay reused stale generator revision");
+        check(regenerated.document().section("metadata").get("generatorRevision").getAsString().equals(GeneratedBalanceService.GENERATION_REVISION), "Replay omitted current generator revision");
+        check(!regenerated.document().section("metadata").has("diagnosticOnly"), "Successful replay retained its diagnostic-only marker");
         check(regenerated.document().section("skills").getAsJsonObject("projectilePolicy").has("attunement"), "Replay omitted projectile participation policy");
         check(regenerated.document().section("skills").getAsJsonObject("guardPolicy").has("attunement"), "Replay omitted guard participation policy");
         check(regenerated.runtime().config().skillEffects().guard() != null, "Replay did not regenerate the current guard schema");
         var changedInputs = new com.mistaboom.essence_ascendance.balance.config.BalanceInputs(settings,
-                new BalanceOverrides(List.of(), Map.of("/runtime/effects/projectiles/control/redirectBudget", 0L)), "changed", "changed");
+                new BalanceOverrides(List.of(), Map.of("/runtime/effects/projectiles/control/redirectBudget", 0L)));
         try { SavedEvidenceRegenerator.regenerate(evidenceSource, changedInputs); throw new AssertionError("Changed inputs reused stale saved evidence"); }
         catch (IllegalArgumentException expected) { checks++; }
-        old.getAsJsonObject("metadata").addProperty("evidenceDigest", "incorrect");
-        try { SavedEvidenceRegenerator.regenerate(BalanceDocument.seal(old), inputs); throw new AssertionError("Bad evidence digest accepted by replay"); }
+        var changedSettings = new com.mistaboom.essence_ascendance.balance.config.BalanceInputs(
+                BalanceSettings.parse("[progression]\ncost_pressure=1.25", "changed-settings.toml"), overrides);
+        try { SavedEvidenceRegenerator.regenerate(evidenceSource, changedSettings); throw new AssertionError("Changed settings reused incompatible saved evidence"); }
+        catch (IllegalArgumentException expected) { checks++; }
+        JsonObject corrupt = JsonParser.parseString(evidenceSource.text()).getAsJsonObject();
+        corrupt.getAsJsonObject("metadata").addProperty("evidenceDigest", "incorrect");
+        try { SavedEvidenceRegenerator.regenerate(BalanceDocument.seal(corrupt), inputs); throw new AssertionError("Bad evidence digest accepted by replay"); }
         catch (IllegalArgumentException expected) { checks++; }
     }
     private static void check(boolean value, String failure) { checks++; if (!value) throw new AssertionError(failure); }

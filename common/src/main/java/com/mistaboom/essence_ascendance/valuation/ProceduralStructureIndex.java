@@ -22,8 +22,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 
 /**
@@ -37,10 +35,6 @@ import java.util.zip.GZIPInputStream;
  * loader-specific or unstable structure-template APIs are required.</p>
  */
 final class ProceduralStructureIndex {
-
-    private static final Pattern LOOT_TABLE_STRING = Pattern.compile(
-            "([a-z0-9_.-]+):((?:chests|containers|archaeology)/[a-z0-9_./-]+)"
-    );
 
     private static final Set<String> STOP_TOKENS = Set.of(
             "chest", "chests", "container", "containers", "archaeology", "treasure", "loot",
@@ -75,16 +69,16 @@ final class ProceduralStructureIndex {
         this.structureDefinitionCount = structureDefinitionCount;
     }
 
-    static ProceduralStructureIndex build(MinecraftServer server) {
+    static ProceduralStructureIndex build(MinecraftServer server, GenerationDataSnapshot data) {
         Map<ResourceLocation, StructureOccurrence> structures = new LinkedHashMap<>();
-        int structureSets = scanStructureSets(server, structures);
+        int structureSets = data.structuresEnabled() ? scanStructureSets(data, structures) : 0;
 
         Map<ResourceLocation, StructureSpawnOccurrence> structureSpawns = new LinkedHashMap<>();
-        int structureDefinitions = scanStructureSpawnOverrides(server, structures, structureSpawns);
+        int structureDefinitions = data.structuresEnabled() ? scanStructureSpawnOverrides(data, structures, structureSpawns) : 0;
 
         Map<ResourceLocation, Integer> templateReferences = new LinkedHashMap<>();
         Map<ResourceLocation, List<String>> templateExamples = new LinkedHashMap<>();
-        int templates = scanStructureTemplates(server, templateReferences, templateExamples);
+        int templates = data.structuresEnabled() ? scanStructureTemplates(server, templateReferences, templateExamples) : 0;
 
         EssenceAscendance.LOGGER.info(
                 "Procedural structure index built: {} structure sets, {} placed structures, {} structure definitions, {} structure-spawn entity types, {} structure templates, {} referenced container loot tables",
@@ -204,15 +198,16 @@ final class ProceduralStructureIndex {
     }
 
     private static int scanStructureSets(
-            MinecraftServer server,
+            GenerationDataSnapshot data,
             Map<ResourceLocation, StructureOccurrence> output
     ) {
-        Map<ResourceLocation, Resource> resources = listJsonResources(server, "worldgen/structure_set");
+        Map<ResourceLocation, JsonObject> resources = data.json("worldgen/structure_set");
         int scanned = 0;
 
-        for (Map.Entry<ResourceLocation, Resource> entry : resources.entrySet()) {
-            try (BufferedReader reader = entry.getValue().openAsReader()) {
-                JsonElement parsed = JsonParser.parseReader(reader);
+        for (Map.Entry<ResourceLocation, JsonObject> entry : resources.entrySet()) {
+            if (!data.structureSetEligible(entry.getKey())) continue;
+            try {
+                JsonElement parsed = entry.getValue();
                 if (parsed == null || !parsed.isJsonObject()) {
                     continue;
                 }
@@ -251,6 +246,7 @@ final class ProceduralStructureIndex {
                 }
 
                 for (WeightedStructure structure : weighted) {
+                    if (!data.structureEligible(structure.structureId())) continue;
                     double share = structure.weight() / Math.max(0.000001, totalWeight);
                     PlacementEstimate estimate = estimatePlacement(placement, share);
                     StructureOccurrence occurrence = new StructureOccurrence(
@@ -266,7 +262,7 @@ final class ProceduralStructureIndex {
                     );
                 }
                 scanned++;
-            } catch (IOException | RuntimeException exception) {
+            } catch (RuntimeException exception) {
                 EssenceAscendance.LOGGER.debug(
                         "Procedural valuation skipped structure set {}: {}",
                         entry.getKey(),
@@ -333,25 +329,22 @@ final class ProceduralStructureIndex {
 
 
     private static int scanStructureSpawnOverrides(
-            MinecraftServer server,
+            GenerationDataSnapshot data,
             Map<ResourceLocation, StructureOccurrence> structures,
             Map<ResourceLocation, StructureSpawnOccurrence> output
     ) {
-        Map<ResourceLocation, Resource> resources = listJsonResources(server, "worldgen/structure");
+        Map<ResourceLocation, JsonObject> resources = data.json("worldgen/structure_settings");
         int scanned = 0;
 
-        for (Map.Entry<ResourceLocation, Resource> entry : resources.entrySet()) {
-            try (BufferedReader reader = entry.getValue().openAsReader()) {
-                JsonElement parsed = JsonParser.parseReader(reader);
+        for (Map.Entry<ResourceLocation, JsonObject> entry : resources.entrySet()) {
+            try {
+                JsonElement parsed = entry.getValue();
                 if (parsed == null || !parsed.isJsonObject()) {
                     continue;
                 }
 
-                ResourceLocation structureId = resourceDataId(
-                        entry.getKey(),
-                        "worldgen/structure/"
-                );
-                if (structureId == null) {
+                ResourceLocation structureId = entry.getKey();
+                if (!data.structureEligible(structureId)) {
                     continue;
                 }
 
@@ -450,7 +443,7 @@ final class ProceduralStructureIndex {
                     }
                 }
                 scanned++;
-            } catch (IOException | RuntimeException exception) {
+            } catch (RuntimeException exception) {
                 EssenceAscendance.LOGGER.debug(
                         "Procedural valuation skipped structure definition {}: {}",
                         entry.getKey(),
@@ -477,7 +470,7 @@ final class ProceduralStructureIndex {
                 byte[] bytes = input.readAllBytes();
                 byte[] uncompressed = maybeGunzip(bytes);
                 String content = new String(uncompressed, StandardCharsets.ISO_8859_1);
-                Matcher matcher = LOOT_TABLE_STRING.matcher(content);
+                LootTableScanner matcher = lootTableScanner(content);
                 while (matcher.find()) {
                     ResourceLocation lootTable = ResourceLocation.tryBuild(
                             matcher.group(1),
@@ -503,6 +496,98 @@ final class ProceduralStructureIndex {
             }
         }
         return scanned;
+    }
+
+    static LootTableScanner lootTableScanner(CharSequence content) {
+        return new LootTableScanner(content);
+    }
+
+    /** The historical loot-table pattern, scanned from its required colon instead of every NBT byte. */
+    static final class LootTableScanner {
+        private final CharSequence content;
+        private int searchFrom;
+        private int previousMatchEnd;
+        private int start = -1;
+        private int colon;
+        private int end;
+
+        private LootTableScanner(CharSequence content) {
+            this.content = java.util.Objects.requireNonNull(content);
+        }
+
+        boolean find() {
+            start = -1;
+            int candidate;
+            while ((candidate = nextColon(searchFrom)) >= 0) {
+                searchFrom = candidate + 1;
+                int familyEnd = familyEnd(candidate + 1);
+                if (familyEnd < 0 || familyEnd == content.length() || !pathCharacter(content.charAt(familyEnd))) continue;
+
+                // Do not scan left until a valid family and at least one path character exist.
+                // The previous end preserves Matcher.find()'s nonoverlapping matches, even
+                // when another colon follows immediately after a matched path.
+                int namespaceStart = candidate;
+                while (namespaceStart > previousMatchEnd && namespaceCharacter(content.charAt(namespaceStart - 1))) namespaceStart--;
+                if (namespaceStart == candidate) continue;
+
+                int pathEnd = familyEnd + 1;
+                while (pathEnd < content.length() && pathCharacter(content.charAt(pathEnd))) pathEnd++;
+                start = namespaceStart;
+                colon = candidate;
+                end = pathEnd;
+                previousMatchEnd = end;
+                searchFrom = end;
+                return true;
+            }
+            searchFrom = content.length();
+            return false;
+        }
+
+        int start() { requireMatch(); return start; }
+        int end() { requireMatch(); return end; }
+        String group() { return group(0); }
+        String group(int group) {
+            requireMatch();
+            return switch (group) {
+                case 0 -> content.subSequence(start, end).toString();
+                case 1 -> content.subSequence(start, colon).toString();
+                case 2 -> content.subSequence(colon + 1, end).toString();
+                default -> throw new IndexOutOfBoundsException("No group " + group);
+            };
+        }
+
+        private void requireMatch() {
+            if (start < 0) throw new IllegalStateException("No match available");
+        }
+
+        private int nextColon(int from) {
+            if (content instanceof String text) return text.indexOf(':', from);
+            for (int index = from; index < content.length(); index++) if (content.charAt(index) == ':') return index;
+            return -1;
+        }
+
+        private int familyEnd(int from) {
+            if (startsWith("chests/", from)) return from + 7;
+            if (startsWith("containers/", from)) return from + 11;
+            if (startsWith("archaeology/", from)) return from + 12;
+            return -1;
+        }
+
+        private boolean startsWith(String prefix, int from) {
+            if (content instanceof String text) return text.startsWith(prefix, from);
+            if (from > content.length() - prefix.length()) return false;
+            for (int index = 0; index < prefix.length(); index++) if (content.charAt(from + index) != prefix.charAt(index)) return false;
+            return true;
+        }
+
+        private static boolean namespaceCharacter(char character) {
+            return character >= 'a' && character <= 'z' || character >= '0' && character <= '9'
+                    || character == '_' || character == '.' || character == '-';
+        }
+
+        private static boolean pathCharacter(char character) {
+            return namespaceCharacter(character) || character == '/';
+        }
     }
 
     private static byte[] maybeGunzip(byte[] bytes) throws IOException {

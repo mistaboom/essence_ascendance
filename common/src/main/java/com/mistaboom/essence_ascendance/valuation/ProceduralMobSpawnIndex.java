@@ -39,28 +39,16 @@ final class ProceduralMobSpawnIndex {
     }
 
     static ProceduralMobSpawnIndex build(
-            MinecraftServer server,
+            GenerationDataSnapshot data,
             ProceduralStructureIndex structureIndex
     ) {
-        Map<ResourceLocation, Resource> resources;
-        try {
-            resources = server.getResourceManager().listResources(
-                    "worldgen/biome",
-                    id -> id.getPath().endsWith(".json")
-            );
-        } catch (RuntimeException exception) {
-            EssenceAscendance.LOGGER.debug(
-                    "Procedural valuation could not enumerate biome spawn data: {}",
-                    exception.getMessage()
-            );
-            return new ProceduralMobSpawnIndex(Map.of(), 0, structureIndex);
-        }
+        Map<ResourceLocation, JsonObject> resources = data.json("worldgen/biome");
 
         Map<ResourceLocation, MutableSpawnStats> stats = new LinkedHashMap<>();
         int biomes = 0;
-        for (Map.Entry<ResourceLocation, Resource> entry : resources.entrySet()) {
-            try (BufferedReader reader = entry.getValue().openAsReader()) {
-                JsonElement parsed = JsonParser.parseReader(reader);
+        for (Map.Entry<ResourceLocation, JsonObject> entry : resources.entrySet()) {
+            try {
+                JsonElement parsed = entry.getValue();
                 if (parsed == null || !parsed.isJsonObject()) {
                     continue;
                 }
@@ -99,7 +87,7 @@ final class ProceduralMobSpawnIndex {
                                 .addBiome(sample.totalWeight, sample.averagePack())
                 );
                 biomes++;
-            } catch (IOException | RuntimeException exception) {
+            } catch (RuntimeException exception) {
                 EssenceAscendance.LOGGER.debug(
                         "Procedural valuation skipped biome {} while indexing mob spawns: {}",
                         entry.getKey(),

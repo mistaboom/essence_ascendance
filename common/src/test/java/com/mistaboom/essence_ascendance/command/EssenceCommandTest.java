@@ -163,7 +163,7 @@ public final class EssenceCommandTest {
         literalChildren(dispatcher, List.of("essence", "debug"), Set.of("player", "item", "machine", "balance", "mappings"));
         literalChildren(dispatcher, List.of("essence", "debug", "item"), Set.of("inspect", "mapping", "baselines"));
         literalChildren(dispatcher, List.of("essence", "debug", "machine"), Set.of("crucible", "pylon", "infuser"));
-        literalChildren(dispatcher, List.of("essence", "debug", "balance"), Set.of("summary", "fingerprint", "validate", "item", "bonus", "skill", "cost"));
+        literalChildren(dispatcher, List.of("essence", "debug", "balance"), Set.of("summary", "validate", "item", "bonus", "skill", "cost"));
         literalChildren(dispatcher, List.of("essence", "test"), Set.of("luck", "activation", "skills"));
         literalChildren(dispatcher, List.of("essence", "bonuses"), Set.of("list", "show", "invest"));
         literalChildren(dispatcher, List.of("essence", "admin", "balance"), Set.of("rebuild", "export"));

@@ -100,6 +100,7 @@ public final class RuntimeBuildScenarios {
 
     public static Analysis analyze(RuntimeBalanceDefinition runtime, PackEvidence evidence, BalanceSettings settings,
                                    Plan plan) {
+        com.mistaboom.essence_ascendance.balance.generated.BalancePerformance.increment("combat_scenario_analyses");
         List<Case> result = new ArrayList<>();
         boolean parity = runtime.composition().getOrDefault("equipment_apex_parity", 0.0) == 1.0;
         int bandIndex = 0;
@@ -124,6 +125,10 @@ public final class RuntimeBuildScenarios {
                     : new RuntimeReferencePolicy.Weapon(dps / rate, rate, Math.max(dps / rate,
                             evidence.reference(band, CapabilityAxis.BURST_DAMAGE, dps / rate)), false));
             Set<String> duplicateSelections = new HashSet<>();
+            Map<String, Modifier> fullNexus = new HashMap<>(), moderateNexus = new HashMap<>();
+            double fullHealing = 1 + bonus(runtime, tier, EssenceStats.HEALING_EFFECTIVENESS, false) / 100;
+            double moderateHealing = 1 + bonus(runtime, tier, EssenceStats.HEALING_EFFECTIVENESS, true) / 100;
+            String referenceAssumption = "Reference incoming hit=" + incoming + " HP; fully useful healing window=" + window + " seconds.";
             for (var scenario : plan.full().get(tier.id())) {
                 String family = scenario.equipmentContext();
                 if (!references.containsKey(family)) continue;
@@ -141,8 +146,36 @@ public final class RuntimeBuildScenarios {
                 Map<ResourceLocation, Integer> moderateRanks = smaller == null ? Map.of() : smaller.contributingRanks();
                 var fullEffects = rankedEffects(runtime, fullRanks);
                 var moderateEffects = rankedEffects(runtime, moderateRanks);
-                var nexusFull = nexus(runtime, tier, family, false);
-                var nexusModerate = nexus(runtime, tier, family, true);
+                var nexusFull = fullNexus.computeIfAbsent(family, key -> nexus(runtime, tier, key, false));
+                var nexusModerate = moderateNexus.computeIfAbsent(family, key -> nexus(runtime, tier, key, true));
+                // These depend on this candidate/selection, never on archetype or current HP.
+                Set<ResourceLocation> specialized = Set.copyOf(fullRanks.keySet().stream()
+                        .filter(skillId -> SkillBalanceSemantics.require(skillId).weights().keySet().stream().anyMatch(axis -> switch (axis) {
+                            case SUSTAINED_DAMAGE, BURST_DAMAGE, AREA_DAMAGE, ATTACK_RATE, ARMOR_PENETRATION,
+                                    DAMAGE_OVER_TIME, DELIVERY_RELIABILITY, SHIELD_INTERACTION -> true;
+                            default -> false;
+                        })).toList());
+                Map<Participation, Set<ResourceLocation>> activeSkills = new EnumMap<>(Participation.class);
+                Map<Participation, DefensivePressure> selectionDefenses = new EnumMap<>(Participation.class);
+                for (var participation : Participation.values()) {
+                    Set<ResourceLocation> selection = switch (participation) {
+                        case EQUIPMENT_FOCUSED, BONUS_FOCUSED -> Set.of();
+                        case MIXED -> moderateRanks.keySet();
+                        case CATEGORY_SPECIALIZED -> specialized;
+                        default -> fullRanks.keySet();
+                    };
+                    activeSkills.put(participation, selection);
+                    selectionDefenses.put(participation, defensivePressure(
+                            participation == Participation.MIXED ? moderateEffects : fullEffects, selection));
+                }
+                double[] healthStates = fullRanks.containsKey(SkillIds.DESPERATION) || fullRanks.containsKey(SkillIds.RISING_RECOVERY)
+                        ? new double[]{1, .200001, .000001} : new double[]{1};
+                String rankDescription = "Candidate effective ranks=" + new TreeMap<>(fullRanks);
+                Map<Double, List<String>> assumptions = new HashMap<>();
+                for (double healthFraction : healthStates) assumptions.put(healthFraction, List.of(referenceAssumption,
+                        rankDescription + "; Desperation current-health fraction=" + healthFraction + ".",
+                        "Each participation uses its own weapon damage/cadence and ceiling. Ordinary armor is applied once. Low-health EHP uses current, not maximum, health.",
+                        "Posture defense assumes a fully built eligible state: intentional movement for dodge, stationary facing of a hostile threat for Bulwark, or repeated identical eligible damage for Adaptive. Status bounds require a harmful application; Mirror additionally requires a valid hostile source and ready cooldown."));
                 for (var archetype : EquipmentProfileRegistry.values()) {
                     if (archetype.baselineMultiplier(damageProperty) <= 0 || archetype.baselineMultiplier(speedProperty) <= 0) continue;
                     var ascendance = new Equipment(Math.max(.01, equipmentValue(runtime, damage, archetype, damageProperty)),
@@ -152,8 +185,6 @@ public final class RuntimeBuildScenarios {
                             equipmentValue(runtime,equipmentLimit.value(speedProperty),archetype,speedProperty),
                             equipmentLimit.fullSetArmor(),equipmentLimit.fullSetToughness(),health,0);
                     // Check the ordinary-health boundary and the near-zero worst case.
-                    double[] healthStates = fullRanks.containsKey(SkillIds.DESPERATION) || fullRanks.containsKey(SkillIds.RISING_RECOVERY)
-                            ? new double[]{1, .200001, .000001} : new double[]{1};
                     for (double healthFraction : healthStates) {
                         String id = tier.id() + "/" + archetype.id() + "/" + scenario.id() + "/health_" + healthFraction;
                         Map<Participation, Metrics> metrics = new EnumMap<>(Participation.class);
@@ -167,24 +198,13 @@ public final class RuntimeBuildScenarios {
                                 case CATEGORY_SPECIALIZED -> nexusFull.offenseOnly();
                                 default -> nexusFull;
                             };
-                            Set<ResourceLocation> active = switch (participation) {
-                                case EQUIPMENT_FOCUSED, BONUS_FOCUSED -> Set.of();
-                                case MIXED -> moderateRanks.keySet();
-                                default -> fullRanks.keySet();
-                            };
-                            if (participation == Participation.CATEGORY_SPECIALIZED) active = Set.copyOf(active.stream()
-                                    .filter(skillId -> SkillBalanceSemantics.require(skillId).weights().keySet().stream().anyMatch(axis -> switch (axis) {
-                                        case SUSTAINED_DAMAGE, BURST_DAMAGE, AREA_DAMAGE, ATTACK_RATE, ARMOR_PENETRATION,
-                                                DAMAGE_OVER_TIME, DELIVERY_RELIABILITY, SHIELD_INTERACTION -> true;
-                                        default -> false;
-                                    })).toList());
+                            Set<ResourceLocation> active = activeSkills.get(participation);
                             var effects = participation == Participation.MIXED ? moderateEffects : fullEffects;
-                            defenses.put(participation, defensivePressure(effects, active));
+                            defenses.put(participation, selectionDefenses.get(participation));
                             double actualHealth = active.contains(SkillIds.DESPERATION) || active.contains(SkillIds.RISING_RECOVERY) ? healthFraction : 1;
                             double healingEffectiveness = switch (participation) {
                                 case EQUIPMENT_FOCUSED, SKILL_FOCUSED, CATEGORY_SPECIALIZED -> 1;
-                                default -> 1 + bonus(runtime, tier, EssenceStats.HEALING_EFFECTIVENESS,
-                                        participation == Participation.BROAD_GENERALIST) / 100;
+                                default -> participation == Participation.BROAD_GENERALIST ? moderateHealing : fullHealing;
                             };
                             metrics.put(participation, combat(effects, active, family, item, nexus, incoming, window, actualHealth, healingEffectiveness));
                             double target = plan.developed() ? BuildPowerTargets.multiplier(settings, band, participation)
@@ -222,11 +242,7 @@ public final class RuntimeBuildScenarios {
                                 if (actual > limit + 1e-9 * Math.max(1, limit)) violations.add(new Violation(participation, metric, actual, limit));
                             }
                         });
-                        var evaluation = new Evaluation(id, metrics, violations, List.of(
-                                "Reference incoming hit=" + incoming + " HP; fully useful healing window=" + window + " seconds.",
-                                "Candidate effective ranks=" + new TreeMap<>(fullRanks) + "; Desperation current-health fraction=" + healthFraction + ".",
-                                "Each participation uses its own weapon damage/cadence and ceiling. Ordinary armor is applied once. Low-health EHP uses current, not maximum, health.",
-                                "Posture defense assumes a fully built eligible state: intentional movement for dodge, stationary facing of a hostile threat for Bulwark, or repeated identical eligible damage for Adaptive. Status bounds require a harmful application; Mirror additionally requires a valid hostile source and ready cooldown."));
+                        var evaluation = new Evaluation(id, metrics, violations, assumptions.get(healthFraction));
                         result.add(new Case(tier.id().toString(), archetype.id() + "/" + scenario.id() + "/health_" + healthFraction,
                                 evaluation, Collections.unmodifiableMap(limits), Collections.unmodifiableMap(defenses)));
                     }

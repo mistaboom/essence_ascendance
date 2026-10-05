@@ -16,6 +16,7 @@ public final class BalanceReportsTest {
     public static void main(String[] args) throws Exception {
         Path root = Files.createTempDirectory("balance-spreadsheet-report-");
         try {
+            questReports(root.resolve("quest-fixture"));
             SpreadsheetReports reports = new SpreadsheetReports();
             var table = reports.table("fixture.csv", "id", "value", "detail");
             String longText = "quoted, \"source\"\n日本語\r\n".repeat(4000);
@@ -67,6 +68,24 @@ public final class BalanceReportsTest {
             }
         }
         System.out.println("BalanceReportsTest: " + checks + " spreadsheet quoting, numeric fidelity, cell limits and lossless fallback checks PASS");
+    }
+    private static void questReports(Path root) throws Exception {
+        var task = new com.mistaboom.essence_ascendance.balance.quest.QuestEvidence.Task("task", "item", List.of("minecraft:diamond"), 4, true, true, "{}", List.of());
+        var choice = new com.mistaboom.essence_ascendance.balance.quest.QuestEvidence.Reward("choice", "choice", "minecraft:emerald", 2, 1, "group", "player", "{}", List.of());
+        var command = new com.mistaboom.essence_ascendance.balance.quest.QuestEvidence.Reward("opaque", "command", null, 0, 0, "", "team", "opaque", List.of("Unsupported command semantics"));
+        var quest = new com.mistaboom.essence_ascendance.balance.quest.QuestEvidence.Quest("quest", List.of("prerequisite"), 1, true, "all_completed", false, 0, false,
+                List.of(task), List.of(choice, command), List.of());
+        var model = new com.mistaboom.essence_ascendance.balance.quest.QuestEvidence(List.of(quest), "report fixture", List.of());
+        JsonObject metadata = new JsonObject(), generation = new JsonObject(); metadata.add("generation", generation); generation.add("quests", model.diagnostics());
+        var reports = new SpreadsheetReports(); BalanceReports.questEvidence(reports, metadata);
+        reports.write(root.resolve("reports"), root.resolve("diagnostics"));
+        var rows = GeneratedBalanceIntegrationTest.csv(Files.readString(root.resolve("reports/quest_evidence.csv")));
+        check(rows.size() == 6 && rows.stream().allMatch(row -> row.size() == 18), "Quest diagnostics export complete, correctly quoted table");
+        check(rows.stream().anyMatch(row -> row.get(2).equals("consumed_task_cost")), "Consumed cost distinct from requirement");
+        check(rows.stream().anyMatch(row -> row.get(3).equals("command") && row.get(10).isEmpty() && row.get(16).contains("Unsupported")), "Opaque reward null target exported without claims");
+        var absent = new SpreadsheetReports(); BalanceReports.questEvidence(absent, new JsonObject());
+        absent.write(root.resolve("absent-reports"), root.resolve("absent-diagnostics"));
+        check(!Files.exists(root.resolve("absent-reports/quest_evidence.csv")), "Saved profile without quest diagnostics has no synthesized evidence");
     }
 
     private static void reject(Runnable action, String failure) {

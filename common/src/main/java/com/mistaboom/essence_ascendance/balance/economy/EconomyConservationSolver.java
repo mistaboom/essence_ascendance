@@ -27,6 +27,13 @@ public final class EconomyConservationSolver {
     }
 
     private static Result solve(ProductionGraph graph, Map<String, DissolutionYield> proposed, long quantum) {
+        com.mistaboom.essence_ascendance.balance.generated.BalancePerformance.increment("conservation_solve_runs");
+        long incomplete = graph.processes().stream().filter(process -> !process.conservationComplete()).count();
+        if (incomplete > 0) {
+            List<String> limitations = new ArrayList<>(graph.warnings());
+            limitations.add("Conservation excluded " + incomplete + " incomplete processes: unknown operating costs/resources/variants are not zero.");
+            graph = new ProductionGraph(graph.processes().stream().filter(ProductionGraph.Process::conservationComplete).toList(), limitations);
+        }
         Map<String, Long> values = new TreeMap<>();
         proposed.forEach((id, value) -> {
             if (value.microUnits() % quantum != 0)
@@ -133,6 +140,7 @@ public final class EconomyConservationSolver {
     private static List<Invariant> validate(ProductionGraph graph, Map<String, Long> values, long quantum) {
         List<Invariant> results = new ArrayList<>();
         for (ProductionGraph.Process process : graph.processes()) {
+            if (!process.conservationComplete()) continue;
             BigDecimal inputUnits = inputUnits(process, values, quantum);
             BigDecimal maximumUnits = outputUnits(process, values, false);
             double input = inputUnits.doubleValue();

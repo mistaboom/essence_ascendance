@@ -16,6 +16,7 @@ import java.util.TreeMap;
 public final class BoundedProductionPolicy {
     public static final String CONSTRAINT = "production_constraint";
     public static final String FINITE_TRADE_STOCK = "finite_trade_stock";
+    public static final String NATIVE_RESOURCE_SOURCE = "native_resource_production";
     public static final String BUDGET = "conservation_source_budget_micros";
 
     private BoundedProductionPolicy() { }
@@ -28,7 +29,15 @@ public final class BoundedProductionPolicy {
             return false;
         }
         if (!constraint.equals(FINITE_TRADE_STOCK))
-            throw invalid(process, "unknown bounded-production constraint " + constraint);
+            {
+                if (!constraint.equals(NATIVE_RESOURCE_SOURCE)) throw invalid(process, "unknown bounded-production constraint " + constraint);
+                if (!List.of("finite", "renewable").contains(process.metadata().getOrDefault("renewability", ""))
+                        || !List.of("manual", "automated").contains(process.metadata().getOrDefault("operation", ""))
+                        || process.metadata().getOrDefault("source_provenance", "").isBlank())
+                    throw invalid(process, "native resource source needs observed renewability, operation and behavior provenance");
+                if (process.metadata().containsKey("operations_per_second")) positiveNumber(process, "operations_per_second");
+                return true;
+            }
         positiveInteger(process, "stock_uses");
         String kind = process.metadata().get("stock_kind");
         if ("restocking_villager".equals(kind)) {
@@ -95,7 +104,9 @@ public final class BoundedProductionPolicy {
             process.outputs().forEach(output -> counts.merge(output.itemId(), BigDecimal.valueOf(output.count()), BigDecimal::add));
             for (Map.Entry<String, BigDecimal> output : counts.entrySet()) {
                 Double rate = null;
-                if ("restocking_villager".equals(process.metadata().get("stock_kind"))) {
+                if (NATIVE_RESOURCE_SOURCE.equals(process.metadata().get(CONSTRAINT)) && process.metadata().containsKey("operations_per_second")) {
+                    rate = positiveNumber(process, "operations_per_second") * output.getValue().doubleValue();
+                } else if ("restocking_villager".equals(process.metadata().get("stock_kind"))) {
                     // Twenty ticks per second is the engine time unit, not a
                     // generated balancing value or a guessed farm throughput.
                     rate = output.getValue().doubleValue() * positiveInteger(process, "stock_uses")
@@ -117,12 +128,12 @@ public final class BoundedProductionPolicy {
             long micros = Math.multiplyExact(units, FractionalAmountService.SCALE);
             Map<String, String> metadata = new TreeMap<>(process.metadata());
             metadata.put(BUDGET, Long.toString(micros));
-            metadata.put("conservation_source_policy", "bounded_stock_v1: pre-override proposal ceiling; throughput only discounts; no per-item farm bonus");
+            metadata.put("conservation_source_policy", "observed_source_v1: pre-override proposal ceiling; measured throughput only discounts; setup grants no recurring material credit");
             processes.add(new ProductionGraph.Process(process.id(), process.family(), process.inputs(), process.outputs(),
                     process.processingTicks(), process.externalCost(), process.provider(), process.confidence(), metadata));
         }
         if (bounded > 0) warnings.add("Conservation recognizes " + bounded
-                + " finite-stock merchant production paths. Consumed materials and a separately recorded,"
+                + " observed native-resource or finite-stock merchant production paths. Consumed materials and a separately recorded,"
                 + " uninflated source allowance share each output budget. Restock-limited trading can earn Essence"
                 + " even from zero-yield bulk inputs; free material conversion and duplication still grant no allowance.");
         return new ProductionGraph(processes, warnings);

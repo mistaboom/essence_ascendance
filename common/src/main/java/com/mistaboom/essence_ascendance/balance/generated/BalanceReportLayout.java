@@ -123,6 +123,7 @@ public final class BalanceReportLayout {
                 TROUBLESHOOTING
                   diagnostics/               Machine-readable export metadata and details.
                   diagnostics/bonus_tracks.json  Structured Bonus resolution, provenance and uncertainty.
+                  diagnostics/generation_evidence.json  Generation-only provider readiness, inputs and workloads, when captured.
                   diagnostics/generation_comparison.json  Replay comparison for this profile, if available.
                   diagnostics/legacy_reports/ Previous exports and stale comparisons, archived safely.
                 Long text is retained in diagnostics instead of oversized spreadsheet cells.

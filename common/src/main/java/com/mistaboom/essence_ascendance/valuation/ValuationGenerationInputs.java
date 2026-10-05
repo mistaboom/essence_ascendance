@@ -25,6 +25,11 @@ final class ValuationGenerationInputs {
     private static final Map<String, Map<String, Object>> RECIPE_FACTS = new TreeMap<>();
     private ValuationGenerationInputs() { }
 
+    static void clear() {
+        inputs = BalanceOverrides.empty(); orderedFacts = List.of(); items = Map.of();
+        SOURCE_ALLOWED.clear(); RECIPE_FACTS.clear();
+    }
+
     static void configure(BalanceOverrides overrides) {
         inputs = overrides;
         orderedFacts = inputs.facts().stream().sorted(Comparator.comparingInt(BalanceOverrides.FactOverride::priority)
@@ -83,8 +88,15 @@ final class ValuationGenerationInputs {
         return (int) value;
     }
 
+    /** A runtime recipe may expose a type that was never registered. This is diagnostic identity only. */
+    static String recipeFamily(RecipeType<?> type) {
+        if (type == null) return "unregistered_type:null";
+        ResourceLocation registered = BuiltInRegistries.RECIPE_TYPE.getKey(type);
+        return registered == null ? "unregistered_type:" + type.getClass().getName() : registered.toString();
+    }
+
     private static Map<String, Object> recipeFacts(ResourceLocation id, RecipeType<?> type) {
-        String family = String.valueOf(BuiltInRegistries.RECIPE_TYPE.getKey(type));
+        String family = recipeFamily(type);
         String key = id + "/" + family;
         Map<String, Object> cached = RECIPE_FACTS.get(key); if (cached != null) return cached;
         Map<String, Object> values = new TreeMap<>();

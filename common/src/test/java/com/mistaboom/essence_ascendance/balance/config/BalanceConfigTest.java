@@ -14,7 +14,7 @@ public final class BalanceConfigTest {
         defaultsAndPolicies();
         actionableFailures();
         factsAndExactValues();
-        scaffoldAndFingerprint();
+        scaffoldAndParsedInputs();
         System.out.println("BalanceConfigTest: " + assertions + " assertions passed");
     }
 
@@ -131,7 +131,7 @@ public final class BalanceConfigTest {
         } catch (UnsupportedOperationException expected) { assertions++; }
     }
 
-    private static void scaffoldAndFingerprint() throws Exception {
+    private static void scaffoldAndParsedInputs() throws Exception {
         Path directory = Files.createTempDirectory("essence-balance-config-test-");
         try {
             BalanceInputs original = BalanceInputs.read(directory);
@@ -140,13 +140,22 @@ public final class BalanceConfigTest {
             String changed = Files.readString(settings) + "\n# deliberate pack-maker edit\n";
             Files.writeString(settings, changed);
             BalanceInputs next = BalanceInputs.read(directory);
-            check(!original.settingsFingerprint().equals(next.settingsFingerprint()), "Raw fingerprint detects input edits");
-            check(original.overridesFingerprint().equals(next.overridesFingerprint()), "Independent input fingerprints");
+            check(original.equals(next), "Comments preserve the same parsed generation inputs");
             check(Files.readString(settings).equals(changed), "Scaffolding never overwrites a user's file");
             Files.writeString(settings, "[invalid TOML");
             BalanceInputs.scaffold(directory);
-            check(BalanceInputs.fingerprint(settings).equals(BalanceInputs.fingerprint("[invalid TOML")),
-                    "Cached-load fingerprinting does not parse edited inputs");
+            check(Files.readString(settings).equals("[invalid TOML"), "Scaffolding preserves edited inputs without parsing them");
+            try {
+                BalanceInputs.read(directory);
+                throw new AssertionError("Explicit generation input read accepted invalid TOML");
+            } catch (BalanceConfigException expected) { assertions++; }
+            Files.writeString(settings, "#" + "x".repeat(4_000_000));
+            try {
+                BalanceInputs.read(directory);
+                throw new AssertionError("Oversized generation input accepted");
+            } catch (java.io.IOException expected) {
+                check(expected.getMessage().contains("exceeds 4 MB"), "Oversized generation input retains an actionable bounded-read failure");
+            }
         } finally {
             Files.deleteIfExists(BalanceInputs.settingsPath(directory));
             Files.deleteIfExists(BalanceInputs.overridesPath(directory));

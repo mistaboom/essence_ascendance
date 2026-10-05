@@ -37,7 +37,7 @@ public final class WholeUnitConversionFamilies {
         for (ProductionGraph.Process process : graph.processes()) {
             // A stock replenishment cycle produces new material through an
             // independent source; it is not an equality between material forms.
-            if (BoundedProductionPolicy.isBoundedSource(process)) continue;
+            if (!process.conservationComplete() || BoundedProductionPolicy.isBoundedSource(process)) continue;
             List<ProductionGraph.Input> consumed = process.inputs().stream().filter(ProductionGraph.Input::consumed).toList();
             if (consumed.isEmpty() || consumed.stream().anyMatch(input -> input.alternatives().size() != 1)
                     || process.outputs().stream().anyMatch(output -> output.probability() != 1)) continue;

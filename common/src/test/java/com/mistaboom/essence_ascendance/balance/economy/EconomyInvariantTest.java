@@ -20,8 +20,30 @@ public final class EconomyInvariantTest {
         compression(); catalystsAndContainers(); multiOutputAndProbability(); boundedCycles();
         alternatives(); fractionalTransactions(); conversionLosses(); sourcePressure(); sparseRoutingAndBulkResources();
         wholeYieldRounding(); wholeConversionFamilies(); wholeProductionSafety(); wholeProfileGeneration();
-        boundedFarmProduction();
+        boundedFarmProduction(); nativeResourceProduction();
         System.out.println("EconomyInvariantTest: " + assertions + " assertions passed");
+    }
+
+    private static void nativeResourceProduction() {
+        var source = new ProductionGraph.Process("source", "extraction", List.of(input("machine", 1, false)),
+                List.of(new ProductionGraph.Output("resource", 2, .25, false)), 0, 0, "observed:fixture", .9,
+                Map.of(BoundedProductionPolicy.CONSTRAINT, BoundedProductionPolicy.NATIVE_RESOURCE_SOURCE,
+                        "renewability", "finite", "operation", "automated", "source_provenance", "observed fixture behavior"));
+        var finite = BoundedProductionPolicy.withSourceBudgets(graph(source), Map.of("resource", 10L, "machine", 10000L), 1);
+        var renewableMetadata = new java.util.TreeMap<>(source.metadata()); renewableMetadata.put("renewability", "renewable");
+        var renewable = BoundedProductionPolicy.withSourceBudgets(graph(withMetadata(source, renewableMetadata)), Map.of("resource", 10L), 1);
+        check(finite.processes().getFirst().metadata().get("renewability").equals("finite")
+                && renewable.processes().getFirst().metadata().get("renewability").equals("renewable"), "Finite and renewable sources keep distinct factual semantics");
+        check(BoundedProductionPolicy.sourceBudgetMicros(finite.processes().getFirst()) == 20 * FractionalAmountService.SCALE,
+                "Realized source outputs share frozen proposal ceiling; reusable construction grants no per-output credit");
+        check(finite.processes().getFirst().outputs().getFirst().probability() == .25 && source.duration() == null,
+                "Chance evidence and unknown duration survive bounded source policy without invented throughput");
+        renewableMetadata.put("operations_per_second", "1000");
+        var fast = BoundedProductionPolicy.withSourceBudgets(graph(withMetadata(source, renewableMetadata)), Map.of("resource", 10L), 1);
+        check(BoundedProductionPolicy.sourceBudgetMicros(fast.processes().getFirst()) < BoundedProductionPolicy.sourceBudgetMicros(renewable.processes().getFirst()),
+                "Observed throughput can only discount a frozen source ceiling");
+        renewableMetadata.put("operations_per_second", "0");
+        rejected(() -> BoundedProductionPolicy.isBoundedSource(withMetadata(source, renewableMetadata)));
     }
 
     private static void compression() {

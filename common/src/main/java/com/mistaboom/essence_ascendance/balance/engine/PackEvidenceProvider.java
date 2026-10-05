@@ -6,11 +6,9 @@ package com.mistaboom.essence_ascendance.balance.engine;
  * Providers must use loaded data, remain deterministic, and never request chunk
  * generation, mutate worlds, or depend on players or fully started dimensions.
  */
-public interface PackEvidenceProvider {
-    String id();
-    default int priority() { return 0; }
+public interface PackEvidenceProvider extends GenerationProvider {
     /** Source, attainability, recipe and gate claims needed by the acquisition solver belong here. */
-    default void beforeAcquisition(net.minecraft.server.MinecraftServer server,
+    default void beforeAcquisition(com.mistaboom.essence_ascendance.valuation.GenerationDataSnapshot inputs,
                                    com.mistaboom.essence_ascendance.balance.config.BalanceSettings settings,
                                    EvidenceSink sink) { }
     /**

@@ -35,12 +35,9 @@ final class ProceduralNaturalBlockIndex {
         this.evidence = Map.copyOf(copy);
     }
 
-    static ProceduralNaturalBlockIndex build(MinecraftServer server) {
-        Map<ResourceLocation, JsonObject> biomes = load(server, "worldgen/biome/");
-        Map<ResourceLocation, JsonObject> placed = load(server, "worldgen/placed_feature/");
-        Map<ResourceLocation, JsonObject> configured = load(server, "worldgen/configured_feature/");
-        Map<ResourceLocation, JsonObject> terrain = load(server, "worldgen/noise_settings/");
-        return fromData(biomes, placed, configured, terrain);
+    static ProceduralNaturalBlockIndex build(GenerationDataSnapshot data) {
+        return fromData(data.naturalBiomes(), data.json("worldgen/placed_feature"),
+                data.json("worldgen/configured_feature"), data.terrain());
     }
 
     // Package-visible for deterministic fixture tests; no world access or generation.

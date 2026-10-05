@@ -7,13 +7,9 @@ import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 
 /** Reads immutable generator inputs once; it never reads or rewrites generated runtime data. */
-public record BalanceInputs(BalanceSettings settings, BalanceOverrides overrides,
-                            String settingsFingerprint, String overridesFingerprint) {
+public record BalanceInputs(BalanceSettings settings, BalanceOverrides overrides) {
     public static Path settingsPath(Path configDirectory) { return configDirectory.resolve("essence_ascendance.toml"); }
     public static Path overridesPath(Path configDirectory) { return configDirectory.resolve("essence_ascendance/balance_overrides.toml"); }
 
@@ -29,19 +25,8 @@ public record BalanceInputs(BalanceSettings settings, BalanceOverrides overrides
         String settingsText = boundedRead(settingsFile);
         String overridesText = boundedRead(overridesFile);
         return new BalanceInputs(BalanceSettings.parse(settingsText, settingsFile.toString()),
-                BalanceOverrides.parse(overridesText, overridesFile.toString()),
-                fingerprint(settingsText), fingerprint(overridesText));
+                BalanceOverrides.parse(overridesText, overridesFile.toString()));
     }
-
-    public static String fingerprint(String content) {
-        try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException("JVM does not provide required SHA-256", exception);
-        }
-    }
-
-    public static String fingerprint(Path input) throws IOException { return fingerprint(boundedRead(input)); }
 
     private static String boundedRead(Path path) throws IOException {
         if (Files.size(path) > 4_000_000) throw new IOException(path + ": balance input exceeds 4 MB");

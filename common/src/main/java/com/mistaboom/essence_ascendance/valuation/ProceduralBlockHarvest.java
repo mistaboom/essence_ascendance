@@ -51,10 +51,7 @@ final class ProceduralBlockHarvest {
         Map<String, Map<String, Object>> tables = loadTables(server);
         Map<Block, List<HarvestDrop>> result = new IdentityHashMap<>();
         List<Tool> tools = tools(server);
-        Map<String, List<String>> itemTags = new LinkedHashMap<>();
-        for (Item item : BuiltInRegistries.ITEM)
-            item.builtInRegistryHolder().tags().forEach(tag -> itemTags.computeIfAbsent(tag.location().toString(),
-                    ignored -> new ArrayList<>()).add(BuiltInRegistries.ITEM.getKey(item).toString()));
+        Map<String, List<String>> itemTags = ProceduralValuationEngine.generationData(server).itemTags();
         for (Block block : BuiltInRegistries.BLOCK) {
             Map<String, Object> table = tables.get(block.getLootTable().location().toString());
             if (table == null) continue;
@@ -181,23 +178,10 @@ final class ProceduralBlockHarvest {
     }
 
     private static Map<String, Map<String, Object>> loadTables(MinecraftServer server) {
-        Map<String, Map<String, Object>> result = new LinkedHashMap<>();
-        try {
-            Map<ResourceLocation, Resource> resources = server.getResourceManager().listResources("loot_table", id -> id.getPath().endsWith(".json"));
-            for (Map.Entry<ResourceLocation, Resource> entry : resources.entrySet()) {
-                String path = entry.getKey().getPath();
-                if (!path.startsWith("loot_table/")) continue;
-                String id = entry.getKey().getNamespace() + ":" + path.substring(11, path.length() - 5);
-                try (BufferedReader reader = entry.getValue().openAsReader()) {
-                    result.put(id, ProceduralBlockLoot.object(plain(JsonParser.parseReader(reader))));
-                } catch (IOException | RuntimeException exception) {
-                    EssenceAscendance.LOGGER.debug("Valuation block loot resource unavailable {}: {}", id, exception.toString());
-                }
-            }
-        } catch (RuntimeException exception) {
-            throw new IllegalStateException("Could not enumerate loaded block loot; generation not replaced", exception);
-        }
-        return result;
+        Map<String, Map<String, Object>> tables = new LinkedHashMap<>();
+        ProceduralValuationEngine.generationData(server).json("loot_evidence").forEach((id, value) ->
+                tables.put(id.toString(), ProceduralBlockLoot.object(plain(value))));
+        return tables;
     }
 
     private static Object plain(JsonElement value) {

@@ -62,6 +62,7 @@ public final class ProceduralValuationEngine {
     private static volatile MinecraftServer indexedServer;
     private static volatile ProceduralValuationIndex index;
     private static volatile List<ProceduralValuationResult> cachedResults;
+    private static GenerationDataSnapshot generationData;
 
     private ProceduralValuationEngine() {
     }
@@ -96,7 +97,7 @@ public final class ProceduralValuationEngine {
                 return cachedResults;
             }
             EvaluationContext context = new EvaluationContext(snapshot);
-            List<Item> items = BuiltInRegistries.ITEM.stream().filter(item -> item != Items.AIR)
+            List<Item> items = generationData(server).items().stream().filter(item -> item != Items.AIR)
                     .sorted(Comparator.comparing(item -> BuiltInRegistries.ITEM.getKey(item).toString())).toList();
             long started = System.nanoTime();
             try (var phase = BalancePerformance.phase("acquisition_solve")) {
@@ -124,12 +125,16 @@ public final class ProceduralValuationEngine {
             indexedServer = null;
             index = null;
             cachedResults = null;
+            if (generationData != null) generationData.close();
+            generationData = null;
+            ValuationGenerationInputs.clear();
         }
     }
 
-    public static void prepareGeneration(com.mistaboom.essence_ascendance.balance.config.BalanceOverrides overrides) {
+    public static void prepareGeneration(com.mistaboom.essence_ascendance.balance.config.BalanceOverrides overrides, GenerationDataSnapshot inputs) {
         synchronized (INDEX_LOCK) {
             clear();
+            generationData = inputs;
             ValuationGenerationInputs.configure(overrides);
         }
     }
@@ -574,7 +579,7 @@ public final class ProceduralValuationEngine {
 
     public static IndexSummary rebuild(MinecraftServer server) {
         synchronized (INDEX_LOCK) {
-            ProceduralValuationIndex built = ProceduralValuationIndex.build(server);
+            ProceduralValuationIndex built = ProceduralValuationIndex.build(server, generationData(server));
             indexedServer = server;
             index = built;
             cachedResults = null;
@@ -613,16 +618,28 @@ public final class ProceduralValuationEngine {
         );
     }
 
+    static GenerationDataSnapshot generationData(MinecraftServer server) {
+        synchronized (INDEX_LOCK) {
+            if (generationData == null || indexedServer != null && indexedServer != server) {
+                clear();
+                generationData = GenerationDataSnapshot.capture(server);
+            }
+            generationData.requireCurrent(server);
+            return generationData;
+        }
+    }
+
     private static ProceduralValuationIndex ensureIndex(MinecraftServer server) {
         ProceduralValuationIndex current = index;
         if (current != null && indexedServer == server) {
+            generationData.requireCurrent(server);
             BalancePerformance.increment("valuation_index_cache_hits");
             return current;
         }
         synchronized (INDEX_LOCK) {
             if (index == null || indexedServer != server) {
                 BalancePerformance.increment("valuation_index_builds");
-                ProceduralValuationIndex built = ProceduralValuationIndex.build(server);
+                ProceduralValuationIndex built = ProceduralValuationIndex.build(server, generationData(server));
                 indexedServer = server;
                 index = built;
                 cachedResults = null;
@@ -893,8 +910,8 @@ public final class ProceduralValuationEngine {
         int rare = 0;
         int modSpecific = 0;
         int maxChainDepth = 0;
-        double confidence = 0.91;
-        boolean allIngredientsKnown = true;
+        double confidence = recipe.production() == null ? .91 : recipe.production().confidence();
+        boolean allIngredientsKnown = recipe.production() == null || recipe.production().acquisitionComplete();
         ProceduralValuationResult.ProgressionBand progression =
                 ProceduralValuationResult.ProgressionBand.OVERWORLD;
 
@@ -936,7 +953,7 @@ public final class ProceduralValuationEngine {
 
             dependencies.addAll(child.dependencies());
             dependencies.add(chosen);
-            ingredientTotal += child.acquisitionValue();
+            if (ingredient.consumed()) ingredientTotal += child.acquisitionValue() * ingredient.count();
             uniqueChosen.add(chosen);
             if (child.acquisitionValue() <= ProceduralValuationSettings.EASY_INGREDIENT_THRESHOLD) {
                 easy++;
@@ -982,7 +999,7 @@ public final class ProceduralValuationEngine {
         double perOutput = ingredientTotal
                 * processMultiplier
                 * complexityMultiplier
-                / Math.max(1, recipe.outputCount());
+                / recipe.expectedOutputCount();
 
         ProceduralProgressionIndex.ProgressionEvidence recipeProgression =
                 context.index().progressionForRecipe(recipe.id());
@@ -2196,6 +2213,14 @@ public final class ProceduralValuationEngine {
             structured.add(EssenceTypes.GATHERING, 7.0);
             signals.add("fishing_rod");
         }
+        // Swords also carry a native TOOL component for cobwebs. Preserve their
+        // established weapon identity; this fills missing modded harvesting evidence.
+        if (stack.has(DataComponents.TOOL) && !signals.contains("harvesting_tool")
+                && !(item instanceof SwordItem || item instanceof TridentItem || item instanceof MaceItem)
+                && !stack.is(ProceduralValuationTags.MELEE_WEAPONS) && !stack.is(ProceduralValuationTags.SWORDS)) {
+            structured.add(EssenceTypes.GATHERING, 7.0);
+            signals.add("tool_component");
+        }
         if (item instanceof ShieldItem) {
             structured.add(EssenceTypes.DEFENSE, 8.0);
             structured.add(EssenceTypes.VITALITY, 1.0);
@@ -2284,6 +2309,25 @@ public final class ProceduralValuationEngine {
             structured.add(EssenceTypes.GATHERING, 2.0);
             structured.add(EssenceTypes.UTILITY, 1.0);
             signals.add("living_plant_material");
+        }
+
+        if (structured.isEmpty()) {
+            // Plain modded items can expose equipped function through slot-filtered
+            // native modifiers. These are function votes, never measured axis values.
+            boolean[] function = {false, false};
+            stack.forEachModifier(net.minecraft.world.entity.EquipmentSlot.MAINHAND, (attribute, modifier) -> {
+                if (attribute.equals(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE)
+                        && modifier.amount() > 0) function[0] = true;
+            });
+            for (var slot : List.of(net.minecraft.world.entity.EquipmentSlot.HEAD, net.minecraft.world.entity.EquipmentSlot.CHEST,
+                    net.minecraft.world.entity.EquipmentSlot.LEGS, net.minecraft.world.entity.EquipmentSlot.FEET)) {
+                stack.forEachModifier(slot, (attribute, modifier) -> {
+                    if (attribute.equals(net.minecraft.world.entity.ai.attributes.Attributes.ARMOR)
+                            && modifier.amount() > 0) function[1] = true;
+                });
+            }
+            if (function[0]) { structured.add(EssenceTypes.OFFENSE, 7); signals.add("positive_mainhand_attack_attribute"); }
+            if (function[1]) { structured.add(EssenceTypes.DEFENSE, 7); signals.add("positive_armor_attribute"); }
         }
 
         ResourceLocation id = BuiltInRegistries.ITEM.getKey(item);
@@ -2381,6 +2425,25 @@ public final class ProceduralValuationEngine {
         List<String> evidence = new ArrayList<>();
         if (hasStructured) evidence.add("structured_function");
         if (hasName) evidence.add("name_hint");
+        boolean conflict = false;
+        boolean ambiguous = false;
+        for (Item member : family) {
+            DirectRouting direct = directRouting(member, context);
+            var name = direct.nomenclature();
+            double[] hints = {name.offense(), name.defense(), name.vitality(), name.mobility(), name.gathering(), name.utility()};
+            int positive = 0;
+            double overlap = 0;
+            List<EssenceDefinition> categories = List.of(EssenceTypes.OFFENSE, EssenceTypes.DEFENSE,
+                    EssenceTypes.VITALITY, EssenceTypes.MOBILITY, EssenceTypes.GATHERING, EssenceTypes.UTILITY);
+            for (int i = 0; i < hints.length; i++) if (hints[i] > 0) {
+                positive++;
+                overlap += direct.structured().values.getOrDefault(categories.get(i), 0.0);
+            }
+            conflict |= name.present() && !direct.structured().isEmpty() && overlap == 0;
+            ambiguous |= direct.structured().isEmpty() && positive > EssenceRoutingPolicy.MAX_CATEGORIES;
+        }
+        if (conflict) evidence.add("name_structured_conflict");
+        if (ambiguous) evidence.add("ambiguous_name_hint");
         if (hasDownstream) evidence.add("downstream_recipes");
         if (hasComposition) evidence.add("recipe_composition");
         if (conserved) evidence.add("conservation_family");
@@ -2420,6 +2483,13 @@ public final class ProceduralValuationEngine {
 
         RouteWeights direct = directRoute(item, context);
         RouteWeights route = direct.copy();
+        DirectRouting identity = directRouting(item, context);
+        if (identity.structured().isEmpty() && identity.nomenclature().suppressesInheritedFunction()) {
+            // Being consumed to make a whole machine does not give a named part
+            // that machine's functionality. Actual native function still wins.
+            if (topLevel) context.routeMemo().put(item, route.copy());
+            return route;
+        }
         if (depth >= ProceduralValuationSettings.MAX_ROUTING_DEPTH || !visiting.add(item)) {
             return route;
         }
@@ -2509,6 +2579,7 @@ public final class ProceduralValuationEngine {
         visiting.add(target);
 
         for (ProceduralValuationIndex.IngredientChoice ingredient : chosenRecipe.ingredients()) {
+            if (!ingredient.consumed()) continue;
             RouteWeights alternatives = new RouteWeights();
             int considered = 0;
             for (Item alternative : ingredient.alternatives()) {
@@ -3043,7 +3114,7 @@ public final class ProceduralValuationEngine {
         ProceduralValuationResult.RecipeChoice toChoice() {
             return new ProceduralValuationResult.RecipeChoice(
                     recipe.id(),
-                    recipeTypeName(recipe.type()),
+                    recipe.production() == null ? recipeTypeName(recipe.type()) : recipe.production().family(),
                     value,
                     recipe.outputCount(),
                     ingredientSlots,

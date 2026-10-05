@@ -19,14 +19,17 @@ public final class ProductionGraphAdapter {
     private ProductionGraphAdapter() { }
 
     public static ProductionGraph collect(MinecraftServer server) {
+        com.mistaboom.essence_ascendance.balance.generated.BalancePerformance.increment("production_graph_collections");
         ProceduralValuationIndex index = ProceduralValuationEngine.generationIndex(server);
         Map<String, ProductionGraph.Process> processes = new TreeMap<>();
-        List<String> warnings = new ArrayList<>();
-        for (Item item : BuiltInRegistries.ITEM) {
+        var shared = ProceduralValuationEngine.generationData(server).production();
+        shared.processes().forEach(process -> processes.put(process.id(), process));
+        List<String> warnings = new ArrayList<>(shared.warnings());
+        for (Item item : ProceduralValuationEngine.generationData(server).items()) {
             for (ProceduralValuationIndex.RecipeModel recipe : index.recipesProducing(item)) {
                 String id = recipe.id().toString();
-                if (processes.containsKey(id)) continue;
-                String family = BuiltInRegistries.RECIPE_TYPE.getKey(recipe.type()).toString();
+                if (recipe.production() != null || processes.containsKey(id)) continue;
+                String family = ValuationGenerationInputs.recipeFamily(recipe.type());
                 List<ProductionGraph.Input> inputs = new ArrayList<>();
                 List<ProductionGraph.Output> outputs = new ArrayList<>();
                 outputs.add(new ProductionGraph.Output(BuiltInRegistries.ITEM.getKey(recipe.outputItem()).toString(),
@@ -49,8 +52,12 @@ public final class ProductionGraphAdapter {
                                         BuiltInRegistries.ITEM.getKey(remainder).toString(), 1, 1, true)));
                     }
                 }
-                if (!known) warnings.add("Recipe family " + family
-                        + " exposes only generic inputs/result; custom counts, catalysts, energy, and byproducts require a production provider.");
+                if (!known) {
+                    warnings.add("Recipe family " + family
+                            + " exposes only generic inputs/result; custom counts, catalysts, energy, and byproducts require a production provider.");
+                    ProceduralValuationEngine.generationData(server).unsupportedRecipe(family,
+                            "generic inputs/result only; custom counts, catalysts, energy and byproducts unknown");
+                }
                 processes.put(id, new ProductionGraph.Process(id, family, inputs, outputs, 0, 0,
                         "essence_ascendance:loaded_recipe", known ? .9 : .35, Map.of("time_energy", "unobserved")));
             }

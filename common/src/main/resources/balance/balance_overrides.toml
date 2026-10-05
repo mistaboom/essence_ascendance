@@ -1,7 +1,7 @@
 # Essence Ascendance: factual pack corrections
 # Inputs apply only during generation, then become part of generated_balance.json.gz.
 # Run /essence admin balance rebuild after editing. Never use generated JSON as an editor.
-# Ordinary startup uses the existing valid profile and warns if this file changed.
+# Ordinary startup reuses the saved profile; changes to this file require an explicit rebuild.
 # Inspect reports/ CSV tables to find IDs and generated values; those files are
 # read-only views. Full evidence remains in generated_balance.json.gz and diagnostics/.
 # Player unlock thresholds are visible in reports/ascension.csv. Their runtime

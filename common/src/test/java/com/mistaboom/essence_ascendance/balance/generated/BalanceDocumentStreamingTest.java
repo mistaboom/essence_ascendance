@@ -55,12 +55,8 @@ public final class BalanceDocumentStreamingTest {
         Path compressed = folder.resolve("failure.json.gz");
         try {
             BalanceProfileStore.replace(target, small);
-            try { BalanceProfileStore.requireCurrentStorage(folder, false); throw new AssertionError("Old profile silently ignored"); }
-            catch (IOException expectedOld) { check(Files.exists(target), "Old plain profile retained and explicit rebuild required"); }
-            BalanceProfileStore.requireCurrentStorage(folder, true);
             BalanceProfileStore.replace(live, small);
-            BalanceProfileStore.requireCurrentStorage(folder, false);
-            check(BalanceProfileStore.read(live).integrity().equals(small.integrity()), "One compressed authority; old file never selected or deleted");
+            check(BalanceProfileStore.read(live).integrity().equals(small.integrity()), "Current-schema compressed profile round trip");
             check(BalanceProfileStore.read(target).integrity().equals(small.integrity()), "Compact storage retains historical canonical integrity");
             check(Files.size(target) < small.text().getBytes(StandardCharsets.UTF_8).length, "Compact storage omits formatting only");
             BalanceProfileStore.writeDiagnostic(compressed, small);

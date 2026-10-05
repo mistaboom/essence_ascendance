@@ -380,7 +380,9 @@ final class ProceduralBlockLoot {
             Truth gate = conditions(fn.get("conditions"), depth + 1);
             if (gate.probability() <= 0) continue;
             StackCounts changed = counts;
-            if (type.equals("minecraft:set_count")) {
+            if (Boolean.TRUE.equals(fn.get(GenerationLootEvidence.UNRESOLVED))) {
+                changed = taint(counts, "unsupported loot function representation: " + type);
+            } else if (type.equals("minecraft:set_count")) {
                 StackCounts supplied = integerCounts(fn.get("count"), depth + 1);
                 changed = Boolean.TRUE.equals(fn.get("add"))
                         ? addCounts(counts, supplied, depth + 1)

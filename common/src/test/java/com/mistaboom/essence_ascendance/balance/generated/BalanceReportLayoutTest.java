@@ -36,6 +36,13 @@ public final class BalanceReportLayoutTest {
             String guide = Files.readString(root.resolve("README_REPORTS.txt"));
             require(guide.contains("/essence admin balance export"), "Current report-export command missing from file guide");
             require(!guide.contains("/essence debug balance export"), "Retired report-export alias advertised in file guide");
+            require(BalanceReports.state(root, CURRENT_INTEGRITY).equals("unverified_existing_or_missing"), "Legacy reports were falsely certified");
+            Path manifest = BalanceReportLayout.diagnostics(root).resolve("report_manifest.json");
+            Files.writeString(manifest, "{\"profileIntegrity\":\"installed-profile-integrity\",\"state\":\"complete\"}");
+            require(BalanceReports.state(root, CURRENT_INTEGRITY).equals("current"), "Matching completed export not reusable");
+            require(BalanceReports.state(root, "different").equals("different_profile"), "Old reports presented as another profile");
+            Files.writeString(manifest, "{\"profileIntegrity\":\"installed-profile-integrity\",\"state\":\"incomplete\"}");
+            require(BalanceReports.state(root, CURRENT_INTEGRITY).equals("incomplete"), "Partial export presented as complete");
 
             BalanceReportLayout.finishExport(root, CURRENT_INTEGRITY);
             require(!Files.exists(archives.resolve("export-3")), "Repeat export created an empty archive");

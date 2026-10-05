@@ -52,7 +52,7 @@ public final class ExportSavedBalanceTool {
                     BalancePerformance.flag("environment_analysis_rescanned", false);
                     BalancePerformance.flag("identity_rescanned", false);
                     BalancePerformance.flag("reports_regenerated", false);
-                    BalancePerformance.detail("environment_validation", "Offline decode only; no live pack fingerprint available");
+                    BalancePerformance.detail("validation_scope", "Offline saved-profile validation; no world opened");
                     current = GeneratedBalanceService.decode(BalanceProfileStore.read(profile));
                     if (!measurePhases) {
                         try (var phase = BalancePerformance.phase("offline_report_export")) {

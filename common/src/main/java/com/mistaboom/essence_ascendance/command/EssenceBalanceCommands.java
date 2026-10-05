@@ -34,7 +34,6 @@ final class EssenceBalanceCommands {
                 .executes(context -> showHelp(context.getSource(), false))
                 .then(Commands.literal("help").executes(context -> showHelp(context.getSource(), false)))
                 .then(Commands.literal("summary").executes(context -> guarded(context.getSource(), () -> summary(context.getSource()))))
-                .then(Commands.literal("fingerprint").executes(context -> guarded(context.getSource(), () -> fingerprint(context.getSource()))))
                 .then(Commands.literal("validate").executes(context -> guarded(context.getSource(), () -> validate(context.getSource()))))
                 .then(Commands.literal("cost").then(Commands.argument("path", StringArgumentType.string())
                         .executes(context -> guarded(context.getSource(), () -> cost(context.getSource(), StringArgumentType.getString(context,"path"))))))
@@ -77,7 +76,6 @@ final class EssenceBalanceCommands {
             help(source, "/essence admin balance export", "export");
         } else {
             help(source, "/essence debug balance summary", "summary");
-            help(source, "/essence debug balance fingerprint", "fingerprint");
             help(source, "/essence debug balance validate", "validate");
             help(source, "/essence debug balance item [id]", "item");
             help(source, "/essence debug balance bonus <bonus>", "bonus");
@@ -98,13 +96,6 @@ final class EssenceBalanceCommands {
         line(source,"Curves",profile.runtime().config().statMaxBonuses().size()+" stats; "+profile.runtime().skillCurves().size()+" skills");
         line(source,"Conservation",profile.economy().invariants().size()+" paths passed; "+profile.economy().solverPasses()+" bounded solver passes");
         line(source,"Last load",GeneratedBalanceService.lastLoadMillis()+" ms");
-        return fingerprint(source);
-    }
-    private static int fingerprint(CommandSourceStack source) {
-        var changes=GeneratedBalanceService.status(source.getServer(), "debug_balance_fingerprint");
-        section(source, "Profile status");
-        if(changes.isEmpty())tell(source,"current");
-        else changes.forEach(change -> EssenceCommandUtil.send(source, EssenceCommandUtil.warn("  " + change)));
         return 1;
     }
     private static int validate(CommandSourceStack source) throws Exception {
@@ -244,7 +235,7 @@ final class EssenceBalanceCommands {
     }
     private static void tell(CommandSourceStack source,String key,Object... args) {
         ChatFormatting color = switch (key) {
-            case "current", "valid", "rebuilt", "exported" -> ChatFormatting.GREEN;
+            case "valid", "rebuilt", "exported" -> ChatFormatting.GREEN;
             case "rebuilding" -> ChatFormatting.YELLOW;
             case "details" -> ChatFormatting.DARK_GRAY;
             default -> ChatFormatting.WHITE;

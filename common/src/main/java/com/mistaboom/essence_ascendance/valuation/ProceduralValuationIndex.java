@@ -92,7 +92,7 @@ final class ProceduralValuationIndex {
         this.summary = summary;
     }
 
-    static ProceduralValuationIndex build(MinecraftServer server) {
+    static ProceduralValuationIndex build(MinecraftServer server, GenerationDataSnapshot data) {
         Map<Item, List<RecipeModel>> byOutput = new IdentityHashMap<>();
         Map<Item, List<RecipeUse>> byIngredient = new IdentityHashMap<>();
         Map<Item, List<DropSource>> drops = new IdentityHashMap<>();
@@ -105,89 +105,28 @@ final class ProceduralValuationIndex {
         int ingredientLinks = 0;
         Set<ResourceLocation> indexedRecipeIds = new HashSet<>();
 
-        try (var phase = BalancePerformance.phase("recipe_ingredient_scan")) {
-        for (RecipeHolder<?> holder : server.getRecipeManager().getRecipes()) {
-            Recipe<?> recipe = holder.value();
-            if (!ValuationGenerationInputs.recipeAllowed(holder.id(), recipe.getType())) continue;
-
-            try {
-                ItemStack result = recipe.getResultItem(server.registryAccess());
-                if (result == null || result.isEmpty() || result.is(Items.AIR) || !ValuationGenerationInputs.itemAllowed(result.getItem())) {
-                    skippedRecipes++;
-                    continue;
-                }
-
-                List<IngredientChoice> ingredients = new ArrayList<>();
-                boolean unresolvedIngredient = false;
-                for (Ingredient ingredient : recipe.getIngredients()) {
-                    if (ingredient == Ingredient.EMPTY) continue;
-                    if (ingredient == null) { unresolvedIngredient = true; continue; }
-
-                    LinkedHashSet<Item> alternatives = new LinkedHashSet<>();
-                    for (ItemStack candidate : ingredient.getItems()) {
-                        if (candidate != null && !candidate.isEmpty() && !candidate.is(Items.AIR) && ValuationGenerationInputs.itemAllowed(candidate.getItem())) {
-                            alternatives.add(candidate.getItem());
-                        }
-                    }
-
-                    if (!alternatives.isEmpty()) {
-                        ingredients.add(new IngredientChoice(List.copyOf(alternatives)));
-                    } else { unresolvedIngredient = true; }
-                }
-
-                if (ingredients.isEmpty() || unresolvedIngredient) {
-                    skippedRecipes++;
-                    continue;
-                }
-
-                RecipeModel model = new RecipeModel(
-                        holder.id(),
-                        recipe.getType(),
-                        result.getItem(),
-                        ValuationGenerationInputs.outputCount(holder.id(), recipe.getType(), Math.max(1, result.getCount())),
-                        List.copyOf(ingredients)
-                );
-
-                byOutput.computeIfAbsent(result.getItem(), ignored -> new ArrayList<>())
-                        .add(model);
-
-                for (IngredientChoice ingredient : ingredients) {
-                    for (Item candidate : ingredient.alternatives()) {
-                        byIngredient.computeIfAbsent(candidate, ignored -> new ArrayList<>())
-                                .add(new RecipeUse(model));
+        try (var phase = BalancePerformance.phase("shared_production_recipe_projection")) {
+            for (var process : data.production().processes()) {
+                if (process.metadata().containsKey("quest_id")) continue;
+                ResourceLocation familyId = ResourceLocation.tryParse(process.family());
+                RecipeType<?> type = familyId != null && BuiltInRegistries.RECIPE_TYPE.containsKey(familyId)
+                        ? BuiltInRegistries.RECIPE_TYPE.get(familyId) : null;
+                List<RecipeModel> models = productionModels(process, type);
+                if (models.isEmpty()) { skippedRecipes++; continue; }
+                for (RecipeModel model : models) {
+                    byOutput.computeIfAbsent(model.outputItem(), ignored -> new ArrayList<>()).add(model);
+                    for (IngredientChoice ingredient : model.ingredients()) for (Item candidate : ingredient.alternatives()) {
+                        byIngredient.computeIfAbsent(candidate, ignored -> new ArrayList<>()).add(new RecipeUse(model));
                         ingredientLinks++;
                     }
+                    recipeCount++;
                 }
-
-                indexedRecipeIds.add(holder.id());
-                recipeCount++;
-
-            } catch (RuntimeException exception) {
-                skippedRecipes++;
-                EssenceAscendance.LOGGER.debug(
-                        "Procedural valuation skipped recipe {}: {}",
-                        holder.id(),
-                        exception.getMessage()
-                );
             }
         }
 
-        }
-        FallbackRecipeStats smithingFallbacks;
-        try (var phase = BalancePerformance.phase("smithing_recipe_fallbacks")) {
-        smithingFallbacks = scanSmithingTransformRecipeFallbacks(
-                server,
-                byOutput,
-                byIngredient,
-                indexedRecipeIds
-        );
-        }
-        recipeCount += smithingFallbacks.recipeCount();
-        ingredientLinks += smithingFallbacks.ingredientLinks();
-
         ProceduralNaturalBlockIndex naturalBlockIndex;
         try (var phase = BalancePerformance.phase("natural_block_index")) {
-            naturalBlockIndex = ProceduralNaturalBlockIndex.build(server);
+            naturalBlockIndex = ProceduralNaturalBlockIndex.build(data);
         }
         // Positive runtime interaction relationships (no hand-authored item prices).
         try (var phase = BalancePerformance.phase("interaction_recipe_discovery")) {
@@ -212,11 +151,11 @@ final class ProceduralValuationIndex {
         }
         ProceduralStructureIndex structureIndex;
         try (var phase = BalancePerformance.phase("structure_index")) {
-            structureIndex = ProceduralStructureIndex.build(server);
+            structureIndex = ProceduralStructureIndex.build(server, data);
         }
         ProceduralMobSpawnIndex mobSpawnIndex;
         try (var phase = BalancePerformance.phase("mob_spawn_index")) {
-            mobSpawnIndex = ProceduralMobSpawnIndex.build(server, structureIndex);
+            mobSpawnIndex = ProceduralMobSpawnIndex.build(data, structureIndex);
         }
         Map<Item, List<BiologicalSource>> biologicalSources = biologicalSources(mobSpawnIndex);
         ProceduralTradeIndex tradeIndex;
@@ -238,7 +177,8 @@ final class ProceduralValuationIndex {
         int containerLootTablesScanned;
         try (var phase = BalancePerformance.phase("container_loot_index")) {
             containerLootTablesScanned = scanContainerLootTables(server, containerLoot, structureIndex);
-            addVanillaFixedStructureSources(containerLoot, structureIndex);
+            if (data.structureEligible(ResourceLocation.parse("minecraft:end_city")))
+                addVanillaFixedStructureSources(containerLoot, structureIndex);
         }
         int containerLootLinks = containerLoot.values().stream().mapToInt(List::size).sum();
         int fishingLootTablesScanned;
@@ -460,6 +400,9 @@ final class ProceduralValuationIndex {
     }
 
     private static boolean isReversibleTransform(RecipeModel model, Map<Item, List<RecipeModel>> recipesByOutput) {
+        if (model.production() != null && (!model.production().conservationComplete()
+                || model.ingredients().stream().anyMatch(input -> !input.consumed() || input.count() != 1)
+                || model.production().outputs().size() != 1)) return false;
         Item input = model.singleIngredientIdentity();
         if (input == null || input == model.outputItem()) {
             return false;
@@ -469,6 +412,9 @@ final class ProceduralValuationIndex {
         int forwardOutputCount = model.outputCount();
 
         for (RecipeModel reverse : recipesByOutput.getOrDefault(input, List.of())) {
+            if (reverse.production() != null && (!reverse.production().conservationComplete()
+                    || reverse.ingredients().stream().anyMatch(ingredient -> !ingredient.consumed() || ingredient.count() != 1)
+                    || reverse.production().outputs().size() != 1)) continue;
             Item reverseInput = reverse.singleIngredientIdentity();
             if (reverseInput != model.outputItem()) {
                 continue;
@@ -487,154 +433,27 @@ final class ProceduralValuationIndex {
         return false;
     }
 
-    private static FallbackRecipeStats scanSmithingTransformRecipeFallbacks(
-            MinecraftServer server,
-            Map<Item, List<RecipeModel>> byOutput,
-            Map<Item, List<RecipeUse>> byIngredient,
-            Set<ResourceLocation> indexedRecipeIds
-    ) {
-        Map<ResourceLocation, Resource> resources;
-        try {
-            resources = server.getResourceManager().listResources(
-                    "recipe",
-                    id -> id.getPath().endsWith(".json")
-            );
-        } catch (RuntimeException exception) {
-            EssenceAscendance.LOGGER.debug(
-                    "Procedural valuation could not enumerate data recipe fallbacks: {}",
-                    exception.getMessage()
-            );
-            return FallbackRecipeStats.EMPTY;
+    /** Shared item projection. Unsupported predicates/resources remain evidence, never known acquisition seeds. */
+    static List<RecipeModel> productionModels(com.mistaboom.essence_ascendance.balance.economy.ProductionGraph.Process process, RecipeType<?> type) {
+        // Quest completion is a conditional source, not a material recipe. Its typed
+        // prerequisite graph is evaluated once in the shared availability projection.
+        if (process.metadata().containsKey("quest_id")) return List.of();
+        List<IngredientChoice> inputs = new ArrayList<>();
+        for (var input : process.inputs()) {
+            List<Item> alternatives = input.alternatives().stream().map(ResourceLocation::tryParse).filter(java.util.Objects::nonNull)
+                    .filter(BuiltInRegistries.ITEM::containsKey).map(BuiltInRegistries.ITEM::get)
+                    .filter(item -> item != Items.AIR && ValuationGenerationInputs.itemAllowed(item)).toList();
+            if (alternatives.isEmpty()) return List.of();
+            inputs.add(new IngredientChoice(alternatives, input.count(), input.consumed()));
         }
-
-        int recipes = 0;
-        int links = 0;
-        for (Map.Entry<ResourceLocation, Resource> entry : resources.entrySet()) {
-            ResourceLocation recipeId = recipeIdFromResource(entry.getKey());
-            if (recipeId == null || indexedRecipeIds.contains(recipeId)) {
-                continue;
-            }
-            try (BufferedReader reader = entry.getValue().openAsReader()) {
-                JsonElement parsed = JsonParser.parseReader(reader);
-                if (parsed == null || !parsed.isJsonObject()) {
-                    continue;
-                }
-                JsonObject root = parsed.getAsJsonObject();
-                String type = readString(root, "type");
-                if (type == null || !type.endsWith("smithing_transform")) {
-                    continue;
-                }
-                if (!ValuationGenerationInputs.recipeAllowed(recipeId, RecipeType.SMITHING)) continue;
-
-                Item outputItem = readRecipeResultItem(root.get("result"));
-                if (outputItem == null || outputItem == Items.AIR || !ValuationGenerationInputs.itemAllowed(outputItem)) {
-                    continue;
-                }
-                int outputCount = readRecipeResultCount(root.get("result"));
-
-                List<IngredientChoice> ingredients = new ArrayList<>();
-                for (String key : List.of("template", "base", "addition")) {
-                    IngredientChoice ingredient = readDataIngredient(root.get(key));
-                    if (ingredient != null && !ingredient.alternatives().isEmpty()) {
-                        ingredients.add(ingredient);
-                    }
-                }
-                if (ingredients.isEmpty()) {
-                    continue;
-                }
-
-                RecipeModel model = new RecipeModel(
-                        recipeId,
-                        RecipeType.SMITHING,
-                        outputItem,
-                        ValuationGenerationInputs.outputCount(recipeId, RecipeType.SMITHING, Math.max(1, outputCount)),
-                        List.copyOf(ingredients)
-                );
-                byOutput.computeIfAbsent(outputItem, ignored -> new ArrayList<>()).add(model);
-                for (IngredientChoice ingredient : ingredients) {
-                    for (Item candidate : ingredient.alternatives()) {
-                        byIngredient.computeIfAbsent(candidate, ignored -> new ArrayList<>())
-                                .add(new RecipeUse(model));
-                        links++;
-                    }
-                }
-                indexedRecipeIds.add(recipeId);
-                recipes++;
-            } catch (IOException | RuntimeException exception) {
-                EssenceAscendance.LOGGER.debug(
-                        "Procedural valuation skipped smithing recipe fallback {}: {}",
-                        entry.getKey(),
-                        exception.getMessage()
-                );
-            }
+        List<RecipeModel> result = new ArrayList<>();
+        for (var output : process.outputs()) {
+            Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(output.itemId()));
+            if (item == Items.AIR || !ValuationGenerationInputs.itemAllowed(item)) continue;
+            result.add(new RecipeModel(ResourceLocation.parse(process.id()), type, item,
+                    (int) Math.max(1, Math.min(Integer.MAX_VALUE, output.count())), inputs, process, output.expectedCount()));
         }
-
-        if (recipes > 0) {
-            EssenceAscendance.LOGGER.info(
-                    "Procedural valuation recovered {} smithing-transform recipes from final data resources",
-                    recipes
-            );
-        }
-        return new FallbackRecipeStats(recipes, links);
-    }
-
-    private static ResourceLocation recipeIdFromResource(ResourceLocation resourceId) {
-        String path = resourceId.getPath();
-        String prefix = "recipe/";
-        if (!path.startsWith(prefix) || !path.endsWith(".json")) {
-            return null;
-        }
-        String recipePath = path.substring(prefix.length(), path.length() - ".json".length());
-        return recipePath.isBlank()
-                ? null
-                : ResourceLocation.tryBuild(resourceId.getNamespace(), recipePath);
-    }
-
-    private static Item readRecipeResultItem(JsonElement resultElement) {
-        if (resultElement == null || resultElement.isJsonNull()) {
-            return null;
-        }
-        String raw = null;
-        if (resultElement.isJsonPrimitive() && resultElement.getAsJsonPrimitive().isString()) {
-            raw = resultElement.getAsString();
-        } else if (resultElement.isJsonObject()) {
-            JsonObject object = resultElement.getAsJsonObject();
-            raw = readString(object, "id");
-            if (raw == null) {
-                raw = readString(object, "item");
-            }
-        }
-        ResourceLocation id = raw == null ? null : ResourceLocation.tryParse(raw);
-        return id == null ? null : BuiltInRegistries.ITEM.getOptional(id).orElse(null);
-    }
-
-    private static int readRecipeResultCount(JsonElement resultElement) {
-        if (resultElement != null && resultElement.isJsonObject()) {
-            return Math.max(1, (int) Math.round(readDouble(resultElement.getAsJsonObject(), "count", 1.0)));
-        }
-        return 1;
-    }
-
-    private static IngredientChoice readDataIngredient(JsonElement element) {
-        if (element == null || element.isJsonNull()) {
-            return null;
-        }
-        String raw = null;
-        if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
-            raw = element.getAsString();
-        } else if (element.isJsonObject()) {
-            JsonObject object = element.getAsJsonObject();
-            raw = readString(object, "item");
-            if (raw == null) {
-                raw = readString(object, "id");
-            }
-        }
-        if (raw == null || raw.startsWith("#")) {
-            return null;
-        }
-        ResourceLocation id = ResourceLocation.tryParse(raw);
-        Item item = id == null ? null : BuiltInRegistries.ITEM.getOptional(id).orElse(null);
-        return item == null ? null : new IngredientChoice(List.of(item));
+        return List.copyOf(result);
     }
 
     private static Map<Item, List<ConservationEdge>> buildConservationEdges(
@@ -833,39 +652,7 @@ final class ProceduralValuationIndex {
             Map<Item, List<ContainerLootSource>> output,
             ProceduralStructureIndex structureIndex
     ) {
-        Map<ResourceLocation, Resource> resources;
-        try {
-            resources = server.getResourceManager().listResources(
-                    "loot_table",
-                    id -> id.getPath().endsWith(".json")
-            );
-        } catch (RuntimeException exception) {
-            EssenceAscendance.LOGGER.warn(
-                    "Procedural valuation could not enumerate container loot tables: {}",
-                    exception.getMessage()
-            );
-            return 0;
-        }
-
-        Map<ResourceLocation, JsonObject> tables = new LinkedHashMap<>();
-        for (Map.Entry<ResourceLocation, Resource> entry : resources.entrySet()) {
-            ResourceLocation tableId = lootTableIdFromResource(entry.getKey());
-            if (tableId == null) {
-                continue;
-            }
-            try (BufferedReader reader = entry.getValue().openAsReader()) {
-                JsonElement root = JsonParser.parseReader(reader);
-                if (root != null && root.isJsonObject()) {
-                    tables.put(tableId, root.getAsJsonObject());
-                }
-            } catch (IOException | RuntimeException exception) {
-                EssenceAscendance.LOGGER.debug(
-                        "Procedural valuation skipped loot table {} while indexing containers: {}",
-                        entry.getKey(),
-                        exception.getMessage()
-                );
-            }
-        }
+        Map<ResourceLocation, JsonObject> tables = ProceduralValuationEngine.generationData(server).json("loot_evidence");
 
         Map<ResourceLocation, Map<Item, ContainerEstimate>> memo = new HashMap<>();
         int scanned = 0;
@@ -878,6 +665,11 @@ final class ProceduralValuationIndex {
 
             boolean archaeology = isArchaeologyLootTable(tableId, root);
             ContainerContext context = containerContext(tableId, structureIndex);
+            // A registered loot definition is not proof that its container is generated.
+            // Retain unknown tables as conditional evidence; providers may prove other access.
+            boolean configuredStructure = context.structureId() != null
+                    && ProceduralValuationEngine.generationData(server).structureEligible(context.structureId())
+                    && context.structureFrequencyKnown();
             if (archaeology) {
                 List<String> signals = new ArrayList<>(context.signals());
                 signals.add("loaded archaeology loot: brush/excavation access; not renewable chest farming");
@@ -901,7 +693,7 @@ final class ProceduralValuationIndex {
                         tableId,
                         clampProbability(estimate.occurrenceChance()),
                         Math.max(0.01, estimate.expectedCount()),
-                        estimate.complexConditionCount(),
+                        estimate.complexConditionCount() + (configuredStructure ? 0 : 1),
                         context.tierLabel(),
                         context.progressionBand(),
                         context.contextMultiplier(),
@@ -924,39 +716,7 @@ final class ProceduralValuationIndex {
             MinecraftServer server,
             Map<Item, List<FishingLootSource>> output
     ) {
-        Map<ResourceLocation, Resource> resources;
-        try {
-            resources = server.getResourceManager().listResources(
-                    "loot_table",
-                    id -> id.getPath().endsWith(".json")
-            );
-        } catch (RuntimeException exception) {
-            EssenceAscendance.LOGGER.warn(
-                    "Procedural valuation could not enumerate fishing loot tables: {}",
-                    exception.getMessage()
-            );
-            return 0;
-        }
-
-        Map<ResourceLocation, JsonObject> tables = new LinkedHashMap<>();
-        for (Map.Entry<ResourceLocation, Resource> entry : resources.entrySet()) {
-            ResourceLocation tableId = lootTableIdFromResource(entry.getKey());
-            if (tableId == null) {
-                continue;
-            }
-            try (BufferedReader reader = entry.getValue().openAsReader()) {
-                JsonElement root = JsonParser.parseReader(reader);
-                if (root != null && root.isJsonObject()) {
-                    tables.put(tableId, root.getAsJsonObject());
-                }
-            } catch (IOException | RuntimeException exception) {
-                EssenceAscendance.LOGGER.debug(
-                        "Procedural valuation skipped loot table {} while indexing fishing: {}",
-                        entry.getKey(),
-                        exception.getMessage()
-                );
-            }
-        }
+        Map<ResourceLocation, JsonObject> tables = ProceduralValuationEngine.generationData(server).json("loot_evidence");
 
         Map<ResourceLocation, Map<Item, ContainerEstimate>> memo = new HashMap<>();
         int scanned = 0;
@@ -1086,6 +846,7 @@ final class ProceduralValuationIndex {
                 }
                 estimateContainerPool(
                         poolElement.getAsJsonObject(),
+                        GenerationLootEvidence.unresolvedFunctions(root.get("functions")),
                         tables,
                         memo,
                         visiting,
@@ -1104,6 +865,7 @@ final class ProceduralValuationIndex {
 
     private static void estimateContainerPool(
             JsonObject pool,
+            int inheritedUnresolvedFunctions,
             Map<ResourceLocation, JsonObject> tables,
             Map<ResourceLocation, Map<Item, ContainerEstimate>> memo,
             java.util.Set<ResourceLocation> visiting,
@@ -1120,7 +882,8 @@ final class ProceduralValuationIndex {
         }
 
         ChanceInfo poolChance = readChance(pool.get("conditions"));
-        int poolComplex = poolChance.complexConditions();
+        int poolComplex = poolChance.complexConditions() + inheritedUnresolvedFunctions
+                + GenerationLootEvidence.unresolvedFunctions(pool.get("functions"));
         double poolCountMultiplier = readSetCountMultiplier(pool.get("functions"));
         // Baseline valuation assumes zero Luck/Luck-of-the-Sea. Luck-dependent
         // bonus rolls therefore contribute zero without making the source
@@ -1169,7 +932,7 @@ final class ProceduralValuationIndex {
             double rolls,
             double perRollSelection,
             double inheritedCountMultiplier,
-            int complex,
+            int inheritedComplex,
             Map<ResourceLocation, JsonObject> tables,
             Map<ResourceLocation, Map<Item, ContainerEstimate>> memo,
             java.util.Set<ResourceLocation> visiting,
@@ -1180,6 +943,7 @@ final class ProceduralValuationIndex {
         }
 
         String type = readString(entry, "type");
+        int complex = inheritedComplex + GenerationLootEvidence.unresolvedFunctions(entry.get("functions"));
         double countMultiplier = inheritedCountMultiplier
                 * readSetCountMultiplier(entry.get("functions"));
 
@@ -1426,24 +1190,7 @@ final class ProceduralValuationIndex {
             Map<Item, List<DropSource>> output,
             ProceduralMobSpawnIndex mobSpawnIndex
     ) {
-        Map<ResourceLocation, JsonObject> tables = new LinkedHashMap<>();
-        try {
-            Map<ResourceLocation, Resource> resources = server.getResourceManager().listResources(
-                    "loot_table", id -> id.getPath().endsWith(".json"));
-            for (Map.Entry<ResourceLocation, Resource> entry : resources.entrySet()) {
-                ResourceLocation tableId = lootTableIdFromResource(entry.getKey());
-                if (tableId == null) continue;
-                try (BufferedReader reader = entry.getValue().openAsReader()) {
-                    JsonElement root = JsonParser.parseReader(reader);
-                    if (root != null && root.isJsonObject()) tables.put(tableId, root.getAsJsonObject());
-                } catch (IOException | RuntimeException exception) {
-                    EssenceAscendance.LOGGER.debug("Procedural entity loot skipped {}: {}", tableId, exception.getMessage());
-                }
-            }
-        } catch (RuntimeException exception) {
-            EssenceAscendance.LOGGER.warn("Procedural entity loot enumeration failed: {}", exception.getMessage());
-            return 0;
-        }
+        Map<ResourceLocation, JsonObject> tables = ProceduralValuationEngine.generationData(server).json("loot_evidence");
         int scanned = 0;
         for (ResourceLocation tableId : tables.keySet().stream().sorted().toList()) {
             String entityPath = ProceduralLootIdentity.registeredEntityPath(tableId.getPath(), path ->
@@ -1594,7 +1341,8 @@ final class ProceduralValuationIndex {
                 stats
         );
         double chance = inheritedChance * conditionInfo.multiplier();
-        int complexConditions = complexConditionCount + conditionInfo.complexConditions();
+        int complexConditions = complexConditionCount + conditionInfo.complexConditions()
+                + GenerationLootEvidence.unresolvedFunctions(object.get("functions"));
         MobStats resolvedStats = conditionInfo.stats();
         List<String> conditionSignals = new ArrayList<>(inheritedConditionSignals);
         conditionSignals.addAll(conditionInfo.signals());
@@ -1908,6 +1656,7 @@ final class ProceduralValuationIndex {
             }
 
             JsonObject function = functionElement.getAsJsonObject();
+            if (GenerationLootEvidence.unresolvedFunctions(function) > 0) continue;
             String functionType = readString(function, "function");
             if (functionType != null
                     && functionType.endsWith("set_count")
@@ -1998,17 +1747,18 @@ final class ProceduralValuationIndex {
         return copy;
     }
 
-    private record FallbackRecipeStats(int recipeCount, int ingredientLinks) {
-        private static final FallbackRecipeStats EMPTY = new FallbackRecipeStats(0, 0);
-    }
-
     record RecipeModel(
             ResourceLocation id,
             RecipeType<?> type,
             Item outputItem,
             int outputCount,
-            List<IngredientChoice> ingredients
+            List<IngredientChoice> ingredients,
+            com.mistaboom.essence_ascendance.balance.economy.ProductionGraph.Process production,
+            double expectedOutputCount
     ) {
+        RecipeModel(ResourceLocation id, RecipeType<?> type, Item outputItem, int outputCount, List<IngredientChoice> ingredients) {
+            this(id, type, outputItem, outputCount, ingredients, null, outputCount);
+        }
         Item singleIngredientIdentity() {
             Item identity = null;
             for (IngredientChoice ingredient : ingredients) {
@@ -2026,7 +1776,8 @@ final class ProceduralValuationIndex {
         }
     }
 
-    record IngredientChoice(List<Item> alternatives) {
+    record IngredientChoice(List<Item> alternatives, double count, boolean consumed) {
+        IngredientChoice(List<Item> alternatives) { this(alternatives, 1, true); }
         IngredientChoice {
             alternatives = List.copyOf(alternatives);
         }

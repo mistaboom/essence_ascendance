@@ -15,6 +15,7 @@ public final class EvidenceSink {
     private final Map<String, EvidenceFact> resolved = new TreeMap<>();
     private final List<String> warnings = new ArrayList<>();
     private final Map<String, Integer> providerPriorities;
+    private long conflicts;
 
     public EvidenceSink() { this(Map.of()); }
     public EvidenceSink(Map<String, Integer> providerPriorities) { this.providerPriorities = Map.copyOf(providerPriorities); }
@@ -25,7 +26,10 @@ public final class EvidenceSink {
                     fact.origin(), fact.confidence(), replacement, fact.stage(), fact.dependencies(), fact.reason());
         }
         facts.add(fact);
-        resolved.merge(fact.key(), fact, (left, right) -> PREFERENCE.compare(left, right) >= 0 ? left : right);
+        resolved.merge(fact.key(), fact, (left, right) -> {
+            if (!left.value().equals(right.value())) conflicts++;
+            return PREFERENCE.compare(left, right) >= 0 ? left : right;
+        });
     }
     public EvidenceFact get(EvidenceFact.Subject subject, String id, String property) {
         return resolved.get(subject + ":" + id + ":" + property);
@@ -47,4 +51,15 @@ public final class EvidenceSink {
     }
     public void warn(String warning) { warnings.add(warning); }
     public List<String> warnings() { return warnings.stream().sorted().distinct().toList(); }
+    public int size() { return facts.size(); }
+    public long conflicts() { return conflicts; }
+    public record Emitted(long facts, long sources, double minimumConfidence) { }
+    public Emitted emittedSince(int start) {
+        long sources = 0; double confidence = 1;
+        for (int i = start; i < facts.size(); i++) {
+            EvidenceFact fact = facts.get(i); confidence = Math.min(confidence, fact.confidence());
+            if (fact.subject() == EvidenceFact.Subject.SOURCE) sources++;
+        }
+        return new Emitted(facts.size() - start, sources, confidence);
+    }
 }

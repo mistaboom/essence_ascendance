@@ -12,16 +12,11 @@ public final class SavedEvidenceRegenerator {
     private SavedEvidenceRegenerator() { }
 
     /** Diagnostic envelope only: deliberately lacks an installable runtime. */
-    static BalanceDocument failureSnapshot(PackFingerprint environment, BalanceInputs inputs,
+    static BalanceDocument failureSnapshot(BalanceInputs inputs,
             PackEvidence evidence, EconomyProfile economy, RuntimeException failure) {
         JsonObject metadata = new JsonObject();
         metadata.addProperty("generatorRevision", GeneratedBalanceService.GENERATION_REVISION);
         metadata.addProperty("dissolutionAccounting", "whole_essence_v1");
-        metadata.add("environment", BalanceDocument.GSON.toJsonTree(environment));
-        metadata.addProperty("settingsFingerprint", inputs.settingsFingerprint());
-        metadata.addProperty("overridesFingerprint", inputs.overridesFingerprint());
-        var evidenceJson = BalanceDocument.GSON.toJsonTree(evidence);
-        metadata.addProperty("evidenceDigest", BalanceDocument.hash(evidenceJson));
         metadata.addProperty("capturedAt", java.time.Instant.now().toString());
         metadata.addProperty("diagnosticOnly", true);
         JsonObject validation = new JsonObject();
@@ -32,18 +27,25 @@ public final class SavedEvidenceRegenerator {
         content.add("metadata", metadata);
         content.add("settings", BalanceDocument.GSON.toJsonTree(inputs.settings()));
         content.add("overrides", BalanceDocument.GSON.toJsonTree(inputs.overrides()));
-        content.add("evidence", evidenceJson);
-        content.add("economy", BalanceDocument.GSON.toJsonTree(economy));
         content.add("runtime", new JsonObject());
         content.add("skills", new JsonObject());
         content.add("validation", validation);
-        return BalanceDocument.sealOwned(content);
+        // A failed native calibration still holds its typed evidence and economy.
+        // Stream those same records so failure capture cannot allocate a second
+        // whole-pack JSON graph while preserving the noninstallable envelope.
+        return BalanceDocument.sealGeneratedOwned(content, evidence, economy);
     }
 
     public static GeneratedBalanceService.Active regenerate(BalanceDocument source, BalanceInputs inputs) {
         var gson = BalanceDocument.GSON;
+        JsonObject metadata = source.section("metadata");
+        if (!metadata.has("generatorRevision")
+                || !GeneratedBalanceService.GENERATION_REVISION.equals(metadata.get("generatorRevision").getAsString())
+                || !metadata.has("dissolutionAccounting")
+                || !"whole_essence_v1".equals(metadata.get("dissolutionAccounting").getAsString()))
+            throw new IllegalArgumentException("Saved evidence requires the current generator and accounting policy; generate a new profile");
         // Evidence and economy were collected with these exact inputs. A changed
-        // input requires native recollection, not a misleading offline freshness claim.
+        // input requires native recollection so the saved evidence remains applicable.
         if (!source.section("settings").equals(gson.toJsonTree(inputs.settings()))
                 || !source.section("overrides").equals(gson.toJsonTree(inputs.overrides())))
             throw new IllegalArgumentException("Saved evidence inputs differ from current TOML; rebuild in game to recollect the pack");
@@ -55,11 +57,8 @@ public final class SavedEvidenceRegenerator {
         EconomyGenerator.validate(economy);
         EconomyGenerator.validateWhole(economy);
         RuntimeBalanceDefinition runtime = RuntimeBalanceDefinition.generate(evidence, economy, inputs.settings(), inputs.overrides());
-        JsonObject metadata = source.section("metadata");
         metadata.remove("diagnosticOnly");
         metadata.addProperty("generatorRevision", GeneratedBalanceService.GENERATION_REVISION);
-        metadata.addProperty("settingsFingerprint", inputs.settingsFingerprint());
-        metadata.addProperty("overridesFingerprint", inputs.overridesFingerprint());
         metadata.addProperty("runtimeRebuild", "Saved pack evidence and economy replay; no world opened, no evidence recollected, no live gameplay observed");
         JsonObject validation = source.section("validation");
         validation.remove("failure");

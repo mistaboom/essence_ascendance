@@ -29,6 +29,7 @@ public record ValuationEvidenceSnapshot(Map<String, List<AcquisitionSource>> sou
                                         Map<String, Double> entityProgression,
                                         Map<String, Long> summary) {
     public static ValuationEvidenceSnapshot collect(MinecraftServer server, List<ProceduralValuationResult> valuations) {
+        com.mistaboom.essence_ascendance.balance.generated.BalancePerformance.increment("valuation_snapshot_collections");
         ProceduralValuationIndex index = ProceduralValuationEngine.generationIndex(server);
         Map<String, List<AcquisitionSource>> sources = new TreeMap<>();
         Map<String, List<List<String>>> recipes = new TreeMap<>();
@@ -70,10 +71,18 @@ public record ValuationEvidenceSnapshot(Map<String, List<AcquisitionSource>> sou
                 List<List<String>> choices = recipe.ingredients().stream().map(ingredient -> ingredient.alternatives().stream()
                         .map(candidate -> BuiltInRegistries.ITEM.getKey(candidate).toString()).sorted().toList()).toList();
                 recipes.put(recipe.id().toString(), choices);
-                entries.add(new AcquisitionSource(recipe.id().toString(), AcquisitionSource.Kind.RECIPE,
-                        ProgressionBand.ENTRY, recipe.outputCount(), false, false, 0, 0.82,
+                var production = recipe.production();
+                entries.add(new AcquisitionSource(recipe.id().toString(), production != null && !"vanilla".equals(production.metadata().get("adapter"))
+                        ? AcquisitionSource.Kind.MACHINE : AcquisitionSource.Kind.RECIPE,
+                        ProgressionBand.ENTRY, recipe.expectedOutputCount(), production != null && "renewable".equals(production.metadata().get("renewability")), false, 0,
+                        production == null ? .82 : production.confidence(),
                         choices.stream().flatMap(List::stream).distinct().sorted().toList(),
-                        "Loaded recipe; alternative ingredient groups retained in shared graph"));
+                        production == null ? "Loaded interaction; alternative ingredient groups retained in shared graph"
+                                : "Shared effective production " + production.family() + "; " + production.provider()
+                                    + "; acquisition complete=" + production.acquisitionComplete()
+                                    + "; setup=" + production.metadata().getOrDefault("setup", "provider-declared prerequisites")
+                                    + "; operating=" + production.metadata().getOrDefault("energy", "unknown")
+                                    + "; predicates/resources retained in generated production evidence"));
             }
             entries.sort(java.util.Comparator.comparing((AcquisitionSource source) -> source.kind().name()).thenComparing(AcquisitionSource::id));
             sources.put(value.itemId().toString(), List.copyOf(entries));
