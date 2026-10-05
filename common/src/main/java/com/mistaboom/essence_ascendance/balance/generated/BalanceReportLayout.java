@@ -61,6 +61,14 @@ public final class BalanceReportLayout {
 
                   equipment.csv                   External equipment reference axes.
                   equipment_capabilities.csv      One capability per reference item.
+                  competitive_capabilities.csv    Generic competition facts/configurations.
+                  competitive_frontiers.csv       Progression-aware robust references.
+                  competitive_candidates.csv      Unsupported competitor representatives.
+                  competitive_unsupported_counts.csv  Complete unsupported observation counts.
+                  competitive_capabilities.md     Human-readable competition report.
+                Competition reports exist only when saved generation diagnostics are present.
+                They retain scope, operating costs, access, confidence and provider provenance;
+                potential configurations and unknown rates do not imply attainable power.
                   generated_equipment.csv         Ascendance baseline stats per tier.
                   ascension.csv                   Player chapters and harvest access.
                 External equipment and its capabilities join by item_id, slot and stage.

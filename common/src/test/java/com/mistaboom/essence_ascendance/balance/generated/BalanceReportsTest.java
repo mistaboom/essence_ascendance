@@ -17,6 +17,9 @@ public final class BalanceReportsTest {
         Path root = Files.createTempDirectory("balance-spreadsheet-report-");
         try {
             questReports(root.resolve("quest-fixture"));
+            var absentCapabilities = new SpreadsheetReports(); CompetitiveCapabilityReports.saved(absentCapabilities, new JsonObject());
+            absentCapabilities.write(root.resolve("absent-capabilities"), root.resolve("absent-capability-diagnostics"));
+            check(!Files.exists(root.resolve("absent-capabilities/competitive_capabilities.csv")), "Saved profile without capability diagnostics triggered synthesized report");
             SpreadsheetReports reports = new SpreadsheetReports();
             var table = reports.table("fixture.csv", "id", "value", "detail");
             String longText = "quoted, \"source\"\n日本語\r\n".repeat(4000);

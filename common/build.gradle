@@ -36,6 +36,7 @@ loom {
 
 // Executable invariant suites use the real mapped Minecraft classpath and add no test library.
 def balanceInvariantMains = [
+        competitiveCapabilitiesInvariants: 'com.mistaboom.essence_ascendance.balance.engine.CompetitiveCapabilitiesTest',
         balanceLootAcquisitionInvariants: 'com.mistaboom.essence_ascendance.valuation.LootAcquisitionTest',
         balanceLootAuditMemoryInvariants: 'com.mistaboom.essence_ascendance.valuation.LootAuditMemoryTest',
         balanceBlockSourceMemoryInvariants: 'com.mistaboom.essence_ascendance.valuation.BlockSourceMemoryTest',

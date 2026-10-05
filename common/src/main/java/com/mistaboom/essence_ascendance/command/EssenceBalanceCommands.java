@@ -99,6 +99,7 @@ final class EssenceBalanceCommands {
         return 1;
     }
     private static int validate(CommandSourceStack source) throws Exception {
+        tell(source,"validating");
         try (var operation = com.mistaboom.essence_ascendance.balance.generated.BalancePerformance.begin(
                 "explicit_profile_validation", "debug_balance_validate")) {
         try {
@@ -236,7 +237,7 @@ final class EssenceBalanceCommands {
     private static void tell(CommandSourceStack source,String key,Object... args) {
         ChatFormatting color = switch (key) {
             case "valid", "rebuilt", "exported" -> ChatFormatting.GREEN;
-            case "rebuilding" -> ChatFormatting.YELLOW;
+            case "rebuilding", "validating" -> ChatFormatting.YELLOW;
             case "details" -> ChatFormatting.DARK_GRAY;
             default -> ChatFormatting.WHITE;
         };

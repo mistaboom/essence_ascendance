@@ -318,6 +318,9 @@ public final class GeneratedBalanceIntegrationTest {
             }
             JsonObject generationReport = JsonParser.parseString(Files.readString(BalanceReportLayout.diagnostics(folder).resolve("generation_evidence.json"))).getAsJsonObject();
             check(generationReport.equals(decoded.document().section("metadata").getAsJsonObject("generation")), "Export preserves saved generation provenance without recollection");
+            var competition = JsonParser.parseString(Files.readString(BalanceReportLayout.diagnostics(folder).resolve("competitive_capabilities.json"))).getAsJsonObject();
+            check(competition.equals(generationReport.getAsJsonObject("competitiveCapabilities")), "Export changed saved capability facts");
+            check(Files.exists(BalanceReportLayout.reports(folder).resolve("competitive_frontiers.csv")), "Full-profile capability frontier export missing");
             String report = Files.readString(reports.resolve("balance_report.md"));
             check(report.contains("fixture:provider") && report.contains("PARTIALLY_SUPPORTED"), "Report exposes saved provider readiness and support");
             check(report.contains(decoded.document().integrity()) && report.contains("/essence admin balance rebuild"),
@@ -531,6 +534,14 @@ public final class GeneratedBalanceIntegrationTest {
                    "ready":true,"requiredEvidenceComplete":true,"facts":1,"sources":0,"minimumConfidence":0.7,
                    "detail":"Supported fixture facts complete; player state unsupported","probeNanos":0,"collectionNanos":0}]}
                 """).getAsJsonObject());
+        var capabilityFixture = new com.mistaboom.essence_ascendance.balance.engine.CapabilitySink();
+        var placement = new com.mistaboom.essence_ascendance.balance.engine.CompetitiveCapabilities.Placement(
+                ProgressionBand.EARLY, true, .9, List.of());
+        capabilityFixture.add(com.mistaboom.essence_ascendance.balance.capability.InstalledCapabilityProviders.torch(64, true, true,
+                List.of("minecraft:zombie"), placement));
+        capabilityFixture.candidate("fixture:opaque", "fixture", "Unsupported custom configuration");
+        metadata.getAsJsonObject("generation").add("competitiveCapabilities",
+                com.mistaboom.essence_ascendance.balance.engine.CompetitiveCapabilities.report(capabilityFixture, "WINSORIZE"));
         metadata.addProperty("evidenceDigest", BalanceDocument.hash(BalanceDocument.GSON.toJsonTree(evidence)));
         JsonObject validation = new JsonObject();
         validation.addProperty("runtime", "passed"); validation.addProperty("economy", "passed");

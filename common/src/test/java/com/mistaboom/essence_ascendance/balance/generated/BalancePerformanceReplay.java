@@ -22,7 +22,7 @@ public final class BalancePerformanceReplay {
         if (output.startsWith(config)) throw new IllegalArgumentException("Replay output must be outside live config");
         Files.createDirectories(output);
         String mode = args[2];
-        if (!Set.of("load", "runtime").contains(mode)) throw new IllegalArgumentException("Replay mode must be load or runtime");
+        if (!Set.of("load", "runtime", "capabilities").contains(mode)) throw new IllegalArgumentException("Replay mode must be load, runtime or capabilities");
         String expectedSource = System.getProperty("balance.replay.expectedCodeSource");
         if (expectedSource != null) {
             Path expected = Path.of(java.net.URI.create(expectedSource));
@@ -55,12 +55,17 @@ public final class BalancePerformanceReplay {
                     || counts.getOrDefault("profile_decodes", 0L) != 1) throw new AssertionError("Saved load duplicated document work");
             for (String forbidden : List.of("full_generation_runs", "evidence_collection_runs", "conservation_solve_runs", "runtime_generation_runs",
                     "report_export_runs", "valuation_snapshot_collections", "production_graph_collections", "valuation_index_builds",
-                    "quest_definition_normalizations", "quest_progression_rule_evaluations"))
+                    "quest_definition_normalizations", "quest_progression_rule_evaluations", "competitive_capability_runs"))
                 if (counts.getOrDefault(forbidden, 0L) != 0) throw new AssertionError("Saved load invoked " + forbidden);
             Map<String, String> semantic = new TreeMap<>();
             for (String section : List.of("metadata", "settings", "overrides", "evidence", "economy", "runtime", "skills", "validation"))
                 semantic.put(section, active.document().sectionHash(section));
             write(output.resolve("semantic-profile.json"), semantic);
+            if (mode.equals("capabilities")) {
+                var report = com.mistaboom.essence_ascendance.balance.engine.CompetitiveCapabilities.replay(active.evidence(),
+                        new com.mistaboom.essence_ascendance.balance.economy.ProductionGraph(active.economy().processes(), active.economy().warnings()));
+                CompetitiveCapabilityReports.write(output, report);
+            }
             if (mode.equals("runtime")) {
                 var inputs = BalanceInputs.read(config);
                 if (profile) recording.start();

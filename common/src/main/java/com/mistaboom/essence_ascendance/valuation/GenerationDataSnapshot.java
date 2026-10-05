@@ -48,6 +48,12 @@ public final class GenerationDataSnapshot implements AutoCloseable {
     private Map<String, List<String>> itemTags;
     private final Map<String, Map<ResourceLocation, JsonObject>> definitions = new TreeMap<>();
     private JsonObject routingDiagnostics;
+    private JsonObject competitiveCapabilities;
+    public void competitiveCapabilities(JsonObject evidence) {
+        requireOpen();
+        if (competitiveCapabilities != null) throw new IllegalStateException("Capability census already collected");
+        competitiveCapabilities = evidence;
+    }
     private com.mistaboom.essence_ascendance.balance.economy.ProductionGraph production;
     private final Map<String, Long> workloads = new TreeMap<>();
     private Map<ResourceLocation, JsonObject> naturalBiomes = Map.of(), terrain = Map.of();
@@ -289,6 +295,7 @@ public final class GenerationDataSnapshot implements AutoCloseable {
         requireOpen(); JsonObject result = new JsonObject(), counts = new JsonObject();
         workloads.forEach(counts::addProperty); result.add("workloads", counts);
         if (routingDiagnostics != null) result.add("routing", routingDiagnostics.deepCopy());
+        if (competitiveCapabilities != null) result.add("competitiveCapabilities", competitiveCapabilities);
         if (quests != com.mistaboom.essence_ascendance.balance.quest.QuestEvidence.EMPTY) {
             result.add("quests", quests.diagnostics());
             if (questProgression != null) result.getAsJsonObject("quests").add("progression", questProgression.deepCopy());
@@ -335,6 +342,7 @@ public final class GenerationDataSnapshot implements AutoCloseable {
     @Override public void close() {
         server = null; epoch.clear();
         routingDiagnostics = null;
+        competitiveCapabilities = null;
         quests = com.mistaboom.essence_ascendance.balance.quest.QuestEvidence.EMPTY; questProgression = null;
         production = null;
         items = List.of(); recipeHolders = List.of(); mods = Map.of(); itemTags = null; definitions.clear(); naturalBiomes = Map.of(); terrain = Map.of();

@@ -113,6 +113,7 @@ public final class PackEvidenceCollector {
         List<EnemyReference> enemies = resolveEnemies(baseEnemies, sink, settings);
         Map<ProgressionBand, Map<CapabilityAxis, Double>> frontiers = RobustFrontiers.build(equipment, settings.outlierPolicy().name());
         List<CapabilityEvidence> capabilities = resolveCapabilities(sink, resources);
+        inputs.competitiveCapabilities(CompetitiveCapabilities.collect(context, resources, equipment, capabilities, providers, runs, sink));
         for (ProgressionBand band : ProgressionBand.values()) {
             Map<CapabilityAxis, Double> axes = new EnumMap<>(CapabilityAxis.class); axes.putAll(frontiers.getOrDefault(band, Map.of()));
             for (CapabilityEvidence capability : capabilities) if (capability.reachable() && capability.stage().ordinal() <= band.ordinal())

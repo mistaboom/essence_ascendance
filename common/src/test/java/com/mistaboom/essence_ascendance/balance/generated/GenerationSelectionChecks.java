@@ -18,6 +18,7 @@ final class GenerationSelectionChecks {
             collectors.incrementAndGet();
             questScans.incrementAndGet(); BalancePerformance.increment("quest_definition_normalizations");
             lootScans.incrementAndGet(); BalancePerformance.increment("loot_settings_captures");
+            BalancePerformance.increment("competitive_capability_runs");
             var body = JsonParser.parseString(initial.text()).getAsJsonObject();
             var production = com.mistaboom.essence_ascendance.valuation.EffectiveProductionTest.currentEffectiveFixture(environment.get());
             body.getAsJsonObject("metadata").add("fixtureEffectiveProduction", BalanceDocument.GSON.toJsonTree(production));
@@ -53,7 +54,7 @@ final class GenerationSelectionChecks {
                     "Changed external fixture does not alter saved authority"); checks++;
             check(Arrays.equals(first, Files.readAllBytes(path)), "Saved profile reused without replacement"); checks++;
             var telemetry = BalancePerformance.lastSnapshot();
-            for (String name : new String[]{"generation_snapshot_captures", "evidence_collection_runs", "production_graph_collections", "production_recipes_inspected", "conservation_solve_runs", "runtime_generation_runs", "quest_definition_normalizations", "quest_progression_rule_evaluations", "loot_settings_captures", "loot_tables_inspected", "loot_unsupported_runtime_modifiers"}) {
+            for (String name : new String[]{"generation_snapshot_captures", "evidence_collection_runs", "production_graph_collections", "production_recipes_inspected", "conservation_solve_runs", "runtime_generation_runs", "quest_definition_normalizations", "quest_progression_rule_evaluations", "loot_settings_captures", "loot_tables_inspected", "loot_unsupported_runtime_modifiers", "competitive_capability_runs"}) {
                 check(!telemetry.counts().containsKey(name), "Saved load has no generation workload: " + name); checks++;
             }
             check(telemetry.counts().get("profile_reads") == 1, "Saved data read once"); checks++;

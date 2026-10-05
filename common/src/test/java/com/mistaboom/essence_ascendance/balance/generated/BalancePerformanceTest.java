@@ -17,6 +17,7 @@ public final class BalancePerformanceTest {
         profileReadInstrumentation();
         sectionDigestReuseAndIsolation();
         concurrentSectionDigestReuse();
+        heapObservations();
         System.out.println("BalancePerformanceTest: " + checks + " checks PASS");
     }
 
@@ -235,6 +236,35 @@ public final class BalancePerformanceTest {
         }
         content.getAsJsonObject("evidence").addProperty("payload", "repeated evidence text ".repeat(1000));
         return content;
+    }
+
+    private static void heapObservations() {
+        AtomicLong clock = new AtomicLong();
+        var readings = new java.util.ArrayDeque<BalancePerformance.HeapReading>();
+        readings.add(new BalancePerformance.HeapReading(8, 32, 64, 3, 10));
+        readings.add(new BalancePerformance.HeapReading(14, 32, 64, 4, 15));
+        readings.add(new BalancePerformance.HeapReading(9, 32, 64, 5, 17));
+        var log = new ArrayList<String>();
+        try (var operation = BalancePerformance.begin("validation", "test", clock::get, log::add, readings::removeFirst)) {
+            clock.set(2_000_000_000L);
+            try (var phase = BalancePerformance.phase("validate")) { clock.set(3_000_000_000L); }
+            operation.complete("validated");
+        }
+        var memory = BalancePerformance.lastSnapshot().memory();
+        check(memory.startingUsedBytes() == 8 && memory.currentUsedBytes() == 9, "heap measurements retain before/after used memory");
+        check(memory.sampledHighWaterBytes() == 14 && memory.samples() == 3, "sampled high water survives subsequent garbage collection");
+        check(memory.committedBytes() == 32 && memory.maximumBytes() == 64, "heap used, committed and maximum stay distinct");
+        check(memory.collectionCountDelta() == 2 && memory.collectionMillisDelta() == 7, "GC activity is an operation delta, not lifetime totals");
+        check(JsonParser.parseString(log.get(1)).getAsJsonObject().has("memory"), "progress exposes memory while the server thread is busy");
+        try (var operation = BalancePerformance.begin("validation", "unavailable_observation", clock::get, log::add,
+                () -> { throw new IllegalStateException("probe unavailable"); })) { operation.complete("validated"); }
+        check(BalancePerformance.lastSnapshot().memory() == null && BalancePerformance.lastSnapshot().outcome().equals("validated"),
+                "optional observation failure cannot reject valid authority");
+        try (var operation = BalancePerformance.begin("validation", "unsupported_gc", clock::get, log::add,
+                () -> new BalancePerformance.HeapReading(10, 32, 64, -1, -1))) { operation.complete("validated"); }
+        check(BalancePerformance.lastSnapshot().memory().collectionCountDelta() == null
+                        && BalancePerformance.lastSnapshot().memory().collectionMillisDelta() == null,
+                "unsupported collector metrics remain unknown instead of zero");
     }
 
     private static void check(boolean condition, String message) { checks++; if (!condition) throw new AssertionError(message); }

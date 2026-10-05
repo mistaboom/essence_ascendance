@@ -21,7 +21,10 @@ public abstract class FullscreenContainerScreen<M extends AbstractContainerMenu>
     protected void renderFullscreenTooltips(GuiGraphics graphics, int mouseX, int mouseY) { }
     protected final void refreshFullscreen() { fullscreen.update(composeFullscreen()); }
 
-    @Override protected void init() { super.init(); fullscreen.resized(); refreshFullscreen(); }
+    @Override protected void init() {
+        FullscreenSidebarCompatibility.register(getClass());
+        super.init(); fullscreen.resized(); refreshFullscreen();
+    }
     @Override public void removed() { fullscreen.clear(); super.removed(); }
     @Override protected final void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
         fullscreen.renderBase(graphics, font, mouseX, mouseY, partialTick);

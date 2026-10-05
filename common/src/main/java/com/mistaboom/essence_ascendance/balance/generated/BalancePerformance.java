@@ -15,6 +15,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 
 /** Bounded operation diagnostics. Never owns balance objects, worlds, players, or file contents. */
 public final class BalancePerformance {
@@ -44,15 +45,19 @@ public final class BalancePerformance {
 
     public static Operation begin(String type, String trigger) {
         Operation operation = begin(type, trigger, System::nanoTime,
-                line -> EssenceAscendance.LOGGER.info("Balance performance {}", line));
+                line -> EssenceAscendance.LOGGER.info("Balance performance {}", line), HeapObserver::read);
         operation.heartbeat = Heartbeats.TIMER.scheduleAtFixedRate(operation::heartbeat, 10, 10, TimeUnit.SECONDS);
         return operation;
     }
 
     // Deterministic seam: tests use a fake monotonic clock and no background work.
     static Operation begin(String type, String trigger, LongSupplier clock, Consumer<String> output) {
+        return begin(type, trigger, clock, output, null);
+    }
+    static Operation begin(String type, String trigger, LongSupplier clock, Consumer<String> output,
+                           Supplier<HeapReading> heap) {
         Operation parent = CURRENT.get();
-        Operation operation = new Operation(type, trigger, clock, output, parent);
+        Operation operation = new Operation(type, trigger, clock, output, parent, heap);
         if (parent != null) operation.field(operation.details, "parent_operation_id", parent.id);
         CURRENT.set(operation);
         operation.emit("begin", operation.start);
@@ -92,11 +97,31 @@ public final class BalancePerformance {
     @FunctionalInterface
     public interface Scope extends AutoCloseable { @Override void close(); }
     public record PhaseTiming(String path, long invocations, long inclusiveNanos, long exclusiveNanos) { }
+    record HeapReading(long used, long committed, long maximum, long collections, long collectionMillis) { }
+    /** Observations of the whole JVM, not allocations attributed exclusively to balance work. */
+    public record MemoryUsage(long startingUsedBytes, long currentUsedBytes, long sampledHighWaterBytes,
+                              long committedBytes, long maximumBytes, Long collectionCountDelta,
+                              Long collectionMillisDelta, long samples) { }
+    private static final class HeapObserver {
+        private static final java.lang.management.MemoryMXBean MEMORY = java.lang.management.ManagementFactory.getMemoryMXBean();
+        private static final List<java.lang.management.GarbageCollectorMXBean> COLLECTORS =
+                java.lang.management.ManagementFactory.getGarbageCollectorMXBeans();
+        static HeapReading read() {
+            var usage = MEMORY.getHeapMemoryUsage();
+            long collections = 0, millis = 0;
+            for (var collector : COLLECTORS) {
+                long count = collector.getCollectionCount(), time = collector.getCollectionTime();
+                collections = count < 0 || collections < 0 ? -1 : collections + count;
+                millis = time < 0 || millis < 0 ? -1 : millis + time;
+            }
+            return new HeapReading(usage.getUsed(), usage.getCommitted(), usage.getMax(), collections, millis);
+        }
+    }
     public record Snapshot(String id, String operation, String trigger, String startedAt, String outcome,
                            boolean finished, long elapsedNanos, long unattributedNanos,
                            String activePhase, String lastEnteredPhase, String failureType, String failurePhase,
                            List<PhaseTiming> phases, Map<String, Long> counts, Map<String, Boolean> flags,
-                           Map<String, String> details, int suppressedProgressEvents) { }
+                           Map<String, String> details, int suppressedProgressEvents, MemoryUsage memory) { }
 
     public static final class Operation implements AutoCloseable {
         private final String id = SESSION + "-" + IDS.incrementAndGet();
@@ -115,9 +140,14 @@ public final class BalancePerformance {
         private final Map<String, Boolean> flags = new LinkedHashMap<>();
         private final Map<String, String> details = new LinkedHashMap<>();
         private ScheduledFuture<?> heartbeat;
+        private Supplier<HeapReading> heap;
+        private HeapReading initialHeap;
+        private MemoryUsage memory;
 
-        private Operation(String type, String trigger, LongSupplier clock, Consumer<String> output, Operation parent) {
+        private Operation(String type, String trigger, LongSupplier clock, Consumer<String> output, Operation parent,
+                          Supplier<HeapReading> heap) {
             this.type = bounded(type); this.trigger = bounded(trigger); this.clock = clock; this.output = output;
+            this.heap = heap;
             this.parent = parent;
             this.start = clock.getAsLong(); this.lastProgress = start;
         }
@@ -168,15 +198,32 @@ public final class BalancePerformance {
             emit(event, now);
         }
         private void emit(String event, long now) {
+            if (!event.equals("end") && !event.equals("failure")) sampleHeap();
             // Progress is small and bounded; detailed timings appear once in the final record.
             Map<String, Object> record = new LinkedHashMap<>();
             record.put("event", event); record.put("id", id); record.put("operation", type); record.put("trigger", trigger);
             record.put("elapsedMillis", Math.max(0, now - start) / 1_000_000L);
             record.put("activePhase", stack.isEmpty() ? "" : stack.peek().path);
             if (event.equals("begin")) record.put("startedAt", startedAt);
+            if (memory != null) record.put("memory", memory);
             if (event.equals("end") || event.equals("failure")) record.put("result", snapshot());
             try { output.accept(JSON.toJson(record)); }
             catch (RuntimeException ignored) { /* Diagnostics cannot invalidate balance authority. */ }
+        }
+        private void sampleHeap() {
+            if (heap == null) return;
+            try {
+                HeapReading reading = heap.get();
+                if (initialHeap == null) initialHeap = reading;
+                memory = new MemoryUsage(initialHeap.used(), reading.used(),
+                        Math.max(memory == null ? 0 : memory.sampledHighWaterBytes(), reading.used()),
+                        reading.committed(), reading.maximum(),
+                        initialHeap.collections() < 0 || reading.collections() < 0 ? null : Math.max(0, reading.collections() - initialHeap.collections()),
+                        initialHeap.collectionMillis() < 0 || reading.collectionMillis() < 0 ? null : Math.max(0, reading.collectionMillis() - initialHeap.collectionMillis()),
+                        memory == null ? 1 : memory.samples() + 1);
+            } catch (RuntimeException | LinkageError ignored) {
+                heap = null; // Optional observation must never invalidate balance authority.
+            }
         }
         public synchronized Snapshot snapshot() {
             long now = finished ? ended : clock.getAsLong();
@@ -185,12 +232,13 @@ public final class BalancePerformance {
             return new Snapshot(id, type, trigger, startedAt, outcome, finished, Math.max(0, now - start),
                     Math.max(0, now - start - rootPhaseNanos), stack.isEmpty() ? "" : stack.peek().path,
                     lastEntered, failureType, failurePhase, List.copyOf(timings), Map.copyOf(counts), Map.copyOf(flags),
-                    Map.copyOf(details), suppressedProgress);
+                    Map.copyOf(details), suppressedProgress, memory);
         }
         @Override public synchronized void close() {
             if (finished) return;
             if (!stack.isEmpty()) throw new IllegalStateException("Unclosed balance phase scopes");
             if (outcome.equals("running")) outcome = "incomplete";
+            sampleHeap();
             ended = clock.getAsLong(); finished = true;
             if (heartbeat != null) heartbeat.cancel(false);
             lastSnapshot = snapshot();

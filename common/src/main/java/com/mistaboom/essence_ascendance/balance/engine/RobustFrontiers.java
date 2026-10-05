@@ -12,6 +12,45 @@ import java.util.TreeMap;
 public final class RobustFrontiers {
     private RobustFrontiers() { }
 
+    public record CompetitiveFrontier(ProgressionBand band, String comparisonKey, double magnitude,
+                                      double measuredMaximum, boolean capped, List<CapabilityEvidence.Functional> representatives) { }
+
+    /** Comparable alternatives compete by maximum, never sum. One source has one vote even if it supplies
+     * thousands of configurations. Keep actual witnesses so scope/cadence cannot be assembled from different gear. */
+    public static List<CompetitiveFrontier> competitive(List<CapabilityEvidence.Functional> evidence, String policy) {
+        List<CompetitiveFrontier> result = new ArrayList<>();
+        Map<String, CompetitiveFrontier> retained = new TreeMap<>();
+        for (ProgressionBand band : ProgressionBand.values()) {
+            Map<String, Map<String, CapabilityEvidence.Functional>> groups = new TreeMap<>();
+            for (var fact : evidence) {
+                if (!fact.attainable() || !fact.source().reachable() || fact.source().confidence() < .5
+                        || fact.source().stage() != band) continue;
+                for (var m : fact.measurements()) {
+                    if (m.magnitude() == null || m.origin() == CapabilityEvidence.Origin.NOMENCLATURE) continue;
+                    String key = m.comparisonKey();
+                    groups.computeIfAbsent(key, ignored -> new TreeMap<>()).merge(fact.source().subjectId(), fact,
+                            (a, b) -> magnitude(a, key) >= magnitude(b, key) ? a : b);
+                }
+            }
+            groups.forEach((key, sources) -> {
+                var ordered = sources.values().stream().sorted(java.util.Comparator
+                        .<CapabilityEvidence.Functional>comparingDouble(f -> magnitude(f, key)).reversed()
+                        .thenComparing(f -> f.source().subjectId())).toList();
+                double upper = percentile(ordered.stream().map(f -> magnitude(f, key)).toList(), 1, policy);
+                double maximum = magnitude(ordered.getFirst(), key);
+                List<CapabilityEvidence.Functional> representatives = ordered.stream()
+                        .filter(f -> !policy.equals("EXCLUDE_UNSUPPORTED") || magnitude(f, key) <= upper).limit(3).toList();
+                if (upper > 0) retained.merge(key, new CompetitiveFrontier(band, key, upper, maximum, upper < maximum, representatives),
+                        (a, b) -> a.magnitude() >= b.magnitude() ? a : b);
+            });
+            retained.values().forEach(f -> result.add(new CompetitiveFrontier(band, f.comparisonKey(), f.magnitude(), f.measuredMaximum(), f.capped(), f.representatives())));
+        }
+        return List.copyOf(result);
+    }
+    private static double magnitude(CapabilityEvidence.Functional fact, String key) {
+        return fact.measurements().stream().filter(m -> m.magnitude() != null && m.comparisonKey().equals(key)).mapToDouble(m -> m.magnitude()).max().orElse(0);
+    }
+
     public static double percentile(List<Double> raw, double fraction) {
         return percentile(raw, fraction, "WINSORIZE");
     }

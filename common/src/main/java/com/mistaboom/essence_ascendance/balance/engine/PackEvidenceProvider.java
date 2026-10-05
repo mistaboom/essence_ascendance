@@ -20,4 +20,9 @@ public interface PackEvidenceProvider extends GenerationProvider {
      * never use current player ownership/equipment to determine profile access.
      */
     void collect(PackEvidenceContext context, EvidenceSink sink);
+    /** Generation-only competitive facts. Never writes Essence parameters or the runtime frontier.
+     * Supply attainable configurations with acquisition witnesses and explicit unknowns; bounds without a
+     * realizable witness remain candidates. The coordinator guards optional classes and versions first. */
+    default void collectCapabilities(PackEvidenceContext context, java.util.Map<String, ResourceEvidence> resources,
+                                     CapabilitySink sink) { }
 }

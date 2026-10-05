@@ -13,6 +13,10 @@ The fullscreen presentation layer lives in `client.ui.fullscreen`. Nexus is its 
 - `renderFullscreenTooltips(...)`: host content tooltips, called only when the overlay stack allows them.
 - `fullscreen`: the instance-owned composition controller. Neither adapter saves navigation or chooses a close policy for its host.
 
+### Optional inventory sidebars
+
+Both fullscreen host adapters register their concrete screen class through `FullscreenSidebarCompatibility` before native initialization. When FTB Library is present, its public client `addSidebarScreenBlacklist` API excludes that exact class from inventory sidebar injection. The Nexus has a container lifecycle, while the Archive has an ordinary screen lifecycle; FTB Library normally injects only into container screens. Sharing this exclusion policy prevents that lifecycle distinction from exposing unrelated inventory buttons over a fullscreen page. The menu, close, transactions and shared composition remain unchanged. Other inventory/machine screens retain their normal sidebars. Optional absence never loads FTB classes; an unavailable API logs one compatibility warning.
+
 ### Native background rendering contract
 
 Minecraft 1.21.1 `Screen.render` calls the virtual `renderBackground` hook before widgets. The default ordinary-screen background runs the blur post-process. `FullscreenScreen` therefore renders the composition in its final `renderBackground` override and delegates to `Screen.render` once; it must never render the composition first and then invoke the default background. The composition already supplies the fullscreen surface. Widgets follow that surface, then shared overlays and tooltips render in the foreground.
