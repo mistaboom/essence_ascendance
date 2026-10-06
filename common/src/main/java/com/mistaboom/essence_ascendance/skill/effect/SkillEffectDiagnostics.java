@@ -162,7 +162,7 @@ final class SkillEffectDiagnostics {
         check(failures, found.isPresent(), "Missing scoped catalog entry: " + id);
         found.ifPresent(skill -> {
             check(failures, skill.essenceId().equals(EssenceTypes.OFFENSE.id()), id + " changed Essence.");
-            check(failures, skill.requiredTierId().equals(tier), id + " changed required tier.");
+            check(failures, skill.catalogRequiredTierId().equals(tier), id + " changed catalog required tier.");
             check(failures, skill.costBand() == cost, id + " changed cost band.");
             check(failures, skill.prerequisites().equals(prerequisites), id + " changed prerequisites.");
             check(failures, Objects.equals(skill.choiceGroup(), group), id + " changed choice group.");

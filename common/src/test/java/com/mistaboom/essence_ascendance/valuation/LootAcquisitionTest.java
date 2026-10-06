@@ -18,9 +18,17 @@ public final class LootAcquisitionTest {
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap();
         check(LootrProvider.readiness(null, false).status() == ProviderReadiness.Status.ABSENT, "Optional absent does not link Lootr");
         check(LootrProvider.readiness("1.21.1-1.11.38.126", false).status() == ProviderReadiness.Status.NOT_READY, "Installed is not ready");
-        try { LootrProvider.readiness("1.21.1-1.11.38.126", false).requireSafe("lootr", true); throw new AssertionError(); }
-        catch (IllegalStateException expected) { checks++; }
+        check(!LootrProvider.readiness("1.21.1-1.11.38.126", false).collectable(),
+                "Unready installed Lootr is excluded without rejecting unrelated generation");
         check(!LootrProvider.readiness("older", true).collectable(), "Unaudited version not accepted");
+        check(LootrProvider.readiness("1.21.1-1.11.38.125", true).collectable(), "Additional audited Lootr API supported");
+        check(!LootrProvider.readiness("1.21.1-1.11.38.125", false).collectable(), "Additional version still requires ready service");
+        check(!LootrProvider.blacklistUsesProblematicProcessors("1.21.1-1.11.38.125"), "Older audited blacklist has no extension registry");
+        check(LootrProvider.blacklistUsesProblematicProcessors("1.21.1-1.11.38.126"), "Newer audited blacklist retains callback safety guard");
+        check(!LootrProvider.teamLootSettingAvailable("1.21.1-1.11.38.125"), "Older audited per-player API has no team-loot getter");
+        check(LootrProvider.teamLootSettingAvailable("1.21.1-1.11.38.126"), "Newer audited team-loot setting must be captured");
+        try { LootrProvider.blacklistUsesProblematicProcessors("1.21.1-1.11.38.127"); throw new AssertionError("Unknown callback boundary accepted"); }
+        catch (IllegalArgumentException expected) { checks++; }
         var off = rule(false, Set.of(), Set.of(), Set.of());
         var finite = policy(off, off, Set.of(), false);
         var personal = describe(finite, true, 0);
@@ -28,6 +36,12 @@ public final class LootAcquisitionTest {
         check(!personal.provenRenewable() && personal.refresh().applicability() == Applicability.OFF, "Personalization is not renewable");
         check(describe(policy(off, off, Set.of(), true), true, 0).scope() == Scope.TEAM, "Team scope retained without enumerating teams");
         check(describe(LootrPolicy.ABSENT, true, 0).category() == Category.FINITE_SHARED, "Absent shared fallback");
+        var unavailable = describe(new LootrPolicy(true, false, false, Set.of(), Set.of(), Set.of(), off, off,
+                List.of(), List.of("Installed Lootr compatibility was unavailable")), true, 0);
+        check(unavailable.category() == Category.UNKNOWN && !unavailable.provenRenewable()
+                        && !unavailable.uncertainty().isEmpty(),
+                "Failed installed integration stays unknown rather than ordinary absent/shared loot");
+        check(!unavailable.accessProven(), "Failed installed Lootr policy cannot certify acquisition access");
         var excluded = describe(policy(off, off, Set.of(TABLE), false), true, 0);
         check(excluded.category() == Category.FINITE_SHARED && excluded.scope() == Scope.SHARED, "Conversion exclusion shared fallback");
         check(excluded.underlyingSource().equals(personal.underlyingSource()), "Personal/shared same underlying opportunity");
@@ -55,10 +69,34 @@ public final class LootAcquisitionTest {
                         && new ArrayList<>(policy(orderedRules, off, Set.of("fixture:z", "fixture:a"), false).blockedTables()).equals(List.of("fixture:a", "fixture:z")),
                 "Policy set serialization has stable order across JVMs");
         graphs();
+        unenchantedMobDrops();
         blockHarvestAudit();
         blockHarvestDominance();
         if (args.length > 0) installedDefinitionFixture(args[0]);
         System.out.println("LootAcquisitionTest: " + checks + " checks PASS; definition-only fixture, no multiplayer/native pack acceptance");
+    }
+    private static void unenchantedMobDrops() {
+        try (var stream = LootAcquisitionTest.class.getResourceAsStream("/data/minecraft/loot_table/entities/blaze.json")) {
+            var table = JsonParser.parseReader(new java.io.InputStreamReader(java.util.Objects.requireNonNull(stream), java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
+            LootSemanticsAudit.auditTables(Map.of(id("minecraft:entities/blaze"), table));
+            var functions = table.getAsJsonArray("pools").get(0).getAsJsonObject().getAsJsonArray("entries").get(0).getAsJsonObject().get("functions");
+            check(GenerationLootEvidence.unresolvedFunctions(functions) > 0, "Container context does not silently borrow a player-kill assumption");
+            check(GenerationLootEvidence.unresolvedUnenchantedEntityFunctions(functions) == 0,
+                    "Packaged native blaze loot admits its zero-enchantment count identity without claiming Looting yields");
+            var failed = functions.deepCopy().getAsJsonArray(); failed.get(1).getAsJsonObject().addProperty(GenerationLootEvidence.UNRESOLVED, true);
+            check(GenerationLootEvidence.unresolvedUnenchantedEntityFunctions(failed) > 0, "Failed native function encoding remains unknown");
+            var custom = functions.deepCopy().getAsJsonArray(); custom.get(1).getAsJsonObject().addProperty("function", "test:enchanted_count_increase");
+            check(GenerationLootEvidence.unresolvedUnenchantedEntityFunctions(custom) > 0, "A similarly named custom function cannot borrow native identity");
+        } catch (java.io.IOException failure) { throw new AssertionError(failure); }
+        var unresolved = new ProceduralValuationIndex.DropSource(id("test:mob"), .5, 1, 2, 20, 2, 0, false, 1, 1, true, List.of());
+        var projected = ValuationEvidenceSnapshot.mobSource(unresolved, ProgressionBand.EARLY, 1, true);
+        check(!projected.availability().accessProven() && !projected.availability().uncertainty().isEmpty(),
+                "Compact mob rows retain unresolved predicates even if another item source is reliable");
+        var fishing = ValuationEvidenceSnapshot.fishingSource(new ProceduralValuationIndex.FishingLootSource(id("test:fishing"), .2, 1,
+                1, ProceduralValuationResult.ProgressionBand.OVERWORLD, 1, List.of("conditional target")));
+        check(!fishing.availability().accessProven() && !fishing.availability().uncertainty().isEmpty()
+                        && fishing.dependencies().contains("minecraft:fishing_rod"),
+                "Compact fishing rows retain uncertainty and actual setup instead of becoming free supply");
     }
     private static void graphs() {
         Map<ResourceLocation, JsonObject> tables = new TreeMap<>();
@@ -201,6 +239,23 @@ public final class LootAcquisitionTest {
         check(BlockLootModifierAudit.auditedMode(append, id -> "1.5.10") == BlockLootModifierAudit.Mode.APPEND_ONLY, "Exact implementation/version contract");
         check(BlockLootModifierAudit.auditedMode(append, id -> "1.5.11") == BlockLootModifierAudit.Mode.UNKNOWN
                 && BlockLootModifierAudit.auditedMode("fixture.SameName", id -> "1.5.10") == BlockLootModifierAudit.Mode.UNKNOWN, "Version drift or unrelated implementation stays unknown");
+        String rope = "net.mehvahdjukaar.supplementaries.platform.ReplaceRopeByConfigModifier";
+        for (String version : List.of("1.21.1-3.6.7", "1.21.1-3.9.9"))
+            check(BlockLootModifierAudit.auditedMode(rope, id -> id.equals("supplementaries") ? version : null)
+                    == BlockLootModifierAudit.Mode.OUTPUT_ITEMS, "Every bytecode-audited release shares the same bounded rope-output contract: " + version);
+        check(BlockLootModifierAudit.auditedMode(rope, id -> "1.21.1-3.6.8") == BlockLootModifierAudit.Mode.UNKNOWN,
+                "A neighboring unexamined rope release remains unknown");
+        check(BlockLootModifierAudit.auditedMode(rope, id -> null) == BlockLootModifierAudit.Mode.UNKNOWN,
+                "A missing dependency never becomes an audited rope contract");
+        check(BlockLootModifierAudit.auditedMode("fixture.ReplaceRopeByConfigModifier", id -> "1.21.1-3.6.7")
+                        == BlockLootModifierAudit.Mode.UNKNOWN, "Matching simple class names do not establish native output scope");
+        var ropeOnly = modifier(rope, "{}", BlockLootModifierAudit.Mode.OUTPUT_ITEMS, Set.of("fixture:rope"));
+        var logHand = new ProceduralBlockLoot.Context("minecraft:oak_log", Map.of(), Set.of(), "minecraft:air", Set.of(), Map.of());
+        check(affected(ropeOnly, "minecraft:blocks/oak_log", logHand, Set.of("minecraft:oak_log"))
+                        && !outputAffected(ropeOnly, "minecraft:blocks/oak_log", logHand, Set.of("minecraft:oak_log")),
+                "Audited rope replacement does not suppress a native log harvest or finite starting-log proof");
+        check(outputAffected(ropeOnly, "fixture:blocks/rope", hand, Set.of("fixture:rope")),
+                "Actual loaded rope-tag outputs retain replacement uncertainty");
     }
     private static void blockHarvestDominance() {
         var known = new ProceduralBlockHarvest.HarvestDrop(Items.SWEET_BERRIES, .25, 2.5, 0, null, false, List.of());
@@ -291,6 +346,11 @@ public final class LootAcquisitionTest {
     }
     private static boolean affected(RuntimeLootAudit.Modifier modifier, String table, ProceduralBlockLoot.Context context, Set<String> outputs) {
         return !new BlockLootModifierAudit(List.of(modifier)).applicable(table, context, outputs).isEmpty();
+    }
+    /** Match native harvest projection: an applicable callback taints only outputs in its audited scope. */
+    private static boolean outputAffected(RuntimeLootAudit.Modifier modifier, String table, ProceduralBlockLoot.Context context, Set<String> outputs) {
+        return new BlockLootModifierAudit(List.of(modifier)).applicable(table, context, outputs).stream()
+                .anyMatch(applicable -> outputs.stream().anyMatch(output -> BlockLootModifierAudit.couldChangeOutput(applicable, output)));
     }
     private static LootrPolicy.Rule rule(boolean all, Set<String> tables, Set<String> dimensions, Set<String> structures) {
         return new LootrPolicy.Rule(all, tables, Set.of(), dimensions, structures, 24000, true, true);

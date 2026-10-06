@@ -38,7 +38,14 @@ public final class SavedEvidenceRegenerationTool {
         com.mistaboom.essence_ascendance.equipment.EquipmentProfiles.init();
         var first = SavedEvidenceRegenerator.regenerate(original, inputs);
         var repeated = SavedEvidenceRegenerator.regenerate(original, inputs);
-        if (!first.document().integrity().equals(repeated.document().integrity())) throw new AssertionError("Saved evidence replay is not deterministic");
+        for (String section : new String[]{"settings", "overrides", "evidence", "economy", "runtime", "skills", "validation"})
+            if (!first.document().sectionHash(section).equals(repeated.document().sectionHash(section)))
+                throw new AssertionError("Saved evidence replay is not deterministic: " + section);
+        var firstMetadata = first.document().section("metadata"); var repeatedMetadata = repeated.document().section("metadata");
+        // Measure both runs honestly; elapsed diagnostic cost is the only excluded value.
+        firstMetadata.getAsJsonObject("generation").getAsJsonObject("adaptiveBalance").remove("calibrationNanos");
+        repeatedMetadata.getAsJsonObject("generation").getAsJsonObject("adaptiveBalance").remove("calibrationNanos");
+        if (!firstMetadata.equals(repeatedMetadata)) throw new AssertionError("Saved evidence calibration decisions are not deterministic");
         if (!first.document().sectionHash("evidence").equals(original.sectionHash("evidence"))
                 || !first.document().sectionHash("economy").equals(original.sectionHash("economy")))
             throw new AssertionError("Offline runtime rebuild altered authoritative saved evidence/economy");

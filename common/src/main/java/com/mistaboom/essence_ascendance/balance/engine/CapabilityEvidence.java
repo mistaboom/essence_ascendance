@@ -40,6 +40,14 @@ public record CapabilityEvidence(String subjectId, ProgressionBand stage, Map<Ca
         }
         public static Operation manual() { return new Operation(Automation.NONE, Activity.PLAYER_ACTIVE, Renewal.UNKNOWN,
                 null, null, null, null, java.util.List.of("operating cost unmeasured"), java.util.List.of("equip/use source")); }
+        /** Best-case duty under the captured cooldown contract, not a measured player activity rate. */
+        public Double uptimeBound() {
+            Double duty = durationSeconds != null && durationSeconds > 0 && cooldownSeconds != null && cooldownSeconds > 0
+                    ? Math.min(1, durationSeconds / cooldownSeconds) : null;
+            if (uptimeFraction == null) return duty;
+            if (duty == null) return uptimeFraction;
+            return Math.min(uptimeFraction, duty);
+        }
     }
     public record Measurement(CapabilityFamily family, CapabilityAxis axis, Double magnitude, String unit,
                               String applicability, Scope scope, Operation operation, String provider, Origin origin,

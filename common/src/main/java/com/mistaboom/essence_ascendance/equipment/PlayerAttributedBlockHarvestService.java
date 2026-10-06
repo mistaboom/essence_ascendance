@@ -13,6 +13,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.Container;
+import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantments;
@@ -39,6 +41,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * and reward decision remains common and server-authoritative here.
  */
 public final class PlayerAttributedBlockHarvestService {
+
+    /** Saved evidence uses this selector claim without consulting later registry state. */
+    public static final String CROP_ELIGIBILITY_PROPERTY = "attunement.crop_eligible";
 
     public static final TagKey<Block> CROP_YIELD_ELIGIBLE = TagKey.create(
             Registries.BLOCK,
@@ -77,7 +82,7 @@ public final class PlayerAttributedBlockHarvestService {
                 || !player.isAlive()
                 || player.isSpectator()
                 || !level.hasChunkAt(pos)
-                || blockEntity != null
+                || blocksPlayerHarvest(state, blockEntity)
                 || tool == null
                 || hasSilkTouch(tool)
                 || baseDrops == null
@@ -162,6 +167,35 @@ public final class PlayerAttributedBlockHarvestService {
                 EssenceStats.CROP_YIELD,
                 active.strength(EssenceStats.CROP_YIELD)
         );
+    }
+
+    /**
+     * Crop metadata is not stored inventory. Keep other block entities conservative, and reject
+     * native inventory/menu interfaces even when crop tags opt in the block. Opaque mod storage
+     * that exposes neither interface needs the crop exclusion tag or an integration adapter.
+     */
+    public static boolean blocksPlayerHarvest(BlockState state, BlockEntity blockEntity) {
+        if (blockEntity == null) return false;
+        return blockEntity instanceof Container || blockEntity instanceof MenuProvider
+                || !isEligibleMatureCrop(state);
+    }
+
+    /** Tests whether a registered block has a mature state accepted by the gameplay selector. */
+    public static boolean isEligibleCropBlock(Block block) {
+        if (block == null) return false;
+        BlockState state = block.defaultBlockState();
+        if (block instanceof CropBlock crop) {
+            state = crop.getStateForAge(crop.getMaxAge());
+        } else {
+            for (Property<?> property : state.getProperties()) {
+                if (property instanceof IntegerProperty age && "age".equals(age.getName())) {
+                    int maximum = age.getPossibleValues().stream().mapToInt(Integer::intValue)
+                            .max().orElse(Integer.MAX_VALUE);
+                    state = state.setValue(age, maximum);
+                }
+            }
+        }
+        return isEligibleMatureCrop(state);
     }
 
     public static boolean isEligibleMatureCrop(BlockState state) {

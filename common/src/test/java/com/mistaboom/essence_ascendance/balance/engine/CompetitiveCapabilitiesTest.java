@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.balance.engine;
 
 import com.google.gson.*;
 import com.mistaboom.essence_ascendance.balance.capability.InstalledCapabilityProviders;
+import com.mistaboom.essence_ascendance.balance.capability.TimeBottleCapabilityProvider;
 import com.mistaboom.essence_ascendance.balance.economy.ProductionGraph;
 import com.mistaboom.essence_ascendance.balance.generated.*;
 import net.minecraft.SharedConstants;
@@ -23,7 +24,7 @@ public final class CompetitiveCapabilitiesTest {
     public static void main(String[] args) throws Exception {
         Thread.currentThread().setUncaughtExceptionHandler((t, e) -> e.printStackTrace(new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.err))));
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap();
-        progression(); alternativesAndOutliers(); semantics(); configurations(); production(); nativeEnchantments(); adapters(); reports();
+        progression(); alternativesAndOutliers(); semantics(); candidateCoverage(); configurations(); configurationAccess(); configuredStacks(); production(); nativeEnchantments(); preservation(); timeBottle(); adapters(); reports();
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println("CompetitiveCapabilitiesTest: " + checks + " checks passed");
     }
     private static void check(boolean condition, String message) { checks++; if (!condition) throw new AssertionError(message); }
@@ -51,6 +52,11 @@ public final class CompetitiveCapabilitiesTest {
                 .9, List.of(), "Independent early reward");
         var resources = Map.of("test:superweapon", resource("test:superweapon", ProgressionBand.APEX, List.of(source)));
         check(CompetitiveCapabilities.placement(resources, "test:superweapon").stage() == ProgressionBand.EARLY, "Late craft route delayed early quest reward");
+        for (var kind : List.of(AcquisitionSource.Kind.RECIPE, AcquisitionSource.Kind.MACHINE, AcquisitionSource.Kind.PLAYER_ACTION)) {
+            var placeholder = new AcquisitionSource("placeholder:route",kind,ProgressionBand.ENTRY,1,false,false,0,.9,List.of(),"Nominal source row; route band unresolved");
+            check(CompetitiveCapabilities.placement(Map.of("test:late",resource("test:late",ProgressionBand.LATE,List.of(placeholder))),"test:late")
+                    .stage() == ProgressionBand.LATE,"Nominal ENTRY source bypassed solved progression for " + kind);
+        }
         check(!CompetitiveCapabilities.placement(Map.of(), "test:creative").reachable(), "Registry-only source claimed access");
         var unreachable = new Functional(new CapabilityEvidence("test:admin", ProgressionBand.ENTRY, Map.of(), false, 1, "Administrative"),
                 "admin", strongEarly.measurements(), List.of(), false);
@@ -93,6 +99,48 @@ public final class CompetitiveCapabilitiesTest {
         check(rejected, "Names can establish throughput");
         for (int i = 0; i < 2000; i++) sink.candidate("test:unknown" + i, "opaque", "Unknown behavior");
         check(sink.candidates().size() <= 512 && sink.counts().get("candidateCount") >= 2000, "Unbounded unknown diagnostics or lost census count");
+        // Reproduce the installed report: large early sources filled all 512 slots before typed providers.
+        sink = new CapabilitySink();
+        for (int provider = 0; provider < 12; provider++) for (int i = 0; i < 100; i++)
+            sink.candidate("test:early" + i, "earlier" + provider, "unknown");
+        sink.candidate("test:high_impact", "later_typed_provider", "configured gear unsupported");
+        check(sink.candidates().size() == 512 && sink.candidates().stream().anyMatch(c -> c.provider().equals("later_typed_provider")),
+                "Late typed provider starved behind earlier diagnostics");
+        check(sink.counts().get("candidateCount") == 1201, "Fair sampling lost complete unknown counts");
+    }
+    private static void candidateCoverage() {
+        CapabilitySink completed = new CapabilitySink();
+        for (int i = 0; i < 200; i++) completed.candidate("test:unknown" + i, "scoped", "No supported operating contract",
+                Set.of(CapabilityAxis.FLIGHT, CapabilityAxis.SHIELD_CAPACITY), CapabilitySink.Reason.UNKNOWN_BEHAVIOR);
+        for (int i = 0; i < 73; i++) completed.candidate("test:legacy" + i, "legacy", "Unknown scope");
+        check(completed.candidates().stream().filter(c -> c.provider().equals("scoped")).count() == 64
+                && completed.candidateCoverage().get(CapabilityAxis.FLIGHT).get(CapabilitySink.Reason.UNKNOWN_BEHAVIOR) == 200
+                && completed.candidateCoverage().get(CapabilityAxis.SHIELD_CAPACITY).get(CapabilitySink.Reason.UNKNOWN_BEHAVIOR) == 200,
+                "Scoped reason census lost candidates beyond the bounded diagnostic sample");
+        check(completed.unscopedCandidateReasons().get(CapabilitySink.Reason.UNCLASSIFIED) == 73
+                && completed.counts().get("candidateCount") == 273, "Unscoped legacy census or multi-axis candidate total was miscounted");
+        CapabilitySink merged = new CapabilitySink();
+        merged.candidate("test:gate", "scoped", "Acquisition not proven", Set.of(CapabilityAxis.FLIGHT), CapabilitySink.Reason.ACCESS_UNPROVEN);
+        merged.merge(completed);
+        check(merged.counts().get("candidateCount") == 274
+                && merged.candidateCoverage().get(CapabilityAxis.FLIGHT).get(CapabilitySink.Reason.UNKNOWN_BEHAVIOR) == 200
+                && merged.candidateCoverage().get(CapabilityAxis.FLIGHT).get(CapabilitySink.Reason.ACCESS_UNPROVEN) == 1
+                && merged.unscopedCandidateReasons().get(CapabilitySink.Reason.UNCLASSIFIED) == 73,
+                "Completed output merge recounted sampled diagnostics or lost full reason counts");
+        check(merged.candidates().stream().filter(c -> c.provider().equals("scoped")).count() == 64 && merged.evidence().isEmpty(),
+                "Merged diagnostics exceeded the provider bound or became measured capability evidence");
+        var sourceAxes = EnumSet.of(CapabilityAxis.FLIGHT);
+        var candidate = new CapabilitySink.Candidate("test:copy", "typed", "Unsupported API", sourceAxes, CapabilitySink.Reason.UNSUPPORTED_API);
+        sourceAxes.clear(); sourceAxes.add(CapabilityAxis.ARMOR);
+        check(candidate.axes().equals(Set.of(CapabilityAxis.FLIGHT)), "Source axis collection mutations leaked into saved candidate scope");
+        boolean rejected = false;
+        try { candidate.axes().add(CapabilityAxis.ARMOR); } catch (UnsupportedOperationException expected) { rejected = true; }
+        check(rejected, "Candidate scope permits mutation after publication");
+        var legacy = BalanceDocument.GSON.fromJson("{\"subject\":\"test:old\",\"provider\":\"saved_provider\",\"detail\":\"Legacy diagnostic\"}",
+                CapabilitySink.Candidate.class);
+        check(legacy.axes().isEmpty() && legacy.reason() == CapabilitySink.Reason.UNCLASSIFIED
+                && legacy.subject().equals("test:old") && legacy.provider().equals("saved_provider"),
+                "Legacy three-field candidate did not retain explicit unclassified scope");
     }
     private static void configurations() {
         var base = fact("test:modular", ProgressionBand.ENTRY, CapabilityAxis.MELEE_DAMAGE, 10);
@@ -110,9 +158,83 @@ public final class CompetitiveCapabilitiesTest {
         check(sink.evidence().size() == 2, "Operating-cost tradeoff incorrectly dominated");
         boolean rejected = false; try { sink.configurations(Collections.nCopies(4097, base)); } catch (IllegalArgumentException expected) { rejected = true; }
         check(rejected, "Unbounded modular enumeration accepted");
+        // Distinct equipment hosts cannot dominate one another. The maximum admitted batch
+        // must preserve their alternatives without pairwise cross-host enumeration.
+        var distinct = new ArrayList<Functional>();
+        for (int i = 0; i < 4096; i++) distinct.add(fact("test:host" + i, ProgressionBand.MID, CapabilityAxis.MELEE_DAMAGE, 40));
+        sink = new CapabilitySink(); long started = System.nanoTime(); sink.configurations(distinct);
+        long elapsed = System.nanoTime() - started;
+        check(sink.evidenceCount() == 4096 && sink.counts().get("prunedConfigurations") == 0, "Independent equipment alternatives lost at batch bound");
+        check(sink.counts().get("configurationDominanceComparisons") == 0, "Unrelated hosts caused quadratic configuration comparisons");
+        new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println("Configuration scalability: 4096 independent hosts; "
+                + elapsed + " ns; 0 cross-host dominance comparisons (synthetic, not native census timing)");
     }
     private static ResourceEvidence resource(String id, ProgressionBand band, List<AcquisitionSource> sources) {
         return new ResourceEvidence(id, band, Availability.FINITE, Automation.NONE, true, true, 1, .9, sources, List.of());
+    }
+    private static ResourceEvidence independent(String id, ProgressionBand band) {
+        return resource(id, band, List.of(new AcquisitionSource("source:" + id, AcquisitionSource.Kind.WORLD_GENERATION, band, 1,
+                false, false, 0, .9, List.of(), "Independent supported source")));
+    }
+    private static void configurationAccess() {
+        check(InstalledCapabilityProviders.productiveCrop(1200, 1, 0, 1, 1, 0), "Ordinary planter excluded");
+        check(!InstalledCapabilityProviders.productiveCrop(1200, 0, 0, 1, 1, 0), "Disabled growth claimed farming");
+        check(!InstalledCapabilityProviders.productiveCrop(1200, 1, 0, 1, 1, -1), "Zero configured harvest claimed farming");
+        check(!InstalledCapabilityProviders.productiveCrop(1200, Double.NaN, 0, 1, 1, 0), "Invalid loaded growth accepted");
+        check(!InstalledCapabilityProviders.productiveDrop(true, 0) && !InstalledCapabilityProviders.productiveDrop(false, 1)
+                && InstalledCapabilityProviders.productiveDrop(true, .01), "Zero/empty/random crop harvest witness mishandled");
+        var resources = Map.of("test:machine", independent("test:machine", ProgressionBand.ENTRY),
+                "test:seed", independent("test:seed", ProgressionBand.EARLY), "test:soil", independent("test:soil", ProgressionBand.LATE));
+        var resolver = new ConfigurationAccess.Resolver(resources);
+        var proof = resolver.require(List.of(List.of("test:machine"), List.of("test:missing", "test:seed"), List.of("test:soil")));
+        check(proof.placement().reachable() && proof.placement().stage() == ProgressionBand.LATE && proof.selected().size() == 3,
+                "Configuration proof ignored latest required component or alternate access");
+        check(!resolver.require(List.of(List.of("test:machine"), List.of("test:missing"))).placement().reachable(), "Missing setup falsely reachable");
+        check(!resolver.require(List.of()).placement().reachable(), "Empty requirements proved setup");
+        var finiteDescendant = resource("test:crafted_choice", ProgressionBand.ENTRY, List.of(new AcquisitionSource("recipe:choice", AcquisitionSource.Kind.RECIPE,
+                ProgressionBand.ENTRY, 1, false, false, 0, .9, List.of("test:exclusive_reward"), "Crafted descendant of finite choice")));
+        check(!new ConfigurationAccess.Resolver(Map.of("test:crafted_choice", finiteDescendant), Set.of("test:crafted_choice"))
+                .require(List.of(List.of("test:crafted_choice"))).placement().reachable(), "Crafted quest descendant fabricated joint setup");
+        var reward = resource("test:choice", ProgressionBand.ENTRY, List.of(new AcquisitionSource("quest:choice", AcquisitionSource.Kind.QUEST_REWARD,
+                ProgressionBand.ENTRY, 1, false, false, 0, .9, List.of(), "Choice without joint inventory proof")));
+        check(!ConfigurationAccess.require(Map.of("test:choice", reward), List.of(List.of("test:choice"))).placement().reachable(),
+                "Reward-only components fabricated a joint configuration");
+        var planter = InstalledCapabilityProviders.planter("test:machine", "test:crop", proof);
+        check(frontier(List.of(planter), ProgressionBand.EARLY, CapabilityAxis.AUTOMATED_FARMING) == 0,
+                "Late soil configuration leaked into early farming");
+        check(frontier(List.of(planter), ProgressionBand.LATE, CapabilityAxis.AUTOMATED_FARMING) == 1
+                && planter.measurements().getFirst().operation().unitsPerSecond() == null, "Planter presence invented rate or was excluded");
+    }
+    private static void configuredStacks() {
+        var registries = net.minecraft.data.registries.VanillaRegistries.createLookup();
+        JsonObject definition = JsonParser.parseString("{\"result\":{\"id\":\"minecraft:diamond_pickaxe\",\"components\":{\"minecraft:unbreakable\":{},\"minecraft:max_damage\":100000}}}").getAsJsonObject();
+        Map<String,String> meta = new TreeMap<>(Map.of("effective_definition", definition.toString(), "acquisition_complete", "true"));
+        var process = new ProductionGraph.Process("test:configured", "minecraft:crafting", List.of(new ProductionGraph.Input(List.of("test:component"),1,true)),
+                List.of(new ProductionGraph.Output("minecraft:diamond_pickaxe",1,1,false)),0,0,"test:typed",.9,meta);
+        var graph = new ProductionGraph(List.of(process),List.of());
+        var resources = Map.of("test:component", independent("test:component", ProgressionBand.LATE),
+                "minecraft:crafting_table", independent("minecraft:crafting_table", ProgressionBand.ENTRY),
+                "minecraft:diamond_pickaxe", independent("minecraft:diamond_pickaxe", ProgressionBand.ENTRY));
+        CapabilitySink sink = new CapabilitySink(); ConfiguredStackCapabilities.collect(graph, registries, resources, sink);
+        check(frontier(sink.evidence(),ProgressionBand.ENTRY,CapabilityAxis.INDESTRUCTIBILITY) == 0, "Default item access supplied late configuration early");
+        check(frontier(sink.evidence(),ProgressionBand.LATE,CapabilityAxis.INDESTRUCTIBILITY) == 1
+                && frontier(sink.evidence(),ProgressionBand.LATE,CapabilityAxis.DURABILITY) == 100000, "Static native configured components were missed");
+        sink = new CapabilitySink(); ConfiguredStackCapabilities.collect(graph,registries,Map.of(),sink);
+        check(sink.evidence().isEmpty() && !sink.candidates().isEmpty(),"Unavailable configuration recipe defined power");
+        meta.put("variant_transform","base_components_copied");
+        var transferred = new ProductionGraph.Process(process.id(),process.family(),process.inputs(),process.outputs(),0,0,process.provider(),.9,meta);
+        sink = new CapabilitySink(); ConfiguredStackCapabilities.collect(new ProductionGraph(List.of(transferred),List.of()),registries,resources,sink);
+        check(sink.evidence().isEmpty(),"Copied base invented independent static configuration");
+        var brokenDefinition = definition.deepCopy();
+        brokenDefinition.getAsJsonObject("result").getAsJsonObject("components").addProperty("minecraft:max_damage", -10);
+        var broken = new ProductionGraph.Process("test:broken_configured", process.family(), process.inputs(), process.outputs(), 0, 0, process.provider(), .9,
+                Map.of("effective_definition", brokenDefinition.toString(), "acquisition_complete", "true"));
+        sink = new CapabilitySink(); ConfiguredStackCapabilities.collect(new ProductionGraph(List.of(broken, process), List.of()), registries, resources, sink);
+        check(frontier(sink.evidence(), ProgressionBand.LATE, CapabilityAxis.DURABILITY) == 100000
+                && sink.evidence().stream().noneMatch(f -> f.configuration().contains("test:broken_configured")),
+                "A broken configured output cannot discard healthy configurations or contribute partial power");
+        check(sink.candidates().stream().anyMatch(c -> c.subject().equals("test:broken_configured") && c.detail().contains("UNKNOWN")),
+                "Broken configured output has explicit identity and unknown diagnostics");
     }
     private static void production() {
         for (String function : List.of("automated_resource_extraction", "automated_fishing", "automated_farming", "crop_growth_acceleration", "machine_tick_acceleration")) {
@@ -167,31 +289,167 @@ public final class CompetitiveCapabilitiesTest {
         sink = new CapabilitySink(); NativeCapabilityReader.stackAttributes(stack, "test:attributes", placement, sink);
         check(sink.evidence().getFirst().measurements().size() == 1 && sink.evidence().getFirst().measurements().getFirst().magnitude() == 40,
                 "Native slot/filter/composed operation contributions incorrect");
+        stack.set(net.minecraft.core.component.DataComponents.MAX_DAMAGE, -10);
+        int healthyRecords = sink.evidenceCount();
+        NativeCapabilityReader.stack(stack, "test:broken_stack", "fixture:invalid_damage", placement, sink);
+        check(sink.evidenceCount() == healthyRecords && sink.evidence().stream().noneMatch(f -> f.source().subjectId().equals("test:broken_stack")),
+                "Failure after reading attributes cannot leak a partial configured stack");
+        check(sink.candidates().stream().anyMatch(c -> c.subject().equals("test:broken_stack") && c.detail().contains("UNKNOWN")),
+                "Broken native component records unknown instead of aborting all items");
+        var brokenEffects = new DataComponentMap() {
+            @SuppressWarnings("unchecked") public <T> T get(net.minecraft.core.component.DataComponentType<? extends T> type) {
+                if (type == EnchantmentEffectComponents.ATTRIBUTES) return (T) List.of(attributes,
+                        new EnchantmentAttributeEffect(net.minecraft.resources.ResourceLocation.parse("test:unsupported_luck"), Attributes.LUCK,
+                                LevelBasedValue.constant(1), AttributeModifier.Operation.ADD_VALUE));
+                if (type == EnchantmentEffectComponents.DAMAGE) throw new NoClassDefFoundError("fixture incompatible effect component");
+                return null;
+            }
+            public Set<net.minecraft.core.component.DataComponentType<?>> keySet() {
+                return Set.of(EnchantmentEffectComponents.ATTRIBUTES, EnchantmentEffectComponents.DAMAGE);
+            }
+        };
+        sink = new CapabilitySink();
+        NativeCapabilityReader.readEnchantment("test:before", "test:healthy_before", enchantment, 5, placement, true, sink);
+        NativeCapabilityReader.readEnchantment("test:broken", "test:broken_enchantment",
+                new Enchantment(enchantment.description(), definition, HolderSet.direct(), brokenEffects), 5, placement, true, sink);
+        NativeCapabilityReader.readEnchantment("test:after", "test:healthy_after", enchantment, 5, placement, true, sink);
+        check(sink.evidenceCount() == 2 && sink.evidence().stream().noneMatch(f -> f.source().subjectId().equals("test:broken")),
+                "One incompatible enchantment cannot discard healthy neighboring enchantments or leak numeric effects");
+        check(sink.candidates().size() == 1 && sink.candidates().getFirst().subject().equals("test:broken_enchantment")
+                && sink.candidates().getFirst().detail().contains("fixture incompatible effect component"),
+                "Failed enchantment replaces partial candidates with explicit unknown provenance");
+    }
+    private static void preservation() {
+        var placement = new CompetitiveCapabilities.Placement(ProgressionBand.EARLY, true, .9, List.of());
+        var noWear = new net.minecraft.world.item.ItemStack(Items.STICK);
+        noWear.set(net.minecraft.core.component.DataComponents.UNBREAKABLE, new net.minecraft.world.item.component.Unbreakable(true));
+        CapabilitySink sink = new CapabilitySink();
+        NativeCapabilityReader.stack(noWear, "test:energy_armor", "effective_default", placement, sink);
+        check(frontier(sink.evidence(), ProgressionBand.EARLY, CapabilityAxis.INDESTRUCTIBILITY) == 0,
+                "UNBREAKABLE without a native wear pool invented preservation");
+        noWear.set(net.minecraft.core.component.DataComponents.MAX_DAMAGE, 0);
+        NativeCapabilityReader.stack(noWear, "test:zero_wear", "effective_default", placement, sink);
+        check(frontier(sink.evidence(), ProgressionBand.EARLY, CapabilityAxis.INDESTRUCTIBILITY) == 0,
+                "Zero native wear pool invented preservation");
+        var armor = new net.minecraft.world.item.ItemStack(Items.DIAMOND_CHESTPLATE);
+        armor.set(net.minecraft.core.component.DataComponents.UNBREAKABLE, new net.minecraft.world.item.component.Unbreakable(true));
+        NativeCapabilityReader.stack(armor, "test:unbreakable_chest", "effective_default", placement, sink);
+        var preserved = sink.evidence().stream().filter(f -> f.source().subjectId().equals("test:unbreakable_chest")
+                && f.measurements().stream().anyMatch(m -> m.axis() == CapabilityAxis.INDESTRUCTIBILITY)).findFirst().orElseThrow();
+        var measurement = preserved.measurements().stream().filter(m -> m.axis() == CapabilityAxis.INDESTRUCTIBILITY).findFirst().orElseThrow();
+        check(measurement.scope().targets().equals("source_equipment:test:unbreakable_chest") && measurement.applicability().contains("slot=chest"),
+                "Native preservation lost its actual equipment applicability and source boundary");
+        check(frontier(sink.evidence(), ProgressionBand.EARLY, CapabilityAxis.INDESTRUCTIBILITY) == 1
+                && measurement.unsupported().stream().anyMatch(s -> s.contains("does not repair")),
+                "A real wear pool was missed or claimed universal repair");
+        sink = new CapabilitySink();
+        NativeCapabilityReader.stack(armor, "test:late_chest", "effective_default",
+                new CompetitiveCapabilities.Placement(ProgressionBand.LATE, true, .9, List.of()), sink);
+        check(frontier(sink.evidence(), ProgressionBand.EARLY, CapabilityAxis.INDESTRUCTIBILITY) == 0,
+                "Real late preservation leaked into the early frontier");
+    }
+    private static void timeBottle() {
+        check(new TimeBottleCapabilityProvider().capabilityAxes().equals(Set.of(CapabilityAxis.BLOCK_ENTITY_ACCELERATION)),
+                "Time bottle declaration claims productive rate or unrelated operating domains");
+        var budget = TimeBottleCapabilityProvider.budget(622080000, 20, 30, 8);
+        check(budget.extraCalls() == 128 && budget.durationTicks() == 600 && budget.ladderTicks() == 76800,
+                "Config comment invented 256 calls or discarded the native stored-time cost ladder");
+        var capped = TimeBottleCapabilityProvider.budget(1200, 20, 30, 8);
+        check(capped.extraCalls() == 2 && capped.ladderTicks() == 1200, "Stored-time capacity ignored by reachable peak");
+        var resources = Map.of("tiab:time_in_a_bottle", independent("tiab:time_in_a_bottle", ProgressionBand.EARLY),
+                "minecraft:furnace", independent("minecraft:furnace", ProgressionBand.ENTRY));
+        var proof = ConfigurationAccess.require(resources, List.of(List.of("tiab:time_in_a_bottle"), List.of("minecraft:furnace")));
+        var fact = TimeBottleCapabilityProvider.project(budget, proof);
+        var m = fact.measurements().getFirst();
+        check(frontier(List.of(fact), ProgressionBand.ENTRY, CapabilityAxis.BLOCK_ENTITY_ACCELERATION) == 0
+                && frontier(List.of(fact), ProgressionBand.EARLY, CapabilityAxis.BLOCK_ENTITY_ACCELERATION) == 128,
+                "Bounded bottle host configuration lost access stage");
+        check(m.unit().equals("extra_tick_calls_per_server_tick") && m.operation().unitsPerSecond() == null
+                && m.operation().uptimeFraction() == null && m.operation().durationSeconds() == 30,
+                "Ticker burst became continuous production throughput");
+        check(m.applicability().contains("conditional=") && m.scope().targets().equals("configured_furnace_block_entity")
+                && m.operation().recurringCosts().getFirst().contains("76800"), "Bottle omitted target condition or recurring charge budget");
+        var unavailable = ConfigurationAccess.require(Map.of("tiab:time_in_a_bottle", resources.get("tiab:time_in_a_bottle")),
+                List.of(List.of("tiab:time_in_a_bottle"), List.of("minecraft:furnace")));
+        check(RobustFrontiers.competitive(List.of(TimeBottleCapabilityProvider.project(budget, unavailable)), "WINSORIZE").isEmpty(),
+                "Bottle item access fabricated an independently accessible target host");
+        for (int[] invalid : List.of(new int[]{599,20,30,8}, new int[]{1200,0,30,8}, new int[]{1200,20,0,8},
+                new int[]{1200,20,30,0}, new int[]{Integer.MAX_VALUE,Integer.MAX_VALUE,30,8}, new int[]{1200,20,30,32})) {
+            boolean rejected = false;
+            try { TimeBottleCapabilityProvider.budget(invalid[0], invalid[1], invalid[2], invalid[3]); }
+            catch (IllegalArgumentException expected) { rejected = true; }
+            check(rejected, "Invalid or overflowing accelerator config claimed free/positive power");
+        }
     }
     private static void adapters() {
         var runs = new GenerationProviders(null, ignored -> null);
-        for (var provider : InstalledCapabilityProviders.all()) check(!runs.prepare("capability", provider, false), "Absent optional API loaded");
+        for (var provider : InstalledCapabilityProviders.all()) {
+            check(!runs.prepare("capability", provider, false), "Absent optional API loaded");
+            check(!provider.capabilityAxes().isEmpty(), "Optional provider lost its intended coverage domain: " + provider.id());
+            boolean rejected = false;
+            try { provider.capabilityAxes().clear(); } catch (UnsupportedOperationException expected) { rejected = true; }
+            check(rejected, "Optional provider declaration is mutable: " + provider.id());
+        }
+        var declared = new HashMap<String, Set<CapabilityAxis>>();
+        InstalledCapabilityProviders.all().forEach(provider -> declared.put(provider.id(), provider.capabilityAxes()));
+        check(declared.get("botanypots_capabilities").equals(Set.of(CapabilityAxis.AUTOMATED_FARMING))
+                && declared.get("torchmaster_capabilities").equals(Set.of(CapabilityAxis.SPAWN_SUPPRESSION))
+                && declared.get("forbidden_arcanus_capabilities").equals(Set.of(CapabilityAxis.INDESTRUCTIBILITY)),
+                "Optional provider metadata expanded a bounded mechanic into unrelated domains");
+        check(declared.get("draconicevolution_capabilities").containsAll(Set.of(CapabilityAxis.SHIELD_CAPACITY, CapabilityAxis.FLIGHT))
+                && declared.get("ars_nouveau_capabilities").containsAll(Set.of(CapabilityAxis.MAGIC_DAMAGE, CapabilityAxis.FLIGHT, CapabilityAxis.AUTOMATION_INTERACTION))
+                && declared.get("apotheosis_capabilities").containsAll(Set.of(CapabilityAxis.ARMOR, CapabilityAxis.MELEE_DAMAGE)),
+                "Explicit unresolved configuration systems lost their intended coverage domains");
         check(!InstalledCapabilityProviders.version("future", "21.1.12", true, "API").collectable(), "Unaudited version accepted");
         check(!InstalledCapabilityProviders.version("21.1.12", "21.1.12", false, "API").collectable(), "Unaudited loader accepted");
         var torch = InstalledCapabilityProviders.torch(64, true, true, List.of("minecraft:zombie"),
                 new CompetitiveCapabilities.Placement(ProgressionBand.EARLY, true, .9, List.of()));
         check(torch.measurements().getFirst().axis() == CapabilityAxis.SPAWN_SUPPRESSION && torch.measurements().getFirst().scope().radiusBlocks() == 64,
                 "Typed torch facts lack generic radius/suppression");
+        var dread = InstalledCapabilityProviders.blockingLight("torchmaster:dreadlamp", 64, true, false, List.of("minecraft:bat"),
+                new CompetitiveCapabilities.Placement(ProgressionBand.EARLY, true, .9, List.of()));
+        check(dread.source().subjectId().equals("torchmaster:dreadlamp")
+                && !dread.measurements().getFirst().comparisonKey().equals(torch.measurements().getFirst().comparisonKey())
+                && dread.measurements().getFirst().applicability().contains("village_sieges=false"),
+                "Dread Lamp passive filter was promoted into Mega Torch hostile protection or siege blocking");
+        var placement = new CompetitiveCapabilities.Placement(ProgressionBand.EARLY, true, .9, List.of());
+        var hostile = InstalledCapabilityProviders.blockingLight("test:hostile_light", 64, true, false, List.of("minecraft:zombie"),
+                Map.of("minecraft:zombie", net.minecraft.world.entity.MobCategory.MONSTER), placement);
+        var passive = InstalledCapabilityProviders.blockingLight("test:passive_light", 64, true, false, List.of("minecraft:bat"),
+                Map.of("minecraft:bat", net.minecraft.world.entity.MobCategory.AMBIENT), placement);
+        var unresolved = InstalledCapabilityProviders.blockingLight("test:unknown_light", 64, true, false, List.of("test:unknown_entity"), Map.of(), placement);
+        check(hostile.measurements().getFirst().applicability().contains("affected_monsters=true"), "Loaded hostile filter lost native category applicability");
+        check(passive.measurements().getFirst().applicability().contains("affected_monsters=false"), "Passive spawn suppression became hostile protection");
+        check(unresolved.measurements().getFirst().applicability().contains("affected_monsters=unknown")
+                && unresolved.measurements().getFirst().unsupported().stream().anyMatch(s -> s.contains("categories unresolved")),
+                "Unknown entity filter fabricated hostile applicability");
         CapabilitySink sink = new CapabilitySink();
         InstalledCapabilityProviders.material("test:material", JsonParser.parseString("{\"properties\":{\"silentgear:main\":{\"attack_damage\":90,\"durability\":5000,\"harvest_speed\":80}}}").getAsJsonObject(), sink);
         check(sink.evidence().getFirst().measurements().size() == 3, "Typed material facts lose multi-axis strength");
         check(RobustFrontiers.competitive(sink.evidence(), "WINSORIZE").isEmpty(), "Component maxima fabricated final gear");
+        check(sink.candidates().getFirst().reason() == CapabilitySink.Reason.ACCESS_UNPROVEN
+                && sink.candidates().getFirst().axes().equals(declared.get("silentgear_capabilities")),
+                "Known material components lost the missing full-gear access diagnostic");
+        CapabilitySink inherited = new CapabilitySink();
+        InstalledCapabilityProviders.material("test:inherited", new JsonObject(), inherited);
+        check(inherited.evidence().isEmpty() && inherited.candidates().getFirst().reason() == CapabilitySink.Reason.UNKNOWN_BEHAVIOR
+                && inherited.candidates().getFirst().axes().equals(declared.get("silentgear_capabilities")),
+                "Opaque material composition was mistaken for supported behavior or a missing craft route");
         String adapters = FilesRead.read("common/src/main/java/com/mistaboom/essence_ascendance/balance/capability/InstalledCapabilityProviders.java");
         check(!adapters.contains("BonusTrackGenerator") && !adapters.contains("RuntimeBalanceDefinition") && !adapters.contains("StatScalingService"), "Adapter contains Essence calibration rules");
     }
     private static void reports() throws Exception {
         CapabilitySink sink = new CapabilitySink(); sink.add(fact("test:gear", ProgressionBand.EARLY, CapabilityAxis.MELEE_DAMAGE, 10));
         sink.candidate("test:opaque", "typed", "Unknown rate");
+        sink.candidate("test:flight", "typed", "Unproven acquisition", Set.of(CapabilityAxis.FLIGHT), CapabilitySink.Reason.ACCESS_UNPROVEN);
         JsonObject report = CompetitiveCapabilities.report(sink, "WINSORIZE");
         Path output = argsOutput(); CompetitiveCapabilityReports.write(output, report);
         check(Files.readString(output.resolve("reports/competitive_capabilities.md")).contains("EARLY"), "Band report absent");
         check(Files.readString(output.resolve("reports/competitive_candidates.csv")).contains("Unknown rate"), "Unsupported report absent");
         check(report.getAsJsonArray("frontiers").size() == 4, "Cumulative bands missing");
+        check(report.getAsJsonObject("candidateCoverage").getAsJsonObject("FLIGHT").get("ACCESS_UNPROVEN").getAsLong() == 1
+                && report.getAsJsonObject("unscopedCandidateReasons").get("UNCLASSIFIED").getAsLong() == 1,
+                "Published report lost typed reason census or legacy unscoped census");
         var roundtrip = BalanceDocument.GSON.fromJson(report.getAsJsonArray("evidence").get(0), Functional.class);
         check(roundtrip.equals(sink.evidence().getFirst()), "Rich capability roundtrip lost facts");
     }

@@ -65,6 +65,9 @@ public final class RuntimeBuildScenarios {
         return plan(runtime, developed, true);
     }
     static Plan plan(RuntimeBalanceDefinition runtime, boolean developed, boolean includeVitality) {
+        return SkillBalanceRuntime.withCurves(runtime.skillCurves(), () -> planResolved(runtime, developed, includeVitality));
+    }
+    private static Plan planResolved(RuntimeBalanceDefinition runtime, boolean developed, boolean includeVitality) {
         var plan=plan(developed, includeVitality, runtime.composition().getOrDefault("meaningful_progression", 0.0) == 1
                 ? runtime.skillCurves() : Map.of());
         return new Plan(plan.full(),plan.moderate(),developed,runtime.config().equipmentBaselineConfig());
@@ -124,6 +127,13 @@ public final class RuntimeBuildScenarios {
                     ? RuntimeReferencePolicy.weapon(evidence, band, family, settings.outlierPolicy().name())
                     : new RuntimeReferencePolicy.Weapon(dps / rate, rate, Math.max(dps / rate,
                             evidence.reference(band, CapabilityAxis.BURST_DAMAGE, dps / rate)), false));
+            for (String family : List.of("melee_shield", "ranged", "caster")) {
+                String key = "competitive_" + band + "_" + family;
+                if (runtime.composition().containsKey(key + "_damage")) {
+                    double hit = runtime.composition().get(key + "_damage");
+                    references.put(family, new RuntimeReferencePolicy.Weapon(hit, runtime.composition().get(key + "_rate"), hit, true));
+                }
+            }
             Set<String> duplicateSelections = new HashSet<>();
             Map<String, Modifier> fullNexus = new HashMap<>(), moderateNexus = new HashMap<>();
             double fullHealing = 1 + bonus(runtime, tier, EssenceStats.HEALING_EFFECTIVENESS, false) / 100;
@@ -134,8 +144,13 @@ public final class RuntimeBuildScenarios {
                 if (!references.containsKey(family)) continue;
                 if (!duplicateSelections.add(family + new TreeMap<>(scenario.contributingRanks()))) continue;
                 var reference = references.get(family);
-                var external = new Equipment(reference.damage(), reference.rate(), armor, toughness, health, 0);
+                var external = new Equipment(reference.damage(), reference.rate(), armor, toughness,
+                        runtime.composition().getOrDefault("competitive_" + band + "_health", health), 0);
                 var externalMetrics = BuildComposition.compose(external, Modifier.none(), Modifier.none(), incoming, window);
+                double survivalEnvelope = runtime.composition().getOrDefault("competitive_" + band + "_effective_health", externalMetrics.effectiveHealth());
+                if (survivalEnvelope > externalMetrics.effectiveHealth()) externalMetrics = new Metrics(externalMetrics.sustainedDamage(),
+                        externalMetrics.burstDamage(), externalMetrics.areaDamage(), survivalEnvelope,
+                        Math.max(survivalEnvelope, externalMetrics.sustainedHealth()), externalMetrics.healingPerSecond());
                 double damage = family.equals("ranged") ? baseline.rangedDamage() : family.equals("caster") ? baseline.magicDamage() : baseline.meleeDamage();
                 double attackRate = family.equals("ranged") ? baseline.rangedAttackSpeed() : family.equals("caster") ? baseline.magicCastSpeed() : baseline.meleeAttackSpeed();
                 var damageProperty = family.equals("ranged") ? EquipmentBaselineProperty.RANGED_DAMAGE : family.equals("caster") ? EquipmentBaselineProperty.MAGIC_DAMAGE : EquipmentBaselineProperty.MELEE_DAMAGE;
@@ -233,7 +248,8 @@ public final class RuntimeBuildScenarios {
                             limits.put(participation, new Limits(withNativeAllowance(reference.dps(), base.sustainedDamage(), target),
                                     withNativeAllowance(reference.burst(), base.burstDamage(), burst), reference.dps() * Math.max(0, target - 1) * 2,
                                     withNativeAllowance(externalMetrics.effectiveHealth(), base.effectiveHealth(), target),
-                                    withNativeAllowance(externalMetrics.effectiveHealth(), base.sustainedHealth(), healingTarget * 1.35), health * Math.max(0, healingTarget - 1) / window));
+                                    withNativeAllowance(externalMetrics.effectiveHealth(), base.sustainedHealth(), healingTarget * 1.35),
+                                    external.health() * Math.max(0, healingTarget - 1) / window));
                         }
                         List<Violation> violations = new ArrayList<>();
                         metrics.forEach((participation, value) -> {

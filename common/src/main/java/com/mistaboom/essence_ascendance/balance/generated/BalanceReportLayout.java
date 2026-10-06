@@ -66,6 +66,9 @@ public final class BalanceReportLayout {
                   competitive_candidates.csv      Unsupported competitor representatives.
                   competitive_unsupported_counts.csv  Complete unsupported observation counts.
                   competitive_capabilities.md     Human-readable competition report.
+                  adaptive_balance.csv            Feature targets, final values, limits and evidence.
+                  skill_availability.csv          Catalog/candidate/final tiers, witnesses and retained requirements.
+                  adaptive_balance.md             Adaptive decisions and unsupported pressure warnings.
                 Competition reports exist only when saved generation diagnostics are present.
                 They retain scope, operating costs, access, confidence and provider provenance;
                 potential configurations and unknown rates do not imply attainable power.

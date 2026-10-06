@@ -112,10 +112,71 @@ public final class PackTesterTest {
         check(c.instance(new PrismDiscovery().inspect(old.directory(), null)).status().equals("INCOMPATIBLE"), "Old loader blocked");
         var missing = fixture("missing dependency"); Files.delete(missing.mods().resolve("arbitrary-dependency-name.jar"));
         check(c.instance(missing).status().equals("INCOMPATIBLE"), "Missing required Architectury blocks deployment");
+        var placeholder = fixture("empty legacy descriptor");
+        Path mixed = placeholder.mods().resolve("dual-descriptor.jar");
+        try (var zip = new ZipOutputStream(Files.newOutputStream(mixed))) {
+            entry(zip, "META-INF/neoforge.mods.toml", "modLoader=\"javafml\"\nloaderVersion=\"[4,)\"\n[[mods]]\nmodId=\"ordinary_mod\"\nversion=\"1\"\n");
+            entry(zip, "META-INF/mods.toml", " \n\t");
+        }
+        check(c.instance(placeholder).status().equals("SUPPORTED"), "Valid NeoForge identity accepts empty legacy Forge placeholder");
+        try (var zip = new ZipOutputStream(Files.newOutputStream(mixed))) {
+            entry(zip, "META-INF/mods.toml", "");
+        }
+        check(c.instance(placeholder).status().equals("UNRESOLVED"), "Empty descriptor alone cannot establish mod identity");
+        try (var zip = new ZipOutputStream(Files.newOutputStream(mixed))) {
+            entry(zip, "META-INF/neoforge.mods.toml", "[[mods]]\nmodId=\"ordinary_mod\"\nversion=\"1\"\n");
+            entry(zip, "META-INF/mods.toml", "modLoader=\"javafml\"\n");
+        }
+        check(c.instance(placeholder).status().equals("UNRESOLVED"), "Nonempty incomplete legacy metadata is still refused");
+        // Recreate with the placeholder and a second identity to retain bundle refusal.
+        try (var zip = new ZipOutputStream(Files.newOutputStream(mixed))) {
+            entry(zip, "META-INF/neoforge.mods.toml", "modLoader=\"javafml\"\nloaderVersion=\"[4,)\"\n[[mods]]\nmodId=\"essence_ascendance\"\nversion=\"1\"\n[[mods]]\nmodId=\"ordinary_mod\"\nversion=\"1\"\n");
+            entry(zip, "META-INF/mods.toml", "");
+        }
+        check(c.instance(placeholder).status().equals("UNRESOLVED"), "Empty placeholder does not bypass ambiguous own-mod bundle refusal");
+        legacyTemplates(c);
         check(Compatibility.satisfies("13.0.11", "[13.0.11,)"), "Maven inclusive minimum");
         check(!Compatibility.satisfies("0.19.2", ">=0.19.3"), "Fabric minimum enforced");
         fails(() -> Compatibility.satisfies("13.0.11-beta", "[13.0.11,)"), "Unknown version qualifier is unresolved");
         fails(() -> Compatibility.satisfies("1.0", "^1.0"), "Unknown range does not silently pass");
+    }
+    private static void legacyTemplates(Compatibility compatibility) throws Exception {
+        String active = "modLoader=\"javafml\"\nloaderVersion=\"[4,)\"\n[[mods]]\nmodId=\"ordinary_mod\"\nversion=\"1\"\n";
+        String template = "modLoader=\"javafml\"\nloaderVersion=\"${loader_version_range}\"\n[[mods]]\nmodId=\"${mod_id}\"\nversion=\"${mod_version}\"\n"
+                + "[[dependencies.${mod_id}]] # retained Forge MDK template\nmodId=\"forge\"\nversionRange=\"${forge_version_range}\"\n"
+                + "[[dependencies.${mod_id}]]\nmodId=\"minecraft\"\nversionRange=\"${minecraft_version_range}\"\n";
+        var target = fixture("unexpanded inactive descriptor");
+        Path archive = target.mods().resolve("dual-template.jar");
+        descriptors(archive, active, template);
+        check(compatibility.instance(target).status().equals("SUPPORTED"), "Valid NeoForge identity accepts an inactive unexpanded Forge template");
+        var metadata = ModMetadata.read(archive, "neoforge");
+        check(metadata.mods().size() == 1 && metadata.mods().getFirst().id().equals("ordinary_mod"), "Inactive template contributes no invented identity or dependency version");
+        String hash = FilesEx.hash(archive);
+        var deployment = new Deployment();
+        try (var lease = deployment.acquire(target)) { deployment.install(lease, target, artifact("neoforge"), new Cancellation(), QUIET); }
+        check(FilesEx.hash(archive).equals(hash), "Fixture deployment preserves unrelated JAR with inactive template metadata");
+        fails(() -> ModMetadata.read(archive, "forge"), "Unexpanded template remains invalid when Forge is selected");
+        descriptors(archive, null, template);
+        check(compatibility.instance(target).status().equals("UNRESOLVED"), "Unexpanded template alone cannot establish active mod identity");
+        descriptors(archive, template, null);
+        check(compatibility.instance(target).status().equals("UNRESOLVED"), "An active NeoForge template remains unresolved");
+        descriptors(archive, active, template.replace("${mod_version}", "1"));
+        check(compatibility.instance(target).status().equals("UNRESOLVED"), "Inactive template allowance requires unresolved identity and version together");
+        descriptors(archive, active, template + "broken = $invalid\n");
+        check(compatibility.instance(target).status().equals("UNRESOLVED"), "Other malformed inactive TOML remains unresolved");
+        descriptors(archive, active, template + "[[mods]]\nmodId=\"essence_ascendance\"\nversion=\"1\"\n");
+        check(compatibility.instance(target).status().equals("UNRESOLVED"), "Resolved own identity beside template cannot bypass ambiguity checks");
+        descriptors(archive, active.replace("ordinary_mod", "essence_ascendance") + "[[mods]]\nmodId=\"ordinary_mod\"\nversion=\"1\"\n", template);
+        check(compatibility.instance(target).status().equals("UNRESOLVED"), "Inactive template does not bypass an active multi-mod own bundle");
+        descriptors(archive, active, template);
+        Files.delete(target.mods().resolve("arbitrary-dependency-name.jar"));
+        check(compatibility.instance(target).status().equals("INCOMPATIBLE"), "Inactive template allowance retains required Architectury gate");
+    }
+    private static void descriptors(Path archive, String neoforge, String forge) throws IOException {
+        try (var zip = new ZipOutputStream(Files.newOutputStream(archive))) {
+            if (neoforge != null) entry(zip, "META-INF/neoforge.mods.toml", neoforge);
+            if (forge != null) entry(zip, "META-INF/mods.toml", forge);
+        }
     }
     private static void deployment() throws Exception {
         var target = fixture("safe deploy"); var artifact = artifact("neoforge");

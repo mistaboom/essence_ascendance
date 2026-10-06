@@ -151,7 +151,7 @@ public final class MeaningfulProgressionTest {
         }
     }
     private static void differential(RuntimeBalanceDefinition runtime) {
-        var gson = new Gson();
+        var gson = com.mistaboom.essence_ascendance.balance.generated.BalanceDocument.GSON;
         var json = runtime.toJson();
         json.getAsJsonObject("composition").remove("meaningful_progression");
         var caps = new TreeMap<net.minecraft.resources.ResourceLocation,Long>();

@@ -13,7 +13,9 @@ public final class EssenceConfigManager {
     public static final int CURRENT_CONFIG_VERSION = 1;
     private static volatile RuntimeBalanceDefinition serverRuntime;
     private static volatile RuntimeBalanceDefinition clientRuntime;
+    private static volatile boolean balanceUnavailable;
     private static RuntimeBalanceDefinition bootstrap;
+    private static final LatentOreWorldgenSettings UNAVAILABLE_WORLDGEN = unavailableWorldgen();
     private EssenceConfigManager() {}
 
     public static EssenceServerConfig get() { return runtime().config(); }
@@ -26,11 +28,24 @@ public final class EssenceConfigManager {
         return bootstrap;
     }
     public static RuntimeBalanceDefinition serverRuntime() { return serverRuntime; }
-    /** Terrain must never use a bootstrap/client preview while the server profile is unresolved. */
+    /** Terrain never uses a bootstrap/client preview; a rejected initial load explicitly disables it. */
     public static LatentOreWorldgenSettings serverWorldgen() {
         RuntimeBalanceDefinition active = serverRuntime;
+        if (active == null && balanceUnavailable) return UNAVAILABLE_WORLDGEN;
         if (active == null) throw new IllegalStateException("Latent Ore generation requires the authoritative server balance profile before chunks are generated");
         return active.config().latentOreWorldgen();
+    }
+    /** Keep the world playable without inventing profile authority or dissolution yields. */
+    public static boolean markBalanceUnavailable() {
+        if (serverRuntime != null) return false;
+        balanceUnavailable = true;
+        com.mistaboom.essence_ascendance.worldgen.PrimarySubstrateDiscovery.clear();
+        return true;
+    }
+    public static boolean balanceUnavailable() { return balanceUnavailable; }
+    private static LatentOreWorldgenSettings unavailableWorldgen() {
+        var disabled = new LatentOreWorldgenSettings.DimensionSettings(false, 1, 0, -2048, 2048, 0);
+        return new LatentOreWorldgenSettings(disabled, disabled, disabled, false, java.util.Map.of());
     }
     public static RuntimeBalanceDefinition clientRuntime() { return clientRuntime; }
     public static boolean authoritativeReady() { return serverRuntime!=null; }
@@ -48,6 +63,7 @@ public final class EssenceConfigManager {
         runtime.validateServerReferences();
         SkillBalanceRuntime.install(runtime.skillCurves());
         serverRuntime=runtime;
+        balanceUnavailable=false;
         com.mistaboom.essence_ascendance.balance.BalanceProfileRegistry.installRuntime(runtime.config().balanceProfile());
         AscendanceToolMiningService.invalidateCache();
         HarvestProgressionSafety.logWarnings(runtime.config());
@@ -65,6 +81,7 @@ public final class EssenceConfigManager {
     public static void reset() {
         com.mistaboom.essence_ascendance.worldgen.PrimarySubstrateDiscovery.clear();
         serverRuntime=null;
+        balanceUnavailable=false;
         com.mistaboom.essence_ascendance.balance.BalanceProfileRegistry.clearRuntime();
         com.mistaboom.essence_ascendance.network.RuntimeBalanceSyncService.clear();
         bootstrap=null;

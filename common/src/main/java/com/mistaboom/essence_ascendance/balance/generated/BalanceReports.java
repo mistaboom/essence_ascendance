@@ -42,6 +42,7 @@ public final class BalanceReports {
             invariants(tables, current);
             evidence(tables, current);
             questEvidence(tables, current.document().section("metadata"));
+            AdaptiveBalanceReports.saved(tables, current.document().section("metadata"));
             CompetitiveCapabilityReports.saved(tables, current.document().section("metadata"));
             runtimeTables(tables, current);
             latentOre(tables, current);
@@ -65,6 +66,7 @@ public final class BalanceReports {
         Path reports = BalanceReportLayout.reports(folder), diagnostics = BalanceReportLayout.diagnostics(folder);
         BalanceProfileStore.writeAtomically(reports.resolve("balance_report.md"), report(current, previous, generationMillis, skills));
         var competitiveMetadata = current.document().section("metadata");
+        AdaptiveBalanceReports.writeDetails(folder, competitiveMetadata);
         if (competitiveMetadata.has("generation") && competitiveMetadata.getAsJsonObject("generation").has("competitiveCapabilities"))
             CompetitiveCapabilityReports.writeDetails(folder, competitiveMetadata.getAsJsonObject("generation").getAsJsonObject("competitiveCapabilities"));
         BalanceProfileStore.writeAtomically(diagnostics.resolve("pack_metadata.json"), BalanceDocument.GSON.toJson(current.document().section("metadata")) + "\n");

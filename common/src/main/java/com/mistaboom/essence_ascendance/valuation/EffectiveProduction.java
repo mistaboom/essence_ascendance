@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.valuation;
 
 import com.google.gson.*;
 import com.mistaboom.essence_ascendance.balance.economy.ProductionGraph;
+import com.mistaboom.essence_ascendance.balance.engine.OptionalIntegration;
 import com.mistaboom.essence_ascendance.balance.generated.BalancePerformance;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.core.HolderLookup;
@@ -31,54 +32,65 @@ public final class EffectiveProduction {
         List<String> warnings = new ArrayList<>();
         Set<String> families = new TreeSet<>();
         Map<String, Long> adapterNanos = new TreeMap<>();
-        int emptyResults = 0;
+        int emptyResults = 0, failedRecipes = 0;
         try (var phase = BalancePerformance.phase("effective_production_normalization")) {
             for (RecipeHolder<?> holder : recipes) {
                 BalancePerformance.increment("production_recipes_inspected");
                 Recipe<?> recipe = holder.value();
-                String family = ValuationGenerationInputs.recipeFamily(recipe.getType());
+                String[] observedFamily = { "unresolved_type" };
+                var attempt = OptionalIntegration.attempt("effective_production_recipe:" + holder.id(),
+                        "normalize published " + recipe.getClass().getName(),
+                        () -> evaluate(holder, registries, versions, observedFamily));
+                String family = observedFamily[0];
                 families.add(family);
-                if (!ValuationGenerationInputs.recipeAllowed(holder.id(), recipe.getType())) continue;
-                boolean vanilla = vanilla(recipe.getType());
-                String adapter = adapter(family, recipe.getClass().getName(), versions);
-                if (vanilla || adapter != null) {
-                    long adapterStart = System.nanoTime();
-                    // Required audited normalization failures abort the candidate, retaining old authority.
-                    JsonObject definition = definition(holder, registries);
-                    ProductionGraph.Process process;
-                    try {
-                        process = normalize(holder.id().toString(), family, adapter, definition,
-                                registries, vanilla ? recipe : null);
-                    } catch (RuntimeException | LinkageError failure) {
-                        throw new IllegalStateException("Cannot normalize effective production recipe " + holder.id()
-                                + " (" + family + ", " + recipe.getClass().getName() + "): " + failure, failure);
+                if (attempt.succeeded()) {
+                    RecipeEvaluation evaluated = attempt.value().orElseThrow();
+                    if (!evaluated.allowed()) continue;
+                    if (evaluated.supported()) {
+                        JsonObject definition = evaluated.definition();
+                        ProductionGraph.Process process = evaluated.process();
+                        if (process != null) {
+                            processes.add(process);
+                            if (!process.acquisitionComplete()) unsupported.accept(family,
+                                    "partial normalized evidence: resource/predicate/source-access or custom matching/assembly unresolved; no known acquisition seed");
+                        } else if (definition.has("nominal_result_empty")) {
+                            unsupported.accept(family, "empty nominal result; dynamic/tag output unresolved; diagnostic-only, no acquisition or conservation claim");
+                            // Save bounded effective evidence without inventing a product or quantity.
+                            if (emptyResults++ < 16) {
+                                String evidence = definition.toString();
+                                warnings.add("Unresolved empty nominal result " + holder.id() + ": "
+                                        + evidence.substring(0, Math.min(8192, evidence.length()))
+                                        + (evidence.length() > 8192 ? " [definition truncated at 8192 characters]" : ""));
+                            }
+                            BalancePerformance.increment("production_empty_nominal_results");
+                        } else unsupported.accept(family, "no item output; non-item evidence requires resource valuation");
+                        adapterNanos.merge(evaluated.adapter() == null ? "vanilla" : evaluated.adapter(), evaluated.nanos(), Long::sum);
+                    } else {
+                        // A public generic view is advisory: unknown counts/operating costs never prove conservation.
+                        ProductionGraph.Process generic = evaluated.process();
+                        if (generic != null) processes.add(generic);
+                        unsupported.accept(family, "unsupported machine/addon semantics; generic view is advisory only");
                     }
-                    if (process != null) {
-                        processes.add(process);
-                        if (!process.acquisitionComplete()) unsupported.accept(family,
-                                "partial normalized evidence: resource/predicate/source-access or custom matching/assembly unresolved; no known acquisition seed");
-                    }
-                    else if (definition.has("nominal_result_empty")) {
-                        unsupported.accept(family, "empty nominal result; dynamic/tag output unresolved; diagnostic-only, no acquisition or conservation claim");
-                        // Save bounded effective evidence without inventing a product or quantity.
-                        if (emptyResults++ < 16) {
-                            String evidence = definition.toString();
-                            warnings.add("Unresolved empty nominal result " + holder.id() + ": "
-                                    + evidence.substring(0, Math.min(8192, evidence.length()))
-                                    + (evidence.length() > 8192 ? " [definition truncated at 8192 characters]" : ""));
-                        }
-                        BalancePerformance.increment("production_empty_nominal_results");
-                    } else unsupported.accept(family, "no item output; non-item evidence requires resource valuation");
-                    adapterNanos.merge(adapter == null ? "vanilla" : adapter, System.nanoTime() - adapterStart, Long::sum);
                 } else {
-                    // A public generic view is advisory: unknown counts/operating costs never prove conservation.
-                    ProductionGraph.Process generic = generic(holder, registries);
-                    if (generic != null) processes.add(generic);
-                    unsupported.accept(family, "unsupported machine/addon semantics; generic view is advisory only");
+                    // An optional recipe object's getters/codecs may differ or be broken. Never publish
+                    // its partial inputs/outputs, and continue collecting healthy native recipes.
+                    unsupported.accept(family, "normalization failed: " + recipe.getClass().getName()
+                            + "; excluded from acquisition, valuation and conservation");
+                    String diagnostic = "Excluded incompatible effective production recipe " + holder.id()
+                            + " (" + family + ", " + recipe.getClass().getName() + "): " + attempt.failure()
+                            + "; no acquisition, valuation or conservation evidence retained";
+                    if (failedRecipes++ < 16) {
+                        warnings.add(diagnostic);
+                    }
+                    BalancePerformance.increment("production_recipe_normalization_failures");
                 }
             }
         }
         if (emptyResults > 16) warnings.add((emptyResults - 16) + " additional empty nominal results; representative evidence limited to 16 recipes.");
+        if (failedRecipes > 16) {
+            String summary = (failedRecipes - 16) + " additional incompatible effective production recipes excluded; representative evidence limited to 16 recipes.";
+            warnings.add(summary);
+        }
         warnings.add("KubeJS core added/removed/replaced recipes and effective tags are observed after publication. "
                 + "Addon families require an audited adapter. Custom callbacks, event generation, scripted loot and non-recipe automation are not inferred or executed.");
         long incomplete = processes.stream().filter(p -> !p.conservationComplete()).count();
@@ -90,12 +102,38 @@ public final class EffectiveProduction {
         return new ProductionGraph(processes, warnings);
     }
 
+    private record RecipeEvaluation(boolean allowed, boolean supported, String adapter,
+                                    ProductionGraph.Process process, JsonObject definition, long nanos) { }
+
+    /** Build privately before publishing anything to the shared graph. A failed getter, encoder or
+     * normalizer leaves only diagnostic identity; none of that recipe's partial facts can leak out. */
+    private static RecipeEvaluation evaluate(RecipeHolder<?> holder, HolderLookup.Provider registries,
+                                             java.util.function.Function<String, String> versions, String[] observedFamily) {
+        Recipe<?> recipe = holder.value();
+        RecipeType<?> type = recipe.getType();
+        String family = ValuationGenerationInputs.recipeFamily(type);
+        observedFamily[0] = family;
+        if (!ValuationGenerationInputs.recipeAllowed(holder.id(), type)) return new RecipeEvaluation(false, false, null, null, null, 0);
+        boolean vanilla = vanilla(type);
+        String adapter = adapter(family, recipe.getClass().getName(), versions);
+        if (vanilla || adapter != null) {
+            long started = System.nanoTime();
+            JsonObject definition = definition(holder, registries, versions);
+            ProductionGraph.Process process = normalize(holder.id().toString(), family, adapter, definition, registries, vanilla ? recipe : null);
+            return new RecipeEvaluation(true, true, adapter, process, definition, System.nanoTime() - started);
+        }
+        return new RecipeEvaluation(true, false, null, generic(holder, registries), null, 0);
+    }
+
     /** Runtime-created shaped patterns need not retain datapack key/pattern data. Public crafting fields
      * remain useful for subclasses, but cannot certify their custom matching, assembly or remainders.
-     * Custom representation errors/explicit unsupported encoding remain partial; other failures abort. */
-    private static JsonObject definition(RecipeHolder<?> holder, HolderLookup.Provider registries) {
+     * Custom representation errors/explicit unsupported encoding remain partial; thrown failures are
+     * isolated by the per-recipe collector and exclude that recipe. */
+    private static JsonObject definition(RecipeHolder<?> holder, HolderLookup.Provider registries,
+                                         java.util.function.Function<String, String> versions) {
         Recipe<?> recipe = holder.value();
         var ops = RegistryOps.create(JsonOps.INSTANCE, registries);
+        if (recipe instanceof AbstractCookingRecipe cooking) return cookingDefinition(holder, cooking, ops, registries);
         if (!(recipe instanceof ShapedRecipe) && !(recipe instanceof ShapelessRecipe) && recipe.getType() != RecipeType.CRAFTING)
             return GenerationDataSnapshot.encodeDefinition(Recipe.CODEC, recipe, ops, "effective recipe " + holder.id());
         try {
@@ -118,14 +156,16 @@ public final class EffectiveProduction {
             root.addProperty("show_notification", recipe.showNotification());
             JsonArray slots = new JsonArray();
             for (Ingredient ingredient : recipe.getIngredients())
-                slots.add(ingredient == Ingredient.EMPTY ? JsonNull.INSTANCE : Ingredient.CODEC.encodeStart(ops, ingredient).getOrThrow());
+                slots.add(ingredient == Ingredient.EMPTY ? JsonNull.INSTANCE : ingredientDefinition(holder.id(), slots.size(), ingredient, ops));
             root.add("ingredients", slots);
             ItemStack nominal = recipe.getResultItem(registries);
             if (nominal.isEmpty()) root.addProperty("nominal_result_empty", true);
             else root.add("result", ItemStack.CODEC.encodeStart(ops, nominal).getOrThrow());
             if (recipe.getClass() != ShapedRecipe.class && recipe.getClass() != ShapelessRecipe.class) {
-                root.addProperty("custom_behavior_unresolved", true);
-                // The public projection is advisory for custom behavior regardless of codec availability.
+                var behavior = KubeCraftingSemantics.inspect(recipe, versions.apply("kubejs"));
+                // An exact audited subclass without configured hooks has native matching,
+                // static copied output and native remainders. Every other subclass remains advisory.
+                KubeCraftingSemantics.annotate(root, behavior, versions.apply("kubejs"));
                 try {
                     var encoded = Recipe.CODEC.encodeStart(ops, recipe);
                     if (encoded.result().isPresent()) root.add("serializer_definition", encoded.result().orElseThrow());
@@ -135,13 +175,68 @@ public final class EffectiveProduction {
                     serializationLimitation(root, form, "unsupported_serializer_operation", unsupported.toString());
                     BalancePerformance.increment("production_custom_serializer_unsupported_operations");
                 }
-                BalancePerformance.increment("production_custom_" + form + "_advisory_projections");
+                BalancePerformance.increment(behavior.nativeBehavior() ? "production_kubejs_hookless_" + form + "_projections"
+                        : "production_custom_" + form + "_advisory_projections");
             }
             BalancePerformance.increment("production_public_" + form + "_projections");
             return root;
         } catch (RuntimeException | LinkageError failure) {
             throw new IllegalStateException("Cannot normalize effective crafting recipe " + holder.id() + ": " + failure, failure);
         }
+    }
+
+    /** Cooking subclasses may encode result tags/predicates rather than ItemStack.CODEC. Observe the
+     * published nominal stack without interpreting their private serializer schema or executing assembly. */
+    private static JsonObject cookingDefinition(RecipeHolder<?> holder, AbstractCookingRecipe recipe,
+                                                RegistryOps<JsonElement> ops, HolderLookup.Provider registries) {
+        JsonObject root = new JsonObject();
+        ResourceLocation serializer = BuiltInRegistries.RECIPE_SERIALIZER.getKey(recipe.getSerializer());
+        if (serializer == null) throw new IllegalStateException("Unregistered cooking recipe serializer " + holder.id());
+        root.addProperty("type", serializer.toString());
+        root.addProperty("projection", "native_cooking_public_fields");
+        root.addProperty("runtime_class", recipe.getClass().getName());
+        root.addProperty("group", recipe.getGroup());
+        root.addProperty("category", recipe.category().getSerializedName());
+        root.addProperty("experience", recipe.getExperience());
+        root.addProperty("cookingtime", recipe.getCookingTime());
+        JsonArray slots = new JsonArray();
+        for (Ingredient ingredient : recipe.getIngredients())
+            if (ingredient != Ingredient.EMPTY) slots.add(ingredientDefinition(holder.id(), slots.size(), ingredient, ops));
+        root.add("ingredients", slots);
+        ItemStack nominal = recipe.getResultItem(registries);
+        if (nominal.isEmpty()) root.addProperty("nominal_result_empty", true);
+        else root.add("result", ItemStack.CODEC.encodeStart(ops, nominal).getOrThrow());
+        if (recipe.getClass() != SmeltingRecipe.class && recipe.getClass() != BlastingRecipe.class
+                && recipe.getClass() != SmokingRecipe.class && recipe.getClass() != CampfireCookingRecipe.class) {
+            root.addProperty("custom_behavior_unresolved", true);
+            try {
+                var encoded = Recipe.CODEC.encodeStart(ops, recipe);
+                if (encoded.result().isPresent()) root.add("serializer_definition", encoded.result().orElseThrow());
+                else serializationLimitation(root, "cooking", "codec_representation_error", encoded.error().orElseThrow().message());
+            } catch (UnsupportedOperationException unsupported) {
+                serializationLimitation(root, "cooking", "unsupported_serializer_operation", unsupported.toString());
+                BalancePerformance.increment("production_custom_serializer_unsupported_operations");
+            }
+            BalancePerformance.increment("production_custom_cooking_advisory_projections");
+        }
+        BalancePerformance.increment("production_public_cooking_projections");
+        return root;
+    }
+
+    /** Runtime ingredients can expose usable recipe objects without a registered codec type. Keep
+     * the missing predicate explicit instead of replacing it with displayed items or dropping its slot. */
+    private static JsonElement ingredientDefinition(ResourceLocation recipe, int slot, Ingredient ingredient,
+                                                     RegistryOps<JsonElement> ops) {
+        var attempt = OptionalIntegration.attempt("effective_production_recipe:" + recipe,
+                "encode published ingredient slot " + slot,
+                () -> Ingredient.CODEC.encodeStart(ops, ingredient).getOrThrow());
+        if (attempt.succeeded()) return attempt.value().orElseThrow();
+        JsonObject unresolved = new JsonObject();
+        unresolved.addProperty("unresolved_ingredient", true);
+        unresolved.addProperty("runtime_class", ingredient.getClass().getName());
+        unresolved.addProperty("serialization_failure", attempt.failure());
+        BalancePerformance.increment("production_unrepresentable_ingredients");
+        return unresolved;
     }
 
     private static void serializationLimitation(JsonObject root, String form, String kind, String error) {
@@ -176,7 +271,7 @@ public final class EffectiveProduction {
         List<ProductionGraph.Output> outputs = new ArrayList<>();
         Map<String, String> facts = new TreeMap<>();
         facts.put("effective_definition", root.toString());
-        facts.put("provenance", root.has("projection") ? "published RecipeManager object / native crafting public fields and ingredient/stack codecs"
+        facts.put("provenance", root.has("projection") ? "published RecipeManager object / native public fields and ingredient/stack codecs"
                 : "published RecipeManager object / public serializer codec");
         facts.put("adapter", adapter == null ? "vanilla" : adapter);
         facts.put("operation", adapter == null ? "manual_or_machine_unknown" : "automated_processing");
@@ -185,9 +280,15 @@ public final class EffectiveProduction {
         facts.put("access", "machine construction/configuration access unobserved");
         facts.put("energy", adapter == null ? "unobserved_fuel" : "unobserved_native_operating_cost");
         facts.put("duration_known", "false");
+        if (root.has("behavior_adapter")) {
+            facts.put("behavior_adapter", root.get("behavior_adapter").getAsString());
+            facts.put("behavior_api_version", root.get("behavior_api_version").getAsString());
+            facts.put("ingredient_action_count", root.get("ingredient_action_count").getAsString());
+            facts.put("modify_result_present", root.get("modify_result_present").getAsString());
+        }
         if (root.has("custom_behavior_unresolved")) {
             facts.put("conditions_unresolved", "true");
-            facts.put("custom_behavior", "Inherited nominal crafting fields only; custom matching, assembly, component transfer and remainders unresolved");
+            facts.put("custom_behavior", "Inherited nominal public fields only; custom matching, assembly, component transfer and remainders unresolved");
             facts.put("runtime_class", root.get("runtime_class").getAsString());
             facts.put("serializer", root.get("type").getAsString());
             if (root.has("serialization_limitation")) facts.put("serialization_limitation", root.get("serialization_limitation").getAsString());
@@ -265,6 +366,11 @@ public final class EffectiveProduction {
                 for (String key : List.of("template", "base", "addition")) if (root.has(key)) addInput(inputs, root.get(key), 1, true, registries);
                 // Native smithing copies components from its base; static result cannot model every variant.
                 facts.put("variant_transform", "base_components_copied");
+            } else if (root.has("projection") && root.has("ingredients")) {
+                // Reuse the staged public projection: a failed ingredient codec is an unresolved
+                // predicate, and retrying that codec here would discard otherwise useful diagnostics.
+                for (JsonElement element : list(root, "ingredients"))
+                    if (!element.isJsonNull()) addInput(inputs, element, 1, true, registries);
             } else if (nativeVanilla != null) {
                 for (Ingredient ingredient : nativeVanilla.getIngredients()) {
                     if (ingredient == Ingredient.EMPTY) continue;
@@ -303,13 +409,21 @@ public final class EffectiveProduction {
 
     private static void addInput(List<ProductionGraph.Input> inputs, JsonElement value, double count, boolean consumed, HolderLookup.Provider registries) {
         if (value.isJsonObject() && value.getAsJsonObject().has("ingredient")) value = value.getAsJsonObject().get("ingredient");
+        if (value.isJsonObject() && value.getAsJsonObject().has("unresolved_ingredient")) {
+            inputs.add(new ProductionGraph.Input(List.of("predicate:" + value), count, consumed));
+            return;
+        }
         Ingredient ingredient = Ingredient.CODEC.parse(RegistryOps.create(JsonOps.INSTANCE, registries), value).getOrThrow();
         List<String> alternatives = Arrays.stream(ingredient.getItems()).filter(s -> !s.isEmpty()).map(s -> BuiltInRegistries.ITEM.getKey(s.getItem()).toString()).distinct().sorted().toList();
         if (alternatives.isEmpty()) alternatives = List.of("predicate:" + value);
         inputs.add(new ProductionGraph.Input(alternatives, count, consumed));
     }
     private static void addOutput(List<ProductionGraph.Output> outputs, JsonElement value, String probabilityKey, String countKey) {
+        if (value == null || !value.isJsonObject()) throw new IllegalArgumentException("Production output is not an item-stack object: " + value);
         JsonObject output = value.getAsJsonObject();
+        if ((!output.has("id") || !output.get("id").isJsonPrimitive())
+                && (!output.has("item") || !output.get("item").isJsonPrimitive()))
+            throw new IllegalArgumentException("Production output has no concrete item identity: " + output);
         String id = output.has("id") ? output.get("id").getAsString() : output.get("item").getAsString();
         double chance = number(output, probabilityKey, 1);
         if (chance == 0) return;
@@ -331,7 +445,7 @@ public final class EffectiveProduction {
         if (value.isJsonArray()) return value.getAsJsonArray().asList().stream().anyMatch(EffectiveProduction::hasPredicates);
         if (!value.isJsonObject()) return false;
         JsonObject object = value.getAsJsonObject();
-        if (object.has("components")) return true;
+        if (object.has("components") || object.has("unresolved_ingredient")) return true;
         if (object.has("type") && object.get("type").isJsonPrimitive()) {
             String type = object.get("type").getAsString();
             if (type.startsWith("neoforge:") || type.startsWith("fabric:")) return true;
@@ -371,21 +485,19 @@ public final class EffectiveProduction {
         }
     }
     private static ProductionGraph.Process generic(RecipeHolder<?> holder, HolderLookup.Provider registries) {
-        try {
-            Recipe<?> recipe = holder.value(); ItemStack output = recipe.getResultItem(registries);
-            if (output == null || output.isEmpty()) return null;
-            List<ProductionGraph.Input> inputs = new ArrayList<>();
-            for (Ingredient ingredient : recipe.getIngredients()) {
-                if (ingredient == Ingredient.EMPTY) continue;
-                List<String> choices = Arrays.stream(ingredient.getItems()).filter(s -> !s.isEmpty()).map(s -> BuiltInRegistries.ITEM.getKey(s.getItem()).toString()).distinct().toList();
-                if (choices.isEmpty()) return null;
-                inputs.add(new ProductionGraph.Input(choices, 1, true));
-            }
-            return new ProductionGraph.Process(holder.id().toString(), ValuationGenerationInputs.recipeFamily(recipe.getType()), inputs,
-                    List.of(new ProductionGraph.Output(BuiltInRegistries.ITEM.getKey(output.getItem()).toString(), output.getCount(), 1, false)),
-                    0, 0, "essence_ascendance:generic_advisory", .35,
-                    Map.of("acquisition_complete", "false", "conservation_complete", "false", "duration_known", "false", "energy", "unknown", "quantities", "generic estimates only"));
-        } catch (RuntimeException failure) { return null; }
+        Recipe<?> recipe = holder.value(); ItemStack output = recipe.getResultItem(registries);
+        if (output == null || output.isEmpty()) return null;
+        List<ProductionGraph.Input> inputs = new ArrayList<>();
+        for (Ingredient ingredient : recipe.getIngredients()) {
+            if (ingredient == Ingredient.EMPTY) continue;
+            List<String> choices = Arrays.stream(ingredient.getItems()).filter(s -> !s.isEmpty()).map(s -> BuiltInRegistries.ITEM.getKey(s.getItem()).toString()).distinct().toList();
+            if (choices.isEmpty()) return null;
+            inputs.add(new ProductionGraph.Input(choices, 1, true));
+        }
+        return new ProductionGraph.Process(holder.id().toString(), ValuationGenerationInputs.recipeFamily(recipe.getType()), inputs,
+                List.of(new ProductionGraph.Output(BuiltInRegistries.ITEM.getKey(output.getItem()).toString(), output.getCount(), 1, false)),
+                0, 0, "essence_ascendance:generic_advisory", .35,
+                Map.of("acquisition_complete", "false", "conservation_complete", "false", "duration_known", "false", "energy", "unknown", "quantities", "generic estimates only"));
     }
     private static double number(JsonObject root, String key, double defaultValue) { return root.has(key) ? root.get(key).getAsDouble() : defaultValue; }
     private static JsonArray list(JsonObject root, String key) {

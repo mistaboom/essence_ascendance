@@ -32,7 +32,7 @@ public final class GatheringRuralEffects {
         public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
             GatheringBalanceSettings.VerdantStride tuning = context.settings().gathering().verdantStride();
             GatheringRuralService.PulseHudState state = GatheringRuralService.pulseHudState(context, id());
-            int crops = GatheringRuralService.nearbyGrowingCropCount(context.player(), tuning.radiusBlocks());
+            int crops = GatheringRuralService.nearbyGrowingCropCount(context.player(), tuning.radiusBlocks(), tuning.usesBoneMealGrowth());
             return SkillEffectHudCards.timed(id(), crops > 0, AscendancePalette.GATHERING,
                     text("verdant_crops", Integer.toString(crops)),
                     List.of(text("verdant_extra_ticks", Integer.toString(state.successfulEvents())),

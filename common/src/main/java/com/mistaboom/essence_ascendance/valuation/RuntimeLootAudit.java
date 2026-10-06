@@ -3,8 +3,13 @@ package com.mistaboom.essence_ascendance.valuation;
 import com.google.gson.*;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
+import com.mistaboom.essence_ascendance.balance.engine.OptionalIntegration;
 import net.minecraft.resources.ResourceLocation;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.*;
+import java.util.function.Supplier;
 
 /** Read-only loaded modifier definitions. Never apply a modifier or roll a loot context. */
 final class RuntimeLootAudit {
@@ -51,34 +56,79 @@ final class RuntimeLootAudit {
     }
     private static Truth and(Truth a, Truth b) { return a == Truth.FALSE || b == Truth.FALSE ? Truth.FALSE
             : a == Truth.UNKNOWN || b == Truth.UNKNOWN ? Truth.UNKNOWN : Truth.TRUE; }
-    @SuppressWarnings("unchecked")
     static List<Modifier> capture(GenerationDataSnapshot inputs) {
         String version = inputs.installedVersion("neoforge");
         if (version == null) return List.of();
-        if (!Set.of("21.1.248", "21.1.251").contains(version)) return List.of(new Modifier("neoforge:" + version, new JsonObject(),
-                "Unaudited global-loot-modifier API; effective registry alone cannot certify runtime drops"));
-        try {
-            var getter = Class.forName("net.neoforged.neoforge.common.NeoForgeEventHandler").getDeclaredMethod("getLootModifierManager");
-            getter.setAccessible(true);
-            Object manager = Objects.requireNonNull(getter.invoke(null), "Global loot modifier manager not ready");
-            var modifiers = (Collection<?>) manager.getClass().getMethod("getAllLootMods").invoke(manager);
-            Codec<Object> codec = (Codec<Object>) Class.forName("net.neoforged.neoforge.common.loot.IGlobalLootModifier").getField("DIRECT_CODEC").get(null);
-            var ops = inputs.server().registries().compositeAccess().createSerializationContext(JsonOps.INSTANCE);
-            List<Modifier> result = new ArrayList<>();
-            for (Object modifier : modifiers) {
-                var encoded = codec.encodeStart(ops, modifier);
-                var definition = encoded.isSuccess() ? encoded.getOrThrow().getAsJsonObject() : new JsonObject();
-                result.add(new Modifier(modifier.getClass().getName(), definition,
-                        "Unsupported runtime modifier output; base block-harvest contract is recorded separately"
-                                + encoded.error().map(e -> ": " + e.message()).orElse(""),
-                        encoded.isSuccess() ? BlockLootModifierAudit.captureRule(modifier.getClass().getName(), inputs) : BlockLootModifierAudit.Rule.UNKNOWN,
-                        modifier.getClass().getMethod("apply", it.unimi.dsi.fastutil.objects.ObjectArrayList.class,
-                                net.minecraft.world.level.storage.loot.LootContext.class).getDeclaringClass().getName()
-                                .equals("net.neoforged.neoforge.common.loot.LootModifier")));
-            }
-            // Runtime order remains available in diagnostics; it is not executed or assumed commutative.
-            return List.copyOf(result);
-        } catch (ReflectiveOperationException failure) { throw new IllegalStateException("Cannot inspect effective global loot modifiers", failure); }
+        return captureOptional(version, () -> {
+            try { return captureEffective(inputs); }
+            catch (ReflectiveOperationException failure) { throw new IllegalStateException("Cannot inspect effective global loot modifiers", failure); }
+        });
+    }
+    static List<Modifier> captureOptional(String version, Supplier<List<Modifier>> capture) {
+        if (version == null) return List.of();
+        var attempt = OptionalIntegration.attempt("neoforge:" + version, "inspect effective global loot modifiers", () -> List.copyOf(capture.get()));
+        return attempt.value().orElseGet(() -> unknown(version, attempt.failure()));
+    }
+    static List<Modifier> unknown(String version, String failure) {
+        // Missing modifier information can affect every table; never represent it as ABSENT.
+        return List.of(new Modifier("neoforge:" + version, new JsonObject(),
+                "Global-loot-modifier capture unavailable: " + failure, BlockLootModifierAudit.Rule.UNKNOWN, false));
+    }
+    @SuppressWarnings("unchecked")
+    private static List<Modifier> captureEffective(GenerationDataSnapshot inputs) throws ReflectiveOperationException {
+        var handlerType = Class.forName("net.neoforged.neoforge.common.NeoForgeEventHandler");
+        var managerType = Class.forName("net.neoforged.neoforge.common.loot.LootModifierManager");
+        var modifierType = Class.forName("net.neoforged.neoforge.common.loot.IGlobalLootModifier");
+        var getter = handlerType.getDeclaredMethod("getLootModifierManager");
+        var allModifiers = managerType.getMethod("getAllLootMods");
+        var codecField = modifierType.getField("DIRECT_CODEC");
+        if (!inspectionApiSupported(getter, handlerType, managerType, allModifiers, modifierType, codecField))
+            throw new IllegalStateException("Global loot modifier inspection API signature changed");
+        getter.setAccessible(true);
+        Object manager = Objects.requireNonNull(invoke(getter, null), "Global loot modifier manager not ready");
+        if (manager.getClass() != managerType) throw new IllegalStateException("Custom global loot modifier manager is not audited");
+        var modifiers = (Collection<?>) Objects.requireNonNull(invoke(allModifiers, manager), "Global loot modifiers are not ready");
+        Codec<Object> codec = (Codec<Object>) Objects.requireNonNull(codecField.get(null), "Global loot modifier codec is not ready");
+        var ops = inputs.server().registries().compositeAccess().createSerializationContext(JsonOps.INSTANCE);
+        List<Modifier> result = new ArrayList<>();
+        for (Object modifier : modifiers) {
+            if (!modifierType.isInstance(modifier)) throw new IllegalStateException("Global loot modifier implementation no longer matches its interface");
+            var apply = modifier.getClass().getMethod("apply", it.unimi.dsi.fastutil.objects.ObjectArrayList.class,
+                    net.minecraft.world.level.storage.loot.LootContext.class);
+            if (java.lang.reflect.Modifier.isStatic(apply.getModifiers())
+                    || apply.getReturnType() != it.unimi.dsi.fastutil.objects.ObjectArrayList.class)
+                throw new IllegalStateException("Global loot modifier apply signature changed");
+            var encoded = codec.encodeStart(ops, modifier);
+            var definition = encoded.isSuccess() ? encoded.getOrThrow().getAsJsonObject() : new JsonObject();
+            result.add(new Modifier(modifier.getClass().getName(), definition,
+                    "Unsupported runtime modifier output; base block-harvest contract is recorded separately"
+                            + encoded.error().map(e -> ": " + e.message()).orElse(""),
+                    encoded.isSuccess() ? BlockLootModifierAudit.captureRule(modifier.getClass().getName(), inputs) : BlockLootModifierAudit.Rule.UNKNOWN,
+                    apply.getDeclaringClass().getName().equals("net.neoforged.neoforge.common.loot.LootModifier")));
+        }
+        // Runtime order remains available in diagnostics; it is not executed or assumed commutative.
+        return List.copyOf(result);
+    }
+    static boolean inspectionApiSupported(Method getter, Class<?> handlerType, Class<?> managerType,
+                                          Method allModifiers, Class<?> modifierType, Field codecField) {
+        return getter.getDeclaringClass() == handlerType && getter.getName().equals("getLootModifierManager")
+                && java.lang.reflect.Modifier.isStatic(getter.getModifiers()) && getter.getParameterCount() == 0
+                && getter.getReturnType() == managerType
+                && allModifiers.getDeclaringClass() == managerType && allModifiers.getName().equals("getAllLootMods")
+                && !java.lang.reflect.Modifier.isStatic(allModifiers.getModifiers()) && allModifiers.getParameterCount() == 0
+                && allModifiers.getReturnType() == Collection.class
+                && codecField.getDeclaringClass() == modifierType && codecField.getName().equals("DIRECT_CODEC")
+                && java.lang.reflect.Modifier.isStatic(codecField.getModifiers())
+                && java.lang.reflect.Modifier.isFinal(codecField.getModifiers()) && codecField.getType() == Codec.class;
+    }
+    private static Object invoke(Method method, Object receiver) throws ReflectiveOperationException {
+        try { return method.invoke(receiver); }
+        catch (InvocationTargetException failure) {
+            Throwable cause = failure.getCause();
+            if (cause instanceof RuntimeException runtime) throw runtime;
+            if (cause instanceof Error fatal) throw fatal;
+            throw failure;
+        }
     }
     static void mark(Map<ResourceLocation, JsonObject> tables, List<Modifier> modifiers, List<String> lootrExtensions) {
         for (var entry : tables.entrySet()) {

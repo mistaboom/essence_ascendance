@@ -862,7 +862,7 @@ public final class AscendanceNexusScreen
         renderSkillScrollIndicators(graphics, tree, viewport, scroll);
     }
 
-    private List<SkillChoiceFrame> skillChoiceFrames(
+    private static List<SkillChoiceFrame> skillChoiceFrames(
             List<SkillDefinition> definitions,
             NexusSkillTreeLayout.Layout tree,
             UiBounds viewport,
@@ -954,7 +954,7 @@ public final class AscendanceNexusScreen
         return List.copyOf(frames);
     }
 
-    private void addSkillChoiceFrame(
+    private static void addSkillChoiceFrame(
             List<SkillChoiceFrame> frames,
             List<NexusSkillTreeLayout.Node> members,
             UiBounds viewport,
@@ -1045,13 +1045,13 @@ public final class AscendanceNexusScreen
         for (Map.Entry<ResourceLocation, Rect> entry : boundsById.entrySet()) {
             obstacles.add(new SkillRouteObstacle(
                     entry.getValue(),
-                    Set.of(entry.getKey())
+                    Set.of(entry.getKey()), false
             ));
         }
         for (SkillChoiceFrame frame : choiceFrames) {
             obstacles.add(new SkillRouteObstacle(
                     frame.bounds(),
-                    frame.memberIds()
+                    frame.memberIds(), true
             ));
         }
 
@@ -1070,7 +1070,7 @@ public final class AscendanceNexusScreen
         // Prerequisites are rendered first so the distinctive replacement
         // route remains legible anywhere two independent routes meet.
         for (NexusSkillTreeLayout.Node node : tree.nodes()) {
-            for (ResourceLocation prerequisiteId : node.definition().prerequisites()) {
+            for (ResourceLocation prerequisiteId : node.definition().prerequisiteRanks(node.definition().maximumRank()).keySet()) {
                 SkillConnection connection = new SkillConnection(
                         prerequisiteId,
                         node.definition().id()
@@ -1360,7 +1360,7 @@ public final class AscendanceNexusScreen
             ResourceLocation prerequisiteId,
             NexusSkillTreeLayout.Layout tree
     ) {
-        for (ResourceLocation siblingId : child.prerequisites()) {
+        for (ResourceLocation siblingId : child.prerequisiteRanks(child.maximumRank()).keySet()) {
             if (siblingId.equals(prerequisiteId)) {
                 continue;
             }
@@ -1386,7 +1386,7 @@ public final class AscendanceNexusScreen
         if (node == null || !visited.add(node.definition().id())) {
             return false;
         }
-        for (ResourceLocation prerequisiteId : node.definition().prerequisites()) {
+        for (ResourceLocation prerequisiteId : node.definition().prerequisiteRanks(node.definition().maximumRank()).keySet()) {
             if (prerequisiteId.equals(ancestorId)) {
                 return true;
             }
@@ -1493,7 +1493,7 @@ public final class AscendanceNexusScreen
         }
     }
 
-    private ConnectionEndpoints centeredConnectionEndpoints(
+    private static ConnectionEndpoints centeredConnectionEndpoints(
             Rect parent,
             Rect child
     ) {
@@ -1522,7 +1522,7 @@ public final class AscendanceNexusScreen
         );
     }
 
-    private boolean directSkillGeometryAllowed(
+    private static boolean directSkillGeometryAllowed(
             ConnectionPoint start,
             ConnectionPoint end
     ) {
@@ -1540,7 +1540,7 @@ public final class AscendanceNexusScreen
      * six-pixel ports. Crowded fan-outs keep local legs together before their
      * farther-tier legs; smaller fan-outs follow endpoint vertical order.
      */
-    private int skillPortOffset(
+    private static int skillPortOffset(
             int routeIndex,
             boolean parentEndpoint,
             List<SkillRoute> routes,
@@ -1659,7 +1659,7 @@ public final class AscendanceNexusScreen
         return doubledOffset * SKILL_ROUTE_LANE_SPACING / 2;
     }
 
-    private boolean usesRightPort(
+    private static boolean usesRightPort(
             ResourceLocation nodeId,
             ResourceLocation otherId,
             Map<ResourceLocation, Rect> boundsById
@@ -1669,7 +1669,23 @@ public final class AscendanceNexusScreen
         return node.left() <= other.left();
     }
 
-    private List<ConnectionPoint> routeSkillOrthogonally(
+    private static List<ConnectionPoint> routeSkillOrthogonally(
+            ConnectionPoint start,
+            ConnectionPoint end,
+            SkillConnection connection,
+            Map<ResourceLocation, Rect> boundsById,
+            List<SkillRouteObstacle> obstacles,
+            List<SkillRouteSegment> occupiedSegments,
+            Set<SkillRoutePort> crowdedDiagonalPorts
+    ) {
+        var route = searchSkillRoute(start, end, connection, boundsById, obstacles, occupiedSegments, crowdedDiagonalPorts);
+        // Crowded edges may cross, but a required connection must not disappear.
+        if (route.isEmpty() && !occupiedSegments.isEmpty())
+            route = searchSkillRoute(start, end, connection, boundsById, obstacles, List.of(), crowdedDiagonalPorts);
+        return route;
+    }
+
+    private static List<ConnectionPoint> searchSkillRoute(
             ConnectionPoint start,
             ConnectionPoint end,
             SkillConnection connection,
@@ -1879,7 +1895,7 @@ public final class AscendanceNexusScreen
         return compactSkillRoute(reversed);
     }
 
-    private int skillRouteStubLength(
+    private static int skillRouteStubLength(
             ConnectionPoint endpoint,
             Rect endpointBounds,
             boolean spreadCrowdedFanOut
@@ -1897,7 +1913,7 @@ public final class AscendanceNexusScreen
         );
     }
 
-    private List<Integer> skillRouteGridXs(
+    private static List<Integer> skillRouteGridXs(
             ConnectionPoint start,
             ConnectionPoint end,
             Map<ResourceLocation, Rect> boundsById
@@ -1936,7 +1952,7 @@ public final class AscendanceNexusScreen
         return List.copyOf(coordinates);
     }
 
-    private List<Integer> skillRouteGridYs(
+    private static List<Integer> skillRouteGridYs(
             ConnectionPoint start,
             ConnectionPoint end,
             List<SkillRouteObstacle> obstacles,
@@ -1973,7 +1989,7 @@ public final class AscendanceNexusScreen
         return List.copyOf(coordinates);
     }
 
-    private int interpolatedSkillRouteY(
+    private static int interpolatedSkillRouteY(
             ConnectionPoint start,
             ConnectionPoint end,
             int x
@@ -1988,7 +2004,7 @@ public final class AscendanceNexusScreen
         );
     }
 
-    private List<ConnectionPoint> fallbackOrthogonalRoute(
+    private static List<ConnectionPoint> fallbackOrthogonalRoute(
             ConnectionPoint start,
             ConnectionPoint gridStart,
             ConnectionPoint gridEnd,
@@ -2048,7 +2064,7 @@ public final class AscendanceNexusScreen
         return List.of();
     }
 
-    private List<ConnectionPoint> compactSkillRoute(
+    private static List<ConnectionPoint> compactSkillRoute(
             List<ConnectionPoint> route
     ) {
         List<ConnectionPoint> compact = new ArrayList<>(route.size());
@@ -2076,7 +2092,7 @@ public final class AscendanceNexusScreen
         return List.copyOf(compact);
     }
 
-    private boolean skillRouteIsClear(
+    private static boolean skillRouteIsClear(
             List<ConnectionPoint> route,
             List<SkillRouteObstacle> obstacles,
             SkillConnection connection,
@@ -2096,7 +2112,7 @@ public final class AscendanceNexusScreen
         return true;
     }
 
-    private boolean skillRouteSegmentIsClear(
+    private static boolean skillRouteSegmentIsClear(
             ConnectionPoint from,
             ConnectionPoint to,
             List<SkillRouteObstacle> obstacles,
@@ -2104,15 +2120,14 @@ public final class AscendanceNexusScreen
             int clearance
     ) {
         for (SkillRouteObstacle obstacle : obstacles) {
-            if (obstacle.endpointIds().contains(connection.parent())
-                    || obstacle.endpointIds().contains(connection.child())) {
-                continue;
-            }
+            boolean endpoint = obstacle.endpointIds().contains(connection.parent())
+                    || obstacle.endpointIds().contains(connection.child());
+            if (endpoint && obstacle.choiceFrame()) continue;
             if (lineIntersectsRect(
                     from,
                     to,
                     obstacle.bounds(),
-                    clearance
+                    endpoint ? 0 : clearance
             )) {
                 return false;
             }
@@ -2120,7 +2135,7 @@ public final class AscendanceNexusScreen
         return true;
     }
 
-    private boolean skillRouteConflictsWithOccupied(
+    private static boolean skillRouteConflictsWithOccupied(
             List<ConnectionPoint> route,
             List<SkillRouteSegment> occupiedSegments
     ) {
@@ -2136,7 +2151,7 @@ public final class AscendanceNexusScreen
         return false;
     }
 
-    private int skillRouteInteractionPenalty(
+    private static int skillRouteInteractionPenalty(
             ConnectionPoint from,
             ConnectionPoint to,
             List<SkillRouteSegment> occupiedSegments
@@ -2214,7 +2229,7 @@ public final class AscendanceNexusScreen
         return penalty;
     }
 
-    private double skillRouteSegmentDistanceSquared(
+    private static double skillRouteSegmentDistanceSquared(
             ConnectionPoint firstStart,
             ConnectionPoint firstEnd,
             ConnectionPoint secondStart,
@@ -2256,7 +2271,7 @@ public final class AscendanceNexusScreen
         );
     }
 
-    private double pointSegmentDistanceSquared(
+    private static double pointSegmentDistanceSquared(
             ConnectionPoint point,
             ConnectionPoint start,
             ConnectionPoint end
@@ -2283,7 +2298,7 @@ public final class AscendanceNexusScreen
                 + pointDeltaY * pointDeltaY;
     }
 
-    private int intervalOverlap(
+    private static int intervalOverlap(
             int firstStart,
             int firstEnd,
             int secondStart,
@@ -2300,7 +2315,7 @@ public final class AscendanceNexusScreen
         return Math.max(0, end - start);
     }
 
-    private boolean sharesEndpoint(
+    private static boolean sharesEndpoint(
             ConnectionPoint firstStart,
             ConnectionPoint firstEnd,
             ConnectionPoint secondStart,
@@ -2312,7 +2327,7 @@ public final class AscendanceNexusScreen
                 || firstEnd.equals(secondEnd);
     }
 
-    private boolean lineSegmentsIntersect(
+    private static boolean lineSegmentsIntersect(
             ConnectionPoint firstStart,
             ConnectionPoint firstEnd,
             ConnectionPoint secondStart,
@@ -2340,7 +2355,7 @@ public final class AscendanceNexusScreen
                 && pointWithinSegment(firstEnd, secondStart, secondEnd);
     }
 
-    private boolean pointWithinSegment(
+    private static boolean pointWithinSegment(
             ConnectionPoint point,
             ConnectionPoint start,
             ConnectionPoint end
@@ -2351,7 +2366,7 @@ public final class AscendanceNexusScreen
                 && point.y() <= Math.max(start.y(), end.y());
     }
 
-    private long orientation(
+    private static long orientation(
             ConnectionPoint start,
             ConnectionPoint end,
             ConnectionPoint point
@@ -2360,7 +2375,7 @@ public final class AscendanceNexusScreen
                 - (long) (end.y() - start.y()) * (point.x() - start.x());
     }
 
-    private boolean lineIntersectsRect(
+    private static boolean lineIntersectsRect(
             ConnectionPoint start,
             ConnectionPoint end,
             Rect rect,
@@ -2514,7 +2529,9 @@ public final class AscendanceNexusScreen
         boolean canScrollRight = scroll.maximumX() > 0.0
                 && scroll.x() < scroll.maximumX();
 
-        if (canScrollLeft || canScrollRight) {
+        boolean canScrollUp = scroll.y() > 0.0;
+        boolean canScrollDown = scroll.y() < scroll.maximumY();
+        if (canScrollLeft || canScrollRight || canScrollUp || canScrollDown) {
             int arrowY = (viewport.y() + viewport.bottom()
                     - SKILL_SCROLL_ARROW_HEIGHT) / 2;
 
@@ -2546,26 +2563,24 @@ public final class AscendanceNexusScreen
                             "›"
                     );
                 }
+                int centerX = (viewport.x() + viewport.right()) / 2;
+                if (canScrollUp) renderVerticalSkillScrollArrow(graphics, centerX,
+                        viewport.y() + SKILL_SCROLL_ARROW_INSET + SKILL_SCROLL_ARROW_WIDTH / 2, "‹");
+                if (canScrollDown) renderVerticalSkillScrollArrow(graphics, centerX,
+                        viewport.bottom() - SKILL_SCROLL_ARROW_INSET - SKILL_SCROLL_ARROW_WIDTH / 2, "›");
                 graphics.flush();
             } finally {
                 graphics.pose().popPose();
             }
         }
-        if (tree.contentHeight() > viewport.height()) {
-            String progress = EssenceText.gui(
-                    "nexus.skills.scroll_position",
-                    (int) Math.round(scroll.y()),
-                    tree.contentHeight() - viewport.height()
-            ).getString();
-            graphics.drawString(
-                    font,
-                    StyledTextLayout.fitPlain(font, progress, Math.max(1, viewport.width() - 8)),
-                    viewport.x() + 4,
-                    viewport.bottom() - font.lineHeight - 2,
-                    DIM,
-                    false
-            );
-        }
+    }
+
+    private void renderVerticalSkillScrollArrow(GuiGraphics graphics, int centerX, int centerY, String glyph) {
+        graphics.pose().pushPose();
+        graphics.pose().translate(centerX, centerY, 0);
+        graphics.pose().mulPose(com.mojang.math.Axis.ZP.rotationDegrees(90));
+        renderSkillScrollArrow(graphics, -SKILL_SCROLL_ARROW_WIDTH / 2, -SKILL_SCROLL_ARROW_HEIGHT / 2, glyph);
+        graphics.pose().popPose();
     }
 
     private void renderSkillScrollArrow(
@@ -2637,12 +2652,11 @@ public final class AscendanceNexusScreen
         return viewport;
     }
 
-    private Rect skillNodeBounds(
+    private static Rect skillNodeBounds(
             NexusSkillTreeLayout.Node node,
             UiBounds viewport,
             FullscreenViewport scroll
     ) {
-        NexusSkillTreeLayout.Layout tree = skillLayout(node.definition().essenceId());
         int left = scroll.pixelOriginX(true) + node.x();
         int top = scroll.pixelOriginY(true) + node.y();
         return new Rect(
@@ -4846,7 +4860,8 @@ public final class AscendanceNexusScreen
 
     private record SkillRouteObstacle(
             Rect bounds,
-            Set<ResourceLocation> endpointIds
+            Set<ResourceLocation> endpointIds,
+            boolean choiceFrame
     ) {
     }
 

@@ -62,7 +62,12 @@ public final class SavedEvidenceRegenerator {
             throw new IllegalArgumentException("Saved evidence digest mismatch");
         EconomyGenerator.validate(economy);
         EconomyGenerator.validateWhole(economy);
-        RuntimeBalanceDefinition runtime = RuntimeBalanceDefinition.generate(evidence, economy, inputs.settings(), inputs.overrides());
+        var generation = metadata.has("generation") ? metadata.getAsJsonObject("generation") : new JsonObject();
+        var competition = new com.mistaboom.essence_ascendance.balance.runtime.AdaptiveCompetitionCalibration(evidence,
+                generation.has("competitiveCapabilities") ? generation.getAsJsonObject("competitiveCapabilities") : null);
+        RuntimeBalanceDefinition runtime = com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceGenerator.generate(
+                evidence, economy, inputs.settings(), inputs.overrides(), competition);
+        generation.add("adaptiveBalance", competition.complete(runtime)); metadata.add("generation", generation);
         metadata.remove("diagnosticOnly");
         metadata.addProperty("generatorRevision", GeneratedBalanceService.GENERATION_REVISION);
         metadata.addProperty("runtimeRebuild", "Saved pack evidence and economy replay; no world opened, no evidence recollected, no live gameplay observed");

@@ -15,10 +15,20 @@ public final class EvidenceSink {
     private final Map<String, EvidenceFact> resolved = new TreeMap<>();
     private final List<String> warnings = new ArrayList<>();
     private final Map<String, Integer> providerPriorities;
+    private final EvidenceSink baseline;
     private long conflicts;
 
     public EvidenceSink() { this(Map.of()); }
-    public EvidenceSink(Map<String, Integer> providerPriorities) { this.providerPriorities = Map.copyOf(providerPriorities); }
+    public EvidenceSink(Map<String, Integer> providerPriorities) { this(providerPriorities, null); }
+    private EvidenceSink(Map<String, Integer> providerPriorities, EvidenceSink baseline) {
+        this.providerPriorities = Map.copyOf(providerPriorities); this.baseline = baseline;
+    }
+    /** A provider writes to this detached sink; failed hooks cannot leak partial facts. */
+    public EvidenceSink staged() { return new EvidenceSink(providerPriorities, this); }
+    public void merge(EvidenceSink completed) {
+        completed.facts.forEach(this::add);
+        warnings.addAll(completed.warnings);
+    }
     public void add(EvidenceFact fact) {
         Integer replacement = providerPriorities.get(fact.provider());
         if (replacement != null && fact.origin() != EvidenceFact.Origin.OVERRIDE) {
@@ -32,7 +42,9 @@ public final class EvidenceSink {
         });
     }
     public EvidenceFact get(EvidenceFact.Subject subject, String id, String property) {
-        return resolved.get(subject + ":" + id + ":" + property);
+        EvidenceFact local = resolved.get(subject + ":" + id + ":" + property);
+        EvidenceFact inherited = baseline == null ? null : baseline.get(subject, id, property);
+        return local == null ? inherited : inherited == null || PREFERENCE.compare(local, inherited) >= 0 ? local : inherited;
     }
     public double number(EvidenceFact.Subject subject, String id, String property, double fallback) {
         EvidenceFact f = get(subject, id, property);
@@ -47,7 +59,8 @@ public final class EvidenceSink {
         return f != null && f.value().type() == EvidenceFact.ValueType.TEXT ? f.value().text() : fallback;
     }
     public List<EvidenceFact> facts() {
-        return facts.stream().sorted(Comparator.comparing(EvidenceFact::key).thenComparing(PREFERENCE)).toList();
+        return java.util.stream.Stream.concat(baseline == null ? java.util.stream.Stream.empty() : baseline.facts().stream(), facts.stream())
+                .sorted(Comparator.comparing(EvidenceFact::key).thenComparing(PREFERENCE)).toList();
     }
     public void warn(String warning) { warnings.add(warning); }
     public List<String> warnings() { return warnings.stream().sorted().distinct().toList(); }

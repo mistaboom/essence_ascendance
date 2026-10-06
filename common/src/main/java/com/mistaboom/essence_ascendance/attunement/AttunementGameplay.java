@@ -378,9 +378,10 @@ public final class AttunementGameplay {
     public static void beginHarvest(ServerPlayer player, BlockPos position, BlockState state, boolean container) {
         HARVEST.get().push(new HarvestFrame(player, position.immutable(), state, action("harvest"), container, beginExertion(player, "harvest")));
     }
-    public static void spawnedHarvest(Entity entity) {
+    public static void spawnedHarvest(Entity entity, boolean spawned) {
+        if (!spawned || !(entity instanceof ItemEntity item)) return;
         HarvestFrame frame = HARVEST.get().peek();
-        if (frame != null && entity instanceof ItemEntity item) frame.value += value(item.getItem());
+        if (frame != null) frame.drops.observe(item.level(), item.getUUID(), item.position(), true, () -> value(item.getItem()));
     }
     public static void finishHarvest(boolean completed) {
         Deque<HarvestFrame> frames = HARVEST.get();
@@ -391,10 +392,11 @@ public final class AttunementGameplay {
             if (!completed || frame.container) return;
             boolean crop = PlayerAttributedBlockHarvestService.isEligibleMatureCrop(frame.state);
             if (!crop && PlayerAttributedBlockHarvestService.isCrop(frame.state)) return;
+            double value = frame.drops.complete(true);
             award(frame.player, frame.root, crop ? "harvest_crops" : "gather_resource_blocks",
-                    BuiltInRegistries.BLOCK.getKey(frame.state.getBlock()).toString(), frame.value);
-            if (frame.value > 0) exert(frame.player, "harvest");
-        } finally { endExertion(frame.exertion); }
+                    BuiltInRegistries.BLOCK.getKey(frame.state.getBlock()).toString(), value);
+            if (value > 0) exert(frame.player, "harvest");
+        } finally { frame.drops.complete(false); endExertion(frame.exertion); }
     }
     /** Installed generated payout already incorporates yield eligibility, farm and conservation policy. */
     public static double value(ItemStack stack) {
@@ -441,9 +443,10 @@ public final class AttunementGameplay {
     }
     private static final class HarvestFrame {
         final ServerPlayer player; final BlockPos position; final BlockState state; final String root; final boolean container;
-        final ExertionScope exertion; double value;
+        final ExertionScope exertion; final CommittedHarvestDrops drops;
         HarvestFrame(ServerPlayer player, BlockPos position, BlockState state, String root, boolean container, ExertionScope exertion) {
             this.player = player; this.position = position; this.state = state; this.root = root; this.container = container; this.exertion = exertion;
+            this.drops = new CommittedHarvestDrops(player.level(), position);
         }
     }
     private static final class DamageFrame {

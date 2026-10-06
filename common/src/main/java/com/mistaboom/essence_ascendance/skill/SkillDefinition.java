@@ -89,6 +89,13 @@ public record SkillDefinition(
 
     public ProgressionRequirements.Skill progressionRequirements() { return ProgressionRequirements.skill(id); }
 
+    /** Immutable author placement, independent of installed or candidate balance. */
+    public ResourceLocation catalogRequiredTierId() { return requiredTierId; }
+
+    @Override public ResourceLocation requiredTierId() {
+        return com.mistaboom.essence_ascendance.skill.balance.SkillBalanceRuntime.resolvedRequiredTier(id, requiredTierId);
+    }
+
     public boolean hasLiveRequirements() {
         return requirements.stream().anyMatch(SkillRequirement::live);
     }
@@ -110,7 +117,7 @@ public record SkillDefinition(
 
     /** Later ranks inherit earlier gates unless the same requirement identity is explicitly refined. */
     public ResourceLocation requiredTierId(int rank) {
-        ResourceLocation result = requiredTierId;
+        ResourceLocation result = requiredTierId();
         int order = com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry.get(result).orElseThrow().order();
         for (int value = 1; value <= rank; value++) {
             var gates = rankPolicy.rankGates().get(value);

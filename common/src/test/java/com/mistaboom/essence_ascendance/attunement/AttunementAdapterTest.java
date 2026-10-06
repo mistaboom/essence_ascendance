@@ -11,11 +11,14 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.Bootstrap;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayerGameMode;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.tags.BlockTags;
+import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.food.FoodData;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ClickType;
@@ -25,9 +28,17 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.CropBlock;
 import net.minecraft.world.level.block.entity.BrewingStandBlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.entity.ComparatorBlockEntity;
+import net.minecraft.world.level.block.entity.FurnaceBlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.function.DoubleSupplier;
 
 /** Real mapped ItemStack, block-state, installed valuation and native adapter boundary invariants.
  * These do not assert mixin transformation or live server gameplay, which require loader smoke/acceptance. */
@@ -37,20 +48,50 @@ public final class AttunementAdapterTest {
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap(); EssenceTypes.init();
         ItemEssenceMappingRegistry.installResolved(Map.of(
                 BuiltInRegistries.ITEM.getKey(Items.COAL), Map.of(EssenceTypes.GATHERING, FractionalAmountService.SCALE / 4),
+                BuiltInRegistries.ITEM.getKey(Items.WHEAT_SEEDS), Map.of(EssenceTypes.GATHERING, 117 * FractionalAmountService.SCALE),
+                BuiltInRegistries.ITEM.getKey(Items.WHEAT), Map.of(),
                 BuiltInRegistries.ITEM.getKey(Items.COBBLESTONE), Map.of()),
                 new ItemEssenceMappingRegistry.LoadSummary(0, 0, 0, 0, 0, List.of()), () -> {});
         check(AttunementGameplay.value(new ItemStack(Items.COAL, 8)) == 2, "Actual output counts preserve generated fractional value");
         check(AttunementGameplay.value(new ItemStack(Items.COBBLESTONE, 64)) == 0, "Suppressed cobblestone cannot regain value in adapter");
         check(AttunementGameplay.value(new ItemStack(Items.DIAMOND, 64)) == 0, "Unmapped item has no invented fallback payout");
         check(AttunementGameplay.value(ItemStack.EMPTY) == 0, "No empty harvest or fishing result");
+        committedHarvestReceipts();
 
-        BuiltInRegistries.BLOCK.bindTags(Map.of(BlockTags.CROPS, List.of(Blocks.WHEAT.builtInRegistryHolder()),
-                PlayerAttributedBlockHarvestService.CROP_YIELD_EXCLUDED, List.of(Blocks.MELON_STEM.builtInRegistryHolder())));
+        BuiltInRegistries.BLOCK.bindTags(Map.of(
+                BlockTags.CROPS, List.of(Blocks.WHEAT.builtInRegistryHolder(), Blocks.COCOA.builtInRegistryHolder(),
+                        Blocks.CARROTS.builtInRegistryHolder(), Blocks.OAK_LOG.builtInRegistryHolder()),
+                PlayerAttributedBlockHarvestService.CROP_YIELD_ELIGIBLE, List.of(Blocks.STONE.builtInRegistryHolder(),
+                        Blocks.ATTACHED_MELON_STEM.builtInRegistryHolder()),
+                PlayerAttributedBlockHarvestService.CROP_YIELD_EXCLUDED, List.of(Blocks.MELON_STEM.builtInRegistryHolder(),
+                        Blocks.CARROTS.builtInRegistryHolder())));
         CropBlock wheat = (CropBlock) Blocks.WHEAT;
         check(!PlayerAttributedBlockHarvestService.isEligibleMatureCrop(wheat.defaultBlockState()), "Immature crops cannot produce harvest credit");
         check(PlayerAttributedBlockHarvestService.isCrop(wheat.defaultBlockState()), "Immature crop cannot fall through to resource mining");
         check(PlayerAttributedBlockHarvestService.isEligibleMatureCrop(wheat.getStateForAge(wheat.getMaxAge())), "Mature crop farms remain eligible without skills or equipment");
         check(!PlayerAttributedBlockHarvestService.isEligibleMatureCrop(Blocks.MELON_STEM.defaultBlockState()), "Excluded stems cannot become crop credit");
+        check(PlayerAttributedBlockHarvestService.isEligibleCropBlock(Blocks.WHEAT), "Generation recognizes a mature crop even when its default state is immature");
+        check(!PlayerAttributedBlockHarvestService.isEligibleMatureCrop(Blocks.COCOA.defaultBlockState()), "Generic age-property crop starts immature");
+        check(PlayerAttributedBlockHarvestService.isEligibleCropBlock(Blocks.COCOA), "Generation shares generic maximum-age crop eligibility");
+        check(!PlayerAttributedBlockHarvestService.isEligibleCropBlock(Blocks.CARROTS), "Explicit exclusion wins over a mature native crop");
+        check(!PlayerAttributedBlockHarvestService.isEligibleCropBlock(Blocks.ATTACHED_MELON_STEM), "Explicit opt-in cannot admit an attached stem");
+        check(PlayerAttributedBlockHarvestService.isEligibleCropBlock(Blocks.STONE), "Explicit age-less opt-in is shared by gameplay and saved evidence");
+        check(!PlayerAttributedBlockHarvestService.isEligibleCropBlock(Blocks.OAK_LOG), "A broad crops tag alone cannot admit an age-less block");
+        check(!PlayerAttributedBlockHarvestService.isEligibleCropBlock(null), "Missing block produces no crop eligibility proof");
+        BlockState matureWheat = wheat.getStateForAge(wheat.getMaxAge());
+        // Valid native metadata-only entity exercises the storage-interface boundary without
+        // registering a synthetic type after bootstrap. The state is the captured harvest state.
+        BlockEntity cropMetadata = new ComparatorBlockEntity(BlockPos.ZERO, Blocks.COMPARATOR.defaultBlockState());
+        check(!PlayerAttributedBlockHarvestService.blocksPlayerHarvest(matureWheat, cropMetadata), "A mature crop's metadata entity does not suppress harvest credit or yield");
+        check(PlayerAttributedBlockHarvestService.blocksPlayerHarvest(wheat.defaultBlockState(), cropMetadata), "Immature crop metadata cannot bypass maturity");
+        CropBlock carrots = (CropBlock) Blocks.CARROTS;
+        check(PlayerAttributedBlockHarvestService.blocksPlayerHarvest(carrots.getStateForAge(carrots.getMaxAge()), cropMetadata), "Crop metadata cannot bypass explicit exclusions");
+        check(PlayerAttributedBlockHarvestService.blocksPlayerHarvest(Blocks.ATTACHED_MELON_STEM.defaultBlockState(), cropMetadata), "Crop metadata cannot bypass stem exclusion");
+        check(PlayerAttributedBlockHarvestService.blocksPlayerHarvest(Blocks.DIRT.defaultBlockState(), cropMetadata), "An unrelated block entity retains conservative harvest exclusion");
+        check(!PlayerAttributedBlockHarvestService.blocksPlayerHarvest(Blocks.DIRT.defaultBlockState(), null), "Ordinary resource blocks without metadata remain eligible");
+        var furnace = new FurnaceBlockEntity(BlockPos.ZERO, Blocks.FURNACE.defaultBlockState());
+        check(PlayerAttributedBlockHarvestService.blocksPlayerHarvest(matureWheat, furnace), "Native stored inventory is excluded even when the supplied state passes crop eligibility");
+        check(PlayerAttributedBlockHarvestService.blocksPlayerHarvest(matureWheat, new MenuCropMetadata()), "Menu-only block entities cannot bypass stored-content protection");
 
         ItemStack input = new ItemStack(Items.COAL, 8);
         check(AttunementWorkstations.consumed(input, input.copy()) == 0, "Preview/no input mutation has no completed input consumption");
@@ -105,11 +146,71 @@ public final class AttunementAdapterTest {
         Player.class.getDeclaredMethod("getXpNeededForNextLevel");
         FoodData.class.getDeclaredMethod("tick", Player.class);
         ServerPlayerGameMode.class.getDeclaredMethod("destroyBlock", BlockPos.class);
+        check(ServerLevel.class.getDeclaredMethod("addFreshEntity", net.minecraft.world.entity.Entity.class).getReturnType() == boolean.class,
+                "Shared server insertion boundary reports actual spawn success");
         ServerGamePacketListenerImpl.class.getDeclaredMethod("handleMovePlayer", net.minecraft.network.protocol.game.ServerboundMovePlayerPacket.class);
         AbstractContainerMenu.class.getDeclaredMethod("clicked", int.class, int.class, ClickType.class, Player.class);
         BrewingStandBlockEntity.class.getDeclaredMethod("doBrew", Level.class, BlockPos.class, NonNullList.class);
         checks += 11;
         System.out.println("AttunementAdapterTest: " + checks + " checks passed (native mixin/gameplay acceptance separate)");
+    }
+    private static void committedHarvestReceipts() {
+        Object level = new Object(), foreignLevel = new Object();
+        BlockPos root = new BlockPos(-7, 64, -9);
+        Vec3 local = new Vec3(-6.75, 64.75, -8.5);
+        DoubleSupplier unvalued = () -> { throw new AssertionError("Unrelated/rejected/duplicate drop must not resolve valuation"); };
+        var drops = new CommittedHarvestDrops(level, root);
+        ItemStack finalSeeds = new ItemStack(Items.WHEAT_SEEDS, 1);
+        finalSeeds.setCount(3); // A captured drop may be changed before the final successful spawn.
+        drops.observe(level, new UUID(0, 1), local, true, () -> AttunementGameplay.value(new ItemStack(Items.WHEAT, 1)));
+        drops.observe(level, new UUID(0, 2), local, true, () -> AttunementGameplay.value(finalSeeds));
+        drops.observe(level, new UUID(0, 2), local, true, unvalued);
+        drops.observe(foreignLevel, new UUID(0, 3), local, true, unvalued);
+        drops.observe(level, new UUID(0, 3), local.add(1, 0, 0), true, unvalued);
+        drops.observe(level, new UUID(0, 3), local, false, unvalued);
+        drops.observe(level, new UUID(0, 3), local, true, () -> AttunementGameplay.value(new ItemStack(Items.COAL, 8)));
+        drops.observe(level, new UUID(0, 4), new Vec3(Double.NaN, 64, -9), true, unvalued);
+        drops.observe(level, new UUID(0, 5), new Vec3(-7, Double.POSITIVE_INFINITY, -9), true, unvalued);
+        drops.observe(level, new UUID(0, 6), new Vec3(-7, 64, Double.NEGATIVE_INFINITY), true, unvalued);
+        drops.observe(level, null, local, true, unvalued);
+        drops.observe(level, new UUID(0, 7), local, true, () -> Double.NaN);
+        drops.observe(level, new UUID(0, 8), local, true, () -> Double.POSITIVE_INFINITY);
+        drops.observe(level, new UUID(0, 9), local, true, () -> -1);
+        check(drops.complete(true) == 353, "Committed wheat/seeds use final installed payouts and fractions, once per local entity; invalid spawns contribute nothing");
+        check(drops.complete(true) == 0, "Repeated completion cannot award the same harvest twice");
+        drops.observe(level, new UUID(0, 10), local, true, unvalued);
+        check(drops.complete(true) == 0, "Closed harvest cannot absorb a later spawn");
+
+        var canceled = new CommittedHarvestDrops(level, root);
+        canceled.observe(level, new UUID(0, 11), local, true, () -> AttunementGameplay.value(finalSeeds));
+        check(canceled.complete(false) == 0, "Failed block destruction discards even successfully spawned items");
+        check(canceled.complete(true) == 0, "A canceled harvest cannot later be credited");
+
+        var parent = new CommittedHarvestDrops(level, root);
+        var child = new CommittedHarvestDrops(level, root.above());
+        parent.observe(level, new UUID(0, 12), local, true, () -> 1);
+        child.observe(level, new UUID(0, 13), local.add(0, 1, 0), true, () -> 2);
+        parent.observe(level, new UUID(0, 14), local, true, () -> 3);
+        check(child.complete(true) == 2 && parent.complete(true) == 4, "Nested scopes keep independent receipts while the parent resumes");
+
+        var mutablePosition = root.mutable();
+        var pinned = new CommittedHarvestDrops(level, mutablePosition);
+        mutablePosition.move(100, 0, 0);
+        pinned.observe(level, new UUID(0, 15), new Vec3(-7, 64, -9), true, () -> 1);
+        pinned.observe(level, new UUID(0, 16), new Vec3(-6, 64, -9), true, unvalued);
+        check(pinned.complete(true) == 1, "Scope pins the original block; adjacent and relocated positions do not gain credit");
+        var bounded = new CommittedHarvestDrops(level, root);
+        bounded.observe(level, new UUID(0, 17), local, true, () -> Double.MAX_VALUE);
+        bounded.observe(level, new UUID(0, 18), local, true, () -> Double.MAX_VALUE);
+        check(bounded.complete(true) == (double) Long.MAX_VALUE, "Large finite installed payouts remain bounded");
+        AttunementGameplay.spawnedHarvest(null, false);
+        AttunementGameplay.spawnedHarvest(null, true);
+        AttunementGameplay.finishHarvest(false);
+    }
+    private static final class MenuCropMetadata extends BlockEntity implements MenuProvider {
+        private MenuCropMetadata() { super(BlockEntityType.SIGN, BlockPos.ZERO, Blocks.OAK_SIGN.defaultBlockState()); }
+        @Override public Component getDisplayName() { return Component.literal("Crop metadata menu fixture"); }
+        @Override public AbstractContainerMenu createMenu(int windowId, Inventory inventory, Player player) { return null; }
     }
     private static void check(boolean value, String message) { checks++; if (!value) throw new AssertionError(message); }
 }

@@ -36,6 +36,13 @@ loom {
 
 // Executable invariant suites use the real mapped Minecraft classpath and add no test library.
 def balanceInvariantMains = [
+        adaptiveCompetitionInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.AdaptiveCompetitionCalibrationTest',
+        skillAccessInvariants: 'com.mistaboom.essence_ascendance.skill.balance.SkillAccessTest',
+        skillProgressionPolicyInvariants: 'com.mistaboom.essence_ascendance.skill.balance.SkillProgressionPolicyTest',
+        gatheringGrowthInvariants: 'com.mistaboom.essence_ascendance.gathering.GatheringGrowthTest',
+        configuredRecipeAccessInvariants: 'com.mistaboom.essence_ascendance.balance.engine.ConfiguredRecipeAccessTest',
+        starterTemplateEvidenceInvariants: 'com.mistaboom.essence_ascendance.balance.engine.StarterTemplateEvidenceTest',
+        generatedSkillAvailabilityInvariants: 'com.mistaboom.essence_ascendance.balance.generated.GeneratedSkillAvailabilityTest',
         competitiveCapabilitiesInvariants: 'com.mistaboom.essence_ascendance.balance.engine.CompetitiveCapabilitiesTest',
         balanceLootAcquisitionInvariants: 'com.mistaboom.essence_ascendance.valuation.LootAcquisitionTest',
         balanceLootAuditMemoryInvariants: 'com.mistaboom.essence_ascendance.valuation.LootAuditMemoryTest',
@@ -98,6 +105,7 @@ def balanceInvariantMains = [
         balanceDocumentStreamingInvariants: 'com.mistaboom.essence_ascendance.balance.generated.BalanceDocumentStreamingTest',
         balancePerformanceInvariants: 'com.mistaboom.essence_ascendance.balance.generated.BalancePerformanceTest',
         balanceRecipeReadinessInvariants: 'com.mistaboom.essence_ascendance.balance.generated.GenerationRecipeReadinessTest',
+        balanceRuntimeLootContractInvariants: 'com.mistaboom.essence_ascendance.valuation.RuntimeLootAuditContractTest',
         balanceKubeRecipeIdInvariants: 'com.mistaboom.essence_ascendance.balance.generated.StableKubeRecipeIdsTest',
         balanceRuntimePackInvariants: 'com.mistaboom.essence_ascendance.balance.generated.StableRuntimePackResourcesTest',
         balanceStructureTemplateInvariants: 'com.mistaboom.essence_ascendance.valuation.StructureTemplateScanTest',
@@ -145,6 +153,8 @@ balanceInvariantMains.each { taskName, className ->
         dependsOn tasks.named('testClasses')
         classpath = sourceSets.test.runtimeClasspath
         mainClass = className
+        if (taskName == 'adaptiveCompetitionInvariants' && rootProject.hasProperty('adaptiveValidationOutput'))
+            args rootProject.property('adaptiveValidationOutput')
         if (taskName == 'balanceLootAcquisitionInvariants' && rootProject.hasProperty('lootModifierFixture'))
             args rootProject.file(rootProject.property('lootModifierFixture')).absolutePath
         if (taskName == 'balanceLootAuditMemoryInvariants') {
@@ -191,7 +201,7 @@ def nativeShapeTasks = [
         'postureNativeHookShapeInvariants', 'statusNativeHookShapeInvariants', 'guardNativeHookShapeInvariants'
 ]
 // Full generated-profile sweeps/replays are intentionally expensive and have a named opt-in owner.
-def generationTasks = ['balanceIntegrationInvariants', 'balanceRuntimeInvariants', 'balanceAscensionPolicyInvariants',
+def generationTasks = ['adaptiveCompetitionInvariants', 'balanceIntegrationInvariants', 'balanceRuntimeInvariants', 'balanceAscensionPolicyInvariants',
                        'nativeEquipmentHeadroomInvariants', 'balanceDocumentStreamingInvariants']
 tasks.register('lightweightInvariants', JavaExec) {
     group = 'verification'
@@ -291,10 +301,16 @@ tasks.register('questDefinitionReplay', JavaExec) {
     doFirst {
         if (!rootProject.hasProperty('balanceFtbModsDir') || !rootProject.hasProperty('balanceQuestDefinitions'))
             throw new GradleException('Supply -PbalanceFtbModsDir and -PbalanceQuestDefinitions')
-        classpath += files(rootProject.file(rootProject.property('balanceFtbModsDir')).toPath()
-                .resolve('ftb-library-neoforge-2101.1.36.jar').toFile())
+        def libraryVersion = rootProject.findProperty('balanceFtbLibraryVersion') ?: '2101.1.36'
+        if (!(libraryVersion in ['2101.1.35', '2101.1.36']))
+            throw new GradleException('Quest replay requires an audited FTB Library version')
+        def libraryJar = rootProject.file(rootProject.property('balanceFtbModsDir')).toPath()
+                .resolve("ftb-library-neoforge-${libraryVersion}.jar").toFile()
+        if (!libraryJar.isFile()) throw new GradleException("Quest replay library is missing: ${libraryJar}")
+        classpath += files(libraryJar)
         args rootProject.property('balanceQuestDefinitions'),
-                rootProject.layout.buildDirectory.dir('chat06-quest-definition-replay').get().asFile.absolutePath
+                rootProject.findProperty('balanceReplayOutput') ?: rootProject.layout.buildDirectory.dir('chat06-quest-definition-replay').get().asFile.absolutePath,
+                rootProject.findProperty('balanceFtbQuestVersion') ?: '2101.1.36'
     }
 }
 
@@ -423,3 +439,15 @@ tasks.register('sharedPresentationInvariants', JavaExec) {
     mainClass = 'com.mistaboom.essence_ascendance.client.SharedPresentationTest'
 }
 tasks.named('balanceInvariants') { dependsOn 'sharedPresentationInvariants' }
+
+// Isolated all-skill reference receipt; never reads or modifies a live world/profile.
+tasks.register('skillProgressionAudit', JavaExec) {
+    group = 'development tools'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.mistaboom.essence_ascendance.skill.balance.SkillProgressionAudit'
+    doFirst {
+        args rootProject.file(rootProject.findProperty('skillAuditOutput') ?: 'build/procedural-skill-audit/current.json').absolutePath
+        if (rootProject.hasProperty('skillAuditProfile')) args rootProject.file(rootProject.property('skillAuditProfile')).absolutePath
+    }
+}

@@ -46,4 +46,22 @@ final class GenerationLootEvidence {
         if (object.has(CONTAINER_UNRESOLVED) && object.get(CONTAINER_UNRESOLVED).getAsBoolean()) return 1;
         return object.entrySet().stream().mapToInt(field -> unresolvedFunctions(field.getValue())).sum();
     }
+
+    /** The entity acquisition scenario is a player kill with no equipment enchantments.
+     * Native EnchantedCountIncreaseFunction returns the original stack at level zero, before
+     * reading its count provider or applying its cap. This does not certify enchanted yields,
+     * container loot, failed serialization, custom functions or arbitrary callback behavior. */
+    static int unresolvedUnenchantedEntityFunctions(JsonElement functions) {
+        if (functions == null || functions.isJsonNull() || functions.isJsonPrimitive()) return 0;
+        if (functions.isJsonArray()) return functions.getAsJsonArray().asList().stream()
+                .mapToInt(GenerationLootEvidence::unresolvedUnenchantedEntityFunctions).sum();
+        var object = functions.getAsJsonObject();
+        if (object.has(UNRESOLVED) && object.get(UNRESOLVED).getAsBoolean()) return 1;
+        if (object.has("function") && object.get("function").getAsString().equals("minecraft:enchanted_count_increase")
+                && object.has("enchantment") && object.has("count")
+                && (!object.has("conditions") || object.getAsJsonArray("conditions").isEmpty())
+                && java.util.Set.of("function", "enchantment", "count", "limit", "conditions", CONTAINER_UNRESOLVED,
+                        "essence_evidence_failure").containsAll(object.keySet())) return 0;
+        return unresolvedFunctions(functions);
+    }
 }

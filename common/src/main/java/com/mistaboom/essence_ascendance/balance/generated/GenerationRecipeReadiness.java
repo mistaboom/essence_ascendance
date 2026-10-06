@@ -3,13 +3,15 @@ package com.mistaboom.essence_ascendance.balance.generated;
 import dev.architectury.platform.Mod;
 import dev.architectury.platform.Platform;
 import net.minecraft.server.MinecraftServer;
+import com.mistaboom.essence_ascendance.balance.engine.OptionalIntegration;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 import java.util.Objects;
+import java.util.Set;
 
 /** Completes audited late recipe publication only when generating a new balance profile. */
-final class GenerationRecipeReadiness {
+public final class GenerationRecipeReadiness {
     static final String MOD_ID = "ars_unification";
     static final String AUDITED_VERSION = "1.2.21";
     private static final EpochGate GATE = new EpochGate();
@@ -19,7 +21,7 @@ final class GenerationRecipeReadiness {
 
     private GenerationRecipeReadiness() {}
 
-    /** New generation must wait for complete recipes; loading a saved profile never enters this path. */
+    /** Prepare optional late recipes; unavailable integration evidence is excluded from generation. */
     static void requireGenerationReady(MinecraftServer server) {
         requireServerThread(server);
         String version = Platform.getMods().stream().filter(mod -> MOD_ID.equals(mod.getModId()))
@@ -37,6 +39,12 @@ final class GenerationRecipeReadiness {
 
     static void clear() { GATE.clear(); }
     static com.google.gson.JsonObject diagnostics() { return GATE.diagnostics(); }
+
+    /** All recipe consumers share this exclusion, while the current server/resource epoch stays mandatory. */
+    public static Set<String> excludedRecipeNamespaces(MinecraftServer server) {
+        requireServerThread(server);
+        return GATE.excludedRecipeNamespaces(server, server.getResourceManager(), server.getRecipeManager());
+    }
 
     private static void requireServerThread(MinecraftServer server) {
         if (!server.isSameThread()) throw new IllegalStateException("Recipe preparation must run on the server thread");
@@ -126,30 +134,44 @@ final class GenerationRecipeReadiness {
         private String version;
         private Result result;
         private long preparationNanos;
+        private boolean completed;
 
         Result prepare(Object server, Object resources, Object recipes, String version, Preparation preparation) {
             Objects.requireNonNull(server); Objects.requireNonNull(resources); Objects.requireNonNull(recipes);
             if (matches(server, resources, recipes) && Objects.equals(this.version, version)
-                    && result != null && result.ready()) return result;
+                    && completed && result != null && result.ready()) return result;
             this.server = server; this.resources = resources; this.recipes = recipes; this.version = version;
             // Invalidate any previous success before calling code that may fail or publish only part of its recipes.
+            completed = false;
             result = Result.unavailable("recipe preparation has not completed");
-            if (version == null) return result = new Result(true, "Optional dependency absent", com.mistaboom.essence_ascendance.balance.engine.ProviderReadiness.Status.ABSENT);
+            if (version == null) return complete(new Result(true, "Optional dependency absent", com.mistaboom.essence_ascendance.balance.engine.ProviderReadiness.Status.ABSENT));
             if (!AUDITED_VERSION.equals(version))
-                return result = new Result(false, Result.unavailable("unsupported version " + version + "; audited " + AUDITED_VERSION).unavailableInput(),
-                        com.mistaboom.essence_ascendance.balance.engine.ProviderReadiness.Status.UNSUPPORTED);
-            try {
-                return result = Objects.requireNonNull(preparation.run());
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError error) {
-                return result = Result.failed(error.getClass().getSimpleName()
-                        + (error.getMessage() == null ? "" : ": " + error.getMessage()));
-            }
+                return complete(new Result(false, Result.unavailable("unsupported version " + version + "; audited " + AUDITED_VERSION).unavailableInput(),
+                        com.mistaboom.essence_ascendance.balance.engine.ProviderReadiness.Status.UNSUPPORTED));
+            var attempted = OptionalIntegration.attempt(MOD_ID, "early recipe preparation", () -> {
+                try { return Objects.requireNonNull(preparation.run()); }
+                catch (ReflectiveOperationException failure) { throw new IllegalStateException(failure.getClass().getSimpleName()
+                        + (failure.getMessage() == null ? "" : ": " + failure.getMessage()), failure); }
+            });
+            return complete(attempted.value().orElseGet(() -> Result.failed(attempted.failure())));
+        }
+
+        private Result complete(Result prepared) {
+            result = prepared;
+            completed = true;
+            if (!result.ready()) OptionalIntegration.warn(MOD_ID, result.unavailableInput()
+                    + "; recipes owned by " + MOD_ID + " are excluded from this generation");
+            return result;
         }
 
         void requireReady(Object server, Object resources, Object recipes) {
-            if (!matches(server, resources, recipes) || result == null)
+            if (!matches(server, resources, recipes) || !completed || result == null)
                 throw new IllegalStateException("Balance generation requires recipe preparation for the current server resources");
-            if (!result.ready()) throw new IllegalStateException("Balance generation deferred: " + result.unavailableInput());
+        }
+
+        Set<String> excludedRecipeNamespaces(Object server, Object resources, Object recipes) {
+            requireReady(server, resources, recipes);
+            return result.ready() ? Set.of() : Set.of(MOD_ID);
         }
 
         private boolean matches(Object server, Object resources, Object recipes) {
@@ -163,9 +185,13 @@ final class GenerationRecipeReadiness {
             row.addProperty("status", result == null ? "NOT_READY" : result.status().name());
             row.addProperty("ready", result != null && result.status() == com.mistaboom.essence_ascendance.balance.engine.ProviderReadiness.Status.AVAILABLE);
             row.addProperty("detail", result == null ? "Not prepared" : result.unavailableInput()); row.addProperty("preparationNanos", preparationNanos);
-            row.addProperty("provenance", "Audited early recipe publication; quantities are included in the effective recipe snapshot, not emitted as capability facts");
+            row.addProperty("evidenceExcluded", completed && result != null && !result.ready());
+            var excluded = new com.google.gson.JsonArray();
+            if (completed && result != null && !result.ready()) excluded.add(MOD_ID);
+            row.add("excludedRecipeNamespaces", excluded);
+            row.addProperty("provenance", "Audited early recipe publication; unavailable integration namespaces are excluded from the shared effective recipe snapshot");
             return row;
         }
-        void clear() { server = null; resources = null; recipes = null; version = null; result = null; preparationNanos = 0; }
+        void clear() { server = null; resources = null; recipes = null; version = null; result = null; preparationNanos = 0; completed = false; }
     }
 }

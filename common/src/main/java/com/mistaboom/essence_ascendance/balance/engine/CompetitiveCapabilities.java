@@ -17,7 +17,11 @@ public final class CompetitiveCapabilities {
         CapabilitySink sink = new CapabilitySink();
         try (var phase = BalancePerformance.phase("competitive_capabilities")) {
             equipment(equipment, resources, sink, sharedFacts);
-            NativeCapabilityReader.collect(context, resources, sink);
+            OptionalIntegration.attempt("native_capabilities", "collect", () -> {
+                CapabilitySink staged = new CapabilitySink(); NativeCapabilityReader.collect(context, resources, staged); return staged;
+            }).value().ifPresentOrElse(sink::merge,
+                    () -> sink.candidate("native_capabilities", "native_capabilities", "Native compatibility read failed; partial capabilities excluded",
+                            Set.of(), CapabilitySink.Reason.READ_FAILED));
             production(context.inputs().production(), resources, sink);
             for (CapabilityEvidence source : declared) {
                 sink.analyzed();
@@ -27,21 +31,30 @@ public final class CompetitiveCapabilities {
                 sink.add(new Functional(source, "declared", measured, sources(resources, source.subjectId()), false));
             }
             for (PackEvidenceProvider provider : providers) {
-                int before = sink.evidence().size();
-                runs.run("evidence", provider, "competitive_capabilities", () -> { provider.collectCapabilities(context, resources, sink); return true; });
-                runs.emitted("evidence", provider, sink.evidence().size() - before, 0, .8);
+                int before = sink.evidenceCount();
+                runs.collect("evidence", provider, "competitive_capabilities", CapabilitySink::new,
+                        staged -> provider.collectCapabilities(context, resources, staged), sink::merge);
+                runs.emitted("evidence", provider, sink.evidenceCount() - before, 0, .8);
             }
             for (PackEvidenceProvider provider : com.mistaboom.essence_ascendance.balance.capability.InstalledCapabilityProviders.all()) {
                 if (!runs.prepare("capability", provider, GenerationProviders.disabled(provider.id(), context.overrides()))) {
-                    if (provider.dependencyModIds().stream().allMatch(id -> context.inputs().installedVersion(id) != null))
-                        sink.candidate(provider.id(), provider.id(), "Installed adapter unavailable/unsupported/disabled; see provider readiness");
+                    if (runs.status("capability", provider) == ProviderReadiness.Status.FAILED
+                            || runs.status("capability", provider) == ProviderReadiness.Status.DISABLED
+                            || runs.dependenciesInstalled("capability", provider))
+                        sink.candidate(provider.id(), provider.id(), runs.detail("capability", provider),
+                                runs.capabilityAxes("capability", provider), runs.unavailableReason("capability", provider));
                     continue;
                 }
-                int before = sink.evidence().size();
-                runs.run("capability", provider, "collect", () -> { provider.collectCapabilities(context, resources, sink); return true; });
-                runs.emitted("capability", provider, sink.evidence().size() - before, 0, .8);
+                int before = sink.evidenceCount();
+                if (!runs.collect("capability", provider, "collect", CapabilitySink::new,
+                        staged -> provider.collectCapabilities(context, resources, staged), sink::merge))
+                    sink.candidate(provider.id(), provider.id(), "Failed compatibility read excluded; see provider diagnostics",
+                            runs.capabilityAxes("capability", provider), CapabilitySink.Reason.READ_FAILED);
+                runs.emitted("capability", provider, sink.evidenceCount() - before, 0, .8);
             }
-            return report(sink, context.settings().outlierPolicy().name());
+            JsonObject report = report(sink, context.settings().outlierPolicy().name());
+            report.add("providerDiagnostics", runs.capabilityDiagnostics());
+            return report;
         }
     }
     /** Explicit development replay of accepted saved facts; never invoked by saved-profile startup/export. */
@@ -64,6 +77,8 @@ public final class CompetitiveCapabilities {
         result.add("frontiers", BalanceDocument.GSON.toJsonTree(frontiers));
         result.add("candidates", BalanceDocument.GSON.toJsonTree(sink.candidates()));
         result.add("unsupportedCounts", BalanceDocument.GSON.toJsonTree(sink.unsupportedCounts()));
+        result.add("candidateCoverage", BalanceDocument.GSON.toJsonTree(sink.candidateCoverage()));
+        result.add("unscopedCandidateReasons", BalanceDocument.GSON.toJsonTree(sink.unscopedCandidateReasons()));
         result.add("nativeDefinitions", BalanceDocument.GSON.toJsonTree(sink.definitions()));
         Map<String, Long> counts = new TreeMap<>(sink.counts()); counts.put("frontierCount", (long)frontiers.size());
         result.add("counts", BalanceDocument.GSON.toJsonTree(counts));
@@ -109,11 +124,20 @@ public final class CompetitiveCapabilities {
         ResourceEvidence resource = resources.get(id);
         if (resource == null || !resource.reachable() || !resource.external()) return new Placement(ProgressionBand.APEX, false, 0, List.of());
         List<AcquisitionSource> proven = resource.sources().stream().filter(s -> s.kind() != AcquisitionSource.Kind.ADMINISTRATIVE
+                // The source snapshot uses ENTRY placeholders for recipe/machine rows. Those rows
+                // describe ingredients, not a solved route band. Supplied-block actions also are not
+                // independent natural access. Only independent source opportunities may lower placement.
+                && s.kind() != AcquisitionSource.Kind.RECIPE && s.kind() != AcquisitionSource.Kind.MACHINE
+                && s.kind() != AcquisitionSource.Kind.PLAYER_ACTION
                 && s.expectedOutput() > 0 && s.confidence() >= .5 && (s.availability() == null || s.availability().accessProven()))
                 .sorted(Comparator.comparing(AcquisitionSource::stage).thenComparing(AcquisitionSource::id)).toList();
         ProgressionBand stage = proven.isEmpty() ? resource.stage() : proven.getFirst().stage();
         // Shared solver reachability remains the proof; uncertainty stays on the original source records.
-        return new Placement(stage, true, resource.confidence(), proven.stream().filter(s -> s.stage() == stage).limit(3).toList());
+        List<AcquisitionSource> witnesses = proven.isEmpty() ? resource.sources().stream()
+                .filter(s -> s.kind() != AcquisitionSource.Kind.ADMINISTRATIVE && s.expectedOutput() > 0 && s.confidence() >= .5
+                        && (s.availability() == null || s.availability().accessProven())).limit(3).toList()
+                : proven.stream().filter(s -> s.stage() == stage).limit(3).toList();
+        return new Placement(stage, true, resource.confidence(), witnesses);
     }
     private static List<AcquisitionSource> sources(Map<String, ResourceEvidence> resources, String id) { return placement(resources, id).acquisition(); }
     public static Measurement measurement(CapabilityAxis axis, Double magnitude, String unit, String applies, Scope scope,

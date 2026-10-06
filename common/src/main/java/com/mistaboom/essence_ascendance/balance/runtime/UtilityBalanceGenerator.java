@@ -56,10 +56,10 @@ final class UtilityBalanceGenerator {
         double relayDuration = odds(power(settings, SkillIds.POTION_RELAY, CapabilityAxis.CONVENIENCE));
         int relayTargets = relay.contributions().stream().mapToInt(SkillBalanceSemantics.Contribution::targets).max().orElse(1);
 
-        double sanctuaryConvenience = power(settings, SkillIds.SANCTUARY, CapabilityAxis.CONVENIENCE);
+        double sanctuaryConvenience = power(settings, SkillIds.SANCTUARY, CapabilityAxis.SPAWN_SUPPRESSION);
         int sanctuaryDisengageTicks = ticks(window / Math.max(Math.ulp(1.0), 1.0 + Math.max(0, sanctuaryConvenience)));
 
-        double industriousThroughput = power(settings, SkillIds.INDUSTRIOUS_PRESENCE, CapabilityAxis.THROUGHPUT);
+        double industriousThroughput = power(settings, SkillIds.INDUSTRIOUS_PRESENCE, CapabilityAxis.BLOCK_ENTITY_ACCELERATION);
         double industriousMultiplier = 1.0 + Math.max(0, industriousThroughput);
 
         return new UtilityBalanceSettings(

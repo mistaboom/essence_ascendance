@@ -17,8 +17,4 @@ public record ProviderReadiness(Status status, String version, String detail, bo
     }
     public static ProviderReadiness available() { return new ProviderReadiness(Status.AVAILABLE, "unknown", "Loaded data supported"); }
     public boolean collectable() { return status == Status.AVAILABLE || status == Status.PARTIALLY_SUPPORTED; }
-    public void requireSafe(String id, boolean required) {
-        if (required && (!collectable() || !requiredEvidenceComplete) && status != Status.ABSENT && status != Status.DISABLED)
-            throw new IllegalStateException("Balance generation rejected by provider " + id + " [" + status + "]: " + detail);
-    }
 }

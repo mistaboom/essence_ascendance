@@ -77,10 +77,11 @@ public final class NexusSkillTreeLayout {
         Map<ResourceLocation, MutableNode> byId = new LinkedHashMap<>();
         for (int index = 0; index < stableDefinitions.size(); index++) {
             SkillDefinition definition = stableDefinitions.get(index);
-            int column = tierColumns.getOrDefault(definition.requiredTierId(), 0);
+            Integer column = tierColumns.get(definition.requiredTierId(1));
+            if (column == null) throw new IllegalArgumentException("Unknown/unpowered skill layout tier: " + definition.id());
             MutableNode node = new MutableNode(definition, column, index);
             graphNodes.add(node);
-            byId.putIfAbsent(definition.id(), node);
+            if (byId.putIfAbsent(definition.id(), node) != null) throw new IllegalArgumentException("Duplicate skill layout node: " + definition.id());
         }
 
         UnionFind families = new UnionFind(graphNodes.size());
@@ -92,7 +93,7 @@ public final class NexusSkillTreeLayout {
         // Prerequisites and replacements are directional when drawn, but both
         // imply undirected branch/family affinity for vertical layout.
         for (MutableNode node : graphNodes) {
-            for (ResourceLocation prerequisiteId : node.definition.prerequisites()) {
+            for (ResourceLocation prerequisiteId : node.definition.prerequisiteRanks(node.definition.maximumRank()).keySet()) {
                 addRelation(
                         byId.get(prerequisiteId),
                         node,
@@ -501,8 +502,8 @@ public final class NexusSkillTreeLayout {
     }
 
     private static boolean visiblyConnected(MutableNode left, MutableNode right) {
-        return left.definition.prerequisites().contains(right.definition.id())
-                || right.definition.prerequisites().contains(left.definition.id())
+        return left.definition.prerequisiteRanks(left.definition.maximumRank()).containsKey(right.definition.id())
+                || right.definition.prerequisiteRanks(right.definition.maximumRank()).containsKey(left.definition.id())
                 || left.definition.replacementTargetId()
                 .filter(right.definition.id()::equals)
                 .isPresent()

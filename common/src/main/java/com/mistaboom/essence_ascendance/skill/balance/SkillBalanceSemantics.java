@@ -302,7 +302,7 @@ public final class SkillBalanceSemantics {
         all.add(skill(SkillIds.MINING_MOMENTUM, multi(MINING_SPEED, .6))
                 .equipment(Equipment.ASCENDANCE_TOOL).actions(Action.MINE).availability(.7, .9)
                 .condition("Uninterrupted mining rhythm, especially repeated material"));
-        all.add(skill(SkillIds.NATURES_BOON, flat(DROP_YIELD, .65), capability(AUTOMATION_INTERACTION, .7))
+        all.add(skill(SkillIds.NATURES_BOON, flat(DROP_YIELD, .65), capability(PASSIVE_GENERATION, .7))
                 .equipment(Equipment.ASCENDANCE_TOOL).actions(Action.MINE).availability(.45, .7)
                 .condition("Matching natural dimension stone can generate local ores; requires economy conservation analysis"));
         all.add(skill(SkillIds.ORE_SIGHT, capability(INFORMATION, .65))
@@ -317,10 +317,10 @@ public final class SkillBalanceSemantics {
         all.add(skill(SkillIds.TORCHBEARER, flat(CONVENIENCE, .45))
                 .equipment(Equipment.ASCENDANCE_TOOL).actions(Action.MINE).availability(.5, .9).cost(.2)
                 .condition("Dark mining locations consume a carried hotbar torch"));
-        all.add(skill(SkillIds.VERDANT_STRIDE, flat(CROP_YIELD, .55), capability(CONVENIENCE, .25))
+        all.add(skill(SkillIds.VERDANT_STRIDE, flat(CROP_ACCELERATION, .55), flat(TREE_ACCELERATION, .25), capability(CONVENIENCE, .25))
                 .actions(Action.MOVE).availability(.6, .9).area(4)
                 .condition("Nearby crop growth and trampling prevention; farming throughput interaction"));
-        all.add(skill(SkillIds.HERDKEEPER, flat(THROUGHPUT, .5))
+        all.add(skill(SkillIds.HERDKEEPER, flat(ANIMAL_ACCELERATION, .5))
                 .actions(Action.BREED).availability(.5, .9).area(8).condition("Livestock proximity and breeding recovery"));
         all.add(skill(SkillIds.ANIMAL_GIFT, flat(DROP_YIELD, .5), capability(AUTOMATION_INTERACTION, .65))
                 .actions(Action.BREED).availability(.45, .8).cost(.15).area(8)
@@ -365,9 +365,9 @@ public final class SkillBalanceSemantics {
                 .condition("Shares reduced beneficial effect duration with nearby allies; solo target count is one"));
         // Vanilla natural spawning already excludes the nearest 24 blocks. Sanctuary keeps the original
         // 16-block design as an added protected ring, so its generated effective radius starts at 40.
-        all.add(skill(SkillIds.SANCTUARY, capability(CONVENIENCE, .8))
+        all.add(skill(SkillIds.SANCTUARY, capability(SPAWN_SUPPRESSION, .8), capability(MOB_REPULSION, .5))
                 .availability(.8, 1).area(40).condition("Enabled toggle, beacon milestone; extends the natural hostile-spawn exclusion and persistently pacifies disengaged hostiles until the player resumes hostile combat"));
-        all.add(skill(SkillIds.INDUSTRIOUS_PRESENCE, multi(THROUGHPUT, .65), capability(AUTOMATION_INTERACTION, .6))
+        all.add(skill(SkillIds.INDUSTRIOUS_PRESENCE, multi(BLOCK_ENTITY_ACCELERATION, .65), capability(AUTOMATION_INTERACTION, .6))
                 .actions(Action.PROCESS).availability(.65, 1).area(8)
                 .condition("Enabled proximity processing toggle; finite loaded block work and economy throughput budget"));
         all.add(skill(SkillIds.CONTAINMENT_FIELD, capability(CONVENIENCE, .65), flat(BURST_SURVIVAL, .45))

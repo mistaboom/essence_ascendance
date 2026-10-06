@@ -158,11 +158,14 @@ public final class RuntimeAscensionPolicyTest {
     private static void sourceReachability(PackEvidence base, RuntimeBalanceDefinition runtime) {
         check(runtime.attunement().assumptions().stream().anyMatch(text -> text.contains("no positive FARMING")), "Missing family evidence lost its explicit fallback diagnostic");
         for (var kind : List.of(AcquisitionSource.Kind.FARMING, AcquisitionSource.Kind.FISHING)) {
-            var source = new AcquisitionSource("test:" + kind.name().toLowerCase(java.util.Locale.ROOT), kind, ProgressionBand.ENTRY, 1,
+            var source = new AcquisitionSource("test:" + kind.name().toLowerCase(java.util.Locale.ROOT),
+                    kind == AcquisitionSource.Kind.FARMING ? AcquisitionSource.Kind.PLAYER_ACTION : kind, ProgressionBand.ENTRY, 1,
                     true, false, 0, 1, List.of(), "Declared ordinary player-operated source fixture");
             var resource = new ResourceEvidence("test:output", ProgressionBand.ENTRY, Availability.RENEWABLE_MANUAL,
                     Automation.PLAYER_GATED, true, true, 1, 1, List.of(source), List.of());
-            var evidence = new PackEvidence(Map.of(resource.itemId(), resource), base.equipment(), base.enemies(), base.frontiers(), base.facts(), base.warnings(), base.graphSummary(), base.capabilities());
+            var facts = new java.util.ArrayList<>(base.facts());
+            if (kind == AcquisitionSource.Kind.FARMING) facts.add(cropEligibility(source.id(), true, 0));
+            var evidence = new PackEvidence(Map.of(resource.itemId(), resource), base.equipment(), base.enemies(), base.frontiers(), facts, base.warnings(), base.graphSummary(), base.capabilities());
             var suppressed = new EconomyProfile(Map.of(resource.itemId(), new EconomyProfile.ResourceValue(new EconomicValue(1),
                     DissolutionYield.of(0), Map.of(), List.of())), List.of(), List.of(), List.of(), 1, EconomyProcessingPolicy.defaults());
             try {
@@ -177,7 +180,32 @@ public final class RuntimeAscensionPolicyTest {
             var chapter = generated.chapter(AscendanceTiers.DORMANT.id().toString());
             String activity = kind == AcquisitionSource.Kind.FARMING ? "harvest_crops" : "catch_fish";
             check(chapter.activities().get(activity).referenceUnits() == 2, "Productive family did not use its installed source calibration");
+            if (kind == AcquisitionSource.Kind.FARMING) {
+                var missingWitness = new PackEvidence(evidence.resources(), base.equipment(), base.enemies(), base.frontiers(), base.facts(), base.warnings(), base.graphSummary(), base.capabilities());
+                var historical = AttunementGenerator.generate(missingWitness, suppressed, BalanceSettings.defaults(), runtime.config().balanceProfile());
+                check(historical.assumptions().stream().anyMatch(text -> text.contains("no positive FARMING") && text.contains("saved mature-crop eligibility")),
+                        "Missing saved eligibility did not report conservative calibration");
+                facts.add(cropEligibility(source.id(), false, 100));
+                var excluded = new PackEvidence(evidence.resources(), base.equipment(), base.enemies(), base.frontiers(), facts, base.warnings(), base.graphSummary(), base.capabilities());
+                check(AttunementGenerator.generate(excluded, suppressed, BalanceSettings.defaults(), runtime.config().balanceProfile()) != null,
+                        "Higher-priority crop exclusion was ignored");
+                var biological = new AcquisitionSource("test:animal", AcquisitionSource.Kind.FARMING, ProgressionBand.ENTRY, 1,
+                        true, false, 0, 1, List.of(), "Biological passive output, unrelated to player crop harvesting");
+                var animal = new ResourceEvidence(resource.itemId(), resource.stage(), resource.availability(), resource.automation(),
+                        true, true, 1, 1, List.of(biological), List.of());
+                var animalEvidence = new PackEvidence(Map.of(animal.itemId(), animal), base.equipment(), base.enemies(), base.frontiers(), base.facts(), base.warnings(), base.graphSummary(), base.capabilities());
+                check(AttunementGenerator.generate(animalEvidence, suppressed, BalanceSettings.defaults(), runtime.config().balanceProfile()) != null,
+                        "Suppressed biological FARMING was mistaken for a crop payout");
+                check(suppressed.resources().get(resource.itemId()).dissolutionYield().microUnits() == 0,
+                        "Missing crop evidence manufactured a payout");
+            }
         }
+    }
+    private static EvidenceFact cropEligibility(String id, boolean eligible, int priority) {
+        return new EvidenceFact(EvidenceFact.Subject.BLOCK, id,
+                com.mistaboom.essence_ascendance.equipment.PlayerAttributedBlockHarvestService.CROP_ELIGIBILITY_PROPERTY,
+                EvidenceFact.Value.flag(eligible), "test:crop_eligibility", EvidenceFact.Origin.OBSERVED, 1, priority,
+                ProgressionBand.ENTRY, List.of(), "Saved gameplay eligibility witness");
     }
     /** Optional local acceptance fixture: reads real saved evidence, never rewrites or installs the user's profile. */
     private static void replaySavedEvidence(java.nio.file.Path source, java.nio.file.Path report) throws Exception {

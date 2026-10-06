@@ -26,6 +26,9 @@ public final class RuntimeBalanceTest {
         com.mistaboom.essence_ascendance.equipment.EquipmentProfiles.init();
         var first=RuntimeBalanceDefinition.bootstrap();
         var second=RuntimeBalanceDefinition.bootstrap();
+        for (var grade : first.config().infuserBalance().grades().values())
+            check(grade.infusionThroughputPerSecond() >= first.config().infuserBalance().noFocusInfusionThroughputPerSecond(),
+                    "Generated Focus slows baseline Infuser throughput");
         check(first.toJson().equals(second.toJson()),"Runtime generation was not deterministic");
         check(first.toJson().equals(RuntimeBalanceDefinition.fromJson(first.toJson()).toJson()),"Runtime serialization roundtrip failed");
         JsonObject missing=first.toJson(); missing.getAsJsonObject("statMaxBonuses").remove(EssenceStats.MELEE_DAMAGE.id().toString());

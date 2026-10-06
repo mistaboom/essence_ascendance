@@ -22,13 +22,14 @@ public final class EffectiveProductionTest {
     private static int checks;
     private static HolderLookup.Provider registries;
     private static RecipeSerializer<ChargeFixture> chargeSerializer;
+    private static RecipeSerializer<TagCookingFixture> tagCookingSerializer;
     public static void main(String[] args) throws Exception {
         Thread.currentThread().setUncaughtExceptionHandler((thread, failure) -> failure.printStackTrace(new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.err))));
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap(); registerChargeFixture(); EssenceTypes.init();
         registries = VanillaRegistries.createLookup();
         ValuationGenerationInputs.configure(BalanceOverrides.empty());
         if (args.length == 2 && args[0].equals("--benchmark")) { benchmark(java.nio.file.Path.of(args[1])); return; }
-        effectiveInventory(); unpackedShapedRecipes(); emptyNominalResults(); customCrafting(); unsupportedCustomEncoding(); normalizedFacts(); machineAcquisition();
+        effectiveInventory(); unpackedShapedRecipes(); emptyNominalResults(); customCrafting(); unsupportedCustomEncoding(); unresolvedRuntimeIngredients(); customCooking(); recipeFailureIsolation(); normalizedFacts(); machineAcquisition(); kubeCraftingSemantics();
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println("EffectiveProductionTest: " + checks + " checks PASS");
     }
     private static void benchmark(java.nio.file.Path output) throws Exception {
@@ -86,6 +87,52 @@ public final class EffectiveProductionTest {
         return new RecipeHolder<>(id(id), new ShapelessRecipe("", CraftingBookCategory.MISC, new ItemStack(output, count),
                 NonNullList.of(Ingredient.EMPTY, Ingredient.of(Items.STONE))));
     }
+    /** Mirrors only the audited public getter protocol; no optional KubeJS dependency or script execution. */
+    public static final class PublishedCraftingHooks {
+        private final List<?> actions;
+        private final String callback;
+        private int reads;
+        public PublishedCraftingHooks(List<?> actions, String callback) { this.actions = actions; this.callback = callback; }
+        public List<?> kjs$getIngredientActions() { reads++; return actions; }
+        public String kjs$getModifyResult() { reads++; return callback; }
+    }
+    private static void kubeCraftingSemantics() throws Exception {
+        String version = "2101.7.2-build.374";
+        for (String form : List.of("Shaped", "Shapeless")) {
+            String runtime = "dev.latvian.mods.kubejs.recipe.special." + form + "KubeJSRecipe";
+            var hooks = new PublishedCraftingHooks(List.of(), "");
+            var observed = KubeCraftingSemantics.inspect(runtime, version, hooks);
+            check(observed.audited() && observed.nativeBehavior() && hooks.reads == 2,
+                    "Exact audited " + form + " class reads published empty hooks without executing behavior");
+            JsonObject root = JsonParser.parseString("{\"type\":\"kubejs:" + form.toLowerCase(Locale.ROOT)
+                    + "\",\"projection\":\"native_" + form.toLowerCase(Locale.ROOT)
+                    + "_public_fields\",\"runtime_class\":\"" + runtime
+                    + "\",\"ingredients\":[{\"item\":\"minecraft:paper\"},{\"item\":\"minecraft:paper\"},{\"item\":\"minecraft:paper\"},{\"item\":\"minecraft:leather\"}],\"result\":{\"id\":\"minecraft:book\",\"count\":1}}").getAsJsonObject();
+            if (form.equals("Shaped")) { root.addProperty("width", 2); root.addProperty("height", 2); }
+            KubeCraftingSemantics.annotate(root, observed, version);
+            var process = EffectiveProduction.normalize("fixture:hookless_" + form.toLowerCase(Locale.ROOT), "minecraft:crafting", null, root, registries, null);
+            check(process.acquisitionComplete() && process.conservationComplete() && process.inputs().size() == 4
+                    && process.outputs().getFirst().itemId().equals("minecraft:book") && process.outputs().getFirst().count() == 1,
+                    "Hookless " + form + " retains exact consumed paper/leather inputs and static book output");
+            check(process.metadata().get("behavior_adapter").equals("kubejs:published_crafting_hooks")
+                    && process.metadata().get("behavior_api_version").equals(version), "Audited native behavior is saved as evidence");
+            var copied = BalanceDocument.GSON.fromJson(BalanceDocument.GSON.toJson(process), ProductionGraph.Process.class);
+            check(copied.equals(process), "Hookless behavior evidence survives direct saved graph decode");
+            for (var configured : List.of(new PublishedCraftingHooks(List.of("opaque remainder action"), ""),
+                    new PublishedCraftingHooks(List.of(), "result_callback"))) {
+                var custom = KubeCraftingSemantics.inspect(runtime, version, configured);
+                var definition = root.deepCopy(); KubeCraftingSemantics.annotate(definition, custom, version);
+                var unresolved = EffectiveProduction.normalize("fixture:callback_" + form.toLowerCase(Locale.ROOT), "minecraft:crafting", null, definition, registries, null);
+                check(custom.audited() && !custom.nativeBehavior() && !unresolved.acquisitionComplete()
+                        && !unresolved.conservationComplete(), "Configured " + form + " result/remainder hooks stay advisory");
+            }
+            var unaudited = new PublishedCraftingHooks(List.of(), "");
+            check(!KubeCraftingSemantics.inspect(runtime, "2101.7.3-build.999", unaudited).nativeBehavior() && unaudited.reads == 0,
+                    "Unknown optional API version does not inspect or certify crafting behavior");
+            check(!KubeCraftingSemantics.inspect(runtime + "Subclass", version, unaudited).nativeBehavior() && unaudited.reads == 0,
+                    "Arbitrary inherited subclasses do not bypass custom behavior uncertainty");
+        }
+    }
     private static void unpackedShapedRecipes() {
         var slots = NonNullList.of(Ingredient.EMPTY, Ingredient.EMPTY, Ingredient.of(Items.MILK_BUCKET), Ingredient.EMPTY,
                 Ingredient.of(Items.STONE, Items.DIRT), Ingredient.EMPTY, Ingredient.of(Items.STONE, Items.DIRT));
@@ -141,13 +188,7 @@ public final class EffectiveProductionTest {
         var broken = new ShapedRecipe("fixture:broken", CraftingBookCategory.MISC, pattern, new ItemStack(Items.GOLD_INGOT)) {
             @Override public ItemStack getResultItem(HolderLookup.Provider lookup) { throw new IllegalStateException("fixture thrown getter"); }
         };
-        try {
-            EffectiveProduction.collect(List.of(new RecipeHolder<>(id("fixture:broken"), broken)), registries, mod -> null, (family, reason) -> {});
-            throw new AssertionError("Thrown native field failure bypassed");
-        } catch (IllegalStateException expected) {
-            check(expected.getMessage().contains("fixture:broken") && expected.getMessage().contains("fixture thrown getter"),
-                    "Thrown normalization failures still abort with recipe provenance");
-        }
+        isolatedFailure("fixture:broken", broken, "fixture thrown getter");
     }
     private static void emptyNominalResults() {
         var pattern = ShapedRecipePattern.of(Map.of('X', Ingredient.of(Items.MILK_BUCKET)), "X");
@@ -197,13 +238,7 @@ public final class EffectiveProductionTest {
                 NonNullList.of(Ingredient.EMPTY, Ingredient.of(Items.STONE))) {
             @Override public ItemStack getResultItem(HolderLookup.Provider lookup) { throw new IllegalStateException("fixture getter failure"); }
         };
-        try {
-            EffectiveProduction.collect(List.of(new RecipeHolder<>(id("fixture:broken_shapeless"), broken)), registries, mod -> null, (family, reason) -> {});
-            throw new AssertionError("Thrown shapeless getter failure bypassed");
-        } catch (IllegalStateException expected) {
-            check(expected.getMessage().contains("fixture:broken_shapeless") && expected.getMessage().contains("fixture getter failure"),
-                    "Empty observation handling does not swallow thrown native failures");
-        }
+        isolatedFailure("fixture:broken_shapeless", broken, "fixture getter failure");
     }
     /** Reopen only this isolated fixture JVM's serializer registry; never part of mod/runtime code. */
     private static void registerChargeFixture() throws Exception {
@@ -222,6 +257,18 @@ public final class EffectiveProductionTest {
                 }
                 public net.minecraft.network.codec.StreamCodec<net.minecraft.network.RegistryFriendlyByteBuf, ChargeFixture> streamCodec() {
                     throw new AssertionError("Generation must not execute fixture network serialization");
+                }
+            });
+            tagCookingSerializer = Registry.register(BuiltInRegistries.RECIPE_SERIALIZER, id("fixture:tag_blasting"), new RecipeSerializer<TagCookingFixture>() {
+                public com.mojang.serialization.MapCodec<TagCookingFixture> codec() {
+                    return com.mojang.serialization.codecs.RecordCodecBuilder.mapCodec(instance -> instance.group(
+                            Ingredient.CODEC_NONEMPTY.fieldOf("ingredient").forGetter((TagCookingFixture value) -> value.inputIngredient),
+                            Ingredient.CODEC_NONEMPTY.fieldOf("result").forGetter((TagCookingFixture value) -> value.resultIngredient),
+                            com.mojang.serialization.Codec.INT.fieldOf("cookingtime").forGetter(TagCookingFixture::getCookingTime)
+                    ).apply(instance, TagCookingFixture::new));
+                }
+                public net.minecraft.network.codec.StreamCodec<net.minecraft.network.RegistryFriendlyByteBuf, TagCookingFixture> streamCodec() {
+                    throw new AssertionError("Generation must not execute fixture cooking network serialization");
                 }
             });
         } finally { registry.freeze(); }
@@ -279,13 +326,7 @@ public final class EffectiveProductionTest {
         var broken = new ChargeFixture(Items.GOLD_INGOT, Ingredient.of(Items.STONE), 1) {
             @Override public ItemStack getResultItem(HolderLookup.Provider lookup) { throw new IllegalStateException("fixture custom getter failed"); }
         };
-        try {
-            EffectiveProduction.collect(List.of(new RecipeHolder<>(id("fixture:broken_custom"), broken)), registries, mod -> null, (family, reason) -> {});
-            throw new AssertionError("Thrown custom getter failure bypassed");
-        } catch (IllegalStateException expected) {
-            check(expected.getMessage().contains("fixture:broken_custom") && expected.getMessage().contains("fixture custom getter failed"),
-                    "Custom crafting projection still rejects thrown failures with recipe provenance");
-        }
+        isolatedFailure("fixture:broken_custom", broken, "fixture custom getter failed");
     }
     private static void unsupportedCustomEncoding() {
         var recipe = new ChargeFixture(Items.GOLD_INGOT, Ingredient.of(Items.STONE), 5) {
@@ -325,24 +366,163 @@ public final class EffectiveProductionTest {
             var broken = new ChargeFixture(Items.GOLD_INGOT, Ingredient.of(Items.STONE), 1) {
                 @Override Item serializedTarget() { if (failure instanceof RuntimeException runtime) throw runtime; throw (LinkageError) failure; }
             };
-            try {
-                EffectiveProduction.collect(List.of(new RecipeHolder<>(id("fixture:broken_encoder"), broken)), registries, mod -> null, (family, reason) -> {});
-                throw new AssertionError("Unexpected encoder failure bypassed");
-            } catch (IllegalStateException expected) {
-                check(expected.getMessage().contains("fixture:broken_encoder") && expected.getMessage().contains(failure.getMessage()),
-                        "Unexpected encoder runtime/linkage failures remain strict with recipe provenance");
-            }
+            isolatedFailure("fixture:broken_encoder", broken, failure.getMessage());
         }
         var brokenGetter = new ChargeFixture(Items.GOLD_INGOT, Ingredient.of(Items.STONE), 1) {
             @Override public ItemStack getResultItem(HolderLookup.Provider lookup) { throw new UnsupportedOperationException("fixture required getter unsupported"); }
         };
-        try {
-            EffectiveProduction.collect(List.of(new RecipeHolder<>(id("fixture:unsupported_getter"), brokenGetter)), registries, mod -> null, (family, reason) -> {});
-            throw new AssertionError("Required getter unsupported failure bypassed");
-        } catch (IllegalStateException expected) {
-            check(expected.getMessage().contains("fixture:unsupported_getter") && expected.getMessage().contains("fixture required getter unsupported"),
-                    "Unsupported-operation handling is confined to optional custom serializer encoding");
+        isolatedFailure("fixture:unsupported_getter", brokenGetter, "fixture required getter unsupported");
+    }
+
+    private static void unresolvedRuntimeIngredients() throws Exception {
+        // A runtime ingredient with no encodable value mirrors optional loader ingredients whose
+        // public predicate exists but whose codec type is unavailable. Never invoke its matching/items.
+        Class<?> valueType = Class.forName(Ingredient.class.getName() + "$Value");
+        Object values = Array.newInstance(valueType, 1);
+        Constructor<Ingredient> constructor = Ingredient.class.getDeclaredConstructor(values.getClass());
+        constructor.setAccessible(true);
+        Ingredient opaque = constructor.newInstance(values);
+        var recipe = new ChargeFixture(Items.GOLD_INGOT, Ingredient.of(Items.STONE), 5) {
+            @Override public NonNullList<Ingredient> getIngredients() { return NonNullList.of(Ingredient.EMPTY, charge, opaque); }
+            @Override public ItemStack getResultItem(HolderLookup.Provider lookup) { return new ItemStack(Items.DIAMOND, 3); }
+        };
+        List<String> limitations = new ArrayList<>();
+        ProductionGraph graph;
+        try (var operation = BalancePerformance.begin("fixture_unresolved_runtime_ingredient", "isolated public ingredient projection")) {
+            graph = EffectiveProduction.collect(List.of(new RecipeHolder<>(id("fixture:runtime_ingredient"), recipe),
+                    holder("fixture:healthy_after_ingredient", Items.IRON_INGOT, 2)), registries, mod -> null,
+                    (family, reason) -> limitations.add(reason));
+            operation.complete("advisory_ingredient_projection");
         }
+        var process = graph.processes().stream().filter(p -> p.id().equals("fixture:runtime_ingredient")).findFirst().orElseThrow();
+        JsonObject marker = process.effectiveDefinition().getAsJsonArray("ingredients").get(1).getAsJsonObject();
+        check(graph.processes().size() == 2 && process.inputs().size() == 2 && process.outputs().getFirst().count() == 3,
+                "Unencodable runtime ingredient retains its slot, public nominal result and healthy subsequent recipes");
+        check(marker.get("unresolved_ingredient").getAsBoolean() && marker.has("serialization_failure")
+                && process.inputs().get(1).alternatives().getFirst().startsWith("predicate:"),
+                "Unavailable ingredient codec is saved as an unresolved predicate without fabricated item alternatives");
+        check(!process.acquisitionComplete() && !process.conservationComplete()
+                && ProceduralValuationIndex.productionModels(process, RecipeType.CRAFTING).isEmpty(),
+                "Unresolved ingredient projection cannot seed valuation/acquisition or certify conservation");
+        check(process.effectiveDefinition().getAsJsonObject("serializer_definition").get("charges_per_item").getAsInt() == 5
+                && limitations.size() == 1,
+                "Independent recipe serializer parameters remain available as advisory evidence");
+        check(BalancePerformance.lastSnapshot().counts().get("production_unrepresentable_ingredients") == 1
+                && !BalancePerformance.lastSnapshot().counts().containsKey("production_recipe_normalization_failures"),
+                "Diagnostics distinguish an unavailable ingredient codec from a completely failed recipe");
+        check(BalanceDocument.GSON.fromJson(BalanceDocument.GSON.toJson(graph), ProductionGraph.class).equals(graph),
+                "Unresolved runtime predicate diagnostics survive saved production graph serialization");
+        var ordinary = new ShapelessRecipe("", CraftingBookCategory.MISC, new ItemStack(Items.GOLD_INGOT, 2),
+                NonNullList.of(Ingredient.EMPTY, Ingredient.of(Items.STONE), opaque));
+        var ordinaryProcess = EffectiveProduction.collect(List.of(new RecipeHolder<>(id("fixture:ordinary_runtime_ingredient"), ordinary)),
+                registries, mod -> null, (family, reason) -> {}).processes().getFirst();
+        check(!ordinaryProcess.acquisitionComplete() && !ordinaryProcess.conservationComplete()
+                && ordinaryProcess.inputs().size() == 2 && !ordinaryProcess.effectiveDefinition().has("custom_behavior_unresolved"),
+                "Unresolved ingredient semantics stay incomplete even on an otherwise ordinary vanilla recipe object");
+    }
+
+    /** Mirrors tag cooking's public boundary, including a serializer whose result is an Ingredient. */
+    private static class TagCookingFixture extends BlastingRecipe {
+        final Ingredient inputIngredient, resultIngredient;
+        TagCookingFixture(Ingredient input, Ingredient result, int ticks) {
+            super("fixture:cooking", CookingBookCategory.MISC, input, ItemStack.EMPTY, .7F, ticks);
+            inputIngredient = input; resultIngredient = result;
+        }
+        @Override public ItemStack getResultItem(HolderLookup.Provider lookup) { return resultIngredient.getItems()[0]; }
+        @Override public ItemStack assemble(SingleRecipeInput input, HolderLookup.Provider lookup) {
+            throw new AssertionError("Generation must not execute custom cooking assembly");
+        }
+        @Override public RecipeSerializer<?> getSerializer() { return tagCookingSerializer; }
+    }
+
+    private static void customCooking() throws Exception {
+        var tag = net.minecraft.tags.TagKey.create(Registries.ITEM, id("fixture:cooking_result"));
+        BuiltInRegistries.ITEM.bindTags(Map.of(tag, List.of(Items.GOLD_INGOT.builtInRegistryHolder(), Items.IRON_INGOT.builtInRegistryHolder())));
+        var tagged = new TagCookingFixture(Ingredient.of(Items.STONE), Ingredient.of(tag), 123);
+        var encoded = Recipe.CODEC.encodeStart(net.minecraft.resources.RegistryOps.create(com.mojang.serialization.JsonOps.INSTANCE, registries), tagged)
+                .getOrThrow().getAsJsonObject();
+        check(encoded.getAsJsonObject("result").has("tag") && !encoded.getAsJsonObject("result").has("id"),
+                "Tag cooking fixture reproduces a serializer result predicate without a stack identity");
+        List<String> limitations = new ArrayList<>();
+        var ordinary = new SmeltingRecipe("", CookingBookCategory.MISC, Ingredient.of(Items.STONE), new ItemStack(Items.DIAMOND, 2), .1F, 200);
+        var graph = EffectiveProduction.collect(List.of(new RecipeHolder<>(id("fixture:tagged_cooking"), tagged),
+                new RecipeHolder<>(id("fixture:ordinary_cooking"), ordinary)), registries, mod -> null, (family, reason) -> limitations.add(reason));
+        var process = graph.processes().stream().filter(p -> p.id().equals("fixture:tagged_cooking")).findFirst().orElseThrow();
+        check(process.outputs().size() == 1 && process.outputs().getFirst().itemId().equals("minecraft:gold_ingot")
+                && process.effectiveDefinition().getAsJsonObject("result").get("id").getAsString().equals("minecraft:gold_ingot"),
+                "Custom cooking records the effective public nominal stack without converting its tag to a product");
+        check(!process.acquisitionComplete() && !process.conservationComplete() && process.duration() == 123
+                && process.effectiveDefinition().getAsJsonObject("serializer_definition").equals(encoded)
+                && process.effectiveDefinition().get("runtime_class").getAsString().equals(TagCookingFixture.class.getName()),
+                "Custom cooking preserves exact tag, duration and class while rejecting unproved access/conservation");
+        ValuationGenerationInputs.configure(new BalanceOverrides(List.of(new BalanceOverrides.FactOverride("fixture:cooking_input_source",
+                BalanceOverrides.SubjectKind.ITEM, "minecraft:stone", 1000, Map.of("attainable", true, "resource_value", 80.0), "fixture", 1)), Map.of()));
+        check(!evaluateProcess(process, Items.GOLD_INGOT, RecipeType.BLASTING).modeledAcquisition() && limitations.size() == 1,
+                "Actual valuation solver cannot mark a custom nominal cooking product attainable even with a known input");
+        ValuationGenerationInputs.configure(BalanceOverrides.empty());
+        var normal = graph.processes().stream().filter(p -> p.id().equals("fixture:ordinary_cooking")).findFirst().orElseThrow();
+        check(normal.acquisitionComplete() && !normal.conservationComplete() && normal.outputs().getFirst().count() == 2,
+                "Ordinary vanilla cooking keeps supported acquisition with unknown fuel conservation");
+        check(BalanceDocument.GSON.fromJson(BalanceDocument.GSON.toJson(graph), ProductionGraph.class).equals(graph),
+                "Cooking nominal projection and serializer predicate survive saved graph serialization");
+        // Omitting a tag from bindTags retains its old HolderSet; explicitly bind it empty.
+        BuiltInRegistries.ITEM.bindTags(Map.of(tag, List.of()));
+        isolatedFailure("fixture:empty_cooking_tag", new TagCookingFixture(Ingredient.of(Items.STONE), Ingredient.of(tag), 100), "ArrayIndexOutOfBoundsException");
+        var unknown = JsonParser.parseString("{\"ingredients\":[{\"item\":\"minecraft:stone\"}],\"result\":{\"tag\":\"fixture:unknown\"}}").getAsJsonObject();
+        try {
+            EffectiveProduction.normalize("fixture:unknown_output", "minecraft:blasting", null, unknown, registries, null);
+            throw new AssertionError("Unknown output predicate accepted as an item stack");
+        } catch (IllegalArgumentException expected) {
+            check(expected.getMessage().contains("no concrete item identity") && expected.getMessage().contains("fixture:unknown"),
+                    "Unknown output schemas fail with a useful diagnostic instead of dereferencing a missing id/item");
+        }
+    }
+
+    private static void isolatedFailure(String recipeId, Recipe<?> broken, String detail) {
+        List<String> limitations = new ArrayList<>();
+        var graph = EffectiveProduction.collect(List.of(new RecipeHolder<>(id(recipeId), broken), holder("fixture:healthy_after_failure", Items.DIAMOND, 2)),
+                registries, mod -> null, (family, reason) -> limitations.add(family + ": " + reason));
+        check(graph.processes().size() == 1 && graph.processes().getFirst().id().equals("fixture:healthy_after_failure"),
+                "A failing recipe is excluded completely and healthy recipes continue: " + recipeId);
+        check(limitations.size() == 1 && limitations.getFirst().contains("excluded from acquisition, valuation and conservation")
+                && graph.warnings().stream().anyMatch(w -> w.contains(recipeId) && w.contains(broken.getClass().getName()) && w.contains(detail)),
+                "Runtime/linkage exclusion retains recipe identity, class, family and cause: " + recipeId);
+    }
+
+    private static void recipeFailureIsolation() {
+        Recipe<RecipeInput> generic = new Recipe<>() {
+            public boolean matches(RecipeInput input, net.minecraft.world.level.Level level) { throw new AssertionError("Do not match generic recipe"); }
+            public ItemStack assemble(RecipeInput input, HolderLookup.Provider lookup) { throw new AssertionError("Do not assemble generic recipe"); }
+            public boolean canCraftInDimensions(int x, int y) { return true; }
+            public ItemStack getResultItem(HolderLookup.Provider lookup) { throw new NoClassDefFoundError("fixture generic broken linkage"); }
+            public RecipeSerializer<?> getSerializer() { return RecipeSerializer.SHAPELESS_RECIPE; }
+            public RecipeType<?> getType() { return new RecipeType<Recipe<RecipeInput>>() {}; }
+        };
+        isolatedFailure("fixture:broken_generic", generic, "fixture generic broken linkage");
+        var brokenType = new ShapelessRecipe("", CraftingBookCategory.MISC, new ItemStack(Items.GOLD_INGOT),
+                NonNullList.of(Ingredient.EMPTY, Ingredient.of(Items.STONE))) {
+            @Override public RecipeType<?> getType() { throw new NoClassDefFoundError("fixture type broken linkage"); }
+        };
+        isolatedFailure("fixture:broken_type", brokenType, "fixture type broken linkage");
+        List<RecipeHolder<?>> many = new ArrayList<>();
+        for (int i = 0; i < 40; i++) many.add(new RecipeHolder<>(id("fixture:failed_" + i), generic));
+        var bounded = EffectiveProduction.collect(many, registries, mod -> null, (family, reason) -> {});
+        check(bounded.processes().isEmpty() && bounded.warnings().stream().filter(w -> w.startsWith("Excluded incompatible effective production recipe")).count() == 16
+                && bounded.warnings().stream().anyMatch(w -> w.startsWith("24 additional incompatible")),
+                "Many broken recipe objects keep bounded representative diagnostics and a complete exclusion count");
+        check(BalanceDocument.GSON.fromJson(BalanceDocument.GSON.toJson(bounded), ProductionGraph.class).equals(bounded),
+                "Failure diagnostics survive saved graph serialization without admitting failed evidence");
+    }
+
+    private static ProceduralValuationResult evaluateProcess(ProductionGraph.Process process, Item output, RecipeType<?> type) throws Exception {
+        var models = ProceduralValuationIndex.productionModels(process, type);
+        Constructor<?> constructor = ProceduralValuationIndex.class.getDeclaredConstructors()[0]; constructor.setAccessible(true);
+        var index = (ProceduralValuationIndex) constructor.newInstance(Map.of(output, models), Map.of(), Map.of(), Map.of(), Map.of(),
+                Map.of(), Map.of(), Map.of(), Map.of(), null, null, null, null);
+        Class<?> contextType = Class.forName(ProceduralValuationEngine.class.getName() + "$EvaluationContext");
+        Constructor<?> contextConstructor = contextType.getDeclaredConstructor(ProceduralValuationIndex.class); contextConstructor.setAccessible(true);
+        Method evaluate = ProceduralValuationEngine.class.getDeclaredMethod("evaluateItem", ProceduralValuationIndex.class, Item.class, contextType); evaluate.setAccessible(true);
+        return (ProceduralValuationResult) evaluate.invoke(null, index, output, contextConstructor.newInstance(index));
     }
     public static ProductionGraph currentEffectiveFixture(int revision) {
         var lookup = VanillaRegistries.createLookup();

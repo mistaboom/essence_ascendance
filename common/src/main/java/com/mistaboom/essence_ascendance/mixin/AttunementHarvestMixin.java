@@ -3,6 +3,7 @@ package com.mistaboom.essence_ascendance.mixin;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.mistaboom.essence_ascendance.attunement.AttunementGameplay;
+import com.mistaboom.essence_ascendance.equipment.PlayerAttributedBlockHarvestService;
 import com.mistaboom.essence_ascendance.gathering.GatheringToolResolver;
 import com.mistaboom.essence_ascendance.skill.effect.GatheringMiningEffects;
 import net.minecraft.core.BlockPos;
@@ -25,7 +26,8 @@ public abstract class AttunementHarvestMixin {
         BlockState state = level.getBlockState(pos);
         GatheringToolResolver.HarvestScope toolScope = GatheringToolResolver.beginHarvest(player, state);
         ItemStack resolvedTool = toolScope.activeTool().copy();
-        AttunementGameplay.beginHarvest(player, pos, state, level.getBlockEntity(pos) != null);
+        AttunementGameplay.beginHarvest(player, pos, state,
+                PlayerAttributedBlockHarvestService.blocksPlayerHarvest(state, level.getBlockEntity(pos)));
         boolean completed = false;
         try {
             completed = original.call(pos);

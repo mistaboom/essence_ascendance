@@ -58,22 +58,23 @@ public final class SkillBalanceGenerator {
         if (!Double.isFinite(costPressure) || costPressure <= 0)
             throw new IllegalArgumentException("Skill generation scales must be positive");
         Map<String, SkillBalanceRuntime.ResolvedSkill> result = new TreeMap<>();
+        var intrinsic = new com.google.gson.Gson().toJsonTree(
+                com.mistaboom.essence_ascendance.config.SkillEffectBalanceSettings.defaults()).getAsJsonObject();
         for (var skill : SkillRegistry.values()) {
             Long tierCost = tierCosts.get(skill.requiredTierId());
             if (tierCost == null) throw new IllegalArgumentException("Missing skill tier budget: " + skill.requiredTierId());
             double categoryFactor = essenceCostFactors.getOrDefault(skill.essenceId(), 1.0);
             if (!Double.isFinite(categoryFactor) || categoryFactor <= 0)
                 throw new IllegalArgumentException("Invalid category skill cost factor");
-            double rawCost = Math.ceil(skill.costBand().cost(tierCost) * costPressure * categoryFactor);
-            if (!Double.isFinite(rawCost) || rawCost >= Long.MAX_VALUE) throw new ArithmeticException("Skill price overflow");
-            long firstCost = Math.max(1L, (long) rawCost);
+            var mechanical = SkillProgressionPolicy.evaluate(skill, SkillBalanceSemantics.require(skill.id()), intrinsic);
+            long firstCost = SkillProgressionPolicy.price(tierCost, mechanical.utility(), categoryFactor, costPressure, 1, 0);
             var ranks = new ArrayList<SkillBalanceRuntime.ResolvedRank>();
             for (int rank = 1; rank <= skill.rankPolicy().projectionRanks(); rank++) {
                 ranks.add(new SkillBalanceRuntime.ResolvedRank(rank,
                         skill.rankPolicy().curve().cost(firstCost, rank),
                         skill.rankPolicy().curve().power(rank)));
             }
-            result.put(skill.id().toString(), new SkillBalanceRuntime.ResolvedSkill(1, ranks));
+            result.put(skill.id().toString(), new SkillBalanceRuntime.ResolvedSkill(1, ranks, skill.requiredTierId()));
         }
         SkillBalanceRuntime.validate(result);
         return Collections.unmodifiableMap(result);
@@ -90,7 +91,8 @@ public final class SkillBalanceGenerator {
         var json = nominal.toJson();
         var base = json.getAsJsonObject("effects").deepCopy();
         var firstEffects = base.deepCopy();
-        var gson = new com.google.gson.Gson();
+        var gson = new com.google.gson.GsonBuilder().registerTypeAdapter(ResourceLocation.class,
+                new com.mistaboom.essence_ascendance.balance.config.ResourceLocationJsonAdapter()).create();
         var curves = new TreeMap<String, SkillBalanceRuntime.ResolvedSkill>();
         for (var skill : SkillRegistry.values()) {
             var requirements = requirementsBySkill.getOrDefault(skill.id(), skill.progressionRequirements());
@@ -134,7 +136,7 @@ public final class SkillBalanceGenerator {
                 previous = effects;
                 if (skill.rankPolicy().maximumRank() > 0 && ranks.size() >= skill.rankPolicy().maximumRank()) break;
             }
-            curves.put(skill.id().toString(), new SkillBalanceRuntime.ResolvedSkill(ranks.size(), ranks));
+            curves.put(skill.id().toString(), new SkillBalanceRuntime.ResolvedSkill(ranks.size(), ranks, source.requiredTierId()));
         }
         json.add("effects", firstEffects);
         json.add("skillCurves", gson.toJsonTree(curves));

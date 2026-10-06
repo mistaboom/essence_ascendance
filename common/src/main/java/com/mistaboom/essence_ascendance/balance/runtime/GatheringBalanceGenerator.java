@@ -30,8 +30,8 @@ final class GatheringBalanceGenerator {
         double hunterYield = power(settings, SkillIds.HUNTERS_STUDY, CapabilityAxis.DROP_YIELD);
         double bloomConversion = power(settings, SkillIds.ESSENCE_BLOOM, CapabilityAxis.CONVERSION);
         double bloomExperience = power(settings, SkillIds.ESSENCE_BLOOM, CapabilityAxis.EXPERIENCE);
-        double verdantYield = power(settings, SkillIds.VERDANT_STRIDE, CapabilityAxis.CROP_YIELD);
-        double herdThroughput = power(settings, SkillIds.HERDKEEPER, CapabilityAxis.THROUGHPUT);
+        double verdantYield = power(settings, SkillIds.VERDANT_STRIDE, CapabilityAxis.CROP_ACCELERATION);
+        double herdThroughput = power(settings, SkillIds.HERDKEEPER, CapabilityAxis.ANIMAL_ACCELERATION);
         double giftYield = power(settings, SkillIds.ANIMAL_GIFT, CapabilityAxis.DROP_YIELD);
         double giftAutomation = power(settings, SkillIds.ANIMAL_GIFT, CapabilityAxis.AUTOMATION_INTERACTION);
         double fishingThroughput = power(settings, SkillIds.FISHING_INSTINCT, CapabilityAxis.THROUGHPUT);

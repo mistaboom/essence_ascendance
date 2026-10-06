@@ -75,6 +75,31 @@ public final class BonusTrackGeneratorTest {
                     "Opaque source must not displace the declared route");
         }
         check(vanilla.equals(resolve(evidence(List.of()))), "Identical evidence must generate deterministic tracks");
+        var knownPaper = new ResourceEvidence("minecraft:paper", ProgressionBand.ENTRY, Availability.FINITE,
+                Automation.NONE, true, true, 1, .95, List.of(), List.of());
+        var unknownBook = new ResourceEvidence("minecraft:book", ProgressionBand.ENTRY, Availability.UNKNOWN,
+                Automation.NONE, false, true, 1, .45, List.of(), List.of("unproved custom crafting"));
+        var tableSource = new AcquisitionSource("minecraft:enchanting_table", AcquisitionSource.Kind.RECIPE,
+                ProgressionBand.ENTRY, 1, false, false, 0, .9, List.of("minecraft:book"), "effective native table recipe");
+        var unknownTable = new ResourceEvidence("minecraft:enchanting_table", ProgressionBand.EARLY, Availability.UNKNOWN,
+                Automation.NONE, false, true, 1, .45, List.of(tableSource), List.of("unproved material"));
+        var unknownMenu = new PackEvidence(Map.of(knownPaper.itemId(), knownPaper, unknownBook.itemId(), unknownBook,
+                unknownTable.itemId(), unknownTable), List.of(), List.of(), Map.of(), List.of(), List.of(), Map.of(), List.of());
+        var unavailableEnchanting = resolve(unknownMenu).get(EssenceStats.ENCHANTING_EFFICIENCY.id());
+        check(unavailableEnchanting.applicability() == BonusTrackDefinition.Applicability.UNAVAILABLE
+                && unavailableEnchanting.checkpoints().stream().noneMatch(BonusTrackDefinition.Checkpoint::available),
+                "Unknown native menu acquisition cannot be rewritten into a late-tier purchase");
+        check(unavailableEnchanting.evidence().stream().anyMatch(reason -> reason.contains("unproven materials=[minecraft:book]"))
+                && unavailableEnchanting.evidence().stream().anyMatch(reason -> reason.contains("not a future tier unlock")),
+                "Unavailable menu diagnostics identify the actual material evidence gap and distinguish it from a tier lock");
+        var reachableTable = new ResourceEvidence(unknownTable.itemId(), ProgressionBand.EARLY, Availability.FINITE,
+                Automation.NONE, true, true, 1, .85, List.of(tableSource), List.of());
+        var provedMenu = new PackEvidence(Map.of(reachableTable.itemId(), reachableTable), List.of(), List.of(),
+                Map.of(), List.of(), List.of(), Map.of(), List.of());
+        var availableEnchanting = resolve(provedMenu).get(EssenceStats.ENCHANTING_EFFICIENCY.id());
+        check(availableEnchanting.applicability() == BonusTrackDefinition.Applicability.AVAILABLE
+                && AscendanceTierRegistry.get(availableEnchanting.startTier()).orElseThrow().order() >= AscendanceTiers.AWAKENED.order()
+                && availableEnchanting.activeStateCount() > 0, "Proven native table route restores legal generated purchase states");
         long earlier = 0;
         for (var point : movement.checkpoints()) if (point.purchasable()) {
             check(point.segmentCost() > earlier, "Existing growing tier economic effort must survive semantic repricing");

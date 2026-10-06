@@ -15,20 +15,35 @@ public final class LootrProvider implements GenerationProvider {
     }
     public static ProviderReadiness readiness(String version, boolean ready) {
         if (version == null) return new ProviderReadiness(ProviderReadiness.Status.ABSENT, "unknown", "Optional Lootr absent");
-        if (!"1.21.1-1.11.38.126".equals(version)) return new ProviderReadiness(ProviderReadiness.Status.UNSUPPORTED, version,
-                "Audited NeoForge Lootr 1.21.1-1.11.38.126 only; other APIs require an audit");
+        if (!supported(version)) return new ProviderReadiness(ProviderReadiness.Status.UNSUPPORTED, version,
+                "Audited NeoForge Lootr 1.21.1-1.11.38.125 or 1.21.1-1.11.38.126 only; other APIs require an audit");
         return new ProviderReadiness(ready ? ProviderReadiness.Status.PARTIALLY_SUPPORTED : ProviderReadiness.Status.NOT_READY, version,
                 "Effective public settings and source scope only; eligible-container conversion and position-dependent rules remain conditional", ready);
     }
+    public static boolean supported(String version) {
+        return "1.21.1-1.11.38.125".equals(version) || "1.21.1-1.11.38.126".equals(version);
+    }
+    static boolean blacklistUsesProblematicProcessors(String version) {
+        if (!supported(version)) throw new IllegalArgumentException("Unaudited Lootr blacklist API " + version);
+        return "1.21.1-1.11.38.126".equals(version);
+    }
+    static boolean teamLootSettingAvailable(String version) {
+        if (!supported(version)) throw new IllegalArgumentException("Unaudited Lootr team API " + version);
+        return "1.21.1-1.11.38.126".equals(version);
+    }
     public static void capture(GenerationDataSnapshot inputs, GenerationProviders runs, BalanceOverrides overrides) {
         LootrProvider provider = new LootrProvider();
-        if (!runs.prepare("loot", provider, GenerationProviders.disabled(provider.id(), overrides))) return;
+        if (!runs.prepare("loot", provider, GenerationProviders.disabled(provider.id(), overrides))) {
+            if (inputs.installedVersion("lootr") != null) inputs.lootr(LootrPolicy.unknown(runs.detail("loot", provider)));
+            return;
+        }
         com.mistaboom.essence_ascendance.balance.generated.BalancePerformance.increment("loot_settings_captures");
-        inputs.lootr(runs.run("loot", provider, "settings", () -> LootrReader.capture(inputs)));
-        runs.emitted("loot", provider, 1, 0, .8);
+        runs.run("loot", provider, "settings", () -> LootrReader.capture(inputs)).ifPresentOrElse(policy -> {
+            inputs.lootr(policy); runs.emitted("loot", provider, 1, 0, .8);
+        }, () -> inputs.lootr(LootrPolicy.unknown(runs.detail("loot", provider))));
     }
     public static void recordSources(GenerationDataSnapshot inputs, GenerationProviders runs, ValuationEvidenceSnapshot evidence) {
-        if (!inputs.lootr().installed()) return;
+        if (!inputs.lootr().installed() || !inputs.lootr().unsupported().isEmpty()) return;
         long links = evidence.sources().values().stream().flatMap(List::stream).filter(source -> source.availability() != null
                 && source.availability().scope() != SourceAvailability.Scope.SHARED).count();
         long proven = evidence.sources().values().stream().flatMap(List::stream).filter(source -> source.availability() != null

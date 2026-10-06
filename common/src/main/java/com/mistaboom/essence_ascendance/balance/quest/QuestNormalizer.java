@@ -5,7 +5,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import java.util.*;
 
-/** Audited FTB Quests 2101.1.36 / format 13 definition projection. No optional linkage. */
+/** Audited FTB Quests format-13 definition projection. No optional linkage. */
 public final class QuestNormalizer {
     private QuestNormalizer() { }
     public static QuestEvidence normalize(CompoundTag data, List<CompoundTag> chapters,

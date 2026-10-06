@@ -15,7 +15,7 @@ final class BlockLootModifierAudit {
         static final Rule UNKNOWN = new Rule(Mode.UNKNOWN, Set.of());
         Rule { targets = Collections.unmodifiableSortedSet(new TreeSet<>(targets)); }
     }
-    private record Contract(String mod, String version, Mode mode) { }
+    private record Contract(String mod, Set<String> versions, Mode mode) { }
     private static final Map<String, Contract> CONTRACTS = contracts();
     private static Map<String, Contract> contracts() {
         Map<String, Contract> out = new HashMap<>();
@@ -39,6 +39,9 @@ final class BlockLootModifierAudit {
         add(out, "forbidden_arcanus", "2.6.1", Mode.TOOL_CONDITION, "com.stal111.forbidden_arcanus.common.loot.", "FieryLootModifier");
         add(out, "twilightforest", "4.8.3345", Mode.FIRST_OUTPUT_CONVERSION, "twilightforest.loot.modifiers.", "GiantToolGroupingModifier");
         add(out, "supplementaries", "1.21.1-3.9.9", Mode.OUTPUT_ITEMS, "net.mehvahdjukaar.supplementaries.platform.", "ReplaceRopeByConfigModifier");
+        // Both installed releases have identical callback bytecode. Its replacement
+        // branches are guarded by the loaded ropes tag; non-rope outputs survive.
+        add(out, "supplementaries", "1.21.1-3.6.7", Mode.OUTPUT_ITEMS, "net.mehvahdjukaar.supplementaries.platform.", "ReplaceRopeByConfigModifier");
         add(out, "sushigocrafting", "0.6.6", Mode.OUTPUT_ITEMS, "com.buuz135.sushigocrafting.loot.", "ItemAmountLootModifier");
         add(out, "the_bumblezone", "7.16.1+1.21.1-neoforge", Mode.APPEND_ONLY, "com.telepathicgrunt.the_bumblezone.loot.neoforge.", "BeeStingerLootApplier");
         add(out, "wstweaks", "10.1.1", Mode.APPEND_ONLY, "dev.shadowsoffire.wstweaks.", "WSTLootModifier");
@@ -48,11 +51,21 @@ final class BlockLootModifierAudit {
         return Map.copyOf(out);
     }
     private static void add(Map<String, Contract> out, String mod, String version, Mode mode, String prefix, String... classes) {
-        for (String type : classes) out.put(prefix + type, new Contract(mod, version, mode));
+        for (String type : classes) {
+            String implementation = prefix + type;
+            var existing = out.get(implementation);
+            if (existing != null && (!existing.mod().equals(mod) || existing.mode() != mode))
+                throw new IllegalStateException("Conflicting audited loot modifier contract: " + implementation);
+            var versions = new TreeSet<String>();
+            if (existing != null) versions.addAll(existing.versions());
+            versions.add(version);
+            out.put(implementation, new Contract(mod, Set.copyOf(versions), mode));
+        }
     }
     static Mode auditedMode(String implementation, Function<String, String> versions) {
         Contract contract = CONTRACTS.get(implementation);
-        return contract != null && contract.version().equals(versions.apply(contract.mod())) ? contract.mode() : Mode.UNKNOWN;
+        String installed = contract == null ? null : versions.apply(contract.mod());
+        return contract != null && installed != null && contract.versions().contains(installed) ? contract.mode() : Mode.UNKNOWN;
     }
     static Rule captureRule(String implementation, GenerationDataSnapshot inputs) {
         Mode mode = auditedMode(implementation, inputs::installedVersion);

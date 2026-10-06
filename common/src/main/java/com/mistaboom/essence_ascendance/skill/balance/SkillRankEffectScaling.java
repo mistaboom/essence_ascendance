@@ -284,7 +284,7 @@ public final class SkillRankEffectScaling {
                 scale(p.essenceBloom.bonusExperienceFraction(), f, 16)));
         register(SkillIds.VERDANT_STRIDE, (p, f) -> p.verdantStride = new GatheringBalanceSettings.VerdantStride(
                 p.verdantStride.radiusBlocks(), p.verdantStride.growthPulseTicks(),
-                scaleOdds(p.verdantStride.growthChance(), f)));
+                scaleOdds(p.verdantStride.growthChance(), f), p.verdantStride.boneMealGrowth()));
         register(SkillIds.HERDKEEPER, (p, f) -> p.herdkeeper = new GatheringBalanceSettings.Herdkeeper(
                 p.herdkeeper.radiusBlocks(), 1.0 + scale(p.herdkeeper.breedingRecoveryMultiplier() - 1.0, f, 127)));
         register(SkillIds.ANIMAL_GIFT, (p, f) -> p.animalGift = new GatheringBalanceSettings.AnimalGift(
@@ -492,10 +492,10 @@ public final class SkillRankEffectScaling {
             double availability = SkillBalanceSemantics.require(id).expectedAvailability();
             double rawChance = availability <= 0 ? 0 : Math.min(Math.nextDown(1.0), chance / availability);
             return rawChance <= 0 ? 0 : (rawChance / Math.max(Math.ulp(1.0), 1 - rawChance))
-                    / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.CROP_YIELD));
+                    / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.CROP_ACCELERATION));
         }
         if (id.equals(SkillIds.HERDKEEPER)) return (gathering.herdkeeper().breedingRecoveryMultiplier() - 1.0)
-                / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.THROUGHPUT));
+                / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.ANIMAL_ACCELERATION));
         if (id.equals(SkillIds.ANIMAL_GIFT)) {
             double chance = gathering.animalGift().giftChance();
             double availability = SkillBalanceSemantics.require(id).expectedAvailability();
@@ -561,7 +561,7 @@ public final class SkillRankEffectScaling {
         if (id.equals(SkillIds.SANCTUARY)) return utility.sanctuary().radiusBlocks()
                 / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).areaRadiusBlocks());
         if (id.equals(SkillIds.INDUSTRIOUS_PRESENCE)) return (utility.industriousPresence().processingSpeedMultiplier() - 1.0)
-                / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.THROUGHPUT));
+                / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.BLOCK_ENTITY_ACCELERATION));
         if (id.equals(SkillIds.CONTAINMENT_FIELD)) return utility.containmentField().radiusBlocks()
                 / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).areaRadiusBlocks());
         if (id.equals(SkillIds.FRIENDLY_FIRE_WARD) || id.equals(SkillIds.ENCHANTING_INSIGHT)) return 1;

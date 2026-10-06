@@ -15,11 +15,12 @@ public final class QuestDefinitionReplay {
     public static void main(String[] args) throws Exception {
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap();
         Path source = Path.of(args[0]), output = Path.of(args[1]); Files.createDirectories(output);
+        String version = args[2];
         Map<String, AcquisitionProgressionGraph.Placement> seeds = new TreeMap<>();
         BuiltInRegistries.ITEM.keySet().forEach(id -> seeds.put(id.toString(), AcquisitionProgressionGraph.Placement.ordinary(ProgressionBand.ENTRY)));
         var trials = new ArrayList<Map<String, Object>>();
         for (int i = 0; i < 3; i++) {
-            long start = System.nanoTime(); QuestEvidence evidence = FtbQuestReader.captureDefinitions(source); long normalization = System.nanoTime() - start;
+            long start = System.nanoTime(); QuestEvidence evidence = FtbQuestReader.captureDefinitions(source, version); long normalization = System.nanoTime() - start;
             start = System.nanoTime(); var graph = new ProductionGraph(evidence.processes(), List.of());
             var result = AcquisitionProgressionGraph.solve(seeds, graph, evidence); long progression = System.nanoTime() - start;
             long tasks = evidence.quests().stream().mapToLong(q -> q.tasks().size()).sum();
@@ -35,7 +36,7 @@ public final class QuestDefinitionReplay {
         // Reject a damaged authoritative source rather than returning an empty book.
         Path invalid = output.resolve("invalid-definition-fixture"); Files.createDirectories(invalid);
         Files.writeString(invalid.resolve("data.snbt"), "{ broken !!!");
-        try { FtbQuestReader.captureDefinitions(invalid); throw new AssertionError("Broken source accepted as empty"); }
+        try { FtbQuestReader.captureDefinitions(invalid, version); throw new AssertionError("Broken source accepted as empty"); }
         catch (IllegalStateException expected) { System.out.println("Broken authoritative SNBT rejects generation: PASS"); }
     }
 }

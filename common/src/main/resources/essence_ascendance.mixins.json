@@ -32,6 +32,7 @@
     "MovementAbilityInputMixin",
     "MachineWorldVisualRendererMixin",
     "TransientGuiScreenMixin",
+    "FullscreenInventoryWidgetMixin",
     "TransientGuiHudMixin",
     "GatheringSurveyRendererMixin",
     "GatheringSalvageGrindstoneScreenMixin",
@@ -40,6 +41,8 @@
     "UtilitySenseClientMixin"
   ],
   "mixins": [
+    "SaplingGrowerAccess",
+    "TreeGrowerAccess",
     "GenerationFixedHolderCodecMixin",
     "GenerationNamedHolderCodecMixin",
     "GenerationLootFunctionCodecMixin",

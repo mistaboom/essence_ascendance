@@ -1219,6 +1219,7 @@ final class ProceduralValuationIndex {
             boolean variant = !tableId.getPath().equals("entities/" + entityPath);
             List<String> signals = new ArrayList<>();
             signals.add("entity loot table " + tableId + " belongs to registered entity " + entityId);
+            signals.add("ordinary player kill with no equipment enchantments; enchantment-count increases contribute zero");
             if (variant) signals.add("nested/variant selection frequency unresolved; parent identity is not variant spawn probability");
             ProceduralMobSpawnIndex.SpawnAvailability availability = mobSpawnIndex == null
                     ? ProceduralMobSpawnIndex.SpawnAvailability.UNKNOWN : mobSpawnIndex.forEntity(entityId);
@@ -1364,7 +1365,7 @@ final class ProceduralValuationIndex {
         );
         double chance = inheritedChance * conditionInfo.multiplier();
         int complexConditions = complexConditionCount + conditionInfo.complexConditions()
-                + GenerationLootEvidence.unresolvedFunctions(object.get("functions"));
+                + GenerationLootEvidence.unresolvedUnenchantedEntityFunctions(object.get("functions"));
         MobStats resolvedStats = conditionInfo.stats();
         List<String> conditionSignals = new ArrayList<>(inheritedConditionSignals);
         conditionSignals.addAll(conditionInfo.signals());

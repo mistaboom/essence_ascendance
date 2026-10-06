@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.mapping;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.balance.generated.GeneratedBalanceService;
+import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.valuation.ProceduralValuationEngine;
 import dev.architectury.event.events.common.LifecycleEvent;
 import dev.architectury.event.events.common.TickEvent;
@@ -36,11 +37,16 @@ public final class ItemEssenceMappingManager {
             activeServer = server;
             observedResources = server.getResourceManager();
             observedRecipes = server.getRecipeManager();
-            if (!load(false, "overworld_server_level_load").successful()) throw new IllegalStateException(
-                    "Essence Ascendance generated balance could not load before initial chunk generation: "
-                            + ItemEssenceMappingRegistry.lastReload().errors()
-                            + ". Inspect the preceding balance error in latest.log. Saved profile: " + generatedCachePath()
-                            + "; retain the profile and human TOML inputs for diagnosis.");
+            if (!load(false, "overworld_server_level_load").successful()) {
+                boolean unavailable = EssenceConfigManager.markBalanceUnavailable();
+                EssenceAscendance.LOGGER.warn("Essence Ascendance balance is unavailable for this startup: {}. "
+                                + "The world will continue loading. Saved profile and human TOML inputs were retained for diagnosis: {}",
+                        ItemEssenceMappingRegistry.lastReload().errors(), generatedCachePath());
+                if (unavailable) EssenceAscendance.LOGGER.warn("No validated pack balance profile is active. "
+                        + "Item dissolution, Ascension and Latent Ore generation remain unavailable; "
+                        + "core previews use provisional settings. After addressing the logged compatibility warning, "
+                        + "retry /essence admin balance rebuild.");
+            }
         });
         LifecycleEvent.SERVER_STOPPED.register(server -> {
             if (activeServer != server) return;
@@ -74,7 +80,7 @@ public final class ItemEssenceMappingManager {
             // Optional integration linkage is a candidate failure, not a server-tick failure.
             ItemEssenceMappingRegistry.rejectReload(new ItemEssenceMappingRegistry.LoadSummary(0, 0, 0, 0, 0, List.of()),
                     List.of(error.getMessage() == null ? error.getClass().getName() : error.getMessage()));
-            EssenceAscendance.LOGGER.error("Balance load/rebuild rejected; previous valid profile retained", error);
+            EssenceAscendance.LOGGER.warn("Balance load/rebuild rejected; saved data and any previous valid profile retained", error);
         }
         return ItemEssenceMappingRegistry.lastReload();
     }

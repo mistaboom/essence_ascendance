@@ -47,17 +47,15 @@ public record ValuationEvidenceSnapshot(Map<String, List<AcquisitionSource>> sou
             for (var source : index.biologicalSources(item)) entries.add(biologicalSource(source,
                     ProgressionBand.at((int) Math.floor(index.progressionForEntity(source.event().producerId()).score() * 4))));
             for (var source : index.dropSources(item)) {
-                entries.add(new AcquisitionSource(source.entityId().toString(), AcquisitionSource.Kind.MOB_DROP,
+                entries.add(mobSource(source,
                         source.bossScale() ? ProgressionBand.APEX : ProgressionBand.EARLY, source.expectedCount(),
-                        source.repeatableSpawn(), false, 0, 0.68, List.of(), String.join("; ", source.signals())));
+                        source.repeatableSpawn()));
             }
             for (var source : index.containerLootSources(item)) {
                 entries.add(containerSource(source));
             }
             for (var source : index.fishingLootSources(item)) {
-                entries.add(new AcquisitionSource(source.lootTableId().toString(), AcquisitionSource.Kind.FISHING,
-                        band(source.progressionBand()), source.expectedCount(), true, false, 0, 0.72,
-                        List.of(), String.join("; ", source.signals())));
+                entries.add(fishingSource(source));
             }
             for (var source : index.tradeSources(item)) {
                 List<String> dependencies = new ArrayList<>();
@@ -106,6 +104,36 @@ public record ValuationEvidenceSnapshot(Map<String, List<AcquisitionSource>> sou
             case NETHER -> ProgressionBand.LATE;
             case END, BOSS_SCALE -> ProgressionBand.APEX;
         };
+    }
+
+    static AcquisitionSource mobSource(ProceduralValuationIndex.DropSource source, ProgressionBand stage,
+                                       double expected, boolean renewable) {
+        String id = source.entityId().toString();
+        var timer = new com.mistaboom.essence_ascendance.balance.engine.SourceAvailability.Timer(
+                com.mistaboom.essence_ascendance.balance.engine.SourceAvailability.Applicability.OFF, 0, List.of());
+        var unknown = source.complexConditionCount() == 0 ? List.<String>of()
+                : List.of("Unresolved entity loot conditions/functions=" + source.complexConditionCount());
+        var availability = new com.mistaboom.essence_ascendance.balance.engine.SourceAvailability(id,
+                renewable ? com.mistaboom.essence_ascendance.balance.engine.SourceAvailability.Category.CONDITIONAL_RENEWABLE
+                        : com.mistaboom.essence_ascendance.balance.engine.SourceAvailability.Category.ACCESS_LIMITED,
+                com.mistaboom.essence_ascendance.balance.engine.SourceAvailability.Scope.SHARED,
+                List.of(), List.of(), source.signals(), timer, timer, unknown.isEmpty(), source.estimatedChance(), expected, unknown);
+        return new AcquisitionSource(id, AcquisitionSource.Kind.MOB_DROP, stage, expected, renewable, false, 0,
+                .68, List.of(), String.join("; ", source.signals()), availability);
+    }
+
+    static AcquisitionSource fishingSource(ProceduralValuationIndex.FishingLootSource source) {
+        String id = source.lootTableId().toString();
+        var timer = new com.mistaboom.essence_ascendance.balance.engine.SourceAvailability.Timer(
+                com.mistaboom.essence_ascendance.balance.engine.SourceAvailability.Applicability.OFF, 0, List.of());
+        var unknown = source.complexConditionCount() == 0 ? List.<String>of()
+                : List.of("Unresolved fishing loot conditions/functions=" + source.complexConditionCount());
+        var availability = new com.mistaboom.essence_ascendance.balance.engine.SourceAvailability(id,
+                com.mistaboom.essence_ascendance.balance.engine.SourceAvailability.Category.CONDITIONAL_RENEWABLE,
+                com.mistaboom.essence_ascendance.balance.engine.SourceAvailability.Scope.SHARED,
+                List.of(), List.of(), source.signals(), timer, timer, unknown.isEmpty(), source.estimatedChance(), source.expectedCount(), unknown);
+        return new AcquisitionSource(id, AcquisitionSource.Kind.FISHING, band(source.progressionBand()), source.expectedCount(),
+                true, false, 0, .72, List.of("minecraft:fishing_rod"), String.join("; ", source.signals()), availability);
     }
 
     static AcquisitionSource containerSource(ProceduralValuationIndex.ContainerLootSource source) {

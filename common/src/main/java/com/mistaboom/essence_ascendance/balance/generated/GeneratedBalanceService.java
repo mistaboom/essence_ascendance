@@ -181,6 +181,10 @@ public final class GeneratedBalanceService {
     }
 
     static JsonObject skillDiagnostics(RuntimeBalanceDefinition runtime) {
+        return com.mistaboom.essence_ascendance.skill.balance.SkillBalanceRuntime.withCurves(runtime.skillCurves(),
+                () -> candidateSkillDiagnostics(runtime));
+    }
+    private static JsonObject candidateSkillDiagnostics(RuntimeBalanceDefinition runtime) {
         var catalog = com.mistaboom.essence_ascendance.skill.SkillRegistry.values();
         var serializer = new com.google.gson.GsonBuilder().disableHtmlEscaping()
                 // Set iteration can differ between JVM launches. Canonicalize only
@@ -542,7 +546,11 @@ public final class GeneratedBalanceService {
             phase = System.nanoTime();
             RuntimeBalanceDefinition runtime;
             try (var phaseScope = BalancePerformance.phase("runtime_generation")) {
-                runtime = RuntimeBalanceDefinition.generate(evidence, economy, inputs.settings(), inputs.overrides());
+                var competition = new com.mistaboom.essence_ascendance.balance.runtime.AdaptiveCompetitionCalibration(evidence,
+                        generationProvenance.has("competitiveCapabilities") ? generationProvenance.getAsJsonObject("competitiveCapabilities") : null);
+                runtime = com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceGenerator.generate(
+                        evidence, economy, inputs.settings(), inputs.overrides(), competition);
+                generationProvenance.add("adaptiveBalance", competition.complete(runtime));
             } catch (RuntimeException failure) {
                 operation.fail(failure);
                 EssenceAscendance.LOGGER.error("Balance runtime calibration failed before diagnostic capture: {}", failure.getMessage());

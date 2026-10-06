@@ -20,11 +20,27 @@ public final class QuestAcquisitionTest {
         check(!absent.prepare("quests", new FtbQuestProvider(), false), "Absent suite skips without linking optional quest classes");
         check(absent.diagnostics().get(0).getAsJsonObject().get("status").getAsString().equals("ABSENT"), "Absent is distinct from empty");
         check(FtbQuestProvider.supported("2101.1.36", "2101.1.36", "2101.1.11", "13.0.11"), "Installed exact API supported");
+        check(FtbQuestProvider.supported("2101.1.30", "2101.1.35", "2101.1.10", "13.0.11"), "Additional audited definition API tuple supported");
+        check(!FtbQuestProvider.supported("2101.1.30", "2101.1.36", "2101.1.10", "13.0.11"), "Audited tuples do not imply mixed-version compatibility");
+        check(!FtbQuestProvider.supported("2101.1.30", "2101.1.35", "2101.1.10", "13.0.12"), "Unaudited platform dependency rejected");
         check(!FtbQuestProvider.supported("2101.1.37", "2101.1.36", "2101.1.11", "13.0.11"), "Unaudited version rejected");
         check(!FtbQuestProvider.supported("2101.1.36", "2101.1.35", "2101.1.11", "13.0.11"), "Unaudited dependency rejected");
         var unready = FtbQuestProvider.definitionReadiness("2101.1.36", true, false, false, false);
         check(unready.status() == ProviderReadiness.Status.NOT_READY, "Constructed service is not authoritative empty book");
-        rejects(() -> unready.requireSafe("quests", true), "Required unready provider rejects candidate");
+        var unavailable = new GenerationProviders(null, mod -> "installed");
+        var provider = new GenerationProvider() {
+            public String id() { return "fixture_unready_quests"; }
+            public ProviderReadiness readiness(com.mistaboom.essence_ascendance.valuation.GenerationDataSnapshot inputs) { return unready; }
+        };
+        check(!unavailable.prepare("quests", provider, false), "Required unready optional provider is excluded without rejecting generation");
+        var diagnostic = unavailable.diagnostics().get(0).getAsJsonObject();
+        check(diagnostic.get("status").getAsString().equals("NOT_READY") && diagnostic.get("required").getAsBoolean(),
+                "Excluded installed provider remains explicitly unready and required for evidence quality");
+        check(!diagnostic.get("evidenceCollected").getAsBoolean() && diagnostic.get("facts").getAsLong() == 0
+                        && diagnostic.get("sources").getAsLong() == 0,
+                "Unready quest provider contributes no partial rewards, gates or sources");
+        check(unavailable.warnings().stream().anyMatch(warning -> warning.contains("fixture_unready_quests") && warning.contains("NOT_READY")),
+                "Excluded quest integration is retained in compatibility warnings");
         check(!FtbQuestProvider.definitionReadiness("2101.1.36", true, true, true, true).collectable(), "Loading/failed service rejects even with files");
         check(!FtbQuestProvider.definitionReadiness("2101.1.36", false, false, true, true).collectable(), "Foreign-server service rejects");
         check(FtbQuestProvider.definitionReadiness("2101.1.36", true, false, false, true).collectable(), "Verified early source allows generation before SERVER_STARTED");

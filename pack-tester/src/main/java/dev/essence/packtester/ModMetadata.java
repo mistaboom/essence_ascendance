@@ -42,7 +42,14 @@ final class ModMetadata {
             for (String file : List.of("META-INF/neoforge.mods.toml", "META-INF/mods.toml")) {
                 if (zip.getEntry(file) == null) continue;
                 String loader = file.contains("neoforge") ? "neoforge" : "forge";
-                var toml = parseToml(entry(zip, file));
+                String text = entry(zip, file);
+                // NeoForge archives sometimes retain an empty Forge descriptor or
+                // an unexpanded MDK template. Neither declares a real Forge identity.
+                // Keep parsing actual identities from every loader for bundle safety.
+                if (file.equals("META-INF/mods.toml")
+                        && mods.stream().anyMatch(m -> m.loader().equals("neoforge") && !m.id().contains("${"))
+                        && (text.isBlank() || selectedLoader.equals("neoforge") && legacyTemplate(text))) continue;
+                var toml = parseToml(text);
                 var list = toml.getArray("mods");
                 if (list == null) throw new IOException("Missing mods table: " + jar);
                 for (int i = 0; i < list.size(); i++) {
@@ -100,6 +107,22 @@ final class ModMetadata {
         var result = Toml.parse(text);
         if (result.hasErrors()) throw new IOException("Invalid TOML: " + result.errors());
         return result;
+    }
+    private static boolean legacyTemplate(String text) {
+        // Quote only template dependency keys so the entire unused descriptor can
+        // be validated. Do not resolve any template value or invent a mod identity.
+        String quoted = text.replaceAll("(?m)^(\\s*\\[\\[dependencies\\.)(\\$\\{[A-Za-z0-9_.]+\\})(\\]\\]\\s*(?:#.*)?$)", "$1\"$2\"$3");
+        var template = Toml.parse(quoted);
+        if (template.hasErrors()) return false;
+        var identities = template.getArray("mods");
+        if (identities == null || identities.isEmpty()) return false;
+        for (int i = 0; i < identities.size(); i++) {
+            var identity = identities.getTable(i);
+            String id = identity.getString("modId"), version = identity.getString("version");
+            if (id == null || version == null || !id.matches("\\$\\{[A-Za-z0-9_.]+\\}")
+                    || !version.matches("\\$\\{[A-Za-z0-9_.]+\\}")) return false;
+        }
+        return true;
     }
     static void production(Path jar, String loader) throws IOException {
         Metadata m = read(jar, loader);

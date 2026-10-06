@@ -50,7 +50,7 @@ public final class GenerationDataSnapshot implements AutoCloseable {
     private JsonObject routingDiagnostics;
     private JsonObject competitiveCapabilities;
     public void competitiveCapabilities(JsonObject evidence) {
-        requireOpen();
+        requireWritable();
         if (competitiveCapabilities != null) throw new IllegalStateException("Capability census already collected");
         competitiveCapabilities = evidence;
     }
@@ -59,6 +59,16 @@ public final class GenerationDataSnapshot implements AutoCloseable {
     private Map<ResourceLocation, JsonObject> naturalBiomes = Map.of(), terrain = Map.of();
     private final List<DimensionEvidence> dimensions = new ArrayList<>();
     private final List<String> limitations = new ArrayList<>();
+    private boolean integrationReadOnly;
+    /** Adapters may read/lazily normalize shared inputs, but may publish only their staged outputs. */
+    public <T> T readOnlyIntegration(java.util.function.Supplier<T> action) {
+        requireOpen(); boolean previous = integrationReadOnly; integrationReadOnly = true;
+        try { return action.get(); } finally { integrationReadOnly = previous; }
+    }
+    private void requireWritable() {
+        requireOpen();
+        if (integrationReadOnly) throw new IllegalStateException("Optional integration must publish detached output through its coordinator");
+    }
     private boolean structuresEnabled;
     private final Set<ResourceLocation> eligibleStructures = new java.util.TreeSet<>(), eligibleStructureSets = new java.util.TreeSet<>();
     private final Map<String, Long> unsupportedRecipeFamilies = new TreeMap<>();
@@ -71,7 +81,7 @@ public final class GenerationDataSnapshot implements AutoCloseable {
     List<RuntimeLootAudit.Modifier> runtimeLootModifiers() { requireOpen(); return runtimeLootModifiers; }
     private final Map<ResourceLocation, Map<Item, ProceduralValuationIndex.ContainerEstimate>> lootEstimates = new TreeMap<>();
     Map<ResourceLocation, Map<Item, ProceduralValuationIndex.ContainerEstimate>> lootEstimates() { requireOpen(); return lootEstimates; }
-    public void lootr(LootrPolicy policy) { requireOpen(); lootr = policy; }
+    public void lootr(LootrPolicy policy) { requireWritable(); lootr = policy; }
     LootrPolicy lootr() { requireOpen(); return lootr; }
     List<String> structureDimensions(ResourceLocation structure) { requireOpen(); return structureDimensions.getOrDefault(structure, List.of()); }
     void lootAvailability(String key, com.mistaboom.essence_ascendance.balance.engine.SourceAvailability value) {
@@ -107,7 +117,12 @@ public final class GenerationDataSnapshot implements AutoCloseable {
         this.server = server;
         epoch = new GenerationEpoch(server, server.getResourceManager(), server.getRecipeManager(), server.registryAccess(), server.reloadableRegistries());
         items = BuiltInRegistries.ITEM.stream().sorted(Comparator.comparing(item -> BuiltInRegistries.ITEM.getKey(item).toString())).toList();
-        recipeHolders = server.getRecipeManager().getRecipes().stream().sorted(Comparator.comparing(holder -> holder.id().toString())).toList();
+        var excluded = com.mistaboom.essence_ascendance.balance.generated.GenerationRecipeReadiness.excludedRecipeNamespaces(server);
+        var effectiveRecipes = server.getRecipeManager().getRecipes();
+        recipeHolders = effectiveRecipes.stream().filter(holder -> !excluded.contains(holder.id().getNamespace()))
+                .sorted(Comparator.comparing(holder -> holder.id().toString())).toList();
+        if (!excluded.isEmpty()) limitations.add("Optional recipe integration unavailable: excluded namespaces " + excluded.stream().sorted().toList()
+                + "; excluded " + (effectiveRecipes.size() - recipeHolders.size()) + " recipes; balance accuracy may be reduced");
         Map<String, String> installed = new TreeMap<>();
         Platform.getMods().forEach(mod -> installed.put(mod.getModId(), mod.getVersion()));
         mods = Collections.unmodifiableMap(installed);
@@ -128,10 +143,13 @@ public final class GenerationDataSnapshot implements AutoCloseable {
     }
     private com.mistaboom.essence_ascendance.balance.quest.QuestEvidence quests = com.mistaboom.essence_ascendance.balance.quest.QuestEvidence.EMPTY;
     private com.google.gson.JsonObject questProgression;
+    private java.util.Set<String> configurationConstrainedItems = java.util.Set.of();
     public MinecraftServer server() { requireOpen(); return server; }
     public com.mistaboom.essence_ascendance.balance.quest.QuestEvidence quests() { requireOpen(); return quests; }
-    public void quests(com.mistaboom.essence_ascendance.balance.quest.QuestEvidence evidence) { requireOpen(); quests = evidence; }
-    public void questProgression(com.google.gson.JsonObject diagnostics) { requireOpen(); questProgression = diagnostics; }
+    public void quests(com.mistaboom.essence_ascendance.balance.quest.QuestEvidence evidence) { requireWritable(); quests = evidence; }
+    public void questProgression(com.google.gson.JsonObject diagnostics) { requireWritable(); questProgression = diagnostics; }
+    public void configurationConstrainedItems(java.util.Set<String> items) { requireWritable(); configurationConstrainedItems = java.util.Set.copyOf(items); }
+    public java.util.Set<String> configurationConstrainedItems() { requireOpen(); return configurationConstrainedItems; }
     public List<Item> items() { requireOpen(); return items; }
     public List<RecipeHolder<?>> recipes() { requireOpen(); return recipeHolders; }
     public com.mistaboom.essence_ascendance.balance.economy.ProductionGraph production() {
@@ -140,7 +158,7 @@ public final class GenerationDataSnapshot implements AutoCloseable {
         return production;
     }
     public void production(com.mistaboom.essence_ascendance.balance.economy.ProductionGraph resolved) {
-        requireOpen(); production = java.util.Objects.requireNonNull(resolved);
+        requireWritable(); production = java.util.Objects.requireNonNull(resolved);
         workloads.put("normalized_production_nodes", (long) production.processes().size());
         workloads.put("normalized_production_edges", production.processes().stream().mapToLong(p -> p.inputs().size() + p.outputs().size()).sum());
     }
@@ -218,7 +236,11 @@ public final class GenerationDataSnapshot implements AutoCloseable {
             try {
                 registry.keySet().stream().sorted().forEach(id -> {
                     scope.definition(registry.key().location() + "/" + id);
-                    result.put(id, encodeDefinition(codec, registry.get(id), scope.ops(), "effective registry " + registry.key().location() + "/" + id));
+                    var attempt = com.mistaboom.essence_ascendance.balance.engine.OptionalIntegration.attempt(
+                            registry.key().location().toString(), id.toString(),
+                            () -> encodeDefinition(codec, registry.get(id), scope.ops(), "effective registry " + registry.key().location() + "/" + id));
+                    attempt.value().ifPresent(value -> result.put(id, value));
+                    if (!attempt.succeeded()) limitations.add("Excluded effective definition " + registry.key().location() + "/" + id + ": " + attempt.failure());
                 });
             } finally {
                 scope.unsupportedLootFunctions().forEach((failure, count) -> unsupportedLootFunctions.merge(failure, count, Long::sum));
@@ -227,7 +249,7 @@ public final class GenerationDataSnapshot implements AutoCloseable {
         return result;
     }
 
-    /** Required normalization failures reject the candidate, including broken optional codec linkage. */
+    /** Normalizes one definition; the caller's optional boundary excludes failed custom codecs. */
     static <T> JsonObject encodeDefinition(Codec<T> codec, T value, RegistryOps<com.google.gson.JsonElement> ops, String provenance) {
         try {
             var encoded = codec.encodeStart(ops, value).getOrThrow(error -> new IllegalStateException(error));
@@ -241,8 +263,12 @@ public final class GenerationDataSnapshot implements AutoCloseable {
     private Map<ResourceLocation, JsonObject> structureSettings() {
         Map<ResourceLocation, JsonObject> result = new TreeMap<>();
         var registry = server.registryAccess().registryOrThrow(Registries.STRUCTURE);
-        registry.keySet().stream().sorted().forEach(id -> result.put(id,
-                GenerationStructureData.settings(id, registry.get(id), server.registries().compositeAccess())));
+        registry.keySet().stream().sorted().forEach(id -> {
+            var attempt = com.mistaboom.essence_ascendance.balance.engine.OptionalIntegration.attempt("structure_settings", id.toString(),
+                    () -> GenerationStructureData.settings(id, registry.get(id), server.registries().compositeAccess()));
+            attempt.value().ifPresent(value -> result.put(id, value));
+            if (!attempt.succeeded()) limitations.add("Excluded structure settings " + id + ": " + attempt.failure());
+        });
         return result;
     }
 
@@ -268,14 +294,25 @@ public final class GenerationDataSnapshot implements AutoCloseable {
         var stems = server.registries().getLayer(RegistryLayer.DIMENSIONS).registryOrThrow(Registries.LEVEL_STEM);
         Map<ResourceLocation, JsonObject> selectedBiomes = new TreeMap<>(), natural = new TreeMap<>(), selectedTerrain = new TreeMap<>();
         stems.keySet().stream().sorted().forEach(dimension -> {
+            var attempt = com.mistaboom.essence_ascendance.balance.engine.OptionalIntegration.attempt("dimension", dimension.toString(), () -> {
             // The installed Overworld instance is authoritative; other configured stems are data, not forced levels.
             var level = server.getLevel(ResourceKey.create(Registries.DIMENSION, dimension));
             ChunkGenerator generator = level == null ? stems.get(dimension).generator() : level.getChunkSource().getGenerator();
-            var captured = GenerationDimensionData.capture(dimension, generator, level != null, server.registries().compositeAccess(), selectedBiomes);
+            var captured = GenerationDimensionData.capture(dimension, generator, level != null, server.registries().compositeAccess(), new TreeMap<>(selectedBiomes));
+            var structureData = GenerationStructureData.capture(generator, server.registries().compositeAccess(), structuresEnabled);
+            return new DimensionCapture(captured, structureData);
+            });
+            if (!attempt.succeeded()) {
+                dimensions.add(new DimensionEvidence(dimension.toString(), server.getLevel(ResourceKey.create(Registries.DIMENSION, dimension)) != null,
+                        "unavailable", "FAILED", List.of(), "Unknown; failed dimension projection excluded"));
+                limitations.add("Dimension " + dimension + " compatibility read excluded: " + attempt.failure());
+                return;
+            }
+            var captured = attempt.value().orElseThrow().dimension();
+            var structureData = attempt.value().orElseThrow().structures();
             captured.biomes().forEach(selectedBiomes::putIfAbsent);
             natural.putAll(captured.naturalBiomes()); selectedTerrain.putAll(captured.terrain());
             dimensions.add(captured.evidence()); limitations.addAll(captured.limitations());
-            var structureData = GenerationStructureData.capture(generator, server.registries().compositeAccess(), structuresEnabled);
             eligibleStructures.addAll(structureData.structures()); eligibleStructureSets.addAll(structureData.sets());
             structureData.structures().forEach(structure -> structureDimensions.computeIfAbsent(structure, ignored -> new ArrayList<>()).add(dimension.toString()));
         });
@@ -284,9 +321,10 @@ public final class GenerationDataSnapshot implements AutoCloseable {
         naturalBiomes = Collections.unmodifiableMap(natural); terrain = Collections.unmodifiableMap(selectedTerrain);
         workloads.put("eligible_structure_sets", (long) eligibleStructureSets.size()); workloads.put("eligible_structures", (long) eligibleStructures.size());
     }
+    private record DimensionCapture(GenerationDimensionData dimension, GenerationStructureData structures) { }
 
     public void recordRoutingDiagnostics(List<ProceduralValuationResult> values) {
-        requireOpen();
+        requireWritable();
         if (routingDiagnostics != null) throw new IllegalStateException("Routing diagnostics already collected");
         routingDiagnostics = RoutingGenerationDiagnostics.collect(values);
     }
@@ -340,10 +378,12 @@ public final class GenerationDataSnapshot implements AutoCloseable {
 
     private void requireOpen() { if (server == null) throw new IllegalStateException("Generation snapshot released"); requireCurrent(server); }
     @Override public void close() {
+        if (integrationReadOnly) throw new IllegalStateException("Optional integration cannot release shared generation inputs");
         server = null; epoch.clear();
         routingDiagnostics = null;
         competitiveCapabilities = null;
         quests = com.mistaboom.essence_ascendance.balance.quest.QuestEvidence.EMPTY; questProgression = null;
+        configurationConstrainedItems = java.util.Set.of();
         production = null;
         items = List.of(); recipeHolders = List.of(); mods = Map.of(); itemTags = null; definitions.clear(); naturalBiomes = Map.of(); terrain = Map.of();
         dimensions.clear(); limitations.clear(); workloads.clear(); unsupportedRecipeFamilies.clear(); unsupportedLootFunctions.clear();

@@ -39,6 +39,10 @@ public record LootrPolicy(boolean installed, boolean disabled, boolean team,
     }
     private static final Rule OFF = new Rule(false, Set.of(), Set.of(), Set.of(), Set.of(), 0, false, false);
     public static final LootrPolicy ABSENT = new LootrPolicy(false, false, false, Set.of(), Set.of(), Set.of(), OFF, OFF, List.of(), List.of());
+    public static LootrPolicy unknown(String reason) {
+        return new LootrPolicy(true, false, false, Set.of(), Set.of(), Set.of(), OFF, OFF,
+                List.of("Installed Lootr settings unavailable; conversion and timers unknown"), List.of(reason));
+    }
     public SourceAvailability describe(String table, String structure, List<String> dimensions, boolean conversionProven,
                                        boolean accessProven, double chance, double count, int unresolved) {
         boolean excluded = !installed || disabled || blockedTables.contains(table) || blockedMods.contains(namespace(table))
@@ -64,7 +68,7 @@ public record LootrPolicy(boolean installed, boolean disabled, boolean team,
         } else conditions.add("Lootr absent/disabled or conversion excluded; ordinary finite shared fallback");
         if (!unsupported.isEmpty()) category = Category.UNKNOWN;
         return new SourceAvailability(table, category, scope, structure.isEmpty() ? List.of() : List.of(structure), dimensions,
-                conditions, r, d, accessProven && unresolved == 0, chance, count, uncertainty);
+                conditions, r, d, accessProven && unresolved == 0 && unsupported.isEmpty(), chance, count, uncertainty);
     }
     private static String namespace(String id) { return id.split(":", 2)[0]; }
     private static Set<String> sorted(Set<String> values) { return Collections.unmodifiableSortedSet(new TreeSet<>(values)); }

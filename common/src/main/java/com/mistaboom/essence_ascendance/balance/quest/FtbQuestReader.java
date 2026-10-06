@@ -19,7 +19,7 @@ final class FtbQuestReader {
                 file != null && (boolean) call(file, "isLoading"), file != null && call(file, "getFolder") != null,
                 Files.isRegularFile(folder.resolve("data.snbt")));
     }
-    static QuestEvidence capture(MinecraftServer server, Path folder) {
+    static QuestEvidence capture(MinecraftServer server, Path folder, String version) {
         BalancePerformance.increment("quest_definition_normalizations");
         CompoundTag data; List<CompoundTag> chapters = new ArrayList<>(), tables = new ArrayList<>(); String provenance;
         Object file = instance();
@@ -41,9 +41,9 @@ final class FtbQuestReader {
                 c.put("quests", quests); chapters.add(c);
             }
             for (Object table : collection(call(file, "getRewardTables"))) tables.add(table(table, server.registryAccess()));
-            provenance = "FTB Quests 2101.1.36 effective ServerQuestFile public definition API; no player/team access";
+            provenance = "FTB Quests " + version + " effective ServerQuestFile public definition API; no player/team access";
         } else {
-            return captureDefinitions(folder);
+            return captureDefinitions(folder, version);
         }
         QuestEvidence result = QuestNormalizer.normalize(data, chapters, tables, provenance);
         BalancePerformance.count("quest_definitions", result.quests().size());
@@ -103,10 +103,10 @@ final class FtbQuestReader {
         try (var files = Files.list(folder)) { return files.filter(p -> p.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".snbt")).sorted().map(FtbQuestReader::read).toList(); }
         catch (java.io.IOException failure) { throw new IllegalStateException("Cannot enumerate quest definitions " + folder, failure); }
     }
-    static QuestEvidence captureDefinitions(Path folder) {
+    static QuestEvidence captureDefinitions(Path folder, String version) {
         var result = QuestNormalizer.normalize(read(folder.resolve("data.snbt")), readDirectory(folder.resolve("chapters")),
                 readDirectory(folder.resolve("reward_tables")),
-                "FTB Quests 2101.1.36 format-13 authoritative config/ftbquests/quests load source before SERVER_STARTED; definition-only native SNBT.tryRead");
+                "FTB Quests " + version + " format-13 authoritative config/ftbquests/quests load source before SERVER_STARTED; definition-only native SNBT.tryRead");
         BalancePerformance.count("quest_definitions", result.quests().size());
         BalancePerformance.count("quest_tasks", result.quests().stream().mapToLong(q -> q.tasks().size()).sum());
         BalancePerformance.count("quest_reward_leaves", result.quests().stream().mapToLong(q -> q.rewards().size()).sum());

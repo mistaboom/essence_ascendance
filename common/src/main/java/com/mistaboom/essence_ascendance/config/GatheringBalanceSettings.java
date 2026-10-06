@@ -83,8 +83,14 @@ public record GatheringBalanceSettings(
         }
     }
 
-    /** Nearby crop random ticks are advanced by this generated pulse and chance; fragile-ground protection is binary. */
-    public record VerdantStride(double radiusBlocks, int growthPulseTicks, double growthChance) {
+    /** Null growth mode preserves the exact saved shape and random-tick behavior of older profiles. */
+    public record VerdantStride(double radiusBlocks, int growthPulseTicks, double growthChance, Boolean boneMealGrowth) {
+        public VerdantStride(double radiusBlocks, int growthPulseTicks, double growthChance) {
+            this(radiusBlocks, growthPulseTicks, growthChance, null);
+        }
+
+        public boolean usesBoneMealGrowth() { return Boolean.TRUE.equals(boneMealGrowth); }
+
         public VerdantStride {
             number("verdantStride.radiusBlocks", radiusBlocks, 0, 128);
             integer("verdantStride.growthPulseTicks", growthPulseTicks, 1, 72_000);
@@ -168,7 +174,8 @@ public record GatheringBalanceSettings(
         new HuntersStudy(huntersStudy.killsToFullStudy(), huntersStudy.maximumVirtualLootingLevels());
         new EssenceBloom(essenceBloom.triggerChance(), essenceBloom.essencePerExperiencePoint(),
                 essenceBloom.bonusExperienceFraction());
-        new VerdantStride(verdantStride.radiusBlocks(), verdantStride.growthPulseTicks(), verdantStride.growthChance());
+        new VerdantStride(verdantStride.radiusBlocks(), verdantStride.growthPulseTicks(),
+                verdantStride.growthChance(), verdantStride.boneMealGrowth());
         new Herdkeeper(herdkeeper.radiusBlocks(), herdkeeper.breedingRecoveryMultiplier());
         new AnimalGift(animalGift.radiusBlocks(), animalGift.giftPulseTicks(), animalGift.giftChance());
         new FishingInstinct(fishingInstinct.biteSpeedMultiplier(), fishingInstinct.reelWindowMultiplier(),

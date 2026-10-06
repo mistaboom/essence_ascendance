@@ -59,6 +59,10 @@ public final class BonusTrackGenerator {
         double score = breadth == 1 ? 0 : desirability / (Math.log(2) + desirability);
         int firstPurchasable = earliest;
         int start = Math.max(earliest, firstPurchasable + (int) Math.ceil((tiers.size() - firstPurchasable - values.size()) * score));
+        // Competitive late-band power must stay at its original endpoint. Removing weak
+        // intervening states may move entry later, but never moves a late target earlier.
+        if (nominal.inputs().getOrDefault("competitive_localization", 0.0) == 1)
+            start = Math.max(earliest, tiers.size() - values.size());
         if (nominal.inputs().containsKey("native_base_step_height")) start = earliest;
         start = Math.min(tiers.size() - 1, start);
         // A late native route can offer fewer states. Retain the first and endpoint without filler subdivision.
@@ -100,6 +104,13 @@ public final class BonusTrackGenerator {
     public static Map<ResourceLocation, BonusTrackDefinition> resolve(PackEvidence evidence, BalanceSettings settings,
             Map<ResourceLocation, Long> tierCaps, Map<ResourceLocation, Double> tierFractions,
             Map<ResourceLocation, Double> maxima, Map<String, Double> categorySupply, double exponent) {
+        return resolve(evidence, settings, tierCaps, tierFractions, maxima, categorySupply, exponent,
+                AdaptiveCompetitionCalibration.neutral(evidence));
+    }
+    public static Map<ResourceLocation, BonusTrackDefinition> resolve(PackEvidence evidence, BalanceSettings settings,
+            Map<ResourceLocation, Long> tierCaps, Map<ResourceLocation, Double> tierFractions,
+            Map<ResourceLocation, Double> maxima, Map<String, Double> categorySupply, double exponent,
+            AdaptiveCompetitionCalibration competition) {
         var allTiers = AscendanceTierRegistry.values().stream().sorted(Comparator.comparingInt(AscendanceTierDefinition::order)).toList();
         var tiers = allTiers.stream().filter(AscendanceTierDefinition::grantsPower).toList();
         Map<ResourceLocation, BonusTrackDefinition> result = new TreeMap<>();
@@ -161,6 +172,7 @@ public final class BonusTrackGenerator {
             inputs.put("native_response", marginal); inputs.put("breadth", breadth); inputs.put("environment_alternatives", alternative);
             inputs.put("useful_span", span); inputs.put("composition_headroom", headroom); inputs.put("marginal_power", intrinsic);
             inputs.put("category_supply", economy); inputs.put("utility_price_multiplier", utility);
+            if (competition.localized(stat)) inputs.put("competitive_localization", 1.0);
             if (stat.id().equals(EssenceStats.SWIM_SPEED.id())) inputs.put("native_maximum_effect",
                     NativeBonusMechanics.additivePercentHeadroom(Attributes.WATER_MOVEMENT_EFFICIENCY));
             if (baseStep > 0) inputs.put("native_base_step_height", baseStep);
@@ -182,6 +194,9 @@ public final class BonusTrackGenerator {
                     fraction = thresholds.isEmpty() ? Math.clamp((tierFractions.get(tier.id()) - lower) / (upper - lower), 0, 1)
                             : thresholdFractions.get(Math.min(thresholdFractions.size() - 1, index - start + 1));
                     if (index == end) fraction = 1;
+                    double originalFraction = fraction;
+                    if (thresholds.isEmpty()) fraction = competition.bonusFraction(stat, ProgressionBand.at(index), fraction);
+                    competition.bonusCheckpoint(stat, ProgressionBand.at(index), originalFraction, fraction * maximum);
                     long priorEconomic = index == 0 ? 0 : tierCaps.get(tiers.get(index - 1).id());
                     // Adjacent caps preserve every previous tier's economic growth. Delayed tracks never pay locked segments.
                     segment = fraction > priorFraction ? safeCost((tierCaps.get(tier.id()) - priorEconomic) * economy * utility) : 0;
@@ -231,8 +246,9 @@ public final class BonusTrackGenerator {
         return 1 / (1 + coverage);
     }
     public record Route(ProgressionBand stage, double confidence, String source, List<String> evidence) {}
-    private static Route menuRoute(PackEvidence evidence, CapabilityAxis axis) {
+    static Route menuRoute(PackEvidence evidence, CapabilityAxis axis) {
         List<CapabilityEvidence> routes = new ArrayList<>();
+        List<String> unavailable = new ArrayList<>();
         Set<String> nativeMenus = new HashSet<>();
         for (var capability : evidence.capabilities()) if (capability.axes().getOrDefault(axis, 0.0) > 0) {
             var resource = evidence.resources().get(capability.subjectId());
@@ -253,6 +269,16 @@ public final class BonusTrackGenerator {
                 nativeMenus.add(id);
                 routes.add(new CapabilityEvidence(id, resource.stage(), Map.of(axis, 1.0),
                         resource.reachable(), resource.confidence(), "Registered native menu block with acquisition stage"));
+                if (!resource.reachable()) {
+                    var unresolved = resource.sources().stream().flatMap(source -> source.dependencies().stream()).distinct().sorted()
+                            .filter(dependency -> !evidence.resources().containsKey(dependency) || !evidence.resources().get(dependency).reachable())
+                            .limit(12).toList();
+                    unavailable.add("Native menu " + id + " is registered, but its acquisition is unproven @ "
+                            + resource.stage() + "; confidence=" + resource.confidence()
+                            + (unresolved.isEmpty() ? "" : "; unproven materials=" + unresolved));
+                }
+            } else {
+                unavailable.add("Native menu " + id + " is registered, but no acquisition evidence was collected");
             }
         }
         var selected = routes.stream().filter(route -> route.reachable() && (nativeMenus.contains(route.subjectId()) || route.confidence() >= .6))
@@ -264,7 +290,9 @@ public final class BonusTrackGenerator {
         }
         if (evidence.resources().isEmpty()) return new Route(ProgressionBand.ENTRY, .4, "empty_evidence_native_menu_fallback",
                 List.of("No acquisition evidence supplied; entry-stage native menu fallback is provisional, with explicit low confidence"));
-        return new Route(null, 0, "conservative_unavailable", List.of("No reliable reachable native menu or provider capability for " + axis));
+        unavailable.add("No reliable reachable native menu or provider capability for " + axis
+                + "; unavailable is an evidence gap, not a future tier unlock");
+        return new Route(null, 0, "conservative_unavailable", List.copyOf(unavailable));
     }
     public static Route flightRoute(PackEvidence evidence, boolean includeDeclaredRoutes) {
         List<CapabilityEvidence> candidates = new ArrayList<>(evidence.capabilities());

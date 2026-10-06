@@ -32,41 +32,90 @@ public final class GenerationProviders {
         Entry entry = new Entry(provider.id(), family, provider.requiredForGeneration());
         entries.put(key, entry);
         long start = System.nanoTime();
+        var attempt = OptionalIntegration.attempt(key, "readiness", () -> {
         try (var phase = BalancePerformance.phase("provider_readiness/" + key)) {
             if (disabled) entry.readiness = new ProviderReadiness(ProviderReadiness.Status.DISABLED, "unknown", "Disabled by factual override");
             else {
                 Map<String, String> dependencies = new TreeMap<>();
                 provider.dependencyModIds().forEach(id -> dependencies.put(id, installedVersions.apply(id)));
                 entry.dependencies = dependencies;
-                entry.readiness = dependencies.containsValue(null)
-                        ? new ProviderReadiness(ProviderReadiness.Status.ABSENT, "unknown", "Missing optional dependencies: "
-                            + dependencies.entrySet().stream().filter(row -> row.getValue() == null).map(Map.Entry::getKey).toList())
-                        : java.util.Objects.requireNonNull(provider.readiness(inputs), "Provider returned null readiness");
+                entry.dependenciesDeclared = true;
+                if (dependencies.containsValue(null)) entry.readiness = new ProviderReadiness(ProviderReadiness.Status.ABSENT, "unknown",
+                        "Missing optional dependencies: " + dependencies.entrySet().stream()
+                                .filter(row -> row.getValue() == null).map(Map.Entry::getKey).toList());
+                else {
+                    entry.axes = java.util.Set.copyOf(provider.capabilityAxes());
+                    entry.readiness = java.util.Objects.requireNonNull(inputs == null ? provider.readiness(null)
+                            : inputs.readOnlyIntegration(() -> provider.readiness(inputs)), "Provider returned null readiness");
+                }
             }
-        } catch (RuntimeException | LinkageError failure) {
-            entry.readiness = new ProviderReadiness(ProviderReadiness.Status.FAILED, "unknown", describe(failure));
-            // Probe failures have no emitted evidence; an explicitly advisory adapter can be skipped safely.
-        } finally { entry.probeNanos = System.nanoTime() - start; }
+            return entry.readiness;
+        }
+        });
+        if (!attempt.succeeded()) entry.readiness = new ProviderReadiness(ProviderReadiness.Status.FAILED, "unknown", attempt.failure());
+        entry.probeNanos = System.nanoTime() - start;
         log(entry);
-        entry.readiness.requireSafe(key, entry.required);
+        if (attempt.succeeded() && entry.readiness.status() != ProviderReadiness.Status.AVAILABLE
+                && entry.readiness.status() != ProviderReadiness.Status.ABSENT && entry.readiness.status() != ProviderReadiness.Status.DISABLED)
+            OptionalIntegration.warn(key, entry.readiness.status() + ": " + entry.readiness.detail());
         return entry.readiness.collectable();
     }
 
-    public <T> T run(String family, GenerationProvider provider, String hook, Supplier<T> action) {
+    /** Only detached values may escape this boundary. Use collect for mutable sinks. */
+    public <T> java.util.Optional<T> run(String family, GenerationProvider provider, String hook, Supplier<T> action) {
         Entry entry = java.util.Objects.requireNonNull(entries.get(family + "/" + provider.id()), "Probe provider first");
-        if (!entry.readiness.collectable()) throw new IllegalStateException("Unavailable provider cannot emit evidence");
+        if (!entry.readiness.collectable()) {
+            entry.skippedHooks.add(hook);
+            return java.util.Optional.empty();
+        }
         if (!entry.hooks.add(hook)) throw new IllegalStateException("Provider hook invoked twice: " + provider.id() + "/" + hook);
         long start = System.nanoTime();
+        var attempt = OptionalIntegration.attempt(family + "/" + provider.id(), hook, () -> {
         try (var phase = BalancePerformance.phase("provider/" + family + "/" + provider.id() + "/" + hook)) {
-            T result = java.util.Objects.requireNonNull(action.get(), "Provider returned null evidence");
-            entry.completedHooks.add(hook);
-            return result;
-        } catch (RuntimeException | LinkageError failure) {
-            entry.readiness = new ProviderReadiness(ProviderReadiness.Status.FAILED, entry.readiness.version(), describe(failure));
+            return inputs == null ? action.get() : inputs.readOnlyIntegration(action);
+        }
+        });
+        entry.collectionNanos += System.nanoTime() - start;
+        if (attempt.succeeded()) entry.completedHooks.add(hook);
+        else {
+            entry.readiness = new ProviderReadiness(ProviderReadiness.Status.FAILED, entry.readiness.version(), hook + ": " + attempt.failure());
             log(entry);
-            // Once a hook starts, facts or pre-acquisition inputs may already have escaped. Never publish a partial result.
-            throw new IllegalStateException("Balance generation provider " + family + "/" + provider.id() + " failed in " + hook, failure);
-        } finally { entry.collectionNanos += System.nanoTime() - start; }
+        }
+        return attempt.value();
+    }
+
+    /** Reusable transaction for any future sink: publish only a fully completed hook. */
+    public <S> boolean collect(String family, GenerationProvider provider, String hook, Supplier<S> staging,
+                              java.util.function.Consumer<S> action, java.util.function.Consumer<S> publish) {
+        var completed = run(family, provider, hook, () -> {
+            S output = staging.get(); action.accept(output); return output;
+        });
+        completed.ifPresent(publish);
+        return completed.isPresent();
+    }
+    public String detail(String family, GenerationProvider provider) {
+        Entry entry = entries.get(family + "/" + provider.id());
+        return entry.readiness.status() + ": " + entry.readiness.detail();
+    }
+    /** Read captured declarations without re-entering a failed optional adapter. */
+    public java.util.Set<CapabilityAxis> capabilityAxes(String family, GenerationProvider provider) {
+        return entries.get(family + "/" + provider.id()).axes;
+    }
+    public ProviderReadiness.Status status(String family, GenerationProvider provider) {
+        return entries.get(family + "/" + provider.id()).readiness.status();
+    }
+    public boolean dependenciesInstalled(String family, GenerationProvider provider) {
+        Entry entry = entries.get(family + "/" + provider.id());
+        return entry.dependenciesDeclared && !entry.dependencies.containsValue(null);
+    }
+    public CapabilitySink.Reason unavailableReason(String family, GenerationProvider provider) {
+        return switch (status(family, provider)) {
+            case FAILED -> CapabilitySink.Reason.READ_FAILED;
+            case NOT_READY -> CapabilitySink.Reason.DATA_NOT_READY;
+            case DISABLED -> CapabilitySink.Reason.CONFIGURATION_DISABLED;
+            case ABSENT, UNSUPPORTED -> CapabilitySink.Reason.UNSUPPORTED_API;
+            default -> CapabilitySink.Reason.UNCLASSIFIED;
+        };
     }
 
     public void emitted(String family, GenerationProvider provider, long facts, long sources, double confidence) {
@@ -80,40 +129,57 @@ public final class GenerationProviders {
         entries.values().forEach(entry -> {
             JsonObject row = new JsonObject();
             row.addProperty("id", entry.id); row.addProperty("family", entry.family);
+            JsonArray axes = new JsonArray(); entry.axes.stream().sorted().forEach(axis -> axes.add(axis.name()));
+            row.add("capabilityAxes", axes);
             row.addProperty("status", entry.readiness.status().name()); row.addProperty("version", entry.readiness.version());
             row.addProperty("ready", entry.readiness.collectable());
             row.addProperty("support", entry.readiness.status() == ProviderReadiness.Status.AVAILABLE ? "supported" : entry.readiness.status().name());
             row.addProperty("detail", entry.readiness.detail()); row.addProperty("required", entry.required);
+            row.addProperty("failurePolicy", "exclude_failed_hook_and_continue");
             row.addProperty("adapterAvailable", true); row.addProperty("requiredEvidenceComplete", entry.readiness.requiredEvidenceComplete());
             JsonObject dependencies = new JsonObject();
             entry.dependencies.forEach((id, version) -> { JsonObject dependency = new JsonObject(); dependency.addProperty("installed", version != null);
                 if (version != null) dependency.addProperty("version", version); dependencies.add(id, dependency); });
             row.add("dependencies", dependencies);
             row.addProperty("evidenceCollected", !entry.completedHooks.isEmpty()); row.addProperty("facts", entry.facts); row.addProperty("sources", entry.sources);
+            JsonArray attempted = new JsonArray(); entry.hooks.stream().sorted().forEach(attempted::add); row.add("attemptedHooks", attempted);
             JsonArray completed = new JsonArray(); entry.completedHooks.stream().sorted().forEach(completed::add); row.add("completedHooks", completed);
+            JsonArray skipped = new JsonArray(); entry.skippedHooks.stream().sorted().forEach(skipped::add); row.add("skippedHooks", skipped);
             if (entry.facts + entry.sources > 0) row.addProperty("minimumConfidence", entry.minimumConfidence);
             row.addProperty("probeNanos", entry.probeNanos); row.addProperty("collectionNanos", entry.collectionNanos);
             out.add(row);
         });
         return out;
     }
+    /** Stable decision provenance: observational timings never become balance input. */
+    public JsonArray capabilityDiagnostics() {
+        JsonArray out = diagnostics();
+        out.forEach(element -> {
+            element.getAsJsonObject().remove("probeNanos");
+            element.getAsJsonObject().remove("collectionNanos");
+        });
+        return out;
+    }
     public java.util.List<String> warnings() {
         return entries.values().stream().filter(entry -> entry.readiness.status() != ProviderReadiness.Status.AVAILABLE
                         && entry.readiness.status() != ProviderReadiness.Status.ABSENT && entry.readiness.status() != ProviderReadiness.Status.DISABLED)
-                .map(entry -> "Provider " + entry.family + "/" + entry.id + " [" + entry.readiness.status() + "]: " + entry.readiness.detail()).sorted().toList();
+                .map(entry -> "Provider " + entry.family + "/" + entry.id + " [" + entry.readiness.status() + "]: " + entry.readiness.detail()
+                        + "; affected evidence excluded/advisory; balance accuracy may be reduced").sorted().toList();
     }
 
     private static void log(Entry entry) {
         BalancePerformance.detail("provider/" + entry.family + "/" + entry.id, entry.readiness.status() + ": " + entry.readiness.detail());
     }
-    private static String describe(Throwable failure) { return failure.getClass().getSimpleName() + ": " + failure.getMessage(); }
     private static final class Entry {
         final String id, family;
         final boolean required;
         final java.util.Set<String> hooks = new java.util.HashSet<>();
         final java.util.Set<String> completedHooks = new java.util.HashSet<>();
+        final java.util.Set<String> skippedHooks = new java.util.HashSet<>();
         ProviderReadiness readiness;
         Map<String, String> dependencies = Map.of();
+        boolean dependenciesDeclared;
+        java.util.Set<CapabilityAxis> axes = java.util.Set.of();
         long facts, sources, probeNanos, collectionNanos;
         double minimumConfidence = 1;
         Entry(String id, String family, boolean required) { this.id = id; this.family = family; this.required = required; }

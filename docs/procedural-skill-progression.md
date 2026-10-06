@@ -1,0 +1,64 @@
+# Procedural skill progression
+
+This pass replaces the catalog-tier fallback with the shared `mechanical-utility-1` policy. Every dynamically registered skill participates, including unique Essence mechanics without an admitted external substitute. Catalog placement remains a historical reference, not a computed output target. The native development receipt currently contains 90 skills and 230 published ranks.
+
+## Decision pipeline and authority
+
+1. `SkillEffectRegistry` identifies the implemented handler. `ProgressionRequirements` declares native outcomes, meaningful first states, increments and caps. `SkillBalanceSemantics` describes function, target exposure, equipment, actions and representative operating burden. Its exposure estimates and weights are design assumptions, not measured play rates.
+2. `PackEvidenceCollector` captures external recipes, registries, loot, progression sources and capability definitions. `ConfiguredRecipeAccess`, native item-action readers and optional providers produce access witnesses. Failed, unsupported and unproven reads stay explicit and cannot establish access. Essence's own generated items do not establish external competition.
+3. `SkillProgressionPolicy.evaluate` measures intrinsic native outcomes relative to their meaningful first-state floors, combines declared scope and capability authority, and applies bounded representative exposure. Utility thresholds `.65 / 1.1 / 1.8 / 2.8` select one of five powered progression bands. Both earlier and later placement are possible. These thresholds are testable design policy, not acquisition observations.
+4. `SkillFunctionalScope` distinguishes useful functional substitutes from complementary pressure. Dominant declared functions establish availability. For example, a teleportation consumable may pressure mobility but cannot establish flight; a compass cannot establish ore or threat detection. `SkillOperatingAccess` independently constrains external equipment setup. Missing equipment remains unproven rather than becoming invented absence or a fabricated later stage.
+5. `SkillProgressionGraph` places every dependent at least one powered tier after its prerequisites, including required parent-rank gates. Independent peers in a choice group share a tier; group descendants (such as Vector Jump after Double Jump) occupy later dependency levels. It reserves enough later tiers for descendants by capping soft utility candidates, while retaining hard operating-setup and explicit rank gates. Impossible hard constraints fail generation explicitly. It rejects missing nodes, cycles, invalid tiers and unreachable declared prerequisite ranks. These dependencies remain authored mechanical relationships: this pass does **not** procedurally invent dependencies from tree coordinates. The current registry has no explicit rank-gate rows. The scalar saved starting tier conservatively raises the whole skill if a later-rank dependency requires it; richer per-rank generated tiers would require a separately designed profile contract.
+6. `RuntimeBalanceGenerator` allocates effects and validates combined builds, then publishes meaningful native rank states. The first-state floor cannot feed back into sibling/global power allocation. `AdaptiveCompetitionCalibration.priceSkills` then prices the actual published ranks, using their effective gated tier, native utility, generated category budget, compatible alternative pressure, explicit author controls and independently measured recurring supply where available.
+7. Price policy is `ceil(tierBudget × clamp(.045 × sqrt(utility), .02, .25) × category × alternatives × rankBenefit × explicitControls × measuredSupply)`, with positive whole units and nondecreasing rank costs. Measured supply uses a bounded square-root response relative to an explicit one-item/second normalization; unknown rates are neutral. No inventory yield is silently converted to a rate. Price does not determine tier or effect strength. Exact author cost overrides are applied after procedural repricing.
+8. The existing schema-2 profile stores the final curves. `SkillBalanceRuntime` resolves saved tiers/ranks; `SkillDefinition.requiredTierId(rank)`, the purchase evaluator, committed transactions, activation/effect resolution, synchronization and Nexus use that authority. Purchase history and exact paid receipts remain unchanged. No earned allocation is deleted to fit the new tree.
+9. `NexusSkillTreeLayout` groups by generated first-rank tier and uses prerequisite edges, including rank prerequisites. The screen uses those same relationships for connections. Layout hints order presentation and do not establish gameplay dependencies.
+
+## Shared acquisition contracts
+
+- Finite acquisition is a joint bill with integer counts, source quotas, recipe output quantities, leftovers and branch-local rollback. A bounded planner revisits ingredient and producer choices when an early choice would consume material needed later. Exhausting its work bound reports unproven access, never verified absence.
+- Independent guaranteed finite source quantities can combine. Chance outputs are not guaranteed stock. Finite craftability does not establish unlimited production.
+- Native shaped/shapeless recipes and the existing explicitly audited hookless KubeJS contract retain exact component predicates. Custom transforms, unknown predicates, unresolved conditions and unaudited hooks remain excluded.
+- Native smelting, blasting and smoking consume the loaded recipe's cooking duration and the complete native fuel map. Blast furnaces and smokers apply their native fuel-consumption multiplier. A finite reusable station can support repeatable processing only with separately renewable consumed materials and fuel.
+- Stations are reserved throughout an operation and cannot simultaneously be burned or consumed. Crafting remainders return after all simultaneous ingredient slots have been paid. A catalyst can support sequential crafts but cannot occupy two simultaneous slots with one copy. Empty containers do not refill themselves.
+- Native single-sapling renewal reads the effective grower branches, straight-trunk/blob-foliage geometry and audited leaf/trunk loot. It reserves a replacement sapling, records expected surplus and extinction risk, and does not invent growth rates or guaranteed seed stocks. The development census admits birch and jungle. Fancy oak, spruce, cherry, acacia and two-by-two trees remain outside this bounded geometry contract; those exclusions are not evidence that the trees are inaccessible.
+- Compact access projections retain aggregate resource confidence. This pass does not lower the admission threshold to conceal missing proof.
+
+## Native development scope
+
+The isolated Fabric server is `fabric/build/progression-audit-server`, launched by `:fabric:runProgressionAuditServer`. It binds game and console access to localhost, uses its own `progression-audit-world`, and copies the eight existing Fabric development mod jars and common balance inputs. This is the user's minimal development environment, **not pure vanilla**. Dummy contributes progression data, Moonlight contributes a runtime pack, and other development libraries/UI integrations are installed. The original Fabric/NeoForge run directories, human TOMLs and saved profiles are protected by before/after hashes.
+
+The user authorized command-line launches, world creation in the isolated server, rebuilds, validation and iteration, and explicitly accepted Minecraft's EULA for this server. The original Prism instances and human worlds are not test targets. No production JAR deployment is part of this isolated verification.
+
+`tools/verification/native_server_console.py` reads only this server's loopback console settings and does not print its secret. Useful commands:
+
+```powershell
+.\gradlew.bat :common:check :fabric:build :neoforge:build --continue --console=plain
+.\gradlew.bat :fabric:runProgressionAuditServer --console=plain
+python tools/verification/native_server_console.py 'essence admin balance rebuild' 'essence debug balance validate'
+python tools/verification/native_server_console.py 'essence test skills effects' 'essence test skills milestones'
+python tools/verification/native_server_console.py stop
+```
+
+Stop through the server command, wait for the log to confirm that all dimensions are saved, then close only the tracked development launch if Architectury leaves its runner alive. Do not start a second runner against a locked world/log.
+
+## Receipts and limitations
+
+The auxiliary handoff `validation/procedural-vanilla` contains the environment inventory and protected-file observation. Its `native-actions-baseline` report includes every skill, every published rank, full decision provenance and all six tree layouts. The comparison reference is a preserved **pre-change bootstrap**, not an old native capture of the same server. Environment collection and policy both differ; individual changes must not be attributed to one isolated cause.
+
+At the native-actions snapshot (`a0ff364ea976c75e566823d92730734f0791de417aa9f676f29825da36f1d754`), 52 skills are earlier than the reference, 11 later and 27 unchanged. All have a computed policy decision. External alternative coverage remains 24 PARTIAL and 66 UNKNOWN; these labels are retained, not relabeled as complete. In particular, effective enchantment maxima do not establish obtainable/application levels, and complete brewing/food/contraption alternatives are not yet admitted. Current native source coverage is not the user's requested zero-gap vanilla acceptance.
+
+The bounded tree provider also does not yet resolve finite oak renewal for Sky. No broad pack retuning should proceed on the strength of these receipts. Once the supported vanilla acquisition gaps are resolved, replay the captured Sky profile read-only, then request native pack rebuilding only for genuinely new evidence. Keep the latest user-observed Sky authority `efd7a4d28fcce4b340a7f0f9ebb90b22643c8d44c95e0dc4cfbf82f46e6c0afd` and approximate rebuild time 165.214 seconds separate from older accepted profiles. Separate validation/restart acceptance for that latest Sky profile is not established.
+
+Native command success and tree rectangle checks establish publication and layout invariants. They do not establish client clipping/scrolling/tooltips, multiplayer behavior, survival access timing or good pacing. Focused client checks remain: inspect all category trees and rank tooltips at the user's normal resolution/UI scale; purchase/activate/respec a prerequisite branch and a choice/replacement branch; verify saved progress after rejoin; and assess representative early/mid/late progression pace. The accepted Dark Mode Everywhere overlay repair and Enchanting Efficiency bonus must remain intact.
+
+Schema remains 2 and generator revision remains `native-equipment-headroom-46`. Valid saved profiles load directly. There is no new fingerprint, stale warning, migration, startup comparison, startup rescan or automatic recalibration. Optional integration failures still exclude affected facts and allow independent integrations and world loading to continue.
+
+
+## Skill-tree follow-up checkpoint (2026-10-05)
+
+The user's reported same-tier prerequisites and split independent choices are covered by the shared graph rules above, without skill-specific placement overrides. Candidate changes report `PROGRESSION_GRAPH_CONSTRAINT`. Existing valid saved profiles still load directly; tier changes require an explicit balance rebuild.
+
+Nexus routing now treats source/destination node interiors as obstacles while allowing connection stubs to touch their boundaries. Choice-frame exemptions remain distinct from node exemptions. When crowded existing lines prevent a separated route, the router retries with line crossings allowed while continuing to avoid skill boxes and unrelated choice frames; it no longer silently loses an otherwise routable prerequisite. The same-column and generated-tier regressions route every registered prerequisite, including Kindling to Combustion, through the actual screen geometry and choice frames. Vertical scrolling now uses rotated copies of the horizontal chevrons, shown only when further scrolling is possible.
+
+Verification: progression policy/graph/layout and routing suite (10,911 counted policy checks plus routing assertions), adaptive competition/generation suite (7,915 checks), fullscreen composition (585 checks), Fabric build and NeoForge build passed. Logs: `build/skill-tree-followup.log` and `build/skill-tree-final.log`. No live world/profile was rebuilt or client launched for this focused follow-up. Next session: explicit isolated native rebuild/validation on these binaries, then human client verification of the reported edges and chevrons. Earlier native receipts predate these changes.

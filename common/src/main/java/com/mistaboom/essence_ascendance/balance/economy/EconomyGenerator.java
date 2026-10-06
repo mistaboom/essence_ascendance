@@ -45,7 +45,7 @@ public final class EconomyGenerator {
                 .filter(provider -> runs.prepare("production", provider,
                         com.mistaboom.essence_ascendance.balance.engine.GenerationProviders.disabled(provider.id(), overrides))).forEach(provider -> {
                     try (var phase = BalancePerformance.phase("production_provider/" + provider.id())) {
-                        ProductionGraph supplied = runs.run("production", provider, "collect", () -> provider.collect(inputs, generic));
+                        runs.run("production", provider, "collect", () -> provider.collect(inputs, generic)).ifPresent(supplied -> {
                         runs.emitted("production", provider, 0, supplied.processes().size(),
                                 supplied.processes().stream().mapToDouble(ProductionGraph.Process::confidence).min().orElse(1));
                         supplied.processes().forEach(process -> {
@@ -54,6 +54,7 @@ public final class EconomyGenerator {
                                     + ": " + provider.id() + " replaces " + previous.provider() + " by priority/ID order");
                         });
                         warnings.addAll(supplied.warnings());
+                        });
                     }
                 });
         warnings.addAll(runs.warnings());

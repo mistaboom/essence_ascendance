@@ -40,6 +40,13 @@ dependencies {
 loom {
     accessWidenerPath = project(":common").file("src/main/resources/essence_ascendance.accesswidener")
     runs {
+        progressionAuditServer {
+            server()
+            name = 'Isolated progression audit server'
+            runDir 'build/progression-audit-server'
+            programArg 'nogui'
+            ideConfigGenerated = false
+        }
         client {
             programArg "--username"
             programArg "ReedDev"

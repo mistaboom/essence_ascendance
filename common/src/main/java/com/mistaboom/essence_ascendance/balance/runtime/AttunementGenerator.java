@@ -39,6 +39,10 @@ public final class AttunementGenerator {
         var policy = settings.attunement();
         var references = new TreeMap<String, Double>();
         var assumptions = new ArrayList<String>();
+        var cropEligibility = new EvidenceSink();
+        evidence.facts().stream().filter(fact -> fact.subject() == EvidenceFact.Subject.BLOCK
+                && fact.property().equals(com.mistaboom.essence_ascendance.equipment.PlayerAttributedBlockHarvestService.CROP_ELIGIBILITY_PROPERTY))
+                .forEach(cropEligibility::add);
         references.put("player_health", RuntimeReferencePolicy.playerHealth());
         // Native resource mechanics anchor sustain; locomotion throughput remains an explicit assumption.
         references.put("food_capacity", (double) FoodConstants.MAX_FOOD);
@@ -85,7 +89,7 @@ public final class AttunementGenerator {
         assumptions.add("Confirmed enemy outcomes retain actual health units and receive bounded live attack/armor threat weighting: sqrt((1+attack/reference_damage)*(1+armor/reference_armor)/2), capped at 2. Absent positive armor observations use the vanilla 20-point protection reference; this weights activity and does not modify combat.");
         assumptions.add("XP uses observed routine enemy experience rewards where available. Missing XP observations use sqrt(entry resource effort) as an explicitly dimensionless opportunity proxy, independent of player health; reports mark that fallback. Material and harvest references use positive reachable external generated values.");
         assumptions.add("Source pressure advances in generated reference units, not packets, strikes, healing ticks or XP orb count. Exponential fading retains bounded per-category source exposure. Efficiency is integrated over each outcome, so splitting a single-source action cannot evade repetition. Variety uses weighted source diversity, allowing two meaningful sources to help without needing dozens of recipes.");
-        assumptions.add("Reachability validates registered base routes and saved generated source yields. Known farming/fishing families whose observed reachable outputs are all suppressed fail generation. Missing family evidence is an explicit conservative fallback. Opaque runtime or stack-specific mapping overrides may further suppress outputs and require adapter evidence/live acceptance; this report does not prove their behavior.");
+        assumptions.add("Reachability validates registered base routes and saved generated source yields. Crop calibration uses saved block eligibility from the shared mature-crop gameplay selector, including conditional player-action harvests; biological FARMING sources do not establish crop eligibility. Known eligible crop/fishing families whose observed reachable outputs are all suppressed fail generation. Missing family or saved crop-eligibility evidence is an explicit conservative fallback. Opaque runtime or stack-specific mapping overrides may further suppress outputs and require adapter evidence/live acceptance; this report does not prove their behavior.");
         var methods = new TreeMap<String, AttunementProfile.Method>();
         for (var activity : activities)
             methods.put(activity.id(), new AttunementProfile.Method(activity.id(), activity.categoryId(), activity.units(),
@@ -120,8 +124,8 @@ public final class AttunementGenerator {
             double xp = enemy(evidence, band, CapabilityAxis.EXPERIENCE, Math.sqrt(settings.generation().entryResourceEffort()), settings);
             double recovery = Math.min(references.get("player_health"), Math.max(references.get("health_recovery_per_window"), incoming * window / encounter));
             double harvestValue = value(evidence, economy, band, true);
-            double cropValue = sourceValue(evidence, economy, band, AcquisitionSource.Kind.FARMING, harvestValue, assumptions, suffix);
-            double fishValue = sourceValue(evidence, economy, band, AcquisitionSource.Kind.FISHING, harvestValue, assumptions, suffix);
+            double cropValue = sourceValue(evidence, economy, band, AcquisitionSource.Kind.FARMING, cropEligibility, harvestValue, assumptions, suffix);
+            double fishValue = sourceValue(evidence, economy, band, AcquisitionSource.Kind.FISHING, cropEligibility, harvestValue, assumptions, suffix);
             double materialValue = value(evidence, economy, band, false);
             double durability = Math.max(1, RuntimeReferencePolicy.observed(evidence, band, CapabilityAxis.DURABILITY, 1));
             references.put("routine_health_" + suffix, routineHealth);
@@ -223,9 +227,14 @@ public final class AttunementGenerator {
         return values.isEmpty() ? 1 : Math.max(.01, RobustFrontiers.percentile(values, .5));
     }
     private static double sourceValue(PackEvidence evidence, EconomyProfile economy, ProgressionBand band, AcquisitionSource.Kind kind,
-                                      double fallback, List<String> assumptions, String chapter) {
+                                      EvidenceSink cropEligibility, double fallback, List<String> assumptions, String chapter) {
         var sources = evidence.resources().values().stream().filter(resource -> resource.reachable() && resource.external()
-                        && resource.stage().ordinal() <= band.ordinal() && resource.sources().stream().anyMatch(source -> source.kind() == kind))
+                        && resource.stage().ordinal() <= band.ordinal() && resource.sources().stream().anyMatch(source ->
+                        kind == AcquisitionSource.Kind.FARMING
+                                ? (source.kind() == AcquisitionSource.Kind.FARMING || source.kind() == AcquisitionSource.Kind.PLAYER_ACTION)
+                                    && cropEligibility.flag(EvidenceFact.Subject.BLOCK, source.id(),
+                                        com.mistaboom.essence_ascendance.equipment.PlayerAttributedBlockHarvestService.CROP_ELIGIBILITY_PROPERTY, false)
+                                : source.kind() == kind))
                 .toList();
         if (economy != null && !sources.isEmpty() && sources.stream().allMatch(resource -> {
             var resolved = economy.resources().get(resource.itemId());
@@ -238,7 +247,9 @@ public final class AttunementGenerator {
                     return resolved == null ? resource.economicValue() : resolved.dissolutionYield().amount();
                 }).filter(value -> Double.isFinite(value) && value > 0).boxed().toList();
         if (values.isEmpty()) {
-            assumptions.add(chapter + ": no positive " + kind + " source valuation observed; its rate uses the current reachable harvest median. Adapter eligibility still requires a real positive installed value; inspect pack sources when this family supplies no outputs.");
+            assumptions.add(chapter + ": no positive " + kind + " source valuation observed"
+                    + (kind == AcquisitionSource.Kind.FARMING ? " with saved mature-crop eligibility" : "")
+                    + "; its rate uses the current reachable harvest median. Adapter eligibility still requires a real positive installed value; inspect pack sources when this family supplies no outputs.");
             return fallback;
         }
         return Math.max(.01, RobustFrontiers.percentile(values, .5));

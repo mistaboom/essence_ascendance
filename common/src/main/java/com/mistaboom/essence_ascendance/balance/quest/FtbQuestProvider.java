@@ -13,12 +13,14 @@ public final class FtbQuestProvider implements GenerationProvider {
     public ProviderReadiness readiness(GenerationDataSnapshot inputs) {
         String version = inputs.installedVersion("ftbquests");
         if (!supported(version, inputs.installedVersion("ftblibrary"), inputs.installedVersion("ftbteams"), inputs.installedVersion("architectury")))
-            return new ProviderReadiness(ProviderReadiness.Status.UNSUPPORTED, version, "Audited API boundary: Quests/Library 2101.1.36, Teams 2101.1.11, Architectury 13.0.11");
+            return new ProviderReadiness(ProviderReadiness.Status.UNSUPPORTED, version,
+                    "Audited API tuples (Quests/Library/Teams): 2101.1.36/2101.1.36/2101.1.11 or 2101.1.30/2101.1.35/2101.1.10; Architectury 13.0.11");
         return FtbQuestReader.readiness(inputs.server(), Platform.getConfigFolder().resolve("ftbquests/quests"), version);
     }
     public static boolean supported(String quests, String library, String teams, String architectury) {
-        return "2101.1.36".equals(quests) && "2101.1.36".equals(library)
-                && "2101.1.11".equals(teams) && "13.0.11".equals(architectury);
+        return "13.0.11".equals(architectury) && (
+                "2101.1.36".equals(quests) && "2101.1.36".equals(library) && "2101.1.11".equals(teams)
+                || "2101.1.30".equals(quests) && "2101.1.35".equals(library) && "2101.1.10".equals(teams));
     }
     public static ProviderReadiness definitionReadiness(String version, boolean ownsServer, boolean loading,
                                                         boolean initialized, boolean definitionSourcePresent) {
@@ -34,10 +36,11 @@ public final class FtbQuestProvider implements GenerationProvider {
                                com.mistaboom.essence_ascendance.balance.config.BalanceOverrides overrides) {
         FtbQuestProvider provider = new FtbQuestProvider();
         if (!runs.prepare("quests", provider, GenerationProviders.disabled(provider.id(), overrides))) return;
-        QuestEvidence evidence = runs.run("quests", provider, "normalize", () ->
-                FtbQuestReader.capture(inputs.server(), Platform.getConfigFolder().resolve("ftbquests/quests")));
+        runs.run("quests", provider, "normalize", () ->
+                FtbQuestReader.capture(inputs.server(), Platform.getConfigFolder().resolve("ftbquests/quests"), inputs.installedVersion("ftbquests"))).ifPresent(evidence -> {
         inputs.quests(evidence);
         runs.emitted("quests", provider, evidence.quests().stream().mapToLong(q -> q.tasks().size()).sum(),
                 evidence.quests().stream().mapToLong(q -> q.rewards().size()).sum(), .85);
+        });
     }
 }

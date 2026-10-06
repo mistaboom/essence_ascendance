@@ -12,7 +12,7 @@ import net.minecraft.server.Bootstrap;
 import java.nio.file.*;
 import java.util.*;
 
-/** Opt-in read-only ATM profile replay. Never installs, exports reports, or opens a world. */
+/** Opt-in read-only ATM profile replay. Writes only isolated diagnostics; never installs or opens a world. */
 public final class BalancePerformanceReplay {
     public static void main(String[] args) throws Exception {
         Thread.currentThread().setUncaughtExceptionHandler((thread, error) -> error.printStackTrace(
@@ -55,7 +55,7 @@ public final class BalancePerformanceReplay {
                     || counts.getOrDefault("profile_decodes", 0L) != 1) throw new AssertionError("Saved load duplicated document work");
             for (String forbidden : List.of("full_generation_runs", "evidence_collection_runs", "conservation_solve_runs", "runtime_generation_runs",
                     "report_export_runs", "valuation_snapshot_collections", "production_graph_collections", "valuation_index_builds",
-                    "quest_definition_normalizations", "quest_progression_rule_evaluations", "competitive_capability_runs"))
+                    "quest_definition_normalizations", "quest_progression_rule_evaluations", "competitive_capability_runs", "adaptive_calibration_runs"))
                 if (counts.getOrDefault(forbidden, 0L) != 0) throw new AssertionError("Saved load invoked " + forbidden);
             Map<String, String> semantic = new TreeMap<>();
             for (String section : List.of("metadata", "settings", "overrides", "evidence", "economy", "runtime", "skills", "validation"))
@@ -71,8 +71,18 @@ public final class BalancePerformanceReplay {
                 if (profile) recording.start();
                 RuntimeBalanceDefinition runtime;
                 try (var operation = BalancePerformance.begin("offline_runtime_generation", "saved_evidence_no_recollection")) {
+                    var generation = active.document().section("metadata").getAsJsonObject("generation");
+                    var calibration = new com.mistaboom.essence_ascendance.balance.runtime.AdaptiveCompetitionCalibration(active.evidence(),
+                            generation != null && generation.has("competitiveCapabilities") ? generation.getAsJsonObject("competitiveCapabilities") : null);
                     try (var phase = BalancePerformance.phase("runtime_generation")) {
-                        runtime = RuntimeBalanceDefinition.generate(active.evidence(), active.economy(), inputs.settings(), inputs.overrides());
+                        runtime = com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceGenerator.generate(
+                                active.evidence(), active.economy(), inputs.settings(), inputs.overrides(), calibration);
+                    }
+                    var metadata = new com.google.gson.JsonObject(); var diagnostics = new com.google.gson.JsonObject();
+                    diagnostics.add("adaptiveBalance", calibration.complete(runtime)); metadata.add("generation", diagnostics);
+                    AdaptiveBalanceReports.writeDetails(output, metadata);
+                    try (var tables = new SpreadsheetReports()) {
+                        AdaptiveBalanceReports.saved(tables, metadata); tables.write(output.resolve("reports"), output.resolve("diagnostics"));
                     }
                     operation.complete("generated_offline");
                 }

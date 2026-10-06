@@ -89,7 +89,26 @@ public final class RuntimeLifecycleTest {
         check(EssenceConfigManager.runtime() == client && !EssenceConfigManager.authoritativeReady(),
                 "Remote client preview became server authority");
         worldgenUnavailable("Worldgen accepted a remote client's preview as server policy");
+        check(EssenceConfigManager.markBalanceUnavailable() && EssenceConfigManager.balanceUnavailable(),
+                "Rejected initial balance did not enter a nonfatal unavailable state");
+        check(!EssenceConfigManager.authoritativeReady() && EssenceConfigManager.serverRuntime() == null,
+                "Unavailable balance fabricated an authoritative runtime");
+        for (String dimension : java.util.List.of("minecraft:overworld", "minecraft:the_nether", "minecraft:the_end", "test:custom")) {
+            var id = net.minecraft.resources.ResourceLocation.parse(dimension);
+            var policy = EssenceConfigManager.serverWorldgen();
+            check(!policy.enabled(id) || !policy.distribution(id, -64, 319).enabled(),
+                    "Unavailable balance authorized provisional ore in " + dimension);
+        }
+        check(AscendanceEngine.evaluate(provisionalPlayer, EssenceConfigManager.serverRuntime()).status()
+                        == AscendanceEvaluationResult.Status.CONFIGURATION_ERROR
+                        && com.mistaboom.essence_ascendance.attunement.AttunementService.snapshot(provisionalPlayer).categories().isEmpty(),
+                "Unavailable balance allowed unvalidated player progression");
+        check(provisionalPlayer.save().equals(beforeProvisional), "Unavailable balance changed earned player data");
+        check(com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingRegistry.definitions().isEmpty()
+                        && com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingRegistry.generation() == 0,
+                "Unavailable balance invented dissolution mappings or published a mapping generation");
         EssenceConfigManager.install(server);
+        check(!EssenceConfigManager.balanceUnavailable(), "Successful balance did not leave unavailable mode");
         check(EssenceConfigManager.serverWorldgen() == server.config().latentOreWorldgen(),
                 "Worldgen did not use the single installed server profile");
         check(EssenceConfigManager.runtime() == server && EssenceConfigManager.authoritativeReady(),
@@ -98,6 +117,9 @@ public final class RuntimeLifecycleTest {
         check(EssenceConfigManager.runtime() == server, "Late client packet replaced server authority");
         check(EssenceConfigManager.serverWorldgen() == server.config().latentOreWorldgen(),
                 "Late client packet replaced worldgen policy");
+        check(!EssenceConfigManager.markBalanceUnavailable() && !EssenceConfigManager.balanceUnavailable()
+                        && EssenceConfigManager.serverWorldgen() == server.config().latentOreWorldgen(),
+                "A failed replacement disabled the retained valid server profile");
         check(SkillBalanceRuntime.snapshot().equals(server.skillCurves()), "Client packet replaced authoritative skill prices");
         EssenceConfigManager.clearClient();
         check(EssenceConfigManager.runtime() == server && SkillBalanceRuntime.snapshot().equals(server.skillCurves()),
@@ -123,6 +145,7 @@ public final class RuntimeLifecycleTest {
         var savedEarned = activePlayer.save();
 
         EssenceConfigManager.reset();
+        check(!EssenceConfigManager.balanceUnavailable(), "Stopped server leaked unavailable balance mode");
         worldgenUnavailable("Stopped server leaked a usable worldgen policy");
         check(!com.mistaboom.essence_ascendance.attunement.AttunementService.snapshot(activePlayer).ready()
                         && AscendanceEngine.evaluate(activePlayer, EssenceConfigManager.serverRuntime()).status() == AscendanceEvaluationResult.Status.CONFIGURATION_ERROR,
@@ -131,6 +154,9 @@ public final class RuntimeLifecycleTest {
         check(!EssenceConfigManager.authoritativeReady() && !SkillBalanceRuntime.ready(),
                 "Stopped server leaked runtime or skill prices");
         check(EssenceConfigManager.runtime() != server, "Stopped server retained authoritative object as bootstrap");
+        check(EssenceConfigManager.markBalanceUnavailable(), "Fresh unavailable mode could not be entered after stop");
+        EssenceConfigManager.reset();
+        worldgenUnavailable("Stopped unavailable server leaked a usable terrain policy");
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println(
                 "RuntimeLifecycleTest: " + assertions + " progression/lifecycle assertions PASS");
     }

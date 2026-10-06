@@ -63,6 +63,7 @@ final class FullscreenRenderContractTest {
         check(count(machine, CONTAINER, "render") == 1
                         && machine.stream().noneMatch(call -> call.name.equals("renderBackground")),
                 "Machine screens delegate one background pass to vanilla instead of drawing it twice");
+        inventoryWidgetHook();
         return checks;
     }
 
@@ -88,6 +89,50 @@ final class FullscreenRenderContractTest {
         check(count(containerBackground, CONTAINER, "renderBg") == 1
                         && containerBackground.stream().noneMatch(call -> call.name.equals("renderBlurredBackground")),
                 "Container background invokes renderBg once without ordinary-screen blur");
+        for (String[] lifecycle : new String[][] { { "init", "(Lnet/minecraft/client/Minecraft;II)V" },
+                { "rebuildWidgets", "()V" } }) {
+            List<MethodInsnNode> lifecycleCalls = calls(method(screen, lifecycle[0], lifecycle[1]));
+            int initialize = index(lifecycleCalls, SCREEN, "init");
+            int post = index(lifecycleCalls, "net/neoforged/neoforge/client/event/ScreenEvent$Init$Post", "<init>");
+            check(initialize >= 0 && (post < 0 || post > initialize),
+                    "The initialization return boundary follows both the host init and NeoForge's post listeners");
+        }
+        check(count(calls(method(screen, "removeWidget",
+                        "(Lnet/minecraft/client/gui/components/events/GuiEventListener;)V")), "java/util/List", "remove") == 3,
+                "Native widget removal covers the render, input and narration collections on each loader");
+    }
+
+    private static void inventoryWidgetHook() throws Exception {
+        ClassNode hook = readResource("com/mistaboom/essence_ascendance/mixin/FullscreenInventoryWidgetMixin");
+        MethodNode handler = method(hook, "essenceAscendance$suppressInventoryWidgets",
+                "(Lorg/spongepowered/asm/mixin/injection/callback/CallbackInfo;)V");
+        var annotations = new ArrayList<org.objectweb.asm.tree.AnnotationNode>();
+        if (handler.visibleAnnotations != null) annotations.addAll(handler.visibleAnnotations);
+        if (handler.invisibleAnnotations != null) annotations.addAll(handler.invisibleAnnotations);
+        var inject = annotations.stream().filter(annotation -> annotation.desc.endsWith("/Inject;"))
+                .findFirst().orElseThrow(() -> new AssertionError("Missing fullscreen initialization hook"));
+        @SuppressWarnings("unchecked")
+        List<String> targets = (List<String>)annotationValue(inject, "method");
+        check(targets.equals(List.of("init(Lnet/minecraft/client/Minecraft;II)V", "rebuildWidgets()V")),
+                "The shared filter covers first initialization and resize/rebuild");
+        @SuppressWarnings("unchecked")
+        List<org.objectweb.asm.tree.AnnotationNode> at =
+                (List<org.objectweb.asm.tree.AnnotationNode>)annotationValue(inject, "at");
+        check(at.size() == 1 && "RETURN".equals(annotationValue(at.getFirst(), "value")),
+                "Injected controls are filtered after optional initialization listeners have completed");
+        check(count(calls(handler), UI + "FullscreenSidebarCompatibility", "suppressInjectedWidgets") == 1,
+                "The client hook delegates once to the shared fullscreen policy");
+        try (InputStream stream = FullscreenRenderContractTest.class.getResourceAsStream("/essence_ascendance.mixins.json")) {
+            check(stream != null && new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)
+                            .contains("\"FullscreenInventoryWidgetMixin\""),
+                    "The lifecycle hook is registered in the common client mixin configuration");
+        }
+    }
+
+    private static Object annotationValue(org.objectweb.asm.tree.AnnotationNode annotation, String key) {
+        for (int i = 0; i < annotation.values.size(); i += 2)
+            if (key.equals(annotation.values.get(i))) return annotation.values.get(i + 1);
+        throw new AssertionError("Missing " + key + " annotation value");
     }
 
     private static void hostOrder(List<MethodInsnNode> render, String parent) {

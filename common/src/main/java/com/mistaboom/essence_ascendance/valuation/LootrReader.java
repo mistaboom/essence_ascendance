@@ -11,7 +11,7 @@ import java.util.*;
 final class LootrReader {
     private static final String API = "noobanidus.mods.lootr.common.api.LootrAPI";
     static boolean ready(GenerationDataSnapshot inputs) {
-        if (!"1.21.1-1.11.38.126".equals(inputs.installedVersion("lootr"))) return false;
+        if (!LootrProvider.supported(inputs.installedVersion("lootr"))) return false;
         if (!flag("isReady")) return false;
         try {
             Object api = Class.forName(API).getField("INSTANCE").get(null);
@@ -24,7 +24,9 @@ final class LootrReader {
     }
     static LootrPolicy capture(GenerationDataSnapshot inputs) {
         if (!ready(inputs)) throw new IllegalStateException("Lootr service is not ready for the owning server");
-        requireSafeBlacklistReader();
+        requireSafeBlacklistReader(inputs.installedVersion("lootr"));
+        // .125 has per-player loot only; the team setting/API arrived in .126.
+        boolean teamLoot = LootrProvider.teamLootSettingAvailable(inputs.installedVersion("lootr")) && flag("isTeamLoot");
         Set<String> dimensions = new TreeSet<>();
         for (var dimension : inputs.dimensions()) {
             var key = ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(dimension.id()));
@@ -39,11 +41,15 @@ final class LootrReader {
         List<String> conversion = List.of("Eligible conversion block/entity tags and replacement providers required; custom converters unresolved",
                 "world_border_check=" + flag("shouldCheckWorldBorder"), "convert_mineshafts=" + flag("shouldConvertMineshafts"),
                 "convert_elytras=" + flag("shouldConvertElytras"), "convert_structure_item_frames=" + flag("shouldConvertStructureItemFrames"),
-                "team_loot=" + flag("isTeamLoot"), "decay_replaces_block=" + flag("shouldReplaceWhenDecayed"));
-        return new LootrPolicy(true, flag("isDisabled"), flag("isTeamLoot"), ids("getLootTableBlacklist"), ids("getLootModidBlacklist"), dimensions,
+                "team_loot=" + teamLoot, "decay_replaces_block=" + flag("shouldReplaceWhenDecayed"));
+        return new LootrPolicy(true, flag("isDisabled"), teamLoot, ids("getLootTableBlacklist"), ids("getLootModidBlacklist"), dimensions,
                 rule(inputs, true), rule(inputs, false), conversion, unsupported, conversionTags());
     }
-    private static void requireSafeBlacklistReader() {
+    private static void requireSafeBlacklistReader(String version) {
+        // In .125 this getter reads configuration and built-in problematic-table
+        // definitions; extensible processors arrived in .126. Never infer their
+        // absence for an unaudited version.
+        if (!LootrProvider.blacklistUsesProblematicProcessors(version)) return;
         // The public blacklist getter lazily invokes problematic-table processors. Inspect definitions first,
         // never run an unaudited callback merely to discover conversion exclusions.
         try {

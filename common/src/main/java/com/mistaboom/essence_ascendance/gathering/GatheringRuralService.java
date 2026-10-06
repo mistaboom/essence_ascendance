@@ -13,6 +13,13 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.BonemealableBlock;
+import net.minecraft.world.level.block.SaplingBlock;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.Container;
+import net.minecraft.world.MenuProvider;
+import net.minecraft.tags.BlockTags;
+import com.mistaboom.essence_ascendance.balance.engine.OptionalIntegration;
 
 import java.util.List;
 import com.mistaboom.essence_ascendance.utility.SharedTargetWork;
@@ -46,7 +53,7 @@ public final class GatheringRuralService {
             if (center.distSqr(mutable) > rangeSqr) continue;
             if (!level.hasChunkAt(mutable)) continue;
             BlockState state = level.getBlockState(mutable);
-            if (!PlayerAttributedBlockHarvestService.isCrop(state) || !state.isRandomlyTicking()) continue;
+            if (!isEligibleGrowthTarget(state, level.getBlockEntity(mutable), tuning.usesBoneMealGrowth())) continue;
             var match = UtilityAuraService.strongest(level, net.minecraft.world.phys.Vec3.atCenterOf(mutable), SkillIds.VERDANT_STRIDE,
                     c -> c.settings().gathering().verdantStride().radiusBlocks(),
                     c -> c.settings().gathering().verdantStride().growthChance() / c.settings().gathering().verdantStride().growthPulseTicks());
@@ -54,7 +61,18 @@ public final class GatheringRuralService {
                     "crop_growth", context.now(), tuning.growthPulseTicks())) continue;
             eligible++;
             if (player.getRandom().nextDouble() >= tuning.growthChance()) continue;
-            state.randomTick(level, mutable, level.random);
+            OptionalIntegration.attempt("verdant_stride", "native_growth", () -> {
+                if (tuning.usesBoneMealGrowth()) {
+                    BonemealableBlock growth = (BonemealableBlock) state.getBlock();
+                    if (growth.isValidBonemealTarget(level, mutable, state)
+                            && growth.isBonemealSuccess(level, level.random, mutable, state)) {
+                        growth.performBonemeal(level, level.random, mutable, state);
+                    }
+                } else {
+                    state.randomTick(level, mutable, level.random);
+                }
+                return Boolean.TRUE;
+            });
             if (state.equals(level.getBlockState(mutable))) continue;
             extraTicks++;
             // One pulse may visit a large farm. Keep the acknowledgement sampled and bounded.
@@ -65,6 +83,18 @@ public final class GatheringRuralService {
         }
         pulse.lastEligibleTargets = eligible;
         pulse.lastSuccessfulEvents = extraTicks;
+    }
+
+    /** Growth needs immature crops; harvest maturity cannot decide whether a plant may grow.
+     * Native crops/saplings and their tags keep spreading terrain or production blocks outside the aura.
+     * Opaque storage without native inventory/menu interfaces still requires an exclusion tag/adapter. */
+    public static boolean isEligibleGrowthTarget(BlockState state, BlockEntity blockEntity, boolean boneMealGrowth) {
+        if (state == null || state.is(PlayerAttributedBlockHarvestService.CROP_YIELD_EXCLUDED)
+                || blockEntity instanceof Container || blockEntity instanceof MenuProvider) return false;
+        boolean crop = PlayerAttributedBlockHarvestService.isCrop(state);
+        boolean sapling = state.getBlock() instanceof SaplingBlock || state.is(BlockTags.SAPLINGS);
+        if (!crop && !(boneMealGrowth && sapling)) return false;
+        return boneMealGrowth ? state.getBlock() instanceof BonemealableBlock : state.isRandomlyTicking();
     }
 
     public static void tickHerdkeeper(SkillEffectRuntime.Context context) {
@@ -143,6 +173,10 @@ public final class GatheringRuralService {
 
     /** Current loaded crops for the Verdant Stride badge, without scheduler claims or random ticks. */
     public static int nearbyGrowingCropCount(ServerPlayer player, double radiusBlocks) {
+        return nearbyGrowingCropCount(player, radiusBlocks, false);
+    }
+
+    public static int nearbyGrowingCropCount(ServerPlayer player, double radiusBlocks, boolean boneMealGrowth) {
         ServerLevel level = player.serverLevel();
         BlockPos center = player.blockPosition();
         int range = (int) Math.ceil(radiusBlocks);
@@ -152,7 +186,7 @@ public final class GatheringRuralService {
                 center.offset(range, range, range))) {
             if (center.distSqr(pos) > rangeSqr || !level.hasChunkAt(pos)) continue;
             BlockState state = level.getBlockState(pos);
-            if (PlayerAttributedBlockHarvestService.isCrop(state) && state.isRandomlyTicking()) count++;
+            if (isEligibleGrowthTarget(state, level.getBlockEntity(pos), boneMealGrowth)) count++;
         }
         return count;
     }

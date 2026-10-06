@@ -61,9 +61,8 @@ public final class PackEvidenceCollector {
         EvidenceSink sink = new EvidenceSink(priorities);
         for (PackEvidenceProvider provider : providers) {
             int start = sink.size();
-            runs.run("evidence", provider, "before_acquisition", () -> {
-                provider.beforeAcquisition(inputs, settings, sink); return true;
-            });
+            runs.collect("evidence", provider, "before_acquisition", sink::staged,
+                    staged -> provider.beforeAcquisition(inputs, settings, staged), sink::merge);
             var emitted = sink.emittedSince(start);
             runs.emitted("evidence", provider, emitted.facts(), emitted.sources(), emitted.minimumConfidence());
         }
@@ -87,6 +86,7 @@ public final class PackEvidenceCollector {
         PackEvidenceContext context = new PackEvidenceContext(server, settings, overrides, valuations, snapshot, inputs);
         try (var phase = BalancePerformance.phase("acquisition_facts")) {
             collectAcquisition(context, sink, questProjection.placements());
+            collectCropEligibility(context, sink);
             collectVanillaMechanics(context, sink);
         }
         Map<String, EquipmentReference> baseEquipment;
@@ -99,7 +99,7 @@ public final class PackEvidenceCollector {
         }
         for (PackEvidenceProvider provider : providers) {
             int start = sink.size();
-            runs.run("evidence", provider, "collect", () -> { provider.collect(context, sink); return true; });
+            runs.collect("evidence", provider, "collect", sink::staged, staged -> provider.collect(context, staged), sink::merge);
             var emitted = sink.emittedSince(start);
             runs.emitted("evidence", provider, emitted.facts(), emitted.sources(), emitted.minimumConfidence());
         }
@@ -107,13 +107,15 @@ public final class PackEvidenceCollector {
         inputs.limitations().forEach(sink::warn);
         runs.warnings().forEach(sink::warn);
         applyOverrides(context, sink);
-        Map<String, ResourceEvidence> resources = resolveResources(context, sink);
+        Map<String, ResourceEvidence> resources = com.mistaboom.essence_ascendance.valuation.NativeTreeRenewal.enrich(context, resolveResources(context, sink), sink);
         List<EquipmentReference> equipment = resolveEquipment(baseEquipment, resources, sink, settings);
         explainOutliers(equipment, sink, settings);
         List<EnemyReference> enemies = resolveEnemies(baseEnemies, sink, settings);
         Map<ProgressionBand, Map<CapabilityAxis, Double>> frontiers = RobustFrontiers.build(equipment, settings.outlierPolicy().name());
         List<CapabilityEvidence> capabilities = resolveCapabilities(sink, resources);
         inputs.competitiveCapabilities(CompetitiveCapabilities.collect(context, resources, equipment, capabilities, providers, runs, sink));
+        // Capability adapters are probed above, after the earlier acquisition warning snapshot.
+        runs.warnings().forEach(sink::warn);
         for (ProgressionBand band : ProgressionBand.values()) {
             Map<CapabilityAxis, Double> axes = new EnumMap<>(CapabilityAxis.class); axes.putAll(frontiers.getOrDefault(band, Map.of()));
             for (CapabilityEvidence capability : capabilities) if (capability.reachable() && capability.stage().ordinal() <= band.ordinal())
@@ -130,6 +132,31 @@ public final class PackEvidenceCollector {
         BalancePerformance.count("evidence_providers", providers.size());
         snapshot.summary().forEach((key, count) -> BalancePerformance.count("acquisition_" + key, count));
         return new PackEvidence(resources, equipment, enemies, frontiers, sink.facts(), sink.warnings(), snapshot.summary(), capabilities);
+        }
+    }
+
+    /** Persist the gameplay selector so saved-evidence calibration needs no current block registry. */
+    private static void collectCropEligibility(PackEvidenceContext context, EvidenceSink sink) {
+        var ids = context.acquisition().sources().values().stream().flatMap(List::stream)
+                .filter(source -> source.kind() == AcquisitionSource.Kind.PLAYER_ACTION
+                        || source.kind() == AcquisitionSource.Kind.FARMING)
+                .map(AcquisitionSource::id).distinct().sorted().toList();
+        for (String id : ids) {
+            var key = ResourceLocation.tryParse(id);
+            if (key == null) continue;
+            var block = BuiltInRegistries.BLOCK.getOptional(key);
+            if (block.isEmpty()) continue;
+            var attempt = OptionalIntegration.attempt("crop_eligibility", id,
+                    () -> com.mistaboom.essence_ascendance.equipment.PlayerAttributedBlockHarvestService.isEligibleCropBlock(block.get()));
+            if (!attempt.succeeded()) {
+                sink.warn("Crop eligibility " + id + " excluded: " + attempt.failure());
+                continue;
+            }
+            sink.add(new EvidenceFact(EvidenceFact.Subject.BLOCK, id,
+                    com.mistaboom.essence_ascendance.equipment.PlayerAttributedBlockHarvestService.CROP_ELIGIBILITY_PROPERTY,
+                    EvidenceFact.Value.flag(attempt.value().orElseThrow()), "crop_eligibility", EvidenceFact.Origin.OBSERVED,
+                    1, 0, ProgressionBand.ENTRY, List.of(),
+                    "Shared player harvest state selector evaluated at maximum age; tags, exclusions and native crop behavior preserved. This proves state eligibility, not planting access, block-entity inventory behavior or a positive payout."));
         }
     }
 
@@ -188,6 +215,11 @@ public final class PackEvidenceCollector {
                     inferStage(value, BuiltInRegistries.ITEM.get(value.itemId()), snapshot.sources().getOrDefault(value.itemId().toString(), List.of())),
                     value.renewabilityMultiplier() < 1 || snapshot.sources().getOrDefault(value.itemId().toString(), List.of()).stream().anyMatch(AcquisitionSource::renewable)));
             var solved = AcquisitionProgressionGraph.solve(seeds, inputs.production(), inputs.quests());
+            // Preserve finite/exclusive quest lineage for joint equipment/automation setup proofs.
+            // A crafted descendant must not masquerade as an unconstrained recipe source.
+            inputs.configurationConstrainedItems(solved.items().entrySet().stream()
+                    .filter(entry -> entry.getValue().finite() || !entry.getValue().exclusiveClaims().isEmpty())
+                    .map(Map.Entry::getKey).collect(java.util.stream.Collectors.toSet()));
             List<com.mistaboom.essence_ascendance.balance.economy.ProductionGraph.Process> resolved = new ArrayList<>();
             for (var process : inputs.production().processes()) {
                 if (!process.metadata().containsKey("quest_id")) { resolved.add(process); continue; }
@@ -276,25 +308,29 @@ public final class PackEvidenceCollector {
     private static Map<String, EquipmentReference> collectEquipment(PackEvidenceContext context, EvidenceSink sink) {
         Map<String, EquipmentReference> result = new TreeMap<>();
         for (ProceduralValuationResult value : context.valuations()) {
-            try {
-            Item item = BuiltInRegistries.ITEM.get(value.itemId());
             String id = value.itemId().toString();
-            ProgressionBand stage = inferStage(value, item, context.acquisition().sources().getOrDefault(id, List.of()));
-            EquipmentReference reference = measureEquipment(new ItemStack(item), stage, value.modeledAcquisition());
-            if (reference == null) continue;
-            for (var entry : reference.axes().entrySet()) fact(sink, ITEM, id, "axis." + entry.getKey().name(), EvidenceFact.Value.number(entry.getValue()),
-                    "equipment_components", reference.confidence(), stage,
-                    "Effective slot-valid stack modifiers, including item defaults; default tool behavior; conditional effects require a provider");
-            result.put(id, reference);
-            } catch (RuntimeException exception) {
-                String id = value.itemId().toString();
-                sink.warn("Unsupported equipment measurement " + id + ": " + exception.getClass().getSimpleName() + "; supply corrected attributes through a provider");
+            var attempt = OptionalIntegration.attempt("equipment_components", id, () -> {
+                EvidenceSink staged = sink.staged();
+                Item item = BuiltInRegistries.ITEM.get(value.itemId());
+                ProgressionBand stage = inferStage(value, item, context.acquisition().sources().getOrDefault(id, List.of()));
+                EquipmentReference reference = measureEquipment(new ItemStack(item), stage, value.modeledAcquisition());
+                if (reference != null) measuredAxisFacts(staged, ITEM, id, reference.axes(), "equipment_components", reference.confidence(), stage,
+                        "Effective slot-valid stack modifiers, including item defaults; default tool behavior; conditional effects require a provider");
+                return new EquipmentMeasurement(reference, staged);
+            });
+            if (attempt.succeeded()) {
+                var completed = attempt.value().orElseThrow();
+                sink.merge(completed.facts());
+                if (completed.reference() != null) result.put(id, completed.reference());
+            } else {
+                sink.warn("Unsupported equipment measurement " + id + ": " + attempt.failure() + "; affected axes excluded; supply corrected attributes through a provider");
                 result.put(id, new EquipmentReference(id, "unknown", ProgressionBand.ENTRY, Map.of(),
                         List.of("invalid_component_measurement"), value.modeledAcquisition(), false, 0, "Invalid or unsupported default components"));
             }
         }
         return result;
     }
+    private record EquipmentMeasurement(EquipmentReference reference, EvidenceSink facts) { }
 
     /** Uses the same stack attribute fallback and slot filtering as equipped gameplay items. */
     static EquipmentReference measureEquipment(ItemStack stack, ProgressionBand stage, boolean reachable) {
@@ -369,13 +405,14 @@ public final class PackEvidenceCollector {
     private static List<EnemyReference> collectEnemies(PackEvidenceContext context, EvidenceSink sink) {
         List<EnemyReference> enemies = new ArrayList<>();
         for (EntityType<?> type : BuiltInRegistries.ENTITY_TYPE.stream().sorted(Comparator.comparing(t -> BuiltInRegistries.ENTITY_TYPE.getKey(t).toString())).toList()) {
-            try {
-            if (!DefaultAttributes.hasSupplier(type)) continue;
             ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getKey(type);
-            if (type.getCategory() != MobCategory.MONSTER && type != EntityType.ENDER_DRAGON && type != EntityType.WITHER) continue;
+            var attempt = OptionalIntegration.attempt("entity_attributes", id.toString(), () -> {
+            EvidenceSink staged = sink.staged();
+            if (!DefaultAttributes.hasSupplier(type)) return new EnemyMeasurement(null, staged);
+            if (type.getCategory() != MobCategory.MONSTER && type != EntityType.ENDER_DRAGON && type != EntityType.WITHER) return new EnemyMeasurement(null, staged);
             @SuppressWarnings("unchecked") EntityType<? extends LivingEntity> living = (EntityType<? extends LivingEntity>) type;
             AttributeSupplier attributes = DefaultAttributes.getSupplier(living);
-            if (attributes == null) continue;
+            if (attributes == null) return new EnemyMeasurement(null, staged);
             double health = base(attributes, Attributes.MAX_HEALTH, 20), armor = base(attributes, Attributes.ARMOR, 0);
             double damage = base(attributes, Attributes.ATTACK_DAMAGE, 0), toughness = base(attributes, Attributes.ARMOR_TOUGHNESS, 0);
             EnemyReference.Encounter encounter = type == EntityType.ENDER_DRAGON || type == EntityType.WITHER ? EnemyReference.Encounter.BOSS
@@ -387,30 +424,50 @@ public final class PackEvidenceCollector {
             axes.put(CapabilityAxis.BURST_DAMAGE, damage); axes.put(CapabilityAxis.GROUND_SPEED, base(attributes, Attributes.MOVEMENT_SPEED, .25));
             // A disposable entity is never added to the world or ticked. Query the native reward
             // instead of inventing an XP-to-health exchange rate for progression calibration.
-            if (context.server() != null) try {
-                var sample = type.create(context.server().overworld());
-                if (sample instanceof LivingEntity sampled) {
-                    double experience = sampled.getExperienceReward(context.server().overworld(), null);
-                    if (experience > 0) axes.put(CapabilityAxis.EXPERIENCE, experience);
-                }
-            } catch (RuntimeException unsupported) {
-                sink.warn("No native XP observation for " + id + "; Attunement reports the generated fallback");
+            if (context.server() != null) {
+                var experience = OptionalIntegration.attempt("entity_experience", id.toString(), () -> {
+                    var sample = type.create(context.server().overworld());
+                    double reward = sample instanceof LivingEntity sampled
+                            ? sampled.getExperienceReward(context.server().overworld(), null) : 0;
+                    if (!Double.isFinite(reward) || reward < 0) throw new IllegalArgumentException("Invalid native experience reward " + reward);
+                    return reward;
+                });
+                experience.value().filter(reward -> reward > 0).ifPresent(reward -> axes.put(CapabilityAxis.EXPERIENCE, reward));
+                if (!experience.succeeded()) staged.warn("No native XP observation for " + id + ": " + experience.failure()
+                        + "; supported entity attributes remain available; Attunement reports the generated fallback");
             }
             boolean vanilla = id.getNamespace().equals("minecraft");
             List<String> unknown = vanilla ? List.of("Attack cadence, equipment rolls and encounter frequency not inferred from base attributes")
                     : List.of("Dynamic phases, shields, immunities, regeneration and attack cadence require a provider");
-            for (var entry : axes.entrySet()) fact(sink, ENEMY, id.toString(), "axis." + entry.getKey(), EvidenceFact.Value.number(entry.getValue()),
-                    "entity_attributes", vanilla ? .8 : .45, stage, "Registered default attributes; entity is never spawned for measurement");
-            enemies.add(new EnemyReference(id.toString(), encounter, stage, axes, true, vanilla ? .8 : .45, unknown,
-                    "Hostile category or native boss; health-based elite/apex classification is an inference"));
-            } catch (RuntimeException exception) {
-                String id = BuiltInRegistries.ENTITY_TYPE.getKey(type).toString();
-                sink.warn("Unsupported entity attributes " + id + ": " + exception.getClass().getSimpleName() + "; excluded until a provider supplies measurable values");
-                enemies.add(new EnemyReference(id, EnemyReference.Encounter.UNKNOWN, ProgressionBand.APEX, Map.of(), false, 0,
+            measuredAxisFacts(staged, ENEMY, id.toString(), axes, "entity_attributes", vanilla ? .8 : .45, stage,
+                    "Registered default attributes; entity is never spawned for measurement");
+            return new EnemyMeasurement(new EnemyReference(id.toString(), encounter, stage, axes, true, vanilla ? .8 : .45, unknown,
+                    "Hostile category or native boss; health-based elite/apex classification is an inference"), staged);
+            });
+            if (attempt.succeeded()) {
+                var completed = attempt.value().orElseThrow();
+                sink.merge(completed.facts());
+                if (completed.reference() != null) enemies.add(completed.reference());
+            } else {
+                sink.warn("Unsupported entity attributes " + id + ": " + attempt.failure() + "; affected axes excluded until a provider supplies measurable values");
+                enemies.add(new EnemyReference(id.toString(), EnemyReference.Encounter.UNKNOWN, ProgressionBand.APEX, Map.of(), false, 0,
                         List.of("invalid_default_attributes"), "Invalid or unsupported default attributes"));
             }
         }
         return enemies;
+    }
+    private record EnemyMeasurement(EnemyReference reference, EvidenceSink facts) { }
+
+    /** Validate every native axis before its record is merged into the shared generation evidence. */
+    private static void measuredAxisFacts(EvidenceSink staged, EvidenceFact.Subject subject, String id,
+                                          Map<CapabilityAxis, Double> axes, String provider, double confidence,
+                                          ProgressionBand stage, String reason) {
+        for (var entry : axes.entrySet()) {
+            if (!Double.isFinite(entry.getValue()) || entry.getValue() < 0)
+                throw new IllegalArgumentException("Invalid measured " + entry.getKey() + " for " + id + ": " + entry.getValue());
+            fact(staged, subject, id, "axis." + entry.getKey().name(), EvidenceFact.Value.number(entry.getValue()),
+                    provider, confidence, stage, reason);
+        }
     }
 
     private static double base(AttributeSupplier supplier, Holder<Attribute> attribute, double fallback) {
@@ -507,6 +564,7 @@ public final class PackEvidenceCollector {
             double confidence = sink.number(ITEM, id, "confidence", value.confidence());
             double economics = sink.number(ITEM, id, "resource_value", value.totalValue());
             List<AcquisitionSource> sources = new ArrayList<>(context.acquisition().sources().getOrDefault(id, List.of()));
+            if (reachable) initialAcquisition(sink, id).ifPresent(sources::add);
             if (availability == Availability.EFFECTIVELY_INFINITE || sink.flag(ITEM, id, "passive_generation", false)) {
                 boolean passive = sink.flag(ITEM, id, "passive_generation", false);
                 if (passive) { automation = Automation.PASSIVE; availability = Availability.RENEWABLE_AUTOMATED; }
@@ -523,6 +581,43 @@ public final class PackEvidenceCollector {
                     economics, confidence, sources, warnings));
         }
         return resources;
+    }
+
+    /** Typed finite starting witness supplied before acquisition. It never supplies renewal, rates or prices. */
+    static java.util.Optional<AcquisitionSource> initialAcquisition(EvidenceSink sink, String item) {
+        EvidenceFact source = sink.get(ITEM, item, "initial_source");
+        EvidenceFact count = sink.get(ITEM, item, "initial_count");
+        if (source == null && count == null) return java.util.Optional.empty();
+        if (source == null || count == null || source.value().type() != EvidenceFact.ValueType.TEXT
+                || count.value().type() != EvidenceFact.ValueType.NUMBER || source.value().text().isBlank()
+                || source.value().text().length() > 512 || !source.provider().equals(count.provider())
+                || source.stage() == null || source.stage() != count.stage()
+                || source.confidence() < .5 || count.confidence() < .5
+                || count.value().number() <= 0 || count.value().number() != Math.rint(count.value().number())
+                || count.value().number() > 9_007_199_254_740_991d) {
+            sink.warn("Incomplete/invalid finite initial-source witness excluded for " + item);
+            return java.util.Optional.empty();
+        }
+        SourceAvailability.Scope scope = SourceAvailability.Scope.SHARED;
+        EvidenceFact scopeFact = sink.get(ITEM, item, "initial_scope");
+        if (scopeFact != null) {
+            try {
+                if (scopeFact.value().type() != EvidenceFact.ValueType.TEXT || !scopeFact.provider().equals(source.provider())
+                        || scopeFact.confidence() < .5) throw new IllegalArgumentException("Invalid scope provenance");
+                scope = SourceAvailability.Scope.valueOf(scopeFact.value().text().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException invalid) {
+                sink.warn("Invalid finite initial-source scope excluded for " + item);
+                return java.util.Optional.empty();
+            }
+        }
+        String identity = source.value().text() + ":" + item;
+        var off = new SourceAvailability.Timer(SourceAvailability.Applicability.OFF, 0, List.of());
+        var availability = new SourceAvailability(identity, SourceAvailability.Category.FINITE_SHARED, scope,
+                List.of(), List.of(), List.of("finite starting bundle"), off, off, true, 1, count.value().number(), List.of());
+        return java.util.Optional.of(new AcquisitionSource(identity,
+                AcquisitionSource.Kind.WORLD_GENERATION, source.stage(), count.value().number(),
+                false, false, 0, Math.min(source.confidence(), count.confidence()), source.dependencies(),
+                source.reason() + "; finite initial bundle; no renewal or measured throughput", availability));
     }
 
     /** Package seam exercises provider-only subjects without building a server or spawning entities. */
