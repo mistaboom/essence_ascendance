@@ -91,8 +91,15 @@ public final class QuestNormalizer {
         if (!type.equals("choice") && !type.equals("random")) unknown.add("Opaque reward type " + type);
         else if (depth >= 16) unknown.add("Nested reward table depth exceeds supported bound");
         else {
-            CompoundTag table = r.contains("table_data", Tag.TAG_COMPOUND) ? r.getCompound("table_data") : tables.get(code(text(r, "table", "0")));
-            String key = text(r, "table", sourceId);
+            // Audited RandomReward.readData reads the signed NBT long, whose bits
+            // identify the hexadecimal quest object. A resolved named table wins;
+            // inline data is used only when that lookup fails (including ID zero).
+            long tableId = r.getLong("table_id");
+            String key = String.format(Locale.ROOT, "%016x", tableId);
+            CompoundTag table = tableId == 0 ? null : tables.get(key);
+            if (table == null && r.contains("table_data", Tag.TAG_COMPOUND)) {
+                table = r.getCompound("table_data"); key = "inline/" + sourceId;
+            }
             if (table == null) unknown.add("Broken reward table " + key);
             else if (!visiting.add(key)) unknown.add("Reward table cycle " + key);
             else {

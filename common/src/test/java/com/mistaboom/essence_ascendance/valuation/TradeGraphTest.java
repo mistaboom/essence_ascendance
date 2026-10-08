@@ -67,6 +67,12 @@ public final class TradeGraphTest {
         catch (IllegalArgumentException expected) { }
         require(TradeSamplingScope.isolatedLootRandom(null) == null, "Failed optional trade reads cannot leak their RNG scope");
         require(TradeSamplingScope.entityRandom(() -> explicitRandom) == explicitRandom, "Gameplay entity RNG creation remains native");
+        require(TradeSamplingScope.rewardRandom(explicitRandom) == explicitRandom, "Gameplay animal XP retains its actual world RNG");
+        var rewardWorld = net.minecraft.util.RandomSource.create(99);
+        long rewardRoll = TradeSamplingScope.sample(71, () -> TradeSamplingScope.rewardRandom(rewardWorld).nextLong());
+        require(rewardRoll == TradeSamplingScope.sample(71, () -> TradeSamplingScope.rewardRandom(rewardWorld).nextLong())
+                        && rewardWorld.nextLong() == net.minecraft.util.RandomSource.create(99).nextLong(),
+                "Hypothetical native reward must repeat without advancing or reseeding the world's RNG");
         long entityRoll = TradeSamplingScope.sample(45, () -> TradeSamplingScope.entityRandom(() -> { throw new AssertionError(); }).nextLong());
         require(entityRoll == TradeSamplingScope.sample(45, () -> TradeSamplingScope.entityRandom(() -> { throw new AssertionError(); }).nextLong()),
                 "Hypothetical constructor/reward randomness must reproduce its native sample");

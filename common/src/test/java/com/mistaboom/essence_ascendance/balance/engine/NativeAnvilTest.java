@@ -23,7 +23,18 @@ public final class NativeAnvilTest {
         var mining = register(registry, "mining", Items.IRON_PICKAXE, 5, 8);
         var sword = register(registry, "sword", Items.IRON_SWORD, 5, 4);
         var expensive = register(registry, "expensive", Items.IRON_PICKAXE, 5, 20);
+        var measured = register(registry, "measured", Items.IRON_SWORD, 5, 4,
+                DataComponentMap.builder().set(EnchantmentEffectComponents.DAMAGE, List.of(
+                        new ConditionalEffect<net.minecraft.world.item.enchantment.effects.EnchantmentValueEffect>(
+                                new net.minecraft.world.item.enchantment.effects.AddValue(LevelBasedValue.constant(2)), Optional.empty()))).build());
         registry.freeze();
+        check(NativeTradeProgression.bookEffects(book(Map.of(mining, 1))).evidenceCount() == 0,
+                "An enchantment with no projected effects triggered acquisition work");
+        var projection = NativeTradeProgression.bookEffects(book(Map.of(mining, 1, measured, 3)));
+        check(projection.evidenceCount() > 0 && projection.evidence().stream().noneMatch(e -> e.attainable() || e.source().reachable()),
+                "Supported mod-namespace or mixed-book effect lost, or semantic projection invented acquisition");
+        var excessive = NativeTradeProgression.bookEffects(book(Map.of(measured, 9)));
+        check(excessive.evidence().getFirst().configuration().endsWith(":5"), "Trade effect probe did not use the native anvil level clamp");
         check(!NativeAnvil.target(Items.AIR, java.util.stream.Stream.generate(() -> {
             throw new AssertionError("Empty target reached a modded enchantment callback");
         })), "Air must be excluded before querying enchantment compatibility");
@@ -73,10 +84,13 @@ public final class NativeAnvilTest {
         }
     }
     private static Holder<Enchantment> register(MappedRegistry<Enchantment> registry, String name, Item item, int max, int anvilCost) {
+        return register(registry, name, item, max, anvilCost, DataComponentMap.EMPTY);
+    }
+    private static Holder<Enchantment> register(MappedRegistry<Enchantment> registry, String name, Item item, int max, int anvilCost, DataComponentMap effects) {
         var definition = Enchantment.definition(HolderSet.direct(item.builtInRegistryHolder()), 10, max,
                 Enchantment.dynamicCost(1, 10), Enchantment.dynamicCost(50, 10), anvilCost, EquipmentSlotGroup.MAINHAND);
         return registry.register(ResourceKey.create(Registries.ENCHANTMENT, ResourceLocation.parse("fixture:" + name)),
-                new Enchantment(Component.literal(name), definition, HolderSet.direct(), DataComponentMap.EMPTY), RegistrationInfo.BUILT_IN);
+                new Enchantment(Component.literal(name), definition, HolderSet.direct(), effects), RegistrationInfo.BUILT_IN);
     }
     private static ItemStack book(Map<Holder<Enchantment>, Integer> entries) {
         var result = new ItemStack(Items.ENCHANTED_BOOK); var stored = new ItemEnchantments.Mutable(ItemEnchantments.EMPTY);

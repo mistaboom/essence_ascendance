@@ -214,7 +214,13 @@ public final class InstalledCapabilityProviders {
             for (String source : List.of("torchmaster:megatorch", "torchmaster:dreadlamp")) {
                 sink.analyzed();
                 boolean mega = source.endsWith(":megatorch");
-                Object filter = field("net.xalcon.torchmaster.Torchmaster", mega ? "MegaTorchFilterRegistry" : "DreadLampFilterRegistry");
+                // NeoForge's LevelEvent.Load populates the shared lists after early
+                // balance generation. Before server readiness, run that exact native
+                // pipeline on a detached list. Never initialize/mutate the live service,
+                // or reinterpret an intentionally empty running-server filter.
+                Object filter = context.server().isReady()
+                        ? field("net.xalcon.torchmaster.Torchmaster", mega ? "MegaTorchFilterRegistry" : "DreadLampFilterRegistry")
+                        : configuredFilter(config, mega);
                 Object[] entities = (Object[])call(filter, "getEntities");
                 if (entities.length == 0) {
                     sink.candidate(source, id(), "Effective affected-entity filter empty; loaded service readiness/actual suppression not proven",
@@ -232,6 +238,19 @@ public final class InstalledCapabilityProviders {
                 sink.add(blockingLight(source, mega ? radius : dreadRadius, natural, mega && siege,
                         entityIds, categories, placement));
             }
+        }
+        private static Object configuredFilter(Object config, boolean mega) {
+            try {
+                Class<?> filterType = Class.forName("net.xalcon.torchmaster.EntityFilterList");
+                Object filter = filterType.getConstructor(net.minecraft.resources.ResourceLocation.class).newInstance(
+                        net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("torchmaster", mega ? "entity_filter/mega_torch" : "entity_filter/dread_lamp"));
+                Class.forName("net.xalcon.torchmaster.compat.VanillaCompat")
+                        .getMethod(mega ? "registerTorchEntities" : "registerDreadLampEntities", filterType).invoke(null, filter);
+                Object overrides = Class.forName("net.xalcon.torchmaster.config.ITorchmasterConfig")
+                        .getMethod(mega ? "getMegaTorchEntityBlockListOverrides" : "getDreadLampEntityBlockListOverrides").invoke(config);
+                filterType.getMethod("applyListOverrides", List.class).invoke(filter, overrides);
+                return filter;
+            } catch (ReflectiveOperationException error) { throw new IllegalStateException("Torchmaster detached configured filter", error); }
         }
     }
     /** Pure adapter projection also used by synthetic/offline verification. */

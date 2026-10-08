@@ -27,6 +27,9 @@ public final class BonusTrackCurve {
         for (int index = 0; index <= end; index++) {
             Checkpoint point = checkpoints.get(index);
             if (point.cumulativeCap() == previousCap) continue;
+            // Stored checkpoints are the authority. Interpolating with t=1 can
+            // round a + (b - a) one ULP away from b and miss a funded threshold.
+            if (amount == point.cumulativeCap()) return point.effectFraction();
             if (amount <= point.cumulativeCap()) {
                 double segment = (amount - previousCap) / (double) (point.cumulativeCap() - previousCap);
                 return previousFraction + (point.effectFraction() - previousFraction)
@@ -49,6 +52,8 @@ public final class BonusTrackCurve {
         for (int index = 0; index <= end; index++) {
             Checkpoint point = checkpoints.get(index);
             if (point.cumulativeCap() == previousCap) continue;
+            // Avoid a lossy long -> double -> long round trip at an exact target.
+            if (desired == point.effectFraction()) return point.cumulativeCap();
             if (desired <= point.effectFraction()) {
                 double segment = (desired - previousFraction) / (point.effectFraction() - previousFraction);
                 return Math.clamp(previousCap + Math.round((point.cumulativeCap() - previousCap)

@@ -47,6 +47,24 @@ record NativeToolFacts(boolean exactComponents, Set<String> components, Set<Stri
             return (DataComponentType<?>)(supplied ? value.getClass().getMethod("get").invoke(value) : value);
         } catch (ReflectiveOperationException e) { throw new IllegalStateException("Audited component contract changed: " + type + "." + field, e); }
     }
+    /** Additional scenario fact, never inferred from an empty hand. In Relics
+     * 0.12.8 the destructive Greed branch requires an equipped Curio; its loop
+     * is empty for a player wearing no accessories. Other releases stay unknown. */
+    NativeToolFacts withoutAccessories(Function<String, String> versions) {
+        var inactive = new TreeSet<>(inactiveModifiers);
+        if ("0.12.8".equals(versions.apply("relics")))
+            inactive.add("it.hurts.sskirillss.relics.level.GreedLootModifier");
+        return new NativeToolFacts(exactComponents, components, inactive, falseConditions, falseComponentPredicates);
+    }
+    /** Explicit ordinary-action scenario, not a fact inferred from held equipment.
+     * The audited condition requires this player's recorded giant-mining game tick
+     * to equal the current tick. Waiting until a later tick and using native tools
+     * keeps that condition false even if the attachment retains a conversion count. */
+    NativeToolFacts outsideGiantMiningTick(Function<String, String> versions) {
+        var conditions = new TreeSet<>(falseConditions);
+        if ("4.8.3345".equals(versions.apply("twilightforest"))) conditions.add("twilightforest:giant_pick_used/this");
+        return new NativeToolFacts(exactComponents, components, inactiveModifiers, conditions, falseComponentPredicates);
+    }
     /** getNestHost returns the outermost class, losing the declaring nested
      * class of a method-reference lambda. Keep that owner without its VM suffix. */
     static String lambdaOwner(Object value) {

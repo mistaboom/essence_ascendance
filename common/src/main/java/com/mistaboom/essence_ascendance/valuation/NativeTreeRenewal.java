@@ -104,7 +104,7 @@ public final class NativeTreeRenewal {
             if (cycle.outputs().isEmpty()) { sink.warn("Native cultivation not admitted " + seed + ": " + cycle.details()); continue; }
             String sourceId = "native_tree_cycle:" + seed;
             var conditions = new ArrayList<>(cycle.details());
-            conditions.add("Plant one sapling on reusable valid soil, no flowers/2x2 group, native light/clearance, manual hand harvest and replant one seed");
+            conditions.add("Plant one sapling on reusable valid soil, no flowers/2x2 group, native light/clearance, manual hand harvest with no worn accessories outside any prior giant-mining tick, and replant one seed");
             conditions.add("Stochastic extinction remains possible from a finite seed stock; expected surplus is not a guarantee or a measured rate");
             sink.add(new EvidenceFact(EvidenceFact.Subject.SOURCE, sourceId, "conditional_renewal", EvidenceFact.Value.text(BalanceDocument.GSON.toJson(cycle)),
                     "native_tree_renewal", EvidenceFact.Origin.OBSERVED, cycle.proof().placement().confidence(), 0,

@@ -10,7 +10,7 @@ import java.util.function.Function;
 
 /** Bounds on native base drops; never invokes loot modifiers or unaudited predicates/player APIs. */
 final class BlockLootModifierAudit {
-    enum Mode { UNKNOWN, APPEND_ONLY, EMPTY_DEFINITIONS, NONEMPTY_TOOL, OUTPUT_ITEMS, BLOCK_ORES, TABLE_LIST, FIRST_PATTERN, TOOL_CONDITION, FIRST_OUTPUT_CONVERSION }
+    enum Mode { UNKNOWN, APPEND_ONLY, OPTIONAL_TABLE_REPLACEMENT, EMPTY_DEFINITIONS, NONEMPTY_TOOL, OUTPUT_ITEMS, BLOCK_ORES, TABLE_LIST, FIRST_PATTERN, TOOL_CONDITION, FIRST_OUTPUT_CONVERSION }
     record Rule(Mode mode, Set<String> targets) {
         static final Rule UNKNOWN = new Rule(Mode.UNKNOWN, Set.of());
         Rule { targets = Collections.unmodifiableSortedSet(new TreeSet<>(targets)); }
@@ -19,6 +19,7 @@ final class BlockLootModifierAudit {
     private static final Map<String, Contract> CONTRACTS = contracts();
     private static Map<String, Contract> contracts() {
         Map<String, Contract> out = new HashMap<>();
+        add(out, "artifacts", "13.2.3", Mode.OPTIONAL_TABLE_REPLACEMENT, "artifacts.neoforge.loot.", "RollLootTableModifier");
         add(out, "occultism", "1.224.4", Mode.APPEND_ONLY, "com.klikli_dev.occultism.loot.", "AddItemModifier");
         add(out, "occultism", "1.224.2", Mode.APPEND_ONLY, "com.klikli_dev.occultism.loot.", "AddItemModifier");
         // Identical installed callback bytecode: raw table outputs reach only an
@@ -177,7 +178,8 @@ final class BlockLootModifierAudit {
         // once, rather than retaining a copy for every block table in the pack.
         List<Object> conditions = new ArrayList<>();
         this.modifiers = modifiers.stream()
-                .filter(m -> m.blockRule().mode() != Mode.APPEND_ONLY && m.blockRule().mode() != Mode.EMPTY_DEFINITIONS)
+                .filter(m -> m.blockRule().mode() != Mode.APPEND_ONLY && m.blockRule().mode() != Mode.EMPTY_DEFINITIONS
+                        && !appendsTable(m))
                 .map(m -> {
                     Object value = ProceduralBlockHarvest.plain(m.conditionsEnforced()
                             ? contextConditions == null ? blockConditions(m.definition().get("conditions"), m)
@@ -187,6 +189,19 @@ final class BlockLootModifierAudit {
                 })
                 .toList();
         toolInputs = BlockLootToolInputs.inspectConditions(conditions);
+    }
+
+    /** Audited raw-table injection only appends when replacement is disabled.
+     * A missing replace field is the codec's false default; an absent/malformed
+     * required table or replacement field never grants this contract. */
+    private static boolean appendsTable(RuntimeLootAudit.Modifier modifier) {
+        if (modifier.blockRule().mode() != Mode.OPTIONAL_TABLE_REPLACEMENT) return false;
+        var definition = modifier.definition();
+        var table = definition.get("lootTable");
+        if (table == null || !table.isJsonPrimitive() || !table.getAsJsonPrimitive().isString()
+                || ResourceLocation.tryParse(table.getAsString()) == null) return false;
+        var replace = definition.get("replace");
+        return replace == null || replace.isJsonPrimitive() && replace.getAsJsonPrimitive().isBoolean() && !replace.getAsBoolean();
     }
 
     private List<Candidate> candidates(String table) {

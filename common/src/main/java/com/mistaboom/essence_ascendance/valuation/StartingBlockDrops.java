@@ -36,7 +36,9 @@ public final class StartingBlockDrops {
             String reservedItem, String biome, Set<String> biomeTags, java.util.function.Consumer<String> excluded) {
         return supportedToolDrops(inputs, state, net.minecraft.world.item.ItemStack.EMPTY, reservedItem, biome, biomeTags, excluded);
     }
-    /** Exact fresh, unenchanted native tool; all effective predicates/modifiers still apply. */
+    /** Exact fresh, unenchanted native tool, no worn accessories, and a game tick
+     * after any prior giant-mining action by this player;
+     * all other effective predicates/modifiers still apply. */
     public static Map<String, ExpectedDrop> supportedToolDrops(GenerationDataSnapshot inputs, BlockState state,
             net.minecraft.world.item.ItemStack tool, String reservedItem, String biome, Set<String> biomeTags,
             java.util.function.Consumer<String> excluded) {
@@ -64,7 +66,9 @@ public final class StartingBlockDrops {
         String block = BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString();
         String toolId = tool.isEmpty() ? "minecraft:air" : BuiltInRegistries.ITEM.getKey(tool.getItem()).toString();
         var toolTags = tool.isEmpty() ? Set.<String>of() : tool.getTags().map(t -> t.location().toString()).collect(java.util.stream.Collectors.toSet());
-        var context = new ProceduralBlockLoot.Context(block, properties, properties.keySet(), toolId, toolTags, Map.of(), biome, biomeTags).withToolFacts(NativeToolFacts.capture(inputs, tool));
+        var context = new ProceduralBlockLoot.Context(block, properties, properties.keySet(), toolId, toolTags, Map.of(), biome, biomeTags)
+                .withToolFacts(NativeToolFacts.capture(inputs, tool).withoutAccessories(inputs::installedVersion)
+                        .outsideGiantMiningTick(inputs::installedVersion));
         Map<String, Map<String, Object>> tables = new HashMap<>();
         java.util.function.Function<String, Map<String, Object>> read = id -> tables.computeIfAbsent(id, key -> {
             var table = inputs.definition("loot_evidence", ResourceLocation.parse(key));

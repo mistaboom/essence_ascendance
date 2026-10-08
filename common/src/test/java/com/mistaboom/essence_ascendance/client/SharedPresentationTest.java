@@ -265,7 +265,9 @@ public final class SharedPresentationTest {
                         "Each available tier can fully fund its benefit");
                 check(track.progression(capAtTier, tier.id()) == checkpoint.effectFraction()
                                 && checkpoint.effectFraction() > previousEffect,
-                        "Every purchasable tier attains its generated improvement at its own cap");
+                        "Every purchasable tier attains its generated improvement at its own cap: " + stat.id()
+                                + "/" + tier.id() + " cap=" + capAtTier + " actual=" + track.progression(capAtTier, tier.id())
+                                + " expected=" + checkpoint.effectFraction());
                 if (capAtTier - previousCap > 1) {
                     long partial = previousCap + (capAtTier - previousCap) / 2;
                     check(TierInvestmentPolicy.validTarget(stat, tier, runtime.config().balanceProfile(), previousCap, partial),

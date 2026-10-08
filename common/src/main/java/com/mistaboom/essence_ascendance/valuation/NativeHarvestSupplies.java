@@ -21,7 +21,7 @@ public final class NativeHarvestSupplies {
             if (!placement.contains(key)) continue;
             natural.put(key.toString(), new AcquisitionSource(key.toString(), AcquisitionSource.Kind.WORLD_GENERATION,
                     ProgressionBand.ENTRY, 1, false, false, 0, .76, List.of(),
-                    "Actual starting Overworld placement: " + String.join("; ", placement.signals(key))));
+                    "Actual starting Overworld placement; ordinary harvest with no worn accessories, outside any prior giant-mining action tick: " + String.join("; ", placement.signals(key))));
         }
         var tools = new ArrayList<ItemStack>(); tools.add(ItemStack.EMPTY);
         // Actual native tools only; no custom durability, energy or harvest callbacks.

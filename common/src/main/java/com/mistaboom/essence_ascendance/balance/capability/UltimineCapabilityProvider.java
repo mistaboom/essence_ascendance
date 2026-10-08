@@ -204,7 +204,7 @@ public final class UltimineCapabilityProvider implements PackEvidenceProvider {
         if (ranks.size() > 4096) return "Rank policy exceeds bounded census";
         for (Object rank : ranks) for (Object permission : (Collection<?>) invokeAs("dev.ftb.mods.ftbranks.api.Rank", rank, "getPermissions"))
             if (relevantRankPermission(permission.toString())) return "Player-dependent rank override requires access/cost proof: " + permission;
-        definition.addProperty("rankPolicy", "Loaded current-server FTB Ranks policy has no Ultimine override in any rank");
+        definition.addProperty("rankPolicy", "Audited current-server FTB Ranks policy has no Ultimine override in any rank; missing source files use native name-format-only defaults");
         return null;
     }
     private String rankFileProblem(PackEvidenceContext context, com.google.gson.JsonObject definition) {
@@ -230,8 +230,7 @@ public final class UltimineCapabilityProvider implements PackEvidenceProvider {
         catch (java.io.IOException error) { throw new IllegalStateException("Cannot read authoritative rank policy", error); }
         // Audited createDefaultRanks adds only name formatting when neither server nor
         // default file exists. Any pack-file permission still goes through the scan above.
-        definition.addProperty("rankPolicy", "Audited pre-start rank sources have no Ultimine override; inspected files=" + files
-                + "; absent server/default source uses audited native name-format-only defaults");
+        definition.addProperty("rankPolicy", "Audited current-server FTB Ranks policy has no Ultimine override in any rank; missing source files use native name-format-only defaults");
         return null;
     }
     public static String rankDefinitionProblem(CompoundTag definitions) {

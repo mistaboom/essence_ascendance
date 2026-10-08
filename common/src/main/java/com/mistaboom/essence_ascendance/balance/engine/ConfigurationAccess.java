@@ -18,7 +18,7 @@ public final class ConfigurationAccess {
         var remaining = new HashSet<>(claims);
         remaining.removeIf(id -> {
             var resource = resources.get(id);
-            return resource != null && resource.reachable() && resource.external() && resource.confidence() >= .5
+            return resource != null && resource.reachable() && resource.external()
                     && (resource.availability() == Availability.RENEWABLE_MANUAL || resource.availability() == Availability.EFFECTIVELY_INFINITE)
                     && resource.sources().stream().anyMatch(source -> source.renewable() && source.confidence() >= .5
                     && source.expectedOutput() > 0 && (source.kind() == AcquisitionSource.Kind.PLAYER_ACTION || source.kind() == AcquisitionSource.Kind.FARMING)

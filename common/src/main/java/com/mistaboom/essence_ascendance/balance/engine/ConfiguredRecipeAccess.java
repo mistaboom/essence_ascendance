@@ -17,6 +17,7 @@ public final class ConfiguredRecipeAccess {
     private final ConfigurationAccess.Resolver ordinary;
     private final Map<String, ResourceEvidence> resources;
     private final Set<String> constrained;
+    private Set<String> harvestRestricted;
     private final Map<String, Integer> fuels;
     private final Map<String, String> remainders;
     private final Map<String, List<String>> tags;
@@ -33,10 +34,19 @@ public final class ConfiguredRecipeAccess {
     // rebuild their proofs inside every ingredient/fuel comparator and search branch.
     // Finite inventories, stage ceilings and ledger-dependent results stay uncached.
     private final Map<String, ConfigurationAccess.Proof> directSupplies = new HashMap<>();
+    private ConfiguredRecipeAccess renewableCrafts;
+    private boolean renewableOnly;
+    private final Map<StackKey, ConfigurationAccess.Proof> renewableCraftProofs = new HashMap<>();
     private List<Map.Entry<String, Integer>> orderedFuels;
     private final Map<String, Integer> routeHints = new HashMap<>();
     private final Map<String, Integer> rootHints = new HashMap<>();
     private final Map<Candidate, Integer> candidateHints = new IdentityHashMap<>();
+    private final Map<String, Optional<AcquisitionSource>> explorationSources = new HashMap<>();
+    private final Map<String, List<AcquisitionSource>> finiteSources = new HashMap<>();
+    private final Map<StackKey, List<Candidate>> matchingProducers = new HashMap<>();
+    private final Map<JsonElement, List<JsonElement>> ingredientAlternatives = new IdentityHashMap<>();
+    private final Map<JsonObject, List<String>> ingredientItems = new IdentityHashMap<>();
+    private final Map<String, List<com.mistaboom.essence_ascendance.valuation.NativeHarvestSupplies.Route>> orderedHarvests = new HashMap<>();
     private boolean hintsPrepared, hintClosureComplete;
     private int hintVisits;
     private int visits;
@@ -45,6 +55,8 @@ public final class ConfiguredRecipeAccess {
     private boolean conditionalExploration;
     private ProgressionBand sourceCeiling = ProgressionBand.APEX;
     private final LinkedHashMap<String, FiniteProof> explorationBills = new LinkedHashMap<>();
+    private final LinkedHashMap<String, FiniteProof> failedPrefixes = new LinkedHashMap<>();
+    private int attemptedPrefix;
     /** Bounded whole-bill backtracking: a locally valid ingredient may be needed by a later slot. */
     private static final class PlanChoices {
         private final List<Integer> plan, used = new ArrayList<>(), sizes = new ArrayList<>();
@@ -82,8 +94,7 @@ public final class ConfiguredRecipeAccess {
                     if (stack.isEmpty()) throw new IllegalArgumentException("Empty configured crafting output");
                     return nativeComponents(stack);
                 }, nativeFuels(), nativeRemainders());
-        result.harvests = context.inputs().naturalHarvestSupplies(context.acquisition());
-        return result;
+        return result.harvests(context.inputs().naturalHarvestSupplies(context.acquisition()), recipeOnly);
     }
     /** Narrow, capability-only projection of the audited 8.0.11 upgrade consumer.
      * Every variant consumes an exact fresh/default input jetpack accepted by the
@@ -92,7 +103,7 @@ public final class ConfiguredRecipeAccess {
     public Map<String, JsonObject> addDefaultJetpackUpgrades(PackEvidenceContext context) {
         var witnesses = new TreeMap<String, JsonObject>();
         if (!"8.0.11".equals(context.inputs().installedVersion("ironjetpacks"))) return witnesses;
-        if (!proven.isEmpty() || !explorationBills.isEmpty() || hintsPrepared)
+        if (!proven.isEmpty() || !explorationBills.isEmpty() || !failedPrefixes.isEmpty() || renewableCrafts != null || hintsPrepared)
             throw new IllegalStateException("Configured catalog must be extended before any proof search");
         var ops = RegistryOps.create(JsonOps.INSTANCE, context.server().registryAccess());
         for (var holder : context.inputs().recipes()) {
@@ -151,6 +162,13 @@ public final class ConfiguredRecipeAccess {
     ConfiguredRecipeAccess harvests(Map<String, List<com.mistaboom.essence_ascendance.valuation.NativeHarvestSupplies.Route>> routes) {
         harvests = Map.copyOf(routes); return this;
     }
+    /** A quest's finite reward lineage restricts that source, not an independently
+     * captured native harvest. Explicit component/recipe-only constraints still
+     * apply, and every harvest must pay its own tool bill in the joint ledger. */
+    ConfiguredRecipeAccess harvests(Map<String, List<com.mistaboom.essence_ascendance.valuation.NativeHarvestSupplies.Route>> routes,
+            Set<String> recipeOnly) {
+        harvests = Map.copyOf(routes); harvestRestricted = Set.copyOf(recipeOnly); return this;
+    }
     /** Component normalizer must retain item defaults, not merely the result's component patch. */
     public ConfiguredRecipeAccess(ProductionGraph graph, Map<String, ResourceEvidence> resources,
             Map<String, List<String>> tags, Set<String> constrained, Function<JsonObject, ?> components) {
@@ -162,6 +180,7 @@ public final class ConfiguredRecipeAccess {
         // The repeatable API admits renewable leaves only. requireFinite has a separate joint ledger.
         this.ordinary = new ConfigurationAccess.Resolver(renewableResources(resources), constrained);
         this.resources = resources; this.constrained = Set.copyOf(constrained);
+        this.harvestRestricted = this.constrained;
         this.fuels = new TreeMap<>(fuels); this.remainders = Map.copyOf(remainders);
         this.tags = tags; this.components = components;
         if (graph == null) return;
@@ -221,8 +240,11 @@ public final class ConfiguredRecipeAccess {
                     && (s.availability().category() == SourceAvailability.Category.REFRESHABLE
                     || s.availability().category() == SourceAvailability.Category.CONDITIONAL_RENEWABLE))).toList();
             if (sources.isEmpty()) return;
-            double confidence = Math.min(resource.confidence(), sources.stream().mapToDouble(AcquisitionSource::confidence).min().orElse(0));
-            renewable.put(id, new ResourceEvidence(id, resource.stage(), resource.availability(), resource.automation(),
+            // These sources are independent constructive witnesses. An unrelated
+            // low-confidence aggregate route cannot demote their observed proof.
+            double confidence = sources.stream().mapToDouble(AcquisitionSource::confidence).min().orElse(0);
+            var stage = sources.stream().map(AcquisitionSource::stage).min(Comparator.naturalOrder()).orElseThrow();
+            renewable.put(id, new ResourceEvidence(id, stage, resource.availability(), resource.automation(),
                     resource.reachable(), resource.external(), resource.economicValue(), confidence, sources, resource.warnings()));
         });
         return renewable;
@@ -343,21 +365,40 @@ public final class ConfiguredRecipeAccess {
     }
     private FiniteProof finitePlans(List<JsonObject> stacks, boolean exploration) {
         conditionalExploration = exploration;
+        String scope = exploration + "/" + sourceCeiling + "/";
+        for (int end = 1; end <= stacks.size(); end++) {
+            var cached = failedPrefixes.get(scope + stacks.subList(0, end));
+            if (cached != null) return cached;
+        }
         List<Integer> plan = List.of();
+        attemptedPrefix = 0;
         FiniteProof last = null;
         for (int attempt = 0; attempt < MAX_PLANS; attempt++) {
             choices = new PlanChoices(plan); stockKeys.clear();
             var result = finiteBill(stacks);
             last = result;
             if (result.access().placement().reachable()) return result;
-            plan = choices.next(); if (plan == null) return result;
+            plan = choices.next(); if (plan == null) return rememberFailedPrefix(scope, stacks, result);
         }
-        return new FiniteProof(unknown("Joint acquisition search reached its bounded plan limit; access remains unproven, not absent; last branch: "
-                + String.join("; ", last.access().unknown())), Map.of(), Map.of());
+        return rememberFailedPrefix(scope, stacks, new FiniteProof(unknown("Joint acquisition search reached its bounded plan limit; access remains unproven, not absent; last branch: "
+                + String.join("; ", last.access().unknown())), Map.of(), Map.of()));
+    }
+    /** Every attempted branch stopped within this exact prefix. A later bill tail
+     * was never visited and therefore cannot change its choices, ledger or failure.
+     * Reuse only the same source mode/ceiling and ordered counted component requests;
+     * a bounded failure remains unproven, never a claim that another plan is absent. */
+    private FiniteProof rememberFailedPrefix(String scope, List<JsonObject> stacks, FiniteProof failure) {
+        if (attemptedPrefix > 0) {
+            if (failedPrefixes.size() >= 512) failedPrefixes.pollFirstEntry();
+            failedPrefixes.put(scope + stacks.subList(0, attemptedPrefix), failure);
+        }
+        return failure;
     }
     private FiniteProof finiteBill(List<JsonObject> stacks) {
         visits = 0; var ledger = new AcquisitionLedger(); var proofs = new ArrayList<ConfigurationAccess.Proof>();
+        int currentPrefix = 0;
         for (var stack : stacks) {
+            attemptedPrefix = Math.max(attemptedPrefix, ++currentPrefix);
             long count = quantity(stack);
             if (count < 1 || count > 1_000_000) return new FiniteProof(unknown("Unsupported finite request quantity"), Map.of(), Map.of());
             var proof = finite(text(stack, "id"), stack.has("components") ? components.apply(stack) : null,
@@ -375,7 +416,8 @@ public final class ConfiguredRecipeAccess {
             AcquisitionLedger ledger, Set<StackKey> path, int depth) {
         if (count < 1 || depth >= MAX_DEPTH || ++visits > MAX_VISITS) return unknown("Finite acquisition exceeded bounded work");
         var existing = stockKeys.entrySet().stream().filter(entry -> entry.getKey().item().equals(item)
-                && (exact == null || exact.equals(entry.getKey().components())) && ledger.held(entry.getValue()) >= count).toList();
+                && (exact == null || exact.equals(entry.getKey().components()))
+                && (ledger.held(entry.getValue()) >= count || !consume && ledger.reserved(entry.getValue()) >= count)).toList();
         for (var entry : choices.one(existing)) {
             if (consume) ledger.consume(entry.getValue(), count);
             return new ConfigurationAccess.Proof(new CompetitiveCapabilities.Placement(ProgressionBand.ENTRY, true, 1, List.of()),
@@ -392,12 +434,13 @@ public final class ConfiguredRecipeAccess {
                 }
                 var resource = resources.get(item);
                 if (resource != null && resource.external() && resource.reachable()
-                        && !constrained.contains(item)) {
+                        && (!constrained.contains(item) || conditionalExploration && !harvestRestricted.contains(item))) {
                     if (conditionalExploration) {
-                        var opportunity = resource.sources().stream().filter(ConfiguredRecipeAccess::explorableLoot)
-                                .filter(s -> resource.confidence() >= .5)
-                                .filter(s -> s.stage().ordinal() <= sourceCeiling.ordinal())
-                                .min(Comparator.comparing(AcquisitionSource::stage).thenComparing(AcquisitionSource::id));
+                        var opportunity = explorationSources.computeIfAbsent(item, ignored ->
+                                constrained.contains(item) || resource.confidence() < .5 ? Optional.empty() : resource.sources().stream()
+                                .filter(ConfiguredRecipeAccess::explorableLoot)
+                                .min(Comparator.comparing(AcquisitionSource::stage).thenComparing(AcquisitionSource::id)))
+                                .filter(s -> s.stage().ordinal() <= sourceCeiling.ordinal());
                         if (opportunity.isPresent()) {
                             var source = opportunity.orElseThrow();
                             // This quantity denotes distinct successful encounters, not source.expectedOutput().
@@ -409,15 +452,17 @@ public final class ConfiguredRecipeAccess {
                                             + " from each; native placement/dimension conditions apply; enough accessible occurrences is assumed"
                                             + "; no guaranteed finite stock, renewable supply, chance-to-count conversion or search rate"), List.of());
                         }
-                        var routes = harvests.getOrDefault(item, List.of()).stream()
-                                .filter(r -> r.chance() > 0 && r.chance() <= 1 && r.expected() > 0 && r.placement().confidence() >= .5
-                                        && r.placement().stage().ordinal() <= sourceCeiling.ordinal()).toList();
+                        var routes = orderedHarvests.computeIfAbsent(item, ignored -> {
+                            var eligible = harvests.getOrDefault(item, List.of()).stream()
+                                .filter(r -> !harvestRestricted.contains(item))
+                                .filter(r -> r.chance() > 0 && r.chance() <= 1 && r.expected() > 0 && r.placement().confidence() >= .5).toList();
+                            var hints = new HashMap<String, Integer>();
+                            eligible.forEach(r -> hints.computeIfAbsent(r.tool(), t -> t.isEmpty() ? 0 : routeHint(t)));
+                            return eligible.stream().sorted(Comparator.comparingInt((com.mistaboom.essence_ascendance.valuation.NativeHarvestSupplies.Route r) -> hints.get(r.tool()))
+                                    .thenComparing(com.mistaboom.essence_ascendance.valuation.NativeHarvestSupplies.Route::block)
+                                    .thenComparing(com.mistaboom.essence_ascendance.valuation.NativeHarvestSupplies.Route::tool)).toList();
+                        }).stream().filter(r -> r.placement().stage().ordinal() <= sourceCeiling.ordinal()).toList();
                         // A route is merely a candidate until its tool bill has been proved.
-                        var hints = new HashMap<String, Integer>();
-                        routes.forEach(r -> hints.computeIfAbsent(r.tool(), t -> t.isEmpty() ? 0 : routeHint(t)));
-                        routes = routes.stream().sorted(Comparator.comparingInt((com.mistaboom.essence_ascendance.valuation.NativeHarvestSupplies.Route r) -> hints.get(r.tool()))
-                                .thenComparing(com.mistaboom.essence_ascendance.valuation.NativeHarvestSupplies.Route::block)
-                                .thenComparing(com.mistaboom.essence_ascendance.valuation.NativeHarvestSupplies.Route::tool)).toList();
                         for (var route : choices.one(routes)) {
                             var branch = ledger.copy(); var proofs = new ArrayList<ConfigurationAccess.Proof>();
                             if (!route.tool().isEmpty()) {
@@ -436,14 +481,18 @@ public final class ConfiguredRecipeAccess {
                         }
                     }
                     var stockBranch = ledger.copy(); var stockProofs = new ArrayList<ConfigurationAccess.Proof>();
-                    for (var source : resource.sources().stream().sorted(Comparator.comparing(AcquisitionSource::stage)
-                            .thenComparing(AcquisitionSource::id)).toList()) {
-                        var a = source.availability();
-                        if (resource.confidence() < .5 || source.renewable() || explorableLoot(source) || source.stage().ordinal() > sourceCeiling.ordinal() || source.confidence() < .5 || source.kind() == AcquisitionSource.Kind.QUEST_REWARD
-                                || source.kind() == AcquisitionSource.Kind.ADMINISTRATIVE || a == null || !a.accessProven()
-                                || !a.uncertainty().isEmpty() || a.occurrenceChance() != 1
-                                || a.category() != SourceAvailability.Category.FINITE_SHARED && a.category() != SourceAvailability.Category.FINITE_PERSONALIZED
-                                || source.expectedOutput() != Math.rint(source.expectedOutput()) || source.expectedOutput() > Long.MAX_VALUE) continue;
+                    for (var source : finiteSources.computeIfAbsent(item, ignored -> {
+                        if (constrained.contains(item) || resource.confidence() < .5) return List.of();
+                        return resource.sources().stream().filter(s -> {
+                            var a = s.availability();
+                            return !s.renewable() && !explorableLoot(s) && s.confidence() >= .5
+                                    && s.kind() != AcquisitionSource.Kind.QUEST_REWARD && s.kind() != AcquisitionSource.Kind.ADMINISTRATIVE
+                                    && a != null && a.accessProven() && a.uncertainty().isEmpty() && a.occurrenceChance() == 1
+                                    && (a.category() == SourceAvailability.Category.FINITE_SHARED || a.category() == SourceAvailability.Category.FINITE_PERSONALIZED)
+                                    && s.expectedOutput() == Math.rint(s.expectedOutput()) && s.expectedOutput() <= Long.MAX_VALUE;
+                        }).sorted(Comparator.comparing(AcquisitionSource::stage).thenComparing(AcquisitionSource::id)).toList();
+                    })) {
+                        if (source.stage().ordinal() > sourceCeiling.ordinal()) continue;
                         long missing = Math.max(0, count - stockBranch.held(baseKey));
                         long available = stockBranch.remaining(source.id(), baseKey, (long)source.expectedOutput());
                         long taken = Math.min(missing, available);
@@ -457,16 +506,26 @@ public final class ConfiguredRecipeAccess {
                     }
                 }
             }
+            // A wholly renewable static craft has no shared finite stock to draw.
+            // Prove it in a separate catalog with finite/exploration sources absent;
+            // reusing that proof cannot lend this ledger a station or spent material.
+            var renewableCraft = renewableCraft(item, exact == null ? base : exact);
+            if (renewableCraft.placement().reachable() && renewableCraft.placement().stage().ordinal() <= sourceCeiling.ordinal()) {
+                String key = stockKey(item, exact == null ? base : exact);
+                ledger.add(key, count); if (consume) ledger.consume(key, count); return renewableCraft;
+            }
             prepareHints();
             if (hintClosureComplete && !routeHints.containsKey(item))
                 return unknown("No source-connected path in the complete optimistic static recipe closure for " + item);
             // Configuration mismatches are impossible branches, not ledger choices.
             // Filter them before assigning backtracking positions; otherwise nested
             // configured components consume the plan budget on unrelated variants.
-            var matching = producers.getOrDefault(item, List.of()).stream()
-                    .filter(candidate -> exact == null || exact.equals(outputComponents(candidate))).toList();
-            matching.forEach(c -> candidateHints.computeIfAbsent(c, this::candidateHint));
-            matching = matching.stream().sorted(Comparator.comparingInt((Candidate c) -> candidateHints.get(c)).thenComparing(Candidate::id)).toList();
+            var matching = matchingProducers.computeIfAbsent(pathKey, ignored -> {
+                var candidates = producers.getOrDefault(item, List.of()).stream()
+                        .filter(candidate -> exact == null || exact.equals(outputComponents(candidate))).toList();
+                candidates.forEach(c -> candidateHints.computeIfAbsent(c, this::candidateHint));
+                return candidates.stream().sorted(Comparator.comparingInt((Candidate c) -> candidateHints.get(c)).thenComparing(Candidate::id)).toList();
+            });
             var failures = new LinkedHashSet<String>();
             for (var candidate : choices.one(matching)) {
                 Object outputComponents = outputComponents(candidate);
@@ -477,13 +536,15 @@ public final class ConfiguredRecipeAccess {
                 long crafts = (missing + output - 1) / output;
                 var branch = ledger.copy(); var requirements = new ArrayList<ConfigurationAccess.Proof>();
                 String heldStation = null;
+                boolean ownsReservation = false;
                 if (!candidate.station().isEmpty()) {
                     var station = finite(candidate.station(), null, 1, false, branch, path, depth + 1);
                     if (!station.placement().reachable()) { failures.addAll(station.unknown()); continue; }
                     requirements.add(station);
                     heldStation = stockKeys.entrySet().stream().filter(e -> e.getKey().item().equals(candidate.station())
-                            && branch.held(e.getValue()) >= 1).map(Map.Entry::getValue).findFirst().orElseThrow();
-                    branch.consume(heldStation, 1); // reserve for the full operation, unavailable to inputs/fuel
+                            && (branch.held(e.getValue()) >= 1 || branch.reserved(e.getValue()) >= 1)).map(Map.Entry::getValue).findFirst().orElseThrow();
+                    ownsReservation = branch.reserved(heldStation) == 0;
+                    if (ownsReservation) branch.reserve(heldStation);
                 }
                 // Remainders return after every craft, never before all simultaneous slots are paid.
                 // Ordinary no-remainder recipes can still use a single counted batch.
@@ -517,7 +578,7 @@ public final class ConfiguredRecipeAccess {
                 }
                 var proof = combine(requirements, candidate.id(), candidate.confidence());
                 if (!proof.placement().reachable()) { proof.unknown().stream().limit(4).forEach(failures::add); continue; }
-                if (heldStation != null) branch.add(heldStation, 1);
+                if (ownsReservation) branch.release(heldStation);
                 branch.add(outputKey, Math.multiplyExact(crafts, output));
                 if (consume && !branch.consume(outputKey, count)) throw new IllegalStateException("Finite output conservation failure");
                 ledger.commit(branch); return proof;
@@ -528,9 +589,12 @@ public final class ConfiguredRecipeAccess {
     }
     private ConfigurationAccess.Proof finiteIngredient(JsonElement value, long count, AcquisitionLedger ledger,
             Set<StackKey> path, int depth, Map<String, Long> returns) {
-        List<JsonElement> alternatives = new ArrayList<>();
+        var alternatives = ingredientAlternatives.computeIfAbsent(value, ingredient -> {
+            var result = new ArrayList<JsonElement>();
+            if (ingredient.isJsonArray()) ingredient.getAsJsonArray().forEach(result::add); else result.add(ingredient);
+            return List.copyOf(result);
+        });
         var failures = new LinkedHashSet<String>();
-        if (value.isJsonArray()) value.getAsJsonArray().forEach(alternatives::add); else alternatives.add(value);
         for (var alternative : choices.one(alternatives)) {
             if (!alternative.isJsonObject()) continue;
             var object = alternative.getAsJsonObject();
@@ -544,9 +608,13 @@ public final class ConfiguredRecipeAccess {
                 if (componentPatch.keySet().stream().anyMatch(k -> k.startsWith("!"))) continue;
                 choices = items(object.get("items"));
             } else continue;
-            var ordered = choices.stream().distinct().sorted().toList();
-            ordered.forEach(id -> rootHints.computeIfAbsent(id, this::routeHint));
-            ordered = ordered.stream().sorted(Comparator.comparingInt((String id) -> rootHints.get(id)).thenComparing(Comparator.naturalOrder())).toList();
+            var ordered = ingredientItems.get(object);
+            if (ordered == null) {
+                ordered = choices.stream().distinct().sorted().toList();
+                ordered.forEach(id -> rootHints.computeIfAbsent(id, this::routeHint));
+                ordered = ordered.stream().sorted(Comparator.comparingInt((String id) -> rootHints.get(id)).thenComparing(Comparator.naturalOrder())).toList();
+                ingredientItems.put(object, ordered);
+            }
             for (String item : this.choices.one(ordered)) {
                 var branch = ledger.copy(); Object exact = null;
                 if (componentPatch != null) { var stack = new JsonObject(); stack.addProperty("id", item); stack.add("components", componentPatch); exact = components.apply(stack); }
@@ -563,6 +631,25 @@ public final class ConfiguredRecipeAccess {
     private int directSupplyOrder(String item) {
         var placement = directSupply(item).placement();
         return placement.reachable() ? placement.stage().ordinal() : ProgressionBand.values().length;
+    }
+    private ConfigurationAccess.Proof renewableCraft(String item, Object exact) {
+        if (renewableOnly || !producers.containsKey(item)) return unknown("No independent renewable static craft");
+        var key = new StackKey(item, exact);
+        var cached = renewableCraftProofs.get(key); if (cached != null) return cached;
+        if (renewableCrafts == null) {
+            renewableCrafts = new ConfiguredRecipeAccess(null, renewableResources(resources), tags, constrained, components, Map.of(), Map.of());
+            renewableCrafts.renewableOnly = true;
+            producers.forEach((id, candidates) -> {
+                // Retain the full counted ledger for cooking/container recipes: their
+                // actual fuel/remainders can matter to later requirements in a bill.
+                var pure = candidates.stream().filter(c -> c.cookingTicks() == 0
+                        && !mayReturn(c.definition().getAsJsonArray("ingredients"))).toList();
+                if (!pure.isEmpty()) renewableCrafts.producers.put(id, pure);
+            });
+        }
+        renewableCrafts.visits = 0;
+        var proof = renewableCrafts.require(item, exact, new HashSet<>(), 0);
+        renewableCraftProofs.put(key, proof); return proof;
     }
     /** Ordering only: an optimistic, bounded static route cannot authorize a material draw.
      * Every selected branch still proves exact components, stations, counts and the joint
@@ -585,7 +672,7 @@ public final class ConfiguredRecipeAccess {
         }
         for (int wave = 0; wave < 12; wave++) {
             boolean changed = false;
-            for (var entry : harvests.entrySet()) if (!constrained.contains(entry.getKey())) for (var route : entry.getValue()) {
+            for (var entry : harvests.entrySet()) if (!harvestRestricted.contains(entry.getKey())) for (var route : entry.getValue()) {
                 int cost = route.tool().isEmpty() ? 8 : routeHints.containsKey(route.tool()) ? Math.min(99_999, 8 + routeHints.get(route.tool())) : 100_000;
                 if (cost < routeHints.getOrDefault(entry.getKey(), 100_000)) { routeHints.put(entry.getKey(), cost); changed = true; }
             }
@@ -624,7 +711,7 @@ public final class ConfiguredRecipeAccess {
             var direct = directSupply(item);
             if (direct.placement().reachable()) return direct.placement().stage().ordinal();
             var resource = resources.get(item);
-            if (!constrained.contains(item)) for (var route : harvests.getOrDefault(item, List.of()))
+            if (!harvestRestricted.contains(item)) for (var route : harvests.getOrDefault(item, List.of()))
                 best = Math.min(best, route.tool().isEmpty() ? 8 : 8 + routeHint(route.tool(), path, depth + 1));
             if (!constrained.contains(item) && resource != null && resource.external() && resource.reachable()
                     && resource.confidence() >= .5 && resource.sources().stream().anyMatch(s -> s.confidence() >= .5
@@ -734,6 +821,7 @@ public final class ConfiguredRecipeAccess {
             candidates.forEach(c -> candidateHints.computeIfAbsent(c, this::candidateHint));
             candidates = candidates.stream().sorted(Comparator.comparingInt((Candidate c) -> candidateHints.get(c)).thenComparing(Candidate::id)).toList();
             for (var candidate : candidates) {
+                if (quantity(candidate.output()) < 1 || quantity(candidate.output()) > 1_000_000 || candidate.confidence() < .5) continue;
                 if (exact != null && !exact.equals(outputComponents(candidate))) continue;
                 List<ConfigurationAccess.Proof> inputs = new ArrayList<>();
                 if (!candidate.station().isEmpty()) inputs.add(setups.computeIfAbsent(candidate.station(), station -> {

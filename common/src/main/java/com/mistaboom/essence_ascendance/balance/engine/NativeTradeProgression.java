@@ -103,6 +103,25 @@ public final class NativeTradeProgression {
     }
 
     /** Conditional NPC discovery and a paid finite sequence; output still needs an anvil application proof. */
+    static CapabilitySink bookEffects(ItemStack book) {
+        var projection = new CapabilitySink();
+        // Use the same reader as the eventual anvil consumer. This is a detached,
+        // explicitly unattainable definition projection, never an access witness.
+        var unavailable = new CompetitiveCapabilities.Placement(ProgressionBand.ENTRY, false, 0, List.of());
+        var stored = book.getOrDefault(net.minecraft.core.component.DataComponents.STORED_ENCHANTMENTS,
+                net.minecraft.world.item.enchantment.ItemEnchantments.EMPTY);
+        for (var entry : stored.entrySet().stream().sorted(Comparator.comparing(e ->
+                e.getKey().unwrapKey().orElseThrow().location())).toList()) {
+            var enchantment = entry.getKey().value();
+            int level = Math.min(entry.getIntValue(), enchantment.getMaxLevel());
+            if (level < 1) continue;
+            NativeCapabilityReader.readEnchantment("minecraft:enchanted_book",
+                    entry.getKey().unwrapKey().orElseThrow().location().toString(), enchantment,
+                    level, unavailable, true, projection);
+        }
+        return projection;
+    }
+
     public static List<AcquiredBook> collect(PackEvidenceContext context, Map<String, ResourceEvidence> resources, CapabilitySink sink) {
         var attempt = OptionalIntegration.attempt(PROVIDER, "book trade progression", () -> {
             var staged = new CapabilitySink(); var offers = new ArrayList<Offer>();
@@ -135,11 +154,16 @@ public final class NativeTradeProgression {
                     row.add("jobsiteItems", BalanceDocument.GSON.toJsonTree(jobsites));
                     var materialWitnesses = new JsonArray(); var accepted = new ArrayList<AcquiredBook>();
                     var actor = actors.stream().filter(a -> a.villagerType().equals(target.villagerType())).findFirst();
+                    var effects = bookEffects(target.nativeOffer().getResult());
+                    boolean projectsEffects = effects.evidenceCount() > 0;
+                    row.addProperty("projectsSupportedEffects", projectsEffects);
+                    row.add("effectProjectionLimitations", BalanceDocument.GSON.toJsonTree(effects.unsupportedCounts()));
                     // Without the required actor no material search can produce an acquired
                     // book or affect calibration. Retain the raw plans and exact missing gate;
                     // do not spend hundreds of joint bill searches on unused partial witnesses.
-                    if (actor.isEmpty()) row.addProperty("materialSearch", "Not evaluated: no matching supported NPC opportunity; raw plans retained, no acquisition or absence inferred");
-                    if (actor.isPresent()) for (var plan : search.plans()) for (String jobsite : jobsites) {
+                    if (!projectsEffects) row.addProperty("materialSearch", "Not evaluated: the actual anvil effect reader produces no supported measurements for this book; raw offer/plans retained, access and unsupported effects remain unknown");
+                    else if (actor.isEmpty()) row.addProperty("materialSearch", "Not evaluated: no matching supported NPC opportunity; raw plans retained, no acquisition or absence inferred");
+                    if (projectsEffects && actor.isPresent()) for (var plan : search.plans()) for (String jobsite : jobsites) {
                         var bill = new ArrayList<>(bill(plan)); bill.add(NativeConsumables.request(jobsite, 1));
                         var proof = access.requireExploration(bill).access();
                         if (!proof.placement().reachable()) continue;
@@ -152,13 +176,15 @@ public final class NativeTradeProgression {
                     row.addProperty("accessProven", !accepted.isEmpty());
                     actor.ifPresent(npc -> row.add("actor", BalanceDocument.GSON.toJsonTree(npc)));
                     row.addProperty("contract", "Conditional successful NPC discovery and native offer selections, one selected offer per level, neutral initial prices, wait for each level-up; no player XP, restocks, discounts, population replenishment or reroll guarantee credited. Book must still be applied at an anvil.");
-                    row.addProperty("remainingGate", accepted.isEmpty() ? "No joint material and matching native NPC opportunity witness; missing/unsupported paths are not absence" : "Exact book acquisition only; anvil, target equipment and independent player XP still required");
+                    row.addProperty("remainingGate", !projectsEffects ? "No supported effect projection; material acquisition not evaluated, unsupported effects remain unknown"
+                            : accepted.isEmpty() ? "No joint material and matching native NPC opportunity witness; missing/unsupported paths are not absence" : "Exact book acquisition only; anvil, target equipment and independent player XP still required");
                     return Map.entry(row, List.copyOf(accepted));
                 });
                 read.value().ifPresentOrElse(result -> {
                     var row = result.getKey(); acquired.addAll(result.getValue());
                     staged.definition(PROVIDER, target.id(), row);
-                    if (result.getValue().isEmpty()) staged.candidate(target.id(), PROVIDER, row.get("remainingGate").getAsString(), Set.of(), CapabilitySink.Reason.ACCESS_UNPROVEN);
+                    if (result.getValue().isEmpty()) staged.candidate(target.id(), PROVIDER, row.get("remainingGate").getAsString(), Set.of(),
+                            row.get("projectsSupportedEffects").getAsBoolean() ? CapabilitySink.Reason.ACCESS_UNPROVEN : CapabilitySink.Reason.NO_SUPPORTED_OPERATION);
                 }, () -> staged.candidate(target.id(), PROVIDER, read.failure(), Set.of(), CapabilitySink.Reason.READ_FAILED));
             }
             return new Analysis(staged, List.copyOf(acquired));

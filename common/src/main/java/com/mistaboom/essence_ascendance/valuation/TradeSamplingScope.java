@@ -34,4 +34,11 @@ public final class TradeSamplingScope {
         var seeds = ENTITIES.get();
         return seeds == null ? ordinary.get() : RandomSource.create(seeds.nextLong());
     }
+
+    /** Preserve the native reward distribution while a hypothetical animal reads
+     * its level's RNG. The original object is neither reseeded nor consumed. */
+    public static RandomSource rewardRandom(RandomSource ordinary) {
+        var isolated = ENTITIES.get();
+        return isolated == null ? ordinary : isolated;
+    }
 }

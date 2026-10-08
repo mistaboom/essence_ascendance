@@ -68,7 +68,7 @@ public final class NativePassiveDrops {
             var table = ResourceLocation.parse("minecraft:entities/" + ResourceLocation.parse(id).getPath());
             inputs.retainLootSemantics(table);
             var lootContext = new ProceduralBlockLoot.Context("minecraft:air", Map.of(), Set.of(), "minecraft:air", Set.of(), Map.of())
-                    .withToolFacts(NativeToolFacts.capture(inputs, ItemStack.EMPTY));
+                    .withToolFacts(NativeToolFacts.capture(inputs, ItemStack.EMPTY).withoutAccessories(inputs::installedVersion));
             var damageTags = level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.DAMAGE_TYPE)
                     .getHolderOrThrow(net.minecraft.world.damagesource.DamageTypes.PLAYER_ATTACK).tags().map(t -> t.location().toString()).collect(java.util.stream.Collectors.toSet());
             var audit = new BlockLootModifierAudit(inputs.runtimeLootModifiers(), value -> project(value, id, damageTags));
@@ -95,7 +95,7 @@ public final class NativePassiveDrops {
                 String sourceId = PROVIDER + ":" + id;
                 var conditions = List.of("Actual loaded creature biomes=" + biomes + "; native ON_GROUND Animal spawn predicate and animals_spawnable_on grass",
                         "Suitable clear daylight habitat with brightness above 8; native spawn distance, collision, mob caps and successful encounter remain conditional; no encounter rate",
-                        "Ordinary direct bare-handed player kill, no equipment, enchantments or fire; effective loot and preserving modifiers; positive chance=" + drop.chance(),
+                        "Ordinary direct bare-handed player kill, no equipment, worn accessories, enchantments or fire; effective loot and preserving modifiers; positive chance=" + drop.chance(),
                         "Natural grass terrain or 64 dirt plus 64 loaded Ex Deorum spreaders paid jointly; habitat remains reusable, no grass item or animal stock credited");
                 var off = new SourceAvailability.Timer(SourceAvailability.Applicability.OFF, 0, List.of());
                 var availability = new SourceAvailability(sourceId, SourceAvailability.Category.CONDITIONAL_RENEWABLE, SourceAvailability.Scope.SHARED,

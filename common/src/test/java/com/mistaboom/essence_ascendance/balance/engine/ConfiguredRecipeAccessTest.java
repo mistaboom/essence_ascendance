@@ -36,6 +36,9 @@ public final class ConfiguredRecipeAccessTest {
         countedOperatingFuel();
         conditionalExploration();
         nativeHarvestBills();
+        nestedStationReuse();
+        failedPrefixReuse();
+        renewableStaticCrafts();
         var resources = Map.of("fixture:material", resource("fixture:material", AcquisitionSource.Kind.FARMING),
                 "fixture:reward", resource("fixture:reward", AcquisitionSource.Kind.QUEST_REWARD));
         var cell = recipe("fixture:cell_recipe", "fixture:cell", "entry", List.of(json("{\"item\":\"fixture:material\"}")));
@@ -304,6 +307,14 @@ public final class ConfiguredRecipeAccessTest {
                 true, true, 1, .9, List.of(source), List.of());
         var claims = Set.of(resource.itemId()); var resources = Map.of(resource.itemId(), resource);
         check(ConfigurationAccess.remainingFiniteClaims(resources, claims).isEmpty(), "Independent native renewal supersedes a finite quest-only lineage");
+        var lowAggregate = new ResourceEvidence(resource.itemId(), ProgressionBand.ENTRY, resource.availability(), resource.automation(),
+                true, true, 1, .35, List.of(new AcquisitionSource(source.id(), source.kind(), ProgressionBand.MID,
+                1, true, false, 0, .9, List.of(), source.reason(), available)), List.of());
+        var advisoryResources = Map.of(resource.itemId(), lowAggregate);
+        check(ConfigurationAccess.remainingFiniteClaims(advisoryResources, claims).isEmpty(), "An independent source proof does not inherit an unrelated advisory route's low confidence");
+        var independent = access(new ProductionGraph(List.of(), List.of()), advisoryResources).requireItem(resource.itemId());
+        check(independent.placement().reachable() && independent.placement().stage() == ProgressionBand.MID && independent.placement().confidence() == .9,
+                "Typed renewal keeps its own confidence and actual source stage rather than a quest-derived earlier aggregate");
         check(!new ConfiguredRecipeAccess(new ProductionGraph(List.of(), List.of()), resources, Map.of(), claims, s -> new JsonObject())
                         .requireItem(resource.itemId()).placement().reachable(), "Explicit recipe-only requirements remain binding");
         var uncertain = new SourceAvailability(available.underlyingSource(), available.category(), available.scope(), List.of(), List.of(), List.of(),
@@ -399,10 +410,83 @@ public final class ConfiguredRecipeAccessTest {
                         .requireExploration(List.of(NativeConsumables.request("fixture:gem", 1))).access().placement().reachable(),
                 "A native ore observation alone cannot invent its required tool");
         check(!planner.requireItem("fixture:gem").placement().reachable(), "Conditional natural harvest does not become renewable supply");
+        var questRestricted = new ConfiguredRecipeAccess(new ProductionGraph(List.of(), List.of()), resources,
+                Map.of(), Set.of("fixture:gem"), definition -> definition.has("components") ? definition.get("components") : new JsonObject())
+                .harvests(routes, Set.of());
+        check(questRestricted.requireExploration(List.of(NativeConsumables.request("fixture:gem", 1))).access().placement().reachable(),
+                "Finite quest lineage cannot erase an independent counted native harvest");
+        check(!questRestricted.requireFinite(List.of(NativeConsumables.request("fixture:gem", 1))).access().placement().reachable(),
+                "Independent exploration cannot turn restricted quest lineage into guaranteed stock");
+        check(!new ConfiguredRecipeAccess(new ProductionGraph(List.of(), List.of()), resources, Map.of(), Set.of("fixture:gem"),
+                definition -> definition.has("components") ? definition.get("components") : new JsonObject()).harvests(routes, Set.of("fixture:gem"))
+                .requireExploration(List.of(NativeConsumables.request("fixture:gem", 1))).access().placement().reachable(),
+                "An explicit exact-recipe requirement still excludes item-only natural harvests");
         var advisory = new ResourceEvidence(ore.itemId(), ore.stage(), ore.availability(), ore.automation(), true, true, 1, .35, ore.sources(), List.of());
         check(access(new ProductionGraph(List.of(), List.of()), Map.of("fixture:gem", advisory, "fixture:pick", finiteResource("fixture:pick", 1, 1)))
                         .harvests(routes).requireExploration(List.of(NativeConsumables.request("fixture:gem", 1))).access().placement().reachable(),
                 "A re-evaluated native natural/tool witness is not erased by an unrelated low-confidence aggregate recipe row");
+    }
+    private static void renewableStaticCrafts() {
+        var definition = json(recipe("fixture:large_batch", "fixture:part", "base", List.of(json("{\"tag\":\"fixture:materials\"}")))
+                .metadata().get("effective_definition"));
+        definition.addProperty("width", 3); definition.getAsJsonObject("result").remove("components");
+        var graph = new ProductionGraph(List.of(process("fixture:large_batch", definition)), List.of());
+        var tags = Map.of("fixture:materials", List.of("fixture:material", "fixture:absent"));
+        var renewable = Map.of("fixture:material", resource("fixture:material", AcquisitionSource.Kind.FARMING),
+                "minecraft:crafting_table", resource("minecraft:crafting_table", AcquisitionSource.Kind.FARMING));
+        var planner = new ConfiguredRecipeAccess(graph, renewable, tags, Set.of(), s -> new JsonObject());
+        check(planner.requireFinite(List.of(NativeConsumables.request("fixture:part", 8192))).access().placement().reachable(),
+                "Independently renewable materials and station prove a large simple batch without repeating each identical craft");
+        var finite = Map.of("fixture:material", finiteResource("fixture:material", 2, 1),
+                "minecraft:crafting_table", finiteResource("minecraft:crafting_table", 1, 1));
+        var counted = new ConfiguredRecipeAccess(graph, finite, tags, Set.of(), s -> new JsonObject());
+        check(!counted.requireFinite(List.of(NativeConsumables.request("fixture:part", 3))).access().placement().reachable(),
+                "Renewable memoization cannot borrow finite materials or stations");
+        check(counted.requireFinite(List.of(NativeConsumables.request("fixture:part", 2))).access().placement().reachable(),
+                "Unsupported renewable shortcut must retain a valid counted finite fallback");
+        definition.getAsJsonObject("result").addProperty("count", 0);
+        var invalid = new ConfiguredRecipeAccess(new ProductionGraph(List.of(process("fixture:zero_output", definition)), List.of()),
+                renewable, tags, Set.of(), s -> new JsonObject());
+        check(!invalid.requireItem("fixture:part").placement().reachable()
+                        && !invalid.requireFinite(List.of(NativeConsumables.request("fixture:part", 1))).access().placement().reachable(),
+                "Neither repeatable nor counted acquisition accepts zero-output recipes");
+    }
+    private static void failedPrefixReuse() {
+        var calls = new java.util.concurrent.atomic.AtomicInteger();
+        var planner = new ConfiguredRecipeAccess(new ProductionGraph(List.of(), List.of()),
+                Map.of("fixture:material", finiteResource("fixture:material", 2, 1)), Map.of(), Set.of(),
+                definition -> { calls.incrementAndGet(); return new JsonObject(); });
+        var tooMany = NativeConsumables.request("fixture:material", 3);
+        var failure = planner.requireFinite(List.of(tooMany));
+        int before = calls.get();
+        check(!failure.access().placement().reachable()
+                        && planner.requireFinite(List.of(tooMany, NativeConsumables.request("fixture:unvisited_tail", 1))).equals(failure)
+                        && calls.get() == before,
+                "An unvisited tail cannot change the same failed counted prefix or justify repeating its search");
+        check(planner.requireFinite(List.of(NativeConsumables.request("fixture:material", 2))).access().placement().reachable(),
+                "A failed prefix cannot poison another quantity or reuse spent stock between independent bills");
+        var finitePair = List.of(NativeConsumables.request("fixture:material", 1), NativeConsumables.request("fixture:material", 2));
+        check(!planner.requireFinite(finitePair).access().placement().reachable(), "The second prefix request must share the finite ledger");
+        check(planner.requireFinite(List.of(NativeConsumables.request("fixture:material", 1), NativeConsumables.request("fixture:material", 1)))
+                .access().placement().reachable(), "Only prefixes visited by every exhausted search may suppress later work");
+    }
+    private static void nestedStationReuse() {
+        var part = json(recipe("fixture:part", "fixture:part", "base", List.of(json("{\"item\":\"fixture:material\"}"))).metadata().get("effective_definition"));
+        part.addProperty("width", 3);
+        var device = json(recipe("fixture:assembled", "fixture:assembled", "base", List.of(json("{\"item\":\"fixture:part\"}"))).metadata().get("effective_definition"));
+        device.addProperty("width", 3);
+        var resources = Map.of("minecraft:crafting_table", finiteResource("minecraft:crafting_table", 1, 1),
+                "fixture:material", finiteResource("fixture:material", 1, 1));
+        var planner = access(new ProductionGraph(List.of(process("fixture:part", part), process("fixture:assembled", device)), List.of()), resources);
+        var proof = planner.requireFinite(List.of(stack("fixture:assembled", "base")));
+        check(proof.access().placement().reachable() && proof.drawnStocks().values().stream().mapToLong(Long::longValue).sum() == 2,
+                "One finite table supports nested prerequisite crafts without buying a duplicate station");
+        check(planner.requireFinite(List.of(stack("fixture:assembled", "base"), NativeConsumables.request("minecraft:crafting_table", 1))).access().placement().reachable(),
+                "The outer reservation is released once and the table remains owned");
+        part.getAsJsonArray("ingredients").add(json("{\"item\":\"minecraft:crafting_table\"}"));
+        check(!access(new ProductionGraph(List.of(process("fixture:part", part), process("fixture:assembled", device)), List.of()), resources)
+                .requireFinite(List.of(stack("fixture:assembled", "base"))).access().placement().reachable(),
+                "A shared reserved station cannot also be consumed by a nested ingredient");
     }
     private static void auditedHooklessRecipes(ProductionGraph.Process cell, ProductionGraph.Process device,
             Map<String, ResourceEvidence> resources) {

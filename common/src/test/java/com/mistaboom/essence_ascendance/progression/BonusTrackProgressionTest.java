@@ -28,12 +28,38 @@ public final class BonusTrackProgressionTest {
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap(); EssenceTypes.init(); AscendanceTiers.init(); EssenceStats.init();
         tiers = AscendanceTierRegistry.values().stream().sorted(Comparator.comparingInt(AscendanceTierDefinition::order)).toList();
         var profile = profile(1);
+        exactCheckpoints();
         curves(profile);
         continuousAndAuthority(profile);
         completeTransactionPlanning(profile);
         developmentAndReceipts(profile);
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out))
                 .println("BonusTrackProgressionTest: " + assertions + " checks PASS");
+    }
+    private static void exactCheckpoints() {
+        // Native Sky flight-speed fractions expose cancellation at the second
+        // target; large legal whole-unit costs exercise inverse endpoint authority.
+        var first = AscendanceTiers.AWAKENED.id();
+        var second = AscendanceTiers.RESONANT.id();
+        var last = AscendanceTiers.TRANSCENDENT.id();
+        long large = Long.MAX_VALUE / 10000;
+        var points = List.of(new Checkpoint(first, 937, 937, 11.0 / 56, true, true),
+                new Checkpoint(second, 3835, 2898, 25.0 / 56, true, true),
+                new Checkpoint(last, large, large - 3835, 1, true, true));
+        for (double exponent : List.of(.2, .62, .87, 1.0)) for (var point : points) {
+            check(BonusTrackCurve.progressionForInvestment(points, exponent, point.cumulativeCap(), last)
+                            == point.effectFraction(), "Fully paid checkpoint differs from its authoritative effect");
+            check(BonusTrackCurve.progressionForInvestment(points, exponent, Long.MAX_VALUE, point.tierId())
+                            == point.effectFraction(), "Tier clamping changes the exact checkpoint effect");
+            check(BonusTrackCurve.investmentForProgression(points, exponent, point.effectFraction(), last)
+                            == point.cumulativeCap(), "Exact effect target changes whole-unit checkpoint cost");
+        }
+        for (long amount : List.of(1L, 936L, 938L, 3834L)) {
+            double fraction = BonusTrackCurve.progressionForInvestment(points, .87, amount, second);
+            check(fraction > 0 && fraction < 25.0 / 56, "Endpoint handling erased partial funding");
+            check(Math.abs(BonusTrackCurve.investmentForProgression(points, .87, fraction, second) - amount) <= 1,
+                    "Endpoint handling changed partial funding inverse");
+        }
     }
 
     private static void curves(BalanceProfileDefinition profile) {

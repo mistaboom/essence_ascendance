@@ -8,13 +8,27 @@ import java.util.*;
 public final class AcquisitionLedger {
     private final Map<String, Long> inventory;
     private final Map<String, Long> drawn;
-    public AcquisitionLedger() { inventory = new TreeMap<>(); drawn = new TreeMap<>(); }
+    private final Map<String, Long> reserved;
+    public AcquisitionLedger() { inventory = new TreeMap<>(); drawn = new TreeMap<>(); reserved = new TreeMap<>(); }
     private AcquisitionLedger(AcquisitionLedger source) {
         inventory = new TreeMap<>(source.inventory); drawn = new TreeMap<>(source.drawn);
+        reserved = new TreeMap<>(source.reserved);
     }
     public AcquisitionLedger copy() { return new AcquisitionLedger(this); }
     public void commit(AcquisitionLedger branch) {
         inventory.clear(); inventory.putAll(branch.inventory); drawn.clear(); drawn.putAll(branch.drawn);
+        reserved.clear(); reserved.putAll(branch.reserved);
+    }
+    public long reserved(String item) { return reserved.getOrDefault(item, 0L); }
+    /** A station can serve nested sequential prerequisites, but cannot be consumed
+     * as an ingredient/fuel while the enclosing operation still needs it. */
+    public void reserve(String item) {
+        if (!consume(item, 1)) throw new IllegalStateException("Missing station to reserve");
+        reserved.merge(item, 1L, Math::addExact);
+    }
+    public void release(String item) {
+        if (reserved(item) < 1) throw new IllegalStateException("Missing reserved station");
+        reserved.put(item, reserved(item) - 1); add(item, 1);
     }
     public long held(String item) { return inventory.getOrDefault(item, 0L); }
     public void add(String item, long quantity) {

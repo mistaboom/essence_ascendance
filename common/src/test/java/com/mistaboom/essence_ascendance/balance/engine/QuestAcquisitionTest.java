@@ -12,8 +12,29 @@ public final class QuestAcquisitionTest {
     private static int checks;
     public static void main(String[] args) throws Exception {
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap();
-        readiness(); definitions(); reachability(); economy();
+        readiness(); definitions(); reachability(); economy(); semanticSerialization();
         System.out.println("Quest acquisition invariants passed: " + checks);
+    }
+    private static void semanticSerialization() throws Exception {
+        String raw = "{id:'1',tasks:[{id:'2',type:'checkmark'},{id:'4',type:'kill',entity:'minecraft:zombie'}],rewards:[{id:'3',item:'minecraft:diamond',count:2}]}";
+        var early = normalize(raw, "linear");
+        var loaded = normalize(raw.replace("type:'kill',entity:'minecraft:zombie'", "type:'opaque:dev.ftb.mods.ftbquests.quest.task.KillTask'")
+                .replace("count:2", "count:2,team_reward:false"), "linear");
+        loaded = new QuestEvidence(loaded.quests(), "different loaded capture source", loaded.limitations());
+        check(early.processes().equals(loaded.processes()), "Default serialization and opaque class spelling changed semantic economy output");
+        check(!early.diagnostics().equals(loaded.diagnostics()) && early.diagnostics().toString().contains("minecraft:zombie")
+                && loaded.diagnostics().toString().contains("KillTask"), "Raw unknown definitions/capture provenance were lost");
+        check(!early.processes().equals(normalize(raw.replace("count:2", "count:3"), "linear").processes()),
+                "Real reward quantity change hidden by canonicalization");
+        check(solve(early, Map.of()).items().isEmpty() && solve(loaded, Map.of()).items().isEmpty(),
+                "Semantic serialization admitted an unresolved task");
+        var variant = normalize(raw.replace("item:'minecraft:diamond'", "item:{id:'minecraft:diamond',components:{custom_data:{marker:1}}}"), "linear");
+        check(!early.processes().equals(variant.processes()) && variant.processes().getFirst().confidence() == .25
+                        && variant.diagnostics().toString().contains("marker"),
+                "Component uncertainty must remain visible and cannot inherit a plain-item proof");
+        check(FtbQuestProvider.definitionReadiness("2101.1.36", true, false, false, true).equals(
+                        FtbQuestProvider.definitionReadiness("2101.1.36", true, false, true, false)),
+                "Equivalent authoritative source contracts report different readiness semantics");
     }
     private static void readiness() {
         var absent = new GenerationProviders(null, mod -> null);
@@ -111,6 +132,19 @@ public final class QuestAcquisitionTest {
                 List.of(new ProductionGraph.Output("minecraft:gold_ingot", 1, 1, false)), 0, 0, "fixture", .9, Map.of());
         check(!AcquisitionProgressionGraph.solve(Map.of(), new ProductionGraph(List.of(both), List.of()), choice).items().containsKey("minecraft:gold_ingot"), "Finite exclusive choices cannot jointly satisfy a recipe");
         var random = normalizeWithTable("random", table);
+        var reference = tag("{id:'f',quests:[{id:'1',tasks:[{id:'2',type:'checkmark'}],rewards:[{id:'3',type:'random',table_id:10L}]}]}");
+        var inline = reference.copy();
+        inline.getList("quests", Tag.TAG_COMPOUND).getCompound(0).getList("rewards", Tag.TAG_COMPOUND).getCompound(0).put("table_data", table.copy());
+        check(QuestNormalizer.normalize(tag("{version:13}"), List.of(inline), List.of(), "fixture").quests().getFirst().rewards()
+                        .equals(random.quests().getFirst().rewards()), "Loaded inline table and authoritative numeric file reference disagree");
+        var conflicting = table.copy(); conflicting.put("rewards", new ListTag());
+        inline.getList("quests", Tag.TAG_COMPOUND).getCompound(0).getList("rewards", Tag.TAG_COMPOUND).getCompound(0).put("table_data", conflicting);
+        check(QuestNormalizer.normalize(tag("{version:13}"), List.of(inline), List.of(table), "fixture").quests().getFirst().rewards()
+                        .equals(random.quests().getFirst().rewards()), "Inline data overrode a successfully resolved native numeric table ID");
+        var signed = table.copy(); signed.putString("id", "fffffffffffffffe");
+        reference.getList("quests", Tag.TAG_COMPOUND).getCompound(0).getList("rewards", Tag.TAG_COMPOUND).getCompound(0).putLong("table_id", -2L);
+        check(QuestNormalizer.normalize(tag("{version:13}"), List.of(reference), List.of(signed), "fixture").quests().getFirst().rewards()
+                        .equals(random.quests().getFirst().rewards()), "Signed native long lost its unsigned quest-object identity");
         check(random.quests().getFirst().rewards().getFirst().probability() == .25, "Random weights normalized once against whole supported table");
         check(random.quests().getFirst().rewards().get(1).probability() == .75, "Random outcome quantities remain independent");
         check(random.processes().stream().noneMatch(ProductionGraph.Process::conservationComplete), "Random rewards never summed in hard constraints");
@@ -134,7 +168,7 @@ public final class QuestAcquisitionTest {
                 "Repeatable shared-cost bundle passes real whole-unit conservation");
     }
     private static QuestEvidence normalizeWithTable(String type, CompoundTag table) throws Exception {
-        return QuestNormalizer.normalize(tag("{version:13,progression_mode:'linear'}"), List.of(tag("{id:'f',quests:[{id:'1',tasks:[{id:'2',type:'checkmark'}],rewards:[{id:'3',type:'" + type + "',table:'a'}]}]}")), List.of(table), "fixture");
+        return QuestNormalizer.normalize(tag("{version:13,progression_mode:'linear'}"), List.of(tag("{id:'f',quests:[{id:'1',tasks:[{id:'2',type:'checkmark'}],rewards:[{id:'3',type:'" + type + "',table_id:10L}]}]}")), List.of(table), "fixture");
     }
     private static QuestEvidence normalize(String quests, String mode) throws Exception {
         return QuestNormalizer.normalize(tag("{version:13,progression_mode:'" + mode + "'}"), List.of(tag("{id:'f',quests:[" + quests + "]}")), List.of(), "fixture");

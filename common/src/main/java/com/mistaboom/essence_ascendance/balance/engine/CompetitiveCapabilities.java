@@ -64,6 +64,13 @@ public final class CompetitiveCapabilities {
                             runs.capabilityAxes("capability", provider), CapabilitySink.Reason.READ_FAILED);
                 runs.emitted("capability", provider, sink.evidenceCount() - before, 0, .8);
             }
+            // Preserve the already-captured tool/placement candidates behind joint
+            // acquisition proofs. This is audit evidence, not another world scan.
+            OptionalIntegration.attempt("native_harvest_supplies", "captured routes", () ->
+                    BalanceDocument.GSON.toJsonTree(context.inputs().naturalHarvestSupplies(context.acquisition())))
+                    .value().ifPresentOrElse(routes -> sink.definition("native_harvest_supplies", "routes", routes),
+                            () -> sink.candidate("native_harvest_supplies", "native_harvest_supplies", "Native harvest route capture unavailable",
+                                    Set.of(), CapabilitySink.Reason.READ_FAILED));
             JsonObject report = report(sink, context.settings().outlierPolicy().name());
             report.add("providerDiagnostics", runs.capabilityDiagnostics());
             return report;

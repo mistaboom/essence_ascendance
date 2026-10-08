@@ -289,6 +289,9 @@ final class ProceduralBlockLoot {
         guard(depth);
         String type = text(condition.get("condition"));
         if (context.toolFacts().falseConditions().contains(type)) return truth(false);
+        if (type.equals("twilightforest:giant_pick_used")
+                && condition.keySet().equals(Set.of("condition", "entity")) && text(condition.get("entity")).equals("this")
+                && context.toolFacts().falseConditions().contains("twilightforest:giant_pick_used/this")) return truth(false);
         switch (type) {
             case "minecraft:location_check" -> {
                 if (!Set.of("condition", "predicate", "offsetX", "offsetY", "offsetZ").containsAll(condition.keySet())

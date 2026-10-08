@@ -226,6 +226,13 @@ public final class LootAcquisitionTest {
                 """, BlockLootModifierAudit.Mode.UNKNOWN, Set.of()), table, hand, berries), "Unknown state remains possible");
 
         check(!affected(modifier("fixture.Append", "{}", BlockLootModifierAudit.Mode.APPEND_ONLY, Set.of()), table, hand, berries), "Audited append preserves base count without crediting extra rewards");
+        String artifacts = "artifacts.neoforge.loot.RollLootTableModifier";
+        check(BlockLootModifierAudit.auditedMode(artifacts, m -> "13.2.3") == BlockLootModifierAudit.Mode.OPTIONAL_TABLE_REPLACEMENT
+                && BlockLootModifierAudit.auditedMode(artifacts, m -> "13.2.4") == BlockLootModifierAudit.Mode.UNKNOWN, "Table replacement is version-audited, not unconditionally append-only");
+        for (String definition : List.of("{\"lootTable\":\"fixture:extra\"}", "{\"lootTable\":\"fixture:extra\",\"replace\":false}"))
+            check(!affected(modifier(artifacts, definition, BlockLootModifierAudit.Mode.OPTIONAL_TABLE_REPLACEMENT, Set.of()), table, hand, berries), "Configured raw-table append retains base output");
+        for (String definition : List.of("{}", "{\"lootTable\":\"fixture:extra\",\"replace\":true}", "{\"lootTable\":\"fixture:extra\",\"replace\":\"false\"}"))
+            check(affected(modifier(artifacts, definition, BlockLootModifierAudit.Mode.OPTIONAL_TABLE_REPLACEMENT, Set.of()), table, hand, berries), "Replacement or malformed definition remains guarded");
         check(!affected(modifier("fixture.Tool", "{}", BlockLootModifierAudit.Mode.NONEMPTY_TOOL, Set.of()), table, hand, berries), "Audited internal empty-tool guard");
         check(affected(modifier("fixture.Tool", "{}", BlockLootModifierAudit.Mode.NONEMPTY_TOOL, Set.of()), table, tool, berries), "Nonempty tool remains uncertain");
         check(affected(modifier("fixture.Match", """
@@ -250,6 +257,11 @@ public final class LootAcquisitionTest {
         var ore = modifier("fixture.Greed", "{}", BlockLootModifierAudit.Mode.BLOCK_ORES, Set.of("minecraft:iron_ore"));
         check(!affected(ore, table, hand, berries), "Ore-only destructive callback excludes non-ore block");
         check(affected(ore, "fixture:chests/other", hand, berries), "Ore guard is not assumed outside blocks path");
+        String greed = "it.hurts.sskirillss.relics.level.GreedLootModifier";
+        var greedModifier = modifier(greed, "{}", BlockLootModifierAudit.Mode.BLOCK_ORES, Set.of("minecraft:iron_ore"));
+        check(affected(greedModifier, "minecraft:entities/cow", hand, berries), "Empty hand alone does not exclude equipped Curios");
+        check(!affected(greedModifier, "minecraft:entities/cow", hand.withToolFacts(NativeToolFacts.UNKNOWN.withoutAccessories(m -> "0.12.8")), berries), "Explicit no-accessory scenario excludes audited equipped-ring branch");
+        check(affected(greedModifier, "minecraft:entities/cow", hand.withToolFacts(NativeToolFacts.UNKNOWN.withoutAccessories(m -> "0.12.9")), berries), "No-accessory fact cannot bypass an unknown release");
         var armor = modifier("fixture.Armor", "{}", BlockLootModifierAudit.Mode.OUTPUT_ITEMS, Set.of("minecraft:iron_chestplate"));
         check(!BlockLootModifierAudit.couldChangeOutput(armor, "minecraft:sweet_berries")
                 && BlockLootModifierAudit.couldChangeOutput(armor, "minecraft:iron_chestplate"), "Output replacement only preserves non-target items");
@@ -261,6 +273,22 @@ public final class LootAcquisitionTest {
         check(!affected(giant, table, hand, berries), "First-stack converter cannot erase retained non-conversion prefix");
         check(affected(giant, table, hand, Set.of("minecraft:cobblestone", "minecraft:sweet_berries")), "Potential converted first stack taints the entire output list");
         check(new BlockLootModifierAudit(List.of(unknown, giant)).applicable(table, hand, berries).contains(giant), "Unknown preceding transform prevents first-stack proof");
+        var giantTick = modifier("fixture.Giant", """
+                {"conditions":[{"condition":"twilightforest:giant_pick_used","entity":"this"}]}
+                """, BlockLootModifierAudit.Mode.FIRST_OUTPUT_CONVERSION, Set.of("minecraft:cobblestone"));
+        var stone = Set.of("minecraft:cobblestone");
+        var ordinaryTick = hand.withToolFacts(NativeToolFacts.UNKNOWN.outsideGiantMiningTick(m -> "4.8.3345"));
+        check(affected(giantTick, table, hand, stone), "An empty hand alone says nothing about a retained giant-mining attachment");
+        check(!affected(giantTick, table, ordinaryTick, stone), "An explicit later ordinary-action tick excludes the audited same-tick giant condition");
+        check(affected(giantTick, table, hand.withToolFacts(NativeToolFacts.UNKNOWN.outsideGiantMiningTick(m -> "4.8.3346")), stone),
+                "Another Twilight release cannot inherit the audited tick predicate");
+        check(affected(giant, table, ordinaryTick, stone), "Removing the actual giant condition leaves the destructive converter guarded");
+        for (String condition : List.of(
+                "{\"condition\":\"twilightforest:giant_pick_used\",\"entity\":\"killer\"}",
+                "{\"condition\":\"twilightforest:giant_pick_used\",\"entity\":\"this\",\"extra\":true}",
+                "{\"condition\":\"minecraft:inverted\",\"term\":{\"condition\":\"twilightforest:giant_pick_used\",\"entity\":\"this\"}}"))
+            check(affected(modifier("fixture.Giant", "{\"conditions\":[" + condition + "]}", BlockLootModifierAudit.Mode.FIRST_OUTPUT_CONVERSION, stone),
+                    table, ordinaryTick, stone), "Giant scenario cannot erase another actor, unknown fields, or negated conditions");
         check(!affected(modifier("fixture.EmptyRules", "{}", BlockLootModifierAudit.Mode.EMPTY_DEFINITIONS, Set.of()), table, hand, berries), "Audited empty loaded rule list");
         String append = "com.aetherteam.aether.loot.modifiers.DoubleDropsModifier";
         check(BlockLootModifierAudit.auditedMode(append, id -> "1.5.10") == BlockLootModifierAudit.Mode.APPEND_ONLY, "Exact implementation/version contract");

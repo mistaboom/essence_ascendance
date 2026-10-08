@@ -29,8 +29,7 @@ public final class FtbQuestProvider implements GenerationProvider {
         if (!initialized && !definitionSourcePresent) return new ProviderReadiness(ProviderReadiness.Status.NOT_READY, version,
                 "Uninitialized service without authoritative format-13 data.snbt");
         return new ProviderReadiness(ProviderReadiness.Status.PARTIALLY_SUPPORTED, version,
-                (initialized ? "Loaded effective server definitions" : "Early definition-only server SNBT load-source snapshot")
-                        + "; typed tasks/rewards supported; opaque behavior unresolved; no team/player access", true);
+                "Effective format-13 server definitions; typed tasks/rewards supported; opaque behavior unresolved; no team/player access", true);
     }
     public static void capture(GenerationDataSnapshot inputs, GenerationProviders runs,
                                com.mistaboom.essence_ascendance.balance.config.BalanceOverrides overrides) {

@@ -43,6 +43,7 @@
   "mixins": [
     "TradeSamplingLootContextMixin",
     "EvidenceEntityRandomMixin",
+    "EvidenceAnimalExperienceMixin",
     "SaplingGrowerAccess",
     "TreeGrowerAccess",
     "PotionBrewingAccess",
