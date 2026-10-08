@@ -1,0 +1,36 @@
+// Optional branding exports, independent of the runtime Blockbench asset pipeline.
+def logoClasses = layout.buildDirectory.dir('branding/classes')
+def logoSources = files(
+        'tools/LogoGenerator.java',
+        'common/src/main/java/com/mistaboom/essence_ascendance/visual/CanonicalPaletteValues.java',
+        'common/src/main/java/com/mistaboom/essence_ascendance/visual/AscendanceUiPalette.java')
+
+tasks.register('compileLogoGenerator', JavaCompile) {
+    group = 'branding'
+    description = 'Compiles the dependency-free procedural logo generator.'
+    source = logoSources
+    destinationDirectory = logoClasses
+    classpath = files()
+    sourceCompatibility = '21'
+    targetCompatibility = '21'
+    options.release = 21
+}
+
+tasks.register('generateLogo', JavaExec) {
+    group = 'branding'
+    description = 'Exports the square Essence Ascendance SVG and PNG logos to art/branding.'
+    dependsOn tasks.named('compileLogoGenerator')
+    classpath = files(logoClasses)
+    mainClass = 'LogoGenerator'
+    systemProperty 'java.awt.headless', 'true'
+    inputs.files(logoSources).withPathSensitivity(PathSensitivity.RELATIVE)
+    outputs.file(file('art/branding/essence_ascendance_logo.svg'))
+    [32, 64, 128, 256, 400, 512, 1024].each { size ->
+        outputs.file(file("art/branding/essence_ascendance_logo_${size}.png"))
+    }
+    outputs.file(layout.buildDirectory.file('branding/logo-preview.png'))
+    doFirst {
+        setArgs([file('art/branding').absolutePath,
+                 layout.buildDirectory.dir('branding').get().asFile.absolutePath])
+    }
+}

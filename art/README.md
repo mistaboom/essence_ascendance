@@ -1,5 +1,7 @@
 # Art assets
 
+The procedural project logo lives in [branding/](branding/README.md). Run `./gradlew.bat generateLogo` to regenerate its SVG and square PNG exports from `tools/LogoGenerator.java` and the canonical palettes. Branding exports are kept here for external use; the runtime asset rules below apply to the Blockbench pipeline.
+
 Edit the Blockbench projects in `source/models/`, save their embedded textures, and build. The same asset pipeline imports every registered model automatically. Changes to an existing named texture, including the sword's accent, are picked up without a separate extraction command.
 
 ## Source and output locations

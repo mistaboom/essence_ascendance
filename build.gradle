@@ -4,6 +4,8 @@ plugins {
     id 'com.gradleup.shadow' version '9.4.3' apply false
 }
 
+apply from: 'gradle/branding.gradle'
+
 tasks.register('assetJarInvariants') {
     group = 'verification'
     description = 'Verify every common runtime asset is packaged unchanged in both production jars.'
