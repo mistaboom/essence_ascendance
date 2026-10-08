@@ -1,0 +1,8 @@
+// Include the repository's license notice in the production jars for both loaders.
+configure([project(':fabric'), project(':neoforge')]) {
+    plugins.withId('com.gradleup.shadow') {
+        tasks.named('shadowJar') {
+            from(rootProject.file('LICENSE'))
+        }
+    }
+}

@@ -1,0 +1,46 @@
+name: Build mod artifacts
+
+on:
+  workflow_call:
+    outputs:
+      version:
+        value: ${{ jobs.build.outputs.version }}
+      minecraft:
+        value: ${{ jobs.build.outputs.minecraft }}
+      release_type:
+        value: ${{ jobs.build.outputs.release_type }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+      minecraft: ${{ steps.metadata.outputs.minecraft }}
+      release_type: ${{ steps.metadata.outputs.release_type }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Validate version and release notes
+        id: metadata
+        run: python3 tools/release/prepare.py
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - name: Build both loaders and run the project's checks
+        run: bash gradlew --no-daemon --console=plain :common:check :fabric:build :neoforge:build
+      - name: Validate and collect production jars
+        run: python3 tools/release/prepare.py --stage build/release
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-artifacts
+          path: build/release/*
+          if-no-files-found: error
+          retention-days: 30

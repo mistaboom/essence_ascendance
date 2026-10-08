@@ -128,3 +128,4 @@ configure([project(':common'), project(':fabric'), project(':neoforge')]) {
 }
 
 apply from: 'gradle/pack-tester.gradle'
+apply from: 'gradle/release.gradle'

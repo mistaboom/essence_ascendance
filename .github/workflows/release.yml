@@ -1,0 +1,96 @@
+name: Publish release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+
+  github:
+    name: Attach GitHub downloads
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-artifacts
+          path: release
+      - name: Upload the verified jars and checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          (cd release && sha256sum --check SHA256SUMS)
+          gh release upload "$RELEASE_TAG" release/*.jar release/SHA256SUMS --clobber
+
+  publish:
+    name: ${{ matrix.platform }} / ${{ matrix.loader }}
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [curseforge, modrinth]
+        loader: [fabric, neoforge]
+        include:
+          - loader: fabric
+            dependencies: |
+              architectury-api(required){modrinth:lhGA9TYQ}{curseforge:419699}
+              fabric-api(required){modrinth:P7dR8mSH}{curseforge:306612}
+              jei(optional){modrinth:u6dRKJwZ}{curseforge:238222}
+          - loader: neoforge
+            dependencies: |
+              architectury-api(required){modrinth:lhGA9TYQ}{curseforge:419699}
+              jei(optional){modrinth:u6dRKJwZ}{curseforge:238222}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-artifacts
+          path: release
+      - name: Verify downloaded jar checksums
+        run: cd release && sha256sum --check SHA256SUMS
+      - name: Check the platform token is configured
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          PLATFORM_TOKEN: ${{ secrets[matrix.platform == 'curseforge' && 'CURSEFORGE_ESSENCE_ASCENDANCE' || 'MODRINTH_ESSENCE_ASCENDANCE'] }}
+        run: |
+          if [ -z "$PLATFORM_TOKEN" ]; then
+            echo "::error::Missing repository secret for $PLATFORM. See docs/RELEASING.md."
+            exit 1
+          fi
+      - name: Publish the production jar
+        uses: Kira-NT/mc-publish@52307b03863581dec6b652b83e597aec02ebb075 # v3.3.1
+        with:
+          curseforge-id: ${{ matrix.platform == 'curseforge' && '1732850' || '' }}
+          curseforge-token: ${{ matrix.platform == 'curseforge' && secrets.CURSEFORGE_ESSENCE_ASCENDANCE || '' }}
+          modrinth-id: ${{ matrix.platform == 'modrinth' && 'zIJXnoE8' || '' }}
+          modrinth-token: ${{ matrix.platform == 'modrinth' && secrets.MODRINTH_ESSENCE_ASCENDANCE || '' }}
+          modrinth-unfeature-mode: none
+          files: release/essence_ascendance-${{ matrix.loader }}-${{ needs.build.outputs.version }}.jar
+          name: Essence Ascendance ${{ needs.build.outputs.version }} (${{ matrix.loader }}, Minecraft ${{ needs.build.outputs.minecraft }})
+          version: ${{ needs.build.outputs.version }}+mc${{ needs.build.outputs.minecraft }}-${{ matrix.loader }}
+          version-type: ${{ needs.build.outputs.release_type }}
+          changelog-file: release/CHANGELOG.md
+          loaders: ${{ matrix.loader }}
+          game-versions: ${{ needs.build.outputs.minecraft }}
+          game-version-filter: releases
+          environment: client | server
+          java: '21'
+          dependencies: ${{ matrix.dependencies }}
+          # A lost response may mean an upload succeeded; avoid blind duplicate retries.
+          retry-attempts: 1
+          fail-mode: fail

@@ -7,7 +7,7 @@
   "authors": [
     "MistaBoom"
   ],
-  "license": "All Rights Reserved",
+  "license": "MIT",
   "environment": "*",
   "entrypoints": {
     "main": [
