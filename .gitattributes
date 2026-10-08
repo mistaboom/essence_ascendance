@@ -1,6 +1,3 @@
-# Preserve authored models, archived evidence, and binary assets exactly in Git.
-*.bbmodel -text
-*.png binary
-*.eamesh binary
-# Historical artifacts keep their original line endings and formatting.
-art/history/** -text -whitespace
+# The valuation regression compares the canonical snapshot byte-for-byte.
+# Keep its reference identical on Windows developers' machines and Linux CI.
+common/src/test/resources/valuation/valuation-reference.json text eol=lf
