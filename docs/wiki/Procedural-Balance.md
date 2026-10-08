@@ -27,7 +27,7 @@ The [Archive](https://github.com/mistaboom/essence_ascendance/wiki/Players-and-t
 ## How the systems fit together
 
 ```mermaid
-flowchart LR
+flowchart TD
     A["Loaded content and supported evidence"] --> B["Acquisition and supply"]
     B --> C["Item economy and conversion checks"]
     B --> D["Attainable equipment and capabilities"]
