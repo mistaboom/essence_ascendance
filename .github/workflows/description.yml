@@ -1,0 +1,42 @@
+name: Sync project descriptions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - README.md
+      - tools/release/sync-description.py
+      - .github/workflows/description.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: project-descriptions
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.ref == 'refs/heads/main'
+    name: Description / ${{ matrix.platform }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: modrinth
+            secret: MODRINTH_ESSENCE_ASCENDANCE
+          - platform: curseforge
+            secret: CURSEFORGE_ESSENCE_ASCENDANCE
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # A rerun should publish today's canonical description, not older copy.
+          ref: main
+          persist-credentials: false
+      - name: Update the project description
+        env:
+          PLATFORM_TOKEN: ${{ secrets[matrix.secret] }}
+        run: python3 tools/release/sync-description.py --platform '${{ matrix.platform }}'

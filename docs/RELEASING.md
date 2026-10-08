@@ -30,7 +30,8 @@ their SHA-256 checksums. No Gitea mirror or publishing job is needed.
 5. Confirm the CurseForge key is an **author upload API token**, not a Studios
    discovery API key, and its account can upload to project `1732850`. Confirm the
    Modrinth token can **create versions** (`VERSION_CREATE`) and **read projects**
-   (`PROJECT_READ`), including your draft project. The pipeline does not need
+   (`PROJECT_READ`), including your draft project, and **edit projects**
+   (`PROJECT_WRITE`) for description sync. The pipeline does not need
    permission to delete versions or read account email, and disables unfeaturing
    older versions so version-write permission is unnecessary.
 6. Complete both project listings: description, icon/screenshots, categories,
@@ -102,6 +103,36 @@ dev, and dev-shadow jars are not distributed as installable mod downloads.
   jar with one rebuilt from changed dependencies.
 
 ## Maintenance and security
+
+### Shared project description
+
+Edit **README.md on `main`** to update the player-facing description. GitHub renders
+it directly. The **Sync project descriptions** workflow publishes that same Markdown
+to Modrinth and CurseForge, using the existing encrypted repository secrets. It
+runs when the README, sync script, or sync workflow changes, and can also be run
+manually from Actions on `main`. A rerun reads the current `main` README.
+
+Each site has its own job so one failure does not prevent the other update. The
+workflow changes only the long description; it does not upload jars, edit existing
+releases, alter categories, or change moderation status. It has read-only GitHub
+permissions and does not run with secrets on pull requests.
+
+Modrinth uses its documented project PATCH endpoint and verifies the saved body.
+CurseForge uses the author API's `update-project` multipart endpoint with
+`descriptionType: markdown`; this endpoint was tested successfully against project
+1732850 on 2026-10-08, including checking the saved rendering in the author editor.
+It is not listed in the official upload API guide, so a future platform change may
+require updating this script. A failed job is visible in Actions; there is no silent
+fallback to a different publishing API. Description replacement is idempotent and
+can be rerun after resolving an error.
+
+Use Markdown headings, lists, emphasis, and absolute HTTPS links. Keep development
+instructions in `docs/DEVELOPMENT.md` and publishing instructions here. Screenshots
+can be added to the README later; use publicly accessible absolute image URLs so
+they render on all three sites. Changes made directly in either site's description
+editor will be overwritten by the next README sync.
+
+### Workflow security
 
 Third-party actions are pinned to full commit hashes. Dependabot proposes weekly
 action updates; review and merge these after CI passes. Workflow permissions default
