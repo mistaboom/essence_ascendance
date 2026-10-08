@@ -18,6 +18,7 @@ public final class NativeCapabilityReader {
     private NativeCapabilityReader() { }
     public static void collect(PackEvidenceContext context, Map<String, ResourceEvidence> resources, CapabilitySink sink) {
         NativeItemActions.collect(context, resources, sink);
+        NativeConsumables.collect(context, resources, sink);
         for (var item : context.inputs().items()) {
             sink.analyzed();
             String id = BuiltInRegistries.ITEM.getKey(item).toString();
@@ -63,6 +64,7 @@ public final class NativeCapabilityReader {
                 staged -> readStack(stack, id, configuration, placement, staged), sink);
     }
     private static void readStack(ItemStack stack, String id, String configuration, CompetitiveCapabilities.Placement placement, CapabilitySink sink) {
+            if (!configuration.equals("effective_default")) NativeConsumables.readStack(stack, id, configuration, placement, sink);
             stackAttributes(stack, id, configuration, placement, sink);
             if (stack.has(DataComponents.UNBREAKABLE) && stack.getOrDefault(DataComponents.MAX_DAMAGE, 0) > 0) {
                 String slot = stack.getItem() instanceof net.minecraft.world.item.ArmorItem armor ? armor.getEquipmentSlot().getName()

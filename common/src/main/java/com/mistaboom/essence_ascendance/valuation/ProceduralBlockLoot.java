@@ -68,6 +68,7 @@ final class ProceduralBlockLoot {
     private final Set<String> active = new LinkedHashSet<>();
     private final Set<String> observations = new LinkedHashSet<>();
     private int steps;
+    private String reservedItem = "";
 
     private ProceduralBlockLoot(Context context, Function<String, Map<String, Object>> tables,
                                 Function<String, List<String>> tags) {
@@ -79,7 +80,15 @@ final class ProceduralBlockLoot {
     static Map<String, Drop> estimate(Map<String, Object> root, Context context,
                                      Function<String, Map<String, Object>> tables,
                                      Function<String, List<String>> tags) {
+        return estimate(root, context, tables, tags, "");
+    }
+
+    /** Conservatively reserve one seed per emitted seed stack, after all native functions. */
+    static Map<String, Drop> estimate(Map<String, Object> root, Context context,
+                                     Function<String, Map<String, Object>> tables,
+                                     Function<String, List<String>> tags, String reservedItem) {
         ProceduralBlockLoot model = new ProceduralBlockLoot(context, tables, tags);
+        model.reservedItem = reservedItem;
         try {
             Map<String, Amount> amounts = model.table(root, 0, List.of());
             Map<String, Drop> result = new LinkedHashMap<>();
@@ -224,10 +233,10 @@ final class ProceduralBlockLoot {
         Map<String, Amount> result = new LinkedHashMap<>();
         List<Object> functions = functionChain(leaf.get("functions"), inheritedFunctions);
         switch (text(leaf.get("type"))) {
-            case "minecraft:item" -> result.put(text(leaf.get("name")), stackFunctions(functions, depth + 1));
+            case "minecraft:item" -> result.put(text(leaf.get("name")), stackFunctions(functions, depth + 1, text(leaf.get("name"))));
             case "minecraft:empty" -> { }
             case "minecraft:tag" -> {
-                for (String item : tags.apply(text(leaf.get("name")))) result.put(item, stackFunctions(functions, depth + 1));
+                for (String item : tags.apply(text(leaf.get("name")))) result.put(item, stackFunctions(functions, depth + 1, item));
             }
             case "minecraft:loot_table" -> {
                 Object reference = leaf.getOrDefault("value", leaf.get("name"));
@@ -379,7 +388,7 @@ final class ProceduralBlockLoot {
         return List.copyOf(result);
     }
 
-    private Amount stackFunctions(List<Object> functions, int depth) {
+    private Amount stackFunctions(List<Object> functions, int depth, String item) {
         guard(depth);
         StackCounts counts = new StackCounts(Map.of(1, 1.0), Set.of());
         for (Object raw : functions) {
@@ -415,6 +424,11 @@ final class ProceduralBlockLoot {
                 changed = taint(counts, "unmodeled loot function: " + type);
             }
             counts = mixCounts(counts, changed, gate);
+        }
+        if (item.equals(reservedItem)) {
+            var retained = new TreeMap<Integer, Double>();
+            counts.probabilities().forEach((count, probability) -> retained.merge(Math.max(0, count - 1), probability, Double::sum));
+            counts = new StackCounts(retained, counts.unknown());
         }
         return counts.amount();
     }

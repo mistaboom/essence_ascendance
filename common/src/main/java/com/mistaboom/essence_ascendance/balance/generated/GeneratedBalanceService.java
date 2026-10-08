@@ -158,7 +158,7 @@ public final class GeneratedBalanceService {
                 candidate.evidence().equipment().size(), candidate.evidence().enemies().size(), lastLoadMillis);
         if (generate) {
             BalancePerformance.flag("reports_regenerated", true);
-            try (var phaseScope = BalancePerformance.phase("report_regeneration")) { BalanceReports.export(candidate, previous, directory(), lastGenerationMillis); }
+            try (var phaseScope = BalancePerformance.phase("report_regeneration")) { BalanceReports.exportSummary(candidate, previous, directory(), lastGenerationMillis); }
             catch (IOException | RuntimeException error) {
                 BalancePerformance.flag("report_regeneration_failed", true);
                 // Diagnostics are derived output; failure cannot invalidate an already committed profile.
@@ -373,7 +373,7 @@ public final class GeneratedBalanceService {
         policy.addProperty("status_ticks", "Periodic HARMFUL effect callbacks, including restored effects, run as derived secondary outcomes: native damage and duration remain, but no posture/dodge/reflection/offense proc or transfer chain. BENEFICIAL/NEUTRAL ticks are untouched; no persisted provenance references");
         policy.addProperty("native_status_boundary", "Timed effects record actual native acceptance and hidden-chain changes; Mirror restores any prior chain after removing the intercepted application. Instant harmful interception records eligibility preflight separately from native damage. Source-less effects qualify only for Pure State prevention");
         policy.addProperty("pure_state", "Binary prevention of new harmful applications, including source-less effects. Existing effects are not cleansed. Beneficial/neutral effects remain native. No reflection, cooldown or numeric rank benefit is invented");
-        policy.addProperty("rank_policy", "All 90 skills remain one purchase with five provisional diagnostic ranks. Evasive chance, Bulwark resistance, Adaptive per-stack resistance and Mirror cooldown have real typed consumers. Pure State capability pressure stays binary; later catalog-wide design must decide rank eligibility");
+        policy.addProperty("rank_policy", "Published /runtime/skillCurves determine each skill's purchasable ranks, generated tier, prices and native parameters. Evasive chance, Bulwark resistance, Adaptive per-stack resistance and Mirror cooldown retain only meaningful improvements. Pure State remains a single binary capability; no numeric follow-up ranks are invented");
         policy.addProperty("balance", "Preserves developed-build-ceilings-15 final-output targets. Posture enters survival via generated avoidance and pre-armor reduction. Status prevention/transfer and knockback control retain separate capability units, never offense allowance or infinite immunity EHP");
         policy.addProperty("status_evidence", "No pack-wide harmful-application cadence or successful-copy rate has been observed. Peak prevention and maximum transfers/second are conditional bounds, not measured uptime, damage or survival. These remain explicit evidence limitations");
         policy.addProperty("attunement", "Only accepted general measured outcomes may contribute. Meter build, threat scans, dodge requests, cooldown readiness and rejected copies create no progression credit; no stable-ID dispatch or per-action cap");

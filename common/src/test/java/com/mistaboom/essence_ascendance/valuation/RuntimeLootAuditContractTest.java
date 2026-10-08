@@ -41,7 +41,39 @@ public final class RuntimeLootAuditContractTest {
             RuntimeLootAudit.captureOptional("future-patch", () -> { throw new OutOfMemoryError("fixture VM sentinel"); });
             throw new AssertionError("VM failure was swallowed");
         } catch (OutOfMemoryError expected) { checks++; }
+        compiledTableScopes();
         System.out.println("Runtime loot inspection contracts passed: " + checks + " checks");
+    }
+    private static void compiledTableScopes() {
+        var random = new java.util.Random(613502);
+        for (int i = 0; i < 300; i++) {
+            var definition = new JsonObject(); var conditions = new com.google.gson.JsonArray();
+            for (int j = 0, n = random.nextInt(5); j < n; j++) conditions.add(condition(random, 4));
+            if (i % 11 == 0) definition.add("conditions", com.google.gson.JsonNull.INSTANCE);
+            else if (i % 13 != 0) definition.add("conditions", conditions);
+            for (boolean enforced : List.of(true, false)) {
+                var modifier = new RuntimeLootAudit.Modifier("fixture", definition, "test", BlockLootModifierAudit.Rule.UNKNOWN, enforced);
+                var compiled = modifier.tableFilter();
+                for (String table : List.of("fixture:a", "fixture:b", "fixture:c", "fixture:unmentioned"))
+                    check(compiled.test(table) == modifier.mayAffect(table), "Compiled table scope changed three-valued predicate semantics");
+            }
+        }
+        var list = new com.google.gson.JsonArray();
+        for (int i = 0; i < 4096; i++) { var term = new JsonObject(); term.addProperty("condition", "neoforge:loot_table_id"); term.addProperty("loot_table_id", "fixture:" + i); list.add(term); }
+        var any = new JsonObject(); any.addProperty("condition", "minecraft:any_of"); any.add("terms", list);
+        var terms = new com.google.gson.JsonArray(); terms.add(any); var definition = new JsonObject(); definition.add("conditions", terms);
+        var compiled = new RuntimeLootAudit.Modifier("fixture", definition, "large list").tableFilter();
+        check(compiled.test("fixture:0") && compiled.test("fixture:4095") && !compiled.test("fixture:absent"), "Large disjunction retains first/last matches and default exclusion");
+    }
+    private static com.google.gson.JsonElement condition(java.util.Random random, int depth) {
+        int kind = random.nextInt(depth == 0 ? 3 : 6); var c = new JsonObject();
+        if (kind == 0) return com.google.gson.JsonNull.INSTANCE;
+        if (kind == 1) { c.addProperty("condition", "fixture:opaque"); return c; }
+        if (kind == 2) { c.addProperty("condition", "neoforge:loot_table_id"); c.addProperty("loot_table_id", "fixture:" + "abc".charAt(random.nextInt(3))); return c; }
+        if (kind == 3) { c.addProperty("condition", "minecraft:inverted"); c.add("term", condition(random, depth - 1)); return c; }
+        c.addProperty("condition", kind == 4 ? "minecraft:all_of" : "minecraft:any_of");
+        var terms = new com.google.gson.JsonArray(); for (int i = 0, n = random.nextInt(5); i < n; i++) terms.add(condition(random, depth - 1));
+        c.add("terms", terms); return c;
     }
     private static boolean supported(Method getter, Method all, Field codec) {
         return supported(getter, all, codec, Manager.class);

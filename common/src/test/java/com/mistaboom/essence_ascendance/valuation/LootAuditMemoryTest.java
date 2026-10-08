@@ -15,6 +15,7 @@ public final class LootAuditMemoryTest {
     private static long checks;
 
     public static void main(String[] args) {
+        equivalentToolCache();
         var hand = context("minecraft:air", "3");
         var tool = context("minecraft:iron_pickaxe", "3");
         var young = context("minecraft:air", "0");
@@ -80,6 +81,40 @@ public final class LootAuditMemoryTest {
                 System.out.println("Heap pool peak " + pool.getName() + "=" + pool.getPeakUsage().getUsed() / 1048576 + " MiB");
         for (var gc : ManagementFactory.getGarbageCollectorMXBeans())
             System.out.println("Test JVM GC " + gc.getName() + ": " + gc.getCollectionCount() + " collections / " + gc.getCollectionTime() + " ms");
+    }
+    private static void equivalentToolCache() {
+        var modifiers = new ArrayList<RuntimeLootAudit.Modifier>();
+        for (String predicate : List.of(
+                "{\"items\":\"fixture:tool_17\"}", "{\"items\":\"#fixture:cutters\"}",
+                "{\"count\":{\"min\":1}}", "{\"components\":{\"fixture:unknown\":true}}",
+                "{\"predicates\":{\"minecraft:enchantments\":[{\"enchantments\":\"minecraft:silk_touch\",\"levels\":1}]}}"))
+            modifiers.add(modifier("{\"conditions\":[{\"condition\":\"minecraft:match_tool\",\"predicate\":" + predicate + "}]}"));
+        modifiers.add(modifier("""
+                {"conditions":[{"condition":"minecraft:block_state_property","block":"fixture:crop","properties":{"age":"3"}}]}
+                """));
+        modifiers.add(new RuntimeLootAudit.Modifier("fixture.InternalToolGate", new JsonObject(), "native empty guard",
+                new BlockLootModifierAudit.Rule(BlockLootModifierAudit.Mode.NONEMPTY_TOOL, Set.of())));
+        modifiers.add(new RuntimeLootAudit.Modifier("fixture.OutputReplacement", new JsonObject(), "scoped output",
+                new BlockLootModifierAudit.Rule(BlockLootModifierAudit.Mode.OUTPUT_ITEMS, Set.of("fixture:output"))));
+        modifiers.add(new RuntimeLootAudit.Modifier("fixture.Giant", new JsonObject(), "whole-list conversion",
+                new BlockLootModifierAudit.Rule(BlockLootModifierAudit.Mode.FIRST_OUTPUT_CONVERSION, Set.of("fixture:giant"))));
+        var cached = new BlockLootModifierAudit(modifiers);
+        var independent = new BlockLootModifierAudit(modifiers);
+        String table = "fixture:blocks/cache";
+        for (int repeat = 0; repeat < 2; repeat++) for (int i = 0; i < 1200; i++) {
+            String tool = i % 19 == 0 ? "minecraft:air" : "fixture:tool_" + (i % 100);
+            var context = new ProceduralBlockLoot.Context(i % 3 == 0 ? "fixture:crop" : "fixture:other",
+                    Map.of("age", Integer.toString(i % 4)), i % 7 == 0 ? Set.of() : Set.of("age"), tool,
+                    i % 2 == 0 ? Set.of("fixture:cutters") : Set.of("fixture:irrelevant"),
+                    i % 5 == 0 ? Map.of("minecraft:silk_touch", 1) : Map.of());
+            Set<String> outputs = Set.of(i % 11 == 0 ? "fixture:giant" : "fixture:output");
+            check(cached.applicable(table, context, outputs).equals(independent.applicableUncached(table, context, outputs)),
+                    "Cached modifier result changed across tool/tag/enchantment/state/output contexts: " + i);
+        }
+        var a = context("fixture:unmentioned_a", "3");
+        var b = context("fixture:unmentioned_b", "3");
+        check(cached.applicable(table, a, Set.of("fixture:output")) == cached.applicable(table, b, Set.of("fixture:output")),
+                "Equivalent unmentioned tool IDs failed to reuse a modifier evaluation");
     }
     private static RuntimeLootAudit.Modifier modifier(String json) {
         return new RuntimeLootAudit.Modifier("fixture.Scoped", JsonParser.parseString(json).getAsJsonObject(), "unknown output");

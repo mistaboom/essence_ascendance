@@ -31,7 +31,7 @@ public final class InstalledCapabilityProviders {
             AUTOMATION_INTERACTION, INFORMATION, CONVENIENCE, RESOURCE_CONSUMPTION, INVENTORY);
     private InstalledCapabilityProviders() { }
     public static List<PackEvidenceProvider> all() { return List.of(new Torchmaster(), new ComponentRemoval(), new Materials(), new Planters(),
-            new SquatGrowCapabilityProvider(), new IronJetpackCapabilityProvider(), new TimeBottleCapabilityProvider(),
+            new SquatGrowCapabilityProvider(), new IronJetpackCapabilityProvider(), new TimeBottleCapabilityProvider(), new UltimineCapabilityProvider(),
             new UnresolvedSystem("apotheosis", "8.8.0", "Affixes/gems/socket rarity/loot-tier configuration needs an attainable composition provider", AFFIX_AXES),
             new UnresolvedSystem("draconicevolution", "3.1.4.633", "Modules/shield/energy/host-grid composition and configured tiers are not normalized", MODULE_AXES),
             new UnresolvedSystem("ars_nouveau", "5.13.1", "Spell/glyph composition, source costs and automation require an attainable configuration provider", SPELL_AXES)); }

@@ -16,6 +16,7 @@ public final class LootAcquisitionTest {
     private static final String TABLE = "fixture:chests/early";
     public static void main(String[] args) {
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap();
+        cropReservation();
         check(LootrProvider.readiness(null, false).status() == ProviderReadiness.Status.ABSENT, "Optional absent does not link Lootr");
         check(LootrProvider.readiness("1.21.1-1.11.38.126", false).status() == ProviderReadiness.Status.NOT_READY, "Installed is not ready");
         check(!LootrProvider.readiness("1.21.1-1.11.38.126", false).collectable(),
@@ -142,6 +143,31 @@ public final class LootAcquisitionTest {
         LootSemanticsAudit.auditTables(cycle); memo.clear();
         check(ProceduralValuationIndex.estimateContainerTable(id("fixture:a"), cycle, memo, new HashSet<>()).get(Items.DIAMOND).complexConditionCount() > 0, "Cycle guarded and explicitly uncertain");
         check(!LootSemanticsAudit.facts(tables.get(id(TABLE))).isEmpty(), "Nested and conditional facts retained for later capability availability");
+        for (String function : List.of("enchant_randomly", "enchant_with_levels", "set_enchantments")) {
+            var gear = json("{\"pools\":[{\"rolls\":1,\"entries\":[{\"type\":\"minecraft:item\",\"name\":\"minecraft:fishing_rod\",\"functions\":[{\"function\":\"minecraft:" + function + "\"}]}]}]}");
+            var gearTables = Map.of(id("fixture:rod"), gear);
+            LootSemanticsAudit.auditTables(gearTables);
+            check(ProceduralValuationIndex.estimateContainerTable(id("fixture:rod"), gearTables, new HashMap<>(), new HashSet<>())
+                    .get(Items.FISHING_ROD).complexConditionCount() == 0,
+                    "Native " + function + " keeps a non-book item's identity for item-only ingredients/actions");
+            for (String owner : List.of("entry", "pool", "root", "reference")) {
+                var leaf = json("{\"pools\":[{\"rolls\":1,\"entries\":[{\"type\":\"minecraft:item\",\"name\":\"minecraft:book\"}]}]}");
+                var parent = json("{\"pools\":[{\"rolls\":1,\"entries\":[{\"type\":\"minecraft:loot_table\",\"value\":\"fixture:book_leaf\"}]}]}");
+                var pool = leaf.getAsJsonArray("pools").get(0).getAsJsonObject();
+                var target = switch (owner) {
+                    case "entry" -> pool.getAsJsonArray("entries").get(0).getAsJsonObject();
+                    case "pool" -> pool;
+                    case "root" -> leaf;
+                    default -> parent.getAsJsonArray("pools").get(0).getAsJsonObject().getAsJsonArray("entries").get(0).getAsJsonObject();
+                };
+                target.add("functions", JsonParser.parseString("[{\"function\":\"minecraft:" + function + "\"}]"));
+                var transformed = Map.of(id("fixture:book_leaf"), leaf, id("fixture:book_parent"), parent);
+                LootSemanticsAudit.auditTables(transformed);
+                var projected = ProceduralValuationIndex.estimateContainerTable(id("fixture:book_parent"), transformed, new HashMap<>(), new HashSet<>());
+                check(projected.get(Items.BOOK).complexConditionCount() > 0,
+                        function + " at " + owner + " cannot prove an ordinary crafting book through a nested table");
+            }
+        }
         System.out.println("Synthetic normalized graph projection/audit: " + ((System.nanoTime() - start) / 1e6) + " ms; not native generation timing");
     }
     private static void blockHarvestAudit() {
@@ -337,6 +363,24 @@ public final class LootAcquisitionTest {
                 .stream().filter(m -> BlockLootModifierAudit.couldChangeOutput(m, "minecraft:sweet_berries")).toList();
         check(unresolved.isEmpty(), "Installed-definition berry fixture unresolved: " + unresolved);
         System.out.println("Jar-resource modifier fixture: " + modifiers.size() + " definitions; mature berry base drop preserved. Native loaded definitions/tags/rules still require rebuild.");
+    }
+    private static void cropReservation() {
+        var hand = new ProceduralBlockLoot.Context("fixture:crop", Map.of(), Set.of(), "minecraft:air", Set.of(), Map.of());
+        var table = JsonParser.parseString("""
+                {"pools":[{"rolls":1,"entries":[{"type":"minecraft:item","name":"fixture:seed",
+                "functions":[{"function":"minecraft:set_count","count":{"type":"minecraft:uniform","min":0,"max":3}}]}]}]}
+                """).getAsJsonObject();
+        var reserved = ProceduralBlockLoot.estimate(ProceduralBlockLoot.object(ProceduralBlockHarvest.plain(table)), hand,
+                ignored -> Map.of(), ignored -> List.of(), "fixture:seed").get("fixture:seed");
+        check(reserved.chance() == .5 && reserved.expectedCount() == .75,
+                "Seed reservation must transform the native count distribution, not reuse gross harvest probability");
+        var raw = Map.of("fixture:seed", new StartingBlockDrops.ExpectedDrop(.75, 1.5));
+        var kept = Map.of("fixture:seed", new StartingBlockDrops.ExpectedDrop(reserved.chance(), reserved.expectedCount()));
+        check(NativeCropRenewal.surplus("fixture:seed", raw, kept).get("fixture:seed").expectedCount() == .5,
+                "Conditional seed surplus still accounts for failed replant outcomes");
+        check(NativeCropRenewal.surplus("fixture:seed", Map.of(), kept).isEmpty(), "Harvest without replant evidence cannot renew");
+        check(NativeCropRenewal.surplus("fixture:seed", Map.of("fixture:seed", new StartingBlockDrops.ExpectedDrop(1, 1)), kept).isEmpty(),
+                "Exactly one replant seed creates no consumable surplus");
     }
     private static Map<String, ProceduralBlockLoot.Drop> blockDrops(JsonObject table, ProceduralBlockLoot.Context context) {
         return ProceduralBlockLoot.estimate(ProceduralBlockLoot.object(ProceduralBlockHarvest.plain(table)), context, ignored -> Map.of(), ignored -> List.of());

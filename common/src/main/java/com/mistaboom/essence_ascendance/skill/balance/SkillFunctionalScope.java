@@ -13,6 +13,7 @@ public final class SkillFunctionalScope {
     private SkillFunctionalScope() { }
     private static final Map<ResourceLocation, Set<String>> INFORMATION = new HashMap<>();
     private static final Map<ResourceLocation, Set<String>> GENERATION = new HashMap<>();
+    private static final Map<ResourceLocation, Set<String>> RESISTANCE = new HashMap<>();
     static {
         INFORMATION.put(SkillIds.ORE_SIGHT, Set.of("ore_blocks"));
         INFORMATION.put(SkillIds.TREASURE_SENSE, Set.of("unopened_loot_containers"));
@@ -23,16 +24,25 @@ public final class SkillFunctionalScope {
         INFORMATION.put(SkillIds.AQUATIC_BODY, Set.of("underwater_visibility"));
         GENERATION.put(SkillIds.NATURES_BOON, Set.of("ore_resources", "mineral_resources"));
         GENERATION.put(SkillIds.ANIMAL_GIFT, Set.of("animal_products"));
+        RESISTANCE.put(SkillIds.PURE_STATE, Set.of("harmful_effects"));
+        RESISTANCE.put(SkillIds.STATUS_MIRROR, Set.of("harmful_effects"));
+        RESISTANCE.put(SkillIds.TERRAIN_FREEDOM, Set.of("terrain_movement_penalties"));
+        RESISTANCE.put(SkillIds.LAVABORN, Set.of("fire_damage", "lava_movement"));
+        RESISTANCE.put(SkillIds.AQUATIC_BODY, Set.of("drowning"));
     }
     public static synchronized void register(ResourceLocation skill, CapabilityAxis axis, Set<String> targets) {
-        var registry = axis == CapabilityAxis.INFORMATION ? INFORMATION : axis == CapabilityAxis.PASSIVE_GENERATION ? GENERATION : null;
+        var registry = axis == CapabilityAxis.INFORMATION ? INFORMATION : axis == CapabilityAxis.PASSIVE_GENERATION ? GENERATION
+                : axis == CapabilityAxis.STATUS_RESISTANCE ? RESISTANCE : null;
         if (registry == null || targets.isEmpty() || registry.putIfAbsent(skill, Set.copyOf(targets)) != null)
             throw new IllegalArgumentException("Unsupported/duplicate functional domain " + skill + "/" + axis);
     }
     public static boolean compatible(ResourceLocation skill, CapabilityEvidence.Measurement measurement) {
+        if (measurement.axis() == CapabilityAxis.JUMP && measurement.scope().targets().equals("ground_jump"))
+            return Set.of(SkillIds.CHARGED_JUMP, SkillIds.MOMENTUM_VAULT).contains(skill);
         var domains = switch (measurement.axis()) {
             case INFORMATION -> INFORMATION.getOrDefault(skill, Set.of());
             case PASSIVE_GENERATION -> GENERATION.getOrDefault(skill, Set.of());
+            case STATUS_RESISTANCE -> RESISTANCE.getOrDefault(skill, Set.of());
             default -> null;
         };
         return domains == null || domains.contains(measurement.scope().targets());

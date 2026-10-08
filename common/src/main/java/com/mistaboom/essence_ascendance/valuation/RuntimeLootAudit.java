@@ -24,8 +24,57 @@ final class RuntimeLootAudit {
         boolean mayAffect(String table) {
             return !conditionsEnforced || tableConditions(definition.get("conditions"), table) != Truth.FALSE;
         }
+        java.util.function.Predicate<String> tableFilter() {
+            if (!conditionsEnforced) return ignored -> true;
+            var scope = compileConditions(definition.get("conditions"));
+            return table -> scope.named().getOrDefault(table, scope.other()) != Truth.FALSE;
+        }
     }
     private enum Truth { TRUE, FALSE, UNKNOWN }
+    /** Table-only predicates have finitely many named exceptions and one default.
+     * Compile once per audit instead of traversing large JSON disjunctions for every
+     * table/harvest. UNKNOWN still admits a modifier; no runtime predicate is invoked. */
+    private record TableScope(Truth other, Map<String, Truth> named) { }
+    private static TableScope constantScope(Truth value) { return new TableScope(value, Map.of()); }
+    private static TableScope compileConditions(JsonElement value) {
+        if (value == null) return constantScope(Truth.TRUE);
+        if (!value.isJsonArray()) return constantScope(Truth.UNKNOWN);
+        return combineScopes(value.getAsJsonArray().asList().stream().map(RuntimeLootAudit::compileCondition).toList(), true);
+    }
+    private static TableScope compileCondition(JsonElement value) {
+        if (value == null || !value.isJsonObject()) return constantScope(Truth.UNKNOWN);
+        var c = value.getAsJsonObject();
+        String type = c.has("condition") ? c.get("condition").getAsString() : "";
+        if (type.equals("neoforge:loot_table_id") && c.has("loot_table_id"))
+            return new TableScope(Truth.FALSE, Map.of(c.get("loot_table_id").getAsString(), Truth.TRUE));
+        if (type.equals("minecraft:inverted")) {
+            var inner = compileCondition(c.get("term")); var named = new HashMap<String, Truth>();
+            inner.named().forEach((table, truth) -> named.put(table, invert(truth)));
+            return new TableScope(invert(inner.other()), Map.copyOf(named));
+        }
+        if ((type.equals("minecraft:any_of") || type.equals("minecraft:all_of")) && c.has("terms") && c.get("terms").isJsonArray())
+            return combineScopes(c.getAsJsonArray("terms").asList().stream().map(RuntimeLootAudit::compileCondition).toList(), type.equals("minecraft:all_of"));
+        return constantScope(Truth.UNKNOWN);
+    }
+    private static Truth invert(Truth truth) { return truth == Truth.UNKNOWN ? truth : truth == Truth.TRUE ? Truth.FALSE : Truth.TRUE; }
+    private static TableScope combineScopes(List<TableScope> scopes, boolean all) {
+        // Counts avoid quadratic map copying for the large any_of lists common in packs.
+        int[] defaults = new int[Truth.values().length];
+        for (var scope : scopes) defaults[scope.other().ordinal()]++;
+        var counts = new HashMap<String, int[]>();
+        for (var scope : scopes) scope.named().forEach((table, truth) -> {
+            var row = counts.computeIfAbsent(table, ignored -> defaults.clone());
+            row[scope.other().ordinal()]--; row[truth.ordinal()]++;
+        });
+        Truth other = combinedTruth(defaults, all); var named = new HashMap<String, Truth>();
+        counts.forEach((table, row) -> { Truth truth = combinedTruth(row, all); if (truth != other) named.put(table, truth); });
+        return new TableScope(other, Map.copyOf(named));
+    }
+    private static Truth combinedTruth(int[] counts, boolean all) {
+        if (counts[(all ? Truth.FALSE : Truth.TRUE).ordinal()] > 0) return all ? Truth.FALSE : Truth.TRUE;
+        if (counts[Truth.UNKNOWN.ordinal()] > 0) return Truth.UNKNOWN;
+        return all ? Truth.TRUE : Truth.FALSE;
+    }
     private static Truth tableConditions(JsonElement value, String table) {
         if (value == null) return Truth.TRUE;
         if (!value.isJsonArray()) return Truth.UNKNOWN;
@@ -131,11 +180,12 @@ final class RuntimeLootAudit {
         }
     }
     static void mark(Map<ResourceLocation, JsonObject> tables, List<Modifier> modifiers, List<String> lootrExtensions) {
+        var filters = modifiers.stream().map(Modifier::tableFilter).toList();
         for (var entry : tables.entrySet()) {
             List<String> reasons = new ArrayList<>();
             if (!lootrExtensions.isEmpty()) reasons.add("Unsupported Lootr extension callbacks; see saved lootr.unsupported");
             List<Integer> affected = new ArrayList<>();
-            for (int index = 0; index < modifiers.size(); index++) if (modifiers.get(index).mayAffect(entry.getKey().toString())) affected.add(index);
+            for (int index = 0; index < modifiers.size(); index++) if (filters.get(index).test(entry.getKey().toString())) affected.add(index);
             if (!affected.isEmpty()) reasons.add("Unsupported runtime modifier indices=" + affected + "; see saved runtimeModifiers");
             if (reasons.isEmpty()) continue;
             JsonArray functions = entry.getValue().has("functions") ? entry.getValue().getAsJsonArray("functions") : new JsonArray();

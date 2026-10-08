@@ -81,7 +81,7 @@ final class ProceduralTradeIndex {
             Villager villager = new Villager(EntityType.VILLAGER, level, VillagerType.PLAINS);
 
             for (Map.Entry<VillagerProfession, Int2ObjectMap<VillagerTrades.ItemListing[]>> professionEntry
-                    : VillagerTrades.TRADES.entrySet()) {
+                    : effectiveTrades(level.enabledFeatures().contains(net.minecraft.world.flag.FeatureFlags.TRADE_REBALANCE)).entrySet()) {
                 VillagerProfession profession = professionEntry.getKey();
                 ResourceLocation professionId = BuiltInRegistries.VILLAGER_PROFESSION.getKey(profession);
                 if (professionId == null) {
@@ -124,7 +124,7 @@ final class ProceduralTradeIndex {
                     professionTables++;
                 }
             }
-        } catch (RuntimeException exception) {
+        } catch (RuntimeException | LinkageError exception) {
             EssenceAscendance.LOGGER.debug(
                     "Procedural valuation could not fully index villager trades: {}",
                     exception.getMessage()
@@ -160,7 +160,7 @@ final class ProceduralTradeIndex {
                     );
                 }
             }
-        } catch (RuntimeException exception) {
+        } catch (RuntimeException | LinkageError exception) {
             EssenceAscendance.LOGGER.debug(
                     "Procedural valuation could not fully index wandering-trader offers: {}",
                     exception.getMessage()
@@ -193,6 +193,14 @@ final class ProceduralTradeIndex {
 
     List<TradeSource> sources(Item item) {
         return sourcesByOutput.getOrDefault(item, List.of());
+    }
+
+    /** Native Villager.updateTrades uses a profession's experimental override when
+     * enabled, with an ordinary-table fallback for professions without an override. */
+    static Map<VillagerProfession, Int2ObjectMap<VillagerTrades.ItemListing[]>> effectiveTrades(boolean rebalance) {
+        var result = new LinkedHashMap<>(VillagerTrades.TRADES);
+        if (rebalance) result.putAll(VillagerTrades.EXPERIMENTAL_TRADES);
+        return result;
     }
 
     int professionTableCount() {
@@ -251,6 +259,18 @@ final class ProceduralTradeIndex {
 
                 ItemStack safeA = costA == null ? ItemStack.EMPTY : costA.copy();
                 ItemStack safeB = costB == null ? ItemStack.EMPTY : costB.copy();
+                String definition = "", failure = "";
+                try {
+                    com.mojang.serialization.DynamicOps<com.google.gson.JsonElement> ops = trader == null
+                            ? com.mojang.serialization.JsonOps.INSTANCE
+                            : net.minecraft.resources.RegistryOps.create(com.mojang.serialization.JsonOps.INSTANCE, trader.registryAccess());
+                    definition = encodeOffer(offer, ops);
+                } catch (RuntimeException | LinkageError unsupported) {
+                    failure = unsupported.getClass().getSimpleName() + ": " + unsupported.getMessage();
+                    if (failure.length() > 500) failure = failure.substring(0, 500);
+                    com.mistaboom.essence_ascendance.balance.generated.BalancePerformance.increment("trade_configuration_read_failures");
+                    // The observed item/price row remains advisory; this failure cannot prove configured access.
+                }
                 TradeSource source = new TradeSource(
                         result.getItem(),
                         Math.max(1, result.getCount()),
@@ -261,13 +281,16 @@ final class ProceduralTradeIndex {
                         wandering,
                         Math.max(1, listingPoolSize),
                         offer.getMaxUses(),
-                        factory.getClass().getName()
+                        factory.getClass().getName(), definition, failure, seed,
+                        trader instanceof Villager villager ? BuiltInRegistries.VILLAGER_TYPE.getKey(villager.getVillagerData().getType()).toString() : "not_villager"
                 );
                 unique.putIfAbsent(source.identityKey(), source);
-            } catch (RuntimeException exception) {
+            } catch (RuntimeException | LinkageError exception) {
                 // Some custom listings intentionally reject a trader type or
                 // require world state not available during a deterministic
                 // probe. Skipping that one sample is safer than inventing it.
+                com.mistaboom.essence_ascendance.balance.generated.BalancePerformance.increment("trade_offer_sample_failures");
+                EssenceAscendance.LOGGER.debug("Trade sample excluded for {} seed index {}: {}", factory.getClass().getName(), sample, exception.toString());
             }
         }
 
@@ -276,6 +299,13 @@ final class ProceduralTradeIndex {
                     .add(source);
         }
         return unique.size();
+    }
+
+    static String encodeOffer(MerchantOffer offer, com.mojang.serialization.DynamicOps<com.google.gson.JsonElement> ops) {
+        String encoded = com.mistaboom.essence_ascendance.balance.generated.BalanceDocument.canonical(
+                MerchantOffer.CODEC.encodeStart(ops, offer).getOrThrow()).toString();
+        if (encoded.length() > 65_536) throw new IllegalArgumentException("Configured offer exceeds bounded capture size");
+        return encoded;
     }
 
     private static boolean worldDependentListing(VillagerTrades.ItemListing listing, int depth) {
@@ -296,8 +326,17 @@ final class ProceduralTradeIndex {
             boolean wandering,
             int listingPoolSize,
             int maxUses,
-            String listingClass
+            String listingClass,
+            String offerDefinition,
+            String offerFailure,
+            long sampleSeed,
+            String villagerType
     ) {
+        TradeSource(Item outputItem, int outputCount, ItemStack costA, ItemStack costB, ResourceLocation traderId,
+                    int level, boolean wandering, int listingPoolSize, int maxUses, String listingClass) {
+            this(outputItem, outputCount, costA, costB, traderId, level, wandering, listingPoolSize, maxUses, listingClass,
+                    "", "Exact offer not captured by item-only caller", 0, "unknown");
+        }
         TradeSource {
             if (maxUses <= 0) throw new IllegalArgumentException("A sampled trade must have positive finite stock");
             costA = costA == null ? ItemStack.EMPTY : costA.copy();
@@ -312,7 +351,9 @@ final class ProceduralTradeIndex {
                     + "|" + traderId
                     + "|" + level
                     + "|" + wandering
-                    + "|stock=" + maxUses;
+                    + "|stock=" + maxUses
+                    + (offerDefinition.isEmpty() ? "" : "|configuration="
+                        + com.mistaboom.essence_ascendance.balance.generated.BalanceDocument.hash(offerDefinition));
         }
 
         private static String stackKey(ItemStack stack) {

@@ -22,6 +22,7 @@ public final class TradeGraphTest {
                 failure.printStackTrace(new PrintStream(new FileOutputStream(FileDescriptor.err))));
         SharedConstants.tryDetectVersion();
         Bootstrap.bootStrap();
+        exactOfferComponents();
         var worldDependent = new VillagerTrades.TreasureMapForEmeralds(12, null, "fixture.map", null, 1, 1) {
             @Override
             public MerchantOffer getOffer(net.minecraft.world.entity.Entity trader, net.minecraft.util.RandomSource random) {
@@ -103,6 +104,51 @@ public final class TradeGraphTest {
         } catch (IllegalArgumentException expected) { checks++; }
         new PrintStream(new FileOutputStream(FileDescriptor.out)).println("TradeGraphTest: " + checks
                 + " actual-price, discount-slot, finite-stock and graph checks passed");
+    }
+    private static void exactOfferComponents() {
+        var first = new ItemStack(Items.ENCHANTED_BOOK);
+        first.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME, net.minecraft.network.chat.Component.literal("configuration A"));
+        var second = first.copy(); second.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME, net.minecraft.network.chat.Component.literal("configuration B"));
+        int[] calls = {0};
+        VillagerTrades.ItemListing listing = (trader, random) -> new MerchantOffer(
+                new ItemCost(Items.EMERALD, 12).withComponents(b -> b.expect(net.minecraft.core.component.DataComponents.CUSTOM_NAME,
+                        net.minecraft.network.chat.Component.literal("required input"))),
+                Optional.of(new ItemCost(Items.BOOK)), calls[0]++ % 2 == 0 ? first : second, 8, 7, .2f);
+        var output = new java.util.HashMap<net.minecraft.world.item.Item, java.util.List<ProceduralTradeIndex.TradeSource>>();
+        require(ProceduralTradeIndex.sampleListing(output, listing, null, ResourceLocation.parse("test:librarian"),
+                1, 1, false, 0, new java.util.TreeMap<>()) == 2, "Different output components must survive equal item/count/price deduplication");
+        var sources = output.get(Items.ENCHANTED_BOOK);
+        for (var source : sources) {
+            var encoded = com.google.gson.JsonParser.parseString(source.offerDefinition());
+            var restored = MerchantOffer.CODEC.parse(com.mojang.serialization.JsonOps.INSTANCE, encoded).getOrThrow();
+            require(restored.getResult().has(net.minecraft.core.component.DataComponents.CUSTOM_NAME), "Exact result component lost");
+            require(!restored.satisfiedBy(new ItemStack(Items.EMERALD, 12), new ItemStack(Items.BOOK)), "Partial input component predicate discarded");
+            require(restored.getXp() == 7 && restored.getMaxUses() == 8 && restored.getCostB().is(Items.BOOK), "Villager XP, stock or second input lost");
+            var graph = ProductionGraphAdapter.tradeProcess(source);
+            require(graph.metadata().get("observed_offer_definition").equals(source.offerDefinition())
+                    && !graph.metadata().containsKey("access_proven"), "Retaining an offer must not certify trader/setup access");
+        }
+        require(!ProductionGraphAdapter.tradeProcess(sources.get(0)).id().equals(ProductionGraphAdapter.tradeProcess(sources.get(1)).id()),
+                "Production snapshot collapsed distinct configured offers");
+        first.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME, net.minecraft.network.chat.Component.literal("mutated"));
+        require(sources.stream().noneMatch(s -> s.offerDefinition().contains("mutated")), "Captured offer aliases mutable source stack");
+        var invalid = new ItemStack(Items.IRON_PICKAXE); invalid.set(net.minecraft.core.component.DataComponents.MAX_DAMAGE, -1);
+        var broken = new java.util.HashMap<net.minecraft.world.item.Item, java.util.List<ProceduralTradeIndex.TradeSource>>();
+        require(ProceduralTradeIndex.sampleListing(broken, (trader, random) -> new MerchantOffer(new ItemCost(Items.EMERALD), invalid, 1, 1, .05f),
+                null, ResourceLocation.parse("test:broken"), 1, 1, false, 0, new java.util.TreeMap<>()) == 1,
+                "Failed component codec must retain the historical advisory item/price observation");
+        var excluded = broken.get(Items.IRON_PICKAXE).getFirst();
+        require(excluded.offerDefinition().isEmpty() && !excluded.offerFailure().isEmpty()
+                && ProductionGraphAdapter.tradeProcess(excluded).metadata().containsKey("offer_configuration_unresolved"),
+                "Failed exact offer must stay explicit and cannot establish configured acquisition");
+        require(ProceduralTradeIndex.sampleListing(new java.util.HashMap<>(), (trader, random) -> { throw new NoClassDefFoundError("fixture optional incompatibility"); },
+                null, ResourceLocation.parse("test:incompatible"), 1, 1, false, 0, new java.util.TreeMap<>()) == 0,
+                "One incompatible offer factory must not abort unrelated trade evidence");
+        for (var profession : VillagerTrades.TRADES.keySet()) {
+            require(ProceduralTradeIndex.effectiveTrades(false).get(profession) == VillagerTrades.TRADES.get(profession), "Disabled trade rebalance used experimental offers");
+            require(ProceduralTradeIndex.effectiveTrades(true).get(profession) == VillagerTrades.EXPERIMENTAL_TRADES.getOrDefault(profession, VillagerTrades.TRADES.get(profession)),
+                    "Effective native trade-rebalance override/fallback differs from Villager.updateTrades");
+        }
     }
     private static ProceduralTradeIndex.TradeSource source(MerchantOffer offer, boolean wandering) {
         return new ProceduralTradeIndex.TradeSource(offer.getResult().getItem(), offer.getResult().getCount(),

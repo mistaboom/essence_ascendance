@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    { "item": "essence_ascendance:raw_latent_ore" },
+    { "item": "minecraft:stick" },
+    { "item": "minecraft:stick" }
+  ],
+  "result": {
+    "id": "essence_ascendance:ascendance_archive",
+    "count": 1
+  }
+}

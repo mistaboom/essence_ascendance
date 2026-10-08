@@ -168,6 +168,20 @@ public final class RuntimeAscensionPolicyTest {
             var evidence = new PackEvidence(Map.of(resource.itemId(), resource), base.equipment(), base.enemies(), base.frontiers(), facts, base.warnings(), base.graphSummary(), base.capabilities());
             var suppressed = new EconomyProfile(Map.of(resource.itemId(), new EconomyProfile.ResourceValue(new EconomicValue(1),
                     DissolutionYield.of(0), Map.of(), List.of())), List.of(), List.of(), List.of(), 1, EconomyProcessingPolicy.defaults());
+            var toolGated = new AcquisitionSource(source.id(), source.kind(), source.stage(), 1, true, false, 0, 1,
+                    List.of("test:unreachable_tool"), "Output has another acquisition path; this harvest requires a tool");
+            var gatedResource = new ResourceEvidence(resource.itemId(), resource.stage(), resource.availability(), resource.automation(),
+                    true, true, 1, 1, List.of(toolGated), List.of());
+            var gatedEvidence = new PackEvidence(Map.of(resource.itemId(), gatedResource), base.equipment(), base.enemies(),
+                    base.frontiers(), facts, base.warnings(), base.graphSummary(), base.capabilities());
+            var gated = AttunementGenerator.generate(gatedEvidence, suppressed, BalanceSettings.defaults(), runtime.config().balanceProfile());
+            check(gated.assumptions().stream().anyMatch(text -> text.contains("no positive " + kind)),
+                    "Unreachable harvest tool was treated as a reachable zero-yield route");
+            check(!AttunementGenerator.sourceAccessible(toolGated, gatedEvidence, ProgressionBand.APEX), "Missing dependency proves no access at any tier");
+            var laterSource = new AcquisitionSource(source.id(), source.kind(), ProgressionBand.LATE, 1, true, false, 0, 1,
+                    List.of(), "Later route despite early output acquisition");
+            check(!AttunementGenerator.sourceAccessible(laterSource, evidence, ProgressionBand.ENTRY)
+                    && AttunementGenerator.sourceAccessible(laterSource, evidence, ProgressionBand.LATE), "Source stage was replaced by output stage");
             try {
                 AttunementGenerator.generate(evidence, suppressed, BalanceSettings.defaults(), runtime.config().balanceProfile());
                 throw new AssertionError("Known entirely suppressed " + kind + " route was silently declared reachable");

@@ -258,6 +258,7 @@ public final class AdaptiveCompetitionCalibration {
     private double logPressure(Reference ref) {
         var m = ref.measurement; double value = ref.frontier.magnitude(), ratio;
         String unit = m.unit(); CapabilityAxis axis = m.axis();
+        if (unit.equals("consumable_function")) return 0; // Availability only; numeric effects carry strength separately.
         if (unit.equals("presence")) {
             if (value <= 0) return 0;
             if (!Set.of(INDESTRUCTIBILITY, FLIGHT, GLIDING, BLOCKING, TELEPORTATION, AUTOMATED_EXTRACTION,
@@ -287,6 +288,8 @@ public final class AdaptiveCompetitionCalibration {
                 && Set.of(SPAWN_SUPPRESSION, MOB_REPULSION, HAZARD_SUPPRESSION).contains(axis)))
             ratio = value / 16; // Radius relevance, never volume cubed or an assertion of identical geometry.
         else if (unit.equals("items_per_second")) ratio = 1 + value; // relevance relative to one active item/s, NOT matching a machine rate
+        else if ((unit.equals("targets") || unit.equals("count")) && Set.of(AREA_MINING, VEIN_MINING).contains(axis)
+                && m.operation().exhaustionPerTarget() != null) ratio = miningBatchRatio(value, m.operation());
         else if (unit.equals("targets") || unit.equals("count") || unit.equals("levels") || unit.startsWith("native_fishing_luck:")
                 || unit.startsWith("durability_per_xp:")) ratio = 1 + value;
         else if (unit.equals("health_points:add") || unit.equals("health_points:set")) ratio = 1 + value / reference(BURST_DAMAGE, ref.frontier.band());
@@ -300,6 +303,14 @@ public final class AdaptiveCompetitionCalibration {
         if (m.operation().uptimeBound() != null) pressure *= m.operation().uptimeBound();
         else if (m.applicability().contains("conditional=") || m.unsupported().stream().anyMatch(s -> s.contains("Conditional peak"))) pressure *= .5;
         return pressure * ref.confidence;
+    }
+    /** Explicit usefulness policy: one food/saturation unit (4 exhaustion) and a one-second action window.
+     * This discounts a conditional batch limit; it never asserts measured mining throughput or changes access. */
+    static double miningBatchRatio(double targets, CapabilityEvidence.Operation operation) {
+        if (operation.exhaustionPerTarget() == null || operation.cooldownSeconds() == null) return 1;
+        double cost = operation.exhaustionPerTarget();
+        double withinBudget = cost == 0 ? targets : Math.min(targets, 4 / cost);
+        return 1 + Math.max(0, withinBudget - 1) / (1 + operation.cooldownSeconds());
     }
     private Pressure pressure(String feature, ProgressionBand band) {
         return pressureCache.computeIfAbsent(band, ignored -> new HashMap<>())
@@ -606,6 +617,9 @@ public final class AdaptiveCompetitionCalibration {
     private static int order(ResourceLocation tier) { return AscendanceTierRegistry.get(tier).orElseThrow().order(); }
     private static boolean accessUnit(CapabilityEvidence.Measurement measurement) {
         var axis = measurement.axis(); String unit = measurement.unit();
+        if (unit.equals("consumable_function")) return Set.of(HEALING, REGENERATION, FALL_CONTROL,
+                STATUS_RESISTANCE, GROUND_SPEED, JUMP, INFORMATION, MELEE_DAMAGE, MAX_HEALTH,
+                SHIELD_CAPACITY, DAMAGE_REDUCTION).contains(axis) && measurement.magnitude() > 0;
         if (unit.equals("bonemeal_growth_chance_per_action")) return Set.of(CROP_ACCELERATION, TREE_ACCELERATION).contains(axis);
         if (unit.equals("extra_tick_calls_per_server_tick")) return axis == BLOCK_ENTITY_ACCELERATION;
         if (unit.equals("multiplier")) return Set.of(CROP_ACCELERATION, TREE_ACCELERATION, ANIMAL_ACCELERATION,

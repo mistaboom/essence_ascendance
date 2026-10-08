@@ -83,7 +83,7 @@ public final class GenerationDataSnapshot implements AutoCloseable {
     Map<ResourceLocation, Map<Item, ProceduralValuationIndex.ContainerEstimate>> lootEstimates() { requireOpen(); return lootEstimates; }
     public void lootr(LootrPolicy policy) { requireWritable(); lootr = policy; }
     LootrPolicy lootr() { requireOpen(); return lootr; }
-    List<String> structureDimensions(ResourceLocation structure) { requireOpen(); return structureDimensions.getOrDefault(structure, List.of()); }
+    public List<String> structureDimensions(ResourceLocation structure) { requireOpen(); return List.copyOf(structureDimensions.getOrDefault(structure, List.of())); }
     void lootAvailability(String key, com.mistaboom.essence_ascendance.balance.engine.SourceAvailability value) {
         requireOpen(); lootAvailability.putIfAbsent(key, value);
     }
@@ -168,7 +168,7 @@ public final class GenerationDataSnapshot implements AutoCloseable {
     public List<String> limitations() { requireOpen(); return limitations.stream().sorted().distinct().toList(); }
     public boolean structuresEnabled() { requireOpen(); return structuresEnabled; }
     boolean structureEligible(ResourceLocation id) { requireOpen(); return eligibleStructures.contains(id); }
-    boolean structureSetEligible(ResourceLocation id) { requireOpen(); return eligibleStructureSets.contains(id); }
+    public boolean structureSetEligible(ResourceLocation id) { requireOpen(); return eligibleStructureSets.contains(id); }
     public Set<ResourceLocation> definitionIds(String family) { return json(family).keySet(); }
     public JsonObject definition(String family, ResourceLocation id) {
         JsonObject value = json(family).get(id); return value == null ? null : value.deepCopy();
@@ -206,6 +206,8 @@ public final class GenerationDataSnapshot implements AutoCloseable {
                 case "worldgen/structure" -> encodeRegistry(server.registryAccess().registryOrThrow(Registries.STRUCTURE), Structure.DIRECT_CODEC);
                 case "worldgen/structure_settings" -> structureSettings();
                 case "worldgen/structure_set" -> encodeRegistry(server.registryAccess().registryOrThrow(Registries.STRUCTURE_SET), StructureSet.DIRECT_CODEC);
+                case "worldgen/template_pool" -> encodeRegistry(server.registryAccess().registryOrThrow(Registries.TEMPLATE_POOL), net.minecraft.world.level.levelgen.structure.pools.StructureTemplatePool.DIRECT_CODEC);
+                case "worldgen/processor_list" -> encodeRegistry(server.registryAccess().registryOrThrow(Registries.PROCESSOR_LIST), processorDefinitionCodec());
                 case "loot_table" -> encodeRegistry(server.reloadableRegistries().get().registryOrThrow(Registries.LOOT_TABLE), LootTable.DIRECT_CODEC);
                 case "loot_evidence" -> {
                     var tables = encodeRegistry(server.reloadableRegistries().get().registryOrThrow(Registries.LOOT_TABLE), LootTable.DIRECT_CODEC, true);
@@ -247,6 +249,11 @@ public final class GenerationDataSnapshot implements AutoCloseable {
             }
         }
         return result;
+    }
+
+    /** Native processor-list encoding is an array; retain the named field expected by definition readers. */
+    static Codec<net.minecraft.world.level.levelgen.structure.templatesystem.StructureProcessorList> processorDefinitionCodec() {
+        return net.minecraft.world.level.levelgen.structure.templatesystem.StructureProcessorType.LIST_OBJECT_CODEC.fieldOf("processors").codec();
     }
 
     /** Normalizes one definition; the caller's optional boundary excludes failed custom codecs. */

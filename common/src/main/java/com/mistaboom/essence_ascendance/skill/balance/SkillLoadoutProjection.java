@@ -38,7 +38,10 @@ import static com.mistaboom.essence_ascendance.skill.balance.SkillBalanceSemanti
  * Cartesian product. Each returned scenario is one actual compatible selection.
  */
 public final class SkillLoadoutProjection {
-    private static final Comparator<ResourceLocation> IDS = Comparator.comparing(ResourceLocation::toString);
+    // Most comparisons are within one namespace. Preserve full textual ordering
+    // across namespaces without constructing two strings for every tree lookup.
+    private static final Comparator<ResourceLocation> IDS = (left, right) -> left.getNamespace().equals(right.getNamespace())
+            ? left.getPath().compareTo(right.getPath()) : left.toString().compareTo(right.toString());
     private static final int MAX_COMPONENT_STATES = 4096;
     private static final int MAX_REFINEMENT_PASSES = 4;
 

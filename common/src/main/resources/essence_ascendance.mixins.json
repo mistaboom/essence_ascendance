@@ -43,6 +43,8 @@
   "mixins": [
     "SaplingGrowerAccess",
     "TreeGrowerAccess",
+    "PotionBrewingAccess",
+    "PotionMixAccess",
     "GenerationFixedHolderCodecMixin",
     "GenerationNamedHolderCodecMixin",
     "GenerationLootFunctionCodecMixin",

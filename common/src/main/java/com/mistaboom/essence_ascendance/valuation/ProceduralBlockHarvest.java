@@ -69,8 +69,8 @@ final class ProceduralBlockHarvest {
                     states.putIfAbsent(Map.copyOf(projection), state);
                 }
                 String blockId = BuiltInRegistries.BLOCK.getKey(block).toString();
-                boolean toolSensitive = usesTools(table, tables, new LinkedHashSet<>(), 0);
-                List<Tool> contexts = toolSensitive ? tools : tools.subList(0, 1);
+                var toolInputs = BlockLootToolInputs.inspect(table, tables);
+                List<Tool> contexts = toolInputs.toolSensitive() ? tools : tools.subList(0, 1);
                 // A cache key includes the reusable prerequisite; an easier tool can win in the acquisition graph.
                 Map<HarvestKey, HarvestDrop> unique = new LinkedHashMap<>();
                 Map<List<String>, List<String>> sharedSignals = new LinkedHashMap<>();
@@ -78,6 +78,7 @@ final class ProceduralBlockHarvest {
                     // Every state has its own hand route: a different growth state must not
                     // erase a tool route whose output is unavailable in this state.
                     Map<String, HarvestDrop> knownHand = new LinkedHashMap<>();
+                    Map<BlockLootToolInputs.Key, Map<String, ProceduralBlockLoot.Drop>> evaluated = new java.util.HashMap<>();
                     String stateSignal = stateSignal(block, state.getKey());
                     for (Tool tool : contexts) {
                         // Do not propose an unsuitable SILK harvesting tool for a gated block.
@@ -85,8 +86,9 @@ final class ProceduralBlockHarvest {
                                 && !new ItemStack(tool.item()).isCorrectToolForDrops(state.getValue())) continue;
                         var context = new ProceduralBlockLoot.Context(blockId, state.getKey(), properties, tool.id(),
                                 tool.tags(), tool.silkTouch() ? Map.of("minecraft:silk_touch", 1) : Map.of());
-                        Map<String, ProceduralBlockLoot.Drop> drops = ProceduralBlockLoot.estimate(table, context,
-                                tables::get, id -> itemTags.getOrDefault(id, List.of()));
+                        Map<String, ProceduralBlockLoot.Drop> drops = evaluated.computeIfAbsent(toolInputs.key(context),
+                                ignored -> ProceduralBlockLoot.estimate(table, context,
+                                        tables::get, id -> itemTags.getOrDefault(id, List.of())));
                         if (tool.item() != Items.AIR && drops.entrySet().stream().allMatch(entry -> {
                             HarvestDrop hand = knownHand.get(entry.getKey());
                             var drop = entry.getValue();
@@ -157,12 +159,13 @@ final class ProceduralBlockHarvest {
                 && Double.compare(hand.countWhenPresent(), countWhenPresent) == 0;
     }
 
-    private static String stateSignal(Block block, Map<String, String> state) {
+    static String stateSignal(Block block, Map<String, String> state) {
         if (state.isEmpty()) return null;
-        if (block instanceof PinkPetalsBlock) return "modeled flower-count state " + state
+        String description = new java.util.TreeMap<>(state).toString();
+        if (block instanceof PinkPetalsBlock) return "modeled flower-count state " + description
                 + "; one concrete state per harvest, not a sum of mutually exclusive states"
                 + "; natural placement still required, state frequency/cultivation effort estimated";
-        return "reachable standard growth/plant state " + state
+        return "reachable standard growth/plant state " + description
                 + "; growth time is estimated, not an unknown random drop gate";
     }
 
@@ -218,19 +221,6 @@ final class ProceduralBlockHarvest {
         if (selector instanceof String s) return s.startsWith("#") ? tags.contains(s.substring(1)) : id.equals(s);
         if (selector instanceof List<?> values) return values.stream().anyMatch(v -> supportedItem(v, id, tags));
         return false;
-    }
-
-    private static boolean usesTools(Object raw, Map<String, Map<String, Object>> tables, Set<String> seen, int depth) {
-        if (depth > 32) return true;
-        if (raw instanceof List<?> list) return list.stream().anyMatch(v -> usesTools(v, tables, seen, depth + 1));
-        if (!(raw instanceof Map<?, ?>)) return false;
-        Map<String, Object> map = ProceduralBlockLoot.object(raw);
-        if ("minecraft:match_tool".equals(map.get("condition"))) return true;
-        if ("minecraft:loot_table".equals(map.get("type"))) {
-            Object ref = map.getOrDefault("value", map.get("name"));
-            if (ref instanceof String s && seen.add(s) && usesTools(tables.get(s), tables, seen, depth + 1)) return true;
-        }
-        return map.values().stream().anyMatch(v -> usesTools(v, tables, seen, depth + 1));
     }
 
     private static Map<String, Map<String, Object>> loadTables(MinecraftServer server) {

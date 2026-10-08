@@ -18,9 +18,15 @@ public final class ConfiguredRecipeAccessTest {
     public static void main(String[] args) {
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap();
         nativeContracts();
+        boundedSupplyPreference();
+        conditionalExploration();
         var resources = Map.of("fixture:material", resource("fixture:material", AcquisitionSource.Kind.FARMING),
                 "fixture:reward", resource("fixture:reward", AcquisitionSource.Kind.QUEST_REWARD));
         var cell = recipe("fixture:cell_recipe", "fixture:cell", "entry", List.of(json("{\"item\":\"fixture:material\"}")));
+        earlierRecipeThanLoot();
+        check(!access(new ProductionGraph(List.of(cell), List.of()), Map.of("fixture:material", resource("fixture:material", AcquisitionSource.Kind.TRADE)))
+                        .requireStack(stack("fixture:cell", "entry")).placement().reachable(),
+                "An item-only repeatable trade row cannot skip NPC access and its payments");
         var device = recipe("fixture:device_recipe", "fixture:device", "entry", List.of(exact("fixture:cell", "entry", true)));
         var graph = new ProductionGraph(List.of(cell, device), List.of());
         var access = access(graph, resources);
@@ -238,6 +244,44 @@ public final class ConfiguredRecipeAccessTest {
         check(!eatsStation.requireFinite(List.of(json("{\"id\":\"fixture:metal\"}"))).access().placement().reachable(),
                 "The only operating station cannot also be consumed as fuel");
     }
+    private static void conditionalExploration() {
+        String item = "fixture:rare", sourceId = "fixture:chests/ruin";
+        var timer = new SourceAvailability.Timer(SourceAvailability.Applicability.OFF, 0, List.of());
+        var availability = new SourceAvailability(sourceId, SourceAvailability.Category.FINITE_SHARED, SourceAvailability.Scope.SHARED,
+                List.of("fixture:ruin"), List.of("minecraft:overworld"), List.of("supported distinct structure placement", "native_unlocked_container_binding"),
+                timer, timer, true, .01, .03, List.of());
+        var source = new AcquisitionSource(sourceId, AcquisitionSource.Kind.LOOT, ProgressionBand.LATE, .03, false, false, 0, .8,
+                List.of(), "rare native structure loot", availability);
+        var resource = new ResourceEvidence(item, ProgressionBand.LATE, Availability.FINITE, Automation.NONE, true, true, 1, .8, List.of(source), List.of());
+        var planner = new ConfiguredRecipeAccess(new ProductionGraph(List.of(), List.of()), Map.of(item, resource), Map.of(), Set.of(), s -> new JsonObject());
+        var bill = List.of(json("{\"id\":\"fixture:rare\",\"count\":4}"));
+        check(!planner.requireFinite(bill).access().placement().reachable(), "Chance loot cannot become guaranteed finite stock");
+        var conditional = planner.requireExploration(bill);
+        check(conditional.access().placement().reachable() && conditional.access().placement().stage() == ProgressionBand.LATE
+                        && conditional.access().selected().stream().anyMatch(s -> s.contains("4 distinct successful") && s.contains("assumed")),
+                "Conditional exploration must retain quantity, actual source stage and its explicit distinct-opportunity assumption");
+        check(conditional.drawnStocks().isEmpty(), "Conditional encounters were falsely reported as guaranteed inventory draws");
+        check(!planner.requireFinite(bill).access().placement().reachable(), "Exploration mode leaked into the strict finite planner");
+        var exclusive = new SourceAvailability(sourceId, availability.category(), availability.scope(), List.of(), List.of(), List.of(), timer, timer, true, .01, .03, List.of());
+        var noPlacement = new AcquisitionSource(sourceId, source.kind(), source.stage(), .03, false, false, 0, .8, List.of(), "fixed stock", exclusive);
+        var fixed = new ResourceEvidence(item, resource.stage(), resource.availability(), resource.automation(), true, true, 1, .8, List.of(noPlacement), List.of());
+        var fixedPlanner = new ConfiguredRecipeAccess(new ProductionGraph(List.of(), List.of()), Map.of(item, fixed), Map.of(), Set.of(), s -> new JsonObject());
+        check(!fixedPlanner.requireExploration(bill).access().placement().reachable(), "One fixed stock without recurring structure placement became distinct exploration opportunities");
+        check(!planner.requireItem(item).placement().reachable(), "Finite exploration established renewable material access");
+    }
+    private static void boundedSupplyPreference() {
+        var names = new ArrayList<String>();
+        for (int i = 0; i < 160; i++) names.add("fixture:absent_" + i);
+        names.add("fixture:renewable");
+        var definition = json("{\"projection\":\"native_shapeless_public_fields\",\"runtime_class\":\"net.minecraft.world.item.crafting.ShapelessRecipe\",\"ingredients\":[{\"tag\":\"fixture:options\"}],\"result\":{\"id\":\"fixture:product\"}}");
+        var planner = new ConfiguredRecipeAccess(new ProductionGraph(List.of(process("fixture:preferred", definition)), List.of()),
+                Map.of("fixture:renewable", resource("fixture:renewable", AcquisitionSource.Kind.FARMING)),
+                Map.of("fixture:options", names), Set.of(), s -> new JsonObject());
+        check(planner.requireFinite(List.of(json("{\"id\":\"fixture:product\"}"))).access().placement().reachable(),
+                "Known repeatable alternatives must precede more than the bounded number of unproven tag entries");
+        check(!planner.requireFinite(List.of(json("{\"id\":\"fixture:absent\"}"), json("{\"id\":\"fixture:product\"}")))
+                        .access().placement().reachable(), "Later obtainable materials cannot repair a missing required stack");
+    }
     private static ResourceEvidence finiteResource(String item, long count, double chance) {
         String source = "test:stock/" + item.replace(':', '/');
         var availability = new SourceAvailability(source, SourceAvailability.Category.FINITE_SHARED, SourceAvailability.Scope.SHARED,
@@ -296,6 +340,26 @@ public final class ConfiguredRecipeAccessTest {
             var value = s.has("components") ? s.getAsJsonObject("components").deepCopy() : new JsonObject();
             value.addProperty("minecraft:rarity", "common"); return value;
         });
+    }
+    private static void earlierRecipeThanLoot() {
+        var timer = new SourceAvailability.Timer(SourceAvailability.Applicability.OFF, 0, List.of());
+        var source = new AcquisitionSource("fixture:late_loot", AcquisitionSource.Kind.LOOT, ProgressionBand.LATE, 1, false, false, 0, .9, List.of(), "Late optional loot",
+                new SourceAvailability("fixture:late_loot", SourceAvailability.Category.FINITE_SHARED, SourceAvailability.Scope.SHARED,
+                        List.of("fixture:late_structure"), List.of("minecraft:overworld"), List.of("native_unlocked_container_binding"), timer, timer, true, .5, 1, List.of()));
+        var late = new ResourceEvidence("fixture:ingot_block", ProgressionBand.LATE, Availability.FINITE, Automation.NONE, true, true, 1, .9, List.of(source), List.of());
+        var definition = json(recipe("fixture:block", "fixture:ingot_block", "unused", List.of(json("{\"item\":\"fixture:material\"}"))).metadata().get("effective_definition"));
+        definition.getAsJsonObject("result").remove("components");
+        var graph = new ProductionGraph(List.of(process("fixture:block", definition)), List.of());
+        var request = json("{\"id\":\"fixture:ingot_block\",\"count\":3}");
+        var access = access(graph, Map.of("fixture:ingot_block", late, "fixture:material", resource("fixture:material", AcquisitionSource.Kind.FARMING)));
+        var proof = access.requireExploration(List.of(request));
+        check(proof.access().placement().reachable() && proof.access().placement().stage() == ProgressionBand.EARLY,
+                "Late direct loot hid an independently earlier craft route");
+        check(proof.access().placement().acquisition().stream().noneMatch(s -> s.id().equals(source.id())), "Earlier route silently retained late loot dependency");
+        var blocked = access(graph, Map.of("fixture:ingot_block", late));
+        check(blocked.requireExploration(List.of(request)).access().placement().stage() == ProgressionBand.LATE, "Unfunded recipe lowered actual loot gate");
+        check(!blocked.requireFinite(List.of(request)).access().placement().reachable(), "Cached conditional/ceiling proof leaked into guaranteed-stock request");
+        check(access.requireExploration(List.of(request)).equals(proof), "Independent repeated bill cache changed its finite ledger or placement");
     }
     private static ProductionGraph.Process recipe(String id, String item, String tier, List<JsonObject> ingredients) {
         var definition = new JsonObject();

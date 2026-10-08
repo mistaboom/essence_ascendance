@@ -62,6 +62,23 @@ public final class AdaptiveCompetitionCalibrationTest {
         check(policies.getFirst().factor("skill.verdant_stride", ProgressionBand.ENTRY) > policies.getLast().factor("skill.verdant_stride", ProgressionBand.ENTRY),
                 "Captured cooldown/duration restrict competitive strength");
         check(policies.getFirst().skillTiers().equals(policies.getLast().skillTiers()), "Timing restrictions must not erase proven functional access");
+        var mining = new ArrayList<AdaptiveCompetitionCalibration>();
+        for (double exhaustion : List.of(0.0, .105, 2.0)) {
+            var action = new Operation(Automation.NONE, Activity.PLAYER_ACTIVE, Renewal.UNKNOWN, null, null, null, 0.0,
+                    List.of("native exhaustion per block"), List.of(), exhaustion);
+            var m = CompetitiveCapabilities.measurement(VEIN_MINING, 64.0, "targets", "conditional=connected batch",
+                    new Scope("hand_harvestable_blocks", "connected_same_block", null, 64.0), action, "test", Origin.TYPED_ADAPTER, List.of());
+            mining.add(new AdaptiveCompetitionCalibration(evidence, environment(new Functional(
+                    new CapabilityEvidence("fixture:batch", ProgressionBand.ENTRY, Map.of(), true, .9, "supported fixture"),
+                    "configured", List.of(m), List.of(), true))));
+        }
+        check(mining.get(0).factor("bonus.mining_speed", ProgressionBand.ENTRY) > mining.get(1).factor("bonus.mining_speed", ProgressionBand.ENTRY)
+                && mining.get(1).factor("bonus.mining_speed", ProgressionBand.ENTRY) > mining.get(2).factor("bonus.mining_speed", ProgressionBand.ENTRY),
+                "Known hunger cost must reduce practical batch pressure");
+        check(mining.get(0).skillTiers().equals(mining.get(2).skillTiers()), "Known resource cost erased demonstrated functional access");
+        var slow = new Operation(Automation.NONE, Activity.PLAYER_ACTIVE, Renewal.UNKNOWN, null, null, null, 5.0, List.of(), List.of(), .105);
+        check(AdaptiveCompetitionCalibration.miningBatchRatio(64, slow) < 8, "Long cooldown was ignored by mining usefulness policy");
+        check(AdaptiveCompetitionCalibration.miningBatchRatio(64, Operation.manual()) == 1, "Unknown cost/cadence treated as free operation");
     }
     private static double value(RuntimeBalanceDefinition runtime, String path) { return ProgressionRequirements.read(runtime.toJson(), path); }
     private static void responds(RuntimeBalanceDefinition baseline, RuntimeBalanceDefinition adapted, String path) {

@@ -1,0 +1,22 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_raw_latent_ore": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          { "items": ["essence_ascendance:raw_latent_ore"] }
+        ]
+      }
+    },
+    "has_the_recipe": {
+      "trigger": "minecraft:recipe_unlocked",
+      "conditions": { "recipe": "essence_ascendance:ascendance_archive" }
+    }
+  },
+  "requirements": [["has_raw_latent_ore", "has_the_recipe"]],
+  "rewards": {
+    "recipes": ["essence_ascendance:ascendance_archive"]
+  },
+  "sends_telemetry_event": false
+}

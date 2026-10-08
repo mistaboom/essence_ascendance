@@ -15,7 +15,36 @@ public final class StructureTemplateScanTest {
             "([a-z0-9_.-]+):((?:chests|containers|archaeology)/[a-z0-9_./-]+)");
     private static int assertions;
 
+    private static void unlockedContainers() {
+        var root = new net.minecraft.nbt.CompoundTag();
+        var palette = new net.minecraft.nbt.ListTag(); var state = new net.minecraft.nbt.CompoundTag(); state.putString("Name", "minecraft:chest"); palette.add(state);
+        root.put("palette", palette); var blocks = new net.minecraft.nbt.ListTag(); var block = new net.minecraft.nbt.CompoundTag(); block.putInt("state", 0);
+        var nbt = new net.minecraft.nbt.CompoundTag(); nbt.putString("LootTable", "fixture:containers/example"); block.put("nbt", nbt); blocks.add(block); root.put("blocks", blocks);
+        check(ProceduralStructureIndex.unlockedNativeLoot(root).size() == 1, "Typed unlocked native chest binding was lost");
+        state.putString("Name", "minecraft:vault");
+        check(ProceduralStructureIndex.unlockedNativeLoot(root).isEmpty(), "Vault rewards were treated as free chest loot");
+        state.putString("Name", "fixture:locked_chest");
+        check(ProceduralStructureIndex.unlockedNativeLoot(root).isEmpty(), "Custom container callback was assumed accessible");
+        state.putString("Name", "minecraft:barrel"); nbt.putString("Lock", "secret");
+        check(ProceduralStructureIndex.unlockedNativeLoot(root).isEmpty(), "Native Lock ignored");
+        nbt.remove("Lock"); nbt.putLong("LootTableSeed", 42);
+        check(ProceduralStructureIndex.unlockedNativeLoot(root).isEmpty(), "Fixed loot seed became arbitrary possible loot outcomes");
+        nbt.remove("LootTableSeed"); block.putInt("state", 7);
+        check(ProceduralStructureIndex.unlockedNativeLoot(root).isEmpty(), "Invalid palette reference proved a native container");
+        block.remove("state");
+        check(ProceduralStructureIndex.unlockedNativeLoot(root).isEmpty(), "Missing palette reference borrowed state zero");
+        block.putInt("state", 0); nbt.putString("LootTableSeed", "unreadable");
+        check(ProceduralStructureIndex.unlockedNativeLoot(root).isEmpty(), "Malformed loot seed became an unrestricted random outcome");
+    }
+
     public static void main(String[] args) throws Exception {
+        unlockedContainers();
+        var beach = new ProceduralStructureIndex.StructureOccurrence(net.minecraft.resources.ResourceLocation.parse("minecraft:shipwreck_beached"), 1, true, List.of());
+        var ocean = new ProceduralStructureIndex.StructureOccurrence(net.minecraft.resources.ResourceLocation.parse("minecraft:shipwreck"), 1, true, List.of());
+        var loot = net.minecraft.resources.ResourceLocation.parse("minecraft:chests/shipwreck_treasure");
+        check(ProceduralStructureIndex.bestStructureMatch(loot, List.of(beach, ocean)).equals(ocean)
+                        && ProceduralStructureIndex.bestStructureMatch(loot, List.of(ocean, beach)).equals(ocean),
+                "Equal structure matches must not depend on randomized Map.copyOf order across JVM starts");
         String template = representativeTemplate();
         sameMatches(template, "binary template with palettes, repeated chests and nested containers");
         check(matches(ProceduralStructureIndex.lootTableScanner(template)).stream()

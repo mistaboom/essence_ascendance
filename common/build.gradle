@@ -36,6 +36,11 @@ loom {
 
 // Executable invariant suites use the real mapped Minecraft classpath and add no test library.
 def balanceInvariantMains = [
+        nativeVillagerAccessInvariants: 'com.mistaboom.essence_ascendance.balance.engine.NativeVillagerAccessTest',
+        nativeAnvilInvariants: 'com.mistaboom.essence_ascendance.balance.engine.NativeAnvilTest',
+        nativeTradeProgressionInvariants: 'com.mistaboom.essence_ascendance.balance.engine.NativeTradeProgressionTest',
+        nativeEnchantingInvariants: 'com.mistaboom.essence_ascendance.balance.engine.NativeEnchantingTest',
+        nativeConsumableInvariants: 'com.mistaboom.essence_ascendance.balance.engine.NativeConsumablesTest',
         adaptiveCompetitionInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.AdaptiveCompetitionCalibrationTest',
         skillAccessInvariants: 'com.mistaboom.essence_ascendance.skill.balance.SkillAccessTest',
         skillProgressionPolicyInvariants: 'com.mistaboom.essence_ascendance.skill.balance.SkillProgressionPolicyTest',
@@ -45,6 +50,8 @@ def balanceInvariantMains = [
         generatedSkillAvailabilityInvariants: 'com.mistaboom.essence_ascendance.balance.generated.GeneratedSkillAvailabilityTest',
         competitiveCapabilitiesInvariants: 'com.mistaboom.essence_ascendance.balance.engine.CompetitiveCapabilitiesTest',
         balanceLootAcquisitionInvariants: 'com.mistaboom.essence_ascendance.valuation.LootAcquisitionTest',
+        blockLootToolInputsInvariants: 'com.mistaboom.essence_ascendance.valuation.BlockLootToolInputsTest',
+        ultimineCapabilityInvariants: 'com.mistaboom.essence_ascendance.balance.engine.UltimineCapabilityTest',
         balanceLootAuditMemoryInvariants: 'com.mistaboom.essence_ascendance.valuation.LootAuditMemoryTest',
         balanceBlockSourceMemoryInvariants: 'com.mistaboom.essence_ascendance.valuation.BlockSourceMemoryTest',
         balanceQuestAcquisitionInvariants: 'com.mistaboom.essence_ascendance.balance.engine.QuestAcquisitionTest',
@@ -129,6 +136,7 @@ def balanceInvariantMains = [
         balanceIntegrationInvariants: 'com.mistaboom.essence_ascendance.balance.generated.GeneratedBalanceIntegrationTest',
         balanceLoadoutInvariants: 'com.mistaboom.essence_ascendance.skill.balance.SkillLoadoutProjectionTest',
         balanceRuntimeInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceTest',
+        balanceScenarioProbeInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.RuntimeScenarioProbeTest',
         nativeEquipmentHeadroomInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.NativeEquipmentHeadroomTest',
         balanceAscensionPolicyInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.RuntimeAscensionPolicyTest',
         attunementAccountingTest: 'com.mistaboom.essence_ascendance.attunement.AttunementAccountingTest',

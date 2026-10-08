@@ -81,6 +81,10 @@ public final class RuntimeBuildScenarios {
     private static Plan plan(boolean developed, boolean includeVitality,
             Map<String, com.mistaboom.essence_ascendance.skill.balance.SkillBalanceRuntime.ResolvedSkill> curves) {
         Map<ResourceLocation, List<SkillLoadoutProjection.Scenario>> full = new LinkedHashMap<>(), moderate = new LinkedHashMap<>();
+        // Numeric combat validation never consumes gathering/fishing/unequipped
+        // scenarios. Keep those in the general projection, not every calibration plan.
+        var combatEquipment = SkillLoadoutProjection.representativeEquipment().stream()
+                .filter(e -> Set.of("melee_shield", "ranged", "caster").contains(e.id())).toList();
         int apexOrder = AscendanceTierRegistry.powerTiers().stream().mapToInt(AscendanceTierDefinition::order).max().orElseThrow();
         for (var tier : AscendanceTierRegistry.powerTiers()) {
             Map<ResourceLocation, Integer> fullRanks = new LinkedHashMap<>(), moderateRanks = new LinkedHashMap<>();
@@ -94,17 +98,32 @@ public final class RuntimeBuildScenarios {
                 moderateRanks.put(skill.id(), skill.prerequisites().isEmpty() ? 1 : 0);
             }
             full.put(tier.id(), SkillLoadoutProjection.project(SkillRegistry.values(), tier.id(), fullRanks,
-                    (id, rank) -> SkillRegistry.require(id).rankPolicy().curve().power(rank), Map.of(), false).scenarios());
+                    (id, rank) -> SkillRegistry.require(id).rankPolicy().curve().power(rank), Map.of(), false, combatEquipment).scenarios());
             moderate.put(tier.id(), SkillLoadoutProjection.project(SkillRegistry.values(), tier.id(), moderateRanks,
-                    (id, rank) -> 1, Map.of(), false).scenarios());
+                    (id, rank) -> 1, Map.of(), false, combatEquipment).scenarios());
         }
         return new Plan(Collections.unmodifiableMap(full), Collections.unmodifiableMap(moderate), developed, null);
     }
 
     public static Analysis analyze(RuntimeBalanceDefinition runtime, PackEvidence evidence, BalanceSettings settings,
                                    Plan plan) {
-        com.mistaboom.essence_ascendance.balance.generated.BalancePerformance.increment("combat_scenario_analyses");
+        return analyze(runtime, evidence, settings, plan, null, true);
+    }
+
+    /** Search probes need only a decision; detailed reports are built only when a caller consumes them. */
+    public static boolean isSafe(RuntimeBalanceDefinition runtime, PackEvidence evidence, BalanceSettings settings,
+                                 Plan plan, Channel channel) {
+        return analyze(runtime, evidence, settings, plan, channel, false) != null;
+    }
+
+    private static final Analysis SAFE_PROBE = new Analysis(1, List.of(), List.of());
+
+    // A probe returns null at the first relevant violation, or SAFE_PROBE after checking every case.
+    private static Analysis analyze(RuntimeBalanceDefinition runtime, PackEvidence evidence, BalanceSettings settings,
+                                    Plan plan, Channel channel, boolean detailed) {
+        com.mistaboom.essence_ascendance.balance.generated.BalancePerformance.increment(detailed ? "combat_scenario_analyses" : "combat_scenario_probes");
         List<Case> result = new ArrayList<>();
+        int checkedCases = 0;
         boolean parity = runtime.composition().getOrDefault("equipment_apex_parity", 0.0) == 1.0;
         int bandIndex = 0;
         for (var tier : AscendanceTierRegistry.powerTiers().stream().sorted(Comparator.comparingInt(AscendanceTierDefinition::order)).toList()) {
@@ -138,7 +157,7 @@ public final class RuntimeBuildScenarios {
             Map<String, Modifier> fullNexus = new HashMap<>(), moderateNexus = new HashMap<>();
             double fullHealing = 1 + bonus(runtime, tier, EssenceStats.HEALING_EFFECTIVENESS, false) / 100;
             double moderateHealing = 1 + bonus(runtime, tier, EssenceStats.HEALING_EFFECTIVENESS, true) / 100;
-            String referenceAssumption = "Reference incoming hit=" + incoming + " HP; fully useful healing window=" + window + " seconds.";
+            String referenceAssumption = detailed ? "Reference incoming hit=" + incoming + " HP; fully useful healing window=" + window + " seconds." : "";
             for (var scenario : plan.full().get(tier.id())) {
                 String family = scenario.equipmentContext();
                 if (!references.containsKey(family)) continue;
@@ -180,14 +199,14 @@ public final class RuntimeBuildScenarios {
                         default -> fullRanks.keySet();
                     };
                     activeSkills.put(participation, selection);
-                    selectionDefenses.put(participation, defensivePressure(
+                    if (detailed) selectionDefenses.put(participation, defensivePressure(
                             participation == Participation.MIXED ? moderateEffects : fullEffects, selection));
                 }
                 double[] healthStates = fullRanks.containsKey(SkillIds.DESPERATION) || fullRanks.containsKey(SkillIds.RISING_RECOVERY)
                         ? new double[]{1, .200001, .000001} : new double[]{1};
-                String rankDescription = "Candidate effective ranks=" + new TreeMap<>(fullRanks);
+                String rankDescription = detailed ? "Candidate effective ranks=" + new TreeMap<>(fullRanks) : "";
                 Map<Double, List<String>> assumptions = new HashMap<>();
-                for (double healthFraction : healthStates) assumptions.put(healthFraction, List.of(referenceAssumption,
+                if (detailed) for (double healthFraction : healthStates) assumptions.put(healthFraction, List.of(referenceAssumption,
                         rankDescription + "; Desperation current-health fraction=" + healthFraction + ".",
                         "Each participation uses its own weapon damage/cadence and ceiling. Ordinary armor is applied once. Low-health EHP uses current, not maximum, health.",
                         "Posture defense assumes a fully built eligible state: intentional movement for dodge, stationary facing of a hostile threat for Bulwark, or repeated identical eligible damage for Adaptive. Status bounds require a harmful application; Mirror additionally requires a valid hostile source and ready cooldown."));
@@ -201,10 +220,11 @@ public final class RuntimeBuildScenarios {
                             equipmentLimit.fullSetArmor(),equipmentLimit.fullSetToughness(),health,0);
                     // Check the ordinary-health boundary and the near-zero worst case.
                     for (double healthFraction : healthStates) {
-                        String id = tier.id() + "/" + archetype.id() + "/" + scenario.id() + "/health_" + healthFraction;
-                        Map<Participation, Metrics> metrics = new EnumMap<>(Participation.class);
-                        Map<Participation, Limits> limits = new EnumMap<>(Participation.class);
-                        Map<Participation, DefensivePressure> defenses = new EnumMap<>(Participation.class);
+                        checkedCases++;
+                        String id = detailed ? tier.id() + "/" + archetype.id() + "/" + scenario.id() + "/health_" + healthFraction : "";
+                        Map<Participation, Metrics> metrics = detailed ? new EnumMap<>(Participation.class) : null;
+                        Map<Participation, Limits> limits = detailed ? new EnumMap<>(Participation.class) : null;
+                        Map<Participation, DefensivePressure> defenses = detailed ? new EnumMap<>(Participation.class) : null;
                         for (var participation : Participation.values()) {
                             Equipment item = participation == Participation.BONUS_FOCUSED || participation == Participation.SKILL_FOCUSED ? external : ascendance;
                             Modifier nexus = switch (participation) {
@@ -215,13 +235,13 @@ public final class RuntimeBuildScenarios {
                             };
                             Set<ResourceLocation> active = activeSkills.get(participation);
                             var effects = participation == Participation.MIXED ? moderateEffects : fullEffects;
-                            defenses.put(participation, selectionDefenses.get(participation));
+                            if (detailed) defenses.put(participation, selectionDefenses.get(participation));
                             double actualHealth = active.contains(SkillIds.DESPERATION) || active.contains(SkillIds.RISING_RECOVERY) ? healthFraction : 1;
                             double healingEffectiveness = switch (participation) {
                                 case EQUIPMENT_FOCUSED, SKILL_FOCUSED, CATEGORY_SPECIALIZED -> 1;
                                 default -> participation == Participation.BROAD_GENERALIST ? moderateHealing : fullHealing;
                             };
-                            metrics.put(participation, combat(effects, active, family, item, nexus, incoming, window, actualHealth, healingEffectiveness));
+                            var measured = combat(effects, active, family, item, nexus, incoming, window, actualHealth, healingEffectiveness);
                             double target = plan.developed() ? BuildPowerTargets.multiplier(settings, band, participation)
                                     : BuildPowerTargets.rankOneMultiplier(settings, band, participation);
                             // The former rank-one sustain reserve was already filled before
@@ -245,12 +265,21 @@ public final class RuntimeBuildScenarios {
                             // Frozen before exact overrides: a raised weapon stat
                             // cannot authorize its own higher equipment ceiling.
                             var base = BuildComposition.compose(item==external?external:originalEquipment, Modifier.none(), Modifier.none(), incoming, window);
-                            limits.put(participation, new Limits(withNativeAllowance(reference.dps(), base.sustainedDamage(), target),
+                            var ceiling = new Limits(withNativeAllowance(reference.dps(), base.sustainedDamage(), target),
                                     withNativeAllowance(reference.burst(), base.burstDamage(), burst), reference.dps() * Math.max(0, target - 1) * 2,
                                     withNativeAllowance(externalMetrics.effectiveHealth(), base.effectiveHealth(), target),
                                     withNativeAllowance(externalMetrics.effectiveHealth(), base.sustainedHealth(), healingTarget * 1.35),
-                                    external.health() * Math.max(0, healingTarget - 1) / window));
+                                    external.health() * Math.max(0, healingTarget - 1) / window);
+                            if (detailed) {
+                                metrics.put(participation, measured);
+                                limits.put(participation, ceiling);
+                            } else for (var metric : Metric.values()) {
+                                if (channel != null && !channel.includes(metric)) continue;
+                                double actual = measured.value(metric), limit = ceiling.value(metric);
+                                if (actual > limit + 1e-9 * Math.max(1, limit)) return null;
+                            }
                         }
+                        if (!detailed) continue;
                         List<Violation> violations = new ArrayList<>();
                         metrics.forEach((participation, value) -> {
                             for (var metric : Metric.values()) {
@@ -265,7 +294,8 @@ public final class RuntimeBuildScenarios {
                 }
             }
         }
-        if (result.isEmpty()) throw new IllegalStateException("No registered equipment families were available for numeric build validation");
+        if (checkedCases == 0) throw new IllegalStateException("No registered equipment families were available for numeric build validation");
+        if (!detailed) return SAFE_PROBE;
         return new Analysis(1, result, List.of(
                 "Only implemented skills and evaluator-approved dependency/choice/replacement selections contribute. Full builds use a provisional future five-rank stress projection, not currently purchasable ranks or a catalog design decision.",
                 "Fully developed apex scenarios use every eligible skill's entire projectionRanks curve, including skills first available at that tier. Earlier tiers retain staged development estimates. This corrects the former apex underprojection of late-tier skills without creating player-facing rank gates.",

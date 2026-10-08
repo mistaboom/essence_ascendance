@@ -18,6 +18,17 @@ public final class ProductionGraphAdapter {
     private static final int VILLAGER_RESTOCKS_PER_DAY = 2;
     private ProductionGraphAdapter() { }
 
+    /** Read the already sampled index for configured capability proofs. Does not rebuild
+     * factories or replace the pre-acquisition recipe graph with its own trade outputs. */
+    public static List<ProductionGraph.Process> observedTrades(MinecraftServer server) {
+        var index = ProceduralValuationEngine.generationIndex(server);
+        var result = new TreeMap<String, ProductionGraph.Process>();
+        for (var item : ProceduralValuationEngine.generationData(server).items()) for (var trade : index.tradeSources(item)) {
+            var process = tradeProcess(trade); result.put(process.id(), process);
+        }
+        return List.copyOf(result.values());
+    }
+
     public static ProductionGraph collect(MinecraftServer server) {
         com.mistaboom.essence_ascendance.balance.generated.BalancePerformance.increment("production_graph_collections");
         ProceduralValuationIndex index = ProceduralValuationEngine.generationIndex(server);
@@ -83,6 +94,11 @@ public final class ProductionGraphAdapter {
         metadata.put("level", Integer.toString(trade.level()));
         metadata.put("observed_offer", trade.identityKey());
         metadata.put("listing_class", trade.listingClass());
+        metadata.put("sampled_villager_type", trade.villagerType());
+        metadata.put("sample_seed", Long.toString(trade.sampleSeed()));
+        if (!trade.offerDefinition().isEmpty()) metadata.put("observed_offer_definition", trade.offerDefinition());
+        else metadata.put("offer_configuration_unresolved", trade.offerFailure());
+        metadata.put("configured_access_scope", "Exact sampled result, native cost predicates, XP and stock; trader/jobsite/level/offer-selection/material access are separate requirements");
         metadata.put("stock_uses", Integer.toString(trade.maxUses()));
         metadata.put("production_constraint", "finite_trade_stock");
         metadata.put("conservation_policy", "observed_prices_and_bounded_stock_production");

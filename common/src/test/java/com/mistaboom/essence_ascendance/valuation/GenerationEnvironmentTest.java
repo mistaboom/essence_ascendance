@@ -84,11 +84,37 @@ public final class GenerationEnvironmentTest {
         epochIsolation();
         recipeFamilyDiagnostics();
         structureSettingsProjection(registries);
+        processorDefinitions(registries);
         directHolderSerialization(registries);
         lootEvidenceProjection(registries);
         lootUncertaintyPropagation();
         System.out.println("GenerationEnvironmentTest: " + checks + " checks PASS (synthetic; no real-pack claim)");
     }
+    private static void processorDefinitions(HolderLookup.Provider registries) {
+        var ops = registries.createSerializationContext(com.mojang.serialization.JsonOps.INSTANCE);
+        var nativeCodec = net.minecraft.world.level.levelgen.structure.templatesystem.StructureProcessorType.LIST_OBJECT_CODEC;
+        var processors = registries.lookupOrThrow(Registries.PROCESSOR_LIST).listElements().toList();
+        check(!processors.isEmpty(), "Native processor registry fixture must contain definitions");
+        for (var holder : processors) {
+            var value = holder.value();
+            var encoded = GenerationDataSnapshot.encodeDefinition(GenerationDataSnapshot.processorDefinitionCodec(), value, ops, holder.key().location().toString());
+            check(encoded.getAsJsonArray("processors").size() == value.list().size(),
+                    "Every native processor definition, including the empty list, normalizes without exclusions: " + holder.key().location());
+            check(encoded.get("processors").equals(nativeCodec.encodeStart(ops, value).getOrThrow()),
+                    "Normalized processor fields retain the complete native definition: " + holder.key().location());
+        }
+        // Construction-time vanilla tags are unbound, so decode round trips use tag-free native lists.
+        for (var value : List.of(
+                new net.minecraft.world.level.levelgen.structure.templatesystem.StructureProcessorList(List.of()),
+                new net.minecraft.world.level.levelgen.structure.templatesystem.StructureProcessorList(List.of(
+                        new net.minecraft.world.level.levelgen.structure.templatesystem.BlockRotProcessor(.75f))))) {
+            var encoded = GenerationDataSnapshot.encodeDefinition(GenerationDataSnapshot.processorDefinitionCodec(), value, ops, "fixture:processor_round_trip");
+            var decoded = nativeCodec.parse(ops, encoded.get("processors")).getOrThrow();
+            check(nativeCodec.encodeStart(ops, decoded).getOrThrow().equals(encoded.get("processors")),
+                    "Empty and nonempty normalized definitions round trip through the native processor codec");
+        }
+    }
+
     private static void structureSettingsProjection(HolderLookup.Provider registries) {
         var plains = registries.lookupOrThrow(Registries.BIOME).getOrThrow(Biomes.PLAINS);
         var spawn = new net.minecraft.world.level.biome.MobSpawnSettings.SpawnerData(net.minecraft.world.entity.EntityType.ZOMBIE, 17, 2, 5);

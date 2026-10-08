@@ -696,6 +696,12 @@ final class ProceduralValuationIndex {
             List<String> dimensions = context.structureId() == null ? List.of() : data.structureDimensions(context.structureId());
             var availability = data.lootr().describe(tableId.toString(), structure, dimensions, false,
                     configuredStructure, 0, 0, 0);
+            if (structureIndex != null && structureIndex.unlockedNativeContainer(tableId)) {
+                var conditions = new ArrayList<>(availability.conditions()); conditions.add("native_unlocked_container_binding");
+                availability = new com.mistaboom.essence_ascendance.balance.engine.SourceAvailability(availability.underlyingSource(), availability.category(),
+                        availability.scope(), availability.structures(), availability.dimensions(), conditions, availability.refresh(), availability.decay(),
+                        availability.accessProven(), availability.occurrenceChance(), availability.expectedPerEvent(), availability.uncertainty());
+            }
             data.lootAvailability(tableId.toString(), availability);
             if (data.lootr().installed() && availability.scope() != com.mistaboom.essence_ascendance.balance.engine.SourceAvailability.Scope.SHARED)
                 BalancePerformance.increment("lootr_supported_source_rules");

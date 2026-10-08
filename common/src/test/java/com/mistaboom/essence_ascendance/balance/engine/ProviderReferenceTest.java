@@ -28,6 +28,11 @@ public final class ProviderReferenceTest {
     public static void main(String[] args) {
         Thread.currentThread().setUncaughtExceptionHandler((thread, failure) -> failure.printStackTrace(new PrintStream(new FileOutputStream(FileDescriptor.err))));
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap();
+        var hand = PackEvidenceCollector.emptyHandMiningReference();
+        check(hand.reachable() && hand.included() && hand.stage() == ProgressionBand.ENTRY, "Innate empty-hand action requires no crafted tool");
+        check(hand.axes().keySet().equals(java.util.Set.of(CapabilityAxis.MINING_SPEED)), "Empty hands fabricated tool durability or harvest level");
+        check(hand.axes().get(CapabilityAxis.MINING_SPEED) == net.minecraft.world.item.ItemStack.EMPTY.getDestroySpeed(net.minecraft.world.level.block.Blocks.DIRT.defaultBlockState()), "Innate mining differs from native empty stack");
+        check(RobustFrontiers.build(List.of(hand)).get(ProgressionBand.ENTRY).get(CapabilityAxis.MINING_SPEED).equals(hand.axes().get(CapabilityAxis.MINING_SPEED)), "Tool-free environment lacks native mining frontier");
         effectiveDefaultEquipment();
         equipment();
         enemies();

@@ -1,10 +1,10 @@
 """Join preserved reference and native generation receipts without touching live inputs.
 
 Usage: python tools/verification/procedural_native_receipt.py BEFORE_AUDIT NATIVE_AUDIT NATIVE_PROFILE OUTPUT
-BEFORE is explicitly a bootstrap reference; it must not be described as native before/after evidence.
+BEFORE defaults to a bootstrap reference. Pass --reference-kind native for a preserved native profile/audit.
 """
 from pathlib import Path
-import collections, csv, gzip, hashlib, json, sys
+import argparse, collections, csv, gzip, hashlib, json
 
 
 def read(path):
@@ -29,8 +29,14 @@ def csv_file(out, name, rows):
             writer.writerow({k: json.dumps(v, ensure_ascii=False) if isinstance(v, (dict, list)) else v for k, v in row.items()})
 
 
-def main(before_path, audit_path, native_path, output):
+def main(before_path, audit_path, native_path, output, reference_kind='bootstrap'):
     before, audit, native = map(read, (before_path, audit_path, native_path))
+    is_native = reference_kind == 'native'
+    if is_native:
+        assert 'nativeGeneration' in before or 'generation' in before.get('metadata', {}), 'Native reference requires native generation evidence'
+    reference_label = 'preserved native development profile' if is_native else 'preserved pre-change bootstrap'
+    comparison_scope = ('Preserved native development profile before versus native after; same isolated fixture; not gameplay acceptance'
+                        if is_native else 'Pre-change bootstrap reference versus isolated native development profile; not a controlled native before/after or gameplay acceptance')
     out = Path(output).resolve(); out.mkdir(parents=True, exist_ok=True)
     generation = native['metadata']['generation']
     decisions = {row['skill']: row for row in generation['adaptiveBalance']['skillAvailability']}
@@ -52,7 +58,7 @@ def main(before_path, audit_path, native_path, output):
                          evidenceGaps=decision['evidenceGaps'], nativeAlternatives=decision['admittedCompetitionSamples'],
                          rejectedAlternatives=decision['rejectedEarlierSamples'], prerequisiteClamps=decision['prerequisiteClamps'],
                          mechanics=decision['mechanics'], semantics=decision['semantics'], implementation=decision['implementation'],
-                         comparisonScope='Pre-change bootstrap reference versus isolated native development profile; not a controlled native before/after or gameplay acceptance'))
+                         comparisonScope=comparison_scope))
         assert len(decision['rankDecisions']) == len(curve['ranks'])
         for rank, detail in zip(curve['ranks'], decision['rankDecisions']):
             assert rank['rank'] == detail['rank'] and rank['cost'] == detail['publishedPrice']
@@ -60,6 +66,7 @@ def main(before_path, audit_path, native_path, output):
             ranks.append(dict(skill=key, category=skill['category'], referencePrice=reference['ranks'][rank['rank']-1]['cost']
                               if reference and len(reference['ranks']) >= rank['rank'] else None, **detail))
     summary = dict(scope='Native isolated development-server evidence with eight matching development mod jars; not pure vanilla.',
+                   comparisonScope=comparison_scope,
                    profileIntegrity=native['integrity'], schema=native['schema'], generatorRevision=native['metadata']['generatorRevision'],
                    inputs=dict(reference=identity(before_path), audit=identity(audit_path), nativeProfile=identity(native_path)),
                    skills=len(rows), ranks=len(ranks), categories=len(audit['treeLayouts']),
@@ -75,8 +82,8 @@ def main(before_path, audit_path, native_path, output):
     emit(out, 'native-tree-layouts.json', audit['treeLayouts'])
     emit(out, 'native-full-decisions.json', list(decisions.values()))
     lines = ['# Procedural skill comparison', '', summary['scope'], '',
-             '**Reference:** preserved pre-change bootstrap. **After:** saved native profile `' + native['integrity'] + '`.', '',
-             'Environment collection and the new policy both differ from the reference. The table does not attribute every change to one isolated cause. Native acquisition gaps remain explicit in the JSON and CSV.', '',
+             '**Reference:** ' + reference_label + '. **After:** saved native profile `' + native['integrity'] + '`.', '',
+             'The table covers all changes in this iteration, rather than attributing changes to one feature. Native acquisition gaps remain explicit in the JSON and CSV.', '',
              f"{len(rows)} registered skills; {len(ranks)} published ranks; {len(audit['treeLayouts'])} category trees.", '',
              '| Skill | Reference → native tier | Reference → native prices | Reason |', '|---|---|---|---|']
     for row in rows:
@@ -86,4 +93,8 @@ def main(before_path, audit_path, native_path, output):
 
 
 if __name__ == '__main__':
-    main(*sys.argv[1:])
+    parser = argparse.ArgumentParser(description=__doc__)
+    for name in ('before_path', 'audit_path', 'native_path', 'output'):
+        parser.add_argument(name)
+    parser.add_argument('--reference-kind', choices=('bootstrap', 'native'), default='bootstrap')
+    main(**vars(parser.parse_args()))

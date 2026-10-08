@@ -46,6 +46,7 @@ final class ProceduralStructureIndex {
     private final Map<ResourceLocation, StructureOccurrence> structures;
     private final Map<ResourceLocation, Integer> templateLootReferences;
     private final Map<ResourceLocation, List<String>> templateExamples;
+    private final Set<ResourceLocation> unlockedContainerTables;
     private final Map<ResourceLocation, StructureSpawnOccurrence> structureSpawns;
     private final int structureSetCount;
     private final int structureTemplateCount;
@@ -55,6 +56,7 @@ final class ProceduralStructureIndex {
             Map<ResourceLocation, StructureOccurrence> structures,
             Map<ResourceLocation, Integer> templateLootReferences,
             Map<ResourceLocation, List<String>> templateExamples,
+            Set<ResourceLocation> unlockedContainerTables,
             Map<ResourceLocation, StructureSpawnOccurrence> structureSpawns,
             int structureSetCount,
             int structureTemplateCount,
@@ -63,6 +65,7 @@ final class ProceduralStructureIndex {
         this.structures = Map.copyOf(structures);
         this.templateLootReferences = Map.copyOf(templateLootReferences);
         this.templateExamples = Map.copyOf(templateExamples);
+        this.unlockedContainerTables = Set.copyOf(unlockedContainerTables);
         this.structureSpawns = Map.copyOf(structureSpawns);
         this.structureSetCount = structureSetCount;
         this.structureTemplateCount = structureTemplateCount;
@@ -78,7 +81,8 @@ final class ProceduralStructureIndex {
 
         Map<ResourceLocation, Integer> templateReferences = new LinkedHashMap<>();
         Map<ResourceLocation, List<String>> templateExamples = new LinkedHashMap<>();
-        int templates = data.structuresEnabled() ? scanStructureTemplates(server, templateReferences, templateExamples) : 0;
+        Set<ResourceLocation> unlockedContainerTables = new HashSet<>();
+        int templates = data.structuresEnabled() ? scanStructureTemplates(server, templateReferences, templateExamples, unlockedContainerTables) : 0;
 
         EssenceAscendance.LOGGER.info(
                 "Procedural structure index built: {} structure sets, {} placed structures, {} structure definitions, {} structure-spawn entity types, {} structure templates, {} referenced container loot tables",
@@ -94,6 +98,7 @@ final class ProceduralStructureIndex {
                 structures,
                 templateReferences,
                 templateExamples,
+                unlockedContainerTables,
                 structureSpawns,
                 structureSets,
                 templates,
@@ -133,6 +138,7 @@ final class ProceduralStructureIndex {
                 List.copyOf(signals)
         );
     }
+    boolean unlockedNativeContainer(ResourceLocation table) { return unlockedContainerTables.contains(table); }
 
     int structureSetCount() {
         return structureSetCount;
@@ -151,6 +157,9 @@ final class ProceduralStructureIndex {
     }
 
     private StructureOccurrence bestStructureMatch(ResourceLocation lootTableId) {
+        return bestStructureMatch(lootTableId, structures.values());
+    }
+    static StructureOccurrence bestStructureMatch(ResourceLocation lootTableId, java.util.Collection<StructureOccurrence> structures) {
         Set<String> tableTokens = normalizedTokens(lootTableId.getPath());
         if (tableTokens.isEmpty()) {
             return null;
@@ -158,7 +167,7 @@ final class ProceduralStructureIndex {
 
         StructureOccurrence best = null;
         double bestScore = 0.0;
-        for (StructureOccurrence candidate : structures.values()) {
+        for (StructureOccurrence candidate : structures.stream().sorted(java.util.Comparator.comparing(StructureOccurrence::structureId)).toList()) {
             if (!candidate.structureId().getNamespace().equals(lootTableId.getNamespace())
                     && !lootTableId.getNamespace().equals(ResourceLocation.DEFAULT_NAMESPACE)) {
                 continue;
@@ -458,7 +467,8 @@ final class ProceduralStructureIndex {
     private static int scanStructureTemplates(
             MinecraftServer server,
             Map<ResourceLocation, Integer> lootReferences,
-            Map<ResourceLocation, List<String>> examples
+            Map<ResourceLocation, List<String>> examples,
+            Set<ResourceLocation> unlockedContainerTables
     ) {
         Map<ResourceLocation, Resource> resources = new LinkedHashMap<>();
         resources.putAll(listBinaryResources(server, "structure"));
@@ -469,6 +479,17 @@ final class ProceduralStructureIndex {
             try (InputStream input = entry.getValue().open()) {
                 byte[] bytes = input.readAllBytes();
                 byte[] uncompressed = maybeGunzip(bytes);
+                // Binary string matches retain their historical diagnostic scope. Actual access
+                // needs a typed, unlocked vanilla container binding, not a table's path/name.
+                try {
+                    var root = net.minecraft.nbt.NbtIo.read(new java.io.DataInputStream(new ByteArrayInputStream(uncompressed)),
+                            net.minecraft.nbt.NbtAccounter.create(8L * 1024 * 1024));
+                    unlockedContainerTables.addAll(unlockedNativeLoot(root));
+                } catch (IOException | RuntimeException unsupported) {
+                    // Failed typed access capture excludes this access witness only.
+                    com.mistaboom.essence_ascendance.balance.generated.BalancePerformance.increment("unlocked_container_template_read_failures");
+                    EssenceAscendance.LOGGER.debug("Typed container access excluded for template {}: {}", entry.getKey(), unsupported.toString());
+                }
                 String content = new String(uncompressed, StandardCharsets.ISO_8859_1);
                 LootTableScanner matcher = lootTableScanner(content);
                 while (matcher.find()) {
@@ -496,6 +517,29 @@ final class ProceduralStructureIndex {
             }
         }
         return scanned;
+    }
+
+    static Set<ResourceLocation> unlockedNativeLoot(net.minecraft.nbt.CompoundTag root) {
+        var result = new HashSet<ResourceLocation>(); if (root == null) return result;
+        var palettes = new ArrayList<net.minecraft.nbt.ListTag>();
+        if (root.contains("palette", 9)) palettes.add(root.getList("palette", 10));
+        else for (var raw : root.getList("palettes", 9)) if (raw instanceof net.minecraft.nbt.ListTag palette) palettes.add(palette);
+        if (palettes.isEmpty()) return result;
+        for (var raw : root.getList("blocks", 10)) {
+            var block = (net.minecraft.nbt.CompoundTag)raw; var nbt = block.getCompound("nbt");
+            if (!block.contains("state", 3) || !nbt.contains("LootTable", 8)
+                    || nbt.contains("LootTableSeed") && (!nbt.contains("LootTableSeed", 99) || nbt.getLong("LootTableSeed") != 0)
+                    || nbt.contains("Lock") && (!nbt.contains("Lock", 8) || !nbt.getString("Lock").isEmpty())) continue;
+            int state = block.getInt("state"); boolean nativeContainer = true;
+            for (var palette : palettes) {
+                String name = state >= 0 && state < palette.size() ? palette.getCompound(state).getString("Name") : "";
+                if (!Set.of("minecraft:chest", "minecraft:trapped_chest", "minecraft:barrel").contains(name)) nativeContainer = false;
+            }
+            if (nativeContainer) {
+                var id = ResourceLocation.tryParse(nbt.getString("LootTable")); if (id != null) result.add(id);
+            }
+        }
+        return Set.copyOf(result);
     }
 
     static LootTableScanner lootTableScanner(CharSequence content) {
@@ -729,7 +773,7 @@ final class ProceduralStructureIndex {
         }
     }
 
-    private record StructureOccurrence(
+    record StructureOccurrence(
             ResourceLocation structureId,
             double frequencyMultiplier,
             boolean frequencyKnown,

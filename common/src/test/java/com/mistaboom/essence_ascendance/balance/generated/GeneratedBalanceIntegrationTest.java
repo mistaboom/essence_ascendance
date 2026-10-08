@@ -366,6 +366,21 @@ public final class GeneratedBalanceIntegrationTest {
             }
             BalanceReports.export(decoded, null, folder, 0);
             for (var entry : savedExports.entrySet()) check(Files.readString(entry.getKey()).equals(entry.getValue()), "Repeated saved profile report changed " + entry.getKey());
+            String integrityBeforeSummary = decoded.document().integrity();
+            BalanceReports.exportSummary(decoded, null, folder, 0);
+            check(!Files.exists(reports.resolve("valuation_sources.csv"))
+                    && !Files.exists(reports.resolve("valuation_source_dependencies.csv")), "Routine report retained stale exhaustive acquisition rows");
+            for (String name : List.of("valuation.csv", "skill_rank_parameters.csv", "bonus_tracks.csv", "warnings.csv", "runtime_parameters.csv"))
+                check(Files.readString(reports.resolve(name)).equals(savedExports.get(reports.resolve(name))), "Routine report changed decision data: " + name);
+            check(Files.readString(reports.resolve("balance_report.md")).contains("Routine decision report"), "Routine detail boundary hidden");
+            check(BalanceReports.state(folder, integrityBeforeSummary).equals("current"), "Routine export lacks valid provenance");
+            check(decoded.document().integrity().equals(integrityBeforeSummary), "Report detail changed the profile");
+            try (var archived = Files.walk(folder.resolve("diagnostics/legacy_reports"))) {
+                Path sources = archived.filter(path -> path.getFileName().toString().equals("valuation_sources.csv")).findFirst().orElseThrow();
+                check(Files.readString(sources).equals(savedExports.get(reports.resolve("valuation_sources.csv"))), "Exhaustive source archive lost data");
+            }
+            BalanceReports.export(decoded, null, folder, 0);
+            check(Files.readString(reports.resolve("valuation_sources.csv")).equals(savedExports.get(reports.resolve("valuation_sources.csv"))), "Explicit export failed to restore exhaustive evidence");
         } finally {
             try (var paths = Files.walk(folder)) {
                 for (Path path : paths.sorted(java.util.Comparator.reverseOrder()).toList()) Files.deleteIfExists(path);

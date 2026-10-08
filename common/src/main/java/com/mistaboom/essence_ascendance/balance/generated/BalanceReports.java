@@ -29,11 +29,21 @@ public final class BalanceReports {
     private BalanceReports() { }
     public static void export(GeneratedBalanceService.Active current, GeneratedBalanceService.Active previous,
                               Path folder, long generationMillis) throws IOException {
+        export(current, previous, folder, generationMillis, true);
+    }
+    /** Routine rebuilds retain decision reports; exhaustive acquisition rows are available on explicit export. */
+    public static void exportSummary(GeneratedBalanceService.Active current, GeneratedBalanceService.Active previous,
+                                     Path folder, long generationMillis) throws IOException {
+        export(current, previous, folder, generationMillis, false);
+    }
+    private static void export(GeneratedBalanceService.Active current, GeneratedBalanceService.Active previous,
+                               Path folder, long generationMillis, boolean exhaustive) throws IOException {
         BalancePerformance.increment("report_export_runs");
-        writeManifest(folder, current.document().integrity(), "incomplete");
+        writeManifest(folder, current.document().integrity(), "incomplete", exhaustive);
+        if (!exhaustive) BalanceReportLayout.archiveAcquisitionDetails(folder);
         JsonObject skills = current.document().section("skills");
         try (SpreadsheetReports tables = new SpreadsheetReports()) {
-            valuation(tables, current);
+            valuation(tables, current, exhaustive);
             equipment(tables, current);
             curves(tables, current, skills);
             bonusTracks(tables, current);
@@ -64,7 +74,7 @@ public final class BalanceReports {
             tables.write(reports, diagnostics);
             }
         Path reports = BalanceReportLayout.reports(folder), diagnostics = BalanceReportLayout.diagnostics(folder);
-        BalanceProfileStore.writeAtomically(reports.resolve("balance_report.md"), report(current, previous, generationMillis, skills));
+        BalanceProfileStore.writeAtomically(reports.resolve("balance_report.md"), report(current, previous, generationMillis, skills, exhaustive));
         var competitiveMetadata = current.document().section("metadata");
         AdaptiveBalanceReports.writeDetails(folder, competitiveMetadata);
         if (competitiveMetadata.has("generation") && competitiveMetadata.getAsJsonObject("generation").has("competitiveCapabilities"))
@@ -79,7 +89,7 @@ public final class BalanceReports {
             BalanceProfileStore.writeAtomically(diagnostics.resolve("routing_classification.json"),
                     BalanceDocument.GSON.toJson(metadata.getAsJsonObject("generation").get("routing")) + "\n");
         BalanceReportLayout.finishExport(folder, current.document().integrity());
-        writeManifest(folder, current.document().integrity(), "complete");
+        writeManifest(folder, current.document().integrity(), "complete", exhaustive);
     }
     static void questEvidence(SpreadsheetReports tables, JsonObject metadata) {
         if (!metadata.has("generation") || !metadata.getAsJsonObject("generation").has("quests")) return;
@@ -120,8 +130,9 @@ public final class BalanceReports {
         table.row(java.util.Arrays.stream(cells).map(value -> value == null || value instanceof JsonElement e && e.isJsonNull() ? ""
                 : value instanceof JsonElement e && e.isJsonPrimitive() ? e.getAsString() : value.toString()).toArray(String[]::new));
     }
-    private static void writeManifest(Path folder, String integrity, String state) throws IOException {
+    private static void writeManifest(Path folder, String integrity, String state, boolean exhaustive) throws IOException {
         var manifest = new JsonObject(); manifest.addProperty("profileIntegrity", integrity); manifest.addProperty("state", state);
+        manifest.addProperty("detail", exhaustive ? "exhaustive" : "decisions");
         BalanceProfileStore.writeAtomically(BalanceReportLayout.diagnostics(folder).resolve("report_manifest.json"),
                 BalanceDocument.GSON.toJson(manifest) + "\n");
     }
@@ -139,10 +150,12 @@ public final class BalanceReports {
             return value.get("state").getAsString().equals("complete") ? "current" : "incomplete";
         } catch (IOException | RuntimeException error) { return "invalid_manifest"; }
     }
-    private static String report(GeneratedBalanceService.Active current, GeneratedBalanceService.Active previous, long millis, JsonObject skills) {
+    private static String report(GeneratedBalanceService.Active current, GeneratedBalanceService.Active previous, long millis, JsonObject skills, boolean exhaustive) {
         var doc = current.document();
         var evidence = current.evidence();
         StringBuilder out = new StringBuilder("# Essence Ascendance pack balance\n\n");
+        if (!exhaustive) out.append("Routine decision report. Large evidence/resource/warning lists below show at most 200 entries each; complete decision tables and warnings.csv remain available. All acquisition sources and dependencies remain in generated_balance.json.gz. Use `/essence admin balance export` for exhaustive acquisition CSVs and Markdown lists without recalculating balance.\n\n");
+        long detailLimit = exhaustive ? Long.MAX_VALUE : 200;
         out.append("Generator: `").append(BalanceDocument.GENERATOR).append("`  \nProfile integrity: `").append(doc.integrity())
                 .append("`\n\n")
                 .append("This report explains the saved server profile. Edit the commented TOML inputs, then run `/essence admin balance rebuild`. The generated JSON is inspection-only.\n\n")
@@ -180,6 +193,7 @@ public final class BalanceReports {
         evidence.facts().stream().filter(fact -> fact.subject() == EvidenceFact.Subject.CAPABILITY
                         || fact.subject() == EvidenceFact.Subject.SOURCE)
                 .sorted(Comparator.comparing(EvidenceFact::key).thenComparing(EvidenceFact::provider))
+                .limit(detailLimit)
                 .forEach(fact -> row(out, fact.subjectId(), fact.subject().name(), fact.property(), evidenceValue(fact.value()),
                         fact.origin().name(), number(fact.confidence()), fact.reason()));
         JsonObject generationMetadata = doc.section("metadata");
@@ -238,19 +252,22 @@ public final class BalanceReports {
         }
         out.append("## Exclusions, capabilities and uncertainty\n\n| Subject | Classification | Reason |\n|---|---|---|\n");
         evidence.equipment().stream().filter(item -> !item.included() || !item.capabilities().isEmpty())
+                .limit(detailLimit)
                 .forEach(item -> row(out, item.itemId(), item.included() ? "capability" : "excluded", item.reason() + " " + item.capabilities()));
         evidence.resources().values().stream().filter(resource -> !resource.reachable())
+                .limit(detailLimit)
                 .forEach(resource -> row(out, resource.itemId(), "unreachable", resource.warnings().toString()));
         out.append("\n### Low-confidence resources\n\n| Resource | Confidence | Stage |\n|---|---:|---|\n");
         double threshold = doc.section("settings").get("warningConfidence").getAsDouble();
         evidence.resources().values().stream().filter(resource -> resource.confidence() < threshold)
+                .limit(detailLimit)
                 .forEach(resource -> row(out, resource.itemId(), number(resource.confidence()), resource.stage().name()));
         out.append("\n### Warnings requiring review\n\n");
         List<String> warnings = new ArrayList<>(evidence.warnings()); warnings.addAll(current.economy().warnings());
-        warnings.stream().sorted().distinct().forEach(warning -> out.append("- ").append(warning.replace('\n', ' ')).append('\n'));
+        warnings.stream().sorted().distinct().limit(detailLimit).forEach(warning -> out.append("- ").append(warning.replace('\n', ' ')).append('\n'));
         if (warnings.isEmpty()) out.append("No generation warnings.\n");
         out.append("\n### High-impact evidence\n\n| Origin | Provider | Subject | Property | Value | Confidence | Reason |\n|---|---|---|---|---|---:|---|\n");
-        int limit = doc.section("settings").get("expandedDiagnostics").getAsBoolean() ? Integer.MAX_VALUE : 200;
+        int limit = exhaustive && doc.section("settings").get("expandedDiagnostics").getAsBoolean() ? Integer.MAX_VALUE : 200;
         evidence.facts().stream().sorted(Comparator.comparingInt((com.mistaboom.essence_ascendance.balance.engine.EvidenceFact fact) -> fact.priority()).reversed()
                         .thenComparing(com.mistaboom.essence_ascendance.balance.engine.EvidenceFact::key)).limit(limit)
                 .forEach(fact -> row(out, fact.origin().name(), fact.provider(), fact.subjectId(), fact.property(),
@@ -291,7 +308,7 @@ public final class BalanceReports {
                 .append("Preserve generated_balance.json.gz, the complete reports/ and diagnostics/ folders, both TOML inputs, latest.log, loader/version and the actual pack version. Correct factual analysis with providers/overrides and balance preferences with policy; do not alter generated JSON.\n");
         return out.toString();
     }
-    private static void valuation(SpreadsheetReports tables, GeneratedBalanceService.Active current) {
+    private static void valuation(SpreadsheetReports tables, GeneratedBalanceService.Active current, boolean exhaustive) {
         List<String> essenceIds = new ArrayList<>(List.of("essence_ascendance:offense", "essence_ascendance:defense",
                 "essence_ascendance:vitality", "essence_ascendance:mobility", "essence_ascendance:gathering", "essence_ascendance:utility"));
         Set<String> extraEssences = new TreeSet<>();
@@ -302,10 +319,10 @@ public final class BalanceReports {
         for (int i = 0; i < essenceIds.size(); i++) columns.add(i < 6 ? essenceIds.get(i).split(":", 2)[1] : "essence_" + essenceIds.get(i));
         columns.addAll(List.of("source_count", "override_count", "warning_count"));
         var out = tables.table("valuation.csv", columns.toArray(String[]::new));
-        var sources = tables.table("valuation_sources.csv", "item_id", "source_index", "source_id", "kind", "stage", "output_per_event",
+        var sources = exhaustive ? tables.table("valuation_sources.csv", "item_id", "source_index", "source_id", "kind", "stage", "output_per_event",
                 "renewable", "rate_known", "units_per_second", "confidence", "dependency_count", "reason", "source_category", "source_scope",
-                "occurrence_chance", "refresh_applicability", "refresh_ticks", "decay_applicability", "decay_ticks", "access_proven", "availability_evidence");
-        var dependencies = tables.table("valuation_source_dependencies.csv", "item_id", "source_index", "source_id", "dependency_id");
+                "occurrence_chance", "refresh_applicability", "refresh_ticks", "decay_applicability", "decay_ticks", "access_proven", "availability_evidence") : null;
+        var dependencies = exhaustive ? tables.table("valuation_source_dependencies.csv", "item_id", "source_index", "source_id", "dependency_id") : null;
         var warnings = tables.table("warnings.csv", "scope", "subject_id", "warning_index", "warning");
         // A pack can have tens of thousands of resources and many claims per item.
         // Index provenance once instead of rescanning the full evidence database per CSV row.
@@ -322,7 +339,7 @@ public final class BalanceReports {
             cells.add(Integer.toString(resource.sources().size())); cells.add(Long.toString(overrideOrigins.getOrDefault(id, 0L)));
             cells.add(Integer.toString(resource.warnings().size() + (value == null ? 0 : value.warnings().size())));
             out.row(cells.toArray(String[]::new));
-            for (int i = 0; i < resource.sources().size(); i++) {
+            for (int i = 0; exhaustive && i < resource.sources().size(); i++) {
                 var source = resource.sources().get(i);
                 var availability = source.availability();
                 sources.row(id, Integer.toString(i), source.id(), source.kind().name(), source.stage().name(), number(source.expectedOutput()),

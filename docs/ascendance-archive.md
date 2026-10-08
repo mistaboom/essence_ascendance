@@ -2,6 +2,8 @@
 
 The Ascendance Archive is a shipping `FullscreenScreen` consumer. It has no menu, nearby-block, transaction, or server-screen lifecycle. `AscendanceArchiveItem` calls the common-side `ArchiveClientBridge`; the client initializer installs `AscendanceArchiveScreen::open`, so the item class remains safe to load on a dedicated server.
 
+Craft one Archive with one Raw Latent Ore and two sticks in any arrangement. A separate recipe discovery advancement unlocks it on obtaining Raw Latent Ore, including for players who already completed the older Latent recipe advancement. Automatic delivery on reaching Dormant also remains available.
+
 ## Ownership and APIs
 
 - `archive.ArchiveCatalog` owns stable entry, subject, mode, and section identities. Guide and Reference documents that discuss one subject use separate entry IDs and share only the subject ID. `GuideDocuments` owns the six player lessons; `ArchiveDocuments` and `ReferenceDocuments` own exhaustive Reference composition.

@@ -22,6 +22,10 @@ public final class StartingBlockDrops {
     public record ExpectedDrop(double chance, double expectedCount) { }
     /** Native probability remains explicit and must never be used as a guaranteed finite stock. */
     public static Map<String, ExpectedDrop> supportedHandDrops(GenerationDataSnapshot inputs, BlockState state) {
+        return supportedHandDrops(inputs, state, "");
+    }
+    /** Lower-bound harvest after reserving one replant item per emitted seed stack. */
+    public static Map<String, ExpectedDrop> supportedHandDrops(GenerationDataSnapshot inputs, BlockState state, String reservedItem) {
         if (state.hasBlockEntity() || state.requiresCorrectToolForDrops()
                 || !"minecraft".equals(BuiltInRegistries.BLOCK.getKey(state.getBlock()).getNamespace())
                 || !state.getBlock().getClass().getPackageName().equals("net.minecraft.world.level.block")) return Map.of();
@@ -38,7 +42,7 @@ public final class StartingBlockDrops {
             return table == null ? Map.of() : BalanceDocument.GSON.fromJson(table, new TypeToken<Map<String,Object>>() {}.getType());
         });
         var drops = ProceduralBlockLoot.estimate(read.apply(loot.toString()), context, read,
-                id -> inputs.itemTag(ResourceLocation.parse(id)));
+                id -> inputs.itemTag(ResourceLocation.parse(id)), reservedItem);
         var modifiers = new BlockLootModifierAudit(inputs.runtimeLootModifiers()).applicable(loot.toString(), context, drops.keySet());
         Map<String, ExpectedDrop> result = new TreeMap<>();
         drops.forEach((output, drop) -> {

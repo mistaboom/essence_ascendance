@@ -23,6 +23,25 @@ public final class BalanceReportLayout {
     public static Path reports(Path folder) { return folder.resolve("reports"); }
     public static Path diagnostics(Path folder) { return folder.resolve("diagnostics"); }
 
+    /** Preserve exact old exhaustive exports instead of presenting stale rows as current routine reports. */
+    static void archiveAcquisitionDetails(Path folder) throws IOException {
+        List<Path> details = List.of(reports(folder).resolve("valuation_sources.csv"),
+                reports(folder).resolve("valuation_source_dependencies.csv")).stream()
+                .filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)).toList();
+        if (details.isEmpty()) return;
+        Path parent = diagnostics(folder).resolve("legacy_reports");
+        Files.createDirectories(parent);
+        Path archive = Files.createTempDirectory(parent, "acquisition-");
+        Files.createDirectories(archive.resolve("reports"));
+        // Oversized source cells can refer to this sidecar; keep their original references usable.
+        Path text = diagnostics(folder).resolve("report_text.json");
+        if (Files.isRegularFile(text, LinkOption.NOFOLLOW_LINKS)) {
+            Files.createDirectories(archive.resolve("diagnostics"));
+            Files.copy(text, archive.resolve("diagnostics/report_text.json"));
+        }
+        for (Path detail : details) Files.move(detail, archive.resolve("reports").resolve(detail.getFileName()));
+    }
+
     /** Invoke only after every new export has been written successfully. */
     public static void finishExport(Path folder, String currentIntegrity) throws IOException {
         if (currentIntegrity == null || currentIntegrity.isBlank())
@@ -54,6 +73,12 @@ public final class BalanceReportLayout {
                   valuation.csv                   One item; total and per-Essence yields.
                   valuation_sources.csv           One acquisition source per item.
                   valuation_source_dependencies.csv  One required item/source per row.
+                These two exhaustive acquisition tables are written only by explicit
+                /essence admin balance export. Routine rebuilds retain decision tables
+                and archive older acquisition CSVs; complete sources always remain in
+                generated_balance.json.gz. Routine Markdown lists are capped at 200;
+                the decision CSVs and warnings.csv are complete. report_manifest.json
+                records the current export detail level.
                 Sources and dependencies join by item_id plus source_index. Source rates
                 are blank when unknown. output_per_event is an expected quantity; it is
                 not a measured farm throughput. economic_value is opportunity value,

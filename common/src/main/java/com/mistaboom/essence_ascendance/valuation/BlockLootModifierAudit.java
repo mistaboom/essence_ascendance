@@ -103,26 +103,37 @@ final class BlockLootModifierAudit {
     private record SharedConditions(Object value) implements ConditionPlan {
         @Override public Object forTable(String table) { return value; }
     }
-    private record Prepared(RuntimeLootAudit.Modifier modifier, ConditionPlan conditions) { }
+    private record Prepared(RuntimeLootAudit.Modifier modifier, ConditionPlan conditions, java.util.function.Predicate<String> tableFilter) { }
     private record Candidate(RuntimeLootAudit.Modifier modifier, Object conditions) { }
     private final List<Prepared> modifiers;
+    private final BlockLootToolInputs toolInputs;
+    private record EvaluationKey(String block, Map<String, String> state, Set<String> supportedProperties,
+                                 BlockLootToolInputs.Key tool, Set<String> outputs) { }
+    private final Map<EvaluationKey, List<RuntimeLootAudit.Modifier>> evaluations = new HashMap<>();
     private String cachedTable;
     private List<Candidate> cachedCandidates = List.of();
     BlockLootModifierAudit(List<RuntimeLootAudit.Modifier> modifiers) {
         // Broad predicates can contain large entity/component definitions. Normalize each
         // once, rather than retaining a copy for every block table in the pack.
+        List<Object> conditions = new ArrayList<>();
         this.modifiers = modifiers.stream()
                 .filter(m -> m.blockRule().mode() != Mode.APPEND_ONLY && m.blockRule().mode() != Mode.EMPTY_DEFINITIONS)
-                .map(m -> new Prepared(m, conditionPlan(ProceduralBlockHarvest.plain(m.conditionsEnforced()
-                        ? blockConditions(m.definition().get("conditions"), m) : JsonNull.INSTANCE))))
+                .map(m -> {
+                    Object value = ProceduralBlockHarvest.plain(m.conditionsEnforced()
+                            ? blockConditions(m.definition().get("conditions"), m) : JsonNull.INSTANCE);
+                    conditions.add(value);
+                    return new Prepared(m, conditionPlan(value), m.tableFilter());
+                })
                 .toList();
+        toolInputs = BlockLootToolInputs.inspectConditions(conditions);
     }
 
     private List<Candidate> candidates(String table) {
         // Harvest discovery visits all states/tools of one block consecutively. Retaining
         // older table lists provides no benefit and keeps their bound conditions alive.
         if (!table.equals(cachedTable)) {
-            cachedCandidates = modifiers.stream().filter(p -> p.modifier().mayAffect(table))
+            evaluations.clear();
+            cachedCandidates = modifiers.stream().filter(p -> p.tableFilter().test(table))
                     .filter(p -> tableRuleMayApply(p.modifier(), table))
                     .map(p -> new Candidate(p.modifier(), p.conditions().forTable(table))).toList();
             cachedTable = table;
@@ -155,6 +166,20 @@ final class BlockLootModifierAudit {
 
     /** Query once per concrete harvest, retaining only callbacks that could change an existing output. */
     List<RuntimeLootAudit.Modifier> applicable(String table, ProceduralBlockLoot.Context context, Set<String> outputs) {
+        candidates(table);
+        var key = new EvaluationKey(context.blockId(), context.properties(), context.supportedProperties(),
+                toolInputs.key(context), Set.copyOf(outputs));
+        var previous = evaluations.get(key);
+        if (previous != null) return previous;
+        var result = applicableUncached(table, context, outputs);
+        // One table at a time, with an additional bound for custom state/output diversity.
+        if (evaluations.size() >= 1024) evaluations.clear();
+        evaluations.put(key, result);
+        return result;
+    }
+
+    /** Independent evaluation path retained for differential cache verification. */
+    List<RuntimeLootAudit.Modifier> applicableUncached(String table, ProceduralBlockLoot.Context context, Set<String> outputs) {
         List<RuntimeLootAudit.Modifier> result = new ArrayList<>();
         for (var candidate : candidates(table)) {
             var rule = candidate.modifier().blockRule();

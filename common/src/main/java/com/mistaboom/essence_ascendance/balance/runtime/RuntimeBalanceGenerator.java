@@ -362,14 +362,14 @@ public final class RuntimeBalanceGenerator {
             // Validate one recovery branch at a time; mutual exclusion makes the magnitudes independent.
             var only = vitalityPlan(plan, id);
             double low = 0, high = 1;
-            if (RuntimeBuildScenarios.analyze(runtime, evidence, settings, only).safeFor(BuildComposition.Channel.HEALING)) low = 1;
+            if (RuntimeBuildScenarios.isSafe(runtime, evidence, settings, only, BuildComposition.Channel.HEALING)) low = 1;
             else {
                 RuntimeBuildScenarios.analyze(scaleVitality(runtime, id, 0, ranks), evidence, settings, only)
                         .requireSafe();
                 for (int pass = 0; pass < 20; pass++) {
                     double middle = (low + high) / 2;
-                    if (RuntimeBuildScenarios.analyze(scaleVitality(runtime, id, middle, ranks), evidence, settings, only)
-                            .safeFor(BuildComposition.Channel.HEALING)) low = middle;
+                    if (RuntimeBuildScenarios.isSafe(scaleVitality(runtime, id, middle, ranks), evidence, settings, only,
+                            BuildComposition.Channel.HEALING)) low = middle;
                     else high = middle;
                 }
             }
@@ -429,12 +429,12 @@ public final class RuntimeBalanceGenerator {
                 {"adaptive","resistancePerStack"}}) {
             var full=interpolatePostureRankOne(current,requested,path,1);
             double recovery=1;
-            if(!RuntimeBuildScenarios.analyze(full,evidence,settings,plan).safeFor(null)) {
+            if(!RuntimeBuildScenarios.isSafe(full,evidence,settings,plan,null)) {
                 double low=0,high=1;
                 for(int pass=0;pass<20;pass++) {
                     double middle=(low+high)/2;
                     var candidate=interpolatePostureRankOne(current,requested,path,middle);
-                    if(RuntimeBuildScenarios.analyze(candidate,evidence,settings,plan).safeFor(null))low=middle;else high=middle;
+                    if(RuntimeBuildScenarios.isSafe(candidate,evidence,settings,plan,null))low=middle;else high=middle;
                 }
                 recovery=low;
             }
@@ -466,14 +466,14 @@ public final class RuntimeBalanceGenerator {
             if (RuntimeBuildScenarios.vitalitySkill(ResourceLocation.parse(id))) continue;
             if(current.skillCurves().get(id).equals(entry.getValue()))continue;
             var full=interpolateRankGrowth(current,id,entry.getValue(),1);
-            if(RuntimeBuildScenarios.analyze(full,evidence,settings,plan).safeFor(null)) {
+            if(RuntimeBuildScenarios.isSafe(full,evidence,settings,plan,null)) {
                 current=full;continue;
             }
             double low=0,high=1;
             for(int pass=0;pass<14;pass++) {
                 double middle=(low+high)/2;
                 var candidate=interpolateRankGrowth(current,id,entry.getValue(),middle);
-                if(RuntimeBuildScenarios.analyze(candidate,evidence,settings,plan).safeFor(null))low=middle;else high=middle;
+                if(RuntimeBuildScenarios.isSafe(candidate,evidence,settings,plan,null))low=middle;else high=middle;
             }
             current=interpolateRankGrowth(current,id,entry.getValue(),low);
         }
@@ -496,11 +496,11 @@ public final class RuntimeBalanceGenerator {
             PackEvidence evidence,BalanceSettings settings,RuntimeBuildScenarios.Plan plan) {
         double low=0,high=1;
         var full=interpolateNexusOffense(current,requested,1);
-        if(RuntimeBuildScenarios.analyze(full,evidence,settings,plan).safeFor(BuildComposition.Channel.OFFENSE))return full;
+        if(RuntimeBuildScenarios.isSafe(full,evidence,settings,plan,BuildComposition.Channel.OFFENSE))return full;
         for(int pass=0;pass<20;pass++) {
             double middle=(low+high)/2;
             var candidate=interpolateNexusOffense(current,requested,middle);
-            if(RuntimeBuildScenarios.analyze(candidate,evidence,settings,plan).safeFor(BuildComposition.Channel.OFFENSE))low=middle;else high=middle;
+            if(RuntimeBuildScenarios.isSafe(candidate,evidence,settings,plan,BuildComposition.Channel.OFFENSE))low=middle;else high=middle;
         }
         return interpolateNexusOffense(current,requested,low);
     }
@@ -520,17 +520,17 @@ public final class RuntimeBalanceGenerator {
 
     private static double calibration(RuntimeBalanceDefinition source,PackEvidence evidence,BalanceSettings settings,
             RuntimeBuildScenarios.Plan plan,BuildComposition.Channel channel,boolean rankGrowth) {
-        if(RuntimeBuildScenarios.analyze(source,evidence,settings,plan).safeFor(channel))return 1;
-        var zero=RuntimeBuildScenarios.analyze(adjusted(source,0,channel,rankGrowth,settings),evidence,settings,plan);
-        if(!zero.safeFor(channel)) {
+        if(RuntimeBuildScenarios.isSafe(source,evidence,settings,plan,channel))return 1;
+        var zero=adjusted(source,0,channel,rankGrowth,settings);
+        if(!RuntimeBuildScenarios.isSafe(zero,evidence,settings,plan,channel)) {
             throw new IllegalArgumentException("Cannot calibrate "+channel+" without changing base equipment; "
-                    +zero.firstViolation(channel));
+                    +RuntimeBuildScenarios.analyze(zero,evidence,settings,plan).firstViolation(channel));
         }
         double low=0,high=1;
         for(int pass=0;pass<20;pass++) {
             double middle=(low+high)/2;
             var candidate=adjusted(source,middle,channel,rankGrowth,settings);
-            if(RuntimeBuildScenarios.analyze(candidate,evidence,settings,plan).safeFor(channel))low=middle;else high=middle;
+            if(RuntimeBuildScenarios.isSafe(candidate,evidence,settings,plan,channel))low=middle;else high=middle;
         }
         if(low<.02)throw new IllegalArgumentException("Requested "+channel+" targets leave less than 2% of "
                 +(rankGrowth?"additional rank growth":"rank-one added power")+"; revise external evidence or friendly power controls; "

@@ -64,6 +64,14 @@ public final class BiologicalSourceEvidenceTest {
             check(ValuationEvidenceSnapshot.renewableGrowth(block), "known growth capability is renewable: " + block);
         check(!ValuationEvidenceSnapshot.renewableGrowth(Blocks.COBBLESTONE), "ordinary solid block is not biological growth");
         blockSourceProjection();
+        var forwardState = new java.util.LinkedHashMap<String, String>();
+        forwardState.put("half", "lower"); forwardState.put("age", "4");
+        var reverseState = new java.util.LinkedHashMap<String, String>();
+        reverseState.put("age", "4"); reverseState.put("half", "lower");
+        for (var block : List.of(Blocks.PITCHER_CROP, Blocks.PINK_PETALS))
+            check(ProceduralBlockHarvest.stateSignal(block, forwardState).equals(ProceduralBlockHarvest.stateSignal(block, reverseState))
+                            && ProceduralBlockHarvest.stateSignal(block, forwardState).contains("{age=4, half=lower}"),
+                    "Harvest-state diagnostics retain canonical property order across JVMs");
         check(ProceduralBlockHarvest.supportedProperties(Blocks.CAVE_VINES).contains("berries")
                 && ProceduralBlockHarvest.supportedProperties(Blocks.CAVE_VINES_PLANT).contains("berries"),
                 "reachable cave-vine berry state is included in loot evaluation");

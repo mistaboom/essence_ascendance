@@ -11,17 +11,29 @@ import static com.mistaboom.essence_ascendance.balance.engine.CapabilityEvidence
 public final class CompetitiveCapabilities {
     private CompetitiveCapabilities() { }
     public static JsonObject collect(PackEvidenceContext context, Map<String, ResourceEvidence> resources,
-                                     List<EquipmentReference> equipment, List<CapabilityEvidence> declared,
+                                     List<EquipmentReference> equipment, List<EnemyReference> enemies, List<CapabilityEvidence> declared,
                                      List<PackEvidenceProvider> providers, GenerationProviders runs, EvidenceSink sharedFacts) {
         BalancePerformance.increment("competitive_capability_runs");
         CapabilitySink sink = new CapabilitySink();
         try (var phase = BalancePerformance.phase("competitive_capabilities")) {
             equipment(equipment, resources, sink, sharedFacts);
-            OptionalIntegration.attempt("native_capabilities", "collect", () -> {
-                CapabilitySink staged = new CapabilitySink(); NativeCapabilityReader.collect(context, resources, staged); return staged;
-            }).value().ifPresentOrElse(sink::merge,
-                    () -> sink.candidate("native_capabilities", "native_capabilities", "Native compatibility read failed; partial capabilities excluded",
-                            Set.of(), CapabilitySink.Reason.READ_FAILED));
+            try (var nativeCapabilities = BalancePerformance.phase("native_capabilities")) {
+                OptionalIntegration.attempt("native_capabilities", "collect", () -> {
+                    CapabilitySink staged = new CapabilitySink(); NativeCapabilityReader.collect(context, resources, staged); return staged;
+                }).value().ifPresentOrElse(sink::merge,
+                        () -> sink.candidate("native_capabilities", "native_capabilities", "Native compatibility read failed; partial capabilities excluded",
+                                Set.of(), CapabilitySink.Reason.READ_FAILED));
+            }
+            try (var nativeEnchanting = BalancePerformance.phase("native_enchanting")) {
+                NativeEnchanting.collect(context, resources, enemies, sink);
+            }
+            List<NativeTradeProgression.AcquiredBook> acquiredBooks;
+            try (var nativeTrades = BalancePerformance.phase("native_trade_progression")) {
+                acquiredBooks = NativeTradeProgression.collect(context, resources, sink);
+            }
+            try (var nativeAnvil = BalancePerformance.phase("native_anvil")) {
+                NativeAnvil.collect(context, resources, enemies, acquiredBooks, sink);
+            }
             production(context.inputs().production(), resources, sink);
             for (CapabilityEvidence source : declared) {
                 sink.analyzed();

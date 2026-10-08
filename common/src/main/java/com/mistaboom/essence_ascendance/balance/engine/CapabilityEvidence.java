@@ -31,10 +31,16 @@ public record CapabilityEvidence(String subjectId, ProgressionBand stage, Map<Ca
     /** Null numeric values mean unmeasured, never zero/free/infinite. Rates use seconds at nominal 20 TPS. */
     public record Operation(Automation automation, Activity activity, Renewal renewal,
                             Double unitsPerSecond, Double durationSeconds, Double uptimeFraction, Double cooldownSeconds,
-                            java.util.List<String> recurringCosts, java.util.List<String> setup) {
+                            java.util.List<String> recurringCosts, java.util.List<String> setup, Double exhaustionPerTarget) {
+        public Operation(Automation automation, Activity activity, Renewal renewal,
+                         Double unitsPerSecond, Double durationSeconds, Double uptimeFraction, Double cooldownSeconds,
+                         java.util.List<String> recurringCosts, java.util.List<String> setup) {
+            this(automation, activity, renewal, unitsPerSecond, durationSeconds, uptimeFraction, cooldownSeconds, recurringCosts, setup, null);
+        }
         public Operation {
             java.util.Objects.requireNonNull(automation); java.util.Objects.requireNonNull(activity); java.util.Objects.requireNonNull(renewal);
             nonnegative(unitsPerSecond); nonnegative(durationSeconds); nonnegative(cooldownSeconds); nonnegative(uptimeFraction);
+            nonnegative(exhaustionPerTarget);
             if (uptimeFraction != null && uptimeFraction > 1) throw new IllegalArgumentException("Invalid uptime");
             recurringCosts = java.util.List.copyOf(recurringCosts); setup = java.util.List.copyOf(setup);
         }

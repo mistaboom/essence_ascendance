@@ -108,12 +108,14 @@ public final class PackEvidenceCollector {
         runs.warnings().forEach(sink::warn);
         applyOverrides(context, sink);
         Map<String, ResourceEvidence> resources = com.mistaboom.essence_ascendance.valuation.NativeTreeRenewal.enrich(context, resolveResources(context, sink), sink);
-        List<EquipmentReference> equipment = resolveEquipment(baseEquipment, resources, sink, settings);
+        resources = com.mistaboom.essence_ascendance.valuation.NativeCropRenewal.enrich(context, resources, sink);
+        List<EquipmentReference> equipment = new ArrayList<>(resolveEquipment(baseEquipment, resources, sink, settings));
+        equipment.add(emptyHandMiningReference());
         explainOutliers(equipment, sink, settings);
         List<EnemyReference> enemies = resolveEnemies(baseEnemies, sink, settings);
         Map<ProgressionBand, Map<CapabilityAxis, Double>> frontiers = RobustFrontiers.build(equipment, settings.outlierPolicy().name());
         List<CapabilityEvidence> capabilities = resolveCapabilities(sink, resources);
-        inputs.competitiveCapabilities(CompetitiveCapabilities.collect(context, resources, equipment, capabilities, providers, runs, sink));
+        inputs.competitiveCapabilities(CompetitiveCapabilities.collect(context, resources, equipment, enemies, capabilities, providers, runs, sink));
         // Capability adapters are probed above, after the earlier acquisition warning snapshot.
         runs.warnings().forEach(sink::warn);
         for (ProgressionBand band : ProgressionBand.values()) {
@@ -331,6 +333,15 @@ public final class PackEvidenceCollector {
         return result;
     }
     private record EquipmentMeasurement(EquipmentReference reference, EvidenceSink facts) { }
+
+    /** Empty hands have native destroy speed even when this environment proves no early tool recipe. */
+    static EquipmentReference emptyHandMiningReference() {
+        double speed = ItemStack.EMPTY.getDestroySpeed(Blocks.DIRT.defaultBlockState());
+        if (!Double.isFinite(speed) || speed <= 0) throw new IllegalStateException("Invalid native empty-hand destroy speed");
+        return new EquipmentReference("minecraft:air", "mainhand_tool", ProgressionBand.ENTRY,
+                Map.of(CapabilityAxis.MINING_SPEED, speed), List.of("innate_empty_hand; hand-breakable targets only"),
+                true, true, 1, "Loaded native empty-stack destroy speed on a hand-breakable block; no tool acquisition, harvest level, durability, throughput or scripted interaction access claimed");
+    }
 
     /** Uses the same stack attribute fallback and slot filtering as equipped gameplay items. */
     static EquipmentReference measureEquipment(ItemStack stack, ProgressionBand stage, boolean reachable) {

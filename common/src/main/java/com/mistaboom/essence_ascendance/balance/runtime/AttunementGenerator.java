@@ -230,11 +230,11 @@ public final class AttunementGenerator {
                                       EvidenceSink cropEligibility, double fallback, List<String> assumptions, String chapter) {
         var sources = evidence.resources().values().stream().filter(resource -> resource.reachable() && resource.external()
                         && resource.stage().ordinal() <= band.ordinal() && resource.sources().stream().anyMatch(source ->
-                        kind == AcquisitionSource.Kind.FARMING
+                        sourceAccessible(source, evidence, band) && (kind == AcquisitionSource.Kind.FARMING
                                 ? (source.kind() == AcquisitionSource.Kind.FARMING || source.kind() == AcquisitionSource.Kind.PLAYER_ACTION)
                                     && cropEligibility.flag(EvidenceFact.Subject.BLOCK, source.id(),
                                         com.mistaboom.essence_ascendance.equipment.PlayerAttributedBlockHarvestService.CROP_ELIGIBILITY_PROPERTY, false)
-                                : source.kind() == kind))
+                                : source.kind() == kind)))
                 .toList();
         if (economy != null && !sources.isEmpty() && sources.stream().allMatch(resource -> {
             var resolved = economy.resources().get(resource.itemId());
@@ -253,6 +253,16 @@ public final class AttunementGenerator {
             return fallback;
         }
         return Math.max(.01, RobustFrontiers.percentile(values, .5));
+    }
+    /** Owning a possible output does not establish access to its farming/fishing route. */
+    static boolean sourceAccessible(AcquisitionSource source, PackEvidence evidence, ProgressionBand band) {
+        if (source.stage().ordinal() > band.ordinal() || source.expectedOutput() <= 0 || source.confidence() < .5
+                || source.availability() != null && !source.availability().accessProven()) return false;
+        for (String dependency : source.dependencies()) {
+            var resource = evidence.resources().get(dependency);
+            if (resource == null || !resource.reachable() || resource.stage().ordinal() > band.ordinal()) return false;
+        }
+        return true;
     }
     private static long boundedLong(double value) {
         if (!Double.isFinite(value) || value > 1_000_000_000_000.0) throw new IllegalArgumentException("Generated Attunement target/reference exceeds safe bounds");

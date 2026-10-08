@@ -26,10 +26,14 @@ final class LootSemanticsAudit {
         for (String ref : edges.getOrDefault(id, Set.of())) cycles(ref, edges, active, finished, cyclic);
         active.remove(id); finished.add(id);
     }
+    // Enchantment functions can replace BOOK with ENCHANTED_BOOK. Item-only
+    // projections cannot discard that transformation, even on a parent table/pool.
+    // Keep those results diagnostic until their configured output is evaluated.
     private static final Set<String> ITEM_PRESERVING = Set.of("minecraft:set_name", "minecraft:set_lore", "minecraft:set_components",
-            "minecraft:set_custom_data", "minecraft:set_attributes", "minecraft:set_damage", "minecraft:set_enchantments", "minecraft:enchant_randomly",
-            "minecraft:enchant_with_levels", "minecraft:set_potion", "minecraft:set_instrument",
+            "minecraft:set_custom_data", "minecraft:set_attributes", "minecraft:set_damage",
+            "minecraft:set_potion", "minecraft:set_instrument",
             "minecraft:set_banner_pattern", "minecraft:copy_name", "minecraft:copy_custom_data", "minecraft:copy_components");
+    private static final Set<String> ENCHANTING = Set.of("minecraft:set_enchantments", "minecraft:enchant_randomly", "minecraft:enchant_with_levels");
     private static void audit(JsonElement element, Set<String> references, boolean root) {
         if (element == null || element.isJsonPrimitive() || element.isJsonNull()) return;
         if (element.isJsonArray()) { for (var child : element.getAsJsonArray()) audit(child, references, false); return; }
@@ -44,6 +48,11 @@ final class LootSemanticsAudit {
                 var fn = value.getAsJsonObject();
                 String type = fn.has("function") ? fn.get("function").getAsString() : "unknown";
                 boolean supported = ITEM_PRESERVING.contains(type);
+                // These native functions preserve a known non-book leaf's item/count.
+                // Its enchantment components remain unproven, but it is still e.g. a
+                // fishing rod for an ingredient/action that accepts any such item.
+                supported |= ENCHANTING.contains(type) && "minecraft:item".equals(string(object, "type"))
+                        && !string(object, "name").isEmpty() && !"minecraft:book".equals(string(object, "name"));
                 if (type.equals("minecraft:set_count")) supported = !root && object.has("type") && "minecraft:item".equals(object.get("type").getAsString())
                         && ++counts == 1 && (!fn.has("add") || !fn.get("add").getAsBoolean()) && supportedNumber(fn.get("count"));
                 if (fn.has("conditions") && !fn.getAsJsonArray("conditions").isEmpty()) supported = false;
@@ -58,6 +67,9 @@ final class LootSemanticsAudit {
         }
         for (String field : List.of("rolls", "bonus_rolls")) if (object.has(field) && !supportedNumber(object.get(field))) marker(object, "Unmodeled number provider: " + field);
         for (var field : List.copyOf(object.entrySet())) if (!field.getKey().equals("functions")) audit(field.getValue(), references, false);
+    }
+    private static String string(JsonObject object, String key) {
+        return object.has(key) && object.get(key).isJsonPrimitive() ? object.get(key).getAsString() : "";
     }
     static boolean supportedNumber(JsonElement value) {
         if (value == null || value.isJsonNull()) return false;

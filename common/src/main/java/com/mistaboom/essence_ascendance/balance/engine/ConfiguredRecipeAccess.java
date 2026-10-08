@@ -22,11 +22,23 @@ public final class ConfiguredRecipeAccess {
     private final Map<String, List<String>> tags;
     private final Function<JsonObject, ?> components;
     private final Map<String, List<Candidate>> producers = new TreeMap<>();
+    // Component identity is immutable within this generation. Stage probes must not
+    // repeatedly decode the same native item/recipe defaults in every ledger branch.
+    private final Map<String, Object> defaultComponents = new HashMap<>();
+    private final Map<JsonObject, Object> recipeComponents = new IdentityHashMap<>();
     private final Map<StackKey, ConfigurationAccess.Proof> proven = new HashMap<>();
     private final Map<String, ConfigurationAccess.Proof> setups = new HashMap<>();
+    // Independent renewable facts are constant for this provider operation. Do not
+    // rebuild their proofs inside every ingredient/fuel comparator and search branch.
+    // Finite inventories, stage ceilings and ledger-dependent results stay uncached.
+    private final Map<String, ConfigurationAccess.Proof> directSupplies = new HashMap<>();
+    private List<Map.Entry<String, Integer>> orderedFuels;
     private int visits;
     private PlanChoices choices = new PlanChoices(List.of());
     private static final int MAX_PLANS = 128;
+    private boolean conditionalExploration;
+    private ProgressionBand sourceCeiling = ProgressionBand.APEX;
+    private final LinkedHashMap<String, FiniteProof> explorationBills = new LinkedHashMap<>();
     /** Bounded whole-bill backtracking: a locally valid ingredient may be needed by a later slot. */
     private static final class PlanChoices {
         private final List<Integer> plan, used = new ArrayList<>(), sizes = new ArrayList<>();
@@ -48,10 +60,19 @@ public final class ConfiguredRecipeAccess {
     private record StackKey(String item, Object components) { }
 
     public static ConfiguredRecipeAccess nativeCrafting(PackEvidenceContext context, Map<String, ResourceEvidence> resources) {
+        return nativeCrafting(context, resources, Set.of());
+    }
+    /** Additional targets must be produced by an exact supported recipe rather than an
+     * item-only source row whose possible stack components have not been established. */
+    public static ConfiguredRecipeAccess nativeCrafting(PackEvidenceContext context, Map<String, ResourceEvidence> resources, Set<String> recipeOnly) {
         var ops = RegistryOps.create(JsonOps.INSTANCE, context.server().registryAccess());
+        var constrained = new HashSet<>(context.inputs().configurationConstrainedItems()); constrained.addAll(recipeOnly);
         return new ConfiguredRecipeAccess(context.inputs().production(), resources, context.inputs().itemTags(),
-                context.inputs().configurationConstrainedItems(), definition -> {
-                    ItemStack stack = ItemStack.CODEC.parse(ops, definition).getOrThrow();
+                constrained, definition -> {
+                    // A ledger request can exceed one inventory stack. Quantity is validated/accounted
+                    // separately; the native component codec needs a single representative stack.
+                    var identity = definition.deepCopy(); identity.remove("count");
+                    ItemStack stack = ItemStack.CODEC.parse(ops, identity).getOrThrow();
                     if (stack.isEmpty()) throw new IllegalArgumentException("Empty configured crafting output");
                     return nativeComponents(stack);
                 }, nativeFuels(), nativeRemainders());
@@ -116,6 +137,8 @@ public final class ConfiguredRecipeAccess {
         resources.forEach((id, resource) -> {
             var sources = resource.sources().stream().filter(s -> s.renewable()
                     && s.kind() != AcquisitionSource.Kind.QUEST_REWARD && s.kind() != AcquisitionSource.Kind.ADMINISTRATIVE
+                    // An item-only trade row does not prove NPC/jobsite/stock renewal, or its payments.
+                    && (s.kind() != AcquisitionSource.Kind.TRADE || s.availability() != null)
                     && s.expectedOutput() > 0 && s.confidence() >= .5
                     && (s.availability() == null || s.availability().accessProven() && s.availability().uncertainty().isEmpty()
                     && (s.availability().category() == SourceAvailability.Category.REFRESHABLE
@@ -154,10 +177,41 @@ public final class ConfiguredRecipeAccess {
     private String stockKey(String item, Object exact) {
         return stockKeys.computeIfAbsent(new StackKey(item, exact), ignored -> item + "#" + stockKeys.size());
     }
-    private Object defaults(String item) { var stack = new JsonObject(); stack.addProperty("id", item); return components.apply(stack); }
+    private Object defaults(String item) {
+        return defaultComponents.computeIfAbsent(item, id -> { var stack = new JsonObject(); stack.addProperty("id", id); return components.apply(stack); });
+    }
+    private Object outputComponents(Candidate candidate) { return recipeComponents.computeIfAbsent(candidate.output(), components); }
     /** Prove this finite joint bill. Calls are independent hypothetical plans, never a player's inventory.
      * Output count and ingredient multiplicity share one ledger, including reusable stations and remainders. */
     public FiniteProof requireFinite(List<JsonObject> stacks) {
+        return finitePlans(stacks, false);
+    }
+    /** Conditional finite capability setup: a successful item from each of enough distinct,
+     * accessible structure-loot opportunities. This is an explicit exploration assumption,
+     * not a guaranteed stock, fixed player's inventory, renewal cycle or search-time estimate.
+     * One positive-probability integer item per opportunity; expected counts are never stocks. */
+    public FiniteProof requireExploration(List<JsonObject> stacks) {
+        String key = stacks.toString(); var cached = explorationBills.get(key); if (cached != null) return cached;
+        FiniteProof best;
+        try {
+            sourceCeiling = ProgressionBand.APEX;
+            best = finitePlans(stacks, true);
+            // A late direct container must not hide an earlier material/crafting route.
+            // Each probe has its own full joint ledger and bounded backtracking budget.
+            // A failed probe is not proof of absence/global optimality.
+            int low = 0, high = best.access().placement().reachable() ? best.access().placement().stage().ordinal() - 1 : -1;
+            while (low <= high) {
+                int middle = (low + high) / 2; sourceCeiling = ProgressionBand.at(middle);
+                var earlier = finitePlans(stacks, true);
+                if (earlier.access().placement().reachable()) { best = earlier; high = earlier.access().placement().stage().ordinal() - 1; }
+                else low = middle + 1;
+            }
+        } finally { sourceCeiling = ProgressionBand.APEX; }
+        if (explorationBills.size() >= 512) explorationBills.pollFirstEntry();
+        explorationBills.put(key, best); return best;
+    }
+    private FiniteProof finitePlans(List<JsonObject> stacks, boolean exploration) {
+        conditionalExploration = exploration;
         List<Integer> plan = List.of();
         for (int attempt = 0; attempt < MAX_PLANS; attempt++) {
             choices = new PlanChoices(plan); stockKeys.clear();
@@ -172,8 +226,12 @@ public final class ConfiguredRecipeAccess {
         for (var stack : stacks) {
             long count = quantity(stack);
             if (count < 1 || count > 1_000_000) return new FiniteProof(unknown("Unsupported finite request quantity"), Map.of(), Map.of());
-            proofs.add(finite(text(stack, "id"), stack.has("components") ? components.apply(stack) : null,
-                    count, true, ledger, new HashSet<>(), 0));
+            var proof = finite(text(stack, "id"), stack.has("components") ? components.apply(stack) : null,
+                    count, true, ledger, new HashSet<>(), 0);
+            proofs.add(proof);
+            // Later requests cannot repair this failed branch. Exploring them would
+            // bury its useful earlier choice behind unrelated downstream alternatives.
+            if (!proof.placement().reachable()) break;
         }
         var proof = combine(proofs, "joint finite acquisition; no renewal inferred", 1);
         return new FiniteProof(proof, proof.placement().reachable() ? Map.copyOf(ledger.inventory()) : Map.of(),
@@ -194,18 +252,34 @@ public final class ConfiguredRecipeAccess {
         try {
             Object base = defaults(item); String baseKey = stockKey(item, base);
             if (exact == null || exact.equals(base)) {
-                var renewable = ordinary.require(List.of(List.of(item)));
-                if (renewable.placement().reachable()) {
+                var renewable = directSupply(item);
+                if (renewable.placement().reachable() && renewable.placement().stage().ordinal() <= sourceCeiling.ordinal()) {
                     ledger.add(baseKey, count); if (consume) ledger.consume(baseKey, count); return renewable;
                 }
                 var resource = resources.get(item);
                 if (resource != null && resource.external() && resource.reachable() && resource.confidence() >= .5
                         && !constrained.contains(item)) {
+                    if (conditionalExploration) {
+                        var opportunity = resource.sources().stream().filter(ConfiguredRecipeAccess::explorableLoot)
+                                .filter(s -> s.stage().ordinal() <= sourceCeiling.ordinal())
+                                .min(Comparator.comparing(AcquisitionSource::stage).thenComparing(AcquisitionSource::id));
+                        if (opportunity.isPresent()) {
+                            var source = opportunity.orElseThrow();
+                            // This quantity denotes distinct successful encounters, not source.expectedOutput().
+                            ledger.add(baseKey, count); if (consume) ledger.consume(baseKey, count);
+                            return new ConfigurationAccess.Proof(new CompetitiveCapabilities.Placement(source.stage(), true,
+                                    Math.min(resource.confidence(), source.confidence()), List.of(source)),
+                                    List.of(item, source.id(), "Conditional exploration policy: " + count
+                                            + " distinct successful unlooted structure opportunities, reserve one " + item
+                                            + " from each; native placement/dimension conditions apply; enough accessible occurrences is assumed"
+                                            + "; no guaranteed finite stock, renewable supply, chance-to-count conversion or search rate"), List.of());
+                        }
+                    }
                     var stockBranch = ledger.copy(); var stockProofs = new ArrayList<ConfigurationAccess.Proof>();
                     for (var source : resource.sources().stream().sorted(Comparator.comparing(AcquisitionSource::stage)
                             .thenComparing(AcquisitionSource::id)).toList()) {
                         var a = source.availability();
-                        if (source.renewable() || source.confidence() < .5 || source.kind() == AcquisitionSource.Kind.QUEST_REWARD
+                        if (source.renewable() || source.stage().ordinal() > sourceCeiling.ordinal() || source.confidence() < .5 || source.kind() == AcquisitionSource.Kind.QUEST_REWARD
                                 || source.kind() == AcquisitionSource.Kind.ADMINISTRATIVE || a == null || !a.accessProven()
                                 || !a.uncertainty().isEmpty() || a.occurrenceChance() != 1
                                 || a.category() != SourceAvailability.Category.FINITE_SHARED && a.category() != SourceAvailability.Category.FINITE_PERSONALIZED
@@ -224,7 +298,7 @@ public final class ConfiguredRecipeAccess {
                 }
             }
             for (var candidate : choices.one(producers.getOrDefault(item, List.of()))) {
-                Object outputComponents = components.apply(candidate.output());
+                Object outputComponents = outputComponents(candidate);
                 if (exact != null && !exact.equals(outputComponents)) continue;
                 String outputKey = stockKey(item, outputComponents);
                 long output = quantity(candidate.output());
@@ -259,7 +333,7 @@ public final class ConfiguredRecipeAccess {
                 if (!materials) continue;
                 if (candidate.cookingTicks() > 0) {
                     ConfigurationAccess.Proof fuel = unknown("No fuel meets this finite cooking bill");
-                    for (var entry : choices.one(fuels.entrySet().stream().filter(f -> f.getValue() > 0).toList())) {
+                    for (var entry : choices.one(orderedFuels())) {
                         var fuelBranch = branch.copy();
                         long needed = (Math.multiplyExact(crafts, candidate.cookingTicks()) + entry.getValue() - 1) / entry.getValue();
                         var next = finite(entry.getKey(), null, needed, true, fuelBranch, path, depth + 1);
@@ -298,7 +372,8 @@ public final class ConfiguredRecipeAccess {
                 if (componentPatch.keySet().stream().anyMatch(k -> k.startsWith("!"))) continue;
                 choices = items(object.get("items"));
             } else continue;
-            for (String item : this.choices.one(choices.stream().distinct().sorted().toList())) {
+            for (String item : this.choices.one(choices.stream().distinct()
+                    .sorted(Comparator.comparingInt(this::directSupplyOrder).thenComparing(Comparator.naturalOrder())).toList())) {
                 var branch = ledger.copy(); Object exact = null;
                 if (componentPatch != null) { var stack = new JsonObject(); stack.addProperty("id", item); stack.add("components", componentPatch); exact = components.apply(stack); }
                 String remainder = remainders.get(item);
@@ -309,6 +384,27 @@ public final class ConfiguredRecipeAccess {
             }
         }
         return unknown("Finite ingredient has unsupported predicates or insufficient shared stock");
+    }
+    private int directSupplyOrder(String item) {
+        var placement = directSupply(item).placement();
+        return placement.reachable() ? placement.stage().ordinal() : ProgressionBand.values().length;
+    }
+    private ConfigurationAccess.Proof directSupply(String item) {
+        return directSupplies.computeIfAbsent(item, id -> ordinary.require(List.of(List.of(id))));
+    }
+    private List<Map.Entry<String, Integer>> orderedFuels() {
+        if (orderedFuels == null) orderedFuels = fuels.entrySet().stream().filter(f -> f.getValue() > 0)
+                .sorted(Comparator.comparingInt((Map.Entry<String, Integer> f) -> directSupplyOrder(f.getKey()))
+                        .thenComparing(Map.Entry::getKey)).toList();
+        return orderedFuels;
+    }
+    private static boolean explorableLoot(AcquisitionSource source) {
+        var a = source.availability();
+        return source.kind() == AcquisitionSource.Kind.LOOT && !source.renewable() && source.confidence() >= .5
+                && source.expectedOutput() > 0 && a != null && a.accessProven()
+                && a.conditions().contains("native_unlocked_container_binding")
+                && a.uncertainty().isEmpty() && a.occurrenceChance() > 0 && !a.structures().isEmpty() && !a.dimensions().isEmpty()
+                && (a.category() == SourceAvailability.Category.FINITE_SHARED || a.category() == SourceAvailability.Category.FINITE_PERSONALIZED);
     }
     private boolean mayReturn(JsonElement value) {
         if (value.isJsonArray()) { for (var element : value.getAsJsonArray()) if (mayReturn(element)) return true; }
@@ -348,13 +444,13 @@ public final class ConfiguredRecipeAccess {
         if (!path.add(key)) return unknown("Recipe cycle has no independent configured source");
         try {
             if (exact == null) {
-                var direct = ordinary.require(List.of(List.of(item)));
+                var direct = directSupply(item);
                 if (direct.placement().reachable()) { proven.put(key, direct); return direct; }
             }
             ConfigurationAccess.Proof best = null;
             var failures = new TreeSet<String>();
             for (var candidate : producers.getOrDefault(item, List.of())) {
-                if (exact != null && !exact.equals(components.apply(candidate.output()))) continue;
+                if (exact != null && !exact.equals(outputComponents(candidate))) continue;
                 List<ConfigurationAccess.Proof> inputs = new ArrayList<>();
                 if (!candidate.station().isEmpty()) inputs.add(setups.computeIfAbsent(candidate.station(), station -> {
                     // The operating station is held, not consumed each cycle. A finite bootstrap is sufficient;
