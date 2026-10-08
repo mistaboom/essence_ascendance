@@ -2,16 +2,18 @@
 
 GitHub is the primary repository. CurseForge (project `1732850`) and Modrinth
 (project `zIJXnoE8`) distribute the mod; GitHub Releases holds the same jars and
-their SHA-256 checksums. No Gitea mirror or publishing job is needed.
+their SHA-256 checksums. Builds, releases, and project description updates run
+through GitHub Actions.
 
 ## One-time setup
 
-1. Create an empty GitHub repository. Leave the README, license, and .gitignore
-   options unchecked so existing Git history can be imported without conflicts.
-2. Import the existing branches and tags to GitHub, preserving their history.
-   Include this pipeline commit on `main`. Confirm GitHub has all required history
-   before retiring the Gitea repository; server-side issues and other Gitea data
-   are separate from Git history. Set this checkout's `origin` to the GitHub URL.
+1. Use the canonical repository at
+   https://github.com/mistaboom/essence_ascendance. For a new checkout, clone
+   https://github.com/mistaboom/essence_ascendance.git.
+2. Confirm this checkout's `origin` points to that GitHub Git URL before pushing.
+   Keep `main` and release tags on GitHub, preserving their history. The maintained
+   wiki sources are `docs/wiki/`; publish them to the separate GitHub wiki using
+   [the wiki publishing guide](wiki-maintenance/PUBLISHING.md).
 3. Enable GitHub Actions. Install GitHub CLI if needed, then run `gh auth login`
    and authenticate to GitHub with permission to push code and workflows and
    manage this repository's Actions secrets.
