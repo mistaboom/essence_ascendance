@@ -26,12 +26,17 @@ public final class SkillProgressionAudit {
                 : "Validated saved native profile inspected without regeneration; source=" + Path.of(args[1]).toAbsolutePath() + "; integrity=" + saved.integrity());
         if (saved != null) root.add("nativeGeneration", saved.section("metadata").get("generation"));
         root.add("runtime", runtime.toJson());
+        com.mistaboom.essence_ascendance.client.SharedPresentationTest.verify(runtime);
+        root.addProperty("transactionStateChecks", NativeProfileStateAudit.verify(runtime));
         var rows = new JsonArray(); var gson = com.mistaboom.essence_ascendance.balance.generated.BalanceDocument.GSON;
+        SkillBalanceRuntime.withCurves(runtime.skillCurves(), () -> {
         for (var skill : SkillRegistry.values()) {
             var row = new JsonObject();
             row.addProperty("skill", skill.id().toString());
             row.addProperty("catalogTier", skill.catalogRequiredTierId().toString());
             row.addProperty("category", skill.essenceId().toString());
+            row.addProperty("resolvedTier", skill.requiredTierId().toString());
+            row.add("resolvedRanks", gson.toJsonTree(runtime.skillCurves().get(skill.id().toString()).ranks()));
             row.add("mechanics", gson.toJsonTree(skill.progressionRequirements()));
             row.add("semantics", gson.toJsonTree(SkillBalanceSemantics.require(skill.id())));
             row.add("intrinsicDecision", gson.toJsonTree(SkillProgressionPolicy.evaluate(skill, SkillBalanceSemantics.require(skill.id()),
@@ -42,6 +47,8 @@ public final class SkillProgressionAudit {
             row.add("requirements", gson.toJsonTree(skill.requirements(1).stream().map(r -> r.id().toString()).toList()));
             rows.add(row);
         }
+        return null;
+        });
         root.add("skills", rows);
         var layouts = new JsonObject();
         SkillBalanceRuntime.withCurves(runtime.skillCurves(), () -> {

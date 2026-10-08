@@ -22,6 +22,7 @@ public final class ConfiguredRecipeAccess {
     private final Map<String, List<String>> tags;
     private final Function<JsonObject, ?> components;
     private final Map<String, List<Candidate>> producers = new TreeMap<>();
+    private Map<String, List<com.mistaboom.essence_ascendance.valuation.NativeHarvestSupplies.Route>> harvests = Map.of();
     // Component identity is immutable within this generation. Stage probes must not
     // repeatedly decode the same native item/recipe defaults in every ledger branch.
     private final Map<String, Object> defaultComponents = new HashMap<>();
@@ -33,6 +34,11 @@ public final class ConfiguredRecipeAccess {
     // Finite inventories, stage ceilings and ledger-dependent results stay uncached.
     private final Map<String, ConfigurationAccess.Proof> directSupplies = new HashMap<>();
     private List<Map.Entry<String, Integer>> orderedFuels;
+    private final Map<String, Integer> routeHints = new HashMap<>();
+    private final Map<String, Integer> rootHints = new HashMap<>();
+    private final Map<Candidate, Integer> candidateHints = new IdentityHashMap<>();
+    private boolean hintsPrepared, hintClosureComplete;
+    private int hintVisits;
     private int visits;
     private PlanChoices choices = new PlanChoices(List.of());
     private static final int MAX_PLANS = 128;
@@ -66,8 +72,8 @@ public final class ConfiguredRecipeAccess {
      * item-only source row whose possible stack components have not been established. */
     public static ConfiguredRecipeAccess nativeCrafting(PackEvidenceContext context, Map<String, ResourceEvidence> resources, Set<String> recipeOnly) {
         var ops = RegistryOps.create(JsonOps.INSTANCE, context.server().registryAccess());
-        var constrained = new HashSet<>(context.inputs().configurationConstrainedItems()); constrained.addAll(recipeOnly);
-        return new ConfiguredRecipeAccess(context.inputs().production(), resources, context.inputs().itemTags(),
+        var constrained = new HashSet<>(ConfigurationAccess.remainingFiniteClaims(resources, context.inputs().configurationConstrainedItems())); constrained.addAll(recipeOnly);
+        var result = new ConfiguredRecipeAccess(context.inputs().production(), resources, context.inputs().itemTags(),
                 constrained, definition -> {
                     // A ledger request can exceed one inventory stack. Quantity is validated/accounted
                     // separately; the native component codec needs a single representative stack.
@@ -76,6 +82,74 @@ public final class ConfiguredRecipeAccess {
                     if (stack.isEmpty()) throw new IllegalArgumentException("Empty configured crafting output");
                     return nativeComponents(stack);
                 }, nativeFuels(), nativeRemainders());
+        result.harvests = context.inputs().naturalHarvestSupplies(context.acquisition());
+        return result;
+    }
+    /** Narrow, capability-only projection of the audited 8.0.11 upgrade consumer.
+     * Every variant consumes an exact fresh/default input jetpack accepted by the
+     * actual tier predicate. Native assemble copies those components then sets the
+     * loaded output ID. Arbitrary charged/enchanted inputs are never generalized. */
+    public Map<String, JsonObject> addDefaultJetpackUpgrades(PackEvidenceContext context) {
+        var witnesses = new TreeMap<String, JsonObject>();
+        if (!"8.0.11".equals(context.inputs().installedVersion("ironjetpacks"))) return witnesses;
+        if (!proven.isEmpty() || !explorationBills.isEmpty() || hintsPrepared)
+            throw new IllegalStateException("Configured catalog must be extended before any proof search");
+        var ops = RegistryOps.create(JsonOps.INSTANCE, context.server().registryAccess());
+        for (var holder : context.inputs().recipes()) {
+            if (!holder.value().getClass().getName().equals("com.blakebr0.ironjetpacks.crafting.recipe.JetpackUpgradeRecipe")) continue;
+            var recipe = (net.minecraft.world.item.crafting.ShapedRecipe)holder.value();
+            if (recipe.getWidth() != 3 || recipe.getHeight() != 3 || recipe.getIngredients().size() != 9) continue;
+            var center = recipe.getIngredients().get(4);
+            Object custom;
+            try { custom = center.getClass().getMethod("getCustomIngredient").invoke(center); }
+            catch (ReflectiveOperationException e) { throw new IllegalStateException("Loaded tier predicate unavailable", e); }
+            if (custom == null || !custom.getClass().getName().equals("com.blakebr0.ironjetpacks.crafting.ingredient.JetpackTierIngredient")) continue;
+            int variant = 0;
+            var variants = Arrays.stream(center.getItems()).sorted(Comparator.comparing(stack ->
+                    ItemStack.CODEC.encodeStart(ops, stack).getOrThrow().toString())).toList();
+            if (variants.size() > 4096) throw new IllegalArgumentException("Loaded upgrade variants exceed bounded census");
+            for (var input : variants) {
+                if (input.isEmpty() || !center.test(input)
+                        || !net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(input.getItem()).toString().equals("ironjetpacks:jetpack")) continue;
+                var declared = recipe.getResultItem(context.server().registryAccess());
+                var idType = net.minecraft.core.registries.BuiltInRegistries.DATA_COMPONENT_TYPE
+                        .get(net.minecraft.resources.ResourceLocation.parse("ironjetpacks:jetpack_id"));
+                if (idType == null || !declared.has(idType)) continue;
+                var output = copiedUpgrade(declared, input, idType);
+                if (output.isEmpty()) continue;
+                var inputs = new JsonArray();
+                for (int i = 0; i < 9; i++) {
+                    var ingredient = recipe.getIngredients().get(i);
+                    if (i == 4) {
+                        var exact = new JsonObject(); exact.addProperty("type", "neoforge:components"); exact.addProperty("strict", true);
+                        exact.addProperty("items", "ironjetpacks:jetpack");
+                        var serialized = ItemStack.CODEC.encodeStart(ops, input).getOrThrow().getAsJsonObject();
+                        exact.add("components", serialized.has("components") ? serialized.get("components").deepCopy() : new JsonObject()); inputs.add(exact);
+                    } else inputs.add(ingredient.isEmpty() ? JsonNull.INSTANCE
+                            : net.minecraft.world.item.crafting.Ingredient.CODEC.encodeStart(ops, ingredient).getOrThrow());
+                }
+                var result = ItemStack.CODEC.encodeStart(ops, output).getOrThrow().getAsJsonObject();
+                var definition = new JsonObject(); definition.addProperty("projection", "audited_default_jetpack_upgrade");
+                definition.addProperty("runtime_class", recipe.getClass().getName()); definition.addProperty("audited_version", "8.0.11");
+                definition.addProperty("source_recipe", holder.id().toString()); definition.addProperty("width", 3); definition.addProperty("height", 3);
+                definition.add("ingredients", inputs); definition.add("result", result);
+                String id = holder.id() + "/exact_default_variant_" + variant++;
+                witnesses.put(id, definition.deepCopy());
+                producers.computeIfAbsent(text(result, "id"), ignored -> new ArrayList<>())
+                        .add(new Candidate(id, definition, result, .9, "minecraft:crafting_table", 0));
+            }
+        }
+        return Collections.unmodifiableMap(witnesses);
+    }
+    static <T> ItemStack copiedUpgrade(ItemStack declared, ItemStack input, DataComponentType<T> identity) {
+        T replacement = declared.get(identity);
+        if (replacement == null) throw new IllegalArgumentException("Missing configured upgrade identity");
+        var output = declared.copy(); output.applyComponents(input.getComponents()); output.set(identity, replacement);
+        return output;
+    }
+    /** Detached typed routes for synthetic verification; native callers use captured loaded mechanics. */
+    ConfiguredRecipeAccess harvests(Map<String, List<com.mistaboom.essence_ascendance.valuation.NativeHarvestSupplies.Route>> routes) {
+        harvests = Map.copyOf(routes); return this;
     }
     /** Component normalizer must retain item defaults, not merely the result's component patch. */
     public ConfiguredRecipeAccess(ProductionGraph graph, Map<String, ResourceEvidence> resources,
@@ -140,7 +214,10 @@ public final class ConfiguredRecipeAccess {
                     // An item-only trade row does not prove NPC/jobsite/stock renewal, or its payments.
                     && (s.kind() != AcquisitionSource.Kind.TRADE || s.availability() != null)
                     && s.expectedOutput() > 0 && s.confidence() >= .5
-                    && (s.availability() == null || s.availability().accessProven() && s.availability().uncertainty().isEmpty()
+                    // An aggregate renewable label is not a proof of the seed,
+                    // tool, habitat, fluid or station bill. Only constructive
+                    // source contracts can independently pay repeated inputs.
+                    && (s.availability() != null && s.availability().accessProven() && s.availability().uncertainty().isEmpty()
                     && (s.availability().category() == SourceAvailability.Category.REFRESHABLE
                     || s.availability().category() == SourceAvailability.Category.CONDITIONAL_RENEWABLE))).toList();
             if (sources.isEmpty()) return;
@@ -154,8 +231,24 @@ public final class ConfiguredRecipeAccess {
      * is handled by the caller's optional integration boundary, never replaced by guessed fuel. */
     private static Map<String, Integer> nativeFuels() {
         var result = new TreeMap<String, Integer>();
-        net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity.getFuel().forEach((item, ticks) ->
-                result.put(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item).toString(), ticks));
+        java.lang.reflect.Method loadedBurnTime;
+        try { loadedBurnTime = ItemStack.class.getMethod("getBurnTime", net.minecraft.world.item.crafting.RecipeType.class); }
+        catch (NoSuchMethodException vanilla) { loadedBurnTime = null; }
+        final var burnTime = loadedBurnTime;
+        net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity.getFuel().forEach((item, ticks) -> {
+            int effective = ticks;
+            // NeoForge's actual smelting/charger consumer asks the stack, allowing
+            // loaded fuel events and item overrides. The vanilla map is a candidate
+            // inventory, not permission to replace that effective burn duration.
+            if (burnTime != null) {
+                try { effective = (Integer)burnTime.invoke(item.getDefaultInstance(), net.minecraft.world.item.crafting.RecipeType.SMELTING); }
+                catch (ReflectiveOperationException failure) {
+                    throw new IllegalStateException("Loaded fuel callback could not be read for "
+                            + net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item), failure);
+                }
+            }
+            if (effective > 0) result.put(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item).toString(), effective);
+        });
         return result;
     }
     private static Map<String, String> nativeRemainders() {
@@ -167,9 +260,47 @@ public final class ConfiguredRecipeAccess {
     }
     /** Repeatable operation requires a renewable fuel path. A finite bootstrap is never a fuel supply. */
     public ConfigurationAccess.Proof requireFuel() {
-        visits = 0;
-        return best(fuels.entrySet().stream().filter(f -> f.getValue() > 0)
-                .map(f -> require(f.getKey(), null, new HashSet<>(), 0)).toList());
+        var proofs = new ArrayList<ConfigurationAccess.Proof>();
+        for (var fuel : orderedFuels()) {
+            visits = 0; // each independent candidate owns its bounded traversal
+            var proof = require(fuel.getKey(), null, new HashSet<>(), 0);
+            proofs.add(proof);
+            if (proof.placement().reachable() && proof.placement().stage() == ProgressionBand.ENTRY) return proof;
+        }
+        return best(proofs);
+    }
+
+    /** A finite operating bill reserves setup and consumes whole loaded fuel items together.
+     * Conversion is floor(burnTicks / ticksPerOperation) * outputPerOperation, so short fuels
+     * cannot fabricate an operation. Supply establishes this bill only, never renewal/rate. */
+    public ConfigurationAccess.Proof requireFueledSetup(List<JsonObject> setup, long requiredOutput,
+            int ticksPerOperation, long outputPerOperation) {
+        return fueledSetup(setup, requiredOutput, ticksPerOperation, outputPerOperation, false);
+    }
+    public ConfigurationAccess.Proof requireFueledExploration(List<JsonObject> setup, long requiredOutput,
+            int ticksPerOperation, long outputPerOperation) {
+        return fueledSetup(setup, requiredOutput, ticksPerOperation, outputPerOperation, true);
+    }
+    private ConfigurationAccess.Proof fueledSetup(List<JsonObject> setup, long requiredOutput,
+            int ticksPerOperation, long outputPerOperation, boolean exploration) {
+        if (requiredOutput <= 0 || ticksPerOperation <= 0 || outputPerOperation <= 0)
+            throw new IllegalArgumentException("Positive finite fuel conversion required");
+        var setupProof = (exploration ? requireExploration(setup) : requireFinite(setup)).access();
+        if (!setupProof.placement().reachable()) return setupProof;
+        for (var fuel : orderedFuels()) {
+            long perItem = Math.multiplyExact(fuel.getValue() / ticksPerOperation, outputPerOperation);
+            if (perItem <= 0) continue;
+            long count = 1 + (requiredOutput - 1) / perItem;
+            var stack = new JsonObject(); stack.addProperty("id", fuel.getKey()); stack.addProperty("count", count);
+            if (!(exploration ? requireExploration(List.of(stack)) : requireFinite(List.of(stack))).access().placement().reachable()) continue;
+            var bill = new ArrayList<>(setup); bill.add(stack);
+            var proof = (exploration ? requireExploration(bill) : requireFinite(bill)).access();
+            if (proof.placement().reachable()) return combine(List.of(proof), "joint setup and fuel: " + count
+                    + " " + fuel.getKey() + " at " + fuel.getValue() + " native burn ticks/item; floor(burnTicks/"
+                    + ticksPerOperation + ")*" + outputPerOperation + " = " + perItem
+                    + " output/item; pays " + requiredOutput + " output units; finite operation only", 1);
+        }
+        return unknown("No supported fuel meets the joint setup and " + requiredOutput + " output-unit bill");
     }
     public record FiniteProof(ConfigurationAccess.Proof access, Map<String, Long> remaining,
                               Map<String, Long> drawnStocks) { }
@@ -213,13 +344,16 @@ public final class ConfiguredRecipeAccess {
     private FiniteProof finitePlans(List<JsonObject> stacks, boolean exploration) {
         conditionalExploration = exploration;
         List<Integer> plan = List.of();
+        FiniteProof last = null;
         for (int attempt = 0; attempt < MAX_PLANS; attempt++) {
             choices = new PlanChoices(plan); stockKeys.clear();
             var result = finiteBill(stacks);
+            last = result;
             if (result.access().placement().reachable()) return result;
             plan = choices.next(); if (plan == null) return result;
         }
-        return new FiniteProof(unknown("Joint acquisition search reached its bounded plan limit; access remains unproven, not absent"), Map.of(), Map.of());
+        return new FiniteProof(unknown("Joint acquisition search reached its bounded plan limit; access remains unproven, not absent; last branch: "
+                + String.join("; ", last.access().unknown())), Map.of(), Map.of());
     }
     private FiniteProof finiteBill(List<JsonObject> stacks) {
         visits = 0; var ledger = new AcquisitionLedger(); var proofs = new ArrayList<ConfigurationAccess.Proof>();
@@ -257,10 +391,11 @@ public final class ConfiguredRecipeAccess {
                     ledger.add(baseKey, count); if (consume) ledger.consume(baseKey, count); return renewable;
                 }
                 var resource = resources.get(item);
-                if (resource != null && resource.external() && resource.reachable() && resource.confidence() >= .5
+                if (resource != null && resource.external() && resource.reachable()
                         && !constrained.contains(item)) {
                     if (conditionalExploration) {
                         var opportunity = resource.sources().stream().filter(ConfiguredRecipeAccess::explorableLoot)
+                                .filter(s -> resource.confidence() >= .5)
                                 .filter(s -> s.stage().ordinal() <= sourceCeiling.ordinal())
                                 .min(Comparator.comparing(AcquisitionSource::stage).thenComparing(AcquisitionSource::id));
                         if (opportunity.isPresent()) {
@@ -274,12 +409,37 @@ public final class ConfiguredRecipeAccess {
                                             + " from each; native placement/dimension conditions apply; enough accessible occurrences is assumed"
                                             + "; no guaranteed finite stock, renewable supply, chance-to-count conversion or search rate"), List.of());
                         }
+                        var routes = harvests.getOrDefault(item, List.of()).stream()
+                                .filter(r -> r.chance() > 0 && r.chance() <= 1 && r.expected() > 0 && r.placement().confidence() >= .5
+                                        && r.placement().stage().ordinal() <= sourceCeiling.ordinal()).toList();
+                        // A route is merely a candidate until its tool bill has been proved.
+                        var hints = new HashMap<String, Integer>();
+                        routes.forEach(r -> hints.computeIfAbsent(r.tool(), t -> t.isEmpty() ? 0 : routeHint(t)));
+                        routes = routes.stream().sorted(Comparator.comparingInt((com.mistaboom.essence_ascendance.valuation.NativeHarvestSupplies.Route r) -> hints.get(r.tool()))
+                                .thenComparing(com.mistaboom.essence_ascendance.valuation.NativeHarvestSupplies.Route::block)
+                                .thenComparing(com.mistaboom.essence_ascendance.valuation.NativeHarvestSupplies.Route::tool)).toList();
+                        for (var route : choices.one(routes)) {
+                            var branch = ledger.copy(); var proofs = new ArrayList<ConfigurationAccess.Proof>();
+                            if (!route.tool().isEmpty()) {
+                                var tool = finite(route.tool(), defaults(route.tool()), count, true, branch, path, depth + 1);
+                                if (!tool.placement().reachable()) continue;
+                                proofs.add(tool);
+                            }
+                            proofs.add(new ConfigurationAccess.Proof(new CompetitiveCapabilities.Placement(route.placement().stage(), true,
+                                    route.placement().confidence(), List.of(route.placement())),
+                                    List.of("Conditional native natural harvest: " + count + " distinct successful accessible " + route.block()
+                                            + " harvests, one " + item + " reserved each; positive probability=" + route.chance()
+                                            + "; " + (route.tool().isEmpty() ? "empty hand" : count + " fresh exact " + route.tool() + " consumed conservatively, one per harvest")
+                                            + "; actual loaded natural placement and native tool/drop predicates; no guaranteed encounters, renewal or rate"), List.of()));
+                            branch.add(baseKey, count); if (consume) branch.consume(baseKey, count);
+                            ledger.commit(branch); return combine(proofs, "native natural exploration", 1);
+                        }
                     }
                     var stockBranch = ledger.copy(); var stockProofs = new ArrayList<ConfigurationAccess.Proof>();
                     for (var source : resource.sources().stream().sorted(Comparator.comparing(AcquisitionSource::stage)
                             .thenComparing(AcquisitionSource::id)).toList()) {
                         var a = source.availability();
-                        if (source.renewable() || source.stage().ordinal() > sourceCeiling.ordinal() || source.confidence() < .5 || source.kind() == AcquisitionSource.Kind.QUEST_REWARD
+                        if (resource.confidence() < .5 || source.renewable() || explorableLoot(source) || source.stage().ordinal() > sourceCeiling.ordinal() || source.confidence() < .5 || source.kind() == AcquisitionSource.Kind.QUEST_REWARD
                                 || source.kind() == AcquisitionSource.Kind.ADMINISTRATIVE || a == null || !a.accessProven()
                                 || !a.uncertainty().isEmpty() || a.occurrenceChance() != 1
                                 || a.category() != SourceAvailability.Category.FINITE_SHARED && a.category() != SourceAvailability.Category.FINITE_PERSONALIZED
@@ -297,9 +457,19 @@ public final class ConfiguredRecipeAccess {
                     }
                 }
             }
-            for (var candidate : choices.one(producers.getOrDefault(item, List.of()))) {
+            prepareHints();
+            if (hintClosureComplete && !routeHints.containsKey(item))
+                return unknown("No source-connected path in the complete optimistic static recipe closure for " + item);
+            // Configuration mismatches are impossible branches, not ledger choices.
+            // Filter them before assigning backtracking positions; otherwise nested
+            // configured components consume the plan budget on unrelated variants.
+            var matching = producers.getOrDefault(item, List.of()).stream()
+                    .filter(candidate -> exact == null || exact.equals(outputComponents(candidate))).toList();
+            matching.forEach(c -> candidateHints.computeIfAbsent(c, this::candidateHint));
+            matching = matching.stream().sorted(Comparator.comparingInt((Candidate c) -> candidateHints.get(c)).thenComparing(Candidate::id)).toList();
+            var failures = new LinkedHashSet<String>();
+            for (var candidate : choices.one(matching)) {
                 Object outputComponents = outputComponents(candidate);
-                if (exact != null && !exact.equals(outputComponents)) continue;
                 String outputKey = stockKey(item, outputComponents);
                 long output = quantity(candidate.output());
                 if (output < 1 || output > 1_000_000 || candidate.confidence() < .5) continue;
@@ -309,7 +479,7 @@ public final class ConfiguredRecipeAccess {
                 String heldStation = null;
                 if (!candidate.station().isEmpty()) {
                     var station = finite(candidate.station(), null, 1, false, branch, path, depth + 1);
-                    if (!station.placement().reachable()) continue;
+                    if (!station.placement().reachable()) { failures.addAll(station.unknown()); continue; }
                     requirements.add(station);
                     heldStation = stockKeys.entrySet().stream().filter(e -> e.getKey().item().equals(candidate.station())
                             && branch.held(e.getValue()) >= 1).map(Map.Entry::getValue).findFirst().orElseThrow();
@@ -330,7 +500,7 @@ public final class ConfiguredRecipeAccess {
                     if (!materials) break;
                     returns.forEach(branch::add);
                 }
-                if (!materials) continue;
+                if (!materials) { requirements.stream().flatMap(p -> p.unknown().stream()).limit(4).forEach(failures::add); continue; }
                 if (candidate.cookingTicks() > 0) {
                     ConfigurationAccess.Proof fuel = unknown("No fuel meets this finite cooking bill");
                     for (var entry : choices.one(orderedFuels())) {
@@ -346,18 +516,20 @@ public final class ConfiguredRecipeAccess {
                     requirements.add(fuel);
                 }
                 var proof = combine(requirements, candidate.id(), candidate.confidence());
-                if (!proof.placement().reachable()) continue;
+                if (!proof.placement().reachable()) { proof.unknown().stream().limit(4).forEach(failures::add); continue; }
                 if (heldStation != null) branch.add(heldStation, 1);
                 branch.add(outputKey, Math.multiplyExact(crafts, output));
                 if (consume && !branch.consume(outputKey, count)) throw new IllegalStateException("Finite output conservation failure");
                 ledger.commit(branch); return proof;
             }
-            return unknown("Insufficient guaranteed finite or renewable material for " + count + " " + item);
+            String detail = failures.isEmpty() ? "" : ": " + String.join("; ", failures.stream().limit(4).toList());
+            return unknown("Insufficient guaranteed finite or renewable material for " + count + " " + item + detail);
         } finally { path.remove(pathKey); }
     }
     private ConfigurationAccess.Proof finiteIngredient(JsonElement value, long count, AcquisitionLedger ledger,
             Set<StackKey> path, int depth, Map<String, Long> returns) {
         List<JsonElement> alternatives = new ArrayList<>();
+        var failures = new LinkedHashSet<String>();
         if (value.isJsonArray()) value.getAsJsonArray().forEach(alternatives::add); else alternatives.add(value);
         for (var alternative : choices.one(alternatives)) {
             if (!alternative.isJsonObject()) continue;
@@ -372,22 +544,127 @@ public final class ConfiguredRecipeAccess {
                 if (componentPatch.keySet().stream().anyMatch(k -> k.startsWith("!"))) continue;
                 choices = items(object.get("items"));
             } else continue;
-            for (String item : this.choices.one(choices.stream().distinct()
-                    .sorted(Comparator.comparingInt(this::directSupplyOrder).thenComparing(Comparator.naturalOrder())).toList())) {
+            var ordered = choices.stream().distinct().sorted().toList();
+            ordered.forEach(id -> rootHints.computeIfAbsent(id, this::routeHint));
+            ordered = ordered.stream().sorted(Comparator.comparingInt((String id) -> rootHints.get(id)).thenComparing(Comparator.naturalOrder())).toList();
+            for (String item : this.choices.one(ordered)) {
                 var branch = ledger.copy(); Object exact = null;
                 if (componentPatch != null) { var stack = new JsonObject(); stack.addProperty("id", item); stack.add("components", componentPatch); exact = components.apply(stack); }
                 String remainder = remainders.get(item);
                 var proof = finite(item, exact, count, true, branch, path, depth);
-                if (!proof.placement().reachable()) continue;
+                if (!proof.placement().reachable()) { proof.unknown().stream().limit(4).forEach(failures::add); continue; }
                 if (remainder != null) returns.merge(stockKey(remainder, defaults(remainder)), count, Math::addExact);
                 ledger.commit(branch); return proof;
             }
         }
-        return unknown("Finite ingredient has unsupported predicates or insufficient shared stock");
+        return unknown("Finite ingredient has unsupported predicates or insufficient shared stock"
+                + (failures.isEmpty() ? "" : ": " + String.join("; ", failures.stream().limit(4).toList())));
     }
     private int directSupplyOrder(String item) {
         var placement = directSupply(item).placement();
         return placement.reachable() ? placement.stage().ordinal() : ProgressionBand.values().length;
+    }
+    /** Ordering only: an optimistic, bounded static route cannot authorize a material draw.
+     * Every selected branch still proves exact components, stations, counts and the joint
+     * ledger. This puts finite starter/craft routes ahead of thousands of cosmetic cycles. */
+    /** Bounded optimistic relaxation over the already captured recipe catalog. It only
+     * orders full proofs. Looking at every tag alternative prevents the recursive hint
+     * budget being exhausted by cosmetic cycles before a simple native wood route. */
+    private void prepareHints() {
+        if (hintsPrepared) return;
+        hintsPrepared = true;
+        for (var resource : resources.values()) {
+            var direct = directSupply(resource.itemId());
+            if (direct.placement().reachable()) routeHints.put(resource.itemId(), direct.placement().stage().ordinal());
+            else if (!constrained.contains(resource.itemId()) && resource.external() && resource.reachable()
+                    && resource.confidence() >= .5 && resource.sources().stream().anyMatch(s -> s.confidence() >= .5
+                    && s.availability() != null && s.availability().accessProven() && s.availability().uncertainty().isEmpty()
+                    && (explorableLoot(s) || !s.renewable() && s.availability().occurrenceChance() == 1
+                    && s.kind() != AcquisitionSource.Kind.QUEST_REWARD && s.kind() != AcquisitionSource.Kind.ADMINISTRATIVE)))
+                routeHints.put(resource.itemId(), 8);
+        }
+        for (int wave = 0; wave < 12; wave++) {
+            boolean changed = false;
+            for (var entry : harvests.entrySet()) if (!constrained.contains(entry.getKey())) for (var route : entry.getValue()) {
+                int cost = route.tool().isEmpty() ? 8 : routeHints.containsKey(route.tool()) ? Math.min(99_999, 8 + routeHints.get(route.tool())) : 100_000;
+                if (cost < routeHints.getOrDefault(entry.getKey(), 100_000)) { routeHints.put(entry.getKey(), cost); changed = true; }
+            }
+            for (var entry : producers.entrySet()) for (var candidate : entry.getValue()) {
+                int cost = candidate.station().isEmpty() ? 16 : routeHints.containsKey(candidate.station())
+                        ? Math.min(99_999, 16 + routeHints.get(candidate.station())) : 100_000;
+                if (cost >= 100_000) continue;
+                for (var input : candidate.definition().getAsJsonArray("ingredients")) if (!input.isJsonNull()) {
+                    int prerequisite = relaxedIngredientHint(input);
+                    if (prerequisite >= 100_000) { cost = 100_000; break; }
+                    cost = Math.min(99_999, cost + prerequisite);
+                }
+                if (cost < routeHints.getOrDefault(entry.getKey(), 100_000)) { routeHints.put(entry.getKey(), cost); changed = true; }
+            }
+            if (!changed) { hintClosureComplete = true; break; }
+        }
+    }
+    private int relaxedIngredientHint(JsonElement input) {
+        if (input.isJsonArray()) return input.getAsJsonArray().asList().stream().mapToInt(this::relaxedIngredientHint).min().orElse(100_000);
+        if (!input.isJsonObject()) return 100_000;
+        var object = input.getAsJsonObject();
+        List<String> options = object.has("item") ? List.of(text(object, "item")) : object.has("tag")
+                ? tags.getOrDefault(text(object, "tag"), List.of()) : object.has("items") ? items(object.get("items")) : List.of();
+        return options.stream().mapToInt(id -> routeHints.getOrDefault(id, 100_000)).min().orElse(100_000);
+    }
+    private int routeHint(String item) {
+        prepareHints();
+        hintVisits = 0;
+        return routeHint(item, new HashSet<>(), 0);
+    }
+    private int routeHint(String item, Set<String> path, int depth) {
+        var cached = routeHints.get(item); if (cached != null) return cached;
+        if (depth >= 12 || ++hintVisits > 512 || !path.add(item)) return 100_000;
+        int best = 100_000;
+        try {
+            var direct = directSupply(item);
+            if (direct.placement().reachable()) return direct.placement().stage().ordinal();
+            var resource = resources.get(item);
+            if (!constrained.contains(item)) for (var route : harvests.getOrDefault(item, List.of()))
+                best = Math.min(best, route.tool().isEmpty() ? 8 : 8 + routeHint(route.tool(), path, depth + 1));
+            if (!constrained.contains(item) && resource != null && resource.external() && resource.reachable()
+                    && resource.confidence() >= .5 && resource.sources().stream().anyMatch(s -> s.confidence() >= .5
+                    && s.availability() != null && s.availability().accessProven() && s.availability().uncertainty().isEmpty()
+                    && (explorableLoot(s) || !s.renewable() && s.availability().occurrenceChance() == 1
+                    && s.kind() != AcquisitionSource.Kind.QUEST_REWARD && s.kind() != AcquisitionSource.Kind.ADMINISTRATIVE))) best = 8;
+            for (var candidate : producers.getOrDefault(item, List.of())) {
+                int cost = candidateHint(candidate, path, depth + 1);
+                best = Math.min(best, cost);
+                if (hintVisits > 512) break;
+            }
+        } finally { path.remove(item); }
+        // Positive paths are reusable ordering hints; bounded/cyclic failures are not absence.
+        if (best < 100_000) routeHints.put(item, best);
+        return best;
+    }
+    private int candidateHint(Candidate candidate) {
+        prepareHints();
+        hintVisits = 0;
+        return candidateHint(candidate, new HashSet<>(Set.of(text(candidate.output(), "id"))), 0);
+    }
+    private int candidateHint(Candidate candidate, Set<String> path, int depth) {
+        int cost = 16;
+        if (!candidate.station().isEmpty()) cost += routeHint(candidate.station(), path, depth + 1);
+        for (var input : candidate.definition().getAsJsonArray("ingredients")) {
+            if (input.isJsonNull()) continue;
+            cost += ingredientHint(input, path, depth + 1);
+            if (cost >= 100_000 || hintVisits > 512) return 100_000;
+        }
+        return Math.min(100_000, cost);
+    }
+    private int ingredientHint(JsonElement input, Set<String> path, int depth) {
+        if (input.isJsonArray()) return input.getAsJsonArray().asList().stream().mapToInt(v -> ingredientHint(v, path, depth + 1)).min().orElse(100_000);
+        if (!input.isJsonObject()) return 100_000;
+        var object = input.getAsJsonObject();
+        List<String> options = object.has("item") ? List.of(text(object, "item")) : object.has("tag")
+                ? tags.getOrDefault(text(object, "tag"), List.of()) : object.has("items") ? items(object.get("items")) : List.of();
+        int best = 100_000;
+        for (var item : options) { best = Math.min(best, routeHint(item, path, depth + 1)); if (hintVisits > 512) break; }
+        return best;
     }
     private ConfigurationAccess.Proof directSupply(String item) {
         return directSupplies.computeIfAbsent(item, id -> ordinary.require(List.of(List.of(id))));
@@ -402,7 +679,7 @@ public final class ConfiguredRecipeAccess {
         var a = source.availability();
         return source.kind() == AcquisitionSource.Kind.LOOT && !source.renewable() && source.confidence() >= .5
                 && source.expectedOutput() > 0 && a != null && a.accessProven()
-                && a.conditions().contains("native_unlocked_container_binding")
+                && (a.conditions().contains("native_unlocked_container_binding") || a.conditions().contains("native_structure_block_binding"))
                 && a.uncertainty().isEmpty() && a.occurrenceChance() > 0 && !a.structures().isEmpty() && !a.dimensions().isEmpty()
                 && (a.category() == SourceAvailability.Category.FINITE_SHARED || a.category() == SourceAvailability.Category.FINITE_PERSONALIZED);
     }
@@ -447,9 +724,16 @@ public final class ConfiguredRecipeAccess {
                 var direct = directSupply(item);
                 if (direct.placement().reachable()) { proven.put(key, direct); return direct; }
             }
+            prepareHints();
+            if (hintClosureComplete && !routeHints.containsKey(item))
+                return unknown("No source-connected path in the complete optimistic static recipe closure for " + item);
             ConfigurationAccess.Proof best = null;
             var failures = new TreeSet<String>();
-            for (var candidate : producers.getOrDefault(item, List.of())) {
+            var candidates = producers.getOrDefault(item, List.of()).stream()
+                    .filter(c -> exact == null || exact.equals(outputComponents(c))).toList();
+            candidates.forEach(c -> candidateHints.computeIfAbsent(c, this::candidateHint));
+            candidates = candidates.stream().sorted(Comparator.comparingInt((Candidate c) -> candidateHints.get(c)).thenComparing(Candidate::id)).toList();
+            for (var candidate : candidates) {
                 if (exact != null && !exact.equals(outputComponents(candidate))) continue;
                 List<ConfigurationAccess.Proof> inputs = new ArrayList<>();
                 if (!candidate.station().isEmpty()) inputs.add(setups.computeIfAbsent(candidate.station(), station -> {
@@ -467,6 +751,7 @@ public final class ConfiguredRecipeAccess {
                 }
                 var proof = combine(inputs, candidate.id(), candidate.confidence());
                 if (proof.placement().reachable() && (best == null || earlier(proof, best))) best = proof;
+                if (best != null && best.placement().stage() == ProgressionBand.ENTRY) break;
                 if (!proof.placement().reachable()) proof.unknown().stream().limit(8).forEach(failures::add);
                 if (visits > MAX_VISITS) break;
             }
@@ -505,7 +790,15 @@ public final class ConfiguredRecipeAccess {
                 : object.has("tag") ? tags.getOrDefault(text(object, "tag"), List.of()) : List.of();
         var direct = ordinary.require(List.of(items));
         if (direct.placement().reachable()) return direct;
-        return best(items.stream().map(item -> require(item, null, path, depth)).toList());
+        items.forEach(id -> rootHints.computeIfAbsent(id, this::routeHint));
+        var ordered = items.stream().distinct().sorted(Comparator.comparingInt((String id) -> rootHints.get(id)).thenComparing(Comparator.naturalOrder())).toList();
+        var proofs = new ArrayList<ConfigurationAccess.Proof>();
+        for (var item : ordered) {
+            var proof = require(item, null, path, depth); proofs.add(proof);
+            if (proof.placement().reachable() && proof.placement().stage() == ProgressionBand.ENTRY) return proof;
+            if (visits > MAX_VISITS) break;
+        }
+        return best(proofs);
     }
     private List<String> items(JsonElement value) {
         if (value.isJsonPrimitive()) {

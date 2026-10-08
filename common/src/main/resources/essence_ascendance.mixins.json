@@ -41,6 +41,8 @@
     "UtilitySenseClientMixin"
   ],
   "mixins": [
+    "TradeSamplingLootContextMixin",
+    "EvidenceEntityRandomMixin",
     "SaplingGrowerAccess",
     "TreeGrowerAccess",
     "PotionBrewingAccess",
@@ -48,6 +50,7 @@
     "GenerationFixedHolderCodecMixin",
     "GenerationNamedHolderCodecMixin",
     "GenerationLootFunctionCodecMixin",
+    "GenerationLootConditionCodecMixin",
     "FlightVisualStateMixin",
     "FoodEffectOriginMixin",
     "AnimalFeedingMixin",

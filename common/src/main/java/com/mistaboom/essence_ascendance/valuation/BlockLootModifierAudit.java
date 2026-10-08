@@ -8,7 +8,7 @@ import net.minecraft.core.registries.Registries;
 import java.util.*;
 import java.util.function.Function;
 
-/** Definition-only bounds on base block drops; never invokes a loot modifier, predicate or player API. */
+/** Bounds on native base drops; never invokes loot modifiers or unaudited predicates/player APIs. */
 final class BlockLootModifierAudit {
     enum Mode { UNKNOWN, APPEND_ONLY, EMPTY_DEFINITIONS, NONEMPTY_TOOL, OUTPUT_ITEMS, BLOCK_ORES, TABLE_LIST, FIRST_PATTERN, TOOL_CONDITION, FIRST_OUTPUT_CONVERSION }
     record Rule(Mode mode, Set<String> targets) {
@@ -19,6 +19,18 @@ final class BlockLootModifierAudit {
     private static final Map<String, Contract> CONTRACTS = contracts();
     private static Map<String, Contract> contracts() {
         Map<String, Contract> out = new HashMap<>();
+        add(out, "occultism", "1.224.4", Mode.APPEND_ONLY, "com.klikli_dev.occultism.loot.", "AddItemModifier");
+        add(out, "occultism", "1.224.2", Mode.APPEND_ONLY, "com.klikli_dev.occultism.loot.", "AddItemModifier");
+        // Identical installed callback bytecode: raw table outputs reach only an
+        // append consumer, never the existing list or its stacks.
+        for (String version : List.of("21.1.248", "21.1.250", "21.1.251"))
+            add(out, "neoforge", version, Mode.APPEND_ONLY, "net.neoforged.neoforge.common.loot.", "AddTableLootModifier");
+        add(out, "farmersdelight", "1.3.4", Mode.APPEND_ONLY, "vectorwing.farmersdelight.common.loot.modifier.", "AddItemModifier");
+        add(out, "farmersdelight", "1.2.11", Mode.APPEND_ONLY, "vectorwing.farmersdelight.common.loot.modifier.", "AddItemModifier");
+        add(out, "moonlight", "1.21.1-3.0.16", Mode.APPEND_ONLY, "net.mehvahdjukaar.moonlight.core.misc.platform.ModLootModifiers$", "AddItemModifier");
+        add(out, "moonlight", "1.21.1-3.0.22", Mode.APPEND_ONLY, "net.mehvahdjukaar.moonlight.core.misc.platform.ModLootModifiers$", "AddItemModifier");
+        add(out, "moonlight", "1.21.1-3.6.8", Mode.APPEND_ONLY, "net.mehvahdjukaar.moonlight.core.misc.platform.ModLootModifiers$", "AddItemModifier");
+        add(out, "exdeorum", "3.12", Mode.APPEND_ONLY, "thedarkcolour.exdeorum.loot.", "CrookLootModifier");
         add(out, "aether", "1.5.10", Mode.APPEND_ONLY, "com.aetherteam.aether.loot.modifiers.", "DoubleDropsModifier", "PigDropsModifier");
         add(out, "aether", "1.5.10", Mode.OUTPUT_ITEMS, "com.aetherteam.aether.loot.modifiers.", "GlovesLootModifier");
         add(out, "apotheosis", "8.8.0", Mode.APPEND_ONLY, "dev.shadowsoffire.apotheosis.loot.modifiers.", "AffixLootModifier", "GemLootModifier");
@@ -30,6 +42,7 @@ final class BlockLootModifierAudit {
         add(out, "immersiveengineering", "12.4.2-194", Mode.APPEND_ONLY, "blusunrize.immersiveengineering.common.util.loot.", "AddDropModifier");
         add(out, "neovitae", "1.1.26", Mode.NONEMPTY_TOOL, "com.breakinblocks.neovitae.common.loot.GlobalLootModifiers$", "SmeltingModifier", "VoidingModifier");
         add(out, "relics", "0.12.8", Mode.APPEND_ONLY, "it.hurts.sskirillss.relics.level.", "RelicLootModifier");
+        add(out, "relics", "0.10.7.6", Mode.APPEND_ONLY, "it.hurts.sskirillss.relics.level.", "RelicLootModifier");
         add(out, "relics", "0.12.8", Mode.BLOCK_ORES, "it.hurts.sskirillss.relics.level.", "GreedLootModifier");
         add(out, "repurposed_structures", "7.5.22+1.21.1-neoforge", Mode.APPEND_ONLY,
                 "com.telepathicgrunt.repurposedstructures.misc.neoforge.lootmanager.", "StructureModdedLootImporterApplier");
@@ -42,12 +55,16 @@ final class BlockLootModifierAudit {
         // Both installed releases have identical callback bytecode. Its replacement
         // branches are guarded by the loaded ropes tag; non-rope outputs survive.
         add(out, "supplementaries", "1.21.1-3.6.7", Mode.OUTPUT_ITEMS, "net.mehvahdjukaar.supplementaries.platform.", "ReplaceRopeByConfigModifier");
+        add(out, "supplementaries", "1.21.1-3.7.7", Mode.OUTPUT_ITEMS, "net.mehvahdjukaar.supplementaries.platform.", "ReplaceRopeByConfigModifier");
         add(out, "sushigocrafting", "0.6.6", Mode.OUTPUT_ITEMS, "com.buuz135.sushigocrafting.loot.", "ItemAmountLootModifier");
+        add(out, "sushigocrafting", "0.6.5", Mode.OUTPUT_ITEMS, "com.buuz135.sushigocrafting.loot.", "ItemAmountLootModifier");
+        add(out, "ftbmaterials", "21.1.4", Mode.OUTPUT_ITEMS, "dev.ftb.mods.ftbmaterials.unification.loot.", "LootTableUnifier");
         add(out, "the_bumblezone", "7.16.1+1.21.1-neoforge", Mode.APPEND_ONLY, "com.telepathicgrunt.the_bumblezone.loot.neoforge.", "BeeStingerLootApplier");
         add(out, "wstweaks", "10.1.1", Mode.APPEND_ONLY, "dev.shadowsoffire.wstweaks.", "WSTLootModifier");
         add(out, "cyclopscore", "1.30.0", Mode.TABLE_LIST, "org.cyclops.cyclopscore.loot.modifier.", "LootModifierInjectItem");
         add(out, "evilcraft", "1.2.96", Mode.TABLE_LIST, "org.cyclops.evilcraft.loot.modifier.", "LootModifierInjectBroom", "LootModifierInjectBoxOfEternalClosure");
         add(out, "incontrol", "1.21-10.3.0", Mode.EMPTY_DEFINITIONS, "mcjty.incontrol.events.", "InControlLootModifier");
+        add(out, "incontrol", "1.21-10.2.7", Mode.EMPTY_DEFINITIONS, "mcjty.incontrol.events.", "InControlLootModifier");
         return Map.copyOf(out);
     }
     private static void add(Map<String, Contract> out, String mod, String version, Mode mode, String prefix, String... classes) {
@@ -70,7 +87,35 @@ final class BlockLootModifierAudit {
     static Rule captureRule(String implementation, GenerationDataSnapshot inputs) {
         Mode mode = auditedMode(implementation, inputs::installedVersion);
         Set<String> targets = new TreeSet<>();
-        if (mode == Mode.EMPTY_DEFINITIONS) {
+        if (mode == Mode.FIRST_PATTERN) {
+            // For this mode targets are proven unaffected native outputs. The
+            // audited converter skips LootCategory.NONE before any mutation.
+            // Refuse custom category predicates; evaluate only ordinary native
+            // Item defaults against loaded category overrides and native readers.
+            try {
+                Class<?> category = Class.forName("dev.shadowsoffire.apotheosis.loot.LootCategory");
+                var registry = (net.minecraft.core.Registry<?>)Class.forName("dev.shadowsoffire.apotheosis.Apoth$BuiltInRegs").getField("LOOT_CATEGORY").get(null);
+                var validator = category.getDeclaredField("validator"); validator.setAccessible(true);
+                boolean audited = registry.stream().allMatch(value -> {
+                    try { return validator.get(value) == com.google.common.base.Predicates.alwaysFalse()
+                            || NativeToolFacts.lambdaOwner(validator.get(value)).equals("dev.shadowsoffire.apotheosis.Apoth$LootCategories"); }
+                    catch (IllegalAccessException failure) { return false; }
+                });
+                if (!audited) {
+                    var hosts = new TreeSet<String>();
+                    for (var value : registry.entrySet()) hosts.add(value.getKey().location() + "=" + NativeToolFacts.lambdaOwner(validator.get(value.getValue())));
+                    inputs.addLimitations(List.of("Affix output classification retains unknown category predicates: " + hosts));
+                }
+                if (audited) {
+                    var classify = category.getMethod("forItem", net.minecraft.world.item.ItemStack.class);
+                    var none = category.getMethod("isNone");
+                    for (var item : inputs.items()) if (item.getClass() == net.minecraft.world.item.Item.class
+                            && BuiltInRegistries.ITEM.getKey(item).getNamespace().equals("minecraft")
+                            && (Boolean)none.invoke(classify.invoke(null, item.getDefaultInstance())))
+                        targets.add(BuiltInRegistries.ITEM.getKey(item).toString());
+                }
+            } catch (ReflectiveOperationException failure) { throw new IllegalStateException("Cannot inspect loaded affix categories", failure); }
+        } else if (mode == Mode.EMPTY_DEFINITIONS) {
             // This is the loaded rule-definition list, not filtered world/player state. Never evaluate a rule.
             try {
                 var field = Class.forName("mcjty.incontrol.rules.RulesManager").getDeclaredField("lootRules");
@@ -87,7 +132,17 @@ final class BlockLootModifierAudit {
             BuiltInRegistries.BLOCK.getTag(TagKey.create(Registries.BLOCK, ResourceLocation.parse("c:ores")))
                     .ifPresent(tag -> tag.forEach(holder -> targets.add(holder.unwrapKey().orElseThrow().location().toString())));
         } else if (mode == Mode.OUTPUT_ITEMS) {
-            if (implementation.endsWith("ReplaceRopeByConfigModifier")) {
+            if (implementation.endsWith("LootTableUnifier")) {
+                // 21.1.4 recreates each mapped output as one default stack, even a
+                // self mapping. Only unmapped outputs retain their item/count/components.
+                try {
+                    var managerType = Class.forName("dev.ftb.mods.ftbmaterials.unification.recipe.UnifierManager");
+                    var database = managerType.getMethod("unifierDB").invoke(managerType.getField("INSTANCE").get(null));
+                    var lookup = database.getClass().getMethod("lookupItem", net.minecraft.world.item.Item.class);
+                    for (var item : inputs.items()) if (((Optional<?>)lookup.invoke(database, item)).isPresent())
+                        targets.add(BuiltInRegistries.ITEM.getKey(item).toString());
+                } catch (ReflectiveOperationException failure) { throw new IllegalStateException("Cannot inspect loaded unification mappings", failure); }
+            } else if (implementation.endsWith("ReplaceRopeByConfigModifier")) {
                 targets.addAll(inputs.itemTags().getOrDefault("supplementaries:ropes", List.of()));
             } else {
                 String base = implementation.endsWith("GlovesLootModifier") ? "net.minecraft.world.item.ArmorItem"
@@ -108,11 +163,16 @@ final class BlockLootModifierAudit {
     private final List<Prepared> modifiers;
     private final BlockLootToolInputs toolInputs;
     private record EvaluationKey(String block, Map<String, String> state, Set<String> supportedProperties,
-                                 BlockLootToolInputs.Key tool, Set<String> outputs) { }
+                                 BlockLootToolInputs.Key tool, String biome, Set<String> biomeTags, NativeToolFacts toolFacts, Set<String> outputs) { }
     private final Map<EvaluationKey, List<RuntimeLootAudit.Modifier>> evaluations = new HashMap<>();
     private String cachedTable;
     private List<Candidate> cachedCandidates = List.of();
     BlockLootModifierAudit(List<RuntimeLootAudit.Modifier> modifiers) {
+        this(modifiers, null);
+    }
+    /** Other native contexts must supply their own parameter facts; they must
+     * never inherit the block-break player's identity or missing damage source. */
+    BlockLootModifierAudit(List<RuntimeLootAudit.Modifier> modifiers, java.util.function.UnaryOperator<JsonElement> contextConditions) {
         // Broad predicates can contain large entity/component definitions. Normalize each
         // once, rather than retaining a copy for every block table in the pack.
         List<Object> conditions = new ArrayList<>();
@@ -120,7 +180,8 @@ final class BlockLootModifierAudit {
                 .filter(m -> m.blockRule().mode() != Mode.APPEND_ONLY && m.blockRule().mode() != Mode.EMPTY_DEFINITIONS)
                 .map(m -> {
                     Object value = ProceduralBlockHarvest.plain(m.conditionsEnforced()
-                            ? blockConditions(m.definition().get("conditions"), m) : JsonNull.INSTANCE);
+                            ? contextConditions == null ? blockConditions(m.definition().get("conditions"), m)
+                                : contextConditions.apply(m.definition().get("conditions")) : JsonNull.INSTANCE);
                     conditions.add(value);
                     return new Prepared(m, conditionPlan(value), m.tableFilter());
                 })
@@ -168,7 +229,7 @@ final class BlockLootModifierAudit {
     List<RuntimeLootAudit.Modifier> applicable(String table, ProceduralBlockLoot.Context context, Set<String> outputs) {
         candidates(table);
         var key = new EvaluationKey(context.blockId(), context.properties(), context.supportedProperties(),
-                toolInputs.key(context), Set.copyOf(outputs));
+                toolInputs.key(context), context.biomeId(), context.biomeTags(), context.toolFacts(), Set.copyOf(outputs));
         var previous = evaluations.get(key);
         if (previous != null) return previous;
         var result = applicableUncached(table, context, outputs);
@@ -183,6 +244,7 @@ final class BlockLootModifierAudit {
         List<RuntimeLootAudit.Modifier> result = new ArrayList<>();
         for (var candidate : candidates(table)) {
             var rule = candidate.modifier().blockRule();
+            if (context.toolFacts().inactiveModifiers().contains(candidate.modifier().implementation())) continue;
             if (rule.mode() == Mode.NONEMPTY_TOOL && context.toolId().equals("minecraft:air")) continue;
             if (rule.mode() == Mode.BLOCK_ORES && ResourceLocation.parse(table).getPath().startsWith("blocks/")
                     && !rule.targets().contains(context.blockId())) continue;
@@ -198,6 +260,7 @@ final class BlockLootModifierAudit {
         return List.copyOf(result);
     }
     static boolean couldChangeOutput(RuntimeLootAudit.Modifier modifier, String item) {
+        if (modifier.blockRule().mode() == Mode.FIRST_PATTERN) return !modifier.blockRule().targets().contains(item);
         return modifier.blockRule().mode() != Mode.OUTPUT_ITEMS || modifier.blockRule().targets().contains(item);
     }
     private static boolean tableRuleMayApply(RuntimeLootAudit.Modifier m, String table) {

@@ -24,6 +24,7 @@ public final class GenerationRegistrySerialization implements AutoCloseable {
     private final RegistryOps<JsonElement> ops;
     private final Map<ResourceKey<?>, IdentityHashMap<Object, Holder.Reference<?>>> references = new HashMap<>();
     private final boolean lootEvidence;
+    private Map<String, String> versions = Map.of();
     private final Map<String, Long> unsupportedLootFunctions = new java.util.TreeMap<>();
     private String definition = "";
     private boolean closed;
@@ -43,6 +44,12 @@ public final class GenerationRegistrySerialization implements AutoCloseable {
         ACTIVE.set(scope);
         return scope;
     }
+    static GenerationRegistrySerialization open(HolderLookup.Provider registries, boolean lootEvidence, Map<String, String> versions) {
+        var scope = open(registries, lootEvidence);
+        scope.versions = Map.copyOf(versions);
+        return scope;
+    }
+    String version(String mod) { return versions.get(mod); }
 
     RegistryOps<JsonElement> ops() { return ops; }
     void definition(String value) { definition = value; }
@@ -55,6 +62,23 @@ public final class GenerationRegistrySerialization implements AutoCloseable {
     public static <T> com.mojang.serialization.MapCodec<T> lootFunctionCodec(com.mojang.serialization.MapCodec<T> original) {
         var scope = ACTIVE.get();
         return scope == null || !scope.lootEvidence || scope.closed ? original : GenerationLootEvidence.functionCodec(original, scope);
+    }
+    public static <T> com.mojang.serialization.MapCodec<T> lootConditionCodec(com.mojang.serialization.MapCodec<T> original) {
+        // Dispatch codecs may cache the type codec before an evidence scope opens.
+        // Resolve ownership at encode time, never capture a stale/no operation here.
+        return new com.mojang.serialization.MapCodec<>() {
+            @Override public <V> com.mojang.serialization.RecordBuilder<V> encode(T input, DynamicOps<V> encodingOps,
+                    com.mojang.serialization.RecordBuilder<V> prefix) {
+                var scope = ACTIVE.get();
+                return scope != null && scope.ownsLootOps(encodingOps)
+                        ? GenerationLootEvidence.conditionCodec(original, scope).encode(input, encodingOps, prefix)
+                        : original.encode(input, encodingOps, prefix);
+            }
+            @Override public <V> DataResult<T> decode(DynamicOps<V> decodingOps, com.mojang.serialization.MapLike<V> input) {
+                return original.decode(decodingOps, input);
+            }
+            @Override public <V> java.util.stream.Stream<V> keys(DynamicOps<V> encodingOps) { return original.keys(encodingOps); }
+        };
     }
 
     /** Named-holder codecs use Registry's own codec rather than RegistryFixedCodec. */

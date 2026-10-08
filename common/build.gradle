@@ -50,6 +50,7 @@ def balanceInvariantMains = [
         generatedSkillAvailabilityInvariants: 'com.mistaboom.essence_ascendance.balance.generated.GeneratedSkillAvailabilityTest',
         competitiveCapabilitiesInvariants: 'com.mistaboom.essence_ascendance.balance.engine.CompetitiveCapabilitiesTest',
         balanceLootAcquisitionInvariants: 'com.mistaboom.essence_ascendance.valuation.LootAcquisitionTest',
+        exDeorumManualAccessInvariants: 'com.mistaboom.essence_ascendance.valuation.ExDeorumManualAccessTest',
         blockLootToolInputsInvariants: 'com.mistaboom.essence_ascendance.valuation.BlockLootToolInputsTest',
         ultimineCapabilityInvariants: 'com.mistaboom.essence_ascendance.balance.engine.UltimineCapabilityTest',
         balanceLootAuditMemoryInvariants: 'com.mistaboom.essence_ascendance.valuation.LootAuditMemoryTest',

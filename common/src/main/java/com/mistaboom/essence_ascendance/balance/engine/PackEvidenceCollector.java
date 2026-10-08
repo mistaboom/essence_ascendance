@@ -109,6 +109,10 @@ public final class PackEvidenceCollector {
         applyOverrides(context, sink);
         Map<String, ResourceEvidence> resources = com.mistaboom.essence_ascendance.valuation.NativeTreeRenewal.enrich(context, resolveResources(context, sink), sink);
         resources = com.mistaboom.essence_ascendance.valuation.NativeCropRenewal.enrich(context, resources, sink);
+        resources = NativeStructureBlockLoot.enrich(context, resources, sink);
+        resources = com.mistaboom.essence_ascendance.valuation.ExDeorumManualAccess.enrich(context, resources, sink);
+        resources = com.mistaboom.essence_ascendance.valuation.NativePassiveDrops.enrich(context, resources, sink);
+        inputs.configurationConstrainedItems(ConfigurationAccess.remainingFiniteClaims(resources, inputs.configurationConstrainedItems()));
         List<EquipmentReference> equipment = new ArrayList<>(resolveEquipment(baseEquipment, resources, sink, settings));
         equipment.add(emptyHandMiningReference());
         explainOutliers(equipment, sink, settings);
@@ -436,13 +440,14 @@ public final class PackEvidenceCollector {
             // A disposable entity is never added to the world or ticked. Query the native reward
             // instead of inventing an XP-to-health exchange rate for progression calibration.
             if (context.server() != null) {
-                var experience = OptionalIntegration.attempt("entity_experience", id.toString(), () -> {
+                var experience = OptionalIntegration.attempt("entity_experience", id.toString(), () ->
+                        com.mistaboom.essence_ascendance.valuation.TradeSamplingScope.sample(0x4E41544956455850L ^ id.toString().hashCode(), () -> {
                     var sample = type.create(context.server().overworld());
                     double reward = sample instanceof LivingEntity sampled
                             ? sampled.getExperienceReward(context.server().overworld(), null) : 0;
                     if (!Double.isFinite(reward) || reward < 0) throw new IllegalArgumentException("Invalid native experience reward " + reward);
                     return reward;
-                });
+                }));
                 experience.value().filter(reward -> reward > 0).ifPresent(reward -> axes.put(CapabilityAxis.EXPERIENCE, reward));
                 if (!experience.succeeded()) staged.warn("No native XP observation for " + id + ": " + experience.failure()
                         + "; supported entity attributes remain available; Attunement reports the generated fallback");
@@ -579,9 +584,17 @@ public final class PackEvidenceCollector {
             if (availability == Availability.EFFECTIVELY_INFINITE || sink.flag(ITEM, id, "passive_generation", false)) {
                 boolean passive = sink.flag(ITEM, id, "passive_generation", false);
                 if (passive) { automation = Automation.PASSIVE; availability = Availability.RENEWABLE_AUTOMATED; }
+                var declaration = sink.get(ITEM, id, passive ? "passive_generation" : "availability");
+                boolean explicit = declaration != null && declaration.origin() == EvidenceFact.Origin.OVERRIDE;
+                var off = new SourceAvailability.Timer(SourceAvailability.Applicability.OFF, 0, List.of());
+                var access = new SourceAvailability("classified:" + id,
+                        explicit ? SourceAvailability.Category.CONDITIONAL_RENEWABLE : SourceAvailability.Category.UNKNOWN,
+                        SourceAvailability.Scope.SHARED, List.of(), List.of(),
+                        List.of(explicit ? "Explicit author renewable-source declaration" : "Renewability classification only; operating setup is not proved"),
+                        off, off, explicit, 1, 1, explicit ? List.of() : List.of("Native seed/fluid/tool/station acquisition not established by classification"));
                 sources.add(new AcquisitionSource("classified:" + id, passive ? AcquisitionSource.Kind.PASSIVE_GENERATION : AcquisitionSource.Kind.INFINITE_BULK,
                         stage, 1, true, sink.get(ITEM, id, "throughput") != null, sink.number(ITEM, id, "throughput", 0),
-                        confidence, List.of(), "Provider or factual override classified renewable generation; setup and output rate may be unknown"));
+                        confidence, List.of(), "Provider or factual override classified renewable generation; setup and output rate may be unknown", access));
             }
             if (!reachable) warnings.add("unreachable_or_excluded");
             if (!external) warnings.add("endogenous_excluded_from_external_baselines");

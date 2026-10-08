@@ -161,6 +161,7 @@ final class ProceduralValuationIndex {
         ProceduralTradeIndex tradeIndex;
         try (var phase = BalancePerformance.phase("trade_index")) {
             tradeIndex = ProceduralTradeIndex.build(server);
+            data.addLimitations(tradeIndex.limitations());
         }
 
         int lootTablesScanned;

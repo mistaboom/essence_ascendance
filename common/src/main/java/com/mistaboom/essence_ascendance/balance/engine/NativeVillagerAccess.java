@@ -18,7 +18,7 @@ public final class NativeVillagerAccess {
     private NativeVillagerAccess() { }
     public record Opportunity(String structure, String startPool, String rootTemplate, String childPool,
                               String childTemplate, String villagerType, String connection, ConfigurationAccess.Proof access) { }
-    private record Template(CompoundTag nbt, StructureTemplate nativeTemplate) { }
+    record Template(CompoundTag nbt, StructureTemplate nativeTemplate) { }
 
     public static boolean adultUntraded(CompoundTag entity) {
         if (!entity.getString("id").equals("minecraft:villager") || !entity.contains("Age", Tag.TAG_INT) || entity.getInt("Age") != 0
@@ -108,7 +108,7 @@ public final class NativeVillagerAccess {
         result.forEach(row -> sink.definition(PROVIDER, row.villagerType(), com.mistaboom.essence_ascendance.balance.generated.BalanceDocument.GSON.toJsonTree(row)));
         return result;
     }
-    private static List<JsonObject> elements(JsonObject pool) {
+    static List<JsonObject> elements(JsonObject pool) {
         if (pool == null || !pool.has("elements")) return List.of(); var result = new ArrayList<JsonObject>();
         for (var value : pool.getAsJsonArray("elements")) { var row = value.getAsJsonObject();
             if (number(row, "weight", 0) > 0 && row.has("element")) result.add(row.getAsJsonObject("element")); }
@@ -121,7 +121,7 @@ public final class NativeVillagerAccess {
                 || block.getInt(axis) < 0 || block.getInt(axis) >= size.getInt(axis) || block.getInt(axis) != (int)Math.floor(pos.getDouble(axis))) return false;
         return true;
     }
-    private static boolean nativeElement(JsonObject element) {
+    static boolean nativeElement(JsonObject element) {
         return Set.of("minecraft:single_pool_element", "minecraft:legacy_single_pool_element").contains(text(element, "element_type"))
                 && text(element, "projection").equals("rigid") && ResourceLocation.tryParse(text(element, "location")) != null;
     }
@@ -140,7 +140,7 @@ public final class NativeVillagerAccess {
         }
         return true;
     }
-    private static Template template(PackEvidenceContext context, Map<String, Template> cache, String id) {
+    static Template template(PackEvidenceContext context, Map<String, Template> cache, String id) {
         if (cache.containsKey(id)) return cache.get(id);
         var location = ResourceLocation.parse(id).withPath(path -> "structure/" + path + ".nbt");
         var resource = context.server().getResourceManager().getResource(location); if (resource.isEmpty()) { cache.put(id, null); return null; }

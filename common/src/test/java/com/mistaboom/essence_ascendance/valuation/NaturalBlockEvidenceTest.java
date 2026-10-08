@@ -60,6 +60,15 @@ public final class NaturalBlockEvidenceTest {
         ProceduralNaturalBlockIndex explicit = index(explicitState, "[]");
         check(explicit.contains(id("fixture:natural_block")), "generic explicit state evidence still works");
         check(!explicit.contains(id("fixture:replacement_target")), "replacement predicate is not placement");
+        var overworld = id("minecraft:overworld");
+        var otherOnly = Map.of(id("fixture:locked_dimension"), json("{\"default_block\":{\"Name\":\"minecraft:deepslate\"}}"));
+        check(!ProceduralNaturalBlockIndex.inDimension(overworld, Map.of(), Map.of(), Map.of(), otherOnly)
+                .contains(id("minecraft:deepslate")), "Loaded terrain in an unproved dimension cannot establish starting-world access");
+        check(ProceduralNaturalBlockIndex.inDimension(overworld, Map.of(), Map.of(), Map.of(),
+                Map.of(overworld, otherOnly.values().iterator().next())).contains(id("minecraft:deepslate")), "Actual starting-world terrain remains available");
+        var otherBiome = Map.of(id("fixture:locked_dimension/biome/minecraft/jungle"), BIOMES.values().iterator().next());
+        check(!ProceduralNaturalBlockIndex.inDimension(overworld, otherBiome, Map.of(PLACED, placed("[]")), Map.of(TREE, positive), Map.of())
+                .contains(COCOA), "Another dimension's biome cannot seed a starting-world feature");
         System.out.println("NaturalBlockEvidenceTest: " + assertions + " source reachability and decorator checks PASS");
     }
 

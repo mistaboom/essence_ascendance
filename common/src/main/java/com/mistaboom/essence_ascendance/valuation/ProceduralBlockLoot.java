@@ -25,12 +25,25 @@ final class ProceduralBlockLoot {
     private static final int MAX_COUNT_OUTCOMES = 256;
 
     record Context(String blockId, Map<String, String> properties, Set<String> supportedProperties,
-                   String toolId, Set<String> toolTags, Map<String, Integer> enchantments) {
+                   String toolId, Set<String> toolTags, Map<String, Integer> enchantments,
+                   String biomeId, Set<String> biomeTags, NativeToolFacts toolFacts) {
+        Context(String blockId, Map<String, String> properties, Set<String> supportedProperties,
+                String toolId, Set<String> toolTags, Map<String, Integer> enchantments, String biomeId, Set<String> biomeTags) {
+            this(blockId, properties, supportedProperties, toolId, toolTags, enchantments, biomeId, biomeTags, NativeToolFacts.UNKNOWN);
+        }
+        Context withToolFacts(NativeToolFacts facts) {
+            return new Context(blockId, properties, supportedProperties, toolId, toolTags, enchantments, biomeId, biomeTags, facts);
+        }
+        Context(String blockId, Map<String, String> properties, Set<String> supportedProperties,
+                String toolId, Set<String> toolTags, Map<String, Integer> enchantments) {
+            this(blockId, properties, supportedProperties, toolId, toolTags, enchantments, "", Set.of());
+        }
         Context {
             properties = Map.copyOf(properties);
             supportedProperties = Set.copyOf(supportedProperties);
             toolTags = Set.copyOf(toolTags);
             enchantments = Map.copyOf(enchantments);
+            biomeTags = Set.copyOf(biomeTags);
         }
     }
 
@@ -118,6 +131,11 @@ final class ProceduralBlockLoot {
         try { var gate = model.conditions(conditions, 0); return gate.probability() > 0 || !gate.unknown().isEmpty(); }
         catch (UnsupportedOperationException unsupported) { return true; }
     }
+    static boolean conditionsProven(Object conditions, Context context) {
+        var model = new ProceduralBlockLoot(context, ignored -> Map.of(), ignored -> List.of());
+        try { var gate = model.conditions(conditions, 0); return gate.probability() == 1 && gate.unknown().isEmpty(); }
+        catch (UnsupportedOperationException unsupported) { return false; }
+    }
 
     private Map<String, Amount> table(Map<String, Object> root, int depth, List<Object> inheritedFunctions) {
         guard(depth);
@@ -128,9 +146,9 @@ final class ProceduralBlockLoot {
             List<Object> poolFunctions = functionChain(pool.get("functions"), tableFunctions);
             Truth condition = conditions(pool.get("conditions"), depth + 1);
             Object rawRolls = pool.getOrDefault("rolls", 1);
-            Count rolls = number(rawRolls, depth + 1);
-            if (!(rawRolls instanceof Number) && !"minecraft:constant".equals(text(object(rawRolls).get("type"))))
-                rolls = new Count(rolls.mean(), rolls.positive(), union(rolls.unknown(), Set.of("variable-roll occurrence remains approximate")));
+            StackCounts rollDistribution = integerCounts(rawRolls, depth + 1);
+            Amount rollAmount = rollDistribution.amount();
+            Count rolls = new Count(rollAmount.count(), rollAmount.occurrence(), rollAmount.unknown());
             if (condition.probability() <= 0 || rolls.mean() <= 0) continue;
             List<Expansion> expanded = List.of(new Expansion(1, List.of(), true, Set.of()));
             for (Object entry : list(pool.get("entries")))
@@ -153,9 +171,12 @@ final class ProceduralBlockLoot {
             for (Map.Entry<String, Amount> entry : oneRoll.entrySet()) {
                 Amount a = entry.getValue();
                 Set<String> unknown = union(a.unknown(), condition.unknown(), rolls.unknown());
-                // Nonconstant rolls use an explicit approximate occurrence, not exact evidence.
-                double occurrence = condition.probability()
-                        * (1 - Math.pow(1 - clamp(a.occurrence()), rolls.mean()));
+                // Native getInt rolls: sum the probability of at least one output
+                // over every bounded count outcome, never use the mean as a roll count.
+                double occurrence = 0;
+                for (var outcome : rollDistribution.probabilities().entrySet())
+                    occurrence += outcome.getValue() * (1 - Math.pow(1 - clamp(a.occurrence()), Math.max(0, outcome.getKey())));
+                occurrence *= condition.probability();
                 double count = condition.probability() * rolls.mean() * a.count();
                 mergeIndependent(result, entry.getKey(), new Amount(occurrence, count, unknown));
             }
@@ -267,7 +288,26 @@ final class ProceduralBlockLoot {
     private Truth condition(Map<String, Object> condition, int depth) {
         guard(depth);
         String type = text(condition.get("condition"));
+        if (context.toolFacts().falseConditions().contains(type)) return truth(false);
         switch (type) {
+            case "minecraft:location_check" -> {
+                if (!Set.of("condition", "predicate", "offsetX", "offsetY", "offsetZ").containsAll(condition.keySet())
+                        || finite(condition.getOrDefault("offsetX", 0), 1) != 0
+                        || finite(condition.getOrDefault("offsetY", 0), 1) != 0
+                        || finite(condition.getOrDefault("offsetZ", 0), 1) != 0
+                        || context.biomeId().isEmpty()) return unknown("unproven loot location context");
+                var predicate = object(condition.get("predicate"));
+                if (!predicate.keySet().equals(Set.of("biomes"))) return unknown("unsupported loot location predicate");
+                var selector = predicate.get("biomes");
+                var ids = selector instanceof String s ? List.of(s) : list(selector);
+                if (ids.isEmpty()) return unknown("empty loot biome selector");
+                for (var id : ids) {
+                    String value = text(id);
+                    if (value.startsWith("#") ? context.biomeTags().contains(value.substring(1)) : context.biomeId().equals(value))
+                        return truth(true);
+                }
+                return truth(false);
+            }
             case "minecraft:survives_explosion" -> { return truth(true); }
             case "minecraft:inverted" -> {
                 Truth t = condition(object(condition.get("term")), depth + 1);
@@ -327,6 +367,9 @@ final class ProceduralBlockLoot {
                 case "items" -> value = and(value, itemSelector(entry.getValue()));
                 case "predicates" -> {
                     for (Map.Entry<String, Object> p : object(entry.getValue()).entrySet()) {
+                        if (context.toolFacts().falseComponentPredicates().contains(p.getKey())) {
+                            value = and(value, truth(false)); continue;
+                        }
                         if (!p.getKey().equals("minecraft:enchantments")) {
                             value = and(value, unknown("unmodeled tool component predicate: " + p.getKey())); continue;
                         }
@@ -353,7 +396,8 @@ final class ProceduralBlockLoot {
                     }
                 }
                 case "components" -> value = and(value, entry.getValue() instanceof Map<?, ?> components
-                        ? components.isEmpty() ? truth(true) : context.toolId().equals("minecraft:air") ? truth(false)
+                        ? components.isEmpty() ? truth(true) : context.toolId().equals("minecraft:air")
+                            || context.toolFacts().exactComponents() && !context.toolFacts().components().containsAll(components.keySet()) ? truth(false)
                         : unknown("unmodeled tool component values") : unknown("malformed tool components"));
                 case "count" -> value = and(value, matchesRange(context.toolId().equals("minecraft:air") ? "0" : "1", entry.getValue()));
                 default -> value = and(value, unknown("unmodeled tool field: " + entry.getKey()));

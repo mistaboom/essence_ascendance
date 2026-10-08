@@ -78,6 +78,18 @@ public final class GenerationDataSnapshot implements AutoCloseable {
     private final Map<String, com.mistaboom.essence_ascendance.balance.engine.SourceAvailability> lootAvailability = new TreeMap<>();
     private final Map<String, List<String>> lootSemantics = new TreeMap<>();
     private List<RuntimeLootAudit.Modifier> runtimeLootModifiers = List.of();
+    private BlockLootModifierAudit nativeBlockLootAudit;
+    BlockLootModifierAudit nativeBlockLootAudit() {
+        requireOpen();
+        if (nativeBlockLootAudit == null) nativeBlockLootAudit = new BlockLootModifierAudit(runtimeLootModifiers);
+        return nativeBlockLootAudit;
+    }
+    private Map<String, List<NativeHarvestSupplies.Route>> naturalHarvestSupplies;
+    public Map<String, List<NativeHarvestSupplies.Route>> naturalHarvestSupplies(ValuationEvidenceSnapshot snapshot) {
+        requireOpen();
+        if (naturalHarvestSupplies == null) naturalHarvestSupplies = NativeHarvestSupplies.capture(this, snapshot);
+        return naturalHarvestSupplies;
+    }
     List<RuntimeLootAudit.Modifier> runtimeLootModifiers() { requireOpen(); return runtimeLootModifiers; }
     private final Map<ResourceLocation, Map<Item, ProceduralValuationIndex.ContainerEstimate>> lootEstimates = new TreeMap<>();
     Map<ResourceLocation, Map<Item, ProceduralValuationIndex.ContainerEstimate>> lootEstimates() { requireOpen(); return lootEstimates; }
@@ -166,6 +178,7 @@ public final class GenerationDataSnapshot implements AutoCloseable {
     public String installedVersion(String modId) { requireOpen(); return mods.get(modId); }
     public List<DimensionEvidence> dimensions() { requireOpen(); return List.copyOf(dimensions); }
     public List<String> limitations() { requireOpen(); return limitations.stream().sorted().distinct().toList(); }
+    void addLimitations(List<String> reasons) { requireWritable(); limitations.addAll(reasons); }
     public boolean structuresEnabled() { requireOpen(); return structuresEnabled; }
     boolean structureEligible(ResourceLocation id) { requireOpen(); return eligibleStructures.contains(id); }
     public boolean structureSetEligible(ResourceLocation id) { requireOpen(); return eligibleStructureSets.contains(id); }
@@ -234,7 +247,7 @@ public final class GenerationDataSnapshot implements AutoCloseable {
     }
     private <T> Map<ResourceLocation, JsonObject> encodeRegistry(Registry<T> registry, Codec<T> codec, boolean lootEvidence) {
         Map<ResourceLocation, JsonObject> result = new TreeMap<>();
-        try (var scope = GenerationRegistrySerialization.open(server.registries().compositeAccess(), lootEvidence)) {
+        try (var scope = GenerationRegistrySerialization.open(server.registries().compositeAccess(), lootEvidence, mods)) {
             try {
                 registry.keySet().stream().sorted().forEach(id -> {
                     scope.definition(registry.key().location() + "/" + id);
@@ -392,6 +405,7 @@ public final class GenerationDataSnapshot implements AutoCloseable {
         quests = com.mistaboom.essence_ascendance.balance.quest.QuestEvidence.EMPTY; questProgression = null;
         configurationConstrainedItems = java.util.Set.of();
         production = null;
+        naturalHarvestSupplies = null; nativeBlockLootAudit = null;
         items = List.of(); recipeHolders = List.of(); mods = Map.of(); itemTags = null; definitions.clear(); naturalBiomes = Map.of(); terrain = Map.of();
         dimensions.clear(); limitations.clear(); workloads.clear(); unsupportedRecipeFamilies.clear(); unsupportedLootFunctions.clear();
         eligibleStructures.clear(); eligibleStructureSets.clear();

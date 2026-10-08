@@ -18,8 +18,24 @@ public final class ConfiguredRecipeAccessTest {
     public static void main(String[] args) {
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap();
         nativeContracts();
+        var oldJet = new ItemStack(Items.LEATHER_CHESTPLATE);
+        oldJet.set(DataComponents.CUSTOM_NAME, Component.literal("old configuration")); oldJet.setDamageValue(7);
+        var newJet = new ItemStack(Items.DIAMOND_CHESTPLATE);
+        newJet.set(DataComponents.CUSTOM_NAME, Component.literal("new configuration"));
+        var copied = ConfiguredRecipeAccess.copiedUpgrade(newJet, oldJet, DataComponents.CUSTOM_NAME);
+        check(copied.is(Items.DIAMOND_CHESTPLATE) && copied.getDamageValue() == 7
+                        && copied.get(DataComponents.CUSTOM_NAME).equals(newJet.get(DataComponents.CUSTOM_NAME)),
+                "Audited upgrade projection keeps the declared output item/identity and copies other exact input components");
+        check(oldJet.getDamageValue() == 7 && newJet.getDamageValue() == 0
+                        && oldJet.get(DataComponents.CUSTOM_NAME).getString().equals("old configuration"),
+                "Upgrade projection does not mutate either source stack");
         boundedSupplyPreference();
+        renewableBranchPreference();
+        independentRenewalAndFiniteClaims();
+        configuredBranchPruning();
+        countedOperatingFuel();
         conditionalExploration();
+        nativeHarvestBills();
         var resources = Map.of("fixture:material", resource("fixture:material", AcquisitionSource.Kind.FARMING),
                 "fixture:reward", resource("fixture:reward", AcquisitionSource.Kind.QUEST_REWARD));
         var cell = recipe("fixture:cell_recipe", "fixture:cell", "entry", List.of(json("{\"item\":\"fixture:material\"}")));
@@ -268,6 +284,69 @@ public final class ConfiguredRecipeAccessTest {
         var fixedPlanner = new ConfiguredRecipeAccess(new ProductionGraph(List.of(), List.of()), Map.of(item, fixed), Map.of(), Set.of(), s -> new JsonObject());
         check(!fixedPlanner.requireExploration(bill).access().placement().reachable(), "One fixed stock without recurring structure placement became distinct exploration opportunities");
         check(!planner.requireItem(item).placement().reachable(), "Finite exploration established renewable material access");
+        var certainLoot = new SourceAvailability(sourceId, availability.category(), availability.scope(), availability.structures(),
+                availability.dimensions(), List.of("native_structure_block_binding"), timer, timer, true, 1, 4, List.of());
+        var certainSource = new AcquisitionSource(sourceId, source.kind(), source.stage(), 4, false, false, 0, .8,
+                List.of(), "Certain drop only after a conditional structure encounter", certainLoot);
+        var certainResource = new ResourceEvidence(item, resource.stage(), resource.availability(), resource.automation(), true, true,
+                1, .8, List.of(certainSource), List.of());
+        var certainPlanner = new ConfiguredRecipeAccess(new ProductionGraph(List.of(), List.of()), Map.of(item, certainResource), Map.of(), Set.of(), s -> new JsonObject());
+        check(!certainPlanner.requireFinite(bill).access().placement().reachable(), "Certain conditional drop became guaranteed existing stock");
+        check(certainPlanner.requireExploration(bill).access().placement().reachable(), "Audited one-block structure loot lost its conditional route");
+    }
+    private static void independentRenewalAndFiniteClaims() {
+        var off = new SourceAvailability.Timer(SourceAvailability.Applicability.OFF, 0, List.of());
+        var available = new SourceAvailability("fixture:native", SourceAvailability.Category.CONDITIONAL_RENEWABLE, SourceAvailability.Scope.SHARED,
+                List.of(), List.of(), List.of("Independent input and station proof"), off, off, true, .5, 1, List.of());
+        var source = new AcquisitionSource("fixture:native", AcquisitionSource.Kind.PLAYER_ACTION, ProgressionBand.ENTRY,
+                1, true, false, 0, .9, List.of(), "Constructive native manual operation", available);
+        var resource = new ResourceEvidence("fixture:material", ProgressionBand.ENTRY, Availability.RENEWABLE_MANUAL, Automation.PLAYER_GATED,
+                true, true, 1, .9, List.of(source), List.of());
+        var claims = Set.of(resource.itemId()); var resources = Map.of(resource.itemId(), resource);
+        check(ConfigurationAccess.remainingFiniteClaims(resources, claims).isEmpty(), "Independent native renewal supersedes a finite quest-only lineage");
+        check(!new ConfiguredRecipeAccess(new ProductionGraph(List.of(), List.of()), resources, Map.of(), claims, s -> new JsonObject())
+                        .requireItem(resource.itemId()).placement().reachable(), "Explicit recipe-only requirements remain binding");
+        var uncertain = new SourceAvailability(available.underlyingSource(), available.category(), available.scope(), List.of(), List.of(), List.of(),
+                off, off, true, .5, 1, List.of("Unproved setup"));
+        var unproven = new AcquisitionSource(source.id(), source.kind(), source.stage(), 1, true, false, 0, .9, List.of(), "advisory", uncertain);
+        var advisory = new ResourceEvidence(resource.itemId(), resource.stage(), resource.availability(), resource.automation(), true, true, 1, .9, List.of(unproven), List.of());
+        check(ConfigurationAccess.remainingFiniteClaims(Map.of(resource.itemId(), advisory), claims).equals(claims), "Uncertain renewal cannot clear a finite lineage restriction");
+        check(ConfigurationAccess.remainingFiniteClaims(Map.of(resource.itemId(), resource(resource.itemId(), AcquisitionSource.Kind.QUEST_REWARD)), claims).equals(claims),
+                "Reward-only renewable labels cannot bypass independent acquisition");
+        for (var kind : List.of(AcquisitionSource.Kind.INFINITE_BULK, AcquisitionSource.Kind.FARMING, AcquisitionSource.Kind.MACHINE)) {
+            var unbound = new AcquisitionSource("fixture:classification", kind, ProgressionBand.ENTRY, 1, true, false, 0, .99,
+                    List.of(), "Renewability classified but setup not established");
+            var row = new ResourceEvidence(resource.itemId(), resource.stage(), resource.availability(), resource.automation(),
+                    true, true, 1, .99, List.of(unbound), List.of());
+            var planner = access(new ProductionGraph(List.of(), List.of()), Map.of(row.itemId(), row));
+            check(!planner.requireItem(row.itemId()).placement().reachable(), "Unbound renewable classification cannot pay a repeated material: " + kind);
+            check(!planner.requireFinite(List.of(NativeConsumables.request(row.itemId(), 1))).access().placement().reachable(),
+                    "Unbound renewable classification cannot invent finite stock: " + kind);
+        }
+    }
+    private static void renewableBranchPreference() {
+        var recipes = new ArrayList<ProductionGraph.Process>();
+        for (int i = 0; i < 600; i++) recipes.add(recipe("fixture:a_dead_" + i, "fixture:product", "entry",
+                Collections.nCopies(8, json("{\"item\":\"fixture:absent\"}"))));
+        recipes.add(recipe("fixture:z_live", "fixture:product", "entry", List.of(json("{\"item\":\"fixture:material\"}"))));
+        var planner = access(new ProductionGraph(recipes, List.of()), Map.of("fixture:material", resource("fixture:material", AcquisitionSource.Kind.FARMING)));
+        check(planner.requireItem("fixture:product").placement().reachable(),
+                "An independently renewable route precedes thousands of irrelevant recursive visits without increasing the work bound");
+        check(!planner.requireItem("fixture:absent").placement().reachable(), "Optimistic ordering must not invent a source");
+        var deep = new ArrayList<ProductionGraph.Process>(); String previous = "fixture:material";
+        for (int i = 0; i < 16; i++) {
+            String next = "fixture:layer_" + String.format(java.util.Locale.ROOT, "%02d", i);
+            var definition = new JsonObject(); definition.addProperty("projection", "native_shaped_public_fields");
+            definition.addProperty("runtime_class", "net.minecraft.world.item.crafting.ShapedRecipe");
+            definition.addProperty("width", 2); definition.addProperty("height", 1);
+            var ingredients = new JsonArray(); var ingredient = new JsonObject(); ingredient.addProperty("item", previous);
+            ingredients.add(ingredient); ingredients.add(ingredient.deepCopy()); definition.add("ingredients", ingredients);
+            var output = new JsonObject(); output.addProperty("id", next); definition.add("result", output);
+            deep.add(process(next, definition)); previous = next;
+        }
+        check(access(new ProductionGraph(deep, List.of()), Map.of("fixture:material", resource("fixture:material", AcquisitionSource.Kind.FARMING)))
+                        .requireItem(previous).placement().reachable(),
+                "Large optimistic ordering costs must saturate without becoming false unreachable-path evidence");
     }
     private static void boundedSupplyPreference() {
         var names = new ArrayList<String>();
@@ -281,6 +360,14 @@ public final class ConfiguredRecipeAccessTest {
                 "Known repeatable alternatives must precede more than the bounded number of unproven tag entries");
         check(!planner.requireFinite(List.of(json("{\"id\":\"fixture:absent\"}"), json("{\"id\":\"fixture:product\"}")))
                         .access().placement().reachable(), "Later obtainable materials cannot repair a missing required stack");
+        names.removeLast(); names.add("fixture:crafted");
+        var fromStock = json("{\"projection\":\"native_shapeless_public_fields\",\"runtime_class\":\"net.minecraft.world.item.crafting.ShapelessRecipe\",\"ingredients\":[{\"item\":\"fixture:finite\"}],\"result\":{\"id\":\"fixture:crafted\"}}");
+        var finitePlanner = new ConfiguredRecipeAccess(new ProductionGraph(List.of(process("fixture:preferred", definition), process("fixture:from_stock", fromStock)), List.of()),
+                Map.of("fixture:finite", finiteResource("fixture:finite", 1, 1)), Map.of("fixture:options", names), Set.of(), s -> new JsonObject());
+        check(finitePlanner.requireFinite(List.of(json("{\"id\":\"fixture:product\"}"))).access().placement().reachable(),
+                "A supported finite crafting route must precede unrelated tag choices under the unchanged plan bound");
+        check(!finitePlanner.requireFinite(List.of(json("{\"id\":\"fixture:product\",\"count\":2}"))).access().placement().reachable(),
+                "Optimistic ordering cannot authorize reusing an exhausted finite stock");
     }
     private static ResourceEvidence finiteResource(String item, long count, double chance) {
         String source = "test:stock/" + item.replace(':', '/');
@@ -290,6 +377,32 @@ public final class ConfiguredRecipeAccessTest {
         return new ResourceEvidence(item, ProgressionBand.ENTRY, Availability.FINITE, Automation.NONE, true, true, 1, .9,
                 List.of(new AcquisitionSource(source, AcquisitionSource.Kind.WORLD_GENERATION, ProgressionBand.ENTRY,
                         count, false, false, 0, .9, List.of(), "Finite test inventory", availability)), List.of());
+    }
+    private static void nativeHarvestBills() {
+        var source = new AcquisitionSource("minecraft:lapis_ore", AcquisitionSource.Kind.WORLD_GENERATION,
+                ProgressionBand.ENTRY, 6.5, false, false, 0, .9, List.of(), "Observed native placement");
+        var ore = new ResourceEvidence("fixture:gem", ProgressionBand.ENTRY, Availability.FINITE, Automation.NONE,
+                true, true, 1, .9, List.of(source), List.of());
+        var resources = Map.of("fixture:gem", ore, "fixture:pick", finiteResource("fixture:pick", 1, 1));
+        var routes = Map.of("fixture:gem", List.of(new com.mistaboom.essence_ascendance.valuation.NativeHarvestSupplies.Route(
+                "minecraft:lapis_ore", "fixture:pick", .5, 6.5, source)));
+        var planner = access(new ProductionGraph(List.of(), List.of()), resources).harvests(routes);
+        check(!planner.requireFinite(List.of(NativeConsumables.request("fixture:gem", 1))).access().placement().reachable(),
+                "Observed natural placement is not a guaranteed finite inventory");
+        var proof = planner.requireExploration(List.of(NativeConsumables.request("fixture:gem", 1)));
+        check(proof.access().placement().reachable() && !proof.drawnStocks().isEmpty(), "Conditional harvest pays a fresh tool from the joint finite ledger");
+        check(!planner.requireExploration(List.of(NativeConsumables.request("fixture:gem", 2))).access().placement().reachable(),
+                "Expected multi-drop yield cannot fabricate multiple guaranteed items or skip the conservative tool bill");
+        check(!planner.requireExploration(List.of(NativeConsumables.request("fixture:gem", 1), NativeConsumables.request("fixture:pick", 1))).access().placement().reachable(),
+                "A tool already consumed by harvesting cannot simultaneously satisfy later equipment");
+        check(!access(new ProductionGraph(List.of(), List.of()), Map.of("fixture:gem", ore)).harvests(routes)
+                        .requireExploration(List.of(NativeConsumables.request("fixture:gem", 1))).access().placement().reachable(),
+                "A native ore observation alone cannot invent its required tool");
+        check(!planner.requireItem("fixture:gem").placement().reachable(), "Conditional natural harvest does not become renewable supply");
+        var advisory = new ResourceEvidence(ore.itemId(), ore.stage(), ore.availability(), ore.automation(), true, true, 1, .35, ore.sources(), List.of());
+        check(access(new ProductionGraph(List.of(), List.of()), Map.of("fixture:gem", advisory, "fixture:pick", finiteResource("fixture:pick", 1, 1)))
+                        .harvests(routes).requireExploration(List.of(NativeConsumables.request("fixture:gem", 1))).access().placement().reachable(),
+                "A re-evaluated native natural/tool witness is not erased by an unrelated low-confidence aggregate recipe row");
     }
     private static void auditedHooklessRecipes(ProductionGraph.Process cell, ProductionGraph.Process device,
             Map<String, ResourceEvidence> resources) {
@@ -341,6 +454,33 @@ public final class ConfiguredRecipeAccessTest {
             value.addProperty("minecraft:rarity", "common"); return value;
         });
     }
+    private static void configuredBranchPruning() {
+        var recipes = new ArrayList<ProductionGraph.Process>();
+        for (int i = 0; i < 150; i++) recipes.add(recipe("fixture:wrong_" + i, "fixture:cell", "wrong_" + i,
+                List.of(json("{\"item\":\"fixture:missing\"}"))));
+        recipes.add(recipe("fixture:matching", "fixture:cell", "entry", List.of(json("{\"item\":\"fixture:material\"}"))));
+        recipes.add(recipe("fixture:device", "fixture:device", "entry", List.of(exact("fixture:cell", "entry", true))));
+        var access = access(new ProductionGraph(recipes, List.of()), Map.of("fixture:material", resource("fixture:material", AcquisitionSource.Kind.FARMING)));
+        var proof = access.requireFinite(List.of(stack("fixture:device", "entry"))).access();
+        check(proof.placement().reachable() && proof.selected().contains("fixture:matching"),
+                "Impossible component variants must not exhaust the unchanged 128-plan bound");
+        check(!access.requireFinite(List.of(stack("fixture:cell", "absent"))).access().placement().reachable(),
+                "Filtering cannot substitute another configuration for a missing one");
+    }
+    private static void countedOperatingFuel() {
+        var resources = Map.of("fixture:wood", finiteResource("fixture:wood", 3, 1));
+        var access = new ConfiguredRecipeAccess(new ProductionGraph(List.of(), List.of()), resources, Map.of(), Set.of(),
+                s -> new JsonObject(), Map.of("fixture:wood", 100), Map.of());
+        var setup = List.of(json("{\"id\":\"fixture:wood\",\"count\":2}"));
+        check(access.requireFueledSetup(setup, 1250, 50, 625).placement().reachable(),
+                "One remaining whole fuel item pays two actual generating ticks");
+        check(!access.requireFueledSetup(setup, 1251, 50, 625).placement().reachable(),
+                "Crafting and operating cannot spend the same finite wood twice or round down fuel count");
+        var shortFuel = new ConfiguredRecipeAccess(new ProductionGraph(List.of(), List.of()), resources, Map.of(), Set.of(),
+                s -> new JsonObject(), Map.of("fixture:wood", 49), Map.of());
+        check(!shortFuel.requireFueledSetup(setup, 1, 50, 625).placement().reachable(),
+                "Fuel shorter than one conversion operation provides zero usable energy");
+    }
     private static void earlierRecipeThanLoot() {
         var timer = new SourceAvailability.Timer(SourceAvailability.Applicability.OFF, 0, List.of());
         var source = new AcquisitionSource("fixture:late_loot", AcquisitionSource.Kind.LOOT, ProgressionBand.LATE, 1, false, false, 0, .9, List.of(), "Late optional loot",
@@ -382,7 +522,11 @@ public final class ConfiguredRecipeAccessTest {
         var components = stack(item, tier).getAsJsonObject("components"); components.addProperty("minecraft:rarity", "common"); value.add("components", components); return value;
     }
     private static ResourceEvidence resource(String id, AcquisitionSource.Kind kind) {
-        var source = new AcquisitionSource(id + "/source", kind, ProgressionBand.EARLY, 1, true, false, 0, .9, List.of(), "Independent fixture source");
+        var off = new SourceAvailability.Timer(SourceAvailability.Applicability.OFF, 0, List.of());
+        var available = kind == AcquisitionSource.Kind.TRADE ? null : new SourceAvailability(id + "/source",
+                SourceAvailability.Category.CONDITIONAL_RENEWABLE, SourceAvailability.Scope.SHARED,
+                List.of(), List.of(), List.of("Synthetic complete setup/input contract"), off, off, true, 1, 1, List.of());
+        var source = new AcquisitionSource(id + "/source", kind, ProgressionBand.EARLY, 1, true, false, 0, .9, List.of(), "Independent fixture source", available);
         return new ResourceEvidence(id, ProgressionBand.EARLY, Availability.RENEWABLE_MANUAL, Automation.NONE, true, true, 1, .9, List.of(source), List.of());
     }
     private static JsonObject json(String text) { return JsonParser.parseString(text).getAsJsonObject(); }

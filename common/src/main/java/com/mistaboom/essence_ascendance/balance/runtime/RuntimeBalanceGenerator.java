@@ -312,31 +312,39 @@ public final class RuntimeBalanceGenerator {
         return runtime.withContentIdentity();
     }
 
-    /** Only provisional posture growth changes: newly implemented healing must remain useful at every tier. */
+    /** Reserve recovery against the offensive envelope before sharing remaining growth with postures. */
     private static RuntimeBalanceDefinition reserveVitalityHeadroom(RuntimeBalanceDefinition runtime, PackEvidence evidence,
             BalanceSettings settings, RuntimeBuildScenarios.Plan firstRankPlan, RuntimeBuildScenarios.Plan plan) {
         var requested = runtime.skillCurves();
         // Future offensive growth increases accepted weapon healing. Fit the
         // requested recovery stress curve against that dependency while postures
-        // keep their unchanged rank-one values, preserving honest recovery growth.
+        // retain the mandatory minimum future growth, preserving honest recovery growth.
         runtime = adjusted(runtime, 0, BuildComposition.Channel.HEALING, true, settings);
-        // Rank-one values are purchased now. Do not recalibrate them against
-        // the five-rank stress projection; future offensive growth gets its
-        // own analytic curve below.
+        // Establish current-rank safety first, then reserve the developed
+        // damage dependency below before allocating healing growth.
         runtime = calibrateVitality(runtime, evidence, settings, firstRankPlan, false);
         runtime = new RuntimeBalanceDefinition(runtime.config(), runtime.crucible(), runtime.pylons(), requested, runtime.composition(), runtime.attunement());
-        var noPostureGrowth = adjusted(runtime, 0, BuildComposition.Channel.HEALING, true, settings);
-        // Start the analytic Vitality rank pass from the purchased value for
-        // both mutually exclusive recovery branches. Otherwise the first
-        // branch would be tested while the other branch still carries its
-        // requested future curve and would incorrectly fail at factor zero.
-        noPostureGrowth = scaleVitality(noPostureGrowth, com.mistaboom.essence_ascendance.skill.SkillIds.RISING_RECOVERY, 0, true);
-        noPostureGrowth = scaleVitality(noPostureGrowth, com.mistaboom.essence_ascendance.skill.SkillIds.LIFE_STEAL, 0, true);
-        noPostureGrowth = calibrateVitality(noPostureGrowth, evidence, settings, plan, true);
+        // Keep the already required 2% minimum growth in the envelope while
+        // allocating recovery; otherwise recovery spends that same room twice.
+        var minimumPostureGrowth = adjusted(runtime, .02, BuildComposition.Channel.HEALING, true, settings);
+        // Damage-derived healing must reserve its rank-one cost against the
+        // already allocated future damage/cadence before freezing that healing
+        // coefficient. Otherwise even zero additional healing ranks can exceed
+        // sustain. This changes the dependent healing coefficient, not damage,
+        // equipment, or any safety ceiling.
+        var recoveryFloor = adjusted(runtime, .02, BuildComposition.Channel.HEALING, true, settings);
+        recoveryFloor = scaleVitality(recoveryFloor, com.mistaboom.essence_ascendance.skill.SkillIds.RISING_RECOVERY, 0, true);
+        recoveryFloor = scaleVitality(recoveryFloor, com.mistaboom.essence_ascendance.skill.SkillIds.LIFE_STEAL, 0, true);
+        recoveryFloor = calibrateVitality(recoveryFloor, evidence, settings, plan, false);
+        minimumPostureGrowth = new RuntimeBalanceDefinition(recoveryFloor.config(), minimumPostureGrowth.crucible(),
+                minimumPostureGrowth.pylons(), minimumPostureGrowth.skillCurves(), recoveryFloor.composition(), minimumPostureGrowth.attunement());
+        runtime = new RuntimeBalanceDefinition(recoveryFloor.config(), runtime.crucible(), runtime.pylons(),
+                runtime.skillCurves(), recoveryFloor.composition(), runtime.attunement());
+        minimumPostureGrowth = calibrateVitality(minimumPostureGrowth, evidence, settings, plan, true);
         var reserved = new TreeMap<>(requested);
         for (var id : List.of(com.mistaboom.essence_ascendance.skill.SkillIds.RISING_RECOVERY,
                 com.mistaboom.essence_ascendance.skill.SkillIds.LIFE_STEAL)) {
-            var curve = noPostureGrowth.skillCurves().get(id.toString());
+            var curve = minimumPostureGrowth.skillCurves().get(id.toString());
             reserved.put(id.toString(), new com.mistaboom.essence_ascendance.skill.balance.SkillBalanceRuntime.ResolvedSkill(curve.maximumRank(),
                     curve.ranks().stream().map(rank -> new com.mistaboom.essence_ascendance.skill.balance.SkillBalanceRuntime.ResolvedRank(
                             rank.rank(), rank.cost(), 1 + (rank.powerMultiplier() - 1) * .5)).toList(), curve.requiredTierId()));
@@ -357,8 +365,22 @@ public final class RuntimeBalanceGenerator {
     /** New healing consumes remaining headroom without changing any existing runtime value. */
     private static RuntimeBalanceDefinition calibrateVitality(RuntimeBalanceDefinition runtime, PackEvidence evidence,
             BalanceSettings settings, RuntimeBuildScenarios.Plan plan, boolean ranks) {
+        var requested = runtime.skillCurves();
+        if (ranks) {
+            // Each exclusive branch starts from its safe purchased state. Restore
+            // its requested growth immediately before its own search: zeroing both
+            // without restoring them silently discards the growth being reserved.
+            runtime = scaleVitality(runtime, com.mistaboom.essence_ascendance.skill.SkillIds.RISING_RECOVERY, 0, true);
+            runtime = scaleVitality(runtime, com.mistaboom.essence_ascendance.skill.SkillIds.LIFE_STEAL, 0, true);
+        }
         for (var id : List.of(com.mistaboom.essence_ascendance.skill.SkillIds.RISING_RECOVERY,
                 com.mistaboom.essence_ascendance.skill.SkillIds.LIFE_STEAL)) {
+            if (ranks) {
+                var curves = new TreeMap<>(runtime.skillCurves());
+                curves.put(id.toString(), requested.get(id.toString()));
+                runtime = new RuntimeBalanceDefinition(runtime.config(), runtime.crucible(), runtime.pylons(),
+                        curves, runtime.composition(), runtime.attunement());
+            }
             // Validate one recovery branch at a time; mutual exclusion makes the magnitudes independent.
             var only = vitalityPlan(plan, id);
             double low = 0, high = 1;
@@ -526,15 +548,17 @@ public final class RuntimeBalanceGenerator {
             throw new IllegalArgumentException("Cannot calibrate "+channel+" without changing base equipment; "
                     +RuntimeBuildScenarios.analyze(zero,evidence,settings,plan).firstViolation(channel));
         }
-        double low=0,high=1;
+        var minimum = adjusted(source, .02, channel, rankGrowth, settings);
+        if (!RuntimeBuildScenarios.isSafe(minimum,evidence,settings,plan,channel))
+            throw new IllegalArgumentException("Requested "+channel+" targets leave less than 2% of "
+                    +(rankGrowth?"additional rank growth":"rank-one added power")+"; revise external evidence or friendly power controls; "
+                    +RuntimeBuildScenarios.analyze(minimum,evidence,settings,plan).firstViolation(channel));
+        double low=.02,high=1;
         for(int pass=0;pass<20;pass++) {
             double middle=(low+high)/2;
             var candidate=adjusted(source,middle,channel,rankGrowth,settings);
             if(RuntimeBuildScenarios.isSafe(candidate,evidence,settings,plan,channel))low=middle;else high=middle;
         }
-        if(low<.02)throw new IllegalArgumentException("Requested "+channel+" targets leave less than 2% of "
-                +(rankGrowth?"additional rank growth":"rank-one added power")+"; revise external evidence or friendly power controls; "
-                +RuntimeBuildScenarios.analyze(adjusted(source,.02,channel,rankGrowth,settings),evidence,settings,plan).firstViolation(channel));
         return low;
     }
     private static RuntimeBalanceDefinition adjusted(RuntimeBalanceDefinition source,double factor,

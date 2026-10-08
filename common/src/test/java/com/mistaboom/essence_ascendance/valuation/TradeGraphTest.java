@@ -54,6 +54,29 @@ public final class TradeGraphTest {
         require(skippedOutput.isEmpty() && skipped.values().stream().mapToInt(Integer::intValue).sum() == 6,
                 "Every excluded factory is diagnosed without inventing an acquisition source");
         int[] ordinaryCalls = {0};
+        require(TradeSamplingScope.isolatedLootRandom(null) == null, "Normal loot retains native world RNG selection");
+        var explicitRandom = net.minecraft.util.RandomSource.create(9);
+        long sampled = TradeSamplingScope.sample(42, () -> {
+            require(TradeSamplingScope.isolatedLootRandom(explicitRandom) == explicitRandom,
+                    "A factory's explicit loot seed remains authoritative");
+            return TradeSamplingScope.isolatedLootRandom(null).nextLong();
+        });
+        require(sampled == TradeSamplingScope.sample(42, () -> TradeSamplingScope.isolatedLootRandom(null).nextLong()),
+                "Nested unseeded loot samples are repeatable without advancing a world RNG");
+        try { TradeSamplingScope.sample(42, () -> { throw new IllegalArgumentException("fixture"); }); }
+        catch (IllegalArgumentException expected) { }
+        require(TradeSamplingScope.isolatedLootRandom(null) == null, "Failed optional trade reads cannot leak their RNG scope");
+        require(TradeSamplingScope.entityRandom(() -> explicitRandom) == explicitRandom, "Gameplay entity RNG creation remains native");
+        long entityRoll = TradeSamplingScope.sample(45, () -> TradeSamplingScope.entityRandom(() -> { throw new AssertionError(); }).nextLong());
+        require(entityRoll == TradeSamplingScope.sample(45, () -> TradeSamplingScope.entityRandom(() -> { throw new AssertionError(); }).nextLong()),
+                "Hypothetical constructor/reward randomness must reproduce its native sample");
+        TradeSamplingScope.sample(45, () -> {
+            long first = TradeSamplingScope.entityRandom(() -> { throw new AssertionError(); }).nextLong();
+            TradeSamplingScope.sample(5, () -> TradeSamplingScope.entityRandom(() -> explicitRandom));
+            long second = TradeSamplingScope.entityRandom(() -> { throw new AssertionError(); }).nextLong();
+            require(first == entityRoll && first != second, "Nested sampling restores the independent constructor seed stream");
+            return null;
+        });
         VillagerTrades.ItemListing ordinaryModdedTrade = (trader, random) -> {
             ordinaryCalls[0]++;
             return new MerchantOffer(new ItemCost(Items.EMERALD, 2), new ItemStack(Items.BREAD), 7, 1, .05f);

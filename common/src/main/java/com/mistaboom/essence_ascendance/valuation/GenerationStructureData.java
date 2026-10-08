@@ -25,7 +25,7 @@ record GenerationStructureData(Set<ResourceLocation> sets, Set<ResourceLocation>
     }
 
     static GenerationStructureData capture(ChunkGenerator generator, HolderLookup.Provider registries, boolean enabled) {
-        if (!enabled || !(generator instanceof FlatLevelSource || generator instanceof NoiseBasedChunkGenerator))
+        if (!enabled || generator.getClass() != FlatLevelSource.class && generator.getClass() != NoiseBasedChunkGenerator.class)
             return new GenerationStructureData(Set.of(), Set.of());
         var possibleBiomes = generator.getBiomeSource().possibleBiomes();
         Stream<? extends Holder<StructureSet>> candidates = generator instanceof FlatLevelSource flat && flat.settings().structureOverrides().isPresent()

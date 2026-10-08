@@ -135,7 +135,11 @@ public final class NativeTradeProgression {
                     row.add("jobsiteItems", BalanceDocument.GSON.toJsonTree(jobsites));
                     var materialWitnesses = new JsonArray(); var accepted = new ArrayList<AcquiredBook>();
                     var actor = actors.stream().filter(a -> a.villagerType().equals(target.villagerType())).findFirst();
-                    for (var plan : search.plans()) for (String jobsite : jobsites) {
+                    // Without the required actor no material search can produce an acquired
+                    // book or affect calibration. Retain the raw plans and exact missing gate;
+                    // do not spend hundreds of joint bill searches on unused partial witnesses.
+                    if (actor.isEmpty()) row.addProperty("materialSearch", "Not evaluated: no matching supported NPC opportunity; raw plans retained, no acquisition or absence inferred");
+                    if (actor.isPresent()) for (var plan : search.plans()) for (String jobsite : jobsites) {
                         var bill = new ArrayList<>(bill(plan)); bill.add(NativeConsumables.request(jobsite, 1));
                         var proof = access.requireExploration(bill).access();
                         if (!proof.placement().reachable()) continue;

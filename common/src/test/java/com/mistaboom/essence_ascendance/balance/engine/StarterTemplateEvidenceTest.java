@@ -45,6 +45,17 @@ public final class StarterTemplateEvidenceTest {
                 state -> Map.of(BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString(),1.0));
         check(exclusive.size() == 2 && SkyblockBuilderStartingSourcesProvider.commonMinimum(exclusive,Map.of()).isEmpty(),
                 "Selectable palettes remain exclusive; oak/birch cannot be combined");
+        var leaves = structure(List.of(List.of(Blocks.OAK_LEAVES)), new int[]{0,0,0,0}, -1);
+        var chance = SkyblockBuilderStartingSourcesProvider.captureSeedOpportunities("tree", leaves, state -> Map.of(
+                "minecraft:oak_sapling", new com.mistaboom.essence_ascendance.valuation.StartingBlockDrops.ExpectedDrop(.05, .05),
+                "minecraft:apple", new com.mistaboom.essence_ascendance.valuation.StartingBlockDrops.ExpectedDrop(.1, .1)));
+        check(chance.equals(List.of(Map.of("minecraft:oak_sapling", .05))), "Starter seed opportunity cannot become four seeds, guaranteed stock, or arbitrary food supply");
+        var seedChoices = structure(List.of(List.of(Blocks.OAK_LEAVES), List.of(Blocks.BIRCH_LEAVES)), new int[]{0}, -1);
+        var seedBundles = SkyblockBuilderStartingSourcesProvider.captureSeedOpportunities("trees", seedChoices, state -> Map.of(
+                state.is(Blocks.OAK_LEAVES) ? "minecraft:oak_sapling" : "minecraft:birch_sapling",
+                new com.mistaboom.essence_ascendance.valuation.StartingBlockDrops.ExpectedDrop(.05, .05)))
+                .stream().map(seeds -> new SkyblockBuilderStartingSourcesProvider.Bundle("seed alternative", seeds, 0)).toList();
+        check(SkyblockBuilderStartingSourcesProvider.commonMinimum(seedBundles, Map.of()).isEmpty(), "Exclusive starter seeds cannot bootstrap one common cultivation route");
         var withNbt = structure(List.of(List.of(Blocks.OAK_LOG)),new int[]{0,0},0);
         check(SkyblockBuilderStartingSourcesProvider.captureTemplate("nbt",withNbt,state -> Map.of("minecraft:oak_log",1.0))
                 .getFirst().items().equals(Map.of("minecraft:oak_log",1.0)), "Placed NBT is excluded even when supplied palette claims an ordinary block");

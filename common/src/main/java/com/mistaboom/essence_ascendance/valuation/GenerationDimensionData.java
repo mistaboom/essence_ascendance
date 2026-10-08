@@ -33,7 +33,9 @@ record GenerationDimensionData(Map<ResourceLocation, JsonObject> biomes, Map<Res
                                             HolderLookup.Provider registries, Map<ResourceLocation, JsonObject> sharedBiomes) {
         var ops = registries.createSerializationContext(JsonOps.INSTANCE);
         Map<ResourceLocation, JsonObject> biomes = new TreeMap<>(), natural = new TreeMap<>(), terrain = new TreeMap<>();
-        boolean supported = generator instanceof NoiseBasedChunkGenerator || generator instanceof FlatLevelSource;
+        // Subclasses can replace noise fill, surface, decorations and structures (for
+        // example a void generator). Inheriting a class never proves native terrain.
+        boolean supported = generator.getClass() == NoiseBasedChunkGenerator.class || generator.getClass() == FlatLevelSource.class;
         List<String> biomeIds = new ArrayList<>(), limitations = new ArrayList<>();
         if (!supported) limitations.add("Dimension " + dimension + ": unsupported generator " + generator.getClass().getName() + "; geology and decoration remain unknown");
         for (var biome : generator.getBiomeSource().possibleBiomes()) {
@@ -45,19 +47,25 @@ record GenerationDimensionData(Map<ResourceLocation, JsonObject> biomes, Map<Res
             if (supported) {
                 JsonObject root = new JsonObject();
                 root.add("features", generator instanceof FlatLevelSource flat
-                        ? encode(BiomeGenerationSettings.CODEC.codec(), flat.settings().adjustGenerationSettings(biome), ops,
+                        // Native adjustment nulls non-motion-blocking layers in its receiver.
+                        // Work on a reconstructed definition, never mutate the live generator's
+                        // layer cache or invoke adjustment twice on that one-shot cache.
+                        ? encode(BiomeGenerationSettings.CODEC.codec(), flat.settings().withBiomeAndLayers(
+                                flat.settings().getLayersInfo(), flat.settings().structureOverrides(), flat.settings().getBiome())
+                                .adjustGenerationSettings(biome), ops,
                             "effective decoration " + dimension + "/" + biomeId).get("features")
                         : body.get("features"));
                 natural.put(ResourceLocation.fromNamespaceAndPath(dimension.getNamespace(), dimension.getPath() + "/biome/" + biomeId.getNamespace() + "/" + biomeId.getPath()), root);
             }
         }
         String geology = "unknown";
-        if (generator instanceof NoiseBasedChunkGenerator noise) {
+        if (supported && generator instanceof NoiseBasedChunkGenerator noise) {
             terrain.put(dimension, encode(NoiseGeneratorSettings.DIRECT_CODEC, noise.generatorSettings().value(), ops, "effective terrain " + dimension));
             geology = "supported_noise_terrain";
-        } else if (generator instanceof FlatLevelSource flat) {
+        } else if (supported && generator instanceof FlatLevelSource flat) {
             JsonObject root = new JsonObject(); JsonArray layers = new JsonArray();
-            flat.settings().getLayers().stream().filter(java.util.Objects::nonNull).filter(state -> !state.isAir()).distinct().forEach(state -> {
+            flat.settings().getLayersInfo().stream().map(net.minecraft.world.level.levelgen.flat.FlatLayerInfo::getBlockState)
+                    .filter(state -> !state.isAir()).distinct().forEach(state -> {
                 JsonObject layer = new JsonObject(); layer.addProperty("Name", BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString()); layers.add(layer);
             });
             root.add("surface_rule", layers); terrain.put(dimension, root);

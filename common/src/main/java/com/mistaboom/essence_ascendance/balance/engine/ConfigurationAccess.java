@@ -10,6 +10,23 @@ public final class ConfigurationAccess {
     public static Proof require(Map<String, ResourceEvidence> resources, List<List<String>> requirements) {
         return new Resolver(resources).require(requirements);
     }
+    /** Finite quest lineage cannot erase a later, independently proved renewable
+     * operation. This refines only quest-derived restrictions; explicit exact-recipe
+     * requirements are applied separately by their caller. Advisory source rows and
+     * unproved/uncertain renewability never remove a finite claim. */
+    public static Set<String> remainingFiniteClaims(Map<String, ResourceEvidence> resources, Set<String> claims) {
+        var remaining = new HashSet<>(claims);
+        remaining.removeIf(id -> {
+            var resource = resources.get(id);
+            return resource != null && resource.reachable() && resource.external() && resource.confidence() >= .5
+                    && (resource.availability() == Availability.RENEWABLE_MANUAL || resource.availability() == Availability.EFFECTIVELY_INFINITE)
+                    && resource.sources().stream().anyMatch(source -> source.renewable() && source.confidence() >= .5
+                    && source.expectedOutput() > 0 && (source.kind() == AcquisitionSource.Kind.PLAYER_ACTION || source.kind() == AcquisitionSource.Kind.FARMING)
+                    && source.availability() != null && source.availability().accessProven() && source.availability().uncertainty().isEmpty()
+                    && source.availability().category() == SourceAvailability.Category.CONDITIONAL_RENEWABLE);
+        });
+        return Set.copyOf(remaining);
+    }
     /** One per provider operation; repeated seed/soil/module inputs reuse normalized placements. */
     public static final class Resolver {
         private final Map<String, ResourceEvidence> resources;

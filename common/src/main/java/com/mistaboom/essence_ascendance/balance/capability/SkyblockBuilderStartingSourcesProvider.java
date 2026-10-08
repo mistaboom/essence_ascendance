@@ -43,21 +43,32 @@ public final class SkyblockBuilderStartingSourcesProvider implements PackEvidenc
         Function<BlockState, Map<String,Double>> proof = state -> drops.computeIfAbsent(state,
                 key -> StartingBlockDrops.guaranteedSingleHandDrops(inputs, key));
         List<Bundle> alternatives = new ArrayList<>();
+        List<Map<String, Double>> seedAlternatives = new ArrayList<>();
+        Map<BlockState, Map<String, StartingBlockDrops.ExpectedDrop>> seedDrops = new HashMap<>();
         int failed = 0;
         for (Object configured : loaded) {
             String name = (String) invoke(configured, "getName");
             var captured = OptionalIntegration.attempt(id(), "template " + name, () -> {
                 StructureTemplate template = (StructureTemplate) invoke(configured, "getTemplate");
-                return captureTemplate(name, template.save(new CompoundTag()), proof);
+                var nbt = template.save(new CompoundTag());
+                var stocks = captureTemplate(name, nbt, proof);
+                var seeds = captureSeedOpportunities(name, nbt, state -> seedDrops.computeIfAbsent(state,
+                        key -> StartingBlockDrops.supportedHandDrops(inputs, key)));
+                return Map.entry(stocks, seeds);
             });
-            if (captured.succeeded()) alternatives.addAll(captured.value().orElseThrow());
-            else { alternatives.add(new Bundle(name + "/unresolved", Map.of(), 1)); failed++; }
+            if (captured.succeeded()) { alternatives.addAll(captured.value().orElseThrow().getKey()); seedAlternatives.addAll(captured.value().orElseThrow().getValue()); }
+            else { alternatives.add(new Bundle(name + "/unresolved", Map.of(), 1)); seedAlternatives.add(Map.of()); failed++; }
         }
         List<ItemStack> starterItems = new ArrayList<>();
         for (Object pair : (List<?>) invokeStatic(PREFIX + "config.StartingInventory", "getStarterItems"))
             starterItems.add(((ItemStack) invoke(pair, "getRight")).copy());
         Map<String,Double> literal = literalStarterItems(starterItems);
         Map<String,Double> common = commonMinimum(alternatives, literal);
+        var seedBundles = seedAlternatives.stream().map(seeds -> new Bundle("conditional seed opportunity", seeds, 0)).toList();
+        commonMinimum(seedBundles, Map.of()).forEach((seed, chance) -> {
+            fact(sink, EvidenceFact.Subject.ITEM, seed, "native_initial_seed_chance", EvidenceFact.Value.number(chance),
+                    "Each selectable starter/palette contains a native hand-harvest block with at least this positive sapling-drop probability. Reserve ONE seed conditional on a successful harvest; no guaranteed stock, repeats, additional seeds or rate.");
+        });
         fact(sink, EvidenceFact.Subject.PROVIDER, id(), "initial_bundles", EvidenceFact.Value.text(BalanceDocument.GSON.toJson(alternatives)),
                 "Exclusive loaded alternatives retained; common minima alone establish shared start access");
         fact(sink, EvidenceFact.Subject.PROVIDER, id(), "starter_inventory", EvidenceFact.Value.text(BalanceDocument.GSON.toJson(literal)),
@@ -79,6 +90,29 @@ public final class SkyblockBuilderStartingSourcesProvider implements PackEvidenc
 
     public record Bundle(String identity, Map<String,Double> items, int unresolvedBlocks) {
         public Bundle { items = Collections.unmodifiableMap(new TreeMap<>(items)); }
+    }
+    /** Reuse the strict native template walk. Only one positive seed event is needed;
+     * a lower bound across witnessed blocks avoids inventing independent rolls or quantity. */
+    public static List<Map<String, Double>> captureSeedOpportunities(String name, CompoundTag template,
+            Function<BlockState, Map<String, StartingBlockDrops.ExpectedDrop>> harvest) {
+        // captureTemplate adds per-block amounts. Encode presence first, then retain
+        // the minimum positive chance of qualifying blocks as a conservative witness.
+        var chances = new TreeMap<String, Double>();
+        var bundles = captureTemplate(name, template, state -> {
+            var present = new TreeMap<String, Double>();
+            harvest.apply(state).forEach((id, drop) -> {
+                var item = BuiltInRegistries.ITEM.getOptional(net.minecraft.resources.ResourceLocation.parse(id)).orElse(null);
+                if (item instanceof net.minecraft.world.item.BlockItem block && block.getBlock().getClass() == net.minecraft.world.level.block.SaplingBlock.class
+                        && drop.chance() > 0 && drop.chance() <= 1 && drop.expectedCount() + 1e-12 >= drop.chance()) {
+                    present.put(id, 1.0); chances.merge(id, drop.chance(), Math::min);
+                }
+            });
+            return present;
+        });
+        return bundles.stream().map(bundle -> {
+            var result = new TreeMap<String, Double>(); bundle.items().keySet().forEach(id -> result.put(id, chances.get(id)));
+            return Collections.unmodifiableMap(result);
+        }).toList();
     }
     public static boolean supportsGenerator(String type) {
         return (PREFIX + "world.chunkgenerators.SkyblockNoiseBasedChunkGenerator").equals(type);

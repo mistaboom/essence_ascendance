@@ -21,24 +21,22 @@ public final class IronJetpackCapabilityProvider implements PackEvidenceProvider
     public ProviderReadiness readiness(GenerationDataSnapshot inputs) {
         return InstalledCapabilityProviders.version(inputs.installedVersion("ironjetpacks"), "8.0.11",
                 inputs.installedVersion("neoforge") != null,
-                "Loaded configuration, static exact-component craft access and audited FE/velocity operation; custom upgrade transforms remain unknown");
+                "Loaded configuration, exact static/default-upgrade crafting and audited FE/velocity operation; arbitrary modified upgrade inputs remain unmodeled");
     }
     public void collect(PackEvidenceContext context, EvidenceSink sink) { }
     public void collectCapabilities(PackEvidenceContext context, Map<String, ResourceEvidence> resources, CapabilitySink sink) {
         var access = ConfiguredRecipeAccess.nativeCrafting(context, resources);
-        ConfigurationAccess.Proof charger = null;
+        access.addDefaultJetpackUpgrades(context).forEach((recipe, witness) -> sink.definition(id(), "craft/" + recipe, witness));
         boolean chargingAudited = "1.14.1".equals(context.inputs().installedVersion("charginggadgets"));
-        if (chargingAudited) charger = access.requireFuel();
         Object registry = staticCall(API + "registry.JetpackRegistry", "getInstance");
         List<?> definitions = (List<?>)call(registry, "getJetpacks");
         if (definitions.size() > 4096) throw new IllegalArgumentException("Jetpack registry exceeds bounded configuration census");
-        final var operatingProof = charger;
         int index = 0;
         for (Object jetpack : definitions) {
             String operation = "configuration-" + index++;
             var attempt = OptionalIntegration.attempt(id(), operation, () -> {
                 var staged = new CapabilitySink();
-                collectConfiguration(context, access, operatingProof, jetpack, staged);
+                collectConfiguration(context, access, chargingAudited, jetpack, staged);
                 return staged;
             });
             attempt.value().ifPresentOrElse(sink::merge,
@@ -47,7 +45,7 @@ public final class IronJetpackCapabilityProvider implements PackEvidenceProvider
         }
     }
     private void collectConfiguration(PackEvidenceContext context, ConfiguredRecipeAccess access,
-            ConfigurationAccess.Proof charger, Object jetpack, CapabilitySink sink) {
+            boolean chargingAudited, Object jetpack, CapabilitySink sink) {
             var ops = RegistryOps.create(JsonOps.INSTANCE, context.server().registryAccess());
             sink.analyzed();
             String configuration = call(jetpack, "getId").toString();
@@ -71,16 +69,14 @@ public final class IronJetpackCapabilityProvider implements PackEvidenceProvider
             if (!creative) {
                 var station = new JsonObject(); station.addProperty("id", "charginggadgets:charging_station"); setup.add(station);
             }
-            var craft = access.requireFinite(setup).access();
-            List<ConfigurationAccess.Proof> requirements = new ArrayList<>(); requirements.add(craft);
             if (!creative) {
-                if (charger == null) {
+                if (!chargingAudited) {
                     sink.candidate(configuration, id(), "No audited independently accessible FE charging/fuel witness",
                             capabilityAxes(), CapabilitySink.Reason.UNSUPPORTED_API); return;
                 }
-                requirements.add(charger);
             }
-            var proof = ConfiguredRecipeAccess.combine(requirements, configuration, .9);
+            var craft = creative ? access.requireExploration(setup).access() : access.requireFueledExploration(setup, capacity, 50, 625);
+            var proof = ConfiguredRecipeAccess.combine(List.of(craft), configuration, .9);
             if (!proof.placement().reachable()) {
                 sink.candidate(configuration, id(), "Exact craft/operating configuration access unproven: " + String.join("; ", proof.unknown()),
                         capabilityAxes(), CapabilitySink.Reason.ACCESS_UNPROVEN); return;
@@ -88,7 +84,7 @@ public final class IronJetpackCapabilityProvider implements PackEvidenceProvider
             String item = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
             var costs = creative ? List.of("Creative configuration; its own exact craft access remains required")
                     : List.of(usage + " FE per active native tick", "Station burns standard smelting fuel: floor(burnTicks)/50 ticks at 625 FE/tick",
-                    "Charging transfers up to 2500 FE/tick; charge exhaustion ends thrust/hover");
+                    "Joint counted fuel bill fills " + capacity + " FE from empty; charging transfers up to 2500 FE/tick; charge exhaustion ends thrust/hover");
             var unsupported = List.of("FLIGHT presence only; velocity fields are native impulse controls, not measured travel throughput",
                     "Loaded-area/player duty cycle unmeasured; no permanent standard-flight permission or Abilities#flyingSpeed response",
                     "Fall-distance reset applies only while native powered flight operation runs; no unconditional void rescue");
@@ -97,7 +93,7 @@ public final class IronJetpackCapabilityProvider implements PackEvidenceProvider
             var measurement = CompetitiveCapabilities.measurement(CapabilityAxis.FLIGHT, 1.0, "presence", "configured powered directional thrust and hover",
                     Scope.self(), operation, id(), Origin.TYPED_ADAPTER, unsupported);
             sink.add(new Functional(new CapabilityEvidence(item, proof.placement().stage(), Map.of(CapabilityAxis.FLIGHT, 1.0), true,
-                    proof.placement().confidence(), "Loaded Iron Jetpacks configuration " + configuration + "; exact static craft and operating witnesses"),
+                    proof.placement().confidence(), "Loaded Iron Jetpacks configuration " + configuration + "; exact crafting and operating witnesses"),
                     configuration, List.of(measurement), proof.placement().acquisition(), true));
     }
     private static Object call(Object target, String method) {

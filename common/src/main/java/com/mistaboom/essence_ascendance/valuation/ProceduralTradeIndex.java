@@ -54,12 +54,13 @@ final class ProceduralTradeIndex {
     private final int professionTableCount;
     private final int listingCount;
     private final int offerCount;
+    private final Map<String, Integer> excludedFactories;
 
     private ProceduralTradeIndex(
             Map<Item, List<TradeSource>> sourcesByOutput,
             int professionTableCount,
             int listingCount,
-            int offerCount
+            int offerCount, Map<String, Integer> excludedFactories
     ) {
         Map<Item, List<TradeSource>> frozen = new IdentityHashMap<>();
         sourcesByOutput.forEach((item, sources) -> frozen.put(item, List.copyOf(sources)));
@@ -67,6 +68,7 @@ final class ProceduralTradeIndex {
         this.professionTableCount = professionTableCount;
         this.listingCount = listingCount;
         this.offerCount = offerCount;
+        this.excludedFactories = Map.copyOf(excludedFactories);
     }
 
     static ProceduralTradeIndex build(MinecraftServer server) {
@@ -178,7 +180,7 @@ final class ProceduralTradeIndex {
         ));
 
         if (!worldDependentListings.isEmpty()) EssenceAscendance.LOGGER.info(
-                "Procedural trade evidence skipped world-dependent offer factories {}: structure searches and map creation are not balance inputs",
+                "Procedural trade evidence excluded unsupported factories {}: no acquisition or absence inferred",
                 worldDependentListings);
         EssenceAscendance.LOGGER.info(
                 "Procedural trade index built: {} villager level tables, {} listing factories, {} sampled offer variants, {} output items",
@@ -188,7 +190,13 @@ final class ProceduralTradeIndex {
                 output.size()
         );
 
-        return new ProceduralTradeIndex(output, professionTables, listings, offers);
+        return new ProceduralTradeIndex(output, professionTables, listings, offers, worldDependentListings);
+    }
+
+    List<String> limitations() {
+        return excludedFactories.entrySet().stream().sorted(Map.Entry.comparingByKey())
+                .map(e -> "Trade factory evidence excluded (" + e.getValue() + " listings): " + e.getKey()
+                        + "; access remains unproven, not absent; other recipe/loot evidence is retained").toList();
     }
 
     List<TradeSource> sources(Item item) {
@@ -230,7 +238,12 @@ final class ProceduralTradeIndex {
         // saved map data. Evaluating it is unsafe during pre-spawn analysis (or
         // any read-only valuation). Its acquisition stays unknown instead.
         if (worldDependentListing(factory, 0)) {
-            worldDependentListings.merge(factory.getClass().getName(), 1, Integer::sum);
+            worldDependentListings.merge(stableClass(factory.getClass()) + ": world-dependent map creation/structure search", 1, Integer::sum);
+            return 0;
+        }
+        String uncontrolled = uncontrolledRandomness(factory, 0);
+        if (uncontrolled != null) {
+            worldDependentListings.merge(uncontrolled, 1, Integer::sum);
             return 0;
         }
         Map<String, TradeSource> unique = new LinkedHashMap<>();
@@ -241,7 +254,7 @@ final class ProceduralTradeIndex {
                         ^ ((long) listingIndex << 32)
                         ^ ((long) level << 20)
                         ^ (long) sample * 0x9E3779B97F4A7C15L;
-                MerchantOffer offer = factory.getOffer(trader, RandomSource.create(seed));
+                MerchantOffer offer = TradeSamplingScope.sample(seed, () -> factory.getOffer(trader, RandomSource.create(seed)));
                 if (offer == null || offer.getMaxUses() <= 0) {
                     continue;
                 }
@@ -281,7 +294,7 @@ final class ProceduralTradeIndex {
                         wandering,
                         Math.max(1, listingPoolSize),
                         offer.getMaxUses(),
-                        factory.getClass().getName(), definition, failure, seed,
+                        stableClass(factory.getClass()), definition, failure, seed,
                         trader instanceof Villager villager ? BuiltInRegistries.VILLAGER_TYPE.getKey(villager.getVillagerData().getType()).toString() : "not_villager"
                 );
                 unique.putIfAbsent(source.identityKey(), source);
@@ -299,6 +312,29 @@ final class ProceduralTradeIndex {
                     .add(source);
         }
         return unique.size();
+    }
+
+    static String stableClass(Class<?> type) {
+        return type.isHidden() ? type.getNestHost().getName() + "$$Lambda" : type.getName();
+    }
+
+    static String uncontrolledRandomness(VillagerTrades.ItemListing listing, int depth) {
+        if (depth > 16) return "Unresolved nested trade factory";
+        if (listing instanceof VillagerTrades.TypeSpecificTrade typed) {
+            for (var child : typed.trades().values()) {
+                String reason = uncontrolledRandomness(child, depth + 1);
+                if (reason != null) return reason;
+            }
+        }
+        String name = stableClass(listing.getClass());
+        // Installed bytecode uses process-global Math.random or a static Random
+        // behind arbitrary suppliers. Four observed rolls cannot certify their
+        // price/output distribution. Do not run, reseed, freeze, or fabricate it.
+        if (name.equals("cy.jdkdigital.productivefarming.event.EventHandler$$Lambda"))
+            return name + ": Math.random output quantity; complete loaded distribution adapter unavailable";
+        if (name.equals("com.hollingsworth.arsnouveau.common.event.EventHandler$$Lambda"))
+            return name + ": static DungeonLootTables RNG and supplier outputs; complete loaded distribution adapter unavailable";
+        return null;
     }
 
     static String encodeOffer(MerchantOffer offer, com.mojang.serialization.DynamicOps<com.google.gson.JsonElement> ops) {

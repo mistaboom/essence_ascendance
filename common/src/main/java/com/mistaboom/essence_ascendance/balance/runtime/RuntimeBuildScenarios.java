@@ -43,7 +43,15 @@ public final class RuntimeBuildScenarios {
     }
     public record Analysis(double attenuation, List<Case> cases, List<String> assumptions) {
         public Analysis { cases = List.copyOf(cases); assumptions = List.copyOf(assumptions); }
-        public void requireSafe() { for (var row : cases) row.evaluation().requireSafe(); }
+        public void requireSafe() {
+            for (var row : cases) {
+                try { row.evaluation().requireSafe(); }
+                catch (IllegalArgumentException failure) {
+                    throw new IllegalArgumentException(failure.getMessage() + "; "
+                            + String.join("; ", row.evaluation().assumptions()), failure);
+                }
+            }
+        }
         public boolean safeFor(Channel channel) {
             return cases.stream().flatMap(row -> row.evaluation().violations().stream())
                     .noneMatch(v -> channel == null || channel.includes(v.metric()));

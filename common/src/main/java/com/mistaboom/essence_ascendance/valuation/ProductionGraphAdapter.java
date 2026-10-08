@@ -96,6 +96,7 @@ public final class ProductionGraphAdapter {
         metadata.put("listing_class", trade.listingClass());
         metadata.put("sampled_villager_type", trade.villagerType());
         metadata.put("sample_seed", Long.toString(trade.sampleSeed()));
+        metadata.put("sampling_policy", "Fixed supplied RNG and private streams for nested unseeded loot and disposable entities; explicit loot seeds retained; possible sampled offers, not an exhaustive distribution or a guaranteed encounter");
         if (!trade.offerDefinition().isEmpty()) metadata.put("observed_offer_definition", trade.offerDefinition());
         else metadata.put("offer_configuration_unresolved", trade.offerFailure());
         metadata.put("configured_access_scope", "Exact sampled result, native cost predicates, XP and stock; trader/jobsite/level/offer-selection/material access are separate requirements");

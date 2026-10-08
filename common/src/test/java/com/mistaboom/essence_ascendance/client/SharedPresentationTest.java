@@ -41,7 +41,14 @@ public final class SharedPresentationTest {
         try (var stream = SharedPresentationTest.class.getResourceAsStream("/assets/essence_ascendance/lang/en_us.json")) {
             language = JsonParser.parseReader(new InputStreamReader(Objects.requireNonNull(stream), StandardCharsets.UTF_8)).getAsJsonObject();
         }
-        var runtime = RuntimeBalanceDefinition.bootstrap();
+        var runtime = args.length == 0 ? RuntimeBalanceDefinition.bootstrap() : RuntimeBalanceDefinition.fromJson(
+                com.mistaboom.essence_ascendance.balance.generated.BalanceProfileStore.read(java.nio.file.Path.of(args[0])).section("runtime"));
+        verify(runtime);
+    }
+    public static void verify(RuntimeBalanceDefinition runtime) throws Exception {
+        if (language == null) try (var stream = SharedPresentationTest.class.getResourceAsStream("/assets/essence_ascendance/lang/en_us.json")) {
+            language = JsonParser.parseReader(new InputStreamReader(Objects.requireNonNull(stream), StandardCharsets.UTF_8)).getAsJsonObject();
+        }
         EssenceConfigManager.installClient(runtime);
         latent(runtime); tooltips(runtime); lockedRankPreview(runtime); tooltipRequirements(); bonuses(runtime); cards(); preferences();
         EssenceConfigManager.clearClient();

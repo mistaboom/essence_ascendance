@@ -40,6 +40,23 @@ final class ProceduralNaturalBlockIndex {
                 data.json("worldgen/configured_feature"), data.terrain());
     }
 
+    /** Exact dimension-scoped positive placement. Registry presence in another
+     * dimension cannot pay for a starting-world material or habitat. */
+    static ProceduralNaturalBlockIndex startingWorld(GenerationDataSnapshot data) {
+        return inDimension(ResourceLocation.parse("minecraft:overworld"), data.naturalBiomes(),
+                data.json("worldgen/placed_feature"), data.json("worldgen/configured_feature"), data.terrain());
+    }
+    static ProceduralNaturalBlockIndex inDimension(ResourceLocation dimension,
+            Map<ResourceLocation, JsonObject> biomes, Map<ResourceLocation, JsonObject> placed,
+            Map<ResourceLocation, JsonObject> configured, Map<ResourceLocation, JsonObject> terrain) {
+        var selected = new java.util.TreeMap<ResourceLocation, JsonObject>();
+        biomes.forEach((key, value) -> {
+            if (key.getNamespace().equals(dimension.getNamespace()) && key.getPath().startsWith(dimension.getPath() + "/biome/"))
+                selected.put(key, value);
+        });
+        return fromData(selected, placed, configured, terrain.containsKey(dimension) ? Map.of(dimension, terrain.get(dimension)) : Map.of());
+    }
+
     // Package-visible for deterministic fixture tests; no world access or generation.
     static ProceduralNaturalBlockIndex fromData(
             Map<ResourceLocation, JsonObject> biomes,

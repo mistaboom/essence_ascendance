@@ -14,6 +14,29 @@ final class GenerationLootEvidence {
     static final String UNRESOLVED = "essence_evidence_unresolved_function";
     static final String CONTAINER_UNRESOLVED = "essence_evidence_container_unresolved_function";
 
+    /** LootJS 3.7.0 uses a unit codec, which omits the actual predicate's HolderSet.
+     * Preserve those loaded members only in our private evidence serialization;
+     * no predicate runs and gameplay codecs/decoding remain untouched. */
+    static <F> MapCodec<F> conditionCodec(MapCodec<F> original, GenerationRegistrySerialization scope) {
+        return new MapCodec<>() {
+            @Override public <T> RecordBuilder<T> encode(F input, DynamicOps<T> ops, RecordBuilder<T> prefix) {
+                if (!scope.ownsLootOps(ops) || !"1.21.1-3.7.0".equals(scope.version("lootjs")) || input == null
+                        || !input.getClass().getName().equals("com.almostreliable.lootjs.loot.condition.MatchBiome"))
+                    return original.encode(input, ops, prefix);
+                try {
+                    var biomes = (net.minecraft.core.HolderSet<?>)input.getClass().getMethod("biomes").invoke(input);
+                    var ids = biomes.stream().map(holder -> holder.unwrapKey().orElseThrow(
+                            () -> new IllegalStateException("Unregistered biome predicate member")).location().toString()).sorted().toList();
+                    return prefix.add("biomes", ops.createList(ids.stream().map(ops::createString)));
+                } catch (ReflectiveOperationException failure) {
+                    throw new IllegalStateException("Cannot inspect loaded biome predicate", failure);
+                }
+            }
+            @Override public <T> DataResult<F> decode(DynamicOps<T> ops, MapLike<T> input) { return original.decode(ops, input); }
+            @Override public <T> Stream<T> keys(DynamicOps<T> ops) { return original.keys(ops); }
+        };
+    }
+
     static <F> MapCodec<F> functionCodec(MapCodec<F> original, GenerationRegistrySerialization scope) {
         return new MapCodec<>() {
             @Override public <T> RecordBuilder<T> encode(F input, DynamicOps<T> ops, RecordBuilder<T> prefix) {

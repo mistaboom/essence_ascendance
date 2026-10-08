@@ -17,6 +17,7 @@ public final class LootAcquisitionTest {
     public static void main(String[] args) {
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap();
         cropReservation();
+        biomeAndVariableRolls();
         check(LootrProvider.readiness(null, false).status() == ProviderReadiness.Status.ABSENT, "Optional absent does not link Lootr");
         check(LootrProvider.readiness("1.21.1-1.11.38.126", false).status() == ProviderReadiness.Status.NOT_READY, "Installed is not ready");
         check(!LootrProvider.readiness("1.21.1-1.11.38.126", false).collectable(),
@@ -384,6 +385,50 @@ public final class LootAcquisitionTest {
     }
     private static Map<String, ProceduralBlockLoot.Drop> blockDrops(JsonObject table, ProceduralBlockLoot.Context context) {
         return ProceduralBlockLoot.estimate(ProceduralBlockLoot.object(ProceduralBlockHarvest.plain(table)), context, ignored -> Map.of(), ignored -> List.of());
+    }
+    private static void biomeAndVariableRolls() {
+        var ability = json("{\"condition\":\"neoforge:can_item_perform_ability\",\"ability\":\"fixture:action\"}");
+        check(StartingBlockDrops.handAbilityConditions(ability, "21.1.250", id -> false).getAsJsonObject().get("chance").getAsInt() == 0,
+                "A native empty-hand ability denial must survive conditional leaf projection");
+        check(StartingBlockDrops.handAbilityConditions(ability, "21.1.250", id -> true).getAsJsonObject().get("chance").getAsInt() == 1,
+                "Loaded positive abilities cannot be silently forced false");
+        check(StartingBlockDrops.handAbilityConditions(ability, "unknown", id -> { throw new AssertionError("Unknown callback executed"); }).equals(ability),
+                "Unknown native ability API must remain unmodeled");
+        check(NativeTreeRenewal.singleSeedDrop(new StartingBlockDrops.ExpectedDrop(1 - .95, .05)),
+                "Equivalent native Bernoulli seed chance and mean cannot fail due to floating subtraction");
+        check(!NativeTreeRenewal.singleSeedDrop(new StartingBlockDrops.ExpectedDrop(.05, .1)),
+                "Multiple seeds per event cannot pass the one-seed renewal contract");
+        var table = json("""
+                {"pools":[{"rolls":{"type":"minecraft:uniform","min":1,"max":3},
+                "conditions":[{"condition":"minecraft:location_check","predicate":{"biomes":"#fixture:ocean"}}],
+                "entries":[{"type":"minecraft:item","name":"minecraft:obsidian","weight":1,
+                "functions":[{"function":"minecraft:set_count","count":{"type":"minecraft:uniform","min":4,"max":8}}]},
+                {"type":"minecraft:empty","weight":1}]}]}
+                """);
+        var known = new ProceduralBlockLoot.Context("fixture:crate", Map.of(), Set.of(), "minecraft:air", Set.of(), Map.of(),
+                "minecraft:deep_ocean", Set.of("fixture:ocean"));
+        var drop = blockDrops(table, known).get("minecraft:obsidian");
+        check(drop.unresolved() == 0 && Math.abs(drop.chance() - (.5 + .75 + .875) / 3) < 1e-12
+                && Math.abs(drop.expectedCount() - 6) < 1e-12,
+                "Biome-conditioned uniform rolls require the distribution's exact occurrence and expected quantity");
+        var dry = new ProceduralBlockLoot.Context("fixture:crate", Map.of(), Set.of(), "minecraft:air", Set.of(), Map.of(),
+                "minecraft:plains", Set.of());
+        check(blockDrops(table, dry).isEmpty(), "A nonmatching loaded biome cannot provide ocean loot");
+        var unknown = new ProceduralBlockLoot.Context("fixture:crate", Map.of(), Set.of(), "minecraft:air", Set.of(), Map.of());
+        check(blockDrops(table, unknown).get("minecraft:obsidian").unresolved() > 0, "Registry samples cannot fabricate a biome");
+        var poolCondition = table.getAsJsonArray("pools").get(0).getAsJsonObject().getAsJsonArray("conditions");
+        var lootJs = json("{\"condition\":\"lootjs:match_biome\",\"biomes\":\"#fixture:ocean\"}");
+        poolCondition.set(0, lootJs);
+        var normalized = StartingBlockDrops.biomeConditions(table, "1.21.1-3.7.0").getAsJsonObject();
+        check(blockDrops(normalized, known).get("minecraft:obsidian").equals(drop), "Audited loaded biome HolderSet changed its native probability/count");
+        check(blockDrops(StartingBlockDrops.biomeConditions(table, "unknown").getAsJsonObject(), known).get("minecraft:obsidian").unresolved() > 0,
+                "Unaudited modded biome behavior must remain unknown");
+        lootJs.addProperty("extra", true);
+        check(blockDrops(StartingBlockDrops.biomeConditions(table, "1.21.1-3.7.0").getAsJsonObject(), known).get("minecraft:obsidian").unresolved() > 0,
+                "Unexpected biome predicate fields cannot disappear");
+        poolCondition.set(0, normalized.getAsJsonArray("pools").get(0).getAsJsonObject().getAsJsonArray("conditions").get(0));
+        table.getAsJsonArray("pools").get(0).getAsJsonObject().getAsJsonArray("conditions").get(0).getAsJsonObject().addProperty("offsetY", 1);
+        check(blockDrops(table, known).get("minecraft:obsidian").unresolved() > 0, "Neighbor biome predicates need their own spatial witness");
     }
     private static RuntimeLootAudit.Modifier modifier(String implementation, String definition, BlockLootModifierAudit.Mode mode, Set<String> targets) {
         return new RuntimeLootAudit.Modifier(implementation, json(definition), "fixture unresolved effect", new BlockLootModifierAudit.Rule(mode, targets));

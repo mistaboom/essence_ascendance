@@ -55,6 +55,16 @@ public final class GenerationEnvironmentTest {
         check(voidWorld.evidence().geology().equals("proven_no_flat_terrain"), "Supported empty layers distinguish proven absence from unknown");
         check(voidWorld.naturalBiomes().values().stream().allMatch(root -> root.getAsJsonArray("features").isEmpty()
                 || root.getAsJsonArray("features").asList().stream().allMatch(step -> step.getAsJsonArray().isEmpty())), "Disabled flat decoration cannot inherit plains geology");
+        var watery = new FlatLevelGeneratorSettings(Optional.of(HolderSet.direct(List.of())), plains, List.of());
+        watery.getLayersInfo().add(new net.minecraft.world.level.levelgen.flat.FlatLayerInfo(2, net.minecraft.world.level.block.Blocks.WATER));
+        watery.updateLayers();
+        var waterySource = new FlatLevelSource(watery);
+        var originalLayers = new java.util.ArrayList<>(watery.getLayers());
+        var firstWater = GenerationDimensionData.capture(id("fixture:water"), waterySource, true, registries);
+        var repeatedWater = GenerationDimensionData.capture(id("fixture:water"), waterySource, true, registries);
+        check(firstWater.equals(repeatedWater), "Repeated flat projection changed after native layer adjustment");
+        check(originalLayers.equals(watery.getLayers()), "Read-only projection mutated live non-motion-blocking layers");
+        check(firstWater.terrain().get(id("fixture:water")).toString().contains("minecraft:water"), "Deferred flat water layers disappeared from geological definitions");
 
         var nether = registries.lookupOrThrow(Registries.BIOME).getOrThrow(Biomes.NETHER_WASTES);
         var constrained = GenerationDimensionData.capture(id("fixture:constrained"), new NoiseBasedChunkGenerator(new FixedBiomeSource(nether),
@@ -87,6 +97,7 @@ public final class GenerationEnvironmentTest {
         processorDefinitions(registries);
         directHolderSerialization(registries);
         lootEvidenceProjection(registries);
+        loadedBiomePredicate(registries);
         lootUncertaintyPropagation();
         System.out.println("GenerationEnvironmentTest: " + checks + " checks PASS (synthetic; no real-pack claim)");
     }
@@ -112,6 +123,23 @@ public final class GenerationEnvironmentTest {
             var decoded = nativeCodec.parse(ops, encoded.get("processors")).getOrThrow();
             check(nativeCodec.encodeStart(ops, decoded).getOrThrow().equals(encoded.get("processors")),
                     "Empty and nonempty normalized definitions round trip through the native processor codec");
+        }
+    }
+    private static void loadedBiomePredicate(HolderLookup.Provider registries) {
+        var biome = registries.lookupOrThrow(Registries.BIOME).getOrThrow(Biomes.DEEP_OCEAN);
+        var input = new com.almostreliable.lootjs.loot.condition.MatchBiome(HolderSet.direct(biome));
+        var original = com.mojang.serialization.MapCodec.unit(input);
+        // Model native dispatch caching the codec before generation starts.
+        var wrapped = GenerationRegistrySerialization.lootConditionCodec(original);
+        check(wrapped.codec().encodeStart(com.mojang.serialization.JsonOps.INSTANCE, input).getOrThrow().getAsJsonObject().isEmpty(), "Gameplay condition encoding changed outside evidence capture");
+        try (var scope = GenerationRegistrySerialization.open(registries, true, Map.of("lootjs", "1.21.1-3.7.0"))) {
+            var value = wrapped.codec().encodeStart(scope.ops(), input).getOrThrow().getAsJsonObject();
+            check(value.getAsJsonArray("biomes").get(0).getAsString().equals("minecraft:deep_ocean"), "Actual predicate HolderSet disappears through its unit codec");
+            check(wrapped.codec().encodeStart(com.mojang.serialization.JsonOps.INSTANCE, input).getOrThrow().getAsJsonObject().isEmpty(), "Private predicate projection leaks to foreign encoding ops");
+        }
+        check(wrapped.codec().encodeStart(com.mojang.serialization.JsonOps.INSTANCE, input).getOrThrow().getAsJsonObject().isEmpty(), "Closed capture can still change condition encoding");
+        try (var scope = GenerationRegistrySerialization.open(registries, true, Map.of("lootjs", "unknown"))) {
+            check(GenerationRegistrySerialization.lootConditionCodec(original).codec().encodeStart(scope.ops(), input).getOrThrow().getAsJsonObject().isEmpty(), "Unknown optional predicate version was certified");
         }
     }
 

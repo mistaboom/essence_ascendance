@@ -26,7 +26,7 @@ public final class NativeCropRenewal {
         return Collections.unmodifiableMap(result);
     }
     public static Map<String, ResourceEvidence> enrich(PackEvidenceContext context, Map<String, ResourceEvidence> original, EvidenceSink sink) {
-        var result = new TreeMap<>(original); var resolver = new ConfigurationAccess.Resolver(original);
+        var result = new TreeMap<>(original); var resolver = ConfiguredRecipeAccess.nativeCrafting(context, original);
         for (var item : context.inputs().items()) {
             if (!(item instanceof BlockItem planted)) continue;
             var block = planted.getBlock(); var type = block.getClass();
@@ -34,11 +34,24 @@ public final class NativeCropRenewal {
             if (!wart && type != CropBlock.class && type != CarrotBlock.class && type != PotatoBlock.class && type != BeetrootBlock.class) continue;
             String seed = BuiltInRegistries.ITEM.getKey(item).toString();
             var attempt = OptionalIntegration.attempt("native_crop_renewal", seed, () -> {
-                var requirements = new ArrayList<List<String>>(); requirements.add(List.of(seed));
-                requirements.add(wart ? List.of("minecraft:soul_sand") : List.of("minecraft:dirt", "minecraft:grass_block"));
-                if (!wart) requirements.add(context.inputs().items().stream().filter(i -> i instanceof HoeItem)
-                        .map(i -> BuiltInRegistries.ITEM.getKey(i).toString()).toList());
-                var proof = resolver.require(requirements);
+                ConfigurationAccess.Proof proof = null;
+                var hoes = wart ? List.of("") : context.inputs().items().stream()
+                        .filter(i -> i.getClass() == HoeItem.class && BuiltInRegistries.ITEM.getKey(i).getNamespace().equals("minecraft"))
+                        .map(i -> BuiltInRegistries.ITEM.getKey(i).toString()).sorted().toList();
+                for (String soil : wart ? List.of("minecraft:soul_sand") : List.of("minecraft:dirt", "minecraft:grass_block")) {
+                    for (String hoe : hoes) {
+                        var bill = new ArrayList<com.google.gson.JsonObject>();
+                        bill.add(NativeConsumables.request(seed, 1)); bill.add(NativeConsumables.request(soil, 1));
+                        if (!hoe.isEmpty()) bill.add(NativeConsumables.request(hoe, 1));
+                        var candidate = resolver.requireExploration(bill).access();
+                        if (proof == null || candidate.placement().reachable() && (!proof.placement().reachable()
+                                || candidate.placement().stage().ordinal() < proof.placement().stage().ordinal())) proof = candidate;
+                        if (proof.placement().reachable() && proof.placement().stage() == ProgressionBand.ENTRY) break;
+                    }
+                    if (proof != null && proof.placement().reachable() && proof.placement().stage() == ProgressionBand.ENTRY) break;
+                }
+                if (proof == null) return new Cycle(new ConfigurationAccess.Proof(new CompetitiveCapabilities.Placement(
+                        ProgressionBand.APEX, false, 0, List.of()), List.of(), List.of("No audited native cultivation tool")), Map.of(), Map.of());
                 BlockState mature = wart ? block.defaultBlockState().setValue(NetherWartBlock.AGE, 3)
                         : ((CropBlock)block).getStateForAge(((CropBlock)block).getMaxAge());
                 var harvest = StartingBlockDrops.supportedHandDrops(context.inputs(), mature);
