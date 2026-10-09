@@ -4,7 +4,7 @@ import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserContent;
 import com.mistaboom.essence_ascendance.ore.LatentOreBlock;
 import com.mistaboom.essence_ascendance.ore.LatentOreBlockEntity;
-import com.mistaboom.essence_ascendance.valuation.ProceduralValuationEngine;
+import com.mistaboom.essence_ascendance.balance.generated.GeneratedBalanceService;
 import com.mistaboom.essence_ascendance.worldgen.PrimarySubstrateDiscovery;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -30,7 +30,6 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Shared dimension-aware natural-ore catalog for Gathering skills. Convention/custom
@@ -43,10 +42,6 @@ public final class NaturalOreDropService {
     private static final TagKey<Block> DEEPSLATE_ORES = blockTag("c", "ores_in_ground/deepslate");
     private static final TagKey<Block> NETHERRACK_ORES = blockTag("c", "ores_in_ground/netherrack");
     private static final TagKey<Block> END_STONE_ORES = blockTag("c", "ores_in_ground/end_stone");
-
-    /* The valuation engine already owns invalidation; identity changes whenever it rebuilds. */
-    private static volatile List<?> valueSnapshot = List.of();
-    private static volatile Map<ResourceLocation, Long> valueByItem = Map.of();
 
     private NaturalOreDropService() { }
 
@@ -115,7 +110,7 @@ public final class NaturalOreDropService {
         addTagged(blocks, dimensionTag("ores", player.serverLevel().dimension()));
         addVanillaFallbacks(blocks, Ground.OVERWORLD);
         addVanillaFallbacks(blocks, Ground.NETHER);
-        return valuedBlocks(player, blocks);
+        return valuedBlocks(blocks);
     }
 
     public static boolean isNaturalOre(ServerPlayer player, BlockState state) {
@@ -148,33 +143,23 @@ public final class NaturalOreDropService {
         if (level != null && PrimarySubstrateDiscovery.selection(level).enabled())
             blocks.add(EssenceInfuserContent.LATENT_ORE.get());
 
-        return valuedBlocks(player, blocks);
+        return valuedBlocks(blocks);
     }
 
-    private static Map<Block, Long> valuedBlocks(ServerPlayer player, LinkedHashSet<Block> blocks) {
-        Map<ResourceLocation, Long> values = valuationValues(player);
+    private static Map<Block, Long> valuedBlocks(LinkedHashSet<Block> blocks) {
+        // Gameplay reads the published economy, including after a saved-profile load.
+        // The generation-only valuation engine is released after publication and
+        // requires recipe preparation that ordinary player ticks must never invoke.
+        var values = GeneratedBalanceService.active().economy().resources();
         Map<Block, Long> result = new LinkedHashMap<>();
         for (Block block : blocks) {
             Item item = block.asItem();
             if (item == Items.AIR) continue;
             ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
-            result.put(block, Math.max(1L, values.getOrDefault(itemId, 1L)));
+            var value = values.get(itemId.toString());
+            result.put(block, value == null ? 1L : Math.max(1L, Math.round(value.economicValue().amount())));
         }
         return Collections.unmodifiableMap(result);
-    }
-
-    private static Map<ResourceLocation, Long> valuationValues(ServerPlayer player) {
-        var snapshot = ProceduralValuationEngine.evaluateAll(player.server);
-        if (snapshot != valueSnapshot) {
-            synchronized (NaturalOreDropService.class) {
-                if (snapshot != valueSnapshot) {
-                    valueByItem = Map.copyOf(snapshot.stream().collect(Collectors.toMap(
-                            result -> result.itemId(), result -> result.totalValue(), Math::min)));
-                    valueSnapshot = snapshot;
-                }
-            }
-        }
-        return valueByItem;
     }
 
     private static void addTagged(LinkedHashSet<Block> blocks, TagKey<Block> tag) {

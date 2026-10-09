@@ -69,13 +69,14 @@ final class RuntimeEquipmentNormalization {
         diagnostics.put("ranged_family_observed",ranged.familyObserved()?1.0:0.0);
         diagnostics.put("caster_family_observed",caster.familyObserved()?1.0:0.0);
     }
-    /** Unlock one level per infusion until the pack ceiling. Larger ladders spread
-     * their levels across all infusions, with integer division rounding down. */
+    /** Keep the pack's infusion ladder, with iron access as its minimum.
+     * Larger ladders spread levels across all infusions, rounding down. */
     static int harvestLevel(EquipmentTier tier,int packMaximum) {
         if(packMaximum<0||packMaximum>32)
             throw new IllegalArgumentException("Unsupported pack harvest level: "+packMaximum);
         int infusions=EquipmentTier.values().length-1;
-        return Math.min(packMaximum,tier.ordinal()*Math.max(infusions,packMaximum)/infusions);
+        return Math.max(EquipmentBaselineConfig.MINIMUM_HARVEST_LEVEL,
+                Math.min(packMaximum,tier.ordinal()*Math.max(infusions,packMaximum)/infusions));
     }
     /** A derived caster has no observed cadence to preserve. Resolve its whole-hit/tenth-rate
      * pair together, so rounding cannot discard a sizeable share of its borrowed DPS budget. */

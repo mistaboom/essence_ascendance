@@ -2,14 +2,11 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "pattern": [
-    "AGA",
+    " G ",
     "CLC",
     "LFL"
   ],
   "key": {
-    "A": {
-      "item": "minecraft:amethyst_shard"
-    },
     "G": {
       "item": "minecraft:glass"
     },

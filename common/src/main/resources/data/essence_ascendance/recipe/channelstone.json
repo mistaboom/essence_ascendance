@@ -2,16 +2,13 @@
   "type": "minecraft:crafting_shaped",
   "category": "building",
   "pattern": [
-    "SAS",
-    "ALA",
-    "SAS"
+    "S S",
+    " L ",
+    "S S"
   ],
   "key": {
     "S": {
       "item": "minecraft:stone"
-    },
-    "A": {
-      "item": "minecraft:amethyst_shard"
     },
     "L": {
       "item": "essence_ascendance:latent_ingot"

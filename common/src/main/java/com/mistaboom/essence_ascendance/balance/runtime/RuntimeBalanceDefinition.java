@@ -269,7 +269,7 @@ public final class RuntimeBalanceDefinition {
             throw new IllegalArgumentException("Worldgen policy has missing, unknown, or invalid fields; regenerate generated_balance.json.gz");
         return settings;
     }
-    /** Strict round trip rejects unknown/missing fields and silent clamping by value records. */
+    /** Strict round trip, allowing only the iron harvest floor upgrade for saved profiles. */
     public static RuntimeBalanceDefinition fromJson(JsonObject json) {
         Wire wire = JSON.fromJson(json, Wire.class);
         Objects.requireNonNull(wire, "Missing runtime profile");
@@ -281,7 +281,16 @@ public final class RuntimeBalanceDefinition {
                 profile, wire.milestones, wire.advancements, wire.statMaxBonuses, new EquipmentBaselineConfig(wire.equipment));
         var result = new RuntimeBalanceDefinition(config, wire.crucible, wire.pylons, wire.skillCurves, wire.composition,
                 Objects.requireNonNull(wire.attunement, "Missing Category Attunement calibration; use /essence admin balance rebuild"));
-        if (!result.toJson().equals(json)) throw new IllegalArgumentException("Runtime profile has missing, unknown, or out-of-range fields; rebuild it instead of editing generated JSON");
+        JsonObject expected = json.deepCopy();
+        for (var entry : expected.getAsJsonObject("equipment").entrySet()) {
+            JsonObject baseline = entry.getValue().getAsJsonObject();
+            JsonElement level = baseline.get("harvestLevel");
+            // Only the two formerly valid levels below iron may change. Missing,
+            // fractional, negative and unknown fields still fail the round trip.
+            if (new JsonPrimitive(0).equals(level) || new JsonPrimitive(1).equals(level))
+                baseline.addProperty("harvestLevel", EquipmentBaselineConfig.MINIMUM_HARVEST_LEVEL);
+        }
+        if (!result.toJson().equals(expected)) throw new IllegalArgumentException("Runtime profile has missing, unknown, or out-of-range fields; rebuild it instead of editing generated JSON");
         return result;
     }
     private record Wire(int configVersion, double pylonRadius, int maxActivePylons, InfuserBalanceSettings infuser,

@@ -151,6 +151,7 @@ public final class ProjectileNativeInterceptionTest {
             set(MinecraftServer.class, server, "pvp", true);
             level = instance(MemoryLevel.class);
             level.entities = new ArrayList<>();
+            set(ServerLevel.class, level, "players", onlinePlayers);
             level.movementSupport = List.of();
             level.tick = 100;
             level.memoryServer = server;
@@ -412,7 +413,7 @@ public final class ProjectileNativeInterceptionTest {
         set(Entity.class, entity, "dimensions", type.getDimensions());
         set(Entity.class, entity, "uuid", UUID.randomUUID());
         set(Entity.class, entity, "stringUUID", entity.getUUID().toString());
-        set(Entity.class, entity, "id", entity.getUUID().hashCode());
+        set(Entity.class, entity, "id", entity.getUUID().hashCode() & Integer.MAX_VALUE);
         set(Entity.class, entity, "position", position);
         set(Entity.class, entity, "blockPosition", BlockPos.containing(position));
         set(Entity.class, entity, "chunkPosition", new net.minecraft.world.level.ChunkPos(BlockPos.containing(position)));

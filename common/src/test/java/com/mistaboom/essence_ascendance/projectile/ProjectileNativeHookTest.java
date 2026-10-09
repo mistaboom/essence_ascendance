@@ -29,7 +29,7 @@ public final class ProjectileNativeHookTest {
     /** Only the explicit loader test mod uses this entrypoint; terminate development watchers with the test result. */
     public static void runAndExit() {
         if (!Boolean.getBoolean("essence.projectile.nativeHookTest")) throw new IllegalStateException("Explicit native hook test flag required");
-        try { run(); ProjectileNativeInterceptionTest.run(); NativeGuardCounterattackTest.run(); NativeGuardRamTest.run(); NativeGuardOutcomeTest.run(); NativeStatusInterceptionTest.run(); NativePostureOutcomeTest.run(); NativeCombatHudTest.run(); NativeVitalitySustenanceTest.run(); NativeVitalityRecoveryTest.run(); NativeResourceChainsTest.run(); }
+        try { run(); ProjectileNativeInterceptionTest.run(); NativeGuardCounterattackTest.run(); NativeGuardRamTest.run(); NativeGuardOutcomeTest.run(); NativeStatusInterceptionTest.run(); NativePostureOutcomeTest.run(); NativeCombatHudTest.run(); NativeVitalitySustenanceTest.run(); NativeVitalityRecoveryTest.run(); NativeResourceChainsTest.run(); NativeOreSurveyTest.run(); }
         catch (Throwable failure) { failure.printStackTrace(); System.exit(1); }
         System.exit(0);
     }

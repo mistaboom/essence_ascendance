@@ -22,6 +22,7 @@ allprojects { p ->
                     include 'com/mistaboom/essence_ascendance/projectile/NativeVitalityRecoveryTest*.class'
                     include 'com/mistaboom/essence_ascendance/projectile/NativeResourceChainsTest*.class'
                     include 'com/mistaboom/essence_ascendance/projectile/NativeVitalitySustenanceTest*.class'
+                    include 'com/mistaboom/essence_ascendance/projectile/NativeOreSurveyTest*.class'
                 }
                 from(fixtureMetadata)
                 doFirst {
@@ -81,7 +82,7 @@ displayName="No-world Defense fixture"
 [[dependencies.essence_defense_native_test]]
 modId="essence_ascendance"
 type="required"
-versionRange="[1,)"
+versionRange="[1.0.0-beta.1,)"
 ordering="AFTER"
 side="CLIENT"
 '''

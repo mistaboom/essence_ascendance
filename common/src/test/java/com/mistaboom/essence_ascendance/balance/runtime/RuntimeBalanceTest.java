@@ -297,10 +297,10 @@ public final class RuntimeBalanceTest {
     }
     private static void verifyHarvestProgression(PackEvidence evidence,RuntimeBalanceDefinition generated) {
         Map<Integer,int[]> ladders=Map.of(
-                0,new int[]{0,0,0,0,0,0},1,new int[]{0,1,1,1,1,1},
-                3,new int[]{0,1,2,3,3,3},5,new int[]{0,1,2,3,4,5},
-                7,new int[]{0,1,2,4,5,7},10,new int[]{0,2,4,6,8,10},
-                32,new int[]{0,6,12,19,25,32});
+                0,new int[]{2,2,2,2,2,2},1,new int[]{2,2,2,2,2,2},
+                3,new int[]{2,2,2,3,3,3},5,new int[]{2,2,2,3,4,5},
+                7,new int[]{2,2,2,4,5,7},10,new int[]{2,2,4,6,8,10},
+                32,new int[]{2,6,12,19,25,32});
         var physicalReference=new LinkedHashMap<>(generated.config().equipmentBaselineConfig().tierBaselines());
         RuntimeEquipmentNormalization.apply(physicalReference,evidence,BalanceSettings.defaults(),new TreeMap<>());
         for(var ladder:ladders.entrySet()) {
@@ -316,8 +316,8 @@ public final class RuntimeBalanceTest {
             var diagnostics=new TreeMap<String,Double>();
             RuntimeEquipmentNormalization.apply(curve,pack,BalanceSettings.defaults(),diagnostics);
             check(diagnostics.get("equipment_harvest_tier_intervals")==EquipmentTier.values().length-1
-                    &&diagnostics.get("equipment_harvest_pack_maximum").intValue()==ladder.getKey()
-                    &&diagnostics.get("equipment_apex_reference_harvest_level").intValue()==ladder.getKey(),
+                    &&diagnostics.get("equipment_harvest_pack_maximum").intValue()==Math.max(2,ladder.getKey())
+                    &&diagnostics.get("equipment_apex_reference_harvest_level").intValue()==Math.max(2,ladder.getKey()),
                     "Harvest diagnostics omit the infusion count or accepted pack maximum");
             check(!diagnostics.containsKey("equipment_normalization_harvest_level"),
                     "Discrete harvest access was reported as a physical curve normalization factor");
@@ -329,17 +329,16 @@ public final class RuntimeBalanceTest {
                         "Harvest ceiling reshaped physical stat "+property+" at "+tier);
             }
         }
-        // Every supported pack ceiling reaches parity without moving backward or
-        // delaying the first ordinary mining unlock past the first infusion.
+        // Every supported pack ceiling retains its higher unlocks and reaches
+        // parity, with iron access available before the first infusion.
         for(int maximum=0;maximum<=32;maximum++) {
             int previous=0;
             for(var tier:EquipmentTier.values()) {
                 int level=RuntimeEquipmentNormalization.harvestLevel(tier,maximum);
-                check(level>=previous&&level<=maximum,"Harvest ladder leaves its monotonic pack bounds");previous=level;
+                check(level>=previous&&level<=Math.max(2,maximum),"Harvest ladder leaves its monotonic pack bounds");previous=level;
             }
-            check(previous==maximum,"Final infusion misses the pack's maximum harvest level");
-            check(RuntimeEquipmentNormalization.harvestLevel(EquipmentTier.LATENT,maximum)==0,"Latent skipped the lowest harvest level");
-            if(maximum>0)check(RuntimeEquipmentNormalization.harvestLevel(EquipmentTier.DORMANT,maximum)>=1,"Dormant gains no harvest level");
+            check(previous==Math.max(2,maximum),"Final infusion misses the pack's maximum harvest level");
+            check(RuntimeEquipmentNormalization.harvestLevel(EquipmentTier.LATENT,maximum)==2,"Latent must start at iron harvest level");
         }
         com.mistaboom.essence_ascendance.config.EssenceConfigManager.installClient(generated);
         try {
@@ -353,16 +352,25 @@ public final class RuntimeBalanceTest {
             com.mistaboom.essence_ascendance.config.EssenceConfigManager.clearClient();
         }
         var cached=generated.toJson();
+        cached.getAsJsonObject("equipment").getAsJsonObject(AscendanceTiers.LATENT.id().toString()).addProperty("harvestLevel",0);
         cached.getAsJsonObject("equipment").getAsJsonObject(AscendanceTiers.DORMANT.id().toString()).addProperty("harvestLevel",0);
         cached.getAsJsonObject("equipment").getAsJsonObject(AscendanceTiers.AWAKENED.id().toString()).addProperty("harvestLevel",1);
         cached.getAsJsonObject("equipment").getAsJsonObject(AscendanceTiers.RESONANT.id().toString()).addProperty("harvestLevel",2);
         var restored=RuntimeBalanceDefinition.fromJson(cached);
-        check(restored.toJson().equals(cached),"Loading a cached profile silently regenerated its harvest progression");
+        var expected=cached.deepCopy();
+        for(var row:expected.getAsJsonObject("equipment").entrySet()) {
+            var baseline=row.getValue().getAsJsonObject();
+            baseline.addProperty("harvestLevel",Math.max(2,baseline.get("harvestLevel").getAsInt()));
+        }
+        check(restored.toJson().equals(expected),"Loading a cached profile changed more than the iron harvest floor");
         com.mistaboom.essence_ascendance.config.EssenceConfigManager.installClient(restored);
         try {
             check(EquipmentBaselineService.evaluateForEquipmentTier(new com.mistaboom.essence_ascendance.data.PlayerEssenceData(),
-                    EquipmentProfiles.PICKAXE.id(),EquipmentTier.AWAKENED).harvestLevel()==1,
-                    "Cached harvest policy changed without an explicit rebuild");
+                    EquipmentProfiles.PICKAXE.id(),EquipmentTier.LATENT).harvestLevel()==2,
+                    "Existing Latent pickaxes did not gain iron access without a rebuild");
+            check(EquipmentBaselineService.evaluateForEquipmentTier(new com.mistaboom.essence_ascendance.data.PlayerEssenceData(),
+                    EquipmentProfiles.PICKAXE.id(),EquipmentTier.AWAKENED).harvestLevel()==2,
+                    "A saved higher tier fell below the new Latent minimum");
         } finally {
             com.mistaboom.essence_ascendance.config.EssenceConfigManager.clearClient();
         }
@@ -380,7 +388,7 @@ public final class RuntimeBalanceTest {
             double tolerance=property==com.mistaboom.essence_ascendance.equipment.EquipmentBaselineProperty.DURABILITY?1.0/curve.get(apexTier).durability():1e-12;
             check(Math.abs(before-after)<=tolerance,"Endpoint normalization reshaped the tier curve for "+property);
         }
-        check(curve.get(AscendanceTiers.DORMANT.id()).harvestLevel()==1&&curve.get(apexTier).harvestLevel()==3,
+        check(curve.get(AscendanceTiers.DORMANT.id()).harvestLevel()==2&&curve.get(apexTier).harvestLevel()==3,
                 "Discrete harvest progression did not advance with equipment infusion");
         var unsafeReferences=new EnumMap<ProgressionBand,Map<CapabilityAxis,Double>>(ProgressionBand.class);
         unsafeReferences.putAll(evidence.frontiers());

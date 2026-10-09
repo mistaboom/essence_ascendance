@@ -16,6 +16,9 @@ import java.util.Objects;
  */
 public final class EquipmentBaselineConfig {
 
+    /** Iron-pickaxe access is the minimum for every Ascendance tool tier. */
+    public static final int MINIMUM_HARVEST_LEVEL = 2;
+
     private final Map<ResourceLocation, TierBaseline> tierBaselines;
 
     public EquipmentBaselineConfig(
@@ -70,6 +73,9 @@ public final class EquipmentBaselineConfig {
             if (harvestLevel < 0) {
                 throw new IllegalArgumentException("Harvest level cannot be negative");
             }
+            // Apply the same floor to newly generated and previously saved profiles.
+            // Higher-tier access and all other saved equipment values stay intact.
+            harvestLevel = Math.max(MINIMUM_HARVEST_LEVEL, harvestLevel);
             if (durability <= 0) {
                 throw new IllegalArgumentException("Durability must be greater than zero");
             }
