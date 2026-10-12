@@ -56,6 +56,7 @@ def balanceInvariantMains = [
         balanceLootAuditMemoryInvariants: 'com.mistaboom.essence_ascendance.valuation.LootAuditMemoryTest',
         balanceBlockSourceMemoryInvariants: 'com.mistaboom.essence_ascendance.valuation.BlockSourceMemoryTest',
         balanceQuestAcquisitionInvariants: 'com.mistaboom.essence_ascendance.balance.engine.QuestAcquisitionTest',
+        authoritativeAcquisitionClosureInvariants: 'com.mistaboom.essence_ascendance.balance.engine.AuthoritativeAcquisitionClosureTest',
         latentOreBalanceInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.LatentOreBalanceTest',
         latentOreJeiInvariants: 'com.mistaboom.essence_ascendance.compat.jei.LatentOreJeiTest',
         jeiSearchRefreshInvariants: 'com.mistaboom.essence_ascendance.client.JeiSearchRefreshTest',
@@ -106,6 +107,7 @@ def balanceInvariantMains = [
         effectiveProductionInvariants: 'com.mistaboom.essence_ascendance.valuation.EffectiveProductionTest',
         balanceTradeInvariants: 'com.mistaboom.essence_ascendance.valuation.TradeGraphTest',
         valuationPerformanceInvariants: 'com.mistaboom.essence_ascendance.valuation.ValuationPerformanceTest',
+        materialValuationInvariants: 'com.mistaboom.essence_ascendance.valuation.MaterialValuationTest',
         nomenclatureInvariants: 'com.mistaboom.essence_ascendance.valuation.NomenclatureTest',
         routingEvidenceInvariants: 'com.mistaboom.essence_ascendance.valuation.RoutingEvidenceTest',
         runtimeBalancePayloadInvariants: 'com.mistaboom.essence_ascendance.network.RuntimeBalancePayloadTest',
@@ -460,3 +462,12 @@ tasks.register('skillProgressionAudit', JavaExec) {
         if (rootProject.hasProperty('skillAuditProfile')) args rootProject.file(rootProject.property('skillAuditProfile')).absolutePath
     }
 }
+
+// Component-aware generated item yields; no world needed.
+tasks.register('enchantmentYieldInvariants', JavaExec) {
+    group = 'verification'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.mistaboom.essence_ascendance.mapping.EnchantmentYieldTest'
+}
+tasks.named('balanceInvariants') { dependsOn 'enchantmentYieldInvariants' }

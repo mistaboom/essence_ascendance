@@ -233,10 +233,7 @@ public final class ItemEssenceTooltipClientState {
                                 stack.getItem()
                         );
 
-        List<Yield> outputs =
-                YIELD_SNAPSHOT.outputsByItem().get(
-                        itemId
-                );
+        List<Yield> outputs = outputsForStack(stack, YIELD_SNAPSHOT);
 
         if (outputs == null
                 || outputs.isEmpty()) {
@@ -334,10 +331,7 @@ public final class ItemEssenceTooltipClientState {
                                 stack.getItem()
                         );
 
-        List<Yield> outputs =
-                YIELD_SNAPSHOT.outputsByItem().get(
-                        itemId
-                );
+        List<Yield> outputs = outputsForStack(stack, YIELD_SNAPSHOT);
 
         if (outputs == null
                 || outputs.isEmpty()) {
@@ -515,6 +509,25 @@ public final class ItemEssenceTooltipClientState {
             Objects.requireNonNull(essenceId);
             if (microUnits <= 0L) throw new IllegalArgumentException("Yield must be positive");
         }
+    }
+
+    /** Uses the same component-aware whole-unit resolver as authoritative dissolution. */
+    public static List<Yield> outputsForStack(ItemStack stack, YieldSnapshot snapshot) {
+        if (stack == null || stack.isEmpty() || !snapshot.ready()) return List.of();
+        ResourceLocation item = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        if (!com.mistaboom.essence_ascendance.mapping.EnchantedStackYields.hasDynamicYield(stack))
+            return snapshot.outputsByItem().getOrDefault(item, List.of());
+        Map<ResourceLocation, Long> base = yieldMap(snapshot.outputsByItem().getOrDefault(item, List.of()));
+        Map<ResourceLocation, Long> carrier = yieldMap(snapshot.outputsByItem().getOrDefault(
+                ResourceLocation.parse(com.mistaboom.essence_ascendance.mapping.EnchantedStackYields.BOOK), List.of()));
+        return com.mistaboom.essence_ascendance.mapping.EnchantedStackYields.resolve(stack, base, carrier)
+                .entrySet().stream().sorted(Map.Entry.comparingByKey())
+                .map(entry -> new Yield(entry.getKey(), entry.getValue())).toList();
+    }
+    private static Map<ResourceLocation, Long> yieldMap(List<Yield> outputs) {
+        Map<ResourceLocation, Long> result = new LinkedHashMap<>();
+        outputs.forEach(output -> result.put(output.essenceId(), output.microUnits()));
+        return result;
     }
 
     public static YieldSnapshot yieldSnapshot() { return YIELD_SNAPSHOT; }

@@ -218,10 +218,10 @@ public final class SkillBalanceSemantics {
                 .condition("Actual accepted positive direct weapon damage only; generated same-target chain, inactivity/miss and lifecycle resets; missing-health cap; reflected, secondary, status and recursive proc damage excluded"));
         all.add(skill(SkillIds.FEAST_REFLEX, flat(RECOVERY, .5), flat(CONVENIENCE, .3))
                 .actions(Action.EAT, Action.DRINK).availability(.5, .85).cost(.25)
-                .condition("Native food/drink duration multiplier; while hurt and below vanilla natural regeneration, successive nonharmful nutritious hotbar meals restore food without requiring a single serving to fill the gap; effective Metabolic Conversion allows meals through full hunger until health is full; at full health, food is consumed only when less than half its nutrition would be wasted; no active-use interruption or repeated event"));
+                .condition("Native food/drink duration multiplier; first useful automatic meal is immediate and successive meals wait the consumed food's generated use duration in one persistent player cooldown; while hurt and below vanilla natural regeneration, successive nonharmful nutritious hotbar meals restore food without requiring a single serving to fill the gap; effective Metabolic Conversion allows meals through full hunger until health is full; at full health, food is consumed only when less than half its nutrition would be wasted; no active-use interruption or repeated event"));
         all.add(skill(SkillIds.INNER_SUSTENANCE, flat(RESOURCE_CONSUMPTION, .45), capability(CONVENIENCE, .5))
                 .actions(Action.REST).availability(.65, 1)
-                .condition("Generated food/saturation increments only outside accepted hostile combat; full native food/saturation protects passive activity exhaustion; explicit costs persist; optional sleep and owner-only phantom pressure immunity are binary capabilities"));
+                .condition("Generated food/saturation increments only outside accepted hostile combat; all native exertion and explicit costs persist even at full reserves; optional sleep and owner-only phantom pressure immunity are binary capabilities at full food and saturation"));
         all.add(skill(SkillIds.HUNGER_WARD, flat(EFFECTIVE_HEALTH, .6))
                 .actions(Action.TAKE_DAMAGE).availability(.75, 1).cost(.35)
                 .condition("Only a generated share of each hit spends saturation and food; the rest reaches health, and unpayable redirected damage returns to health; finite reservoir and share-limited survival"));
@@ -347,10 +347,10 @@ public final class SkillBalanceSemantics {
                 .availability(.7, 1).area(8).condition("Personal visibility, binary Blindness/Darkness immunity, and local spawnable-block guidance"));
         all.add(skill(SkillIds.RESTFUL_MENDING, flat(REPAIR, .55))
                 .equipment(Equipment.REPAIRABLE_GEAR).actions(Action.REST).availability(.55, 1)
-                .condition("Damageable carried gear must remain unused; repair pauses on durability use"));
+                .condition("One damaged carried item at a time receives native durability points per second after remaining unused; capacity never multiplies repair throughput and any durability-use attempt restarts its idle delay"));
         all.add(skill(SkillIds.METABOLIC_MENDING, flat(REPAIR, .55))
                 .equipment(Equipment.REPAIRABLE_GEAR).actions(Action.EAT).availability(.75, 1).cost(.35)
-                .condition("Consumed nutrition and saturation become immediate repair budget for damaged carried gear; Feast Reflex may auto-consume for maintenance"));
+                .condition("Consumed nutrition and intrinsic saturation buy one shared native durability-point repair budget for damaged carried gear, independent of item capacity; Feast Reflex may auto-consume for maintenance at its generated meal cadence"));
         all.add(skill(SkillIds.MASTERWORK_TEMPERING, flat(DURABILITY, .45), flat(CONVERSION, .25), multi(THROUGHPUT, .2))
                 .equipment(Equipment.REPAIRABLE_GEAR).actions(Action.REPAIR).availability(.65, 1).cost(.3)
                 .condition("Fully repaired gear can consume compatible construction/repair-material forms to gain finite Overdurability with role performance"));

@@ -49,18 +49,18 @@ public record UtilityBalanceSettings(
         public Waylight { number("waylight.searchRadiusBlocks", searchRadiusBlocks, 0, 128); }
     }
 
-    /** Idle delay plus item-local repair throughput as a fraction of native maximum durability per second. */
-    public record RestfulMending(int idleDelayTicks, double repairFractionPerSecond) {
+    /** Idle delay plus one carried item's repair throughput in native durability points per second. */
+    public record RestfulMending(int idleDelayTicks, double repairPointsPerSecond) {
         public RestfulMending {
             integer("restfulMending.idleDelayTicks", idleDelayTicks, 1, 72_000);
-            number("restfulMending.repairFractionPerSecond", repairFractionPerSecond, 0, 1);
+            number("restfulMending.repairPointsPerSecond", repairPointsPerSecond, 0, 1_000_000);
         }
     }
 
-    /** Fraction of one item's native durability restored per intrinsic food point consumed. */
-    public record MetabolicMending(double repairFractionPerFoodPoint) {
+    /** Native durability points restored per intrinsic food point consumed. */
+    public record MetabolicMending(double repairPointsPerFoodPoint) {
         public MetabolicMending {
-            number("metabolicMending.repairFractionPerFoodPoint", repairFractionPerFoodPoint, 0, 1);
+            number("metabolicMending.repairPointsPerFoodPoint", repairPointsPerFoodPoint, 0, 1_000_000);
         }
     }
 
@@ -155,8 +155,8 @@ public record UtilityBalanceSettings(
         new ThreatSense(threatSense.rangeBlocks());
         new HuntersLedger(huntersLedger.memoryTicks());
         new Waylight(waylight.searchRadiusBlocks());
-        new RestfulMending(restfulMending.idleDelayTicks(), restfulMending.repairFractionPerSecond());
-        new MetabolicMending(metabolicMending.repairFractionPerFoodPoint());
+        new RestfulMending(restfulMending.idleDelayTicks(), restfulMending.repairPointsPerSecond());
+        new MetabolicMending(metabolicMending.repairPointsPerFoodPoint());
         new MasterworkTempering(masterworkTempering.reinforcementFractionPerMaterialUnit(),
                 masterworkTempering.maximumOverdurabilityFraction(), masterworkTempering.maximumPerformanceBonus());
         new VillagePatron(villagePatron.discountFraction(), villagePatron.restockRadiusBlocks(), villagePatron.restockIntervalTicks());

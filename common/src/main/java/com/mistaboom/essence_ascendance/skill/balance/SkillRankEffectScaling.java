@@ -342,7 +342,9 @@ public final class SkillRankEffectScaling {
 
     public static double factor(ResourceLocation id, int rank) {
         if (rank <= 1) return 1.0;
-        return SkillBalanceRuntime.require(id.toString(), rank).powerMultiplier()
+        var curve = SkillBalanceRuntime.snapshot().get(id.toString());
+        if (curve == null) throw new IllegalArgumentException("Skill absent from generated profile: " + id);
+        return SkillBalanceRuntime.require(id.toString(), Math.min(rank, curve.ranks().size())).powerMultiplier()
                 / SkillBalanceRuntime.require(id.toString(), 1).powerMultiplier();
     }
 
@@ -530,14 +532,11 @@ public final class SkillRankEffectScaling {
             var semantics = SkillBalanceSemantics.require(id);
             double inactive = Math.max(Math.ulp(1.0), 1.0 - semantics.expectedAvailability());
             double window = utility.restfulMending().idleDelayTicks() / 20.0 / inactive;
-            double bounded = Math.clamp(utility.restfulMending().repairFractionPerSecond() * window, 0, Math.nextDown(1.0));
-            return inverseOdds(bounded)
+            return utility.restfulMending().repairPointsPerSecond() * window
                     / Math.max(Math.ulp(1.0), semantics.weights().get(CapabilityAxis.REPAIR));
         }
         if (id.equals(SkillIds.METABOLIC_MENDING)) {
-            double bounded = Math.clamp(utility.metabolicMending().repairFractionPerFoodPoint()
-                    * net.minecraft.world.food.FoodConstants.MAX_FOOD, 0, Math.nextDown(1.0));
-            return inverseOdds(bounded)
+            return utility.metabolicMending().repairPointsPerFoodPoint() * net.minecraft.world.food.FoodConstants.MAX_FOOD
                     / Math.max(Math.ulp(1.0), SkillBalanceSemantics.require(id).weights().get(CapabilityAxis.REPAIR));
         }
         if (id.equals(SkillIds.MASTERWORK_TEMPERING)) {
@@ -583,9 +582,13 @@ public final class SkillRankEffectScaling {
         for (var entry : new java.util.TreeMap<>(ranks).entrySet()) {
             if (entry.getValue() <= 0) continue;
             var curve = curves.get(entry.getKey().toString());
-            if (curve == null || entry.getValue() > curve.ranks().size())
-                throw new IllegalArgumentException("Rank absent from generated profile: " + entry.getKey());
-            var rank = curve.ranks().get(entry.getValue() - 1);
+            if (curve == null)
+                throw new IllegalArgumentException("Skill absent from generated profile: " + entry.getKey());
+            // Historical purchases/refunds remain intact when a rebuilt profile has fewer
+            // states. Published curves have exactly maximumRank states. Nominal generation
+            // deliberately retains extra projection states before meaningful publication;
+            // those states must remain available to calibration and preview fixtures.
+            var rank = curve.ranks().get(Math.min(entry.getValue(), curve.ranks().size()) - 1);
             if (rank.parameters().isEmpty()) {
                 var current = gson.fromJson(effects, SkillEffectBalanceSettings.class);
                 effects = gson.toJsonTree(apply(current, Map.of(entry.getKey(), entry.getValue()),
@@ -637,16 +640,10 @@ public final class SkillRankEffectScaling {
                 Math.clamp(catchup, semantics.rangeBlocks(), 128));
     }
     private static double scaleRestfulMendingRate(UtilityBalanceSettings.RestfulMending value, double factor) {
-        double inactive = Math.max(Math.ulp(1.0),
-                1.0 - SkillBalanceSemantics.require(SkillIds.RESTFUL_MENDING).expectedAvailability());
-        double window = value.idleDelayTicks() / 20.0 / inactive;
-        double bounded = Math.clamp(value.repairFractionPerSecond() * window, 0, Math.nextDown(1.0));
-        return Math.min(1.0, scaleOdds(bounded, factor) / Math.max(Math.ulp(1.0), window));
+        return scale(value.repairPointsPerSecond(), factor, 1_000_000);
     }
     private static double scaleMetabolicMendingRate(UtilityBalanceSettings.MetabolicMending value, double factor) {
-        double barRepair = Math.clamp(value.repairFractionPerFoodPoint()
-                * net.minecraft.world.food.FoodConstants.MAX_FOOD, 0, Math.nextDown(1.0));
-        return scaleOdds(barRepair, factor) / net.minecraft.world.food.FoodConstants.MAX_FOOD;
+        return scale(value.repairPointsPerFoodPoint(), factor, 1_000_000);
     }
     private static double inverseOdds(double probability) {
         if (probability <= 0) return 0;

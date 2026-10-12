@@ -29,11 +29,17 @@ final class UtilityBalanceGenerator {
 
         double restfulRepair = power(settings, SkillIds.RESTFUL_MENDING, CapabilityAxis.REPAIR);
         int restfulIdleTicks = ticks(window * Math.max(Math.ulp(1.0), 1.0 - restful.expectedAvailability()));
-        double restfulFractionPerSecond = odds(restfulRepair) / window;
+        // A native wear point is the unit of repair work. Allocate that work over the shared
+        // survival horizon; never multiply free repair by an item's durability capacity.
+        // This is a conservative work budget, not an assumed XP collection rate: Mending's
+        // durability-per-XP evidence has a resource cost and supplies no free points/second.
+        // The approved meaningful floor is applied only after all nominal calibration.
+        double restfulPointsPerSecond = Math.max(0, restfulRepair) / window;
 
         double metabolicRepair = power(settings, SkillIds.METABOLIC_MENDING, CapabilityAxis.REPAIR);
-        // A full hunger bar worth of intrinsic nutrition/saturation pressure maps to the generated repair headroom.
-        double metabolicFractionPerFoodPoint = odds(metabolicRepair) / FoodConstants.MAX_FOOD;
+        // Nutrition/saturation pays for a shared native-point work budget, never a fraction
+        // of whichever item's capacity receives the meal. Meaningful floors publish last.
+        double metabolicPointsPerFoodPoint = Math.max(0, metabolicRepair) / FoodConstants.MAX_FOOD;
 
         double masterworkDurability = power(settings, SkillIds.MASTERWORK_TEMPERING, CapabilityAxis.DURABILITY);
         double masterworkConversion = power(settings, SkillIds.MASTERWORK_TEMPERING, CapabilityAxis.CONVERSION);
@@ -67,8 +73,8 @@ final class UtilityBalanceGenerator {
                 new UtilityBalanceSettings.HuntersLedger(memoryTicks),
                 new UtilityBalanceSettings.Waylight(Math.clamp(waylight.areaRadiusBlocks(), 0, 128)),
                 new UtilityBalanceSettings.RestfulMending(restfulIdleTicks,
-                        Math.clamp(restfulFractionPerSecond, 0, 1)),
-                new UtilityBalanceSettings.MetabolicMending(Math.clamp(metabolicFractionPerFoodPoint, 0, 1)),
+                        Math.clamp(restfulPointsPerSecond, 0, 1_000_000)),
+                new UtilityBalanceSettings.MetabolicMending(Math.clamp(metabolicPointsPerFoodPoint, 0, 1_000_000)),
                 new UtilityBalanceSettings.MasterworkTempering(
                         Math.clamp(reinforcementPerUnit, 0, 1),
                         Math.clamp(maximumOverdurability, 0, 1),

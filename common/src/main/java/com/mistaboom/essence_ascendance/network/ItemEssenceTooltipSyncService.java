@@ -266,7 +266,7 @@ public final class ItemEssenceTooltipSyncService {
                             item
                     );
 
-            Map<EssenceDefinition, Long> exactOutputs = ItemEssenceMappingRegistry.resolveDissolution(stack);
+            Map<EssenceDefinition, Long> exactOutputs = ItemEssenceMappingRegistry.resolveBaseDissolution(stack);
 
             /*
              * A winning empty-output mapping means "blocked/no Essence".

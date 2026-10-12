@@ -121,8 +121,9 @@ history_window = 64
 # the final chapter. Legitimate outcomes have no per-action progress ceiling.
 early_effort_fraction = 0.75
 # Effort multiplier for the automatic Latent onboarding chapter. Range 0.1..1;
-# default 0.50 lets ordinary play reach Dormant before a Nexus is crafted.
-onboarding_effort_fraction = 0.50
+# default 1.0 uses the full entry effort, allowing more time to get established.
+# Ordinary play still reaches Dormant automatically; no Nexus or ore gate is added.
+onboarding_effort_fraction = 1.0
 # Shape of increasing category breadth, range 0.25..4; default 1.0 produces
 # ceil((categoryCount-1)*transitionPosition/transitionCount). Smaller values ask
 # for broader early participation; final progression leaves one category optional.

@@ -254,10 +254,10 @@ public final class Skills {
         skills.add(skill(SkillIds.TOOL_INSTINCT, essence, AscendanceTiers.DORMANT.id(),
                 SkillCostBand.FOUNDATION, 0).hint(SkillLayoutHint.UPPER).build());
         skills.add(skill(SkillIds.MINING_MOMENTUM, essence, AscendanceTiers.AWAKENED.id(),
-                SkillCostBand.ADVANCED, 1).requires(SkillIds.TOOL_INSTINCT)
+                SkillCostBand.ADVANCED, 1)
                 .hint(SkillLayoutHint.UPPER).build());
         skills.add(skill(SkillIds.NATURES_BOON, essence, AscendanceTiers.TRANSCENDENT.id(),
-                SkillCostBand.KEYSTONE, 2).requires(SkillIds.TOOL_INSTINCT)
+                SkillCostBand.KEYSTONE, 2)
                 .hint(SkillLayoutHint.UPPER).build());
         skills.add(skill(SkillIds.ORE_SIGHT, essence, AscendanceTiers.ASCENDANT.id(),
                 SkillCostBand.ADVANCED, 3).group(SkillGroups.GATHERING_SURVEY_FOCUS)
@@ -272,7 +272,7 @@ public final class Skills {
                 SkillCostBand.KEYSTONE, 6).group(SkillGroups.GATHERING_LOOT_CALLING)
                 .hint(SkillLayoutHint.LOWER).build());
         skills.add(skill(SkillIds.TORCHBEARER, essence, AscendanceTiers.AWAKENED.id(),
-                SkillCostBand.FOUNDATION, 7).requires(SkillIds.TOOL_INSTINCT)
+                SkillCostBand.FOUNDATION, 7)
                 .hint(SkillLayoutHint.CENTER).build());
         skills.add(skill(SkillIds.VERDANT_STRIDE, essence, AscendanceTiers.AWAKENED.id(),
                 SkillCostBand.ADVANCED, 8).group(SkillGroups.GATHERING_RURAL_CALLING)

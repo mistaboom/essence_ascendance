@@ -22,7 +22,7 @@ public final class VitalityBatchContractTest {
             SkillIds.RISING_RECOVERY, "Natural regeneration accelerates continuously as health falls, becoming strongest below half health.",
             SkillIds.LIFE_STEAL, "Direct weapon damage restores health, with consecutive hits on the same target increasing the healing until the attack chain breaks.",
             SkillIds.FEAST_REFLEX, "Consumes food and drinks much faster. Automatically eats safe hotbar food when needed, including successive meals when injured and hungry.",
-            SkillIds.INNER_SUSTENANCE, "Hunger slowly restores outside combat; at full saturation, passive hunger drain stops, sleep becomes optional, and phantoms ignore the player.");
+            SkillIds.INNER_SUSTENANCE, "Hunger slowly restores outside combat; at full hunger and saturation, sleep becomes optional and phantoms ignore the player. Ordinary activity still uses food.");
 
     public static void main(String[] args) throws Exception {
         Thread.currentThread().setUncaughtExceptionHandler((thread, failure) -> failure.printStackTrace(

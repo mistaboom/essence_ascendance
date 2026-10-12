@@ -87,7 +87,78 @@ public final class NativeVitalityRecoveryTest {
                 "Removing the purchase receipt immediately removes gameplay and transient chain state");
         f.close(); SkillEffectRuntime.clearAll();
         routedHealthLocal();
+        nativeMaintenancePoints();
         System.out.println("Native Vitality recovery checks passed: " + checks + " (actual regeneration, direct weapon damage, healing, lifecycle and HUD; no world)");
+    }
+
+    /** Real ItemStack wear values prove repair throughput is independent of capacity. */
+    private static void nativeMaintenancePoints() throws ReflectiveOperationException {
+        var f = new ProjectileNativeInterceptionTest.Fixture(NativeGuardOutcomeTest.NativePlayer.class);
+        NativeGuardOutcomeTest.registry(f);
+        var player = f.player;
+        var data = f.saved.getPlayerData(player.getUUID());
+        data.grantAllSkillsForAdmin(List.of(SkillRegistry.require(SkillIds.RESTFUL_MENDING),
+                SkillRegistry.require(SkillIds.METABOLIC_MENDING)));
+        data.setLoadoutSelection(SkillGroups.UTILITY_MAINTENANCE, SkillIds.RESTFUL_MENDING);
+        SkillEffectRuntime.refresh(player);
+        var restful = SkillEffectRegistry.get(SkillIds.RESTFUL_MENDING);
+        var metabolic = SkillEffectRegistry.get(SkillIds.METABOLIC_MENDING);
+        var tuning = SkillEffectRuntime.resolvedSettings(player).utility().restfulMending();
+        int expectedRepair = (int) Math.floor(2 * tuning.repairPointsPerSecond() + 1e-9);
+        for (int capacity : new int[]{250, 100_000}) {
+            SkillEffectRuntime.reset(player);
+            var item = new ItemStack(Items.IRON_PICKAXE);
+            item.set(net.minecraft.core.component.DataComponents.MAX_DAMAGE, capacity); item.setDamageValue(100);
+            player.setItemInHand(InteractionHand.MAIN_HAND, item);
+            restful.tick(SkillEffectRuntime.context(player));
+            for (int tick = 1; tick < tuning.idleDelayTicks(); tick++) {
+                f.level.tick++; restful.tick(SkillEffectRuntime.context(player));
+            }
+            equal(item.getDamageValue(), 100, "Restful cannot repair before the full idle delay");
+            for (int tick = 0; tick < 40; tick++) {
+                f.level.tick++; restful.tick(SkillEffectRuntime.context(player));
+            }
+            equal(item.getDamageValue(), 100 - expectedRepair,
+                    "Native point throughput is capacity-independent at " + capacity + " durability");
+            SkillEffectRuntime.onDurabilityAttempt(player, item);
+            int before = item.getDamageValue();
+            for (int tick = 1; tick < tuning.idleDelayTicks(); tick++) {
+                f.level.tick++; restful.tick(SkillEffectRuntime.context(player));
+            }
+            equal(item.getDamageValue(), before, "Even a prevented wear attempt restarts the idle delay");
+        }
+        var first = new ItemStack(Items.IRON_PICKAXE); first.setDamageValue(100);
+        var second = new ItemStack(Items.DIAMOND_PICKAXE); second.setDamageValue(100);
+        player.setItemInHand(InteractionHand.MAIN_HAND, first);
+        player.getInventory().setItem(1, second);
+        SkillEffectRuntime.reset(player);
+        restful.tick(SkillEffectRuntime.context(player));
+        for (int tick = 1; tick < tuning.idleDelayTicks() + 40; tick++) {
+            f.level.tick++; restful.tick(SkillEffectRuntime.context(player));
+        }
+        equal(first.getDamageValue() + second.getDamageValue(), 200 - expectedRepair,
+                "Two carried items share one Restful repair stream");
+
+        data.setLoadoutSelection(SkillGroups.UTILITY_MAINTENANCE, SkillIds.METABOLIC_MENDING);
+        SkillEffectRuntime.refresh(player);
+        double perFood = SkillEffectRuntime.resolvedSettings(player).utility().metabolicMending().repairPointsPerFoodPoint();
+        int mealBudget = (int) Math.floor(11 * perFood + 1e-9);
+        first.setDamageValue(3); second.setDamageValue(100);
+        metabolic.foodConsumed(SkillEffectRuntime.context(player), new ItemStack(Items.BREAD), 5, 6);
+        equal(first.getDamageValue() + second.getDamageValue(), 103 - mealBudget,
+                "One meal distributes a shared native-point budget across unequal-capacity items");
+        first.setDamageValue(100); second.setDamageValue(0); SkillEffectRuntime.reset(player);
+        for (int meal = 0; meal < 20; meal++)
+            metabolic.foodConsumed(SkillEffectRuntime.context(player), new ItemStack(Items.BREAD), 0, .2);
+        equal(first.getDamageValue(), 100 - Math.floor(4 * perFood + 1e-9),
+                "Sub-point meal repairs accumulate without loss or max-durability multiplication");
+        first.setDamageValue(1); SkillEffectRuntime.reset(player);
+        metabolic.foodConsumed(SkillEffectRuntime.context(player), new ItemStack(Items.BREAD), 20, 20);
+        first.setDamageValue(100);
+        metabolic.foodConsumed(SkillEffectRuntime.context(player), new ItemStack(Items.BREAD), 0, .2);
+        equal(first.getDamageValue(), 100 - Math.floor(.2 * perFood + 1e-9),
+                "Unused repair from a completed oversized meal is never banked");
+        f.close(); SkillEffectRuntime.clearAll();
     }
 
     /** Proves the mutable local reaches the real health write, not merely the CombatTracker argument. */

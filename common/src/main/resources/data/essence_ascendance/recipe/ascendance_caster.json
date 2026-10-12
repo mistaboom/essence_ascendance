@@ -3,8 +3,8 @@
   "category": "equipment",
   "pattern": [
     " A ",
-    "LLL",
-    " L "
+    "LL ",
+    "  S"
   ],
   "key": {
     "L": {
@@ -12,6 +12,9 @@
     },
     "A": {
       "item": "minecraft:amethyst_shard"
+    },
+    "S": {
+      "item": "minecraft:stick"
     }
   },
   "result": {

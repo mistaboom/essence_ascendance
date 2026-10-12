@@ -1290,12 +1290,13 @@ final class ProceduralValuationIndex {
             signals.add("deepslate");
         }
 
+        // ore_rates describes material output per block, not placement density.
+        // Every source built here already carries a loot-derived count; applying
+        // the coarse tag multiplier as well would count the same yield twice.
         if (state.is(ProceduralValuationTags.BLOCK_ORE_RATE_DENSE)) {
-            sourceMultiplier *= ProceduralValuationSettings.ORE_RATE_DENSE_MULTIPLIER;
-            signals.add("dense ore rate");
+            signals.add("dense ore yield tag; actual loot quantity owns per-output effort");
         } else if (state.is(ProceduralValuationTags.BLOCK_ORE_RATE_SPARSE)) {
-            sourceMultiplier *= ProceduralValuationSettings.ORE_RATE_SPARSE_MULTIPLIER;
-            signals.add("sparse ore rate");
+            signals.add("sparse ore yield tag; actual loot quantity owns per-output effort");
         } else if (state.is(ProceduralValuationTags.BLOCK_ORE_RATE_SINGULAR)) {
             signals.add("singular ore rate");
         }

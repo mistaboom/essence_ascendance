@@ -26,6 +26,16 @@ public final class RuntimeBalanceTest {
         com.mistaboom.essence_ascendance.equipment.EquipmentProfiles.init();
         var first=RuntimeBalanceDefinition.bootstrap();
         var second=RuntimeBalanceDefinition.bootstrap();
+        var entryBudget=first.config().balanceProfile().defaultTierCaps().get(AscendanceTiers.DORMANT.id());
+        check(first.crucible().reservoirCapacity()==entryBudget*480, "Crucible base storage lost its tenfold economy scaling");
+        for(var tier:AscendanceTierRegistry.powerTiers())
+            check(first.pylons().get(tier.id().getPath()).reservoirCapacityBonus()
+                    ==first.config().balanceProfile().defaultTierCaps().get(tier.id())*120,
+                    "Pylon storage no longer follows the same expanded tier budget");
+        var mining=first.config().equipmentBaselineConfig();
+        check(mining.baselineFor(AscendanceTiers.DORMANT).miningSpeed()>=net.minecraft.world.item.Tiers.IRON.getSpeed()
+                &&mining.baselineFor(AscendanceTiers.DORMANT).miningSpeed()<net.minecraft.world.item.Tiers.DIAMOND.getSpeed(),
+                "Dormant mining must reach iron while preserving the diamond upgrade gap");
         for (var grade : first.config().infuserBalance().grades().values())
             check(grade.infusionThroughputPerSecond() >= first.config().infuserBalance().noFocusInfusionThroughputPerSecond(),
                     "Generated Focus slows baseline Infuser throughput");
@@ -111,6 +121,19 @@ public final class RuntimeBalanceTest {
                 &&generatedApex.miningSpeed()==12&&generatedApex.durability()==1890&&generatedApex.harvestLevel()==3,
                 "Transcendent armor, tool or discrete harvest endpoint is not at pack parity");
         verifyEquipmentNormalization(evidence,generated);
+        for(double endpoint:new double[]{6,12,120,1200}) {
+            var curve=new LinkedHashMap<>(generated.config().equipmentBaselineConfig().tierBaselines());
+            var apexRow=curve.get(AscendanceTiers.TRANSCENDENT.id());
+            curve.put(AscendanceTiers.TRANSCENDENT.id(),new EquipmentBaselineConfig.TierBaseline(
+                    apexRow.fullSetArmor(),apexRow.fullSetToughness(),apexRow.meleeDamage(),apexRow.meleeAttackSpeed(),
+                    apexRow.rangedDamage(),apexRow.rangedAttackSpeed(),apexRow.magicDamage(),apexRow.magicCastSpeed(),
+                    endpoint,apexRow.harvestLevel(),apexRow.durability()));
+            RuntimeEquipmentNormalization.anchorMining(curve,evidence,new TreeMap<>());
+            check(curve.get(AscendanceTiers.DORMANT.id()).miningSpeed()==net.minecraft.world.item.Tiers.IRON.getSpeed(),
+                    "Pack endpoint changed the iron entry benchmark");
+            check(curve.get(AscendanceTiers.TRANSCENDENT.id()).miningSpeed()==endpoint,
+                    "Entry benchmark erased the pack mining endpoint");
+        }
         verifyHarvestProgression(evidence,generated);
         rejected(()->RuntimeBalanceDefinition.generate(new PackEvidence(resources,List.of(),List.of(),Map.of(),List.of(),List.of(),Map.of()),economy,
                 BalanceSettings.defaults(),BalanceOverrides.empty()),"Missing pack measurements accepted as fabricated equipment");

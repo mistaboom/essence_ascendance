@@ -22,6 +22,8 @@ public final class SkillProgressionPolicyTest {
         var tiers = AscendanceTierRegistry.powerTiers().stream().sorted(Comparator.comparingInt(AscendanceTierDefinition::order)).toList();
         int later = 0;
         for (var skill : SkillRegistry.values()) {
+            for (var parent : skill.prerequisiteRanks(64).keySet())
+                check(!parent.equals(SkillIds.TOOL_INSTINCT), "Optional Tool Instinct became a prerequisite");
             var semantics = SkillBalanceSemantics.require(skill.id());
             var decision = SkillProgressionPolicy.evaluate(skill, semantics, effects);
             check(decision.utility() > 0 && decision.exposure() > 0, "Every registered mechanic has positive explicit utility");

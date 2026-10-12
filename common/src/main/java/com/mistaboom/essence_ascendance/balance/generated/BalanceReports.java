@@ -216,7 +216,7 @@ public final class BalanceReports {
         Map<String, Long> classes = new TreeMap<>();
         evidence.resources().values().forEach(resource -> classes.merge(resource.availability() + " / " + resource.automation(), 1L, Long::sum));
         classes.forEach((key, value) -> row(out, key, value.toString()));
-        out.append("\nEconomic value measures opportunity cost. Dissolution yield is the separately constrained spendable output. Automation and source pressure affect yield; conservation runs after all yield overrides. `valuation.csv` contains every resource and its routing.\n\n")
+        out.append("\nEconomic value measures opportunity cost. Dissolution yield is the separately constrained spendable output. Automation and source pressure affect yield; conservation runs after all yield overrides. `valuation.csv` contains every resource and its base routing. The enchanted-book row is a conserved upper bound, labeled in yield_policy; actual enchantment-and-level yields appear in the Archive, item tooltips, and the loaded-registry /essence test enchantments receipt. Equipment enchantments redistribute their material budget without an additive premium.\n\n")
                 .append("### Production graph\n\n").append(evidence.graphSummary()).append("\n\n")
                 .append("Saved normalized processes: ").append(current.economy().processes().size())
                 .append("; incomplete processes excluded from hard conservation: ")
@@ -317,7 +317,7 @@ public final class BalanceReports {
         List<String> columns = new ArrayList<>(List.of("item_id", "mod", "stage", "availability", "automation", "reachable", "external",
                 "confidence", "economic_value", "total_essence"));
         for (int i = 0; i < essenceIds.size(); i++) columns.add(i < 6 ? essenceIds.get(i).split(":", 2)[1] : "essence_" + essenceIds.get(i));
-        columns.addAll(List.of("source_count", "override_count", "warning_count"));
+        columns.addAll(List.of("source_count", "override_count", "warning_count", "yield_policy"));
         var out = tables.table("valuation.csv", columns.toArray(String[]::new));
         var sources = exhaustive ? tables.table("valuation_sources.csv", "item_id", "source_index", "source_id", "kind", "stage", "output_per_event",
                 "renewable", "rate_known", "units_per_second", "confidence", "dependency_count", "reason", "source_category", "source_scope",
@@ -338,6 +338,8 @@ public final class BalanceReports {
             for (String essence : essenceIds) cells.add(number(value == null ? 0 : value.routedYields().getOrDefault(essence, 0.0)));
             cells.add(Integer.toString(resource.sources().size())); cells.add(Long.toString(overrideOrigins.getOrDefault(id, 0L)));
             cells.add(Integer.toString(resource.warnings().size() + (value == null ? 0 : value.warnings().size())));
+            cells.add(id.equals(com.mistaboom.essence_ascendance.mapping.EnchantedStackYields.ENCHANTED_BOOK)
+                    ? "component_upper_bound; effect_scored_conserved_books_v1" : "base_item_yield; enchantments_may_redistribute");
             out.row(cells.toArray(String[]::new));
             for (int i = 0; exhaustive && i < resource.sources().size(); i++) {
                 var source = resource.sources().get(i);

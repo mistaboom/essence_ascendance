@@ -74,7 +74,7 @@ Section `[attunement]`.
 | `variety_strength` | Number / `0.25` | `0..1`, extra fraction | Bounded variety benefit; changing activity is rewarded, not mandatory |
 | `history_window` | Integer / `64` | `8..256` reference outcomes | Per-seal recent exposure measured in reference work, not callback count |
 | `early_effort_fraction` | Number / `0.75` | `0.1..1`, effort fraction | First powered chapter effort, easing toward 1 by final chapter |
-| `onboarding_effort_fraction` | Number / `0.50` | `0.1..1`, effort fraction | Automatic Latent onboarding |
+| `onboarding_effort_fraction` | Number / `1.0` | `0.1..1`, effort fraction | Automatic Latent onboarding; full entry effort by default |
 | `breadth_exponent` | Number / `1.0` | `0.25..4`, exponent | Shape of required category breadth; smaller asks broader early participation. Default final progression leaves one category optional. |
 
 Length, pace, chapter effort and breadth jointly shape the journey. Investment affects future credit, not already earned normalized fractions.

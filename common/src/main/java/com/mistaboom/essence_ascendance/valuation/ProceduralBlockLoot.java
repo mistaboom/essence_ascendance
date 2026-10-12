@@ -293,6 +293,14 @@ final class ProceduralBlockLoot {
                 && condition.keySet().equals(Set.of("condition", "entity")) && text(condition.get("entity")).equals("this")
                 && context.toolFacts().falseConditions().contains("twilightforest:giant_pick_used/this")) return truth(false);
         switch (type) {
+            case "neoforge:can_item_perform_ability" -> {
+                if (!condition.keySet().equals(Set.of("condition", "ability"))
+                        || !(condition.get("ability") instanceof String ability)) return unknown("malformed native item ability predicate");
+                Boolean supported = context.toolFacts().abilities().get(ability);
+                if (supported == null) return unknown("unmodeled native item ability: " + ability);
+                observations.add("native item ability " + ability + " evaluated from audited tool implementation");
+                return truth(supported);
+            }
             case "minecraft:location_check" -> {
                 if (!Set.of("condition", "predicate", "offsetX", "offsetY", "offsetZ").containsAll(condition.keySet())
                         || finite(condition.getOrDefault("offsetX", 0), 1) != 0

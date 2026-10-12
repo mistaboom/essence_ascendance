@@ -93,7 +93,7 @@ public final class SkillProgressionPolicy {
 
     public static long price(long tierBudget, double utility, double categoryFactor,
                              double alternativeFactor, double rankBenefit, long previousPrice) {
-        double fraction = Math.clamp(.045 * Math.sqrt(utility), .02, .25);
+        double fraction = com.mistaboom.essence_ascendance.balance.runtime.ProgressionPricing.skillShare(utility);
         double raw = Math.ceil(tierBudget * fraction * categoryFactor * alternativeFactor * rankBenefit);
         if (!Double.isFinite(raw) || raw >= Long.MAX_VALUE || raw <= 0) throw new ArithmeticException("Invalid procedural skill price");
         return Math.max(Math.max(1, previousPrice), (long) raw);

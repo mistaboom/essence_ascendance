@@ -2,20 +2,17 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "L": {
-      "item": "essence_ascendance:latent_ingot"
-    },
-    "A": {
-      "item": "minecraft:amethyst_shard"
-    },
     "G": {
       "item": "minecraft:glass"
+    },
+    "D": {
+      "item": "minecraft:diamond"
     }
   },
   "pattern": [
-    "LAL",
-    "GAG",
-    "LAL"
+    " G ",
+    "GDG",
+    " G "
   ],
   "result": {
     "id": "essence_ascendance:essence_focus"

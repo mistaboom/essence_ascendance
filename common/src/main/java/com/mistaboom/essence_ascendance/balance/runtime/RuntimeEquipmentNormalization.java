@@ -11,6 +11,32 @@ import java.util.*;
 /** Preserves physical stat curves while assigning discrete harvest access to equipment tiers. */
 final class RuntimeEquipmentNormalization {
     private RuntimeEquipmentNormalization() {}
+    /** Fit the existing pack-shaped curve between an iron entry benchmark and its calibrated apex. */
+    static void anchorMining(Map<ResourceLocation, EquipmentBaselineConfig.TierBaseline> equipment,
+                             PackEvidence evidence, Map<String, Double> diagnostics) {
+        double entry = evidence.equipment().stream()
+                .filter(row -> row.itemId().equals("minecraft:iron_pickaxe") && row.included())
+                .mapToDouble(row -> row.axes().getOrDefault(CapabilityAxis.MINING_SPEED, 0.0))
+                .filter(value -> Double.isFinite(value) && value > 0).findFirst()
+                .orElse(net.minecraft.world.item.Tiers.IRON.getSpeed());
+        entry = Math.ceil(entry); // Published mining speed uses whole native units; never round below iron.
+        double oldEntry = equipment.get(AscendanceTiers.DORMANT.id()).miningSpeed();
+        double oldApex = equipment.get(AscendanceTiers.TRANSCENDENT.id()).miningSpeed();
+        double apex = Math.max(entry, oldApex);
+        for (var item : equipment.entrySet()) {
+            var row = item.getValue();
+            double position = oldApex > oldEntry ? Math.clamp((row.miningSpeed() - oldEntry) / (oldApex - oldEntry), 0, 1) : Math.clamp((com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry.get(item.getKey()).orElseThrow().order()
+                    - AscendanceTiers.DORMANT.order()) / (double) (AscendanceTiers.TRANSCENDENT.order() - AscendanceTiers.DORMANT.order()), 0, 1);
+            double speed = item.getKey().equals(AscendanceTiers.LATENT.id())
+                    ? entry * RuntimeReferencePolicy.LATENT_CAPABILITY_RATIO
+                    : entry + (apex - entry) * position;
+            item.setValue(new EquipmentBaselineConfig.TierBaseline(row.fullSetArmor(), row.fullSetToughness(),
+                    row.meleeDamage(), row.meleeAttackSpeed(), row.rangedDamage(), row.rangedAttackSpeed(),
+                    row.magicDamage(), row.magicCastSpeed(), Math.max(1, speed), row.harvestLevel(), row.durability()));
+        }
+        diagnostics.put("equipment_mining_entry_benchmark", entry);
+        diagnostics.put("equipment_mining_curve_apex", apex);
+    }
     static void apply(Map<ResourceLocation,EquipmentBaselineConfig.TierBaseline> equipment,
                       PackEvidence evidence, BalanceSettings settings, Map<String,Double> diagnostics) {
         var apex=Objects.requireNonNull(equipment.get(AscendanceTiers.TRANSCENDENT.id()));

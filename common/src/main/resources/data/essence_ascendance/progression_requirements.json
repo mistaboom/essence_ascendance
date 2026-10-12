@@ -866,7 +866,7 @@
       "mechanicalConstraints": "feast_reflex",
       "rankModel": "Generated meaningful native states; no fixed purchasable count",
       "domains": "F03",
-      "bonusCompatibility": "Skill-native refill and full-reserve passive protection work before Hunger Efficiency. Refill is not a completed meal.",
+      "bonusCompatibility": "Skill-native refill works before Hunger Efficiency. Native exertion costs remain at full reserves. Refill is not a completed meal; full-reserve sleep/phantom protection is separate.",
       "outcomes": [
         {
           "path": "vitality/innerSustenance/hungerRecoveryIntervalTicks",
@@ -1955,8 +1955,8 @@
     },
     "restful_mending": {
       "home": "Utility",
-      "firstStateFloor": "1% max durability per second after useful idle delay",
-      "additionalImprovementFloor": "0.5 percentage points max durability per second",
+      "firstStateFloor": "1 durability point per second after useful idle delay",
+      "additionalImprovementFloor": "1 durability point per second",
       "endpointPolicy": "Generated final meaningful native state within mechanic bounds; floor excess never re-enters allocation",
       "mechanicalConstraints": "metabolic_mending, masterwork_tempering",
       "rankModel": "Generated meaningful native states; no fixed purchasable count",
@@ -1964,13 +1964,13 @@
       "bonusCompatibility": "Native damaged gear supplies useful repairs before efficiency bonus. Observe wear attempts independently of prevented debit (D02).",
       "outcomes": [
         {
-          "path": "utility/restfulMending/repairFractionPerSecond",
-          "first": 0.01,
-          "later": 0.005,
+          "path": "utility/restfulMending/repairPointsPerSecond",
+          "first": 1,
+          "later": 1,
           "scale": 1,
           "offset": 0,
           "minimum": 0,
-          "maximum": 1,
+          "maximum": 1000000,
           "quantum": 1e-06
         }
       ],
@@ -1978,22 +1978,22 @@
     },
     "metabolic_mending": {
       "home": "Utility",
-      "firstStateFloor": "1% max durability per intrinsic food point",
-      "additionalImprovementFloor": "0.5 percentage points per intrinsic food point",
+      "firstStateFloor": "1 durability point per intrinsic food point",
+      "additionalImprovementFloor": "0.5 durability points per intrinsic food point",
       "endpointPolicy": "Generated final meaningful native state within mechanic bounds; floor excess never re-enters allocation",
       "mechanicalConstraints": "restful_mending, masterwork_tempering",
       "rankModel": "Generated meaningful native states; no fixed purchasable count",
       "domains": "F01; F04; D01; D02",
-      "bonusCompatibility": "Intrinsic food and native item maxDamage suffice. Hunger Efficiency never multiplies food value; Durability Efficiency conserves later wear only.",
+      "bonusCompatibility": "Intrinsic food pays one shared native durability-point budget. Item maximum durability never multiplies it. Hunger Efficiency never multiplies food value; Durability Efficiency conserves later wear only.",
       "outcomes": [
         {
-          "path": "utility/metabolicMending/repairFractionPerFoodPoint",
-          "first": 0.01,
-          "later": 0.005,
+          "path": "utility/metabolicMending/repairPointsPerFoodPoint",
+          "first": 1,
+          "later": 0.5,
           "scale": 1,
           "offset": 0,
           "minimum": 0,
-          "maximum": 0.049999,
+          "maximum": 1000000,
           "quantum": 1e-06
         }
       ],

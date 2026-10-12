@@ -22,7 +22,9 @@ public final class SkillTooltipPresentation {
     private List<Component> cachedLines = List.of();
 
     public static int displayedRank(int current, int maximum, boolean shift) {
-        int normal = Math.max(1, current);
+        // A historical receipt can retain ranks removed by a rebuilt profile. Hover
+        // labels describe the currently resolved effect; receipts/refunds keep ownership.
+        int normal = Math.clamp(current, 1, Math.max(1, maximum));
         return previewsNext(current, maximum, shift) ? normal + 1 : normal;
     }
     public static boolean previewsNext(int current, int maximum, boolean shift) {

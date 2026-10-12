@@ -2,15 +2,16 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "pattern": [
-    "CLC",
+    " L ",
+    " L ",
     " C "
   ],
   "key": {
-    "C": {
-      "item": "essence_ascendance:channelstone"
-    },
     "L": {
       "item": "essence_ascendance:latent_ingot"
+    },
+    "C": {
+      "item": "essence_ascendance:channelstone"
     }
   },
   "result": {

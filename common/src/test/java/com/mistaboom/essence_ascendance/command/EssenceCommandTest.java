@@ -96,7 +96,7 @@ public final class EssenceCommandTest {
                 "debug player gameplay", "debug player gameplay offense", "debug player gameplay shield", "debug player gameplay projectiles",
                 "debug player gameplay posture", "debug player gameplay status",
                 "debug player milestones", "debug player equipment",
-                "test", "test skills", "test skills effects", "test skills milestones")) {
+                "test", "test enchantments", "test skills", "test skills effects", "test skills milestones")) {
             valid(dispatcher, "essence " + path, operator);
             invalid(dispatcher, "essence " + path, player);
             invalid(dispatcher, "essence " + path, source(EssenceCommandUtil.ADMIN_PERMISSION - 1));
@@ -164,7 +164,7 @@ public final class EssenceCommandTest {
         literalChildren(dispatcher, List.of("essence", "debug", "item"), Set.of("inspect", "mapping", "baselines"));
         literalChildren(dispatcher, List.of("essence", "debug", "machine"), Set.of("crucible", "pylon", "infuser"));
         literalChildren(dispatcher, List.of("essence", "debug", "balance"), Set.of("summary", "validate", "item", "bonus", "skill", "cost"));
-        literalChildren(dispatcher, List.of("essence", "test"), Set.of("luck", "activation", "skills"));
+        literalChildren(dispatcher, List.of("essence", "test"), Set.of("luck", "activation", "skills", "enchantments"));
         literalChildren(dispatcher, List.of("essence", "bonuses"), Set.of("list", "show", "invest"));
         literalChildren(dispatcher, List.of("essence", "admin", "balance"), Set.of("rebuild", "export"));
         literalChildren(dispatcher, List.of("essence", "admin", "mappings"), Set.of("reload"));

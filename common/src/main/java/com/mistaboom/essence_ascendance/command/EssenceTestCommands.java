@@ -46,6 +46,8 @@ public final class EssenceTestCommands {
         return Commands.literal("test")
                 .requires(source -> source.hasPermission(EssenceCommandUtil.ADMIN_PERMISSION))
                 .executes(context -> showHelp(context.getSource()))
+                .then(Commands.literal("enchantments").executes(context ->
+                        com.mistaboom.essence_ascendance.mapping.EnchantmentYieldDiagnostics.run(context.getSource())))
                 .then(
                         Commands.literal("help")
                                 .executes(context -> showHelp(context.getSource()))
@@ -80,6 +82,8 @@ public final class EssenceTestCommands {
                 "/essence test activation",
                 EssenceText.command("test.help.activation")
         ));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence test enchantments",
+                Component.literal("Verify loaded enchantment yields and write every enchantment/level receipt without a player.")));
         showSkillHelp(source);
         EssenceCommandUtil.send(source, EssenceCommandUtil.muted(EssenceText.command("test.help.scope")));
         return 1;

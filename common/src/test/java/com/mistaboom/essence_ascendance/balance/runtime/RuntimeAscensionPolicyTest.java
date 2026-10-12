@@ -93,6 +93,23 @@ public final class RuntimeAscensionPolicyTest {
         check(defaults.attunement().chapter(AscendanceTiers.LATENT.id().toString()).categories().values().iterator().next().target()
                         < defaults.attunement().chapter(AscendanceTiers.DORMANT.id().toString()).categories().values().iterator().next().target(),
                 "Latent onboarding is not shorter than the first powered chapter");
+        var previousOpening = AttunementGenerator.generate(evidence, null,
+                BalanceSettings.parse("[attunement]\nonboarding_effort_fraction=0.5", "previous-opening"),
+                defaults.config().balanceProfile());
+        String latent = AscendanceTiers.LATENT.id().toString();
+        var opening = defaults.attunement().chapter(latent);
+        var previousChapter = previousOpening.chapter(latent);
+        for (var category : opening.categories().entrySet()) {
+            check(Math.abs(category.getValue().target() - 2 * previousChapter.categories().get(category.getKey()).target()) <= 1,
+                    "Full onboarding effort did not double the former discounted opening target");
+        }
+        check(opening.requiredCategories() == previousChapter.requiredCategories()
+                        && opening.activities().equals(previousChapter.activities()),
+                "Opening effort tuning changed category breadth or activity eligibility/rates");
+        for (var chapter : defaults.attunement().chapters().entrySet()) {
+            if (!chapter.getKey().equals(latent)) check(chapter.getValue().equals(previousOpening.chapter(chapter.getKey())),
+                    "Opening effort tuning changed a powered chapter");
+        }
         AttunementActivityRegistry.register(new AttunementActivity("future_test_action", "essence_ascendance:offense", "health", "damage", false));
         var extended = RuntimeBalanceDefinition.generate(evidence, BalanceSettings.defaults(), BalanceOverrides.empty());
         check(extended.attunement().methods().containsKey("future_test_action"), "Generic future activity missing from generated profile");

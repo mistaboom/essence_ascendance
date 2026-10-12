@@ -42,8 +42,11 @@ public final class ItemYieldBrowser {
                                  List<Component> terms) { }
 
     public record BrowserRow(ResourceLocation itemId, Component name, ItemPresentation item,
-                             Map<ResourceLocation, Long> yields) {
-        public BrowserRow { yields = Map.copyOf(yields); }
+                             Map<ResourceLocation, Long> yields, ResourceLocation rowId) {
+        public BrowserRow { yields = Map.copyOf(yields); Objects.requireNonNull(rowId); }
+        public BrowserRow(ResourceLocation itemId, Component name, ItemPresentation item, Map<ResourceLocation, Long> yields) {
+            this(itemId, name, item, yields, itemId);
+        }
         long yield(ResourceLocation essence) { return yields.getOrDefault(essence, 0L); }
     }
 
@@ -175,7 +178,7 @@ public final class ItemYieldBrowser {
                     terms.add(EssenceText.essence(essence));
                     terms.add(EssenceText.essenceShort(essence));
                 }
-            return new SearchMetadata(row.itemId(), row.name(), ArchiveNavigator.yieldTarget(row.itemId()), List.copyOf(terms));
+            return new SearchMetadata(row.rowId(), row.name(), ArchiveNavigator.yieldTarget(row.rowId()), List.copyOf(terms));
         }).toList();
     }
 
@@ -203,7 +206,7 @@ public final class ItemYieldBrowser {
                     microUnits -> amount(microUnits, essence.id())).equalWidthGroup("essence"));
         }
         return new ReadOnlyDataTable<>(columns,
-                rows.stream().map(row -> new ReadOnlyDataTable.Row<>(row.itemId().toString(), row)).toList());
+                rows.stream().map(row -> new ReadOnlyDataTable.Row<>(row.rowId().toString(), row)).toList());
     }
 
     public static List<BrowserRow> project(ItemEssenceTooltipClientState.YieldSnapshot snapshot) {
@@ -214,10 +217,40 @@ public final class ItemYieldBrowser {
             if (stack.isEmpty()) continue;
             Component name = stack.getHoverName();
             Map<ResourceLocation, Long> yields = new LinkedHashMap<>();
-            source.outputs().forEach(output -> yields.put(output.essenceId(), output.microUnits()));
+            ItemEssenceTooltipClientState.outputsForStack(stack, snapshot).forEach(output -> yields.put(output.essenceId(), output.microUnits()));
             result.add(new BrowserRow(source.itemId(), name,
                     new ItemPresentation(source.itemId(), stack.getComponentsPatch(), name), Map.copyOf(yields)));
         }
+        // Native registry definitions already synchronize to the client. Enumerate individual
+        // levels once per snapshot/revision; mixed books use their exact tooltip projection.
+        if (snapshot.outputsByItem().containsKey(ResourceLocation.parse("minecraft:enchanted_book"))) {
+            var client = net.minecraft.client.Minecraft.getInstance();
+            if (client != null && client.getConnection() != null) {
+                var registry = client.getConnection().registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
+                result.addAll(enchantmentRows(snapshot, registry));
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    public static List<BrowserRow> enchantmentRows(ItemEssenceTooltipClientState.YieldSnapshot snapshot,
+                                                   net.minecraft.core.Registry<net.minecraft.world.item.enchantment.Enchantment> registry) {
+        List<BrowserRow> result = new ArrayList<>();
+        registry.holders().sorted(Comparator.comparing(holder -> holder.key().location())).forEach(holder -> {
+            for (int level = 1; level <= Math.min(255, holder.value().getMaxLevel()); level++) {
+                ItemStack stack = new ItemStack(net.minecraft.world.item.Items.ENCHANTED_BOOK);
+                var enchantments = new net.minecraft.world.item.enchantment.ItemEnchantments.Mutable(net.minecraft.world.item.enchantment.ItemEnchantments.EMPTY);
+                enchantments.set(holder, level);
+                stack.set(net.minecraft.core.component.DataComponents.STORED_ENCHANTMENTS, enchantments.toImmutable());
+                var name = net.minecraft.world.item.enchantment.Enchantment.getFullname(holder, level);
+                Map<ResourceLocation, Long> yields = new LinkedHashMap<>();
+                ItemEssenceTooltipClientState.outputsForStack(stack, snapshot).forEach(output -> yields.put(output.essenceId(), output.microUnits()));
+                var item = ResourceLocation.parse("minecraft:enchanted_book");
+                var key = ResourceLocation.fromNamespaceAndPath("essence_ascendance", "enchanted_book/" +
+                        holder.key().location().getNamespace() + "/" + holder.key().location().getPath() + "/" + level);
+                result.add(new BrowserRow(item, name, new ItemPresentation(item, stack.getComponentsPatch(), name), yields, key));
+            }
+        });
         return List.copyOf(result);
     }
 
@@ -244,7 +277,7 @@ public final class ItemYieldBrowser {
         else if (essence != null) comparator = Comparator.comparingLong(row -> row.yield(essence));
         else return List.copyOf(rows);
         if (direction == ArchiveNavigationState.YieldSortDirection.DESCENDING) comparator = comparator.reversed();
-        return rows.stream().sorted(comparator.thenComparing(row -> row.itemId().toString())).toList();
+        return rows.stream().sorted(comparator.thenComparing(row -> row.rowId().toString())).toList();
     }
 
     private FullscreenComposition.Control control(String id, UiBounds bounds, Component label,

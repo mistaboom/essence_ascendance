@@ -238,7 +238,7 @@ These are **input defaults**, not guaranteed resolved gameplay results. Ranges c
 | `[attunement] repetition_floor` | `0.15` | `0.01..1`; legitimate repeated source stays productive |
 | `[attunement] variety_strength` | `0.25` | `0..1`; bounded bonus for source variety |
 | `[attunement] history_window` | `64` | Integer `8..256`; reference-work history, not event callback count |
-| `[attunement] early_effort_fraction`, `onboarding_effort_fraction` | `0.75`, `0.50` | Each `0.1..1`; early powered chapter and automatic Latent onboarding |
+| `[attunement] early_effort_fraction`, `onboarding_effort_fraction` | `0.75`, `1.0` | Each `0.1..1`; early powered chapter and automatic Latent onboarding |
 | `[attunement] breadth_exponent` | `1` | `0.25..4`; shape of increasing required category breadth |
 | `[builds] partial_viability` | `0.65` | `0.1..1`; semantic partial-participation allocation |
 | `[builds] composition_safeguard` | `0.75` | `0..1`; stacking safeguards; zero does not remove all validators |

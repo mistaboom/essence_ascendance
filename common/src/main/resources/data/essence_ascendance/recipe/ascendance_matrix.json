@@ -2,16 +2,16 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "pattern": [
-    "LAL",
-    "AAA",
-    "LAL"
+    " N ",
+    "NDN",
+    " N "
   ],
   "key": {
-    "L": {
-      "item": "essence_ascendance:latent_ingot"
+    "N": {
+      "item": "essence_ascendance:latent_nugget"
     },
-    "A": {
-      "item": "minecraft:amethyst_shard"
+    "D": {
+      "item": "minecraft:diamond"
     }
   },
   "result": {

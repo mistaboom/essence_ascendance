@@ -49,8 +49,64 @@ public final class VitalityBalanceTest {
         numeric(runtime);
         projections(runtime);
         metabolicBudgets();
+        maintenanceUnits(runtime);
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println(
                 "VitalityBalanceTest: " + checks + " schema, exact pointer, native-unit, projection, rank and preservation checks PASS");
+    }
+    private static void maintenanceUnits(RuntimeBalanceDefinition runtime) {
+        var base = runtime.config().skillEffects();
+        check(base.utility().restfulMending().repairPointsPerSecond() >= 1,
+                "Restful preserves the approved one durability point/second first floor");
+        check(base.utility().metabolicMending().repairPointsPerFoodPoint() >= 1,
+                "Metabolic preserves the approved one durability point/food first floor");
+        var restful = ProgressionRequirements.skill(SkillIds.RESTFUL_MENDING).outcomes().getFirst();
+        var metabolic = ProgressionRequirements.skill(SkillIds.METABOLIC_MENDING).outcomes().getFirst();
+        near(restful.later(), 1, "Every additional Restful purchase improves by at least one point/second");
+        near(metabolic.later(), .5, "Every additional Metabolic purchase improves by at least half a point/food");
+        var gson = new com.google.gson.Gson();
+        var json = gson.toJsonTree(base).getAsJsonObject();
+        ProgressionRequirements.write(json, restful.path(), 1.25);
+        ProgressionRequirements.write(json, metabolic.path(), 1.5);
+        var nativeSettings = gson.fromJson(json, com.mistaboom.essence_ascendance.config.SkillEffectBalanceSettings.class);
+        var ranked = SkillRankEffectScaling.apply(nativeSettings,
+                Map.of(SkillIds.RESTFUL_MENDING, 2, SkillIds.METABOLIC_MENDING, 2), (id, rank) -> 2);
+        near(ranked.utility().restfulMending().repairPointsPerSecond(), 2.5,
+                "Point rates scale linearly without probability saturation or a one-point ceiling");
+        near(ranked.utility().metabolicMending().repairPointsPerFoodPoint(), 3,
+                "Food point rates scale linearly without percentage semantics");
+        check(com.mistaboom.essence_ascendance.skill.tooltip.SkillTooltipRegistry.lines(SkillIds.RESTFUL_MENDING)
+                        .getFirst().arguments(ranked).get(1).equals("2.5"),
+                "Shared skill/Archive presentation shows points without multiplying by one hundred");
+        check(com.mistaboom.essence_ascendance.client.SkillTooltipPresentation.displayedRank(4, 1, false) == 1,
+                "Hover rank describes the current effect endpoint while historical ownership is preserved");
+        var nominal = runtime.toJson();
+        nominal.getAsJsonObject("composition").addProperty("meaningful_progression", 0);
+        ProgressionRequirements.write(nominal.getAsJsonObject("effects"), restful.path(), 4);
+        var curve = nominal.getAsJsonObject("skillCurves").getAsJsonObject(SkillIds.RESTFUL_MENDING.toString());
+        curve.addProperty("maximumRank", 4);
+        var candidates = new com.google.gson.JsonArray();
+        int candidate = 0;
+        for (double power : new double[]{1, 1.1, 1.5, 3}) {
+            var rank = new JsonObject(); rank.addProperty("rank", ++candidate);
+            rank.addProperty("cost", candidate * 100); rank.addProperty("powerMultiplier", power);
+            rank.add("parameters", new JsonObject()); candidates.add(rank);
+        }
+        curve.add("ranks", candidates);
+        var published = SkillBalanceGenerator.publishMeaningful(RuntimeBalanceDefinition.fromJson(nominal));
+        var strongRanks = published.skillCurves().get(SkillIds.RESTFUL_MENDING.toString()).ranks();
+        check(strongRanks.size() == 3, "A sub-floor increment is skipped rather than sold or rounded upward");
+        near(strongRanks.get(1).parameters().get(restful.path()), 6,
+                "Approved +1 is a floor: a supported +2 increment remains +2");
+        near(strongRanks.get(2).parameters().get(restful.path()), 12,
+                "Later generated increments may exceed the minimum without a fixed sequence");
+        reject(runtime, j -> j.getAsJsonObject("effects").getAsJsonObject("utility").getAsJsonObject("restfulMending")
+                .addProperty("repairFractionPerSecond", .01));
+        reject(runtime, j -> j.getAsJsonObject("effects").getAsJsonObject("utility").getAsJsonObject("metabolicMending")
+                .addProperty("repairFractionPerFoodPoint", .01));
+        reject(runtime, j -> j.getAsJsonObject("effects").getAsJsonObject("utility").getAsJsonObject("restfulMending")
+                .remove("repairPointsPerSecond"));
+        reject(runtime, j -> j.getAsJsonObject("effects").getAsJsonObject("utility").getAsJsonObject("metabolicMending")
+                .remove("repairPointsPerFoodPoint"));
     }
     private static void metabolicBudgets() {
         RuntimeReferencePolicy.withBootstrapReferences(() -> {

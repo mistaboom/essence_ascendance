@@ -106,6 +106,8 @@ public final class GeneratedBalanceIntegrationTest {
         reject(document, root -> root.getAsJsonObject("runtime").remove("attunement"), "Old runtime silently installed new Attunement policy without rebuild");
         reject(document, root -> root.getAsJsonObject("runtime").getAsJsonObject("balanceProfile").remove("bonusTracks"), "Old runtime silently installed resolved Bonus tracks without rebuild");
         reject(document, root -> root.getAsJsonObject("metadata").addProperty("generatorRevision", "obsolete"), "Obsolete generator revision did not require an explicit rebuild");
+        reject(document, root -> root.getAsJsonObject("metadata").addProperty("generatorRevision", "native-equipment-headroom-46"),
+                "Percentage-based maintenance profile must require an explicit rebuild before native-point repair is installed");
         reject(document, root -> bonusTrack(root, EssenceStats.MOVEMENT_SPEED.id().toString())
                 .getAsJsonArray("checkpoints").get(1).getAsJsonObject().addProperty("segmentCost", 0),
                 "Inconsistent Bonus segment cost escaped full-document validation");

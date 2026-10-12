@@ -172,6 +172,7 @@ public final class BonusTrackGenerator {
             inputs.put("native_response", marginal); inputs.put("breadth", breadth); inputs.put("environment_alternatives", alternative);
             inputs.put("useful_span", span); inputs.put("composition_headroom", headroom); inputs.put("marginal_power", intrinsic);
             inputs.put("category_supply", economy); inputs.put("utility_price_multiplier", utility);
+            inputs.put("purchase_budget_share", ProgressionPricing.purchaseShare());
             if (competition.localized(stat)) inputs.put("competitive_localization", 1.0);
             if (stat.id().equals(EssenceStats.SWIM_SPEED.id())) inputs.put("native_maximum_effect",
                     NativeBonusMechanics.additivePercentHeadroom(Attributes.WATER_MOVEMENT_EFFICIENCY));
@@ -199,13 +200,13 @@ public final class BonusTrackGenerator {
                     competition.bonusCheckpoint(stat, ProgressionBand.at(index), originalFraction, fraction * maximum);
                     long priorEconomic = index == 0 ? 0 : tierCaps.get(tiers.get(index - 1).id());
                     // Adjacent caps preserve every previous tier's economic growth. Delayed tracks never pay locked segments.
-                    segment = fraction > priorFraction ? safeCost((tierCaps.get(tier.id()) - priorEconomic) * economy * utility) : 0;
+                    segment = fraction > priorFraction ? safeCost((tierCaps.get(tier.id()) - priorEconomic) * economy * utility * ProgressionPricing.purchaseShare()) : 0;
                     cumulative = Math.addExact(cumulative, segment);
                 }
                 checkpoints.add(new BonusTrackDefinition.Checkpoint(tier.id(), cumulative, segment, fraction, unlocked, segment > 0));
                 priorFraction = fraction;
             }
-            reasons.add("Price = adjacent category-economy segment × normalized native response × breadth × alternatives × useful-span × composition headroom");
+            reasons.add("Price = adjacent category-economy segment × normalized native response × breadth × alternatives × useful-span × composition headroom × shared purchase-budget share");
             reasons.add("Marginal power is price-independent for normalized Bonus Attunement; assumptions are modeling estimates, not measured player uptime");
             result.put(stat.id(), new BonusTrackDefinition(stat.id(), stat.category(), stat.unit(), maximum,
                     tiers.get(start).id(), tiers.get(end).id(), checkpoints, exponent,

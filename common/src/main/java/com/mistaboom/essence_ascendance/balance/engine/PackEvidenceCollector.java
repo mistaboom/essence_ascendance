@@ -107,11 +107,18 @@ public final class PackEvidenceCollector {
         inputs.limitations().forEach(sink::warn);
         runs.warnings().forEach(sink::warn);
         applyOverrides(context, sink);
-        Map<String, ResourceEvidence> resources = com.mistaboom.essence_ascendance.valuation.NativeTreeRenewal.enrich(context, resolveResources(context, sink), sink);
+        Map<String, ResourceEvidence> beforeNative = resolveResources(context, sink);
+        Map<String, ResourceEvidence> resources = com.mistaboom.essence_ascendance.valuation.NativeTreeRenewal.enrich(context, beforeNative, sink);
         resources = com.mistaboom.essence_ascendance.valuation.NativeCropRenewal.enrich(context, resources, sink);
         resources = NativeStructureBlockLoot.enrich(context, resources, sink);
         resources = com.mistaboom.essence_ascendance.valuation.ExDeorumManualAccess.enrich(context, resources, sink);
         resources = com.mistaboom.essence_ascendance.valuation.NativePassiveDrops.enrich(context, resources, sink);
+        var closure = AuthoritativeAcquisitionClosure.resolve(beforeNative, resources, questProjection.ordinary(), questProjection.placements(),
+                inputs.production(), inputs.quests(), sink);
+        var finalProjection = projectQuestResult(inputs, snapshot, closure.progression(),
+                questProjection.originalProduction(), closure.constraints(), questProjection.ordinary());
+        resources = withQuestSources(closure.resources(), finalProjection.snapshot());
+        PackEvidenceContext finalContext = new PackEvidenceContext(server, settings, overrides, valuations, finalProjection.snapshot(), inputs);
         inputs.configurationConstrainedItems(ConfigurationAccess.remainingFiniteClaims(resources, inputs.configurationConstrainedItems()));
         List<EquipmentReference> equipment = new ArrayList<>(resolveEquipment(baseEquipment, resources, sink, settings));
         equipment.add(emptyHandMiningReference());
@@ -119,7 +126,7 @@ public final class PackEvidenceCollector {
         List<EnemyReference> enemies = resolveEnemies(baseEnemies, sink, settings);
         Map<ProgressionBand, Map<CapabilityAxis, Double>> frontiers = RobustFrontiers.build(equipment, settings.outlierPolicy().name());
         List<CapabilityEvidence> capabilities = resolveCapabilities(sink, resources);
-        inputs.competitiveCapabilities(CompetitiveCapabilities.collect(context, resources, equipment, enemies, capabilities, providers, runs, sink));
+        inputs.competitiveCapabilities(CompetitiveCapabilities.collect(finalContext, resources, equipment, enemies, capabilities, providers, runs, sink));
         // Capability adapters are probed above, after the earlier acquisition warning snapshot.
         runs.warnings().forEach(sink::warn);
         for (ProgressionBand band : ProgressionBand.values()) {
@@ -211,43 +218,38 @@ public final class PackEvidenceCollector {
         }
     }
 
-    private record QuestProjection(ValuationEvidenceSnapshot snapshot, Map<String, AcquisitionProgressionGraph.Placement> placements) { }
+    private record QuestProjection(ValuationEvidenceSnapshot snapshot, Map<String, AcquisitionProgressionGraph.Placement> placements,
+                                   com.mistaboom.essence_ascendance.balance.economy.ProductionGraph originalProduction,
+                                   Map<String, AcquisitionProgressionGraph.Placement> ordinary) { }
     private static QuestProjection projectQuests(com.mistaboom.essence_ascendance.valuation.GenerationDataSnapshot inputs,
             List<ProceduralValuationResult> values, ValuationEvidenceSnapshot snapshot) {
-        if (inputs.quests() == com.mistaboom.essence_ascendance.balance.quest.QuestEvidence.EMPTY) return new QuestProjection(snapshot, Map.of());
         try (var phase = BalancePerformance.phase("shared_quest_acquisition_progression")) {
             Map<String, AcquisitionProgressionGraph.Placement> seeds = new TreeMap<>();
             for (var value : values) if (value.modeledAcquisition()) seeds.put(value.itemId().toString(), AcquisitionProgressionGraph.Placement.ordinary(
                     inferStage(value, BuiltInRegistries.ITEM.get(value.itemId()), snapshot.sources().getOrDefault(value.itemId().toString(), List.of())),
                     value.renewabilityMultiplier() < 1 || snapshot.sources().getOrDefault(value.itemId().toString(), List.of()).stream().anyMatch(AcquisitionSource::renewable)));
             var solved = AcquisitionProgressionGraph.solve(seeds, inputs.production(), inputs.quests());
+            return projectQuestResult(inputs, snapshot, solved, inputs.production(), AcquisitionProgressionGraph.Constraints.NONE, seeds);
+        }
+    }
+    private static QuestProjection projectQuestResult(com.mistaboom.essence_ascendance.valuation.GenerationDataSnapshot inputs,
+            ValuationEvidenceSnapshot snapshot, AcquisitionProgressionGraph.Result solved,
+            com.mistaboom.essence_ascendance.balance.economy.ProductionGraph originalProduction,
+            AcquisitionProgressionGraph.Constraints constraints, Map<String, AcquisitionProgressionGraph.Placement> ordinary) {
             // Preserve finite/exclusive quest lineage for joint equipment/automation setup proofs.
             // A crafted descendant must not masquerade as an unconstrained recipe source.
             inputs.configurationConstrainedItems(solved.items().entrySet().stream()
                     .filter(entry -> entry.getValue().finite() || !entry.getValue().exclusiveClaims().isEmpty())
                     .map(Map.Entry::getKey).collect(java.util.stream.Collectors.toSet()));
-            List<com.mistaboom.essence_ascendance.balance.economy.ProductionGraph.Process> resolved = new ArrayList<>();
-            for (var process : inputs.production().processes()) {
-                if (!process.metadata().containsKey("quest_id")) { resolved.add(process); continue; }
-                Map<String, String> metadata = new TreeMap<>(process.metadata());
-                var placement = solved.quests().get(metadata.get("quest_id"));
-                boolean supported = placement != null && process.confidence() >= .85;
-                metadata.put("acquisition_complete", Boolean.toString(supported));
-                if (!supported) metadata.put("conservation_complete", "false");
-                metadata.put("repeat_supply_proven", Boolean.toString(supported && placement.renewable()));
-                if ("renewable".equals(metadata.get("renewability")) && (placement == null || !placement.renewable()))
-                    metadata.put("renewability", placement != null && placement.finite() ? "finite" : "unknown");
-                metadata.put("availability_stage", supported ? placement.stage().name() : "unresolved");
-                metadata.put("acquisition_semantics", "Marginal reward opportunity, not guaranteed stock or unrestricted material conversion");
-                resolved.add(new com.mistaboom.essence_ascendance.balance.economy.ProductionGraph.Process(process.id(), process.family(), process.inputs(),
-                        process.outputs(), process.processingTicks(), process.externalCost(), process.provider(), process.confidence(), metadata));
-            }
-            inputs.production(new com.mistaboom.essence_ascendance.balance.economy.ProductionGraph(resolved, inputs.production().warnings()));
-            Map<String, List<AcquisitionSource>> sources = new TreeMap<>(snapshot.sources());
+            inputs.production(AcquisitionProgressionGraph.projectProduction(originalProduction, solved, constraints));
+            Map<String, List<AcquisitionSource>> sources = new TreeMap<>();
+            snapshot.sources().forEach((id, rows) -> sources.put(id,
+                    rows.stream().filter(s -> s.kind() != AcquisitionSource.Kind.QUEST_REWARD).toList()));
             for (var q : inputs.quests().quests()) {
                 var placement = solved.quests().get(q.id());
                 if (placement == null) continue;
-                for (var r : q.rewards()) if (r.supported()) {
+                for (var r : q.rewards()) if (r.supported() && !constraints.excludedItems().contains(r.item())
+                        && !constraints.excludedRecipes().contains("essence_ascendance:quest/" + q.id() + "/" + r.id())) {
                     List<AcquisitionSource> entries = new ArrayList<>(sources.getOrDefault(r.item(), List.of()));
                     entries.add(new AcquisitionSource("essence_ascendance:quest/" + q.id() + "/" + r.id(), AcquisitionSource.Kind.QUEST_REWARD,
                             placement.stage(), r.count() * r.probability(), q.repeatable() && placement.renewable(), false, 0, .85,
@@ -265,8 +267,21 @@ public final class PackEvidenceCollector {
             BalancePerformance.count("quest_progression_rule_evaluations", solved.ruleEvaluations());
             BalancePerformance.count("quest_reachable_completions", solved.quests().size());
             return new QuestProjection(new ValuationEvidenceSnapshot(java.util.Collections.unmodifiableMap(sources), snapshot.recipeInputs(),
-                    snapshot.entityProgression(), snapshot.summary()), solved.items());
-        }
+                    snapshot.entityProgression(), snapshot.summary()), solved.items(), originalProduction, Map.copyOf(ordinary));
+    }
+
+    private static Map<String, ResourceEvidence> withQuestSources(Map<String, ResourceEvidence> resources,
+                                                                 ValuationEvidenceSnapshot snapshot) {
+        Map<String, ResourceEvidence> result = new TreeMap<>();
+        resources.forEach((id, resource) -> {
+            List<AcquisitionSource> sources = new ArrayList<>(resource.sources().stream()
+                    .filter(s -> s.kind() != AcquisitionSource.Kind.QUEST_REWARD).toList());
+            snapshot.sources().getOrDefault(id, List.of()).stream().filter(s -> s.kind() == AcquisitionSource.Kind.QUEST_REWARD)
+                    .forEach(sources::add);
+            result.put(id, new ResourceEvidence(id, resource.stage(), resource.availability(), resource.automation(),
+                    resource.reachable(), resource.external(), resource.economicValue(), resource.confidence(), sources, resource.warnings()));
+        });
+        return java.util.Collections.unmodifiableMap(result);
     }
 
     private static ProgressionBand inferStage(ProceduralValuationResult value, Item item, List<AcquisitionSource> sources) {

@@ -53,7 +53,7 @@ public final class NativeCapabilityReader {
                 staged.definition("native_enchantments", id, encoded);
                 JsonObject effects = encoded.getAsJsonObject().getAsJsonObject("effects");
                 if (effects != null) for (var effect : effects.entrySet()) {
-                    if (!SUPPORTED.contains(effect.getKey())) staged.candidate(id, "native_enchantments",
+                    if (!SUPPORTED.contains(effect.getKey()) && !NativeEnchantmentEffects.COMPONENTS.contains(effect.getKey())) staged.candidate(id, "native_enchantments",
                             "Unsupported effect component " + effect.getKey() + "; definition=" + bounded(effect.getValue()));
                 }
             }, sink);
@@ -101,6 +101,15 @@ public final class NativeCapabilityReader {
     }
     private static void readEnchantmentDefinition(String source, String enchantmentId, Enchantment enchantment, int level,
                                        CompetitiveCapabilities.Placement placement, boolean effectiveStack, CapabilitySink sink) {
+        List<Measurement> measurements = enchantmentMeasurements(enchantmentId, enchantment, level, effectiveStack, sink);
+        if (!measurements.isEmpty()) sink.add(new Functional(new CapabilityEvidence(source, placement.stage(), Map.of(),
+                placement.reachable(), placement.reachable() ? Math.min(.9, placement.confidence()) : .9, "Effective enchantment " + enchantmentId + " level=" + level),
+                "enchantment:" + enchantmentId + ":" + level, measurements, placement.acquisition(), effectiveStack && placement.reachable()));
+        if (!effectiveStack) sink.candidate(enchantmentId, "native_enchantments", "Maximum level " + level + " retained as potential; acquisition/application unproven");
+    }
+    /** Shared factual projection for capability calibration and stack valuation. No prices or gameplay callbacks. */
+    public static List<Measurement> enchantmentMeasurements(String enchantmentId, Enchantment enchantment, int level,
+                                                            boolean effectiveStack, CapabilitySink sink) {
         List<Measurement> measurements = new ArrayList<>();
         List<String> commonUnknown = effectiveStack ? List.of() : List.of("Definition maximum; attainable level/application/setup requires typed acquisition proof");
         for (EnchantmentAttributeEffect effect : enchantment.getEffects(EnchantmentEffectComponents.ATTRIBUTES)) {
@@ -121,16 +130,18 @@ public final class NativeCapabilityReader {
         valueEffects(enchantment, EnchantmentEffectComponents.REPAIR_WITH_XP, CapabilityAxis.REPAIR, "durability_per_xp", level, measurements, commonUnknown, sink, enchantmentId);
         valueEffects(enchantment, EnchantmentEffectComponents.FISHING_TIME_REDUCTION, CapabilityAxis.FISHING_TIME_REDUCTION, "native_wait_reduction", level, measurements, commonUnknown, sink, enchantmentId);
         valueEffects(enchantment, EnchantmentEffectComponents.FISHING_LUCK_BONUS, CapabilityAxis.FISHING_PRODUCTIVITY, "native_fishing_luck", level, measurements, commonUnknown, sink, enchantmentId);
-        if (!measurements.isEmpty()) sink.add(new Functional(new CapabilityEvidence(source, placement.stage(), Map.of(),
-                placement.reachable(), placement.reachable() ? Math.min(.9, placement.confidence()) : .9, "Effective enchantment " + enchantmentId + " level=" + level),
-                "enchantment:" + enchantmentId + ":" + level, measurements, placement.acquisition(), effectiveStack && placement.reachable()));
-        if (!effectiveStack) sink.candidate(enchantmentId, "native_enchantments", "Maximum level " + level + " retained as potential; acquisition/application unproven");
+        measurements.addAll(NativeEnchantmentEffects.read(enchantment, level, sink, enchantmentId));
+        return List.copyOf(measurements);
     }
     private static void valueEffects(Enchantment enchantment,
             net.minecraft.core.component.DataComponentType<List<ConditionalEffect<EnchantmentValueEffect>>> component,
             CapabilityAxis axis, String unit, int level, List<Measurement> output, List<String> commonUnknown,
             CapabilitySink sink, String id) {
         for (var conditional : enchantment.getEffects(component)) {
+            if (impossibleRequirements(conditional.requirements())) {
+                sink.candidate(id, "native_enchantments", "Impossible native match_tool condition: explicitly empty item alternatives; effect excluded");
+                continue;
+            }
             CapabilityAxis measuredAxis = axis;
             var effect = conditional.effect(); Double amount = null; String transform = "unknown";
             if (effect instanceof AddValue add) { amount = levelValue(add.value(), level); transform = "add"; }
@@ -157,7 +168,9 @@ public final class NativeCapabilityReader {
             if (conditional.requirements().isPresent()) {
                 // Conditions are not evaluated against invented targets. Conditional peaks are separate from unconditional power.
                 var condition = net.minecraft.world.level.storage.loot.predicates.LootItemCondition.DIRECT_CODEC
-                        .encodeStart(JsonOps.INSTANCE, conditional.requirements().get()).result();
+                        .encodeStart(RegistryOps.create(JsonOps.INSTANCE,
+                                net.minecraft.core.RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY)),
+                                conditional.requirements().get()).result();
                 applies += "; conditional=" + condition.map(Object::toString).orElse("unencoded:" + conditional.requirements().get().getClass().getName());
                 unknown.add("Conditional peak; predicate match frequency/uptime unmeasured");
                 if (condition.isEmpty()) { sink.candidate(id, "native_enchantments", "Conditional effect predicate cannot encode; numeric frontier excluded"); amount = null; }
@@ -165,6 +178,17 @@ public final class NativeCapabilityReader {
             output.add(CompetitiveCapabilities.measurement(measuredAxis, amount, measuredAxis == CapabilityAxis.INDESTRUCTIBILITY ? "presence" : unit + ":" + transform, applies,
                     CompetitiveCapabilities.equipmentScope(measuredAxis), Operation.manual(), "native_enchantments", Origin.NATIVE, unknown));
         }
+    }
+    /** Native ItemPredicate requires membership whenever items is present. A direct
+     * empty list cannot match any tool; omitted items remain unrestricted. Do not
+     * evaluate tags, custom predicates, inversion or gameplay callbacks here. */
+    static boolean impossibleRequirements(Optional<net.minecraft.world.level.storage.loot.predicates.LootItemCondition> requirements) {
+        if (requirements.orElse(null) instanceof net.minecraft.world.level.storage.loot.predicates.MatchTool match) {
+            var items = match.predicate().flatMap(net.minecraft.advancements.critereon.ItemPredicate::items);
+            return items.isPresent() && items.get().getClass() == net.minecraft.core.HolderSet.Direct.class
+                    && items.get().size() == 0;
+        }
+        return false;
     }
     public static void stackAttributes(ItemStack stack, String id, CompetitiveCapabilities.Placement placement, CapabilitySink sink) {
         record(id, "native_attributes", "read effective stack attributes",
@@ -214,7 +238,7 @@ public final class NativeCapabilityReader {
                 placement.acquisition(), placement.reachable()));
     }
     /** Never execute a custom level implementation. */
-    private static Double levelValue(LevelBasedValue value, int level) {
+    static Double levelValue(LevelBasedValue value, int level) {
         if (nativeLevel(value, 0)) {
             double result = value.calculate(level); return Double.isFinite(result) ? result : null;
         }
@@ -230,14 +254,16 @@ public final class NativeCapabilityReader {
     }
     public static CapabilityAxis attributeAxis(String id) {
         return switch (id) {
-            case "minecraft:player.mining_efficiency", "minecraft:player.block_break_speed" -> CapabilityAxis.MINING_SPEED;
+            case "minecraft:player.submerged_mining_speed", "minecraft:player.mining_efficiency", "minecraft:player.block_break_speed" -> CapabilityAxis.MINING_SPEED;
             case "minecraft:generic.attack_damage" -> CapabilityAxis.MELEE_DAMAGE;
             case "minecraft:generic.attack_speed" -> CapabilityAxis.ATTACK_RATE;
             case "minecraft:generic.armor" -> CapabilityAxis.ARMOR;
             case "minecraft:generic.armor_toughness" -> CapabilityAxis.TOUGHNESS;
             case "minecraft:generic.max_health" -> CapabilityAxis.MAX_HEALTH;
             case "minecraft:generic.knockback_resistance" -> CapabilityAxis.KNOCKBACK_RESISTANCE;
-            case "minecraft:generic.movement_speed" -> CapabilityAxis.GROUND_SPEED;
+            case "minecraft:generic.movement_speed", "minecraft:player.sneaking_speed", "minecraft:generic.water_movement_efficiency" -> CapabilityAxis.GROUND_SPEED;
+            case "minecraft:generic.oxygen_bonus" -> CapabilityAxis.RESOURCE_CONSUMPTION;
+            case "minecraft:player.sweeping_damage_ratio" -> CapabilityAxis.AREA_DAMAGE;
             case "minecraft:generic.step_height" -> CapabilityAxis.STEP_HEIGHT;
             case "minecraft:generic.jump_strength" -> CapabilityAxis.JUMP;
             case "minecraft:player.block_interaction_range", "minecraft:player.entity_interaction_range" -> CapabilityAxis.REACH;

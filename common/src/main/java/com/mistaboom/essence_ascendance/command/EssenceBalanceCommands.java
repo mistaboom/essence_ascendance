@@ -138,7 +138,15 @@ final class EssenceBalanceCommands {
         if(economic!=null) {
             section(source, "Essence yield");
             line(source,"Economic value",number(economic.economicValue().amount()));
-            line(source,"Dissolution total",number(economic.dissolutionYield().amount())+" Essence");
+            boolean enchantedBook = id.equals(com.mistaboom.essence_ascendance.mapping.EnchantedStackYields.ENCHANTED_BOOK);
+            line(source, enchantedBook ? "Dissolution upper bound" : "Base item dissolution",number(economic.dissolutionYield().amount())+" Essence");
+            if (enchantedBook) line(source, "Book components", "Actual enchantment and level determine yield within this budget; blank books retain only the plain-book carrier. See the item tooltip or Archive level rows.");
+            if (source.getEntity() instanceof net.minecraft.server.level.ServerPlayer player
+                    && net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(player.getMainHandItem().getItem()).toString().equals(id)) {
+                long actual = com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingRegistry.resolveDissolution(player.getMainHandItem())
+                        .values().stream().mapToLong(Long::longValue).sum();
+                line(source, "Held item dissolution", number((double)actual / com.mistaboom.essence_ascendance.balance.economy.FractionalAmountService.SCALE) + " Essence");
+            }
             economic.routedYields().forEach((essence, amount) -> {
                 ResourceLocation essenceId = ResourceLocation.parse(essence);
                 Component label = EssenceRegistry.get(essenceId).<Component>map(EssenceText::essenceShort)

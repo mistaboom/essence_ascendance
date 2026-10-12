@@ -26,13 +26,39 @@ public final class ItemEssenceMappingRegistry {
     public static ItemEssenceMappingResult resolve(ItemStack stack) {
         ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack == null || stack.isEmpty() ? Items.AIR : stack.getItem());
         if (stack == null || stack.isEmpty()) return unmapped(id);
-        return state.resolved().getOrDefault(id, unmapped(id));
+        var ordinary = state.resolved().getOrDefault(id, unmapped(id));
+        if (!EnchantedStackYields.hasDynamicYield(stack)) return ordinary;
+        Map<EssenceDefinition, Long> whole = new LinkedHashMap<>();
+        resolveDissolution(stack).forEach((essence, value) -> {
+            if (value >= FractionalAmountService.SCALE) whole.put(essence, value / FractionalAmountService.SCALE);
+        });
+        return new ItemEssenceMappingResult(id, ordinary.matchedMappings(), ordinary.appliedMappings(),
+                ordinary.appliedPriority(), Map.copyOf(whole));
     }
 
     /** Exact generated dissolution amounts in millionths of Essence. */
     public static Map<EssenceDefinition, Long> resolveDissolution(ItemStack stack) {
         if (stack == null || stack.isEmpty()) return Map.of();
+        State current = state;
+        if (!EnchantedStackYields.hasDynamicYield(stack))
+            return current.microYields().getOrDefault(BuiltInRegistries.ITEM.getKey(stack.getItem()), Map.of());
+        Map<ResourceLocation, Long> base = ids(current.microYields().getOrDefault(BuiltInRegistries.ITEM.getKey(stack.getItem()), Map.of()));
+        var book = ids(current.microYields().getOrDefault(ResourceLocation.parse(EnchantedStackYields.BOOK), Map.of()));
+        Map<EssenceDefinition, Long> result = new LinkedHashMap<>();
+        EnchantedStackYields.resolve(stack, base, book).forEach((id, value) ->
+                com.mistaboom.essence_ascendance.essence.EssenceRegistry.get(id).ifPresent(essence -> result.put(essence, value)));
+        return Map.copyOf(result);
+    }
+
+    /** Sync the generated ceiling, never an already-projected default stack. */
+    public static Map<EssenceDefinition, Long> resolveBaseDissolution(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return Map.of();
         return state.microYields().getOrDefault(BuiltInRegistries.ITEM.getKey(stack.getItem()), Map.of());
+    }
+    private static Map<ResourceLocation, Long> ids(Map<EssenceDefinition, Long> source) {
+        Map<ResourceLocation, Long> result = new LinkedHashMap<>();
+        source.forEach((essence, value) -> result.put(essence.id(), value));
+        return result;
     }
 
     /** Build both exact gameplay and display projections before one atomic publish. */

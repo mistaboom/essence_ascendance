@@ -478,6 +478,29 @@
       }
     },
     {
+      "source": "source/models/item/ascendance_matrix.bbmodel",
+      "category": "layered_item",
+      "textures": [
+        {
+          "name": "ascendance_matrix",
+          "path": "item/ascendance_matrix"
+        }
+      ],
+      "item": {
+        "id": "ascendance_matrix",
+        "tiered": false,
+        "states": [
+          {
+            "suffix": "",
+            "parent": "minecraft:item/generated",
+            "layers": [
+              "item/ascendance_matrix"
+            ]
+          }
+        ]
+      }
+    },
+    {
       "source": "source/models/item/essence_ingot.bbmodel",
       "category": "layered_item",
       "textures": [

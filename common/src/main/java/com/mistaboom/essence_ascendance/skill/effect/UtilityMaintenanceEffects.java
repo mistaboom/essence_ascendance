@@ -93,13 +93,13 @@ public final class UtilityMaintenanceEffects {
 
             state.items.keySet().removeIf(stack -> !seen.contains(stack));
             state.activeTarget = repairTarget.isEmpty() ? null : repairTarget;
-            if (repairTarget.isEmpty() || tuning.repairFractionPerSecond() <= 0) {
+            if (repairTarget.isEmpty() || tuning.repairPointsPerSecond() <= 0) {
                 state.visualActive = false;
                 return;
             }
 
             RestfulItemState item = state.items.get(repairTarget);
-            double repair = repairTarget.getMaxDamage() * tuning.repairFractionPerSecond() / 20.0 + item.repairCarry;
+            double repair = tuning.repairPointsPerSecond() / 20.0 + item.repairCarry;
             int generatedRepair = (int) Math.floor(repair + EPSILON);
             int wholeRepair = Math.min(repairTarget.getDamageValue(), generatedRepair);
             item.repairCarry = Math.max(0, repair - generatedRepair);
@@ -141,7 +141,7 @@ public final class UtilityMaintenanceEffects {
             RestfulItemState item = state == null ? null : state.items.get(target);
             long lastUse = item == null ? context.now() : item.lastUseAt;
             long remaining = Math.max(0, tuning.idleDelayTicks() - (context.now() - lastUse));
-            double rate = target.getMaxDamage() * tuning.repairFractionPerSecond();
+            double rate = tuning.repairPointsPerSecond();
             List<Text> details = List.of(Text.literal(target.getHoverName().getString()),
                     text("restful_rate", compact(rate)),
                     text("restful_missing", Integer.toString(target.getDamageValue())));
@@ -160,8 +160,8 @@ public final class UtilityMaintenanceEffects {
             UtilityBalanceSettings.RestfulMending tuning = settings(context).restfulMending();
             RestfulState state = context.existingState(id());
             ItemStack target = state == null || state.activeTarget == null ? ItemStack.EMPTY : state.activeTarget;
-            return List.of("Idle delay=" + tuning.idleDelayTicks() + " ticks; repair fraction/second="
-                            + tuning.repairFractionPerSecond(),
+            return List.of("Idle delay=" + tuning.idleDelayTicks() + " ticks; durability points/second="
+                            + tuning.repairPointsPerSecond(),
                     "Current repair target=" + (target.isEmpty() ? "none" : target.getHoverName().getString())
                             + "; one idle carried damageable item is repaired at a time; Fractured Ascendance artifacts are excluded.");
         }
@@ -188,10 +188,10 @@ public final class UtilityMaintenanceEffects {
                                            double saturationPoints) {
             UtilityBalanceSettings.MetabolicMending tuning = settings(context).metabolicMending();
             double foodValue = Math.max(0, nutrition) + Math.max(0, saturationPoints);
-            if (foodValue <= 0 || tuning.repairFractionPerFoodPoint() <= 0) return;
+            if (foodValue <= 0 || tuning.repairPointsPerFoodPoint() <= 0) return;
 
             MetabolicState state = context.state(id(), MetabolicState::new);
-            double budget = foodValue * tuning.repairFractionPerFoodPoint() + Math.max(0, state.repairCarryFraction);
+            double budget = foodValue * tuning.repairPointsPerFoodPoint() + Math.max(0, state.repairCarryPoints);
             int repaired = 0;
             String lastTarget = "";
 
@@ -199,16 +199,16 @@ public final class UtilityMaintenanceEffects {
                 if (budget <= EPSILON) break;
                 int missing = target.getDamageValue();
                 if (missing <= 0) continue;
-                int generated = (int) Math.min(missing, Math.floor(budget * target.getMaxDamage() + EPSILON));
+                int generated = (int) Math.min(missing, Math.floor(budget + EPSILON));
                 if (generated <= 0) continue;
                 target.setDamageValue(missing - generated);
-                budget = Math.max(0, budget - (double) generated / target.getMaxDamage());
+                budget = Math.max(0, budget - generated);
                 repaired += generated;
                 lastTarget = target.getHoverName().getString();
             }
 
             // Only carry sub-point rounding while damage still exists; unused repair from an oversized meal is not banked.
-            state.repairCarryFraction = EquipmentMaintenanceService.hasDamagedItem(context.player()) ? budget : 0;
+            state.repairCarryPoints = EquipmentMaintenanceService.hasDamagedItem(context.player()) ? budget : 0;
             state.lastFoodValue = foodValue;
             state.lastRepaired = repaired;
             state.lastTarget = lastTarget;
@@ -225,21 +225,21 @@ public final class UtilityMaintenanceEffects {
             if (!active) {
                 return SkillEffectHudEntry.skill(id(), false, AscendancePalette.UTILITY,
                         text("metabolic_mending"),
-                        List.of(text("metabolic_rate", compact(tuning.repairFractionPerFoodPoint() * 100.0))),
+                        List.of(text("metabolic_rate", compact(tuning.repairPointsPerFoodPoint()))),
                         SkillEffectHudEntry.Meter.none()).asEvent();
             }
             return SkillEffectHudEntry.skill(id(), true, AscendancePalette.UTILITY,
                     text("metabolic_repaired", Integer.toString(state.lastRepaired)),
                     List.of(Text.literal(state.lastTarget),
                             text("metabolic_food_value", compact(state.lastFoodValue)),
-                            text("metabolic_rate", compact(tuning.repairFractionPerFoodPoint() * 100.0))),
+                            text("metabolic_rate", compact(tuning.repairPointsPerFoodPoint()))),
                     SkillEffectHudEntry.Meter.none()).asEvent();
         }
 
         @Override public List<String> debugLines(SkillEffectRuntime.Context context) {
             UtilityBalanceSettings.MetabolicMending tuning = settings(context).metabolicMending();
             MetabolicState state = context.existingState(id());
-            return List.of("Repair fraction per intrinsic food point=" + tuning.repairFractionPerFoodPoint()
+            return List.of("Durability points per intrinsic food point=" + tuning.repairPointsPerFoodPoint()
                             + "; food value = nutrition + native saturation contribution.",
                     "Last repair=" + (state == null ? 0 : state.lastRepaired)
                             + "; repair order is equipped/active gear, hotbar, then inventory, most worn first within each band; Feast Reflex may auto-eat while repairable damage remains.");
@@ -247,12 +247,12 @@ public final class UtilityMaintenanceEffects {
     }
 
     private static final class MetabolicState implements SkillEffectState {
-        double repairCarryFraction;
+        double repairCarryPoints;
         double lastFoodValue;
         int lastRepaired;
         String lastTarget = "";
         long lastAt;
-        @Override public void clear() { repairCarryFraction = 0; lastFoodValue = 0; lastRepaired = 0; lastTarget = ""; lastAt = 0; }
+        @Override public void clear() { repairCarryPoints = 0; lastFoodValue = 0; lastRepaired = 0; lastTarget = ""; lastAt = 0; }
     }
 
     private static final class MasterworkHudState implements SkillEffectState {

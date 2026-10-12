@@ -2,22 +2,13 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "pattern": [
-    " G ",
-    "CLC",
-    "LFL"
+    "CCC",
+    "C C",
+    "CCC"
   ],
   "key": {
-    "G": {
-      "item": "minecraft:glass"
-    },
     "C": {
       "item": "essence_ascendance:channelstone"
-    },
-    "L": {
-      "item": "essence_ascendance:latent_ingot"
-    },
-    "F": {
-      "item": "minecraft:furnace"
     }
   },
   "result": {

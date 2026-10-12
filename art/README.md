@@ -74,6 +74,7 @@ Paths below are relative to this folder. Runtime identifiers are relative to `as
 | [Essence nugget](source/models/item/essence_nugget.bbmodel) | `textures/item/essence_nugget/`; layered item model |
 | [Raw Latent](source/models/item/raw_latent.bbmodel) | `textures/item/raw_latent_ore.png`; untinted item model |
 | [Ascendance Archive](source/models/item/ascendance_archive.bbmodel) | `textures/item/ascendance_archive.png`; untinted generated item model |
+| [Ascendance Matrix](source/models/item/ascendance_matrix.bbmodel) | `textures/item/ascendance_matrix.png`; untinted generated item model |
 | [Ascendance sword](source/models/item/ascendance_sword.bbmodel) | `textures/item/ascendance_melee_weapon/`; six-tier item models |
 | [Ascendance bow](source/models/item/ascendance_bow.bbmodel) | `textures/item/ascendance_ranged_weapon/`; four bow states at all six tiers |
 | [Ascendance caster](source/models/item/ascendance_caster.bbmodel) | `textures/item/ascendance_caster/`; six-tier handheld item models |

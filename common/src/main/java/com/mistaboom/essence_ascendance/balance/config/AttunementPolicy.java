@@ -14,7 +14,7 @@ public record AttunementPolicy(double pace, double maximumAcceleration, double r
         range("onboarding_effort_fraction", onboardingEffortFraction, .1, 1);
         range("breadth_exponent", breadthExponent, .25, 4);
     }
-    public static AttunementPolicy defaults() { return new AttunementPolicy(1, 1, .15, .25, 64, .75, .5, 1); }
+    public static AttunementPolicy defaults() { return new AttunementPolicy(1, 1, .15, .25, 64, .75, 1, 1); }
     private static void range(String key, double value, double min, double max) {
         if (!Double.isFinite(value) || value < min || value > max)
             throw new IllegalArgumentException("attunement." + key + " must be between " + min + " and " + max);

@@ -16,7 +16,7 @@ import java.lang.reflect.*;
 import java.nio.file.*;
 import java.util.*;
 
-/** Differential snapshot captured before the generation-cache optimization. No world is opened. */
+/** Deterministic golden valuation snapshot. Intentional policy changes require reviewed recapture; no world is opened. */
 public final class ValuationPerformanceTest {
     public static void main(String[] args) throws Exception {
         Thread.currentThread().setUncaughtExceptionHandler((thread, failure) -> failure.printStackTrace(
@@ -63,6 +63,8 @@ public final class ValuationPerformanceTest {
             for (Item item : order) values.put(BuiltInRegistries.ITEM.getKey(item).toString(), canonical(evaluate.invoke(null, index, item, context)));
             result.put(reversed ? "reverse" : "forward", values);
         }
+        if (!result.get("forward").equals(result.get("reverse")))
+            throw new AssertionError("Valuation depends on item traversal order; refusing reference capture");
         String snapshot = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create().toJson(result) + "\n";
         Path observed = Path.of("build/valuation-performance-observed.json"); Files.createDirectories(observed.getParent());
         Files.writeString(observed, snapshot);
@@ -72,11 +74,11 @@ public final class ValuationPerformanceTest {
             out.println("Reference capture only: " + observed.toAbsolutePath()); return;
         }
         try (var stream = ValuationPerformanceTest.class.getResourceAsStream("/valuation/valuation-reference.json")) {
-            if (stream == null) throw new AssertionError("Missing pre-optimization reference");
+            if (stream == null) throw new AssertionError("Missing reviewed valuation reference");
             if (!snapshot.equals(new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)))
-                throw new AssertionError("Valuation changed from pre-optimization results; inspect " + observed);
+                throw new AssertionError("Valuation changed from reviewed reference; inspect " + observed);
         }
-        out.println("ValuationPerformanceTest PASS: 38 complete valuations match pre-optimization snapshots, including routing, acquisition, choices, confidence and provenance");
+        out.println("ValuationPerformanceTest PASS: 38 complete valuations match reviewed snapshots, including traversal order, routing, acquisition, choices, confidence and provenance");
     }
 
     private static Object canonical(Object value) throws ReflectiveOperationException {

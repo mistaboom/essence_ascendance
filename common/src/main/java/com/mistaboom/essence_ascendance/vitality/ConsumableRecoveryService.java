@@ -61,7 +61,7 @@ public final class ConsumableRecoveryService {
         return valid(player)
                 && EquipmentMaintenanceService.hasDamagedItem(player)
                 && CommittedSkillService.isEffective(player, SkillIds.METABOLIC_MENDING)
-                && SkillEffectRuntime.resolvedSettings(player).utility().metabolicMending().repairFractionPerFoodPoint() > 0;
+                && SkillEffectRuntime.resolvedSettings(player).utility().metabolicMending().repairPointsPerFoodPoint() > 0;
     }
     public static ItemStack complete(ServerPlayer player, ItemStack source, Supplier<ItemStack> original) {
         if (!valid(player) || source.isEmpty()) return original.get();

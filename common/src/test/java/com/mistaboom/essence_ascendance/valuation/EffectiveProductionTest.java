@@ -29,7 +29,7 @@ public final class EffectiveProductionTest {
         registries = VanillaRegistries.createLookup();
         ValuationGenerationInputs.configure(BalanceOverrides.empty());
         if (args.length == 2 && args[0].equals("--benchmark")) { benchmark(java.nio.file.Path.of(args[1])); return; }
-        effectiveInventory(); unpackedShapedRecipes(); emptyNominalResults(); customCrafting(); unsupportedCustomEncoding(); unresolvedRuntimeIngredients(); customCooking(); recipeFailureIsolation(); normalizedFacts(); machineAcquisition(); kubeCraftingSemantics();
+        effectiveInventory(); authoritativeIngredientMembership(); unpackedShapedRecipes(); emptyNominalResults(); customCrafting(); unsupportedCustomEncoding(); unresolvedRuntimeIngredients(); customCooking(); recipeFailureIsolation(); normalizedFacts(); machineAcquisition(); kubeCraftingSemantics();
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println("EffectiveProductionTest: " + checks + " checks PASS");
     }
     private static void benchmark(java.nio.file.Path output) throws Exception {
@@ -83,6 +83,57 @@ public final class EffectiveProductionTest {
                 (family, reason) -> unsupported.add(family + ":" + reason));
         check(unsupported.size() == 1 && unsupported.getFirst().contains("unsupported machine/addon semantics"), "unsupported family explicitly reported");
     }
+    private static void authoritativeIngredientMembership() throws Exception {
+        var tag = net.minecraft.tags.TagKey.create(Registries.ITEM, id("fixture:stones"));
+        Ingredient ingredient = Ingredient.of(tag);
+        // Models an optional global interner retaining a nonempty pre-reload item array.
+        Field cached = Ingredient.class.getDeclaredField("itemStacks"); cached.setAccessible(true);
+        ItemStack[] stale = { new ItemStack(Items.STONE) }; cached.set(ingredient, stale);
+        var recipe = new RecipeHolder<>(id("fixture:cached_tag"), new ShapelessRecipe("", CraftingBookCategory.MISC,
+                new ItemStack(Items.GOLD_INGOT), NonNullList.of(Ingredient.EMPTY, ingredient)));
+        Map<String, List<String>> before = Map.of("fixture:stones", List.of("minecraft:stone"));
+        Map<String, List<String>> after = Map.of("fixture:stones", List.of("minecraft:dirt", "minecraft:stone"), "fixture:empty", List.of(),
+                "fixture:air", List.of("minecraft:air"));
+        var first = EffectiveProduction.collect(List.of(recipe), registries, mod -> null, (family, reason) -> {}, before).processes().getFirst();
+        var next = EffectiveProduction.collect(List.of(recipe), registries, mod -> null, (family, reason) -> {}, after).processes().getFirst();
+        check(first.inputs().getFirst().alternatives().equals(List.of("minecraft:stone")), "First generation uses its captured membership");
+        check(next.inputs().getFirst().alternatives().equals(List.of("minecraft:dirt", "minecraft:stone")),
+                "Changed current tag membership supersedes a stale nonempty native ingredient cache");
+        check(next.acquisitionComplete() && next.conservationComplete(), "Recognized current native tag retains its complete recipe semantics");
+        check(ingredient.getItems() == stale && stale.length == 1 && stale[0].is(Items.STONE),
+                "Generation does not invalidate or mutate shared native ingredient stacks");
+        check(EffectiveProduction.plainAlternatives(JsonParser.parseString("[{\"tag\":\"fixture:stones\"},{\"item\":\"minecraft:stone\"},{\"tag\":\"fixture:empty\"}]"), after)
+                .orElseThrow().equals(List.of("minecraft:dirt", "minecraft:stone")), "Plain native OR resolves the full union with stable deduplication");
+        for (String missing : List.of("fixture:empty", "fixture:unknown", "fixture:air")) {
+            var root = JsonParser.parseString("{\"ingredients\":[{\"tag\":\"" + missing + "\"}],\"result\":{\"id\":\"minecraft:gold_ingot\"}}").getAsJsonObject();
+            var process = EffectiveProduction.normalize("fixture:missing_tag", "minecraft:crafting", null, root, registries, null, after);
+            check(process.inputs().size() == 1 && process.inputs().getFirst().alternatives().getFirst().startsWith("predicate:")
+                    && !process.acquisitionComplete(), "Unknown/empty tag remains an unresolved prerequisite: " + missing);
+        }
+        check(EffectiveProduction.plainAlternatives(JsonParser.parseString("{\"item\":\"minecraft:air\"}"), after).orElseThrow().isEmpty(),
+                "Empty native air stacks cannot become a concrete production ingredient");
+        check(EffectiveProduction.plainAlternatives(JsonParser.parseString("[{\"tag\":\"fixture:air\"},{\"item\":\"minecraft:stone\"},{\"item\":\"minecraft:air\"}]"), after)
+                .orElseThrow().equals(List.of("minecraft:stone")), "Air in literal or tagged OR branches retains native empty-stack exclusion");
+        for (String unsupported : List.of("[]", "[[{\"item\":\"minecraft:stone\"}]]",
+                "{\"item\":\"minecraft:stone\",\"tag\":\"fixture:stones\"}", "{\"item\":12}",
+                "{\"tag\":\"invalid tag\"}", "{\"item\":\"minecraft:stone\",\"components\":{}}",
+                "{\"type\":\"fixture:custom\",\"tag\":\"fixture:stones\"}",
+                "[{\"item\":\"minecraft:stone\"},{\"type\":\"fixture:custom\",\"tag\":\"fixture:stones\"}]"))
+            check(EffectiveProduction.plainAlternatives(JsonParser.parseString(unsupported), after).isEmpty(),
+                    "Non-native/custom expression is not partially widened by plain resolution: " + unsupported);
+        var unresolved = JsonParser.parseString("{\"ingredients\":[{\"unresolved_ingredient\":\"custom matcher\"}],\"result\":{\"id\":\"minecraft:gold_ingot\"}}").getAsJsonObject();
+        check(!EffectiveProduction.normalize("fixture:unresolved", "minecraft:crafting", null, unresolved, registries, null, after).acquisitionComplete(),
+                "Existing explicit custom ingredient boundary remains unresolved");
+        var machine = JsonParser.parseString("{\"item_inputs\":[{\"ingredient\":{\"tag\":\"fixture:stones\"},\"amount\":7,\"probability\":0}],\"item_outputs\":[{\"item\":\"minecraft:gold_ingot\",\"amount\":2}]}").getAsJsonObject();
+        var input = EffectiveProduction.normalize("fixture:quantity", "fixture:machine", "mi_machine", machine, registries, null, after).inputs().getFirst();
+        check(input.count() == 7 && !input.consumed() && input.alternatives().equals(List.of("minecraft:dirt", "minecraft:stone")),
+                "Authoritative identity resolution preserves adapter quantity and catalyst semantics");
+        machine.add("item_inputs", JsonParser.parseString("[{\"tag\":\"fixture:stones\",\"amount\":3,\"probability\":1}]"));
+        var inline = EffectiveProduction.normalize("fixture:inline_quantity", "fixture:machine", "mi_machine", machine, registries, null, after).inputs().getFirst();
+        check(inline.count() == 3 && inline.consumed() && inline.alternatives().equals(List.of("minecraft:dirt", "minecraft:stone")),
+                "Audited inline machine quantity fields do not force native tag resolution back through stale caches");
+    }
+
     private static RecipeHolder<?> holder(String id, Item output, int count) {
         return new RecipeHolder<>(id(id), new ShapelessRecipe("", CraftingBookCategory.MISC, new ItemStack(output, count),
                 NonNullList.of(Ingredient.EMPTY, Ingredient.of(Items.STONE))));

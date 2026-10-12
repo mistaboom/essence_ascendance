@@ -41,7 +41,10 @@ final class VitalityBalanceGenerator {
         double stealScale = maximumSteal / chainShape;
         double convenience = weight(SkillIds.FEAST_REFLEX, CapabilityAxis.RECOVERY)
                 + weight(SkillIds.FEAST_REFLEX, CapabilityAxis.CONVENIENCE);
-        double duration = Math.clamp(1 / (1 + FoodConstants.EXHAUSTION_DROP * convenience * Math.sqrt(settings.overallPower())), .05, 1);
+        // Eating speed spends this skill's first-purchase headroom. The exhaustion-drop
+        // constant describes a food debit and is not a fourfold eating-speed multiplier.
+        double feastHeadroom = SkillGenerationBudget.headroom(settings, SkillIds.FEAST_REFLEX);
+        double duration = Math.clamp(1 / (1 + feastHeadroom * convenience), .05, 1);
         double resources = weight(SkillIds.INNER_SUSTENANCE, CapabilityAxis.RESOURCE_CONSUMPTION);
         int recoveryTicks = Math.clamp((int) Math.ceil(FoodConstants.HEALTH_TICK_COUNT / (resources * Math.sqrt(settings.overallPower()))), 20, 72_000);
         int combatTicks = Math.clamp((int) Math.ceil(window * 20), 1, 72_000);

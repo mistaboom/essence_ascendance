@@ -22,7 +22,7 @@ import java.util.Set;
  * recipe is NOT evidence that a machine or technical block occurs naturally.
  * Follows loaded biome -> placed -> configured feature data, plus terrain
  * surface/default states. The matching block must ALSO have an actual loot
- * relationship before this index can admit a self-drop acquisition path.
+ * relationship before this index can admit an independent acquisition path.
  * Loader-only features with no data representation remain unknown, not free.
  */
 final class ProceduralNaturalBlockIndex {
@@ -149,12 +149,46 @@ final class ProceduralNaturalBlockIndex {
                 JsonObject feature = element.getAsJsonObject();
                 if (zeroOccurrence(feature)) return;
                 JsonElement config = feature.get("config");
-                if (config != null && config.isJsonObject() && !zeroOccurrence(config.getAsJsonObject())
-                        && isType(feature, "minecraft:tree")) {
-                    treeDecorators(config.getAsJsonObject().get("decorators"), source);
+                if (config != null && config.isJsonObject() && !zeroOccurrence(config.getAsJsonObject())) {
+                    implicitNativeStates(feature, config.getAsJsonObject(), source);
+                    if (isType(feature, "minecraft:tree"))
+                        treeDecorators(config.getAsJsonObject().get("decorators"), source);
                 }
                 states(config, source, depth + 1);
             }
+        }
+
+        private void implicitNativeStates(JsonObject feature, JsonObject config, String source) {
+            // Audited native feature implementations place these states in code,
+            // not in their serialized config. This method runs only after the
+            // loaded biome -> placed -> configured reachability walk. It proves
+            // possible placement, never density, success rate, or the loot item.
+            List<String> blocks;
+            String type;
+            if (isType(feature, "minecraft:chorus_plant")) {
+                // ChorusPlantFeature -> ChorusFlowerBlock.generatePlant.
+                type = "minecraft:chorus_plant";
+                blocks = List.of("chorus_plant", "chorus_flower");
+            } else if (isType(feature, "minecraft:weeping_vines")) {
+                // WeepingVinesFeature places roof wart plus the vine column/head.
+                type = "minecraft:weeping_vines";
+                blocks = List.of("nether_wart_block", "weeping_vines_plant", "weeping_vines");
+            } else if (isType(feature, "minecraft:twisting_vines")
+                    && positiveInteger(config.get("spread_width"))
+                    && positiveInteger(config.get("spread_height"))
+                    && positiveInteger(config.get("max_height"))) {
+                // TwistingVinesConfig requires all three positive integer fields.
+                type = "minecraft:twisting_vines";
+                blocks = List.of("twisting_vines_plant", "twisting_vines");
+            } else return;
+            for (String block : blocks) addEvidence(ResourceLocation.withDefaultNamespace(block),
+                    source + " via native " + type + " placement implementation");
+        }
+
+        private boolean positiveInteger(JsonElement value) {
+            if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) return false;
+            double number = value.getAsDouble();
+            return Double.isFinite(number) && number >= 1 && number <= Integer.MAX_VALUE && number == Math.rint(number);
         }
 
         private void treeDecorators(JsonElement element, String source) {

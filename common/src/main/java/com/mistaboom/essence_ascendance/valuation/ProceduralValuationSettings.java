@@ -86,13 +86,14 @@ public final class ProceduralValuationSettings {
     public static final long RARE_INGREDIENT_THRESHOLD = 900L;
 
     /*
-     * Downstream recipe use is deliberately capped. It is a demand/utility
+     * Downstream application use is deliberately capped. It is a demand/utility
      * signal, not recursive value inheritance, which prevents A -> B -> A
      * feedback loops from inflating both items forever.
      */
     public static final double DOWNSTREAM_USE_STEP = 0.018;
     public static final double DOWNSTREAM_SIGNIFICANT_STEP = 0.025;
-    public static final double DOWNSTREAM_CROSS_MOD_STEP = 0.010;
+    public static final double DOWNSTREAM_CONSTRUCTION_WEIGHT = 0.25;
+    public static final double DOWNSTREAM_COMPONENT_WEIGHT = 0.25;
     public static final double DOWNSTREAM_MAX_MULTIPLIER = 1.32;
 
     /*

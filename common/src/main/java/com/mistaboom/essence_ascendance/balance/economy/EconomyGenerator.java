@@ -146,6 +146,8 @@ public final class EconomyGenerator {
                 if (units > 0) routes.put(essence, units.doubleValue());
             });
             List<String> reasons = new ArrayList<>(resource.warnings());
+            if (id.equals(com.mistaboom.essence_ascendance.mapping.EnchantedStackYields.ENCHANTED_BOOK))
+                reasons.add("effect_scored_conserved_books_v1: this item-only total is a conserved upper bound. Actual book yields retain one plain-book carrier and a concave shared budget from native enchantment effects and actual levels. Unknown effects grant no premium; tooltips and Archive rows show component-specific amounts. Book recipe inputs pay the plain-book component minimum.");
             reasons.addAll(sourcePressure.get(id).explanations());
             reasons.add("Source-quantity pressure multiplier " + sourcePressure.get(id).multiplier());
             reasons.add("Dissolution suitability " + dissolutionSuitability(resource, settings)

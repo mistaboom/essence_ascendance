@@ -152,7 +152,13 @@ public final class AdaptiveCompetitionCalibrationTest {
                 "Memoized pressure changed on reuse");
         var unbreakable = generate("H-indestructible", environment(fact("synthetic:unbreakable", ProgressionBand.ENTRY, INDESTRUCTIBILITY, 1, "presence")), null);
         responds(vanilla, unbreakable, "statMaxBonuses/essence_ascendance:durability_efficiency");
-        responds(vanilla, unbreakable, "effects/utility/restfulMending/repairFractionPerSecond");
+        String repairPath = "effects/utility/restfulMending/repairPointsPerSecond";
+        check(value(unbreakable, repairPath) >= value(vanilla, repairPath) && value(unbreakable, repairPath) >= 1,
+                "Competitive repair must preserve the approved point floor without forcing gratuitous above-floor output");
+        var repairDecision = java.util.stream.StreamSupport.stream(reports.get("H-indestructible").getAsJsonArray("rows").spliterator(), false)
+                .map(JsonElement::getAsJsonObject).filter(row -> row.get("path").getAsString().equals(repairPath)).findFirst().orElseThrow();
+        check(repairDecision.get("adaptiveTarget").getAsDouble() > repairDecision.get("baseline").getAsDouble(),
+                "Native point repair must still adapt nominally before its meaningful floor publishes");
         check(value(unbreakable,"statMaxBonuses/essence_ascendance:durability_efficiency") <= 90, "Preservation exceeded probability cap");
         var modularEnv = environment(fact("synthetic:configured_weapon", ProgressionBand.LATE, MELEE_DAMAGE, 10000, "health_points"),
                 fact("synthetic:configured_tool",ProgressionBand.LATE,MINING_SPEED,10000,"native_destroy_speed"),

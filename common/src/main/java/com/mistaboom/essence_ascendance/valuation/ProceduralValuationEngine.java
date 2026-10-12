@@ -287,10 +287,14 @@ public final class ProceduralValuationEngine {
                     "Downstream demand: "
                             + downstream.recipeCount()
                             + " recipe(s), "
+                            + downstream.applicationCount()
+                            + " distinct application(s), weighted "
+                            + format(downstream.weightedApplications())
+                            + ", "
                             + downstream.significantCount()
                             + " significant, "
                             + downstream.crossModCount()
-                            + " cross-mod -> x"
+                            + " cross-mod (provenance only) -> x"
                             + format(downstreamMultiplier)
             );
         } else {
@@ -417,8 +421,10 @@ public final class ProceduralValuationEngine {
                     + "; total and every Essence scale exactly across all " + family.size() + " forms"
                     + (hasKnownAnchor ? "" : "; no resolved external anchor, diagnostic fallback only")
                     + (unitValue == 0 ? "; positive payout cannot be represented safely" : "");
+            // Whole-unit payout precision cannot revoke an independently modeled
+            // acquisition path. A safely zero-valued family remains obtainable.
             context.familyPayoutMemo().put(member, new FamilyPayout(Math.multiplyExact(unitValue, units),
-                    Map.copyOf(scaled), hasKnownAnchor && unitValue > 0, status, explanation));
+                    Map.copyOf(scaled), hasKnownAnchor, status, explanation));
         }
         return context.familyPayoutMemo().get(item);
     }
@@ -847,7 +853,8 @@ public final class ProceduralValuationEngine {
         inferredProgressionScore = ValuationGenerationInputs.progression(item, inferredProgressionScore);
         Renewability renewability = renewability(item, context.index());
         if (renewability.multiplier() < 0.999999) {
-            double floor = Math.max(1.0, intrinsic.floorValue());
+            // A category fallback must never raise a measured cheap source/recipe.
+            double floor = Math.min(acquisition, Math.max(1.0, intrinsic.floorValue()));
             acquisition = floor + Math.max(0.0, acquisition - floor) * renewability.multiplier();
             confidence = Math.min(0.96, confidence + renewability.confidenceBonus());
             factors.add(
@@ -859,11 +866,9 @@ public final class ProceduralValuationEngine {
             );
         }
 
-        long acquisitionFloor = recipeChoice
-                .filter(ProceduralValuationResult.RecipeChoice::reversibleTransform)
-                .isPresent()
-                ? 1L
-                : intrinsic.floorValue();
+        // Intrinsic categories supply fallback estimates, not minimum prices that
+        // erase observed batch yields or cheap complete recipes.
+        long acquisitionFloor = knownAcquisition ? 1L : intrinsic.floorValue();
         long acquisitionValue = correctedValue == null ? clampValue(Math.max(acquisitionFloor, acquisition)) : clampValue(correctedValue);
         int resolvedDepth = recipeChoice
                 .map(ProceduralValuationResult.RecipeChoice::depth)
@@ -1147,6 +1152,7 @@ public final class ProceduralValuationEngine {
                             context, visiting, depth
                     );
                 })
+                .filter(java.util.Objects::nonNull)
                 .toList();
         BlockDropPath selectedBlock = selectBlockPath(blockPaths);
         if (selectedBlock != null) {
@@ -1162,10 +1168,11 @@ public final class ProceduralValuationEngine {
                 conditionalFallbackSelected = !reliable;
                 ProceduralValuationIndex.BlockDropSource source = selectedBlock.source();
                 selectedProgression = selectedBlock.progressionEvidence();
-                confidence = intrinsic.confidence() + (reliable ? 0.18 : 0.04);
+                confidence = Math.min(selectedBlock.prerequisiteConfidence(),
+                        intrinsic.confidence() + (reliable ? 0.18 : 0.04));
                 progression = ProceduralValuationResult.ProgressionBand.max(
                         progression,
-                        source.progressionBand()
+                        selectedBlock.progressionBand()
                 );
                 factors.add(
                         "Block drop source: "
@@ -1184,6 +1191,9 @@ public final class ProceduralValuationEngine {
                 List<String> naturalEvidence = index.naturalBlockEvidence(source.blockId());
                 if (!naturalEvidence.isEmpty()) factors.add("Natural placement evidence: "
                         + String.join(", ", naturalEvidence) + "; source loot also required, density not estimated");
+                else factors.add("Supplied block acquisition: " + source.blockId() + " costs "
+                        + format(selectedBlock.suppliedBlockCost())
+                        + " per consumed block; source acquisition and ancestry are required");
                 factors.add(
                         "Block acquisition -> source x"
                                 + format(selectedBlock.sourceMultiplier())
@@ -1726,32 +1736,75 @@ public final class ProceduralValuationEngine {
         }
 
         double rarityMultiplier = probabilityRarityMultiplier(source.estimatedChance());
-        double quantityMultiplier = quantityMultiplier(source.expectedCount());
+        double quantityMultiplier = blockQuantityMultiplier(source.expectedCount());
         double conditionMultiplier = unresolvedConditionMultiplier(source.complexConditionCount());
 
         boolean prerequisiteKnown = true;
+        double prerequisiteConfidence = 1.0;
         double reusableWear = 0.0;
-        Set<Item> dependencies = Set.of();
+        double suppliedBlockCost = 0.0;
+        double suppliedProgressionMultiplier = 1.0;
+        Set<Item> dependencies = new LinkedHashSet<>();
+        ProceduralValuationResult.ProgressionBand progressionBand = source.progressionBand();
+        boolean natural = !context.index().naturalBlockEvidence(source.blockId()).isEmpty();
+        if (!natural) {
+            Block block = BuiltInRegistries.BLOCK.getOptional(source.blockId()).orElse(null);
+            Item supplied = block == null ? Items.AIR : block.asItem();
+            // Loot says what breaking a block produces, not where that block came
+            // from. A supplied block must be paid for through an independent path.
+            // Unknown planting/state transitions and cycles cannot invent access.
+            if (supplied == Items.AIR || visiting.contains(supplied)) return null;
+            EvaluationNode blockInput = evaluateNode(supplied, context, visiting, depth + 1);
+            if (!blockInput.knownAcquisition() || blockInput.contextSensitive()) return null;
+            suppliedBlockCost = blockInput.acquisitionValue();
+            prerequisiteConfidence = blockInput.confidence();
+            progressionBand = ProceduralValuationResult.ProgressionBand.max(progressionBand,
+                    blockInput.progressionBand());
+            suppliedProgressionMultiplier = Math.max(1.0, progressionEvidence.multiplier()
+                    / progressionMultiplier(blockInput.inferredProgressionScore()));
+            List<String> inheritedEvidence = new ArrayList<>(progressionEvidence.examples());
+            if (blockInput.inferredProgressionScore() > 0) inheritedEvidence.add(
+                    "Supplied " + source.blockId() + " inherits acquisition progression "
+                            + formatPercent(blockInput.inferredProgressionScore()));
+            progressionEvidence = new ProceduralProgressionIndex.ProgressionEvidence(
+                    Math.max(progressionEvidence.score(), blockInput.inferredProgressionScore()),
+                    prerequisiteConfidence,
+                    progressionEvidence.evidenceCount() + blockInput.progressionEvidenceCount(), inheritedEvidence);
+            dependencies.add(supplied);
+            dependencies.addAll(blockInput.dependencies());
+            // Each failed attempt consumes another supplied block. Unlike a
+            // natural encounter estimate, this material cost is exactly counted.
+            if (!Double.isFinite(source.estimatedChance()) || source.estimatedChance() <= 0) return null;
+            rarityMultiplier = 1.0 / Math.min(1.0, source.estimatedChance());
+        }
         if (source.reusableTool() != null) {
             EvaluationNode tool = evaluateNode(source.reusableTool(), context, visiting, depth + 1);
-            prerequisiteKnown = tool.knownAcquisition();
-            dependencies = tool.dependencies();
+            prerequisiteKnown = tool.knownAcquisition() && !tool.contextSensitive();
+            prerequisiteConfidence = Math.min(prerequisiteConfidence, tool.confidence());
+            dependencies.add(source.reusableTool());
+            dependencies.addAll(tool.dependencies());
             int durability = new ItemStack(source.reusableTool()).getMaxDamage();
             // Standard harvesting tools lose durability, not the complete tool per drop.
             // Non-damageable reusable tools have no modeled wear, but still require acquisition.
             reusableWear = durability > 0 ? (double) tool.acquisitionValue() / durability : 0.0;
         }
         if (source.silkTouchRequired()) sourceMultiplier *= ProceduralValuationSettings.SILK_TOUCH_HARVEST_MULTIPLIER;
+        if (!natural) sourceMultiplier = 1.0; // The supplied item's graph cost already includes its access effort.
+        double eventCost = natural
+                ? baseValue * sourceMultiplier * rarityMultiplier
+                        * conditionMultiplier * progressionEvidence.multiplier() + reusableWear
+                : (suppliedBlockCost + reusableWear) * rarityMultiplier * conditionMultiplier
+                        * suppliedProgressionMultiplier;
         return new BlockDropPath(
                 source,
-                baseValue * sourceMultiplier * rarityMultiplier * quantityMultiplier
-                        * conditionMultiplier * progressionEvidence.multiplier() + reusableWear,
+                eventCost * quantityMultiplier,
                 sourceMultiplier,
                 rarityMultiplier,
                 quantityMultiplier,
                 conditionMultiplier,
                 progressionEvidence,
-                prerequisiteKnown, reusableWear, dependencies
+                prerequisiteKnown, prerequisiteConfidence, progressionBand,
+                reusableWear, suppliedBlockCost, Set.copyOf(dependencies)
         );
     }
 
@@ -1882,6 +1935,13 @@ public final class ProceduralValuationEngine {
                 ProceduralValuationSettings.DROP_QUANTITY_MIN_MULTIPLIER,
                 1.0 / Math.sqrt(Math.max(1.0, expectedCount))
         );
+    }
+
+    /** A harvest event's material effort and tool wear are shared by its actual outputs. */
+    static double blockQuantityMultiplier(double countWhenPresent) {
+        if (!Double.isFinite(countWhenPresent) || countWhenPresent <= 0)
+            throw new IllegalArgumentException("Block harvest output count must be finite and positive");
+        return 1.0 / countWhenPresent;
     }
 
     private static double unresolvedConditionMultiplier(int complexConditionCount) {
@@ -2660,9 +2720,7 @@ public final class ProceduralValuationEngine {
 
         LinkedHashSet<ResourceLocation> uniqueRecipes = new LinkedHashSet<>();
         LinkedHashSet<ResourceLocation> examples = new LinkedHashSet<>();
-        int significant = 0;
-        int crossMod = 0;
-        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
+        List<DownstreamDemand.Application> applications = new ArrayList<>();
 
         for (ProceduralValuationIndex.RecipeUse use : uses) {
             ProceduralValuationIndex.RecipeModel recipe = use.recipe();
@@ -2681,35 +2739,25 @@ public final class ProceduralValuationEngine {
                 examples.add(outputId);
             }
 
-            Intrinsic outputIntrinsic = intrinsic(recipe.outputItem(), context);
-
-            if (outputIntrinsic.value() >= ProceduralValuationSettings.RARE_INGREDIENT_THRESHOLD
-                    || isProgressionOutput(recipe.outputItem(), context)) {
-                significant++;
-            }
-
-            if (itemId != null
-                    && outputId != null
-                    && !itemId.getNamespace().equals(outputId.getNamespace())) {
-                crossMod++;
-            }
+            DownstreamDemand.Application application = context.downstreamApplicationMemo.computeIfAbsent(
+                    recipe.outputItem(), output -> DownstreamDemand.application(output, output,
+                            isProgressionOutput(output, context)));
+            boolean crossMod = application.weight() >= 1 && !BuiltInRegistries.ITEM.getKey(item).getNamespace()
+                    .equals(outputId.getNamespace());
+            applications.add(new DownstreamDemand.Application(application.family(), application.weight(),
+                    application.significant(), crossMod));
         }
 
         int count = uniqueRecipes.size();
-        double multiplier = 1.0
-                + count * ProceduralValuationSettings.DOWNSTREAM_USE_STEP
-                + significant * ProceduralValuationSettings.DOWNSTREAM_SIGNIFICANT_STEP
-                + crossMod * ProceduralValuationSettings.DOWNSTREAM_CROSS_MOD_STEP;
-        multiplier = Math.min(
-                ProceduralValuationSettings.DOWNSTREAM_MAX_MULTIPLIER,
-                multiplier
-        );
+        DownstreamDemand.Summary demand = DownstreamDemand.summarize(applications);
 
         return new DownstreamInfo(
                 count,
-                significant,
-                crossMod,
-                multiplier,
+                demand.applicationCount(),
+                demand.weightedApplications(),
+                demand.significantCount(),
+                demand.crossModCount(),
+                demand.multiplier(),
                 List.copyOf(examples)
         );
     }
@@ -2913,6 +2961,7 @@ public final class ProceduralValuationEngine {
         private final Map<Item, Intrinsic> intrinsicMemo = new IdentityHashMap<>();
         private final Map<Item, Boolean> progressionOutputMemo = new IdentityHashMap<>();
         private final Map<Item, DownstreamInfo> downstreamMemo = new IdentityHashMap<>();
+        private final Map<Item, DownstreamDemand.Application> downstreamApplicationMemo = new IdentityHashMap<>();
         private final Map<List<Item>, List<Item>> ingredientOrder = new IdentityHashMap<>();
         private final Map<Item, List<ProceduralValuationIndex.RecipeModel>> routingRecipes = new IdentityHashMap<>();
         private final Map<Item, EvaluationNode> memo = new IdentityHashMap<>();
@@ -3011,7 +3060,10 @@ public final class ProceduralValuationEngine {
             double conditionMultiplier,
             ProceduralProgressionIndex.ProgressionEvidence progressionEvidence,
             boolean prerequisiteKnown,
+            double prerequisiteConfidence,
+            ProceduralValuationResult.ProgressionBand progressionBand,
             double reusableWear,
+            double suppliedBlockCost,
             Set<Item> dependencies
     ) {
         boolean reliable() { return prerequisiteKnown && source.complexConditionCount() == 0; }
@@ -3131,12 +3183,16 @@ public final class ProceduralValuationEngine {
 
     private record DownstreamInfo(
             int recipeCount,
+            int applicationCount,
+            double weightedApplications,
             int significantCount,
             int crossModCount,
             double multiplier,
             List<ResourceLocation> examples
     ) {
         static final DownstreamInfo EMPTY = new DownstreamInfo(
+                0,
+                0,
                 0,
                 0,
                 0,

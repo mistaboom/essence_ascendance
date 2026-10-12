@@ -63,6 +63,17 @@ public final class SkillRankLedgerTest {
         rejects(() -> new SkillBalanceRuntime.ResolvedSkill(1,
                 List.of(new SkillBalanceRuntime.ResolvedRank(1, 10, 2))));
         check(receipt.refundAbove(1) == 110, "Profile change altered historical refund");
+        var shortened = new TreeMap<>(edited);
+        shortened.put(SkillIds.FRENZY.toString(), new SkillBalanceRuntime.ResolvedSkill(1,
+                List.of(new SkillBalanceRuntime.ResolvedRank(1, 17, 1,
+                        Map.of("frenzy/damageBonusPercentPerStack", 9.0)))));
+        SkillBalanceRuntime.install(shortened);
+        check(SkillRankEffectScaling.apply(settings, restored.getSkillRanks()).frenzy().damageBonusPercentPerStack() == 9,
+                "Historical ranks resolve to a rebuilt profile's published endpoint");
+        check(SkillRankEffectScaling.factor(SkillIds.FRENZY, 3) == 1,
+                "HUD/debug pressure uses the same capped historical effect rank");
+        check(restored.skillRank(SkillIds.FRENZY) == 3 && restored.getSkillPurchase(SkillIds.FRENZY).orElseThrow().refundAbove(1) == 110,
+                "Effect cap must preserve historical receipt, ownership and exact refund");
         SkillBalanceRuntime.clear();
         System.out.println("SkillRankLedgerTest: rank receipts, exact refunds, NBT and actual rank-scaled effects passed.");
     }

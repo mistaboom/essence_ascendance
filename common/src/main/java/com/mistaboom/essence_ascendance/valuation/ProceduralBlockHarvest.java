@@ -43,7 +43,11 @@ final class ProceduralBlockHarvest {
                        Item reusableTool, boolean silkTouch, List<String> signals) {
         HarvestDrop { signals = List.copyOf(signals); }
     }
-    private record Tool(Item item, String id, Set<String> tags, boolean silkTouch) { }
+    private record Tool(Item item, String id, Set<String> tags, boolean silkTouch, NativeToolFacts facts) {
+        Tool(Item item, String id, Set<String> tags, boolean silkTouch) {
+            this(item, id, tags, silkTouch, NativeToolFacts.UNKNOWN.withNativeAbilities(new ItemStack(item)));
+        }
+    }
     private record HarvestKey(Item output, Item tool, boolean silkTouch, int unresolved,
                               double chance, double countWhenPresent) { }
 
@@ -85,7 +89,7 @@ final class ProceduralBlockHarvest {
                         if (tool.silkTouch() && state.getValue().requiresCorrectToolForDrops()
                                 && !new ItemStack(tool.item()).isCorrectToolForDrops(state.getValue())) continue;
                         var context = new ProceduralBlockLoot.Context(blockId, state.getKey(), properties, tool.id(),
-                                tool.tags(), tool.silkTouch() ? Map.of("minecraft:silk_touch", 1) : Map.of());
+                                tool.tags(), tool.silkTouch() ? Map.of("minecraft:silk_touch", 1) : Map.of()).withToolFacts(tool.facts());
                         Map<String, ProceduralBlockLoot.Drop> drops = evaluated.computeIfAbsent(toolInputs.key(context),
                                 ignored -> ProceduralBlockLoot.estimate(table, context,
                                         tables::get, id -> itemTags.getOrDefault(id, List.of())));

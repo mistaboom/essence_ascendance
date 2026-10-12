@@ -45,11 +45,6 @@ public final class VitalitySustenanceEffects {
                 && SustenanceMath.full(player.getFoodData().getFoodLevel(), player.getFoodData().getSaturationLevel());
     }
 
-    /** Called only at identified native exertion call sites, never the general exhaustion entrypoint. */
-    public static float passiveExhaustion(ServerPlayer player, float amount) {
-        return Float.isFinite(amount) && amount > 0 && fullySustained(player) ? 0 : amount;
-    }
-
     public static boolean suitable(ItemStack stack) {
         FoodProperties food = stack.get(DataComponents.FOOD);
         if (stack.isEmpty() || stack.is(EXCLUDED_AUTO_FOODS) || food == null || food.nutrition() <= 0
@@ -113,6 +108,7 @@ public final class VitalitySustenanceEffects {
         private void tryStart(SkillEffectRuntime.Context context) {
             ServerPlayer player = context.player();
             if (player.isSpectator() || player.getAbilities().instabuild || player.isUsingItem()) return;
+            if (!AbilityCooldownService.ready(player, id(), context.now())) return;
             FeastState state = context.state(id(), FeastState::new);
             if (state.active() || !state.claim(context.now())) return;
             int foodLevel = player.getFoodData().getFoodLevel();
@@ -130,6 +126,11 @@ public final class VitalitySustenanceEffects {
                         foodLevel, food.nutrition(), player.isUsingItem());
             });
             if (slot < 0) return;
+            // The first useful meal is immediate. Subsequent automatic meals honor the
+            // same generated use time as manual eating, with one persistent player channel
+            // across foods, skill swaps and reconnects. There is no accumulated meal bank.
+            int cadence = player.getInventory().getItem(slot).getUseDuration(player);
+            if (!AbilityCooldownService.trigger(player, id(), context.now(), cadence)) return;
             int beforeFood = player.getFoodData().getFoodLevel();
             if (virtualEat(player, slot)) SkillHudEvents.record(player, id(), "food", player.getFoodData().getFoodLevel() - beforeFood);
         }
@@ -149,6 +150,7 @@ public final class VitalitySustenanceEffects {
         }
         @Override public List<String> debugLines(SkillEffectRuntime.Context context) {
             return List.of("Food/drink duration factor=" + context.settings().vitality().feastReflex().useDurationMultiplier(),
+                    "Automatic meal recovery=" + AbilityCooldownService.remaining(context.player(), id(), context.now()) + " ticks; next meal waits the consumed food's generated native use duration",
                     "HP=" + context.player().getHealth() + "/" + context.player().getMaxHealth()
                             + "; food=" + context.player().getFoodData().getFoodLevel() + "/" + net.minecraft.world.food.FoodConstants.MAX_FOOD
                             + "; saturation=" + context.player().getFoodData().getSaturationLevel(),
@@ -232,7 +234,7 @@ public final class VitalitySustenanceEffects {
             return List.of("Combat recovery lock ticks=" + RecentHostileCombat.remaining(context, settings.combatTimeoutTicks()),
                     "Recovery=" + settings.hungerPerRecovery() + " hunger + " + settings.saturationPerRecovery()
                             + " saturation / " + settings.hungerRecoveryIntervalTicks() + " quiet ticks",
-                    "Full saturation protection=" + fullySustained(context.player()));
+                    "Full-reserve sleep/phantom protection=" + fullySustained(context.player()) + "; native exertion costs remain active");
         }
     }
 }

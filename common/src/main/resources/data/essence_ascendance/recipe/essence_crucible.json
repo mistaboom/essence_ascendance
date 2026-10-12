@@ -2,19 +2,13 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "pattern": [
-    "CLC",
-    "HFH",
+    "C C",
+    "CFC",
     "CCC"
   ],
   "key": {
     "C": {
       "item": "essence_ascendance:channelstone"
-    },
-    "L": {
-      "item": "essence_ascendance:latent_ingot"
-    },
-    "H": {
-      "item": "minecraft:chest"
     },
     "F": {
       "item": "minecraft:furnace"

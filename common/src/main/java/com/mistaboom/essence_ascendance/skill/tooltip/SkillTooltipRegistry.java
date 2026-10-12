@@ -306,10 +306,10 @@ public final class SkillTooltipRegistry {
         define(SkillIds.RESTFUL_MENDING,
                 line("skill.essence_ascendance.restful_mending.description.resolved",
                         sec(s -> s.utility().restfulMending().idleDelayTicks()),
-                        pct(s -> s.utility().restfulMending().repairFractionPerSecond())));
+                        n(s -> s.utility().restfulMending().repairPointsPerSecond())));
         define(SkillIds.METABOLIC_MENDING,
                 line("skill.essence_ascendance.metabolic_mending.description.resolved",
-                        pct(s -> s.utility().metabolicMending().repairFractionPerFoodPoint())));
+                        n(s -> s.utility().metabolicMending().repairPointsPerFoodPoint())));
         define(SkillIds.MASTERWORK_TEMPERING,
                 line("skill.essence_ascendance.masterwork_tempering.description.resolved",
                         pct(s -> s.utility().masterworkTempering().reinforcementFractionPerMaterialUnit()),

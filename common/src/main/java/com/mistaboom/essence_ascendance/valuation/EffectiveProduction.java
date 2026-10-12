@@ -22,12 +22,19 @@ public final class EffectiveProduction {
     private static final Set<String> MEKANISM = Set.of("mekanism:crushing", "mekanism:enriching", "mekanism:smelting");
 
     static ProductionGraph collect(GenerationDataSnapshot data, HolderLookup.Provider registries) {
-        return collect(data.recipes(), registries, data::installedVersion, data::unsupportedRecipe);
+        return collect(data.recipes(), registries, data::installedVersion, data::unsupportedRecipe, data.itemTags());
     }
 
     static ProductionGraph collect(List<RecipeHolder<?>> recipes, HolderLookup.Provider registries,
                                    java.util.function.Function<String, String> versions,
                                    java.util.function.BiConsumer<String, String> unsupported) {
+        return collect(recipes, registries, versions, unsupported, currentItemTags());
+    }
+
+    static ProductionGraph collect(List<RecipeHolder<?>> recipes, HolderLookup.Provider registries,
+                                   java.util.function.Function<String, String> versions,
+                                   java.util.function.BiConsumer<String, String> unsupported,
+                                   Map<String, List<String>> itemTags) {
         List<ProductionGraph.Process> processes = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
         Set<String> families = new TreeSet<>();
@@ -40,7 +47,7 @@ public final class EffectiveProduction {
                 String[] observedFamily = { "unresolved_type" };
                 var attempt = OptionalIntegration.attempt("effective_production_recipe:" + holder.id(),
                         "normalize published " + recipe.getClass().getName(),
-                        () -> evaluate(holder, registries, versions, observedFamily));
+                        () -> evaluate(holder, registries, versions, observedFamily, itemTags));
                 String family = observedFamily[0];
                 families.add(family);
                 if (attempt.succeeded()) {
@@ -108,7 +115,8 @@ public final class EffectiveProduction {
     /** Build privately before publishing anything to the shared graph. A failed getter, encoder or
      * normalizer leaves only diagnostic identity; none of that recipe's partial facts can leak out. */
     private static RecipeEvaluation evaluate(RecipeHolder<?> holder, HolderLookup.Provider registries,
-                                             java.util.function.Function<String, String> versions, String[] observedFamily) {
+                                             java.util.function.Function<String, String> versions, String[] observedFamily,
+                                             Map<String, List<String>> itemTags) {
         Recipe<?> recipe = holder.value();
         RecipeType<?> type = recipe.getType();
         String family = ValuationGenerationInputs.recipeFamily(type);
@@ -119,7 +127,7 @@ public final class EffectiveProduction {
         if (vanilla || adapter != null) {
             long started = System.nanoTime();
             JsonObject definition = definition(holder, registries, versions);
-            ProductionGraph.Process process = normalize(holder.id().toString(), family, adapter, definition, registries, vanilla ? recipe : null);
+            ProductionGraph.Process process = normalize(holder.id().toString(), family, adapter, definition, registries, vanilla ? recipe : null, itemTags);
             return new RecipeEvaluation(true, true, adapter, process, definition, System.nanoTime() - started);
         }
         return new RecipeEvaluation(true, false, null, generic(holder, registries), null, 0);
@@ -267,6 +275,12 @@ public final class EffectiveProduction {
     /** Public codec seam also used by fixtures; unconsumed inputs are prerequisites, never per-output construction cost. */
     static ProductionGraph.Process normalize(String id, String family, String adapter, JsonObject root,
                                               HolderLookup.Provider registries, Recipe<?> nativeVanilla) {
+        return normalize(id, family, adapter, root, registries, nativeVanilla, currentItemTags());
+    }
+
+    static ProductionGraph.Process normalize(String id, String family, String adapter, JsonObject root,
+                                              HolderLookup.Provider registries, Recipe<?> nativeVanilla,
+                                              Map<String, List<String>> itemTags) {
         List<ProductionGraph.Input> inputs = new ArrayList<>();
         List<ProductionGraph.Output> outputs = new ArrayList<>();
         Map<String, String> facts = new TreeMap<>();
@@ -297,7 +311,7 @@ public final class EffectiveProduction {
         List<ProductionGraph.ResourceFlow> resources = new ArrayList<>();
         boolean resourceInputs = false, stochasticInputs = false;
         if ("weighted_extraction".equals(adapter)) {
-            addInput(inputs, root.get("ingredient"), 1, false, registries);
+            addInput(inputs, root.get("ingredient"), 1, false, registries, itemTags);
             JsonObject result = root.getAsJsonObject("result");
             // The result codec carries selection weight, not an independent Bernoulli probability.
             if (result.has("stack")) addOutput(outputs, result.get("stack"), "probability", "count");
@@ -318,7 +332,11 @@ public final class EffectiveProduction {
                 JsonObject value = element.getAsJsonObject();
                 double probability = number(value, "probability", 1);
                 double count = number(value, "amount", number(value, "count", 1));
-                addInput(inputs, value, count, probability != 0, registries);
+                // This adapter owns these quantity fields; project only them out of an inline
+                // ingredient so current tag membership is used without discarding custom predicates.
+                JsonObject ingredient = value.deepCopy();
+                ingredient.remove("amount"); ingredient.remove("count"); ingredient.remove("probability");
+                addInput(inputs, ingredient, count, probability != 0, registries, itemTags);
                 stochasticInputs |= probability > 0 && probability < 1;
             }
             for (JsonElement element : list(root, "item_outputs")) addOutput(outputs, element, "probability", "amount");
@@ -334,7 +352,7 @@ public final class EffectiveProduction {
             JsonArray fluids = new JsonArray(), fluidOutputs = new JsonArray();
             for (JsonElement element : list(root, "ingredients")) {
                 if (isFluid(element)) { fluids.add(element); resourceInputs = true; }
-                else addInput(inputs, element, 1, true, registries);
+                else addInput(inputs, element, 1, true, registries, itemTags);
             }
             for (JsonElement element : list(root, "results")) {
                 if (isFluid(element)) fluidOutputs.add(element); else addOutput(outputs, element, "chance", "count");
@@ -351,35 +369,35 @@ public final class EffectiveProduction {
                 resources.add(chemicalFlow(root.getAsJsonObject("input"), "input")); resourceInputs = true;
             } else {
                 JsonObject input = root.getAsJsonObject("input");
-                addInput(inputs, input, number(input, "count", 1), true, registries);
+                addInput(inputs, input, number(input, "count", 1), true, registries, itemTags);
             }
             if (family.equals("mekanism:crystallizing")) addOutput(outputs, root.get("output"), "probability", "count");
             else resources.add(chemicalFlow(root.getAsJsonObject("output"), "output"));
             facts.put("energy", "mekanism:energy/tick and configured processing duration unobserved");
         } else if ("mekanism_item".equals(adapter)) {
             JsonObject input = root.getAsJsonObject("input");
-            addInput(inputs, input, number(input, "count", 1), true, registries);
+            addInput(inputs, input, number(input, "count", 1), true, registries, itemTags);
             addOutput(outputs, root.get("output"), "probability", "count");
             facts.put("energy", "mekanism:energy/tick and configured processing duration unobserved");
         } else {
             if (family.equals("minecraft:smithing")) {
-                for (String key : List.of("template", "base", "addition")) if (root.has(key)) addInput(inputs, root.get(key), 1, true, registries);
+                for (String key : List.of("template", "base", "addition")) if (root.has(key)) addInput(inputs, root.get(key), 1, true, registries, itemTags);
                 // Native smithing copies components from its base; static result cannot model every variant.
                 facts.put("variant_transform", "base_components_copied");
             } else if (root.has("projection") && root.has("ingredients")) {
                 // Reuse the staged public projection: a failed ingredient codec is an unresolved
                 // predicate, and retrying that codec here would discard otherwise useful diagnostics.
                 for (JsonElement element : list(root, "ingredients"))
-                    if (!element.isJsonNull()) addInput(inputs, element, 1, true, registries);
+                    if (!element.isJsonNull()) addInput(inputs, element, 1, true, registries, itemTags);
             } else if (nativeVanilla != null) {
                 for (Ingredient ingredient : nativeVanilla.getIngredients()) {
                     if (ingredient == Ingredient.EMPTY) continue;
                     JsonElement value = Ingredient.CODEC.encodeStart(RegistryOps.create(JsonOps.INSTANCE, registries), ingredient).getOrThrow();
-                    addInput(inputs, value, 1, true, registries);
+                    addInput(inputs, value, 1, true, registries, itemTags);
                 }
             } else {
-                for (JsonElement element : list(root, "ingredients")) addInput(inputs, element, 1, true, registries);
-                if (root.has("ingredient")) addInput(inputs, root.get("ingredient"), 1, true, registries);
+                for (JsonElement element : list(root, "ingredients")) addInput(inputs, element, 1, true, registries, itemTags);
+                if (root.has("ingredient")) addInput(inputs, root.get("ingredient"), 1, true, registries, itemTags);
             }
             if (root.has("result")) addOutput(outputs, root.get("result"), "probability", "count");
             facts.put("duration_known", Boolean.toString(root.has("cookingtime")));
@@ -407,16 +425,68 @@ public final class EffectiveProduction {
                 "essence_ascendance:effective_" + facts.get("adapter"), adapter == null ? .9 : .85, facts);
     }
 
-    private static void addInput(List<ProductionGraph.Input> inputs, JsonElement value, double count, boolean consumed, HolderLookup.Provider registries) {
+    private static void addInput(List<ProductionGraph.Input> inputs, JsonElement value, double count, boolean consumed,
+                                 HolderLookup.Provider registries, Map<String, List<String>> itemTags) {
         if (value.isJsonObject() && value.getAsJsonObject().has("ingredient")) value = value.getAsJsonObject().get("ingredient");
         if (value.isJsonObject() && value.getAsJsonObject().has("unresolved_ingredient")) {
             inputs.add(new ProductionGraph.Input(List.of("predicate:" + value), count, consumed));
             return;
         }
-        Ingredient ingredient = Ingredient.CODEC.parse(RegistryOps.create(JsonOps.INSTANCE, registries), value).getOrThrow();
-        List<String> alternatives = Arrays.stream(ingredient.getItems()).filter(s -> !s.isEmpty()).map(s -> BuiltInRegistries.ITEM.getKey(s.getItem()).toString()).distinct().sorted().toList();
+        Optional<List<String>> plain = plainAlternatives(value, itemTags);
+        List<String> alternatives;
+        if (plain.isPresent()) alternatives = plain.orElseThrow();
+        else {
+            Ingredient ingredient = Ingredient.CODEC.parse(RegistryOps.create(JsonOps.INSTANCE, registries), value).getOrThrow();
+            alternatives = Arrays.stream(ingredient.getItems()).filter(s -> !s.isEmpty()).map(s -> BuiltInRegistries.ITEM.getKey(s.getItem()).toString()).distinct().sorted().toList();
+        }
         if (alternatives.isEmpty()) alternatives = List.of("predicate:" + value);
         inputs.add(new ProductionGraph.Input(alternatives, count, consumed));
+    }
+
+    /** Plain native leaves use captured membership: optional ingredient interners can return stale
+     * cached getItems arrays even after a fresh codec decode. Never mutate those shared caches. */
+    static Optional<List<String>> plainAlternatives(JsonElement value, Map<String, List<String>> itemTags) {
+        List<JsonObject> leaves = new ArrayList<>();
+        if (value.isJsonArray()) {
+            if (value.getAsJsonArray().isEmpty()) return Optional.empty();
+            for (JsonElement branch : value.getAsJsonArray()) {
+                if (!plainLeaf(branch)) return Optional.empty();
+                leaves.add(branch.getAsJsonObject());
+            }
+        } else {
+            if (!plainLeaf(value)) return Optional.empty();
+            leaves.add(value.getAsJsonObject());
+        }
+        Set<String> alternatives = new TreeSet<>();
+        for (JsonObject leaf : leaves) {
+            if (leaf.has("item")) {
+                String item = leaf.get("item").getAsString();
+                if (!BuiltInRegistries.ITEM.containsKey(ResourceLocation.parse(item)))
+                    throw new IllegalArgumentException("Unknown production ingredient item " + item);
+                if (BuiltInRegistries.ITEM.get(ResourceLocation.parse(item)) != Items.AIR)
+                    alternatives.add(ResourceLocation.parse(item).toString());
+            } else alternatives.addAll(itemTags.getOrDefault(ResourceLocation.parse(leaf.get("tag").getAsString()).toString(), List.of()));
+        }
+        alternatives.remove(BuiltInRegistries.ITEM.getKey(Items.AIR).toString());
+        return Optional.of(List.copyOf(alternatives));
+    }
+
+    private static boolean plainLeaf(JsonElement value) {
+        if (!value.isJsonObject()) return false;
+        JsonObject leaf = value.getAsJsonObject();
+        if (leaf.size() != 1 || !leaf.has("item") && !leaf.has("tag")) return false;
+        JsonElement identity = leaf.has("item") ? leaf.get("item") : leaf.get("tag");
+        return identity.isJsonPrimitive() && identity.getAsJsonPrimitive().isString()
+                && ResourceLocation.tryParse(identity.getAsString()) != null;
+    }
+
+    /** Fixtures without a server snapshot still read current holders, never ingredient caches. */
+    private static Map<String, List<String>> currentItemTags() {
+        Map<String, List<String>> tags = new TreeMap<>();
+        BuiltInRegistries.ITEM.forEach(item -> item.builtInRegistryHolder().tags().forEach(tag ->
+                tags.computeIfAbsent(tag.location().toString(), ignored -> new ArrayList<>()).add(BuiltInRegistries.ITEM.getKey(item).toString())));
+        tags.replaceAll((id, items) -> items.stream().sorted().distinct().toList());
+        return Collections.unmodifiableMap(tags);
     }
     private static void addOutput(List<ProductionGraph.Output> outputs, JsonElement value, String probabilityKey, String countKey) {
         if (value == null || !value.isJsonObject()) throw new IllegalArgumentException("Production output is not an item-stack object: " + value);

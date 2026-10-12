@@ -101,9 +101,16 @@ public final class EconomyConservationSolver {
             Map<String, Set<String>> downstream = new HashMap<>();
             for (ProductionGraph.Process process : graph.processes())
                 for (ProductionGraph.Input input : process.inputs())
-                    if (input.consumed()) for (String alternative : input.alternatives())
-                        for (ProductionGraph.Output output : process.outputs())
+                    if (input.consumed()) for (String alternative : input.alternatives()) {
+                        for (ProductionGraph.Output output : process.outputs()) {
                             downstream.computeIfAbsent(alternative, ignored -> new HashSet<>()).add(output.itemId());
+                            // Component-minimum inputs also depend on the plain carrier. The bounded
+                            // fallback must invalidate those dependents if that carrier becomes zero.
+                            if (alternative.equals(com.mistaboom.essence_ascendance.mapping.EnchantedStackYields.ENCHANTED_BOOK))
+                                downstream.computeIfAbsent(com.mistaboom.essence_ascendance.mapping.EnchantedStackYields.BOOK,
+                                        ignored -> new HashSet<>()).add(output.itemId());
+                        }
+                    }
             ArrayDeque<String> pending = new ArrayDeque<>(unsafe);
             while (!pending.isEmpty()) {
                 String item = pending.removeFirst();
@@ -152,7 +159,7 @@ public final class EconomyConservationSolver {
                     (maximum - input) * unitAmount, maximumUnits.compareTo(inputUnits) <= 0,
                     "Consumed material Essence " + inputUnits.subtract(sourceUnits(process, quantum)).multiply(BigDecimal.valueOf(unitAmount)).stripTrailingZeros().toPlainString()
                             + "; bounded production source Essence " + sourceUnits(process, quantum).multiply(BigDecimal.valueOf(unitAmount)).stripTrailingZeros().toPlainString()
-                            + ". Input value is their combined budget; all credited outputs share it. Probability uses expected value for diagnostics and maximum realized output for safety."
+                            + ". Enchanted-book inputs use the plain-book component floor; output budgets use their generated ceiling. Input value is their combined budget; all credited outputs share it. Probability uses expected value for diagnostics and maximum realized output for safety."
                             + (quantum == FractionalAmountService.SCALE ? " Final payouts are exact whole Essence units." : "")));
         }
         return List.copyOf(results);
@@ -164,7 +171,7 @@ public final class EconomyConservationSolver {
             ProductionGraph.Input input = process.inputs().get(index);
             if (!input.consumed()) continue;
             long minimum = Long.MAX_VALUE;
-            for (String alternative : input.alternatives()) minimum = Math.min(minimum, values.getOrDefault(alternative, 0L));
+            for (String alternative : input.alternatives()) minimum = Math.min(minimum, com.mistaboom.essence_ascendance.mapping.EnchantedStackYields.minimumInput(alternative, values));
             total = total.add(BigDecimal.valueOf(minimum).multiply(BigDecimal.valueOf(
                     BoundedProductionPolicy.materialInputCount(process, index))));
         }

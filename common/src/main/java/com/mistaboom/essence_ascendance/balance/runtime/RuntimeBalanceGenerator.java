@@ -21,6 +21,7 @@ import java.util.*;
 /** One generation pass supplies every existing runtime balance access seam. */
 public final class RuntimeBalanceGenerator {
     private RuntimeBalanceGenerator() {}
+    private static final double CRUCIBLE_STORAGE_MULTIPLIER = 10;
     private static final Gson JSON = new GsonBuilder().disableHtmlEscaping().create();
     public static RuntimeBalanceDefinition bootstrap() {
         return RuntimeReferencePolicy.withBootstrapReferences(() ->
@@ -132,7 +133,7 @@ public final class RuntimeBalanceGenerator {
             long focusCost=positiveLong(cap*(12.0+i*1.5));
             focuses.put(tier.id().getPath(),new InfuserBalanceSettings.FocusUpgradeSettings(Math.max(1,focusCost/20),focusCost));
             upgrades.put(tier.id().getPath(),new InfuserBalanceSettings.EquipmentUpgradeSettings(positiveLong(cap*(2.5+i*.5)),Math.max(1,(i+1)/2)));
-            pylons.put(tier.id().getPath(),new EssencePylonContribution(positiveLong(cap*12),1+i*.6,positiveLong(cap/4.0),.20+i*.25,i+1));
+            pylons.put(tier.id().getPath(),new EssencePylonContribution(positiveLong(cap*12*CRUCIBLE_STORAGE_MULTIPLIER),1+i*.6,positiveLong(cap/4.0),.20+i*.25,i+1));
         }
         var dormant=equipment.get(tiers.getFirst().id());
         for (var tier : allTiers) if (!tier.grantsPower())
@@ -145,6 +146,7 @@ public final class RuntimeBalanceGenerator {
         // discrete harvest access advances separately with each equipment infusion.
         RuntimeEquipmentNormalization.apply(equipment,evidence,settings,encounterBudgets);
         competition.equipment(equipment);
+        RuntimeEquipmentNormalization.anchorMining(equipment, evidence, encounterBudgets);
         double apex=settings.overallPower()*settings.apexPower();
         Map<ResourceLocation,Double> bonuses = new LinkedHashMap<>();
         Map<ResourceLocation,Map<ResourceLocation,Long>> statCaps = new LinkedHashMap<>();
@@ -181,7 +183,7 @@ public final class RuntimeBalanceGenerator {
         // Apply the baseline before author overrides; stored valid profiles remain directly reusable.
         grades.replaceAll((name,grade)->new InfuserBalanceSettings.GradeSettings(grade.ingotCapacity(),grade.efficiencyBasisPoints(),
                 Math.max(noFocusThroughput,grade.infusionThroughputPerSecond())));
-        pylons.put("empty",new EssencePylonContribution(positiveLong(entry*6.0),.5,positiveLong(entry/8.0),.1,0));
+        pylons.put("empty",new EssencePylonContribution(positiveLong(entry*6.0*CRUCIBLE_STORAGE_MULTIPLIER),.5,positiveLong(entry/8.0),.1,0));
         var infuser=new InfuserBalanceSettings(8,Math.clamp((int)(5000-settings.conversionLossPressure()*2500),100,9000),
                 noFocusThroughput,grades,focuses,upgrades,InfuserBalanceSettings.defaultEquipmentEssenceWeights(),
                 new InfuserBalanceSettings.RepairSettings(positiveLong(bandSupply.get(ProgressionBand.MID)/20),1),
@@ -196,7 +198,7 @@ public final class RuntimeBalanceGenerator {
         var effects=competition.skills(effects(resolvedSkillScale, evidence, settings));
         var worldgen=LatentOreBalanceGenerator.generate(evidence,economy,settings.latentOre());
         var config=new EssenceServerConfig(1,6,8,infuser,shield,effects,worldgen,profile,milestones,advancements,bonuses,new EquipmentBaselineConfig(equipment));
-        var crucible=new EssenceCrucibleStructureStats(1,positiveLong(entry*48.0),8,positiveLong(entry/2.0),20,1,6,1,0);
+        var crucible=new EssenceCrucibleStructureStats(1,positiveLong(entry*48.0*CRUCIBLE_STORAGE_MULTIPLIER),8,positiveLong(entry/2.0),20,1,6,1,0);
         Map<String,Double> composition=new TreeMap<>(encounterBudgets);
         competition.combatReferences(composition);
         composition.put("equipment_quantization",1.0);

@@ -108,16 +108,34 @@ public final class NativeVitalitySustenanceTest {
                 "ordinary virtual consumption still awards the native item statistic (stats="
                         +player.statsAwarded+")");
 
+        long nextMeal = data.getAbilityCooldownUntil(SkillIds.FEAST_REFLEX);
+        check(nextMeal == f.level.tick + bread.getUseDuration(player), "Automatic meal waits its generated native duration");
+        hungry(player); f.level.tick++;
+        SkillEffectRuntime.tick(player);
+        check(bread.getCount() == 3, "Next tick cannot consume another meal while generated cadence is active");
+        SkillEffectRuntime.reset(player);
+        SkillEffectRuntime.tick(player);
+        check(bread.getCount() == 3, "Lifecycle reset cannot erase automatic meal cadence");
+        check(com.mistaboom.essence_ascendance.data.PlayerEssenceData.load(data.save())
+                        .getAbilityCooldownUntil(SkillIds.FEAST_REFLEX) == nextMeal,
+                "Saved cadence survives reconnect without rewriting purchases");
+        player.getInventory().setItem(3, new ItemStack(Items.COOKED_BEEF, 2));
+        f.level.tick = nextMeal - 1;
+        SkillEffectRuntime.tick(player);
+        check(player.getInventory().getItem(3).getCount() == 2 && bread.getCount() == 3,
+                "Changing food cannot bypass the player's shared cadence");
+        player.getInventory().setItem(3, ItemStack.EMPTY);
+
         // At full health Feast also runs without a damage callback, but it
         // must refuse a meal that would waste half its nutrition exactly.
         player.setHealth(player.getMaxHealth());
         player.getFoodData().setFoodLevel(16);
         player.getFoodData().setSaturation(0);
-        f.level.tick++;
+        advanceMealClock(f);
         SkillEffectRuntime.tick(player);
         check(!player.isUsingItem(), "full-health Feast refuses a meal wasting half its nutrition");
         player.getFoodData().setFoodLevel(15);
-        f.level.tick++;
+        advanceMealClock(f);
         SkillEffectRuntime.tick(player);
         check(!player.isUsingItem() && player.getInventory().selected == 0 && bread.getCount() == 2
                         && player.getFoodData().getFoodLevel() == 20,
@@ -127,7 +145,7 @@ public final class NativeVitalitySustenanceTest {
         // reserve is present; Feast must not wait for saturation to reach zero.
         player.getFoodData().setFoodLevel(10);
         player.getFoodData().setSaturation(4);
-        f.level.tick++;
+        advanceMealClock(f);
         SkillEffectRuntime.onAcceptedDamage(player, player.damageSources().generic(), 1, 0);
         check(!player.isUsingItem() && player.getInventory().selected == 0 && bread.getCount() == 1
                         && player.getFoodData().getFoodLevel() == 18,
@@ -136,18 +154,18 @@ public final class NativeVitalitySustenanceTest {
         data.setLoadoutSelection(SkillGroups.VITALITY_SUSTENANCE,SkillIds.FEAST_REFLEX); SkillEffectRuntime.refresh(player);
         player.setItemInHand(InteractionHand.OFF_HAND,new ItemStack(Items.BOW)); player.startUsingItem(InteractionHand.OFF_HAND);
         player.setHealth(player.getMaxHealth()); player.getFoodData().setFoodLevel(15);
-        int beforeManual = bread.getCount(); f.level.tick++;
+        int beforeManual = bread.getCount(); advanceMealClock(f);
         SkillEffectRuntime.onAcceptedDamage(player,player.damageSources().generic(),1,0);
         check(player.isUsingItem() && player.getUsedItemHand() == InteractionHand.OFF_HAND
                         && player.getInventory().selected == 0 && bread.getCount() == beforeManual,
                 "automatic meal never interrupts another active use");
         player.stopUsingItem();
-        player.getCooldowns().addCooldown(Items.BREAD,20); f.level.tick++;
+        player.getCooldowns().addCooldown(Items.BREAD,20); advanceMealClock(f);
         SkillEffectRuntime.onAcceptedDamage(player,player.damageSources().generic(),1,0);
         check(player.getFoodData().getFoodLevel() == 15 && bread.getCount() == beforeManual,
                 "cooldown food cannot auto-consume");
         player.getCooldowns().removeCooldown(Items.BREAD);
-        f.level.tick++; SkillEffectRuntime.onAcceptedDamage(player,player.damageSources().generic(),1,0);
+        advanceMealClock(f); SkillEffectRuntime.onAcceptedDamage(player,player.damageSources().generic(),1,0);
         check(!player.isUsingItem() && bread.getCount() == beforeManual - 1,
                 "virtual meal consumes immediately after cooldown clears");
 
@@ -157,13 +175,13 @@ public final class NativeVitalitySustenanceTest {
         meal.set(DataComponents.FOOD,new FoodProperties.Builder().nutrition(4).saturationModifier(.5f)
                 .usingConvertsTo(Items.BOWL).effect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED,100),1).build());
         player.getInventory().setItem(2,meal); player.setHealth(player.getMaxHealth());
-        player.getFoodData().setFoodLevel(15); player.getFoodData().setSaturation(0); f.level.tick++;
+        player.getFoodData().setFoodLevel(15); player.getFoodData().setSaturation(0); advanceMealClock(f);
         SkillEffectRuntime.onAcceptedDamage(player,player.damageSources().generic(),1,0);
         check(meal.getCount() == 1 && player.getFoodData().getFoodLevel() == 19 && player.hasEffect(MobEffects.MOVEMENT_SPEED),
                 "real stacked component food preserves nutrition and native food effects");
         check(player.drops.size() == 1 && player.drops.getFirst().is(Items.BOWL),
                 "full inventory retains one returned container via drop fallback; drops="+player.drops);
-        player.getFoodData().setFoodLevel(15); player.getFoodData().setSaturation(0); f.level.tick++;
+        player.getFoodData().setFoodLevel(15); player.getFoodData().setSaturation(0); advanceMealClock(f);
         SkillEffectRuntime.onAcceptedDamage(player,player.damageSources().generic(),1,0);
         check(player.getInventory().getItem(2).is(Items.BOWL) && player.drops.size() == 1,
                 "last native meal replaces its hotbar slot with container exactly once");
@@ -192,7 +210,7 @@ public final class NativeVitalitySustenanceTest {
         ProjectileNativeInterceptionTest.set(Entity.class,player,"onGround",true);
         ProjectileNativeInterceptionTest.set(Entity.class,player,"fluidOnEyes",java.util.Set.of()); player.setSprinting(true);
         player.checkMovementStatistics(10,0,0);
-        check(player.getFoodData().getExhaustionLevel()==0, "transformed actual sprint exertion is suppressed at full saturation");
+        check(player.getFoodData().getExhaustionLevel()>0, "Actual sprint exertion still costs exhaustion at full saturation");
         player.causeFoodExhaustion(1);
         check(player.getFoodData().getExhaustionLevel()>0, "explicit native exhaustion costs remain intact");
         player.getFoodData().setSaturation(19); player.getFoodData().setExhaustion(0);
@@ -241,6 +259,10 @@ public final class NativeVitalitySustenanceTest {
         check(nativeSleep.sleepersNeeded(100)==2,"pre-tick deselection recomputes the native sleep denominator immediately");
         f.close(); SkillEffectRuntime.forget(other); CommittedSkillService.forget(other);
         System.out.println("Native Vitality sustenance passed: "+checks+" (virtual meals, manual-use preservation, inventory, containers, effects, sleep/phantoms; no world)");
+    }
+    private static void advanceMealClock(ProjectileNativeInterceptionTest.Fixture f) {
+        f.level.tick = Math.max(f.level.tick + 1,
+                f.saved.getPlayerData(f.player.getUUID()).getAbilityCooldownUntil(SkillIds.FEAST_REFLEX));
     }
     private static void hungry(FoodPlayer player) { player.getFoodData().setFoodLevel(10); player.getFoodData().setSaturation(0); }
     static final class SilentListener extends ServerGamePacketListenerImpl {
