@@ -45,6 +45,7 @@ public final class BonusSemantics {
             case "healing_effectiveness" -> mechanic(HEALING, Response.MULTIPLIER, "received healing multiplier", "missing health", "healing source");
             case "hunger_efficiency" -> mechanic(RESOURCE_CONSUMPTION, Response.PREVENTION, "exhaustion reduction", "food exhaustion");
             case "breath_hold" -> mechanic(CONVENIENCE, Response.AIR, "additional underwater air seconds", "submerged", "air exhausted");
+            case "fishing_speed" -> mechanic(FISHING_TIME_REDUCTION, Response.MULTIPLIER, "native positive fishing countdown progress multiplier", "held eligible rod", "water fishing", "positive native countdown");
             case "mining_speed" -> mechanic(MINING_SPEED, Response.MULTIPLIER, "block break speed", "mining");
             case "fortune" -> mechanic(DROP_YIELD, Response.YIELD_LEVEL, "expected fractional Fortune yield", "fortune-compatible loot");
             case "looting" -> mechanic(DROP_YIELD, Response.YIELD_LEVEL, "expected fractional Looting yield", "entity kill", "looting-compatible loot");

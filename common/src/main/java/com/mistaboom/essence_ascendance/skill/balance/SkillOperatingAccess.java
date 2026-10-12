@@ -35,7 +35,7 @@ public final class SkillOperatingAccess {
                     case MELEE_WEAPON -> item instanceof SwordItem || item instanceof AxeItem;
                     case RANGED_WEAPON -> item instanceof ProjectileWeaponItem;
                     case PICKAXE -> item instanceof PickaxeItem;
-                    case FISHING_ROD -> item instanceof FishingRodItem;
+                    case FISHING_ROD -> com.mistaboom.essence_ascendance.equipment.EquipmentFishingRodService.isRod(new ItemStack(item));
                     case REPAIRABLE_GEAR -> new ItemStack(item).isDamageableItem();
                     case CASTER_FOCUS, ASCENDANCE_TOOL -> false;
                 };

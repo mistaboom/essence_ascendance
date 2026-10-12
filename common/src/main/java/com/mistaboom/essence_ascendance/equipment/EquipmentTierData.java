@@ -32,6 +32,7 @@ public final class EquipmentTierData {
         }
         CustomData.update(DataComponents.CUSTOM_DATA, stack, outer -> outer.merge(tierData(tier).copyTag()));
         EquipmentShieldService.refreshNativeDurability(stack);
+        EquipmentFishingRodService.refreshNativeDurability(stack);
     }
 
     /** Pure component encoding shared with detached item-model presentations. */

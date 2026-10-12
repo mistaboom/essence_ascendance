@@ -8,7 +8,15 @@ public final class TraversalRules {
         return Float.isFinite(nativeFactor) && nativeFactor >= 0 ? Math.max(1, nativeFactor) : nativeFactor;
     }
     public static boolean surfaceEnabled(boolean granted, boolean nativeMovement, boolean sprinting, boolean sneaking) {
-        return granted && nativeMovement && sprinting && !sneaking;
+        return surfaceEnabled(granted, nativeMovement, sprinting, false, sneaking);
+    }
+    public static boolean surfaceEnabled(boolean granted, boolean nativeMovement, boolean sprinting, boolean rod, boolean sneaking) {
+        return granted && nativeMovement && (sprinting || rod) && !sneaking;
+    }
+    public static boolean rodBuoyancy(boolean granted, boolean nativeMovement, boolean rod, boolean sneaking,
+                                      boolean eyesSubmerged, double feetY, double eyeY, double surfaceY) {
+        return granted && nativeMovement && rod && !sneaking && !eyesSubmerged && Double.isFinite(surfaceY)
+                && feetY < surfaceY && eyeY >= surfaceY;
     }
     public static boolean exposedSurface(double height, boolean fluidAboveEmpty) {
         return fluidAboveEmpty && Double.isFinite(height) && height > 0 && height <= 1;

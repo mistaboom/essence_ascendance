@@ -14,6 +14,9 @@ import java.util.*;
 
 /** Native measurements used only while generating resolved Bonuses; never reads a player or world. */
 public final class NativeBonusMechanics {
+    // Vanilla FishingHook catchingFish: 100..600 initial ticks before native Lure subtraction.
+    public static final int FISHING_MINIMUM_WAIT_TICKS = 100;
+    public static final double FISHING_MAXIMUM_SPEED_PERCENT = (FISHING_MINIMUM_WAIT_TICKS - 1) * 100.0;
     private NativeBonusMechanics() { }
     // Group nearby surfaces into one useful progression checkpoint, using the half-block building rhythm.
     // Each endpoint is an observed surface in the group, never the rounded bin edge; purchases remain continuous.

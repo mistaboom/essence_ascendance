@@ -809,6 +809,79 @@
     {
       "source": "source/models/armor/ascendance_armor.bbmodel",
       "category": "armor_atlas"
+    },
+    {
+      "source": "source/models/item/ascendance_rod.bbmodel",
+      "category": "layered_item",
+      "textures": [
+        {
+          "name": "ascendance_rod_base",
+          "path": "item/ascendance_fishing_rod/base"
+        },
+        {
+          "name": "ascendance_rod_accent",
+          "path": "item/ascendance_fishing_rod/accent"
+        },
+        {
+          "name": "ascendance_rod_nochange",
+          "path": "item/ascendance_fishing_rod/nochange"
+        },
+        {
+          "name": "ascendance_rod_cast_base",
+          "path": "item/ascendance_fishing_rod/cast_base"
+        },
+        {
+          "name": "ascendance_rod_cast_accent",
+          "path": "item/ascendance_fishing_rod/cast_accent"
+        },
+        {
+          "name": "ascendance_hook_base",
+          "path": "entity/ascendance_fishing_hook/base"
+        },
+        {
+          "name": "ascendance_hook_accent",
+          "path": "entity/ascendance_fishing_hook/accent"
+        },
+        {
+          "name": "ascendance_hook_nochange",
+          "path": "entity/ascendance_fishing_hook/nochange"
+        }
+      ],
+      "item": {
+        "id": "ascendance_fishing_rod",
+        "tiered": true,
+        "states": [
+          {
+            "suffix": "",
+            "parent": "minecraft:item/handheld_rod",
+            "layers": [
+              "item/ascendance_fishing_rod/base",
+              "item/ascendance_fishing_rod/accent",
+              "item/ascendance_fishing_rod/nochange"
+            ]
+          },
+          {
+            "suffix": "_cast",
+            "parent": "minecraft:item/handheld_rod",
+            "predicate": {
+              "cast": 1
+            },
+            "layers": [
+              "item/ascendance_fishing_rod/cast_base",
+              "item/ascendance_fishing_rod/cast_accent"
+            ]
+          }
+        ]
+      },
+      "spriteBakes": [
+        {
+          "base": "ascendance_hook_base",
+          "accent": "ascendance_hook_accent",
+          "nochange": "ascendance_hook_nochange",
+          "output": "textures/entity/ascendance_fishing_hook",
+          "personalizedItem": "essence_ascendance:ascendance_fishing_rod"
+        }
+      ]
     }
   ]
 }

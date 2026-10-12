@@ -11,6 +11,13 @@ architectury {
 
 apply from: rootProject.file('gradle/assets.gradle')
 
+// Both loaders bundle common resources; keep the launcher icon's source in branding.
+tasks.named('processResources') {
+    from(rootProject.file('art/branding/essence_ascendance_logo_256.png')) {
+        rename { 'icon.png' }
+    }
+}
+
 def armorSource = rootProject.file('art/source/models/armor/ascendance_armor.bbmodel')
 def armorMaskDirectory = layout.buildDirectory.dir('asset-work/armor-masks').get().asFile
 
@@ -36,6 +43,8 @@ loom {
 
 // Executable invariant suites use the real mapped Minecraft classpath and add no test library.
 def balanceInvariantMains = [
+        personalizedEquipmentInvariants: 'com.mistaboom.essence_ascendance.equipment.PersonalizedEquipmentTest',
+        fishingRodInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.FishingRodBalanceTest',
         nativeVillagerAccessInvariants: 'com.mistaboom.essence_ascendance.balance.engine.NativeVillagerAccessTest',
         nativeAnvilInvariants: 'com.mistaboom.essence_ascendance.balance.engine.NativeAnvilTest',
         nativeTradeProgressionInvariants: 'com.mistaboom.essence_ascendance.balance.engine.NativeTradeProgressionTest',

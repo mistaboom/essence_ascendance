@@ -98,6 +98,7 @@ public final class BalanceReportLayout {
                 They retain scope, operating costs, access, confidence and provider provenance;
                 potential configurations and unknown rates do not imply attainable power.
                   generated_equipment.csv         Ascendance baseline stats per tier.
+                  fishing_rod.csv                 Generated rod chassis and next-upgrade costs.
                   ascension.csv                   Player chapters and harvest access.
                 External equipment and its capabilities join by item_id, slot and stage.
                 Generated armor/toughness columns represent the whole baseline set.

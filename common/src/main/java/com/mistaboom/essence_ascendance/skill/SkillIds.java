@@ -59,7 +59,7 @@ public final class SkillIds {
     public static final ResourceLocation RUSH = id("rush");
     public static final ResourceLocation TERRAIN_FREEDOM = id("terrain_freedom");
     public static final ResourceLocation AQUATIC_BODY = id("aquatic_body");
-    public static final ResourceLocation WATER_WALKING = id("water_walking");
+    public static final ResourceLocation SURFACE_TENSION = id("surface_tension");
     public static final ResourceLocation LAVABORN = id("lavaborn");
     public static final ResourceLocation IMPACT_CONTROL = id("impact_control");
     public static final ResourceLocation CHARGED_JUMP = id("charged_jump");

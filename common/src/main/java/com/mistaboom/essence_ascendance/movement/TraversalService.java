@@ -82,7 +82,38 @@ public final class TraversalService {
     public static boolean surfaceActive(Entity entity) {
         return entity instanceof Player player && TraversalRules.surfaceEnabled(
                 TraversalCapabilities.has(player, LIQUID_SURFACE), nativeMovement(player),
-                player.isSprinting(), player.isShiftKeyDown());
+                player.isSprinting(), com.mistaboom.essence_ascendance.equipment.EquipmentFishingRodService.holdsRod(player), player.isShiftKeyDown());
+    }
+    public static boolean surfaceBuoyancyEligible(Player player) { return Double.isFinite(buoyancySurfaceY(player)); }
+    private static double buoyancySurfaceY(Player player) {
+        boolean rod = com.mistaboom.essence_ascendance.equipment.EquipmentFishingRodService.holdsRod(player);
+        if (!rod || !surfaceActive(player) || player.isEyeInFluid(FluidTags.WATER) || player.isEyeInFluid(FluidTags.LAVA)) return Double.NaN;
+        BlockPos feet = player.blockPosition();
+        double surfaceY = Double.NaN;
+        for (int dy = 0; dy <= 1; dy++) {
+            BlockPos pos = feet.above(dy);
+            var shape = fluidSurface(player.level().getBlockState(pos), player.level(), pos);
+            if (!shape.isEmpty()) surfaceY = pos.getY() + shape.max(net.minecraft.core.Direction.Axis.Y);
+        }
+        return TraversalRules.rodBuoyancy(TraversalCapabilities.has(player, HEAD_ABOVE_LIQUID_BUOYANCY), nativeMovement(player), rod,
+                player.isShiftKeyDown(), false, player.getY(), player.getEyeY(), surfaceY) ? surfaceY : Double.NaN;
+    }
+    /** Server-only limited surface buoyancy. Collision support remains in the shared prediction seam. */
+    public static void tickSurfaceBuoyancy(net.minecraft.server.level.ServerPlayer player) {
+        if (!com.mistaboom.essence_ascendance.config.EssenceConfigManager.authoritativeReady()) return;
+        double surfaceY = buoyancySurfaceY(player);
+        if (!Double.isFinite(surfaceY)) return;
+        PlayerMotionTracker.track(player, com.mistaboom.essence_ascendance.config.EssenceConfigManager.skillEffects().posture().movement());
+        double speed = Math.min(com.mistaboom.essence_ascendance.config.EssenceConfigManager.get().fishingRodBalance().buoyancySpeed(), surfaceY - player.getY());
+        if (!player.level().noCollision(player, player.getBoundingBox().move(0, speed, 0))) return;
+        // Counter gravity and gently close only the remaining surface gap. Do not raise a submerged head.
+        var prior = PlayerMotionTracker.velocity(player);
+        double gravity = player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.GRAVITY);
+        double addition = Math.min(speed - prior.y, gravity + speed);
+        if (addition <= 0) return;
+        player.setDeltaMovement(prior.add(0, addition, 0)); player.hasImpulse = true; player.hurtMarked = true;
+        PlayerMotionTracker.forced(player);
+        player.connection.send(new net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket(player));
     }
     private static VoxelShape fluidSurface(BlockState block, BlockGetter level, BlockPos pos) {
         if (!(block.getBlock() instanceof LiquidBlock)) return Shapes.empty(); // No waterlogged-solid replacement.

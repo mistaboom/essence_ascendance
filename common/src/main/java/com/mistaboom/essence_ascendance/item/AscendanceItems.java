@@ -246,6 +246,9 @@ public final class AscendanceItems {
             ITEMS.register("ascendance_shield", () -> new AscendanceShieldItem(
                     new Item.Properties().durability(336).fireResistant()));
 
+    public static final RegistrySupplier<AscendanceFishingRodItem> ASCENDANCE_FISHING_ROD =
+            ITEMS.register("ascendance_fishing_rod", () -> new AscendanceFishingRodItem(new Item.Properties().durability(64)));
+
     private AscendanceItems() {
     }
 
@@ -278,7 +281,6 @@ public final class AscendanceItems {
     public static void init() {
 
         ITEMS.register();
-        CreativeTabRegistry.append(CreativeModeTabs.COMBAT, ASCENDANCE_SHIELD);
 
         CreativeTabRegistry.append(
                 CreativeModeTabs.TOOLS_AND_UTILITIES,
@@ -286,12 +288,12 @@ public final class AscendanceItems {
         );
 
 
-        // Inventory-art equipment exposes all six visual tiers. These are
+        // Equipment exposes all six tiers. These are
         // ordinary zero-investment stacks: tier data is present where needed,
         // but ownership remains absent until real Infuser progress begins.
         CreativeVariantRegistry.register(
                 CreativeModeTabs.COMBAT,
-                () -> EquipmentCatalogStacks.allTiers(tieredCombatInventoryArtItems())
+                () -> EquipmentCatalogStacks.allTiers(tieredCombatItems())
         );
         CreativeVariantRegistry.register(
                 CreativeModeTabs.TOOLS_AND_UTILITIES,
@@ -303,6 +305,19 @@ public final class AscendanceItems {
     public static List<Item> tieredInventoryArtItems() {
         List<Item> items = new ArrayList<>(tieredCombatInventoryArtItems());
         items.addAll(tieredToolInventoryArtItems());
+        return List.copyOf(items);
+    }
+
+    /** Full browsing catalog, including equipment with a custom renderer. */
+    public static List<Item> tieredCatalogItems() {
+        List<Item> items = new ArrayList<>(tieredCombatItems());
+        items.addAll(tieredToolInventoryArtItems());
+        return List.copyOf(items);
+    }
+
+    private static List<Item> tieredCombatItems() {
+        List<Item> items = new ArrayList<>(tieredCombatInventoryArtItems());
+        items.add(ASCENDANCE_SHIELD.get());
         return List.copyOf(items);
     }
 
@@ -323,7 +338,8 @@ public final class AscendanceItems {
                 ASCENDANCE_PICKAXE.get(),
                 ASCENDANCE_AXE.get(),
                 ASCENDANCE_SHOVEL.get(),
-                ASCENDANCE_HOE.get()
+                ASCENDANCE_HOE.get(),
+                ASCENDANCE_FISHING_ROD.get()
         );
     }
 }

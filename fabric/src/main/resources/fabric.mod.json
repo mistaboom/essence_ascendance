@@ -3,6 +3,7 @@
   "id": "essence_ascendance",
   "version": "${version}",
   "name": "Essence Ascendance",
+  "icon": "icon.png",
   "description": "Consume vast quantities of items to ascend your character and permanently improve combat, mobility, defense, and other abilities.",
   "authors": [
     "MistaBoom"

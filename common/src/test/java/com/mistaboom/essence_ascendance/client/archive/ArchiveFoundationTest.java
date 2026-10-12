@@ -58,7 +58,7 @@ public final class ArchiveFoundationTest {
 
     private static void catalogAndContent() {
         ArchiveCatalog catalog = ArchiveCatalog.DEFAULT;
-        check(catalog.sections(ArchiveMode.GUIDE).size() == 6, "Guide curriculum does not expose six sections");
+        check(catalog.sections(ArchiveMode.GUIDE).size() == ArchiveSection.GUIDE.size(), "Guide curriculum must expose every registered section");
         check(catalog.sections(ArchiveMode.REFERENCE).size() == 6, "Reference curriculum does not expose six sections");
         check(catalog.entries().size() >= 12, "Every initial section needs functioning content");
         for (ArchiveEntry entry : catalog.entries()) {

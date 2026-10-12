@@ -11,7 +11,7 @@ authors = "MistaBoom"
 description = '''
 Consume vast quantities of items to ascend your character and permanently improve combat, mobility, defense, and other abilities.
 '''
-#logoFile = ""
+logoFile = "icon.png"
 
 [[dependencies.essence_ascendance]]
 modId = "neoforge"

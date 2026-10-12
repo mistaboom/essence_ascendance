@@ -45,6 +45,9 @@ public final class EquipmentGameplayEvents {
         com.mistaboom.essence_ascendance.network.TransientVisualDispatch.init();
         com.mistaboom.essence_ascendance.network.AttunementMovementIntentService.init();
         com.mistaboom.essence_ascendance.network.MovementAbilityInputService.init();
+        com.mistaboom.essence_ascendance.network.RodHeldInputPayload.init();
+        com.mistaboom.essence_ascendance.network.RodForcePayload.init();
+        com.mistaboom.essence_ascendance.network.PreciseMobMotionPayload.init();
         EquipmentTooltipSyncService.init();
         PlayerRuntimeLifecycleService.init();
         SoulboundEquipmentService.init();
@@ -54,6 +57,8 @@ public final class EquipmentGameplayEvents {
                 SkillEffectRuntime.tick(serverPlayer);
                 EquipmentDamageService.tickSkillInput(serverPlayer);
                 EquipmentShieldService.tick(serverPlayer);
+                com.mistaboom.essence_ascendance.gathering.AscendanceFishingService.tickOwner(serverPlayer);
+                com.mistaboom.essence_ascendance.movement.TraversalService.tickSurfaceBuoyancy(serverPlayer);
                 EquipmentAttributeService.sync(serverPlayer);
                 EquipmentMobilityService.sync(serverPlayer);
                 EquipmentVitalityService.tick(serverPlayer);

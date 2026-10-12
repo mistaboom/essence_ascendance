@@ -1,0 +1,7 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:fishing_rod",
+    "essence_ascendance:ascendance_fishing_rod"
+  ]
+}

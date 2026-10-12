@@ -3,6 +3,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.mistaboom.essence_ascendance.visual.CanonicalPaletteValues;
+import com.mistaboom.essence_ascendance.equipment.personalized.PersonalizedEquipmentDefinition;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -61,7 +62,10 @@ public final class AssetPipeline {
             try {
                 if (asset.has("textures")) exportTextures(project, asset.getAsJsonArray("textures"));
                 switch (asset.get("category").getAsString()) {
-                    case "layered_item" -> itemModels(asset.getAsJsonObject("item"));
+                    case "layered_item" -> {
+                        itemModels(asset.getAsJsonObject("item"));
+                        if (asset.has("spriteBakes")) bakeSprites(art, project, asset.getAsJsonArray("spriteBakes"));
+                    }
                     case "block" -> blockModels(asset.getAsJsonObject("block"));
                     case "runtime_composite" -> { /* Host-dependent ore composition stays in the renderer. */ }
                     case "static_mesh" -> {
@@ -212,6 +216,34 @@ public final class AssetPipeline {
             collect(scratch);
         } finally {
             deleteScratch(scratch);
+        }
+    }
+
+    /** Native entity sprites use the same material compositor/palette as layered equipment. */
+    private void bakeSprites(Path art, JsonObject project, JsonArray bakes) throws IOException {
+        for (var value : bakes) {
+            var bake=value.getAsJsonObject();
+            BufferedImage base=ImageIO.read(new ByteArrayInputStream(BlockbenchSource.png(BlockbenchSource.named(project.getAsJsonArray("textures"),bake.get("base").getAsString()))));
+            BufferedImage accent=ImageIO.read(new ByteArrayInputStream(BlockbenchSource.png(BlockbenchSource.named(project.getAsJsonArray("textures"),bake.get("accent").getAsString()))));
+            BufferedImage nochange=bake.has("nochange") ? ImageIO.read(new ByteArrayInputStream(BlockbenchSource.png(BlockbenchSource.named(project.getAsJsonArray("textures"),bake.get("nochange").getAsString())))) : null;
+            for (int tier=0;tier<TIERS.size();tier++) {
+                var stitched=MaskedTextureWriter.compose(base,accent,nochange,BASE_COLORS[tier],ACCENT_COLORS[tier],false);
+                var encoded=new ByteArrayOutputStream();
+                if(!ImageIO.write(stitched,"PNG",encoded))throw new IOException("No PNG encoder");
+                add(bake.get("output").getAsString()+"/"+TIERS.get(tier)+".png",encoded.toByteArray());
+            }
+            if (bake.has("personalizedItem")) {
+                Path profiles = art.getParent().resolve("common/src/main/resources/data/essence_ascendance/personalized_equipment.json");
+                try (var reader = Files.newBufferedReader(profiles, StandardCharsets.UTF_8)) {
+                    for (var profile : PersonalizedEquipmentDefinition.read(reader)) {
+                        if (!profile.itemId().equals(bake.get("personalizedItem").getAsString())) continue;
+                        var stitched = MaskedTextureWriter.compose(base, accent, nochange, profile.baseRgb(), profile.accentRgb(), false);
+                        var encoded = new ByteArrayOutputStream();
+                        if (!ImageIO.write(stitched, "PNG", encoded)) throw new IOException("No PNG encoder");
+                        add(bake.get("output").getAsString() + "/personalized/" + profile.id() + ".png", encoded.toByteArray());
+                    }
+                }
+            }
         }
     }
 

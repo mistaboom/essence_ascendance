@@ -17,16 +17,24 @@ public final class MaskedTextureWriter {
 
     public static BufferedImage compose(BufferedImage base, BufferedImage accent,
                                         int baseColor, int accentColor, boolean requireOpaque) {
+        return compose(base,accent,null,baseColor,accentColor,requireOpaque);
+    }
+
+    public static BufferedImage compose(BufferedImage base, BufferedImage accent, BufferedImage nochange,
+                                        int baseColor, int accentColor, boolean requireOpaque) {
         int width = base.getWidth();
         int height = base.getHeight();
         if (accent.getWidth() != width || accent.getHeight() != height)
             throw new IllegalArgumentException("Base and accent mask dimensions must match");
+        if (nochange != null && (nochange.getWidth()!=width || nochange.getHeight()!=height))
+            throw new IllegalArgumentException("Untinted mask dimensions must match");
         BufferedImage composite = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 int pixel = TexturePixels.overArgb(
                         TexturePixels.tintArgb(accent.getRGB(x, y), accentColor),
                         TexturePixels.tintArgb(base.getRGB(x, y), baseColor));
+                if(nochange!=null)pixel=TexturePixels.overArgb(nochange.getRGB(x,y),pixel);
                 if (requireOpaque && pixel >>> 24 != 255)
                     throw new IllegalStateException("Masks leave a transparent pixel at " + x + "," + y);
                 composite.setRGB(x, y, pixel);

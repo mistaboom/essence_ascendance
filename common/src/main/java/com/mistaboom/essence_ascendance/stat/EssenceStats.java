@@ -359,6 +359,9 @@ public final class EssenceStats {
     public static final StatDefinition GUARDED_MOVEMENT = register(
             "guarded_movement", "Guarded Movement", StatCategory.MOBILITY, StatUnit.PERCENT);
 
+    public static final StatDefinition FISHING_SPEED = register(
+            "fishing_speed", "Fishing Speed", StatCategory.GATHERING, StatUnit.PERCENT);
+
     private EssenceStats() {
     }
 

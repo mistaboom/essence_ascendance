@@ -20,6 +20,7 @@ public final class EssenceServerConfig {
     private final int maxActivePylons;
     private final InfuserBalanceSettings infuserBalance;
     private final ShieldBalanceSettings shieldBalance;
+    private final FishingRodBalanceSettings fishingRodBalance;
     private final SkillEffectBalanceSettings skillEffects;
     private final LatentOreWorldgenSettings latentOreWorldgen;
     private final BalanceProfileDefinition balanceProfile;
@@ -35,6 +36,7 @@ public final class EssenceServerConfig {
             int maxActivePylons,
             InfuserBalanceSettings infuserBalance,
             ShieldBalanceSettings shieldBalance,
+            FishingRodBalanceSettings fishingRodBalance,
             SkillEffectBalanceSettings skillEffects,
             LatentOreWorldgenSettings latentOreWorldgen,
             BalanceProfileDefinition balanceProfile,
@@ -43,6 +45,7 @@ public final class EssenceServerConfig {
             Map<ResourceLocation, Double> statMaxBonuses,
             EquipmentBaselineConfig equipmentBaselineConfig
     ) {
+        this.fishingRodBalance = Objects.requireNonNull(fishingRodBalance, "Missing fishing rod balance; explicitly rebuild profile");
         this.shieldBalance = Objects.requireNonNull(shieldBalance, "Shield balance cannot be null");
         this.skillEffects = Objects.requireNonNull(skillEffects, "Skill-effect balance cannot be null");
         this.configVersion = configVersion;
@@ -129,6 +132,8 @@ public final class EssenceServerConfig {
     public int maxActivePylons() {
         return maxActivePylons;
     }
+
+    public FishingRodBalanceSettings fishingRodBalance() { return fishingRodBalance; }
 
     public ShieldBalanceSettings shieldBalance() { return shieldBalance; }
 

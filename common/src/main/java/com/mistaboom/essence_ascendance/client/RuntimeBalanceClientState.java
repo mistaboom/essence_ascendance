@@ -13,8 +13,13 @@ public final class RuntimeBalanceClientState {
     public static void init() {
         if(initialized)return;
         NetworkManager.registerReceiver(NetworkManager.Side.S2C,RuntimeBalancePayload.TYPE,RuntimeBalancePayload.CODEC,
-                (payload,context)->ClientPacketDispatch.queue(context,()->EssenceConfigManager.installClient(
-                        RuntimeBalanceDefinition.fromJson(JsonParser.parseString(payload.runtimeJson()).getAsJsonObject()))));
+                (payload,context)->ClientPacketDispatch.queue(context,()-> {
+                    var runtime=RuntimeBalanceDefinition.fromJson(JsonParser.parseString(payload.runtimeJson()).getAsJsonObject());
+                    // Player-aware equipment snapshots follow the runtime packet. Drop the previous
+                    // profile's numbers until those snapshots arrive, preserving loading behavior.
+                    EquipmentTooltipClientState.clear();
+                    EssenceConfigManager.installClient(runtime);
+                }));
         initialized=true;
     }
     public static void clear() {EssenceConfigManager.clearClient();}

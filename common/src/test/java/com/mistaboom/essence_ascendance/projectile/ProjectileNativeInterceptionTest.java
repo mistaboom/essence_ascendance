@@ -304,6 +304,7 @@ public final class ProjectileNativeInterceptionTest {
         DimensionDataStorage storage;
         ServerScoreboard scoreboard;
         boolean occluded;
+        boolean nativeBlockClip;
         List<net.minecraft.world.phys.shapes.VoxelShape> movementSupport;
         net.minecraft.core.RegistryAccess memoryRegistries;
         net.minecraft.world.damagesource.DamageSources memoryDamageSources;
@@ -339,12 +340,15 @@ public final class ProjectileNativeInterceptionTest {
                     : memoryBlocks.getOrDefault(position, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
         }
         @Override public boolean hasChunkAt(BlockPos position) { return true; }
+        @Override public boolean hasChunk(int chunkX, int chunkZ) { return true; }
         @Override public boolean areEntitiesLoaded(long chunk) { return true; }
         @Override public boolean setBlock(BlockPos position, net.minecraft.world.level.block.state.BlockState state, int flags, int depth) {
             if (memoryBlocks == null) throw new AssertionError("Block storage was not installed for this fixture");
             memoryBlocks.put(position.immutable(), state); return true;
         }
         @Override public void blockEntityChanged(BlockPos position) { }
+        @Override public void sendBlockUpdated(BlockPos pos, net.minecraft.world.level.block.state.BlockState before,
+                                               net.minecraft.world.level.block.state.BlockState after, int flags) { }
         @Override public void updateNeighbourForOutputSignal(BlockPos position, net.minecraft.world.level.block.Block block) { }
         @Override public net.minecraft.util.profiling.ProfilerFiller getProfiler() { return net.minecraft.util.profiling.InactiveProfiler.INSTANCE; }
         @Override public net.minecraft.world.item.crafting.RecipeManager getRecipeManager() {
@@ -371,8 +375,9 @@ public final class ProjectileNativeInterceptionTest {
         @Override public Entity getEntity(int id) { return entities.stream().filter(entity -> entity.getId() == id).findFirst().orElse(null); }
         @Override public Entity getEntity(UUID id) { return entities.stream().filter(entity -> entity.getUUID().equals(id)).findFirst().orElse(null); }
         @Override public net.minecraft.world.level.material.FluidState getFluidState(BlockPos position) {
-            return net.minecraft.world.level.block.Blocks.AIR.defaultBlockState().getFluidState();
+            return getBlockState(position).getFluidState();
         }
+        @Override public boolean addFreshEntity(Entity entity) { entities.add(entity); return true; }
         @Override public boolean isInWorldBounds(BlockPos position) { return true; }
         @Override public List<Entity> getEntities(Entity except, AABB box, Predicate<? super Entity> predicate) {
             return entities.stream().filter(entity -> entity != except && !entity.isRemoved()
@@ -394,6 +399,7 @@ public final class ProjectileNativeInterceptionTest {
             }
         }
         @Override public BlockHitResult clip(ClipContext context) {
+            if (nativeBlockClip) return super.clip(context);
             if (occluded) return new BlockHitResult(context.getFrom().lerp(context.getTo(), .5), Direction.NORTH,
                     BlockPos.containing(context.getFrom().lerp(context.getTo(), .5)), false);
             return BlockHitResult.miss(context.getTo(), Direction.getNearest(context.getTo().subtract(context.getFrom())), BlockPos.containing(context.getTo()));

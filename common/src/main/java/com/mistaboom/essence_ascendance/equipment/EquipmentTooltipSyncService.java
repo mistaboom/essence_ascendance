@@ -133,6 +133,8 @@ public final class EquipmentTooltipSyncService {
             entries.add(tool(data, EquipmentProfiles.HOE, "ascendance_hoe", "Hoe", itemTier));
             entries.add(shield(data, itemTier, false));
             entries.add(shield(data, itemTier, true));
+            entries.add(fishingRod(data, itemTier, false));
+            entries.add(fishingRod(data, itemTier, true));
         }
 
         // The existing non-shield families retain their mundane Latent fallback.
@@ -152,6 +154,27 @@ public final class EquipmentTooltipSyncService {
         entries.add(fractured(tool(data, EquipmentProfiles.HOE, "ascendance_hoe", "Hoe", EquipmentTier.LATENT)));
 
         return new EquipmentTooltipPayload(entries);
+    }
+
+    public static EquipmentTooltipPayload.Entry fishingRod(PlayerEssenceData data, EquipmentTier itemTier, boolean fractured) {
+        var context = EquipmentFishingRodService.resolve(data, itemTier, fractured);
+        var base = context.baseline();
+        List<EquipmentTooltipPayload.Line> lines = new ArrayList<>();
+        lines.add(identity(itemTier, "Fishing Rod"));
+        if (fractured) lines.add(stat("rod.fractured"));
+        else {
+            lines.add(stat("rod.range", rodNumber(base.range())));
+            lines.add(stat("rod.cast", rodNumber(context.castSpeed())));
+            lines.add(stat("rod.gravity", rodNumber(base.gravity())));
+            lines.add(stat("rod.force", rodNumber(base.maximumForce())));
+            lines.add(stat("rod.reel_speed", rodNumber(base.reelSpeed())));
+            // As with the other equipment, numeric durability belongs to vanilla's advanced tooltip.
+            addProfileAbilities(lines, data, itemTier, EquipmentProfiles.FISHING_ROD, EquipmentActivationType.HELD, 1);
+        }
+        return new EquipmentTooltipPayload.Entry("essence_ascendance:ascendance_fishing_rod#" + itemTier.serializedName() + (fractured ? "#fractured" : ""), lines);
+    }
+    private static String rodNumber(double value) {
+        return java.math.BigDecimal.valueOf(value).setScale(3, java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString();
     }
 
     private static EquipmentTooltipPayload.Entry shield(

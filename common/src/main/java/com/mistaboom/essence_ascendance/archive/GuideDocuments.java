@@ -384,6 +384,30 @@ final class GuideDocuments {
         return new SemanticDocument.Paragraph(g(key));
     }
 
+    static SemanticDocument fishing(PresentationContext context) {
+        List<SemanticDocument.Block> blocks = new ArrayList<>();
+        blocks.add(new SemanticDocument.ItemIllustration(new ItemPresentation(id("ascendance_fishing_rod"), DataComponentPatch.EMPTY, itemName("ascendance_fishing_rod")), HERO_WIDTH, HERO_HEIGHT));
+        blocks.add(new SemanticDocument.Paragraph(g("archive.guide.fishing.acquisition")));
+        blocks.add(new SemanticDocument.Paragraph(g("archive.guide.fishing.controls")));
+        blocks.add(new SemanticDocument.Paragraph(g("archive.guide.fishing.water")));
+        blocks.add(new SemanticDocument.Paragraph(g("archive.guide.fishing.surface")));
+        if (!context.runtime().ready()) blocks.add(runtimeState(context.runtime().availability()));
+        else {
+            var policy = context.runtime().definition().config().fishingRodBalance();
+            blocks.add(new SemanticDocument.StatRows(List.of(
+                    new SemanticDocument.StatRow(g("archive.guide.fishing.wear"), g("archive.guide.fishing.wear.value", policy.wearPerInterval(), policy.wearIntervalTicks())),
+                    new SemanticDocument.StatRow(g("archive.guide.fishing.skiing"), g("archive.guide.fishing.skiing.value", decimal(policy.waterSkiingDistance()))),
+                    new SemanticDocument.StatRow(g("archive.guide.fishing.buoyancy"), g("archive.guide.fishing.buoyancy.value", decimal(policy.buoyancySpeed()))))));
+        }
+        seeAlso(blocks, link("reference/equipment/fishing_rod", "archive.entry.reference.equipment.fishing_rod.title", SemanticDocument.LinkRelation.RELATED),
+                new SemanticDocument.Link(id("reference/bonuses/fishing_speed").toString(), EssenceText.stat(EssenceStats.FISHING_SPEED), SemanticDocument.LinkRelation.RELATED),
+                new SemanticDocument.Link(id("reference/skills/surface_tension").toString(), Component.translatable("skill.essence_ascendance.surface_tension"), SemanticDocument.LinkRelation.RELATED),
+                new SemanticDocument.Link(id("reference/skills/fishing_instinct").toString(), Component.translatable("skill.essence_ascendance.fishing_instinct"), SemanticDocument.LinkRelation.RELATED),
+                new SemanticDocument.Link(id("reference/skills/fishers_call").toString(), Component.translatable("skill.essence_ascendance.fishers_call"), SemanticDocument.LinkRelation.RELATED),
+                link("reference/equipment/infusion", "archive.entry.reference.equipment.infusion.title", SemanticDocument.LinkRelation.RELATED));
+        return document("archive.entry.guide.equipment.fishing.title", blocks);
+    }
+
     private static SemanticDocument.Heading heading(String key) {
         return headingComponent(g(key));
     }

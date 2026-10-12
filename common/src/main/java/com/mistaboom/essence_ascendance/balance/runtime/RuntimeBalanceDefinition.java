@@ -250,7 +250,7 @@ public final class RuntimeBalanceDefinition {
         var profile = config.balanceProfile();
         var worldgen = config.latentOreWorldgen();
         Wire wire = new Wire(config.configVersion(), config.pylonRadius(), config.maxActivePylons(),
-                config.infuserBalance(), config.shieldBalance(), config.skillEffects(),
+                config.infuserBalance(), config.shieldBalance(), config.fishingRodBalance(), config.skillEffects(),
                 worldgen,
                 new ProfileWire(profile.id(), profile.displayName(), profile.defaultTierCaps(), profile.statOverrides(), profile.tierFractions(), profile.investmentExponent(), profile.bonusTracks()),
                 config.milestones(), config.advancements(), config.statMaxBonuses(), config.equipmentBaselineConfig().tierBaselines(),
@@ -277,7 +277,7 @@ public final class RuntimeBalanceDefinition {
         LatentOreWorldgenSettings w = Objects.requireNonNull(wire.worldgen);
         var profile = new BalanceProfileDefinition(p.id, p.displayName, p.defaultTierCaps, p.statOverrides, p.tierFractions, p.investmentExponent, Objects.requireNonNull(p.bonusTracks, "Missing resolved Bonus tracks; explicitly rebuild generated balance"));
         var config = new EssenceServerConfig(wire.configVersion, wire.pylonRadius, wire.maxActivePylons,
-                wire.infuser, wire.shield, wire.effects, w,
+                wire.infuser, wire.shield, wire.fishingRod, wire.effects, w,
                 profile, wire.milestones, wire.advancements, wire.statMaxBonuses, new EquipmentBaselineConfig(wire.equipment));
         var result = new RuntimeBalanceDefinition(config, wire.crucible, wire.pylons, wire.skillCurves, wire.composition,
                 Objects.requireNonNull(wire.attunement, "Missing Category Attunement calibration; use /essence admin balance rebuild"));
@@ -294,7 +294,7 @@ public final class RuntimeBalanceDefinition {
         return result;
     }
     private record Wire(int configVersion, double pylonRadius, int maxActivePylons, InfuserBalanceSettings infuser,
-            ShieldBalanceSettings shield, SkillEffectBalanceSettings effects, LatentOreWorldgenSettings worldgen, ProfileWire balanceProfile,
+            ShieldBalanceSettings shield, FishingRodBalanceSettings fishingRod, SkillEffectBalanceSettings effects, LatentOreWorldgenSettings worldgen, ProfileWire balanceProfile,
             Map<ResourceLocation,MilestoneDefinition> milestones, Map<ResourceLocation,AscendanceAdvancementDefinition> advancements,
             Map<ResourceLocation,Double> statMaxBonuses, Map<ResourceLocation,EquipmentBaselineConfig.TierBaseline> equipment,
             EssenceCrucibleStructureStats crucible, Map<String,EssencePylonContribution> pylons,

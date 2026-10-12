@@ -21,6 +21,7 @@ public abstract class LocalPlayerShieldMovementMixin {
             require = 2, expect = 2)
     private float essenceAscendance$shieldSlowdown(float vanillaMultiplier) {
         LocalPlayer player = (LocalPlayer) (Object) this;
+        if (com.mistaboom.essence_ascendance.equipment.EquipmentFishingRodService.isAscendanceRod(player.getUseItem())) return 1;
         if (!EquipmentShieldService.isUsingShield(player)) return vanillaMultiplier;
 
         // One shared policy replaces the former unconditional sprint cancellation.

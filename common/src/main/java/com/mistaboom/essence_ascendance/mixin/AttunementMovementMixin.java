@@ -21,6 +21,7 @@ public abstract class AttunementMovementMixin {
     @Inject(method = "teleport(DDDFFLjava/util/Set;)V", at = @At("HEAD"), require = 1, expect = 1)
     private void essenceAscendance$postureDiscontinuity(double x, double y, double z, float yaw, float pitch,
             java.util.Set<net.minecraft.world.entity.RelativeMovement> relative, CallbackInfo ci) {
+        com.mistaboom.essence_ascendance.gathering.AscendanceFishingService.forget(player);
         PostureService.forget(player);
         com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime.movementDiscontinuity(player);
     }

@@ -270,8 +270,8 @@ public final class SkillBalanceSemantics {
                 .actions(Action.MOVE).availability(.5, 1).condition("Terrain slow, contact, freezing and sinking hazards only"));
         all.add(skill(SkillIds.AQUATIC_BODY, capability(MINING_SPEED, .35), capability(INFORMATION, .25))
                 .actions(Action.SWIM).availability(.4, 1).condition("Binary restoration of native underwater mining efficiency and visibility only; swimming speed remains with bonuses/equipment, with no movement-efficiency floor or off-ground movement bypass; no breathing immunity"));
-        all.add(skill(SkillIds.WATER_WALKING, capability(CONVENIENCE, .55))
-                .actions(Action.SPRINT, Action.SNEAK).availability(.4, 1).condition("Exposed native liquid-surface collision while sprinting; native entry/stepping, never an immersed lift. Sneak or stopping resumes ordinary swimming"));
+        all.add(skill(SkillIds.SURFACE_TENSION, capability(GROUND_SPEED, .4), capability(VERTICAL_MOVEMENT, .2))
+                .actions(Action.MOVE, Action.SPRINT, Action.FISH, Action.SNEAK).availability(.4, 1).condition("Binary exposed water/lava surface support while sprinting or holding a compatible rod; rod permits head-above-fluid limited buoyancy and stationary support. Sneak overrides both; no submerged ascent, fire immunity or fishing in lava"));
         all.add(skill(SkillIds.LAVABORN, capability(STATUS_RESISTANCE, .8), capability(GROUND_SPEED, .4))
                 .actions(Action.SWIM).availability(.3, 1).condition("Lava-immersion protection and inside-out visibility; native swimming access uses actual bonus/equipment speed. Lava ignition is prevented at its source; unrelated fire and damage remain normal outside immersion"));
         all.add(skill(SkillIds.IMPACT_CONTROL, flat(FALL_CONTROL, .65))
@@ -325,10 +325,10 @@ public final class SkillBalanceSemantics {
         all.add(skill(SkillIds.ANIMAL_GIFT, flat(DROP_YIELD, .5), capability(AUTOMATION_INTERACTION, .65))
                 .actions(Action.BREED).availability(.45, .8).cost(.15).area(8)
                 .condition("Well-fed adult livestock provide renewable products; proximity and feeding cost"));
-        all.add(skill(SkillIds.FISHING_INSTINCT, multi(THROUGHPUT, .45), flat(DROP_YIELD, .35))
+        all.add(skill(SkillIds.FISHING_INSTINCT, multi(FISHING_TIME_REDUCTION, .45), flat(FISHING_PRODUCTIVITY, .35))
                 .equipment(Equipment.FISHING_ROD).actions(Action.FISH).availability(.8, .9)
                 .condition("Bite time, reel-window reliability and treasure quality while actively fishing"));
-        all.add(skill(SkillIds.FISHERS_CALL, multi(THROUGHPUT, .45), flat(DROP_YIELD, .3))
+        all.add(skill(SkillIds.FISHERS_CALL, multi(FISHING_TIME_REDUCTION, .45), flat(FISHING_PRODUCTIVITY, .3))
                 .equipment(Equipment.FISHING_ROD).actions(Action.FISH).availability(.55, .8)
                 .condition("Consecutive catches build streak; a miss resets it; bounded extra-catch chance"));
         all.add(skill(SkillIds.SALVAGERS_CRAFT, flat(CONVERSION, .55), flat(EXPERIENCE, .3))

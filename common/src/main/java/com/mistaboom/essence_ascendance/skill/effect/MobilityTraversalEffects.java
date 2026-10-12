@@ -19,19 +19,20 @@ public final class MobilityTraversalEffects {
         @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
             if (!id().equals(com.mistaboom.essence_ascendance.skill.SkillIds.AQUATIC_BODY)
                     && !id().equals(com.mistaboom.essence_ascendance.skill.SkillIds.LAVABORN)
-                    && !id().equals(com.mistaboom.essence_ascendance.skill.SkillIds.WATER_WALKING))
+                    && !id().equals(com.mistaboom.essence_ascendance.skill.SkillIds.SURFACE_TENSION))
                 return SkillHudEvents.card(context, id());
             var player = context.player();
             boolean active = switch (id().getPath()) {
                 case "aquatic_body" -> player.isInWater() && TraversalService.fluidBody(player);
                 case "lavaborn" -> TraversalService.lavaBody(player);
-                case "water_walking" -> TraversalService.canStandOnFluid(player, player.level().getFluidState(player.blockPosition().below()));
+                case "surface_tension" -> TraversalService.canStandOnFluid(player, player.level().getFluidState(player.blockPosition().below()))
+                        || TraversalService.surfaceBuoyancyEligible(player);
                 default -> SkillHudEvents.active(context, id());
             };
             String key = switch (id().getPath()) {
                 case "aquatic_body" -> "submerged";
                 case "lavaborn" -> "lava";
-                case "water_walking" -> "surface";
+                case "surface_tension" -> "surface";
                 default -> "terrain";
             };
             return SkillEffectHudEntry.skill(id(), active, 0, SkillEffectHudEntry.Text.translated("hud.essence_ascendance.event." + key),
@@ -59,7 +60,7 @@ public final class MobilityTraversalEffects {
         @Override public List<String> debugLines(SkillEffectRuntime.Context context) {
             return List.of("Binary native traversal capabilities=" + profile.capabilities(),
                     "Supported body immersion=" + TraversalService.fluidBody(context.player())
-                            + "; sprint surface=" + TraversalService.surfaceActive(context.player())
+                            + "; sprint-or-rod surface=" + TraversalService.surfaceActive(context.player())
                             + "; lava contact protection=" + TraversalService.hideImmersionFire(context.player()),
                     "Mining efficiency only; swimming speed remains bonus/equipment-controlled. Protected lava cannot ignite; unrelated fire is not extinguished. Air supply, attacks, flight and mounts stay native.");
         }

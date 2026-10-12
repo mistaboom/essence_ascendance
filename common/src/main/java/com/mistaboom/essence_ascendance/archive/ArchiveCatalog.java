@@ -151,6 +151,9 @@ public final class ArchiveCatalog {
         addEquipment(entries, EquipmentProfiles.SHOVEL, "ascendance_shovel");
         addEquipment(entries, EquipmentProfiles.HOE, "ascendance_hoe");
         addEquipment(entries, EquipmentProfiles.SHIELD, "ascendance_shield");
+        addEquipment(entries, EquipmentProfiles.FISHING_ROD, "ascendance_fishing_rod");
+        entries.add(entry("guide/equipment/fishing", ArchiveSection.GUIDE_EQUIPMENT, "equipment",
+                () -> GuideDocuments.fishing(PresentationContext.capture())));
         entries.add(entry("reference/equipment/infusion", ArchiveSection.REFERENCE_EQUIPMENT, "infusion",
                 () -> ReferenceDocuments.equipmentInfusion(PresentationContext.capture())));
         entries.add(entry("reference/equipment/lifecycle", ArchiveSection.REFERENCE_EQUIPMENT, "equipment",

@@ -55,6 +55,12 @@ public final class BalanceReports {
             AdaptiveBalanceReports.saved(tables, current.document().section("metadata"));
             CompetitiveCapabilityReports.saved(tables, current.document().section("metadata"));
             runtimeTables(tables, current);
+            var rods = tables.table("fishing_rod.csv", "equipment_tier", "range_blocks", "cast_blocks_per_tick", "hook_gravity", "pull_acceleration", "maximum_force", "powered_speed", "durability", "upgrade_essence", "matrices");
+            for (var tier : com.mistaboom.essence_ascendance.equipment.EquipmentTier.values()) {
+                var rod = current.runtime().config().fishingRodBalance().tier(tier);
+                var cost = tier.next() == null ? null : current.runtime().config().infuserBalance().equipmentUpgrade(tier.next().serializedName());
+                rods.row(tier.serializedName(),number(rod.range()),number(rod.castSpeed()),number(rod.gravity()),number(rod.acceleration()),number(rod.maximumForce()),number(rod.reelSpeed()),Integer.toString(rod.durability()),cost==null?"":Long.toString(cost.totalEssenceRequired()),cost==null?"":Integer.toString(cost.matrixCount()));
+            }
             latentOre(tables, current);
             ascension(tables, current);
             attunement(tables, current.runtime().attunement());

@@ -51,7 +51,8 @@ public final class BonusTrackGenerator {
         // Route evidence remains a hard lower bound; optional bonuses never become skill prerequisites.
         int earliest = tiers.indexOf(AscendanceTierRegistry.powerTiers().stream()
                 .min(Comparator.comparingInt(AscendanceTierDefinition::order)).orElseThrow());
-        if (nominal.compatibilityRequirements().contains("ABILITIES_FLYING_SPEED")
+        if (nominal.compatibilityRequirements().contains("held Ascendance rod acquisition")
+                || nominal.compatibilityRequirements().contains("ABILITIES_FLYING_SPEED")
                 || nominal.compatibilityRequirements().contains("native menu cost hook"))
             earliest = tiers.indexOf(AscendanceTierRegistry.get(nominal.startTier()).orElseThrow());
         double desirability = nominal.inputs().getOrDefault("native_response", 0.0);
@@ -126,7 +127,15 @@ public final class BonusTrackGenerator {
             String source = "native_semantics+reachable_environment";
             List<String> compatibility = List.of();
             boolean available = maximum > 0;
-            if (semantic.axis() == CapabilityAxis.ANVIL_EFFICIENCY || semantic.axis() == CapabilityAxis.ENCHANTING_EFFICIENCY) {
+            if (stat.id().equals(EssenceStats.FISHING_SPEED.id())) {
+                var route = fishingRoute(evidence);
+                reasons.addAll(route.evidence()); available &= route.stage() != null;
+                start = route.stage() == null ? end : Math.min(end, route.stage().ordinal());
+                confidence = route.confidence(); source = route.source();
+                compatibility = List.of("held Ascendance rod acquisition", "native water fishing countdown");
+                maximum = Math.min(maximum, NativeBonusMechanics.FISHING_MAXIMUM_SPEED_PERCENT);
+                reasons.add("Native countdown saturation: positive phases clamp at one tick; initial minimum wait=" + NativeBonusMechanics.FISHING_MINIMUM_WAIT_TICKS + " ticks. Lure remains native; no generated extra loot or reel window.");
+            } else if (semantic.axis() == CapabilityAxis.ANVIL_EFFICIENCY || semantic.axis() == CapabilityAxis.ENCHANTING_EFFICIENCY) {
                 Route route = menuRoute(evidence, semantic.axis());
                 reasons.addAll(route.evidence());
                 available &= route.stage() != null;
@@ -169,6 +178,11 @@ public final class BonusTrackGenerator {
             double utility = intrinsic / Math.log(2);
             double economy = categorySupply.getOrDefault(stat.essenceType().id().toString(), 1.0);
             Map<String, Double> inputs = new TreeMap<>();
+            if (stat.id().equals(EssenceStats.FISHING_SPEED.id())) {
+                inputs.put("native_maximum_effect", NativeBonusMechanics.FISHING_MAXIMUM_SPEED_PERCENT);
+                inputs.put("native_minimum_wait_ticks", (double) NativeBonusMechanics.FISHING_MINIMUM_WAIT_TICKS);
+                inputs.put("native_phase_boundary_ticks", 1.0);
+            }
             inputs.put("native_response", marginal); inputs.put("breadth", breadth); inputs.put("environment_alternatives", alternative);
             inputs.put("useful_span", span); inputs.put("composition_headroom", headroom); inputs.put("marginal_power", intrinsic);
             inputs.put("category_supply", economy); inputs.put("utility_price_multiplier", utility);
@@ -247,6 +261,15 @@ public final class BonusTrackGenerator {
         return 1 / (1 + coverage);
     }
     public record Route(ProgressionBand stage, double confidence, String source, List<String> evidence) {}
+    public static Route fishingRoute(PackEvidence evidence) {
+        var resource = evidence.resources().get("essence_ascendance:ascendance_fishing_rod");
+        if (resource != null) return new Route(resource.reachable() ? resource.stage() : null, resource.confidence(),
+                "rod_recipe+authoritative_acquisition", List.of("Ascendance rod acquisition stage=" + resource.stage()
+                + "; reachable=" + resource.reachable() + "; sources=" + resource.sources().stream().map(AcquisitionSource::id).toList()));
+        if (evidence.resources().isEmpty()) return new Route(ProgressionBand.ENTRY, .4, "empty_evidence_rod_recipe_fallback",
+                List.of("No acquisition evidence supplied; provisional native rod recipe entry route, not a loaded-pack observation"));
+        return new Route(null, 0, "conservative_unavailable", List.of("No reachable Ascendance rod acquisition evidence; Fishing Speed unavailable until a validated rebuild supplies the route"));
+    }
     static Route menuRoute(PackEvidence evidence, CapabilityAxis axis) {
         List<CapabilityEvidence> routes = new ArrayList<>();
         List<String> unavailable = new ArrayList<>();

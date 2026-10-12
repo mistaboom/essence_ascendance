@@ -2,6 +2,7 @@ package com.mistaboom.essence_ascendance.mixin;
 
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mistaboom.essence_ascendance.gathering.GatheringFishingHookAccess;
 import com.mistaboom.essence_ascendance.gathering.GatheringFishingService;
 import net.minecraft.core.BlockPos;
@@ -30,6 +31,16 @@ public abstract class GatheringFishingHookMixin implements GatheringFishingHookA
     @Unique private double essenceAscendance$lureCarry;
     @Unique private double essenceAscendance$hookCarry;
     @Unique private double essenceAscendance$reelCarry;
+    @Unique private boolean essenceAscendance$fishingRewardSpawned;
+
+    @WrapOperation(method = "retrieve", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;addFreshEntity(Lnet/minecraft/world/entity/Entity;)Z"))
+    private boolean essenceAscendance$confirmedFishingReward(net.minecraft.world.level.Level level,
+            net.minecraft.world.entity.Entity entity, Operation<Boolean> original) {
+        boolean accepted = original.call(level, entity);
+        if (accepted && (entity instanceof net.minecraft.world.entity.item.ItemEntity || entity instanceof net.minecraft.world.entity.ExperienceOrb))
+            essenceAscendance$fishingRewardSpawned = true;
+        return accepted;
+    }
 
     @Inject(method = "catchingFish", at = @At("HEAD"))
     private void essenceAscendance$beforeFishingLogic(BlockPos pos, CallbackInfo ci) {
@@ -48,17 +59,23 @@ public abstract class GatheringFishingHookMixin implements GatheringFishingHookA
     @WrapMethod(method = "retrieve")
     private int essenceAscendance$gatheringFishingLoot(ItemStack rod, Operation<Integer> original) {
         FishingHook hook = (FishingHook) (Object) this;
+        if (hook instanceof com.mistaboom.essence_ascendance.gathering.RodHookAccess rodHook
+                && rodHook.essenceAscendance$rodHand() != 0
+                && (rodHook.essenceAscendance$attachment() != 0 || rodHook.essenceAscendance$rodState().castStack != rod
+                    || !rodHook.essenceAscendance$rodState().armed)) return original.call(rod);
         if (!(hook.getPlayerOwner() instanceof ServerPlayer player)) return original.call(rod);
         boolean hadFishBite = nibble > 0 && hook.getHookedIn() == null;
         int nativeLuck = luck;
         int bonus = GatheringFishingService.virtualLuck(player);
         luck = Math.max(0, nativeLuck + bonus);
+        essenceAscendance$fishingRewardSpawned = false;
         try {
             int result = original.call(rod);
-            GatheringFishingService.afterRetrieve(player, hook, rod, hadFishBite, luck, bonus);
+            GatheringFishingService.afterRetrieve(player, hook, rod, hadFishBite && essenceAscendance$fishingRewardSpawned, luck, bonus);
             return result;
         } finally {
             luck = nativeLuck;
+            essenceAscendance$fishingRewardSpawned = false;
         }
     }
 

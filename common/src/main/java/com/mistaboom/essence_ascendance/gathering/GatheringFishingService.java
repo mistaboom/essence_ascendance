@@ -36,6 +36,7 @@ public final class GatheringFishingService {
 
     public static HudState hudState(ServerPlayer player) {
         FishingHook fishing = player.fishing;
+        if (fishing instanceof RodHookAccess rod && rod.essenceAscendance$attachment() != 0) return new HudState(HudPhase.NONE, 0);
         if (fishing == null || !(fishing instanceof GatheringFishingHookAccess hook)) {
             return new HudState(HudPhase.NONE, 0);
         }
@@ -53,7 +54,7 @@ public final class GatheringFishingService {
         SkillEffectRuntime.Context context = SkillEffectRuntime.context(player);
         GatheringBalanceSettings.FishingInstinct instinct = fishingInstinct(context);
         GatheringBalanceSettings.FishersCall shoal = fishersCall(context);
-        if (instinct == null && shoal == null) {
+        if (instinct == null && shoal == null && fishingSpeedMultiplier(player) <= 1) {
             resetCarries(hook);
             return;
         }
@@ -80,7 +81,7 @@ public final class GatheringFishingService {
         SkillEffectRuntime.Context context = SkillEffectRuntime.context(player);
         GatheringBalanceSettings.FishingInstinct instinct = fishingInstinct(context);
         GatheringBalanceSettings.FishersCall shoal = fishersCall(context);
-        if (instinct == null && shoal == null) {
+        if (instinct == null && shoal == null && fishingSpeedMultiplier(player) <= 1) {
             resetCarries(hook);
             return;
         }
@@ -90,6 +91,7 @@ public final class GatheringFishingService {
         }
         double multiplier = instinct == null ? 1.0D : instinct.biteSpeedMultiplier();
         multiplier *= shoalBiteMultiplier(context, shoal);
+        multiplier *= fishingSpeedMultiplier(player);
         hook.essenceAscendance$setLureCarry(accelerateNativeProgress(
                 hook.essenceAscendance$lureBefore(), hook.essenceAscendance$timeUntilLured(),
                 hook.essenceAscendance$lureCarry(), multiplier,
@@ -218,7 +220,7 @@ public final class GatheringFishingService {
         return 1.0D + (tuning.maximumBiteSpeedMultiplier() - 1.0D) * fraction;
     }
 
-    private static double accelerateNativeProgress(int before, int after, double carry, double multiplier,
+    public static double accelerateNativeProgress(int before, int after, double carry, double multiplier,
                                                    java.util.function.IntConsumer setter) {
         if (before <= 0 || after <= 0 || after >= before || multiplier <= 1) {
             return after <= 0 || after > before ? 0 : carry;
@@ -234,6 +236,14 @@ public final class GatheringFishingService {
         int accelerated = Math.max(1, after - extraTicks);
         setter.accept(accelerated);
         return accelerated <= 1 ? 0 : remainder;
+    }
+
+    public static double fishingSpeedMultiplier(ServerPlayer player) {
+        if (player.fishing instanceof RodHookAccess hook && hook.essenceAscendance$rodHand() != 0
+                && hook.essenceAscendance$attachment() == 0 && AscendanceFishingService.valid(player, player.fishing))
+            return com.mistaboom.essence_ascendance.equipment.EquipmentFishingRodService.context(player,
+                    hook.essenceAscendance$rodState().castStack).fishingMultiplier();
+        return 1;
     }
 
     private static void resetCarries(GatheringFishingHookAccess hook) {

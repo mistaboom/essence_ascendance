@@ -123,7 +123,7 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
         }
     };
 
-    /** Tier components distinguish the authored equipment sprites in JEI's ingredient list. */
+    /** Tier components distinguish equipment variants in JEI's ingredient list. */
     static final ISubtypeInterpreter<ItemStack> EQUIPMENT_TIER_SUBTYPE = new ISubtypeInterpreter<>() {
         @Override
         public Object getSubtypeData(ItemStack stack, UidContext context) {
@@ -150,7 +150,7 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
     @Override
     public void registerItemSubtypes(ISubtypeRegistration registration) {
         registration.registerSubtypeInterpreter(EssenceInfuserContent.LATENT_ORE_ITEM.get(), LATENT_ORE_SUBTYPE);
-        for (var item : AscendanceItems.tieredInventoryArtItems()) {
+        for (var item : AscendanceItems.tieredCatalogItems()) {
             registration.registerSubtypeInterpreter(item, EQUIPMENT_TIER_SUBTYPE);
         }
         registration.registerSubtypeInterpreter(
@@ -176,7 +176,7 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
         variants.addAll(LatentOreHost.creativeStacks());
         // JEI already discovers each item's ordinary untagged Latent stack.
         // Add only the component-bearing upgrades to avoid a duplicate Latent entry.
-        variants.addAll(EquipmentCatalogStacks.allTiers(AscendanceItems.tieredInventoryArtItems()).stream()
+        variants.addAll(EquipmentCatalogStacks.allTiers(AscendanceItems.tieredCatalogItems()).stream()
                 .filter(stack -> EquipmentTierData.tier(stack) != EquipmentTier.LATENT)
                 .toList());
         registration.addExtraItemStacks(variants);

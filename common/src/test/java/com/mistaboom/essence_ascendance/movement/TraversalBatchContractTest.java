@@ -22,7 +22,7 @@ import java.util.*;
 public final class TraversalBatchContractTest {
     private static int checks;
     private static final List<ResourceLocation> IDS = List.of(SkillIds.TERRAIN_FREEDOM, SkillIds.AQUATIC_BODY,
-            SkillIds.WATER_WALKING, SkillIds.LAVABORN);
+            SkillIds.SURFACE_TENSION, SkillIds.LAVABORN);
     public static void main(String[] args) throws Exception {
         net.minecraft.SharedConstants.tryDetectVersion(); net.minecraft.server.Bootstrap.bootStrap();
         EssenceTypes.init(); AscendanceTiers.init(); EssenceStats.init(); MilestoneProviders.init(); Milestones.init(); Skills.init();
@@ -56,7 +56,7 @@ public final class TraversalBatchContractTest {
         check(IDS.stream().noneMatch(id -> evaluate(noRoot).get(id).effective()), "Losing Terrain Freedom disables all descendants");
         var noAqua = new LinkedHashMap<>(all); noAqua.remove(SkillIds.AQUATIC_BODY);
         var withoutAqua = evaluate(noAqua);
-        check(withoutAqua.get(SkillIds.TERRAIN_FREEDOM).effective() && !withoutAqua.get(SkillIds.WATER_WALKING).effective()
+        check(withoutAqua.get(SkillIds.TERRAIN_FREEDOM).effective() && !withoutAqua.get(SkillIds.SURFACE_TENSION).effective()
                 && !withoutAqua.get(SkillIds.LAVABORN).effective(), "Both aquatic descendants require the active parent");
         jumpTransitions();
         flightResources();

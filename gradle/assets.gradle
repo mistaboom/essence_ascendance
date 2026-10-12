@@ -10,6 +10,7 @@ def assetPipelineSources = files(
         rootProject.file('tools/AscendanceArmorGenerator.java'),
         rootProject.file('tools/EssenceBlockTextureGenerator.java'),
         rootProject.file('tools/MaskedTextureWriter.java'),
+        file('src/main/java/com/mistaboom/essence_ascendance/equipment/personalized/PersonalizedEquipmentDefinition.java'),
         file('src/main/java/com/mistaboom/essence_ascendance/visual/CanonicalPaletteValues.java'),
         file('src/main/java/com/mistaboom/essence_ascendance/visual/TexturePixels.java'))
 
@@ -31,6 +32,8 @@ def generateAssets = tasks.register('generateAssets', JavaExec) {
     inputs.files(fileTree(artDirectory) { include 'asset-manifest.json', 'source/models/**/*.bbmodel' })
             .withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.files(assetPipelineSources).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file(file('src/main/resources/data/essence_ascendance/personalized_equipment.json'))
+            .withPathSensitivity(PathSensitivity.RELATIVE)
     outputs.dirs(generatedAssetResources, assetWorkDirectory)
     doFirst {
         setArgs([artDirectory.absolutePath, generatedAssetResources.get().asFile.absolutePath,

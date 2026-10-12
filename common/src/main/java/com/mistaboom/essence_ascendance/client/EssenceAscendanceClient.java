@@ -72,6 +72,8 @@ public final class EssenceAscendanceClient {
                 com.mistaboom.essence_ascendance.projectile.ProjectileContent.MAGIC_BOLT,
                 MagicBoltRenderer::new);
         ClientPacketDispatch.init();
+        RodForceClient.init();
+        PreciseMobMotionClient.init();
         com.mistaboom.essence_ascendance.client.ore.LatentOreClientCatalog.init();
         com.mistaboom.essence_ascendance.archive.ArchiveClientBridge.install(AscendanceArchiveScreen::open);
         ReloadListenerRegistry.register(
@@ -107,6 +109,7 @@ public final class EssenceAscendanceClient {
                 AscendanceItems.ASCENDANCE_AXE.get(),
                 AscendanceItems.ASCENDANCE_SHOVEL.get(),
                 AscendanceItems.ASCENDANCE_HOE.get(),
+                AscendanceItems.ASCENDANCE_FISHING_ROD.get(),
                 AscendanceItems.ASCENDANCE_HELMET.get(),
                 AscendanceItems.ASCENDANCE_CHESTPLATE.get(),
                 AscendanceItems.ASCENDANCE_LEGGINGS.get(),
@@ -129,6 +132,14 @@ public final class EssenceAscendanceClient {
                         && com.mistaboom.essence_ascendance.equipment.EquipmentShieldService.isUsingShield(entity)
                         ? 1.0F : 0.0F);
 
+        registrar.register(AscendanceItems.ASCENDANCE_FISHING_ROD.get(), ResourceLocation.fromNamespaceAndPath("minecraft", "cast"),
+                (stack, level, entity, seed) -> {
+                    if (!(entity instanceof net.minecraft.world.entity.player.Player player) || player.fishing == null) return 0;
+                    if (player.fishing instanceof com.mistaboom.essence_ascendance.gathering.RodHookAccess hook && hook.essenceAscendance$rodHand() != 0)
+                        return player.getItemInHand(hook.essenceAscendance$rodHand() == 1 ? net.minecraft.world.InteractionHand.MAIN_HAND : net.minecraft.world.InteractionHand.OFF_HAND) == stack ? 1 : 0;
+                    return 0;
+                });
+
         Item[] essentiumVisualItems = {
                 EssenceInfuserContent.ESSENTIUM_NUGGET.get(),
                 EssenceInfuserContent.ESSENTIUM_INGOT.get(),
@@ -149,7 +160,7 @@ public final class EssenceAscendanceClient {
                 essenceCarrierTintItems
         );
         ColorHandlerRegistry.registerItemColors(
-                EquipmentTierVisuals::itemTint,
+                PersonalizedEquipmentClient::itemTint,
                 AscendanceItems.tieredInventoryArtItems().toArray(Item[]::new)
         );
         ColorHandlerRegistry.registerBlockColors(

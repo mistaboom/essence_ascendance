@@ -14,7 +14,7 @@ import java.util.Set;
 public final class TraversalCapabilities {
     public enum Capability {
         TERRAIN_DRAG, TERRAIN_CONTACT, FIRM_FOOTING,
-        WATER_BODY, WATER_VISION, LIQUID_SURFACE,
+        WATER_BODY, WATER_VISION, LIQUID_SURFACE, HEAD_ABOVE_LIQUID_BUOYANCY,
         LAVA_BODY, LAVA_VISION, LAVA_PROTECTION
     }
     public record Profile(ResourceLocation skill, Set<Capability> capabilities) {
@@ -23,7 +23,7 @@ public final class TraversalCapabilities {
     private static final List<Profile> PROFILES = List.of(
             profile(SkillIds.TERRAIN_FREEDOM, Capability.TERRAIN_DRAG, Capability.TERRAIN_CONTACT, Capability.FIRM_FOOTING),
             profile(SkillIds.AQUATIC_BODY, Capability.WATER_BODY, Capability.WATER_VISION),
-            profile(SkillIds.WATER_WALKING, Capability.LIQUID_SURFACE),
+            profile(SkillIds.SURFACE_TENSION, Capability.LIQUID_SURFACE, Capability.HEAD_ABOVE_LIQUID_BUOYANCY),
             profile(SkillIds.LAVABORN, Capability.LAVA_BODY, Capability.LAVA_VISION, Capability.LAVA_PROTECTION));
 
     private TraversalCapabilities() { }

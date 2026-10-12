@@ -51,6 +51,8 @@ public record RepairInfusionRecipe(
                 EssenceConfigManager.get().infuserBalance().repair();
         int maxDamage = EquipmentShieldService.isShield(stack)
                 ? EquipmentShieldService.nativeDurability(EquipmentTierData.tier(stack))
+                : com.mistaboom.essence_ascendance.equipment.EquipmentFishingRodService.isAscendanceRod(stack)
+                    ? EssenceConfigManager.get().fishingRodBalance().tier(EquipmentTierData.tier(stack)).durability()
                 : Math.max(1, stack.getMaxDamage());
         boolean fractured = FracturedEquipmentData.isFractured(stack)
                 || (EquipmentShieldService.isShield(stack) && stack.getDamageValue() >= maxDamage);
@@ -129,6 +131,7 @@ public record RepairInfusionRecipe(
         repaired.setDamageValue(0);
         FracturedEquipmentData.clearFractured(repaired);
         EquipmentShieldService.refreshNativeDurability(repaired);
+        com.mistaboom.essence_ascendance.equipment.EquipmentFishingRodService.refreshNativeDurability(repaired);
         return repaired;
     }
 }

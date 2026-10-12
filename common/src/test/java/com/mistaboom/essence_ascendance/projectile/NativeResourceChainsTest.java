@@ -112,7 +112,7 @@ public final class NativeResourceChainsTest {
         SkillEffectRuntime.refresh(player);
         for (var id : ids) check(SkillEffectRuntime.context(player).isEffective(id), "Native chain prerequisite active: " + id);
     }
-    private static void resources(ProjectileNativeInterceptionTest.Fixture f) throws ReflectiveOperationException {
+    static void resources(ProjectileNativeInterceptionTest.Fixture f) throws ReflectiveOperationException {
         var registries = new ArrayList<Registry<?>>();
         RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY).registries().forEach(e -> registries.add(e.value()));
         f.level.memoryRegistries.registries().filter(e -> !e.key().equals(Registries.ENCHANTMENT)).forEach(e -> registries.add(e.value()));

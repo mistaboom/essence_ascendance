@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "profiles": [
+    {
+      "id": "vance_yeet_stick",
+      "player_uuid": "422890f3-c52e-4cdd-ad9c-a18c17b469fa",
+      "item": "essence_ascendance:ascendance_fishing_rod",
+      "tier": "transcendent",
+      "name": "Vance's Yeet Stick",
+      "base_color": "#FF1493",
+      "accent_color": "#7FFFD4",
+      "perks": {
+        "mob_opening_launch": 10.0,
+        "mob_launch_steering": 4.0
+      }
+    }
+  ]
+}

@@ -208,7 +208,7 @@ public final class Skills {
         skills.add(skill(SkillIds.AQUATIC_BODY, essence, AscendanceTiers.AWAKENED.id(),
                 SkillCostBand.ADVANCED, 4).requires(SkillIds.TERRAIN_FREEDOM)
                 .hint(SkillLayoutHint.LOWER).build());
-        skills.add(skill(SkillIds.WATER_WALKING, essence, AscendanceTiers.RESONANT.id(),
+        skills.add(skill(SkillIds.SURFACE_TENSION, essence, AscendanceTiers.RESONANT.id(),
                 SkillCostBand.ADVANCED, 5).requires(SkillIds.AQUATIC_BODY)
                 .hint(SkillLayoutHint.UPPER).build());
         skills.add(skill(SkillIds.LAVABORN, essence, AscendanceTiers.ASCENDANT.id(),

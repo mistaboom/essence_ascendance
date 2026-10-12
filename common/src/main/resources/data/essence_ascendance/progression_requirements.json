@@ -1318,15 +1318,15 @@
       "outcomes": [],
       "alternativeImprovements": false
     },
-    "water_walking": {
+    "surface_tension": {
       "home": "Mobility",
       "firstStateFloor": "Complete supported surface traversal",
       "additionalImprovementFloor": "Not applicable; single rank",
       "endpointPolicy": "Generated final meaningful native state within mechanic bounds; floor excess never re-enters allocation",
-      "mechanicalConstraints": "None declared",
+      "mechanicalConstraints": "Binary exposed water/lava support; sprinting or compatible rod held, Shift overrides. Head-above-liquid rod buoyancy only; no underwater ascent or immunity.",
       "rankModel": "One meaningful state",
       "domains": "M03",
-      "bonusCompatibility": "Keep current gate and prerequisites. At unavailable supporting bonuses, use native action/item values plus the skill\u2019s own generated first state: Sprint surface collision supports exposed water and lava; sneak/release permits entry; no lift, fall protection or mount behavior. Bonus additions are zero, multipliers 1 and prevention 0; retain native capability eligibility.",
+      "bonusCompatibility": "Compatible rod in either hand permits standing and limited buoyancy with eyes out of fluid. Skill must be effective; riding/flying excluded; bonus investment adds no new ranks.",
       "outcomes": [],
       "alternativeImprovements": false
     },
@@ -2698,6 +2698,18 @@
       "latestConstraint": "No genuine latest-tier constraint found; choose stop by endpoint and useful states",
       "powerDesirability": "Intentional Mobility support for Defense",
       "compatibility": "Neutral additive/prevention value 0 or multiplier 1 before generated start. Keep native action/item/capability intact. Shield raised; stacks with Guarded Advance slowdown removal. No dependency-driven skill delay."
+    },
+    "fishing_speed": {
+      "home": "Gathering",
+      "firstStateFloor": 10,
+      "tierImprovementFloor": 10,
+      "unit": "percentage points of native countdown throughput",
+      "quantization": "Native integer progress with fractional carry; percent states quantized by shared publisher",
+      "mechanicalCap": "Positive countdowns stop at one; vanilla alone performs phase transitions. Saturation at one progress tick; max requested throughput bounded by native 100-tick minimum wait",
+      "earliestConstraint": "Reachable Ascendance rod recipe, compatible held equipment channeling and native water fishing",
+      "latestConstraint": "Generated meaningful endpoint within native countdown ceiling",
+      "powerDesirability": "Conditional manual water fishing time reduction; FISHING_TIME_REDUCTION evidence only with supported response units",
+      "compatibility": "Multiplies measured native progress once alongside Fishing Instinct and Fishers Call; vanilla Lure retains its native initial-countdown reduction"
     }
   }
 }

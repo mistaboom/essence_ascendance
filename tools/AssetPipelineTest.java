@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mistaboom.essence_ascendance.visual.CanonicalPaletteValues;
 import com.mistaboom.essence_ascendance.visual.TexturePixels;
+import com.mistaboom.essence_ascendance.equipment.personalized.PersonalizedEquipmentDefinition;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -41,6 +42,7 @@ public final class AssetPipelineTest {
         stitchedMeshMaterials(directory);
         invalidStitchedMaterials(directory);
         shieldSourceContract(Path.of(args[1]), Path.of(args[2]));
+        fishingSourceContract(Path.of(args[1]), Path.of(args[2]));
         System.out.println("AssetPipelineTest: " + assertions + " build-pipeline assertions PASS");
     }
 
@@ -281,6 +283,41 @@ public final class AssetPipelineTest {
     }
 
     /** Validate the actual shipped shield, not just the miniature importer fixtures. */
+    private static void fishingSourceContract(Path art, Path output) throws Exception {
+        var rod=BlockbenchSource.read(art.resolve("source/models/item/ascendance_rod.bbmodel"));
+        var textures=rod.getAsJsonArray("textures");
+        var base=ImageIO.read(new java.io.ByteArrayInputStream(BlockbenchSource.png(BlockbenchSource.named(textures,"ascendance_hook_base"))));
+        var accent=ImageIO.read(new java.io.ByteArrayInputStream(BlockbenchSource.png(BlockbenchSource.named(textures,"ascendance_hook_accent"))));
+        var nochange=ImageIO.read(new java.io.ByteArrayInputStream(BlockbenchSource.png(BlockbenchSource.named(textures,"ascendance_hook_nochange"))));
+        int[] bases={CanonicalPaletteValues.LATENT_PRIMARY,CanonicalPaletteValues.DORMANT_PRIMARY,CanonicalPaletteValues.AWAKENED_PRIMARY,CanonicalPaletteValues.RESONANT_PRIMARY,CanonicalPaletteValues.ASCENDANT_PRIMARY,CanonicalPaletteValues.TRANSCENDENT_PRIMARY};
+        int[] accents={CanonicalPaletteValues.LATENT_METAL,CanonicalPaletteValues.DORMANT_METAL,CanonicalPaletteValues.AWAKENED_METAL,CanonicalPaletteValues.RESONANT_METAL,CanonicalPaletteValues.ASCENDANT_METAL,CanonicalPaletteValues.TRANSCENDENT_METAL};
+        for(int tier=0;tier<TIERS.length;tier++) {
+            var image=ImageIO.read(output.resolve(ROOT+"textures/entity/ascendance_fishing_hook/"+TIERS[tier]+".png").toFile());
+            check(image.getWidth()==8 && image.getHeight()==8,"Hook retains its authored eight-pixel frame");
+            for(int y=0;y<8;y++)for(int x=0;x<8;x++) {
+                int expected=TexturePixels.overArgb(nochange.getRGB(x,y),TexturePixels.overArgb(TexturePixels.tintArgb(accent.getRGB(x,y),accents[tier]),TexturePixels.tintArgb(base.getRGB(x,y),bases[tier])));
+                check(image.getRGB(x,y)==expected,"Hook pixel honors exact shared material palette and unchanged mask");
+            }
+            var idle=JsonParser.parseString(Files.readString(output.resolve(ROOT+"models/item/tier/"+TIERS[tier]+"/ascendance_fishing_rod.json"))).getAsJsonObject();
+            var cast=JsonParser.parseString(Files.readString(output.resolve(ROOT+"models/item/tier/"+TIERS[tier]+"/ascendance_fishing_rod_cast.json"))).getAsJsonObject();
+            check(idle.getAsJsonObject("textures").size()==3 && cast.getAsJsonObject("textures").size()==2,"Idle has untinted string; cast omits the string layer");
+            check(cast.get("parent").getAsString().equals("minecraft:item/handheld_rod"),"Rod keeps the native held transform");
+        }
+        try (var reader = Files.newBufferedReader(art.getParent().resolve("common/src/main/resources/data/essence_ascendance/personalized_equipment.json"))) {
+            for (var profile : PersonalizedEquipmentDefinition.read(reader)) {
+                if (!profile.itemId().equals("essence_ascendance:ascendance_fishing_rod")) continue;
+                var image = ImageIO.read(output.resolve(ROOT + "textures/entity/ascendance_fishing_hook/personalized/" + profile.id() + ".png").toFile());
+                check(image.getWidth() == 8 && image.getHeight() == 8, "Personalized hook retains the authored frame");
+                for (int y = 0; y < 8; y++) for (int x = 0; x < 8; x++) {
+                    int expected = TexturePixels.overArgb(nochange.getRGB(x, y), TexturePixels.overArgb(
+                            TexturePixels.tintArgb(accent.getRGB(x, y), profile.accentRgb()), TexturePixels.tintArgb(base.getRGB(x, y), profile.baseRgb())));
+                    check(image.getRGB(x, y) == expected, "Gift hook uses the same profile colors and preserves unchanged pixels");
+                }
+                check(!Files.exists(output.resolve(ROOT + "models/item/" + profile.id() + ".json")), "Gift has no separate inventory model or item variant");
+            }
+        }
+    }
+
     private static void shieldSourceContract(Path art, Path output) throws Exception {
         JsonObject shield = BlockbenchSource.read(art.resolve("source/models/item/ascendance_shield.bbmodel"));
         assertStitchedPixels(shield, "ascendance_shield_base", "ascendance_shield_accent",

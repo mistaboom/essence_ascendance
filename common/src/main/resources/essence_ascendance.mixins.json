@@ -4,6 +4,7 @@
   "compatibilityLevel": "JAVA_21",
   "minVersion": "0.8",
   "client": [
+    "PersonalizedEquipmentNameMixin",
     "ArmorPresentationMixin",
     "LatentOreParticleDataMixin",
     "LatentOreTerrainParticleMixin",
@@ -38,9 +39,13 @@
     "GatheringSalvageGrindstoneScreenMixin",
     "UtilitySenseRendererMixin",
     "FlightVisualRendererMixin",
-    "UtilitySenseClientMixin"
+    "UtilitySenseClientMixin",
+    "FishingRodInputMixin",
+    "AscendanceFishingRendererMixin",
+    "FishingRodUseMixin"
   ],
   "mixins": [
+    "PreciseMobMotionTrackingMixin",
     "TradeSamplingLootContextMixin",
     "EvidenceEntityRandomMixin",
     "EvidenceAnimalExperienceMixin",
@@ -135,7 +140,10 @@
     "ContainmentExplosionMixin",
     "FriendlyFireWardMixin",
     "EnchantmentMenuInsightAccess",
-    "EnchantmentMenuInsightMixin"
+    "EnchantmentMenuInsightMixin",
+    "AscendanceFishingHookMixin",
+    "FishingRodSpawnMixin",
+    "FishingHookTrackingMixin"
   ],
   "injectors": {
     "defaultRequire": 1

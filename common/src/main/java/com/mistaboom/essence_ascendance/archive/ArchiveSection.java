@@ -18,6 +18,7 @@ public record ArchiveSection(ResourceLocation id, ArchiveMode mode, Component la
     public static final ArchiveSection GUIDE_INFUSION = guide("infusion");
     public static final ArchiveSection GUIDE_ASCENDANCE = guide("ascendance");
     public static final ArchiveSection GUIDE_SKILLS = guide("skills");
+    public static final ArchiveSection GUIDE_EQUIPMENT = guide("equipment");
     public static final ArchiveSection REFERENCE_ESSENCES = reference("essences");
     public static final ArchiveSection REFERENCE_MACHINES = reference("machines");
     public static final ArchiveSection REFERENCE_EQUIPMENT = reference("equipment");
@@ -26,7 +27,7 @@ public record ArchiveSection(ResourceLocation id, ArchiveMode mode, Component la
     public static final ArchiveSection REFERENCE_MECHANICS = reference("mechanics");
 
     public static final List<ArchiveSection> GUIDE = List.of(GUIDE_BEGINNING, GUIDE_ESSENCE, GUIDE_MACHINES,
-            GUIDE_INFUSION, GUIDE_ASCENDANCE, GUIDE_SKILLS);
+            GUIDE_INFUSION, GUIDE_ASCENDANCE, GUIDE_SKILLS, GUIDE_EQUIPMENT);
     public static final List<ArchiveSection> REFERENCE = List.of(REFERENCE_ESSENCES, REFERENCE_MACHINES,
             REFERENCE_EQUIPMENT, REFERENCE_BONUSES, REFERENCE_SKILLS, REFERENCE_MECHANICS);
 

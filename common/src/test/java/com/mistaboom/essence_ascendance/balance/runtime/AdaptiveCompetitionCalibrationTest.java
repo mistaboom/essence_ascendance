@@ -82,7 +82,8 @@ public final class AdaptiveCompetitionCalibrationTest {
     }
     private static double value(RuntimeBalanceDefinition runtime, String path) { return ProgressionRequirements.read(runtime.toJson(), path); }
     private static void responds(RuntimeBalanceDefinition baseline, RuntimeBalanceDefinition adapted, String path) {
-        check(value(adapted, path) > value(baseline, path) * 1.05, "Meaningful response missing at " + path);
+        check(value(adapted, path) > value(baseline, path) * 1.05, "Meaningful response missing at " + path
+                + " (baseline=" + value(baseline, path) + ", adapted=" + value(adapted, path) + ")");
     }
     private static void check(boolean condition, String message) { checks++; if (!condition) throw new AssertionError(message); }
     public static void main(String[] args) throws Exception {
@@ -189,7 +190,9 @@ public final class AdaptiveCompetitionCalibrationTest {
                     "Late competitor inflated early Bonus at " + tier.id());
         }
         var early = generate("M-extreme-early", environment(fact("synthetic:early_tool",ProgressionBand.ENTRY,MINING_SPEED,1_000_000,"native_destroy_speed")), null);
-        responds(vanilla,early,"equipment/essence_ascendance:dormant/miningSpeed");
+        check(value(early,"equipment/essence_ascendance:dormant/miningSpeed") == value(vanilla,"equipment/essence_ascendance:dormant/miningSpeed"),
+                "Competition must preserve the native iron entry anchor");
+        responds(vanilla,early,"equipment/essence_ascendance:transcendent/miningSpeed");
         responds(vanilla,early,"effects/gathering/toolInstinct/maximumLowerTierSpeedBonus");
         // Outlier, unknown semantics, low confidence, unreachable, renamed source and policy controls.
         var outlierEnv = environment(fact("synthetic:normal1",ProgressionBand.ENTRY,MINING_SPEED,8,"native_destroy_speed"),

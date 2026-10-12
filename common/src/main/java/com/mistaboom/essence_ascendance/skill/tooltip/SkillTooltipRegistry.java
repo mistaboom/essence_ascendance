@@ -216,9 +216,9 @@ public final class SkillTooltipRegistry {
         define(SkillIds.AQUATIC_BODY,
                 line("skill.essence_ascendance.aquatic_body.description.resolved"),
                 line("skill.essence_ascendance.aquatic_body.description.resolved.1"));
-        define(SkillIds.WATER_WALKING,
-                line("skill.essence_ascendance.water_walking.description.resolved"),
-                line("skill.essence_ascendance.water_walking.description.resolved.1"));
+        define(SkillIds.SURFACE_TENSION,
+                line("skill.essence_ascendance.surface_tension.description.resolved"),
+                line("skill.essence_ascendance.surface_tension.description.resolved.1"));
         define(SkillIds.LAVABORN,
                 line("skill.essence_ascendance.lavaborn.description.resolved"),
                 line("skill.essence_ascendance.lavaborn.description.resolved.1"));

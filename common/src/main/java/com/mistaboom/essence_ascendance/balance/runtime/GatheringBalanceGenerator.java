@@ -34,10 +34,10 @@ final class GatheringBalanceGenerator {
         double herdThroughput = power(settings, SkillIds.HERDKEEPER, CapabilityAxis.ANIMAL_ACCELERATION);
         double giftYield = power(settings, SkillIds.ANIMAL_GIFT, CapabilityAxis.DROP_YIELD);
         double giftAutomation = power(settings, SkillIds.ANIMAL_GIFT, CapabilityAxis.AUTOMATION_INTERACTION);
-        double fishingThroughput = power(settings, SkillIds.FISHING_INSTINCT, CapabilityAxis.THROUGHPUT);
-        double fishingYield = power(settings, SkillIds.FISHING_INSTINCT, CapabilityAxis.DROP_YIELD);
-        double shoalThroughput = power(settings, SkillIds.FISHERS_CALL, CapabilityAxis.THROUGHPUT);
-        double shoalYield = power(settings, SkillIds.FISHERS_CALL, CapabilityAxis.DROP_YIELD);
+        double fishingThroughput = power(settings, SkillIds.FISHING_INSTINCT, CapabilityAxis.FISHING_TIME_REDUCTION);
+        double fishingYield = power(settings, SkillIds.FISHING_INSTINCT, CapabilityAxis.FISHING_PRODUCTIVITY);
+        double shoalThroughput = power(settings, SkillIds.FISHERS_CALL, CapabilityAxis.FISHING_TIME_REDUCTION);
+        double shoalYield = power(settings, SkillIds.FISHERS_CALL, CapabilityAxis.FISHING_PRODUCTIVITY);
         double salvageConversion = power(settings, SkillIds.SALVAGERS_CRAFT, CapabilityAxis.CONVERSION);
         double salvageExperience = power(settings, SkillIds.SALVAGERS_CRAFT, CapabilityAxis.EXPERIENCE);
         double pocketYield = power(settings, SkillIds.POCKET_NETS, CapabilityAxis.DROP_YIELD);

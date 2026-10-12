@@ -520,7 +520,7 @@ public final class EquipmentTooltipClientState {
 
     private static String fracturedLookupKey(ItemStack stack) {
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        return EquipmentShieldService.isShield(stack)
+        return (EquipmentShieldService.isShield(stack) || com.mistaboom.essence_ascendance.equipment.EquipmentFishingRodService.isAscendanceRod(stack))
                 ? lookupKey(stack) + "#fractured"
                 : itemId + "#fractured";
     }

@@ -107,7 +107,7 @@ public final class EquipmentMobilityService {
         double luckBonus = value(
                 playerData,
                 EssenceStats.LUCK,
-                worn.strength(EssenceStats.LUCK)
+                EquipmentFishingRodService.actionState(player).strength(EssenceStats.LUCK)
         );
 
         apply(
@@ -162,7 +162,7 @@ public final class EquipmentMobilityService {
         double luckBonus = value(
                 playerData,
                 EssenceStats.LUCK,
-                worn.strength(EssenceStats.LUCK)
+                EquipmentFishingRodService.actionState(player).strength(EssenceStats.LUCK)
         );
 
         Abilities abilities = player.getAbilities();

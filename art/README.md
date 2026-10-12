@@ -82,6 +82,7 @@ Paths below are relative to this folder. Runtime identifiers are relative to `as
 | [Ascendance axe](source/models/item/ascendance_axe.bbmodel) | `textures/item/ascendance_axe/`; six-tier item models |
 | [Ascendance shovel](source/models/item/ascendance_shovel.bbmodel) | `textures/item/ascendance_shovel/`; six-tier item models |
 | [Ascendance hoe](source/models/item/ascendance_hoe.bbmodel) | `textures/item/ascendance_hoe/`; six-tier item models |
+| [Ascendance fishing rod and hook](source/models/item/ascendance_rod.bbmodel) | `textures/item/ascendance_fishing_rod/`; idle and cast models at all six tiers; `textures/entity/ascendance_fishing_hook/{tier}.png` |
 | [Helmet](source/models/item/ascendance_helmet.bbmodel), [chestplate](source/models/item/ascendance_chestplate.bbmodel), [leggings](source/models/item/ascendance_leggings.bbmodel), [boots](source/models/item/ascendance_boots.bbmodel) | `textures/item/ascendance_{helmet,chestplate,leggings,boots}/`; six-tier armor inventory models |
 
 The equipment catalog supplies all six item tiers to JEI and the creative menu. Texture import does not change the existing equipment binding rules. Inventory armor uses base/accent layers; the sword, caster, tools, and all four bow states also include `nochange`. Tint index `1` is the shared equipment accent contract: those seven generated item models receive the same accent-only `0..180` emission curve as armor and shield, in every item display context. The caster grip remains authored at pixel `(12,12)`.

@@ -36,7 +36,7 @@ public final class RegistryIntegrityTest {
             check(SkillRegistry.values().stream().filter(s -> s.essenceId().equals(essence)).count() == 15,
                     "Expected 15 skills in " + essence);
         }
-        check(EssenceStatRegistry.size() == 40, "Expected 40 registered bonuses in the current catalog");
+        check(EssenceStatRegistry.size() == 41, "Expected 41 registered bonuses in the current catalog");
         check(SkillRegistry.choiceGroups().size() == 19, "Preserve all intentional choice groups");
         check(SkillRegistry.choiceGroups().stream().mapToInt(g -> g.memberIds().size() * (g.memberIds().size()-1) / 2).sum() == 31,
                 "Preserve all 31 unordered exclusion pairs");
@@ -85,7 +85,7 @@ public final class RegistryIntegrityTest {
             }
         }
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out))
-                .println("RegistryIntegrityTest: 90 skills, six groups of 15, 40 bonuses, exact tooltip coverage and tokens PASS");
+                .println("RegistryIntegrityTest: 90 skills, six groups of 15, 41 bonuses, exact tooltip coverage and tokens PASS");
     }
 
     private static void check(boolean condition, String message) {

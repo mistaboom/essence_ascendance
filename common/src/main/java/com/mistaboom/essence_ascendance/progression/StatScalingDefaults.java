@@ -254,6 +254,8 @@ public final class StatScalingDefaults {
                 50.0
         );
 
+        // Requested native countdown throughput endpoint; generation/evidence and native saturation resolve the published track.
+        register("fishing_speed", 100.0);
         register("guard_readiness", 80.0);
         register("guarded_movement", 100.0);
     }

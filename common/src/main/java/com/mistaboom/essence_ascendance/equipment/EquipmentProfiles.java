@@ -151,6 +151,16 @@ public final class EquipmentProfiles {
                     .stat(EquipmentActivationType.GUARDING, EssenceStats.KNOCKBACK_RESISTANCE)
                     .build());
 
+    public static final EquipmentProfileDefinition FISHING_ROD = EquipmentProfileRegistry.register(
+            EquipmentProfileDefinition.builder(id("fishing_rod"), "Ascendance Fishing Rod")
+                    .baseline(EquipmentBaselineProperty.DURABILITY)
+                    .stat(EquipmentActivationType.HELD, EssenceStats.LUCK)
+                    .stat(EquipmentActivationType.HELD, EssenceStats.EXPERIENCE_GAIN)
+                    .stat(EquipmentActivationType.HELD, EssenceStats.DURABILITY_EFFICIENCY)
+                    .stat(EquipmentActivationType.HELD, EssenceStats.PROJECTILE_SPEED)
+                    .stat(EquipmentActivationType.HELD, EssenceStats.ATTACK_KNOCKBACK)
+                    .stat(EquipmentActivationType.HELD, EssenceStats.FISHING_SPEED).build());
+
     private EquipmentProfiles() {
     }
 

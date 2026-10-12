@@ -203,6 +203,13 @@ public final class AdaptiveCompetitionCalibration {
         map("bonus.fortune", direct(DROP_YIELD, .25), indirect(AUTOMATED_EXTRACTION, .2));
         map("bonus.looting", direct(DROP_YIELD, .15));
         map("bonus.luck", direct(DROP_YIELD, .1));
+        // Manual countdown siblings share one response envelope; they compose at runtime.
+        map("bonus.fishing_speed", direct(FISHING_TIME_REDUCTION, .2), strong(FISHING_PRODUCTIVITY, .1), indirect(AUTOMATED_FISHING, .1));
+        map("equipment.rod.range", direct(RANGE, .35), strong(VERTICAL_MOVEMENT, .15));
+        map("equipment.rod.reelSpeed", direct(GROUND_SPEED, .35), strong(VERTICAL_MOVEMENT, .35));
+        map("equipment.rod.acceleration", direct(VERTICAL_MOVEMENT, .2));
+        map("equipment.rod.maximumForce", direct(CROWD_CONTROL, .25), strong(VERTICAL_MOVEMENT, .2));
+        map("skill.surface_tension", direct(GROUND_SPEED, .1), strong(VERTICAL_MOVEMENT, .15));
         map("bonus.crop_yield", direct(CROP_YIELD, .4), indirect(AUTOMATED_FARMING, .25));
         map("bonus.flight_speed", direct(ABILITIES_FLYING_SPEED, .5), strong(FLIGHT, .2), indirect(TELEPORTATION, .25));
         map("bonus.movement_speed", direct(GROUND_SPEED, .5), strong(TELEPORTATION, .25), strong(FLIGHT, .15));
@@ -212,9 +219,9 @@ public final class AdaptiveCompetitionCalibration {
         map("skill.tool_instinct", direct(MINING_SPEED, .075), strong(AREA_MINING, .1), strong(VEIN_MINING, .1));
         map("skill.mining_momentum", direct(MINING_SPEED, .075), strong(AREA_MINING, .1), strong(VEIN_MINING, .1));
         map("skill.verdant_stride", direct(CROP_ACCELERATION, 1), direct(TREE_ACCELERATION, 1), strong(AUTOMATED_FARMING, .75));
-        map("skill.fishers_call", direct(FISHING_PRODUCTIVITY, .55), direct(FISHING_TIME_REDUCTION, .55), strong(AUTOMATED_FISHING, .55));
+        map("skill.fishers_call", direct(FISHING_PRODUCTIVITY, .55), direct(FISHING_TIME_REDUCTION, .45), strong(AUTOMATED_FISHING, .55));
         map("skill.pocket_nets", strong(FISHING_PRODUCTIVITY, .3), strong(AUTOMATED_FISHING, .3));
-        map("skill.fishing_instinct", direct(FISHING_PRODUCTIVITY, .15), direct(FISHING_TIME_REDUCTION, .45), indirect(AUTOMATED_FISHING, .15));
+        map("skill.fishing_instinct", direct(FISHING_PRODUCTIVITY, .15), direct(FISHING_TIME_REDUCTION, .35), indirect(AUTOMATED_FISHING, .15));
         map("skill.industrious_presence", direct(MACHINE_ACCELERATION, 1), direct(BLOCK_ENTITY_ACCELERATION, 1), strong(LOCAL_TIME_ACCELERATION, 1));
         map("skill.sanctuary", direct(SPAWN_SUPPRESSION, 1), strong(MOB_REPULSION, 1));
         map("skill.restful_mending", direct(REPAIR, .4), strong(INDESTRUCTIBILITY, .15), strong(DURABILITY, .1), strong(DURABILITY_REDUCTION, .2));
@@ -722,6 +729,12 @@ public final class AdaptiveCompetitionCalibration {
         endTiming(start);
         var result = BalanceDocument.GSON.fromJson(effects, SkillEffectBalanceSettings.class); result.validate(); return result;
     }
+    public double rodValue(String property, com.mistaboom.essence_ascendance.equipment.EquipmentTier tier, double baseline, double minimum, double maximum) {
+        if (tier == com.mistaboom.essence_ascendance.equipment.EquipmentTier.LATENT) return baseline;
+        var band = ProgressionBand.at(tier.order());
+        return adapt("equipment.rod." + property, band, "fishingRod/tiers/" + tier.name() + "/" + property,
+                baseline, minimum, maximum, false, false);
+    }
     public double bonusMaximum(StatDefinition stat, double baseline) {
         long start = startTiming();
         var semantic = BonusSemantics.require(stat);
@@ -881,6 +894,7 @@ public final class AdaptiveCompetitionCalibration {
         BalancePerformance.increment("adaptive_calibration_runs"); BalancePerformance.count("adaptive_calibration_frontiers", references.values().stream()
                 .flatMap(m -> m.values().stream()).mapToLong(List::size).sum());
         JsonObject report = new JsonObject(); report.addProperty("contract", "adaptive-competition-1");
+        report.add("fishingLoadouts", FishingBalanceDiagnostics.project(runtime));
         report.addProperty("policy", "Generic substitutes use maximum pressure, allocated sibling shares and diminishing log elasticity. Skills use unlock bands; equipment/Bonuses use local bands. Mechanical floors, native caps, composition validation and exact overrides remain authoritative.");
         report.addProperty("combatReferencePolicy", "Physical weapon winners retain witnessed cadence or use the compact band cadence as an explicit encounter assumption. Survival envelopes retain witnessed armor pairs; EHP is not raw health. Different configurations are alternatives, never summed or assembled into one measured build.");
         report.addProperty("calibrationNanos", nanos); report.add("rows", BalanceDocument.GSON.toJsonTree(rows.values()));

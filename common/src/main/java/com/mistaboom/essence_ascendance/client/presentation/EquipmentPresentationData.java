@@ -36,7 +36,7 @@ public final class EquipmentPresentationData {
                           List<Applicability> applicability) { }
     public record TierBaseline(EquipmentTier tier, EquipmentBaselineConfig.TierBaseline baseline,
                                int shieldDurability, double shieldNativeReflectionPercent,
-                               double shieldBlockAmplification) { }
+                               double shieldBlockAmplification, com.mistaboom.essence_ascendance.config.FishingRodBalanceSettings.Tier fishingRod) { }
     public record InfusionTarget(EquipmentTier tier, long totalEssenceRequired, int matrixCount) { }
 
     public static double physicalValue(Profile profile, TierBaseline tier, EquipmentBaselineProperty property,
@@ -49,6 +49,7 @@ public final class EquipmentPresentationData {
 
     /** Current usable item durability, not an unconnected generated durability target. */
     public static OptionalInt nativeDurability(Profile profile, TierBaseline tier, ResourceLocation item) {
+        if (profile.definition().id().equals(EquipmentProfiles.FISHING_ROD.id())) return OptionalInt.of(tier.fishingRod().durability());
         if (profile.definition().id().equals(EquipmentProfiles.SHIELD.id())) return OptionalInt.of(tier.shieldDurability());
         if (!BuiltInRegistries.ITEM.containsKey(item)) return OptionalInt.empty();
         return OptionalInt.of(BuiltInRegistries.ITEM.get(item).getDefaultInstance().getMaxDamage());
@@ -94,7 +95,7 @@ public final class EquipmentPresentationData {
         List<TierBaseline> tiers = java.util.Arrays.stream(EquipmentTier.values()).map(tier -> {
             ResourceLocation id = tier.ascendanceTier().id();
             return new TierBaseline(tier, baselineConfig.tierBaselines().get(id), shield.durability().get(tier),
-                    shield.nativeReflectionPercent(tier), shield.blockAmplification().get(tier));
+                    shield.nativeReflectionPercent(tier), shield.blockAmplification().get(tier), runtime.config().fishingRodBalance().tier(tier));
         }).toList();
         InfuserBalanceSettings infuser = runtime.config().infuserBalance();
         List<InfusionTarget> targets = java.util.Arrays.stream(EquipmentTier.values())

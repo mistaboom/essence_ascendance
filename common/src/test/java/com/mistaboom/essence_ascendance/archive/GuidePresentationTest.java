@@ -56,7 +56,7 @@ public final class GuidePresentationTest {
         PresentationContext context = PresentationContext.catalog(runtime);
         List<SemanticDocument> documents = List.of(
                 GuideDocuments.beginning(context), GuideDocuments.essence(), GuideDocuments.machines(context),
-                GuideDocuments.infusion(context), GuideDocuments.ascendance(context), GuideDocuments.skills());
+                GuideDocuments.infusion(context), GuideDocuments.ascendance(context), GuideDocuments.skills(), GuideDocuments.fishing(context));
         curriculum(documents);
         liveFacts(context, documents);
         navigationAndSearch(documents);

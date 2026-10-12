@@ -132,6 +132,10 @@ public final class EquipmentBaselineService {
     ) {
         EquipmentProfileDefinition profile = EquipmentProfileRegistry.get(profileId)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown equipment profile: " + profileId));
+        if (profileId.equals(EquipmentProfiles.FISHING_ROD.id())) {
+            return new EquipmentBaselineResult(tier, profile, tierBaseline, 0,0,0,0,0,0,0,0,0,0,
+                    EssenceConfigManager.get().fishingRodBalance().tier(EquipmentTier.fromAscendanceTier(tier)).durability());
+        }
         if (profileId.equals(EquipmentProfiles.SHIELD.id())) {
             return new EquipmentBaselineResult(tier, profile, tierBaseline,
                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

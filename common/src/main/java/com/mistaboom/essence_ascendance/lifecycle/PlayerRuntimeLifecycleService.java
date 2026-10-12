@@ -50,6 +50,7 @@ public final class PlayerRuntimeLifecycleService {
         PlayerEvent.CHANGE_DIMENSION.register(
                 (player, oldLevel, newLevel) -> {
                     com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.forgetOwner(player);
+                    com.mistaboom.essence_ascendance.gathering.AscendanceFishingService.forget(player);
                     refresh(player);
                 }
         );
@@ -104,6 +105,7 @@ public final class PlayerRuntimeLifecycleService {
             // Skill timers/modifiers use provisional tuning; discard old
             // combat state before applying a newly loaded configuration.
             SkillEffectRuntime.reset(player);
+            com.mistaboom.essence_ascendance.gathering.AscendanceFishingService.forget(player);
             refreshCurrentState(
                     player
             );
@@ -136,6 +138,7 @@ public final class PlayerRuntimeLifecycleService {
         com.mistaboom.essence_ascendance.vitality.VitalityDamageService.onDeath(player);
         com.mistaboom.essence_ascendance.attunement.AttunementGameplay.forget(player);
         com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.forgetOwner(player);
+        com.mistaboom.essence_ascendance.gathering.AscendanceFishingService.forget(player);
         SkillEffectRuntime.reset(player);
         EquipmentDamageService.forgetSkillInput(player);
         CommittedSkillService.forget(player);
@@ -256,6 +259,7 @@ public final class PlayerRuntimeLifecycleService {
     ) {
         com.mistaboom.essence_ascendance.attunement.AttunementGameplay.forget(player);
         com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.forgetOwner(player);
+        com.mistaboom.essence_ascendance.gathering.AscendanceFishingService.forget(player);
         SkillEffectRuntime.forget(player);
         CommittedSkillService.forget(player);
         EquipmentAttributeService.forget(

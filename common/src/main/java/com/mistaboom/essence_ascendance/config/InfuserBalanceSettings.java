@@ -186,6 +186,7 @@ public record InfuserBalanceSettings(
         equipmentWeights.put("axe", weights("gathering", 6, "offense", 4));
         equipmentWeights.put("shovel", weights("gathering", 6, "mobility", 4));
         equipmentWeights.put("hoe", weights("gathering", 7, "utility", 3));
+        equipmentWeights.put("fishing_rod", weights("gathering", 5, "mobility", 3, "utility", 2));
         equipmentWeights.put("shield", weights("defense", 5, "offense", 3, "mobility", 2));
 
         return Collections.unmodifiableMap(equipmentWeights);

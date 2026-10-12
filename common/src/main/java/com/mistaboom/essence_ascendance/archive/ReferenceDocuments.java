@@ -181,6 +181,7 @@ final class ReferenceDocuments {
         else {
             boolean armor = profileId.equals(EquipmentProfiles.ARMOR.id());
             boolean shield = profileId.equals(EquipmentProfiles.SHIELD.id());
+            boolean rod = profileId.equals(EquipmentProfiles.FISHING_ROD.id());
             if (armor) {
                 for (var tier : data.tierBaselines()) {
                     blocks.add(new SemanticDocument.Heading(SemanticDocument.HeadingLevel.SECTION, equipmentTier(tier.tier())));
@@ -196,7 +197,7 @@ final class ReferenceDocuments {
                 blocks.add(heading("archive.reference.equipment.base_stats"));
                 List<EquipmentBaselineProperty> properties = new ArrayList<>();
                 List<String> headers = new ArrayList<>();
-                if (!shield) {
+                if (!shield && !rod) {
                     if (profileId.equals(EquipmentProfiles.RANGED_WEAPON.id())) {
                         properties.addAll(List.of(EquipmentBaselineProperty.RANGED_DAMAGE, EquipmentBaselineProperty.RANGED_ATTACK_SPEED));
                         headers.addAll(List.of("ranged_damage", "draw_rate"));
@@ -209,6 +210,7 @@ final class ReferenceDocuments {
                     }
                 }
                 headers.add("durability");
+                if (rod) headers.addAll(List.of("rod_range", "rod_cast_speed", "rod_gravity", "rod_acceleration", "rod_force", "rod_reel_speed"));
                 boolean tool = profile.baselineMultipliers().containsKey(EquipmentBaselineProperty.MINING_SPEED);
                 if (tool) headers.addAll(List.of("mining_speed", "harvest_level"));
                 if (shield) headers.addAll(List.of("passive_reflection", "reflect_amplification", "block_reflection"));
@@ -219,6 +221,11 @@ final class ReferenceDocuments {
                         values.add(decimal(EquipmentPresentationData.physicalValue(profile, tier, property,
                                 data.quantizedBaselines(), null), "number"));
                     values.add(durability(profile, tier, id(item)));
+                    if (rod) {
+                        var nativeRod = tier.fishingRod();
+                        for (double value : List.of(nativeRod.range(), nativeRod.castSpeed(), nativeRod.gravity(), nativeRod.acceleration(), nativeRod.maximumForce(), nativeRod.reelSpeed()))
+                            values.add(Component.literal(java.math.BigDecimal.valueOf(value).stripTrailingZeros().toPlainString()));
+                    }
                     if (tool) {
                         values.add(decimal(EquipmentPresentationData.physicalValue(profile, tier, EquipmentBaselineProperty.MINING_SPEED,
                                 data.quantizedBaselines(), null), "number"));
@@ -237,6 +244,12 @@ final class ReferenceDocuments {
                 blocks.add(equipmentTable(rows, true, headers));
                 if (profileId.equals(EquipmentProfiles.RANGED_WEAPON.id()) || profileId.equals(EquipmentProfiles.MAGIC_CASTER.id()))
                     blocks.add(new SemanticDocument.Paragraph(g("archive.reference.equipment.action_timing")));
+                if (rod) {
+                    blocks.add(new SemanticDocument.Paragraph(g("archive.reference.equipment.rod.units")));
+                    blocks.add(new SemanticDocument.Paragraph(g("archive.guide.fishing.controls")));
+                    blocks.add(new SemanticDocument.Links(List.of(new SemanticDocument.Link(id("guide/equipment/fishing").toString(),
+                            g("archive.entry.guide.equipment.fishing.title"), SemanticDocument.LinkRelation.RELATED))));
+                }
                 if (tool) blocks.add(new SemanticDocument.Paragraph(g("archive.reference.equipment.harvest_note")));
                 if (shield) {
                     blocks.add(heading("archive.reference.equipment.shield.reflection"));
@@ -511,7 +524,7 @@ final class ReferenceDocuments {
     private static Component equipmentFamilyTitle(String key) {
         String item = switch (key) {
             case "helmet", "chestplate", "leggings", "boots" -> "ascendance_" + key;
-            case "melee_weapon", "ranged_weapon", "pickaxe", "axe", "shovel", "hoe", "shield" -> "ascendance_" + key;
+            case "melee_weapon", "ranged_weapon", "pickaxe", "axe", "shovel", "hoe", "shield", "fishing_rod" -> "ascendance_" + key;
             case "magic_caster" -> "ascendance_caster";
             default -> null;
         };

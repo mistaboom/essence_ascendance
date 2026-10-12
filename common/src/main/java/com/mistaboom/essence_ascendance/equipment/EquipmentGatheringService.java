@@ -517,10 +517,7 @@ public final class EquipmentGatheringService {
 
     public static double experienceGainPercent(ServerPlayer player) {
         PlayerEssenceData playerData = playerData(player);
-        EquipmentStatState active = EquipmentStatResolver.evaluateForHand(
-                player,
-                InteractionHand.MAIN_HAND
-        );
+        EquipmentStatState active = EquipmentFishingRodService.actionState(player);
 
         return EquipmentValueService.scaledBonus(
                 playerData,

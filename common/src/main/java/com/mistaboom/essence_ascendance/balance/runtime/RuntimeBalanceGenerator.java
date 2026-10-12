@@ -197,7 +197,8 @@ public final class RuntimeBalanceGenerator {
         double resolvedSkillScale=skillScale*Math.sqrt(apex);
         var effects=competition.skills(effects(resolvedSkillScale, evidence, settings));
         var worldgen=LatentOreBalanceGenerator.generate(evidence,economy,settings.latentOre());
-        var config=new EssenceServerConfig(1,6,8,infuser,shield,effects,worldgen,profile,milestones,advancements,bonuses,new EquipmentBaselineConfig(equipment));
+        var rod=FishingRodBalanceGenerator.generate(fractions,equipment,settings,competition);
+        var config=new EssenceServerConfig(1,6,8,infuser,shield,rod,effects,worldgen,profile,milestones,advancements,bonuses,new EquipmentBaselineConfig(equipment));
         var crucible=new EssenceCrucibleStructureStats(1,positiveLong(entry*48.0*CRUCIBLE_STORAGE_MULTIPLIER),8,positiveLong(entry/2.0),20,1,6,1,0);
         Map<String,Double> composition=new TreeMap<>(encounterBudgets);
         competition.combatReferences(composition);

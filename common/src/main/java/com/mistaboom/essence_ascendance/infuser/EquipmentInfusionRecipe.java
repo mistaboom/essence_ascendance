@@ -88,6 +88,7 @@ public record EquipmentInfusionRecipe(
         if (stack.is(AscendanceItems.ASCENDANCE_SHOVEL.get())) return "shovel";
         if (stack.is(AscendanceItems.ASCENDANCE_HOE.get())) return "hoe";
         if (stack.is(AscendanceItems.ASCENDANCE_SHIELD.get())) return "shield";
+        if (stack.is(AscendanceItems.ASCENDANCE_FISHING_ROD.get())) return "fishing_rod";
         throw new IllegalArgumentException("Unsupported Ascendance equipment workpiece");
     }
 
