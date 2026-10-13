@@ -85,10 +85,10 @@ final class ReferenceDocuments {
         else {
             var base = data.crucibleBaseline();
             blocks.add(new SemanticDocument.StatRows(List.of(
-                    stat("item_slots", base.usableItemSlots()), stat("reservoir_per_essence", base.reservoirCapacity()),
+                    stat("item_slots", base.usableItemSlots()), stat("reservoir_per_member", base.reservoirCapacity()),
                     statDecimal("transfer_range", base.transferRange(), "blocks"), statRate("transfer_rate", base.transferRatePerSecond()),
                     statTicks("dissolution_time", base.dissolutionTicksPerItem()), stat("simultaneous", base.simultaneousItemProcesses()),
-                    stat("automation_ports", base.automationConnectionPorts()), stat("active_pylons", base.activePylonCount()))));
+                    stat("active_pylons", base.activePylonCount()))));
             blocks.add(new SemanticDocument.Paragraph(g("archive.reference.machine.crucible.formula")));
             blocks.add(new SemanticDocument.Requirements(List.of(
                     info("ownership", "archive.reference.machine.crucible.ownership"),
@@ -96,6 +96,11 @@ final class ReferenceDocuments {
                     info("automation", "archive.reference.machine.crucible.automation"),
                     info("failures", "archive.reference.machine.crucible.failures"))));
         }
+        blocks.add(new SemanticDocument.Paragraph(g("archive.reference.machine.crucible.capacity")));
+        blocks.add(heading("archive.reference.machine.crucible.channeling"));
+        blocks.add(new SemanticDocument.Paragraph(g("archive.reference.machine.crucible.selection")));
+        blocks.add(new SemanticDocument.Paragraph(g("archive.reference.machine.crucible.channels")));
+        related(blocks, "reference/mechanics/teams");
         return new SemanticDocument(blockName("essence_crucible"), blocks);
     }
 
@@ -113,6 +118,7 @@ final class ReferenceDocuments {
                     info("automation", "archive.reference.machine.pylon.automation"),
                     info("limits", "archive.reference.machine.pylon.limits"))));
         }
+        related(blocks, "reference/mechanics/teams");
         return new SemanticDocument(blockName("essence_pylon"), blocks);
     }
 
@@ -133,6 +139,8 @@ final class ReferenceDocuments {
                     info("automation", "archive.reference.machine.infuser.automation"),
                     info("failures", "archive.reference.machine.infuser.failures"))));
         }
+        blocks.add(new SemanticDocument.Paragraph(g("archive.reference.machine.infuser.start")));
+        related(blocks, "reference/mechanics/teams", "reference/equipment/infusion");
         return new SemanticDocument(blockName("essence_infuser"), blocks);
     }
 
@@ -155,6 +163,8 @@ final class ReferenceDocuments {
                     textColumn("minimum", g("archive.table.minimum_each"), 80, 0, Cells::third),
                     textColumn("total", g("archive.table.total"), 60, 0, Cells::fourth)), rows));
         }
+        blocks.add(new SemanticDocument.Paragraph(g("archive.reference.machine.focus.throughput")));
+        related(blocks, "reference/mechanics/teams", "reference/machines/infuser");
         return new SemanticDocument(itemName("essence_focus"), blocks);
     }
 
@@ -246,9 +256,11 @@ final class ReferenceDocuments {
                     blocks.add(new SemanticDocument.Paragraph(g("archive.reference.equipment.action_timing")));
                 if (rod) {
                     blocks.add(new SemanticDocument.Paragraph(g("archive.reference.equipment.rod.units")));
+                    blocks.add(heading("archive.guide.fishing.grappling"));
+                    blocks.add(new SemanticDocument.OrderedSteps(List.of(
+                            g("archive.guide.fishing.step.cast"), g("archive.guide.fishing.step.tug"),
+                            g("archive.guide.fishing.step.reel"), g("archive.guide.fishing.step.release"))));
                     blocks.add(new SemanticDocument.Paragraph(g("archive.guide.fishing.controls")));
-                    blocks.add(new SemanticDocument.Links(List.of(new SemanticDocument.Link(id("guide/equipment/fishing").toString(),
-                            g("archive.entry.guide.equipment.fishing.title"), SemanticDocument.LinkRelation.RELATED))));
                 }
                 if (tool) blocks.add(new SemanticDocument.Paragraph(g("archive.reference.equipment.harvest_note")));
                 if (shield) {
@@ -277,11 +289,14 @@ final class ReferenceDocuments {
                 }
             }
             blocks.add(heading("archive.see_also"));
-            blocks.add(new SemanticDocument.Links(List.of(
+            List<SemanticDocument.Link> related = new ArrayList<>(List.of(
                     new SemanticDocument.Link(id("reference/equipment/infusion").toString(),
                             g("archive.entry.reference.equipment.infusion.title"), SemanticDocument.LinkRelation.RELATED),
                     new SemanticDocument.Link(id("reference/equipment/lifecycle").toString(),
-                            g("archive.entry.reference.equipment.lifecycle.title"), SemanticDocument.LinkRelation.RELATED))));
+                            g("archive.entry.reference.equipment.lifecycle.title"), SemanticDocument.LinkRelation.RELATED)));
+            if (rod) related.add(new SemanticDocument.Link(id("guide/equipment/fishing").toString(),
+                    g("archive.entry.guide.equipment.fishing.title"), SemanticDocument.LinkRelation.RELATED));
+            blocks.add(new SemanticDocument.Links(related));
         }
         return new SemanticDocument(profileTitle(profileId), blocks);
     }
@@ -343,6 +358,7 @@ final class ReferenceDocuments {
                     info("streaming", "archive.reference.equipment.infusion.streaming"),
                     info("soulbound", "archive.reference.equipment.infusion.soulbound"))));
         }
+        related(blocks, "reference/mechanics/teams", "reference/machines/infuser");
         return new SemanticDocument(g("archive.entry.reference.equipment.infusion.title"), blocks);
     }
 
@@ -365,7 +381,28 @@ final class ReferenceDocuments {
                 info("death", "archive.reference.equipment.lifecycle.death"),
                 info("enchantments", "archive.reference.equipment.lifecycle.enchantments"),
                 info("exceptions", "archive.reference.equipment.lifecycle.exceptions"))));
+        blocks.add(new SemanticDocument.Paragraph(g("archive.reference.equipment.lifecycle.machine_recovery")));
+        related(blocks, "reference/mechanics/teams", "reference/equipment/infusion");
         return new SemanticDocument(g("archive.entry.reference.equipment.lifecycle.title"), blocks);
+    }
+
+    /** Static rules, not a menu-scoped team snapshot or a second membership projection. */
+    static SemanticDocument teams() {
+        List<SemanticDocument.Block> blocks = new ArrayList<>();
+        blocks.add(new SemanticDocument.Paragraph(g("archive.reference.mechanics.teams.body")));
+        for (String section : List.of("storage", "membership", "infrastructure", "links", "capacity",
+                "bandwidth", "selection", "equipment", "automation", "troubleshooting")) {
+            blocks.add(heading("archive.reference.mechanics.teams." + section + ".title"));
+            blocks.add(new SemanticDocument.Paragraph(g("archive.reference.mechanics.teams." + section + ".body")));
+            blocks.add(new SemanticDocument.Paragraph(g("archive.reference.mechanics.teams." + section + ".detail")));
+            if (section.equals("storage") || section.equals("bandwidth"))
+                blocks.add(new SemanticDocument.Callout(SemanticDocument.CalloutKind.NOTE, g("archive.callout.example"),
+                        g("archive.reference.mechanics.teams." + section + ".example")));
+        }
+        related(blocks, "reference/mechanics/allocation_storage", "reference/machines/crucible",
+                "reference/machines/pylon", "reference/machines/infuser", "reference/machines/focus",
+                "reference/equipment/infusion", "reference/equipment/lifecycle");
+        return new SemanticDocument(g("archive.entry.reference.mechanics.teams.title"), blocks);
     }
 
     static SemanticDocument mechanics(String topic, PresentationContext context) {
@@ -414,6 +451,10 @@ final class ReferenceDocuments {
                                 Component.translatable(activity.method().descriptionKey()), SemanticDocument.RequirementStatus.INFORMATION)).toList()));
         } else {
             blocks.add(new SemanticDocument.Requirements(mechanicRequirements(topic)));
+        }
+        if (topic.equals("allocation_storage") || topic.equals("overcap")) {
+            blocks.add(new SemanticDocument.Paragraph(g("archive.reference.mechanics." + topic + ".shared")));
+            related(blocks, "reference/mechanics/teams");
         }
         return new SemanticDocument(g("archive.entry.reference.mechanics." + topic + ".title"), blocks);
     }
@@ -581,6 +622,12 @@ final class ReferenceDocuments {
     }
     private static SemanticDocument.Heading heading(String key) {
         return new SemanticDocument.Heading(SemanticDocument.HeadingLevel.SECTION, g(key));
+    }
+    private static void related(List<SemanticDocument.Block> blocks, String... paths) {
+        blocks.add(heading("archive.see_also"));
+        blocks.add(new SemanticDocument.Links(java.util.Arrays.stream(paths).map(path ->
+                new SemanticDocument.Link(id(path).toString(), g("archive.entry." + path.replace('/', '.') + ".title"),
+                        SemanticDocument.LinkRelation.RELATED)).toList()));
     }
     private static ReadOnlyDataTable.Row<Cells> linkedRow(String key, String target, Component... values) {
         return new ReadOnlyDataTable.Row<>(key, row(key, values).value(), id(target).toString());

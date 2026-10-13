@@ -36,9 +36,22 @@ public abstract class MachineContainerScreen<M extends AbstractContainerMenu>
     public static final int HEADER_BUTTON_SIZE = 15;
     public static final int OVERLAY_CLOSE_SIZE = 12;
     public static final int FOREGROUND_OVERLAY_Z = 300;
+    protected static final String INFO_POPUP = "info";
+    protected static final String SETTINGS_POPUP = "settings";
+    private static final String TEAM_POPUP = "team_membership";
+    private static final int TEAM_POPUP_WIDTH = MachineScreenLayout.INFO_PANEL_WIDTH;
+    private static final int TEAM_POPUP_PADDING = 8;
+    private static final int TEAM_POPUP_TEXT_WIDTH = TEAM_POPUP_WIDTH - TEAM_POPUP_PADDING * 2;
 
     private final MachineScreenLayout.Spec layoutSpec;
     private final Map<String, Integer> overlayScrollOffsets = new HashMap<>();
+    private Runnable confirmationAction;
+    private Component confirmationTitle, confirmationWarning, confirmationAcceptLabel;
+    private Button confirmationAccept, confirmationCancel;
+    private String activePopup;
+    private Button teamPopupClose, teamPopupPrevious, teamPopupNext;
+    private net.minecraft.client.gui.components.EditBox teamName;
+    private final Button[] teamActions = new Button[com.mistaboom.essence_ascendance.network.TeamInterfacePayload.PAGE_SIZE];
 
     protected MachineContainerScreen(
             M menu,
@@ -58,10 +71,144 @@ public abstract class MachineContainerScreen<M extends AbstractContainerMenu>
     protected final void init() {
         super.init();
         initMachineWidgets();
+        if (TeamInterfaceClientState.nativeButtonVisible() && (menu instanceof com.mistaboom.essence_ascendance.crucible.EssenceCrucibleMenu
+                || menu instanceof com.mistaboom.essence_ascendance.infuser.EssenceInfuserMenu
+                || menu instanceof com.mistaboom.essence_ascendance.pylon.EssencePylonMenu)) {
+            var team = addMachineButton(Component.literal("M"), b -> toggleMachinePopup(TEAM_POPUP),
+                    new UiBounds(leftPos + 23, topPos + 5, HEADER_BUTTON_SIZE, HEADER_BUTTON_SIZE));
+            team.setTooltip(net.minecraft.client.gui.components.Tooltip.create(com.mistaboom.essence_ascendance.text.EssenceText.gui("team.open")));
+            initTeamPopup();
+        }
+        confirmationAccept = addMachineButton(confirmationAcceptLabel == null ? com.mistaboom.essence_ascendance.text.EssenceText.gui("team.confirm") : confirmationAcceptLabel, b -> {
+            Runnable action = confirmationAction; confirmationAction = null; if (action != null) action.run();
+        }, new UiBounds(0, 0, 80, 20));
+        confirmationCancel = addMachineButton(com.mistaboom.essence_ascendance.text.EssenceText.gui("team.cancel_confirmation"), b -> confirmationAction = null, new UiBounds(0, 0, 80, 20));
+        confirmationAccept.visible = confirmationCancel.visible = false;
         synchronizeWidgetFocus();
     }
 
+    private void initTeamPopup() {
+        String previousName = teamName == null ? "" : teamName.getValue();
+        teamPopupClose = addOverlayCloseButton(b -> closeMachinePopup(TEAM_POPUP), teamPopupBounds());
+        teamName = addMachineTextField(com.mistaboom.essence_ascendance.text.EssenceText.gui("team.name"), new UiBounds(0, 0, TEAM_POPUP_TEXT_WIDTH, 18), 80);
+        teamName.setValue(previousName);
+        for (int i = 0; i < teamActions.length; i++) {
+            final int index = i;
+            teamActions[i] = addMachineButton(Component.empty(), b -> {
+                var state = teamPopupSnapshot();
+                if (state == null || index >= state.controls().size()) return;
+                var control = state.controls().get(index);
+                String input = teamName.getValue();
+                Runnable action = () -> TeamInterfaceClientState.action(state, index, input);
+                if (control.confirmation()) confirmMachineAction(TeamInterfaceClientState.text(control.label()), TeamInterfaceClientState.text(control.warning()), action);
+                else action.run();
+            }, new UiBounds(0, 0, 1, 1));
+        }
+        teamPopupPrevious = addMachineButton(Component.literal("<"), b -> teamPopupPage(-1), new UiBounds(0, 0, 1, 1));
+        teamPopupNext = addMachineButton(Component.literal(">"), b -> teamPopupPage(1), new UiBounds(0, 0, 1, 1));
+        updateTeamPopup();
+    }
+    private com.mistaboom.essence_ascendance.network.TeamInterfacePayload teamPopupSnapshot() {
+        var state = TeamInterfaceClientState.snapshot(menu.containerId);
+        return state != null && state.view() != 1 ? state : null;
+    }
+    private void teamPopupPage(int delta) {
+        var state = teamPopupSnapshot();
+        if (state != null) TeamInterfaceClientState.request(menu.containerId, state.view(), state.page() + delta);
+    }
+    private int teamTextHeight() {
+        var state = teamPopupSnapshot();
+        if (state == null) return 13;
+        int result = 0;
+        for (var line : state.lines()) result += font.split(TeamInterfaceClientState.text(line), TEAM_POPUP_TEXT_WIDTH).size() * font.lineHeight + 4;
+        return result;
+    }
+    private UiBounds teamPopupBounds() {
+        var state = teamPopupSnapshot();
+        boolean input = state != null && state.controls().stream().anyMatch(com.mistaboom.essence_ascendance.network.TeamInterfacePayload.Control::input);
+        int actions = state == null ? 0 : state.controls().size();
+        int popupHeight = 35 + teamTextHeight() + (input ? 26 : 0) + actions * 25 + (state != null && state.pages() > 1 ? 25 : 0);
+        return sidePanel(TEAM_POPUP_WIDTH, Math.max(72, popupHeight), MachineScreenLayout.SidePreference.LEFT_FIRST).bounds();
+    }
+    private void updateTeamPopup() {
+        if (teamPopupClose == null) return;
+        var state = teamPopupSnapshot();
+        var bounds = teamPopupBounds();
+        teamPopupClose.visible = isMachinePopupOpen(TEAM_POPUP);
+        place(teamPopupClose, overlayCloseBounds(bounds));
+        int y = bounds.y() + 27 + teamTextHeight();
+        teamName.visible = isMachinePopupOpen(TEAM_POPUP) && state != null && state.controls().stream().anyMatch(com.mistaboom.essence_ascendance.network.TeamInterfacePayload.Control::input);
+        place(teamName, new UiBounds(bounds.x() + TEAM_POPUP_PADDING, y, TEAM_POPUP_TEXT_WIDTH, 18));
+        if (teamName.visible) y += 26;
+        for (int i = 0; i < teamActions.length; i++) {
+            var button = teamActions[i];
+            button.visible = isMachinePopupOpen(TEAM_POPUP) && state != null && i < state.controls().size();
+            button.active = button.visible && (!state.controls().get(i).input() || !teamName.getValue().isBlank());
+            if (button.visible) button.setMessage(TeamInterfaceClientState.text(state.controls().get(i).label()));
+            place(button, new UiBounds(bounds.x() + TEAM_POPUP_PADDING, y + i * 25, TEAM_POPUP_TEXT_WIDTH, 21));
+        }
+        teamPopupPrevious.visible = teamPopupNext.visible = isMachinePopupOpen(TEAM_POPUP) && state != null && state.pages() > 1;
+        teamPopupPrevious.active = state != null && state.page() > 0;
+        teamPopupNext.active = state != null && state.page() + 1 < state.pages();
+        place(teamPopupPrevious, new UiBounds(bounds.x() + 8, bounds.bottom() - 25, 24, 18));
+        place(teamPopupNext, new UiBounds(bounds.right() - 32, bounds.bottom() - 25, 24, 18));
+    }
+    private MachineOverlay teamPopupOverlay() {
+        var bounds = teamPopupBounds();
+        var controls = new ArrayList<AbstractWidget>();
+        controls.add(teamPopupClose); controls.add(teamName); controls.addAll(List.of(teamActions));
+        controls.add(teamPopupPrevious); controls.add(teamPopupNext);
+        return panelOverlay("team_membership", bounds, controls, (graphics, mouseX, mouseY, partialTick, scroll) -> {
+            MachineScreenUi.panel(graphics, bounds.x(), bounds.y(), bounds.width(), bounds.height());
+            var state = teamPopupSnapshot();
+            String title = state != null && state.view() == 2 ? "team.requests_title" : "team.title";
+            MachineScreenUi.sectionHeader(graphics, font, com.mistaboom.essence_ascendance.text.EssenceText.gui(title), bounds.x() + TEAM_POPUP_PADDING, bounds.y() + 7);
+            int lineY = bounds.y() + 27;
+            if (state == null) graphics.drawString(font, com.mistaboom.essence_ascendance.text.EssenceText.term("synchronizing"), bounds.x() + TEAM_POPUP_PADDING, lineY, MachineScreenUi.MUTED, false);
+            else {
+                for (var line : state.lines()) {
+                    var text = TeamInterfaceClientState.text(line);
+                    graphics.drawWordWrap(font, text, bounds.x() + TEAM_POPUP_PADDING, lineY, TEAM_POPUP_TEXT_WIDTH, MachineScreenUi.TEXT);
+                    lineY += font.split(text, TEAM_POPUP_TEXT_WIDTH).size() * font.lineHeight + 4;
+                }
+                if (state.pages() > 1) graphics.drawCenteredString(font, com.mistaboom.essence_ascendance.text.EssenceText.gui("team.page", state.page() + 1, state.pages()), bounds.x() + bounds.width() / 2, bounds.bottom() - 19, MachineScreenUi.MUTED);
+            }
+        });
+    }
+
+    @Override public void onClose() {
+        setMachinePopup(null);
+        confirmationAction = null;
+        super.onClose();
+    }
+
     protected abstract void initMachineWidgets();
+
+    /** All side popups share one active slot, regardless of their screen side. */
+    protected final boolean isMachinePopupOpen(String id) {
+        return id.equals(activePopup);
+    }
+
+    /** New popup types use this API instead of keeping independent open flags. */
+    protected final void toggleMachinePopup(String id) {
+        java.util.Objects.requireNonNull(id, "popup id");
+        setMachinePopup(isMachinePopupOpen(id) ? null : id);
+    }
+
+    protected final void closeMachinePopup(String id) {
+        if (isMachinePopupOpen(id)) setMachinePopup(null);
+    }
+
+    private void setMachinePopup(String id) {
+        if (java.util.Objects.equals(activePopup, id)) return;
+        boolean closingTeam = isMachinePopupOpen(TEAM_POPUP);
+        activePopup = id;
+        if (closingTeam) TeamInterfaceClientState.close(menu.containerId);
+        if (isMachinePopupOpen(TEAM_POPUP)) TeamInterfaceClientState.open(menu.containerId);
+        updateMachineWidgets();
+        updateTeamPopup();
+        synchronizeWidgetFocus();
+    }
 
     /** Refresh visibility, labels and coordinates from current menu/client state. */
     protected void updateMachineWidgets() {
@@ -103,6 +250,23 @@ public abstract class MachineContainerScreen<M extends AbstractContainerMenu>
         return addRenderableWidget(Button.builder(label, action)
                 .bounds(bounds.x(), bounds.y(), bounds.width(), bounds.height())
                 .build());
+    }
+
+    /** Shared editable settings field; native team naming is its first caller. */
+    protected final net.minecraft.client.gui.components.EditBox addMachineTextField(Component label, UiBounds bounds, int maximumLength) {
+        var field = new net.minecraft.client.gui.components.EditBox(font, bounds.x(), bounds.y(), bounds.width(), bounds.height(), label);
+        field.setMaxLength(maximumLength); field.setHint(label); return addRenderableWidget(field);
+    }
+
+    /** Framework confirmation shared by membership, soulbinding and reservoir venting. */
+    protected final void confirmMachineAction(Component title, Component warning, Runnable action) {
+        confirmMachineAction(title, warning, com.mistaboom.essence_ascendance.text.EssenceText.gui("team.confirm"), action);
+    }
+
+    protected final void confirmMachineAction(Component title, Component warning, Component acceptLabel, Runnable action) {
+        confirmationTitle = title; confirmationWarning = warning; confirmationAcceptLabel = acceptLabel; confirmationAction = action;
+        if (confirmationAccept != null) confirmationAccept.setMessage(acceptLabel);
+        if (confirmationAccept != null) setFocused(confirmationAccept);
     }
 
     protected final Button addHeaderButton(
@@ -195,6 +359,7 @@ public abstract class MachineContainerScreen<M extends AbstractContainerMenu>
             float partialTick
     ) {
         updateMachineWidgets();
+        updateTeamPopup();
         synchronizeWidgetFocus();
         super.render(graphics, mouseX, mouseY, partialTick);
 
@@ -232,6 +397,7 @@ public abstract class MachineContainerScreen<M extends AbstractContainerMenu>
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         updateMachineWidgets();
+        updateTeamPopup();
         List<MachineOverlay> overlays = currentOverlays();
         MachineOverlay owner = pointerOwner(overlays, mouseX, mouseY);
         if (owner == null) {
@@ -308,9 +474,19 @@ public abstract class MachineContainerScreen<M extends AbstractContainerMenu>
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (keyCode == GLFW_KEY_ESCAPE && confirmationAction != null) { confirmationAction = null; return true; }
+        if (keyCode == GLFW_KEY_ESCAPE && activePopup != null) { setMachinePopup(null); return true; }
         List<MachineOverlay> overlays = currentOverlays();
         MachineOverlay owner = keyboardOwner(overlays);
+        if ((owner == null || owner.pointerPolicy() != UiOverlayStack.PointerPolicy.MODAL)
+                && getFocused() instanceof net.minecraft.client.gui.components.EditBox field
+                && field.visible && field.canConsumeInput() && keyCode != GLFW_KEY_ESCAPE && keyCode != GLFW_KEY_TAB) {
+            field.keyPressed(keyCode, scanCode, modifiers);
+            return true; // Typing a team name must not trigger inventory/hotbar shortcuts.
+        }
         if (owner != null) {
+            if (owner.pointerPolicy() != UiOverlayStack.PointerPolicy.MODAL && getFocused() instanceof net.minecraft.client.gui.components.EditBox field
+                    && field.visible && field.keyPressed(keyCode, scanCode, modifiers)) return true;
             if (routeScrollKey(owner, keyCode)) {
                 return true;
             }
@@ -392,6 +568,21 @@ public abstract class MachineContainerScreen<M extends AbstractContainerMenu>
 
     private List<MachineOverlay> currentOverlays() {
         List<MachineOverlay> overlays = new ArrayList<>(machineOverlays());
+        if (isMachinePopupOpen(TEAM_POPUP) && teamPopupClose != null) overlays.add(teamPopupOverlay());
+        if (confirmationAccept != null) confirmationAccept.visible = confirmationCancel.visible = confirmationAction != null;
+        if (confirmationAction != null) {
+            var bounds = new UiBounds(Math.max(0, (width - 230) / 2), Math.max(0, (height - 170) / 2), 230, 170);
+            place(confirmationAccept, new UiBounds(bounds.x() + 16, bounds.bottom() - 28, 92, 20));
+            place(confirmationCancel, new UiBounds(bounds.right() - 108, bounds.bottom() - 28, 92, 20));
+            var content = new MachineInfoPanel().title(confirmationTitle).line(confirmationWarning);
+            var layout = content.layout(font, bounds.width());
+            overlays.add(new MachineOverlay("machine_confirmation", bounds, FOREGROUND_OVERLAY_Z + 100,
+                    UiOverlayStack.PointerPolicy.MODAL, UiOverlayStack.TooltipPolicy.SUPPRESS_ALL, true, 0, 10,
+                    List.of(confirmationAccept, confirmationCancel), (g, x, y, partial, scroll) -> {
+                        MachineScreenUi.panel(g, bounds.x(), bounds.y(), bounds.width(), bounds.height());
+                        content.render(g, font, new UiBounds(bounds.x(), bounds.y(), bounds.width(), bounds.height() - 34), layout, 0);
+                    }, null));
+        }
         overlays.sort(java.util.Comparator.comparingInt(MachineOverlay::zOrder));
         for (MachineOverlay overlay : overlays) {
             setScrollOffset(overlay, scrollOffset(overlay));

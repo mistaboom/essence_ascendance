@@ -25,6 +25,25 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 public final class PlayerEssenceData {
+    private int crucibleChannelSelection = com.mistaboom.essence_ascendance.crucible.CrucibleChannelSelection.ALL;
+    private long crucibleChannelSelectionRevision;
+    public int crucibleChannelSelection() { return crucibleChannelSelection; }
+    public long crucibleChannelSelectionRevision() { return crucibleChannelSelectionRevision; }
+    public boolean setCrucibleChannelSelection(int mask) {
+        if (!com.mistaboom.essence_ascendance.crucible.CrucibleChannelSelection.valid(mask))
+            throw new IllegalArgumentException("Invalid Crucible channel selection");
+        if (crucibleChannelSelection == mask) return false;
+        crucibleChannelSelectionRevision = Math.incrementExact(crucibleChannelSelectionRevision);
+        crucibleChannelSelection = mask; return true;
+    }
+
+    /** Compare against the snapshot that produced an action; another screen cannot replay old toggles. */
+    public boolean updateCrucibleChannelSelection(long expectedRevision, int action) {
+        if (expectedRevision != crucibleChannelSelectionRevision
+                || !com.mistaboom.essence_ascendance.crucible.CrucibleChannelSelection.validAction(action)) return false;
+        return setCrucibleChannelSelection(com.mistaboom.essence_ascendance.crucible.CrucibleChannelSelection.apply(crucibleChannelSelection, action));
+    }
+
     private final Set<ResourceLocation> hiddenSkillHud = new LinkedHashSet<>();
     public boolean skillHudEnabled(ResourceLocation skill) { return !hiddenSkillHud.contains(skill); }
     public void setSkillHudEnabled(ResourceLocation skill, boolean enabled) {
@@ -300,139 +319,28 @@ private static final String NEXUS_REVISION_TAG =
     }
 
 
-    public long addCrucibleStored(
-            EssenceDefinition essence,
-            long amount
-    ) {
-        if (amount <= 0L) {
-            throw new IllegalArgumentException(
-                    "Crucible Essence amount must be greater than zero"
-            );
-        }
+    private final Map<ResourceLocation, Long> reservoirCarry = new LinkedHashMap<>();
+    private long reservoirRevision;
 
-        long updated = Math.addExact(
-                getCrucibleStored(essence),
-                amount
-        );
-
-        crucibleReservoir.put(
-                essence.id(),
-                updated
-        );
-
-        return updated;
+    public long reservoirRevision() { return reservoirRevision; }
+    public long reservoirCarry(ResourceLocation type) { return reservoirCarry.getOrDefault(type, 0L); }
+    public java.math.BigInteger reservoirUnits(ResourceLocation type) {
+        return java.math.BigInteger.valueOf(getCrucibleStored(type)).multiply(ReservoirService.SCALE)
+                .add(java.math.BigInteger.valueOf(reservoirCarry(type)));
     }
 
-
-    public long removeCrucibleStored(
-            EssenceDefinition essence,
-            long amount
-    ) {
-        if (amount <= 0L) {
-            throw new IllegalArgumentException(
-                    "Crucible Essence amount must be greater than zero"
-            );
+    /** Package-private commit primitive. Only ReservoirService may mutate managed stored amounts. */
+    void applyReservoir(Map<ResourceLocation, java.math.BigInteger> changes) {
+        if (changes.isEmpty()) return;
+        long next = Math.incrementExact(reservoirRevision);
+        for (var entry : changes.entrySet()) {
+            var split = entry.getValue().divideAndRemainder(ReservoirService.SCALE);
+            long whole = split[0].longValueExact(), carry = split[1].longValueExact();
+            if (whole == 0) crucibleReservoir.remove(entry.getKey()); else crucibleReservoir.put(entry.getKey(), whole);
+            if (carry == 0) reservoirCarry.remove(entry.getKey()); else reservoirCarry.put(entry.getKey(), carry);
         }
-
-        long current = getCrucibleStored(essence);
-        long removed = Math.min(current, amount);
-        if (removed <= 0L) {
-            return 0L;
-        }
-
-        long remaining = current - removed;
-        if (remaining == 0L) {
-            crucibleReservoir.remove(
-                    essence.id()
-            );
-        } else {
-            crucibleReservoir.put(
-                    essence.id(),
-                    remaining
-            );
-        }
-
-        return removed;
+        reservoirRevision = next;
     }
-
-
-    public boolean removeCrucibleStoredExact(
-            EssenceDefinition essence,
-            long amount
-    ) {
-        if (amount <= 0L) {
-            throw new IllegalArgumentException(
-                    "Crucible Essence amount must be greater than zero"
-            );
-        }
-
-        long current = getCrucibleStored(essence);
-        if (current < amount) {
-            return false;
-        }
-
-        long remaining = current - amount;
-        if (remaining == 0L) {
-            crucibleReservoir.remove(essence.id());
-        } else {
-            crucibleReservoir.put(essence.id(), remaining);
-        }
-        return true;
-    }
-
-
-    public long transferCrucibleToAvailable(
-            EssenceDefinition essence,
-            long requestedAmount
-    ) {
-        if (requestedAmount <= 0L) {
-            throw new IllegalArgumentException(
-                    "Transfer amount must be greater than zero"
-            );
-        }
-
-        long stored = getCrucibleStored(essence);
-        if (stored <= 0L) {
-            return 0L;
-        }
-
-        long available = getAvailable(essence);
-        long room = Long.MAX_VALUE - available;
-        if (room <= 0L) {
-            return 0L;
-        }
-
-        long moved = Math.min(
-                requestedAmount,
-                Math.min(stored, room)
-        );
-        if (moved <= 0L) {
-            return 0L;
-        }
-
-        long remainingStored = stored - moved;
-        if (remainingStored == 0L) {
-            crucibleReservoir.remove(
-                    essence.id()
-            );
-        } else {
-            crucibleReservoir.put(
-                    essence.id(),
-                    remainingStored
-            );
-        }
-
-        availableEssence.put(
-                essence.id(),
-                available + moved
-        );
-
-        /* AVAILABLE changed, so the normal player Essence payload must sync. */
-        bumpRevision();
-
-        return moved;
-    }
-
 
     public Map<ResourceLocation, Long> getAllCrucibleStored() {
         return Collections.unmodifiableMap(
@@ -595,31 +503,28 @@ private static final String NEXUS_REVISION_TAG =
 
     public void clearAll() {
         /*
-         * Intentionally clears Essence/stat progression only.
+         * Clears personal Essence/stat progression only. Reservoir resets must use ReservoirService.
          *
          * It does not modify Ascendance tier or completed world
          * milestones.
          */
         if (availableEssence.isEmpty()
-                && investedEssence.isEmpty()
-                && crucibleReservoir.isEmpty()) {
+                && investedEssence.isEmpty()) {
             return;
         }
 
         availableEssence.clear();
         investedEssence.clear();
-        crucibleReservoir.clear();
         bumpRevision();
     }
 
     /**
      * Start progression from Latent for operator testing, including the
-     * onboarding reward. Physical inventory and equipment accounting remain.
+     * onboarding reward. Physical inventory, equipment and communal reservoir accounting remain.
      */
     public void resetProgressionForAdmin() {
         availableEssence.clear();
         investedEssence.clear();
-        crucibleReservoir.clear();
         ownedSkills.clear();
         loadoutSelections.clear();
         abilityCooldowns.clear();
@@ -1127,6 +1032,10 @@ private static final String NEXUS_REVISION_TAG =
 
         CompoundTag root =
                 new CompoundTag();
+        root.putLong("reservoir_revision", reservoirRevision);
+        CompoundTag carry = new CompoundTag();
+        reservoirCarry.forEach((type, amount) -> carry.putLong(type.toString(), amount));
+        root.put("reservoir_carry", carry);
         root.putUUID("projectile_life", projectileLife);
         root.putBoolean(DORMANT_GUIDEBOOK_RECEIVED_TAG, dormantGuidebookReceived);
 
@@ -1281,6 +1190,8 @@ private static final String NEXUS_REVISION_TAG =
         CompoundTag hudPreferences = new CompoundTag();
         hiddenSkillHud.forEach(id -> hudPreferences.putBoolean(id.toString(), false));
         root.put("skill_hud_preferences", hudPreferences);
+        root.putInt("crucible_channel_selection", crucibleChannelSelection);
+        root.putLong("crucible_channel_selection_revision", crucibleChannelSelectionRevision);
         root.put("category_attunement", attunement.save());
         root.put("vitality_damage", vitalityDamage.save());
 
@@ -1423,14 +1334,16 @@ private static final String NEXUS_REVISION_TAG =
          * naturally loads as an empty reservoir.
          */
 
-        readLongMap(
-                root.getCompound(
-                        CRUCIBLE_RESERVOIR_TAG
-                ),
-                data.crucibleReservoir,
-                id -> EssenceRegistry.get(id).isPresent(),
-                "Crucible Essence"
-        );
+        if (root.contains(CRUCIBLE_RESERVOIR_TAG) && !root.contains(CRUCIBLE_RESERVOIR_TAG, Tag.TAG_COMPOUND))
+            throw new IllegalStateException("Malformed stored reservoir");
+        CompoundTag stored = root.getCompound(CRUCIBLE_RESERVOIR_TAG);
+        for (String key : stored.getAllKeys()) {
+            ResourceLocation type = ResourceLocation.parse(key);
+            if (!stored.contains(key, Tag.TAG_LONG) || stored.getLong(key) < 0
+                    || com.mistaboom.essence_ascendance.essence.EssenceTypes.ORDERED.stream().noneMatch(e -> e.id().equals(type)))
+                throw new IllegalStateException("Invalid stored reservoir amount");
+            if (stored.getLong(key) > 0) data.crucibleReservoir.put(type, stored.getLong(key));
+        }
 
 
 
@@ -1652,6 +1565,15 @@ private static final String NEXUS_REVISION_TAG =
             ResourceLocation id = ResourceLocation.tryParse(key);
             if (id != null && !hudPreferences.getBoolean(key)) data.hiddenSkillHud.add(id);
         }
+        if (root.contains("crucible_channel_selection")) {
+            if (!root.contains("crucible_channel_selection", Tag.TAG_INT)) throw new IllegalStateException("Malformed Crucible channel preference");
+            data.setCrucibleChannelSelection(root.getInt("crucible_channel_selection"));
+        }
+        if (root.contains("crucible_channel_selection_revision")) {
+            if (!root.contains("crucible_channel_selection_revision", Tag.TAG_LONG)
+                    || root.getLong("crucible_channel_selection_revision") < 0) throw new IllegalStateException("Invalid preference revision");
+            data.crucibleChannelSelectionRevision = root.getLong("crucible_channel_selection_revision");
+        }
         data.attunement = com.mistaboom.essence_ascendance.attunement.AttunementLedger.load(root.getCompound("category_attunement"));
         data.vitalityDamage = com.mistaboom.essence_ascendance.vitality.VitalityDamageLedger.load(root.getCompound("vitality_damage"));
 
@@ -1707,6 +1629,20 @@ private static final String NEXUS_REVISION_TAG =
         }
 
 
+        if ((root.contains("reservoir_revision") && !root.contains("reservoir_revision", Tag.TAG_LONG))
+                || (root.contains("reservoir_carry") && !root.contains("reservoir_carry", Tag.TAG_COMPOUND)))
+            throw new IllegalStateException("Malformed reservoir metadata");
+        data.reservoirRevision = root.getLong("reservoir_revision");
+        if (data.reservoirRevision < 0) throw new IllegalStateException("Negative reservoir revision");
+        CompoundTag carry = root.getCompound("reservoir_carry");
+        for (String key : carry.getAllKeys()) {
+            ResourceLocation type = ResourceLocation.parse(key);
+            long amount = carry.getLong(key);
+            if (!carry.contains(key, Tag.TAG_LONG) || amount < 0 || amount >= 1_000_000L
+                    || com.mistaboom.essence_ascendance.essence.EssenceTypes.ORDERED.stream().noneMatch(e -> e.id().equals(type)))
+                throw new IllegalStateException("Invalid reservoir carry");
+            if (amount > 0) data.reservoirCarry.put(type, amount);
+        }
         return data;
     }
 

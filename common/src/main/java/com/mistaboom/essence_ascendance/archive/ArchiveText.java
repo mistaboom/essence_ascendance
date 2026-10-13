@@ -14,6 +14,13 @@ final class ArchiveText {
     private ArchiveText() { }
     static Component guide(String path, Object... args) {
         return switch (path) {
+            case "archive.reference.mechanics.teams.equipment.body", "archive.reference.mechanics.teams.automation.body",
+                    "archive.reference.equipment.lifecycle.machine_recovery" -> phrase(path, args, 0, "soulbound");
+            case "archive.entry.guide.equipment.fishing.summary", "archive.guide.fishing.surface" -> phrase(path, args, 0, "skill:surface_tension");
+            case "archive.guide.fishing.acquisition" -> phrase(path, args, 1, "fractured", "soulbound");
+            case "archive.guide.fishing.bonuses" -> phrase(path, args, 0, "bonus:fishing_speed", "skill:fishing_instinct",
+                    "skill:fishers_call", "bonus:luck", "bonus:experience_gain", "bonus:durability_efficiency", "bonus:reach", "bonus:fortune");
+            case "archive.reference.equipment.rod.units" -> phrase(path, args, 0, "bonus:projectile_speed", "bonus:attack_knockback");
             case "archive.guide.infusion.repair.detail" -> phrase(path, args, 2, "fractured");
             case "archive.guide.infusion.durability_efficiency" -> phrase(path, args, 0, "bonus:durability_efficiency");
             case "archive.guide.infusion.durability_efficiency.detail" -> phrase(path, args, 0, "bonus:durability_efficiency");

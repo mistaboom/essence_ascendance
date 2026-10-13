@@ -84,6 +84,7 @@ public final class EssenceInfuserContent {
                     BlockBehaviour.Properties.of()
                             .requiresCorrectToolForDrops()
                             .strength(3.5F)
+                            .pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK)
                             .lightLevel(state -> state.getValue(EssenceInfuserBlock.FOCUS_LIT) ? 9 : 0)
                             .pushReaction(PushReaction.BLOCK)
             )

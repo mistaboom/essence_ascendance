@@ -64,6 +64,10 @@ public final class EssenceAscendanceNeoForgeClient {
     private void registerMenuScreens(
             RegisterMenuScreensEvent event
     ) {
+        event.register(com.mistaboom.essence_ascendance.crucible.EssenceCrucibleContent.TEAM_MENU.get(),
+                com.mistaboom.essence_ascendance.client.TeamScreen::new);
+        event.register(com.mistaboom.essence_ascendance.crucible.EssenceCrucibleContent.MACHINE_ACCESS_MENU.get(),
+                com.mistaboom.essence_ascendance.client.MachineAccessScreen::new);
         event.register(
                 EssenceCrucibleContent.ESSENCE_CRUCIBLE_MENU.get(),
                 EssenceCrucibleScreen::new

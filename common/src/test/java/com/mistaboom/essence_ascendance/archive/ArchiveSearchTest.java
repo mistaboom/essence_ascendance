@@ -71,6 +71,13 @@ public final class ArchiveSearchTest {
         }
         for (String query : List.of("seals", "repair", "Fracture", "harvesting", "percentage points", "missing durability"))
             check(!index.results(query).isEmpty(), "Missing real vocabulary/body/metric: " + query);
+        String teams = "essence_ascendance:reference/mechanics/teams";
+        for (String query : List.of("team", "shared essence", "multiplayer", "channeling", "All None", "recipient",
+                "automation", "Essentium", "FTB Teams", "OpenPAC", "Soulbind & Start", "offline", "120"))
+            check(index.results(query).stream().anyMatch(result -> result.target().equals(teams)),
+                    "Shared essence is not discoverable through real semantic content: " + query);
+        check(index.results("Teams and Shared Essence").getFirst().target().equals(teams),
+                "Exact shared-essence title must resolve to its canonical entry");
         check(index.results("repair").stream().anyMatch(r -> r.target().contains(":guide/"))
                 && index.results("repair").stream().anyMatch(r -> r.target().contains(":reference/")), "Cross-mode body search restricted");
         check(index.results("diamond offense").stream().anyMatch(r -> r.target().equals("yield:minecraft:diamond")), "Missing yield category metadata");

@@ -25,6 +25,7 @@ public record RepairInfusionRecipe(
         int latentIngotCount,
         boolean fractured
 ) implements EssenceInfuserRecipe {
+    @Override public boolean requiresEquipmentRecipient() { return true; }
 
     public RepairInfusionRecipe {
         if (missingDurability <= 0 || essenceRequired <= 0L || latentIngotCount < 0) {

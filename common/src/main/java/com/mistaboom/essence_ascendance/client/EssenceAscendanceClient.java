@@ -92,6 +92,9 @@ public final class EssenceAscendanceClient {
                 player == net.minecraft.client.Minecraft.getInstance().player && ClientCommittedSkills.isEffective(skill));
         AscendanceNexusTransactionClientState.init();
         EssenceCrucibleClientState.init();
+        TeamInterfaceClientState.init();
+        InfuserSoulbindClientState.init();
+        ChannelSessionsClientState.init();
         EssencePylonClientState.init();
         EquipmentTooltipClientState.init();
         ItemEssenceTooltipClientState.init();

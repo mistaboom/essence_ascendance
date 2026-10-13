@@ -108,6 +108,11 @@ public final class EssenceCrucibleNetworkService {
                         )
         );
 
+        NetworkManager.registerReceiver(NetworkManager.Side.C2S, EssenceCrucibleSelectionPayload.TYPE,
+                EssenceCrucibleSelectionPayload.CODEC, (payload, context) -> context.queue(() -> {
+                    if (context.getPlayer() instanceof ServerPlayer player) handleSelectionRequest(player, payload);
+                }));
+
         TickEvent.PLAYER_POST.register(
                 player -> {
                     if (player instanceof ServerPlayer serverPlayer
@@ -131,6 +136,19 @@ public final class EssenceCrucibleNetworkService {
         LAST_SENT.remove(player);
     }
 
+
+    private static void handleSelectionRequest(ServerPlayer player, EssenceCrucibleSelectionPayload payload) {
+        var currentMenu = player.containerMenu;
+        if (currentMenu.containerId != payload.menuId() || !ServerMenuAccess.isCurrent(player, currentMenu)
+                || !com.mistaboom.essence_ascendance.crucible.CrucibleChannelSelection.validAction(payload.action())) return;
+        if (!(currentMenu instanceof EssenceCrucibleMenu menu)) return;
+        EssenceCrucibleBlockEntity crucible = menu.serverCrucible();
+        if (crucible == null || !crucible.authorize(player, com.mistaboom.essence_ascendance.machine.MachineAction.SPEND)) return;
+        var saved = EssenceSavedData.get(player.server);
+        var data = saved.getPlayerData(player.getUUID());
+        if (data.updateCrucibleChannelSelection(payload.expectedRevision(), payload.action())) saved.setDirty();
+        forceSync(player);
+    }
 
     private static void handleStateRequest(
             ServerPlayer player,
@@ -163,7 +181,7 @@ public final class EssenceCrucibleNetworkService {
                 || crucible.getLevel() != player.serverLevel()
                 || !player.serverLevel().hasChunkAt(crucible.getBlockPos())
                 || player.serverLevel().getBlockEntity(crucible.getBlockPos()) != crucible
-                || !crucible.canPlayerUse(player)) {
+                || !crucible.canPlayerManage(player)) {
             return;
         }
 
@@ -181,19 +199,14 @@ public final class EssenceCrucibleNetworkService {
             return;
         }
 
-        if (!crucible.bindOwner(player) || crucible.ownerId() == null) {
+        if (!crucible.canPlayerUse(player) || crucible.ownerId() == null) {
             return;
         }
 
-        EssenceSavedData.get(player.server).removeCrucibleStored(
-                crucible.ownerId(),
-                essence,
-                Long.MAX_VALUE
-        );
+        java.util.UUID fundingActor = crucible.fundingActor();
+        if (fundingActor == null) return;
+        EssenceSavedData.get(player.server).clearReservoir(fundingActor, java.util.List.of(essence.id()));
 
-        if (crucible.totalStoredEssence() <= 0L) {
-            crucible.stopChanneling();
-        }
 
         forceSync(player);
     }
@@ -213,7 +226,7 @@ public final class EssenceCrucibleNetworkService {
                 || crucible.getLevel() != player.serverLevel()
                 || !player.serverLevel().hasChunkAt(crucible.getBlockPos())
                 || player.serverLevel().getBlockEntity(crucible.getBlockPos()) != crucible
-                || !crucible.canPlayerUse(player)
+                || !crucible.canPlayerConfigure(player)
                 || menu.activeMachineSlots() <= 1) {
             return;
         }
@@ -296,17 +309,11 @@ public final class EssenceCrucibleNetworkService {
             EssenceCrucibleMenu menu,
             EssenceCrucibleBlockEntity crucible
     ) {
-        long[] balances = crucible.storedEssenceSnapshot();
+        var balances = EssenceCrucibleEssences.ORDERED.stream().map(crucible::storedEssenceExact).toArray(java.math.BigInteger[]::new);
         EssenceCrucibleStructureStats stats = crucible.structureStats();
 
-        String channelingPlayer = "";
-        if (crucible.channelingPlayerId() != null) {
-            ServerPlayer active = player.server.getPlayerList()
-                    .getPlayer(crucible.channelingPlayerId());
-            channelingPlayer = active == null
-                    ? crucible.channelingPlayerId().toString()
-                    : active.getGameProfile().getName();
-        }
+        var feedback = com.mistaboom.essence_ascendance.crucible.EssenceCrucibleChannelService.feedback(crucible, player.getUUID());
+        int channelCount = feedback.registered();
 
         return new EssenceCrucibleStatePayload(
                 EssenceCrucibleStatePayload.CURRENT_SCHEMA_VERSION,
@@ -315,9 +322,9 @@ public final class EssenceCrucibleNetworkService {
                 crucible.ownerDisplayName(),
                 crucible.accessMode().serializedName(),
                 crucible.canPlayerUse(player),
-                crucible.isChanneling(),
+                crucible.isChanneling(player.getUUID()),
                 crucible.isDissolving(),
-                channelingPlayer,
+                channelCount,
                 balances[0],
                 balances[1],
                 balances[2],
@@ -325,7 +332,7 @@ public final class EssenceCrucibleNetworkService {
                 balances[4],
                 balances[5],
                 crucible.totalStoredEssence(),
-                crucible.effectiveReservoirCapacity(),
+                crucible.localFillLimit(),
                 stats.transferRatePerSecond(),
                 stats.transferRange(),
                 stats.dissolutionTicksPerItem(),
@@ -335,7 +342,12 @@ public final class EssenceCrucibleNetworkService {
                 EssenceConfigManager.get().maxActivePylons(),
                 EssenceConfigManager.get().pylonRadius(),
                 stats.visualTransferStreams(),
-                stats.simultaneousItemProcesses()
+                stats.simultaneousItemProcesses(),
+                EssenceSavedData.get(player.server).getPlayerData(player.getUUID()).crucibleChannelSelection(),
+                crucible.isChanneling(player.getUUID()), crucible.channelingPaused(player.getUUID()),
+                crucible.authorize(player, com.mistaboom.essence_ascendance.machine.MachineAction.SPEND),
+                EssenceSavedData.get(player.server).getPlayerData(player.getUUID()).crucibleChannelSelectionRevision(),
+                feedback.consuming(), feedback.allocated(), feedback.actual(), feedback.reason().name(), crucible.canPlayerConfigure(player), crucible.canPlayerManage(player), crucible.accessState(player).name()
         );
     }
 }

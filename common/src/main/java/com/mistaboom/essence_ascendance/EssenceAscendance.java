@@ -73,10 +73,13 @@ public final class EssenceAscendance {
         com.mistaboom.essence_ascendance.network.LatentOreCatalogSync.init();
         AscendanceNexusContent.init();
         EssenceCrucibleGameplayEvents.init();
+        com.mistaboom.essence_ascendance.crucible.EssenceCrucibleChannelService.init();
+        com.mistaboom.essence_ascendance.machine.MachineProtection.init();
 
         AscendanceAdvancements.init();
 
         EssenceConfigManager.load();
+        com.mistaboom.essence_ascendance.team.MembershipRuntime.init();
 
         /* Gameplay hooks depend on loaded balance/config values. */
         EquipmentGameplayEvents.init();

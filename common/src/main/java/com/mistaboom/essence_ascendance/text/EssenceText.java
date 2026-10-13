@@ -49,6 +49,11 @@ public final class EssenceText {
         return Component.translatable("term." + MOD_ID + "." + path, args);
     }
 
+    /** Existing machine amount language, shared with server projections and session HUD cards. */
+    public static String wholeAmount(Number amount) {
+        return String.format(Locale.ROOT, "%,d", amount);
+    }
+
     public static MutableComponent guide(String path, Object... args) {
         return Component.translatable("guide." + MOD_ID + "." + path, args);
     }

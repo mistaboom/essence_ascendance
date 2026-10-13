@@ -2,6 +2,8 @@
 
 **Edit only `docs/wiki/*.md` in this repository.** These are the maintained originals. GitHub serves the live wiki from a separate repository at https://github.com/mistaboom/essence_ascendance.wiki.git, but no permanent second local checkout is needed. Pushing the main repository alone does not publish wiki pages.
 
+**October 13 beta.5 refresh:** the user authorized committing and publishing the multiplayer implementation, Archive and wiki together. Canonical pages now target beta.5 and document its new-world requirement. Earlier local-only statements in [PASSDOWN.md](PASSDOWN.md) retain their historical scope; use [PUBLICATION.md](PUBLICATION.md) for publication receipts. Preserve unrelated work and preview the selected pages before publishing.
+
 ## Review before publishing
 
 1. Read applicable repository instructions and inspect Git status. Preserve unrelated work.

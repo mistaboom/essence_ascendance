@@ -18,6 +18,7 @@ public final class EssencePylonMenu extends AbstractContainerMenu {
 
     private final Container pylonContainer;
     private final EssencePylonBlockEntity serverPylon;
+    private final long bindingRevision;
 
     public EssencePylonMenu(
             int containerId,
@@ -43,6 +44,7 @@ public final class EssencePylonMenu extends AbstractContainerMenu {
         super(EssencePylonContent.ESSENCE_PYLON_MENU.get(), containerId);
         this.pylonContainer = pylonContainer;
         this.serverPylon = serverPylon;
+        this.bindingRevision = serverPylon == null ? -1 : serverPylon.machineBinding().revision();
 
         pylonContainer.startOpen(playerInventory.player);
 
@@ -95,12 +97,13 @@ public final class EssencePylonMenu extends AbstractContainerMenu {
     public boolean stillValid(Player player) {
         return serverPylon == null
                 ? player.level().isClientSide
-                : serverPylon.stillValid(player);
+                : serverPylon.machineBinding().revision() == bindingRevision && serverPylon.stillValid(player)
+                        && serverPylon.machineBinding().revision() == bindingRevision;
     }
 
     @Override
     public void clicked(int slotId, int button, ClickType clickType, Player player) {
-        if (!player.level().isClientSide && !ServerMenuAccess.isCurrent(player, this)) {
+        if (!player.level().isClientSide && (!ServerMenuAccess.isCurrent(player, this) || serverPylon != null && !serverPylon.canPlayerConfigure(player))) {
             return;
         }
         super.clicked(slotId, button, clickType, player);
@@ -108,7 +111,7 @@ public final class EssencePylonMenu extends AbstractContainerMenu {
 
     @Override
     public ItemStack quickMoveStack(Player player, int index) {
-        if ((!player.level().isClientSide && !ServerMenuAccess.isCurrent(player, this))
+        if ((!player.level().isClientSide && (!ServerMenuAccess.isCurrent(player, this) || serverPylon != null && !serverPylon.canPlayerConfigure(player)))
                 || index < 0 || index >= slots.size()) {
             return ItemStack.EMPTY;
         }

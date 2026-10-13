@@ -34,7 +34,6 @@ public final class EssenceInfuserScreen
     private Button processingButton;
     private Button infoButton;
     private Button infoCloseButton;
-    private boolean infoOpen;
 
     public EssenceInfuserScreen(
             EssenceInfuserMenu menu,
@@ -79,14 +78,22 @@ public final class EssenceInfuserScreen
         infoButton = addHeaderButton(
                 Component.literal("i"),
                 true,
-                button -> infoOpen = !infoOpen
+                button -> toggleMachinePopup(INFO_POPUP)
         );
 
         infoCloseButton = addOverlayCloseButton(
-                button -> infoOpen = false,
+                button -> closeMachinePopup(INFO_POPUP),
                 infoPanelBounds()
         );
         infoCloseButton.visible = false;
+    }
+
+    public void confirmSoulbind(com.mistaboom.essence_ascendance.network.InfuserSoulbindPayload payload) {
+        if (minecraft == null || minecraft.player == null || menu.containerId != payload.menuId()) return;
+        confirmMachineAction(EssenceText.gui("infuser.soulbind.title"),
+                EssenceText.gui("infuser.soulbind.warning", minecraft.player.getGameProfile().getName()),
+                EssenceText.gui("infuser.soulbind.accept"),
+                () -> dev.architectury.networking.NetworkManager.sendToServer(payload));
     }
 
     private Button addCycleButton(int x, int y, String label, int id) {
@@ -458,9 +465,6 @@ public final class EssenceInfuserScreen
                 String verbKey;
                 if (!menu.processingEnabled()) {
                     verbKey = "start";
-                } else if (menu.statusCode()
-                        == EssenceInfuserBlockEntity.STATUS_PLAYER_CHANNELING) {
-                    verbKey = "resume";
                 } else {
                     verbKey = "stop";
                 }
@@ -470,14 +474,14 @@ public final class EssenceInfuserScreen
             }
         }
         if (infoCloseButton != null) {
-            infoCloseButton.visible = infoOpen;
+            infoCloseButton.visible = isMachinePopupOpen(INFO_POPUP);
             place(infoCloseButton, overlayCloseBounds(infoPanelBounds()));
         }
     }
 
     @Override
     protected List<MachineOverlay> machineOverlays() {
-        if (!infoOpen) {
+        if (!isMachinePopupOpen(INFO_POPUP)) {
             return List.of();
         }
         UiBounds bounds = infoPanelBounds();
@@ -492,13 +496,17 @@ public final class EssenceInfuserScreen
     private MachineInfoPanel infoPanel() {
         MachineInfoPanel info = new MachineInfoPanel()
                 .title(EssenceText.term("info"))
-                .metadata(EssenceText.gui("owner", ownerText()))
                 .section(EssenceText.term("link"))
                 .line(EssenceText.gui("crucible_link", linkedText()))
                 .line(EssenceText.gui(
                         "link_radius_blocks",
                         String.format(Locale.ROOT, "%.1f", EssenceInfuserBalance.linkRange())
                 ));
+
+        var recipient = com.mistaboom.essence_ascendance.equipment.SoulboundEquipmentData.read(menu.workpieceStack())
+                .or(() -> com.mistaboom.essence_ascendance.equipment.SoulboundEquipmentData.read(menu.getSlot(EssenceInfuserBlockEntity.OUTPUT_SLOT).getItem()));
+        recipient.ifPresent(binding -> info.metadata(EssenceText.gui("infuser.info.recipient",
+                binding.ownerName().isBlank() ? binding.ownerId().toString() : binding.ownerName())));
 
         EssenceInfuserWorkpieceMode mode = menu.workpieceMode();
         if (mode == EssenceInfuserWorkpieceMode.FOCUS) {
@@ -545,8 +553,9 @@ public final class EssenceInfuserScreen
         }
 
         info.section(EssenceText.term("automation"))
-                .line(EssenceText.gui("infuser.info.input_manual"))
-                .line(EssenceText.gui("infuser.info.output_repair"));
+                .line(EssenceText.gui("infuser.info.input_equipment_automated"))
+                .line(EssenceText.gui("infuser.info.output_repair"))
+                .line(EssenceText.gui("infuser.info.paid_recovery"));
     }
 
     private void renderEquipmentInfo(MachineInfoPanel info) {
@@ -561,7 +570,7 @@ public final class EssenceInfuserScreen
         }
 
         info.section(EssenceText.term("automation"))
-                .line(EssenceText.gui("infuser.info.input_manual"))
+                .line(EssenceText.gui("infuser.info.input_equipment_automated"))
                 .line(EssenceText.gui("infuser.info.output_equipment"));
     }
 
@@ -588,12 +597,6 @@ public final class EssenceInfuserScreen
         ).bounds();
     }
 
-    private Component ownerText() {
-        return minecraft != null && minecraft.player != null
-                ? Component.literal(minecraft.player.getGameProfile().getName())
-                : EssenceText.term("bound_player");
-    }
-
     private Component linkedText() {
         if (!menu.linked()) {
             return EssenceText.term("none");
@@ -613,23 +616,7 @@ public final class EssenceInfuserScreen
     }
 
     private static Component statusText(int status) {
-        String key = switch (status) {
-            case EssenceInfuserBlockEntity.STATUS_STOPPED -> "stopped";
-            case EssenceInfuserBlockEntity.STATUS_UNLINKED -> "unlinked";
-            case EssenceInfuserBlockEntity.STATUS_INVALID_SELECTION -> "invalid_selection";
-            case EssenceInfuserBlockEntity.STATUS_INSUFFICIENT_SOURCE -> "insufficient_source";
-            case EssenceInfuserBlockEntity.STATUS_OUTPUT_BLOCKED -> "output_blocked";
-            case EssenceInfuserBlockEntity.STATUS_PROCESSING -> "processing";
-            case EssenceInfuserBlockEntity.STATUS_INVALID_INPUT -> "invalid_input";
-            case EssenceInfuserBlockEntity.STATUS_PLAYER_CHANNELING -> "player_channeling";
-            case EssenceInfuserBlockEntity.STATUS_FOCUS_TIER_REQUIRED -> "focus_tier_required";
-            case EssenceInfuserBlockEntity.STATUS_FOCUS_MALFORMED -> "focus_malformed";
-            case EssenceInfuserBlockEntity.STATUS_NEEDS_FOCUS -> "needs_focus";
-            case EssenceInfuserBlockEntity.STATUS_COMPONENT_REQUIRED -> "component_required";
-            case EssenceInfuserBlockEntity.STATUS_REPAIR_MATERIAL_REQUIRED -> "repair_material_required";
-            default -> "waiting_input";
-        };
-        return EssenceText.gui("infuser.status." + key);
+        return Component.translatable(com.mistaboom.essence_ascendance.infuser.InfuserStatusPresentation.key(status));
     }
 
     private static int statusColor(int status) {
@@ -648,6 +635,6 @@ public final class EssenceInfuserScreen
     }
 
     private static String format(long value) {
-        return String.format(Locale.ROOT, "%,d", Math.max(0L, value));
+        return EssenceText.wholeAmount(Math.max(0L, value));
     }
 }

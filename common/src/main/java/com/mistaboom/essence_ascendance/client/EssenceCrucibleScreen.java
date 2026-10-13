@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.client;
 
+import com.mistaboom.essence_ascendance.crucible.CrucibleChannelSelection;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleDissolutionMode;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleEssences;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleMenu;
@@ -10,6 +11,7 @@ import com.mistaboom.essence_ascendance.client.ui.UiBounds;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 
@@ -46,6 +48,7 @@ public final class EssenceCrucibleScreen
     private static final int VENT_BUTTON_HEIGHT = 12;
 
     private Button channelButton;
+    private PlayerEssenceSelectionControls selection;
     private Button infoButton;
     private Button settingsButton;
     private Button infoCloseButton;
@@ -53,8 +56,6 @@ public final class EssenceCrucibleScreen
     private Button dissolutionModeButton;
     private final Button[] ventButtons =
             new Button[EssenceCrucibleEssences.ORDERED.size()];
-    private boolean infoOpen;
-    private boolean settingsOpen;
 
     public EssenceCrucibleScreen(
             EssenceCrucibleMenu menu,
@@ -83,30 +84,24 @@ public final class EssenceCrucibleScreen
                 new UiBounds(leftPos + 35, topPos + 202, 160, 20)
         );
 
+        selection = new PlayerEssenceSelectionControls(this::addMachineButton, this::selectChannel,
+                new UiBounds(leftPos + 140, topPos + 75, 28, 12), new UiBounds(leftPos + 172, topPos + 75, 42, 12),
+                leftPos + 18, topPos + 91, 12);
+
         settingsButton = addHeaderButton(
                 Component.literal("\u2699"),
                 false,
-                button -> {
-                    settingsOpen = !settingsOpen;
-                    if (settingsOpen) {
-                        infoOpen = false;
-                    }
-                }
+                button -> toggleMachinePopup(SETTINGS_POPUP)
         );
 
         infoButton = addHeaderButton(
                 Component.literal("i"),
                 true,
-                button -> {
-                    infoOpen = !infoOpen;
-                    if (infoOpen) {
-                        settingsOpen = false;
-                    }
-                }
+                button -> toggleMachinePopup(INFO_POPUP)
         );
 
         infoCloseButton = addOverlayCloseButton(
-                button -> infoOpen = false,
+                button -> closeMachinePopup(INFO_POPUP),
                 infoPanelBounds()
         );
         infoCloseButton.visible = false;
@@ -117,7 +112,7 @@ public final class EssenceCrucibleScreen
                 MachineScreenLayout.SidePreference.LEFT_FIRST
         ).bounds();
         settingsCloseButton = addOverlayCloseButton(
-                button -> settingsOpen = false,
+                button -> closeMachinePopup(SETTINGS_POPUP),
                 initialVentBounds
         );
         settingsCloseButton.visible = false;
@@ -138,7 +133,7 @@ public final class EssenceCrucibleScreen
             final int essenceIndex = i;
             Button ventButton = addMachineButton(
                     EssenceText.gui("crucible.button.vent"),
-                    button -> ventEssence(essenceIndex),
+                    button -> confirmMachineAction(EssenceText.gui("crucible.button.vent"), EssenceText.gui("crucible.vent_warning"), () -> ventEssence(essenceIndex)),
                     new UiBounds(
                             initialVentBounds.right() - VENT_BUTTON_WIDTH - 6,
                             initialVentBounds.y() + SETTINGS_HEADER_HEIGHT
@@ -189,17 +184,22 @@ public final class EssenceCrucibleScreen
 
         EssenceCrucibleClientState.requestChannel(
                 menu.containerId,
-                !state.channeling()
+                !state.channelingForViewer()
         );
     }
 
+
+    private void selectChannel(int action) {
+        var state = EssenceCrucibleClientState.snapshotFor(menu.containerId);
+        if (state != null && state.channelingAllowed()) EssenceCrucibleClientState.requestSelection(menu.containerId, action);
+    }
 
     private void cycleDissolutionMode() {
         EssenceCrucibleStatePayload state =
                 EssenceCrucibleClientState.snapshotFor(menu.containerId);
         if (state == null
                 || !state.allowed()
-                || !settingsOpen
+                || !isMachinePopupOpen(SETTINGS_POPUP)
                 || menu.activeMachineSlots() <= 1) {
             return;
         }
@@ -217,7 +217,7 @@ public final class EssenceCrucibleScreen
     private void ventEssence(int allEssenceIndex) {
         EssenceCrucibleStatePayload state =
                 EssenceCrucibleClientState.snapshotFor(menu.containerId);
-        if (state == null || !state.allowed() || !settingsOpen) {
+        if (state == null || !state.allowed() || !isMachinePopupOpen(SETTINGS_POPUP)) {
             return;
         }
 
@@ -236,7 +236,7 @@ public final class EssenceCrucibleScreen
     protected List<MachineOverlay> machineOverlays() {
         EssenceCrucibleStatePayload state =
                 EssenceCrucibleClientState.snapshotFor(menu.containerId);
-        if (settingsOpen && state != null && state.allowed()) {
+        if (isMachinePopupOpen(SETTINGS_POPUP) && state != null && state.allowed()) {
             UiBounds bounds = ventPanelBounds(state);
             List<AbstractWidget> controls = new ArrayList<>();
             controls.add(settingsCloseButton);
@@ -250,7 +250,7 @@ public final class EssenceCrucibleScreen
                             renderVentPopup(graphics, state, bounds)
             ));
         }
-        if (infoOpen && state != null) {
+        if (isMachinePopupOpen(INFO_POPUP) && state != null) {
             UiBounds bounds = infoPanelBounds();
             return List.of(infoOverlay(
                     "crucible_info",
@@ -268,16 +268,19 @@ public final class EssenceCrucibleScreen
                 EssenceCrucibleClientState.snapshotFor(menu.containerId);
 
         if (channelButton != null) {
-            boolean active = state != null && state.channeling();
+            boolean active = state != null && state.channelingForViewer();
             channelButton.setMessage(
                     EssenceText.gui(active
                             ? "crucible.button.stop_channeling"
+                            : state != null && state.channelSelection() == 0 ? "crucible.channel_selection.choose"
                             : "crucible.button.start_channeling")
             );
             channelButton.active = state != null
                     && state.allowed()
-                    && (active || state.total() > 0L);
+                    && (active || state.channelingAllowed() && state.channelSelection() != 0);
         }
+
+        selection.update(state == null ? 0 : state.channelSelection(), state != null && state.channelingAllowed(), true);
 
         if (infoButton != null) {
             infoButton.setMessage(
@@ -290,15 +293,15 @@ public final class EssenceCrucibleScreen
             settingsButton.setMessage(
                     Component.literal("\u2699")
             );
-            settingsButton.active = state != null && state.allowed();
+            settingsButton.active = state != null && state.allowed() && (state.configureAllowed() || state.manageAllowed());
         }
 
         if (infoCloseButton != null) {
-            infoCloseButton.visible = infoOpen && state != null;
+            infoCloseButton.visible = isMachinePopupOpen(INFO_POPUP) && state != null;
             place(infoCloseButton, overlayCloseBounds(infoPanelBounds()));
         }
         if (settingsCloseButton != null) {
-            settingsCloseButton.visible = settingsOpen
+            settingsCloseButton.visible = isMachinePopupOpen(SETTINGS_POPUP)
                     && state != null
                     && state.allowed();
             if (state != null) {
@@ -307,7 +310,7 @@ public final class EssenceCrucibleScreen
         }
 
         if (dissolutionModeButton != null) {
-            boolean showMode = settingsOpen
+            boolean showMode = isMachinePopupOpen(SETTINGS_POPUP)
                     && state != null
                     && state.allowed()
                     && menu.activeMachineSlots() > 1;
@@ -324,6 +327,7 @@ public final class EssenceCrucibleScreen
                         EssenceCrucibleDissolutionMode.fromSerializedName(
                                 state.dissolutionMode()
                         );
+                dissolutionModeButton.active = state.configureAllowed();
                 dissolutionModeButton.setMessage(
                         EssenceText.dissolutionMode(mode)
                 );
@@ -342,7 +346,7 @@ public final class EssenceCrucibleScreen
             }
         }
 
-        if (!settingsOpen || state == null || !state.allowed()) {
+        if (!isMachinePopupOpen(SETTINGS_POPUP) || state == null || !state.allowed()) {
             return;
         }
 
@@ -359,7 +363,7 @@ public final class EssenceCrucibleScreen
                     VENT_BUTTON_HEIGHT
             ));
             button.visible = true;
-            button.active = values[i] > 0L;
+            button.active = state.manageAllowed() && values[i] > 0L;
         }
     }
 
@@ -444,14 +448,14 @@ public final class EssenceCrucibleScreen
         }
 
         int contentLeft = PANEL_MARGIN + 6;
-        int indentedLeft = contentLeft + 4;
+        int indentedLeft = contentLeft + 20;
         int contentRight = PANEL_MARGIN + FULL_PANEL_WIDTH - 6;
 
         MachineScreenUi.sectionHeader(
                 graphics, font, EssenceText.term("essence"), contentLeft, 78
         );
 
-        long[] essenceValues = state.essenceAmounts();
+        java.math.BigInteger[] essenceValues = state.exactEssenceAmounts();
         for (int i = 0; i < essenceValues.length; i++) {
             int rowY = 92 + i * 12;
             MachineScreenUi.row(
@@ -469,7 +473,7 @@ public final class EssenceCrucibleScreen
         MachineScreenUi.row(
                 graphics,
                 font,
-                EssenceText.term("total"),
+                EssenceText.gui("crucible.shared_total"),
                 format(state.total()) + " / " + format(state.reservoirCapacity()),
                 indentedLeft,
                 contentRight,
@@ -630,12 +634,12 @@ public final class EssenceCrucibleScreen
      * panel so it is never clipped off-screen.
      */
     private MachineInfoPanel infoPanel(EssenceCrucibleStatePayload state) {
-        return new MachineInfoPanel()
+        var info = new MachineInfoPanel()
                 .title(EssenceText.term("info"))
                 .metadata(EssenceText.gui("owner", state.ownerName()))
                 .metadata(EssenceText.gui("access", accessText(state.accessMode())))
                 .section(EssenceText.term("crucible"))
-                .line(EssenceText.gui("capacity_value", format(state.reservoirCapacity())))
+                .line(EssenceText.gui("team.local_fill_limit", format(state.reservoirCapacity())))
                 .line(EssenceText.gui("pylons_value", state.activePylonCount(), state.maxActivePylons()))
                 .line(EssenceText.gui("pylon_radius_value", String.format(Locale.ROOT, "%.1f", state.pylonRadius())))
                 .line(EssenceText.gui("input_slots_value", menu.activeMachineSlots()))
@@ -645,6 +649,9 @@ public final class EssenceCrucibleScreen
                 .section(EssenceText.term("dissolution"))
                 .line(EssenceText.gui("items_batch_value", state.simultaneousItemProcesses()))
                 .line(EssenceText.gui("batches_second_value", batchesPerSecond(state)));
+        info.section(EssenceText.gui("team.available_title"));
+        for (var essence : EssenceCrucibleEssences.ORDERED) info.line(EssenceText.gui("team.available_type", EssenceText.essenceShort(essence), format(ClientEssenceState.available(essence.id()))));
+        return info;
     }
 
     private static Component accessText(String accessMode) {
@@ -655,16 +662,19 @@ public final class EssenceCrucibleScreen
     }
 
     private static Component statusText(EssenceCrucibleStatePayload state) {
+        if (state.channelingForViewer()) return EssenceText.gui("channel.reason." + state.channelReason().toLowerCase(Locale.ROOT));
         String key;
         if (!state.allowed()) {
             key = "access_denied";
+        } else if (state.channeling() && state.channelingPaused()) {
+            key = state.dissolving() ? "channeling_paused_dissolving" : "channeling_paused";
         } else if (state.channeling() && state.dissolving()) {
             key = "channeling_dissolving";
         } else if (state.channeling()) {
             key = "channeling";
         } else if (state.dissolving()) {
             key = "dissolving";
-        } else if (state.total() >= state.reservoirCapacity()) {
+        } else if (state.total().compareTo(state.reservoirCapacity()) >= 0) {
             key = "reservoir_full";
         } else {
             key = "idle";
@@ -676,10 +686,11 @@ public final class EssenceCrucibleScreen
         if (!state.allowed()) {
             return MachineScreenUi.BAD;
         }
+        if (state.channeling() && state.channelingPaused() && !state.dissolving()) return MachineScreenUi.WARN;
         if (state.channeling() || state.dissolving()) {
             return MachineScreenUi.GOOD;
         }
-        if (state.total() >= state.reservoirCapacity()) {
+        if (state.total().compareTo(state.reservoirCapacity()) >= 0) {
             return MachineScreenUi.WARN;
         }
         return MachineScreenUi.MUTED;
@@ -719,8 +730,8 @@ public final class EssenceCrucibleScreen
         return String.format(Locale.ROOT, "%,.2f", perSecond);
     }
 
-    private static String format(long value) {
-        return String.format(Locale.ROOT, "%,d", value);
+    private static String format(Number value) {
+        return EssenceText.wholeAmount(value);
     }
 
 }

@@ -40,3 +40,13 @@ Compared all 21 maintained Markdown files between canonical sources and the wiki
 ## Verification limits
 
 These are source, documentation, Git synchronization and live rendering checks. No Minecraft instance was launched, no gameplay/admin/test command was executed, no balance profile was rebuilt, and no installed instance, world, gameplay code, release jar, platform token or unrelated project setting was changed. This publication establishes no new gameplay benchmark, fresh Java test result, universal mod compatibility or perfect automatic balance.
+
+## Local multiplayer continuation — 2026-10-13, not published
+
+Canonical wiki sources were refreshed for the current dirty multiplayer implementation after the separate Archive continuation completed. This does not change the October 8 publication history or extend its source-equality claim. Latest public release evidence is beta.4 at `4caee9ad53c9ad2faec0eec14ec525262277512c`; uncommitted multiplayer/Archive work is absent from that source.
+
+Current page inventory, source verification, final Archive destinations, documentation checks and the user's manual publication checklist are in [PASSDOWN.md](PASSDOWN.md), with the substantive source continuation appended to [AUDIT.md](AUDIT.md). No staging, commits, pushes, remote changes, wiki checkout creation or publication occurred in this continuation. GitHub's separate wiki remains unchanged by local edits.
+
+## Implementation-handoff documentation reconciliation — 2026-10-13
+
+Canonical local pages now reflect exact shared FTB gates, named approval enforcement, membership help/countdown guidance, strengthened implementation receipts and the user's narrow real activation/new-Crucible ownership confirmation. The intentional beta save break is documented; existing-machine provider migration and remaining live checks stay explicit. This follow-up did not stage, commit, push or publish. Current source remains development work. See `PASSDOWN.md` and `CHECKS-2026-10-13-FOLLOWUP.json`; earlier publication records remain historical.

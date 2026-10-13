@@ -10,8 +10,8 @@ import java.util.UUID;
 /** Actual SavedData/NBT account lifecycle checks; does not require an online owner. */
 public final class FractionalLedgerTest {
     private static int assertions;
-    private static final String OFFENSE = "dissolution/essence_ascendance:offense";
-    private static final String DEFENSE = "dissolution/essence_ascendance:defense";
+    private static final String OFFENSE = "reward/essence_ascendance:offense";
+    private static final String DEFENSE = "reward/essence_ascendance:defense";
 
     public static void main(String[] args) throws Exception {
         UUID owner = UUID.fromString("00000000-0000-0000-0000-000000000001");
@@ -20,6 +20,7 @@ public final class FractionalLedgerTest {
         ledger.commit(owner, Map.of(OFFENSE, 750_000L, DEFENSE, 250_000L, "other/reward", 100_000L));
         ledger.commit(other, Map.of(OFFENSE, 800_000L));
 
+        rejects(() -> ledgerRejectDissolution());
         Map<String, Long> before = ledger.snapshot(owner);
         FractionalAmountService.Resolution preview = FractionalAmountService.accumulate(
                 500_000L, 1, before.get(OFFENSE));
@@ -40,7 +41,7 @@ public final class FractionalLedgerTest {
                 "Per-essence clear affected another account");
         check(FractionalAmountService.accumulate(500_000L, 1,
                 ledger.snapshot(owner).getOrDefault(OFFENSE, 0L)).wholeAmount() == 0,
-                "Cleared credit resurfaced on the next dissolution");
+                "Cleared credit resurfaced on the next reward");
         ledger = roundTrip(ledger);
         check(!ledger.snapshot(owner).containsKey(OFFENSE), "Restart restored cleared credit");
         check(ledger.snapshot(other).get(OFFENSE) == 800_000L, "Clear affected another owner");
@@ -56,6 +57,10 @@ public final class FractionalLedgerTest {
         check(ledger.save(new CompoundTag(), null).getAllKeys().isEmpty(),
                 "Zero-carry commit retained an empty saved account");
         System.out.println("FractionalLedgerTest: " + assertions + " assertions passed");
+    }
+
+    private static void ledgerRejectDissolution() {
+        new FractionalLedgerSavedData().commit(new UUID(0, 1), Map.of("dissolution/essence_ascendance:offense", 1L));
     }
 
     private static FractionalLedgerSavedData roundTrip(FractionalLedgerSavedData ledger) throws Exception {

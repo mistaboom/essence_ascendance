@@ -112,7 +112,7 @@ public final class EssenceTetherVisuals {
         MachineVisualState.Crucible crucibleState = level.getBlockEntity(cruciblePos)
                 instanceof EssenceCrucibleBlockEntity crucible
                 ? crucible.visualState() : MachineVisualState.IDLE_CRUCIBLE;
-        int rgb = CrucibleVisuals.streamColor(crucibleState);
+        int rgb = transferredColor(state.transferredTypes(), level.getGameTime() + partialTick);
         Vec3 crucibleLocalStart = start.subtract(blockOffset(infuser.getBlockPos(), cruciblePos));
         EndpointFrame axial = axialFrame(crucibleLocalStart.subtract(
                 new Vec3(0.5, crucibleLocalStart.y, 0.5)));
@@ -134,28 +134,39 @@ public final class EssenceTetherVisuals {
         if (level == null) return;
 
         MachineVisualState.Crucible state = crucible.visualState();
-        if (state.channelingPlayer() == null) return;
-        Player player = level.getPlayerByUUID(state.channelingPlayer());
-        if (player == null || !player.isAlive()) return;
+        for (var link : state.playerStreams()) {
+            Player player = level.getPlayerByUUID(link.player());
+            if (player == null || !player.isAlive()) continue;
 
-        // Entity interpolation keeps the observer and first-person endpoint free
-        // of block/integer-position jitter. The lower torso leaves the incoming
-        // line visible beneath the local camera instead of terminating at the eye.
-        Vec3 body = player.getPosition(partialTick)
-                .add(0, player.getBbHeight() * 0.58, 0);
-        Vec3 end = body.subtract(Vec3.atLowerCornerOf(crucible.getBlockPos()));
-        Vec3 start = CrucibleVisuals.tetherAnchor(crucible.getBlockPos(), body);
-        Vec3 playerRadial = new Vec3(end.x - 0.5, 0, end.z - 0.5);
-        EndpointFrame axial = axialFrame(playerRadial);
+            // Entity interpolation keeps the observer and first-person endpoint free
+            // of block/integer-position jitter. The lower torso leaves the incoming
+            // line visible beneath the local camera instead of terminating at the eye.
+            Vec3 body = player.getPosition(partialTick)
+                    .add(0, player.getBbHeight() * 0.58, 0);
+            Vec3 end = body.subtract(Vec3.atLowerCornerOf(crucible.getBlockPos()));
+            Vec3 start = CrucibleVisuals.tetherAnchor(crucible.getBlockPos(), body);
+            Vec3 playerRadial = new Vec3(end.x - 0.5, 0, end.z - 0.5);
+            EndpointFrame axial = axialFrame(playerRadial);
 
-        double age = level.getGameTime() + partialTick;
-        Stream stream = new Stream(start, end, CrucibleVisuals.streamColor(state), true,
-                state.transferRatePerSecond(), Flow.FORWARD,
-                uuidPhase(player.getUUID().getMostSignificantBits()
-                        ^ player.getUUID().getLeastSignificantBits()), axial, axial);
-        renderContinuation(crucible.getBlockPos(), age, pose, buffers, stream,
-                CrucibleVisuals.TETHER_CONVERGENCE, start);
-        render(crucible.getBlockPos(), age, pose, buffers, stream);
+            double age = level.getGameTime() + partialTick;
+            Stream stream = new Stream(start, end, transferredColor(link.essenceMask(), age), true,
+                    link.rate(), Flow.FORWARD,
+                    uuidPhase(player.getUUID().getMostSignificantBits()
+                            ^ player.getUUID().getLeastSignificantBits()), axial, axial);
+            renderContinuation(crucible.getBlockPos(), age, pose, buffers, stream,
+                    CrucibleVisuals.TETHER_CONVERGENCE, start);
+            render(crucible.getBlockPos(), age, pose, buffers, stream);
+        }
+    }
+
+    /** Cycle only types actually delivered on this physical link; particles never become channel identities. */
+    private static int transferredColor(int mask, double age) {
+        var types = com.mistaboom.essence_ascendance.crucible.EssenceCrucibleEssences.ORDERED;
+        int count = Integer.bitCount(mask & 63); if (count == 0) return 0xBBBBBB;
+        int selected = Math.floorMod((int) (age / 8), count);
+        for (int i = 0; i < types.size(); i++) if ((mask & 1 << i) != 0 && selected-- == 0)
+            return com.mistaboom.essence_ascendance.visual.AscendancePalette.categoryRgb(types.get(i));
+        return 0xBBBBBB;
     }
 
     /** Same full beam appearance and flow as its main span, without duplicate endpoint fittings. */

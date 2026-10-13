@@ -53,7 +53,7 @@ public final class EssenceAscendanceFabric implements ModInitializer {
                             )) {
                         return null;
                     }
-                    return new EssenceCrucibleFabricItemStorage(crucible);
+                    return new EssenceCrucibleFabricItemStorage(crucible, direction);
                 },
                 EssenceCrucibleContent.ESSENCE_CRUCIBLE_BLOCK_ENTITY.get()
         );

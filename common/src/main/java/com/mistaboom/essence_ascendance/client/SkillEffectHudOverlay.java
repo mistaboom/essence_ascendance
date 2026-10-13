@@ -44,6 +44,7 @@ public final class SkillEffectHudOverlay {
             clearMotion();
             return;
         }
+        ChannelSessionsClientState.render(graphics);
         List<SkillEffectHudEntry> entries = SkillEffectHudClientState.visibleEntries();
         if (entries.isEmpty()) {
             clearMotion();
@@ -205,7 +206,12 @@ public final class SkillEffectHudOverlay {
 
     private static void renderCard(GuiGraphics graphics, SkillEffectHudEntry entry, int x, int y,
                                    int visibleHeight, long now) {
-        int fullHeight = height(entry);
+        renderPresentationCard(graphics, new CardContent(entry.accent(), entry.title(), entry.badge(), entry.lines(), entry.meter()), x, y, visibleHeight, now);
+    }
+
+    public record CardContent(int accent, Text title, Text badge, List<Text> lines, SkillEffectHudEntry.Meter meter) {}
+    public static void renderPresentationCard(GuiGraphics graphics, CardContent entry, int x, int y, int visibleHeight, long now) {
+        int fullHeight = SkillEffectHudLayout.height(entry.lines().size());
         int clippedHeight = Math.clamp(visibleHeight, 1, fullHeight);
         graphics.fill(x, y, x + WIDTH, y + clippedHeight, SkillEffectHudLayout.BACKGROUND);
         int fillWidth = SkillEffectHudLayout.progressWidth(entry.meter());

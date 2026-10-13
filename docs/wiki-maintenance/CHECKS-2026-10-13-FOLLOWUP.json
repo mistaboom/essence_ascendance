@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-13",
+  "scope": "Local documentation follow-up; no gameplay tests/builds/publishing performed",
+  "wikiPages": 22,
+  "contentPages": 20,
+  "wikiLinksChecked": 173,
+  "tomlExamplesParsed": 5,
+  "multiplayerForms": {
+    "team": 14,
+    "machine": 9,
+    "adminMembership": 7,
+    "total": 30,
+    "countBasis": "Prior 27-form review plus source-confirmed named approval and two help endpoints"
+  },
+  "remaining": "Two-client, offline-member, unloaded-machine, restart, graphical, interrupted-save checks; no existing-machine provider migration",
+  "liveEvidence": "User-reported real FTB activation and newly placed Crucible team ownership only",
+  "releaseScope": "Uncommitted local development, not published beta",
+  "sourceSha256": {
+    "common/src/main/java/com/mistaboom/essence_ascendance/team/MembershipRuntime.java": "57ce79f32e274d53831f5f780d5728912b1b39d3601dff22e68c85b3187c2451",
+    "common/src/main/java/com/mistaboom/essence_ascendance/team/MembershipProviders.java": "815cbdb2d8b815736939e7a71da7c7e1cfcd0e7ad67ab176474df18b58fe3c31",
+    "common/src/main/java/com/mistaboom/essence_ascendance/team/NativeMembershipService.java": "8af0ca69661edd5d2fba5dc9b2395875eabdd24a30852622c08eb4361fc638fb",
+    "common/src/main/java/com/mistaboom/essence_ascendance/command/EssenceTeamCommands.java": "5cbce9672c806950a7b2beef643a55f02b138e7a6f3b0b01d8dbf14d79b5e082",
+    "common/src/main/java/com/mistaboom/essence_ascendance/command/EssenceAdminCommands.java": "30f5c80c65a48f4607445a5ec9109504ee5ae0606598934984a13a58f6add8fd",
+    "common/src/main/java/com/mistaboom/essence_ascendance/balance/quest/FtbQuestProvider.java": "46806cba8c4f473a3f4e1db2cec38a08c7713d687b8aca371b5eca2df58fc07b",
+    "common/src/main/java/com/mistaboom/essence_ascendance/command/EssenceCommandUtil.java": "9def8895d597ed9a7a1623f774465d0bd1694d34f3762d5a711adddb6fc63420",
+    "common/src/test/java/com/mistaboom/essence_ascendance/team/MembershipProviderTest.java": "0f2b0c3c9e874697d1371dda0d7864f83893a524dad49a4599fd8eb662516667",
+    "common/src/test/java/com/mistaboom/essence_ascendance/command/EssenceCommandTest.java": "e2de881f23740a376cb71748aea3fe5c10e8361cf9cb7c91520d0a5b617036fa"
+  },
+  "errors": []
+}

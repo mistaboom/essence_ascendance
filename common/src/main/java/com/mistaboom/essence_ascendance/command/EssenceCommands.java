@@ -86,6 +86,8 @@ public final class EssenceCommands {
                                         )
                         )
                         .then(EssenceAdminCommands.build())
+                        .then(EssenceTeamCommands.build())
+                        .then(EssenceMachineCommands.build())
                         .then(EssenceDebugCommands.build())
                         .then(EssenceTestCommands.build())
         );

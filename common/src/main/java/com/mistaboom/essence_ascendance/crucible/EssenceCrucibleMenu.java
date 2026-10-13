@@ -25,6 +25,7 @@ public final class EssenceCrucibleMenu extends AbstractContainerMenu {
 
     private final Container crucibleContainer;
     private final EssenceCrucibleBlockEntity serverCrucible;
+    private final long bindingRevision;
     private final SimpleContainerData menuData;
 
     /* Client constructor used by MenuType. Server state arrives by menu sync/S2C payload. */
@@ -71,6 +72,7 @@ public final class EssenceCrucibleMenu extends AbstractContainerMenu {
 
         this.crucibleContainer = crucibleContainer;
         this.serverCrucible = serverCrucible;
+        this.bindingRevision = serverCrucible == null ? -1 : serverCrucible.machineBinding().revision();
         this.menuData = menuData;
 
         crucibleContainer.startOpen(playerInventory.player);
@@ -184,7 +186,8 @@ public final class EssenceCrucibleMenu extends AbstractContainerMenu {
     public boolean stillValid(Player player) {
         return serverCrucible == null
                 ? player.level().isClientSide
-                : serverCrucible.stillValid(player);
+                : serverCrucible.machineBinding().revision() == bindingRevision && serverCrucible.stillValid(player)
+                        && serverCrucible.machineBinding().revision() == bindingRevision;
     }
 
     @Override

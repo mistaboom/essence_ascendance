@@ -3,6 +3,8 @@ package com.mistaboom.essence_ascendance.command;
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.attunement.AttunementGameplay;
 import com.mistaboom.essence_ascendance.text.EssenceText;
+import com.mistaboom.essence_ascendance.team.MembershipAuthority;
+import com.mistaboom.essence_ascendance.team.MembershipRuntime;
 import com.mistaboom.essence_ascendance.balance.BalanceProfileDefinition;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.lifecycle.PlayerRuntimeLifecycleService;
@@ -52,6 +54,8 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 
+import static com.mistaboom.essence_ascendance.command.EssenceMultiplayerCommandOutput.*;
+
 final class EssenceAdminCommands {
 
     private EssenceAdminCommands() {
@@ -71,9 +75,93 @@ final class EssenceAdminCommands {
                                                         .suggests(EssenceCommandUtil::suggestItemTiers),
                                                 c -> setHeldItemTier(c.getSource(), word(c, "tier")))))))
                 .then(EssenceBalanceCommands.admin())
+                .then(membershipCommands())
                 .then(group("mappings", EssenceAdminCommands::showMappingsHelp)
                         .then(Commands.literal("reload").executes(c -> reloadMappings(c.getSource()))))
                 .then(Commands.literal("config").executes(c -> showConfig(c.getSource())));
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> membershipCommands() {
+        var root = group("membership", EssenceAdminCommands::showMembershipHelp);
+        root.then(Commands.literal("status").executes(c -> showMembershipStatus(c.getSource())));
+        root.then(Commands.literal("prepare").then(Commands.argument("provider", StringArgumentType.word())
+                .suggests((c, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(java.util.List.of("native", "ftb_teams", "openpac"), b))
+                .executes(c -> membership(c.getSource(), () -> MembershipRuntime.prepare(
+                        c.getSource().getServer(), StringArgumentType.getString(c, "provider"))))));
+        root.then(Commands.literal("activate").then(Commands.argument("token", net.minecraft.commands.arguments.UuidArgument.uuid())
+                .executes(c -> membership(c.getSource(), () -> MembershipRuntime.activate(
+                        c.getSource().getServer(), net.minecraft.commands.arguments.UuidArgument.getUuid(c, "token"))))));
+        root.then(Commands.literal("cancel").executes(c -> membership(c.getSource(), () ->
+                MembershipRuntime.cancel(c.getSource().getServer()))));
+        root.then(Commands.literal("reconcile").executes(c -> membership(c.getSource(), () ->
+                MembershipRuntime.reconcile(c.getSource().getServer()))));
+        return root;
+    }
+    private static int membership(CommandSourceStack source, java.util.function.Supplier<String> action) {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(text("membership.title")));
+        try {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.good(action.get()));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.command(ADMIN + "membership status", text("membership.inspect_help")));
+            return 1;
+        }
+        catch (IllegalArgumentException | IllegalStateException | ArithmeticException failure) {
+            EssenceCommandUtil.fail(source, failure.getMessage()); return 0;
+        }
+    }
+
+    private static int showMembershipHelp(CommandSourceStack source) {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(text("membership.title")));
+        for (String action : new String[]{"status", "prepare <provider>", "activate <token>", "cancel", "reconcile"}) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.command(ADMIN + "membership " + action,
+                    text("membership.help." + action.split(" ")[0])));
+        }
+        return 1;
+    }
+
+    private static int showMembershipStatus(CommandSourceStack source) {
+        showMembershipStatus(source, MembershipRuntime.diagnosticSnapshot(source.getServer()));
+        return 1;
+    }
+
+    static void showMembershipStatus(CommandSourceStack source, MembershipRuntime.Diagnostics status) {
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title(text("membership.title")));
+        line(source, "authority", status.established().displayName());
+        line(source, "status", readiness(status.readiness()));
+        line(source, "details", status.readiness().detail());
+        if (status.notice() != null && !status.notice().isBlank())
+            EssenceCommandUtil.send(source, EssenceCommandUtil.warn(status.notice()));
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section(text("membership.providers")));
+        for (MembershipAuthority authority : MembershipAuthority.values()) {
+            var provider = status.providers().get(authority);
+            if (provider == null) continue;
+            Component value = readiness(provider).copy().append(Component.literal(" (" + provider.version() + ")"))
+                    .withStyle(style -> style.withHoverEvent(new net.minecraft.network.chat.HoverEvent(
+                            net.minecraft.network.chat.HoverEvent.Action.SHOW_TEXT, Component.literal(provider.detail()))));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.line(authority.displayName(), value));
+            if (provider.status() != com.mistaboom.essence_ascendance.balance.engine.ProviderReadiness.Status.AVAILABLE
+                    && provider.status() != com.mistaboom.essence_ascendance.balance.engine.ProviderReadiness.Status.ABSENT)
+                EssenceCommandUtil.send(source, EssenceCommandUtil.line(text("membership.provider_details", authority.displayName()),
+                        EssenceCommandUtil.warn(provider.detail())));
+        }
+        if (!status.confirmedDeletions().isEmpty())
+            line(source, "membership.deleted", EssenceCommandUtil.format(status.confirmedDeletions().size()));
+        if (status.target() == null) return;
+        EssenceCommandUtil.send(source, EssenceCommandUtil.section(text("membership.activation")));
+        line(source, "membership.target", status.target().displayName());
+        line(source, "membership.remaining", text("membership.seconds", (status.activationTicksRemaining() + 19) / 20));
+        if (status.activationToken() == null) {
+            EssenceCommandUtil.send(source, EssenceCommandUtil.warn(text("membership.awaiting")));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.command(ADMIN + "membership status", text("membership.inspect_help")));
+        } else {
+            line(source, "membership.teams", EssenceCommandUtil.format(status.affectedTeams()));
+            line(source, "membership.players", EssenceCommandUtil.format(status.affectedPlayers()));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.warn(text("membership.stored_changes")));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.muted(text("membership.personal_unchanged")));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.warn(text("membership.binding_changes")));
+            EssenceCommandUtil.send(source, EssenceCommandUtil.command(ADMIN + "membership activate " + status.activationToken(),
+                    text("membership.activate_help")));
+        }
+        EssenceCommandUtil.send(source, EssenceCommandUtil.command(ADMIN + "membership cancel", text("membership.cancel_help")));
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> playerCommands() {
@@ -312,22 +400,11 @@ final class EssenceAdminCommands {
     ) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         EssenceSavedData savedData = EssenceSavedData.get(source.getServer());
-        int essenceTypes = 0;
-        int clearedTypes = 0;
-
-        for (EssenceDefinition essence : EssenceRegistry.values()) {
-            essenceTypes++;
-            long removed = savedData.removeCrucibleStored(
-                    player.getUUID(),
-                    essence,
-                    Long.MAX_VALUE
-            );
-            boolean clearedCarry = com.mistaboom.essence_ascendance.balance.economy.FractionalLedgerSavedData
-                    .get(source.getServer()).clear(player.getUUID(), "dissolution/" + essence.id());
-            if (removed > 0L || clearedCarry) {
-                clearedTypes++;
-            }
-        }
+        var types = com.mistaboom.essence_ascendance.essence.EssenceTypes.ORDERED;
+        var view = savedData.reservoirs().read(player.getUUID());
+        int essenceTypes = types.size();
+        long clearedTypes = types.stream().filter(e -> view.units(e.id()).signum() > 0).count();
+        savedData.clearReservoir(player.getUUID(), types.stream().map(EssenceDefinition::id).toList());
 
         EssenceCommandUtil.send(source, EssenceCommandUtil.good(
                 "Cleared stored Crucible Essence from " + clearedTypes
@@ -343,19 +420,12 @@ final class EssenceAdminCommands {
     ) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         EssenceDefinition essence = EssenceCommandUtil.resolveEssence(essenceName);
-        long removed = EssenceSavedData
-                .get(source.getServer())
-                .removeCrucibleStored(
-                        player.getUUID(),
-                        essence,
-                        Long.MAX_VALUE
-                );
-
-        com.mistaboom.essence_ascendance.balance.economy.FractionalLedgerSavedData
-                .get(source.getServer()).clear(player.getUUID(), "dissolution/" + essence.id());
+        var saved = EssenceSavedData.get(source.getServer());
+        var removed = saved.reservoirs().read(player.getUUID()).whole(essence.id());
+        saved.clearReservoir(player.getUUID(), java.util.List.of(essence.id()));
 
         EssenceCommandUtil.send(source, EssenceCommandUtil.good(
-                "Cleared " + EssenceCommandUtil.format(removed) + " "
+                "Cleared " + removed.toString() + " "
                         + essence.displayName()
                         + " from the shared Crucible reservoir."
         ));
@@ -648,8 +718,7 @@ final class EssenceAdminCommands {
     private static int resetAll(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         EssenceSavedData saved = EssenceSavedData.get(source.getServer());
-        saved.getPlayerData(player.getUUID()).resetProgressionForAdmin();
-        saved.setDirty();
+        saved.resetProgressionForAdmin(player.getUUID());
         com.mistaboom.essence_ascendance.balance.economy.FractionalLedgerSavedData.get(source.getServer())
                 .clear(player.getUUID());
         AttunementGameplay.forget(player);

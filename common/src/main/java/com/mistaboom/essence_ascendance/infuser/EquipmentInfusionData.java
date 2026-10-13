@@ -26,6 +26,13 @@ public final class EquipmentInfusionData {
     private static final String CONTRIBUTIONS_TAG = "contributions";
 
     private EquipmentInfusionData() {}
+    public static void recordFunding(ItemStack stack, com.mistaboom.essence_ascendance.team.PoolId pool,
+                                     Map<net.minecraft.resources.ResourceLocation, Long> costs) {
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, outer -> {
+            CompoundTag progress = outer.getCompound(ROOT_TAG);
+            InfusionPayments.attribute(progress, pool, costs); outer.put(ROOT_TAG, progress);
+        });
+    }
 
     public static Optional<Progress> read(ItemStack stack) {
         if (!EquipmentTierData.isAscendanceEquipment(stack)) return Optional.empty();
@@ -49,6 +56,7 @@ public final class EquipmentInfusionData {
     }
 
     public static Progress ensure(ItemStack stack, EquipmentInfusionRecipe recipe) {
+        if (!validForRecipe(stack, recipe)) throw new IllegalArgumentException("Invalid equipment infusion progress; preserve the workpiece");
         Optional<Progress> existing = read(stack);
         if (existing.isPresent()) {
             if (existing.get().targetTier() != recipe.targetTier()) {
@@ -66,6 +74,21 @@ public final class EquipmentInfusionData {
         });
         return read(stack).orElseThrow();
     }
+    public static boolean validForRecipe(ItemStack stack, EquipmentInfusionRecipe recipe) {
+        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        if (data == null || !data.copyTag().contains(ROOT_TAG)) return true;
+        Progress progress = read(stack).orElse(null);
+        if (progress == null || progress.targetTier() != recipe.targetTier()) return false;
+        try {
+            if (progress.totalContributed() > recipe.totalRequired()) return false;
+            for (var entry : progress.contributions().entrySet()) {
+                var type = net.minecraft.resources.ResourceLocation.tryParse(entry.getKey());
+                if (type == null || !recipe.requirements().containsKey(type)
+                        || entry.getValue() > recipe.requirements().get(type)) return false;
+            }
+            return true;
+        } catch (ArithmeticException invalid) { return false; }
+    }
 
     public static long contribution(ItemStack stack, EssenceDefinition essence) {
         return read(stack).map(progress -> progress.contribution(essence)).orElse(0L);
@@ -80,10 +103,7 @@ public final class EquipmentInfusionData {
         Progress progress = ensure(stack, recipe);
         long required = recipe.requirementFor(essence);
         long current = progress.contribution(essence);
-        long next = Math.addExact(current, amount);
-        if (required <= 0L || next > required) {
-            throw new IllegalArgumentException("Equipment infusion contribution exceeds exact requirement");
-        }
+        long next = InfusionPayments.next(required, current, amount);
         CustomData.update(DataComponents.CUSTOM_DATA, stack, outer -> {
             CompoundTag root = outer.getCompound(ROOT_TAG);
             CompoundTag contributions = root.getCompound(CONTRIBUTIONS_TAG);
@@ -94,6 +114,7 @@ public final class EquipmentInfusionData {
     }
 
     public static boolean requirementsMet(ItemStack stack, EquipmentInfusionRecipe recipe) {
+        if (!validForRecipe(stack, recipe)) return false;
         Progress progress = read(stack).orElse(null);
         if (progress == null || progress.targetTier() != recipe.targetTier()) return false;
         for (Map.Entry<net.minecraft.resources.ResourceLocation, Long> entry : recipe.requirements().entrySet()) {

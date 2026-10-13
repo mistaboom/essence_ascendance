@@ -16,6 +16,14 @@ Installing a mod is not proof that every mechanic is understood. Recipe discover
 
 Providers stage their output. Failed, unsupported or unready optional hooks are excluded with warnings rather than publishing half-read facts. Core profile validators can still reject generation.
 
+## Membership is separate from balance evidence
+
+**Beta.5 multiplayer:** native authority, FTB Teams membership and OpenPAC membership are documented in [Teams and shared infrastructure](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure#membership-providers). They control actual membership/access and communal Stored Essence; they do not prove acquisition or quest completion. FTB Teams membership accepts **2101.1.11 with Library 2101.1.30, 2101.1.36 or 2101.1.37**, and OpenPAC accepts **0.32.7**, on Fabric/NeoForge for Minecraft 1.21.1.
+
+The shared accepted combinations are **Teams 2101.1.11 + Library 2101.1.36 or 2101.1.37 + Quests 2101.1.36**, with Architectury **13.0.11**, on Fabric or NeoForge. Both loaders passed initialization, membership API fixtures and the real Library/Quests early-definition reading path. These checks exit before opening a world/provider manager. Separately, the user confirmed real FTB activation and new Crucible team ownership; broader roster, two-client, unloaded-machine, graphical and restart checks remain pending. [Evidence scope](https://github.com/mistaboom/essence_ascendance/wiki/Version-and-Maintenance#evidence-and-test-claims). The older Quests **2101.1.30 / Library 2101.1.35 / Teams 2101.1.10** evidence tuple does not enable the membership adapter. Higher provider dependency minimums do not widen Essence Ascendance's exact adapter gate. Unsupported membership pauses access instead of using the balance system's optional-evidence fallback.
+
+Complete actual offline-inclusive rosters participate; allies, invitations and claims trust do not. Supported-but-starting/failed membership stays selected. API fixtures and compilation establish narrow contracts, not live provider managers, actual roster events or restart acceptance. Do not assume every latest release or arbitrary team mod is supported.
+
 ## Loaded data and browsing
 
 JEI is optional for both shipping loader builds; the compile API reference is **19.43.0.395**. It supplies recipe/equipment/ore display integration. This version documents no REI/EMI integration.
@@ -29,7 +37,7 @@ Typed production/evidence extension points exist for additional implementations.
 | Provider | Audited versions/context | Supported scope and limits |
 | --- | --- | --- |
 | Skyblock Builder | **NeoForge 21.1.36** | Copied declared starter items/template sources; starting stock does not prove renewability or all skyblock access |
-| FTB Quests | Quests/Library/Teams **2101.1.36 / 2101.1.36 / 2101.1.11** or **2101.1.30 / 2101.1.35 / 2101.1.10**; Architectury **13.0.11** | Effective format-13 native definition source, supported task/reward/prerequisite/scope normalization. No team/player completion reads or reward execution. Opaque/scripted definitions stay unknown. This is a checked definition contract, not unrestricted cross-loader/version compatibility. |
+| FTB Quests | Quests/Library/Teams **2101.1.36 / (2101.1.36 or 2101.1.37) / 2101.1.11** or **2101.1.30 / 2101.1.35 / 2101.1.10**; Architectury **13.0.11** | Effective format-13 native definition source, supported task/reward/prerequisite/scope normalization. No team/player completion reads or reward execution. Opaque/scripted definitions stay unknown. This is a checked definition contract, not unrestricted cross-loader/version compatibility. |
 | Lootr | **NeoForge 1.21.1-1.11.38.125 / .126** | Public settings/source scopes, player/team/refresh/blacklist distinctions. .125 lacks later team contract shapes. Private loot, conversion/positional/custom processors remain conditional or unknown. |
 | Ars Unification | **1.2.21** | Audited late recipe-publication readiness; unready/unsupported families excluded. Does not provide general Ars spell balancing. |
 

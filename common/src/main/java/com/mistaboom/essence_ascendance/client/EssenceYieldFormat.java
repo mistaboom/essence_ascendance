@@ -8,7 +8,7 @@ import java.util.Locale;
 
 import com.mistaboom.essence_ascendance.balance.economy.FractionalAmountService;
 
-/** Displays the authoritative payout, never a rounded approximation of it. */
+/** Shared exact and compact display formats for authoritative essence yields. */
 public final class EssenceYieldFormat {
     private EssenceYieldFormat() { }
 
@@ -26,6 +26,16 @@ public final class EssenceYieldFormat {
                 DecimalFormatSymbols.getInstance(Locale.ROOT));
         formatter.setRoundingMode(RoundingMode.UNNECESSARY);
         // New generated values are whole; existing cached profiles stay honest until rebuilt.
+        return formatter.format(BigDecimal.valueOf(microUnits, 6));
+    }
+
+    /** Compact item tooltips hide fractions without changing stored or extracted essence. */
+    public static String formatTooltipMicros(long microUnits) {
+        if (microUnits < 0) throw new IllegalArgumentException("Essence yield cannot be negative");
+        if (microUnits > 0 && microUnits < FractionalAmountService.SCALE) return "<1";
+        DecimalFormat formatter = new DecimalFormat("#,##0",
+                DecimalFormatSymbols.getInstance(Locale.ROOT));
+        formatter.setRoundingMode(RoundingMode.HALF_UP);
         return formatter.format(BigDecimal.valueOf(microUnits, 6));
     }
 }

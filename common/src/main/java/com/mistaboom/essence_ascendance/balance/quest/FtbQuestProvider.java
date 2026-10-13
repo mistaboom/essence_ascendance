@@ -14,12 +14,12 @@ public final class FtbQuestProvider implements GenerationProvider {
         String version = inputs.installedVersion("ftbquests");
         if (!supported(version, inputs.installedVersion("ftblibrary"), inputs.installedVersion("ftbteams"), inputs.installedVersion("architectury")))
             return new ProviderReadiness(ProviderReadiness.Status.UNSUPPORTED, version,
-                    "Audited API tuples (Quests/Library/Teams): 2101.1.36/2101.1.36/2101.1.11 or 2101.1.30/2101.1.35/2101.1.10; Architectury 13.0.11");
+                    "Audited API tuples (Quests/Library/Teams): 2101.1.36/(2101.1.36 or 2101.1.37)/2101.1.11 or 2101.1.30/2101.1.35/2101.1.10; Architectury 13.0.11");
         return FtbQuestReader.readiness(inputs.server(), Platform.getConfigFolder().resolve("ftbquests/quests"), version);
     }
     public static boolean supported(String quests, String library, String teams, String architectury) {
         return "13.0.11".equals(architectury) && (
-                "2101.1.36".equals(quests) && "2101.1.36".equals(library) && "2101.1.11".equals(teams)
+                "2101.1.36".equals(quests) && ("2101.1.36".equals(library) || "2101.1.37".equals(library)) && "2101.1.11".equals(teams)
                 || "2101.1.30".equals(quests) && "2101.1.35".equals(library) && "2101.1.10".equals(teams));
     }
     public static ProviderReadiness definitionReadiness(String version, boolean ownsServer, boolean loading,

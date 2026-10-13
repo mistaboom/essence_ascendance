@@ -54,32 +54,10 @@ public final class EssenceCrucibleStructureService {
             return baseSnapshot();
         }
 
-        int scan = (int) Math.ceil(radius);
-        double radiusSquared = radius * radius;
         List<EssencePylonBlockEntity> candidates = new ArrayList<>();
-
-        for (int dx = -scan; dx <= scan; dx++) {
-            for (int dy = -scan; dy <= scan; dy++) {
-                for (int dz = -scan; dz <= scan; dz++) {
-                    BlockPos candidatePos = cruciblePos.offset(dx, dy, dz);
-                    if (candidatePos.equals(cruciblePos)
-                            || cruciblePos.distSqr(candidatePos) > radiusSquared
-                            || !serverLevel.hasChunkAt(candidatePos)) {
-                        continue;
-                    }
-
-                    if (!(serverLevel.getBlockEntity(candidatePos)
-                            instanceof EssencePylonBlockEntity pylon)
-                            || pylon.ownerId() == null
-                            || !pylon.ownerId().equals(crucible.ownerId())
-                            || !pylon.isLinkedTo(cruciblePos)
-                            || !pylon.hasInstalledFocus()) {
-                        continue;
-                    }
-
-                    candidates.add(pylon);
-                }
-            }
+        for (EssencePylonBlockEntity pylon : com.mistaboom.essence_ascendance.machine.LoadedMachineDiscovery.within(
+                serverLevel, cruciblePos, radius, EssencePylonBlockEntity.class)) {
+            if (pylon.isLinkedTo(cruciblePos) && pylon.hasInstalledFocus()) candidates.add(pylon);
         }
 
         candidates.sort(

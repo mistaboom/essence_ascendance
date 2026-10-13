@@ -9,9 +9,11 @@ import net.neoforged.neoforge.items.IItemHandler;
 final class EssenceCrucibleNeoForgeItemHandler implements IItemHandler {
 
     private final EssenceCrucibleBlockEntity crucible;
+    private final net.minecraft.core.Direction side;
 
-    EssenceCrucibleNeoForgeItemHandler(EssenceCrucibleBlockEntity crucible) {
+    EssenceCrucibleNeoForgeItemHandler(EssenceCrucibleBlockEntity crucible, net.minecraft.core.Direction side) {
         this.crucible = crucible;
+        this.side = side;
     }
 
     @Override
@@ -22,7 +24,7 @@ final class EssenceCrucibleNeoForgeItemHandler implements IItemHandler {
     @Override
     public ItemStack getStackInSlot(int slot) {
         return slot >= 0 && slot < getSlots()
-                ? crucible.getItem(slot)
+                ? crucible.getItem(slot).copy()
                 : ItemStack.EMPTY;
     }
 
@@ -36,7 +38,7 @@ final class EssenceCrucibleNeoForgeItemHandler implements IItemHandler {
                 || slot < 0
                 || slot >= getSlots()
                 || stack.isEmpty()
-                || !crucible.canPlaceItem(slot, stack)) {
+                || !crucible.canPlaceItemThroughFace(slot, stack, side)) {
             return stack;
         }
 
@@ -103,6 +105,6 @@ final class EssenceCrucibleNeoForgeItemHandler implements IItemHandler {
         return ServerMenuAccess.isLoaded(crucible)
                 && slot >= 0
                 && slot < getSlots()
-                && crucible.canPlaceItem(slot, stack);
+                && crucible.canPlaceItemThroughFace(slot, stack, side);
     }
 }

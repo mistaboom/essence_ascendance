@@ -71,7 +71,9 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
     private static final int DATA_FOCUS_TARGET_TIER = 39;
     private static final int DATA_FOCUS_REQUIRED_INSTALLED_TIER = 40;
     private static final int DATA_REPAIR_LATENT_INGOTS = 41;
-    private static final int DATA_COUNT = 42;
+    private static final int DATA_LINK_MODE = 42;
+    private static final int DATA_LINK_STATE = 43;
+    private static final int DATA_COUNT = 44;
 
     public static final int MACHINE_SLOT_COUNT = 4;
     public static final int PLAYER_INVENTORY_START = MACHINE_SLOT_COUNT;
@@ -79,7 +81,13 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
 
     private final Container infuserContainer;
     private final EssenceInfuserBlockEntity serverInfuser;
+    private final long bindingRevision;
     private final ContainerData data;
+    private SoulbindConfirmation pendingSoulbind;
+
+    private record SoulbindConfirmation(java.util.UUID receipt, java.util.UUID actor, long bindingRevision,
+                                         long contextRevision, com.mistaboom.essence_ascendance.team.MembershipSnapshot membership,
+                                         ItemStack input, ItemStack focus, ItemStack component) {}
 
     public EssenceInfuserMenu(int containerId, Inventory playerInventory) {
         this(
@@ -117,6 +125,7 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
         checkContainerDataCount(data, DATA_COUNT);
         this.infuserContainer = container;
         this.serverInfuser = serverInfuser;
+        this.bindingRevision = serverInfuser == null ? -1 : serverInfuser.machineBinding().revision();
         this.data = data;
 
         container.startOpen(playerInventory.player);
@@ -126,7 +135,12 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
         addSlot(new Slot(container, EssenceInfuserBlockEntity.INPUT_SLOT, 65, 61) {
             @Override
             public boolean mayPlace(ItemStack stack) {
+                if (serverInfuser != null && serverInfuser.hasPaidRepairJob()) return false;
                 return EssenceInfuserBlockEntity.isValidWorkpiece(stack);
+            }
+
+            @Override public boolean mayPickup(Player player) {
+                return serverInfuser == null || !serverInfuser.hasPaidRepairJob();
             }
 
             @Override
@@ -211,7 +225,7 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
                     case DATA_REQUIRED_TICKS -> infuser.requiredProcessingTicks();
                     case DATA_EFFICIENCY -> infuser.efficiencyBasisPoints();
                     case DATA_GRADE -> infuser.profile().grade().ordinal();
-                    case DATA_STATUS -> infuser.statusCode();
+                    case DATA_STATUS -> infuser.displayStatusCode();
                     case DATA_SOURCE_INDEX -> EssenceInfuserBlockEntity.essenceIndex(infuser.sourceEssence());
                     case DATA_TARGET_INDEX -> EssenceInfuserBlockEntity.essenceIndex(infuser.targetEssence());
                     case DATA_SOURCE_AVAILABLE_0 -> word(infuser.sourceAmountAvailable(), 0);
@@ -239,6 +253,8 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
                     case DATA_TARGET_CAPACITY_1 -> word(infuser.targetCarrierCapacity(), 16);
                     case DATA_TARGET_CAPACITY_2 -> word(infuser.targetCarrierCapacity(), 32);
                     case DATA_TARGET_CAPACITY_3 -> word(infuser.targetCarrierCapacity(), 48);
+                    case DATA_LINK_MODE -> infuser.linkMode().ordinal();
+                    case DATA_LINK_STATE -> infuser.linkState().ordinal();
                     case DATA_FOCUS_TIER -> infuser.focusTier() == null
                             ? -1
                             : infuser.focusTier().ordinal();
@@ -399,6 +415,8 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
         return EquipmentInfusionData.totalContributed(workpieceStack());
     }
 
+    public EssenceInfuserBlockEntity serverInfuser() { return serverInfuser; }
+
     public long sourceAvailable() {
         return combineWords(
                 data.get(DATA_SOURCE_AVAILABLE_0),
@@ -447,6 +465,12 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
                 : EssenceFocusTier.DORMANT;
     }
 
+    public com.mistaboom.essence_ascendance.machine.MachineLink.Mode linkMode() {
+        return com.mistaboom.essence_ascendance.machine.MachineLink.Mode.values()[Math.max(0, Math.min(2, data.get(DATA_LINK_MODE)))];
+    }
+    public com.mistaboom.essence_ascendance.machine.MachineLink.State linkState() {
+        return com.mistaboom.essence_ascendance.machine.MachineLink.State.values()[Math.max(0, Math.min(3, data.get(DATA_LINK_STATE)))];
+    }
     public EssenceFocusTier installedFocusTier() {
         int ordinal = data.get(DATA_FOCUS_TIER);
         EssenceFocusTier[] values = EssenceFocusTier.values();
@@ -463,25 +487,28 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
 
     @Override
     public boolean clickMenuButton(Player player, int id) {
-        if (serverInfuser == null || !ServerMenuAccess.isCurrent(player, this)) {
+        if (serverInfuser == null || !ServerMenuAccess.isCurrent(player, this) || !serverInfuser.canPlayerConfigure(player)) {
             return false;
         }
         switch (id) {
-            case BUTTON_SOURCE_PREVIOUS -> serverInfuser.cycleSource(-1);
-            case BUTTON_SOURCE_NEXT -> serverInfuser.cycleSource(1);
-            case BUTTON_TARGET_PREVIOUS -> serverInfuser.cycleTarget(-1);
-            case BUTTON_TARGET_NEXT -> serverInfuser.cycleTarget(1);
+            case BUTTON_SOURCE_PREVIOUS -> serverInfuser.cycleSource(player, -1);
+            case BUTTON_SOURCE_NEXT -> serverInfuser.cycleSource(player, 1);
+            case BUTTON_TARGET_PREVIOUS -> serverInfuser.cycleTarget(player, -1);
+            case BUTTON_TARGET_NEXT -> serverInfuser.cycleTarget(player, 1);
             case BUTTON_TOGGLE_PROCESSING -> {
-                if (serverInfuser.processingEnabled()
-                        && serverInfuser.statusCode()
-                                == EssenceInfuserBlockEntity.STATUS_PLAYER_CHANNELING) {
-                    serverInfuser.setProcessingEnabled(player, true);
-                } else {
-                    serverInfuser.setProcessingEnabled(
-                            player,
-                            !serverInfuser.processingEnabled()
-                    );
-                }
+                pendingSoulbind = null;
+                if (!serverInfuser.processingEnabled() && serverInfuser.requiresSoulbindConfirmation(player)) {
+                    if (!serverInfuser.hasInstalledFocus()) return false;
+                    var serverPlayer = (net.minecraft.server.level.ServerPlayer) player;
+                    var saved = com.mistaboom.essence_ascendance.data.EssenceSavedData.get(serverPlayer.server);
+                    pendingSoulbind = new SoulbindConfirmation(java.util.UUID.randomUUID(), player.getUUID(),
+                            serverInfuser.machineBinding().revision(), serverInfuser.channelRevision(),
+                            serverInfuser.machineBinding().resolve(saved),
+                            serverInfuser.getItem(EssenceInfuserBlockEntity.INPUT_SLOT).copy(),
+                            serverInfuser.getItem(EssenceInfuserBlockEntity.FOCUS_SLOT).copy(),
+                            serverInfuser.getItem(EssenceInfuserBlockEntity.COMPONENT_SLOT).copy());
+                    com.mistaboom.essence_ascendance.network.InfuserSoulbindNetworkService.prompt(serverPlayer, containerId, pendingSoulbind.receipt());
+                } else serverInfuser.setProcessingEnabled(player, !serverInfuser.processingEnabled());
             }
             default -> {
                 return false;
@@ -491,11 +518,32 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
     }
 
 
+    /** Confirmation can only consume the exact request prepared for this actor and live menu. */
+    public boolean confirmSoulbind(Player player, java.util.UUID receipt) {
+        var pending = pendingSoulbind;
+        pendingSoulbind = null;
+        if (pending == null || !pending.receipt().equals(receipt) || !pending.actor().equals(player.getUUID())
+                || serverInfuser == null || !ServerMenuAccess.isCurrent(player, this)
+                || !serverInfuser.canPlayerConfigure(player) || serverInfuser.processingEnabled()
+                || !serverInfuser.requiresSoulbindConfirmation(player)
+                || pending.bindingRevision() != serverInfuser.machineBinding().revision()
+                || pending.contextRevision() != serverInfuser.channelRevision()
+                || !ItemStack.matches(pending.input(), serverInfuser.getItem(EssenceInfuserBlockEntity.INPUT_SLOT))
+                || !ItemStack.matches(pending.focus(), serverInfuser.getItem(EssenceInfuserBlockEntity.FOCUS_SLOT))
+                || !ItemStack.matches(pending.component(), serverInfuser.getItem(EssenceInfuserBlockEntity.COMPONENT_SLOT))) return false;
+        var saved = com.mistaboom.essence_ascendance.data.EssenceSavedData.get(((net.minecraft.server.level.ServerPlayer) player).server);
+        if (!pending.membership().equals(serverInfuser.machineBinding().resolve(saved))) return false;
+        serverInfuser.startConfirmedEquipment(player);
+        return serverInfuser.processingEnabled();
+    }
+
     @Override
     public void clicked(int slotId, int button, ClickType clickType, Player player) {
         if (!player.level().isClientSide && !ServerMenuAccess.isCurrent(player, this)) {
             return;
         }
+        if (serverInfuser != null && !serverInfuser.canPlayerConfigure(player)
+                && (slotId == EssenceInfuserBlockEntity.FOCUS_SLOT || clickType == ClickType.QUICK_MOVE || clickType == ClickType.QUICK_CRAFT || clickType == ClickType.PICKUP_ALL)) return;
         ItemStack inputBefore = serverInfuser == null
                 ? ItemStack.EMPTY
                 : serverInfuser.getItem(EssenceInfuserBlockEntity.INPUT_SLOT).copy();
@@ -538,9 +586,10 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
             componentAfter = serverInfuser.getItem(EssenceInfuserBlockEntity.COMPONENT_SLOT);
         }
 
+        // Components may arrive or leave while approved work waits for them. The
+        // machine still validates recipe requirements and pending receipt snapshots.
         if (!sameContextStack(inputBefore, inputAfter)
-                || !sameContextStack(focusBefore, focusAfter)
-                || !sameContextStack(componentBefore, componentAfter)) {
+                || !sameContextStack(focusBefore, focusAfter)) {
             serverInfuser.disarmProcessingForContextChange();
         }
     }
@@ -587,7 +636,8 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
     public boolean stillValid(Player player) {
         return serverInfuser == null
                 ? player.level().isClientSide
-                : serverInfuser.stillValid(player);
+                : serverInfuser.machineBinding().revision() == bindingRevision && serverInfuser.stillValid(player)
+                        && serverInfuser.machineBinding().revision() == bindingRevision;
     }
 
     @Override
@@ -598,6 +648,9 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
         }
 
         Slot slot = slots.get(index);
+        if (!slot.mayPickup(player)) return ItemStack.EMPTY;
+        if (serverInfuser != null && !serverInfuser.canPlayerConfigure(player)
+                && (index == EssenceInfuserBlockEntity.FOCUS_SLOT || com.mistaboom.essence_ascendance.pylon.EssencePylonContent.isFocus(slot.getItem()))) return ItemStack.EMPTY;
         if (!slot.hasItem()) {
             return ItemStack.EMPTY;
         }
@@ -674,6 +727,7 @@ public final class EssenceInfuserMenu extends AbstractContainerMenu {
     @Override
     public void removed(Player player) {
         super.removed(player);
+        pendingSoulbind = null;
         infuserContainer.stopOpen(player);
     }
 }

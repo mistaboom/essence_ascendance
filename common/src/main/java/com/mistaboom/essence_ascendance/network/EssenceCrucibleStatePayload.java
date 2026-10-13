@@ -16,15 +16,15 @@ public record EssenceCrucibleStatePayload(
         boolean allowed,
         boolean channeling,
         boolean dissolving,
-        String channelingPlayer,
-        long offense,
-        long defense,
-        long vitality,
-        long mobility,
-        long gathering,
-        long utility,
-        long total,
-        long reservoirCapacity,
+        int channelCount,
+        java.math.BigInteger offense,
+        java.math.BigInteger defense,
+        java.math.BigInteger vitality,
+        java.math.BigInteger mobility,
+        java.math.BigInteger gathering,
+        java.math.BigInteger utility,
+        java.math.BigInteger total,
+        java.math.BigInteger reservoirCapacity,
         long transferRatePerSecond,
         double transferRange,
         int dissolutionTicksPerItem,
@@ -34,10 +34,11 @@ public record EssenceCrucibleStatePayload(
         int maxActivePylons,
         double pylonRadius,
         int visualTransferStreams,
-        int simultaneousItemProcesses
+        int simultaneousItemProcesses,
+        int channelSelection, boolean channelingForViewer, boolean channelingPaused, boolean channelingAllowed, long selectionRevision, int consumingChannels, long allocatedBatch, long actualBatch, String channelReason, boolean configureAllowed, boolean manageAllowed, String machineAccess
 ) implements CustomPacketPayload {
 
-    public static final int CURRENT_SCHEMA_VERSION = 8;
+    public static final int CURRENT_SCHEMA_VERSION = 14;
     private static final int MAX_TEXT = 128;
 
     public static final Type<EssenceCrucibleStatePayload> TYPE =
@@ -59,15 +60,14 @@ public record EssenceCrucibleStatePayload(
         return TYPE;
     }
 
+    public java.math.BigInteger[] exactEssenceAmounts() {
+        return new java.math.BigInteger[]{offense, defense, vitality, mobility, gathering, utility};
+    }
+    public java.math.BigInteger allocatedSamplePerSecond() { return com.mistaboom.essence_ascendance.crucible.ConcurrentChannelScheduler.sampledPerSecond(allocatedBatch); }
+    public java.math.BigInteger actualSamplePerSecond() { return com.mistaboom.essence_ascendance.crucible.ConcurrentChannelScheduler.sampledPerSecond(actualBatch); }
+    /** Bounded compatibility projection for positive/empty button state; never used for money. */
     public long[] essenceAmounts() {
-        return new long[]{
-                offense,
-                defense,
-                vitality,
-                mobility,
-                gathering,
-                utility
-        };
+        return java.util.Arrays.stream(exactEssenceAmounts()).mapToLong(v -> v.min(java.math.BigInteger.valueOf(Long.MAX_VALUE)).longValueExact()).toArray();
     }
 
     private static void write(
@@ -82,15 +82,15 @@ public record EssenceCrucibleStatePayload(
         buffer.writeBoolean(payload.allowed);
         buffer.writeBoolean(payload.channeling);
         buffer.writeBoolean(payload.dissolving);
-        buffer.writeUtf(payload.channelingPlayer, MAX_TEXT);
-        buffer.writeLong(payload.offense);
-        buffer.writeLong(payload.defense);
-        buffer.writeLong(payload.vitality);
-        buffer.writeLong(payload.mobility);
-        buffer.writeLong(payload.gathering);
-        buffer.writeLong(payload.utility);
-        buffer.writeLong(payload.total);
-        buffer.writeLong(payload.reservoirCapacity);
+        buffer.writeVarInt(payload.channelCount);
+        buffer.writeUtf(payload.offense.toString(), MAX_TEXT);
+        buffer.writeUtf(payload.defense.toString(), MAX_TEXT);
+        buffer.writeUtf(payload.vitality.toString(), MAX_TEXT);
+        buffer.writeUtf(payload.mobility.toString(), MAX_TEXT);
+        buffer.writeUtf(payload.gathering.toString(), MAX_TEXT);
+        buffer.writeUtf(payload.utility.toString(), MAX_TEXT);
+        buffer.writeUtf(payload.total.toString(), MAX_TEXT);
+        buffer.writeUtf(payload.reservoirCapacity.toString(), MAX_TEXT);
         buffer.writeLong(payload.transferRatePerSecond);
         buffer.writeDouble(payload.transferRange);
         buffer.writeVarInt(payload.dissolutionTicksPerItem);
@@ -101,6 +101,12 @@ public record EssenceCrucibleStatePayload(
         buffer.writeDouble(payload.pylonRadius);
         buffer.writeVarInt(payload.visualTransferStreams);
         buffer.writeVarInt(payload.simultaneousItemProcesses);
+        buffer.writeVarInt(payload.channelSelection);
+        buffer.writeBoolean(payload.channelingForViewer);
+        buffer.writeBoolean(payload.channelingPaused);
+        buffer.writeBoolean(payload.channelingAllowed);
+        buffer.writeVarLong(payload.selectionRevision); buffer.writeVarInt(payload.consumingChannels);
+        buffer.writeVarLong(payload.allocatedBatch); buffer.writeVarLong(payload.actualBatch); buffer.writeUtf(payload.channelReason, MAX_TEXT); buffer.writeBoolean(payload.configureAllowed); buffer.writeBoolean(payload.manageAllowed); buffer.writeUtf(payload.machineAccess, MAX_TEXT);
     }
 
     private static EssenceCrucibleStatePayload read(
@@ -115,15 +121,15 @@ public record EssenceCrucibleStatePayload(
                 buffer.readBoolean(),
                 buffer.readBoolean(),
                 buffer.readBoolean(),
-                buffer.readUtf(MAX_TEXT),
-                buffer.readLong(),
-                buffer.readLong(),
-                buffer.readLong(),
-                buffer.readLong(),
-                buffer.readLong(),
-                buffer.readLong(),
-                buffer.readLong(),
-                buffer.readLong(),
+                buffer.readVarInt(),
+                new java.math.BigInteger(buffer.readUtf(MAX_TEXT)),
+                new java.math.BigInteger(buffer.readUtf(MAX_TEXT)),
+                new java.math.BigInteger(buffer.readUtf(MAX_TEXT)),
+                new java.math.BigInteger(buffer.readUtf(MAX_TEXT)),
+                new java.math.BigInteger(buffer.readUtf(MAX_TEXT)),
+                new java.math.BigInteger(buffer.readUtf(MAX_TEXT)),
+                new java.math.BigInteger(buffer.readUtf(MAX_TEXT)),
+                new java.math.BigInteger(buffer.readUtf(MAX_TEXT)),
                 buffer.readLong(),
                 buffer.readDouble(),
                 buffer.readVarInt(),
@@ -133,7 +139,8 @@ public record EssenceCrucibleStatePayload(
                 buffer.readVarInt(),
                 buffer.readDouble(),
                 buffer.readVarInt(),
-                buffer.readVarInt()
+                buffer.readVarInt(), buffer.readVarInt(), buffer.readBoolean(), buffer.readBoolean(), buffer.readBoolean(),
+                buffer.readVarLong(), buffer.readVarInt(), buffer.readVarLong(), buffer.readVarLong(), buffer.readUtf(MAX_TEXT), buffer.readBoolean(), buffer.readBoolean(), buffer.readUtf(MAX_TEXT)
         );
     }
 }

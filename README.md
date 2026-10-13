@@ -69,6 +69,8 @@ Essence Ascendance analyzes recipes and item relationships to determine Essence 
 
 **Minecraft 1.21.1 · Java 21 · Install on both client and server**
 
+**Beta.5 requires a new world when upgrading from beta.4 or earlier.** Multiplayer changes the saved player, team and machine ownership data; older EA saves have no automatic migration. Keep a complete backup and the matching older mod version to continue an existing world. Install your chosen team provider before creating the new world. See the [beta.5 release notes](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.5).
+
 - **Fabric:** Fabric Loader **0.19.3 or newer**, [Fabric API](https://modrinth.com/mod/fabric-api), and [Architectury API](https://modrinth.com/mod/architectury-api) **13.0.11 or newer** for Minecraft 1.21.1.
 - **NeoForge:** NeoForge **21.1** and [Architectury API](https://modrinth.com/mod/architectury-api) **13.0.11 or newer** for Minecraft 1.21.1.
 - Download the Essence Ascendance jar for your loader and place it, with its required dependencies, in your instance's `mods` folder. Choose dependency versions for the same loader and Minecraft version.

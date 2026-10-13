@@ -107,26 +107,18 @@ final class EssenceInfuserFabricItemStorage implements SlottedStorage<ItemVarian
 
         @Override
         protected boolean canInsert(ItemVariant variant) {
-            if (!ServerMenuAccess.isLoaded(infuser)) {
-                return false;
-            }
-            if (machineSlot == EssenceInfuserBlockEntity.INPUT_SLOT) {
-                return EssenceInfuserBlockEntity.allowsAutomationInput(variant.toStack(1));
-            }
-            return machineSlot == EssenceInfuserBlockEntity.COMPONENT_SLOT
-                    && !infuser.repairMode()
-                    && infuser.canPlaceItem(machineSlot, variant.toStack(1));
+            return infuser.canPlaceItemThroughFace(machineSlot, variant.toStack(1), null);
         }
 
         @Override
         protected boolean canExtract(ItemVariant variant) {
-            return ServerMenuAccess.isLoaded(infuser)
-                    && machineSlot == EssenceInfuserBlockEntity.OUTPUT_SLOT;
+            return infuser.canTakeItemThroughFace(machineSlot, variant.toStack(1), null);
         }
 
         @Override
         protected int getCapacity(ItemVariant variant) {
             int capacity = super.getCapacity(variant);
+            if (!variant.isBlank()) capacity = Math.min(capacity, infuser.getMaxStackSize(variant.toStack(1)));
             return machineSlot == EssenceInfuserBlockEntity.INPUT_SLOT && !variant.isBlank()
                     ? Math.min(capacity, EssenceInfuserBlockEntity.workpieceStackLimit(variant.toStack(1)))
                     : capacity;
@@ -137,7 +129,8 @@ final class EssenceInfuserFabricItemStorage implements SlottedStorage<ItemVarian
             ItemStack before = getStack().copy();
             long inserted = super.insert(resource, maxAmount, transaction);
             if (inserted > 0L) {
-                effects.record(transaction, !ItemStack.isSameItemSameComponents(before, getStack()));
+                boolean changed = !ItemStack.isSameItemSameComponents(before, getStack());
+                effects.record(transaction, changed, changed && machineSlot == EssenceInfuserBlockEntity.INPUT_SLOT);
             }
             return inserted;
         }
@@ -147,7 +140,7 @@ final class EssenceInfuserFabricItemStorage implements SlottedStorage<ItemVarian
             long extracted = super.extract(resource, maxAmount, transaction);
             if (extracted > 0L) {
                 // Only the output is extractable; taking output does not reset work.
-                effects.record(transaction, false);
+                effects.record(transaction, false, false);
             }
             return extracted;
         }
@@ -156,29 +149,29 @@ final class EssenceInfuserFabricItemStorage implements SlottedStorage<ItemVarian
     }
 
     /** Pending effects are themselves transactional, including nested aborts. */
-    private final class TransferEffects extends SnapshotParticipant<Boolean> {
-        private boolean contextChanged;
+    private final class TransferEffects extends SnapshotParticipant<Integer> {
+        private int changes;
 
-        void record(TransactionContext transaction, boolean changed) {
+        void record(TransactionContext transaction, boolean contextChanged, boolean inputChanged) {
             updateSnapshots(transaction);
-            contextChanged |= changed;
+            changes |= (contextChanged ? 1 : 0) | (inputChanged ? 2 : 0);
         }
 
         @Override
-        protected Boolean createSnapshot() {
-            return contextChanged;
+        protected Integer createSnapshot() {
+            return changes;
         }
 
         @Override
-        protected void readSnapshot(Boolean snapshot) {
-            contextChanged = snapshot;
+        protected void readSnapshot(Integer snapshot) {
+            changes = snapshot;
         }
 
         @Override
         protected void onFinalCommit() {
-            boolean changed = contextChanged;
-            contextChanged = false;
-            infuser.finishItemTransfer(changed);
+            int committed = changes;
+            changes = 0;
+            infuser.finishItemTransfer((committed & 1) != 0, (committed & 2) != 0);
         }
     }
 

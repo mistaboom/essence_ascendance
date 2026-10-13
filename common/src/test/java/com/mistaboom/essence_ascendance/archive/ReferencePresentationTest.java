@@ -91,6 +91,7 @@ public final class ReferencePresentationTest {
             isolatedChangedValueFixture(runtime);
             remainingReferenceParity(runtime);
             playerReferenceContracts(runtime);
+            sharedEssenceDocumentation(runtime);
         } finally {
             EssenceConfigManager.clearClient();
         }
@@ -110,7 +111,7 @@ public final class ReferencePresentationTest {
         check(catalog.entries(ArchiveMode.REFERENCE, ArchiveSection.REFERENCE_EQUIPMENT.id()).size()
                         == EquipmentProfileRegistry.size() + 2,
                 "Equipment Reference does not cover every profile plus infusion/lifecycle");
-        check(catalog.entries(ArchiveMode.REFERENCE, ArchiveSection.REFERENCE_MECHANICS.id()).size() == 6,
+        check(catalog.entries(ArchiveMode.REFERENCE, ArchiveSection.REFERENCE_MECHANICS.id()).size() == 7,
                 "Mechanics Reference is missing a cross-cutting semantic provider");
 
         for (var essence : EssenceRegistry.values()) {
@@ -336,7 +337,8 @@ public final class ReferencePresentationTest {
                         && flatten(heading.text()).equals("Ascension Costs"), "Infusion cost table lacks its heading");
 
         var focus = ReferenceDocuments.focus(context);
-        var upgrades = (SemanticDocument.Table<?>) focus.blocks().getLast();
+        var upgrades = focus.blocks().stream().filter(SemanticDocument.Table.class::isInstance)
+                .map(block -> (SemanticDocument.Table<?>) block).toList().getLast();
         for (int width : List.of(300, 340, 480, 800)) {
             var widths = upgrades.data().measure(width, 1, value -> flatten(value).length() * 6);
             for (int column = 0; column < 2; column++) for (int row = 0; row < upgrades.data().rows().size(); row++)
@@ -362,6 +364,75 @@ public final class ReferencePresentationTest {
                                 && requirement.label().getStyle().getColor().getValue() == expected,
                         "Lifecycle keyword lost its canonical tooltip color: " + keyword);
             }
+    }
+
+    private static void sharedEssenceDocumentation(RuntimeBalanceDefinition runtime) {
+        var catalog = ArchiveCatalog.DEFAULT;
+        var entry = catalog.entry(id("reference/mechanics/teams"));
+        check(entry != null && entry.mode() == ArchiveMode.REFERENCE
+                        && entry.section().equals(ArchiveSection.REFERENCE_MECHANICS.id()),
+                "Shared essence needs one canonical Mechanics entry, not a new Guide chapter");
+        requireLocalized(entry.title()); requireLocalized(entry.summary()); requireLocalized(entry.navigationSummary());
+        var document = ReferenceDocuments.teams();
+        requireLocalized(document);
+        String text = flattenAll(document);
+        // Documentation regressions for independently inspected production contracts, not gameplay proof.
+        for (String phrase : List.of("Solo play works", "no second treasury", "all existing Stored Essence",
+                "Available Essence", "before departure", "Fractions are conserved", "Logging out does not leave",
+                "900", "300", "1,200", "200", "1,000", "500", "only one active Crucible source",
+                "out-of-range Start preserves", "adds no share or budget", "unrelated Infusers",
+                "120 Essence/second", "40", "not a default", "one unique link", "current member count",
+                "does not multiply", "without forced loading", "Locked", "Disconnected", "no adoption step",
+                "final owner/member", "FTB Teams", "OpenPAC", "does not silently change",
+                "without a second Essence Ascendance enrollment", "both players solo", "Only the native owner",
+                "All and None", "reconnects, and restarts", "stopped or lost connection", "Item Yields",
+                "Every new equipment workpiece", "Soulbind & Start", "single-use", "does not disarm",
+                "bounded repair components", "no player identity", "owner-only extraction protection",
+                "fresh ownership", "Exact Archive amounts retain fractions")) {
+            check(text.toLowerCase(Locale.ROOT).contains(phrase.toLowerCase(Locale.ROOT)),
+                    "Shared essence article lost source-backed rule: " + phrase);
+        }
+        check(document.blocks().stream().filter(SemanticDocument.Callout.class::isInstance).count() == 2,
+                "Accounting and rate examples must remain explicitly hypothetical");
+        for (String path : List.of("guide/essence/collecting", "guide/machines/first_network", "guide/infusion/first_focus",
+                "reference/machines/crucible", "reference/machines/pylon", "reference/machines/infuser",
+                "reference/machines/focus", "reference/equipment/infusion", "reference/equipment/lifecycle",
+                "reference/mechanics/allocation_storage", "reference/mechanics/overcap")) {
+            var article = catalog.entry(id(path)).content().get();
+            check(article.blocks().stream().filter(SemanticDocument.Links.class::isInstance)
+                            .map(SemanticDocument.Links.class::cast).flatMap(links -> links.links().stream())
+                            .anyMatch(link -> link.target().equals(entry.id().toString())),
+                    "Existing article lacks canonical shared-essence navigation: " + path);
+        }
+        for (var article : catalog.entries()) {
+            var body = article.content().get();
+            for (var block : body.blocks()) if (block instanceof SemanticDocument.Links links)
+                for (var link : links.links()) check(catalog.entry(ResourceLocation.parse(link.target())) != null,
+                        "Missing related target " + link.target());
+        }
+        for (var translation : language.entrySet()) if (translation.getKey().contains(".archive.")) {
+            String value = translation.getValue().getAsString().toLowerCase(Locale.ROOT);
+            for (String obsolete : List.of("private reservoir", "same-owner crucible", "only machines owned by the same player",
+                    "separate capacity for every", "separate capacity for each essence", "baseline reservoir per essence",
+                    "automated input is not supported for upgrades", "first essence invested", "explicit recipient for automated insertion"))
+                check(!value.contains(obsolete), "Obsolete universal claim survives in " + translation.getKey());
+        }
+        var waiting = new PresentationContext(new PresentationContext.Runtime(PresentationContext.Availability.LOADING, null),
+                PresentationContext.Player.loading(), new PresentationContext.Revision(0, -1, false, 2, 1));
+        check(ReferenceDocuments.crucible(waiting).blocks().stream().noneMatch(SemanticDocument.StatRows.class::isInstance),
+                "Loading Archive fabricated base or member-scaled capacity");
+        check(ReferenceDocuments.focus(waiting).blocks().stream().noneMatch(SemanticDocument.Table.class::isInstance),
+                "Loading Archive fabricated Focus rates");
+        var ready = ReferenceDocuments.crucible(PresentationContext.catalog(runtime));
+        check(flattenAll(ready).contains("Base total fill limit per member")
+                        && flattenAll(ready).contains("All stored categories count together"),
+                "Crucible base capacity needs explicit aggregate/member scope");
+        var installed = EssenceConfigManager.clientRuntime();
+        EssenceConfigManager.clearClient();
+        try {
+            check(flattenAll(entry.content().get()).equals(text),
+                    "General team rules incorrectly depend on runtime or menu-scoped membership readiness");
+        } finally { EssenceConfigManager.installClient(installed); }
     }
 
     private static <R> String cell(SemanticDocument.Table<R> table, String column, int row) {

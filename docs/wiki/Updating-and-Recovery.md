@@ -20,6 +20,22 @@ Relevant Overworld files are `<world>/data/essence_ascendance_players.dat` and `
 
 Use a stopped server or your backup system's consistent snapshot procedure. Copying changing world files independently can produce an inconsistent backup.
 
+## Multiplayer persistence and upgrades
+
+**Beta.5 persistence:** shared Stored shares, reservoir fractional carry/remainder cursors, settled roster/departure/dissolution/ownership receipts, native names/requests, saved authority/solo identities and player receiving selections live in **`<world>/data/essence_ascendance_players.dat`**. This is one authoritative SavedData file, not a separate team-bank file. The fractional-accounts file above continues to hold other non-reservoir accounting. Machine bindings, links, inventory and paid-job state also live in chunk/block-entity data; portable jobs and inventory must remain coordinated with their world/player state. External providers persist their own party/configuration state, which belongs in the same complete backup.
+
+Use a stopped server or a consistent complete snapshot including world chunks, inventories, both EA SavedData files, provider state, configuration and matching builds. Restoring only a pool record or machine chunk can mix financial and custody revisions. Runtime transaction rollback has inherited fixture coverage, but **cross-file player/chunk crash atomicity has no journal and is unproven**. No process restart or live two-client backup/restore pass is claimed.
+
+**Start a new world when upgrading from beta.4 or earlier to beta.5.** Beta.5 expects EA player **schema 10**, while beta.4 uses **schema 6**. The new multiplayer accounting, membership and ownership format is incompatible with older EA saves; the loader rejects them and no migration is provided. Keep the previous complete world/build set to continue older progress. Do not edit the version field, selectively delete player data or regenerate balance to force compatibility.
+
+Personal machinery normally follows create/join, ordinary departures and confirmed final dissolution automatically, including unloaded history. Native ownership-transfer/final-member restrictions and external lifecycle consequences are in [Teams and shared infrastructure](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure#machine-ownership-and-permissions). Narrow machine recovery is for actually unbound/confirmed dissolved bindings, not normally bound infrastructure or an automatic old-provider remap after authority activation.
+
+Changing providers is a separately reviewed operation that can share existing Stored and leave existing machine bindings from the old authority unresolved. Follow the [authority change procedure](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure#deliberately-changing-authority), including its backup, two-observation settlement and one-use token. Routine provider roster changes do not require it. Run matching beta.5 builds on all endpoints; mixed versions are unsupported.
+
+Already-paid work is not Stored and is not a departure refund. Pickup or own-item recovery preserves supported workpiece/provenance/timers through existing custody paths. Breaking a machine follows vanilla/external protection rules and fresh placement establishes new binding/link/provenance; equipment soulbinding remains intact. Do not use theft placement as an administrator access/recovery recommendation.
+
+Current persistence evidence: `data/EssenceSavedData.java`, `data/PlayerEssenceData.java`, `data/ReservoirService.java`, `machine/MachineBinding.java`, `machine/MachineLink.java`, `machine/MachineProtection.java`, `infuser/InfusionJobProgress.java`, under `common/src/main/java/com/mistaboom/essence_ascendance/`.
+
 ## Before changing a live pack
 
 1. Record installed profile identity and validate disk/active agreement.

@@ -12,6 +12,28 @@ import java.util.*;
 
 /** Opt-in definition-only real-file replay. Registry is vanilla: this is not native pack acceptance. */
 public final class QuestDefinitionReplay {
+    /** Actual installed Library/Quests early-definition path. Isolated loader fixture only; no world or completion state. */
+    public static void installedFixture() throws Exception {
+        String quests = dev.architectury.platform.Platform.getMod("ftbquests").getVersion();
+        String library = dev.architectury.platform.Platform.getMod("ftblibrary").getVersion();
+        String teams = dev.architectury.platform.Platform.getMod("ftbteams").getVersion();
+        String architectury = dev.architectury.platform.Platform.getMod("architectury").getVersion();
+        if (!FtbQuestProvider.supported(quests, library, teams, architectury)) throw new AssertionError("Installed FTB quest tuple rejected");
+        Path source = Path.of("quest-definition-fixture"); Files.createDirectories(source.resolve("chapters"));
+        Files.writeString(source.resolve("data.snbt"), "{version:13}");
+        Files.writeString(source.resolve("chapters/example.snbt"), "{id:'1',quests:[{id:'2',tasks:[{id:'3',type:'checkmark'}],rewards:[{id:'4',type:'item',item:'minecraft:diamond',count:2}]}]}");
+        if (!FtbQuestReader.readiness(null, source, quests).collectable()) throw new AssertionError("Installed early quest definitions unavailable");
+        QuestEvidence evidence = FtbQuestReader.capture(null, source, quests);
+        if (evidence.quests().size() != 1 || evidence.quests().getFirst().tasks().size() != 1
+                || evidence.quests().getFirst().rewards().getFirst().count() != 2
+                || !"minecraft:diamond".equals(evidence.quests().getFirst().rewards().getFirst().item()))
+            throw new AssertionError("Installed Library SNBT / quest normalization changed the definition");
+        Files.writeString(source.resolve("data.snbt"), "{ broken !!!");
+        try { FtbQuestReader.capture(null, source, quests); throw new AssertionError("Malformed installed source accepted"); }
+        catch (IllegalStateException expected) { /* Missing or malformed definitions must not become an empty book. */ }
+        System.out.println("FTB shared installed tuple: Teams=" + teams + " Library=" + library + " Quests=" + quests
+                + " Architectury=" + architectury + "; early definition capture/malformed rejection PASS (no world/completion state)");
+    }
     public static void main(String[] args) throws Exception {
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap();
         Path source = Path.of(args[0]), output = Path.of(args[1]); Files.createDirectories(output);

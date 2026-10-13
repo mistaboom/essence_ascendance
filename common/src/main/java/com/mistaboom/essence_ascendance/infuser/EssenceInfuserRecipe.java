@@ -19,6 +19,8 @@ public interface EssenceInfuserRecipe {
     EssenceInfuserWorkpieceMode workpieceMode();
 
     EssenceInfuserProgressModel progressModel();
+    /** Ownership applies only to personal equipment recipes. */
+    default boolean requiresEquipmentRecipient() { return false; }
 
     default int inputCount() {
         return 1;

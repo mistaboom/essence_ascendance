@@ -23,10 +23,12 @@ import java.util.NoSuchElementException;
 final class EssenceCrucibleFabricItemStorage implements SlottedStorage<ItemVariant> {
 
     private final EssenceCrucibleBlockEntity crucible;
+    private final net.minecraft.core.Direction side;
     private final List<SingleStackStorage> slots;
 
-    EssenceCrucibleFabricItemStorage(EssenceCrucibleBlockEntity crucible) {
+    EssenceCrucibleFabricItemStorage(EssenceCrucibleBlockEntity crucible, net.minecraft.core.Direction side) {
         this.crucible = crucible;
+        this.side = side;
         this.slots = new ArrayList<>(EssenceCrucibleBlockEntity.MAX_INPUT_SLOTS);
         for (int slot = 0; slot < EssenceCrucibleBlockEntity.MAX_INPUT_SLOTS; slot++) {
             slots.add(new CrucibleSlotStorage(slot));
@@ -125,9 +127,7 @@ final class EssenceCrucibleFabricItemStorage implements SlottedStorage<ItemVaria
 
         @Override
         protected boolean canInsert(ItemVariant variant) {
-            return ServerMenuAccess.isLoaded(crucible)
-                    && crucible.isInputSlotActive(slot)
-                    && crucible.canPlaceItem(slot, variant.toStack(1));
+            return crucible.canPlaceItemThroughFace(slot, variant.toStack(1), side);
         }
 
         @Override

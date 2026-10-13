@@ -11,11 +11,30 @@
 | `config/essence_ascendance/generated_balance.json.gz` | **No** | Validated saved server authority |
 | `config/essence_ascendance/reports/` and `diagnostics/` | **No, as inputs** | Inspect decisions; edits do not tune gameplay |
 
-**Every setting below is in `config/essence_ascendance.toml` and takes effect on generation or explicit `/essence admin balance rebuild`.** Restart, mappings reload of an existing profile and datapack reload do not apply edited policy to saved balance.
+**Every balance-policy setting below is in `config/essence_ascendance.toml` and takes effect on generation or explicit `/essence admin balance rebuild`.** Restart, mappings reload of an existing profile and datapack reload do not apply edited policy to saved balance. The separately documented membership JVM property follows its own server/world lifecycle.
 
 Defaults below are **input defaults**, not fixed gameplay values. Omitted keys use defaults. Numeric ranges are inclusive and require finite numbers. “Number” accepts a decimal or integer; “integer” requires a whole integer token. Ratios, shares and exponents are dimensionless unless stated.
 
 Each input is limited to 4,000,000 bytes. Unknown keys/tables, wrong types and invalid combinations reject generation with file/line information. Supported TOML uses named tables, decimal numbers, booleans, quoted strings and the documented arrays; inline tables, dates, hex numbers, multiline strings and dotted bare keys are unsupported.
+
+## Membership authority: server JVM property
+
+**Added in beta.5.** This is a JVM system property, not a balance TOML section/key. No separate teams configuration file or policy switch is registered.
+
+| Property / location | Type / default | Valid values / units | Effect and timing |
+| --- | --- | --- | --- |
+| `essence.membershipAuthority`, server JVM arguments | String / `auto` | `auto`, `native`, `ftb_teams`, `openpac`; case-insensitive enum; no units | Read when the Overworld membership session starts. AUTO initially prefers supported FTB, supported OpenPAC, then eligible native; afterward it retains saved world authority. A different explicit selection pauses access pending reviewed activation. Restart to apply an edited launch argument; datapack/profile reload does not change authority. |
+
+Place the option with the server's JVM arguments **before** its jar/main-class launch target. Valid launch-option examples:
+
+```text
+-Dessence.membershipAuthority=auto
+-Dessence.membershipAuthority=ftb_teams
+```
+
+Use one selection. Invalid strings block selection with a diagnostic; they do not fall back silently. Missing/unsupported/unready external membership is not permission to treat everyone as solo. Accepted provider dependencies, preparation/activation/cancellation and ordinary roster settlement are canonical in [Teams and shared infrastructure](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure#selection-and-established-worlds). This setting changes membership selection, not balance generation or saved personal receiving preferences.
+
+Current source: `team/MembershipRuntime.java` and `team/MembershipAuthority.java` under `common/src/main/java/com/mistaboom/essence_ascendance/`. The historical balance-policy links at this page's end do not establish multiplayer release coverage.
 
 ## Root
 
@@ -192,4 +211,4 @@ enabled = false # Explicitly omit Latent Ore from this dimension.
 
 Review [worked scenarios](https://github.com/mistaboom/essence_ascendance/wiki/Worked-Scenarios) and back up before rebuilding.
 
-Source: [bundled policy](https://github.com/mistaboom/essence_ascendance/blob/59e27446afbb6c9e73be38d0d407915fe15354fa/common/src/main/resources/balance/essence_ascendance.toml), [key/default/range validation](https://github.com/mistaboom/essence_ascendance/blob/59e27446afbb6c9e73be38d0d407915fe15354fa/common/src/main/java/com/mistaboom/essence_ascendance/balance/config/BalanceSettings.java), [Attunement policy](https://github.com/mistaboom/essence_ascendance/blob/59e27446afbb6c9e73be38d0d407915fe15354fa/common/src/main/java/com/mistaboom/essence_ascendance/balance/config/AttunementPolicy.java), [ore parser](https://github.com/mistaboom/essence_ascendance/blob/59e27446afbb6c9e73be38d0d407915fe15354fa/common/src/main/java/com/mistaboom/essence_ascendance/balance/config/LatentOreSettingsParser.java).
+Published beta.4 balance input references (independently compared with these unchanged current files): [bundled policy](https://github.com/mistaboom/essence_ascendance/blob/4caee9ad53c9ad2faec0eec14ec525262277512c/common/src/main/resources/balance/essence_ascendance.toml), [key/default/range validation](https://github.com/mistaboom/essence_ascendance/blob/4caee9ad53c9ad2faec0eec14ec525262277512c/common/src/main/java/com/mistaboom/essence_ascendance/balance/config/BalanceSettings.java), [Attunement policy](https://github.com/mistaboom/essence_ascendance/blob/4caee9ad53c9ad2faec0eec14ec525262277512c/common/src/main/java/com/mistaboom/essence_ascendance/balance/config/AttunementPolicy.java), [ore parser](https://github.com/mistaboom/essence_ascendance/blob/4caee9ad53c9ad2faec0eec14ec525262277512c/common/src/main/java/com/mistaboom/essence_ascendance/balance/config/LatentOreSettingsParser.java).

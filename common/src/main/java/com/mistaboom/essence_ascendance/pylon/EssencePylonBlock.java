@@ -170,7 +170,7 @@ public final class EssencePylonBlock extends Block implements EntityBlock {
         if (!level.isClientSide
                 && placer instanceof Player player
                 && level.getBlockEntity(pos) instanceof EssencePylonBlockEntity pylon) {
-            pylon.bindOwner(player);
+            pylon.bindOnPlacement(player);
             pylon.refreshLink();
         }
     }
@@ -191,7 +191,11 @@ public final class EssencePylonBlock extends Block implements EntityBlock {
             return InteractionResult.PASS;
         }
 
-        if (!pylon.bindOwner(player) || !pylon.canPlayerUse(player)) {
+        if (!pylon.canPlayerUse(player)) {
+            if (player instanceof ServerPlayer serverPlayer) {
+                com.mistaboom.essence_ascendance.network.TeamInterfaceNetworkService.openRestricted(serverPlayer, pylon);
+                return InteractionResult.CONSUME;
+            }
             player.displayClientMessage(
                     Component.translatable("message.essence_ascendance.pylon_private"),
                     true
@@ -219,14 +223,12 @@ public final class EssencePylonBlock extends Block implements EntityBlock {
         if (!state.is(newState.getBlock())
                 && level.getBlockEntity(pos) instanceof EssencePylonBlockEntity pylon) {
             pylon.invalidateLinkedCrucible();
-            if (!level.isClientSide && !pylon.isEmpty()) {
-                ItemStack focus = pylon.removeItemNoUpdate(0);
-                if (!focus.isEmpty()) {
-                    popResource(level, pos, focus);
-                }
-            }
+            if (!level.isClientSide) popResource(level, pos,
+                    com.mistaboom.essence_ascendance.machine.MachineProtection.takePickup(pylon));
         }
 
         super.onRemove(state, level, pos, newState, movedByPiston);
     }
+    @Override protected java.util.List<ItemStack> getDrops(BlockState state,
+            net.minecraft.world.level.storage.loot.LootParams.Builder params) { return java.util.List.of(); }
 }

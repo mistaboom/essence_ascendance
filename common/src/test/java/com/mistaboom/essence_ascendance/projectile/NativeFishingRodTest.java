@@ -243,10 +243,22 @@ public final class NativeFishingRodTest {
             f.level.memoryBlocks.clear();
         } finally {BuiltInRegistries.FLUID.bindTags(oldTags);}
     }
-    private static void infusionTransactions(ProjectileNativeInterceptionTest.Fixture f) throws Exception {
+    static void infusionTransactions(ProjectileNativeInterceptionTest.Fixture f) throws Exception {
+        int beforeChecks = checks;
         var type=com.mistaboom.essence_ascendance.infuser.EssenceInfuserBlockEntity.class;
-        var machine=new com.mistaboom.essence_ascendance.infuser.EssenceInfuserBlockEntity(new BlockPos(8,0,0),com.mistaboom.essence_ascendance.infuser.EssenceInfuserContent.ESSENCE_INFUSER.get().defaultBlockState());
-        machine.setLevel(f.level); machine.bindOwner(f.player);
+        var machine=new com.mistaboom.essence_ascendance.infuser.EssenceInfuserBlockEntity(new BlockPos(6,0,0),com.mistaboom.essence_ascendance.infuser.EssenceInfuserContent.ESSENCE_INFUSER.get().defaultBlockState());
+        machine.setLevel(f.level);
+        f.level.memoryMachines = new HashMap<>(); f.level.memoryMachines.put(machine.getBlockPos(), machine);
+        machine.bindOnPlacement(f.player);
+        var source = new com.mistaboom.essence_ascendance.crucible.EssenceCrucibleBlockEntity(new BlockPos(5,0,0), com.mistaboom.essence_ascendance.crucible.EssenceCrucibleContent.ESSENCE_CRUCIBLE.get().defaultBlockState());
+        source.setLevel(f.level); f.level.memoryMachines.put(source.getBlockPos(), source); source.bindOnPlacement(f.player);
+        machine.setLink(f.player, com.mistaboom.essence_ascendance.machine.MachineLink.Mode.LOCKED,
+                new com.mistaboom.essence_ascendance.machine.MachineLink.Source(f.level.dimension().location(), source.getBlockPos()));
+        machine.machineBinding().start(f.saved, f.player.getUUID(), f.player.getUUID());
+        var installedFocus = new ItemStack(com.mistaboom.essence_ascendance.pylon.EssencePylonContent.ESSENCE_FOCUS.get());
+        com.mistaboom.essence_ascendance.pylon.EssenceFocusData.setTier(installedFocus, com.mistaboom.essence_ascendance.pylon.EssenceFocusTier.values()[com.mistaboom.essence_ascendance.pylon.EssenceFocusTier.values().length-1]);
+        machine.setItem(type.getField("FOCUS_SLOT").getInt(null), installedFocus);
+        var grantField = type.getDeclaredField("grantRemaining"); grantField.setAccessible(true);
         var transfer=type.getDeclaredMethod("transferEquipmentEssence",net.minecraft.server.level.ServerLevel.class,EquipmentInfusionRecipe.class,long.class); transfer.setAccessible(true);
         var complete=type.getDeclaredMethod("completeEquipmentInfusion",EquipmentInfusionRecipe.class); complete.setAccessible(true);
         var work=new ItemStack(AscendanceItems.ASCENDANCE_FISHING_ROD.get()); EquipmentFishingRodService.refreshNativeDurability(work);
@@ -254,10 +266,13 @@ public final class NativeFishingRodTest {
             check(EquipmentTierData.tier(work)==tier && work.getMaxDamage()==EssenceConfigManager.get().fishingRodBalance().tier(tier).durability(),"Evolving rod reaches actual generated tier "+tier);
             var recipe=EquipmentInfusionRecipe.forWorkpiece(work).orElse(null); if(recipe==null)break;
             machine.setItem(type.getField("INPUT_SLOT").getInt(null),work);
+            machine.setProcessingEnabled(f.player, true);
             machine.setItem(type.getField("OUTPUT_SLOT").getInt(null),ItemStack.EMPTY);
             machine.setItem(type.getField("COMPONENT_SLOT").getInt(null),new ItemStack(com.mistaboom.essence_ascendance.infuser.EssenceInfuserContent.ASCENDANCE_MATRIX.get(),recipe.matrixCount()+1));
             for(var entry:recipe.requirements().entrySet()) f.saved.addCrucibleStored(f.player.getUUID(),com.mistaboom.essence_ascendance.essence.EssenceRegistry.get(entry.getKey()).orElseThrow(),entry.getValue());
+            grantField.setLong(machine, recipe.totalRequired());
             long first=(long)transfer.invoke(machine,f.level,recipe,recipe.totalRequired()-1);
+            work=machine.getItem(type.getField("INPUT_SLOT").getInt(null));
             check(first==recipe.totalRequired()-1 && SoulboundEquipmentData.isSoulbound(work),"Real streamed transfer reserves exact Essence and binds owner");
             complete.invoke(machine,recipe);
             check(EquipmentTierData.tier(work)==tier && machine.getItem(type.getField("COMPONENT_SLOT").getInt(null)).getCount()==recipe.matrixCount()+1,"Incomplete infusion changes neither tier nor matrices");
@@ -267,6 +282,39 @@ public final class NativeFishingRodTest {
             check(machine.getItem(type.getField("COMPONENT_SLOT").getInt(null)).getCount()==1 && SoulboundEquipmentData.read(work).orElseThrow().ownerId().equals(f.player.getUUID()),"Matrices consumed once; original Soulbound identity retained");
             for(var id:recipe.requirements().keySet())check(f.saved.getPlayerData(f.player.getUUID()).getCrucibleStored(com.mistaboom.essence_ascendance.essence.EssenceRegistry.get(id).orElseThrow())==0,"Exact category balance settled");
         }
+        // Exercise the production Infuser participant, including failure after a partial inventory/job mutation.
+        var pay=type.getDeclaredMethod("payWithInventory",com.mistaboom.essence_ascendance.data.EssenceSavedData.class,Map.class,Runnable.class);
+        pay.setAccessible(true);
+        Map<net.minecraft.resources.ResourceLocation,Long> costs=new LinkedHashMap<>();
+        for(var essence:com.mistaboom.essence_ascendance.essence.EssenceTypes.ORDERED) {
+            f.saved.addCrucibleStored(f.player.getUUID(),essence,3);
+            costs.put(essence.id(),3L);
+        }
+        var itemsField=type.getDeclaredField("items");itemsField.setAccessible(true);
+        machine.setItem(type.getField("INPUT_SLOT").getInt(null), new ItemStack(com.mistaboom.essence_ascendance.pylon.EssencePylonContent.ESSENCE_FOCUS.get()));
+        machine.setProcessingEnabled(f.player, true);
+        @SuppressWarnings("unchecked") var inventory=(List<ItemStack>)itemsField.get(machine);
+        var beforeInventory=inventory.stream().map(ItemStack::copy).toList();
+        var beforeMoney=f.saved.save(new net.minecraft.nbt.CompoundTag(),null);
+        var ticksField=type.getDeclaredField("processingTicks");ticksField.setAccessible(true);ticksField.setInt(machine,17);
+        Runnable fail=() -> {
+            inventory.set(0,new ItemStack(Items.DIRT,2));
+            try { ticksField.setInt(machine,999); } catch(ReflectiveOperationException failure) { throw new RuntimeException(failure); }
+            throw new IllegalStateException("Intentional stage-2 Infuser rollback fixture");
+        };
+        grantField.setLong(machine, 100L);
+        check(!(boolean)pay.invoke(machine,f.saved,costs,fail),"Production Infuser rejects failed inventory mutation");
+        for(int i=0;i<inventory.size();i++)check(ItemStack.matches(inventory.get(i),beforeInventory.get(i)),"Production rollback restores exact native stack/components");
+        check(ticksField.getInt(machine)==17 && f.saved.save(new net.minecraft.nbt.CompoundTag(),null).equals(beforeMoney),"Production rollback preserves timer and all six monetary records/revisions");
+        costs.put(com.mistaboom.essence_ascendance.essence.EssenceTypes.ORDERED.getLast().id(),4L);
+        check(!(boolean)pay.invoke(machine,f.saved,costs,(Runnable)() -> { throw new AssertionError("Unfunded operation touched inventory"); }),"Production six-type validation precedes inventory");
+        f.saved.reservoirs().pause(new com.mistaboom.essence_ascendance.balance.engine.ProviderReadiness(
+                com.mistaboom.essence_ascendance.balance.engine.ProviderReadiness.Status.NOT_READY,"fixture","Roster temporarily unavailable"));
+        com.mistaboom.essence_ascendance.infuser.EssenceInfuserBlockEntity.serverTick(f.level,machine.getBlockPos(),machine.getBlockState(),machine);
+        check(ticksField.getInt(machine)==17 && f.saved.save(new net.minecraft.nbt.CompoundTag(),null).equals(beforeMoney),
+                "Unavailable authoritative roster pauses native machine without timer or monetary mutation");
+        com.mistaboom.essence_ascendance.team.MembershipPublication.publish(f.saved, com.mistaboom.essence_ascendance.team.NativeMembershipService.READY,
+                f.saved.reservoirs().settledTeams().stream().map(com.mistaboom.essence_ascendance.team.MembershipRoster::from).toList());
         var provider=net.minecraft.core.RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY);
         var loaded=ItemStack.parse(provider,work.save(provider)).orElseThrow();
         check(EquipmentTierData.tier(loaded)==EquipmentTier.TRANSCENDENT && SoulboundEquipmentData.read(loaded).equals(SoulboundEquipmentData.read(work)),"Native ItemStack save/load preserves completed rod and ownership");
@@ -275,6 +323,7 @@ public final class NativeFishingRodTest {
         check(repair.essenceRequired()==(long)work.getMaxDamage()*EssenceConfigManager.get().infuserBalance().repair().essencePerDurability(),"Fractured repair uses actual generated durability/cost");
         var repaired=repair.createOutput(new com.mistaboom.essence_ascendance.infuser.EssenceInfuserRecipeContext(work,com.mistaboom.essence_ascendance.essence.EssenceTypes.GATHERING,null,null,com.mistaboom.essence_ascendance.infuser.EssenceInfuserBalance.profile((com.mistaboom.essence_ascendance.pylon.EssenceFocusTier)null)));
         check(EquipmentFishingRodService.functional(repaired) && repaired.getDamageValue()==0 && SoulboundEquipmentData.read(repaired).equals(SoulboundEquipmentData.read(work)),"Repair restores full rod while preserving tier and ownership");
+        System.out.println("Native Infuser streamed-payment/rollback fixture: " + (checks - beforeChecks) + " assertions passed");
     }
     private static void check(boolean ok,String reason){checks++;if(!ok)throw new AssertionError(reason);}
 }

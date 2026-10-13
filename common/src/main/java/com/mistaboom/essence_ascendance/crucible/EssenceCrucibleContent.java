@@ -36,6 +36,7 @@ public final class EssenceCrucibleContent {
                             BlockBehaviour.Properties.of()
                                     .requiresCorrectToolForDrops()
                                     .strength(3.5F)
+                                    .pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK)
                                     .pushReaction(PushReaction.BLOCK)
                     )
             );
@@ -66,6 +67,12 @@ public final class EssenceCrucibleContent {
                             FeatureFlags.DEFAULT_FLAGS
                     )
             );
+
+    public static final RegistrySupplier<MenuType<com.mistaboom.essence_ascendance.team.TeamMenu>> TEAM_MENU =
+            MENUS.register("team_interface", () -> new MenuType<>(com.mistaboom.essence_ascendance.team.TeamMenu::new, FeatureFlags.DEFAULT_FLAGS));
+    public static final RegistrySupplier<MenuType<com.mistaboom.essence_ascendance.team.TeamMenu>> MACHINE_ACCESS_MENU =
+            MENUS.register("machine_access", () -> new MenuType<>((id, inventory) -> new com.mistaboom.essence_ascendance.team.TeamMenu(
+                    id, inventory, null, com.mistaboom.essence_ascendance.team.TeamMenu.Kind.ACCESS), FeatureFlags.DEFAULT_FLAGS));
 
     private static boolean initialized = false;
 

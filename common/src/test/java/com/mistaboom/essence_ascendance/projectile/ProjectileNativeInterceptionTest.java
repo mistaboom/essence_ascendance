@@ -150,6 +150,14 @@ public final class ProjectileNativeInterceptionTest {
             set(MinecraftServer.class, server, "serverThread", Thread.currentThread());
             set(MinecraftServer.class, server, "pvp", true);
             level = instance(MemoryLevel.class);
+            try {
+                // NeoForge 21.1.248's real removal path invalidates native capability listeners.
+                // Initialize its ordinary holder at this memory-storage boundary, rather than bypass removal.
+                var field = ServerLevel.class.getDeclaredField("capListenerHolder");
+                set(ServerLevel.class, level, "capListenerHolder", field.getType().getConstructor().newInstance());
+            } catch (NoSuchFieldException vanillaLevel) {
+                // Fabric/vanilla has no capability-listener holder.
+            }
             level.entities = new ArrayList<>();
             set(ServerLevel.class, level, "players", onlinePlayers);
             level.movementSupport = List.of();
@@ -163,6 +171,9 @@ public final class ProjectileNativeInterceptionTest {
             set(Level.class, level, "threadSafeRandom", RandomSource.create(0));
             set(MinecraftServer.class, server, "levels", Map.of(Level.OVERWORLD, level));
             var list = instance(DedicatedPlayerList.class);
+            set(PlayerList.class, list, "server", server);
+            // Real permission checks use the ordinary, empty in-memory op list; no file is read or written.
+            set(PlayerList.class, list, "ops", new net.minecraft.server.players.ServerOpList(new java.io.File("build/fixture-unused-ops.json")));
             set(PlayerList.class, list, "playersByUUID", players);
             set(PlayerList.class, list, "players", onlinePlayers);
             try {
@@ -288,6 +299,7 @@ public final class ProjectileNativeInterceptionTest {
         }
 
         void close() {
+            com.mistaboom.essence_ascendance.crucible.EssenceCrucibleChannelService.clear(server);
             networkChannels.forEach(io.netty.channel.embedded.EmbeddedChannel::finishAndReleaseAll);
             CommittedSkillService.forget(player);
             ProjectileControlService.forget(player);
@@ -312,6 +324,24 @@ public final class ProjectileNativeInterceptionTest {
         Map<BlockPos, net.minecraft.world.level.block.state.BlockState> memoryBlocks;
         net.minecraft.world.item.crafting.RecipeManager memoryRecipes;
         Holder<net.minecraft.world.level.biome.Biome> memoryBiome;
+        Map<BlockPos, net.minecraft.world.level.block.entity.BlockEntity> memoryMachines;
+        java.util.Set<Long> unloadedMachineChunks = new java.util.HashSet<>();
+        @Override public net.minecraft.world.level.block.entity.BlockEntity getBlockEntity(BlockPos pos) {
+            if (memoryMachines != null) return memoryMachines.get(pos);
+            return super.getBlockEntity(pos);
+        }
+        @Override public net.minecraft.world.level.chunk.ChunkAccess getChunk(int x, int z, net.minecraft.world.level.chunk.status.ChunkStatus status, boolean load) {
+            if (memoryMachines == null) return super.getChunk(x, z, status, load);
+            if (load) throw new AssertionError("Machine discovery attempted force loading");
+            if (!hasChunk(x, z)) return null;
+            try {
+                var chunk = instance(net.minecraft.world.level.chunk.LevelChunk.class);
+                var machines = new HashMap<BlockPos, net.minecraft.world.level.block.entity.BlockEntity>();
+                memoryMachines.forEach((pos, machine) -> { if (pos.getX() >> 4 == x && pos.getZ() >> 4 == z) machines.put(pos, machine); });
+                set(net.minecraft.world.level.chunk.ChunkAccess.class, chunk, "blockEntities", machines);
+                return chunk;
+            } catch (ReflectiveOperationException failure) { throw new AssertionError(failure); }
+        }
 
         private MemoryLevel() {
             super(null, null, null, null, Level.OVERWORLD, null, null, false, 0, List.of(), false, null);
@@ -339,8 +369,10 @@ public final class ProjectileNativeInterceptionTest {
             return memoryBlocks == null ? net.minecraft.world.level.block.Blocks.AIR.defaultBlockState()
                     : memoryBlocks.getOrDefault(position, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
         }
-        @Override public boolean hasChunkAt(BlockPos position) { return true; }
-        @Override public boolean hasChunk(int chunkX, int chunkZ) { return true; }
+        @Override public boolean hasChunkAt(BlockPos position) { return hasChunk(position.getX() >> 4, position.getZ() >> 4); }
+        @Override public boolean hasChunk(int chunkX, int chunkZ) {
+            return unloadedMachineChunks == null || !unloadedMachineChunks.contains(net.minecraft.world.level.ChunkPos.asLong(chunkX, chunkZ));
+        }
         @Override public boolean areEntitiesLoaded(long chunk) { return true; }
         @Override public boolean setBlock(BlockPos position, net.minecraft.world.level.block.state.BlockState state, int flags, int depth) {
             if (memoryBlocks == null) throw new AssertionError("Block storage was not installed for this fixture");
@@ -450,6 +482,11 @@ public final class ProjectileNativeInterceptionTest {
     }
 
     static <T> T instance(Class<T> type) throws ReflectiveOperationException {
+        if (allocate == null) {
+            var field = Class.forName("sun.misc.Unsafe").getDeclaredField("theUnsafe");
+            field.setAccessible(true); allocator = field.get(null);
+            allocate = allocator.getClass().getMethod("allocateInstance", Class.class);
+        }
         return type.cast(allocate.invoke(allocator, type));
     }
     static void set(Class<?> owner, Object target, String name, Object value) throws ReflectiveOperationException {

@@ -181,6 +181,8 @@ public final class ArchiveCatalog {
             entries.add(entry("reference/mechanics/" + topic, ArchiveSection.REFERENCE_MECHANICS, "mechanics",
                     () -> ReferenceDocuments.mechanics(topic, PresentationContext.capture())));
         }
+        entries.add(entry("reference/mechanics/teams", ArchiveSection.REFERENCE_MECHANICS, "mechanics",
+                ReferenceDocuments::teams));
         return new ArchiveCatalog(sections, subjects, entries);
     }
 

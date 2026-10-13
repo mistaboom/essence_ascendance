@@ -103,6 +103,16 @@ For machine entries, the player must look directly at the matching block entity 
 
 Machine snapshots reconcile ordinary links/caches but do not spend materials or Essence. Use a staging network if you need a snapshot without affecting live link state.
 
+## Membership and shared-machine diagnostics
+
+Beta.5 adds server/console-compatible level-2 **`/essence admin membership status`**. Its readiness/authority/settled-target information is independent of generated balance. [Exact membership syntax and effects](https://github.com/mistaboom/essence_ascendance/wiki/Administration-Commands#membership-authority-beta5).
+
+Player **`/essence team status`** reports own effective pool, member capabilities and exact decimal Stored balances or unresolved reason; **`/essence machine <machine> status`** reports binding and link or shared total/local fill limit. Current member access or the documented level-2 status inspection is required; a player sender and loaded reachable target are mandatory for machine status. These observations can perform ordinary membership/ownership refresh. Native `team requests` also refreshes/prunes request metadata. [Canonical entries](https://github.com/mistaboom/essence_ascendance/wiki/Player-Commands#machine-controls-beta5).
+
+The existing ray-targeted machine debug commands remain level 2. They inspect structure/Focus/processing and refresh ordinary links/caches; they do not promise a complete scheduler trace. Old `cap/family` or `player-owned` debug labels do not override aggregate member-scaled storage. The accepted Crucible Info popup exposes concise Rate/Range, not a removed detailed routing/settings interface.
+
+Inherited Stage 9 receipts cover initialized loaders, synthetic actual-interface provider rosters, memory-backed machines, conserved repair insertion, paid-work component continuity and scheduler receiver-state pruning. Later command/membership, shared presentation, headless Archive and production-packaging receipts strengthen that evidence. The user also confirmed real FTB activation and team ownership of a newly placed Crucible. Two-client, offline-member, unloaded-machine, restart, graphical and interrupted-save checks remain open; neither fixtures nor this narrow live success proves every provider event or third-party pipe. Documentation checks add no new gameplay pass. [Exact receipt and live-test scope](https://github.com/mistaboom/essence_ascendance/wiki/Version-and-Maintenance#evidence-and-test-claims).
+
 ## Test commands and their meaning
 
 Tests have no target-player arguments. “PASS” describes only the check listed.
@@ -113,6 +123,7 @@ Tests have no target-player arguments. “PASS” describes only the check liste
 | `/essence test activation` | Player | Current worn-passive plus main-hand activation; MAX merge, active/inactive/zero counts. Not simulated combat or every action/offhand context. | `/essence test activation` |
 | `/essence test skills milestones` | Player | Read-only resolution of all catalog-referenced permanent gates and live provider comparison. Reports resolvability/completed projection; no capture/grant. | `/essence test skills milestones` |
 | `/essence test skills effects` | Server | Pure implementation invariants for handlers/relationships/config/math/payload contracts. Failure list or PASS; no world combat or universal compatibility test. | `/essence test skills effects` |
+| `/essence test enchantments` | Server | Running-server loaded-registry/component-yield checks and `diagnostics/enchantment_yields.json` receipt. No player, inventory mutation or progression grant. The handler has no explicit active-profile rejection; meaningful yields require ready mappings. **Writes diagnostic files**, not a balance rebuild; preserve prior receipts for comparison. | `/essence test enchantments` |
 
 ## Help endpoints
 

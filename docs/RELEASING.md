@@ -62,7 +62,8 @@ through GitHub Actions.
    21, runs `:common:check :fabric:build :neoforge:build` (including existing asset
    jar checks), and validates/stages the resulting runtime jars. Only after all
    checks pass do its separate jobs attach downloads to GitHub and upload each
-   loader's jar to CurseForge and Modrinth. Do not attach jars manually.
+   loader's jar to CurseForge and Modrinth. The four mod-site jobs run one at a
+   time; GitHub download attachment remains independent. Do not attach jars manually.
 5. Check that all five publishing jobs succeed: GitHub downloads plus Fabric and
    NeoForge uploads on each mod site. Watch platform review status after upload.
 
@@ -86,6 +87,24 @@ Modrinth version numbers include Minecraft and loader, e.g.
 dev, and dev-shadow jars are not distributed as installable mod downloads.
 
 ## Failure recovery
+
+The beta.3 and beta.4 initial NeoForge Modrinth jobs failed with HTTP 500
+`database_error` / `inserting version dependencies` / `deadlock detected`.
+Both uploaded the unchanged verified artifact successfully on a failed-job rerun.
+This is a Modrinth database failure, not evidence of a bad NeoForge jar or missing
+token. Fabric/NeoForge jobs were scheduled in parallel, with overlapping upload
+activity in beta.3. The release matrix now uses `max-parallel: 1` to remove that
+source of contention. Beta.4's upload calls did not overlap, so concurrent jobs
+are a contributing possibility, not a proven explanation of every deadlock.
+Serialization cannot prevent unrelated Modrinth database contention; its live
+effect remains to be checked on the next release. Publish one release at a time.
+
+Evidence: [beta.3 failed job](https://github.com/mistaboom/essence_ascendance/actions/runs/38199052259/job/114650075807),
+[beta.4 failed job](https://github.com/mistaboom/essence_ascendance/actions/runs/38307199091/job/115007695050),
+and [beta.4 successful rerun](https://github.com/mistaboom/essence_ascendance/actions/runs/38307199091/job/115008859486).
+Automatic blind upload retries remain disabled. Before any manual retry, inspect
+the authenticated Modrinth file list; a project awaiting moderation can return
+404 to unauthenticated reads even when its versions exist.
 
 - If build/validation fails, no jars are uploaded. Fix the issue and use a new
   release version/tag for changed code. Do not move an already published tag.

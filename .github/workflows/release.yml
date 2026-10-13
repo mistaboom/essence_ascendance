@@ -43,6 +43,9 @@ jobs:
     timeout-minutes: 15
     strategy:
       fail-fast: false
+      # Modrinth dependency inserts deadlocked during adjacent loader uploads.
+      # Keep independent jobs, but avoid concurrent mod-site uploads in this release.
+      max-parallel: 1
       matrix:
         platform: [curseforge, modrinth]
         loader: [fabric, neoforge]

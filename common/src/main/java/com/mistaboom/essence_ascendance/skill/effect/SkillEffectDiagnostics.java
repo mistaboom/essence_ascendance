@@ -448,6 +448,12 @@ final class SkillEffectDiagnostics {
         expected.put("dormantGuidebookReceived", "boolean");
         // Persistent presentation preference, not a transient gameplay timer or effect state.
         expected.put("hiddenSkillHud", ids);
+        expected.put("reservoirCarry", balances);
+        expected.put("reservoirRevision", "long");
+        // Persisted personal channel preferences and their stale-packet revision,
+        // not a runtime channel session, target, budget or timer.
+        expected.put("crucibleChannelSelection", "int");
+        expected.put("crucibleChannelSelectionRevision", "long");
         expected.put("fractionalResourceCostCarry", "java.util.Map<" + id + ", java.lang.Double>");
         Map<String, String> actual = new HashMap<>();
         for (var field : PlayerEssenceData.class.getDeclaredFields()) {

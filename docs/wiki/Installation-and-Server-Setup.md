@@ -4,7 +4,9 @@
 
 ## Choose the right build
 
-Download **1.0.0-beta.1** from the [GitHub release](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.1). Choose the Fabric or NeoForge jar for **Minecraft 1.21.1**. Use **Java 21**.
+Download **1.0.0-beta.5** from the [GitHub release](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.5). Choose the Fabric or NeoForge jar for **Minecraft 1.21.1** and use **Java 21**. Install matching beta.5 builds on the server and all clients.
+
+**Beta.5 requires a new world when upgrading from beta.4 or earlier.** The multiplayer save format changes player balances, membership and machine ownership, with no automatic migration. Keep a complete backup and the matching older mod version to continue an existing world. Install your chosen team provider before creating the new world.
 
 | Loader | Required components on client and server | Build reference |
 | --- | --- | --- |
@@ -19,9 +21,13 @@ Use one loader build. Fabric and NeoForge jars are alternatives, not two require
 
 JEI is optional and supplies recipe/display integration; the build uses the `19.43.0.395` API. It is not required to generate a balance profile. This source does not advertise REI or EMI integration.
 
-Other installed mods can contribute ordinary loaded recipes and native attributes. Named evidence providers have narrower version/loader checks; most capability adapters audited here target specific NeoForge versions. Read [integrations and compatibility](https://github.com/mistaboom/essence_ascendance/wiki/Integrations-and-Compatibility) before assuming that choosing Fabric gives the same optional evidence coverage.
+Other installed mods can contribute ordinary loaded recipes and native attributes. Named evidence providers have narrower version/loader checks; most capability adapters audited here target specific NeoForge versions. Read [integrations and compatibility](https://github.com/mistaboom/essence_ascendance/wiki/Integrations-and-Compatibility) before assuming that choosing Fabric gives the same optional evidence coverage. This is separate from the beta.5 membership adapters, which accept their documented Fabric and NeoForge tuples.
 
 ## Prepare a server or pack
+
+For optional beta.5 membership support, follow [Teams and shared infrastructure](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure#membership-providers). Native solo/team authority needs no external mod. Accepted FTB Teams/Library and OpenPAC loader/version combinations are listed there with dependency metadata and fixture limits. Install the chosen provider/dependencies on both sides; they are not bundled. FTB Quests balance evidence is a different version-gated contract.
+
+Fresh AUTO selection and an established world's retained authority differ. Adding a provider to a running pack is not an automatic authority migration. Review [selection](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure#selection-and-established-worlds) and the [beta.5 save compatibility boundary](https://github.com/mistaboom/essence_ascendance/wiki/Updating-and-Recovery#multiplayer-persistence-and-upgrades) before testing against copied world state.
 
 1. Assemble the intended mods, datapacks, world-generation settings and supported integration configs in a staging environment.
 2. Start the server normally. Missing input files are scaffolded; when no saved profile exists, generation occurs early in Overworld loading before initial spawn terrain generation.

@@ -41,6 +41,7 @@ public final class QuestAcquisitionTest {
         check(!absent.prepare("quests", new FtbQuestProvider(), false), "Absent suite skips without linking optional quest classes");
         check(absent.diagnostics().get(0).getAsJsonObject().get("status").getAsString().equals("ABSENT"), "Absent is distinct from empty");
         check(FtbQuestProvider.supported("2101.1.36", "2101.1.36", "2101.1.11", "13.0.11"), "Installed exact API supported");
+        check(FtbQuestProvider.supported("2101.1.36", "2101.1.37", "2101.1.11", "13.0.11"), "Additional audited Library tuple supported");
         check(FtbQuestProvider.supported("2101.1.30", "2101.1.35", "2101.1.10", "13.0.11"), "Additional audited definition API tuple supported");
         check(!FtbQuestProvider.supported("2101.1.30", "2101.1.36", "2101.1.10", "13.0.11"), "Audited tuples do not imply mixed-version compatibility");
         check(!FtbQuestProvider.supported("2101.1.30", "2101.1.35", "2101.1.10", "13.0.12"), "Unaudited platform dependency rejected");

@@ -76,6 +76,11 @@ public final class EssenceCrucibleClientState {
         );
     }
 
+    public static void requestSelection(int menuId, int action) {
+        var state = snapshotFor(menuId);
+        if (state != null) NetworkManager.sendToServer(new com.mistaboom.essence_ascendance.network.EssenceCrucibleSelectionPayload(menuId, action, state.selectionRevision()));
+    }
+
     public static void requestVent(
             int menuId,
             ResourceLocation essenceId

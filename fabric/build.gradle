@@ -25,6 +25,9 @@ configurations {
 }
 
 dependencies {
+    modCompileOnly('xaero.pac:open-parties-and-claims-fabric-1.21.1:0.32.7') { transitive = false }
+    modCompileOnly('dev.ftb.mods:ftb-teams-fabric:2101.1.11') { transitive = false }
+    modCompileOnly('dev.ftb.mods:ftb-library-fabric:2101.1.30') { transitive = false }
     modImplementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
 
     // Fabric API. This is technically optional, but you probably want it anyway.
@@ -36,6 +39,8 @@ dependencies {
     common(project(path: ':common', configuration: 'namedElements')) { transitive = false }
     shadowBundle project(path: ':common', configuration: 'transformProductionFabric')
 }
+
+repositories { maven { url = 'https://maven.ftb.dev/releases' } }
 
 loom {
     accessWidenerPath = project(":common").file("src/main/resources/essence_ascendance.accesswidener")
@@ -58,6 +63,8 @@ loom {
         }
     }
 }
+
+apply from: rootProject.file('gradle/team-development.gradle')
 
 processResources {
     inputs.property 'version', project.version
@@ -84,3 +91,5 @@ shadowJar {
 remapJar {
     inputFile.set shadowJar.archiveFile
 }
+
+repositories { maven { url = 'https://chocolateminecraft.com/maven' } }

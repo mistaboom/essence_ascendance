@@ -22,9 +22,9 @@ final class EssenceInfuserNeoForgeItemHandler implements IItemHandler {
     @Override
     public ItemStack getStackInSlot(int slot) {
         return switch (slot) {
-            case 0 -> infuser.getItem(EssenceInfuserBlockEntity.INPUT_SLOT);
-            case 1 -> infuser.getItem(EssenceInfuserBlockEntity.OUTPUT_SLOT);
-            case 2 -> infuser.getItem(EssenceInfuserBlockEntity.COMPONENT_SLOT);
+            case 0 -> infuser.getItem(EssenceInfuserBlockEntity.INPUT_SLOT).copy();
+            case 1 -> infuser.getItem(EssenceInfuserBlockEntity.OUTPUT_SLOT).copy();
+            case 2 -> infuser.getItem(EssenceInfuserBlockEntity.COMPONENT_SLOT).copy();
             default -> ItemStack.EMPTY;
         };
     }
@@ -36,14 +36,13 @@ final class EssenceInfuserNeoForgeItemHandler implements IItemHandler {
         }
         int machineSlot;
         int limit;
-        if (slot == 0 && EssenceInfuserBlockEntity.allowsAutomationInput(stack)) {
+        if (slot == 0 && infuser.canPlaceItemThroughFace(EssenceInfuserBlockEntity.INPUT_SLOT, stack, null)) {
             machineSlot = EssenceInfuserBlockEntity.INPUT_SLOT;
             limit = EssenceInfuserBlockEntity.workpieceStackLimit(stack);
         } else if (slot == 2
-                && !infuser.repairMode()
-                && infuser.canPlaceItem(EssenceInfuserBlockEntity.COMPONENT_SLOT, stack)) {
+                && infuser.canPlaceItemThroughFace(EssenceInfuserBlockEntity.COMPONENT_SLOT, stack.copyWithCount(1), null)) {
             machineSlot = EssenceInfuserBlockEntity.COMPONENT_SLOT;
-            limit = 64;
+            limit = infuser.getMaxStackSize(stack);
         } else {
             return stack;
         }
@@ -78,7 +77,8 @@ final class EssenceInfuserNeoForgeItemHandler implements IItemHandler {
 
     @Override
     public ItemStack extractItem(int slot, int amount, boolean simulate) {
-        if (!ServerMenuAccess.isLoaded(infuser) || slot != 1 || amount <= 0) {
+        if (slot != 1 || amount <= 0 || !infuser.canTakeItemThroughFace(EssenceInfuserBlockEntity.OUTPUT_SLOT,
+                infuser.getItem(EssenceInfuserBlockEntity.OUTPUT_SLOT), null)) {
             return ItemStack.EMPTY;
         }
         ItemStack current = infuser.getItem(EssenceInfuserBlockEntity.OUTPUT_SLOT);
@@ -102,9 +102,8 @@ final class EssenceInfuserNeoForgeItemHandler implements IItemHandler {
 
     @Override
     public boolean isItemValid(int slot, ItemStack stack) {
-        return ServerMenuAccess.isLoaded(infuser) && ((slot == 0 && EssenceInfuserBlockEntity.allowsAutomationInput(stack))
-                || (slot == 2
-                    && !infuser.repairMode()
-                    && infuser.canPlaceItem(EssenceInfuserBlockEntity.COMPONENT_SLOT, stack)));
+        return (slot == 0 || slot == 2) && infuser.canPlaceItemThroughFace(
+                slot == 0 ? EssenceInfuserBlockEntity.INPUT_SLOT : EssenceInfuserBlockEntity.COMPONENT_SLOT,
+                slot == 2 ? stack.copyWithCount(1) : stack, null);
     }
 }

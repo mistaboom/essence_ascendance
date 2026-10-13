@@ -30,6 +30,13 @@ public final class FocusInfusionData {
 
     private FocusInfusionData() {
     }
+    public static void recordFunding(ItemStack stack, com.mistaboom.essence_ascendance.team.PoolId pool,
+                                     Map<net.minecraft.resources.ResourceLocation, Long> costs) {
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, outer -> {
+            CompoundTag progress = outer.getCompound(ROOT_TAG);
+            InfusionPayments.attribute(progress, pool, costs); outer.put(ROOT_TAG, progress);
+        });
+    }
 
     public static Optional<Progress> readRaw(ItemStack stack) {
         if (!EssenceFocusData.isFocusItem(stack)) {

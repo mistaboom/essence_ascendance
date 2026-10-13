@@ -22,6 +22,6 @@ public final class OptionalIntegration {
         }
     }
     public static void warn(String integration, String detail) {
-        LOGGER.warn("Balance compatibility [{}]: {}; affected evidence excluded or advisory, accuracy may be reduced", integration, detail);
+        LOGGER.warn("Optional compatibility [{}]: {}; affected evidence remains unresolved", integration, detail);
     }
 }

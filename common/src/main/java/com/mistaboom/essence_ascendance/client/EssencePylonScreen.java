@@ -21,7 +21,6 @@ public final class EssencePylonScreen
 
     private Button infoButton;
     private Button infoCloseButton;
-    private boolean infoOpen;
 
     public EssencePylonScreen(
             EssencePylonMenu menu,
@@ -49,10 +48,10 @@ public final class EssencePylonScreen
         infoButton = addHeaderButton(
                 Component.literal("i"),
                 true,
-                button -> infoOpen = !infoOpen
+                button -> toggleMachinePopup(INFO_POPUP)
         );
         infoCloseButton = addOverlayCloseButton(
-                button -> infoOpen = false,
+                button -> closeMachinePopup(INFO_POPUP),
                 infoPanelBounds()
         );
         infoCloseButton.visible = false;
@@ -123,7 +122,7 @@ public final class EssencePylonScreen
             infoButton.active = state != null;
         }
         if (infoCloseButton != null) {
-            infoCloseButton.visible = infoOpen && state != null;
+            infoCloseButton.visible = isMachinePopupOpen(INFO_POPUP) && state != null;
             place(infoCloseButton, overlayCloseBounds(infoPanelBounds()));
         }
     }
@@ -131,7 +130,7 @@ public final class EssencePylonScreen
     @Override
     protected List<MachineOverlay> machineOverlays() {
         EssencePylonStatePayload state = EssencePylonClientState.snapshotFor(menu.containerId);
-        if (!infoOpen || state == null) {
+        if (!isMachinePopupOpen(INFO_POPUP) || state == null) {
             return List.of();
         }
         UiBounds bounds = infoPanelBounds();
@@ -214,7 +213,7 @@ public final class EssencePylonScreen
     }
 
     private static String format(long value) {
-        return String.format(Locale.ROOT, "%,d", value);
+        return EssenceText.wholeAmount(value);
     }
 
     private static String decimal(double value) {

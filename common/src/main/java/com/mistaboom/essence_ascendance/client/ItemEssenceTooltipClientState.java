@@ -281,7 +281,7 @@ public final class ItemEssenceTooltipClientState {
         Component continuation = Component.literal("  ").withStyle(ChatFormatting.DARK_GRAY);
         Component separator = Component.literal(" \u2022 ").withStyle(ChatFormatting.DARK_GRAY);
         List<Component> tokens = outputs.stream().map(output -> (Component) EssenceText.tooltip(
-                        "essence_amount", EssenceYieldFormat.formatMicros(output.microUnits()),
+                        "essence_amount", EssenceYieldFormat.formatTooltipMicros(output.microUnits()),
                         compactNameComponent(output.essenceId())).withStyle(style -> style.withColor(colorFor(output.essenceId()))))
                 .toList();
         List<List<Component>> rows = TooltipLayout.wrapTokens(tokens, font::width,
@@ -311,7 +311,7 @@ public final class ItemEssenceTooltipClientState {
         if (essenceId == null || microUnits <= 0) return Set.of();
         Set<String> result = new LinkedHashSet<>();
         result.add("essence");
-        result.add(EssenceYieldFormat.formatMicros(microUnits));
+        result.add(EssenceYieldFormat.formatTooltipMicros(microUnits));
         addNameSearchTerms(result, essenceId);
         return Set.copyOf(result);
     }
@@ -349,7 +349,7 @@ public final class ItemEssenceTooltipClientState {
                 outputs) {
 
             result.add(
-                    EssenceYieldFormat.formatMicros(
+                    EssenceYieldFormat.formatTooltipMicros(
                             output.microUnits()
                     )
             );

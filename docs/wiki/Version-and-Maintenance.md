@@ -6,18 +6,20 @@
 
 | Reference | Value |
 | --- | --- |
-| Documentation date | **2026-10-08** |
-| Mod | **1.0.0-beta.1**, prerelease |
+| Documentation refresh | **2026-10-13**, beta.5 multiplayer and Archive update |
+| Documented mod version | **1.0.0-beta.5** |
 | Minecraft / Java | **1.21.1 / 21** |
 | Loader projects | Fabric and NeoForge |
-| Release | [v1.0.0-beta.1](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.1), published October 8, 2026 |
-| Release source | [9caef8477c8aa95a5f61b7fc008d1659e2445e79](https://github.com/mistaboom/essence_ascendance/commit/9caef8477c8aa95a5f61b7fc008d1659e2445e79) |
-| Wiki implementation reference | [59e27446afbb6c9e73be38d0d407915fe15354fa](https://github.com/mistaboom/essence_ascendance/commit/59e27446afbb6c9e73be38d0d407915fe15354fa) |
+| Release | [v1.0.0-beta.5](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.5), prerelease |
+| Previous beta.4 source | [4caee9ad53c9ad2faec0eec14ec525262277512c](https://github.com/mistaboom/essence_ascendance/commit/4caee9ad53c9ad2faec0eec14ec525262277512c) |
+| Pre-multiplayer baseline | `438404996988d730c8246f5aa5620897a795a13f`; multiplayer was added afterward |
+| Multiplayer implementation reference | [Tagged beta.5 source](https://github.com/mistaboom/essence_ascendance/tree/v1.0.0-beta.5/common/src/main/java/com/mistaboom/essence_ascendance), reviewed October 13. |
+| Historical balance/wiki baseline | [59e27446afbb6c9e73be38d0d407915fe15354fa](https://github.com/mistaboom/essence_ascendance/commit/59e27446afbb6c9e73be38d0d407915fe15354fa), original beta.1 review |
 | Research baseline | `docs/wiki-maintenance/AUDIT.md` in the repository documentation tree |
 
-The implementation reference has the same commands, gameplay, balance, config/resources and tests as the published beta's source. Post-release differences concern descriptions/listing synchronization, documentation and branding/build tooling. This source comparison does not independently reproduce the released jars.
+The original October 8 source-equality and publication statements apply only to their dated beta.1 baseline. Beta.5 adds the separately reviewed multiplayer implementation and Archive refresh. This documentation update is not a new full balance audit or proof of every multiplayer scenario.
 
-Current generated authority uses schema 2, generator `pack-balance-1`, revision `native-equipment-headroom-46` and ordinary yield policy `whole_essence_v1`. Input TOML schema is 1.
+The generator revision is `rod-hook-set-steering-50`, with generated schema 2, generator `pack-balance-1`, ordinary yield policy `whole_essence_v1` and input TOML schema 1. Use the active profile/diagnostics for the installed environment's actual identity. **Beta.5 requires a new world when upgrading from beta.4 or earlier:** player schema 10 replaces beta.4's schema 6, with no older-world migration. See [upgrade guidance](https://github.com/mistaboom/essence_ascendance/wiki/Updating-and-Recovery#multiplayer-persistence-and-upgrades).
 
 ## Documentation source of truth
 
@@ -64,7 +66,19 @@ Examples illustrate confirmed syntax/settings; they are not claimed to have been
 
 Keep validation claims specific: profile decode/integrity, modeled conservation, meaningful-rank policy, command parsing, presentation readiness or a concrete live scenario. Include environment/version information with any future performance or gameplay acceptance result.
 
+The October 13 Stage 9 receipts were inspected as inherited evidence: full common checks/both loader builds/asset checks passed; initialized native/both-provider runs exercised memory-backed machines and synthetic actual-interface rosters. Their artifact hashes describe those builds, not later Archive or implementation rebuilds.
+
+The subsequent implementation receipts under `build/ftb-shared-compat-audit/` record co-installed FTB initialization/API checks on both loaders for the exact shared Library 2101.1.36 and 2101.1.37 combinations. These fixtures exit before opening a world/provider manager. They establish the checked API/definition paths, not every live membership event or arbitrary newer-version support.
+
+The later `build/membership-command-followup/verified-checks-and-packaging.log` records **678 membership assertions, 1,155 command checks, 13,452 shared presentation checks, 70,083 headless Archive integration checks**, both production jars and **349 asset checks per loader**. The runtime activation cases use a fake provider without a world. Headless presentation/Archive checks do not establish visual usability. Its separate `final-jar-audit.json` describes local development artifacts; none of these receipts establishes a published new beta.
+
+The user confirmed **real FTB authority activation and team ownership of a newly placed Crucible**. This is a narrow user-reported live success, separate from the automated fixtures. Two-client fairness, offline-member events, unloaded-machine behavior, world/process restarts, graphical review and interrupted-save recovery remain pending. Existing machines are not migrated across providers. Player/chunk cross-file crash atomicity remains unjournaled and unproven; runtime rollback coverage does not establish it. This wiki follow-up only inspects source/receipts and checks Markdown; it executes no gameplay command or build.
+
+Archive destination verification, historical receipts and publication records are maintained under `docs/wiki-maintenance/`. The beta.5 release links identify the release source; earlier local receipt hashes retain their original scope. GitHub release automation builds and distributes the two loader jars, while the wiki uses its separate reviewed publishing procedure.
+
 ## High-value implementation entry points
+
+The GitHub links below are **historical balance/Archive baseline references**. For current multiplayer, inspect the portable paths in [Teams and shared infrastructure](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure#source-evidence); the new handlers/providers are not present at the historical commit.
 
 | Subject | Source |
 | --- | --- |

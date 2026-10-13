@@ -102,7 +102,7 @@ public final class EssenceCrucibleBlock extends Block implements EntityBlock {
         if (!level.isClientSide
                 && placer instanceof Player player
                 && level.getBlockEntity(pos) instanceof EssenceCrucibleBlockEntity crucible) {
-            crucible.bindOwner(player);
+            crucible.bindOnPlacement(player);
         }
     }
 
@@ -122,7 +122,11 @@ public final class EssenceCrucibleBlock extends Block implements EntityBlock {
             return InteractionResult.PASS;
         }
 
-        if (!crucible.bindOwner(player) || !crucible.canPlayerUse(player)) {
+        if (!crucible.canPlayerUse(player)) {
+            if (player instanceof ServerPlayer serverPlayer) {
+                com.mistaboom.essence_ascendance.network.TeamInterfaceNetworkService.openRestricted(serverPlayer, crucible);
+                return InteractionResult.CONSUME;
+            }
             player.displayClientMessage(
                     Component.translatable("message.essence_ascendance.crucible_private"),
                     true
@@ -149,23 +153,13 @@ public final class EssenceCrucibleBlock extends Block implements EntityBlock {
         if (!state.is(newState.getBlock())) {
             if (level.getBlockEntity(pos) instanceof EssenceCrucibleBlockEntity crucible) {
                 crucible.stopChanneling();
-                if (!level.isClientSide && !crucible.isEmpty()) {
-                    /*
-                     * Remove the stack from the block entity before spawning it.
-                     * This is safe whether a loader later performs its own
-                     * Container-removal side effect: the inventory is already
-                     * empty, so the input cannot be dropped twice.
-                     */
-                    for (int slot = 0; slot < EssenceCrucibleBlockEntity.MAX_INPUT_SLOTS; slot++) {
-                        ItemStack input = crucible.removeItemNoUpdate(slot);
-                        if (!input.isEmpty()) {
-                            popResource(level, pos, input);
-                        }
-                    }
-                }
+                if (!level.isClientSide) popResource(level, pos,
+                        com.mistaboom.essence_ascendance.machine.MachineProtection.takePickup(crucible));
             }
         }
 
         super.onRemove(state, level, pos, newState, movedByPiston);
     }
+    @Override protected java.util.List<ItemStack> getDrops(BlockState state,
+            net.minecraft.world.level.storage.loot.LootParams.Builder params) { return java.util.List.of(); }
 }

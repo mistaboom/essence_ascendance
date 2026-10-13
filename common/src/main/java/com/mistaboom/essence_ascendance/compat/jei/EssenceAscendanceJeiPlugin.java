@@ -321,6 +321,15 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
         // These areas exist only while the foreground popup is open. Reporting
         // them through JEI's supported GUI handler prevents ingredient/bookmark
         // input from stealing the click before the screen's popup controls see it.
+        registration.addGuiContainerHandler(com.mistaboom.essence_ascendance.client.TeamScreen.class,
+                new IGuiContainerHandler<com.mistaboom.essence_ascendance.client.TeamScreen>() {
+                    @Override public List<Rect2i> getGuiExtraAreas(com.mistaboom.essence_ascendance.client.TeamScreen screen) { return screen.overlayInteractionAreas(); }
+                });
+        registration.addGuiContainerHandler(com.mistaboom.essence_ascendance.client.MachineAccessScreen.class,
+                new IGuiContainerHandler<com.mistaboom.essence_ascendance.client.MachineAccessScreen>() {
+                    @Override public List<Rect2i> getGuiExtraAreas(com.mistaboom.essence_ascendance.client.MachineAccessScreen screen) { return screen.overlayInteractionAreas(); }
+                });
+
         registration.addGuiContainerHandler(
                 EssenceCrucibleScreen.class,
                 new IGuiContainerHandler<EssenceCrucibleScreen>() {

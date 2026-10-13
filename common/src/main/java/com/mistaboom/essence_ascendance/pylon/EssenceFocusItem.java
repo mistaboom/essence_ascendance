@@ -41,6 +41,13 @@ public final class EssenceFocusItem extends Item {
             return InteractionResult.SUCCESS;
         }
 
+        var machine = (com.mistaboom.essence_ascendance.machine.BoundMachine) blockEntity;
+        if (!machine.authorize(player, com.mistaboom.essence_ascendance.machine.MachineAction.USE)
+                && player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+            com.mistaboom.essence_ascendance.network.TeamInterfaceNetworkService.openRestricted(serverPlayer,
+                    machine);
+            return InteractionResult.CONSUME;
+        }
         if (blockEntity instanceof EssencePylonBlockEntity pylon) {
             return pylon.installOrSwapFocus(player, context.getHand());
         }

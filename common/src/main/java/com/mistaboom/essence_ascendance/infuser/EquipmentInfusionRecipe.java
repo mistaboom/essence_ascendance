@@ -23,6 +23,7 @@ public record EquipmentInfusionRecipe(
         Map<ResourceLocation, Long> requirements,
         int matrixCount
 ) implements EssenceInfuserRecipe {
+    @Override public boolean requiresEquipmentRecipient() { return true; }
 
     public EquipmentInfusionRecipe {
         requirements = Collections.unmodifiableMap(new LinkedHashMap<>(requirements));

@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
 
-/** Owner/account scoped carry survives machine replacement, logout and restart. */
+/** Personal reward carry only. Reservoir carry lives with player balances in EssenceSavedData. */
 public final class FractionalLedgerSavedData extends SavedData {
     private final Map<UUID, Map<String, Long>> accounts = new HashMap<>();
 
@@ -42,6 +42,7 @@ public final class FractionalLedgerSavedData extends SavedData {
     public void commit(UUID owner, Map<String, Long> carry) {
         Map<String, Long> validated = new TreeMap<>();
         carry.forEach((key, value) -> {
+            if (key.startsWith("dissolution/")) throw new IllegalArgumentException("Reservoir carry belongs in EssenceSavedData");
             if (value < 0 || value >= FractionalAmountService.SCALE) throw new IllegalArgumentException("Invalid account carry " + key);
             if (value != 0) validated.put(key, value);
         });
@@ -66,6 +67,8 @@ public final class FractionalLedgerSavedData extends SavedData {
             CompoundTag account = tag.getCompound(ownerKey);
             Map<String, Long> carry = new TreeMap<>();
             for (String key : account.getAllKeys()) {
+                if (key.startsWith("dissolution/")) throw new IllegalStateException(
+                        "Old dissolution carry save is incompatible; recreate the development world");
                 long value = account.getLong(key);
                 if (value < 0 || value >= FractionalAmountService.SCALE)
                     throw new IllegalStateException("Invalid saved fractional account " + owner + ":" + key);

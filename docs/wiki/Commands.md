@@ -9,6 +9,10 @@ All mod chat commands start with `/essence`. Use Tab completion to discover regi
 | [Player commands](https://github.com/mistaboom/essence_ascendance/wiki/Player-Commands) | No operator requirement | Wallets, Bonuses, Attunement, Ascension and milestones |
 | [Administration commands](https://github.com/mistaboom/essence_ascendance/wiki/Administration-Commands) | Level **2** | Grants, resets, tier/item edits, profile reload/rebuild and export |
 | [Diagnostics and testing](https://github.com/mistaboom/essence_ascendance/wiki/Diagnostics-and-Testing) | Level **2** | Saved balance explanations, player/machine snapshots and scoped invariant checks |
+| [Native team and machine commands](https://github.com/mistaboom/essence_ascendance/wiki/Player-Commands#native-teams-beta5) | No operator level for ordinary actions; status bypass/recovery have level-2 rules | Beta.5 membership, processing, retained advanced links and own-item recovery |
+| [Membership authority and machine recovery](https://github.com/mistaboom/essence_ascendance/wiki/Administration-Commands#membership-authority-beta5) | Level **2** | Beta.5 readiness/activation and narrow binding repair |
+
+The multiplayer branches below were introduced in **beta.5**. Native membership approval and machine management require their actual membership capabilities; operator level is not a general foreign machine-access grant.
 
 ## Syntax and source rules
 
@@ -42,6 +46,8 @@ Two exceptions deserve attention:
 
 - `debug balance item <id>` directly looks up the **full saved item ID**; `iron_ingot` does not acquire a `minecraft:` prefix.
 - `admin item tier set <tier>` takes a serialized item-tier name, not a namespaced ID.
+
+`team` arguments use **UUIDs** for team/request/member IDs, and `machine` arguments use three-coordinate block positions. They do not accept these registry-ID conventions. There are no custom UUID tab suggestions; provider choices for `admin membership prepare` do have them. Status/request output supplies clickable suggestions with the current receipt IDs. See their canonical entries for names, coordinate grammar, source restrictions and examples. Bare `team` is a status alias; bare `admin membership` shows help; bare `machine` is not executable.
 
 Essence categories are `offense`, `defense`, `vitality`, `mobility`, `gathering` and `utility`. Bonus list/gameplay category arguments accept these case-insensitively. Attunement category arguments resolve Essence IDs. Tier names are `latent`, `dormant`, `awakened`, `resonant`, `ascendant` and `transcendent`; individual handlers still require a known registered tier.
 

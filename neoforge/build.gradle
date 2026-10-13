@@ -46,6 +46,9 @@ repositories {
 }
 
 dependencies {
+    modCompileOnly('xaero.pac:open-parties-and-claims-neoforge-1.21.1:0.32.7') { transitive = false }
+    modCompileOnly('dev.ftb.mods:ftb-teams-neoforge:2101.1.11') { transitive = false }
+    modCompileOnly('dev.ftb.mods:ftb-library-neoforge:2101.1.30') { transitive = false }
     neoForge "net.neoforged:neoforge:$rootProject.neoforge_version"
 
     // Architectury API. This is optional, and you can comment it out if you don't need it.
@@ -54,6 +57,9 @@ dependencies {
     common(project(path: ':common', configuration: 'namedElements')) { transitive = false }
     shadowBundle project(path: ':common', configuration: 'transformProductionNeoForge')
 }
+
+apply from: rootProject.file('gradle/team-development.gradle')
+repositories { maven { url = 'https://maven.ftb.dev/releases' } }
 
 processResources {
     inputs.property 'version', project.version
@@ -71,3 +77,5 @@ shadowJar {
 remapJar {
     inputFile.set shadowJar.archiveFile
 }
+
+repositories { maven { url = 'https://chocolateminecraft.com/maven' } }

@@ -109,7 +109,7 @@ public final class EssencePylonNetworkService {
         boolean linked = false;
         boolean active = false;
         int linkedActivePylons = 0;
-        long linkedReservoirCapacity = 0L;
+        java.math.BigInteger linkedReservoirCapacity = java.math.BigInteger.ZERO;
         double linkedTransferRange = 0.0D;
         long linkedTransferRate = 0L;
         int linkedDissolutionTicks = 0;
@@ -119,14 +119,13 @@ public final class EssencePylonNetworkService {
                 && player.serverLevel().hasChunkAt(linkedPos)
                 && player.serverLevel().getBlockEntity(linkedPos)
                         instanceof EssenceCrucibleBlockEntity crucible
-                && crucible.ownerId() != null
-                && crucible.ownerId().equals(pylon.ownerId())) {
+                && pylon.isCurrentLinkValid()) {
             linked = true;
             EssenceCrucibleStructureSnapshot snapshot = crucible.structureSnapshot();
             EssenceCrucibleStructureStats stats = snapshot.stats();
             active = snapshot.containsPylon(pylon.getBlockPos());
             linkedActivePylons = stats.activePylonCount();
-            linkedReservoirCapacity = crucible.effectiveReservoirCapacity();
+            linkedReservoirCapacity = crucible.localFillLimit();
             linkedTransferRange = stats.transferRange();
             linkedTransferRate = stats.transferRatePerSecond();
             linkedDissolutionTicks = stats.dissolutionTicksPerItem();
@@ -157,7 +156,8 @@ public final class EssencePylonNetworkService {
                 linkedTransferRange,
                 linkedTransferRate,
                 linkedDissolutionTicks,
-                linkedSimultaneousProcesses
+                linkedSimultaneousProcesses, pylon.linkMode().name(), pylon.linkState().name(),
+                pylon.linkedSource() == null ? "" : pylon.linkedSource().dimension().toString()
         );
     }
 }

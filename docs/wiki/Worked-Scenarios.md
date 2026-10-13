@@ -4,6 +4,19 @@
 
 These are prospective workflows with valid syntax and confirmed settings. **Outcomes are illustrative; the examples were not run against a pack or world.** Administrative commands require permission 2. Server commands work from console; player-target examples here use an in-game operator.
 
+## Adding cooperative infrastructure to a development pack
+
+**Beta.5 multiplayer; illustrative workflow, not a live test result.** Use matching server/client beta.5 builds and a fresh staging world. Keep player lessons in the Archive; use [Teams and shared infrastructure](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure) for administrative rules.
+
+1. Choose native/no-provider or an exact accepted external dependency tuple. To use both FTB Teams membership and FTB Quests evidence, use Teams **2101.1.11**, Library **2101.1.36 or 2101.1.37**, Quests **2101.1.36**, and Architectury **13.0.11**, with artifacts matching the loader. The integrations have separate scopes; this accepted tuple does not replace live-world acceptance checks.
+2. Inspect `/essence admin membership status` and the player's `/essence team status`. Fresh AUTO and established-world authority have different behavior. Normal external party members need no second enrollment.
+3. Explain the wealth trust boundary before native approval/external joining: all existing Stored is communal; Available/invested progression stays personal. Rehearse departure and offline membership on dedicated state.
+4. Place normally bound machinery and inspect `/essence machine ~ ~-1 ~ status` only if a matching machine is below the sender. Automatic linking excludes foreign teams and keeps a valid source stable. Do not add an ownership-adoption step.
+5. Check simultaneous eligible consumers, the aggregate fill limit, selected/required types and explicit equipment Start. Additional Infusers can share one source; one player still has one active source. Do not infer guaranteed rates from receiver maxima.
+6. Rehearse coordinated backups and the actual schema/provider-change boundary before considering a production rollout. Real FTB activation and new Crucible team ownership have a narrow user-confirmed success; offline-member events, unloaded machinery, two-client fairness, restarts, graphics and interrupted saves remain pending. [Verification scope](https://github.com/mistaboom/essence_ascendance/wiki/Version-and-Maintenance#evidence-and-test-claims).
+
+**Illustrative accounting outcome:** the 900 + 300, channel 200, then depart with 500 each example on the team page explains equal remaining shares. It is not a contribution refund or evidence that this scenario was run with two actual clients.
+
 ## Starting a new modpack
 
 **Goal:** generate a coherent starting economy for the content you intend to distribute.

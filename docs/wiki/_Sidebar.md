@@ -27,6 +27,7 @@
 
 ### Operate and maintain
 
+- [Teams and shared infrastructure](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure)
 - [Reports and provenance](https://github.com/mistaboom/essence_ascendance/wiki/Reports-and-Provenance)
 - [Updating and recovery](https://github.com/mistaboom/essence_ascendance/wiki/Updating-and-Recovery)
 - [Troubleshooting and FAQ](https://github.com/mistaboom/essence_ascendance/wiki/Troubleshooting)

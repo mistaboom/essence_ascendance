@@ -114,10 +114,12 @@ public final class PlayerProgressionResetTest {
         var projectileLife = data.projectileLife();
         data.resetProgressionForAdmin();
         CompoundTag reset = data.save();
-        for (String field : java.util.List.of("available", "invested", "crucible_reservoir",
+        for (String field : java.util.List.of("available", "invested",
                 "completed_milestones", "skill_ranks", "loadout_selections")) {
             check(reset.getCompound(field).isEmpty(), "Reset retained " + field);
         }
+        check(reset.getCompound("crucible_reservoir").equals(saved.getCompound("crucible_reservoir")),
+                "Personal reset must preserve reservoir records; explicit solo reset routes through ReservoirService");
         check(data.getTier().equals(AscendanceTiers.LATENT), "Reset did not return to Latent");
         check(data.attunement().save().equals(new AttunementLedger().save()),
                 "Reset retained attunement progress, history, or auxiliary accounting");

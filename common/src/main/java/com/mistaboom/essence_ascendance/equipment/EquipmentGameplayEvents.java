@@ -37,6 +37,8 @@ public final class EquipmentGameplayEvents {
         AscendanceNexusNetworkService.init();
         EssenceCrucibleNetworkService.init();
         EssencePylonNetworkService.init();
+        com.mistaboom.essence_ascendance.network.TeamInterfaceNetworkService.init();
+        com.mistaboom.essence_ascendance.network.InfuserSoulbindNetworkService.init();
         ItemEssenceTooltipSyncService.init();
         PlayerEssenceSyncService.init();
         SkillEffectHudSyncService.init();

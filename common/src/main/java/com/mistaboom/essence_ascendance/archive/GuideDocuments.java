@@ -118,6 +118,8 @@ final class GuideDocuments {
                 link("reference/essences/item_yields", "archive.entry.reference.essences.item_yields.title",
                         SemanticDocument.LinkRelation.RELATED),
                 link("reference/mechanics/allocation_storage", "archive.entry.reference.mechanics.allocation_storage.title",
+                        SemanticDocument.LinkRelation.RELATED),
+                link("reference/mechanics/teams", "archive.entry.reference.mechanics.teams.title",
                         SemanticDocument.LinkRelation.RELATED));
         return document("archive.entry.guide.essence.collecting.title", blocks);
     }
@@ -162,6 +164,8 @@ final class GuideDocuments {
                 link("guide/infusion/first_focus", "archive.entry.guide.infusion.first_focus.title",
                         SemanticDocument.LinkRelation.NEXT),
                 link("reference/machines/focus", "archive.entry.reference.machines.focus.title",
+                        SemanticDocument.LinkRelation.RELATED),
+                link("reference/mechanics/teams", "archive.entry.reference.mechanics.teams.title",
                         SemanticDocument.LinkRelation.RELATED));
         return document("archive.entry.guide.machines.first_network.title", blocks);
     }
@@ -221,6 +225,8 @@ final class GuideDocuments {
                 link("reference/equipment/infusion", "archive.entry.reference.equipment.infusion.title",
                         SemanticDocument.LinkRelation.RELATED),
                 link("reference/equipment/lifecycle", "archive.entry.reference.equipment.lifecycle.title",
+                        SemanticDocument.LinkRelation.RELATED),
+                link("reference/mechanics/teams", "archive.entry.reference.mechanics.teams.title",
                         SemanticDocument.LinkRelation.RELATED),
                 new SemanticDocument.Link(id("reference/bonuses/" + EssenceStats.DURABILITY_EFFICIENCY.id().getPath()).toString(),
                         ArchiveText.term("bonus:durability_efficiency"), SemanticDocument.LinkRelation.RELATED),
@@ -386,25 +392,37 @@ final class GuideDocuments {
 
     static SemanticDocument fishing(PresentationContext context) {
         List<SemanticDocument.Block> blocks = new ArrayList<>();
-        blocks.add(new SemanticDocument.ItemIllustration(new ItemPresentation(id("ascendance_fishing_rod"), DataComponentPatch.EMPTY, itemName("ascendance_fishing_rod")), HERO_WIDTH, HERO_HEIGHT));
-        blocks.add(new SemanticDocument.Paragraph(g("archive.guide.fishing.acquisition")));
-        blocks.add(new SemanticDocument.Paragraph(g("archive.guide.fishing.controls")));
-        blocks.add(new SemanticDocument.Paragraph(g("archive.guide.fishing.water")));
-        blocks.add(new SemanticDocument.Paragraph(g("archive.guide.fishing.surface")));
+        blocks.add(new SemanticDocument.ItemIllustration(new ItemPresentation(id("ascendance_fishing_rod"),
+                DataComponentPatch.EMPTY, itemName("ascendance_fishing_rod")), HERO_WIDTH, HERO_HEIGHT));
+        blocks.add(heading("archive.guide.fishing.getting_started"));
+        blocks.add(new SemanticDocument.Paragraph(g("archive.guide.fishing.acquisition", equipmentTier(EquipmentTier.LATENT))));
+        blocks.add(heading("archive.guide.fishing.fishing"));
+        blocks.add(paragraph("archive.guide.fishing.water"));
+        blocks.add(paragraph("archive.guide.fishing.bonuses"));
+        blocks.add(heading("archive.guide.fishing.grappling"));
+        blocks.add(new SemanticDocument.OrderedSteps(List.of(
+                g("archive.guide.fishing.step.cast"), g("archive.guide.fishing.step.tug"),
+                g("archive.guide.fishing.step.reel"), g("archive.guide.fishing.step.release"))));
+        blocks.add(paragraph("archive.guide.fishing.controls"));
+        blocks.add(headingComponent(SkillPresentationData.skillName(SkillIds.SURFACE_TENSION)));
+        blocks.add(paragraph("archive.guide.fishing.surface"));
+        blocks.add(heading("archive.guide.fishing.limits"));
         if (!context.runtime().ready()) blocks.add(runtimeState(context.runtime().availability()));
         else {
             var policy = context.runtime().definition().config().fishingRodBalance();
-            blocks.add(new SemanticDocument.StatRows(List.of(
-                    new SemanticDocument.StatRow(g("archive.guide.fishing.wear"), g("archive.guide.fishing.wear.value", policy.wearPerInterval(), policy.wearIntervalTicks())),
-                    new SemanticDocument.StatRow(g("archive.guide.fishing.skiing"), g("archive.guide.fishing.skiing.value", decimal(policy.waterSkiingDistance()))),
-                    new SemanticDocument.StatRow(g("archive.guide.fishing.buoyancy"), g("archive.guide.fishing.buoyancy.value", decimal(policy.buoyancySpeed()))))));
+            blocks.add(new SemanticDocument.Requirements(List.of(
+                    info("archive.guide.fishing.wear", g("archive.guide.fishing.wear.value",
+                            policy.wearPerInterval(), decimal(policy.wearIntervalTicks() / 20.0))),
+                    info("archive.guide.fishing.buoyancy", g("archive.guide.fishing.buoyancy.value", decimal(policy.buoyancySpeed() * 20))),
+                    info("archive.guide.fishing.skiing", g("archive.guide.fishing.skiing.value", decimal(policy.waterSkiingDistance()))))));
         }
         seeAlso(blocks, link("reference/equipment/fishing_rod", "archive.entry.reference.equipment.fishing_rod.title", SemanticDocument.LinkRelation.RELATED),
-                new SemanticDocument.Link(id("reference/bonuses/fishing_speed").toString(), EssenceText.stat(EssenceStats.FISHING_SPEED), SemanticDocument.LinkRelation.RELATED),
-                new SemanticDocument.Link(id("reference/skills/surface_tension").toString(), Component.translatable("skill.essence_ascendance.surface_tension"), SemanticDocument.LinkRelation.RELATED),
-                new SemanticDocument.Link(id("reference/skills/fishing_instinct").toString(), Component.translatable("skill.essence_ascendance.fishing_instinct"), SemanticDocument.LinkRelation.RELATED),
-                new SemanticDocument.Link(id("reference/skills/fishers_call").toString(), Component.translatable("skill.essence_ascendance.fishers_call"), SemanticDocument.LinkRelation.RELATED),
-                link("reference/equipment/infusion", "archive.entry.reference.equipment.infusion.title", SemanticDocument.LinkRelation.RELATED));
+                new SemanticDocument.Link(id("reference/bonuses/fishing_speed").toString(), BonusPresentationData.name(EssenceStats.FISHING_SPEED), SemanticDocument.LinkRelation.RELATED),
+                new SemanticDocument.Link(id("reference/skills/surface_tension").toString(), SkillPresentationData.skillName(SkillIds.SURFACE_TENSION), SemanticDocument.LinkRelation.RELATED),
+                new SemanticDocument.Link(id("reference/skills/fishing_instinct").toString(), SkillPresentationData.skillName(SkillIds.FISHING_INSTINCT), SemanticDocument.LinkRelation.RELATED),
+                new SemanticDocument.Link(id("reference/skills/fishers_call").toString(), SkillPresentationData.skillName(SkillIds.FISHERS_CALL), SemanticDocument.LinkRelation.RELATED),
+                link("reference/equipment/infusion", "archive.entry.reference.equipment.infusion.title", SemanticDocument.LinkRelation.RELATED),
+                link("reference/equipment/lifecycle", "archive.entry.reference.equipment.lifecycle.title", SemanticDocument.LinkRelation.RELATED));
         return document("archive.entry.guide.equipment.fishing.title", blocks);
     }
 

@@ -59,6 +59,7 @@ public final class EssenceCommandTest {
         Skills.init();
         commandTrees();
         presentation();
+        multiplayerPresentation();
         operatorEdits();
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println(
                 "EssenceCommandTest: " + assertions + " command/presentation/operator assertions PASS");
@@ -69,6 +70,14 @@ public final class EssenceCommandTest {
         EssenceCommands.register(dispatcher);
         var player = source(0);
         var operator = source(EssenceCommandUtil.ADMIN_PERMISSION);
+        for (String approval : List.of("team approve 00000000-0000-0000-0000-000000000001",
+                "team approve 00000000-0000-0000-0000-000000000001 Workshop",
+                "team approve 00000000-0000-0000-0000-000000000001 \"Shared Workshop\""))
+            valid(dispatcher, "essence " + approval, player);
+        for (String approval : List.of("team approve", "team approve invalid-token Workshop",
+                "team approve 00000000-0000-0000-0000-000000000001 Shared Workshop",
+                "team decline 00000000-0000-0000-0000-000000000001 Workshop"))
+            invalid(dispatcher, "essence " + approval, player);
         for (String path : List.of("", "help", "status", "balance", "balance offense", "balance \"essence_ascendance:offense\"", "bonuses", "bonuses list",
                 "bonuses list all", "bonuses list offense", "bonuses show melee_damage", "bonuses invest melee_damage 1",
                 "attunement", "attunement help", "attunement offense", "ascend", "milestones")) {
@@ -155,7 +164,18 @@ public final class EssenceCommandTest {
                         "Missing category suggestion: " + prefix + essence.id());
             }
         }
-        literalChildren(dispatcher, List.of("essence", "admin"), Set.of("player", "item", "balance", "mappings", "config"));
+        for (String path : List.of("", "help", "status", "prepare native", "prepare ftb_teams", "prepare openpac", "cancel", "reconcile",
+                "activate 00000000-0000-0000-0000-000000000001")) {
+            String command = "essence admin membership" + (path.isBlank() ? "" : " " + path);
+            valid(dispatcher, command, operator);
+            invalid(dispatcher, command, player);
+            invalid(dispatcher, command, source(EssenceCommandUtil.ADMIN_PERMISSION - 1));
+        }
+        invalid(dispatcher, "essence admin membership prepare", operator);
+        invalid(dispatcher, "essence admin membership activate", operator);
+        invalid(dispatcher, "essence admin membership activate invalid-token", operator);
+        literalChildren(dispatcher, List.of("essence", "admin"), Set.of("player", "item", "balance", "mappings", "config", "membership"));
+        literalChildren(dispatcher, List.of("essence", "admin", "membership"), Set.of("status", "prepare", "activate", "cancel", "reconcile"));
         literalChildren(dispatcher, List.of("essence", "admin", "player"),
                 Set.of("tier", "attunement", "essence", "bonuses", "skills", "milestones", "crucible", "guide", "reset"));
         literalChildren(dispatcher, List.of("essence", "debug", "player"),
@@ -174,7 +194,7 @@ public final class EssenceCommandTest {
         var allowedUsage = dispatcher.getSmartUsage(dispatcher.getRoot().getChild("essence"), player);
         check(allowedUsage.keySet().stream().noneMatch(node -> Set.of("admin", "debug", "test").contains(node.getName())),
                 "Privileged branches leaked into non-operator usable commands");
-        for (String help : List.of("essence help", "essence admin", "essence admin player", "essence admin item", "essence admin balance",
+        for (String help : List.of("essence help", "essence admin", "essence admin membership", "essence admin membership help", "essence admin player", "essence admin item", "essence admin balance",
                 "essence debug", "essence debug player", "essence debug item", "essence debug machine", "essence debug player gameplay",
                 "essence debug player skills", "essence debug player milestones", "essence debug balance", "essence debug mappings", "essence bonuses",
                 "essence debug player attunement", "essence admin player attunement", "essence admin player attunement set", "essence admin player attunement fill",
@@ -291,6 +311,62 @@ public final class EssenceCommandTest {
         check(EssenceCommandUtil.command("README_REPORTS.txt", "File guide").getSiblings().getFirst().getStyle().getClickEvent() == null,
                 "File label incorrectly became a command action");
         check(EssenceCommandUtil.saturatingAdd(Long.MAX_VALUE, 1) == Long.MAX_VALUE, "Extreme admin investment crashed the summary");
+    }
+
+    private static void multiplayerPresentation() throws Exception {
+        check(EssenceMultiplayerCommandOutput.amount(java.math.BigInteger.ONE).equals("0.000001"),
+                "A fractional stored share was displayed as zero");
+        check(EssenceMultiplayerCommandOutput.amount(new java.math.BigInteger("1234500000")).equals("1,234.5"),
+                "Stored Essence was displayed in raw millionths or without grouping");
+        check(EssenceMultiplayerCommandOutput.amount(new java.math.BigInteger("9223372036854775807999999"))
+                        .equals("9,223,372,036,854,775,807.999999"),
+                "Large stored balances lost exact digits during presentation");
+        var original = net.minecraft.locale.Language.getInstance();
+        Map<String, String> translations = new java.util.HashMap<>();
+        try (var stream = EssenceCommandTest.class.getResourceAsStream("/assets/essence_ascendance/lang/en_us.json")) {
+            com.google.gson.JsonParser.parseReader(new java.io.InputStreamReader(java.util.Objects.requireNonNull(stream),
+                    java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject().entrySet()
+                    .forEach(entry -> translations.put(entry.getKey(), entry.getValue().getAsString()));
+        }
+        net.minecraft.locale.Language.inject(new net.minecraft.locale.Language() {
+            @Override public String getOrDefault(String key, String fallback) { return translations.getOrDefault(key, original.getOrDefault(key, fallback)); }
+            @Override public boolean has(String key) { return translations.containsKey(key) || original.has(key); }
+            @Override public boolean isDefaultRightToLeft() { return false; }
+            @Override public net.minecraft.util.FormattedCharSequence getVisualOrder(net.minecraft.network.chat.FormattedText text) {
+                return original.getVisualOrder(text);
+            }
+        });
+        try {
+            var token = java.util.UUID.fromString("00000000-0000-0000-0000-000000000123");
+            var available = new com.mistaboom.essence_ascendance.balance.engine.ProviderReadiness(
+                    com.mistaboom.essence_ascendance.balance.engine.ProviderReadiness.Status.AVAILABLE, "2101.1.11", "Complete live roster");
+            var diagnostic = new com.mistaboom.essence_ascendance.team.MembershipRuntime.Diagnostics(
+                    com.mistaboom.essence_ascendance.team.MembershipAuthority.NATIVE, available,
+                    Map.of(com.mistaboom.essence_ascendance.team.MembershipAuthority.FTB_TEAMS, available), Set.of(),
+                    com.mistaboom.essence_ascendance.team.MembershipAuthority.FTB_TEAMS, token, 1234, 4, 2, null);
+            var recorded = new RecordingSource();
+            EssenceAdminCommands.showMembershipStatus(source(2, recorded), diagnostic);
+            String rendered = recorded.messages.stream().map(Component::getString).collect(Collectors.joining("\n"));
+            check(rendered.contains("Membership Administration") && rendered.contains("Change to: FTB Teams")
+                            && rendered.contains("Target teams: 2") && rendered.contains("Target members: 4"),
+                    "Membership status omitted readable authority and activation impact");
+            check(rendered.contains("About 62 seconds"), "Activation status omitted the remaining server-time window");
+            check(!rendered.contains("ProviderReadiness[") && !rendered.contains("command.essence_ascendance"),
+                    "Status leaked record dumps or untranslated labels into chat");
+            var activation = recorded.messages.stream().flatMap(message -> message.getSiblings().stream())
+                    .map(Component::getStyle).map(style -> style.getClickEvent()).filter(java.util.Objects::nonNull)
+                    .filter(click -> click.getValue().contains("membership activate")).findFirst().orElseThrow();
+            check(activation.getAction() == ClickEvent.Action.SUGGEST_COMMAND
+                            && activation.getValue().equals("/essence admin membership activate " + token),
+                    "Activation link lost its current receipt or executed a mutation directly");
+            recorded.messages.clear();
+            EssenceAdminCommands.showMembershipStatus(source(2, recorded),
+                    new com.mistaboom.essence_ascendance.team.MembershipRuntime.Diagnostics(diagnostic.established(),
+                            available, diagnostic.providers(), Set.of(), null, null, 0, 0, 0, "Activation review expired; prepare again"));
+            String expired = recorded.messages.stream().map(Component::getString).collect(Collectors.joining("\n"));
+            check(expired.contains("Activation review expired; prepare again") && !expired.contains("membership activate"),
+                    "Expired activation status hid its explanation or offered an obsolete token");
+        } finally { net.minecraft.locale.Language.inject(original); }
     }
 
     private static void operatorEdits() {

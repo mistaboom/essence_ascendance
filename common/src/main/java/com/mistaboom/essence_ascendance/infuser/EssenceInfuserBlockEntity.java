@@ -1,12 +1,15 @@
 package com.mistaboom.essence_ascendance.infuser;
 
+import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleEssences;
+
+import com.mistaboom.essence_ascendance.machine.*;
 import com.mistaboom.essence_ascendance.network.ServerMenuAccess;
 import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleBlockEntity;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleChannelService;
 import com.mistaboom.essence_ascendance.data.EssenceSavedData;
-import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
+import com.mistaboom.essence_ascendance.data.ReservoirService;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.essence.EssenceRegistry;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTierData;
@@ -40,11 +43,13 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.Optional;
 import java.util.UUID;
 
 public final class EssenceInfuserBlockEntity extends BlockEntity
-        implements WorldlyContainer, MenuProvider {
+        implements WorldlyContainer, MenuProvider, BoundMachine {
 
     public static final int INPUT_SLOT = 0;
     public static final int OUTPUT_SLOT = 1;
@@ -60,20 +65,20 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     public static final int STATUS_PROCESSING = 5;
     public static final int STATUS_INVALID_INPUT = 6;
     public static final int STATUS_STOPPED = 7;
-    public static final int STATUS_PLAYER_CHANNELING = 8;
     public static final int STATUS_FOCUS_TIER_REQUIRED = 9;
     public static final int STATUS_FOCUS_MALFORMED = 10;
     public static final int STATUS_NEEDS_FOCUS = 11;
     public static final int STATUS_COMPONENT_REQUIRED = 12;
     public static final int STATUS_REPAIR_MATERIAL_REQUIRED = 13;
+    public static final int STATUS_JOB_CONTEXT_REQUIRED = 14;
+    public static final int STATUS_RECIPIENT_REQUIRED = 15;
+    public static final int STATUS_WAITING_BANDWIDTH = 16;
 
-    private static final int FOCUS_INFUSION_INTERVAL_TICKS = 4;
 
     private static final int[] AUTOMATION_SLOTS = {INPUT_SLOT, OUTPUT_SLOT, COMPONENT_SLOT};
 
     private static final String OWNER_TAG = "owner";
     private static final String OWNER_NAME_TAG = "owner_name";
-    private static final String LINKED_CRUCIBLE_TAG = "linked_crucible";
     private static final String SOURCE_ESSENCE_TAG = "source_essence";
     private static final String TARGET_ESSENCE_TAG = "target_essence";
     private static final String PROCESSING_TICKS_TAG = "processing_ticks";
@@ -83,15 +88,22 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     private final NonNullList<ItemStack> items =
             NonNullList.withSize(SLOT_COUNT, ItemStack.EMPTY);
 
+    private final MachineBinding binding = new MachineBinding();
     private UUID ownerId;
     private String ownerName = "";
+    private final MachineLink link = new MachineLink();
     private BlockPos linkedCruciblePos;
     private ResourceLocation sourceEssenceId;
     private ResourceLocation targetEssenceId;
     private int processingTicks;
-    private int focusThroughputRemainderTwentieths;
+    private long channelRevision;
+    private long grantRemaining;
+    private InfusionJobProgress paidJob;
+    private long demandMoneyRevision = -1, demandContextRevision = -1, cachedDemand;
     private boolean processingEnabled;
     private boolean processingVisualActive;
+    private long lastGrantTick = -1;
+    private int lastTransferMask;
     private MachineVisualState.Infuser clientVisualState;
     private MachineVisualState.Infuser lastSyncedVisualState;
 
@@ -106,6 +118,15 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             EssenceInfuserBlockEntity infuser
     ) {
         infuser.processingVisualActive = false;
+        var saved = EssenceSavedData.get(level.getServer());
+        if (infuser.binding.refresh(saved)) infuser.bindingChanged();
+        boolean operatorValid = infuser.binding.operatorValid(saved);
+        if (!com.mistaboom.essence_ascendance.team.MembershipAuthority.ready(saved.reservoirs().readiness())) {
+            if (level.getGameTime() % 5L == 0L) infuser.syncBlockEntity();
+            return;
+        }
+        if (com.mistaboom.essence_ascendance.team.MembershipAuthority.ready(saved.reservoirs().readiness())
+                && infuser.processingEnabled && (!operatorValid || !infuser.binding.operational(saved))) infuser.disarmProcessingForContextChange();
         if (level.getGameTime() % 20L == 0L) {
             infuser.refreshLink();
         }
@@ -120,13 +141,15 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     public MachineVisualState.Infuser visualState() {
         if (level != null && level.isClientSide) return clientVisualState == null
                 ? MachineVisualState.IDLE_INFUSER : clientVisualState;
-        int status = statusCode();
+        int status = displayStatusCode();
         boolean active = status == STATUS_PROCESSING;
         ItemStack input = getItem(INPUT_SLOT);
-        long rate = active ? infusionThroughputPerSecond() : 0L;
+        var feedback = EssenceCrucibleChannelService.feedback(this);
+        long rate = lastGrantTick >= 0 && level != null && level.getGameTime() - lastGrantTick <= 4
+                ? com.mistaboom.essence_ascendance.crucible.ConcurrentChannelScheduler.sampledPerSecond(feedback.actual()).min(java.math.BigInteger.valueOf(Long.MAX_VALUE)).longValue() : 0;
         return new MachineVisualState.Infuser(linkedCruciblePos, processingEnabled,
                 status, processingTicks, requiredProcessingTicks(), rate,
-                input.isEmpty() ? null : BuiltInRegistries.ITEM.getKey(input.getItem()),
+                input.isEmpty() ? null : BuiltInRegistries.ITEM.getKey(input.getItem()), lastTransferMask,
                 new MachineVisualState.Focus(MachineVisualState.Host.INFUSER,
                         hasInstalledFocus(), focusTier(), active && hasInstalledFocus(), rate));
     }
@@ -136,25 +159,31 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     }
 
     public String ownerDisplayName() {
-        if (!ownerName.isBlank()) {
-            return ownerName;
-        }
-        return ownerId == null ? "Unbound" : ownerId.toString();
+        if (level instanceof ServerLevel serverLevel)
+            return com.mistaboom.essence_ascendance.machine.MachineOwnerDisplay.ownerName(
+                    serverLevel.getServer(), binding, ownerId, ownerName);
+        return ownerName.isBlank() ? "Unknown owner" : ownerName;
     }
 
-    public boolean bindOwner(Player player) {
-        if (ownerId != null) {
-            return ownerId.equals(player.getUUID());
-        }
-        ownerId = player.getUUID();
-        ownerName = player.getGameProfile().getName();
-        normalizeSelections();
-        syncBlockEntity();
-        return true;
+    /** Placement establishes identity; later interactions authorize only. */
+    public boolean bindOnPlacement(Player player) {
+        if (!(level instanceof ServerLevel serverLevel)) return false;
+        if (!binding.place(com.mistaboom.essence_ascendance.data.EssenceSavedData.get(serverLevel.getServer()), player.getUUID())) return false;
+        ownerId = player.getUUID(); ownerName = player.getGameProfile().getName();
+        link.configure(MachineLink.Mode.AUTOMATIC, null); linkedCruciblePos = null;
+        bindingChanged(); refreshLink(); return true;
+    }
+    @Override public MachineBinding machineBinding() { return binding; }
+    public boolean canPlayerConfigure(Player player) { return ServerMenuAccess.canReach(player, this) && authorize(player, MachineAction.CONFIGURE); }
+    public UUID fundingActor() {
+        if (!(level instanceof ServerLevel serverLevel)) return null;
+        var saved = com.mistaboom.essence_ascendance.data.EssenceSavedData.get(serverLevel.getServer());
+        if (binding.refresh(saved)) bindingChanged();
+        return binding.fundingActor(saved);
     }
 
     public boolean canPlayerUse(Player player) {
-        return ownerId == null || ownerId.equals(player.getUUID());
+        return authorize(player, MachineAction.USE);
     }
 
     @Nullable
@@ -306,7 +335,11 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     }
 
     public int processingTicks() {
-        return processingTicks;
+        if (paidJob == null) return processingEnabled && currentInfusionRecipe().map(recipe -> recipe.progressModel() == EssenceInfuserProgressModel.TIMED_ATOMIC).orElse(false) ? 0 : processingTicks;
+        long total = InfusionPayments.total(paidJob.required()), paid = InfusionPayments.total(paidJob.paid());
+        int paidTicks = java.math.BigInteger.valueOf(paid).multiply(java.math.BigInteger.valueOf(requiredProcessingTicks()))
+                .divide(java.math.BigInteger.valueOf(total)).intValueExact();
+        return Math.min(processingTicks, paidTicks);
     }
 
     public boolean processingEnabled() {
@@ -314,25 +347,47 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     }
 
     public void setProcessingEnabled(Player player, boolean enabled) {
-        if (!bindOwner(player) || ownerId == null) {
-            return;
+        setProcessingEnabled(player, enabled, false);
+    }
+
+    /** Team equipment requires an explicit, server-validated menu confirmation before its first binding. */
+    public boolean requiresSoulbindConfirmation(Player player) {
+        if (!canPlayerConfigure(player) || !(level instanceof ServerLevel serverLevel)) return false;
+        var membership = binding.resolve(EssenceSavedData.get(serverLevel.getServer()));
+        return membership != null && membership.pool().kind() == com.mistaboom.essence_ascendance.team.PoolId.Kind.TEAM
+                && currentInfusionRecipe().map(EssenceInfuserRecipe::requiresEquipmentRecipient).orElse(false)
+                && !SoulboundEquipmentData.isSoulbound(getItem(INPUT_SLOT));
+    }
+
+    /** Package-scoped entry point used only after this menu validates its one-use confirmation receipt. */
+    void startConfirmedEquipment(Player player) {
+        setProcessingEnabled(player, true, true);
+    }
+
+    private void setProcessingEnabled(Player player, boolean enabled, boolean soulbindConfirmed) {
+        if (!canPlayerConfigure(player) || ownerId == null
+                || enabled && requiresSoulbindConfirmation(player) && !soulbindConfirmed) return;
+        UUID previousOperator = binding.operator(), previousRecipient = binding.recipient();
+        var recipe = currentInfusionRecipe().orElse(null);
+        boolean needsRecipient = recipe != null && recipe.requiresEquipmentRecipient();
+        UUID bound = SoulboundEquipmentData.read(getItem(INPUT_SLOT)).map(SoulboundEquipmentData.Binding::ownerId).orElse(null);
+        // The workpiece's original owner always wins, even when another member performs an upgrade.
+        UUID recipient = needsRecipient ? (bound != null ? bound
+                : paidJob != null && paidJob.recipient() != null ? paidJob.recipient() : player.getUUID()) : null;
+        if (enabled && (!hasInstalledFocus() || !(level instanceof ServerLevel serverLevel)
+                || !binding.start(EssenceSavedData.get(serverLevel.getServer()), player.getUUID(), recipient, needsRecipient ? bound : null))) return;
+        if (enabled && needsRecipient && bound == null) {
+            ItemStack claimed = getItem(INPUT_SLOT).copy();
+            SoulboundEquipmentData.bind(claimed, recipient, player.getUUID().equals(recipient) ? player.getGameProfile().getName() : "");
+            items.set(INPUT_SLOT, claimed);
         }
-        if (enabled && !hasInstalledFocus()) {
-            return;
-        }
-        if (enabled && player instanceof ServerPlayer serverPlayer) {
-            /*
-             * Start/Resume Processing is the explicit request to give this
-             * machine priority. This also works when the Infuser was already
-             * enabled but temporarily paused by player channeling.
-             */
-            EssenceCrucibleChannelService.stopForPlayer(serverPlayer);
-        }
+        if (enabled) setChanged();
         if (processingEnabled == enabled) {
+            if (!java.util.Objects.equals(previousOperator, binding.operator()) || !java.util.Objects.equals(previousRecipient, binding.recipient())) invalidateChannel();
             return;
         }
         processingEnabled = enabled;
-        focusThroughputRemainderTwentieths = 0;
+        invalidateChannel();
         syncBlockEntity();
     }
 
@@ -347,12 +402,17 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         return hasInstalledFocus() ? profile().efficiencyBasisPoints() : 0;
     }
 
+    public java.math.BigInteger sourceAmountAvailableExact() {
+        EssenceDefinition essence = sourceEssence(); UUID actor = fundingActor();
+        return essence == null || actor == null ? java.math.BigInteger.ZERO : EssenceSavedData.get(((ServerLevel) level).getServer())
+                .reservoirs().read(actor).whole(essence.id());
+    }
     public long sourceAmountAvailable() {
         EssenceDefinition source = sourceEssence();
-        PlayerEssenceData data = ownerPlayerData();
-        return source == null || data == null
+        UUID funding = fundingActor();
+        return source == null || funding == null
                 ? 0L
-                : data.getCrucibleStored(source);
+                : reservoirAmount(source);
     }
 
     public long targetCarrierCapacity() {
@@ -381,9 +441,8 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         if (!hasInstalledFocus()) {
             return STATUS_NEEDS_FOCUS;
         }
-        if (!processingEnabled) {
-            return STATUS_STOPPED;
-        }
+        if (!processingEnabled) return STATUS_STOPPED;
+        if (level instanceof ServerLevel serverLevel && !binding.operatorValid(EssenceSavedData.get(serverLevel.getServer()))) return STATUS_STOPPED;
         ItemStack input = getItem(INPUT_SLOT);
         if (input.isEmpty()) {
             return STATUS_IDLE;
@@ -391,10 +450,6 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         if (!isCurrentLinkValid()) {
             return STATUS_UNLINKED;
         }
-        if (EssenceCrucibleChannelService.isChanneling(ownerId)) {
-            return STATUS_PLAYER_CHANNELING;
-        }
-
         Optional<EssenceInfuserRecipe> resolvedRecipe =
                 EssenceInfuserRecipeRegistry.resolve(input);
         if (resolvedRecipe.isEmpty()) {
@@ -402,6 +457,9 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         }
         EssenceInfuserRecipe recipe = resolvedRecipe.get();
         EssenceInfuserRecipeContext context = recipeContext();
+        if (recipe.requiresEquipmentRecipient() && level instanceof ServerLevel serverLevel
+                && !equipmentRecipientValid(EssenceSavedData.get(serverLevel.getServer()))) return STATUS_RECIPIENT_REQUIRED;
+        if (paidJob != null && !paidJob.matches(recipe, context)) return STATUS_JOB_CONTEXT_REQUIRED;
         if (!recipe.installedFocusAllows(context)) {
             return STATUS_FOCUS_TIER_REQUIRED;
         }
@@ -440,8 +498,15 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         }
         return STATUS_PROCESSING;
     }
+    public int displayStatusCode() {
+        int status = statusCode();
+        return status == STATUS_PROCESSING && level != null && channelDemand() > 0
+                && (lastGrantTick < 0 || level.getGameTime() - lastGrantTick >= 4)
+                ? STATUS_WAITING_BANDWIDTH : status;
+    }
 
     private int repairInfusionStatus(RepairInfusionRecipe recipe) {
+        if (!(level instanceof ServerLevel serverLevel) || !equipmentRecipientValid(EssenceSavedData.get(serverLevel.getServer()))) return STATUS_STOPPED;
         ItemStack workpiece = getItem(INPUT_SLOT);
         if (!RepairInfusionRecipe.isWorkpiece(workpiece)) {
             return STATUS_INVALID_INPUT;
@@ -464,13 +529,11 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             }
         }
 
-        PlayerEssenceData data = ownerPlayerData();
-        if (data == null) {
+        UUID funding = fundingActor();
+        if (funding == null) {
             return STATUS_UNLINKED;
         }
-        return data.getCrucibleStored(source) >= recipe.essenceRequired()
-                ? STATUS_PROCESSING
-                : STATUS_INSUFFICIENT_SOURCE;
+        return hasFixedRequirementsAvailable(recipe.essenceRequirements(recipeContext())) ? STATUS_PROCESSING : STATUS_INSUFFICIENT_SOURCE;
     }
 
     private int focusInfusionStatus(FocusInfusionRecipe recipe) {
@@ -497,10 +560,12 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     }
 
     private int equipmentInfusionStatus(EquipmentInfusionRecipe recipe) {
+        if (!(level instanceof ServerLevel serverLevel) || !equipmentRecipientValid(EssenceSavedData.get(serverLevel.getServer()))) return STATUS_STOPPED;
         ItemStack workpiece = getItem(INPUT_SLOT);
         if (!EquipmentTierData.isAscendanceEquipment(workpiece)
                 || workpiece.getCount() != 1
-                || EquipmentTierData.tier(workpiece) != recipe.currentTier()) {
+                || EquipmentTierData.tier(workpiece) != recipe.currentTier()
+                || !EquipmentInfusionData.validForRecipe(workpiece, recipe)) {
             return STATUS_INVALID_INPUT;
         }
         // Tier upgrades produce one individualized artifact. Do not spend more
@@ -508,8 +573,8 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         if (!getItem(OUTPUT_SLOT).isEmpty()) {
             return STATUS_OUTPUT_BLOCKED;
         }
-        PlayerEssenceData data = ownerPlayerData();
-        if (data == null) {
+        UUID funding = fundingActor();
+        if (funding == null) {
             return STATUS_UNLINKED;
         }
         ItemStack component = getItem(COMPONENT_SLOT);
@@ -524,92 +589,54 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             EssenceDefinition essence = EssenceRegistry.get(entry.getKey()).orElse(null);
             if (essence != null
                     && EquipmentInfusionData.contribution(workpiece, essence) < entry.getValue()
-                    && data.getCrucibleStored(essence) > 0L) {
+                    && reservoirAmount(essence) > 0L) {
                 return STATUS_PROCESSING;
             }
         }
         return STATUS_INSUFFICIENT_SOURCE;
     }
 
+    public MachineLink.Mode linkMode() { return link.mode(); }
+    public MachineLink.Source linkedSource() { return link.target(); }
+    public MachineLink.State linkState() {
+        return level instanceof ServerLevel serverLevel ? link.state(serverLevel, worldPosition, EssenceInfuserBalance.linkRange(), binding) : MachineLink.State.UNAVAILABLE;
+    }
+    public boolean setLink(Player player, MachineLink.Mode mode, MachineLink.Source source) {
+        if (!ServerMenuAccess.canReach(player, this) || !authorize(player, MachineAction.LINK)
+                || !(level instanceof ServerLevel serverLevel)) return false;
+        BlockPos previous = linkedCruciblePos;
+        if (!link.configure(serverLevel, worldPosition, EssenceInfuserBalance.linkRange(), binding, mode, source)) return false;
+        linkedCruciblePos = link.target() == null ? null : link.target().pos();
+        linkChanged(previous); refreshLink(); return true;
+    }
     public void refreshLink() {
-        if (!(level instanceof ServerLevel serverLevel) || ownerId == null) {
-            return;
+        if (!(level instanceof ServerLevel serverLevel)) return;
+        var saved = com.mistaboom.essence_ascendance.data.EssenceSavedData.get(serverLevel.getServer());
+        if (binding.refresh(saved)) bindingChanged();
+        BlockPos previous = linkedCruciblePos;
+        if (link.refresh(serverLevel, worldPosition, EssenceInfuserBalance.linkRange(), binding)) {
+            linkedCruciblePos = link.target() == null ? null : link.target().pos();
+            linkChanged(previous);
         }
-        if (isCurrentLinkValid(serverLevel)) {
-            return;
-        }
-
-        BlockPos nearest = findNearestOwnedCrucible(serverLevel);
-        if ((linkedCruciblePos == null && nearest == null)
-                || (linkedCruciblePos != null && linkedCruciblePos.equals(nearest))) {
-            return;
-        }
-        linkedCruciblePos = nearest == null ? null : nearest.immutable();
+    }
+    public boolean isCurrentLinkValid() { return linkState() == MachineLink.State.VALID; }
+    private boolean isCurrentLinkValid(ServerLevel ignored) { return isCurrentLinkValid(); }
+    @Override public void bindingChanged() {
+        disarmProcessingForContextChange();
+        linkChanged(linkedCruciblePos); setChanged();
+    }
+    private void linkChanged(BlockPos previous) {
+        invalidateChannel();
         syncBlockEntity();
     }
 
-    public boolean isCurrentLinkValid() {
-        return level instanceof ServerLevel serverLevel
-                && isCurrentLinkValid(serverLevel);
+
+    public void cycleSource(Player actor, int direction) {
+        if (canPlayerConfigure(actor)) cycleSelection(true, direction);
     }
 
-    private boolean isCurrentLinkValid(ServerLevel serverLevel) {
-        if (ownerId == null
-                || linkedCruciblePos == null
-                || !serverLevel.hasChunkAt(linkedCruciblePos)) {
-            return false;
-        }
-        double range = EssenceInfuserBalance.linkRange();
-        if (worldPosition.distSqr(linkedCruciblePos) > range * range) {
-            return false;
-        }
-        if (!(serverLevel.getBlockEntity(linkedCruciblePos)
-                instanceof EssenceCrucibleBlockEntity crucible)) {
-            return false;
-        }
-        return ownerId.equals(crucible.ownerId());
-    }
-
-    @Nullable
-    private BlockPos findNearestOwnedCrucible(ServerLevel serverLevel) {
-        double range = EssenceInfuserBalance.linkRange();
-        int scan = (int) Math.ceil(range);
-        double rangeSquared = range * range;
-        BlockPos best = null;
-        double bestDistance = Double.MAX_VALUE;
-
-        for (int dx = -scan; dx <= scan; dx++) {
-            for (int dy = -scan; dy <= scan; dy++) {
-                for (int dz = -scan; dz <= scan; dz++) {
-                    BlockPos candidate = worldPosition.offset(dx, dy, dz);
-                    double distance = worldPosition.distSqr(candidate);
-                    if (distance > rangeSquared || !serverLevel.hasChunkAt(candidate)) {
-                        continue;
-                    }
-                    if (!(serverLevel.getBlockEntity(candidate)
-                            instanceof EssenceCrucibleBlockEntity crucible)
-                            || crucible.ownerId() == null
-                            || !crucible.ownerId().equals(ownerId)) {
-                        continue;
-                    }
-                    if (distance < bestDistance
-                            || (distance == bestDistance
-                            && (best == null || candidate.asLong() < best.asLong()))) {
-                        best = candidate.immutable();
-                        bestDistance = distance;
-                    }
-                }
-            }
-        }
-        return best;
-    }
-
-    public void cycleSource(int direction) {
-        cycleSelection(true, direction);
-    }
-
-    public void cycleTarget(int direction) {
-        cycleSelection(false, direction);
+    public void cycleTarget(Player actor, int direction) {
+        if (canPlayerConfigure(actor)) cycleSelection(false, direction);
     }
 
     private void cycleSelection(boolean source, int direction) {
@@ -730,206 +757,134 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         return false;
     }
 
+    public long channelRevision() { return channelRevision; }
+    private void invalidateChannel() {
+        channelRevision = Math.incrementExact(channelRevision);
+        EssenceCrucibleChannelService.removeInfuser(this);
+    }
     private void tickProcessing(ServerLevel serverLevel) {
-        if (!hasInstalledFocus()) {
-            processingVisualActive = false;
-            return;
+        if (!processingEnabled || !hasInstalledFocus() || !isCurrentLinkValid()) {
+            EssenceCrucibleChannelService.removeInfuser(this); return;
         }
-        Optional<EssenceInfuserRecipe> resolvedRecipe = currentInfusionRecipe();
-        if (resolvedRecipe.isEmpty()) {
-            processingVisualActive = false;
-            return;
-        }
-        EssenceInfuserRecipe recipe = resolvedRecipe.get();
-        if (recipe instanceof RepairInfusionRecipe repairRecipe) {
-            tickRepairInfusion(serverLevel, repairRecipe);
-            return;
-        }
-        if (recipe instanceof FocusInfusionRecipe focusRecipe) {
-            tickFocusInfusion(serverLevel, focusRecipe);
-            return;
-        }
-        if (recipe instanceof EquipmentInfusionRecipe equipmentRecipe) {
-            tickEquipmentInfusion(serverLevel, equipmentRecipe);
-            return;
-        }
+        var source = serverLevel.getBlockEntity(linkedCruciblePos);
+        if (!(source instanceof EssenceCrucibleBlockEntity crucible)) return;
+        EssenceCrucibleChannelService.registerInfuser(this, crucible);
+        var recipe = currentInfusionRecipe().orElse(null);
+        if (recipe == null || statusCode() != STATUS_PROCESSING) return;
         if (recipe.progressModel() == EssenceInfuserProgressModel.TIMED_ATOMIC) {
-            tickTimedAtomicRecipe(serverLevel, recipe);
-            return;
-        }
-        processingVisualActive = false;
-    }
-
-    private void tickRepairInfusion(
-            ServerLevel serverLevel,
-            RepairInfusionRecipe recipe
-    ) {
-        int status = statusCode();
-        if (status != STATUS_PROCESSING) {
-            processingVisualActive = false;
-            return;
-        }
-
-        int requiredTicks = Math.max(1, recipe.processingTicks(recipeContext()));
-        processingVisualActive = true;
-        if (processingTicks < requiredTicks) {
-            processingTicks++;
-            setChanged();
-        }
-        if (processingTicks < requiredTicks) {
-            return;
-        }
-
-        completeRepairInfusion(serverLevel, recipe);
-    }
-
-    private void completeRepairInfusion(
-            ServerLevel serverLevel,
-            RepairInfusionRecipe expectedRecipe
-    ) {
-        if (ownerId == null || statusCode() != STATUS_PROCESSING) {
-            return;
-        }
-
-        RepairInfusionRecipe current = repairInfusionRecipe().orElse(null);
-        if (current == null
-                || current.missingDurability() != expectedRecipe.missingDurability()
-                || current.essenceRequired() != expectedRecipe.essenceRequired()
-                || current.latentIngotCount() != expectedRecipe.latentIngotCount()) {
-            return;
-        }
-
-        EssenceDefinition source = sourceEssence();
-        if (source == null) {
-            return;
-        }
-
-        ItemStack component = getItem(COMPONENT_SLOT);
-        if (current.latentIngotCount() > 0
-                && (!component.is(EssenceInfuserContent.LATENT_INGOT.get())
-                    || component.getCount() < current.latentIngotCount())) {
-            return;
-        }
-
-        ItemStack repaired = current.createOutput(recipeContext());
-        if (repaired.isEmpty() || !canAcceptOutput(repaired)) {
-            return;
-        }
-
-        EssenceSavedData saved = EssenceSavedData.get(serverLevel.getServer());
-        if (!saved.removeCrucibleStoredExact(ownerId, source, current.essenceRequired())) {
-            return;
-        }
-
-        try {
-            SoulboundEquipmentData.bind(repaired, ownerId, ownerName);
-        } catch (RuntimeException failure) {
-            saved.addCrucibleStored(ownerId, source, current.essenceRequired());
-            EssenceAscendance.LOGGER.error(
-                    "Failed to complete Ascendance equipment repair; rolled back {} {}",
-                    current.essenceRequired(),
-                    source.id(),
-                    failure
-            );
-            return;
-        }
-
-        if (current.latentIngotCount() > 0) {
-            component.shrink(current.latentIngotCount());
-            if (component.isEmpty()) {
-                items.set(COMPONENT_SLOT, ItemStack.EMPTY);
+            int required = Math.max(1, recipe.processingTicks(recipeContext()));
+            if (processingTicks < required) { processingTicks++; setChanged(); }
+            if (paidJob != null && paidJob.complete() && processingTicks >= required) {
+                if (recipe instanceof RepairInfusionRecipe repair) completeRepairInfusion(serverLevel, repair);
+                else completeTimedAtomicRecipe(serverLevel, recipe);
             }
+        } else if (recipe instanceof FocusInfusionRecipe focus && FocusInfusionData.requirementsMet(getItem(INPUT_SLOT), focus)) {
+            completeFocusInfusion(focus);
+        } else if (recipe instanceof EquipmentInfusionRecipe equipment && EquipmentInfusionData.requirementsMet(getItem(INPUT_SLOT), equipment)) {
+            completeEquipmentInfusion(equipment);
         }
-
-        items.set(INPUT_SLOT, ItemStack.EMPTY);
-        items.set(OUTPUT_SLOT, repaired);
-
-        processingTicks = 0;
-        focusThroughputRemainderTwentieths = 0;
-        processingEnabled = false;
-        syncBlockEntity();
     }
-
-    private void tickEquipmentInfusion(ServerLevel serverLevel, EquipmentInfusionRecipe recipe) {
-        processingTicks = 0;
-        if (statusCode() != STATUS_PROCESSING) {
-            processingVisualActive = false;
-            return;
+    public long channelDemand() {
+        if (statusCode() != STATUS_PROCESSING || !(level instanceof ServerLevel serverLevel)) return 0;
+        long money = EssenceSavedData.get(serverLevel.getServer()).reservoirs().revision();
+        if (money == demandMoneyRevision && channelRevision == demandContextRevision) return cachedDemand;
+        var recipe = currentInfusionRecipe().orElseThrow();
+        long demand = 0;
+        if (recipe instanceof FocusInfusionRecipe focus) {
+            var work = getItem(INPUT_SLOT);
+            long room = focus.totalEssenceRequired() - FocusInfusionData.totalContributed(work);
+            boolean minimum = !FocusInfusionData.minimumsMet(work, focus);
+            for (var type : FocusInfusionRecipe.coreAttributeEssences())
+                demand = com.mistaboom.essence_ascendance.crucible.ConcurrentChannelScheduler.saturatedAdd(demand,
+                        Math.min(reservoirAmount(type), minimum ? Math.max(0, focus.minimumPerAttributeEssence() - FocusInfusionData.contribution(work, type)) : room));
+            // Completing the minimum phase can make further same-grant types usable.
+            if (minimum && demand > 0) {
+                long stock = 0;
+                for (var type : FocusInfusionRecipe.coreAttributeEssences()) stock = com.mistaboom.essence_ascendance.crucible.ConcurrentChannelScheduler.saturatedAdd(stock, reservoirAmount(type));
+                demand = Math.min(room, stock);
+            } else demand = Math.min(room, demand);
+        } else {
+            Map<ResourceLocation, Long> requirements = recipe.essenceRequirements(recipeContext()).minimumByEssence();
+            var plan = InfusionPayments.plan(requirements, type -> recipe instanceof EquipmentInfusionRecipe
+                    ? EquipmentInfusionData.contribution(getItem(INPUT_SLOT), EssenceRegistry.get(type).orElseThrow())
+                    : paidJob == null ? 0 : paidJob.paid().getOrDefault(type, 0L),
+                    type -> reservoirAmount(EssenceRegistry.get(type).orElseThrow()), Long.MAX_VALUE);
+            demand = InfusionPayments.total(plan);
         }
-        ItemStack workpiece = getItem(INPUT_SLOT);
-        if (EquipmentInfusionData.requirementsMet(workpiece, recipe)) {
-            completeEquipmentInfusion(recipe);
-            return;
-        }
-        if (serverLevel.getGameTime() % FOCUS_INFUSION_INTERVAL_TICKS != 0L) {
-            return;
-        }
-        EssenceInfuserBalance.ThroughputSlice slice = EssenceInfuserBalance.throughputForTicks(
-                infusionThroughputPerSecond(), FOCUS_INFUSION_INTERVAL_TICKS, focusThroughputRemainderTwentieths);
-        focusThroughputRemainderTwentieths = slice.remainderTwentieths();
-        long moved = transferEquipmentEssence(serverLevel, recipe, slice.amount());
-        processingVisualActive = moved > 0L;
-        if (moved > 0L) syncBlockEntity();
-        if (EquipmentInfusionData.requirementsMet(getItem(INPUT_SLOT), recipe)) {
-            completeEquipmentInfusion(recipe);
-        }
+        demandMoneyRevision = money; demandContextRevision = channelRevision; cachedDemand = demand;
+        return demand;
+    }
+    public long deliverChannelGrant(long grant) {
+        if (grant <= 0 || statusCode() != STATUS_PROCESSING || !(level instanceof ServerLevel serverLevel)) return 0;
+        grantRemaining = grant;
+        try {
+            var recipe = currentInfusionRecipe().orElseThrow();
+            long moved;
+            if (recipe instanceof FocusInfusionRecipe focus) moved = transferFocusEssence(serverLevel, focus, grant);
+            else if (recipe instanceof EquipmentInfusionRecipe equipment) moved = transferEquipmentEssence(serverLevel, equipment, grant);
+            else {
+                ItemStack preparedInput = getItem(INPUT_SLOT).copy();
+                if (recipe.requiresEquipmentRecipient()) SoulboundEquipmentData.bind(preparedInput, equipmentRecipient(), "");
+                var preparedContext = new EssenceInfuserRecipeContext(preparedInput, sourceEssence(), targetEssence(), focusTier(), profile());
+                var job = paidJob == null ? InfusionJobProgress.begin(recipe, preparedContext,
+                        recipe.requiresEquipmentRecipient() ? equipmentRecipient() : null) : paidJob;
+                var costs = InfusionPayments.plan(job.required(), type -> job.paid().getOrDefault(type, 0L),
+                        type -> reservoirAmount(EssenceRegistry.get(type).orElseThrow()), grant);
+                var next = job.add(costs, binding.pool());
+                moved = !costs.isEmpty() && payWithInventory(EssenceSavedData.get(serverLevel.getServer()), costs, () -> {
+                    items.set(INPUT_SLOT, preparedInput); paidJob = next;
+                })
+                        ? InfusionPayments.total(costs) : 0;
+            }
+            processingVisualActive = moved > 0;
+            if (moved > 0) lastGrantTick = serverLevel.getGameTime();
+            demandMoneyRevision = -1;
+            if (moved > 0) { setChanged(); syncBlockEntity(); }
+            return moved;
+        } finally { grantRemaining = 0; }
+    }
+    private void completeRepairInfusion(ServerLevel serverLevel, RepairInfusionRecipe expectedRecipe) {
+        if (paidJob == null || !paidJob.complete() || statusCode() != STATUS_PROCESSING
+                || !paidJob.matches(expectedRecipe, recipeContext())) return;
+        ItemStack repaired = expectedRecipe.createOutput(recipeContext());
+        try { SoulboundEquipmentData.bind(repaired, equipmentRecipient(), ""); } catch (RuntimeException failure) { return; }
+        if (!canAcceptOutput(repaired)) return;
+        if (!payWithInventory(EssenceSavedData.get(serverLevel.getServer()), Map.of(), () -> {
+            if (expectedRecipe.latentIngotCount() > 0) {
+                ItemStack component = getItem(COMPONENT_SLOT); component.shrink(expectedRecipe.latentIngotCount());
+                if (component.isEmpty()) items.set(COMPONENT_SLOT, ItemStack.EMPTY);
+            }
+            items.set(INPUT_SLOT, ItemStack.EMPTY); items.set(OUTPUT_SLOT, repaired); paidJob = null;
+        })) return;
+        processingTicks = 0; processingEnabled = false; invalidateChannel(); syncBlockEntity();
     }
 
     private long transferEquipmentEssence(ServerLevel serverLevel, EquipmentInfusionRecipe recipe, long requestedBudget) {
         if (ownerId == null || requestedBudget <= 0L) return 0L;
-        ItemStack workpiece = getItem(INPUT_SLOT);
+        ItemStack workpiece = getItem(INPUT_SLOT).copy();
+        Map<net.minecraft.resources.ResourceLocation, Long> costs = new LinkedHashMap<>();
         EquipmentInfusionData.ensure(workpiece, recipe);
         EssenceSavedData saved = EssenceSavedData.get(serverLevel.getServer());
-        long budget = requestedBudget;
-        long moved = 0L;
-        for (var entry : recipe.requirements().entrySet()) {
-            if (budget <= 0L) break;
-            EssenceDefinition essence = EssenceRegistry.get(entry.getKey()).orElse(null);
-            if (essence == null) continue;
-            long current = EquipmentInfusionData.contribution(workpiece, essence);
-            long room = entry.getValue() - current;
-            if (room <= 0L) continue;
-            long available = saved.getPlayerData(ownerId).getCrucibleStored(essence);
-            long amount = Math.min(budget, Math.min(room, available));
-            if (amount <= 0L || !saved.removeCrucibleStoredExact(ownerId, essence, amount)) continue;
+        var costsPlan = InfusionPayments.plan(recipe.requirements(),
+                type -> EquipmentInfusionData.contribution(workpiece, EssenceRegistry.get(type).orElseThrow()),
+                type -> reservoirAmount(EssenceRegistry.get(type).orElseThrow()), requestedBudget);
+        for (var entry : costsPlan.entrySet()) {
             try {
-                EquipmentInfusionData.addContribution(workpiece, recipe, essence, amount);
-            } catch (RuntimeException failure) {
-                saved.addCrucibleStored(ownerId, essence, amount);
-                EssenceAscendance.LOGGER.error("Failed to persist equipment infusion contribution; rolled back {} {}", amount, essence.id(), failure);
-                break;
-            }
-
-            /*
-             * The first successful Essence contribution permanently awakens
-             * the artifact's ownership identity. Merely inserting equipment
-             * or creating zero-progress infusion state does not soulbind it.
-             *
-             * Binding happens after contribution persistence so a zero-Essence
-             * attempt can never bind an untouched item. Binding failure must not
-             * refund already-persisted Essence, which would duplicate progress.
-             */
-            try {
-                SoulboundEquipmentData.bind(workpiece, ownerId, ownerName);
-            } catch (RuntimeException failure) {
-                EssenceAscendance.LOGGER.error(
-                        "Equipment infusion contribution persisted but soulbinding failed for {}",
-                        ownerId,
-                        failure
-                );
-            }
-
-            budget -= amount;
-            moved = Math.addExact(moved, amount);
+                EquipmentInfusionData.addContribution(workpiece, recipe, EssenceRegistry.get(entry.getKey()).orElseThrow(), entry.getValue());
+                SoulboundEquipmentData.bind(workpiece, equipmentRecipient(), "");
+            } catch (RuntimeException failure) { return 0; }
         }
-        return moved;
+        costs.putAll(costsPlan);
+        if (!costs.isEmpty()) EquipmentInfusionData.recordFunding(workpiece, binding.pool(), costs);
+        long moved = InfusionPayments.total(costs);
+        return moved > 0 && payWithInventory(saved, costs, () -> items.set(INPUT_SLOT, workpiece)) ? moved : 0L;
     }
 
     private void completeEquipmentInfusion(EquipmentInfusionRecipe recipe) {
         ItemStack workpiece = getItem(INPUT_SLOT);
-        PlayerEssenceData data = ownerPlayerData();
+        UUID funding = fundingActor();
         ItemStack component = getItem(COMPONENT_SLOT);
-        if (data == null
+        if (funding == null
                 || !EquipmentTierData.isAscendanceEquipment(workpiece)
                 || workpiece.getCount() != 1
                 || EquipmentTierData.tier(workpiece) != recipe.currentTier()
@@ -950,77 +905,16 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         if (!canAcceptOutput(completed)) {
             return;
         }
-        // Publish the fully staged result only after every completion check.
-        // Unused Matrices stay in their component slot; only the workpiece moves.
-        component.shrink(recipe.matrixCount());
-        if (component.isEmpty()) items.set(COMPONENT_SLOT, ItemStack.EMPTY);
-        items.set(INPUT_SLOT, ItemStack.EMPTY);
-        items.set(OUTPUT_SLOT, completed);
+        if (!(level instanceof ServerLevel serverLevel) || !payWithInventory(EssenceSavedData.get(serverLevel.getServer()), Map.of(), () -> {
+            component.shrink(recipe.matrixCount());
+            if (component.isEmpty()) items.set(COMPONENT_SLOT, ItemStack.EMPTY);
+            items.set(INPUT_SLOT, ItemStack.EMPTY);
+            items.set(OUTPUT_SLOT, completed);
+        })) return;
         processingVisualActive = false;
         processingTicks = 0;
-        focusThroughputRemainderTwentieths = 0;
         processingEnabled = false;
         syncBlockEntity();
-    }
-
-    private void tickTimedAtomicRecipe(
-            ServerLevel serverLevel,
-            EssenceInfuserRecipe recipe
-    ) {
-        int status = statusCode();
-        if (status != STATUS_PROCESSING) {
-            processingVisualActive = false;
-            return;
-        }
-
-        EssenceInfuserRecipeContext context = recipeContext();
-        int requiredTicks = Math.max(1, recipe.processingTicks(context));
-        processingVisualActive = true;
-        if (processingTicks < requiredTicks) {
-            processingTicks++;
-            setChanged();
-        }
-        if (processingTicks < requiredTicks) {
-            return;
-        }
-
-        completeTimedAtomicRecipe(serverLevel, recipe);
-    }
-
-    private void tickFocusInfusion(ServerLevel serverLevel, FocusInfusionRecipe recipe) {
-        processingTicks = 0;
-        if (statusCode() != STATUS_PROCESSING) {
-            processingVisualActive = false;
-            return;
-        }
-
-        ItemStack workpiece = getItem(INPUT_SLOT);
-        if (FocusInfusionData.requirementsMet(workpiece, recipe)) {
-            completeFocusInfusion(recipe);
-            return;
-        }
-
-        if (serverLevel.getGameTime() % FOCUS_INFUSION_INTERVAL_TICKS != 0L) {
-            return;
-        }
-
-        EssenceInfuserBalance.ThroughputSlice slice =
-                EssenceInfuserBalance.throughputForTicks(
-                        infusionThroughputPerSecond(),
-                        FOCUS_INFUSION_INTERVAL_TICKS,
-                        focusThroughputRemainderTwentieths
-                );
-        focusThroughputRemainderTwentieths = slice.remainderTwentieths();
-
-        long moved = transferFocusEssence(serverLevel, recipe, slice.amount());
-        processingVisualActive = moved > 0L;
-        if (moved > 0L) {
-            syncBlockEntity();
-        }
-
-        if (FocusInfusionData.requirementsMet(getItem(INPUT_SLOT), recipe)) {
-            completeFocusInfusion(recipe);
-        }
     }
 
     private long transferFocusEssence(
@@ -1032,7 +926,8 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             return 0L;
         }
 
-        ItemStack workpiece = getItem(INPUT_SLOT);
+        ItemStack workpiece = getItem(INPUT_SLOT).copy();
+        Map<net.minecraft.resources.ResourceLocation, Long> costs = new LinkedHashMap<>();
         Optional<FocusInfusionData.Progress> progressOptional =
                 FocusInfusionData.readValidated(workpiece);
         if (progressOptional.isEmpty()) {
@@ -1058,7 +953,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
                         && contribution >= recipe.minimumPerAttributeEssence()) {
                     continue;
                 }
-                if (saved.getPlayerData(ownerId).getCrucibleStored(essence) > 0L) {
+                if ((reservoirAmount(essence) - costs.getOrDefault(essence.id(), 0L)) > 0L) {
                     candidates.add(essence);
                 }
             }
@@ -1070,8 +965,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
                 candidates.sort(
                         java.util.Comparator
                                 .<EssenceDefinition>comparingLong(
-                                        essence -> saved.getPlayerData(ownerId)
-                                                .getCrucibleStored(essence)
+                                        essence -> reservoirAmount(essence) - costs.getOrDefault(essence.id(), 0L)
                                 )
                                 .reversed()
                                 .thenComparing(essence -> essence.id().toString())
@@ -1098,28 +992,15 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
                 if (contributionRoom <= 0L) {
                     continue;
                 }
-                long available = saved.getPlayerData(ownerId).getCrucibleStored(essence);
+                long available = (reservoirAmount(essence) - costs.getOrDefault(essence.id(), 0L));
                 long amount = Math.min(
                         budget,
                         Math.min(share, Math.min(contributionRoom, available))
                 );
-                if (amount <= 0L
-                        || !saved.removeCrucibleStoredExact(ownerId, essence, amount)) {
-                    continue;
-                }
-
-                try {
-                    FocusInfusionData.addContribution(workpiece, recipe, essence, amount);
-                } catch (RuntimeException failure) {
-                    saved.addCrucibleStored(ownerId, essence, amount);
-                    EssenceAscendance.LOGGER.error(
-                            "Failed to persist Focus infusion contribution; rolled back {} {}",
-                            amount,
-                            essence.id(),
-                            failure
-                    );
-                    return movedTotal;
-                }
+                if (amount <= 0L) continue;
+                try { FocusInfusionData.addContribution(workpiece, recipe, essence, amount); }
+                catch (RuntimeException failure) { return 0L; }
+                costs.merge(essence.id(), amount, Math::addExact);
 
                 budget -= amount;
                 movedTotal = Math.addExact(movedTotal, amount);
@@ -1135,13 +1016,14 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             }
         }
 
-        return movedTotal;
+        if (!costs.isEmpty()) FocusInfusionData.recordFunding(workpiece, binding.pool(), costs);
+        return movedTotal > 0 && payWithInventory(saved, costs, () -> items.set(INPUT_SLOT, workpiece)) ? movedTotal : 0L;
     }
 
     private boolean hasUsefulFocusEssence(FocusInfusionRecipe recipe) {
-        PlayerEssenceData data = ownerPlayerData();
+        UUID funding = fundingActor();
         ItemStack workpiece = getItem(INPUT_SLOT);
-        if (data == null || FocusInfusionData.readValidated(workpiece).isEmpty()) {
+        if (funding == null || FocusInfusionData.readValidated(workpiece).isEmpty()) {
             return false;
         }
         if (FocusInfusionData.requirementsMet(workpiece, recipe)) {
@@ -1155,7 +1037,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
                     >= recipe.minimumPerAttributeEssence()) {
                 continue;
             }
-            if (data.getCrucibleStored(essence) > 0L) {
+            if (reservoirAmount(essence) > 0L) {
                 return true;
             }
         }
@@ -1182,15 +1064,12 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             return;
         }
 
-        items.set(INPUT_SLOT, ItemStack.EMPTY);
-        ItemStack output = getItem(OUTPUT_SLOT);
-        if (output.isEmpty()) {
-            items.set(OUTPUT_SLOT, result);
-        } else {
-            output.grow(1);
-        }
+        if (!(level instanceof ServerLevel serverLevel) || !payWithInventory(EssenceSavedData.get(serverLevel.getServer()), Map.of(), () -> {
+            items.set(INPUT_SLOT, ItemStack.EMPTY);
+            ItemStack output = getItem(OUTPUT_SLOT);
+            if (output.isEmpty()) items.set(OUTPUT_SLOT, result); else output.grow(1);
+        })) return;
         processingTicks = 0;
-        focusThroughputRemainderTwentieths = 0;
         processingEnabled = false;
         syncBlockEntity();
     }
@@ -1199,7 +1078,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             ServerLevel serverLevel,
             EssenceInfuserRecipe expectedRecipe
     ) {
-        if (ownerId == null || statusCode() != STATUS_PROCESSING) {
+        if (paidJob == null || !paidJob.complete() || ownerId == null || statusCode() != STATUS_PROCESSING) {
             return;
         }
 
@@ -1220,30 +1099,28 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         }
 
         EssenceSavedData saved = EssenceSavedData.get(serverLevel.getServer());
-        if (!withdrawFixedRequirements(saved, requirements)) {
-            return;
-        }
-
         ItemStack input = getItem(INPUT_SLOT);
         int consumed = Math.max(1, current.inputCount());
-        if (input.getCount() < consumed) {
-            rollbackFixedRequirements(saved, requirements);
-            return;
-        }
-        input.shrink(consumed);
-        if (input.isEmpty()) {
-            items.set(INPUT_SLOT, ItemStack.EMPTY);
-        }
+        if (input.getCount() < consumed) return;
+        if (!paidJob.matches(current, context)) return;
+        if (!payWithInventory(saved, Map.of(), () -> {
+            paidJob = null;
+            input.shrink(consumed);
+            if (input.isEmpty()) {
+                items.set(INPUT_SLOT, ItemStack.EMPTY);
+            }
 
-        ItemStack output = getItem(OUTPUT_SLOT);
-        if (output.isEmpty()) {
-            items.set(OUTPUT_SLOT, result);
-        } else {
-            output.grow(result.getCount());
-        }
+            ItemStack output = getItem(OUTPUT_SLOT);
+            if (output.isEmpty()) {
+                items.set(OUTPUT_SLOT, result);
+            } else {
+                output.grow(result.getCount());
+            }
+
+        })) return;
 
         processingTicks = 0;
-        focusThroughputRemainderTwentieths = 0;
+        invalidateChannel(); // The next carrier is a new demand even if no monetary revision changes.
         syncBlockEntity();
     }
 
@@ -1264,63 +1141,62 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     }
 
     private boolean hasFixedRequirementsAvailable(EssenceInfusionRequirements requirements) {
-        PlayerEssenceData data = ownerPlayerData();
-        if (data == null || !validFixedRequirements(requirements)) {
+        UUID funding = fundingActor();
+        if (funding == null || !validFixedRequirements(requirements)) {
             return false;
         }
+        if (paidJob != null && paidJob.complete()) return true;
         for (var entry : requirements.minimumByEssence().entrySet()) {
-            EssenceDefinition essence = EssenceRegistry.get(entry.getKey()).orElse(null);
-            if (essence == null || data.getCrucibleStored(essence) < entry.getValue()) {
-                return false;
-            }
+            var essence = EssenceRegistry.get(entry.getKey()).orElse(null);
+            long paid = paidJob == null ? 0 : paidJob.paid().getOrDefault(entry.getKey(), 0L);
+            if (essence != null && paid < entry.getValue() && reservoirAmount(essence) > 0) return true;
         }
-        return true;
+        return false;
     }
 
-    private boolean withdrawFixedRequirements(
-            EssenceSavedData saved,
-            EssenceInfusionRequirements requirements
-    ) {
-        if (ownerId == null || !hasFixedRequirementsAvailable(requirements)) {
+    private boolean payWithInventory(EssenceSavedData saved,
+                                     Map<net.minecraft.resources.ResourceLocation, Long> costs,
+                                     Runnable apply) {
+        var recipe = currentInfusionRecipe().orElse(null);
+        if (!ServerMenuAccess.isLoaded(this) || !isCurrentLinkValid() || !binding.operatorValid(saved) || !binding.operational(saved)
+                || recipe == null || recipe.requiresEquipmentRecipient() && !equipmentRecipientValid(saved)) return false;
+        long preparedRevision = channelRevision, preparedBinding = binding.revision();
+        long amount = InfusionPayments.total(costs);
+        if (amount > grantRemaining) return false;
+        UUID actor = binding.operator();
+        InfusionJobProgress originalJob = paidJob;
+        List<ItemStack> original = items.stream().map(ItemStack::copy).toList();
+        int originalTicks = processingTicks;
+        boolean originalEnabled = processingEnabled;
+        boolean originalVisual = processingVisualActive;
+        try {
+            boolean committed = saved.reservoirs().debit(actor, costs, new ReservoirService.Mutation() {
+                public boolean apply() {
+                    // The service has just validated membership/SPEND. Participants must not re-enter it.
+                    if (channelRevision != preparedRevision || binding.revision() != preparedBinding
+                            || !ServerMenuAccess.isLoaded(EssenceInfuserBlockEntity.this)) return false;
+                    apply.run(); return true;
+                }
+                public void rollback() {
+                    for (int i = 0; i < original.size(); i++) items.set(i, original.get(i));
+                    paidJob = originalJob;
+                    processingTicks = originalTicks;
+                    processingEnabled = originalEnabled;
+                    processingVisualActive = originalVisual;
+                }
+            });
+            if (committed) {
+                grantRemaining -= amount; demandMoneyRevision = -1;
+                if (amount > 0) {
+                    if (lastGrantTick != level.getGameTime()) lastTransferMask = 0;
+                    for (int i = 0; i < EssenceCrucibleEssences.ORDERED.size(); i++)
+                        if (costs.getOrDefault(EssenceCrucibleEssences.ORDERED.get(i).id(), 0L) > 0) lastTransferMask |= 1 << i;
+                }
+            }
+            return committed;
+        } catch (RuntimeException failure) {
+            EssenceAscendance.LOGGER.error("Infuser payment rejected; inventory and reservoir preserved", failure);
             return false;
-        }
-        List<EssenceWithdrawal> withdrawn = new ArrayList<>();
-        for (var entry : requirements.minimumByEssence().entrySet()) {
-            EssenceDefinition essence = EssenceRegistry.get(entry.getKey()).orElse(null);
-            long amount = entry.getValue();
-            if (essence == null
-                    || !saved.removeCrucibleStoredExact(ownerId, essence, amount)) {
-                rollbackWithdrawals(saved, withdrawn);
-                return false;
-            }
-            withdrawn.add(new EssenceWithdrawal(essence, amount));
-        }
-        return true;
-    }
-
-    private void rollbackFixedRequirements(
-            EssenceSavedData saved,
-            EssenceInfusionRequirements requirements
-    ) {
-        List<EssenceWithdrawal> withdrawals = new ArrayList<>();
-        for (var entry : requirements.minimumByEssence().entrySet()) {
-            EssenceDefinition essence = EssenceRegistry.get(entry.getKey()).orElse(null);
-            if (essence != null) {
-                withdrawals.add(new EssenceWithdrawal(essence, entry.getValue()));
-            }
-        }
-        rollbackWithdrawals(saved, withdrawals);
-    }
-
-    private void rollbackWithdrawals(
-            EssenceSavedData saved,
-            List<EssenceWithdrawal> withdrawals
-    ) {
-        if (ownerId == null) {
-            return;
-        }
-        for (EssenceWithdrawal withdrawal : withdrawals) {
-            saved.addCrucibleStored(ownerId, withdrawal.essence(), withdrawal.amount());
         }
     }
 
@@ -1337,7 +1213,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     }
 
     public boolean installOrSwapFocus(Player player, net.minecraft.world.InteractionHand hand) {
-        if (!bindOwner(player) || !canPlayerUse(player)) {
+        if (!ServerMenuAccess.canReach(player, this) || !authorize(player, MachineAction.FOCUS)) {
             player.displayClientMessage(
                     Component.translatable("message.essence_ascendance.infuser_private"),
                     true
@@ -1375,14 +1251,33 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         return true;
     }
 
-    @Nullable
-    private PlayerEssenceData ownerPlayerData() {
-        if (ownerId == null || !(level instanceof ServerLevel serverLevel)) {
-            return null;
-        }
-        return EssenceSavedData.get(serverLevel.getServer()).getPlayerData(ownerId);
+    private boolean equipmentRecipientValid(EssenceSavedData saved) {
+        UUID recipient = equipmentRecipient();
+        if (recipient == null) return false;
+        return SoulboundEquipmentData.read(getItem(INPUT_SLOT)).isPresent();
     }
-
+    private UUID equipmentRecipient() {
+        return SoulboundEquipmentData.read(getItem(INPUT_SLOT)).map(SoulboundEquipmentData.Binding::ownerId)
+                .orElse(paidJob != null ? paidJob.recipient() : binding.recipient());
+    }
+    public boolean hasPaidRepairJob() {
+        return paidJob != null && paidJob.recipient() != null && !paidJob.paid().isEmpty();
+    }
+    /** Own soulbound items only; this grants neither inventory browsing nor any spending capability. */
+    public boolean recoverWorkpiece(ServerPlayer player, int slot) {
+        if (!ServerMenuAccess.canReach(player, this) || player.server.getPlayerList().getPlayer(player.getUUID()) != player
+                || slot != INPUT_SLOT && slot != OUTPUT_SLOT) return false;
+        if (!SoulboundEquipmentData.isBoundTo(getItem(slot), player.getUUID())) return false;
+        ItemStack recovered = removeItemNoUpdate(slot);
+        if (recovered.isEmpty()) return false;
+        if (!player.getInventory().add(recovered)) player.drop(recovered, false);
+        return true;
+    }
+    public long reservoirAmount(EssenceDefinition essence) {
+        UUID actor = fundingActor();
+        return actor == null ? 0 : EssenceSavedData.get(((ServerLevel) level).getServer()).reservoirs().read(actor)
+                .whole(essence.id()).min(java.math.BigInteger.valueOf(Long.MAX_VALUE)).longValueExact();
+    }
     /**
      * Disarms the machine after a player changes the active recipe context.
      * Partial Focus infusion is stored on the workpiece itself and is not
@@ -1396,10 +1291,10 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     }
 
     private boolean disarmProcessingState() {
+        invalidateChannel();
         boolean changed = processingEnabled || processingTicks != 0 || processingVisualActive;
         processingEnabled = false;
-        processingTicks = 0;
-        focusThroughputRemainderTwentieths = 0;
+        if (paidJob == null) processingTicks = 0;
         processingVisualActive = false;
         if (changed) {
             setChanged();
@@ -1408,10 +1303,10 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     }
 
     private void resetProcessing() {
-        if (processingTicks != 0 || focusThroughputRemainderTwentieths != 0) {
+        invalidateChannel();
+        if (paidJob == null && processingTicks != 0) {
             processingTicks = 0;
-            focusThroughputRemainderTwentieths = 0;
-            setChanged();
+                setChanged();
         }
     }
 
@@ -1449,15 +1344,15 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
         ContainerHelper.saveAllItems(tag, items, registries);
+        binding.save(tag);
+        link.save(tag);
         if (ownerId != null) {
             tag.putUUID(OWNER_TAG, ownerId);
         }
         if (!ownerName.isBlank()) {
             tag.putString(OWNER_NAME_TAG, ownerName);
         }
-        if (linkedCruciblePos != null) {
-            tag.putLong(LINKED_CRUCIBLE_TAG, linkedCruciblePos.asLong());
-        }
+
         if (sourceEssenceId != null) {
             tag.putString(SOURCE_ESSENCE_TAG, sourceEssenceId.toString());
         }
@@ -1466,6 +1361,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         }
         tag.putInt(PROCESSING_TICKS_TAG, Math.max(0, processingTicks));
         tag.putBoolean(PROCESSING_ENABLED_TAG, processingEnabled);
+        if (paidJob != null) tag.put("paid_job", paidJob.save(registries));
     }
 
     @Override
@@ -1482,15 +1378,19 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         super.loadAdditional(tag, registries);
         items.clear();
         ContainerHelper.loadAllItems(tag, items, registries);
+        binding.load(tag);
+        link.load(tag);
         ownerId = tag.hasUUID(OWNER_TAG) ? tag.getUUID(OWNER_TAG) : null;
         ownerName = tag.getString(OWNER_NAME_TAG);
-        linkedCruciblePos = tag.contains(LINKED_CRUCIBLE_TAG, Tag.TAG_LONG)
-                ? BlockPos.of(tag.getLong(LINKED_CRUCIBLE_TAG))
-                : null;
+        linkedCruciblePos = link.target() == null ? null : link.target().pos();
         sourceEssenceId = ResourceLocation.tryParse(tag.getString(SOURCE_ESSENCE_TAG));
         targetEssenceId = ResourceLocation.tryParse(tag.getString(TARGET_ESSENCE_TAG));
         processingTicks = Math.max(0, tag.getInt(PROCESSING_TICKS_TAG));
         processingEnabled = tag.getBoolean(PROCESSING_ENABLED_TAG);
+        // Old automated-recipient settings must never claim previously unbound equipment after an update.
+        if (EquipmentTierData.isAscendanceEquipment(getItem(INPUT_SLOT)) && !SoulboundEquipmentData.isSoulbound(getItem(INPUT_SLOT))) processingEnabled = false;
+        invalidateChannel();
+        paidJob = tag.contains("paid_job", Tag.TAG_COMPOUND) ? InfusionJobProgress.load(tag.getCompound("paid_job"), registries) : null;
         processingVisualActive = false;
         clientVisualState = tag.contains(MachineVisualState.TAG, Tag.TAG_COMPOUND)
                 ? MachineVisualState.Infuser.read(tag.getCompound(MachineVisualState.TAG)) : null;
@@ -1512,6 +1412,8 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         return ClientboundBlockEntityDataPacket.create(this,
                 (entity, registries) -> entity.getUpdateTag(registries));
     }
+
+    @Override public void setRemoved() { EssenceCrucibleChannelService.removeInfuser(this); super.setRemoved(); }
 
     @Override
     public int getContainerSize() {
@@ -1538,11 +1440,11 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         if (slot < 0 || slot >= SLOT_COUNT || amount <= 0) {
             return ItemStack.EMPTY;
         }
+        if (slot == INPUT_SLOT && hasPaidRepairJob()) return removeItemNoUpdate(slot);
         ItemStack removed = ContainerHelper.removeItem(items, slot, amount);
         if (!removed.isEmpty()) {
-            if (slot == INPUT_SLOT || slot == FOCUS_SLOT) {
-                resetProcessing();
-            }
+            if (slot == INPUT_SLOT && EquipmentTierData.isAscendanceEquipment(removed)) disarmProcessingState();
+            else if (slot == INPUT_SLOT || slot == FOCUS_SLOT) resetProcessing();
             syncBlockEntity();
         }
         return removed;
@@ -1553,14 +1455,28 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         if (slot < 0 || slot >= SLOT_COUNT) {
             return ItemStack.EMPTY;
         }
-        ItemStack removed = ContainerHelper.takeItem(items, slot);
-        if (!removed.isEmpty() && (slot == INPUT_SLOT || slot == FOCUS_SLOT)) {
-            resetProcessing();
-        }
+        ItemStack removed;
+        if (slot == INPUT_SLOT && hasPaidRepairJob()) {
+            // A changed context stays trapped and recoverable with the machine until restored.
+            if (!currentInfusionRecipe().map(recipe -> paidJob.matches(recipe, recipeContext())).orElse(false)) return ItemStack.EMPTY;
+            removed = paidJob.carry(level.registryAccess(), processingTicks);
+            paidJob = null; items.set(slot, ItemStack.EMPTY); processingEnabled = false;
+        } else removed = ContainerHelper.takeItem(items, slot);
+        if (!removed.isEmpty() && slot == INPUT_SLOT && EquipmentTierData.isAscendanceEquipment(removed)) disarmProcessingState();
+        else if (!removed.isEmpty() && (slot == INPUT_SLOT || slot == FOCUS_SLOT)) resetProcessing();
         if (!removed.isEmpty()) {
             syncBlockEntity();
         }
         return removed;
+    }
+
+    @Override
+    public int getMaxStackSize(ItemStack stack) {
+        int limit = WorldlyContainer.super.getMaxStackSize(stack);
+        // Vanilla hopper accounting and loader adapters must see the same limit
+        // that setItem enforces, so a transfer cannot silently discard surplus.
+        return repairMode() && stack.is(EssenceInfuserContent.LATENT_INGOT.get())
+                ? Math.min(limit, Math.max(1, repairLatentIngotRequired())) : limit;
     }
 
     @Override
@@ -1569,20 +1485,34 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             return;
         }
         ItemStack normalized = stack == null ? ItemStack.EMPTY : stack;
+        if (slot == INPUT_SLOT && !normalized.isEmpty() && !InfusionJobProgress.carried(normalized).isEmpty()) {
+            if (paidJob != null) throw new IllegalStateException("Restore or recover the current paid job before inserting another");
+            CompoundTag carried = InfusionJobProgress.carried(normalized);
+            InfusionJobProgress restored = InfusionJobProgress.load(carried, level.registryAccess());
+            normalized = InfusionJobProgress.withoutCarried(normalized);
+            if (!ItemStack.matches(normalized, restored.workpiece())) throw new IllegalArgumentException("Paid repair workpiece mismatch");
+            paidJob = restored;
+            processingTicks = Math.max(0, carried.getInt("processing_ticks"));
+            processingEnabled = false;
+        }
         if (!normalized.isEmpty()) {
             int limit = slot == FOCUS_SLOT
                     ? 1
                     : (slot == INPUT_SLOT
                     ? workpieceStackLimit(normalized)
-                    : (slot == COMPONENT_SLOT && repairMode()
-                    ? Math.max(1, repairLatentIngotRequired())
-                    : getMaxStackSize(normalized)));
+                    : getMaxStackSize(normalized));
             normalized.limitSize(limit);
         }
         ItemStack previous = items.get(slot);
         boolean changedType = !ItemStack.isSameItemSameComponents(previous, normalized);
         items.set(slot, normalized);
-        if (changedType && (slot == INPUT_SLOT || slot == FOCUS_SLOT || slot == COMPONENT_SLOT)) {
+        if (changedType && slot == INPUT_SLOT) {
+            prepareInputRecipient();
+            if (EquipmentTierData.isAscendanceEquipment(previous) || EquipmentTierData.isAscendanceEquipment(normalized)) disarmProcessingState();
+        }
+        if (changedType && (slot == INPUT_SLOT || slot == FOCUS_SLOT || slot == COMPONENT_SLOT)
+                && !(slot == INPUT_SLOT && paidJob != null && currentInfusionRecipe()
+                .map(recipe -> paidJob.matches(recipe, recipeContext())).orElse(false))) {
             resetProcessing();
         }
         syncBlockEntity();
@@ -1603,10 +1533,19 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
 
     /** Called once by an adapter after its successful outer transaction closes. */
     public void finishItemTransfer(boolean contextChanged) {
+        finishItemTransfer(contextChanged, contextChanged);
+    }
+    public void finishItemTransfer(boolean contextChanged, boolean inputChanged) {
         if (contextChanged) {
-            resetProcessing();
+            prepareInputRecipient();
+            if (inputChanged && EquipmentTierData.isAscendanceEquipment(getItem(INPUT_SLOT))) disarmProcessingState();
+            else resetProcessing();
         }
         syncBlockEntity();
+    }
+    private void prepareInputRecipient() {
+        UUID bound = SoulboundEquipmentData.read(getItem(INPUT_SLOT)).map(SoulboundEquipmentData.Binding::ownerId).orElse(null);
+        binding.workpieceRecipient(bound);
     }
 
     @Override
@@ -1616,9 +1555,14 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
 
     @Override
     public void clearContent() {
+        if (paidJob != null || !isEmpty()) throw new IllegalStateException("Contents must be recovered or picked up with their machine");
         items.clear();
         resetProcessing();
         syncBlockEntity();
+    }
+    /** Trusted physical-custody move, called only after the complete pickup snapshot exists. */
+    public void releasePickupContents() {
+        invalidateChannel(); items.clear(); paidJob = null; processingEnabled = false;
     }
 
     @Override
@@ -1651,15 +1595,16 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             ItemStack stack,
             @Nullable Direction direction
     ) {
-        if (slot == COMPONENT_SLOT) {
-            if (stack == null || stack.isEmpty() || repairMode()) {
-                return false;
-            }
-            return equipmentInfusionMode()
-                    && stack.is(EssenceInfuserContent.ASCENDANCE_MATRIX.get());
-        }
-        return slot == INPUT_SLOT
-                && EssenceInfuserRecipeRegistry.allowsAutomationInput(stack);
+        if (!canAcceptAutomatedStack(stack)) return false;
+        // Vanilla transfers grow an occupied stack directly and insert an empty
+        // slot wholesale. Reject batches that cannot fit instead of truncating them.
+        if (slot == COMPONENT_SLOT) return canPlaceItem(slot, stack)
+                && stack.getCount() <= getMaxStackSize(stack) - getItem(slot).getCount();
+        if (slot != INPUT_SLOT || !InfusionJobProgress.carried(stack).isEmpty()) return false;
+        var recipe = EssenceInfuserRecipeRegistry.resolve(stack).orElse(null);
+        if (recipe == null) return false;
+        // Equipment may be delivered automatically, but starting its work is an explicit player action.
+        return recipe.allowsAutomationInput() || recipe.requiresEquipmentRecipient();
     }
 
     @Override
@@ -1668,7 +1613,7 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
             ItemStack stack,
             Direction direction
     ) {
-        return slot == OUTPUT_SLOT;
+        return automationExposed(false) && slot == OUTPUT_SLOT;
     }
 
     public static boolean isLatentCarrier(ItemStack stack) {
@@ -1697,6 +1642,4 @@ public final class EssenceInfuserBlockEntity extends BlockEntity
         return stack != null && stack.is(EssenceInfuserContent.ASCENDANCE_MATRIX.get());
     }
 
-    private record EssenceWithdrawal(EssenceDefinition essence, long amount) {
-    }
 }

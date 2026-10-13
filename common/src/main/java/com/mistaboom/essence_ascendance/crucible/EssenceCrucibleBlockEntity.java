@@ -7,7 +7,8 @@ import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.mapping.ItemEssenceMappingRegistry;
 import com.mistaboom.essence_ascendance.balance.economy.FractionalAmountService;
-import com.mistaboom.essence_ascendance.balance.economy.FractionalLedgerSavedData;
+import com.mistaboom.essence_ascendance.data.ReservoirService;
+import com.mistaboom.essence_ascendance.machine.*;
 import com.mistaboom.essence_ascendance.infuser.EssentiumCarrierData;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBalance;
 import com.mistaboom.essence_ascendance.infuser.EssenceInfuserBlockEntity;
@@ -31,8 +32,6 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.chunk.LevelChunk;
-import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
@@ -43,7 +42,7 @@ import java.util.Map;
 import java.util.UUID;
 
 public final class EssenceCrucibleBlockEntity extends BlockEntity
-        implements WorldlyContainer, MenuProvider {
+        implements WorldlyContainer, MenuProvider, BoundMachine {
 
     public static final int MAX_INPUT_SLOTS = EssenceCrucibleStructureService.MAX_INPUT_SLOTS;
     private static final int[] NO_AUTOMATION_SLOTS = {};
@@ -61,11 +60,13 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
     private final NonNullList<ItemStack> items =
             NonNullList.withSize(MAX_INPUT_SLOTS, ItemStack.EMPTY);
 
+    private final MachineBinding binding = new MachineBinding();
     private UUID ownerId;
     private String ownerName = "";
     private EssenceCrucibleAccessMode accessMode =
             EssenceCrucibleAccessMode.PRIVATE;
 
+    private boolean processingArmed = true;
     private int processingTicks = 0;
     private int dissolutionSlotCursor = 0;
     private EssenceCrucibleDissolutionMode dissolutionMode =
@@ -75,13 +76,14 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
     private int smartRoundRobinBlockedTicks = 0;
     private int smartRoundRobinWaitSlot = -1;
 
-    /* Runtime-only channel state. */
-    private UUID channelingPlayerId;
-    private long transferRateRemainder = 0L;
-    private int transferCursor = 0;
+    private final Map<UUID, Integer> transferCursors = new LinkedHashMap<>();
+    private final Map<UUID, Long> recentTransfers = new LinkedHashMap<>();
+    private final Map<UUID, Integer> recentTransferTypes = new LinkedHashMap<>();
 
     /* Short-lived structure cache; pylon changes explicitly invalidate it. */
     private EssenceCrucibleStructureSnapshot cachedStructureSnapshot;
+    private boolean cachedMembershipReady;
+    private long cachedMembershipReceipt = Long.MIN_VALUE;
     private long cachedStructureGameTime = Long.MIN_VALUE;
     private boolean processingVisualActive = false;
     private MachineVisualState.Crucible clientVisualState;
@@ -107,8 +109,16 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             EssenceCrucibleBlockEntity crucible
     ) {
         crucible.processingVisualActive = false;
+        EssenceCrucibleChannelService.sourceLoaded(crucible);
+        var saved = EssenceSavedData.get(level.getServer());
+        if (crucible.binding.refresh(saved)) crucible.bindingChanged();
+        if (!crucible.binding.operational(saved)) {
+            crucible.stopChanneling();
+            if (level.getGameTime() % 5L == 0L) crucible.syncVisualState();
+            return;
+        }
         crucible.tickDissolution();
-        crucible.tickChanneling();
+
         if (level.getGameTime() % 5L == 0L) {
             crucible.syncVisualState();
         }
@@ -119,20 +129,13 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         if (level != null && level.isClientSide) return clientVisualState == null
                 ? MachineVisualState.IDLE_CRUCIBLE : clientVisualState;
         EssenceCrucibleStructureSnapshot structure = structureSnapshot();
-        long[] stored = storedEssenceSnapshot();
-        double total = 0.0D;
-        long largest = 0L;
+        java.math.BigInteger largest = java.math.BigInteger.ZERO;
         int predominant = -1;
-        for (int i = 0; i < stored.length; i++) {
-            total += stored[i];
-            if (stored[i] > largest) {
-                largest = stored[i];
-                predominant = i;
-            }
+        for (int i = 0; i < EssenceCrucibleEssences.ORDERED.size(); i++) {
+            var stored = storedEssenceExact(EssenceCrucibleEssences.ORDERED.get(i));
+            if (stored.compareTo(largest) > 0) { largest = stored; predominant = i; }
         }
-        long capacity = effectiveReservoirCapacity();
-        int fill = capacity <= 0L ? 0 : (int) Math.min(10000L,
-                Math.round(10000.0D * total / capacity / Math.max(1, stored.length)));
+        int fill = MachineCapacity.visualFill(storedUnitsTotal(), localFillLimit());
         List<BlockPos> pylons = structure.activePylons().stream()
                 .map(EssenceCrucibleStructureSnapshot.ActivePylon::pos).toList();
         List<net.minecraft.resources.ResourceLocation> inputs = new ArrayList<>();
@@ -140,41 +143,25 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             ItemStack stack = items.get(slot);
             if (!stack.isEmpty()) inputs.add(BuiltInRegistries.ITEM.getKey(stack.getItem()));
         }
-        return new MachineVisualState.Crucible(processingVisualActive, channelingPlayerId,
+        return new MachineVisualState.Crucible(processingVisualActive, transferringPlayers().stream().limit(32).map(id -> {
+                    var data = EssenceSavedData.get(((ServerLevel) level).getServer()).getPlayerData(id);
+                    var f = EssenceCrucibleChannelService.feedback(this, id);
+                    return new MachineVisualState.PlayerStream(id, recentTransferTypes.getOrDefault(id, 0) & data.crucibleChannelSelection(),
+                            ConcurrentChannelScheduler.sampledPerSecond(f.actual()).min(java.math.BigInteger.valueOf(Long.MAX_VALUE)).longValue());
+                }).filter(s -> s.essenceMask() != 0 && s.rate() > 0).toList(),
                 structure.stats().transferRatePerSecond(), predominant, fill, pylons, inputs,
                 supplyingInfuserVisual());
     }
 
-    /** Observer-only aggregation; inspects loaded chunks without requesting loads. */
+    /** Observer-only aggregation of registered, currently usable Infuser demand. */
     private boolean supplyingInfuserVisual() {
         if (!(level instanceof ServerLevel serverLevel) || ownerId == null) return false;
         long tick = serverLevel.getGameTime();
         if (infusionVisualCheckTick == tick) return supplyingInfuserVisual;
         infusionVisualCheckTick = tick;
         supplyingInfuserVisual = false;
-        int range = (int) Math.ceil(EssenceInfuserBalance.linkRange());
-        int minX = (worldPosition.getX() - range) >> 4;
-        int maxX = (worldPosition.getX() + range) >> 4;
-        int minZ = (worldPosition.getZ() - range) >> 4;
-        int maxZ = (worldPosition.getZ() + range) >> 4;
-        for (int x = minX; x <= maxX; x++) {
-            for (int z = minZ; z <= maxZ; z++) {
-                if (!(serverLevel.getChunk(x, z, ChunkStatus.FULL, false) instanceof LevelChunk chunk)) {
-                    continue;
-                }
-                for (BlockEntity entity : chunk.getBlockEntities().values()) {
-                    if (entity instanceof EssenceInfuserBlockEntity infuser
-                            && !infuser.isRemoved()
-                            && worldPosition.equals(infuser.linkedCruciblePos())
-                            && ownerId.equals(infuser.ownerId())
-                            && infuser.visualState().transferring()) {
-                        supplyingInfuserVisual = true;
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
+        supplyingInfuserVisual = EssenceCrucibleChannelService.supplyingInfuser(this);
+        return supplyingInfuserVisual;
     }
 
     private void syncVisualState() {
@@ -191,11 +178,24 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         }
 
         long gameTime = level.getGameTime();
+        long membershipReceipt = level instanceof ServerLevel serverLevel
+                ? EssenceSavedData.get(serverLevel.getServer()).reservoirs().rosterRevision() : 0;
+        if (cachedStructureSnapshot != null && level instanceof ServerLevel serverLevel) {
+            for (var active : cachedStructureSnapshot.activePylons()) {
+                if (!serverLevel.hasChunkAt(active.pos()) || !(serverLevel.getBlockEntity(active.pos()) instanceof com.mistaboom.essence_ascendance.pylon.EssencePylonBlockEntity pylon)
+                        || !pylon.isLinkedTo(worldPosition) || !pylon.hasInstalledFocus()) {
+                    cachedStructureSnapshot = null; break;
+                }
+            }
+        }
+        boolean membershipReady = !(level instanceof ServerLevel serverLevel)
+                || com.mistaboom.essence_ascendance.team.MembershipAuthority.ready(EssenceSavedData.get(serverLevel.getServer()).reservoirs().readiness());
+        if (cachedMembershipReceipt != membershipReceipt || cachedMembershipReady != membershipReady) cachedStructureSnapshot = null;
         if (cachedStructureSnapshot == null
                 || gameTime - cachedStructureGameTime >= STRUCTURE_CACHE_TICKS) {
             cachedStructureSnapshot =
                     EssenceCrucibleStructureService.evaluateSnapshot(level, worldPosition);
-            cachedStructureGameTime = gameTime;
+            cachedStructureGameTime = gameTime; cachedMembershipReceipt = membershipReceipt; cachedMembershipReady = membershipReady;
         }
         return cachedStructureSnapshot;
     }
@@ -214,35 +214,38 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
     }
 
     public String ownerDisplayName() {
-        if (!ownerName.isBlank()) {
-            return ownerName;
-        }
-        return ownerId == null ? "Unbound" : ownerId.toString();
+        if (level instanceof ServerLevel serverLevel)
+            return com.mistaboom.essence_ascendance.machine.MachineOwnerDisplay.ownerName(
+                    serverLevel.getServer(), binding, ownerId, ownerName);
+        return ownerName.isBlank() ? "Unknown owner" : ownerName;
     }
 
     public EssenceCrucibleAccessMode accessMode() {
         return accessMode;
     }
 
-    public boolean bindOwner(Player player) {
-        if (ownerId != null) {
-            return ownerId.equals(player.getUUID());
-        }
-
-        ownerId = player.getUUID();
-        ownerName = player.getGameProfile().getName();
-        accessMode = EssenceCrucibleAccessMode.PRIVATE;
-        setChanged();
-        return true;
+    /** Placement establishes identity; later interactions only authorize existing infrastructure. */
+    public boolean bindOnPlacement(Player player) {
+        if (!(level instanceof ServerLevel serverLevel)) return false;
+        if (!binding.place(EssenceSavedData.get(serverLevel.getServer()), player.getUUID())) return false;
+        ownerId = player.getUUID(); ownerName = player.getGameProfile().getName();
+        processingArmed = true; processingTicks = 0; bindingChanged(); return true;
+    }
+    @Override public MachineBinding machineBinding() { return binding; }
+    public boolean canPlayerConfigure(Player player) { return ServerMenuAccess.canReach(player, this) && authorize(player, MachineAction.CONFIGURE); }
+    public UUID fundingActor() {
+        if (!(level instanceof ServerLevel serverLevel)) return null;
+        var saved = EssenceSavedData.get(serverLevel.getServer());
+        if (binding.refresh(saved)) bindingChanged();
+        return binding.fundingActor(saved);
     }
 
     public boolean canPlayerUse(Player player) {
-        if (ownerId == null) {
-            return true;
-        }
+        return authorize(player, MachineAction.USE);
+    }
 
-        /* TEAM/PUBLIC are reserved data shapes; PRIVATE is enforced for now. */
-        return ownerId.equals(player.getUUID());
+    public boolean canPlayerManage(Player player) {
+        return authorize(player, MachineAction.REBIND);
     }
 
     public long storedEssence(int index) {
@@ -256,12 +259,17 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
     }
 
     public long storedEssence(EssenceDefinition essence) {
-        PlayerEssenceData ownerData = ownerPlayerData();
-        long shared = ownerData == null
-                ? 0L
-                : ownerData.getCrucibleStored(essence);
-
-        return shared;
+        return storedEssenceExact(essence).min(java.math.BigInteger.valueOf(Long.MAX_VALUE)).longValueExact();
+    }
+    public java.math.BigInteger storedEssenceExact(EssenceDefinition essence) {
+        UUID actor = fundingActor();
+        return actor == null ? java.math.BigInteger.ZERO : EssenceSavedData.get(((ServerLevel) level).getServer())
+                .reservoirs().read(actor).whole(essence.id());
+    }
+    public java.math.BigInteger storedUnitsTotal() {
+        UUID actor = fundingActor();
+        return actor == null ? java.math.BigInteger.ZERO : EssenceSavedData.get(((ServerLevel) level).getServer())
+                .reservoirs().read(actor).units().values().stream().reduce(java.math.BigInteger.ZERO, java.math.BigInteger::add);
     }
 
     public long[] storedEssenceSnapshot() {
@@ -273,35 +281,33 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         return snapshot;
     }
 
-    public long totalStoredEssence() {
-        long total = 0L;
-        for (EssenceDefinition essence :
-                EssenceCrucibleEssences.ORDERED) {
-            total = Math.addExact(total, storedEssence(essence));
-        }
+    public java.math.BigInteger totalStoredEssence() {
+        java.math.BigInteger total = java.math.BigInteger.ZERO;
+        for (EssenceDefinition essence : EssenceCrucibleEssences.ORDERED)
+            total = total.add(storedEssenceExact(essence));
         return total;
     }
 
     public long effectiveReservoirCapacity() {
-        return EssenceCrucibleStructureService.effectiveReservoirCapacity(
-                structureStats()
-        );
+        return localFillLimit().min(java.math.BigInteger.valueOf(Long.MAX_VALUE)).longValueExact();
+    }
+    public java.math.BigInteger localFillLimit() {
+        if (!(level instanceof ServerLevel serverLevel)) return java.math.BigInteger.valueOf(structureStats().reservoirCapacity());
+        return MachineCapacity.limit(structureStats().reservoirCapacity(), binding.resolve(EssenceSavedData.get(serverLevel.getServer())));
     }
 
     public int processingTicks() {
         return processingTicks;
     }
 
-    public boolean isChanneling() {
-        return channelingPlayerId != null;
-    }
-
-    public boolean isDissolving() {
-        return processingVisualActive;
-    }
-
-    public UUID channelingPlayerId() {
-        return channelingPlayerId;
+    public boolean isChanneling() { return !channelingPlayers().isEmpty(); }
+    public List<UUID> channelingPlayers() { return EssenceCrucibleChannelService.players(this); }
+    public boolean isChanneling(UUID player) { return EssenceCrucibleChannelService.isChanneling(this, player); }
+    public boolean isDissolving() { return processingVisualActive; }
+    private List<UUID> transferringPlayers() {
+        long tick = level == null ? 0 : level.getGameTime();
+        return channelingPlayers().stream().filter(id -> recentTransfers.getOrDefault(id, Long.MIN_VALUE) >= tick - 4
+                && !channelingPaused(id)).toList();
     }
 
     public double distanceTo(Player player) {
@@ -320,56 +326,41 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             return false;
         }
         if (player.serverLevel() != serverLevel
-                || !canPlayerUse(player)
+                || !authorize(player, MachineAction.SPEND)
                 || !inTransferRange(player)
                 || level.getBlockEntity(worldPosition) != this
-                || totalStoredEssence() <= 0L) {
+                || EssenceSavedData.get(serverLevel.getServer()).getPlayerData(player.getUUID()).crucibleChannelSelection() == 0) {
             return false;
         }
 
-        bindOwner(player);
-        EssenceCrucibleChannelService.claim(player, this);
-        channelingPlayerId = player.getUUID();
+        if (!EssenceCrucibleChannelService.claim(player, this)) return false;
         setChanged();
         return true;
     }
 
     public void stopChanneling() {
-        UUID previous = channelingPlayerId;
-        channelingPlayerId = null;
-        transferRateRemainder = 0L;
-
-        if (previous != null) {
-            EssenceCrucibleChannelService.release(previous, this);
-            setChanged();
-        }
+        EssenceCrucibleChannelService.stopPlayers(this);
+        recentTransfers.clear(); recentTransferTypes.clear(); setChanged();
+    }
+    public void stopChanneling(UUID player) {
+        EssenceCrucibleChannelService.stop(this, player);
+        recentTransfers.remove(player); recentTransferTypes.remove(player); setChanged();
+    }
+    public void setChannelingRequested(ServerPlayer player, boolean active) {
+        if (!canPlayerUse(player) || ownerId == null) return;
+        if (active) startChanneling(player); else stopChanneling(player.getUUID());
     }
 
-    public void setChannelingRequested(
-            ServerPlayer player,
-            boolean active
-    ) {
-        if (!bindOwner(player) || ownerId == null) {
-            return;
-        }
-
-        if (active) {
-            startChanneling(player);
-        } else if (channelingPlayerId != null
-                && channelingPlayerId.equals(player.getUUID())) {
-            stopChanneling();
-        }
+    @Override public void bindingChanged() {
+        processingTicks = 0; resetSmartRoundRobinWait(); stopChanneling();
+        invalidateStructureCache(); infusionVisualCheckTick = Long.MIN_VALUE; setChanged();
     }
-
-    private PlayerEssenceData ownerPlayerData() {
-        if (ownerId == null || !(level instanceof ServerLevel serverLevel)) {
-            return null;
-        }
-
-        return EssenceSavedData
-                .get(serverLevel.getServer())
-                .getPlayerData(ownerId);
+    public boolean setProcessingEnabled(Player player, boolean enabled) {
+        if (!canPlayerConfigure(player)) return false;
+        if (enabled && (!(level instanceof ServerLevel serverLevel) || !binding.start(EssenceSavedData.get(serverLevel.getServer()), player.getUUID(), null))) return false;
+        processingArmed = enabled; processingTicks = 0; setChanged(); return true;
     }
+    public boolean processingEnabled() { return processingArmed; }
 
     public EssenceCrucibleDissolutionMode dissolutionMode() {
         return dissolutionMode;
@@ -395,7 +386,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
     }
 
     private void tickDissolution() {
-        if (!(level instanceof ServerLevel serverLevel) || ownerId == null) {
+        if (!(level instanceof ServerLevel serverLevel) || fundingActor() == null || !processingArmed) {
             return;
         }
 
@@ -423,7 +414,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         }
 
         int requiredTicks = stats.dissolutionTicksPerItem();
-        long capacity = effectiveReservoirCapacity();
+        java.math.BigInteger capacity = localFillLimit();
         DissolutionPlan potential = buildDissolutionPlan(
                 activeSlots,
                 stats.simultaneousItemProcesses(),
@@ -507,25 +498,41 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             return;
         }
 
-        for (int slot = 0; slot < plan.consumeCounts().length; slot++) {
-            int consume = plan.consumeCounts()[slot];
-            if (consume <= 0) {
-                continue;
-            }
-
-            ItemStack stack = items.get(slot);
-            stack.shrink(consume);
-            if (stack.isEmpty()) {
-                items.set(slot, ItemStack.EMPTY);
-            }
-        }
-
         EssenceSavedData saved = EssenceSavedData.get(serverLevel.getServer());
-        for (Map.Entry<EssenceDefinition, Long> output : plan.outputs().entrySet()) {
-            saved.addCrucibleStored(ownerId, output.getKey(), output.getValue());
+        UUID actor = fundingActor();
+        if (actor == null) return;
+        Map<String, Long> previousCarry = fractionalCarry();
+        Map<net.minecraft.resources.ResourceLocation, java.math.BigInteger> credit = new LinkedHashMap<>();
+        for (EssenceDefinition essence : EssenceCrucibleEssences.ORDERED) {
+            String key = "dissolution/" + essence.id();
+            java.math.BigInteger units = java.math.BigInteger.valueOf(plan.outputs().getOrDefault(essence, 0L))
+                    .multiply(ReservoirService.SCALE)
+                    .add(java.math.BigInteger.valueOf(plan.nextCarry().getOrDefault(key, 0L)
+                            - previousCarry.getOrDefault(key, 0L)));
+            if (units.signum() != 0) credit.put(essence.id(), units);
         }
-
-        FractionalLedgerSavedData.get(serverLevel.getServer()).commit(ownerId, plan.nextCarry());
+        if (!MachineCapacity.accepts(storedUnitsTotal(), credit.values().stream().reduce(java.math.BigInteger.ZERO, java.math.BigInteger::add), localFillLimit())) return;
+        List<ItemStack> before = items.stream().map(ItemStack::copy).toList();
+        try {
+            if (!saved.reservoirs().credit(actor, credit, new ReservoirService.Mutation() {
+                public boolean apply() {
+                    for (int slot = 0; slot < plan.consumeCounts().length; slot++) {
+                        int count = plan.consumeCounts()[slot];
+                        if (items.get(slot).getCount() < count) return false;
+                        if (count > 0) {
+                            ItemStack remaining = items.get(slot).copy();
+                            remaining.shrink(count);
+                            items.set(slot, remaining.isEmpty() ? ItemStack.EMPTY : remaining);
+                        }
+                    }
+                    return true;
+                }
+                public void rollback() { for (int i = 0; i < before.size(); i++) items.set(i, before.get(i)); }
+            })) return;
+        } catch (RuntimeException invalid) {
+            processingVisualActive = false;
+            return;
+        }
         processingTicks = 0;
         resetSmartRoundRobinWait();
         dissolutionSlotCursor = activeSlots <= 1
@@ -537,7 +544,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
     private DissolutionPlan buildDissolutionPlan(
             int activeSlots,
             int maxItems,
-            long capacity
+            java.math.BigInteger capacity
     ) {
         int[] consumeCounts = new int[MAX_INPUT_SLOTS];
         Map<EssenceDefinition, Long> outputs = new LinkedHashMap<>();
@@ -546,32 +553,30 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             return new DissolutionPlan(consumeCounts, outputs, 0);
         }
 
-        long currentTotal = totalStoredEssence();
-        if (currentTotal > capacity) {
+        java.math.BigInteger exactTotal = totalStoredEssence();
+        if (exactTotal.compareTo(capacity) > 0) {
             return new DissolutionPlan(consumeCounts, outputs, 0);
         }
 
+        java.math.BigInteger currentTotal = exactTotal;
         List<DissolutionCandidate> candidates = collectDissolutionCandidates(activeSlots);
         if (candidates.isEmpty()) {
             return new DissolutionPlan(consumeCounts, outputs, 0);
         }
 
         if (dissolutionMode == EssenceCrucibleDissolutionMode.LOWEST_STORED) {
-            candidates.sort(Comparator.comparingLong(
+            candidates.sort(Comparator.comparing(
                     (DissolutionCandidate candidate) ->
                             lowestStoredPriority(candidate.mapping())
             ));
         } else if (dissolutionMode == EssenceCrucibleDissolutionMode.HIGHEST_STORED) {
-            candidates.sort((left, right) -> Long.compare(
-                    highestStoredPriority(right.mapping()),
-                    highestStoredPriority(left.mapping())
-            ));
+            candidates.sort((left, right) -> highestStoredPriority(right.mapping()).compareTo(highestStoredPriority(left.mapping())));
         }
 
         return buildEvenDissolutionPlan(
                 candidates,
                 maxItems,
-                capacity - currentTotal,
+                capacity.subtract(currentTotal),
                 consumeCounts,
                 outputs
         );
@@ -602,7 +607,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
     }
 
     private DissolutionPlan buildEvenDissolutionPlan(
-            List<DissolutionCandidate> candidates, int maxItems, long room,
+            List<DissolutionCandidate> candidates, int maxItems, java.math.BigInteger room,
             int[] consumeCounts, Map<EssenceDefinition, Long> outputs) {
         Map<String, Long> carry = new LinkedHashMap<>(fractionalCarry());
         int totalItems = 0;
@@ -614,7 +619,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             for (int n = 0; n < requested; n++) {
                 long credited = addPlannedItem(candidate, room, consumeCounts, outputs, carry);
                 if (credited < 0) break;
-                room -= credited;
+                room = room.subtract(java.math.BigInteger.valueOf(credited));
                 totalItems++;
             }
         }
@@ -624,7 +629,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
                 if (totalItems >= maxItems) break;
                 long credited = addPlannedItem(candidate, room, consumeCounts, outputs, carry);
                 if (credited < 0) continue;
-                room -= credited;
+                room = room.subtract(java.math.BigInteger.valueOf(credited));
                 totalItems++;
                 progressed = true;
             }
@@ -634,12 +639,19 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
     }
 
     private Map<String, Long> fractionalCarry() {
-        return ownerId != null && level instanceof ServerLevel serverLevel
-                ? FractionalLedgerSavedData.get(serverLevel.getServer()).snapshot(ownerId) : Map.of();
+        if (ownerId == null || !(level instanceof ServerLevel serverLevel)) return Map.of();
+        var saved = EssenceSavedData.get(serverLevel.getServer());
+        UUID actor = fundingActor();
+        if (actor == null) return Map.of();
+        var view = saved.reservoirs().read(actor);
+        Map<String, Long> result = new LinkedHashMap<>();
+        for (var essence : EssenceCrucibleEssences.ORDERED)
+            result.put("dissolution/" + essence.id(), view.units(essence.id()).remainder(ReservoirService.SCALE).longValueExact());
+        return result;
     }
 
     /** Preview one item without touching persistent state; zero-whole yields still accumulate. */
-    private long addPlannedItem(DissolutionCandidate candidate, long room, int[] consumeCounts,
+    private long addPlannedItem(DissolutionCandidate candidate, java.math.BigInteger room, int[] consumeCounts,
                                 Map<EssenceDefinition, Long> outputs, Map<String, Long> carry) {
         int slot = candidate.slot();
         if (consumeCounts[slot] >= items.get(slot).getCount()) return -1;
@@ -657,7 +669,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
                 Math.addExact(outputs.getOrDefault(output.getKey(), 0L), result.wholeAmount());
             }
         } catch (ArithmeticException invalid) { return -1; }
-        if (total > room) return -1;
+        if (java.math.BigInteger.valueOf(total).compareTo(room) > 0) return -1;
         credit.forEach((essence, amount) -> { if (amount > 0) outputs.merge(essence, amount, Math::addExact); });
         carry.putAll(next);
         consumeCounts[slot]++;
@@ -670,18 +682,19 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
      */
     private RoundRobinCapacityBlock roundRobinCapacityBlock(
             int activeSlots,
-            long capacity
+            java.math.BigInteger capacity
     ) {
         if (dissolutionMode != EssenceCrucibleDissolutionMode.SMART_ROUND_ROBIN
                 && dissolutionMode != EssenceCrucibleDissolutionMode.STRICT_ROUND_ROBIN) {
             return null;
         }
 
-        long currentTotal = totalStoredEssence();
-        if (currentTotal > capacity) {
+        java.math.BigInteger exactTotal = totalStoredEssence();
+        if (exactTotal.compareTo(capacity) > 0) {
             return null;
         }
 
+        java.math.BigInteger currentTotal = exactTotal;
         List<DissolutionCandidate> candidates = collectDissolutionCandidates(activeSlots);
         if (candidates.isEmpty()) {
             return null;
@@ -689,12 +702,12 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
 
         DissolutionCandidate preferred = candidates.get(0);
         long perItemTotal = mappingOutputTotal(preferred.mapping());
-        if (perItemTotal <= 0L || perItemTotal > capacity) {
+        if (perItemTotal <= 0L || java.math.BigInteger.valueOf(perItemTotal).compareTo(capacity) > 0) {
             return null;
         }
 
-        long room = capacity - currentTotal;
-        return perItemTotal > room
+        java.math.BigInteger room = capacity.subtract(currentTotal);
+        return java.math.BigInteger.valueOf(perItemTotal).compareTo(room) > 0
                 ? new RoundRobinCapacityBlock(preferred.slot())
                 : null;
     }
@@ -704,17 +717,18 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
      * Essence they produce. This makes any depleted output sufficient to pull
      * that lane forward. Ties retain rotating slot order.
      */
-    private long lowestStoredPriority(ResolvedDissolution mapping) {
-        long lowest = Long.MAX_VALUE;
+    private java.math.BigInteger lowestStoredPriority(ResolvedDissolution mapping) {
+        java.math.BigInteger lowest = null;
         boolean found = false;
         for (EssenceDefinition essence : mapping.outputs().keySet()) {
             if (!isDissolutionEssenceSupported(essence)) {
                 continue;
             }
-            lowest = Math.min(lowest, storedEssence(essence));
+            var amount = storedEssenceExact(essence);
+            lowest = lowest == null ? amount : lowest.min(amount);
             found = true;
         }
-        return found ? lowest : Long.MAX_VALUE;
+        return found ? lowest : java.math.BigInteger.valueOf(Long.MAX_VALUE);
     }
 
     /**
@@ -722,17 +736,17 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
      * This is useful when deliberately concentrating production into an Essence
      * that the player's automation is already consuming heavily.
      */
-    private long highestStoredPriority(ResolvedDissolution mapping) {
-        long highest = Long.MIN_VALUE;
+    private java.math.BigInteger highestStoredPriority(ResolvedDissolution mapping) {
+        java.math.BigInteger highest = java.math.BigInteger.ZERO;
         boolean found = false;
         for (EssenceDefinition essence : mapping.outputs().keySet()) {
             if (!isDissolutionEssenceSupported(essence)) {
                 continue;
             }
-            highest = Math.max(highest, storedEssence(essence));
+            highest = highest.max(storedEssenceExact(essence));
             found = true;
         }
-        return found ? highest : Long.MIN_VALUE;
+        return found ? highest : java.math.BigInteger.valueOf(Long.MIN_VALUE);
     }
 
     private record DissolutionCandidate(
@@ -820,54 +834,34 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         return resolveDissolution(stack) != null;
     }
 
-    private void tickChanneling() {
-        if (!(level instanceof ServerLevel serverLevel)
-                || channelingPlayerId == null) {
-            return;
-        }
-
-        ServerPlayer player =
-                serverLevel.getServer()
-                        .getPlayerList()
-                        .getPlayer(channelingPlayerId);
-
-        if (player == null
-                || !player.isAlive()
-                || player.serverLevel() != serverLevel
-                || level.getBlockEntity(worldPosition) != this
-                || !canPlayerUse(player)
-                || !inTransferRange(player)) {
-            stopChanneling();
-            return;
-        }
-
-        if (totalStoredEssence() <= 0L) {
-            stopChanneling();
-            return;
-        }
-
-        EssenceCrucibleStructureStats stats = structureStats();
-        long budget = nextTransferBudget(stats.transferRatePerSecond());
-        if (budget > 0L) {
-            long moved = transferFairly(player, budget);
-            if (moved > 0L) {
-                setChanged();
-            }
-        }
-
-        if (totalStoredEssence() <= 0L) {
-            stopChanneling();
-        }
+    boolean validPlayerChannel(ServerPlayer player) {
+        return level instanceof ServerLevel serverLevel && player.isAlive()
+                && player.server.getPlayerList().getPlayer(player.getUUID()) == player
+                && player.serverLevel() == serverLevel && level.hasChunkAt(worldPosition)
+                && level.getBlockEntity(worldPosition) == this && authorize(player, MachineAction.SPEND)
+                && inTransferRange(player);
     }
-
-    private long nextTransferBudget(long perSecond) {
-        long budget = perSecond / 20L;
-        transferRateRemainder += perSecond % 20L;
-        if (transferRateRemainder >= 20L) {
-            budget += transferRateRemainder / 20L;
-            transferRateRemainder %= 20L;
+    long playerChannelDemand(ServerPlayer player) {
+        if (!validPlayerChannel(player)) return 0;
+        var data = EssenceSavedData.get(player.server).getPlayerData(player.getUUID());
+        long demand = 0;
+        for (int i = 0; i < EssenceCrucibleEssences.ORDERED.size(); i++) {
+            var essence = EssenceCrucibleEssences.ORDERED.get(i);
+            if (CrucibleChannelSelection.selected(data.crucibleChannelSelection(), i))
+                demand = ConcurrentChannelScheduler.saturatedAdd(demand, Math.min(storedEssence(essence), Long.MAX_VALUE - data.getAvailable(essence)));
         }
-        return budget;
+        return demand;
+    }
+    public boolean channelingPaused(UUID playerId) {
+        if (!isChanneling(playerId) || !(level instanceof ServerLevel serverLevel)) return false;
+        var player = serverLevel.getServer().getPlayerList().getPlayer(playerId);
+        return player == null || playerChannelDemand(player) == 0;
+    }
+    public boolean channelingPaused() { return isChanneling() && channelingPlayers().stream().allMatch(this::channelingPaused); }
+    long deliverPlayer(ServerPlayer player, long budget) {
+        long moved = transferFairly(player, budget);
+        if (moved > 0) { recentTransfers.put(player.getUUID(), level.getGameTime()); setChanged(); }
+        return moved;
     }
 
     private long transferFairly(
@@ -879,8 +873,13 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         PlayerEssenceData playerData =
                 saved.getPlayerData(player.getUUID());
 
+        if (!authorize(player, MachineAction.SPEND)) return 0L;
+        Map<net.minecraft.resources.ResourceLocation, Long> planned = new LinkedHashMap<>();
         var essences = EssenceCrucibleEssences.ORDERED;
         int essenceCount = essences.size();
+        long selectionRevision = playerData.crucibleChannelSelectionRevision();
+        int selected = playerData.crucibleChannelSelection();
+        int transferCursor = transferCursors.getOrDefault(player.getUUID(), 0);
         long remaining = budget;
         long movedTotal = 0L;
 
@@ -893,9 +892,10 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             int eligible = 0;
             for (int i = 0; i < essenceCount; i++) {
                 int index = (transferCursor + i) % essenceCount;
+                if (!CrucibleChannelSelection.selected(selected, index)) continue;
                 EssenceDefinition essence = essences.get(index);
-                long stored = playerData.getCrucibleStored(essence);
-                long playerCurrent = playerData.getAvailable(essence);
+                long stored = storedEssence(essence) - planned.getOrDefault(essence.id(), 0L);
+                long playerCurrent = Math.addExact(playerData.getAvailable(essence), planned.getOrDefault(essence.id(), 0L));
                 if (stored > 0L && playerCurrent < Long.MAX_VALUE) {
                     eligible++;
                 }
@@ -917,13 +917,14 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
 
             for (int i = 0; i < essenceCount && remaining > 0L; i++) {
                 int index = (transferCursor + i) % essenceCount;
+                if (!CrucibleChannelSelection.selected(selected, index)) continue;
                 EssenceDefinition essence = essences.get(index);
-                long stored = playerData.getCrucibleStored(essence);
+                long stored = storedEssence(essence) - planned.getOrDefault(essence.id(), 0L);
                 if (stored <= 0L) {
                     continue;
                 }
 
-                long playerCurrent = playerData.getAvailable(essence);
+                long playerCurrent = Math.addExact(playerData.getAvailable(essence), planned.getOrDefault(essence.id(), 0L));
                 long room = Long.MAX_VALUE - playerCurrent;
                 if (room <= 0L) {
                     continue;
@@ -944,14 +945,8 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
                     continue;
                 }
 
-                long moved = saved.transferCrucibleToAvailable(
-                        player.getUUID(),
-                        essence,
-                        requested
-                );
-                if (moved <= 0L) {
-                    continue;
-                }
+                long moved = requested;
+                planned.merge(essence.id(), moved, Math::addExact);
 
                 remaining -= moved;
                 movedTotal += moved;
@@ -963,7 +958,16 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             }
         }
 
-        transferCursor = (transferCursor + 1) % essenceCount;
+        if (movedTotal > 0 && !saved.reservoirs().channel(player.getUUID(), planned, new ReservoirService.Mutation() {
+            public boolean apply() { return playerData.crucibleChannelSelectionRevision() == selectionRevision && playerData.crucibleChannelSelection() == selected; }
+            public void rollback() { }
+        })) return 0L;
+        if (movedTotal > 0) {
+            int mask = 0;
+            for (int i = 0; i < essences.size(); i++) if (planned.getOrDefault(essences.get(i).id(), 0L) > 0) mask |= 1 << i;
+            recentTransferTypes.put(player.getUUID(), mask);
+        }
+        transferCursors.put(player.getUUID(), (transferCursor + 1) % essenceCount);
         return movedTotal;
     }
 
@@ -996,6 +1000,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
     ) {
         super.saveAdditional(tag, registries);
         ContainerHelper.saveAllItems(tag, items, registries);
+        binding.save(tag);
 
         if (ownerId != null) {
             tag.putUUID(OWNER_TAG, ownerId);
@@ -1004,6 +1009,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             tag.putString(OWNER_NAME_TAG, ownerName);
         }
         tag.putString(ACCESS_MODE_TAG, accessMode.serializedName());
+        tag.putBoolean("processing_armed", processingArmed);
         tag.putInt(PROCESSING_TICKS_TAG, processingTicks);
         tag.putString(DISSOLUTION_MODE_TAG, dissolutionMode.serializedName());
 
@@ -1020,6 +1026,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         }
         super.loadAdditional(tag, registries);
         ContainerHelper.loadAllItems(tag, items, registries);
+        binding.load(tag);
 
         ownerId = tag.hasUUID(OWNER_TAG)
                 ? tag.getUUID(OWNER_TAG)
@@ -1028,6 +1035,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         accessMode = EssenceCrucibleAccessMode.fromSerializedName(
                 tag.getString(ACCESS_MODE_TAG)
         );
+        processingArmed = !tag.contains("processing_armed") || tag.getBoolean("processing_armed");
         processingTicks = Math.max(0, tag.getInt(PROCESSING_TICKS_TAG));
         dissolutionMode = EssenceCrucibleDissolutionMode.fromSerializedName(
                 tag.getString(DISSOLUTION_MODE_TAG)
@@ -1036,9 +1044,8 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
         resetSmartRoundRobinWait();
 
         /* Active channel state deliberately does not survive save/reload. */
-        channelingPlayerId = null;
-        transferRateRemainder = 0L;
-        transferCursor = 0;
+        EssenceCrucibleChannelService.removeSource(this);
+        transferCursors.clear(); recentTransfers.clear(); recentTransferTypes.clear();
         cachedStructureSnapshot = null;
         cachedStructureGameTime = Long.MIN_VALUE;
         processingVisualActive = false;
@@ -1060,6 +1067,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
 
     @Override
     public void setRemoved() {
+        EssenceCrucibleChannelService.removeSource(this);
         stopChanneling();
         super.setRemoved();
     }
@@ -1226,7 +1234,7 @@ public final class EssenceCrucibleBlockEntity extends BlockEntity
             ItemStack stack,
             Direction direction
     ) {
-        return (level == null
+        return canAcceptAutomatedStack(stack) && (level == null
                 || EssenceCrucibleStructureService.allowsAutomationConnection(
                         level,
                         worldPosition,

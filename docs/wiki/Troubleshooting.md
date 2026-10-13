@@ -17,6 +17,30 @@
 
 See the [full syntax](https://github.com/mistaboom/essence_ascendance/wiki/Commands) before using command fragments. Administrative diagnostics require permission 2.
 
+## Teams and machines: beta.5
+
+These checks apply to beta.5 multiplayer. Start with **`/essence admin membership status`** (level 2), then the authorized player's **`/essence team status`** and **`/essence machine <machine> status`**. Machine commands need a loaded target within normal menu reach. The operator ray-targeted `debug machine` commands remain useful for structure/Focus/recipe state and can refresh links/caches. None of these observations requires an economy rebuild.
+
+| Symptom | Check in order | Appropriate next step |
+| --- | --- | --- |
+| External provider installed, access unavailable | Established authority; exact provider/Library versions; readiness and complete roster evidence | Correct the actual installation/readiness issue. Missing/unsupported/initializing does not mean empty teams or solo access. Use provider-change commands only for an intentional authority change. |
+| Native M is missing | FTB Teams/OpenPAC installation, then saved authority/status | Installation hides M even in a still-native established world. Follow provider-aware guidance and the explicit prepare/status/activate flow if changing authority; do not assume the world already switched. |
+| FTB party exists but Crucible stays personal | Exact Teams/Library gate, then established authority in membership status | Current source accepts Teams 2101.1.11 with Library 2101.1.30, 2101.1.36 or 2101.1.37. Restart after updating code. An existing native world needs the reviewed `prepare ftb_teams`, `status`, `activate <token>` flow; installation or breaking/replacing before activation cannot switch authority. Existing bindings from another authority are not automatically remapped; test a new physical placement after activation. |
+| Activation says the preparation expired | Remaining review time in membership status | Prepare the target again, wait for settled status, then use its current clickable activation suggestion. The current window is 6,000 server ticks (about 5 minutes); older development builds allowed only 1,200 ticks (about a minute). Expiry retains the established authority. |
+| Nearby machine denies inventory/settings | Player's effective pool; machine binding; ready membership; exact current block/reach | Proximity is not authorization. Normal personal machinery converts on create/join, including unloaded history; no ownership-adoption step is required. |
+| Infuser/Pylon stays on a different source | Automatic versus Locked/Disconnected; source pool, dimension, range and loaded state | Valid Automatic targets remain stable. A Locked target will not switch just because a nearer station appears. Use the documented advanced link command only after inspection. |
+| Source appears missing | Chunk loaded versus loaded-and-confirmed removed | Unloaded source waits without forced loading. Automatic may replace a confirmed invalid/removed source; an unloaded source is not proof of removal. |
+| Infusion slowed or stopped | Processing/explicit Start; installed Focus; linked source; required types; output space; active consumers | Shared bandwidth can reduce a usable receiver's grant without stopping every Infuser. Missing required types and blocked output are different waits. A Focus maximum is not guaranteed throughput. |
+| Player receives nothing | None or unavailable selected types; channel Start; range; actual source; authorization | Re-enable needed types and stock. A still-valid waiting channel can resume; changed preferences do not create a new channel. Invalid/None/out-of-range Start elsewhere preserves the old connection; Stop there does not stop a newer source. |
+| Stored exceeds current capacity | Aggregate local fill limit and current roster/structure | Preserve stock. Channel/withdraw/spend eligible Stored; additions wait until room exists. Member-scaled capacity does not increase transfer rate. |
+| Personal machine did not appear to follow a join | Current owner's ready membership and loaded ownership-history refresh | Allow the normal authoritative lifecycle to resolve. Old placer/provenance text alone is not authority. An actually unbound legacy machine can use narrow operator recovery after backup/status review. |
+| Equipment recipient invalid or workpiece trapped | Existing soulbound owner; current receiving pool; input/Focus context; paid work | Automated foreign-bound insertion is rejected. Unbound team equipment needs GUI confirmation and every new workpiece needs Start. An item's owner may use narrow `recover-item input/output`; that grants no foreign inventory access or refund. |
+| Repair components do not all transfer | Required recipe slot cap and remaining room | Surplus remains with sender. Loader adapters can partially accept; oversized vanilla batches reject whole. Do not add a fictitious port-toggle workaround. |
+
+Some operator debug text retains old labels such as `cap/family` and `player-owned`. Interpret capacity through the current aggregate limit/membership implementation, not as a new per-Essence allowance or a claim that every reservoir is private. Debug text is not the authority for storage rules.
+
+Avoid player resets, provider switching, deleting data/profiles or repeated balance rebuilding as generic membership/machine fixes. [Teams and shared infrastructure](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure) supplies the canonical permission, linking and accounting rules; [coordinated recovery](https://github.com/mistaboom/essence_ascendance/wiki/Updating-and-Recovery#multiplayer-persistence-and-upgrades) explains backups and schema limits.
+
 ## Why did restarting not apply my config change?
 
 Human TOML is generation input. A present profile follows saved reuse. Explicit `/essence admin balance rebuild` applies current policy/evidence after backups and staging. `mappings reload` reinstalls existing saved data; export rewrites views.

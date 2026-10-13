@@ -90,7 +90,7 @@ public final class EssenceInfuserBlock extends HorizontalMachineBlock implements
         if (!level.isClientSide
                 && placer instanceof Player player
                 && level.getBlockEntity(pos) instanceof EssenceInfuserBlockEntity infuser) {
-            infuser.bindOwner(player);
+            infuser.bindOnPlacement(player);
             infuser.refreshLink();
         }
     }
@@ -109,7 +109,14 @@ public final class EssenceInfuserBlock extends HorizontalMachineBlock implements
         if (!(level.getBlockEntity(pos) instanceof EssenceInfuserBlockEntity infuser)) {
             return InteractionResult.PASS;
         }
-        if (!infuser.bindOwner(player) || !infuser.canPlayerUse(player)) {
+        if (player instanceof ServerPlayer serverPlayer && player.isShiftKeyDown()
+                && (infuser.recoverWorkpiece(serverPlayer, EssenceInfuserBlockEntity.INPUT_SLOT)
+                || infuser.recoverWorkpiece(serverPlayer, EssenceInfuserBlockEntity.OUTPUT_SLOT))) return InteractionResult.CONSUME;
+        if (!infuser.canPlayerUse(player)) {
+            if (player instanceof ServerPlayer serverPlayer) {
+                com.mistaboom.essence_ascendance.network.TeamInterfaceNetworkService.openRestricted(serverPlayer, infuser);
+                return InteractionResult.CONSUME;
+            }
             player.displayClientMessage(
                     Component.translatable("message.essence_ascendance.infuser_private"),
                     true
@@ -134,13 +141,10 @@ public final class EssenceInfuserBlock extends HorizontalMachineBlock implements
         if (!state.is(newState.getBlock())
                 && level.getBlockEntity(pos) instanceof EssenceInfuserBlockEntity infuser
                 && !level.isClientSide) {
-            for (int slot = 0; slot < infuser.getContainerSize(); slot++) {
-                ItemStack stack = infuser.removeItemNoUpdate(slot);
-                if (!stack.isEmpty()) {
-                    popResource(level, pos, stack);
-                }
-            }
+            popResource(level, pos, com.mistaboom.essence_ascendance.machine.MachineProtection.takePickup(infuser));
         }
         super.onRemove(state, level, pos, newState, movedByPiston);
     }
+    @Override protected java.util.List<ItemStack> getDrops(BlockState state,
+            net.minecraft.world.level.storage.loot.LootParams.Builder params) { return java.util.List.of(); }
 }

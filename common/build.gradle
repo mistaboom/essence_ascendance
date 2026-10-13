@@ -1,4 +1,5 @@
 repositories {
+    maven { url = 'https://maven.ftb.dev/releases' }
     maven {
         name = 'BlameJared'
         url = 'https://maven.blamejared.com'
@@ -22,6 +23,10 @@ def armorSource = rootProject.file('art/source/models/armor/ascendance_armor.bbm
 def armorMaskDirectory = layout.buildDirectory.dir('asset-work/armor-masks').get().asFile
 
 dependencies {
+    modCompileOnly('xaero.pac:open-parties-and-claims-common-1.21.1:0.32.7') { transitive = false }
+    // Verified 1.21.1 API only: never placed on a development runtime or bundled.
+    modCompileOnly('dev.ftb.mods:ftb-teams:2101.1.11') { transitive = false }
+    modCompileOnly('dev.ftb.mods:ftb-library:2101.1.30') { transitive = false }
     // We depend on Fabric Loader here to use the Fabric @Environment annotations,
     // which get remapped to the correct annotations on each platform.
     // Do NOT use other classes from Fabric Loader.
@@ -43,6 +48,13 @@ loom {
 
 // Executable invariant suites use the real mapped Minecraft classpath and add no test library.
 def balanceInvariantMains = [
+        multiplayerInterfaceInvariants: 'com.mistaboom.essence_ascendance.network.MultiplayerInterfaceTest',
+        concurrentChannelSchedulerInvariants: 'com.mistaboom.essence_ascendance.crucible.ConcurrentChannelSchedulerTest',
+        crucibleChannelSelectionInvariants: 'com.mistaboom.essence_ascendance.crucible.CrucibleChannelSelectionTest',
+        machineBindingInvariants: 'com.mistaboom.essence_ascendance.machine.MachineBindingTest',
+        reservoirAccountingInvariants: 'com.mistaboom.essence_ascendance.team.ReservoirAccountingTest',
+        membershipProviderInvariants: 'com.mistaboom.essence_ascendance.team.MembershipProviderTest',
+        multiplayerFoundationInvariants: 'com.mistaboom.essence_ascendance.team.MultiplayerFoundationTest',
         personalizedEquipmentInvariants: 'com.mistaboom.essence_ascendance.equipment.PersonalizedEquipmentTest',
         fishingRodInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.FishingRodBalanceTest',
         nativeVillagerAccessInvariants: 'com.mistaboom.essence_ascendance.balance.engine.NativeVillagerAccessTest',
@@ -322,7 +334,7 @@ tasks.register('questDefinitionReplay', JavaExec) {
         if (!rootProject.hasProperty('balanceFtbModsDir') || !rootProject.hasProperty('balanceQuestDefinitions'))
             throw new GradleException('Supply -PbalanceFtbModsDir and -PbalanceQuestDefinitions')
         def libraryVersion = rootProject.findProperty('balanceFtbLibraryVersion') ?: '2101.1.36'
-        if (!(libraryVersion in ['2101.1.35', '2101.1.36']))
+        if (!(libraryVersion in ['2101.1.35', '2101.1.36', '2101.1.37']))
             throw new GradleException('Quest replay requires an audited FTB Library version')
         def libraryJar = rootProject.file(rootProject.property('balanceFtbModsDir')).toPath()
                 .resolve("ftb-library-neoforge-${libraryVersion}.jar").toFile()
@@ -480,3 +492,5 @@ tasks.register('enchantmentYieldInvariants', JavaExec) {
     mainClass = 'com.mistaboom.essence_ascendance.mapping.EnchantmentYieldTest'
 }
 tasks.named('balanceInvariants') { dependsOn 'enchantmentYieldInvariants' }
+
+repositories { maven { url = 'https://chocolateminecraft.com/maven' } }

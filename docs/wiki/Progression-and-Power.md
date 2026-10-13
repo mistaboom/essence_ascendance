@@ -67,6 +67,8 @@ Earned normalized fractions survive target/rate changes within the same chapter.
 
 Items and Foci have their own tiers and incomplete infusion state. Linked Infuser operations consume their generated costs/materials/reservoir subject to ownership and item/equipment eligibility. Carrier conversion and repair also use saved policy.
 
+In beta.5 multiplayer, the funding reservoir can be communal while the workpiece's soulbound recipient remains personal. Every new equipment workpiece requires explicit Start; team unbound gear uses confirmation, and paid work is not a departure refund. See [Teams and shared infrastructure](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure#equipment-work-and-automation); detailed player lessons are in the Archive's **Reference → Equipment → Equipment Infusion / Durability and Lifecycle**.
+
 Admin item-tier commands bypass this path for testing/recovery. They are not a gameplay recipe or a recommendation for balancing other mods' equipment.
 
 ## Read the decision chain

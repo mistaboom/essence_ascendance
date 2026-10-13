@@ -69,7 +69,7 @@ public final class EssenceAscendanceNeoForge {
                             )) {
                         return null;
                     }
-                    return new EssenceCrucibleNeoForgeItemHandler(blockEntity);
+                    return new EssenceCrucibleNeoForgeItemHandler(blockEntity, direction);
                 }
         );
 

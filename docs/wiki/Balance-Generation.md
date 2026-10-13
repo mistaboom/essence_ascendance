@@ -55,7 +55,7 @@ For mod/datapack changes, review and stage a deliberate rebuild. A saved profile
 
 ## Validation and mismatches
 
-The current document envelope uses schema **2**, generator `pack-balance-1`, revision `native-equipment-headroom-46` and ordinary dissolution policy `whole_essence_v1`.
+The inspected October 13 checkout uses schema **2**, generator `pack-balance-1`, revision `rod-hook-set-steering-50` and ordinary dissolution policy `whole_essence_v1`. Read the installed profile's actual identity in diagnostics; this is a source reference, not a claim that an older saved profile already has that revision. Multiplayer world membership/state is a separate lifecycle and is not repaired by rebuilding balance.
 
 Integrity, typed sections, runtime/reference checks, economy invariants and compatibility revision are checked. Unknown required references or incompatible/corrupt data can reject a candidate. There is no automatic profile migration.
 

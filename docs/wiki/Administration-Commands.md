@@ -19,6 +19,37 @@ Examples using `@s` are for an in-game operator in a staging world. They never m
 | Edit Bonuses, Skills, milestones | Sections below | Bypasses normal purchases or changes gates |
 | Edit seals / held equipment | [Attunement](https://github.com/mistaboom/essence_ascendance/wiki/Administration-Commands#attunement-overrides), [item tier](https://github.com/mistaboom/essence_ascendance/wiki/Administration-Commands#held-item-tier) | Changes player chapter progress / item |
 | Replace a book | [Archive recovery](https://github.com/mistaboom/essence_ascendance/wiki/Administration-Commands#replace-the-archive) | Gives an Archive |
+| Inspect/change membership authority | [Membership authority](https://github.com/mistaboom/essence_ascendance/wiki/Administration-Commands#membership-authority-beta5) | Inspect readiness, prepare/activate a reviewed provider change |
+| Recover unbound/dissolved machinery | [Narrow recovery](https://github.com/mistaboom/essence_ascendance/wiki/Administration-Commands#narrow-machine-recovery-beta5) | Assigns ready recipient pool; does not seize ordinary bound machines |
+
+## Membership authority: beta.5
+
+**Added in beta.5.** These commands are **level 2, Server**: players and console are supported, with no target-player argument. State/status operations require initialized server membership runtime. The bare `admin membership` and its `help` child show clickable command guidance. [Selection, complete rosters and activation consequences](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure#selection-and-established-worlds).
+
+| Exact syntax | Arguments, prerequisites, effects and output | Valid syntax example |
+| --- | --- | --- |
+| `/essence admin membership` | No arguments. Read-only clickable guidance for status, preparation, activation, cancellation and reconciliation; does not require an initialized membership runtime. | `/essence admin membership` |
+| `/essence admin membership help` | Same guidance handler as the bare membership command. Suggestions fill chat for review; they do not execute the proposed operation. | `/essence admin membership help` |
+| `/essence admin membership status` | No arguments. Labeled authority/access readiness, last observed provider states, confirmed deletions, remaining review time, and pending target counts/policy when settled. A clickable suggestion fills in the actual activation token without executing it. No activation/spending. | `/essence admin membership status` |
+| `/essence admin membership prepare <provider>` | Word `native`, `ftb_teams` or `openpac`; tab suggestions list these. Parser is case-insensitive, but `auto` is rejected here. Target must differ from current authority; external target needs a supported constructed adapter. **Pauses access**, waits for two matching complete observations, and reports status/activation instructions. **Back up coordinated state and rehearse first.** | `/essence admin membership prepare ftb_teams` |
+| `/essence admin membership activate <token>` | UUID actually issued by the current preparation, not a provider/team ID. Requires settled ready target and unchanged authority, financial/roster revisions and roster evidence. **Changes world authority and Stored equalization**, without remapping existing machine bindings from the old authority. Prints activated provider/startup guidance. Stale or mismatched tokens reject. **Use a reviewed backup and staging rehearsal.** | `/essence admin membership activate 00000000-0000-0000-0000-000000000001` |
+| `/essence admin membership cancel` | No arguments. Discards preparation and retains saved authority; resumes only when startup selection permits, otherwise remains blocked. Prints which result applies. | `/essence admin membership cancel` |
+| `/essence admin membership reconcile` | No arguments. No pending/blocked authority change allowed. Invalidates external evidence for a fresh settlement of the **same** authority; native authority has no external capture to retry. Prints request acknowledgment, not proof of completed reconciliation. | `/essence admin membership reconcile` |
+
+The UUID example is synthetic valid syntax: activation succeeds only with the actual returned token. Preparation expires after **6,000 server ticks** (about 5 minutes at 20 TPS), with cancellation behavior. Status shows the remaining time without extending it. After expiry, status and activation explain why a new preparation is required. Invalid activation resets candidate receipt evidence for another settlement. Normal external roster changes reconcile automatically; they do not require this provider-switch workflow. The user subsequently confirmed successful FTB authority activation and team ownership of a newly placed Crucible. This does not verify migration of existing machines or the remaining multiplayer checklist; see [evidence scope](https://github.com/mistaboom/essence_ascendance/wiki/Version-and-Maintenance#evidence-and-test-claims).
+
+## Narrow machine recovery: beta.5
+
+**Exact syntax:** `/essence machine <machine> recover <recipient>`\
+**Permission/source:** level **2**, player only; console unsupported. This branch is under `machine`, not `admin`.
+
+`<machine>` is a three-coordinate block position in the sender's dimension. `<recipient>` is a UUID, not an online selector or team name. The sender must be the live authenticated player, alive/non-spectator, within normal menu reach of the exact loaded machine, with ready membership. The recipient's effective pool must resolve ready. The machine must be **actually unbound or confirmed dissolved**; a valid foreign/team binding cannot be claimed this way, and an old-provider binding after authority switching is not automatically a dissolved binding.
+
+Success assigns the recipient's current solo/team pool and refreshes binding state; it preserves machine contents and does not grant general foreign inventory access. Returns success or a denial/failure reason. **Ownership repair:** inspect status and back up the complete coordinated world/provider state first.
+
+**Valid syntax example:** `/essence machine ~ ~-1 ~ recover 00000000-0000-0000-0000-000000000001`, assuming the machine is below the operator; replace the synthetic UUID with the intended actual recipient. Own soulbound-item recovery and non-operator machine controls are in [Player commands](https://github.com/mistaboom/essence_ascendance/wiki/Player-Commands#machine-controls-beta5).
+
+Beta.5 source evidence: `command/EssenceAdminCommands.java`, `team/MembershipRuntime.java`, `team/MembershipActivation.java`, `command/EssenceMachineCommands.java`, `machine/BoundMachine.java` and `machine/MachineBinding.java`, under `common/src/main/java/com/mistaboom/essence_ascendance/`.
 
 ## Profile operations
 
@@ -40,7 +71,7 @@ A report or client-sync failure after successful install does not roll back that
 | Exact syntax | Source | Prerequisites, effects and output | Valid example |
 | --- | --- | --- | --- |
 | `/essence admin player tier set <tier> [player]` | Target | Known tier; sets it without earning seals, forgets transient activity tracking, refreshes and may deliver the Archive. **Changes earned progression:** stage and back up world/player data. | `/essence admin player tier set dormant @s` |
-| `/essence admin player reset [player]` | Target | **Destructive full mod reset.** Clears wallets, investments, reservoir, Skill receipts/selections/cooldowns, mod milestone flags, Attunement and all owner fractional accounts; returns to Latent and rearms Archive delivery. **Back up the world and player data before use.** | `/essence admin player reset @s` |
+| `/essence admin player reset [player]` | Target | **Destructive progression reset.** Clears personal wallets/investments, Skill receipts/selections/cooldowns, mod milestone flags, Attunement and personal non-reservoir fractional accounts; returns to Latent and rearms Archive delivery. Beta.5 clears Stored only for a solo player; a teamed player's communal Stored shares remain. **Back up coordinated world/provider data before use.** | `/essence admin player reset @s` |
 
 Reset preserves physical inventory/equipment and vanilla advancement progress. Provider-complete gates can become effective again. It does not delete a world or regenerate a profile. Reset is far broader than book replacement.
 
@@ -95,12 +126,12 @@ Internal milestones use their configured target flag; permanent Skill overrides 
 
 ## Crucible reservoir
 
-`<essence>` is registered. This storage is separate from the player's wallet.
+`<essence>` is registered. This storage is separate from the player's wallet. **In beta.5, the targeted player's effective pool is the scope: solo Stored or the entire current team's communal Stored.** The target argument does not limit a team clear to that member's original contribution. Unready membership rejects. This changed handler is not covered by the beta.1 historical references below.
 
 | Exact syntax | Source | Prerequisites, effects and output | Valid example |
 | --- | --- | --- | --- |
-| `/essence admin player crucible clear <essence> [player]` | Target | Clears that owner's shared reservoir and `dissolution/<essence-id>` fractional carry. **Destroys stored value:** back up world/player and fractional data. Wallet preserved. | `/essence admin player crucible clear gathering @s` |
-| `/essence admin player crucible clear all [player]` | Target | Same for all registered Essences of that owner. **Destroys stored value:** back up world/player and fractional data. Not every owner's machines. | `/essence admin player crucible clear all @s` |
+| `/essence admin player crucible clear <essence> [player]` | Target | Clears the selected category's aggregate Stored, including every fractional share in the target's effective pool. **Destroys team-wide value when teamed:** back up coordinated world/provider data. Wallet preserved. | `/essence admin player crucible clear gathering @s` |
+| `/essence admin player crucible clear all [player]` | Target | Same for all registered Stored types in that effective pool. **Destroys all communal Stored when teamed:** back up first. Other pools, personal wallets and already-paid work are not cleared. | `/essence admin player crucible clear all @s` |
 
 ## Replace the Archive
 

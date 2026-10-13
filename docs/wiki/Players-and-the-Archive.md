@@ -40,7 +40,7 @@ Search ignores case and normalizes spacing and Unicode. All query terms must mat
 
 ## Item Yields
 
-Open **Reference → Essences → Item Yields**. Use localized names or registry IDs, choose Essence filters, switch Any/All matching, and sort columns. Selecting a search result for an item opens its canonical yield entry.
+Open **Reference → Essences → Item Yields**. Filter by localized item names, choose Essence filters, switch Any/All matching, and sort columns. Registry IDs are internal navigation identity, not a promised name-filter syntax. Selecting a search result for an item opens its canonical yield entry.
 
 The table uses the server's synchronized active item-yield data. It does not generate an independent client economy. A zero yield can be an intentional supply or conservation decision; an unsupported item is not guaranteed to dissolve. Administrators can investigate the saved reasoning in [item valuation](https://github.com/mistaboom/essence_ascendance/wiki/Item-Valuation-and-Economy).
 
@@ -55,6 +55,24 @@ Page, scroll, search and yield-filter state are kept in bounded session memory. 
 General concepts, names and registered relationships are common catalog information. Displayed prices, effects, meaningful ranks, equipment baselines, machine policy and yields use the active profile. Ownership, balances, investment and personal eligibility also need ready player synchronization.
 
 **Loading, unavailable and zero mean different things.** The Archive does not substitute bootstrap defaults when the authoritative presentation context is missing. Allow synchronization to finish after joining or a rebuild. If the problem persists, ask the administrator to check installed authority and client compatibility.
+
+## Cooperative play and exact amounts
+
+**Beta.5 multiplayer:** joining shares Stored Essence and infrastructure; Available Essence and invested progression remain personal. Each player has one active incoming Crucible source, while many players/Infusers can share a source. Use the Archive for player operation; administrators have the focused [Teams and shared infrastructure](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure) reference. These changes were introduced in beta.5.
+
+The completed October 13 Archive update keeps the existing Guide/Reference structure. Use these actual destinations on a matching beta.5 client/server:
+
+| Need | Archive destination |
+| --- | --- |
+| Sharing, joining/leaving and cooperative infrastructure | **Reference → Mechanics → Teams and Shared Essence** |
+| Stored versus personal currency and incoming selections | **Guide → Essence → Collecting Essence**, then **Reference → Machines → Essence Crucible** |
+| Machine network and stable links | **Guide → Machines → Your First Machine Network**; **Reference → Machines → Essence Pylon / Essence Infuser** |
+| Explicit equipment Start, Soulbinding and paid-work recovery | **Guide → Infusion → Beginning Infusion**; **Reference → Equipment → Equipment Infusion / Durability and Lifecycle** |
+| General allocation, storage and capped investments | **Reference → Mechanics → Allocation and Storage / Over-Cap Investment** |
+
+Search **Teams and Shared Essence** to find the same read-only reference. The article does not manage teams, start channels or display a live roster. Archive browsing and personal receiving toggles are separate controls; native membership uses the machine M popup when available.
+
+Exact Archive values retain fractions. Whole-number half-up item tooltips/JEI and `<1` for positive sub-unit yields are a compact presentation distinction, not different stored currency. Receiving toggles are personal preferences, separate from the Item Yields browser's display filters.
 
 ## Quick troubleshooting
 

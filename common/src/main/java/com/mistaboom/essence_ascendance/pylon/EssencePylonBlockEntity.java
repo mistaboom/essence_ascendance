@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.pylon;
 
+import com.mistaboom.essence_ascendance.machine.*;
 import com.mistaboom.essence_ascendance.network.ServerMenuAccess;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.crucible.EssenceCrucibleBlockEntity;
@@ -31,20 +32,21 @@ import org.jetbrains.annotations.Nullable;
 import java.util.UUID;
 
 public final class EssencePylonBlockEntity extends BlockEntity
-        implements WorldlyContainer, MenuProvider {
+        implements WorldlyContainer, MenuProvider, BoundMachine {
 
     public static final int FOCUS_SLOT = 0;
     private static final int[] NO_AUTOMATION_SLOTS = {};
 
     private static final String OWNER_TAG = "owner";
     private static final String OWNER_NAME_TAG = "owner_name";
-    private static final String LINKED_CRUCIBLE_TAG = "linked_crucible";
 
     private final NonNullList<ItemStack> items =
             NonNullList.withSize(1, ItemStack.EMPTY);
 
+    private final MachineBinding binding = new MachineBinding();
     private UUID ownerId;
     private String ownerName = "";
+    private final MachineLink link = new MachineLink();
     private BlockPos linkedCruciblePos;
     private MachineVisualState.Pylon clientVisualState;
     private MachineVisualState.Pylon lastSyncedVisualState;
@@ -92,25 +94,31 @@ public final class EssencePylonBlockEntity extends BlockEntity
     }
 
     public String ownerDisplayName() {
-        if (!ownerName.isBlank()) {
-            return ownerName;
-        }
-        return ownerId == null ? "Unbound" : ownerId.toString();
+        if (level instanceof ServerLevel serverLevel)
+            return com.mistaboom.essence_ascendance.machine.MachineOwnerDisplay.ownerName(
+                    serverLevel.getServer(), binding, ownerId, ownerName);
+        return ownerName.isBlank() ? "Unknown owner" : ownerName;
     }
 
-    public boolean bindOwner(Player player) {
-        if (ownerId != null) {
-            return ownerId.equals(player.getUUID());
-        }
-
-        ownerId = player.getUUID();
-        ownerName = player.getGameProfile().getName();
-        syncBlockEntity();
-        return true;
+    /** Placement establishes identity; later interactions authorize only. */
+    public boolean bindOnPlacement(Player player) {
+        if (!(level instanceof ServerLevel serverLevel)) return false;
+        if (!binding.place(com.mistaboom.essence_ascendance.data.EssenceSavedData.get(serverLevel.getServer()), player.getUUID())) return false;
+        ownerId = player.getUUID(); ownerName = player.getGameProfile().getName();
+        link.configure(MachineLink.Mode.AUTOMATIC, null); linkedCruciblePos = null;
+        bindingChanged(); refreshLink(); return true;
+    }
+    @Override public MachineBinding machineBinding() { return binding; }
+    public boolean canPlayerConfigure(Player player) { return ServerMenuAccess.canReach(player, this) && authorize(player, MachineAction.CONFIGURE); }
+    public UUID fundingActor() {
+        if (!(level instanceof ServerLevel serverLevel)) return null;
+        var saved = com.mistaboom.essence_ascendance.data.EssenceSavedData.get(serverLevel.getServer());
+        if (binding.refresh(saved)) bindingChanged();
+        return binding.fundingActor(saved);
     }
 
     public boolean canPlayerUse(Player player) {
-        return ownerId == null || ownerId.equals(player.getUUID());
+        return authorize(player, MachineAction.USE);
     }
 
     @Nullable
@@ -119,7 +127,7 @@ public final class EssencePylonBlockEntity extends BlockEntity
     }
 
     public boolean isLinkedTo(BlockPos cruciblePos) {
-        return linkedCruciblePos != null && linkedCruciblePos.equals(cruciblePos);
+        return isCurrentLinkValid() && linkedCruciblePos != null && linkedCruciblePos.equals(cruciblePos);
     }
 
     public EssenceFocusTier focusTier() {
@@ -140,90 +148,40 @@ public final class EssencePylonBlockEntity extends BlockEntity
         return tier == null ? "Latent Focus" : tier.displayName() + " Focus";
     }
 
+    public MachineLink.Mode linkMode() { return link.mode(); }
+    public MachineLink.Source linkedSource() { return link.target(); }
+    public MachineLink.State linkState() {
+        return level instanceof ServerLevel serverLevel ? link.state(serverLevel, worldPosition, EssenceConfigManager.get().pylonRadius(), binding) : MachineLink.State.UNAVAILABLE;
+    }
+    public boolean setLink(Player player, MachineLink.Mode mode, MachineLink.Source source) {
+        if (!ServerMenuAccess.canReach(player, this) || !authorize(player, MachineAction.LINK)
+                || !(level instanceof ServerLevel serverLevel)) return false;
+        BlockPos previous = linkedCruciblePos;
+        if (!link.configure(serverLevel, worldPosition, EssenceConfigManager.get().pylonRadius(), binding, mode, source)) return false;
+        linkedCruciblePos = link.target() == null ? null : link.target().pos();
+        linkChanged(previous); refreshLink(); return true;
+    }
     public void refreshLink() {
-        if (!(level instanceof ServerLevel serverLevel) || ownerId == null) {
-            return;
+        if (!(level instanceof ServerLevel serverLevel)) return;
+        var saved = com.mistaboom.essence_ascendance.data.EssenceSavedData.get(serverLevel.getServer());
+        if (binding.refresh(saved)) bindingChanged();
+        BlockPos previous = linkedCruciblePos;
+        if (link.refresh(serverLevel, worldPosition, EssenceConfigManager.get().pylonRadius(), binding)) {
+            linkedCruciblePos = link.target() == null ? null : link.target().pos();
+            linkChanged(previous);
         }
-
-        if (isCurrentLinkValid(serverLevel)) {
-            return;
-        }
-
-        BlockPos old = linkedCruciblePos;
-        BlockPos nearest = findNearestOwnedCrucible(serverLevel);
-        if ((old == null && nearest == null)
-                || (old != null && old.equals(nearest))) {
-            return;
-        }
-
-        linkedCruciblePos = nearest == null ? null : nearest.immutable();
-        invalidateCrucibleAt(old);
-        invalidateCrucibleAt(linkedCruciblePos);
+    }
+    public boolean isCurrentLinkValid() { return linkState() == MachineLink.State.VALID; }
+    private boolean isCurrentLinkValid(ServerLevel ignored) { return isCurrentLinkValid(); }
+    @Override public void bindingChanged() {
+        invalidateLinkedCrucible();
+        linkChanged(linkedCruciblePos); setChanged();
+    }
+    private void linkChanged(BlockPos previous) {
+        invalidateCrucibleAt(previous); invalidateCrucibleAt(linkedCruciblePos);
         syncBlockEntity();
     }
-
-    public void invalidateLinkedCrucible() {
-        invalidateCrucibleAt(linkedCruciblePos);
-    }
-
-    private boolean isCurrentLinkValid(ServerLevel serverLevel) {
-        if (linkedCruciblePos == null
-                || !serverLevel.hasChunkAt(linkedCruciblePos)) {
-            return false;
-        }
-
-        double radius = EssenceConfigManager.get().pylonRadius();
-        if (worldPosition.distSqr(linkedCruciblePos) > radius * radius) {
-            return false;
-        }
-
-        if (!(serverLevel.getBlockEntity(linkedCruciblePos)
-                instanceof EssenceCrucibleBlockEntity crucible)) {
-            return false;
-        }
-
-        return crucible.ownerId() != null
-                && crucible.ownerId().equals(ownerId);
-    }
-
-    @Nullable
-    private BlockPos findNearestOwnedCrucible(ServerLevel serverLevel) {
-        double radius = EssenceConfigManager.get().pylonRadius();
-        int scan = (int) Math.ceil(radius);
-        double radiusSquared = radius * radius;
-
-        BlockPos best = null;
-        double bestDistance = Double.MAX_VALUE;
-
-        for (int dx = -scan; dx <= scan; dx++) {
-            for (int dy = -scan; dy <= scan; dy++) {
-                for (int dz = -scan; dz <= scan; dz++) {
-                    BlockPos candidate = worldPosition.offset(dx, dy, dz);
-                    double distance = worldPosition.distSqr(candidate);
-                    if (distance > radiusSquared
-                            || !serverLevel.hasChunkAt(candidate)) {
-                        continue;
-                    }
-
-                    if (!(serverLevel.getBlockEntity(candidate)
-                            instanceof EssenceCrucibleBlockEntity crucible)
-                            || crucible.ownerId() == null
-                            || !crucible.ownerId().equals(ownerId)) {
-                        continue;
-                    }
-
-                    if (distance < bestDistance
-                            || (distance == bestDistance
-                                && (best == null || candidate.asLong() < best.asLong()))) {
-                        best = candidate.immutable();
-                        bestDistance = distance;
-                    }
-                }
-            }
-        }
-
-        return best;
-    }
+    public void invalidateLinkedCrucible() { invalidateCrucibleAt(linkedCruciblePos); }
 
     private void invalidateCrucibleAt(@Nullable BlockPos pos) {
         if (pos == null || level == null || !level.hasChunkAt(pos)) {
@@ -265,7 +223,7 @@ public final class EssencePylonBlockEntity extends BlockEntity
             Player player,
             InteractionHand hand
     ) {
-        if (!bindOwner(player) || !canPlayerUse(player)) {
+        if (!ServerMenuAccess.canReach(player, this) || !authorize(player, MachineAction.FOCUS)) {
             player.displayClientMessage(
                     Component.translatable("message.essence_ascendance.pylon_private"),
                     true
@@ -327,6 +285,8 @@ public final class EssencePylonBlockEntity extends BlockEntity
     ) {
         super.saveAdditional(tag, registries);
         ContainerHelper.saveAllItems(tag, items, registries);
+        binding.save(tag);
+        link.save(tag);
 
         if (ownerId != null) {
             tag.putUUID(OWNER_TAG, ownerId);
@@ -334,9 +294,7 @@ public final class EssencePylonBlockEntity extends BlockEntity
         if (!ownerName.isBlank()) {
             tag.putString(OWNER_NAME_TAG, ownerName);
         }
-        if (linkedCruciblePos != null) {
-            tag.putLong(LINKED_CRUCIBLE_TAG, linkedCruciblePos.asLong());
-        }
+
     }
 
     @Override
@@ -348,12 +306,12 @@ public final class EssencePylonBlockEntity extends BlockEntity
         /* Empty update tags must actively clear a previously-rendered Focus. */
         items.clear();
         ContainerHelper.loadAllItems(tag, items, registries);
+        binding.load(tag);
+        link.load(tag);
 
         ownerId = tag.hasUUID(OWNER_TAG) ? tag.getUUID(OWNER_TAG) : null;
         ownerName = tag.getString(OWNER_NAME_TAG);
-        linkedCruciblePos = tag.contains(LINKED_CRUCIBLE_TAG)
-                ? BlockPos.of(tag.getLong(LINKED_CRUCIBLE_TAG))
-                : null;
+        linkedCruciblePos = link.target() == null ? null : link.target().pos();
         clientVisualState = tag.contains(MachineVisualState.TAG, net.minecraft.nbt.Tag.TAG_COMPOUND)
                 ? MachineVisualState.Pylon.read(tag.getCompound(MachineVisualState.TAG)) : null;
     }

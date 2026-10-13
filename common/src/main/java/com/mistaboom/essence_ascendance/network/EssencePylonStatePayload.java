@@ -25,14 +25,15 @@ public record EssencePylonStatePayload(
         double dissolutionSpeedBonus,
         int simultaneousItemProcessesBonus,
         int linkedActivePylons,
-        long linkedReservoirCapacity,
+        java.math.BigInteger linkedReservoirCapacity,
         double linkedTransferRange,
         long linkedTransferRatePerSecond,
         int linkedDissolutionTicksPerItem,
-        int linkedSimultaneousItemProcesses
+        int linkedSimultaneousItemProcesses,
+        String linkMode, String linkState, String sourceDimension
 ) implements CustomPacketPayload {
 
-    public static final int CURRENT_SCHEMA_VERSION = 2;
+    public static final int CURRENT_SCHEMA_VERSION = 3;
     private static final int MAX_TEXT = 128;
 
     public static final Type<EssencePylonStatePayload> TYPE =
@@ -76,11 +77,14 @@ public record EssencePylonStatePayload(
         buffer.writeDouble(payload.dissolutionSpeedBonus);
         buffer.writeVarInt(payload.simultaneousItemProcessesBonus);
         buffer.writeVarInt(payload.linkedActivePylons);
-        buffer.writeLong(payload.linkedReservoirCapacity);
+        buffer.writeUtf(payload.linkedReservoirCapacity.toString(), MAX_TEXT);
         buffer.writeDouble(payload.linkedTransferRange);
         buffer.writeLong(payload.linkedTransferRatePerSecond);
         buffer.writeVarInt(payload.linkedDissolutionTicksPerItem);
         buffer.writeVarInt(payload.linkedSimultaneousItemProcesses);
+        buffer.writeUtf(payload.linkMode, MAX_TEXT);
+        buffer.writeUtf(payload.linkState, MAX_TEXT);
+        buffer.writeUtf(payload.sourceDimension, MAX_TEXT);
     }
 
     private static EssencePylonStatePayload read(RegistryFriendlyByteBuf buffer) {
@@ -103,11 +107,11 @@ public record EssencePylonStatePayload(
                 buffer.readDouble(),
                 buffer.readVarInt(),
                 buffer.readVarInt(),
-                buffer.readLong(),
+                new java.math.BigInteger(buffer.readUtf(MAX_TEXT)),
                 buffer.readDouble(),
                 buffer.readLong(),
                 buffer.readVarInt(),
-                buffer.readVarInt()
+                buffer.readVarInt(), buffer.readUtf(MAX_TEXT), buffer.readUtf(MAX_TEXT), buffer.readUtf(MAX_TEXT)
         );
     }
 }

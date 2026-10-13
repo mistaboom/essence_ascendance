@@ -1353,7 +1353,7 @@ final class EssenceDebugCommands {
 
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
                 "Owner shared reservoir",
-                EssenceCommandUtil.format(crucible.totalStoredEssence())
+                String.format(java.util.Locale.ROOT, "%,d", crucible.totalStoredEssence())
                         + " / " + EssenceCommandUtil.format(crucible.effectiveReservoirCapacity())
         ));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
@@ -1405,7 +1405,7 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
                 "Channel",
                 crucible.isChanneling()
-                        ? "ACTIVE -> " + crucible.channelingPlayerId()
+                        ? "ACTIVE -> " + crucible.channelingPlayers()
                         : "INACTIVE"
         ));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
@@ -1538,8 +1538,8 @@ final class EssenceDebugCommands {
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
                 "Player channel",
                 infuser.ownerId() != null
-                        && EssenceCrucibleChannelService.isChanneling(infuser.ownerId())
-                        ? "ACTIVE / INFUSER PAUSED"
+                        && EssenceCrucibleChannelService.isChanneling(infuser.machineBinding().operator())
+                        ? "ACTIVE / SHARED BANDWIDTH"
                         : "INACTIVE"
         ));
         EssenceCommandUtil.send(source, EssenceCommandUtil.line(
@@ -1682,7 +1682,7 @@ final class EssenceDebugCommands {
             case EssenceInfuserBlockEntity.STATUS_PROCESSING -> "PROCESSING";
             case EssenceInfuserBlockEntity.STATUS_INVALID_INPUT -> "INVALID INPUT";
             case EssenceInfuserBlockEntity.STATUS_STOPPED -> "STOPPED";
-            case EssenceInfuserBlockEntity.STATUS_PLAYER_CHANNELING -> "PAUSED / PLAYER CHANNELING";
+            case EssenceInfuserBlockEntity.STATUS_JOB_CONTEXT_REQUIRED -> "RESTORE PAID JOB CONTEXT";
             case EssenceInfuserBlockEntity.STATUS_FOCUS_TIER_REQUIRED -> "FOCUS TIER REQUIRED";
             case EssenceInfuserBlockEntity.STATUS_FOCUS_MALFORMED -> "MALFORMED FOCUS DATA";
             default -> "IDLE";

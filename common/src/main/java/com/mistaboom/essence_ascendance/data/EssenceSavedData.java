@@ -3,6 +3,11 @@ package com.mistaboom.essence_ascendance.data;
 import com.mistaboom.essence_ascendance.essence.EssenceDefinition;
 import com.mistaboom.essence_ascendance.stat.StatDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierDefinition;
+import com.mistaboom.essence_ascendance.team.MembershipResolution;
+import com.mistaboom.essence_ascendance.team.MembershipSnapshot;
+import com.mistaboom.essence_ascendance.team.PoolMembershipState;
+import com.mistaboom.essence_ascendance.team.PoolCapability;
+import com.mistaboom.essence_ascendance.team.MembershipAuthority;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
@@ -26,6 +31,81 @@ public final class EssenceSavedData extends SavedData {
     private final Map<UUID, PlayerEssenceData> players =
             new HashMap<>();
 
+    private final ReservoirService reservoirs = new ReservoirService(this);
+    public ReservoirService reservoirs() { reservoirs.checkThread(); return reservoirs; }
+    PlayerEssenceData existingPlayerData(UUID player) { return players.get(player); }
+
+    private PoolMembershipState memberships = new PoolMembershipState();
+    private com.mistaboom.essence_ascendance.team.NativeMembershipService nativeMembership =
+            new com.mistaboom.essence_ascendance.team.NativeMembershipService(this);
+    private java.util.function.Consumer<UUID> membershipProbe = ignored -> { };
+    public com.mistaboom.essence_ascendance.team.NativeMembershipService nativeMembership() {
+        reservoirs.checkThread(); return nativeMembership;
+    }
+    public MembershipAuthority establishedMembershipAuthority() { reservoirs.checkThread(); return memberships.establishedAuthority(); }
+    public MembershipAuthority membershipAuthority() {
+        reservoirs.checkThread();
+        return memberships.establishedAuthority() == null ? MembershipAuthority.NATIVE : memberships.establishedAuthority();
+    }
+    public void establishMembershipAuthority(MembershipAuthority authority) {
+        reservoirs.checkThread(); memberships.establish(authority); setDirty();
+    }
+    public void activateMembershipAuthority(MembershipAuthority authority,
+            com.mistaboom.essence_ascendance.balance.engine.ProviderReadiness ready,
+            java.util.Collection<MembershipSnapshot> teams, boolean preview) {
+        reservoirs.checkThread();
+        if (authority == membershipAuthority()) throw new IllegalArgumentException("Authority is already established");
+        PoolMembershipState replacement = memberships.forAuthority(authority);
+        reservoirs.activateAuthority(authority, ready, teams, () -> memberships = replacement, preview);
+    }
+    public void membershipProbe(java.util.function.Consumer<UUID> probe) {
+        reservoirs.checkThread(); membershipProbe = java.util.Objects.requireNonNull(probe);
+    }
+
+    /** World-wide resolution also works for offline players and every dimension. */
+    public MembershipResolution resolvePool(UUID playerId) {
+        reservoirs.checkThread();
+        membershipProbe.accept(playerId);
+        MembershipResolution team = reservoirs.teamResolution(playerId);
+        if (team != null) return team;
+        boolean existed = memberships.contains(playerId);
+        MembershipResolution resolved = memberships.resolveSolo(playerId);
+        if (!existed && resolved.snapshot().isPresent()) setDirty();
+        return resolved;
+    }
+
+    /** Personal identity metadata is independent of current effective membership; never grants spending. */
+    public MembershipSnapshot personalPool(UUID player) {
+        reservoirs.checkThread();
+        MembershipSnapshot personal = memberships.resolveSolo(player).requireReady();
+        setDirty(); return personal;
+    }
+    public UUID personalOwner(com.mistaboom.essence_ascendance.team.PoolId pool) {
+        reservoirs.checkThread(); return memberships.personalOwner(pool);
+    }
+    public MembershipSnapshot resolveMachinePool(com.mistaboom.essence_ascendance.team.PoolId id, UUID personalOwner) {
+        reservoirs.checkThread();
+        if (id == null || id.authority() != membershipAuthority()) return null;
+        if (id.kind() == com.mistaboom.essence_ascendance.team.PoolId.Kind.SOLO) {
+            var current = resolvePool(personalOwner).snapshot().orElse(null);
+            return current != null && current.pool().equals(id) ? current : null;
+        }
+        MembershipSnapshot team = reservoirs.settledPool(id);
+        if (team == null) return null;
+        // One affected-party probe verifies roster/leader; actor probes verify their own current grants.
+        resolvePool(team.members().getFirst());
+        return com.mistaboom.essence_ascendance.team.MembershipAuthority.ready(reservoirs.readiness()) ? reservoirs.settledPool(id) : null;
+    }
+
+    /** Existing accounting is the one-member case; no second spendable treasury. */
+    public PlayerEssenceData soloReservoirAccount(UUID playerId) {
+        MembershipSnapshot membership = resolvePool(playerId).requireReady();
+        if (!membership.isSoloFor(playerId)
+                || !membership.allows(playerId, PoolCapability.SPEND))
+            throw new IllegalStateException("Personal reservoir access requires an authorized solo pool");
+        return getPlayerData(playerId);
+    }
+
 
     /*
      * ============================================================
@@ -37,6 +117,7 @@ public final class EssenceSavedData extends SavedData {
             MinecraftServer server
     ) {
 
+        if (!server.isSameThread()) throw new IllegalStateException("EssenceSavedData requires the server thread");
         return server
                 .overworld()
                 .getDataStorage()
@@ -134,95 +215,43 @@ public final class EssenceSavedData extends SavedData {
      * ============================================================
      */
 
-    public long addCrucibleStored(
-            UUID playerId,
-            EssenceDefinition essence,
-            long amount
-    ) {
-        PlayerEssenceData playerData =
-                getPlayerData(
-                        playerId
-                );
-
-        long updated =
-                playerData.addCrucibleStored(
-                        essence,
-                        amount
-                );
-
-        setDirty();
-        return updated;
+    // Legacy personal entry points remain SOLO-only; current machine work uses pooled transactions.
+    public long addCrucibleStored(UUID playerId, EssenceDefinition essence, long amount) {
+        if (amount <= 0) throw new IllegalArgumentException("Positive credit required");
+        soloReservoirAccount(playerId);
+        reservoirs.credit(playerId, ReservoirService.wholeUnits(Map.of(essence.id(), amount), false), ReservoirService.NONE);
+        return reservoirs.read(playerId).whole(essence.id()).longValueExact();
     }
 
-
-    public long removeCrucibleStored(
-            UUID playerId,
-            EssenceDefinition essence,
-            long amount
-    ) {
-        PlayerEssenceData playerData =
-                getPlayerData(
-                        playerId
-                );
-
-        long removed =
-                playerData.removeCrucibleStored(
-                        essence,
-                        amount
-                );
-
-        if (removed > 0L) {
-            setDirty();
-        }
-
+    public long removeCrucibleStored(UUID playerId, EssenceDefinition essence, long amount) {
+        if (amount <= 0) throw new IllegalArgumentException("Positive debit required");
+        soloReservoirAccount(playerId);
+        long removed = reservoirs.read(playerId).whole(essence.id()).min(java.math.BigInteger.valueOf(amount)).longValueExact();
+        if (removed > 0) reservoirs.debit(playerId, Map.of(essence.id(), removed), ReservoirService.NONE);
         return removed;
     }
 
-
-    public boolean removeCrucibleStoredExact(
-            UUID playerId,
-            EssenceDefinition essence,
-            long amount
-    ) {
-        PlayerEssenceData playerData =
-                getPlayerData(playerId);
-
-        boolean removed =
-                playerData.removeCrucibleStoredExact(
-                        essence,
-                        amount
-                );
-
-        if (removed) {
-            setDirty();
-        }
-        return removed;
+    public boolean removeCrucibleStoredExact(UUID playerId, EssenceDefinition essence, long amount) {
+        if (amount <= 0) throw new IllegalArgumentException("Positive debit required");
+        soloReservoirAccount(playerId);
+        return reservoirs.debit(playerId, Map.of(essence.id(), amount), ReservoirService.NONE);
     }
 
-
-    public long transferCrucibleToAvailable(
-            UUID playerId,
-            EssenceDefinition essence,
-            long amount
-    ) {
-        PlayerEssenceData playerData =
-                getPlayerData(
-                        playerId
-                );
-
-        long moved =
-                playerData.transferCrucibleToAvailable(
-                        essence,
-                        amount
-                );
-
-        if (moved > 0L) {
-            setDirty();
-        }
-
+    public long transferCrucibleToAvailable(UUID playerId, EssenceDefinition essence, long amount) {
+        if (amount <= 0) throw new IllegalArgumentException("Positive transfer required");
+        PlayerEssenceData player = soloReservoirAccount(playerId);
+        long moved = reservoirs.read(playerId).whole(essence.id()).min(java.math.BigInteger.valueOf(
+                Math.min(amount, Long.MAX_VALUE - player.getAvailable(essence)))).longValueExact();
+        if (moved > 0) reservoirs.channel(playerId, Map.of(essence.id(), moved));
         return moved;
     }
 
+    /** Explicit administrative aggregate clear, including every selected fractional share. */
+    public boolean clearReservoir(UUID member, java.util.Collection<ResourceLocation> types) {
+        Map<ResourceLocation, java.math.BigInteger> target = new java.util.LinkedHashMap<>();
+        types.forEach(type -> target.put(type, java.math.BigInteger.ZERO));
+        return reservoirs.administer(member, target);
+    }
 
     /*
      * ============================================================
@@ -403,11 +432,21 @@ public final class EssenceSavedData extends SavedData {
                         playerId
                 );
 
+        if (resolvePool(playerId).requireReady().isSoloFor(playerId))
+            clearReservoir(playerId, com.mistaboom.essence_ascendance.essence.EssenceTypes.ORDERED.stream().map(EssenceDefinition::id).toList());
         playerData.clearAll();
 
         setDirty();
     }
 
+
+    /** Personal resets may clear a SOLO reservoir, but never confiscate a communal share. */
+    public void resetProgressionForAdmin(UUID playerId) {
+        if (resolvePool(playerId).requireReady().isSoloFor(playerId))
+            clearReservoir(playerId, com.mistaboom.essence_ascendance.essence.EssenceTypes.ORDERED.stream().map(EssenceDefinition::id).toList());
+        getPlayerData(playerId).resetProgressionForAdmin();
+        setDirty();
+    }
 
     /** Persists sub-unit accounting used by server-authoritative menu costs. */
     public boolean setFractionalResourceCostCarry(
@@ -558,7 +597,10 @@ public final class EssenceSavedData extends SavedData {
             HolderLookup.Provider registries
     ) {
 
-        root.putInt("data_version", 6);
+        root.putInt("data_version", 10);
+        root.put("native_membership", nativeMembership.save());
+        root.put("reservoir_settlement", reservoirs.save());
+        root.put("pool_membership", memberships.save());
 
 
         CompoundTag playersTag =
@@ -590,7 +632,7 @@ public final class EssenceSavedData extends SavedData {
             HolderLookup.Provider provider
     ) {
 
-        if (root.getInt("data_version") != 6) {
+        if (root.getInt("data_version") != 10) {
             throw new IllegalStateException("Essence Ascendance development save schema is incompatible. "
                     + "Recreate the test world; pre-release save migration is unsupported.");
         }
@@ -598,7 +640,13 @@ public final class EssenceSavedData extends SavedData {
         EssenceSavedData data =
                 new EssenceSavedData();
 
+        data.memberships = PoolMembershipState.load(root.getCompound("pool_membership"));
+        data.reservoirs.load(root.getCompound("reservoir_settlement"));
+        data.nativeMembership = com.mistaboom.essence_ascendance.team.NativeMembershipService.load(data, root.getCompound("native_membership"));
 
+
+        if (!root.contains(PLAYERS_TAG, net.minecraft.nbt.Tag.TAG_COMPOUND))
+            throw new IllegalStateException("Missing saved player records");
         CompoundTag playersTag =
                 root.getCompound(
                         PLAYERS_TAG
@@ -607,6 +655,8 @@ public final class EssenceSavedData extends SavedData {
 
         for (String key :
                 playersTag.getAllKeys()) {
+            if (!playersTag.contains(key, net.minecraft.nbt.Tag.TAG_COMPOUND))
+                throw new IllegalStateException("Malformed player record " + key);
 
             try {
 
@@ -630,18 +680,15 @@ public final class EssenceSavedData extends SavedData {
                 );
 
 
-            } catch (IllegalArgumentException ignored) {
-
-                /*
-                 * Ignore malformed UUID keys rather than preventing
-                 * the entire world from loading.
-                 */
+            } catch (IllegalArgumentException invalid) {
+                throw new IllegalStateException("Invalid saved player record " + key, invalid);
             }
         }
 
 
 
 
+        data.reservoirs.initializeMissingMembers();
         return data;
     }
 }

@@ -49,10 +49,10 @@ public final class FractionalAmountService {
     public static Resolution accumulate(long perActionUnits, long count, long previousCarry) {
         if (perActionUnits < 0 || count < 0 || previousCarry < 0 || previousCarry >= SCALE)
             throw new IllegalArgumentException("Invalid fractional transaction");
-        // Split first so a representable whole result need not fit in micro-units.
-        long whole = Math.multiplyExact(perActionUnits / SCALE, count);
-        long remainder = Math.addExact(Math.multiplyExact(perActionUnits % SCALE, count), previousCarry);
-        return new Resolution(Math.addExact(whole, remainder / SCALE), remainder % SCALE);
+        java.math.BigInteger total = java.math.BigInteger.valueOf(perActionUnits)
+                .multiply(java.math.BigInteger.valueOf(count)).add(java.math.BigInteger.valueOf(previousCarry));
+        java.math.BigInteger[] split = total.divideAndRemainder(java.math.BigInteger.valueOf(SCALE));
+        return new Resolution(split[0].longValueExact(), split[1].longValueExact());
     }
 
     public record Resolution(long wholeAmount, long nextCarry) { }

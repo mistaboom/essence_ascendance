@@ -4,6 +4,10 @@
 
 **Playing on a server? Open your Ascendance Archive. Its reference values reflect the connected server's actual resolved data.** This wiki explains setup, pack design and administration; the Archive supplies gameplay lessons and current values.
 
+**Beta.5 multiplayer update, October 13, 2026.** This wiki covers the multiplayer and Archive update. [Release notes](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.5) · [Exact scope](https://github.com/mistaboom/essence_ascendance/wiki/Version-and-Maintenance).
+
+**Beta.5 requires a new world when upgrading from beta.4 or earlier.** The multiplayer save format changes player balances, membership and machine ownership, with no automatic migration. Keep a complete backup and the matching older mod version to continue an existing world. Install your chosen team provider before creating the new world.
+
 ## Choose your route
 
 | You want to… | Start here |
@@ -12,6 +16,7 @@
 | Install a client or server | [Installation and server setup](https://github.com/mistaboom/essence_ascendance/wiki/Installation-and-Server-Setup) |
 | Design a progression system around your pack | [Procedural balance](https://github.com/mistaboom/essence_ascendance/wiki/Procedural-Balance), then [worked scenarios](https://github.com/mistaboom/essence_ascendance/wiki/Worked-Scenarios) |
 | Run commands or maintain an existing world | [Commands](https://github.com/mistaboom/essence_ascendance/wiki/Commands) and [updating and recovery](https://github.com/mistaboom/essence_ascendance/wiki/Updating-and-Recovery) |
+| Configure cooperative storage, team providers or machine access | [Teams and shared infrastructure](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure) — beta.5 |
 | Explain a surprising price, yield or gate | [Reports and provenance](https://github.com/mistaboom/essence_ascendance/wiki/Reports-and-Provenance) and [troubleshooting](https://github.com/mistaboom/essence_ascendance/wiki/Troubleshooting) |
 
 ## What procedural balance does for a pack
@@ -32,6 +37,6 @@ The result is **saved**. Normal restarts reuse it, giving players stable values.
 
 ## Download and project links
 
-This wiki covers **1.0.0-beta.1**, Minecraft **1.21.1**, Java **21**, on **Fabric or NeoForge**. It is a prerelease.
+**Documented release: 1.0.0-beta.5**, Minecraft **1.21.1**, Java **21**, on **Fabric or NeoForge**. This is a prerelease. The original balance audit remains a historical beta.1 baseline; multiplayer and Archive evidence has its separately documented scope.
 
-[Download the beta](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.1) · [All releases](https://github.com/mistaboom/essence_ascendance/releases) · [Report an issue](https://github.com/mistaboom/essence_ascendance/issues) · [Source repository](https://github.com/mistaboom/essence_ascendance) · [Version and maintenance](https://github.com/mistaboom/essence_ascendance/wiki/Version-and-Maintenance)
+[Download the beta](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.5) · [All releases](https://github.com/mistaboom/essence_ascendance/releases) · [Report an issue](https://github.com/mistaboom/essence_ascendance/issues) · [Source repository](https://github.com/mistaboom/essence_ascendance) · [Version and maintenance](https://github.com/mistaboom/essence_ascendance/wiki/Version-and-Maintenance)

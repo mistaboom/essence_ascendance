@@ -72,6 +72,10 @@ public final class EssenceAscendanceFabricClient
                                 stack, mode, matrices, buffers, light, overlay)
         );
 
+        MenuScreens.register(com.mistaboom.essence_ascendance.crucible.EssenceCrucibleContent.TEAM_MENU.get(),
+                com.mistaboom.essence_ascendance.client.TeamScreen::new);
+        MenuScreens.register(com.mistaboom.essence_ascendance.crucible.EssenceCrucibleContent.MACHINE_ACCESS_MENU.get(),
+                com.mistaboom.essence_ascendance.client.MachineAccessScreen::new);
         MenuScreens.register(
                 EssenceCrucibleContent.ESSENCE_CRUCIBLE_MENU.get(),
                 EssenceCrucibleScreen::new

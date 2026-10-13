@@ -242,7 +242,9 @@ public final class ArchiveAuditTest {
                 check(ArchiveText.decorate(effect.prose()).getString().equals(effect.prose().getString()),
                         "Semantic links changed numeric effect arguments: " + skill.id());
         }
-        for (String key : List.of("archive.reference.equipment.lifecycle.durability", "archive.reference.equipment.lifecycle.death")) {
+        for (String key : List.of("archive.reference.equipment.lifecycle.durability", "archive.reference.equipment.lifecycle.death",
+                "archive.reference.mechanics.teams.equipment.body", "archive.reference.mechanics.teams.automation.body",
+                "archive.reference.equipment.lifecycle.machine_recovery")) {
             Component text = ArchiveText.guide(key);
             for (var run : StyledTextLayout.runs(text)) if (run.text().equals("Fractured") || run.text().equals("Soulbound"))
                 check(run.style().getColor() != null && run.style().getColor().getValue() ==
@@ -252,6 +254,22 @@ public final class ArchiveAuditTest {
     }
 
     private static void nativeSafetyWiring() throws Exception {
+        String domain = "com/mistaboom/essence_ascendance/";
+        for (String name : List.of("archive/ArchiveCatalog", "archive/GuideDocuments", "archive/ReferenceDocuments",
+                "archive/ArchiveDocuments", "archive/ArchiveText", "client/AscendanceArchiveScreen",
+                "client/archive/ArchiveSearch", "client/presentation/PresentationContext",
+                "client/presentation/MachinePresentationData", "client/presentation/MechanicsPresentationData")) {
+            for (var method : read(domain + name).methods) for (var call : calls(method)) {
+                check(!call.owner.equals(domain + "client/TeamInterfaceClientState")
+                                && !call.owner.startsWith(domain + "team/")
+                                && !call.owner.equals(domain + "data/EssenceSavedData")
+                                && !call.owner.equals(domain + "data/ReservoirService")
+                                && !call.owner.equals(domain + "crucible/EssenceCrucibleChannelService")
+                                && !call.owner.startsWith(domain + "machine/")
+                                && !Set.of("sendToServer", "getChunk", "getChunkAt", "performCommand").contains(call.name),
+                        "Read-only Archive depends on a menu snapshot or gameplay operation: " + name + " -> " + call.owner + "." + call.name);
+            }
+        }
         String root = "com/mistaboom/essence_ascendance/client/";
         var machine = read(root + "MachineContainerScreen");
         var gate = method(machine, "isHovering");
