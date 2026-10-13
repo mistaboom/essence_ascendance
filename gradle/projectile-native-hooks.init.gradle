@@ -21,6 +21,7 @@ allprojects { p ->
                     include 'com/mistaboom/essence_ascendance/projectile/NativeCombatHudTest*.class'
                     include 'com/mistaboom/essence_ascendance/projectile/NativeVitalityRecoveryTest*.class'
                     include 'com/mistaboom/essence_ascendance/projectile/NativeResourceChainsTest*.class'
+                    include 'com/mistaboom/essence_ascendance/projectile/NativeCarrierCompatibilityTest*.class'
                     include 'com/mistaboom/essence_ascendance/projectile/NativeFishingRodTest*.class'
                     include 'com/mistaboom/essence_ascendance/projectile/NativePersonalizedEquipmentTest*.class'
                     include 'com/mistaboom/essence_ascendance/projectile/NativeVitalitySustenanceTest*.class'

@@ -26,6 +26,11 @@ public final class EssentiumCarrierData {
     private static final String ESSENCE_TAG = "essence";
     private static final String GRADE_TAG = "grade";
     private static final String AMOUNT_TAG = "amount";
+    private static final String SCHEMA_TAG = "schema";
+    private static final String DENOMINATION_TAG = "ingot_denomination";
+    /** Fixed accounting bound, independent of the installed balance profile. */
+    public static final long MAX_STORED_AMOUNT = Long.MAX_VALUE
+            / com.mistaboom.essence_ascendance.balance.economy.FractionalAmountService.SCALE;
 
     private EssentiumCarrierData() {
     }
@@ -58,16 +63,24 @@ public final class EssentiumCarrierData {
         EssenceDefinition essence = EssenceRegistry.get(essenceId).orElse(null);
         EssenceFocusTier grade = parseGrade(tag.getString(GRADE_TAG));
         long amount = tag.getLong(AMOUNT_TAG);
-        if (essence == null || grade == null || amount <= 0L) {
+        if (essence == null || grade == null || !tag.contains(AMOUNT_TAG, Tag.TAG_LONG) || amount <= 0L) {
             return Optional.empty();
         }
-
-        return Optional.of(new Value(essence, grade, amount));
+        long denomination = 0L;
+        if (tag.contains(SCHEMA_TAG) || tag.contains(DENOMINATION_TAG)) {
+            if (!tag.contains(SCHEMA_TAG, Tag.TAG_INT) || tag.getInt(SCHEMA_TAG) != 1
+                    || !tag.contains(DENOMINATION_TAG, Tag.TAG_LONG)) return Optional.empty();
+            denomination = tag.getLong(DENOMINATION_TAG);
+            if (!validDenomination(denomination)
+                    || amount > capacityAt((EssentiumItem) stack.getItem(), denomination)) return Optional.empty();
+        }
+        return Optional.of(new Value(essence, grade, amount, denomination));
     }
 
     /**
-     * Strict server-side read. Rejects carrier data that exceeds the currently
-     * configured capacity for its registered carrier form/grade.
+     * Stored face value is financial authority, not a reference to today's mint
+     * capacity. Legacy carriers have no denomination metadata; their positive
+     * exact amount remains usable. The fixed bound keeps extraction representable.
      */
     public static Optional<Value> readValidated(ItemStack stack) {
         Optional<Value> raw = read(stack);
@@ -75,8 +88,7 @@ public final class EssentiumCarrierData {
             return Optional.empty();
         }
 
-        long capacity = capacityFor(stack, raw.get().grade());
-        if (capacity <= 0L || raw.get().amount() > capacity) {
+        if (raw.get().amount() > MAX_STORED_AMOUNT) {
             return Optional.empty();
         }
         return raw;
@@ -138,17 +150,42 @@ public final class EssentiumCarrierData {
             EssenceDefinition essence,
             EssenceFocusTier grade
     ) {
-        if (!isSupportedEssence(essence)) {
-            return ItemStack.EMPTY;
-        }
-        long capacity = capacityFor(item, grade);
-        if (capacity <= 0L) {
-            return ItemStack.EMPTY;
-        }
+        if (item == null || grade == null) return ItemStack.EMPTY;
+        return createAtDenomination(item, essence, grade, EssenceConfigManager.get()
+                .infuserBalance().grade(grade.serializedName()).ingotCapacity());
+    }
 
-        ItemStack stack = new ItemStack(item);
-        write(stack, new Value(essence, grade, capacity));
+    /** Mint or transform a full carrier without repricing any saved amount. */
+    public static ItemStack createAtDenomination(EssentiumItem item, EssenceDefinition essence,
+                                                 EssenceFocusTier grade, long ingotDenomination) {
+        if (item == null || grade == null || !isSupportedEssence(essence)
+                || !validDenomination(ingotDenomination)) return ItemStack.EMPTY;
+        var stack = new ItemStack(item);
+        write(stack, new Value(essence, grade, capacityAt(item, ingotDenomination), ingotDenomination));
         return stack;
+    }
+
+    /** Legacy full carriers infer their old denomination from face value and form, never current settings. */
+    static long fullDenomination(ItemStack stack, Value value) {
+        if (!(stack.getItem() instanceof EssentiumItem item)) return 0L;
+        long denomination = value.ingotDenomination();
+        if (denomination == 0L) {
+            try {
+                long scaled = Math.multiplyExact(value.amount(), item.form().capacityDenominator());
+                if (scaled % item.form().capacityNumerator() != 0L) return 0L;
+                denomination = scaled / item.form().capacityNumerator();
+            } catch (ArithmeticException overflow) { return 0L; }
+        }
+        return validDenomination(denomination) && capacityAt(item, denomination) == value.amount()
+                ? denomination : 0L;
+    }
+
+    private static boolean validDenomination(long denomination) {
+        return denomination > 0L && denomination % 9L == 0L && denomination <= MAX_STORED_AMOUNT / 9L;
+    }
+
+    private static long capacityAt(EssentiumItem item, long denomination) {
+        return denomination * item.form().capacityNumerator() / item.form().capacityDenominator();
     }
 
     /** Shared Essence/tier browse order for JEI and the creative menu. */
@@ -172,7 +209,9 @@ public final class EssentiumCarrierData {
                 || !(stack.getItem() instanceof EssentiumItem)
                 || value == null
                 || !isSupportedEssence(value.essence())
-                || value.amount() <= 0L) {
+                || value.amount() <= 0L || value.amount() > MAX_STORED_AMOUNT
+                || (value.ingotDenomination() != 0L && (!validDenomination(value.ingotDenomination())
+                    || value.amount() > capacityAt((EssentiumItem) stack.getItem(), value.ingotDenomination())))) {
             throw new IllegalArgumentException("Invalid Essentium carrier data");
         }
 
@@ -191,6 +230,11 @@ public final class EssentiumCarrierData {
         carrier.putString(ESSENCE_TAG, value.essence().id().toString());
         carrier.putString(GRADE_TAG, value.grade().serializedName());
         carrier.putLong(AMOUNT_TAG, value.amount());
+        if (value.ingotDenomination() != 0L) {
+            if (!validDenomination(value.ingotDenomination())) throw new IllegalArgumentException("Invalid Essentium denomination");
+            carrier.putInt(SCHEMA_TAG, 1);
+            carrier.putLong(DENOMINATION_TAG, value.ingotDenomination());
+        }
         CompoundTag outer = new CompoundTag();
         outer.put(ROOT_TAG, carrier);
         return CustomData.of(outer);
@@ -218,7 +262,12 @@ public final class EssentiumCarrierData {
     public record Value(
             EssenceDefinition essence,
             EssenceFocusTier grade,
-            long amount
+            long amount,
+            long ingotDenomination
     ) {
+        /** Legacy/presentation encoding carries exact face value without claiming a mint denomination. */
+        public Value(EssenceDefinition essence, EssenceFocusTier grade, long amount) {
+            this(essence, grade, amount, 0L);
+        }
     }
 }

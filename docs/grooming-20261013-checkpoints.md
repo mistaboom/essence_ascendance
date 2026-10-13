@@ -16,6 +16,19 @@ Evidence root: `C:/Users/rcboo/Documents/Essence Ascendance Auxiliary Files/groo
 
 No balance rebuild is required for this network-only correction. Use matching corrected client/server artifacts for the distinct prompt. Existing generated profiles, configuration, progression and paid transaction history are unchanged. This checkpoint does not claim subjective playtest acceptance or completion of the broader balance pass.
 
+## Checkpoint 2: stored Essentium face value
+
+Previously, changing generated ingot capacity could reject legitimately saved carriers or prevent their compression/splitting. Stored essence amounts now remain authoritative across balance rebuilds. Newly minted carriers record their ingot denomination; legacy carriers retain their exact amount. Compression requires matching family, grade and face value, and every 9:1 transformation conserves that amount. Partial declared carriers cannot become full outputs. Stable accounting bounds reject malformed or unrepresentable values without clamping them to a new balance profile.
+
+Both production loader builds pass. Actual registered items, custom recipes, item/block save-load and Crucible consumption pass3,135 carrier checks on each of Fabric and NeoForge. Cases cover all six families and five grades, lower/higher replacement capacity, legacy/new data, mixed denominations, partial carriers, invalid schemas/types and overflow. The production vanilla server then loaded the existing generated profile byte-for-byte, passed validation/all236 rank lookups/90 effect diagnostics, saved cleanly, and restarted with all58 balance files unchanged and no regeneration. Native controlled fixtures establish hook behavior; the server run establishes saved profile lifecycle, not graphical survival playtesting.
+
+- Evidence: `carrier-fix-build.log`, `carrier-fix-fabric-native.log`, `carrier-fix-neoforge-native.log`, `vanilla/carrier-checkpoint`, and `carrier-fix-artifact-hashes.json` under the same evidence root.
+- Fabric artifact: `carrier-fixed-artifacts/essence_ascendance-fabric-1.0.0-beta.5.jar`, SHA256 `80128ec0cfad9c285fae432cb5d1e3672cc4344d93d850fe130dc7c48765aad2`.
+- NeoForge artifact: `carrier-fixed-artifacts/essence_ascendance-neoforge-1.0.0-beta.5.jar`, SHA256 `5b84e52b90c48fac1bb989205039118cb96344b966e3906f158cbdb6a409abac`.
+- Exact commit and promotion receipt: auxiliary `checkpoint-log.json`.
+
+No balance rebuild is required. This is a compatibility correction; it does not change generated costs, extraction efficiency, player progression or exact paid purchase history. It does not rewrite existing carrier tags merely when reading them. Broad balance and valuation experiments remain separate.
+
 ## Continued isolated work
 
 Experimental balance work lives on `codex/balance-grooming-20261013`, outside the IntelliJ checkout. Pending investigations include native damage/Life Steal floors, Bonus saturation, finite joint acquisition, vine cultivation evidence, salvage conservation and saved Essentium carrier compatibility. Preserve failed candidate receipts. Promote another checkpoint only after its required builds, generated profile and native checks pass.

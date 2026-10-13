@@ -62,6 +62,7 @@ public final class NativeResourceChainsTest {
         Runnable restoreFuel = nativeFuelData();
         try {
             resources(f);
+            NativeCarrierCompatibilityTest.run(f);
             harvestCookEat(f);
             fishingEat(f);
             tradeRestock(f);

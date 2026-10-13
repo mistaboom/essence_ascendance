@@ -8,84 +8,24 @@ import net.minecraft.world.item.crafting.CustomRecipe;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.level.Level;
 
-/** Dynamic 1 full Essentium Block -> 9 matching full Essentium Ingots recipe. */
+/** Full matching carriers exchange at their saved denomination, preserving exact face value. */
 public final class EssentiumBlockUncompactingRecipe extends CustomRecipe {
+    public EssentiumBlockUncompactingRecipe(CraftingBookCategory category) { super(category); }
 
-    public EssentiumBlockUncompactingRecipe(CraftingBookCategory category) {
-        super(category);
+    @Override
+    public boolean matches(CraftingInput input, Level level) { return !convert(input).isEmpty(); }
+
+    @Override
+    public ItemStack assemble(CraftingInput input, HolderLookup.Provider registries) { return convert(input); }
+
+    private static ItemStack convert(CraftingInput input) {
+        return EssentiumCarrierCrafting.convert(input, EssenceInfuserContent.ESSENTIUM_BLOCK.get(),
+                EssenceInfuserContent.ESSENTIUM_INGOT.get(), false);
     }
 
     @Override
-    public boolean matches(CraftingInput input, Level level) {
-        return fullBlock(input) != null;
-    }
+    public boolean canCraftInDimensions(int width, int height) { return width * height >= 1; }
 
     @Override
-    public ItemStack assemble(CraftingInput input, HolderLookup.Provider registries) {
-        EssentiumCarrierData.Value value = fullBlock(input);
-        if (value == null) {
-            return ItemStack.EMPTY;
-        }
-        if (!(EssenceInfuserContent.ESSENTIUM_INGOT.get() instanceof EssentiumItem ingot)) {
-            return ItemStack.EMPTY;
-        }
-
-        ItemStack result = EssentiumCarrierData.createFull(
-                ingot,
-                value.essence(),
-                value.grade()
-        );
-        if (!result.isEmpty()) {
-            result.setCount(9);
-        }
-        return result;
-    }
-
-    @Override
-    public boolean canCraftInDimensions(int width, int height) {
-        return width * height >= 1;
-    }
-
-    @Override
-    public RecipeSerializer<?> getSerializer() {
-        return EssenceInfuserContent.ESSENTIUM_BLOCK_UNCOMPACTING_SERIALIZER.get();
-    }
-
-    private static EssentiumCarrierData.Value fullBlock(CraftingInput input) {
-        ItemStack found = ItemStack.EMPTY;
-
-        for (int slot = 0; slot < input.size(); slot++) {
-            ItemStack stack = input.getItem(slot);
-            if (stack.isEmpty()) {
-                continue;
-            }
-            if (!found.isEmpty() || !stack.is(EssenceInfuserContent.ESSENTIUM_BLOCK.get())) {
-                return null;
-            }
-            found = stack;
-        }
-
-        if (found.isEmpty()) {
-            return null;
-        }
-
-        EssentiumCarrierData.Value value = EssentiumCarrierData.readValidated(found)
-                .orElse(null);
-        if (value == null
-                || value.amount() != EssentiumCarrierData.capacityFor(found, value.grade())) {
-            return null;
-        }
-
-        long ingotCapacity = EssentiumCarrierData.capacityFor(
-                (EssentiumItem) EssenceInfuserContent.ESSENTIUM_INGOT.get(),
-                value.grade()
-        );
-        try {
-            return Math.multiplyExact(ingotCapacity, 9L) == value.amount()
-                    ? value
-                    : null;
-        } catch (ArithmeticException overflow) {
-            return null;
-        }
-    }
+    public RecipeSerializer<?> getSerializer() { return EssenceInfuserContent.ESSENTIUM_BLOCK_UNCOMPACTING_SERIALIZER.get(); }
 }
