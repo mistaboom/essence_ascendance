@@ -68,7 +68,13 @@ public final class MembershipNativeHookTest {
                         java.util.List.of(), java.util.List.of(), 0, 0),
                 new com.mistaboom.essence_ascendance.network.ChannelSessionsPayload(1,
                         net.minecraft.resources.ResourceLocation.parse("minecraft:overworld"), 0, 0, java.util.List.of()),
-                new com.mistaboom.essence_ascendance.network.InfuserSoulbindPayload(73, receipt));
+                new com.mistaboom.essence_ascendance.network.InfuserSoulbindPromptPayload(73, receipt));
+        for (var request : c2s) for (var response : s2c)
+            if (request.type().id().equals(response.type().id()))
+                throw new AssertionError("Directional payload IDs collide in NeoForge's registration: " + request.type().id());
+        if (!new com.mistaboom.essence_ascendance.network.InfuserSoulbindPromptPayload(73, receipt).confirmation()
+                .equals(new com.mistaboom.essence_ascendance.network.InfuserSoulbindPayload(73, receipt)))
+            throw new AssertionError("Soulbind confirmation changed the server receipt");
         for (var side : dev.architectury.networking.NetworkManager.Side.values()) {
             var payloads = side == dev.architectury.networking.NetworkManager.Side.C2S ? c2s : s2c;
             for (var payload : payloads) {

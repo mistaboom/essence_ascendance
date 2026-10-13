@@ -45,6 +45,12 @@ public final class MultiplayerInterfaceTest {
         try { TeamInterfacePayload.CODEC.encode(buffer, payload); check(TeamInterfacePayload.CODEC.decode(buffer).equals(payload), "Real interface codec preserves None, revisions, page and receipt"); } finally { buffer.release(); }
         var action = new TeamInterfaceActionPayload(17, payload.receipt(), 5, 2, 42, "Create team"); buffer = buffer();
         try { TeamInterfaceActionPayload.CODEC.encode(buffer, action); check(TeamInterfaceActionPayload.CODEC.decode(buffer).equals(action), "Actor-free action codec retains execution receipt"); } finally { buffer.release(); }
+        var soulbind = new InfuserSoulbindPromptPayload(17, payload.receipt());
+        check(!soulbind.type().id().equals(soulbind.confirmation().type().id()), "Prompt and confirmation cannot collide in native payload registration");
+        buffer = buffer();
+        try { InfuserSoulbindPromptPayload.CODEC.encode(buffer, soulbind); check(InfuserSoulbindPromptPayload.CODEC.decode(buffer).equals(soulbind), "Soulbind prompt preserves the menu and one-use receipt"); } finally { buffer.release(); }
+        buffer = buffer();
+        try { InfuserSoulbindPayload.CODEC.encode(buffer, soulbind.confirmation()); check(InfuserSoulbindPayload.CODEC.decode(buffer).equals(new InfuserSoulbindPayload(17, payload.receipt())), "Client confirmation preserves the server-issued receipt"); } finally { buffer.release(); }
         rejects(() -> new TeamInterfacePayload(0, UUID.randomUUID(), 2, 0, 1, List.of(), Collections.nCopies(7, payload.controls().getFirst()), 63, 0));
         rejects(() -> new TeamInterfacePayload.Text("x", List.of("x".repeat(193))));
         rejects(() -> new TeamInterfacePayload(0, UUID.randomUUID(), 4, 0, 1, List.of(), List.of(), 63, 0));

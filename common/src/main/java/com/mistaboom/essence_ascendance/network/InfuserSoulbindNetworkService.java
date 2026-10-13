@@ -14,15 +14,15 @@ public final class InfuserSoulbindNetworkService {
     public static void init() {
         if (initialized) return;
         initialized = true;
-        if (Platform.getEnvironment() == Env.SERVER) NetworkManager.registerS2CPayloadType(InfuserSoulbindPayload.TYPE, InfuserSoulbindPayload.CODEC);
+        if (Platform.getEnvironment() == Env.SERVER) NetworkManager.registerS2CPayloadType(InfuserSoulbindPromptPayload.TYPE, InfuserSoulbindPromptPayload.CODEC);
         NetworkManager.registerReceiver(NetworkManager.Side.C2S, InfuserSoulbindPayload.TYPE, InfuserSoulbindPayload.CODEC,
                 (payload, context) -> context.queue(() -> {
                     if (context.getPlayer() instanceof ServerPlayer player) handle(player, payload);
                 }));
     }
     public static void prompt(ServerPlayer player, int menuId, UUID receipt) {
-        if (NetworkManager.canPlayerReceive(player, InfuserSoulbindPayload.TYPE))
-            NetworkManager.sendToPlayer(player, new InfuserSoulbindPayload(menuId, receipt));
+        if (NetworkManager.canPlayerReceive(player, InfuserSoulbindPromptPayload.TYPE))
+            NetworkManager.sendToPlayer(player, new InfuserSoulbindPromptPayload(menuId, receipt));
     }
     public static boolean handle(ServerPlayer player, InfuserSoulbindPayload payload) {
         return player.containerMenu instanceof EssenceInfuserMenu menu && menu.containerId == payload.menuId()

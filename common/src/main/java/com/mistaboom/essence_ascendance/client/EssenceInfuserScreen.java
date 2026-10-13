@@ -88,12 +88,12 @@ public final class EssenceInfuserScreen
         infoCloseButton.visible = false;
     }
 
-    public void confirmSoulbind(com.mistaboom.essence_ascendance.network.InfuserSoulbindPayload payload) {
+    public void confirmSoulbind(com.mistaboom.essence_ascendance.network.InfuserSoulbindPromptPayload payload) {
         if (minecraft == null || minecraft.player == null || menu.containerId != payload.menuId()) return;
         confirmMachineAction(EssenceText.gui("infuser.soulbind.title"),
                 EssenceText.gui("infuser.soulbind.warning", minecraft.player.getGameProfile().getName()),
                 EssenceText.gui("infuser.soulbind.accept"),
-                () -> dev.architectury.networking.NetworkManager.sendToServer(payload));
+                () -> dev.architectury.networking.NetworkManager.sendToServer(payload.confirmation()));
     }
 
     private Button addCycleButton(int x, int y, String label, int id) {
