@@ -1,4 +1,6 @@
-# Wiki publication verification — 2026-10-08
+# Wiki publication verification
+
+Latest publication: beta.5 on 2026-10-13, recorded below. Earlier sections are historical receipts.
 
 Live wiki: https://github.com/mistaboom/essence_ascendance/wiki
 
@@ -50,3 +52,26 @@ Current page inventory, source verification, final Archive destinations, documen
 ## Implementation-handoff documentation reconciliation — 2026-10-13
 
 Canonical local pages now reflect exact shared FTB gates, named approval enforcement, membership help/countdown guidance, strengthened implementation receipts and the user's narrow real activation/new-Crucible ownership confirmation. The intentional beta save break is documented; existing-machine provider migration and remaining live checks stay explicit. This follow-up did not stage, commit, push or publish. Current source remains development work. See `PASSDOWN.md` and `CHECKS-2026-10-13-FOLLOWUP.json`; earlier publication records remain historical.
+
+## Beta.5 release and wiki publication — 2026-10-13
+
+The user authorized committing and pushing the completed implementation, Archive and wiki and publishing the next beta. Release source is `12f64fffdb8ae2ff2e3e9ddea4aed72e99defbf3`, tagged `v1.0.0-beta.5`. The [GitHub prerelease](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.5) was published at 18:22:59 UTC with Fabric and NeoForge Minecraft 1.21.1 jars and `SHA256SUMS` attached by Actions.
+
+- [Main CI](https://github.com/mistaboom/essence_ascendance/actions/runs/38445225759) passed the common checks and both loader builds.
+- [Release workflow](https://github.com/mistaboom/essence_ascendance/actions/runs/38446281299) passed its build, GitHub attachment and all four mod-site upload jobs. Serialized uploads succeeded on their first attempts, including NeoForge on Modrinth; no rerun or duplicate upload was needed. This verifies this release, not a guarantee against future platform failures.
+- [Description synchronization](https://github.com/mistaboom/essence_ascendance/actions/runs/38445225657) passed for both mod sites.
+- The wiki was published through `tools/wiki/publish.ps1` from the release source to wiki commit `a73d36b07e5d420255db887af09f63497e2cf491` on `master`, changing 19 of 22 maintained pages. The publisher verified the remote commit and removed its temporary checkout. Live Home, Administration Commands, Updating and Recovery, sidebar/footer and release links were checked.
+- The release notes, README and wiki prominently require a new world when upgrading from beta.4 or earlier because the multiplayer save format changes player balances, membership and machine ownership. Older-save migration and cross-provider migration of existing machines remain unsupported. Existing worlds were not changed or deleted.
+
+Downloaded GitHub jars passed SHA-256 verification, ZIP integrity and loader metadata/license checks:
+
+| Loader | SHA-256 |
+| --- | --- |
+| Fabric | `73b763d898158a53b13a2d03a8ffd94128f8b723e67d3eca08ccecacd1180f73` |
+| NeoForge | `65f5d7957511524bd5f050d4094f2e7f6894da4889b81211b57e4c9c381a2301` |
+
+Authenticated Modrinth verification found exactly one beta.5 version per loader: [Fabric `6mVigN9Z`](https://modrinth.com/mod/essence-ascendance/version/6mVigN9Z) and [NeoForge `1JgXfo5w`](https://modrinth.com/mod/essence-ascendance/version/1JgXfo5w). Both had the correct Minecraft version, loader, beta type, matching reviewed changelog and SHA-512 matching the GitHub jars. Both version records were listed, but the project still reported `processing` with requested status `approved`; public availability remains subject to project moderation.
+
+CurseForge accepted both uploads according to the successful publication jobs. Its public file list still showed beta.4 during the immediate follow-up check, so public beta.5 availability, file IDs and independently downloaded CurseForge bytes were not confirmed. Do not re-upload merely because publication/moderation has not yet appeared in that listing.
+
+Local evidence is retained under ignored `build/beta5-release/`, including full checks/build logs, wiki validation and publication logs, release workflow logs, downloaded GitHub artifacts and the Modrinth verification receipt. Full local common checks, both production builds and asset invariants passed before publication; the tagged source also passed GitHub CI and the release build. These checks do not complete the broader real two-client, offline/unloaded-machine, graphical or restart acceptance checklist, and do not establish crash-atomic persistence.
