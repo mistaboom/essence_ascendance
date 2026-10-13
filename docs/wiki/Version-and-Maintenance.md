@@ -45,9 +45,16 @@ Each local `docs/wiki/*.md` filename corresponds to its wiki page slug; `Home.md
 
 Edit **`docs/wiki/` in the main repository**. Keep the audit in `docs/wiki-maintenance/AUDIT.md` current when implementation changes. Commit and push the reviewed documentation to the main repository under its contribution rules.
 
-Clone or reuse [the wiki Git repository](https://github.com/mistaboom/essence_ascendance.wiki.git) in a separate directory. Inspect its default branch, status and history, then pull normally. Copy the reviewed Markdown pages into that checkout, including `_Sidebar.md` and `_Footer.md`. Compare existing content before replacing overlapping pages; preserve pages outside this maintained set unless their removal has been explicitly reviewed.
+Keep `docs/wiki/` as the only permanent local editing location. The manual publisher creates a temporary checkout of [the wiki Git repository](https://github.com/mistaboom/essence_ascendance.wiki.git), discovers its default branch, and preserves existing history and other pages. Run these commands from the main repository root in PowerShell after committing and pushing the reviewed source pages:
 
-Review the wiki diff, commit and push normally, without force-pushing. The main repository and wiki have separate histories: pushing `docs/wiki/` alone does not publish the wiki. After publication, open the actual wiki and check Home, sidebar/footer, a command page, Configuration and Procedural Balance, including tables, anchors and diagrams. Correct rendering problems in the canonical files first, then republish.
+```powershell
+./tools/wiki/publish.ps1
+./tools/wiki/publish.ps1 -Publish -Message 'Update reviewed wiki documentation'
+```
+
+The first command previews the diff without pushing. Reconcile any useful direct wiki edits in the canonical files before publishing. Use `-Pages Version-and-Maintenance.md` on both commands to publish only that page, or omit `-Pages` to select all maintained Markdown pages, including navigation. Successful runs remove their temporary checkout; failed runs retain it for recovery and report its location.
+
+The publisher commits and pushes normally, without force-pushing or deleting pages. It uses existing GitHub Git access and verifies the remote commit. The main repository and wiki have separate histories: pushing `docs/wiki/` alone does not publish the wiki. After publication, check the changed pages on the actual wiki. For a full publication, check Home, sidebar/footer, a command page, Configuration and Procedural Balance, including tables, anchors and diagrams. Correct rendering problems in the canonical files first, then republish.
 
 [Detailed manual publishing procedure](https://github.com/mistaboom/essence_ascendance/blob/main/docs/wiki-maintenance/PUBLISHING.md). This workflow uses existing GitHub access; it adds no credentials, automatic rewrites or scheduled publishing.
 
