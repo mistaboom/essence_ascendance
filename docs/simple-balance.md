@@ -4,6 +4,10 @@ This development revision requires fresh Essence Ascendance saves, worlds and co
 
 Values are estimates from shared item properties, common tags and published recipes. The engine performs a bounded recipe pass, handles output quantities and returned containers, and reconciles reversible material conversions. Complete static recipes constrain final payouts. Opaque recipe displays may inform estimates, but do not prove acquisition, fuel use, processing time or automation costs.
 
+Ore material estimates use a bounded native mining requirement and hardness factor. Matching common ore, raw-material, ingot, nugget, gem and dust tags share the cheapest ore variant's factor. Common dense/sparse ore-yield bands adjust this estimate by one quarter/four times; these are deliberately coarse policy weights, not measured drop counts or world rarity. Missing metadata retains the generic estimate. Exact material conversion ratios still come only from recipes.
+
+Declared item rarity supplies stronger minimum estimates before recipe solving, and an explicit default glint component adds a bounded premium. This helps rare ingredients and their crafted products without a list of special items. These signals do not establish an item's gameplay function: an otherwise unclassified rare item can still supply Utility. Items with identical available metadata can remain tied, and rare items marked Common can remain undervalued.
+
 Unknown acquisition no longer means zero value. There is no quest traversal, loot sampling, demand scoring, mod-specific valuation adapter or bespoke script inspection. Recipes exposed through the ordinary Minecraft interfaces participate regardless of which mod or datapack created them. JEI and functional FTB Teams integrations remain.
 
 Equipment calibration uses measured default attributes grouped by relative strength. Those groups are estimates, not claims about when a player can obtain the equipment. Purchase effort and material activity use a stable common value unit, so adding decorative variants does not change every price. Latent Ore uses configured distributions without inferred source abundance.

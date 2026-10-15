@@ -137,6 +137,26 @@ public final class MaterialValuationTest {
         check(ProceduralValuationEngine.measure(Items.ENCHANTED_BOOK).seed().retainedMaterials().get("minecraft:book")==4,
                 "Native stored-enchantment component receives a carrier-relative effect budget");
         check(ProceduralValuationEngine.measure(Items.PAPER).seed().value()>0,"Plain unknown materials retain fallback");
+        var ordinary = ProceduralValuationEngine.measure(Items.PAPER);
+        var special = ProceduralValuationEngine.measure(Items.HEART_OF_THE_SEA);
+        var glint = ProceduralValuationEngine.measure(Items.NETHER_STAR);
+        var epic = ProceduralValuationEngine.measure(Items.HEAVY_CORE);
+        check(special.seed().value() > 20 * ordinary.seed().value(),
+                "Native declared rarity gives recipe-less special ingredients a tangible premium over a generic item");
+        check(glint.seed().value() > special.seed().value()
+                        && glint.signals().stream().anyMatch(s -> s.contains("explicit default glint")),
+                "Explicit native default glint distinguishes special ingredients without an item-name rule");
+        check(epic.seed().value() > glint.seed().value(),
+                "Higher declared rarity remains distinct from an uncommon ingredient with intrinsic glint");
+        check(glint.seed().route().equals(ordinary.seed().route()),
+                "Rarity and glint do not invent gameplay function or change an unknown item's route");
+        var priced = solve(Map.of("cheap", seed(7,3), "rare", epic.seed()),
+                convert("cheap_rare", "cheap",2,"rare",1));
+        check(priced.values().get("rare").amount() == 14,
+                "A cheap published recipe still constrains a high-rarity property estimate; no post-solver rarity floor");
+        var material = ProceduralValuationEngine.measure(Items.PAPER, 4.0);
+        check(material.seed().value() > ordinary.seed().value(),
+                "An explicit shared material factor reaches the seed before recipe solving");
         check(GeneratedYieldEligibility.decide(Items.PAPER.getDefaultInstance(),BuiltInRegistries.ITEM.getKey(Items.PAPER),24,false,false).eligible(),"Positive estimate allowed without falsely claiming acquisition");
         check(!GeneratedYieldEligibility.decide(Items.BARRIER.getDefaultInstance(),BuiltInRegistries.ITEM.getKey(Items.BARRIER),24,false,false).eligible(),"Native administrative items remain excluded");
     }

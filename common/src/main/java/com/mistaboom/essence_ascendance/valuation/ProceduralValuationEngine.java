@@ -39,8 +39,9 @@ public final class ProceduralValuationEngine {
             Map<String, Intrinsic> measured = new TreeMap<>();
             List<Item> items = generationData(server).items().stream().filter(item -> item != Items.AIR)
                     .sorted(Comparator.comparing(item -> BuiltInRegistries.ITEM.getKey(item).toString())).toList();
+            var materialFactors = MaterialPropertyEstimates.collect(items, generationData(server).itemTags());
             for (Item item : items) {
-                String id = BuiltInRegistries.ITEM.getKey(item).toString(); Intrinsic intrinsic = measure(item);
+                String id = BuiltInRegistries.ITEM.getKey(item).toString(); Intrinsic intrinsic = measure(item, materialFactors.get(id));
                 measured.put(id, intrinsic);
                 if (ValuationGenerationInputs.itemAllowed(item)) seeds.put(id, intrinsic.seed());
             }
@@ -87,6 +88,9 @@ public final class ProceduralValuationEngine {
 
     /** Reads static default components and common semantics; never calls custom gameplay methods. */
     static Intrinsic measure(Item item) {
+        return measure(item, null);
+    }
+    static Intrinsic measure(Item item, Double materialFactor) {
         ItemStack stack = new ItemStack(item); long base = item instanceof BlockItem ? ProceduralValuationSettings.BLOCK_BASE : ProceduralValuationSettings.DEFAULT_BASE;
         int priority = item instanceof BlockItem ? 1 : 0; Map<String, Double> route = new TreeMap<>(); List<String> signals = new ArrayList<>();
         if (stack.is(ProceduralValuationTags.NUGGETS)) { base = ProceduralValuationSettings.NUGGET_BASE; priority = 4; vote(route,"gathering",3); signals.add("common nugget tag"); }
@@ -96,6 +100,10 @@ public final class ProceduralValuationEngine {
         else if (stack.is(ProceduralValuationTags.ORES)) { base = ProceduralValuationSettings.ORE_BASE; priority = 3; vote(route,"gathering",3); signals.add("common ore tag"); }
         else if (stack.is(ProceduralValuationTags.STORAGE_BLOCKS)) { base = ProceduralValuationSettings.STORAGE_BLOCK_BASE; priority = 2; vote(route,"gathering",3); signals.add("common storage material tag; conversion form estimate"); }
         if (stack.is(ProceduralValuationTags.COALS)) { base = Math.max(base, ProceduralValuationSettings.FUEL_BASE); priority = Math.max(priority, 4); vote(route,"utility",3); signals.add("common fuel tag"); }
+        if (materialFactor != null) {
+            base = Math.min(ProceduralValuationSettings.MAX_VALUE, Math.max(1, Math.round(base * materialFactor)));
+            signals.add("common material mining/hardness/yield-band policy multiplier=" + materialFactor + "; no measured drop rate or acquisition proof");
+        }
         if (stack.is(ProceduralValuationTags.CROPS) || stack.is(ProceduralValuationTags.SEEDS) || stack.is(ProceduralValuationTags.SAPLINGS)) { vote(route,"gathering",2); vote(route,"vitality",1); priority = Math.max(priority, 3); signals.add("plant material tag; growth/access not inferred"); }
         if (stack.is(ProceduralValuationTags.LOGS) || stack.is(ProceduralValuationTags.LEAVES)) { vote(route,"gathering",2); vote(route,"utility",1); priority = Math.max(priority, 3); signals.add("wood/leaf material tag"); }
         if (stack.has(DataComponents.FOOD)) { var food = stack.get(DataComponents.FOOD); base = Math.max(base, Math.round(24 + 8 * food.nutrition() + 8 * food.saturation())); vote(route,"vitality",4); priority = Math.max(priority, 3); signals.add("native food component"); }
@@ -123,8 +131,15 @@ public final class ProceduralValuationEngine {
                     : entry.attribute().equals(Attributes.MAX_HEALTH) ? "vitality" : null;
             if (category != null) { vote(route,category,2); base += Math.round(Math.min(128, 12 * Math.sqrt(amount))); priority = Math.max(priority,3); signals.add("native attribute component: " + category); }
         }
-        double rarity = switch (stack.getRarity()) { case COMMON -> 1; case UNCOMMON -> ProceduralValuationSettings.UNCOMMON_MULTIPLIER; case RARE -> ProceduralValuationSettings.RARE_MULTIPLIER; case EPIC -> ProceduralValuationSettings.EPIC_MULTIPLIER; };
-        base = Math.min(ProceduralValuationSettings.MAX_VALUE, Math.max(1, Math.round(base * rarity)));
+        var declaredRarity = stack.getRarity();
+        double rarity = switch (declaredRarity) { case COMMON -> 1; case UNCOMMON -> ProceduralValuationSettings.UNCOMMON_MULTIPLIER; case RARE -> ProceduralValuationSettings.RARE_MULTIPLIER; case EPIC -> ProceduralValuationSettings.EPIC_MULTIPLIER; };
+        long rarityMinimum = switch (declaredRarity) { case COMMON -> 1; case UNCOMMON -> ProceduralValuationSettings.UNCOMMON_MINIMUM; case RARE -> ProceduralValuationSettings.RARE_MINIMUM; case EPIC -> ProceduralValuationSettings.EPIC_MINIMUM; };
+        base = Math.min(ProceduralValuationSettings.MAX_VALUE, Math.max(rarityMinimum, Math.round(base * rarity)));
+        if (declaredRarity != Rarity.COMMON) signals.add("native declared rarity " + declaredRarity + "; pre-recipe policy floor=" + rarityMinimum);
+        if (Boolean.TRUE.equals(stack.get(DataComponents.ENCHANTMENT_GLINT_OVERRIDE))) {
+            base = Math.min(ProceduralValuationSettings.MAX_VALUE, Math.round(base * ProceduralValuationSettings.INTRINSIC_GLINT_MULTIPLIER));
+            signals.add("explicit default glint component; bounded pre-recipe premium, not enchantment or function inference");
+        }
         Double override = ValuationGenerationInputs.economicValue(item);
         if (override != null && Double.isFinite(override) && override > 0) { base = Math.min(ProceduralValuationSettings.MAX_VALUE, Math.max(1, Math.round(override))); priority = 5; signals.add("explicit resource-value override"); }
         if (route.isEmpty()) { vote(route,"utility",1); signals.add("generic positive fallback; item name and namespace unused"); }

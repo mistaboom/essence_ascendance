@@ -111,6 +111,7 @@ def balanceInvariantMains = [
         effectiveProductionInvariants: 'com.mistaboom.essence_ascendance.valuation.EffectiveProductionTest',
         valuationPerformanceInvariants: 'com.mistaboom.essence_ascendance.valuation.ValuationPerformanceTest',
         materialValuationInvariants: 'com.mistaboom.essence_ascendance.valuation.MaterialValuationTest',
+        materialPropertyInvariants: 'com.mistaboom.essence_ascendance.valuation.MaterialPropertyEstimatesTest',
         runtimeBalancePayloadInvariants: 'com.mistaboom.essence_ascendance.network.RuntimeBalancePayloadTest',
         balanceFailureEvidenceInvariants: 'com.mistaboom.essence_ascendance.balance.generated.FailureEvidenceTest',
         balanceDocumentStreamingInvariants: 'com.mistaboom.essence_ascendance.balance.generated.BalanceDocumentStreamingTest',

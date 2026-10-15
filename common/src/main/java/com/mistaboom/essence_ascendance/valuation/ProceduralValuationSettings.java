@@ -9,6 +9,10 @@ public final class ProceduralValuationSettings {
             RAW_MATERIAL_BASE = 160, INGOT_BASE = 150, GEM_BASE = 220, NUGGET_BASE = 18,
             STORAGE_BLOCK_BASE = 1350, TOOL_BASE = 240, WEAPON_BASE = 280, ARMOR_BASE = 300,
             TRANSPORT_BASE = 120, FUEL_BASE = 64;
-    public static final double UNCOMMON_MULTIPLIER = 1.12, RARE_MULTIPLIER = 1.35, EPIC_MULTIPLIER = 1.75;
+    // Declared rarity is a coarse policy estimate, not a measured drop rate. Recipes can lower it.
+    public static final long UNCOMMON_MINIMUM = 32 * DEFAULT_BASE,
+            RARE_MINIMUM = 4 * UNCOMMON_MINIMUM, EPIC_MINIMUM = 4 * RARE_MINIMUM;
+    public static final double UNCOMMON_MULTIPLIER = 2, RARE_MULTIPLIER = 4, EPIC_MULTIPLIER = 8;
+    public static final double INTRINSIC_GLINT_MULTIPLIER = 2;
     private ProceduralValuationSettings() { }
 }
