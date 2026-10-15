@@ -88,7 +88,63 @@ public final class NativeVitalityRecoveryTest {
         f.close(); SkillEffectRuntime.clearAll();
         routedHealthLocal();
         nativeMaintenancePoints();
+        oneHitLifeStealRanks();
         System.out.println("Native Vitality recovery checks passed: " + checks + " (actual regeneration, direct weapon damage, healing, lifecycle and HUD; no world)");
+    }
+
+    /** The authored 20-HP fight floor must survive strong weapons that kill before chain growth. */
+    private static void oneHitLifeStealRanks() throws ReflectiveOperationException {
+        var previousRuntime = com.mistaboom.essence_ascendance.config.EssenceConfigManager.serverRuntime();
+        var runtime = com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceDefinition.bootstrap();
+        com.mistaboom.essence_ascendance.config.EssenceConfigManager.install(runtime);
+        var f = new ProjectileNativeInterceptionTest.Fixture(NativeGuardOutcomeTest.NativePlayer.class);
+        try {
+            NativeGuardOutcomeTest.registry(f);
+            var player = f.player;
+            var data = f.saved.getPlayerData(player.getUUID());
+            data.clearAllSkillsForAdmin();
+            data.setTier(com.mistaboom.essence_ascendance.tier.AscendanceTiers.TRANSCENDENT);
+            player.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH).setBaseValue(100);
+            player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.IRON_SWORD));
+            equal(com.mistaboom.essence_ascendance.equipment.EquipmentVitalityService.evaluateStats(player).healingEffectivenessPercent(),
+                    0, "One-hit rank floor has no equipment healing amplification");
+            var skill = SkillRegistry.require(SkillIds.LIFE_STEAL);
+            double previousHealing = 0;
+            for (int rank = 1; rank <= skill.maximumRank(); rank++) {
+                var purchases = new java.util.TreeMap<net.minecraft.resources.ResourceLocation, com.mistaboom.essence_ascendance.data.SkillPurchase>();
+                rankWithParents(purchases, skill, rank);
+                data.applyNexusTransaction(java.util.Map.of(), java.util.Map.of(), purchases,
+                        java.util.Map.of(SkillGroups.VITALITY_RECOVERY, SkillIds.LIFE_STEAL), data.getTierId());
+                SkillEffectRuntime.refresh(player);
+                check(SkillEffectRuntime.context(player).isEffective(SkillIds.LIFE_STEAL), "Published Life Steal rank activates: " + rank);
+                var tuning = SkillEffectRuntime.resolvedSettings(player).vitality().lifeSteal();
+                double expected = 20 * tuning.baseHealingFraction();
+                for (float attackDamage : new float[]{20, 200}) {
+                    SkillEffectRuntime.reset(player); player.setHealth(1);
+                    var target = f.player(NativeCombatHudTest.DyingPlayer.class, new Vec3(0, 0, 3), "one_hit_rank_" + rank);
+                    target.setHealth(20); hit(f, target, attackDamage);
+                    equal(player.getHealth() - 1, expected, "Native one-hit/overkill pays only the first fraction of actual 20-HP loss at rank " + rank);
+                    check(target.deaths == 1 && VitalityRecoveryEffects.chainHits(player) == 0,
+                            "One-hit rank fixture kills and clears chain without optional follow-up hits");
+                    check(player.getHealth() - 1 - previousHealing >= (rank == 1 ? 1 : .5) - 1e-4,
+                            "Actual native one-hit recovery meets the authored rank increment: " + rank);
+                }
+                previousHealing = expected;
+            }
+        } finally {
+            f.close(); SkillEffectRuntime.clearAll();
+            if (previousRuntime == null) com.mistaboom.essence_ascendance.config.EssenceConfigManager.reset();
+            else com.mistaboom.essence_ascendance.config.EssenceConfigManager.install(previousRuntime);
+        }
+    }
+
+    private static void rankWithParents(java.util.Map<ResourceLocation, com.mistaboom.essence_ascendance.data.SkillPurchase> purchases,
+                                        com.mistaboom.essence_ascendance.skill.SkillDefinition skill, int rank) {
+        var existing = purchases.get(skill.id());
+        if (existing != null && existing.rank() >= rank) return;
+        purchases.put(skill.id(), new com.mistaboom.essence_ascendance.data.SkillPurchase(skill.essenceId(),
+                java.util.Collections.nCopies(rank, 0L)));
+        skill.prerequisiteRanks(rank).forEach((id, parentRank) -> rankWithParents(purchases, SkillRegistry.require(id), parentRank));
     }
 
     /** Real ItemStack wear values prove repair throughput is independent of capacity. */

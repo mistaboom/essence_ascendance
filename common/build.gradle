@@ -493,4 +493,12 @@ tasks.register('enchantmentYieldInvariants', JavaExec) {
 }
 tasks.named('balanceInvariants') { dependsOn 'enchantmentYieldInvariants' }
 
+tasks.register('salvageConservationInvariants', JavaExec) {
+    group = 'verification'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.mistaboom.essence_ascendance.projectile.NativeSalvageTest'
+}
+tasks.named('balanceInvariants') { dependsOn 'salvageConservationInvariants' }
+
 repositories { maven { url = 'https://chocolateminecraft.com/maven' } }

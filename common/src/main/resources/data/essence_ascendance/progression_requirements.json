@@ -828,9 +828,7 @@
           "offset": 0,
           "minimum": 0,
           "maximum": 1,
-          "quantum": 1e-06,
-          "addFrom": "vitality/lifeSteal/perHitHealingFraction",
-          "addScale": 40
+          "quantum": 1e-06
         }
       ],
       "alternativeImprovements": false

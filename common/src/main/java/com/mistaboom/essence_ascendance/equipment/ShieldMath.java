@@ -37,7 +37,9 @@ public final class ShieldMath {
     public static int disableTicks(int originalTicks, double recoveryPercent, int minimumTicks) {
         if (originalTicks <= 0) return 0;
         return Math.min(originalTicks, Math.max(Math.max(1, minimumTicks),
-                (int) Math.ceil(originalTicks * (1.0 - percent(recoveryPercent) / 100.0))));
+                // Subtract the saved ticks directly: 100 * (1 - .43) is 57.00000000000001,
+                // which incorrectly rounds a whole 43-tick saving down to 42.
+                (int) Math.ceil(originalTicks - originalTicks * percent(recoveryPercent) / 100.0)));
     }
 
     /**

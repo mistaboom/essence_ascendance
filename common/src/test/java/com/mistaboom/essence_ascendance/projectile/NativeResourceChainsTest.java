@@ -62,7 +62,10 @@ public final class NativeResourceChainsTest {
         Runnable restoreFuel = nativeFuelData();
         try {
             resources(f);
+            NativeMeleeBonusTest.run(f);
             NativeCarrierCompatibilityTest.run(f);
+            NativeSalvageTest.run();
+            salvageMenu(f);
             harvestCookEat(f);
             fishingEat(f);
             tradeRestock(f);
@@ -131,6 +134,11 @@ public final class NativeResourceChainsTest {
         }
         loot.freeze(); registries.add(loot);
         f.level.memoryRegistries = new RegistryAccess.ImmutableRegistryAccess(registries).freeze();
+        // Production recipe resolution asks the server, while native menu/enchantment
+        // callbacks ask the level. Both must share the same real registry objects.
+        var layered = new LayeredRegistryAccess<RegistryLayer>(List.of(RegistryLayer.values()))
+                .replaceFrom(RegistryLayer.STATIC, f.level.memoryRegistries.freeze());
+        ProjectileNativeInterceptionTest.set(MinecraftServer.class, f.server, "registries", layered);
         var recipe = Recipe.CODEC.parse(RegistryOps.create(JsonOps.INSTANCE, f.level.memoryRegistries),
                 vanillaJson("recipe/baked_potato")).getOrThrow();
         f.level.memoryRecipes = new RecipeManager(f.level.memoryRegistries);
@@ -141,6 +149,10 @@ public final class NativeResourceChainsTest {
         var ctor = Class.forName("net.minecraft.server.MinecraftServer$ReloadableResources").getDeclaredConstructors()[0];
         ctor.setAccessible(true);
         ProjectileNativeInterceptionTest.set(MinecraftServer.class, f.server, "resources", ctor.newInstance(null, managers));
+        check(f.server.getRecipeManager() == f.level.memoryRecipes
+                        && f.server.registryAccess().registryOrThrow(Registries.ENCHANTMENT)
+                        == f.level.registryAccess().registryOrThrow(Registries.ENCHANTMENT),
+                "Native server and level expose the same fixture recipe manager and enchantment registry");
     }
     private static com.google.gson.JsonElement vanillaJson(String path) {
         try (var stream = NativeResourceChainsTest.class.getResourceAsStream("/data/minecraft/" + path + ".json")) {
@@ -206,6 +218,63 @@ public final class NativeResourceChainsTest {
         int before = progress.getInt(furnace);
         for (int i = 0; i < 20; i++) { f.level.tick++; ticker.tick(); }
         check(progress.getInt(furnace) == before + 20, "Removing the final aura restores exactly one native processing tick per world tick");
+    }
+
+    /** Real inherited clickMenuButton dispatch, native slots, and player inventory after destructive salvage. */
+    private static void salvageMenu(ProjectileNativeInterceptionTest.Fixture f) {
+        var previousRecipes = List.copyOf(f.level.memoryRecipes.getRecipes());
+        var previousMenu = f.player.containerMenu;
+        try {
+            enable(f, f.player, SkillIds.SALVAGERS_CRAFT);
+            var menu = new net.minecraft.world.inventory.GrindstoneMenu(78, f.player.getInventory(),
+                    net.minecraft.world.inventory.ContainerLevelAccess.NULL);
+            f.player.containerMenu = menu;
+            var rich = NativeSalvageTest.recipe("rich", 1, Items.DIAMOND, Items.DIAMOND, Items.STICK);
+            var cheap = NativeSalvageTest.recipe("cheap", 1, Items.COBBLESTONE, Items.COBBLESTONE, Items.STICK);
+            f.level.memoryRecipes.replaceRecipes(List.of(rich, cheap));
+            ConstructionMaterialResolver.clearCache();
+            ItemStack tool = new ItemStack(Items.DIAMOND_SWORD); tool.setDamageValue(500);
+            tool.enchant(f.level.registryAccess().registryOrThrow(Registries.ENCHANTMENT)
+                    .getHolderOrThrow(net.minecraft.world.item.enchantment.Enchantments.UNBREAKING), 3);
+            menu.getSlot(0).set(tool);
+            int diamonds = f.player.getInventory().countItem(Items.DIAMOND);
+            check(menu.clickMenuButton(f.player, com.mistaboom.essence_ascendance.gathering.GatheringSalvageService.BUTTON_RECYCLE),
+                    "Transformed native grindstone dispatch recognizes the salvage button");
+            check(menu.getSlot(0).getItem() == tool && f.player.getInventory().countItem(Items.DIAMOND) == diamonds,
+                    "Even an enchanted ambiguous source stays intact: bonus XP cannot bypass the guaranteed material bill");
+            check(tool.isEnchanted() && !com.mistaboom.essence_ascendance.gathering.GatheringSalvageService
+                            .hudState(SkillEffectRuntime.context(f.player)).salvageReady(),
+                    "XP-only source is not advertised as a valid custom recycle; ordinary disenchant remains available");
+
+            f.level.memoryRecipes.replaceRecipes(List.of(rich)); ConstructionMaterialResolver.clearCache();
+            int before = f.player.getInventory().countItem(Items.DIAMOND) + f.player.getInventory().countItem(Items.STICK);
+            double expectedExperience = tool.getEnchantments().keySet().stream().mapToDouble(h ->
+                    h.value().getMinCost(tool.getEnchantments().getLevel(h))).sum()
+                    * SkillEffectRuntime.context(f.player).settings().gathering().salvagersCraft().bonusExperienceFraction();
+            check(menu.clickMenuButton(f.player, com.mistaboom.essence_ascendance.gathering.GatheringSalvageService.BUTTON_RECYCLE),
+                    "Proven native construction accepts destructive salvage");
+            int paid = f.player.getInventory().countItem(Items.DIAMOND) + f.player.getInventory().countItem(Items.STICK) - before;
+            check(menu.getSlot(0).getItem().isEmpty() && menu.getSlot(2).getItem().isEmpty() && paid >= 1 && paid < 3,
+                    "One worn source is removed, its native result invalidated, and fewer materials than the construction bill are paid");
+            int experience = com.mistaboom.essence_ascendance.gathering.GatheringSalvageService
+                    .hudState(SkillEffectRuntime.context(f.player)).lastExperience();
+            check(experience > 0 && experience >= Math.floor(expectedExperience) && experience <= Math.ceil(expectedExperience)
+                            && f.level.entities.stream().anyMatch(e -> e instanceof net.minecraft.world.entity.ExperienceOrb),
+                    "A proven enchanted recycle pays its guaranteed material and native enchantment-derived XP");
+            menu.clickMenuButton(f.player, com.mistaboom.essence_ascendance.gathering.GatheringSalvageService.BUTTON_RECYCLE);
+            check(f.player.getInventory().countItem(Items.DIAMOND) + f.player.getInventory().countItem(Items.STICK) == before + paid,
+                    "Repeated native button packets cannot replay a consumed source");
+
+            menu.getSlot(0).set(new ItemStack(Items.DIAMOND_SWORD)); enable(f, f.player);
+            menu.clickMenuButton(f.player, com.mistaboom.essence_ascendance.gathering.GatheringSalvageService.BUTTON_RECYCLE);
+            check(!menu.getSlot(0).getItem().isEmpty(), "Removing the committed skill immediately rejects destructive salvage");
+            enable(f, f.player, SkillIds.SALVAGERS_CRAFT); f.player.containerMenu = f.player.inventoryMenu;
+            menu.clickMenuButton(f.player, com.mistaboom.essence_ascendance.gathering.GatheringSalvageService.BUTTON_RECYCLE);
+            check(!menu.getSlot(0).getItem().isEmpty(), "An old grindstone window cannot recycle after the player closes it");
+        } finally {
+            f.player.containerMenu = previousMenu;
+            f.level.memoryRecipes.replaceRecipes(previousRecipes); ConstructionMaterialResolver.clearCache();
+        }
     }
     private static TickingBlockEntity boundTicker(ProjectileNativeInterceptionTest.Fixture f, FurnaceBlockEntity furnace) throws ReflectiveOperationException {
         var chunk = ProjectileNativeInterceptionTest.instance(MemoryChunk.class); chunk.memoryLevel = f.level;

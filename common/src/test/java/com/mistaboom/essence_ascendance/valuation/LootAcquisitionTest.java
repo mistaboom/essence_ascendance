@@ -17,6 +17,7 @@ public final class LootAcquisitionTest {
     public static void main(String[] args) {
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap();
         cropReservation();
+        vineCultivation();
         biomeAndVariableRolls();
         check(LootrProvider.readiness(null, false).status() == ProviderReadiness.Status.ABSENT, "Optional absent does not link Lootr");
         check(LootrProvider.readiness("1.21.1-1.11.38.126", false).status() == ProviderReadiness.Status.NOT_READY, "Installed is not ready");
@@ -392,6 +393,26 @@ public final class LootAcquisitionTest {
                 .stream().filter(m -> BlockLootModifierAudit.couldChangeOutput(m, "minecraft:sweet_berries")).toList();
         check(unresolved.isEmpty(), "Installed-definition berry fixture unresolved: " + unresolved);
         System.out.println("Jar-resource modifier fixture: " + modifiers.size() + " definitions; mature berry base drop preserved. Native loaded definitions/tags/rules still require rebuild.");
+    }
+    private static void vineCultivation() {
+        var vine = Blocks.VINE.defaultBlockState();
+        check(NativeVineRenewal.growthEnabled(vine, true, 3), "Native spreading vine can grow with ordinary random ticks");
+        check(!NativeVineRenewal.growthEnabled(vine, false, 3), "Disabled vine spreading cannot prove renewable cultivation");
+        check(!NativeVineRenewal.growthEnabled(vine, true, 0), "Zero random ticks cannot prove renewable cultivation");
+        check(!NativeVineRenewal.growthEnabled(Blocks.GLOW_LICHEN.defaultBlockState(), true, 3),
+                "Other multiface plants do not inherit VineBlock random growth");
+        check(NativeVineRenewal.acceptsSupport(Blocks.STONE.defaultBlockState()), "Native full support face can retain a parent vine");
+        check(!NativeVineRenewal.acceptsSupport(Blocks.AIR.defaultBlockState()), "Empty space cannot pay the parent support requirement");
+        check(!NativeVineRenewal.acceptsSupport(Blocks.TORCH.defaultBlockState()), "A nonfull decoration is not a valid vine support");
+        var table = json("""
+                {"pools":[{"rolls":1,"entries":[{"type":"minecraft:item","name":"minecraft:vine",
+                  "conditions":[{"condition":"minecraft:match_tool","predicate":{"items":"minecraft:shears"}}]}]}]}
+                """);
+        var hand = new ProceduralBlockLoot.Context("minecraft:vine", Map.of("north", "true"), Set.of("north"), "minecraft:air", Set.of(), Map.of());
+        var shears = new ProceduralBlockLoot.Context("minecraft:vine", Map.of("north", "true"), Set.of("north"), "minecraft:shears", Set.of(), Map.of());
+        check(blockDrops(table, hand).isEmpty(), "Natural vine presence does not imply a hand-harvestable starter");
+        check(blockDrops(table, shears).get("minecraft:vine").expectedCount() == 1,
+                "Explicit shears predicate pays one harvested lower vine while retained parent remains in place");
     }
     private static void cropReservation() {
         var hand = new ProceduralBlockLoot.Context("fixture:crop", Map.of(), Set.of(), "minecraft:air", Set.of(), Map.of());

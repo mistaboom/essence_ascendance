@@ -50,6 +50,7 @@ public final class SkillProgressionAudit {
         return null;
         });
         root.add("skills", rows);
+        NativeProgressionCoverage.append(runtime, root);
         var layouts = new JsonObject();
         SkillBalanceRuntime.withCurves(runtime.skillCurves(), () -> {
             for (var essence : EssenceTypes.ORDERED) {

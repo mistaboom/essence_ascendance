@@ -19,6 +19,7 @@ public final class BonusTrackGeneratorTest {
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap(); EssenceTypes.init(); EssenceStats.init(); AscendanceTiers.init();
         MilestoneProviders.init(); Milestones.init(); Skills.init(); AscendanceAdvancements.init();
         var vanilla = resolve(evidence(List.of()));
+        nativeSaturation();
         var movement = vanilla.get(EssenceStats.MOVEMENT_SPEED.id());
         var step = vanilla.get(EssenceStats.STEP_HEIGHT.id());
         var flight = vanilla.get(EssenceStats.FLIGHT_SPEED.id());
@@ -179,6 +180,39 @@ public final class BonusTrackGeneratorTest {
                 "Exact per-stat caps must authoritatively reconcile track checkpoints and segment prices");
         check(exactTrack.get("source").getAsString().contains("exact_override"), "Exact Bonus cap provenance must survive resolution");
         System.out.println("BonusTrackGeneratorTest: " + checks + " semantic costs, native thresholds, flight compatibility and curve checks PASS");
+    }
+    private static void nativeSaturation() {
+        var strong = new TreeMap<>(maxima());
+        var bounded = List.of(EssenceStats.GUARDED_MOVEMENT, EssenceStats.GUARD_READINESS,
+                EssenceStats.SWIM_SPEED, EssenceStats.SNEAK_SPEED, EssenceStats.ATTACK_KNOCKBACK,
+                EssenceStats.KNOCKBACK_RESISTANCE, EssenceStats.MAX_HEALTH, EssenceStats.REACH, EssenceStats.LUCK,
+                EssenceStats.MOVEMENT_SPEED, EssenceStats.MINING_SPEED, EssenceStats.JUMP_HEIGHT);
+        for (var stat : bounded) strong.put(stat.id(), 1_000_000.0);
+        var resolved = BonusTrackGenerator.resolve(evidence(List.of()), BalanceSettings.defaults(), caps(), fractions(),
+                strong, Map.of(), .8);
+        for (var stat : bounded) {
+            var track = BonusTrackGenerator.meaningful(resolved.get(stat.id()),
+                    com.mistaboom.essence_ascendance.skill.ProgressionRequirements.bonus(stat.id()));
+            double maximum = NativeBonusMechanics.limit(stat).orElseThrow().maximum();
+            check(track.maximumEffect() <= maximum, "Strong requested allocations exceed native saturation: " + stat.id());
+            check(track.inputs().get("native_maximum_effect") == maximum, "Saved native ceiling missing: " + stat.id());
+            double prior = 0;
+            for (double value : track.activeValues()) {
+                check(value - prior + 1e-9 >= (prior == 0 ? track.progressionRequirements().firstStateFloor()
+                        : track.progressionRequirements().tierImprovementFloor()), "Native bounded states lost authored floors: " + stat.id());
+                prior = value;
+            }
+        }
+        var readiness = BonusTrackGenerator.meaningful(resolved.get(EssenceStats.GUARD_READINESS.id()),
+                com.mistaboom.essence_ascendance.skill.ProgressionRequirements.bonus(EssenceStats.GUARD_READINESS.id()));
+        int previous = NativeBonusMechanics.NATIVE_SHIELD_DISABLE_TICKS;
+        for (double percent : readiness.activeValues()) {
+            int ticks = com.mistaboom.essence_ascendance.equipment.ShieldMath.disableTicks(100, percent, 20);
+            check(previous - ticks >= 10, "Purchased guard tier must save native cooldown ticks after quantization");
+            previous = ticks;
+        }
+        check(previous == 20 && readiness.maximumEffect() == 80,
+                "Guard completion must stop at the actual vanilla timing ceiling");
     }
     private static Map<ResourceLocation, BonusTrackDefinition> resolve(PackEvidence evidence) {
         var result = new TreeMap<ResourceLocation, BonusTrackDefinition>();

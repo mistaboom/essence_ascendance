@@ -205,6 +205,15 @@ final class ProceduralNaturalBlockIndex {
                     addEvidence(ResourceLocation.parse("minecraft:cocoa"),
                             source + " via minecraft:cocoa tree decorator");
                 }
+                // These native decorators also place their block in code. Trunk
+                // vines use an unconditional codec and an internal positive chance;
+                // leaf vines have an explicit probability. Neither proves harvest.
+                if (!zeroOccurrence(decorator) && (isType(decorator, "minecraft:trunk_vine")
+                        || isType(decorator, "minecraft:leave_vine")
+                        && positiveProbability(decorator.get("probability")))) {
+                    addEvidence(ResourceLocation.parse("minecraft:vine"),
+                            source + " via native vine tree decorator " + decorator.get("type").getAsString());
+                }
             }
         }
 

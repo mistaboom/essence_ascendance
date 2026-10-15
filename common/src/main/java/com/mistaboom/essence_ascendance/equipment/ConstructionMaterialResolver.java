@@ -1,6 +1,5 @@
 package com.mistaboom.essence_ascendance.equipment;
 
-import com.mistaboom.essence_ascendance.infuser.EssenceInfuserContent;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.Item;
@@ -10,9 +9,9 @@ import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeManager;
-import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.world.item.crafting.ShapedRecipe;
+import net.minecraft.world.item.crafting.ShapelessRecipe;
 
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -21,7 +20,8 @@ import java.util.Map;
 
 /**
  * Data-driven construction decomposition shared by salvage-style mechanics.
- * The loaded crafting recipe is authoritative when present; native repair material is a conservative fallback.
+ * Only materials guaranteed consumed by every observed construction route can be recovered.
+ * Ingredient alternatives and opaque recipe callbacks are not proof of a particular paid material.
  */
 public final class ConstructionMaterialResolver {
     private static final Map<Item, List<MaterialAmount>> CACHE = new HashMap<>();
@@ -32,10 +32,8 @@ public final class ConstructionMaterialResolver {
     public static List<MaterialAmount> resolve(ItemStack target, MinecraftServer server) {
         if (!EquipmentMaintenanceService.eligible(target) || server == null) return List.of();
         refreshForReload(server);
-        if (EquipmentTierData.isAscendanceEquipment(target)) {
-            return List.of(new MaterialAmount(EssenceInfuserContent.LATENT_INGOT.get(), 1.0D));
-        }
-        return CACHE.computeIfAbsent(target.getItem(), ignored -> build(target, server));
+        return CACHE.computeIfAbsent(target.getItem(), ignored -> resolveRecipes(target.getItem(),
+                server.getRecipeManager().getRecipes(), server.registryAccess()));
     }
 
     public static void clearCache() {
@@ -50,82 +48,119 @@ public final class ConstructionMaterialResolver {
         observedRecipeManager = manager;
     }
 
-    private static List<MaterialAmount> build(ItemStack target, MinecraftServer server) {
-        Recipe<?> fallback = null;
-        int fallbackOutputCount = 1;
-        for (RecipeHolder<?> holder : server.getRecipeManager().getRecipes()) {
+    /** Pure recipe evidence boundary, also exercised by the native item regression fixture. */
+    public static List<MaterialAmount> resolveRecipes(Item target, java.util.Collection<RecipeHolder<?>> recipes,
+                                                     net.minecraft.core.HolderLookup.Provider registries) {
+        Map<Item, Double> guaranteed = null;
+        for (RecipeHolder<?> holder : recipes) {
             Recipe<?> recipe = holder.value();
             ItemStack output;
             try {
-                output = recipe.getResultItem(server.registryAccess());
+                output = recipe.getResultItem(registries);
             } catch (RuntimeException ignored) {
                 continue;
             }
             if (output == null || output.isEmpty() || output.is(Items.AIR)
-                    || output.getItem() != target.getItem() || recipe.getIngredients().isEmpty()
-                    || consumesTarget(recipe, target.getItem())) continue;
-            if (recipe.getType() == RecipeType.CRAFTING) return recipeMaterials(target, recipe, output.getCount());
-            if (fallback == null) {
-                fallback = recipe;
-                fallbackOutputCount = output.getCount();
+                    || output.getItem() != target) continue;
+            boolean nativeCrafting = recipe.getClass() == ShapedRecipe.class || recipe.getClass() == ShapelessRecipe.class;
+            if (nativeCrafting && requiredTargetCount(recipe, target) >= output.getCount()) continue;
+            // Generic getIngredients() is not a bill for machine/custom recipes: counts and
+            // reusable catalysts may be hidden. A known alternative without a proven bill
+            // prevents material recovery; it must not cause an expensive route to win.
+            Map<Item, Double> bill = nativeCrafting ? recipeMaterials(recipe, target, output.getCount()) : Map.of();
+            if (guaranteed == null) guaranteed = new LinkedHashMap<>(bill);
+            else {
+                for (Item material : java.util.List.copyOf(guaranteed.keySet())) {
+                    double amount = Math.min(guaranteed.get(material), bill.getOrDefault(material, 0.0));
+                    if (amount <= 0) guaranteed.remove(material); else guaranteed.put(material, amount);
+                }
             }
+            if (guaranteed.isEmpty()) return List.of();
         }
-        if (fallback != null) return recipeMaterials(target, fallback, fallbackOutputCount);
-
-        // Repair compatibility alone is not construction evidence: a one-item fallback can create
-        // a profitable craft/recycle loop in packs with multi-output or conversion recipes.
-        return List.of();
+        // Repeatable construction must lose material; even first-party equipment uses its
+        // loaded crafting bill, so added cheaper routes cannot bypass this proof.
+        if (guaranteed == null || guaranteed.values().stream().mapToDouble(Double::doubleValue).sum() <= 1)
+            return List.of();
+        return guaranteed.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey(Comparator.comparing(item -> BuiltInRegistries.ITEM.getKey(item).toString())))
+                .map(entry -> new MaterialAmount(entry.getKey(), entry.getValue())).toList();
     }
 
-    private static List<MaterialAmount> recipeMaterials(ItemStack target, Recipe<?> recipe, int outputCount) {
+    private static Map<Item, Double> recipeMaterials(Recipe<?> recipe, Item target, int outputCount) {
         Map<Item, Double> amounts = new LinkedHashMap<>();
         double perOutput = 1.0D / Math.max(1, outputCount);
         for (Ingredient ingredient : recipe.getIngredients()) {
-            Item candidate = representative(target, ingredient);
-            if (candidate != null) amounts.merge(candidate, perOutput, Double::sum);
+            Item candidate = guaranteedConsumedMaterial(ingredient);
+            if (candidate != null && candidate != target) amounts.merge(candidate, perOutput, Double::sum);
         }
-        if (amounts.values().stream().mapToDouble(Double::doubleValue).sum() <= 1) return List.of();
-        return amounts.entrySet().stream()
-                .map(entry -> new MaterialAmount(entry.getKey(), entry.getValue()))
-                .toList();
+        return amounts;
     }
 
-    /** Prefer the target's factual native repair material, then use a stable alternative from the recipe ingredient. */
-    private static Item representative(ItemStack target, Ingredient ingredient) {
-        if (ingredient == null || ingredient == Ingredient.EMPTY) return null;
-        List<ItemStack> candidates = new ArrayList<>();
+    private static Item guaranteedConsumedMaterial(Ingredient ingredient) {
+        if (ingredient == null || ingredient == Ingredient.EMPTY || !completeItemAlternatives(ingredient)) return null;
+        Item guaranteed = null;
         for (ItemStack stack : ingredient.getItems()) {
-            if (stack != null && !stack.isEmpty() && !stack.is(Items.AIR)) candidates.add(stack);
+            if (stack == null || stack.isEmpty() || stack.is(Items.AIR)) continue;
+            Item candidate = stack.getItem();
+            // A returned container or reusable catalyst was not consumed as a recoverable unit.
+            if (candidate.hasCraftingRemainingItem() || !knownRemainderContract(candidate)
+                    || (guaranteed != null && guaranteed != candidate)) return null;
+            guaranteed = candidate;
         }
-        if (candidates.isEmpty()) return null;
-        Comparator<ItemStack> byId = Comparator.comparing(stack -> BuiltInRegistries.ITEM.getKey(stack.getItem()).toString());
-        return candidates.stream().filter(stack -> target.getItem().isValidRepairItem(target, stack))
-                .min(byId).orElseGet(() -> candidates.stream().min(byId).orElseThrow()).getItem();
+        return guaranteed;
     }
 
-    private static Item nativeRepairMaterial(ItemStack target) {
-        Item best = null;
-        String bestId = null;
-        for (Item candidate : BuiltInRegistries.ITEM) {
-            ItemStack stack = candidate.getDefaultInstance();
-            if (stack.isEmpty() || !target.getItem().isValidRepairItem(target, stack)) continue;
-            String id = BuiltInRegistries.ITEM.getKey(candidate).toString();
-            if (best == null || id.compareTo(bestId) < 0) {
-                best = candidate;
-                bestId = id;
+    /** A custom stack-sensitive remainder can return the consumed item for some NBT states.
+     * Sampling its default stack cannot establish consumption for every accepted input. */
+    private static boolean knownRemainderContract(Item item) {
+        for (String method : List.of("getCraftingRemainingItem", "hasCraftingRemainingItem", "getRecipeRemainder")) {
+            try {
+                var baseline = Item.class.getMethod(method, ItemStack.class);
+                if (item.getClass().getMethod(method, ItemStack.class).getDeclaringClass() != baseline.getDeclaringClass())
+                    return false;
+            } catch (NoSuchMethodException absentLoaderHook) {
+                // A similarly named custom method is also unproved, even in a plain common fixture.
+                try { item.getClass().getMethod(method, ItemStack.class); return false; }
+                catch (NoSuchMethodException absent) { /* Vanilla has only the ordinary item remainder. */ }
+            } catch (RuntimeException unreadable) { return false; }
+        }
+        return true;
+    }
+
+    /** Both loader APIs permit complex custom ingredients to expose display-only stacks.
+     * Their simple/no-testing contract is the explicit exception: those item alternatives
+     * must be complete. Unknown subclasses or unreadable contracts supply no paid bill. */
+    private static boolean completeItemAlternatives(Ingredient ingredient) {
+        try {
+            Object custom = ingredient.getClass().getMethod("getCustomIngredient").invoke(ingredient);
+            if (custom == null) return ingredient.getClass() == Ingredient.class;
+            try {
+                return Boolean.TRUE.equals(ingredient.getClass().getMethod("isSimple").invoke(ingredient));
+            } catch (NoSuchMethodException fabric) {
+                try {
+                    return Boolean.FALSE.equals(ingredient.getClass().getMethod("requiresTesting").invoke(ingredient));
+                } catch (NoSuchMethodException unknownContract) { return false; }
             }
+        } catch (NoSuchMethodException vanilla) {
+            return ingredient.getClass() == Ingredient.class;
+        } catch (ReflectiveOperationException | RuntimeException unavailable) {
+            return false;
         }
-        return best;
     }
 
-    private static boolean consumesTarget(Recipe<?> recipe, Item target) {
+    private static int requiredTargetCount(Recipe<?> recipe, Item target) {
+        int count = 0;
         for (Ingredient ingredient : recipe.getIngredients()) {
-            if (ingredient == null || ingredient == Ingredient.EMPTY) continue;
+            if (ingredient == null || ingredient == Ingredient.EMPTY || !completeItemAlternatives(ingredient)) continue;
+            boolean required = false;
             for (ItemStack candidate : ingredient.getItems()) {
-                if (candidate != null && !candidate.isEmpty() && candidate.getItem() == target) return true;
+                if (candidate == null || candidate.isEmpty()) continue;
+                if (candidate.getItem() != target) { required = false; break; }
+                required = true;
             }
+            if (required) count++;
         }
-        return false;
+        return count;
     }
 
     public record MaterialAmount(Item item, double amount) {

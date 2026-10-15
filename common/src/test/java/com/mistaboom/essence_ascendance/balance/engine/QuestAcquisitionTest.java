@@ -12,7 +12,7 @@ public final class QuestAcquisitionTest {
     private static int checks;
     public static void main(String[] args) throws Exception {
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap();
-        readiness(); definitions(); reachability(); economy(); semanticSerialization();
+        readiness(); definitions(); reachability(); economy(); finiteDescendantBills(); semanticSerialization();
         System.out.println("Quest acquisition invariants passed: " + checks);
     }
     private static void semanticSerialization() throws Exception {
@@ -149,6 +149,21 @@ public final class QuestAcquisitionTest {
         check(random.quests().getFirst().rewards().getFirst().probability() == .25, "Random weights normalized once against whole supported table");
         check(random.quests().getFirst().rewards().get(1).probability() == .75, "Random outcome quantities remain independent");
         check(random.processes().stream().noneMatch(ProductionGraph.Process::conservationComplete), "Random rewards never summed in hard constraints");
+        check(solve(random, Map.of()).items().isEmpty(), "One-time random rewards are opportunities, never guaranteed finite stock");
+        var chanceQuest = random.quests().getFirst();
+        var repeatChance = new QuestEvidence(List.of(new QuestEvidence.Quest(chanceQuest.id(), chanceQuest.prerequisites(),
+                chanceQuest.required(), chanceQuest.enforced(), chanceQuest.dependencyMode(), true, 30, false,
+                List.of(new QuestEvidence.Task("pay", "item", List.of("minecraft:iron_ingot"), 1, true, true, "", List.of())),
+                chanceQuest.rewards(), List.of())), "repeatable chance fixture", List.of());
+        check(solve(repeatChance, Map.of("minecraft:iron_ingot", AcquisitionProgressionGraph.Placement.ordinary(ProgressionBand.ENTRY, true)))
+                .items().get("minecraft:diamond").renewable(), "Repeatable chance rewards retain conditional access when reset payments are renewable");
+        check(!solve(repeatChance, Map.of("minecraft:iron_ingot", new AcquisitionProgressionGraph.Placement(
+                ProgressionBand.ENTRY, Map.of(), 1, true, false, "finite_start"))).items().containsKey("minecraft:diamond"),
+                "Repeatable random rewards cannot turn one finite payment into guaranteed stock");
+        check(!solve(repeatChance, seed("minecraft:iron_ingot", ProgressionBand.ENTRY)).items().containsKey("minecraft:diamond"),
+                "Unknown renewal of reset payments cannot establish recurring chance supply");
+        check(solve(random, Map.of()).unresolved().stream().anyMatch(s -> s.contains("guaranteed stock unknown")),
+                "Finite random opportunities retain an explicit uncertainty diagnostic");
         check(random.diagnostics().toString().contains("player") && !random.diagnostics().toString().contains("UUID"), "Definition-only scope, no player/team completion state");
         var finiteRepeat = normalize("{id:'1',tasks:[{id:'2',type:'checkmark'}],rewards:[{id:'3',item:'minecraft:iron_ingot',count:4}]},{id:'4',can_repeat:true,tasks:[{id:'5',type:'item',item:'minecraft:iron_ingot',count:4,consume_items:true}],rewards:[{id:'6',item:'minecraft:diamond'}]}", "linear");
         check(solve(finiteRepeat, Map.of()).items().get("minecraft:diamond").finite(), "Repeat flag cannot replenish finite consumed task resources");
@@ -167,6 +182,75 @@ public final class QuestAcquisitionTest {
         var conserved = com.mistaboom.essence_ascendance.balance.economy.EconomyConservationSolver.solveWholeUnits(new ProductionGraph(List.of(multi), List.of()), proposed);
         check(conserved.invariants().stream().allMatch(com.mistaboom.essence_ascendance.balance.economy.EconomyConservationSolver.Invariant::passed),
                 "Repeatable shared-cost bundle passes real whole-unit conservation");
+    }
+    private static void finiteDescendantBills() throws Exception {
+        var stock = normalize("{id:'1',tasks:[{id:'2',type:'checkmark'}],rewards:[{id:'3',item:'minecraft:iron_ingot',count:1}]}", "linear");
+        var a = process("fixture:a", List.of(input("minecraft:iron_ingot", 1, true)), Map.of("fixture:a", 1d));
+        var b = process("fixture:b", List.of(input("minecraft:iron_ingot", 1, true)), Map.of("fixture:b", 1d));
+        var joint = process("fixture:joint", List.of(input("fixture:a", 1, true), input("fixture:b", 1, true)), Map.of("fixture:joint", 1d));
+        var solved = AcquisitionProgressionGraph.solve(Map.of(), new ProductionGraph(List.of(a, b, joint), List.of()), stock);
+        check(solved.items().containsKey("fixture:a") && solved.items().containsKey("fixture:b"), "Each descendant can independently use one finite reward");
+        check(!solved.items().containsKey("fixture:joint"), "Two descendants must not spend the same finite reward twice");
+        var two = normalize("{id:'1',tasks:[{id:'2',type:'checkmark'}],rewards:[{id:'3',item:'minecraft:iron_ingot',count:2}]}", "linear");
+        check(AcquisitionProgressionGraph.solve(Map.of(), new ProductionGraph(List.of(a, b, joint), List.of()), two)
+                .items().containsKey("fixture:joint"), "Enough shared reward stock pays both descendants");
+        var bundle = process("fixture:bundle", List.of(input("minecraft:iron_ingot", 1, true)), Map.of("fixture:a", 1d, "fixture:b", 1d));
+        check(AcquisitionProgressionGraph.solve(Map.of(), new ProductionGraph(List.of(bundle, joint), List.of()), stock)
+                .items().containsKey("fixture:joint"), "One paid operation retains deterministic coproducts in the joint bill");
+        var plates = process("fixture:plates", List.of(input("minecraft:iron_ingot", 1, true)), Map.of("fixture:plate", 4d));
+        var plateA = process("fixture:a", List.of(input("fixture:plate", 2, true)), Map.of("fixture:a", 1d));
+        var plateB = process("fixture:b", List.of(input("fixture:plate", 2, true)), Map.of("fixture:b", 1d));
+        check(AcquisitionProgressionGraph.solve(Map.of(), new ProductionGraph(List.of(plates, plateA, plateB, joint), List.of()), stock)
+                .items().containsKey("fixture:joint"), "Leftovers from one finite crafting batch can be split across descendants");
+        var tooMany = process("fixture:b", List.of(input("fixture:plate", 3, true)), Map.of("fixture:b", 1d));
+        check(!AcquisitionProgressionGraph.solve(Map.of(), new ProductionGraph(List.of(plates, plateA, tooMany, joint), List.of()), stock)
+                .items().containsKey("fixture:joint"), "A second crafting batch cannot redraw spent reward stock");
+        var catalyst = process("fixture:catalyst", List.of(input("fixture:a", 1, false), input("minecraft:iron_ingot", 1, true)), Map.of("fixture:catalyst", 1d));
+        check(!AcquisitionProgressionGraph.solve(Map.of(), new ProductionGraph(List.of(a, catalyst), List.of()), stock)
+                .items().containsKey("fixture:catalyst"), "Reusable setup and material input must share one paid acquisition ledger");
+        var feed = Map.of("fixture:feed", AcquisitionProgressionGraph.Placement.ordinary(ProgressionBand.ENTRY, true));
+        var intermediate = process("fixture:intermediate", List.of(input("fixture:a", 1, false), input("fixture:feed", 1, true)), Map.of("fixture:intermediate", 1d));
+        var nested = process("fixture:nested", List.of(input("fixture:a", 1, false), input("fixture:intermediate", 1, true)), Map.of("fixture:nested", 1d));
+        check(AcquisitionProgressionGraph.solve(feed, new ProductionGraph(List.of(a, intermediate, nested), List.of()), stock)
+                .items().containsKey("fixture:nested"), "Nested sequential prerequisites can borrow the enclosing operation's reserved finite catalyst");
+        var eatsTool = process("fixture:intermediate", List.of(input("fixture:a", 1, true), input("fixture:feed", 1, true)), Map.of("fixture:intermediate", 1d));
+        check(!AcquisitionProgressionGraph.solve(feed, new ProductionGraph(List.of(a, eatsTool, nested), List.of()), stock)
+                .items().containsKey("fixture:nested"), "A nested ingredient cannot consume an enclosing operation's reserved finite catalyst");
+        var twoA = process("fixture:two_a", List.of(input("fixture:a", 2, true)), Map.of("fixture:two_a", 1d));
+        var twoSlots = process("fixture:two_slots", List.of(input("fixture:a", 1, true), input("fixture:a", 1, true)), Map.of("fixture:two_slots", 1d));
+        var repeated = AcquisitionProgressionGraph.solve(Map.of(), new ProductionGraph(List.of(a, twoA, twoSlots), List.of()), two);
+        check(repeated.items().containsKey("fixture:two_a"), "Per-batch output quantity is not total finite supply: two paid batches can satisfy one two-item input");
+        check(repeated.items().containsKey("fixture:two_slots"), "Separate ingredient slots can require two independently paid batches");
+        var choice = process("fixture:alternative", List.of(new ProductionGraph.Input(List.of("fixture:a", "fixture:feed"), 1, true),
+                input("fixture:a", 1, true)), Map.of("fixture:alternative", 1d));
+        var laterFeed = Map.of("fixture:feed", AcquisitionProgressionGraph.Placement.ordinary(ProgressionBand.EARLY, true));
+        var assigned = AcquisitionProgressionGraph.solve(laterFeed, new ProductionGraph(List.of(a, choice), List.of()), stock);
+        check(assigned.items().containsKey("fixture:alternative"), "A finite joint bill can choose an alternative rather than double-spend its first choice");
+        check(assigned.selectedInputs().get("fixture:alternative").equals(List.of("fixture:feed", "fixture:a")),
+                "Publication retains the actual joint input assignment for downstream price bounds");
+        var huge = process("fixture:huge", List.of(input("fixture:a", 10000, true)), Map.of("fixture:huge", 1d));
+        var bounded = AcquisitionProgressionGraph.solve(Map.of(), new ProductionGraph(List.of(a, huge), List.of()), stock);
+        check(!bounded.items().containsKey("fixture:huge") && bounded.unresolved().stream().anyMatch(s -> s.contains("fixture:huge") && s.contains("budget exhausted")),
+                "Bounded replay reports unknown search exhaustion instead of fabricating absence or access");
+        var threshold = normalize("{id:'1',tasks:[{id:'2',type:'item',item:'minecraft:iron_ingot',consume_items:true}]},"
+                + "{id:'3',tasks:[{id:'4',type:'item',item:'minecraft:stone'}]},"
+                + "{id:'5',dependencies:['1','3'],dependency_requirement:'one_completed',tasks:[{id:'6',type:'item',item:'minecraft:iron_ingot',consume_items:true}],rewards:[{id:'7',item:'minecraft:diamond'}]}", "linear");
+        var thresholdSeeds = Map.of("minecraft:iron_ingot", new AcquisitionProgressionGraph.Placement(
+                ProgressionBand.ENTRY, Map.of(), 1, true, false, "finite_start"),
+                "minecraft:stone", AcquisitionProgressionGraph.Placement.ordinary(ProgressionBand.EARLY));
+        check(solve(threshold, thresholdSeeds).items().containsKey("minecraft:diamond"),
+                "Threshold prerequisite alternatives can avoid spending finite stock needed by the parent task");
+        var projected = AcquisitionProgressionGraph.projectProduction(new ProductionGraph(threshold.processes(), List.of()),
+                solve(threshold, thresholdSeeds), AcquisitionProgressionGraph.Constraints.NONE);
+        check(AcquisitionProgressionGraph.solve(thresholdSeeds, projected, threshold).items().get("minecraft:diamond").finite(),
+                "Projected reward opportunities cannot bypass finite quest semantics as ordinary production");
+    }
+    private static ProductionGraph.Input input(String item, double count, boolean consumed) {
+        return new ProductionGraph.Input(List.of(item), count, consumed);
+    }
+    private static ProductionGraph.Process process(String id, List<ProductionGraph.Input> inputs, Map<String, Double> outputs) {
+        return new ProductionGraph.Process(id, "minecraft:crafting", inputs, outputs.entrySet().stream()
+                .map(e -> new ProductionGraph.Output(e.getKey(), e.getValue(), 1, false)).toList(), 0, 0, "fixture", .9, Map.of());
     }
     private static QuestEvidence normalizeWithTable(String type, CompoundTag table) throws Exception {
         return QuestNormalizer.normalize(tag("{version:13,progression_mode:'linear'}"), List.of(tag("{id:'f',quests:[{id:'1',tasks:[{id:'2',type:'checkmark'}],rewards:[{id:'3',type:'" + type + "',table_id:10L}]}]}")), List.of(table), "fixture");

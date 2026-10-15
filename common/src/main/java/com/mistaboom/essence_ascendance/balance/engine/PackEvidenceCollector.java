@@ -110,6 +110,7 @@ public final class PackEvidenceCollector {
         Map<String, ResourceEvidence> beforeNative = resolveResources(context, sink);
         Map<String, ResourceEvidence> resources = com.mistaboom.essence_ascendance.valuation.NativeTreeRenewal.enrich(context, beforeNative, sink);
         resources = com.mistaboom.essence_ascendance.valuation.NativeCropRenewal.enrich(context, resources, sink);
+        resources = com.mistaboom.essence_ascendance.valuation.NativeVineRenewal.enrich(context, resources, sink);
         resources = NativeStructureBlockLoot.enrich(context, resources, sink);
         resources = com.mistaboom.essence_ascendance.valuation.ExDeorumManualAccess.enrich(context, resources, sink);
         resources = com.mistaboom.essence_ascendance.valuation.NativePassiveDrops.enrich(context, resources, sink);

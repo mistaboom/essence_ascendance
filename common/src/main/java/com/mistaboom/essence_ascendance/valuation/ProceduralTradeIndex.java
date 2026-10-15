@@ -49,6 +49,8 @@ final class ProceduralTradeIndex {
     private static final java.util.Set<String> WORLD_DEPENDENT_MOD_LISTINGS = java.util.Set.of(
             "net.mehvahdjukaar.supplementaries.common.entities.trades.RandomAdventurerMapListing",
             "net.mehvahdjukaar.supplementaries.common.entities.trades.StructureMapListing");
+    private static final String IE_REROLLING_LISTING = "blusunrize.immersiveengineering.common.world.Villages$RerollingItemListing";
+    private static final String IE_GROUPED_LISTING = "blusunrize.immersiveengineering.common.world.Villages$GroupedListing";
 
     private final Map<Item, List<TradeSource>> sourcesByOutput;
     private final int professionTableCount;
@@ -234,19 +236,8 @@ final class ProceduralTradeIndex {
             int listingIndex,
             Map<String, Integer> worldDependentListings
     ) {
-        // Map offers can locate structures, request chunks and create
-        // saved map data. Evaluating it is unsafe during pre-spawn analysis (or
-        // any read-only valuation). Its acquisition stays unknown instead.
-        if (worldDependentListing(factory, 0)) {
-            worldDependentListings.merge(stableClass(factory.getClass()) + ": world-dependent map creation/structure search", 1, Integer::sum);
-            return 0;
-        }
-        String uncontrolled = uncontrolledRandomness(factory, 0);
-        if (uncontrolled != null) {
-            worldDependentListings.merge(uncontrolled, 1, Integer::sum);
-            return 0;
-        }
         Map<String, TradeSource> unique = new LinkedHashMap<>();
+        java.util.Set<String> exclusions = new java.util.TreeSet<>();
 
         for (int sample = 0; sample < SAMPLES_PER_LISTING; sample++) {
             try {
@@ -254,7 +245,14 @@ final class ProceduralTradeIndex {
                         ^ ((long) listingIndex << 32)
                         ^ ((long) level << 20)
                         ^ (long) sample * 0x9E3779B97F4A7C15L;
-                MerchantOffer offer = TradeSamplingScope.sample(seed, () -> factory.getOffer(trader, RandomSource.create(seed)));
+                MerchantOffer offer = TradeSamplingScope.sample(seed, () -> {
+                    RandomSource random = RandomSource.create(seed);
+                    VillagerType type = trader instanceof net.minecraft.world.entity.npc.VillagerDataHolder holder
+                            ? holder.getVillagerData().getType() : null;
+                    ListingSelection selected = selectSampleListing(factory, type, random, 0);
+                    if (selected.exclusion() != null) exclusions.add(selected.exclusion());
+                    return selected.listing() == null ? null : selected.listing().getOffer(trader, random);
+                });
                 if (offer == null || offer.getMaxUses() <= 0) {
                     continue;
                 }
@@ -307,6 +305,8 @@ final class ProceduralTradeIndex {
             }
         }
 
+        // Count affected registered listings once per reason, not once per roll.
+        exclusions.forEach(reason -> worldDependentListings.merge(reason, 1, Integer::sum));
         for (TradeSource source : unique.values()) {
             output.computeIfAbsent(source.outputItem(), ignored -> new ArrayList<>())
                     .add(source);
@@ -318,14 +318,7 @@ final class ProceduralTradeIndex {
         return type.isHidden() ? type.getNestHost().getName() + "$$Lambda" : type.getName();
     }
 
-    static String uncontrolledRandomness(VillagerTrades.ItemListing listing, int depth) {
-        if (depth > 16) return "Unresolved nested trade factory";
-        if (listing instanceof VillagerTrades.TypeSpecificTrade typed) {
-            for (var child : typed.trades().values()) {
-                String reason = uncontrolledRandomness(child, depth + 1);
-                if (reason != null) return reason;
-            }
-        }
+    private static String uncontrolledRandomness(VillagerTrades.ItemListing listing) {
         String name = stableClass(listing.getClass());
         // Installed bytecode uses process-global Math.random or a static Random
         // behind arbitrary suppliers. Four observed rolls cannot certify their
@@ -344,12 +337,52 @@ final class ProceduralTradeIndex {
         return encoded;
     }
 
-    private static boolean worldDependentListing(VillagerTrades.ItemListing listing, int depth) {
-        if (depth > 16 || listing instanceof VillagerTrades.TreasureMapForEmeralds) return true;
-        if (WORLD_DEPENDENT_MOD_LISTINGS.contains(listing.getClass().getName())) return true;
-        // The vanilla trade-rebalance table wraps exploration maps in this public record.
-        return listing instanceof VillagerTrades.TypeSpecificTrade typed
-                && typed.trades().values().stream().anyMatch(child -> worldDependentListing(child, depth + 1));
+    /** Select only the branch native wrappers would call, consuming exactly their RNG draws.
+     * The original wrapper remains the source identity and pool entry; children are never
+     * flattened into additional stock or claimed to be independently available. */
+    static ListingSelection selectSampleListing(VillagerTrades.ItemListing listing, VillagerType type,
+                                                 RandomSource random, int depth) {
+        if (listing == null) return new ListingSelection(null, "Unresolved null trade factory");
+        String name = stableClass(listing.getClass());
+        if (depth > 16) return new ListingSelection(null, name + ": unresolved nested trade factory depth");
+        if (listing instanceof VillagerTrades.TreasureMapForEmeralds || WORLD_DEPENDENT_MOD_LISTINGS.contains(name))
+            return new ListingSelection(null, name + ": world-dependent map creation/structure search");
+        // Installed IE 1.21.1/12.4.2 calls getOffers (which may generate other trades),
+        // writes persistent randomized_offers, then invokes a registered callback.
+        // Both orevein_map and revolver_piece use this stateful wrapper.
+        if (IE_REROLLING_LISTING.equals(name)) return new ListingSelection(null,
+                name + ": stateful offer regeneration/persistent trader data and registered callback");
+        if (IE_GROUPED_LISTING.equals(name)) {
+            VillagerTrades.ItemListing[] values;
+            try {
+                var children = listing.getClass().getDeclaredField("listings");
+                if (!children.trySetAccessible()) return new ListingSelection(null, name + ": unreadable optional wrapper field listings");
+                if (!(children.get(listing) instanceof VillagerTrades.ItemListing[] childrenArray) || childrenArray.length == 0)
+                    return new ListingSelection(null, name + ": invalid optional wrapper field listings (null, empty or incompatible array)");
+                values = childrenArray;
+            } catch (ReflectiveOperationException | RuntimeException | LinkageError changedContract) {
+                return new ListingSelection(null, name + ": unreadable optional wrapper field listings ("
+                        + changedContract.getClass().getSimpleName() + ")");
+            }
+            int index = random.nextInt(values.length);
+            ListingSelection selected = selectSampleListing(values[index], type, random, depth + 1);
+            return selected.withPath(name + " selected child " + index);
+        }
+        if (listing instanceof VillagerTrades.TypeSpecificTrade typed) {
+            if (type == null) return new ListingSelection(null, name + ": villager type context unavailable");
+            VillagerTrades.ItemListing child = typed.trades().get(type);
+            // Native TypeSpecificTrade returns no offer for an absent biome entry.
+            return child == null ? new ListingSelection(null, null)
+                    : selectSampleListing(child, type, random, depth + 1).withPath(name + " selected villager type " + type);
+        }
+        String uncontrolled = uncontrolledRandomness(listing);
+        return uncontrolled == null ? new ListingSelection(listing, null) : new ListingSelection(null, uncontrolled);
+    }
+
+    record ListingSelection(VillagerTrades.ItemListing listing, String exclusion) {
+        ListingSelection withPath(String path) {
+            return exclusion == null ? this : new ListingSelection(null, path + " -> " + exclusion);
+        }
     }
 
     record TradeSource(

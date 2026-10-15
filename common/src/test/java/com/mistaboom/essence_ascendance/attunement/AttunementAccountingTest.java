@@ -100,21 +100,34 @@ public final class AttunementAccountingTest {
         volumeAndCategoryHistory(chapter);
         var data=new PlayerEssenceData();data.setTier(AscendanceTiers.DORMANT);data.attunement().chapter(chapter.id());
         apply(data.attunement(),"earned","deal_damage","enemy",10,0,chapter);
-        data.setAvailable(EssenceTypes.OFFENSE,1000);
+        var balanceProfile=com.mistaboom.essence_ascendance.config.EssenceConfigManager.get().balanceProfile();
+        // Generated native floors may move a specific Bonus to a later tier or
+        // change its first funded price. Stored arbitrary Essence is not realized power.
+        var developedStat=EssenceStatRegistry.values().stream()
+                .filter(stat -> stat.essenceType().id().equals(EssenceTypes.OFFENSE.id()))
+                .filter(stat -> balanceProfile.bonusTrack(stat.id())!=null
+                        && balanceProfile.bonusTrack(stat.id()).checkpoint(data.getTierId()).purchasable())
+                .sorted(Comparator.comparing(stat -> stat.id().toString())).findFirst()
+                .orElseThrow(() -> new AssertionError("Accounting fixture requires an actually purchasable Dormant Offense Bonus"));
+        long bonusPrice=balanceProfile.bonusTrack(developedStat.id()).checkpoint(data.getTierId()).cumulativeCap();
+        long wallet=Math.addExact(bonusPrice,1000L);
+        data.setAvailable(EssenceTypes.OFFENSE,wallet);
         check(AttunementService.investment(data,OFF)==0,"Wallet never accelerates");
-        check(data.invest(EssenceStats.MELEE_DAMAGE,300),"Valid Bonus investment");
+        check(data.invest(developedStat,bonusPrice),"Valid generated Bonus endpoint investment");
+        check(StatScalingService.realizedProgressionForInvestment(developedStat,data.getInvested(developedStat),data.getTier(),balanceProfile)>0,
+                "Accounting fixture must fund real unlocked Bonus development");
         long developedBonus = AttunementService.investment(data, OFF);
         check(developedBonus > 0, "Realized Bonus development accelerates Attunement");
         var paid=new SkillPurchase(EssenceTypes.OFFENSE.id(),List.of(17L,31L,79L));
         data.recordSkillPurchase(ResourceLocation.parse("test:historical_skill"),paid);
         check(AttunementService.investment(data,OFF)==developedBonus+127,"Investment uses actual historical receipts even without a current skill definition");
         long earned=data.attunement().progress(OFF);
-        check(data.applyNexusTransaction(Map.of(),Map.of(EssenceTypes.OFFENSE.id(),1000L),data.getOwnedSkills(),data.getLoadoutSelections(),data.getTierId()),"Bonus respec committed");
+        check(data.applyNexusTransaction(Map.of(),Map.of(EssenceTypes.OFFENSE.id(),wallet),data.getOwnedSkills(),data.getLoadoutSelections(),data.getTierId()),"Bonus respec committed");
         check(data.attunement().progress(OFF)==earned&&AttunementService.investment(data,OFF)==127,"Respec preserves earned progress and changes future acceleration");
         var playerReload=PlayerEssenceData.load(data.save());
         check(playerReload.attunement().progress(OFF)==earned,"Saved player state survives death/respawn/reconnect shared UUID storage");
         check(data.applyNexusTransaction(data.getAllInvested(),data.getAllAvailable(),data.getOwnedSkills(),data.getLoadoutSelections(),AscendanceTiers.AWAKENED.id()),"Tier commit succeeds");
-        check(data.attunement().progress(OFF)==0&&data.getAvailable(EssenceTypes.OFFENSE)==1000,"Ascension clears chapter without consuming Essence");
+        check(data.attunement().progress(OFF)==0&&data.getAvailable(EssenceTypes.OFFENSE)==wallet,"Ascension clears chapter without consuming Essence");
         data.attunement().chapter("next");check(data.getTierId().equals(AscendanceTiers.AWAKENED.id()),"Empty chapter never revokes earned tier");
         reload.chapter("next");check(reload.progress(UTI)==0&&reload.discover("biome:forest"),"No activity overflow; discoveries reset each chapter");
         check(!data.save().contains("completed_attunements"),"Obsolete skill Attunement persistence removed");

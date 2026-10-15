@@ -41,6 +41,7 @@ def main():
     parser.add_argument("--restart", action="store_true")
     parser.add_argument("--command", action="append", default=[])
     parser.add_argument("--onboarding-effort", type=float)
+    parser.add_argument("--jar", type=Path, help="Explicit baseline/candidate artifact; default is this checkout's NeoForge build")
     args = parser.parse_args()
     fixture = json.loads((ROOT / "build/pack-matrix/fixtures.json").read_text())[args.fixture]
     server = Path(fixture["server"]).resolve()
@@ -49,13 +50,14 @@ def main():
     destination = args.output.resolve() / args.fixture / args.label
     destination.mkdir(parents=True, exist_ok=False)
     console.SERVER = server
-    save(destination / "arguments.json", {**vars(args), "output": str(args.output), "server": str(server)})
+    save(destination / "arguments.json", {**vars(args), "output": str(args.output),
+                                          "jar": str(args.jar) if args.jar else None, "server": str(server)})
     with socket.socket() as probe:
         assert probe.connect_ex(("127.0.0.1", fixture["consolePort"])) != 0, "Fixture is already running"
     java = shutil.which("java")
     assert java, "Java 21 required"
     version = re.search(r"(?m)^mod_version\s*=\s*(\S+)", (ROOT / "gradle.properties").read_text())[1]
-    jar = ROOT / "neoforge/build/libs" / f"essence_ascendance-neoforge-{version}.jar"
+    jar = args.jar.resolve() if args.jar else ROOT / "neoforge/build/libs" / f"essence_ascendance-neoforge-{version}.jar"
     assert jar.is_file(), jar
     old_jars = list((server / "mods").glob("essence_ascendance*.jar"))
     (destination / "prior-jars").mkdir()
@@ -182,6 +184,27 @@ def main():
             assert cost_match and int(cost_match[1].replace(",", "")) == point["cost"], (skill, rank, response)
             assert rank_match and int(rank_match[1]) == rank, (skill, rank, response)
         save(destination / "rank-console-summary.json", {"ranks": len(rows), "passed": True})
+        tracks = sorted(document["runtime"]["balanceProfile"]["bonusTracks"].items())
+        bonus_rows = list(console.commands([f'essence debug balance bonus "{bonus}"' for bonus, _ in tracks]))
+        save(destination / "bonus-console.json", bonus_rows)
+        tier_rows = active_endpoints = 0
+        for row, (bonus, track) in zip(bonus_rows, tracks, strict=True):
+            response = re.sub(r"\u00a7.", "", row["response"])
+            assert bonus in response and track["applicability"] in response, (bonus, response)
+            values = re.findall(r"Cumulative / segment\s+([\d,]+)\s*/\s*([\d,]+)\s*\|\s*effect\s+(-?[\d.]+)", response)
+            assert len(values) == len(track["checkpoints"]), (bonus, response)
+            for (cap, segment, effect), point in zip(values, track["checkpoints"], strict=True):
+                assert int(cap.replace(",", "")) == point["cumulativeCap"], (bonus, point, response)
+                assert int(segment.replace(",", "")) == point["segmentCost"], (bonus, point, response)
+                # Native text rounds to two or three decimals depending on the unit.
+                # This checks the installed readout, not an actual purchase or gameplay activation.
+                precision = len(effect.partition(".")[2])
+                assert abs(float(effect) - track["maximumEffect"] * point["effectFraction"]) <= .5 * 10 ** -precision + 1e-9, (bonus, point, response)
+                tier_rows += 1
+                active_endpoints += int(point["purchasable"])
+        save(destination / "bonus-console-summary.json", {"tracks": len(bonus_rows), "tierRows": tier_rows,
+             "activeEndpoints": active_endpoints, "passed": True,
+             "evidence": "Installed native console readout of every saved tier cost and endpoint; not purchase/activation simulation"})
         for folder in ["reports", "diagnostics"]:
             if (config / folder).exists():
                 shutil.copytree(config / folder, destination / folder)

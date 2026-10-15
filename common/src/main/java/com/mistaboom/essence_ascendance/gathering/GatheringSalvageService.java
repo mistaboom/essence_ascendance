@@ -14,6 +14,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.EnchantmentTags;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -59,8 +60,8 @@ public final class GatheringSalvageService {
 
         List<ConstructionMaterialResolver.MaterialAmount> materials =
                 ConstructionMaterialResolver.resolve(salvaged, player.getServer());
+        if (materials.isEmpty()) return true;
         double storedExperience = disenchantExperience(salvaged);
-        if (materials.isEmpty() && storedExperience <= 0.0D) return true;
 
         ItemStack removed = slot.remove(1);
         if (removed.isEmpty()) return true;
@@ -103,8 +104,7 @@ public final class GatheringSalvageService {
 
     private static boolean salvageable(ItemStack stack, ServerPlayer player) {
         if (!EquipmentMaintenanceService.eligible(stack)) return false;
-        return !ConstructionMaterialResolver.resolve(stack, player.getServer()).isEmpty()
-                || disenchantExperience(stack) > 0.0D;
+        return !ConstructionMaterialResolver.resolve(stack, player.getServer()).isEmpty();
     }
 
     private static int recoverMaterials(ServerPlayer player,
@@ -112,39 +112,52 @@ public final class GatheringSalvageService {
                                         double recoveryFraction) {
         if (materials == null || materials.isEmpty() || recoveryFraction <= 0.0D) return 0;
 
-        Map<Item, Double> expected = new LinkedHashMap<>();
-        for (ConstructionMaterialResolver.MaterialAmount material : materials) {
-            expected.merge(material.item(), material.amount() * recoveryFraction, Double::sum);
-        }
-
         int recovered = 0;
-        // Retain a tangible first item, but never return every input of a repeatable recipe.
-        // Ascendance's one-ingot decomposition also consumes Essence in its independent native construction.
-        int maximum = materialRecoveryLimit(materials.stream().mapToDouble(ConstructionMaterialResolver.MaterialAmount::amount).sum());
-        for (Map.Entry<Item, Double> entry : expected.entrySet()) {
-            int amount = Math.min(maximum - recovered, SkillEffectMath.stochasticWhole(entry.getValue(), player.getRandom()));
-            recovered += giveMaterial(player, entry.getKey(), amount);
-        }
-
-        // Recycling is destructive. A valid material-bearing item must never disappear for zero materials.
-        // The generated fraction still controls all recovery above this tangible minimum.
-        if (recovered == 0 && !expected.isEmpty()) {
-            Item fallback = weightedMaterial(expected, player);
-            if (fallback != null) recovered += giveMaterial(player, fallback, 1);
+        for (Map.Entry<Item, Integer> entry : materialRecovery(materials, recoveryFraction, player.getRandom()).entrySet()) {
+            recovered += giveMaterial(player, entry.getKey(), entry.getValue());
         }
         return recovered;
     }
 
-    public static int materialRecoveryLimit(double constructionUnits) {
-        if (!Double.isFinite(constructionUnits) || constructionUnits <= 0) return 0;
-        return Math.max(1, (int)Math.ceil(constructionUnits) - 1);
+    /**
+     * Roll the bounded total before choosing materials. Independent per-material rolls followed
+     * by a forced one-item fallback overpay fractional expensive ingredients; sequential caps
+     * also favor whichever input happened to occur first in the recipe.
+     * Every material's expectation is its proven construction amount times totalRecovery/totalInput.
+     */
+    public static Map<Item, Integer> materialRecovery(List<ConstructionMaterialResolver.MaterialAmount> materials,
+                                                      double recoveryFraction, RandomSource random) {
+        if (materials == null || materials.isEmpty() || !Double.isFinite(recoveryFraction)
+                || recoveryFraction <= 0 || random == null) return Map.of();
+        Map<Item, Double> weights = new LinkedHashMap<>();
+        for (ConstructionMaterialResolver.MaterialAmount material : materials)
+            weights.merge(material.item(), material.amount(), Double::sum);
+        double total = weights.values().stream().mapToDouble(Double::doubleValue).sum();
+        int maximum = materialRecoveryLimit(total);
+        if (maximum == 0) return Map.of();
+        int count = SkillEffectMath.stochasticWhole(expectedMaterialRecovery(total, recoveryFraction), random);
+        Map<Item, Integer> result = new LinkedHashMap<>();
+        for (int i = 0; i < count; i++) result.merge(weightedMaterial(weights, random), 1, Integer::sum);
+        return Map.copyOf(result);
     }
 
-    private static Item weightedMaterial(Map<Item, Double> expected, ServerPlayer player) {
+    public static int materialRecoveryLimit(double constructionUnits) {
+        if (!Double.isFinite(constructionUnits) || constructionUnits <= 1) return 0;
+        return (int)Math.ceil(constructionUnits) - 1;
+    }
+
+    /** Exact expectation of the native bounded total roll; shared with explicit diagnostic reports. */
+    public static double expectedMaterialRecovery(double constructionUnits, double recoveryFraction) {
+        if (!Double.isFinite(recoveryFraction) || recoveryFraction <= 0) return 0;
+        int maximum = materialRecoveryLimit(constructionUnits);
+        return maximum == 0 ? 0 : Math.min(maximum, Math.max(1, constructionUnits * recoveryFraction));
+    }
+
+    private static Item weightedMaterial(Map<Item, Double> expected, RandomSource random) {
         double total = 0.0D;
         for (double weight : expected.values()) total += Math.max(0.0D, weight);
         if (total <= 0.0D) return expected.keySet().stream().findFirst().orElse(null);
-        double roll = player.getRandom().nextDouble() * total;
+        double roll = random.nextDouble() * total;
         for (Map.Entry<Item, Double> entry : expected.entrySet()) {
             roll -= Math.max(0.0D, entry.getValue());
             if (roll <= 0.0D) return entry.getKey();

@@ -18,7 +18,9 @@ package com.mistaboom.essence_ascendance.valuation;
  */
 public final class ProceduralValuationSettings {
 
-    public static final long MAX_VALUE = 2_000_000_000L;
+    /** Published whole payouts must remain representable by the exact micro-unit ledger. */
+    public static final long MAX_VALUE = Long.MAX_VALUE
+            / com.mistaboom.essence_ascendance.balance.economy.FractionalAmountService.SCALE;
     public static final int MAX_RECIPE_DEPTH = 10;
     public static final int MAX_GRAPH_PASSES = 128;
     public static final int MAX_DOWNSTREAM_EXAMPLES = 6;

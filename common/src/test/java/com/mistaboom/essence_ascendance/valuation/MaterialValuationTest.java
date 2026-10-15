@@ -35,6 +35,7 @@ public final class MaterialValuationTest {
         oreYieldTagEvidence();
         recipeMultiplicityAndCycles();
         zeroPayoutPreservesAcquisition();
+        wideConversionFamilies();
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println(
                 "MaterialValuationTest: " + checks + " application, quantity, fallback and graph checks PASS");
     }
@@ -202,6 +203,73 @@ public final class MaterialValuationTest {
                 "An unanchored conversion cycle and its descendants remain unresolved");
     }
 
+    private static void wideConversionFamilies() throws Exception {
+        long limit = Long.MAX_VALUE / com.mistaboom.essence_ascendance.balance.economy.FractionalAmountService.SCALE;
+        check(ProceduralValuationSettings.MAX_VALUE == limit, "Whole payout boundary matches the actual micro-unit ledger");
+        check(Math.multiplyExact(limit, 1_000_000L) > 0, "Maximum whole payout converts to micros without overflow");
+        check(ProceduralValuationEngine.roundedAcquisition(2_000_000_001.0) == 2_000_000_001.0,
+                "Acquisition effort is not saturated at the former int-sized payout bound");
+        check(ProceduralValuationEngine.roundedAcquisition(1e30) == 1e30,
+                "Finite acquisition effort above long payout range remains available to anchor comparisons");
+        check(ProceduralValuationEngine.roundedAcquisition(12.49) == 12
+                        && ProceduralValuationEngine.roundedAcquisition(12.5) == 13,
+                "Ordinary nearest-whole acquisition rounding is unchanged");
+        for (double invalid : new double[]{Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY}) {
+            boolean rejected = false;
+            try { ProceduralValuationEngine.roundedAcquisition(invalid); }
+            catch (IllegalArgumentException expected) { rejected = true; }
+            check(rejected, "Nonfinite effort fails closed instead of becoming a cheap acquisition anchor");
+        }
+        var registry = net.minecraft.core.registries.BuiltInRegistries.ITEM;
+        List<Item> forms = new ArrayList<>();
+        List<ProceduralValuationIndex.RecipeModel> recipes = new ArrayList<>();
+        List<Long> units = new ArrayList<>();
+        long ratio = 1;
+        for (int n = 0; n <= 14; n++) {
+            forms.add(net.minecraft.core.Registry.register(registry, ResourceLocation.parse("fixture:compressed_form_" + n),
+                    new Item(new Item.Properties())));
+            units.add(ratio);
+            ratio = Math.multiplyExact(ratio, 9);
+            if (n == 0) continue;
+            recipes.add(new ProceduralValuationIndex.RecipeModel(ResourceLocation.parse("fixture:compress_" + n),
+                    RecipeType.CRAFTING, forms.get(n), 1,
+                    Collections.nCopies(9, new ProceduralValuationIndex.IngredientChoice(List.of(forms.get(n - 1))))));
+            recipes.add(recipe("decompress_" + n, forms.get(n), forms.get(n - 1), 9));
+        }
+        for (int maximumForm : List.of(10, 11, 13)) {
+            // 10 and 11 edges reproduce loaded coal and nugget/iron-block compression ratios.
+            ValuationGenerationInputs.configure(new BalanceOverrides(List.of(new BalanceOverrides.FactOverride(
+                    "wide_anchor", BalanceOverrides.SubjectKind.ITEM, "fixture:compressed_form_0", 1000,
+                    Map.of("resource_value", 1_000_000_000.0, "attainable", true), "fixture", 1)), Map.of()));
+            Graph graph = graph(recipes.subList(0, maximumForm * 2), Map.of());
+            long primitive = limit / units.get(maximumForm);
+            check(graph.acquisition(forms.get(0)) == 1_000_000_000.0,
+                    "A saturated compressed form cannot replace the original primitive acquisition anchor");
+            check(graph.acquisition(forms.get(maximumForm)) >= 1_000_000_000.0 * units.get(maximumForm),
+                    "Family acquisition retains unsaturated compressed effort before final payout limits");
+            var baseRoute = graph.value(forms.get(0)).routedEssence();
+            for (int n = 0; n <= maximumForm; n++) {
+                var result = graph.value(forms.get(n));
+                check(result.modeledAcquisition() && result.totalValue() == Math.multiplyExact(primitive, units.get(n)),
+                        "Every representable form uses one bounded whole primitive payout");
+                long factor = units.get(n);
+                check(baseRoute.entrySet().stream().allMatch(e -> result.routedEssence().getOrDefault(e.getKey(), 0L)
+                                == Math.multiplyExact(e.getValue(), factor)),
+                        "Every essence category scales exactly across the whole family");
+                check(Math.multiplyExact(result.totalValue(), 1_000_000L) >= 0, "Every published form is micro-safe");
+            }
+        }
+        var unrepresentable = graph(recipes, Map.of());
+        check(unrepresentable.value(forms.get(0)).totalValue() == 0
+                        && unrepresentable.value(forms.get(14)).conservationStatus().equals("invalid_family"),
+                "Families wider than the actual whole/micro range remain safely withheld together");
+        ValuationGenerationInputs.configure(BalanceOverrides.empty());
+        var unresolved = graph(recipes.subList(0, 22), Map.of());
+        check(!unresolved.value(forms.get(0)).modeledAcquisition()
+                        && !unresolved.value(forms.get(11)).modeledAcquisition(),
+                "A wide conversion cycle still cannot invent an independently acquired anchor");
+    }
+
     private static void suppliedBlockDependencies() throws Exception {
         ValuationGenerationInputs.configure(BalanceOverrides.empty());
         var shelf = new ProceduralValuationIndex.BlockDropSource(ResourceLocation.parse("minecraft:bookshelf"),
@@ -354,6 +422,12 @@ public final class MaterialValuationTest {
     private record Graph(ProceduralValuationIndex index, Object context, Method evaluate) {
         ProceduralValuationResult value(Item item) throws Exception {
             return (ProceduralValuationResult) evaluate.invoke(null, index, item, context);
+        }
+        double acquisition(Item item) throws Exception {
+            Method memo = context.getClass().getDeclaredMethod("memo"); memo.setAccessible(true);
+            Object node = ((Map<?, ?>) memo.invoke(context)).get(item);
+            Method amount = node.getClass().getDeclaredMethod("acquisitionValue"); amount.setAccessible(true);
+            return ((Number) amount.invoke(node)).doubleValue();
         }
     }
 

@@ -464,7 +464,8 @@ public final class EquipmentWeaponService {
         }
     }
 
-    private static int rateToTicks(double actionsPerSecond) {
+    /** Shared native draw/cast quantization; also used by generation and outcome audits. */
+    public static int rateToTicks(double actionsPerSecond) {
         if (!Double.isFinite(actionsPerSecond) || actionsPerSecond <= 0.0) {
             return Integer.MAX_VALUE;
         }

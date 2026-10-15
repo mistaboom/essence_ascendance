@@ -53,6 +53,17 @@ public final class TradeGraphTest {
         }
         require(skippedOutput.isEmpty() && skipped.values().stream().mapToInt(Integer::intValue).sum() == 6,
                 "Every excluded factory is diagnosed without inventing an acquisition source");
+        var statefulMap = new blusunrize.immersiveengineering.common.world.Villages.RerollingItemListing("orevein_map");
+        for (var listing : java.util.List.of(statefulMap,
+                blusunrize.immersiveengineering.common.world.Villages.group(statefulMap),
+                new VillagerTrades.TypeSpecificTrade(java.util.Map.of(net.minecraft.world.entity.npc.VillagerType.PLAINS,
+                        blusunrize.immersiveengineering.common.world.Villages.group(statefulMap))))) {
+            require(ProceduralTradeIndex.sampleListing(skippedOutput, listing, null, ResourceLocation.parse("test:engineer"),
+                    4, 1, false, 0, skipped) == 0,
+                    "Stateful reroll/map callbacks and nested optional wrappers must be excluded before invocation");
+        }
+        require(skippedOutput.isEmpty() && skipped.values().stream().mapToInt(Integer::intValue).sum() == 9,
+                "Stateful exclusions retain explicit unknown evidence without producing a price or consuming world state");
         int[] ordinaryCalls = {0};
         require(TradeSamplingScope.isolatedLootRandom(null) == null, "Normal loot retains native world RNG selection");
         var explicitRandom = net.minecraft.util.RandomSource.create(9);
@@ -91,6 +102,11 @@ public final class TradeGraphTest {
                 ResourceLocation.parse("test:ordinary_modded_trader"), 1, 1, false, 0, skipped) == 1
                         && ordinaryCalls[0] == 4 && skippedOutput.containsKey(Items.BREAD),
                 "Ordinary custom factories retain deterministic sampling and deduplication");
+        var safeGroup = blusunrize.immersiveengineering.common.world.Villages.group(ordinaryModdedTrade);
+        require(ProceduralTradeIndex.sampleListing(new java.util.HashMap<>(), safeGroup, null,
+                ResourceLocation.parse("test:ordinary_group"), 1, 1, false, 0, skipped) == 1,
+                "A factual wrapper containing only ordinary listings retains supported trade evidence");
+        mixedOptionalGroups();
         var offer = new MerchantOffer(new ItemCost(Items.EMERALD, 20),
                 Optional.of(new ItemCost(Items.DIAMOND, 8)), new ItemStack(Items.DIAMOND_CHESTPLATE), 12, 10, .05f);
         var source = source(offer, false);
@@ -133,6 +149,90 @@ public final class TradeGraphTest {
         } catch (IllegalArgumentException expected) { checks++; }
         new PrintStream(new FileOutputStream(FileDescriptor.out)).println("TradeGraphTest: " + checks
                 + " actual-price, discount-slot, finite-stock and graph checks passed");
+    }
+    private static void mixedOptionalGroups() {
+        // Installed IE gunsmith level 3 groups casing, shell and the stateful
+        // revolver callback. Native fixture items stand in for the two ordinary outputs.
+        VillagerTrades.ItemListing casing = (trader, random) -> new MerchantOffer(
+                new ItemCost(Items.EMERALD, 1 + random.nextInt(8)), new ItemStack(Items.IRON_NUGGET, 1 + random.nextInt(16)), 7, 1, .05f);
+        VillagerTrades.ItemListing shell = (trader, random) -> new MerchantOffer(
+                new ItemCost(Items.EMERALD, 1 + random.nextInt(8)), new ItemStack(Items.CLAY_BALL, 1 + random.nextInt(16)), 11, 2, .05f);
+        var reroll = new blusunrize.immersiveengineering.common.world.Villages.RerollingItemListing("revolver_piece");
+        var mixed = blusunrize.immersiveengineering.common.world.Villages.group(casing, shell, reroll);
+        // Returning null for the unsafe branch gives a safe reference wrapper;
+        // neither this stand-in nor the real callback is used to invent an offer.
+        VillagerTrades.ItemListing absent = (trader, random) -> null;
+        var reference = blusunrize.immersiveengineering.common.world.Villages.group(casing, shell, absent);
+        int[] outcomes = new int[3];
+        for (int nesting = 0; nesting < 2; nesting++) {
+            var actualGroup = nesting == 0 ? mixed : blusunrize.immersiveengineering.common.world.Villages.group(mixed, casing);
+            var referenceGroup = nesting == 0 ? reference : blusunrize.immersiveengineering.common.world.Villages.group(reference, casing);
+            for (long seed = 0; seed < 128; seed++) {
+                var actualRandom = net.minecraft.util.RandomSource.create(seed);
+                var referenceRandom = net.minecraft.util.RandomSource.create(seed);
+                var expected = referenceGroup.getOffer(null, referenceRandom);
+                var selected = ProceduralTradeIndex.selectSampleListing(actualGroup,
+                        net.minecraft.world.entity.npc.VillagerType.PLAINS, actualRandom, 0);
+                var actual = selected.listing() == null ? null : selected.listing().getOffer(null, actualRandom);
+                require(offerKey(actual).equals(offerKey(expected)), "Mixed/nested group changed the selected safe offer or its RNG-dependent price/count");
+                require(actualRandom.nextLong() == referenceRandom.nextLong(), "Wrapper selection must advance the supplied RNG exactly once per group");
+                if (expected == null) {
+                    outcomes[2]++;
+                    require(selected.exclusion().contains("RerollingItemListing: stateful offer regeneration")
+                                    && selected.exclusion().contains("selected child") && !selected.exclusion().contains("map creation"),
+                            "A nested revolver exclusion must identify its selected branch and stateful reason");
+                } else {
+                    outcomes[expected.getResult().is(Items.IRON_NUGGET) ? 0 : 1]++;
+                    require(selected.exclusion() == null, "A safe selected sibling must not inherit the unsafe sibling's exclusion");
+                }
+            }
+        }
+        require(outcomes[0] > 0 && outcomes[1] > 0 && outcomes[2] > 0, "Fixture must exercise both benign supplies and the forbidden callback");
+
+        var typed = new VillagerTrades.TypeSpecificTrade(java.util.Map.of(
+                net.minecraft.world.entity.npc.VillagerType.PLAINS, mixed,
+                net.minecraft.world.entity.npc.VillagerType.SNOW, reroll));
+        for (long seed = 0; seed < 32; seed++) {
+            var directRandom = net.minecraft.util.RandomSource.create(seed);
+            var typedRandom = net.minecraft.util.RandomSource.create(seed);
+            var direct = ProceduralTradeIndex.selectSampleListing(mixed, net.minecraft.world.entity.npc.VillagerType.PLAINS, directRandom, 0);
+            var throughType = ProceduralTradeIndex.selectSampleListing(typed, net.minecraft.world.entity.npc.VillagerType.PLAINS, typedRandom, 0);
+            require(direct.listing() == throughType.listing() && directRandom.nextLong() == typedRandom.nextLong(),
+                    "TypeSpecificTrade must choose the actual villager type without consuming RNG or excluding another biome's safe branch");
+        }
+        var missingType = ProceduralTradeIndex.selectSampleListing(typed, net.minecraft.world.entity.npc.VillagerType.DESERT,
+                net.minecraft.util.RandomSource.create(0), 0);
+        require(missingType.listing() == null && missingType.exclusion() == null, "Missing native biome entry produces no offer without fabricating a factory failure");
+
+        var output = new java.util.HashMap<net.minecraft.world.item.Item, java.util.List<ProceduralTradeIndex.TradeSource>>();
+        var excluded = new java.util.TreeMap<String, Integer>();
+        var expectedOffers = new java.util.HashSet<String>();
+        for (int sample = 0; sample < 4; sample++) {
+            long seed = 0x5EED5EEDL ^ ((long) 1 << 32) ^ ((long) 3 << 20) ^ (long) sample * 0x9E3779B97F4A7C15L;
+            var offer = reference.getOffer(null, net.minecraft.util.RandomSource.create(seed));
+            if (offer != null) expectedOffers.add(offerKey(offer));
+        }
+        ProceduralTradeIndex.sampleListing(output, mixed, null, ResourceLocation.parse("test:gunsmith"), 3, 7, false, 1, excluded);
+        var observedOffers = new java.util.HashSet<String>();
+        output.values().forEach(sources -> sources.forEach(source -> {
+            observedOffers.add(source.offerDefinition());
+            require(source.listingClass().endsWith("Villages$GroupedListing") && source.listingPoolSize() == 7 && source.level() == 3,
+                    "Selected children must retain the original registered group, pool and level");
+            require(source.maxUses() == (source.outputItem() == Items.IRON_NUGGET ? 7 : 11), "Selected child stock must not be multiplied or flattened");
+        }));
+        require(!expectedOffers.isEmpty() && observedOffers.equals(expectedOffers), "Sampling must retain exactly the safe offers selected by the original four seeds");
+        require(excluded.size() == 1 && excluded.firstEntry().getValue() == 1, "Repeated excluded rolls count one affected listing per reason");
+        for (VillagerTrades.ItemListing malformed : java.util.List.of(
+                blusunrize.immersiveengineering.common.world.Villages.group(),
+                blusunrize.immersiveengineering.common.world.Villages.group((VillagerTrades.ItemListing[]) null))) {
+            var result = ProceduralTradeIndex.selectSampleListing(malformed, null, net.minecraft.util.RandomSource.create(0), 0);
+            require(result.listing() == null && result.exclusion().contains("invalid optional wrapper field listings")
+                            && !result.exclusion().contains("map creation"), "Changed wrapper contracts need factual explicit diagnostics");
+        }
+    }
+
+    private static String offerKey(MerchantOffer offer) {
+        return offer == null ? "absent" : ProceduralTradeIndex.encodeOffer(offer, com.mojang.serialization.JsonOps.INSTANCE);
     }
     private static void exactOfferComponents() {
         var first = new ItemStack(Items.ENCHANTED_BOOK);

@@ -70,7 +70,26 @@ public final class NaturalBlockEvidenceTest {
         check(!ProceduralNaturalBlockIndex.inDimension(overworld, otherBiome, Map.of(PLACED, placed("[]")), Map.of(TREE, positive), Map.of())
                 .contains(COCOA), "Another dimension's biome cannot seed a starting-world feature");
         implicitNativeFeatures();
+        nativeVineDecorators();
         System.out.println("NaturalBlockEvidenceTest: " + assertions + " source reachability and native placement checks PASS");
+    }
+
+    private static void nativeVineDecorators() {
+        var vine = id("minecraft:vine");
+        check(index(tree("minecraft:tree", "minecraft:leave_vine", "0.25"), "[]").contains(vine),
+                "Positive native leaf-vine decorator establishes natural starter placement");
+        var trunk = tree("minecraft:tree", "minecraft:trunk_vine", "1");
+        trunk.getAsJsonObject("config").getAsJsonArray("decorators").get(0).getAsJsonObject().remove("probability");
+        check(index(trunk, "[]").contains(vine), "Native trunk-vine unit codec has an internal positive placement chance");
+        for (String invalid : java.util.List.of("0", "-1", "1.1", "null", "\"0.5\""))
+            check(!index(tree("minecraft:tree", "minecraft:leave_vine", invalid), "[]").contains(vine),
+                    "Invalid/zero leaf-vine probability does not establish starter placement");
+        check(!index(tree("fixture:tree", "minecraft:leave_vine", "1"), "[]").contains(vine),
+                "Custom feature does not inherit native vine decorators");
+        check(!index(tree("minecraft:tree", "fixture:leave_vine", "1"), "[]").contains(vine),
+                "Custom decorator does not inherit native vine semantics");
+        check(!index(trunk, "[{\"type\":\"minecraft:count\",\"count\":0}]").contains(vine),
+                "Disabled placed tree cannot seed vine cultivation");
     }
 
     private static void implicitNativeFeatures() {

@@ -22,22 +22,51 @@ public final class RuntimeScenarioProbeTest {
         MilestoneProviders.init(); Milestones.init(); Skills.init(); AscendanceAdvancements.init(); EquipmentProfiles.init();
         var baseline = RuntimeBalanceDefinition.bootstrap();
         var evidence = RuntimeReferencePolicy.bootstrapEvidence();
+        int checks = 0, safe = 0, unsafe = 0;
+        double maximumHealth = baseline.config().balanceProfile().bonusTrack(EssenceStats.MAX_HEALTH.id())
+                .inputs().get("native_maximum_effect");
+        var impossible = baseline.toJson();
+        impossible.getAsJsonObject("statMaxBonuses").addProperty(EssenceStats.MAX_HEALTH.id().toString(), maximumHealth + 1);
+        impossible.getAsJsonObject("balanceProfile").getAsJsonObject("bonusTracks")
+                .getAsJsonObject(EssenceStats.MAX_HEALTH.id().toString()).addProperty("maximumEffect", maximumHealth + 1);
+        try {
+            RuntimeBalanceDefinition.fromJson(impossible);
+            throw new AssertionError("Physically impossible health must be rejected before scenario analysis");
+        } catch (RuntimeException expected) {
+            Throwable cause = expected;
+            while (cause.getCause() != null) cause = cause.getCause();
+            if (!(cause instanceof IllegalArgumentException)
+                    || !cause.getMessage().contains("Bonus exceeds generated native attribute headroom essence_ascendance:max_health"))
+                throw new AssertionError("Impossible health failed for an unrelated reason", expected);
+            checks++;
+        }
         var variants = new ArrayList<RuntimeBalanceDefinition>(); variants.add(baseline);
+        RuntimeBalanceDefinition overpoweredHealth = null;
         for (var stat : List.of(EssenceStats.MELEE_DAMAGE, EssenceStats.MAX_HEALTH, EssenceStats.HEALTH_REGENERATION)) {
             var json = baseline.toJson();
-            json.getAsJsonObject("statMaxBonuses").addProperty(stat.id().toString(), 1000);
+            // Scenario comparisons need valid candidates. Native health headroom
+            // still permits vastly excessive composition power without impossible HP.
+            double maximum = stat == EssenceStats.MAX_HEALTH ? maximumHealth : 1000;
+            json.getAsJsonObject("statMaxBonuses").addProperty(stat.id().toString(), maximum);
             json.getAsJsonObject("balanceProfile").getAsJsonObject("bonusTracks")
-                    .getAsJsonObject(stat.id().toString()).addProperty("maximumEffect", 1000);
-            variants.add(RuntimeBalanceDefinition.fromJson(json));
+                    .getAsJsonObject(stat.id().toString()).addProperty("maximumEffect", maximum);
+            var candidate = RuntimeBalanceDefinition.fromJson(json);
+            variants.add(candidate);
+            if (stat == EssenceStats.MAX_HEALTH) overpoweredHealth = candidate;
         }
-        var settingsJson = new com.google.gson.Gson().toJsonTree(BalanceSettings.defaults()).getAsJsonObject();
+        var ordinary = BalanceSettings.defaults();
+        var settingsJson = new com.google.gson.Gson().toJsonTree(ordinary).getAsJsonObject();
         for (String key : List.of("overallPower", "earlyPower", "midPower", "latePower", "apexPower")) settingsJson.addProperty(key, 4);
         var generous = new com.google.gson.Gson().fromJson(settingsJson, BalanceSettings.class);
-        int checks = 0, safe = 0, unsafe = 0;
-        for (var settings : List.of(BalanceSettings.defaults(), generous))
+        for (var settings : List.of(ordinary, generous))
         for (var runtime : variants) for (boolean developed : List.of(false, true)) {
             var plan = RuntimeBuildScenarios.plan(runtime, developed);
             var report = RuntimeBuildScenarios.analyze(runtime, evidence, settings, plan);
+            if (runtime == overpoweredHealth && settings == ordinary) {
+                if (report.safeFor(Channel.DEFENSE))
+                    throw new AssertionError("Representable excessive health must fail Defense composition: developed=" + developed);
+                checks++;
+            }
             for (Channel channel : Arrays.asList(null, Channel.OFFENSE, Channel.DEFENSE, Channel.HEALING)) {
                 boolean expected = report.safeFor(channel);
                 if (RuntimeBuildScenarios.isSafe(runtime, evidence, settings, plan, channel) != expected)

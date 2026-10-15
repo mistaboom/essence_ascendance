@@ -102,7 +102,7 @@ final class AuthoritativeAcquisitionClosure {
                 var process = processes.get(entry.getValue().source());
                 if (resource == null || process == null) continue;
                 var stageOverride = sink.get(EvidenceFact.Subject.ITEM, entry.getKey(), "stage");
-                Cost cost = cost(process, entry.getKey(), entry.getValue(), solved.items(), paid,
+                Cost cost = cost(process, entry.getKey(), entry.getValue(), solved.items(), paid, solved.selectedInputs().get(entry.getKey()),
                         stageOverride != null && stageOverride.origin() == EvidenceFact.Origin.OVERRIDE);
                 if (cost == null) continue;
                 double value = Math.min(resource.economicValue(), cost.value());
@@ -120,22 +120,18 @@ final class AuthoritativeAcquisitionClosure {
     private static Cost cost(ProductionGraph.Process process, String output,
                              AcquisitionProgressionGraph.Placement proof,
                              Map<String, AcquisitionProgressionGraph.Placement> placements,
-                             Map<String, ResourceEvidence> paid, boolean explicitOutputStage) {
+                             Map<String, ResourceEvidence> paid, List<String> witnessedInputs, boolean explicitOutputStage) {
         double total = 0, confidence = 1; List<String> selected = new ArrayList<>();
-        Map<String, Double> consumed = new HashMap<>(), reusable = new HashMap<>();
-        for (var input : process.inputs()) {
-            String chosen = input.alternatives().stream().filter(paid::containsKey).filter(id -> {
-                var p = placements.get(id);
-                double required = Math.max(consumed.getOrDefault(id, 0d) + (input.consumed() ? input.count() : 0),
-                        Math.max(reusable.getOrDefault(id, 0d), input.consumed() ? 0 : input.count()));
-                return p != null && (!p.finite() || p.quantity() >= required)
-                        && (explicitOutputStage || p.stage().ordinal() <= proof.stage().ordinal())
-                        && p.exclusiveClaims().entrySet().stream().allMatch(c -> c.getValue().equals(proof.exclusiveClaims().get(c.getKey())));
-            }).min(Comparator.<String>comparingDouble(id -> paid.get(id).economicValue()).thenComparing(id -> id)).orElse(null);
-            if (chosen == null) return null;
+        if (witnessedInputs == null || witnessedInputs.size() != process.inputs().size()) return null;
+        for (int index = 0; index < process.inputs().size(); index++) {
+            var input = process.inputs().get(index); String chosen = witnessedInputs.get(index);
+            var placement = placements.get(chosen);
+            // The shared solver proved this exact joint assignment. Choosing a
+            // cheaper alternative here could spend the same finite ancestry twice.
+            if (!input.alternatives().contains(chosen) || !paid.containsKey(chosen) || placement == null
+                    || !explicitOutputStage && placement.stage().ordinal() > proof.stage().ordinal()
+                    || placement.exclusiveClaims().entrySet().stream().anyMatch(c -> !c.getValue().equals(proof.exclusiveClaims().get(c.getKey())))) return null;
             var resource = paid.get(chosen); selected.add(chosen);
-            if (input.consumed()) consumed.merge(chosen, input.count(), Double::sum);
-            else reusable.merge(chosen, input.count(), Math::max);
             confidence = Math.min(confidence, resource.confidence());
             if (input.consumed()) total += resource.economicValue() * input.count();
         }

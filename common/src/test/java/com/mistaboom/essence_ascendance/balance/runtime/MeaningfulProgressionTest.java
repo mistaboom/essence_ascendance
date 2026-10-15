@@ -53,6 +53,12 @@ public final class MeaningfulProgressionTest {
         }
         check(SkillRegistry.require(SkillIds.UNTETHERED_FLIGHT).maximumRank() == 1, "Nonlimiting recharge cannot create a flight rank");
         check(SkillRegistry.require(SkillIds.PURE_STATE).maximumRank() == 1, "Binary immunity has one rank");
+        lifeStealNativeMinimums(runtime);
+        damageBonusNativeMinimums(runtime);
+        configuredShieldTiming(runtime);
+        nativeCooldownEndpoints(runtime);
+        nativeMeleeRateEndpoints(runtime);
+        legacyOutcomeAuthority(runtime);
         var latent = SkillEvaluationContext.committed(AscendanceTiers.LATENT.id(), Map.of(), Map.of(), Set.of(), Set.of(), Map.of());
         for (var skill : SkillRegistry.values()) check(!SkillStateEvaluator.evaluatePurchaseEligibility(skill, latent).satisfied(),
                 "Latent skill purchase forbidden: " + skill.id());
@@ -149,6 +155,227 @@ public final class MeaningfulProgressionTest {
                 }
             }
         }
+    }
+    private static void lifeStealNativeMinimums(RuntimeBalanceDefinition runtime) {
+        var outcome = SkillRegistry.require(SkillIds.LIFE_STEAL).progressionRequirements().outcomes().getFirst();
+        var legacyEffects = new Gson().toJsonTree(SkillEffectBalanceSettings.defaults()).getAsJsonObject();
+        var historical = ProgressionRequirements.skill(SkillIds.LIFE_STEAL, 1).outcomes().getFirst();
+        check(historical.measure(legacyEffects) >= outcome.first() && outcome.measure(legacyEffects) < outcome.first(),
+                "Regression fixture must reproduce the old convenient-chain floor false positive");
+        // Same 20 native HP removed, with progressively stronger equipment and an independently broken chain.
+        // Missing health is deliberately sufficient; it is a prerequisite for useful healing, not uptime.
+        for (int hits : List.of(1, 2, 4, 5, 20)) for (boolean chained : List.of(false, true)) {
+            double previous = 0;
+            for (var rank : runtime.skillCurves().get(SkillIds.LIFE_STEAL.toString()).ranks()) {
+                var tuning = SkillRankEffectScaling.applyResolved(runtime.config().skillEffects(), Map.of(SkillIds.LIFE_STEAL, rank.rank()),
+                        runtime.skillCurves()).vitality().lifeSteal();
+                double healing = 0;
+                for (int hit = 1; hit <= hits; hit++) healing += com.mistaboom.essence_ascendance.vitality.RecoveryMath.healing(
+                        20.0 / hits, 20, tuning.baseHealingFraction(), tuning.perHitHealingFraction(), chained ? hit : 1, tuning.maxChainHits());
+                double floor = rank.rank() == 1 ? outcome.first() : outcome.later();
+                check(healing - previous + 1e-9 >= floor, "Life Steal actual native HP floor, hits=" + hits
+                        + ", chained=" + chained + ", rank=" + rank.rank());
+                check(healing + 1e-9 >= 20 * tuning.baseHealingFraction(), "Chain bonus must remain optional extra healing");
+                previous = healing;
+            }
+        }
+    }
+    private static void damageBonusNativeMinimums(RuntimeBalanceDefinition runtime) {
+        for (var stat : List.of(EssenceStats.MELEE_DAMAGE, EssenceStats.RANGED_DAMAGE, EssenceStats.MAGIC_DAMAGE)) {
+            var track = runtime.config().balanceProfile().bonusTrack(stat.id());
+            double previous = 0;
+            for (var point : track.checkpoints()) if (point.purchasable()) {
+                double value = point.effectFraction() * track.maximumEffect();
+                for (var context : NativeDamageBonusFloor.contexts(runtime, stat))
+                    check(context.damage(value) - context.damage(previous) + 1e-9 >= 1,
+                            "Every damage endpoint adds >=1 native damage with identical supported equipment: " + stat.id()
+                                    + " / " + point.tierId() + " / " + context);
+                previous = value;
+            }
+            // A nominal 5-point increase on 1-damage equipment is 0.05 damage, regardless of a strong reference weapon.
+            var weakJson = runtime.toJson();
+            var strongJson = runtime.toJson();
+            String property = switch (stat.id().getPath()) {
+                case "melee_damage" -> "meleeDamage";
+                case "ranged_damage" -> "rangedDamage";
+                default -> "magicDamage";
+            };
+            weakJson.getAsJsonObject("equipment").entrySet().forEach(entry -> entry.getValue().getAsJsonObject().addProperty(property, 1));
+            strongJson.getAsJsonObject("equipment").entrySet().forEach(entry -> entry.getValue().getAsJsonObject().addProperty(property, 100));
+            var weak = RuntimeBalanceDefinition.fromJson(weakJson);
+            var strong = RuntimeBalanceDefinition.fromJson(strongJson);
+            var weakTrack = BonusTrackGenerator.publishNative(weak, stat, track, ProgressionRequirements.bonus(stat.id()));
+            var strongTrack = BonusTrackGenerator.publishNative(strong, stat, track, ProgressionRequirements.bonus(stat.id()));
+            check(weakTrack.inputs().get("first_state_floor") >= 100 && weakTrack.inputs().get("later_state_floor") >= 100,
+                    "Weak equipment must retain the one-damage floor; percentages alone are not native outcomes");
+            check(weakTrack.activeStateCount() <= strongTrack.activeStateCount(), "Weak equipment coalesces ineffective states without filler");
+            check(strongTrack.inputs().get("later_state_floor").equals(ProgressionRequirements.bonus(stat.id()).tierImprovementFloor()),
+                    "Strong equipment retains the authored percentage floor even when one damage needs less");
+        }
+        var saturated = runtime.toJson();
+        saturated.getAsJsonObject("equipment").entrySet().forEach(entry -> entry.getValue().getAsJsonObject().addProperty("meleeDamage", 10000));
+        var capped = RuntimeBalanceDefinition.fromJson(saturated);
+        rejects(() -> BonusTrackGenerator.publishNative(capped, EssenceStats.MELEE_DAMAGE,
+                capped.config().balanceProfile().bonusTrack(EssenceStats.MELEE_DAMAGE.id()), ProgressionRequirements.bonus(EssenceStats.MELEE_DAMAGE.id())));
+    }
+
+    private static void configuredShieldTiming(RuntimeBalanceDefinition runtime) {
+        var stat = EssenceStats.GUARD_READINESS;
+        for (int minimum : List.of(1, 20, 99, 100)) {
+            var json = runtime.toJson();
+            json.getAsJsonObject("shield").addProperty("minimumDisableTicks", minimum);
+            var custom = RuntimeBalanceDefinition.fromJson(json);
+            var track = BonusTrackGenerator.publishNative(custom, stat, custom.config().balanceProfile().bonusTrack(stat.id()),
+                    ProgressionRequirements.bonus(stat.id()));
+            check(track.inputs().get("native_maximum_effect") == NativeBonusMechanics.guardReadinessMaximum(minimum),
+                    "Final native ceiling uses the actual candidate shield minimum");
+            double previous = 0;
+            for (double value : track.activeValues()) {
+                int oldDisable = com.mistaboom.essence_ascendance.equipment.ShieldMath.disableTicks(100, previous, minimum);
+                int disable = com.mistaboom.essence_ascendance.equipment.ShieldMath.disableTicks(100, value, minimum);
+                int oldRaise = com.mistaboom.essence_ascendance.equipment.ShieldMath.raiseDelayTicks(5, previous, 1);
+                int raise = com.mistaboom.essence_ascendance.equipment.ShieldMath.raiseDelayTicks(5, value, 1);
+                check(disable < oldDisable || raise < oldRaise, "Configured guard endpoint saves a whole native timing tick");
+                previous = value;
+            }
+        }
+    }
+
+    private static void nativeCooldownEndpoints(RuntimeBalanceDefinition runtime) {
+        check(com.mistaboom.essence_ascendance.equipment.EquipmentWeaponService.rateToTicks(20.0 / 1.5) == 2,
+                "Exactly 1.5 native ticks rounds to two, not one");
+        for (var stat : List.of(EssenceStats.RANGED_ATTACK_SPEED, EssenceStats.MAGIC_CAST_SPEED)) {
+            var generated = runtime.config().balanceProfile().bonusTrack(stat.id());
+            verifyCooldown(runtime, stat, generated);
+            String property = stat == EssenceStats.RANGED_ATTACK_SPEED ? "rangedAttackSpeed" : "magicCastSpeed";
+            var nominal = cooldownNominal(runtime, stat, List.of(10.0, 15.0, 20.0, 40.0, 100.0));
+            var ten = cooldownRuntime(runtime, property, 10, 10);
+            var one = BonusTrackGenerator.publishNative(ten, stat, nominal, ProgressionRequirements.bonus(stat.id()));
+            check(one.activeValues().equals(List.of(34.0)), "First native cooldown floor exceeds nominal budget; one tick ends useful track");
+            verifyCooldown(ten, stat, one);
+            var four = cooldownRuntime(runtime, property, 4, 4);
+            var coalesced = BonusTrackGenerator.publishNative(four, stat, nominal, ProgressionRequirements.bonus(stat.id()));
+            check(coalesced.activeValues().equals(List.of(12.0, 100.0)),
+                    "Sub-tick percentages coalesce; strong later improvement is preserved without subdivision");
+            verifyCooldown(four, stat, coalesced);
+            var earlyOnly = cooldownRuntime(runtime, property, 4, 20);
+            var shortNominal = cooldownNominal(runtime, stat, List.of(10.0, 15.0));
+            var early = BonusTrackGenerator.publishNative(earlyOnly, stat, shortNominal, ProgressionRequirements.bonus(stat.id()));
+            check(early.startTier().equals(AscendanceTiers.DORMANT.id()) && early.completionTier().equals(AscendanceTiers.DORMANT.id()),
+                    "Saturated stronger tiers preserve a supported earlier useful track instead of removing it");
+            verifyCooldown(earlyOnly, stat, early);
+            var saturated = cooldownRuntime(runtime, property, 20, 20);
+            rejects(() -> BonusTrackGenerator.publishNative(saturated, stat, nominal, ProgressionRequirements.bonus(stat.id())));
+            check(RuntimeBalanceDefinition.fromJson(saturated.toJson()).toJson().equals(saturated.toJson()),
+                    "Ordinary saved loading never reruns the new cooldown generation policy");
+        }
+    }
+
+    private static RuntimeBalanceDefinition cooldownRuntime(RuntimeBalanceDefinition runtime, String property, double first, double later) {
+        var json = runtime.toJson();
+        json.getAsJsonObject("equipment").entrySet().forEach(entry -> entry.getValue().getAsJsonObject().addProperty(property,
+                entry.getKey().equals(AscendanceTiers.LATENT.id().toString())
+                        || entry.getKey().equals(AscendanceTiers.DORMANT.id().toString()) ? first : later));
+        return RuntimeBalanceDefinition.fromJson(json);
+    }
+
+    private static BonusTrackDefinition cooldownNominal(RuntimeBalanceDefinition runtime, StatDefinition stat, List<Double> values) {
+        var original = runtime.config().balanceProfile().bonusTrack(stat.id());
+        var points = new ArrayList<BonusTrackDefinition.Checkpoint>();
+        long cost = 0; int state = 0; double fraction = 0;
+        for (var tier : AscendanceTierRegistry.values().stream().sorted(Comparator.comparingInt(AscendanceTierDefinition::order)).toList()) {
+            boolean active = tier.grantsPower() && state < values.size();
+            if (active) { cost += 100; fraction = values.get(state++) / values.getLast(); }
+            points.add(new BonusTrackDefinition.Checkpoint(tier.id(), cost, active ? 100 : 0, fraction, tier.grantsPower(), active));
+        }
+        var end = points.stream().filter(BonusTrackDefinition.Checkpoint::purchasable).toList().getLast().tierId();
+        return new BonusTrackDefinition(stat.id(), original.category(), original.unit(), values.getLast(),
+                AscendanceTiers.DORMANT.id(), end, points, .8, BonusTrackDefinition.PurchaseStyle.CONTINUOUS, List.of(),
+                original.applicability(), List.of(), 1, List.of("Native cooldown regression fixture"), "test",
+                Map.of("native_response", 4.0, "breadth", .5));
+    }
+
+    private static void verifyCooldown(RuntimeBalanceDefinition runtime, StatDefinition stat, BonusTrackDefinition track) {
+        double previous = 0;
+        for (var point : track.checkpoints()) if (point.purchasable()) {
+            double value = point.effectFraction() * track.maximumEffect();
+            double base = NativeCooldownBonusFloor.rate(runtime, stat, AscendanceTierRegistry.get(point.tierId()).orElseThrow());
+            check(NativeCooldownBonusFloor.ticks(base, previous) - NativeCooldownBonusFloor.ticks(base, value) >= 1,
+                    "Each native draw/cast endpoint saves a whole tick on the same active-tier weapon");
+            check(value - previous + 1e-9 >= (previous == 0 ? track.progressionRequirements().firstStateFloor()
+                    : track.progressionRequirements().tierImprovementFloor()), "Whole-tick policy preserves authored percentage floors");
+            previous = value;
+        }
+    }
+
+    private static void nativeMeleeRateEndpoints(RuntimeBalanceDefinition runtime) {
+        var stat = EssenceStats.MELEE_ATTACK_SPEED;
+        verifyMeleeRate(runtime, runtime.config().balanceProfile().bonusTrack(stat.id()));
+        check(NativeMeleeRateBonusFloor.damageFactor(20, 0) < NativeMeleeRateBonusFloor.damageFactor(30, 0)
+                        && NativeMeleeRateBonusFloor.damageFactor(20, 1) == NativeMeleeRateBonusFloor.damageFactor(30, 1),
+                "Equal full-charge tick counts still allow a real partial-charge melee damage improvement");
+        check(NativeMeleeRateBonusFloor.damageFactor(40, 0) == 1 && NativeMeleeRateBonusFloor.damageFactor(80, 0) == 1,
+                "Melee gameplay saturates at40/s before the native attack-speed attribute limit");
+        var nominal = cooldownNominal(runtime, stat, List.of(10.0, 15.0, 20.0, 40.0, 100.0));
+        var high = cooldownRuntime(runtime, "meleeAttackSpeed", 20, 20);
+        var bounded = BonusTrackGenerator.publishNative(high, stat, nominal, ProgressionRequirements.bonus(stat.id()));
+        check(bounded.activeValues().equals(List.of(10.0, 15.0, 20.0, 40.0, 66.0)),
+                "Melee partial-charge states remain useful, with exact profile-specific forty-per-second ceiling");
+        verifyMeleeRate(high, bounded);
+        var earlyOnly = cooldownRuntime(runtime, "meleeAttackSpeed", 4, 50);
+        var early = BonusTrackGenerator.publishNative(earlyOnly, stat, cooldownNominal(runtime, stat, List.of(10.0, 15.0)),
+                ProgressionRequirements.bonus(stat.id()));
+        check(early.startTier().equals(AscendanceTiers.DORMANT.id()) && early.completionTier().equals(AscendanceTiers.DORMANT.id()),
+                "Saturated late melee gear retains a valid earlier span");
+        verifyMeleeRate(earlyOnly, early);
+        var saturated = cooldownRuntime(runtime, "meleeAttackSpeed", 50, 50);
+        rejects(() -> BonusTrackGenerator.publishNative(saturated, stat, nominal, ProgressionRequirements.bonus(stat.id())));
+    }
+
+    private static void verifyMeleeRate(RuntimeBalanceDefinition runtime, BonusTrackDefinition track) {
+        double previous = 0;
+        for (var point : track.checkpoints()) if (point.purchasable()) {
+            double value = point.effectFraction() * track.maximumEffect();
+            for (var context : NativeMeleeRateBonusFloor.contexts(runtime, AscendanceTierRegistry.get(point.tierId()).orElseThrow())) {
+                check(context.outcome(value) > context.outcome(previous), "Melee endpoint improves actual float partial-charge damage");
+                check(context.rate(value) <= NativeMeleeRateBonusFloor.MAXIMUM_USEFUL_RATE + 1e-9,
+                        "Melee endpoint cannot exceed the native immediate-full-charge boundary");
+            }
+            check(value - previous + 1e-9 >= (previous == 0 ? track.progressionRequirements().firstStateFloor()
+                    : track.progressionRequirements().tierImprovementFloor()), "Melee native headroom cannot weaken authored percentage floors");
+            previous = value;
+        }
+    }
+
+    private static void legacyOutcomeAuthority(RuntimeBalanceDefinition runtime) {
+        var legacy = runtime.toJson();
+        legacy.getAsJsonObject("composition").remove("native_outcome_contract");
+        var steal = legacy.getAsJsonObject("effects").getAsJsonObject("vitality").getAsJsonObject("lifeSteal");
+        steal.addProperty("baseHealingFraction", .03); steal.addProperty("perHitHealingFraction", .01);
+        var curve = legacy.getAsJsonObject("skillCurves").getAsJsonObject(SkillIds.LIFE_STEAL.toString());
+        var rank = curve.getAsJsonArray("ranks").get(0).getAsJsonObject().deepCopy();
+        rank.getAsJsonObject("parameters").addProperty("vitality/lifeSteal/baseHealingFraction", .03);
+        rank.getAsJsonObject("parameters").addProperty("vitality/lifeSteal/perHitHealingFraction", .01);
+        var ranks = new com.google.gson.JsonArray(); ranks.add(rank);
+        curve.add("ranks", ranks); curve.addProperty("maximumRank", 1);
+        var saved = RuntimeBalanceDefinition.fromJson(legacy);
+        check(saved.toJson().equals(legacy), "Legacy profile must retain exact effects, costs and absent contract marker on reuse");
+        rejects(() -> SkillBalanceGenerator.validatePublished(saved.config().skillEffects(), saved.skillCurves()));
+        var relabeled = legacy.deepCopy();
+        relabeled.getAsJsonObject("composition").addProperty("native_outcome_contract", ProgressionRequirements.NATIVE_OUTCOME_CONTRACT);
+        rejects(() -> RuntimeBalanceDefinition.fromJson(relabeled));
+        var invalidContract = runtime.toJson();
+        invalidContract.getAsJsonObject("composition").addProperty("native_outcome_contract", 1.5);
+        rejects(() -> RuntimeBalanceDefinition.fromJson(invalidContract));
+        // New native ceilings are generation policy, never a hidden mutation/rejection of old saved tracks.
+        var legacyBonus = runtime.toJson();
+        String guard = EssenceStats.GUARD_READINESS.id().toString();
+        legacyBonus.getAsJsonObject("statMaxBonuses").addProperty(guard, 160);
+        var track = legacyBonus.getAsJsonObject("balanceProfile").getAsJsonObject("bonusTracks").getAsJsonObject(guard);
+        track.addProperty("maximumEffect", 160);
+        track.getAsJsonObject("inputs").remove("native_maximum_effect");
+        check(RuntimeBalanceDefinition.fromJson(legacyBonus).toJson().equals(legacyBonus),
+                "Historical uncapped Bonus must stay exact until explicit rebuild");
     }
     private static void differential(RuntimeBalanceDefinition runtime) {
         var gson = com.mistaboom.essence_ascendance.balance.generated.BalanceDocument.GSON;

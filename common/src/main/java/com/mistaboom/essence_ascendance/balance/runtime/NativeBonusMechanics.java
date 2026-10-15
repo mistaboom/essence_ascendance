@@ -9,6 +9,9 @@ import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.EmptyBlockGetter;
+import com.mistaboom.essence_ascendance.config.ShieldBalanceSettings;
+import com.mistaboom.essence_ascendance.equipment.EquipmentShieldService;
+import com.mistaboom.essence_ascendance.stat.StatDefinition;
 
 import java.util.*;
 
@@ -44,7 +47,66 @@ public final class NativeBonusMechanics {
 
     /** Percentage points for an ADD_VALUE modifier whose gameplay conversion divides by 100. */
     public static double additivePercentHeadroom(Holder<Attribute> attribute) {
-        return Math.max(0, attribute.value().sanitizeValue(Double.MAX_VALUE) - baseline(attribute)) * 100;
+        return additiveHeadroom(attribute) * 100;
+    }
+
+    public static double additiveHeadroom(Holder<Attribute> attribute) {
+        return Math.max(0, attribute.value().sanitizeValue(Double.MAX_VALUE) - baseline(attribute));
+    }
+
+    /** Percentage points for ADD_MULTIPLIED_BASE, at the native unmodified player baseline. */
+    public static double multipliedBasePercentHeadroom(Holder<Attribute> attribute) {
+        double base = baseline(attribute);
+        return base <= 0 ? 0 : Math.max(0, attribute.value().sanitizeValue(Double.MAX_VALUE) / base - 1) * 100;
+    }
+
+    /** The supported vanilla disable hook supplies 100 ticks; longer external disables need factual evidence. */
+    public static final int NATIVE_SHIELD_DISABLE_TICKS = 100;
+    public static double guardReadinessMaximum(int minimumDisableTicks) {
+        double raise = 100.0 * (EquipmentShieldService.VANILLA_RAISE_DELAY_TICKS
+                - EquipmentShieldService.MINIMUM_RAISE_DELAY_TICKS) / EquipmentShieldService.VANILLA_RAISE_DELAY_TICKS;
+        double recovery = 100.0 * Math.max(0, NATIVE_SHIELD_DISABLE_TICKS - minimumDisableTicks) / NATIVE_SHIELD_DISABLE_TICKS;
+        return Math.max(raise, recovery);
+    }
+
+    public record Limit(double maximum, String evidence) { }
+
+    /** Mechanical ceilings only. Pricing/power policy and unknown external capabilities do not supply headroom. */
+    public static Optional<Limit> limit(StatDefinition stat) {
+        return limit(stat, ShieldBalanceSettings.defaults());
+    }
+
+    public static Optional<Limit> limit(StatDefinition stat, ShieldBalanceSettings shield) {
+        return switch (stat.id().getPath()) {
+            case "guarded_movement" -> Optional.of(new Limit(100,
+                    "ShieldMath.movementMultiplier removes at most all native blocking slowdown; percentage clamps at 100"));
+            case "guard_readiness" -> Optional.of(new Limit(guardReadinessMaximum(shield.minimumDisableTicks()),
+                    "Native shield raise 5 -> 1 ticks and supported vanilla disable 100 -> "
+                            + shield.minimumDisableTicks()
+                            + " ticks; no longer external disable duration is inferred"));
+            case "swim_speed" -> Optional.of(new Limit(additivePercentHeadroom(Attributes.WATER_MOVEMENT_EFFICIENCY),
+                    "Native water-movement attribute ADD_VALUE headroom, converted to percentage points"));
+            case "sneak_speed" -> Optional.of(new Limit(multipliedBasePercentHeadroom(Attributes.SNEAKING_SPEED),
+                    "Native sneaking-speed ADD_MULTIPLIED_BASE headroom at unmodified player baseline; other equipment modifiers may consume headroom"));
+            case "attack_knockback" -> Optional.of(new Limit(additivePercentHeadroom(Attributes.ATTACK_KNOCKBACK),
+                    "Native attack-knockback ADD_VALUE headroom; one percentage point adds 0.01 attribute units"));
+            case "knockback_resistance" -> Optional.of(new Limit(additivePercentHeadroom(Attributes.KNOCKBACK_RESISTANCE),
+                    "Native knockback-resistance ADD_VALUE headroom; one percentage point adds 0.01 attribute units"));
+            case "max_health" -> Optional.of(new Limit(additiveHeadroom(Attributes.MAX_HEALTH) / 2,
+                    "Native maximum-health ADD_VALUE headroom; one saved heart adds two native HP"));
+            case "reach" -> Optional.of(new Limit(Math.min(additiveHeadroom(Attributes.BLOCK_INTERACTION_RANGE),
+                    additiveHeadroom(Attributes.ENTITY_INTERACTION_RANGE)),
+                    "Shared reach adds blocks to both native interaction ranges; use the lesser headroom so neither benefit saturates early"));
+            case "luck" -> Optional.of(new Limit(additiveHeadroom(Attributes.LUCK),
+                    "Native Luck ADD_VALUE headroom; loot must separately support quality weighting"));
+            case "movement_speed" -> Optional.of(new Limit(multipliedBasePercentHeadroom(Attributes.MOVEMENT_SPEED),
+                    "Native movement-speed ADD_MULTIPLIED_BASE headroom; terrain and external modifiers remain contextual"));
+            case "mining_speed" -> Optional.of(new Limit(multipliedBasePercentHeadroom(Attributes.BLOCK_BREAK_SPEED),
+                    "Native block-break-speed ADD_MULTIPLIED_BASE headroom; tool, hardness and block completion remain contextual"));
+            case "jump_height" -> Optional.of(new Limit(multipliedBasePercentHeadroom(Attributes.JUMP_STRENGTH),
+                    "Native jump-strength ADD_MULTIPLIED_BASE headroom; this is impulse percentage, not linear ballistic height"));
+            default -> Optional.empty();
+        };
     }
 
     public static StepResolution step(PackEvidence evidence, double requestedMaximum) {

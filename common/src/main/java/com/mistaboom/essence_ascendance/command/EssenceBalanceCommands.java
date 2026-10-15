@@ -35,6 +35,7 @@ final class EssenceBalanceCommands {
                 .then(Commands.literal("help").executes(context -> showHelp(context.getSource(), false)))
                 .then(Commands.literal("summary").executes(context -> guarded(context.getSource(), () -> summary(context.getSource()))))
                 .then(Commands.literal("validate").executes(context -> guarded(context.getSource(), () -> validate(context.getSource()))))
+                .then(Commands.literal("salvage").executes(context -> guarded(context.getSource(), () -> salvage(context.getSource()))))
                 .then(Commands.literal("cost").then(Commands.argument("path", StringArgumentType.string())
                         .executes(context -> guarded(context.getSource(), () -> cost(context.getSource(), StringArgumentType.getString(context,"path"))))))
                 .then(Commands.literal("bonus").then(Commands.argument("id", StringArgumentType.string())
@@ -77,6 +78,7 @@ final class EssenceBalanceCommands {
         } else {
             help(source, "/essence debug balance summary", "summary");
             help(source, "/essence debug balance validate", "validate");
+            EssenceCommandUtil.send(source, EssenceCommandUtil.command("/essence debug balance salvage", Component.literal("Audit loaded salvage recipes and rank improvements")));
             help(source, "/essence debug balance item [id]", "item");
             help(source, "/essence debug balance bonus <bonus>", "bonus");
             help(source, "/essence debug balance skill <skill> [rank]", "skill");
@@ -115,6 +117,14 @@ final class EssenceBalanceCommands {
             throw error;
         }
         }
+    }
+    private static int salvage(CommandSourceStack source) throws Exception {
+        var result = com.mistaboom.essence_ascendance.gathering.SalvageCoverageDiagnostics.export(source.getServer());
+        EssenceCommandUtil.send(source, EssenceCommandUtil.title("Salvage coverage"));
+        line(source, "Eligible items / proven material bills", result.eligibleItems() + " / " + result.materialBills());
+        line(source, "Ranks with supported input / failed / unknown", result.passedRanks() + " / " + result.failedRanks() + " / " + result.unknownRanks());
+        line(source, "Report", result.path().toString());
+        return result.failedRanks() == 0 ? 1 : 0;
     }
     private static int rebuild(CommandSourceStack source) {
         tell(source,"rebuilding");

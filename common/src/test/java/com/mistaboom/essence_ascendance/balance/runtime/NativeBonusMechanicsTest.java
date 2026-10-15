@@ -37,6 +37,37 @@ public final class NativeBonusMechanicsTest {
         check(NativeBonusMechanics.meaningfulThresholds(.6, .1, List.of(1.0, 1.5)).isEmpty(), "attribute headroom exceeded");
         double waterMaximum = NativeBonusMechanics.additivePercentHeadroom(Attributes.WATER_MOVEMENT_EFFICIENCY);
         check(waterMaximum > 0 && waterMaximum <= 100, "native additive water movement saturation ignored");
+        double sneakMaximum = NativeBonusMechanics.multipliedBasePercentHeadroom(Attributes.SNEAKING_SPEED);
+        double sneakBase = NativeBonusMechanics.baseline(Attributes.SNEAKING_SPEED);
+        check(Math.abs(sneakBase * (1 + sneakMaximum / 100)
+                - Attributes.SNEAKING_SPEED.value().sanitizeValue(Double.MAX_VALUE)) < 1e-9,
+                "multiplicative headroom must use the native baseline, not treat percent as additive points");
+        for (var attribute : List.of(Attributes.ATTACK_KNOCKBACK, Attributes.KNOCKBACK_RESISTANCE,
+                Attributes.MAX_HEALTH, Attributes.BLOCK_INTERACTION_RANGE, Attributes.ENTITY_INTERACTION_RANGE, Attributes.LUCK)) {
+            double base = NativeBonusMechanics.baseline(attribute);
+            double headroom = NativeBonusMechanics.additiveHeadroom(attribute);
+            check(attribute.value().sanitizeValue(base + headroom) == attribute.value().sanitizeValue(Double.MAX_VALUE),
+                    "Additive headroom must exactly reach native saturation: " + attribute);
+            check(attribute.value().sanitizeValue(base + headroom + 1000) == attribute.value().sanitizeValue(base + headroom),
+                    "Additional over-cap points must have no native effect: " + attribute);
+        }
+        for (var attribute : List.of(Attributes.MOVEMENT_SPEED, Attributes.BLOCK_BREAK_SPEED, Attributes.JUMP_STRENGTH)) {
+            double base = NativeBonusMechanics.baseline(attribute);
+            double ceiling = attribute.value().sanitizeValue(Double.MAX_VALUE);
+            check(Math.abs(base * (1 + NativeBonusMechanics.multipliedBasePercentHeadroom(attribute) / 100) - ceiling) < 1e-8,
+                    "Multiplicative headroom must use its actual base: " + attribute);
+        }
+        check(NativeBonusMechanics.guardReadinessMaximum(20) == 80
+                        && NativeBonusMechanics.guardReadinessMaximum(1) == 99
+                        && NativeBonusMechanics.guardReadinessMaximum(100) == 80,
+                "guard ceiling must retain whichever supported native timing still improves");
+        for (int percent = 0; percent <= 100; percent++) {
+            check(com.mistaboom.essence_ascendance.equipment.ShieldMath.disableTicks(100, percent, 1)
+                    == Math.max(1, 100 - percent), "whole percent must save exact whole native ticks: " + percent);
+        }
+        check(com.mistaboom.essence_ascendance.equipment.ShieldMath.raiseDelayTicks(5, 20, 1) == 4
+                        && com.mistaboom.essence_ascendance.equipment.ShieldMath.raiseDelayTicks(5, 19.999999, 1) == 5,
+                "native ceil must preserve timing boundaries without rounding up an unearned improvement");
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println(
                 "NativeBonusMechanicsTest PASS: reachable native collision thresholds, grouping, limits, fallback and determinism");
     }

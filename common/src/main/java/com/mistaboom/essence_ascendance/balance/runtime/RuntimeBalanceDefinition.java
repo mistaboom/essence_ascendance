@@ -223,8 +223,13 @@ public final class RuntimeBalanceDefinition {
         for (String required : List.of("equipment_share", "nexus_share", "skill_share", "rank_safe_skill_scale"))
             if (!composition.containsKey(required)) throw new IllegalArgumentException("Missing composition budget " + required);
         config.skillEffects().validate();
-        if (composition.getOrDefault("meaningful_progression", 0.0) == 1)
-            com.mistaboom.essence_ascendance.skill.balance.SkillBalanceGenerator.validatePublished(config.skillEffects(), skillCurves);
+        if (composition.getOrDefault("meaningful_progression", 0.0) == 1) {
+            double outcomeContract = composition.getOrDefault("native_outcome_contract", 1.0);
+            if (outcomeContract != 1 && outcomeContract != com.mistaboom.essence_ascendance.skill.ProgressionRequirements.NATIVE_OUTCOME_CONTRACT)
+                throw new IllegalArgumentException("Unsupported native outcome contract: " + outcomeContract);
+            com.mistaboom.essence_ascendance.skill.balance.SkillBalanceGenerator.validatePublished(config.skillEffects(), skillCurves,
+                    (int) outcomeContract);
+        }
         com.mistaboom.essence_ascendance.network.RuntimeBalancePayload.validateJsonSize(toJson().toString());
     }
 

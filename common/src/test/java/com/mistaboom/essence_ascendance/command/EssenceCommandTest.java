@@ -91,7 +91,7 @@ public final class EssenceCommandTest {
                 "admin player attunement reset", "admin player attunement reset mobility", "admin player attunement reset all TestPlayer",
                 "admin player attunement set offense 0", "admin player attunement set offense 100", "admin player attunement set all 37 TestPlayer",
                 "debug", "debug help", "debug mappings", "debug mappings status", "debug mappings list",
-                "debug player", "debug player summary", "debug balance", "debug balance bonus melee_damage",
+                "debug player", "debug player summary", "debug balance", "debug balance bonus melee_damage", "debug balance salvage",
                 "debug item", "debug item inspect",
                 "debug item mapping", "debug item baselines", "debug machine", "debug machine crucible", "debug machine pylon", "debug machine infuser",
                 "debug player attunement", "debug player attunement summary", "debug player attunement summary TestPlayer",
@@ -138,6 +138,7 @@ public final class EssenceCommandTest {
                 "debug skill test_skill", "debug offense", "debug defense", "debug vitality",
                 "debug mobility", "debug gathering", "debug utility", "debug shield", "debug projectiles",
                 "debug crucible", "debug pylon", "debug infuser", "debug balance rebuild", "debug balance export", "debug mappings reload",
+                "debug salvage", "admin balance salvage",
                 "debug player skills test_skill", "debug player milestones test_milestone", "debug player attunement offense",
                 "debug player attunement player TestPlayer", "debug balance resource", "debug balance equipment", "debug balance progression",
                 "debug balance source", "debug balance stat melee_damage", "admin player skills grant_all",
@@ -183,7 +184,7 @@ public final class EssenceCommandTest {
         literalChildren(dispatcher, List.of("essence", "debug"), Set.of("player", "item", "machine", "balance", "mappings"));
         literalChildren(dispatcher, List.of("essence", "debug", "item"), Set.of("inspect", "mapping", "baselines"));
         literalChildren(dispatcher, List.of("essence", "debug", "machine"), Set.of("crucible", "pylon", "infuser"));
-        literalChildren(dispatcher, List.of("essence", "debug", "balance"), Set.of("summary", "validate", "item", "bonus", "skill", "cost"));
+        literalChildren(dispatcher, List.of("essence", "debug", "balance"), Set.of("summary", "validate", "item", "bonus", "skill", "cost", "salvage"));
         literalChildren(dispatcher, List.of("essence", "test"), Set.of("luck", "activation", "skills", "enchantments"));
         literalChildren(dispatcher, List.of("essence", "bonuses"), Set.of("list", "show", "invest"));
         literalChildren(dispatcher, List.of("essence", "admin", "balance"), Set.of("rebuild", "export"));
@@ -194,6 +195,16 @@ public final class EssenceCommandTest {
         var allowedUsage = dispatcher.getSmartUsage(dispatcher.getRoot().getChild("essence"), player);
         check(allowedUsage.keySet().stream().noneMatch(node -> Set.of("admin", "debug", "test").contains(node.getName())),
                 "Privileged branches leaked into non-operator usable commands");
+        // The ordinary balance branch intentionally accepts any essence-name string.
+        // Parsing "salvage" there must retain the category lookup handler, never the diagnostic.
+        valid(dispatcher, "essence balance salvage", player);
+        check(dispatcher.parse("essence balance salvage", player).getContext().getCommand()
+                        == dispatcher.parse("essence balance offense", player).getContext().getCommand(),
+                "Ordinary balance category input was redirected into the privileged salvage diagnostic");
+        boolean unknownEssence = false;
+        try { EssenceCommandUtil.resolveEssence("salvage"); }
+        catch (com.mojang.brigadier.exceptions.CommandSyntaxException expected) { unknownEssence = true; }
+        check(unknownEssence, "Ordinary balance salvage must retain the unknown Essence category response");
         for (String help : List.of("essence help", "essence admin", "essence admin membership", "essence admin membership help", "essence admin player", "essence admin item", "essence admin balance",
                 "essence debug", "essence debug player", "essence debug item", "essence debug machine", "essence debug player gameplay",
                 "essence debug player skills", "essence debug player milestones", "essence debug balance", "essence debug mappings", "essence bonuses",

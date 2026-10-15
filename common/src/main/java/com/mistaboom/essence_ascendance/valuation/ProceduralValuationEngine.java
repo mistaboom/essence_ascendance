@@ -230,7 +230,7 @@ public final class ProceduralValuationEngine {
             dependencies.addAll(family);
             for (Item member : family) {
                 EvaluationNode local = nodes.get(member);
-                long converted = clampValue(Math.ceil(bestUnit * plan.units().get(member) - 0.0000001));
+                double converted = roundedAcquisition(Math.ceil(bestUnit * plan.units().get(member) - 0.0000001));
                 // Ceil economics here; final integer unit/Essence payout rounds DOWN once.
                 List<String> factors = new ArrayList<>(local.factors());
                 if (member != anchor) {
@@ -527,7 +527,7 @@ public final class ProceduralValuationEngine {
             );
         }
 
-        long normalizedValue = clampValue(Math.max(1.0, bestValue));
+        double normalizedValue = roundedAcquisition(Math.max(1.0, bestValue));
         List<String> factors = new ArrayList<>(original.factors());
         ResourceLocation sourceId = BuiltInRegistries.ITEM.getKey(bestSource);
         if (bestSource == target) {
@@ -543,7 +543,7 @@ public final class ProceduralValuationEngine {
                             + " converted at value factor "
                             + format(bestFactor)
                             + " -> "
-                            + formatLong(normalizedValue)
+                            + format(normalizedValue)
             );
             bestNode.factors().stream().limit(4).forEach(
                     factor -> factors.add("Conservation source: " + factor)
@@ -734,7 +734,7 @@ public final class ProceduralValuationEngine {
         visiting.remove(item);
 
         recipeCandidates.sort(
-                Comparator.comparingLong(RecipeCandidate::value)
+                Comparator.comparingDouble(RecipeCandidate::value)
                         .thenComparing(candidate -> candidate.recipe().id().toString())
         );
 
@@ -775,7 +775,7 @@ public final class ProceduralValuationEngine {
                         "Acquisition path: cheapest loaded recipe "
                                 + cheapestRecipe.recipe().id()
                                 + " -> "
-                                + formatLong(cheapestRecipe.value())
+                                + format(cheapestRecipe.value())
                                 + " Essence/output"
                 );
                 factors.add(
@@ -869,7 +869,8 @@ public final class ProceduralValuationEngine {
         // Intrinsic categories supply fallback estimates, not minimum prices that
         // erase observed batch yields or cheap complete recipes.
         long acquisitionFloor = knownAcquisition ? 1L : intrinsic.floorValue();
-        long acquisitionValue = correctedValue == null ? clampValue(Math.max(acquisitionFloor, acquisition)) : clampValue(correctedValue);
+        double acquisitionValue = roundedAcquisition(correctedValue == null
+                ? Math.max(acquisitionFloor, acquisition) : correctedValue);
         int resolvedDepth = recipeChoice
                 .map(ProceduralValuationResult.RecipeChoice::depth)
                 .orElse(0);
@@ -1015,7 +1016,7 @@ public final class ProceduralValuationEngine {
 
         return new RecipeAttempt(new RecipeCandidate(
                 recipe,
-                clampValue(perOutput),
+                roundedAcquisition(perOutput),
                 recipe.ingredients().size(),
                 uniqueChosen.size(),
                 easy,
@@ -1050,7 +1051,7 @@ public final class ProceduralValuationEngine {
 
         Item best = null;
         EvaluationNode bestNode = null;
-        long bestValue = Long.MAX_VALUE;
+        double bestValue = Double.POSITIVE_INFINITY;
         boolean blockedByCycle = false;
 
         for (Item candidate : shortlist) {
@@ -2930,7 +2931,8 @@ public final class ProceduralValuationEngine {
     }
 
     private static long clampValue(double value) {
-        if (!Double.isFinite(value) || value <= 0.0) {
+        if (!Double.isFinite(value)) throw new IllegalArgumentException("Nonfinite valuation estimate");
+        if (value <= 0.0) {
             return 1L;
         }
         return Math.max(
@@ -2940,6 +2942,19 @@ public final class ProceduralValuationEngine {
                         Math.round(value)
                 )
         );
+    }
+
+    /**
+     * Preserve acquisition effort above the payout range. Saturating a compressed
+     * form here makes its reverse recipe an artificially cheap external anchor.
+     * Ordinary values retain the prior nearest-whole rounding; exact payout
+     * limits apply only after family ratios and the cheapest anchor are resolved.
+     */
+    static double roundedAcquisition(double value) {
+        if (!Double.isFinite(value)) throw new IllegalArgumentException("Nonfinite acquisition estimate");
+        if (value <= 1) return 1;
+        // At this magnitude every representable double is already an integer.
+        return value >= 0x1.0p52 ? value : Math.floor(value + 0.5);
     }
 
     private static String format(double value) {
@@ -3004,7 +3019,7 @@ public final class ProceduralValuationEngine {
 
     private record EvaluationNode(
             long intrinsicValue,
-            long acquisitionValue,
+            double acquisitionValue,
             Optional<ProceduralValuationResult.RecipeChoice> recipeChoice,
             ProceduralValuationResult.ProgressionBand progressionBand,
             double confidence,
@@ -3016,7 +3031,7 @@ public final class ProceduralValuationEngine {
             List<String> factors,
             Set<Item> dependencies
     ) {
-        EvaluationNode(long intrinsicValue, long acquisitionValue,
+        EvaluationNode(long intrinsicValue, double acquisitionValue,
                        Optional<ProceduralValuationResult.RecipeChoice> recipeChoice,
                        ProceduralValuationResult.ProgressionBand progressionBand, double confidence,
                        int recipeDepth, boolean knownAcquisition, boolean contextSensitive,
@@ -3149,7 +3164,7 @@ public final class ProceduralValuationEngine {
 
     private record RecipeCandidate(
             ProceduralValuationIndex.RecipeModel recipe,
-            long value,
+            double value,
             int ingredientSlots,
             int uniqueIngredients,
             int easyIngredients,
@@ -3168,7 +3183,7 @@ public final class ProceduralValuationEngine {
             return new ProceduralValuationResult.RecipeChoice(
                     recipe.id(),
                     recipe.production() == null ? recipeTypeName(recipe.type()) : recipe.production().family(),
-                    value,
+                    Math.round(value), // Diagnostic long only; acquisition comparisons use the unsaturated value.
                     recipe.outputCount(),
                     ingredientSlots,
                     uniqueIngredients,

@@ -9,7 +9,7 @@
       "downstreamRecipeCount": 0,
       "factors": [
         "Bucket: food tag/component",
-        "Acquisition path: cheapest loaded recipe fixture:r032 -> 1 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r032 -> 1.000 Essence/output",
         "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 5",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: no loaded non-conservation recipes consume this item",
@@ -74,7 +74,7 @@
       "downstreamRecipeCount": 0,
       "factors": [
         "Shape: weapon class",
-        "Acquisition path: cheapest loaded recipe fixture:r011 -> 1 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r011 -> 1.000 Essence/output",
         "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 5",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: no loaded non-conservation recipes consume this item",
@@ -145,7 +145,7 @@
       "downstreamMultiplier": 1.203,
       "downstreamRecipeCount": 125,
       "factors": [
-        "Acquisition path: cheapest loaded recipe fixture:r038 -> 1 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r038 -> 1.000 Essence/output",
         "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 5",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: 125 recipe(s), 19 distinct application(s), weighted 8.500, 2 significant, 0 cross-mod (provenance only) -> x1.203",
@@ -210,7 +210,7 @@
       "downstreamMultiplier": 1.203,
       "downstreamRecipeCount": 125,
       "factors": [
-        "Acquisition path: cheapest loaded recipe fixture:r080 -> 6 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r080 -> 6.000 Essence/output",
         "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 1",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: 125 recipe(s), 19 distinct application(s), weighted 8.500, 2 significant, 0 cross-mod (provenance only) -> x1.203",
@@ -322,7 +322,7 @@
       "downstreamRecipeCount": 0,
       "factors": [
         "Shape: weapon class",
-        "Acquisition path: cheapest loaded recipe fixture:r029 -> 1 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r029 -> 1.000 Essence/output",
         "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 5",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: no loaded non-conservation recipes consume this item",
@@ -393,7 +393,7 @@
       "downstreamMultiplier": 1.203,
       "downstreamRecipeCount": 125,
       "factors": [
-        "Acquisition path: cheapest loaded recipe fixture:r062 -> 3 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r062 -> 3.000 Essence/output",
         "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 3",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: 125 recipe(s), 19 distinct application(s), weighted 8.500, 2 significant, 0 cross-mod (provenance only) -> x1.203",
@@ -452,7 +452,7 @@
       "downstreamMultiplier": 1.0,
       "downstreamRecipeCount": 0,
       "factors": [
-        "Acquisition path: cheapest loaded recipe fixture:r091 -> 2 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r091 -> 2.000 Essence/output",
         "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 5",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: no loaded non-conservation recipes consume this item",
@@ -518,7 +518,7 @@
       "downstreamMultiplier": 1.203,
       "downstreamRecipeCount": 125,
       "factors": [
-        "Acquisition path: cheapest loaded recipe fixture:r041 -> 2 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r041 -> 2.000 Essence/output",
         "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 4",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: 125 recipe(s), 19 distinct application(s), weighted 8.500, 2 significant, 0 cross-mod (provenance only) -> x1.203",
@@ -584,7 +584,7 @@
       "downstreamMultiplier": 1.203,
       "downstreamRecipeCount": 125,
       "factors": [
-        "Acquisition path: cheapest loaded recipe fixture:r104 -> 2 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r104 -> 2.000 Essence/output",
         "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 4",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: 125 recipe(s), 19 distinct application(s), weighted 8.500, 2 significant, 0 cross-mod (provenance only) -> x1.203",
@@ -644,7 +644,7 @@
       "downstreamRecipeCount": 0,
       "factors": [
         "Shape: block item baseline",
-        "Acquisition path: cheapest loaded recipe fixture:r037 -> 1 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r037 -> 1.000 Essence/output",
         "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 6",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: no loaded non-conservation recipes consume this item",
@@ -702,7 +702,7 @@
       "downstreamMultiplier": 1.0,
       "downstreamRecipeCount": 0,
       "factors": [
-        "Acquisition path: cheapest loaded recipe fixture:r035 -> 1 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r035 -> 1.000 Essence/output",
         "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 5",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: no loaded non-conservation recipes consume this item",
@@ -760,7 +760,7 @@
       "downstreamMultiplier": 1.0,
       "downstreamRecipeCount": 0,
       "factors": [
-        "Acquisition path: cheapest loaded recipe fixture:r017 -> 1 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r017 -> 1.000 Essence/output",
         "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 5",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: no loaded non-conservation recipes consume this item",
@@ -819,7 +819,7 @@
       "downstreamRecipeCount": 0,
       "factors": [
         "Bucket: harvesting tool tag/runtime class",
-        "Acquisition path: cheapest loaded recipe fixture:r071 -> 1 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r071 -> 1.000 Essence/output",
         "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 5",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: no loaded non-conservation recipes consume this item",
@@ -890,7 +890,7 @@
       "downstreamMultiplier": 1.203,
       "downstreamRecipeCount": 125,
       "factors": [
-        "Acquisition path: cheapest loaded recipe fixture:r008 -> 1 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r008 -> 1.000 Essence/output",
         "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 5",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: 125 recipe(s), 19 distinct application(s), weighted 8.500, 2 significant, 0 cross-mod (provenance only) -> x1.203",
@@ -955,7 +955,7 @@
       "downstreamMultiplier": 1.203,
       "downstreamRecipeCount": 125,
       "factors": [
-        "Acquisition path: cheapest loaded recipe fixture:r002 -> 2 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r002 -> 2.000 Essence/output",
         "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 4",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: 125 recipe(s), 19 distinct application(s), weighted 8.500, 2 significant, 0 cross-mod (provenance only) -> x1.203",
@@ -1022,7 +1022,7 @@
       "downstreamRecipeCount": 125,
       "factors": [
         "Progression/source: End-native identity heuristic -> x1.700",
-        "Acquisition path: cheapest loaded recipe fixture:r083 -> 4 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r083 -> 4.000 Essence/output",
         "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 2",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: 125 recipe(s), 19 distinct application(s), weighted 8.500, 2 significant, 0 cross-mod (provenance only) -> x1.203",
@@ -1088,7 +1088,7 @@
       "downstreamMultiplier": 1.203,
       "downstreamRecipeCount": 125,
       "factors": [
-        "Acquisition path: cheapest loaded recipe fixture:r101 -> 1 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r101 -> 1.000 Essence/output",
         "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 5",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: 125 recipe(s), 19 distinct application(s), weighted 8.500, 2 significant, 0 cross-mod (provenance only) -> x1.203",
@@ -1147,7 +1147,7 @@
       "downstreamRecipeCount": 0,
       "factors": [
         "Bucket: armor/equipment",
-        "Acquisition path: cheapest loaded recipe fixture:r107 -> 1 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r107 -> 1.000 Essence/output",
         "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 5",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: no loaded non-conservation recipes consume this item",
@@ -1214,7 +1214,7 @@
       "downstreamRecipeCount": 0,
       "factors": [
         "Bucket: food tag/component",
-        "Acquisition path: cheapest loaded recipe fixture:r032 -> 1 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r032 -> 1.000 Essence/output",
         "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 5",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: no loaded non-conservation recipes consume this item",
@@ -1279,7 +1279,7 @@
       "downstreamRecipeCount": 0,
       "factors": [
         "Shape: weapon class",
-        "Acquisition path: cheapest loaded recipe fixture:r011 -> 1 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r011 -> 1.000 Essence/output",
         "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 5",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: no loaded non-conservation recipes consume this item",
@@ -1350,7 +1350,7 @@
       "downstreamMultiplier": 1.203,
       "downstreamRecipeCount": 125,
       "factors": [
-        "Acquisition path: cheapest loaded recipe fixture:r038 -> 1 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r038 -> 1.000 Essence/output",
         "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 5",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: 125 recipe(s), 19 distinct application(s), weighted 8.500, 2 significant, 0 cross-mod (provenance only) -> x1.203",
@@ -1415,7 +1415,7 @@
       "downstreamMultiplier": 1.203,
       "downstreamRecipeCount": 125,
       "factors": [
-        "Acquisition path: cheapest loaded recipe fixture:r080 -> 6 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r080 -> 6.000 Essence/output",
         "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 1",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: 125 recipe(s), 19 distinct application(s), weighted 8.500, 2 significant, 0 cross-mod (provenance only) -> x1.203",
@@ -1527,7 +1527,7 @@
       "downstreamRecipeCount": 0,
       "factors": [
         "Shape: weapon class",
-        "Acquisition path: cheapest loaded recipe fixture:r029 -> 1 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r029 -> 1.000 Essence/output",
         "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 5",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: no loaded non-conservation recipes consume this item",
@@ -1598,7 +1598,7 @@
       "downstreamMultiplier": 1.203,
       "downstreamRecipeCount": 125,
       "factors": [
-        "Acquisition path: cheapest loaded recipe fixture:r062 -> 3 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r062 -> 3.000 Essence/output",
         "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 3",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: 125 recipe(s), 19 distinct application(s), weighted 8.500, 2 significant, 0 cross-mod (provenance only) -> x1.203",
@@ -1657,7 +1657,7 @@
       "downstreamMultiplier": 1.0,
       "downstreamRecipeCount": 0,
       "factors": [
-        "Acquisition path: cheapest loaded recipe fixture:r091 -> 2 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r091 -> 2.000 Essence/output",
         "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 5",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: no loaded non-conservation recipes consume this item",
@@ -1723,7 +1723,7 @@
       "downstreamMultiplier": 1.203,
       "downstreamRecipeCount": 125,
       "factors": [
-        "Acquisition path: cheapest loaded recipe fixture:r041 -> 2 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r041 -> 2.000 Essence/output",
         "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 4",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: 125 recipe(s), 19 distinct application(s), weighted 8.500, 2 significant, 0 cross-mod (provenance only) -> x1.203",
@@ -1789,7 +1789,7 @@
       "downstreamMultiplier": 1.203,
       "downstreamRecipeCount": 125,
       "factors": [
-        "Acquisition path: cheapest loaded recipe fixture:r104 -> 2 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r104 -> 2.000 Essence/output",
         "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 4",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: 125 recipe(s), 19 distinct application(s), weighted 8.500, 2 significant, 0 cross-mod (provenance only) -> x1.203",
@@ -1849,7 +1849,7 @@
       "downstreamRecipeCount": 0,
       "factors": [
         "Shape: block item baseline",
-        "Acquisition path: cheapest loaded recipe fixture:r037 -> 1 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r037 -> 1.000 Essence/output",
         "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 6",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: no loaded non-conservation recipes consume this item",
@@ -1907,7 +1907,7 @@
       "downstreamMultiplier": 1.0,
       "downstreamRecipeCount": 0,
       "factors": [
-        "Acquisition path: cheapest loaded recipe fixture:r035 -> 1 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r035 -> 1.000 Essence/output",
         "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 5",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: no loaded non-conservation recipes consume this item",
@@ -1965,7 +1965,7 @@
       "downstreamMultiplier": 1.0,
       "downstreamRecipeCount": 0,
       "factors": [
-        "Acquisition path: cheapest loaded recipe fixture:r017 -> 1 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r017 -> 1.000 Essence/output",
         "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 5",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: no loaded non-conservation recipes consume this item",
@@ -2024,7 +2024,7 @@
       "downstreamRecipeCount": 0,
       "factors": [
         "Bucket: harvesting tool tag/runtime class",
-        "Acquisition path: cheapest loaded recipe fixture:r071 -> 1 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r071 -> 1.000 Essence/output",
         "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 5",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: no loaded non-conservation recipes consume this item",
@@ -2095,7 +2095,7 @@
       "downstreamMultiplier": 1.203,
       "downstreamRecipeCount": 125,
       "factors": [
-        "Acquisition path: cheapest loaded recipe fixture:r008 -> 1 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r008 -> 1.000 Essence/output",
         "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 5",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: 125 recipe(s), 19 distinct application(s), weighted 8.500, 2 significant, 0 cross-mod (provenance only) -> x1.203",
@@ -2160,7 +2160,7 @@
       "downstreamMultiplier": 1.203,
       "downstreamRecipeCount": 125,
       "factors": [
-        "Acquisition path: cheapest loaded recipe fixture:r002 -> 2 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r002 -> 2.000 Essence/output",
         "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 4",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: 125 recipe(s), 19 distinct application(s), weighted 8.500, 2 significant, 0 cross-mod (provenance only) -> x1.203",
@@ -2227,7 +2227,7 @@
       "downstreamRecipeCount": 125,
       "factors": [
         "Progression/source: End-native identity heuristic -> x1.700",
-        "Acquisition path: cheapest loaded recipe fixture:r083 -> 4 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r083 -> 4.000 Essence/output",
         "Recipe complexity: 2 slot(s), 1 unique, 2 easy, 0 rare, 0 mod-specific, depth 2",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: 125 recipe(s), 19 distinct application(s), weighted 8.500, 2 significant, 0 cross-mod (provenance only) -> x1.203",
@@ -2293,7 +2293,7 @@
       "downstreamMultiplier": 1.203,
       "downstreamRecipeCount": 125,
       "factors": [
-        "Acquisition path: cheapest loaded recipe fixture:r101 -> 1 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r101 -> 1.000 Essence/output",
         "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 5",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: 125 recipe(s), 19 distinct application(s), weighted 8.500, 2 significant, 0 cross-mod (provenance only) -> x1.203",
@@ -2352,7 +2352,7 @@
       "downstreamRecipeCount": 0,
       "factors": [
         "Bucket: armor/equipment",
-        "Acquisition path: cheapest loaded recipe fixture:r107 -> 1 Essence/output",
+        "Acquisition path: cheapest loaded recipe fixture:r107 -> 1.000 Essence/output",
         "Recipe complexity: 2 slot(s), 2 unique, 2 easy, 0 rare, 0 mod-specific, depth 5",
         "Recipe valuation: ingredient values already carry rarity/progression; only process + small structural/depth premium applied",
         "Downstream demand: no loaded non-conservation recipes consume this item",
