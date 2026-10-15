@@ -222,7 +222,7 @@ public final class NativeMachineBindingTest {
                 check(f.saved.resolvePool(b.getUUID()).requireReady().isSoloFor(b.getUUID()) && source.canPlayerUse(b), "Final owner disbands and continues using personal Crucible");
             }
         } finally { f.close(); }
-        for (var authority : List.of(MembershipAuthority.FTB_TEAMS, MembershipAuthority.OPENPAC)) {
+        for (var authority : List.of(MembershipAuthority.FTB_TEAMS)) {
             f = new ProjectileNativeInterceptionTest.Fixture(); NativeGuardOutcomeTest.registry(f);
             try {
                 f.level.memoryMachines = new HashMap<>(); f.level.memoryBlocks = new HashMap<>();
@@ -577,6 +577,11 @@ public final class NativeMachineBindingTest {
     }
     private static void stageSevenContinuity() throws Exception {
         int initial = checks;
+        var previous = EssenceConfigManager.serverRuntime();
+        var json = previous.toJson();
+        // Keep multiple real payments observable even when the current repair price fits in one default grant.
+        json.getAsJsonObject("crucible").addProperty("transferRatePerSecond", 120);
+        EssenceConfigManager.install(RuntimeBalanceDefinition.fromJson(json));
         var f = new ProjectileNativeInterceptionTest.Fixture(); NativeGuardOutcomeTest.registry(f);
         f.level.memoryMachines = new HashMap<>(); f.level.memoryBlocks = new HashMap<>();
         try {
@@ -614,10 +619,28 @@ public final class NativeMachineBindingTest {
             // The starter was a in preparedInfuser, so it is already claimed; a teammate cannot retarget it.
             check(com.mistaboom.essence_ascendance.equipment.SoulboundEquipmentData.isBoundTo(repair.getItem(0), a.getUUID()),
                     "Repeated Start preserves the initial manual starter's recipient");
-            tickChannels(f, source, List.of(repair), 8);
-            var job = (InfusionJobProgress) paidField.get(repair); int elapsed = tickField.getInt(repair);
-            check(job != null && !job.paid().isEmpty() && job.funding().keySet().equals(Set.of(pool)) && job.recipient().equals(a.getUUID()),
-                    "Actual repair records exact committed funding and recipient in the existing paid job");
+            long repairCost = RepairInfusionRecipe.forWorkpiece(repair.getItem(0)).orElseThrow().essenceRequired();
+            var beforeRepair = Map.copyOf(f.saved.reservoirs().read(a.getUUID()).units());
+            // Observe the first committed payment: a fixed delay can finish a cheap valid repair.
+            InfusionJobProgress job = null;
+            for (int wait = 0; wait < 200; wait++) {
+                tickChannels(f, source, List.of(repair), 1);
+                job = (InfusionJobProgress) paidField.get(repair);
+                if (job != null && !job.paid().isEmpty()) break;
+            }
+            int elapsed = tickField.getInt(repair);
+            check(job != null && !job.paid().isEmpty() && !job.complete()
+                            && job.funding().equals(Map.of(pool, job.paid())) && job.recipient().equals(a.getUUID()),
+                    "Actual partial repair records exact committed funding and recipient: cost=" + repairCost
+                            + ", elapsed=" + elapsed + ", job=" + job + ", output=" + repair.getItem(1));
+            for (var type : EssenceTypes.ORDERED) {
+                BigInteger debit = beforeRepair.getOrDefault(type.id(), BigInteger.ZERO)
+                        .subtract(f.saved.reservoirs().read(a.getUUID()).units(type.id()));
+                check(debit.equals(BigInteger.valueOf(job.paid().getOrDefault(type.id(), 0L)).multiply(ReservoirService.SCALE)),
+                        "Initial repair funding equals the exact reservoir debit for " + type.id());
+            }
+            System.out.println("Stage 7 partial repair: cost=" + repairCost + ", paid=" + InfusionPayments.total(job.paid())
+                    + ", elapsed=" + elapsed + ", source rate=" + source.structureStats().transferRatePerSecond());
             repair.setProcessingEnabled(a, false);
             check(paidField.get(repair) == job && tickField.getInt(repair) == elapsed, "Explicit Stop preserves paid work and elapsed timer");
             repair.setProcessingEnabled(b, true);
@@ -657,10 +680,28 @@ public final class NativeMachineBindingTest {
                     && tickField.getInt(destination) == elapsed && !destination.processingEnabled(),
                     "The same repair progress and timer travel to another funding identity, requiring explicit restart");
             destination.setLink(a, MachineLink.Mode.LOCKED, new MachineLink.Source(f.level.dimension().location(), personalSource.getBlockPos()));
-            destination.setProcessingEnabled(a, true); tickChannels(f, personalSource, List.of(destination), 4);
-            var funded = (InfusionJobProgress)paidField.get(destination);
-            check(funded.identity().equals(job.identity()) && funded.funding().size() == 2,
-                    "Explicit resumption preserves prior payment and attributes only additional work to the new pool");
+            var personalPool = f.saved.resolvePool(a.getUUID()).requireReady().pool();
+            var beforeResumption = Map.copyOf(f.saved.reservoirs().read(a.getUUID()).units());
+            destination.setProcessingEnabled(a, true);
+            InfusionJobProgress funded = null;
+            for (int wait = 0; wait < 200; wait++) {
+                tickChannels(f, personalSource, List.of(destination), 1);
+                funded = (InfusionJobProgress) paidField.get(destination);
+                if (funded != null && funded.funding().containsKey(personalPool)) break;
+            }
+            check(funded != null && !destination.getItem(0).isEmpty() && destination.getItem(1).isEmpty()
+                            && funded.identity().equals(job.identity())
+                            && funded.funding().keySet().equals(Set.of(pool, personalPool))
+                            && funded.funding().get(pool).equals(job.paid()),
+                    "Explicit resumption preserves prior payment and attributes only additional work to the new pool: " + funded);
+            for (var type : EssenceTypes.ORDERED) {
+                long added = Math.subtractExact(funded.paid().getOrDefault(type.id(), 0L), job.paid().getOrDefault(type.id(), 0L));
+                BigInteger debit = beforeResumption.getOrDefault(type.id(), BigInteger.ZERO)
+                        .subtract(f.saved.reservoirs().read(a.getUUID()).units(type.id()));
+                check(added >= 0 && funded.funding().get(personalPool).getOrDefault(type.id(), 0L) == added
+                                && debit.equals(BigInteger.valueOf(added).multiply(ReservoirService.SCALE)),
+                        "Resumed repair attributes only the exact additional reservoir debit for " + type.id());
+            }
             int beforeJoinTicks = tickField.getInt(destination);
             var rejoin = f.saved.nativeMembership().request(a.getUUID(), pool, true);
             f.saved.nativeMembership().decide(b.getUUID(), rejoin.token(), true);
@@ -726,7 +767,7 @@ public final class NativeMachineBindingTest {
                     && f.saved.save(new net.minecraft.nbt.CompoundTag(), f.level.registryAccess()).equals(moneyBeforeInvalid),
                     "Invalid portable equipment progress is preserved and cannot be overwritten, paid again or completed");
             System.out.println("Stage 7 continuity/ports: " + (checks-initial) + " assertions passed");
-        } finally { f.close(); }
+        } finally { f.close(); EssenceConfigManager.install(previous); }
     }
     /** Actual platform handler mechanics; no claim of third-party pipe interoperability. */
     private static void platformPorts(EssenceInfuserBlockEntity port, net.minecraft.server.level.ServerPlayer actor) throws Exception {

@@ -3,7 +3,7 @@ package com.mistaboom.essence_ascendance.balance.runtime;
 import com.google.gson.*;
 import com.mistaboom.essence_ascendance.balance.config.BalanceSettings;
 import com.mistaboom.essence_ascendance.balance.engine.*;
-import com.mistaboom.essence_ascendance.skill.balance.SkillCapabilityRoutes;
+import com.mistaboom.essence_ascendance.balance.config.BonusProgressionConfig;
 import com.mistaboom.essence_ascendance.skill.ProgressionRequirements;
 import com.mistaboom.essence_ascendance.equipment.ShieldMath;
 import com.mistaboom.essence_ascendance.stat.*;
@@ -13,7 +13,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import java.util.*;
 
-/** Resolves semantic marginal utility against reachable pack evidence and the existing tier economy. */
+/** Generates native meaningful Bonus states from common power/economy inputs and optional human bounds. */
 public final class BonusTrackGenerator {
     private BonusTrackGenerator() {}
     /** Final local publication. Allocation, desirability and prices were resolved before floor grants. */
@@ -22,12 +22,23 @@ public final class BonusTrackGenerator {
     }
     public static RuntimeBalanceDefinition publishMeaningful(RuntimeBalanceDefinition nominal,
             Map<ResourceLocation, com.mistaboom.essence_ascendance.skill.ProgressionRequirements.Bonus> requirements) {
+        return publishMeaningful(nominal, requirements, BonusProgressionConfig.automatic());
+    }
+    public static RuntimeBalanceDefinition publishMeaningful(RuntimeBalanceDefinition nominal,
+            Map<ResourceLocation, ProgressionRequirements.Bonus> requirements, BonusProgressionConfig configuration) {
+        for (String id : configuration.entries().keySet()) if (EssenceStatRegistry.get(ResourceLocation.parse(id)).isEmpty())
+            throw new IllegalArgumentException("bonus_progression.toml: Unknown Bonus ID " + id);
         var json = nominal.toJson();
         var tracks = new TreeMap<ResourceLocation, BonusTrackDefinition>();
         for (var stat : EssenceStatRegistry.values()) {
             var track = nominal.config().balanceProfile().bonusTracks().get(stat.id());
             var authored = requirements.getOrDefault(stat.id(), track.progressionRequirements());
-            tracks.put(stat.id(), publishNative(nominal, stat, track, authored));
+            try {
+                tracks.put(stat.id(), publishNative(nominal, stat, track, authored, configuration.entries().get(stat.id().toString())));
+            } catch (IllegalArgumentException invalid) {
+                if (!configuration.entries().containsKey(stat.id().toString())) throw invalid;
+                throw new IllegalArgumentException("bonus_progression.toml: " + stat.id() + ": " + invalid.getMessage(), invalid);
+            }
         }
         json.getAsJsonObject("balanceProfile").add("bonusTracks", toJson(tracks));
         for (var entry : tracks.entrySet()) {
@@ -41,8 +52,15 @@ public final class BonusTrackGenerator {
     /** Final candidate settings include human overrides; generation-time native floors never reinterpret saved tracks. */
     static BonusTrackDefinition publishNative(RuntimeBalanceDefinition runtime, StatDefinition stat,
             BonusTrackDefinition track, ProgressionRequirements.Bonus authored) {
+        return publishNative(runtime, stat, track, authored, null);
+    }
+    private static BonusTrackDefinition publishNative(RuntimeBalanceDefinition runtime, StatDefinition stat,
+            BonusTrackDefinition track, ProgressionRequirements.Bonus authored, BonusProgressionConfig.Entry configured) {
+        if (configured != null && track.applicability() == BonusTrackDefinition.Applicability.UNAVAILABLE)
+            throw new IllegalArgumentException("Configured Bonus has no supported native state");
         if (track.applicability() == BonusTrackDefinition.Applicability.UNAVAILABLE) return track;
         var inputs = new TreeMap<>(track.inputs());
+        inputs.keySet().removeIf(key -> key.startsWith("configured_"));
         var reasons = new ArrayList<>(track.evidence());
         double first = authored.firstStateFloor(), later = authored.tierImprovementFloor();
         var limit = NativeBonusMechanics.limit(stat, runtime.config().shieldBalance());
@@ -79,6 +97,16 @@ public final class BonusTrackGenerator {
         }
         NativeCooldownBonusFloor.record(runtime, stat, inputs, reasons);
         if (stat.id().equals(EssenceStats.MELEE_ATTACK_SPEED.id())) NativeMeleeRateBonusFloor.record(runtime, inputs, reasons);
+        if (configured != null) {
+            first = Math.max(first, configured.minimumBonusAtLowest());
+            double ceiling = inputs.getOrDefault("native_maximum_effect", 1_000_000.0);
+            if (configured.bonusAtMax() > ceiling || configured.bonusAtMax() < first)
+                throw new IllegalArgumentException("bonus_at_max=" + configured.bonusAtMax() + " conflicts with first floor=" + first + " or native ceiling=" + ceiling);
+            inputs.put("configured_min_tier_order", (double)AscendanceTierRegistry.get(ResourceLocation.parse(configured.minTier())).orElseThrow().order());
+            inputs.put("configured_max_tier_order", (double)AscendanceTierRegistry.get(ResourceLocation.parse(configured.maxTier())).orElseThrow().order());
+            inputs.put("configured_maximum", configured.bonusAtMax());
+            track = configuredTrack(track, configured, first);
+        }
         double maximum = Math.min(track.maximumEffect(), inputs.getOrDefault("native_maximum_effect", 1_000_000.0));
         if (maximum <= 0) throw new IllegalArgumentException("No native headroom for available Bonus " + stat.id());
         var prepared = new BonusTrackDefinition(track.statId(), track.category(), track.unit(), maximum,
@@ -87,7 +115,49 @@ public final class BonusTrackGenerator {
                 track.confidence(), reasons, track.source(), inputs);
         var required = new ProgressionRequirements.Bonus(authored.home(), first, later, authored.unit(), authored.quantization(),
                 authored.mechanicalCap(), authored.earliestConstraint(), authored.latestConstraint(), authored.powerDesirability(), authored.compatibility());
-        return meaningful(prepared, required);
+        var published = meaningful(prepared, required);
+        if (configured != null) return published;
+        // The automatic result uses exactly the same four controls we emit for editing. An untouched
+        // generated file therefore recreates every endpoint, not just its maximum and tier boundaries.
+        var generated = BonusProgressionConfig.generatedEntry(published);
+        var canonical = configuredTrack(prepared, generated, generated.minimumBonusAtLowest());
+        var canonicalRequired = new ProgressionRequirements.Bonus(required.home(), generated.minimumBonusAtLowest(),
+                required.tierImprovementFloor(), required.unit(), required.quantization(), required.mechanicalCap(),
+                required.earliestConstraint(), required.latestConstraint(), required.powerDesirability(), required.compatibility());
+        return meaningful(canonical, canonicalRequired);
+    }
+
+    private static BonusTrackDefinition configuredTrack(BonusTrackDefinition nominal, BonusProgressionConfig.Entry configured, double first) {
+        var tiers = AscendanceTierRegistry.values().stream().sorted(Comparator.comparingInt(AscendanceTierDefinition::order)).toList();
+        int start = tiers.indexOf(AscendanceTierRegistry.get(ResourceLocation.parse(configured.minTier())).orElseThrow());
+        int end = tiers.indexOf(AscendanceTierRegistry.get(ResourceLocation.parse(configured.maxTier())).orElseThrow());
+        var points = new ArrayList<BonusTrackDefinition.Checkpoint>();
+        long cumulative = 0; double fraction = 0;
+        var prices = nominal.checkpoints().stream().filter(BonusTrackDefinition.Checkpoint::purchasable).toList();
+        for (int index = 0; index < tiers.size(); index++) {
+            long segment = 0;
+            if (index >= start && index <= end) {
+                double value = start == end ? configured.bonusAtMax()
+                        : first + (configured.bonusAtMax() - first) * (index - start) / (end - start);
+                if (index > start && value <= fraction * configured.bonusAtMax())
+                    throw new IllegalArgumentException("Configured span has no positive improvement at " + tiers.get(index).id());
+                fraction = index == end ? 1 : value / configured.bonusAtMax();
+                // Meaningful publication assigns prices by state ordinal. Moving identical controls
+                // through the emitted config must not switch to a different nominal tier's price.
+                segment = prices.get(Math.min(index - start, prices.size() - 1)).segmentCost();
+                cumulative = Math.addExact(cumulative, segment);
+            }
+            points.add(new BonusTrackDefinition.Checkpoint(tiers.get(index).id(), cumulative, segment, fraction, index >= start, segment > 0));
+        }
+        var inputs = new TreeMap<>(nominal.inputs());
+        inputs.keySet().removeIf(key -> key.startsWith("native_threshold_"));
+        inputs.put("configured_min_tier_order", (double)AscendanceTierRegistry.get(ResourceLocation.parse(configured.minTier())).orElseThrow().order());
+        inputs.put("configured_max_tier_order", (double)AscendanceTierRegistry.get(ResourceLocation.parse(configured.maxTier())).orElseThrow().order());
+        inputs.put("configured_maximum", configured.bonusAtMax());
+        return new BonusTrackDefinition(nominal.statId(), nominal.category(), nominal.unit(), configured.bonusAtMax(),
+                ResourceLocation.parse(configured.minTier()), ResourceLocation.parse(configured.maxTier()), points,
+                nominal.investmentExponent(), BonusTrackDefinition.PurchaseStyle.CONTINUOUS, List.of(), nominal.applicability(),
+                nominal.compatibilityRequirements(), nominal.confidence(), nominal.evidence(), nominal.source(), inputs);
     }
 
     private static boolean guardImproves(double previous, double value, int minimum) {
@@ -104,7 +174,10 @@ public final class BonusTrackGenerator {
         double ceiling = nominal.inputs().getOrDefault("native_maximum_effect", 1_000_000.0);
         var candidates = points.stream().map(p -> {
             double value = p.effectFraction() * nominal.maximumEffect();
-            return nativeStep ? Math.rint(value * 1_000_000) / 1_000_000 : value;
+            if (nativeStep) return Math.rint(value * 1_000_000) / 1_000_000;
+            // Fractions serialize the endpoint indirectly. Restore a grid value only when the
+            // multiplication error is a few representable doubles, not a genuine partial unit.
+            return RuntimeValueQuantization.reconstructedGridValue(value, quantum);
         }).toList();
         final ArrayList<Double> values;
         try {
@@ -125,24 +198,20 @@ public final class BonusTrackGenerator {
             }
             if (values.isEmpty()) throw new IllegalArgumentException("No meaningful native shield timing state for " + nominal.statId());
         }
-        // Route evidence remains a hard lower bound; optional bonuses never become skill prerequisites.
         int earliest = tiers.indexOf(AscendanceTierRegistry.powerTiers().stream()
                 .min(Comparator.comparingInt(AscendanceTierDefinition::order)).orElseThrow());
-        if (nominal.compatibilityRequirements().contains("held Ascendance rod acquisition")
-                || nominal.compatibilityRequirements().contains("ABILITIES_FLYING_SPEED")
-                || nominal.compatibilityRequirements().contains("native menu cost hook"))
-            earliest = tiers.indexOf(AscendanceTierRegistry.get(nominal.startTier()).orElseThrow());
-        double desirability = nominal.inputs().getOrDefault("native_response", 0.0);
-        double breadth = nominal.inputs().getOrDefault("breadth", 1.0);
-        double score = breadth == 1 ? 0 : desirability / (Math.log(2) + desirability);
-        int firstPurchasable = earliest;
-        int start = Math.max(earliest, firstPurchasable + (int) Math.ceil((tiers.size() - firstPurchasable - values.size()) * score));
-        // Competitive late-band power must stay at its original endpoint. Removing weak
-        // intervening states may move entry later, but never moves a late target earlier.
-        if (nominal.inputs().getOrDefault("competitive_localization", 0.0) == 1)
-            start = Math.max(earliest, tiers.size() - values.size());
-        if (nominal.inputs().containsKey("native_base_step_height")) start = earliest;
-        start = Math.min(tiers.size() - 1, start);
+        // One placement rule for every Bonus: put its meaningful state count at the end of progression.
+        // A native same-tier mechanic may require an earlier feasible span; no acquisition graph participates.
+        int start = Math.max(earliest, tiers.size() - values.size());
+        boolean configured = nominal.inputs().containsKey("configured_min_tier_order");
+        int configuredEnd = tiers.size() - 1;
+        if (configured) {
+            int firstOrder = nominal.inputs().get("configured_min_tier_order").intValue();
+            int lastOrder = nominal.inputs().get("configured_max_tier_order").intValue();
+            start = tiers.indexOf(tiers.stream().filter(tier -> tier.order() == firstOrder).findFirst().orElseThrow());
+            configuredEnd = tiers.indexOf(tiers.stream().filter(tier -> tier.order() == lastOrder).findFirst().orElseThrow());
+            earliest = start;
+        }
         int preferredStart = start;
         if (nominal.inputs().containsKey(NativeCooldownBonusFloor.MARKER)) {
             var plan = NativeCooldownBonusFloor.select(nominal, requirements, candidates, tiers, earliest, start);
@@ -159,6 +228,11 @@ public final class BonusTrackGenerator {
         while (values.size() > room) values.remove(values.size() == 2 ? 0 : values.size() - 2);
         int end = start + values.size() - 1;
         double maximum = values.getLast();
+        if (configured && (start != preferredStart || end != configuredEnd
+                || Math.abs(maximum - nominal.inputs().get("configured_maximum")) > 1e-7))
+            throw new IllegalArgumentException("Configured min_tier/max_tier/bonus_at_max cannot provide a meaningful native increment at every active tier; requested "
+                    + nominal.startTier() + " through " + nominal.completionTier() + " at " + nominal.maximumEffect()
+                    + ", feasible result " + tiers.get(start).id() + " through " + tiers.get(end).id() + " at " + maximum);
         var checkpoints = new ArrayList<BonusTrackDefinition.Checkpoint>();
         var snaps = new ArrayList<Double>(); snaps.add(0.0);
         long cumulative = 0; double fraction = 0;
@@ -181,10 +255,12 @@ public final class BonusTrackGenerator {
         inputs.put("first_state_floor", requirements.firstStateFloor());
         inputs.put("later_state_floor", requirements.tierImprovementFloor());
         inputs.put("nominal_endpoint", nominal.maximumEffect());
-        inputs.put("placement_desirability", score);
-        var reasons = new ArrayList<>(nominal.evidence());
-        reasons.removeIf(reason -> reason.contains("intervening investment and applied effect remain continuous"));
-        reasons.add("Complete native states; first floor is local ignored overage. Later quantized candidates must meet the improvement floor; larger changes remain intact. Contiguous route-compatible placement uses nominal desirability and state count.");
+        inputs.put("generated_state_count", (double) values.size());
+        var reasons = new ArrayList<>(new LinkedHashSet<>(nominal.evidence()));
+        reasons.removeIf(reason -> reason.contains("intervening investment and applied effect remain continuous")
+                || reason.startsWith("Complete native states;") || reason.startsWith("Native whole-tick placement:")
+                || reason.startsWith("Native melee partial-charge placement:"));
+        reasons.add("Complete native states; first floor is local ignored overage. Later quantized candidates must meet the improvement floor; larger changes remain intact. Contiguous placement uses the common final-tier preference and meaningful state count, or the explicit human tier bounds.");
         if (nominal.inputs().containsKey(NativeCooldownBonusFloor.MARKER)) {
             inputs.put("native_cooldown_preferred_start_order", (double)tiers.get(preferredStart).order());
             reasons.add("Native whole-tick placement: preferred start=" + tiers.get(preferredStart).id()
@@ -200,16 +276,9 @@ public final class BonusTrackGenerator {
                 BonusTrackDefinition.PurchaseStyle.FUNDED_STATES, snaps, nominal.applicability(),
                 nominal.compatibilityRequirements(), nominal.confidence(), reasons, nominal.source(), inputs);
     }
-    public static Map<ResourceLocation, BonusTrackDefinition> resolve(PackEvidence evidence, BalanceSettings settings,
+    public static Map<ResourceLocation, BonusTrackDefinition> resolve(BalanceSettings settings,
             Map<ResourceLocation, Long> tierCaps, Map<ResourceLocation, Double> tierFractions,
             Map<ResourceLocation, Double> maxima, Map<String, Double> categorySupply, double exponent) {
-        return resolve(evidence, settings, tierCaps, tierFractions, maxima, categorySupply, exponent,
-                AdaptiveCompetitionCalibration.neutral(evidence));
-    }
-    public static Map<ResourceLocation, BonusTrackDefinition> resolve(PackEvidence evidence, BalanceSettings settings,
-            Map<ResourceLocation, Long> tierCaps, Map<ResourceLocation, Double> tierFractions,
-            Map<ResourceLocation, Double> maxima, Map<String, Double> categorySupply, double exponent,
-            AdaptiveCompetitionCalibration competition) {
         var allTiers = AscendanceTierRegistry.values().stream().sorted(Comparator.comparingInt(AscendanceTierDefinition::order)).toList();
         var tiers = allTiers.stream().filter(AscendanceTierDefinition::grantsPower).toList();
         Map<ResourceLocation, BonusTrackDefinition> result = new TreeMap<>();
@@ -217,116 +286,62 @@ public final class BonusTrackGenerator {
             var semantic = BonusSemantics.require(stat);
             List<String> reasons = new ArrayList<>();
             reasons.add("Native mechanic: " + semantic.nativeMechanism() + "; conditions=" + semantic.conditions());
-            int start = 0, end = tiers.size() - 1;
             double maximum = maxima.get(stat.id());
             var nativeLimit = NativeBonusMechanics.limit(stat);
             if (nativeLimit.isPresent()) {
                 maximum = Math.min(maximum, nativeLimit.orElseThrow().maximum());
                 reasons.add("Native saturation ceiling=" + nativeLimit.orElseThrow().maximum() + "; " + nativeLimit.orElseThrow().evidence());
             }
-            double confidence = .75;
-            String source = "native_semantics+reachable_environment";
-            List<String> compatibility = List.of();
-            boolean available = maximum > 0;
-            if (stat.id().equals(EssenceStats.FISHING_SPEED.id())) {
-                var route = fishingRoute(evidence);
-                reasons.addAll(route.evidence()); available &= route.stage() != null;
-                start = route.stage() == null ? end : Math.min(end, route.stage().ordinal());
-                confidence = route.confidence(); source = route.source();
-                compatibility = List.of("held Ascendance rod acquisition", "native water fishing countdown");
-                maximum = Math.min(maximum, NativeBonusMechanics.FISHING_MAXIMUM_SPEED_PERCENT);
-                reasons.add("Native countdown saturation: positive phases clamp at one tick; initial minimum wait=" + NativeBonusMechanics.FISHING_MINIMUM_WAIT_TICKS + " ticks. Lure remains native; no generated extra loot or reel window.");
-            } else if (semantic.axis() == CapabilityAxis.ANVIL_EFFICIENCY || semantic.axis() == CapabilityAxis.ENCHANTING_EFFICIENCY) {
-                Route route = menuRoute(evidence, semantic.axis());
-                reasons.addAll(route.evidence());
-                available &= route.stage() != null;
-                start = route.stage() == null ? end : Math.min(end, route.stage().ordinal());
-                confidence = route.confidence(); source = route.source();
-                compatibility = List.of("native menu cost hook", semantic.axis().name());
-            } else if (!stat.id().equals(EssenceStats.FLIGHT_SPEED.id())) {
-                reasons.add("Native action/attribute has an intrinsic entry-stage route; contextual use changes breadth, not the player's permanent catalog. Registered Ascendance equipment supplies its own activation route");
-            }
-            if (stat.id().equals(EssenceStats.FLIGHT_SPEED.id())) {
-                compatibility = List.of("FLIGHT", "ABILITIES_FLYING_SPEED", "GLIDING alone is incompatible");
-                Route route = flightRoute(evidence, true);
-                reasons.addAll(route.evidence());
-                available &= route.stage() != null && settings.flightPolicy() != BalanceSettings.FlightPolicy.RESTRICT;
-                start = route.stage() == null ? tiers.size() - 1 : Math.min(end, route.stage().ordinal());
-                confidence = route.confidence(); source = route.source();
-            }
             List<Double> thresholds = List.of();
             double baseStep = 0;
             if (semantic.response() == BonusSemantics.Response.STEP_BOUNDARY) {
-                var nativeStep = NativeBonusMechanics.step(evidence, maximum);
+                var nativeStep = NativeBonusMechanics.step(maximum);
                 baseStep = nativeStep.base();
                 thresholds = nativeStep.thresholds();
-                available &= !thresholds.isEmpty();
                 maximum = thresholds.isEmpty() ? 0 : thresholds.getLast();
-                // Meaningful traversal boundaries determine useful segment endpoints, not purchase gates.
-                end = Math.min(end, Math.max(0, thresholds.size() - 1));
                 reasons.addAll(nativeStep.evidence());
-                reasons.add("Native base step height=" + baseStep + "; resolved traversal boundary additions=" + thresholds);
-                reasons.add("Coalesced meaningful collision boundaries set the useful checkpoints and completion; intervening investment and applied effect remain continuous, with no snapping. Jump remains an available alternative");
-                source = nativeStep.source(); confidence = nativeStep.confidence();
             }
+            boolean available = maximum > 0;
             double marginal = response(semantic, maximum, thresholds.size());
             double breadth = 1.0 / (1 + semantic.conditions().size());
-            double alternative = alternative(evidence, semantic.axis(), reasons);
-            double span = (end - start + 1.0) / tiers.size();
             double headroom = 1.0 / (1 + settings.compositionSafeguard() * Math.max(0, marginal));
-            double intrinsic = available ? Math.max(.01, marginal * breadth * alternative * Math.sqrt(span) * headroom) : 0;
-            // Shared dimensionless exchange anchor: a 100% broadly applicable multiplier is one utility unit.
+            double intrinsic = available ? Math.max(.01, marginal * breadth * headroom) : 0;
             double utility = intrinsic / Math.log(2);
             double economy = categorySupply.getOrDefault(stat.essenceType().id().toString(), 1.0);
             Map<String, Double> inputs = new TreeMap<>();
-            if (stat.id().equals(EssenceStats.FISHING_SPEED.id())) {
-                inputs.put("native_maximum_effect", NativeBonusMechanics.FISHING_MAXIMUM_SPEED_PERCENT);
-                inputs.put("native_minimum_wait_ticks", (double) NativeBonusMechanics.FISHING_MINIMUM_WAIT_TICKS);
-                inputs.put("native_phase_boundary_ticks", 1.0);
-            }
-            inputs.put("native_response", marginal); inputs.put("breadth", breadth); inputs.put("environment_alternatives", alternative);
-            inputs.put("useful_span", span); inputs.put("composition_headroom", headroom); inputs.put("marginal_power", intrinsic);
+            inputs.put("native_response", marginal); inputs.put("breadth", breadth);
+            inputs.put("composition_headroom", headroom); inputs.put("marginal_power", intrinsic);
             inputs.put("category_supply", economy); inputs.put("utility_price_multiplier", utility);
             inputs.put("purchase_budget_share", ProgressionPricing.purchaseShare());
-            if (competition.localized(stat)) inputs.put("competitive_localization", 1.0);
             nativeLimit.ifPresent(limit -> inputs.put("native_maximum_effect", limit.maximum()));
             if (baseStep > 0) inputs.put("native_base_step_height", baseStep);
             for (int index = 0; index < thresholds.size(); index++) inputs.put("native_threshold_" + (index + 1), thresholds.get(index));
-            List<Double> thresholdFractions = new ArrayList<>();
-            if (!thresholds.isEmpty()) {
-                thresholdFractions.add(0.0);
-                for (double threshold : thresholds) thresholdFractions.add(threshold == maximum ? 1.0 : threshold / maximum);
-            }
+            int stateCount = thresholds.isEmpty() ? tiers.size() : Math.min(tiers.size(), thresholds.size());
             List<BonusTrackDefinition.Checkpoint> checkpoints = new ArrayList<>();
             long cumulative = 0; double priorFraction = 0;
-            double lower = start == 0 ? 0 : tierFractions.get(tiers.get(start - 1).id());
-            double upper = tierFractions.get(tiers.get(end).id());
             for (var tier : allTiers) {
                 int index = tiers.indexOf(tier);
                 long segment = 0; double fraction = priorFraction;
-                boolean unlocked = available && index >= start;
-                if (unlocked && index <= end) {
-                    fraction = thresholds.isEmpty() ? Math.clamp((tierFractions.get(tier.id()) - lower) / (upper - lower), 0, 1)
-                            : thresholdFractions.get(Math.min(thresholdFractions.size() - 1, index - start + 1));
-                    if (index == end) fraction = 1;
-                    double originalFraction = fraction;
-                    if (thresholds.isEmpty()) fraction = competition.bonusFraction(stat, ProgressionBand.at(index), fraction);
-                    competition.bonusCheckpoint(stat, ProgressionBand.at(index), originalFraction, fraction * maximum);
+                boolean unlocked = available && index >= 0;
+                if (unlocked && index < stateCount) {
+                    fraction = thresholds.isEmpty() ? tierFractions.get(tier.id())
+                            : thresholds.get(Math.min(thresholds.size() - 1, index)) / maximum;
+                    if (index == stateCount - 1) fraction = 1;
                     long priorEconomic = index == 0 ? 0 : tierCaps.get(tiers.get(index - 1).id());
-                    // Adjacent caps preserve every previous tier's economic growth. Delayed tracks never pay locked segments.
-                    segment = fraction > priorFraction ? safeCost((tierCaps.get(tier.id()) - priorEconomic) * economy * utility * ProgressionPricing.purchaseShare()) : 0;
+                    segment = fraction > priorFraction ? safeCost((tierCaps.get(tier.id()) - priorEconomic)
+                            * economy * utility * ProgressionPricing.purchaseShare()) : 0;
                     cumulative = Math.addExact(cumulative, segment);
                 }
                 checkpoints.add(new BonusTrackDefinition.Checkpoint(tier.id(), cumulative, segment, fraction, unlocked, segment > 0));
                 priorFraction = fraction;
             }
-            reasons.add("Price = adjacent category-economy segment × normalized native response × breadth × alternatives × useful-span × composition headroom × shared purchase-budget share");
-            reasons.add("Marginal power is price-independent for normalized Bonus Attunement; assumptions are modeling estimates, not measured player uptime");
+            reasons.add("Price = adjacent category-economy segment × normalized native response × conditional breadth × composition headroom × shared purchase-budget share");
+            reasons.add("Unlock placement uses meaningful native state count, not pack acquisition graphs, substitutes, or an individual Bonus placement rule");
             result.put(stat.id(), new BonusTrackDefinition(stat.id(), stat.category(), stat.unit(), maximum,
-                    tiers.get(start).id(), tiers.get(end).id(), checkpoints, exponent,
-                    BonusTrackDefinition.PurchaseStyle.CONTINUOUS,
-                    List.of(), available ? BonusTrackDefinition.Applicability.AVAILABLE : BonusTrackDefinition.Applicability.UNAVAILABLE,
-                    compatibility, confidence, reasons, source, inputs));
+                    tiers.getFirst().id(), tiers.get(stateCount - 1).id(), checkpoints, exponent,
+                    BonusTrackDefinition.PurchaseStyle.CONTINUOUS, List.of(),
+                    available ? BonusTrackDefinition.Applicability.AVAILABLE : BonusTrackDefinition.Applicability.UNAVAILABLE,
+                    semantic.conditions(), .75, reasons, "generic_native_progression", inputs));
         }
         return Collections.unmodifiableMap(result);
     }
@@ -351,127 +366,9 @@ public final class BonusTrackGenerator {
             case LUCK -> Math.log1p(maximum) / 2; // Quality-sensitive pools only; opaque loot frequency remains uncertain.
         };
     }
-    private static double alternative(PackEvidence evidence, CapabilityAxis axis, List<String> reasons) {
-        long population = evidence.equipment().stream().filter(e -> e.included() && e.reachable()).count();
-        long alternatives = evidence.equipment().stream().filter(e -> e.included() && e.reachable() && e.axes().getOrDefault(axis, 0.0) > 0).count();
-        // Equipment is an alternative, not a prerequisite, except for explicit mechanism compatibility.
-        double coverage = population == 0 ? 0 : alternatives / (double) population;
-        reasons.add("Reachable included equipment covering " + axis + ": " + alternatives + "/" + population
-                + "; no observations means neutral alternatives fallback, not invented availability");
-        return 1 / (1 + coverage);
-    }
-    public record Route(ProgressionBand stage, double confidence, String source, List<String> evidence) {}
-    public static Route fishingRoute(PackEvidence evidence) {
-        var resource = evidence.resources().get("essence_ascendance:ascendance_fishing_rod");
-        if (resource != null) return new Route(resource.reachable() ? resource.stage() : null, resource.confidence(),
-                "rod_recipe+authoritative_acquisition", List.of("Ascendance rod acquisition stage=" + resource.stage()
-                + "; reachable=" + resource.reachable() + "; sources=" + resource.sources().stream().map(AcquisitionSource::id).toList()));
-        if (evidence.resources().isEmpty()) return new Route(ProgressionBand.ENTRY, .4, "empty_evidence_rod_recipe_fallback",
-                List.of("No acquisition evidence supplied; provisional native rod recipe entry route, not a loaded-pack observation"));
-        return new Route(null, 0, "conservative_unavailable", List.of("No reachable Ascendance rod acquisition evidence; Fishing Speed unavailable until a validated rebuild supplies the route"));
-    }
-    static Route menuRoute(PackEvidence evidence, CapabilityAxis axis) {
-        List<CapabilityEvidence> routes = new ArrayList<>();
-        List<String> unavailable = new ArrayList<>();
-        Set<String> nativeMenus = new HashSet<>();
-        for (var capability : evidence.capabilities()) if (capability.axes().getOrDefault(axis, 0.0) > 0) {
-            var resource = evidence.resources().get(capability.subjectId());
-            var stage = resource == null || resource.stage().ordinal() < capability.stage().ordinal() ? capability.stage() : resource.stage();
-            routes.add(new CapabilityEvidence(capability.subjectId(), stage, capability.axes(),
-                    capability.reachable() && (resource == null || resource.reachable()),
-                    resource == null ? capability.confidence() : Math.min(capability.confidence(), resource.confidence()), capability.reason()));
-        }
-        // Registered native block classes prove the menu mechanic; a modded item name never does.
-        for (var block : net.minecraft.core.registries.BuiltInRegistries.BLOCK) {
-            boolean matches = axis == CapabilityAxis.ANVIL_EFFICIENCY
-                    ? block instanceof net.minecraft.world.level.block.AnvilBlock
-                    : block == net.minecraft.world.level.block.Blocks.ENCHANTING_TABLE;
-            if (!matches) continue;
-            String id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(block.asItem()).toString();
-            var resource = evidence.resources().get(id);
-            if (resource != null) {
-                nativeMenus.add(id);
-                routes.add(new CapabilityEvidence(id, resource.stage(), Map.of(axis, 1.0),
-                        resource.reachable(), resource.confidence(), "Registered native menu block with acquisition stage"));
-                if (!resource.reachable()) {
-                    var unresolved = resource.sources().stream().flatMap(source -> source.dependencies().stream()).distinct().sorted()
-                            .filter(dependency -> !evidence.resources().containsKey(dependency) || !evidence.resources().get(dependency).reachable())
-                            .limit(12).toList();
-                    unavailable.add("Native menu " + id + " is registered, but its acquisition is unproven @ "
-                            + resource.stage() + "; confidence=" + resource.confidence()
-                            + (unresolved.isEmpty() ? "" : "; unproven materials=" + unresolved));
-                }
-            } else {
-                unavailable.add("Native menu " + id + " is registered, but no acquisition evidence was collected");
-            }
-        }
-        var selected = routes.stream().filter(route -> route.reachable() && (nativeMenus.contains(route.subjectId()) || route.confidence() >= .6))
-                .min(Comparator.comparing(CapabilityEvidence::stage).thenComparing(CapabilityEvidence::subjectId));
-        if (selected.isPresent()) {
-            var route = selected.orElseThrow();
-            return new Route(route.stage(), route.confidence(), "native_menu+acquisition", List.of(route.subjectId()
-                    + " @ " + route.stage() + ": " + route.reason() + "; confidence=" + route.confidence()));
-        }
-        if (evidence.resources().isEmpty()) return new Route(ProgressionBand.ENTRY, .4, "empty_evidence_native_menu_fallback",
-                List.of("No acquisition evidence supplied; entry-stage native menu fallback is provisional, with explicit low confidence"));
-        unavailable.add("No reliable reachable native menu or provider capability for " + axis
-                + "; unavailable is an evidence gap, not a future tier unlock");
-        return new Route(null, 0, "conservative_unavailable", List.copyOf(unavailable));
-    }
-    public static Route flightRoute(PackEvidence evidence, boolean includeDeclaredRoutes) {
-        List<CapabilityEvidence> candidates = new ArrayList<>(evidence.capabilities());
-        for (var item : evidence.equipment()) if (item.included())
-            candidates.add(new CapabilityEvidence(item.itemId(), item.stage(), item.axes(), item.reachable(), item.confidence(), item.reason()));
-        if (includeDeclaredRoutes) candidates.addAll(SkillCapabilityRoutes.declaredRoutes());
-        EvidenceSink resolvedClaims = new EvidenceSink(); evidence.facts().forEach(resolvedClaims::add);
-        List<CapabilityEvidence> normalized = new ArrayList<>();
-        for (var candidate : candidates) {
-            var resource = evidence.resources().get(candidate.subjectId());
-            var stage = resource == null || resource.stage().ordinal() < candidate.stage().ordinal() ? candidate.stage() : resource.stage();
-            double reliability = resource == null ? candidate.confidence() : Math.min(candidate.confidence(), resource.confidence());
-            Map<CapabilityAxis, Double> axes = new EnumMap<>(CapabilityAxis.class); axes.putAll(candidate.axes());
-            for (var axis : List.of(CapabilityAxis.FLIGHT, CapabilityAxis.ABILITIES_FLYING_SPEED)) {
-                var claim = resolvedClaims.get(resource == null ? EvidenceFact.Subject.CAPABILITY : EvidenceFact.Subject.ITEM,
-                        candidate.subjectId(), "axis." + axis.name());
-                if (claim != null) {
-                    reliability = Math.min(reliability, claim.confidence());
-                    axes.put(axis, claim.value().type() == EvidenceFact.ValueType.FLAG ? (claim.value().flag() ? 1.0 : 0.0) : claim.value().number());
-                }
-            }
-            normalized.add(new CapabilityEvidence(candidate.subjectId(), stage, axes,
-                    candidate.reachable() && (resource == null || resource.reachable()), reliability,
-                    candidate.reason() + (resource == null ? "" : "; acquisition stage=" + resource.stage() + ", confidence=" + resource.confidence())));
-        }
-        candidates = normalized;
-        candidates.sort(Comparator.comparing(CapabilityEvidence::stage).thenComparing(CapabilityEvidence::subjectId));
-        List<String> reasons = new ArrayList<>();
-        CapabilityEvidence selected = null;
-        for (var candidate : candidates) {
-            if (candidate.axes().getOrDefault(CapabilityAxis.FLIGHT, 0.0) <= 0
-                    && candidate.axes().getOrDefault(CapabilityAxis.GLIDING, 0.0) <= 0) continue;
-            var resource = evidence.resources().get(candidate.subjectId());
-            boolean reachable = candidate.reachable() && (resource == null || resource.reachable());
-            boolean compatible = candidate.axes().getOrDefault(CapabilityAxis.FLIGHT, 0.0) > 0
-                    && candidate.axes().getOrDefault(CapabilityAxis.ABILITIES_FLYING_SPEED, 0.0) > 0;
-            boolean reliable = candidate.confidence() >= .6;
-            reasons.add(candidate.subjectId() + " @ " + candidate.stage() + ": reachable=" + reachable
-                    + ", FLIGHT+ABILITIES_FLYING_SPEED=" + compatible + ", confidence=" + candidate.confidence() + "; " + candidate.reason());
-            evidence.facts().stream().filter(f -> f.subjectId().equals(candidate.subjectId())
-                    && (f.property().startsWith("axis.") || f.property().equals("stage") || f.property().equals("attainable")))
-                    .forEach(f -> reasons.add("Claim " + f.property() + " provider=" + f.provider() + " origin=" + f.origin()
-                            + " confidence=" + f.confidence() + " reason=" + f.reason()));
-            if (selected == null && reachable && compatible && reliable) selected = candidate;
-        }
-        if (selected == null) {
-            reasons.add("Conservative unavailable fallback: no reachable reliable standard-flight speed contract; GLIDING and opaque jetpacks do not qualify");
-            return new Route(null, 0, "conservative_unavailable", List.copyOf(reasons));
-        }
-        return new Route(selected.stage(), selected.confidence(), selected.reason().contains("DECLARED_NOT_IMPLEMENTED")
-                ? "explicit_declared_skill_route" : "verified_capability_provider", List.copyOf(reasons));
-    }
     public static JsonObject diagnostics(RuntimeBalanceDefinition runtime) {
         JsonObject result = new JsonObject();
-        result.addProperty("policy", "semantic_marginal_utility_v1");
+        result.addProperty("policy", "generic_native_progression_v2");
         result.addProperty("purchasePolicy", "continuous_integer_essence_targets");
         result.add("tracks", runtime.toJson().getAsJsonObject("balanceProfile").getAsJsonObject("bonusTracks").deepCopy());
         return result;

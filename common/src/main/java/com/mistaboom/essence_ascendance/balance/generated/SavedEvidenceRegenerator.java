@@ -63,11 +63,11 @@ public final class SavedEvidenceRegenerator {
         EconomyGenerator.validate(economy);
         EconomyGenerator.validateWhole(economy);
         var generation = metadata.has("generation") ? metadata.getAsJsonObject("generation") : new JsonObject();
-        var competition = new com.mistaboom.essence_ascendance.balance.runtime.AdaptiveCompetitionCalibration(evidence,
-                generation.has("competitiveCapabilities") ? generation.getAsJsonObject("competitiveCapabilities") : null);
         RuntimeBalanceDefinition runtime = com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceGenerator.generate(
-                evidence, economy, inputs.settings(), inputs.overrides(), competition);
-        generation.add("adaptiveBalance", competition.complete(runtime)); metadata.add("generation", generation);
+                evidence, economy, inputs.settings(), inputs.overrides(), inputs.skillLayout(), inputs.bonusProgression());
+        generation.add("skillLayout", gson.toJsonTree(inputs.skillLayout()));
+        generation.add("bonusProgression", gson.toJsonTree(inputs.bonusProgression()));
+        metadata.add("generation", generation);
         metadata.remove("diagnosticOnly");
         metadata.addProperty("generatorRevision", GeneratedBalanceService.GENERATION_REVISION);
         metadata.addProperty("runtimeRebuild", "Saved pack evidence and economy replay; no world opened, no evidence recollected, no live gameplay observed");

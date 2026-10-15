@@ -9,18 +9,13 @@ public final class MembershipNativeHookTest {
     private MembershipNativeHookTest() { }
     public static void run() {
         registeredInterfacePackets();
-        if (Boolean.getBoolean("essence.membership.expectQuests")) {
-            try { com.mistaboom.essence_ascendance.balance.quest.QuestDefinitionReplay.installedFixture(); }
-            catch (Exception failure) { throw new AssertionError("Installed FTB quest definition fixture failed", failure); }
-        }
         try { com.mistaboom.essence_ascendance.projectile.NativeMachineBindingTest.run();
             com.mistaboom.essence_ascendance.projectile.NativeAutomatedItemOwnershipTest.run();
             com.mistaboom.essence_ascendance.projectile.NativeInfuserStartTest.run(); }
         catch (Exception failure) { throw new AssertionError("Actual machine fixtures failed", failure); }
         var statuses = new java.util.EnumMap<MembershipAuthority, ProviderReadiness>(MembershipAuthority.class);
         for (var entry : MembershipProviders.entries()) {
-            boolean expected = Boolean.getBoolean(entry.authority() == MembershipAuthority.FTB_TEAMS
-                    ? "essence.membership.expectFtb" : "essence.membership.expectOpenpac");
+            boolean expected = Boolean.getBoolean("essence.membership.expectFtb");
             if (Platform.isModLoaded(entry.modId()) != expected) throw new AssertionError("Unexpected provider runtime " + entry.modId());
             var installed = MembershipRuntime.provider(entry.authority());
             statuses.put(entry.authority(), installed.readiness());
@@ -32,20 +27,18 @@ public final class MembershipNativeHookTest {
                 throw new AssertionError("No-world manager must be unready, not authoritative empty");
             if (provider.isCurrent(null, new UUID(0, 1), null)) throw new AssertionError("Unready provider must deny access");
             try {
-                Class.forName("com.mistaboom.essence_ascendance.team.compat." + (entry.authority() == MembershipAuthority.FTB_TEAMS
-                        ? "FtbTeamsApiBoundaryTest" : "OpenPacApiBoundaryTest")).getMethod("run").invoke(null);
+                Class.forName("com.mistaboom.essence_ascendance.team.compat.FtbTeamsApiBoundaryTest").getMethod("run").invoke(null);
             } catch (ReflectiveOperationException failure) { throw new AssertionError("Actual API boundary fixtures failed", failure); }
         } else {
             if (installed.provider() != null || installed.readiness().status() != ProviderReadiness.Status.ABSENT)
                 throw new AssertionError("Absent provider was linked/activated");
-            try { Class.forName(entry.authority() == MembershipAuthority.FTB_TEAMS ? "dev.ftb.mods.ftbteams.api.FTBTeamsAPI"
-                    : "xaero.pac.common.server.api.OpenPACServerAPI"); throw new AssertionError("Optional jar leaked onto absent runtime"); }
+            try { Class.forName("dev.ftb.mods.ftbteams.api.FTBTeamsAPI"); throw new AssertionError("Optional jar leaked onto absent runtime"); }
             catch (ClassNotFoundException absent) { /* Expected genuine absent classpath. */ }
         }
         }
         statuses.put(MembershipAuthority.NATIVE, NativeMembershipService.READY);
         MembershipAuthority expectedAuthority = Boolean.getBoolean("essence.membership.expectFtb") ? MembershipAuthority.FTB_TEAMS
-                : Boolean.getBoolean("essence.membership.expectOpenpac") ? MembershipAuthority.OPENPAC : MembershipAuthority.NATIVE;
+                : MembershipAuthority.NATIVE;
         if (MembershipAuthority.select(MembershipAuthority.Selection.AUTO, null, statuses).authority() != expectedAuthority)
             throw new AssertionError("Runtime AUTO priority mismatch");
         System.out.println("MembershipNativeHookTest: PASS; actual loader initialization; no world/manager opened");

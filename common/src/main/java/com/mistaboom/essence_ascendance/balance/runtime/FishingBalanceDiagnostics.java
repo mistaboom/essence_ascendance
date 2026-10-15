@@ -24,7 +24,7 @@ public final class FishingBalanceDiagnostics {
                 var skill = SkillRegistry.require(id); var curve = runtime.skillCurves().get(id.toString());
                 int legal = 0;
                 for (int rank = 1; rank <= curve.maximumRank(); rank++) {
-                    var gate = com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry.get(SkillProgressionGraph.gated(skill, curve.requiredTierId(), rank)).orElseThrow();
+                    var gate = com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry.get(SkillBalanceRuntime.requiredTier(skill, curve.requiredTierId(), rank)).orElseThrow();
                     if (tier.ascendanceTier().order() >= gate.order()) legal = rank;
                 }
                 if (legal > 0) ranks.put(id, legal);

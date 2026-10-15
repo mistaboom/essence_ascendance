@@ -1,19 +1,15 @@
 // Explicit isolated headless/no-world optional-loading checks. No EULA acceptance or live mods-folder changes.
 // Run -I gradle/membership-native-hooks.init.gradle :fabric:runServer or :neoforge:runServer.
 // Add -PmembershipFixtureFtb=true for the exact verified binaries under build/ftb-stage3-verification.
-// Library 2101.1.36/37 / optional Quests 2101.1.36 use checksummed build/ftb-shared-compat-audit binaries.
+// Library 2101.1.36/37 use checksummed build/ftb-shared-compat-audit binaries.
 allprojects { p ->
     p.afterEvaluate {
         if (!(p.path in [':fabric', ':neoforge'])) return
         def enabled = p.rootProject.findProperty('membershipFixtureFtb') == 'true'
         def libraryVersion = p.rootProject.findProperty('membershipFixtureFtbLibraryVersion') ?: '2101.1.30'
-        def quests = p.rootProject.findProperty('membershipFixtureFtbQuests') == 'true'
-        if (!(libraryVersion in ['2101.1.30', '2101.1.36', '2101.1.37']) || (quests && (!enabled || !(libraryVersion in ['2101.1.36', '2101.1.37']))))
-            throw new GradleException('Membership fixture requires an audited Library version; Quests requires FTB with Library 2101.1.36 or 2101.1.37')
-        def openpac = p.rootProject.findProperty('membershipFixtureOpenpac') == 'true'
-        def mode = enabled ? (openpac ? 'both' : 'ftb') : (openpac ? 'openpac' : 'absent')
-        if (enabled && libraryVersion != '2101.1.30') mode += '-library-' + libraryVersion
-        if (quests) mode += '-quests'
+        if (!(libraryVersion in ['2101.1.30', '2101.1.36', '2101.1.37']))
+            throw new GradleException('Membership fixture requires an audited Library version')
+        def mode = enabled ? 'ftb-' + libraryVersion : 'absent'
         def common = p.rootProject.project(':common')
         def testRun = p.rootProject.file("build/membership-native-${p.name}-${mode}-run").canonicalFile
         def metadata = p.rootProject.file("build/membership-fixture-${p.name}-metadata")
@@ -24,9 +20,7 @@ allprojects { p ->
             if (p.path == ':fabric') {
                 from(common.sourceSets.test.output) { include 'com/mistaboom/essence_ascendance/team/MembershipNativeHookTest*.class' }
                 from(common.sourceSets.test.output) { include 'com/mistaboom/essence_ascendance/team/compat/FtbTeamsApiBoundaryTest*.class' }
-                from(common.sourceSets.test.output) { include 'com/mistaboom/essence_ascendance/team/compat/OpenPacApiBoundaryTest*.class' }
                 from(common.sourceSets.test.output) { include 'com/mistaboom/essence_ascendance/team/MembershipProviderTest*.class' }
-                from(common.sourceSets.test.output) { include 'com/mistaboom/essence_ascendance/balance/quest/QuestDefinitionReplay*.class' }
                 from(common.sourceSets.test.output) {
                     include 'com/mistaboom/essence_ascendance/projectile/NativeMachineBindingTest*.class'
                     include 'com/mistaboom/essence_ascendance/projectile/NativeSinglePlayerChannelTest*.class'
@@ -67,9 +61,7 @@ side="SERVER"
                 dependsOn(common.tasks.named('testClasses'))
                 from(common.sourceSets.test.output) { include 'com/mistaboom/essence_ascendance/team/MembershipNativeHookTest*.class' }
                 from(common.sourceSets.test.output) { include 'com/mistaboom/essence_ascendance/team/compat/FtbTeamsApiBoundaryTest*.class' }
-                from(common.sourceSets.test.output) { include 'com/mistaboom/essence_ascendance/team/compat/OpenPacApiBoundaryTest*.class' }
                 from(common.sourceSets.test.output) { include 'com/mistaboom/essence_ascendance/team/MembershipProviderTest*.class' }
-                from(common.sourceSets.test.output) { include 'com/mistaboom/essence_ascendance/balance/quest/QuestDefinitionReplay*.class' }
                 from(common.sourceSets.test.output) {
                     include 'com/mistaboom/essence_ascendance/projectile/NativeMachineBindingTest*.class'
                     include 'com/mistaboom/essence_ascendance/projectile/NativeSinglePlayerChannelTest*.class'
@@ -91,8 +83,6 @@ side="SERVER"
         p.tasks.named('runServer').configure { t ->
             t.internalRunDir.set(testRun)
             t.jvmArgs('-Dessence.membership.expectFtb=' + enabled)
-            t.jvmArgs('-Dessence.membership.expectQuests=' + quests)
-            t.jvmArgs('-Dessence.membership.expectOpenpac=' + openpac)
             t.dependsOn(fixture)
             if (p.path == ':fabric') t.args('--initSettings')
             t.doFirst {
@@ -102,13 +92,7 @@ side="SERVER"
                         p.rootProject.file("build/ftb-stage3-verification/ftb-teams-${p.name}-2101.1.11.jar").canonicalFile,
                         p.rootProject.file("build/${libraryVersion == '2101.1.30' ? 'ftb-stage3-verification' : 'ftb-shared-compat-audit'}/ftb-library-${p.name}-${libraryVersion}.jar").canonicalFile
                 ] : []
-                if (quests) providerJars += p.rootProject.file("build/ftb-shared-compat-audit/ftb-quests-${p.name}-2101.1.36.jar").canonicalFile
                 if (providerJars.any { !it.isFile() }) throw new GradleException('Missing verified no-world FTB test binaries')
-                if (openpac) {
-                    providerJars += p.rootProject.file("build/openpac-stage4-verification/open-parties-and-claims-${p.name}-1.21.1-0.32.7.jar").canonicalFile
-                    if (p.path == ':fabric') providerJars += p.rootProject.file('build/openpac-stage4-verification/forgeconfigapiport-fabric-21.1.6.jar').canonicalFile
-                    if (providerJars.any { !it.isFile() }) throw new GradleException('Missing verified no-world OpenPAC test binaries')
-                }
                 if (p.path == ':fabric') {
                     t.jvmArgs('-Dfabric.addMods=' + ([fixture.get().archiveFile.get().asFile.canonicalFile] + providerJars).collect { it.path }.join(File.pathSeparator))
                 } else {

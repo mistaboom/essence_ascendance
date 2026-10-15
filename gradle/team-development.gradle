@@ -1,8 +1,6 @@
 // Minimal isolated IntelliJ runs. Optional team mods are installed manually in these run directories.
 // No team dependencies are added to a runtime classpath or bundled into release jars.
-def providerMode = rootProject.findProperty('teamDevProvider') ?: 'ftb'
-if (!(providerMode in ['ftb', 'openpac', 'both']))
-    throw new GradleException('teamDevProvider must be ftb, openpac, or both')
+def providerMode = 'ftb'
 
 loom {
     runs {

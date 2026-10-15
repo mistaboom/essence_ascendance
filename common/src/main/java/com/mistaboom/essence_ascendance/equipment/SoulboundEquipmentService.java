@@ -1,7 +1,6 @@
 package com.mistaboom.essence_ascendance.equipment;
 
 import com.mistaboom.essence_ascendance.EssenceAscendance;
-import com.mistaboom.essence_ascendance.infuser.EquipmentInfusionData;
 import dev.architectury.event.events.common.PlayerEvent;
 import dev.architectury.event.events.common.TickEvent;
 import net.minecraft.server.level.ServerPlayer;
@@ -52,48 +51,10 @@ public final class SoulboundEquipmentService {
                     restorePending(serverPlayer);
                 }
 
-                /*
-                 * Compatibility migration for artifacts invested before
-                 * soulbinding existed. Fresh Latent/zero-progress equipment is
-                 * intentionally ignored. Once per second is ample and keeps the
-                 * steady-state cost negligible.
-                 */
-                if (serverPlayer.level().getGameTime() % 20L == 0L) {
-                    bindLegacyInvestedEquipment(serverPlayer);
-                }
             }
         });
 
         initialized = true;
-    }
-
-    private static void bindLegacyInvestedEquipment(ServerPlayer player) {
-        Inventory inventory = player.getInventory();
-        for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
-            ItemStack stack = inventory.getItem(slot);
-            if (!EquipmentTierData.isAscendanceEquipment(stack)
-                    || SoulboundEquipmentData.isSoulbound(stack)) {
-                continue;
-            }
-
-            boolean historicallyInvested =
-                    EquipmentTierData.tier(stack) != EquipmentTier.LATENT
-                            || EquipmentInfusionData.totalContributed(stack) > 0L;
-            if (!historicallyInvested) {
-                continue;
-            }
-
-            SoulboundEquipmentData.bind(
-                    stack,
-                    player.getUUID(),
-                    player.getGameProfile().getName()
-            );
-            EssenceAscendance.LOGGER.info(
-                    "Migrated invested Ascendance artifact {} to soulbound owner {}",
-                    stack.getHoverName().getString(),
-                    player.getGameProfile().getName()
-            );
-        }
     }
 
     /**

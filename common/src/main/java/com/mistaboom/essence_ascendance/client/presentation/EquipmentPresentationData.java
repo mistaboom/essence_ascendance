@@ -40,11 +40,11 @@ public final class EquipmentPresentationData {
     public record InfusionTarget(EquipmentTier tier, long totalEssenceRequired, int matrixCount) { }
 
     public static double physicalValue(Profile profile, TierBaseline tier, EquipmentBaselineProperty property,
-                                       boolean quantized, EquipmentSlot slot) {
+                                       EquipmentSlot slot) {
         double value = EquipmentBaselineService.resolvedValue(tier.baseline().value(property),
-                profile.definition(), property, quantized);
+                profile.definition(), property);
         return slot != null && (property == EquipmentBaselineProperty.ARMOR || property == EquipmentBaselineProperty.TOUGHNESS)
-                ? ArmorStatWeights.pointsForSlot(value, slot, quantized) : value;
+                ? ArmorStatWeights.physicalPointsForSlot(value, slot) : value;
     }
 
     /** Current usable item durability, not an unconnected generated durability target. */
@@ -69,8 +69,7 @@ public final class EquipmentPresentationData {
     public record Projection(PresentationContext.Availability availability, List<Profile> profiles,
                              List<TierBaseline> tierBaselines, List<InfusionTarget> infusionTargets,
                              long repairEssencePerDurability, int fracturedLatentIngotCount,
-                             Map<String, Map<String, Integer>> equipmentEssenceWeights,
-                             boolean quantizedBaselines) {
+                             Map<String, Map<String, Integer>> equipmentEssenceWeights) {
         public boolean ready() { return availability == PresentationContext.Availability.READY; }
     }
 
@@ -79,7 +78,7 @@ public final class EquipmentPresentationData {
         if (context.runtime().availability() != PresentationContext.Availability.READY
                 || context.runtime().definition() == null) {
             return new Projection(context.runtime().availability(), List.of(), List.of(), List.of(),
-                    0, 0, Map.of(), false);
+                    0, 0, Map.of());
         }
         var runtime = context.runtime().definition();
         List<Profile> profiles = EquipmentProfileRegistry.values().stream()
@@ -105,7 +104,6 @@ public final class EquipmentPresentationData {
                 }).toList();
         return new Projection(PresentationContext.Availability.READY, profiles, tiers, targets,
                 infuser.repair().essencePerDurability(), infuser.repair().fracturedLatentIngotCount(),
-                infuser.equipmentEssenceWeights(),
-                runtime.composition().getOrDefault("equipment_quantization", 0.0) == 1.0);
+                infuser.equipmentEssenceWeights());
     }
 }

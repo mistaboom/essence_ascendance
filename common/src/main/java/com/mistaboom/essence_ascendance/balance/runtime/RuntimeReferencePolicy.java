@@ -5,7 +5,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import java.util.*;
 
-/** Same-axis, already-attainable evidence only. Missing observations never invent stronger later gear. */
+/** Same-axis native measurements and explicitly labeled catalog estimates. */
 final class RuntimeReferencePolicy {
     private RuntimeReferencePolicy() {}
     static final double LATENT_CAPABILITY_RATIO = .7;
@@ -48,8 +48,8 @@ final class RuntimeReferencePolicy {
     static double required(PackEvidence evidence, ProgressionBand band, CapabilityAxis axis) {
         double result=observed(evidence,band,axis,Double.NaN);
         if(!Double.isFinite(result)||result<=0)
-            throw new IllegalArgumentException("Missing attainable " + axis + " reference for " + band
-                    + "; correct acquisition/measurement evidence or supply a balance provider before rebuilding");
+            throw new IllegalArgumentException("Missing measured catalog " + axis + " reference for " + band
+                    + "; correct registered measurements or explicit balance inputs before rebuilding");
         return result;
     }
     static double rangedRate(PackEvidence evidence, ProgressionBand band, double matchedWeaponRate,String outlierPolicy) {
@@ -90,7 +90,7 @@ final class RuntimeReferencePolicy {
             if(dps>0&&rate>0)return new Weapon(normalizeMeasurement(dps/rate),normalizeMeasurement(rate),
                     normalizeMeasurement(Math.max(dps/rate,axes.getOrDefault(CapabilityAxis.BURST_DAMAGE,0.0))),false);
         }
-        throw new IllegalArgumentException("Missing attainable weapon reference for "+band);
+        throw new IllegalArgumentException("Missing measured catalog weapon reference for "+band);
     }
     record Armor(double armor,double toughness) {
         double protection(double incoming) {
@@ -104,7 +104,7 @@ final class RuntimeReferencePolicy {
             List<Armor> choices=new ArrayList<>();
             for(var stage:ProgressionBand.values()) {
                 if(stage.ordinal()>band.ordinal())continue;
-                var rows=evidence.equipment().stream().filter(r->r.included()&&r.reachable()&&r.stage()==stage&&r.slot().equals(slot)).toList();
+                var rows=evidence.equipment().stream().filter(r->r.usableReference()&&r.stage()==stage&&r.slot().equals(slot)).toList();
                 double armorCeiling=RobustFrontiers.percentile(rows.stream().map(r->r.axes().getOrDefault(CapabilityAxis.ARMOR,0.0)).filter(v->v>0).toList(),1,outlierPolicy);
                 double toughnessCeiling=RobustFrontiers.percentile(rows.stream().map(r->r.axes().getOrDefault(CapabilityAxis.TOUGHNESS,0.0)).filter(v->v>0).toList(),1,outlierPolicy);
                 for(var row:rows) {

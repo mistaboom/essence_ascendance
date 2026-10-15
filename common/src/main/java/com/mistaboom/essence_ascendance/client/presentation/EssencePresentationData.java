@@ -50,7 +50,7 @@ public final class EssencePresentationData {
             Component name = EssenceText.essenceShort(essence).withColor(AscendancePalette.categoryRgb(essence));
             Component item = Component.translatable("item." + form.getNamespace() + "." + form.getPath());
             return new ItemPresentation(form, DataComponentPatch.builder().set(DataComponents.CUSTOM_DATA,
-                    EssentiumCarrierData.carrierData(new EssentiumCarrierData.Value(essence, grade, 1))).build(),
+                    EssentiumCarrierData.carrierData(new EssentiumCarrierData.Value(essence, grade, 1, 9))).build(),
                     EssenceText.guide("archive.value.carrier_variant", tier, name, item));
         }).toList();
     }

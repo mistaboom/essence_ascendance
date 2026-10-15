@@ -229,7 +229,7 @@ final class ReferenceDocuments {
                     List<Component> values = new ArrayList<>();
                     for (var property : properties)
                         values.add(decimal(EquipmentPresentationData.physicalValue(profile, tier, property,
-                                data.quantizedBaselines(), null), "number"));
+                                null), "number"));
                     values.add(durability(profile, tier, id(item)));
                     if (rod) {
                         var nativeRod = tier.fishingRod();
@@ -238,7 +238,7 @@ final class ReferenceDocuments {
                     }
                     if (tool) {
                         values.add(decimal(EquipmentPresentationData.physicalValue(profile, tier, EquipmentBaselineProperty.MINING_SPEED,
-                                data.quantizedBaselines(), null), "number"));
+                                null), "number"));
                         values.add(integer(tier.baseline().harvestLevel()));
                     }
                     if (shield) {
@@ -307,9 +307,9 @@ final class ReferenceDocuments {
         rows.add(new ReadOnlyDataTable.Row<>(slot.getName(), new EquipmentRow(
                 EquipmentPresentationData.itemModel(id(item), tier.tier()), List.of(
                 decimal(EquipmentPresentationData.physicalValue(profile, tier, EquipmentBaselineProperty.ARMOR,
-                        data.quantizedBaselines(), slot), "number"),
+                        slot), "number"),
                 decimal(EquipmentPresentationData.physicalValue(profile, tier, EquipmentBaselineProperty.TOUGHNESS,
-                        data.quantizedBaselines(), slot), "number"),
+                        slot), "number"),
                 durability(profile, tier, id(item)),
                 decimal(EquipmentPresentationData.wornShare(tier.tier(), slot) * 100, "percent")))));
     }

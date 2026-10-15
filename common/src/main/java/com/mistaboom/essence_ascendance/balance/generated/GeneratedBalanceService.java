@@ -32,7 +32,7 @@ import java.util.Map;
 
 /** Server-thread transaction: collect, construct, validate, persist, publish, then synchronize. */
 public final class GeneratedBalanceService {
-    static final String GENERATION_REVISION = "native-outcomes-joint-stock-51";
+    static final String GENERATION_REVISION = "simple-items-recipes-1";
     private static final String DISSOLUTION_ACCOUNTING = "whole_essence_v1";
     private static volatile Active active;
     private static volatile long lastLoadMillis;
@@ -51,7 +51,7 @@ public final class GeneratedBalanceService {
     public static long lastLoadMillis() { return lastLoadMillis; }
     public static long lastGenerationMillis() { return lastGenerationMillis; }
     public static Map<String, Long> phaseTimingsMillis() { return phaseTimings; }
-    public static void clear() { active = null; phaseTimings = Map.of(); lastGenerationMillis = 0; GenerationRecipeReadiness.clear(); EssenceConfigManager.reset(); RuntimeBalanceSyncService.clear(); }
+    public static void clear() { active = null; phaseTimings = Map.of(); lastGenerationMillis = 0; EssenceConfigManager.reset(); RuntimeBalanceSyncService.clear(); }
 
     public static void load(MinecraftServer server, boolean rebuild) throws IOException {
         load(server, rebuild, rebuild ? "explicit_rebuild_unspecified" : "server_load_unspecified");
@@ -147,6 +147,12 @@ public final class GeneratedBalanceService {
                 });
         }
         candidate = active();
+        try {
+            com.mistaboom.essence_ascendance.balance.config.BonusProgressionConfig.writeGeneratedDefaults(
+                    Platform.getConfigFolder(), candidate.runtime().config().balanceProfile().bonusTracks());
+        } catch (IOException failure) {
+            EssenceAscendance.LOGGER.error("Balance installed, but Bonus defaults could not be saved; restart or rebuild retries the missing config", failure);
+        }
         timings.put("commit", elapsedMillis(commitStart));
         if (generate) {
             phaseTimings = java.util.Collections.unmodifiableMap(new java.util.TreeMap<>(timings));
@@ -490,7 +496,6 @@ public final class GeneratedBalanceService {
     private static GenerationResult generateCandidate(MinecraftServer server, BalancePerformance.Operation operation, long start) throws IOException {
         Active candidate;
         Map<String, Long> timings = new java.util.TreeMap<>();
-            try (var phase = BalancePerformance.phase("recipe_readiness")) { GenerationRecipeReadiness.requireGenerationReady(server); }
             BalancePerformance.increment("full_generation_runs");
             BalanceInputs inputs;
             try (var phaseScope = BalancePerformance.phase("generation_inputs")) { inputs = BalanceInputs.read(Platform.getConfigFolder()); }
@@ -519,7 +524,6 @@ public final class GeneratedBalanceService {
             generationInputs.requireCurrent(server);
             generationProvenance = generationInputs.diagnostics();
             generationProvenance.add("providers", providers.diagnostics());
-            generationProvenance.add("recipeReadiness", GenerationRecipeReadiness.diagnostics());
             generationProvenance.addProperty("evidenceConflicts", BalancePerformance.currentSnapshot().counts().getOrDefault("evidence_conflicts", 0L));
             generationProvenance.addProperty("unsupportedRecipes", evidence.graphSummary().getOrDefault("unsupported_recipes", 0L));
             } catch (RuntimeException | LinkageError failure) {
@@ -546,11 +550,11 @@ public final class GeneratedBalanceService {
             phase = System.nanoTime();
             RuntimeBalanceDefinition runtime;
             try (var phaseScope = BalancePerformance.phase("runtime_generation")) {
-                var competition = new com.mistaboom.essence_ascendance.balance.runtime.AdaptiveCompetitionCalibration(evidence,
-                        generationProvenance.has("competitiveCapabilities") ? generationProvenance.getAsJsonObject("competitiveCapabilities") : null);
                 runtime = com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceGenerator.generate(
-                        evidence, economy, inputs.settings(), inputs.overrides(), competition);
-                generationProvenance.add("adaptiveBalance", competition.complete(runtime));
+                        evidence, economy, inputs.settings(), inputs.overrides(), inputs.skillLayout(), inputs.bonusProgression());
+                generationProvenance.add("skillLayout", BalanceDocument.GSON.toJsonTree(inputs.skillLayout()));
+                generationProvenance.add("bonusProgression", BalanceDocument.GSON.toJsonTree(inputs.bonusProgression()));
+
             } catch (RuntimeException failure) {
                 operation.fail(failure);
                 EssenceAscendance.LOGGER.error("Balance runtime calibration failed before diagnostic capture: {}", failure.getMessage());

@@ -23,7 +23,7 @@ public final class NativeCooldownBonusFloor {
         var profile = ranged ? EquipmentProfiles.RANGED_WEAPON : EquipmentProfiles.MAGIC_CASTER;
         var property = ranged ? EquipmentBaselineProperty.RANGED_ATTACK_SPEED : EquipmentBaselineProperty.MAGIC_CAST_SPEED;
         return EquipmentBaselineService.resolvedValue(runtime.config().equipmentBaselineConfig().baselineFor(tier).value(property),
-                profile, property, runtime.composition().getOrDefault("equipment_quantization", 0.0) == 1);
+                profile, property);
     }
     public static int ticks(double baseRate, double percentage) {
         return EquipmentWeaponService.rateToTicks(baseRate * (1 + percentage / 100));
@@ -63,7 +63,22 @@ public final class NativeCooldownBonusFloor {
     /** Shared placement/state selection for native equipment mechanics with tier-dependent headroom. */
     static Plan select(BonusTrackDefinition nominal, ProgressionRequirements.Bonus required,
                        List<Double> candidates, List<AscendanceTierDefinition> tiers, int earliest, int preferred, NativeState nativeState) {
-        // Desirability is a preference, while native reachability is a hard requirement. Search outward
+        if (nominal.inputs().containsKey("configured_maximum")) {
+            int endOrder = nominal.inputs().get("configured_max_tier_order").intValue();
+            var boundedTiers = tiers.stream().filter(tier -> tier.order() <= endOrder).toList();
+            var boundedState = new NativeState() {
+                public boolean improves(AscendanceTierDefinition tier, double previous, double value) {
+                    return nativeState.improves(tier, previous, value);
+                }
+                public double ceiling(AscendanceTierDefinition tier) {
+                    return Math.min(nominal.inputs().get("configured_maximum"), nativeState.ceiling(tier));
+                }
+            };
+            var values = configuredAt(nominal, required, boundedTiers, preferred, boundedState);
+            if (values.isEmpty()) throw new IllegalArgumentException("Configured first tier has no native headroom: " + nominal.statId());
+            return new Plan(preferred, values);
+        }
+        // The generic final-tier preference is soft; native headroom is a hard requirement. Search outward
         // without deleting a supported track simply because stronger late equipment is already one tick.
         for (int distance = 0; distance < tiers.size(); distance++) {
             for (int start : distance == 0 ? new int[]{preferred} : new int[]{preferred - distance, preferred + distance}) {
@@ -76,6 +91,36 @@ public final class NativeCooldownBonusFloor {
                 + ": no supported powered tier can satisfy the authored floor and native improvement together; actual native contexts="
                 + nominal.inputs().entrySet().stream().filter(entry -> entry.getKey().startsWith("native_cooldown_rate_")
                         || entry.getKey().startsWith("native_melee_rate_")).toList());
+    }
+
+    /** Find the least native effect needed at each configured tier, reserving the exact target for completion. */
+    private static List<Double> configuredAt(BonusTrackDefinition nominal, ProgressionRequirements.Bonus required,
+            List<AscendanceTierDefinition> tiers, int start, NativeState nativeState) {
+        double quantum = RuntimeValueQuantization.statStep(nominal.unit());
+        double maximum = nominal.inputs().get("configured_maximum");
+        var values = new ArrayList<Double>();
+        double previous = 0;
+        for (int index = start; index < tiers.size(); index++) {
+            var tier = tiers.get(index);
+            double floor = values.isEmpty() ? required.firstStateFloor() : previous + required.tierImprovementFloor();
+            double ceiling = nativeState.ceiling(tier);
+            if (ceiling + 1e-9 < floor || !nativeState.improves(tier, previous, ceiling))
+                throw new IllegalArgumentException("Configured native span is exhausted at " + tier.id() + " for " + nominal.statId());
+            long low = (long)Math.ceil((floor - 1e-10) / quantum), high = (long)Math.floor((ceiling + 1e-10) / quantum);
+            if (low > high || !nativeState.improves(tier, previous, high * quantum))
+                throw new IllegalArgumentException("Configured native span cannot reach a quantized state at " + tier.id());
+            while (low < high) {
+                long middle = low + (high - low) / 2;
+                if (nativeState.improves(tier, previous, middle * quantum)) high = middle;
+                else low = middle + 1;
+            }
+            double value = index == tiers.size() - 1 ? maximum : low * quantum;
+            if (value + 1e-9 < floor || value > ceiling + 1e-9 || !nativeState.improves(tier, previous, value)
+                    || Math.abs(RuntimeValueQuantization.down(value, quantum) - value) > 1e-7)
+                throw new IllegalArgumentException("Configured bonus_at_max cannot complete at " + tier.id() + " for " + nominal.statId());
+            values.add(value); previous = value;
+        }
+        return List.copyOf(values);
     }
 
     private static List<Double> at(BonusTrackDefinition nominal, ProgressionRequirements.Bonus required,

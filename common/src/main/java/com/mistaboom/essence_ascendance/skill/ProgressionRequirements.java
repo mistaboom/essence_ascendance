@@ -73,21 +73,6 @@ public final class ProgressionRequirements {
     private static final Document DATA = load();
     private ProgressionRequirements() { }
     public static Skill skill(ResourceLocation id) { return Objects.requireNonNull(DATA.skills().get(id.getPath()), "Missing skill progression requirements: " + id); }
-    /** Saved profiles keep the validation contract under which their exact states were published.
-     * Contract 1 assumed five equal hits for Life Steal. It is retained only to read historical
-     * states without changing their effects/prices; fresh publication requires the base outcome. */
-    public static Skill skill(ResourceLocation id, int nativeOutcomeContract) {
-        if (nativeOutcomeContract != 1 && nativeOutcomeContract != NATIVE_OUTCOME_CONTRACT)
-            throw new IllegalArgumentException("Unsupported native outcome contract: " + nativeOutcomeContract);
-        Skill current = skill(id);
-        if (nativeOutcomeContract != 1 || !id.equals(SkillIds.LIFE_STEAL)) return current;
-        var outcomes = current.outcomes().stream().map(outcome -> new Outcome(outcome.path(), outcome.first(),
-                outcome.later(), outcome.scale(), outcome.offset(), outcome.minimum(), outcome.maximum(), outcome.quantum(),
-                outcome.multiplyBy(), outcome.divideBy(), "vitality/lifeSteal/perHitHealingFraction", 40)).toList();
-        return new Skill(current.home(), current.firstStateFloor(), current.additionalImprovementFloor(),
-                current.endpointPolicy(), current.mechanicalConstraints(), current.rankModel(), current.domains(),
-                current.bonusCompatibility(), outcomes, current.alternativeImprovements());
-    }
     public static Bonus bonus(ResourceLocation id) { return Objects.requireNonNull(DATA.bonuses().get(id.getPath()), "Missing bonus progression requirements: " + id); }
     private static Document load() {
         try (var stream = ProgressionRequirements.class.getResourceAsStream("/data/essence_ascendance/progression_requirements.json")) {

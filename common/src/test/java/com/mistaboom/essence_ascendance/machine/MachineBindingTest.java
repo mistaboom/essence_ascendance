@@ -80,16 +80,23 @@ public final class MachineBindingTest {
         check(machine.refresh(saved) && machine.personalOwner().equals(B) && !machine.paused() && machine.operational(saved),
                 "Final disband returns usable personal infrastructure to the owner");
         var nextTeam = roster(authority, 9, List.of(B, C), Set.of(B), B); publish(saved, nextTeam);
-        CompoundTag legacySaved = saved.save(new CompoundTag(), null);
-        var legacySettlement = legacySaved.getCompound("reservoir_settlement");
-        legacySettlement.remove("machine_joins");
-        for (var receipt : legacySettlement.getList("dissolved", net.minecraft.nbt.Tag.TAG_COMPOUND))
-            ((CompoundTag) receipt).remove("roster_revision");
-        var legacyWorld = EssenceSavedData.load(legacySaved, null); publish(legacyWorld, nextTeam);
-        CompoundTag legacyMachineTag = unloadedMachine.copy(); legacyMachineTag.getCompound("machine_binding").remove("ownership_roster_revision");
-        var legacyMachine = new MachineBinding(); legacyMachine.load(legacyMachineTag);
-        check(legacyMachine.refresh(legacyWorld) && legacyMachine.pool().equals(nextTeam.pool()) && legacyMachine.operational(legacyWorld),
-                "Pre-feature disband receipt without history follows the known successor's current membership");
+        CompoundTag incomplete = unloadedMachine.copy();
+        incomplete.getCompound("machine_binding").remove("ownership_roster_revision");
+        rejects(() -> new MachineBinding().load(incomplete), "Missing ownership cursor is rejected without guessing current membership");
+        CompoundTag missingJoins = saved.save(new CompoundTag(), null);
+        missingJoins.getCompound("reservoir_settlement").remove("machine_joins");
+        rejects(() -> EssenceSavedData.load(missingJoins, null), "Missing persisted machine join history is rejected");
+        CompoundTag malformedJoins = saved.save(new CompoundTag(), null);
+        malformedJoins.getCompound("reservoir_settlement").putString("machine_joins", "invalid");
+        rejects(() -> EssenceSavedData.load(malformedJoins, null), "Malformed machine join history is rejected");
+        CompoundTag missingDeletion = saved.save(new CompoundTag(), null);
+        missingDeletion.getCompound("reservoir_settlement").getList("dissolved", net.minecraft.nbt.Tag.TAG_COMPOUND)
+                .getCompound(0).remove("roster_revision");
+        rejects(() -> EssenceSavedData.load(missingDeletion, null), "Missing dissolution cursor is rejected");
+        CompoundTag invalidDeletion = saved.save(new CompoundTag(), null);
+        invalidDeletion.getCompound("reservoir_settlement").getList("dissolved", net.minecraft.nbt.Tag.TAG_COMPOUND)
+                .getCompound(0).putLong("roster_revision", 0);
+        rejects(() -> EssenceSavedData.load(invalidDeletion, null), "Zero dissolution cursor is rejected");
         var restarted = EssenceSavedData.load(saved.save(new CompoundTag(), null), null); publish(restarted, nextTeam);
         var restored = new MachineBinding(); restored.load(unloadedMachine);
         check(restored.refresh(restarted), "Unloaded disband resolves from persisted metadata after restart");
@@ -173,13 +180,12 @@ public final class MachineBindingTest {
             check(link.target() == null && !link.refresh(MachineLink.State.DISCONNECTED, () -> { throw new AssertionError("Disconnected scanned"); }), "Disconnected has no source");
             CompoundTag saved = new CompoundTag(); link.save(saved); var loaded = new MachineLink(); loaded.load(saved);
             check(loaded.mode() == MachineLink.Mode.DISCONNECTED && loaded.target() == null, "Link modes persist");
-            saved.getCompound("machine_link").remove("version"); loaded.load(saved);
-            check(loaded.mode() == MachineLink.Mode.AUTOMATIC && loaded.target() == null,
-                    "Removed legacy Disconnect setting cannot strand a device without its settings popup");
-            link.configure(MachineLink.Mode.LOCKED, first); link.save(saved);
-            saved.getCompound("machine_link").remove("version"); loaded.load(saved);
-            check(loaded.mode() == MachineLink.Mode.AUTOMATIC && loaded.target().equals(first),
-                    "Legacy Locked setting migrates to stable automatic linking while retaining source");
+            saved.getCompound("machine_link").remove("version");
+            rejects(() -> loaded.load(saved), "Missing link schema is rejected without changing the saved mode");
+            link.configure(MachineLink.Mode.LOCKED, first); link.save(saved); loaded.load(saved);
+            check(loaded.mode() == MachineLink.Mode.LOCKED && loaded.target().equals(first), "Current Locked link roundtrips exactly");
+            saved.getCompound("machine_link").putInt("version", 1);
+            rejects(() -> loaded.load(saved), "Unsupported link schema is rejected");
         }
         var negative = new BlockPos(-1,0,0); var positive = new BlockPos(1,0,0);
         var tie = MachineLink.nearest(dimension, BlockPos.ZERO, List.of(positive, negative));
@@ -190,5 +196,9 @@ public final class MachineBindingTest {
         return MembershipRoster.party(authority, new UUID(1,id), members, managers, leader);
     }
     private static void publish(EssenceSavedData saved, MembershipRoster... teams) { MembershipPublication.publish(saved, NativeMembershipService.READY, List.of(teams)); }
+    private static void rejects(Runnable action, String message) {
+        try { action.run(); } catch (IllegalStateException expected) { checks++; return; }
+        throw new AssertionError(message);
+    }
     private static void check(boolean condition, String message) { if (!condition) throw new AssertionError(message); checks++; }
 }

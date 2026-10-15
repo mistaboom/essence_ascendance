@@ -40,6 +40,12 @@ public final class EconomyConservationSolver {
                 throw new IllegalArgumentException("Whole-Essence conservation received a fractional yield for " + id);
             values.put(id, value.microUnits() / quantum);
         });
+        long unrepresented = graph.processes().stream().filter(process -> !represented(process, values)).count();
+        if (unrepresented > 0) {
+            List<String> limitations = new ArrayList<>(graph.warnings());
+            limitations.add("Conservation unresolved for " + unrepresented + " processes with unrepresented item alternatives; missing values are not zero.");
+            graph = new ProductionGraph(graph.processes().stream().filter(process -> represented(process, values)).toList(), limitations);
+        }
         List<String> warnings = new ArrayList<>(graph.warnings());
         Set<String> adjusted = new java.util.TreeSet<>();
         Map<String, Set<String>> limitingPaths = new TreeMap<>();
@@ -57,7 +63,7 @@ public final class EconomyConservationSolver {
         for (; passes < MAX_PASSES; passes++) {
             boolean changed = false;
             for (ProductionGraph.Process process : graph.processes()) {
-                BigDecimal input = inputUnits(process, values, quantum);
+                BigDecimal input = inputUnits(process, values);
                 BigDecimal output = outputUnits(process, values, false);
                 if (output.compareTo(input) <= 0) continue;
                 Map<String, Long> candidates = new TreeMap<>();
@@ -94,7 +100,7 @@ public final class EconomyConservationSolver {
         // This terminates after visiting each item once, including long cycles.
         Set<String> unsafe = new HashSet<>();
         for (ProductionGraph.Process process : graph.processes()) {
-            if (outputUnits(process, values, false).compareTo(inputUnits(process, values, quantum)) > 0)
+            if (outputUnits(process, values, false).compareTo(inputUnits(process, values)) > 0)
                 process.outputs().forEach(output -> unsafe.add(output.itemId()));
         }
         if (!unsafe.isEmpty()) {
@@ -127,12 +133,12 @@ public final class EconomyConservationSolver {
         Map<String, DissolutionYield> resolved = new TreeMap<>();
         values.forEach((id, units) -> resolved.put(id, new DissolutionYield(Math.multiplyExact(units, quantum))));
         if (!adjusted.isEmpty()) warnings.add("Conservation reduced " + adjusted.size()
-                + " final dissolution yields after source policy and overrides; economic values are unchanged.");
+                + " final dissolution yields after exact overrides; economic values are unchanged.");
         long disabled = adjusted.stream().filter(id -> values.getOrDefault(id, 0L) == 0L
                 && proposed.getOrDefault(id, new DissolutionYield(0)).microUnits() > 0L).count();
         if (disabled > 0) warnings.add("Conservation disabled dissolution for " + disabled
                 + " previously positive items because of gainful cycles, zero-credit dependent paths, or unrepresentable whole-unit conversion families under the recorded process assumptions."
-                + " Their economic values remain meaningful; inspect discounted trades and recipe evidence before overriding these results.");
+                + " Their economic values remain meaningful; inspect static recipe evidence before overriding these results.");
         Map<String, List<String>> paths = new TreeMap<>();
         limitingPaths.forEach((id, ids) -> paths.put(id, List.copyOf(ids)));
         return new Result(Collections.unmodifiableMap(resolved), invariants,
@@ -147,8 +153,8 @@ public final class EconomyConservationSolver {
     private static List<Invariant> validate(ProductionGraph graph, Map<String, Long> values, long quantum) {
         List<Invariant> results = new ArrayList<>();
         for (ProductionGraph.Process process : graph.processes()) {
-            if (!process.conservationComplete()) continue;
-            BigDecimal inputUnits = inputUnits(process, values, quantum);
+            if (!process.conservationComplete() || !represented(process, values)) continue;
+            BigDecimal inputUnits = inputUnits(process, values);
             BigDecimal maximumUnits = outputUnits(process, values, false);
             double input = inputUnits.doubleValue();
             double maximum = maximumUnits.doubleValue();
@@ -157,15 +163,23 @@ public final class EconomyConservationSolver {
             results.add(new Invariant(process.id(), input * unitAmount,
                     expected * unitAmount, maximum * unitAmount,
                     (maximum - input) * unitAmount, maximumUnits.compareTo(inputUnits) <= 0,
-                    "Consumed material Essence " + inputUnits.subtract(sourceUnits(process, quantum)).multiply(BigDecimal.valueOf(unitAmount)).stripTrailingZeros().toPlainString()
-                            + "; bounded production source Essence " + sourceUnits(process, quantum).multiply(BigDecimal.valueOf(unitAmount)).stripTrailingZeros().toPlainString()
-                            + ". Enchanted-book inputs use the plain-book component floor; output budgets use their generated ceiling. Input value is their combined budget; all credited outputs share it. Probability uses expected value for diagnostics and maximum realized output for safety."
+                    "Consumed material Essence " + inputUnits.multiply(BigDecimal.valueOf(unitAmount)).stripTrailingZeros().toPlainString()
+                            + ". Enchanted-book inputs use the plain-book component floor; output budgets use their generated ceiling. All outputs and returned containers share the consumed input budget; time, fuel and reusable catalysts grant no extra credit. Probability uses expected value for diagnostics and maximum realized output for safety."
                             + (quantum == FractionalAmountService.SCALE ? " Final payouts are exact whole Essence units." : "")));
         }
         return List.copyOf(results);
     }
 
-    private static BigDecimal inputUnits(ProductionGraph.Process process, Map<String, Long> values, long quantum) {
+    private static boolean represented(ProductionGraph.Process process, Map<String, Long> values) {
+        for (var input : process.inputs()) if (input.consumed()) for (String alternative : input.alternatives()) {
+            if (!values.containsKey(alternative)) return false;
+            if (alternative.equals(com.mistaboom.essence_ascendance.mapping.EnchantedStackYields.ENCHANTED_BOOK)
+                    && !values.containsKey(com.mistaboom.essence_ascendance.mapping.EnchantedStackYields.BOOK)) return false;
+        }
+        return process.outputs().stream().allMatch(output -> values.containsKey(output.itemId()));
+    }
+
+    private static BigDecimal inputUnits(ProductionGraph.Process process, Map<String, Long> values) {
         BigDecimal total = BigDecimal.ZERO;
         for (int index = 0; index < process.inputs().size(); index++) {
             ProductionGraph.Input input = process.inputs().get(index);
@@ -173,19 +187,10 @@ public final class EconomyConservationSolver {
             long minimum = Long.MAX_VALUE;
             for (String alternative : input.alternatives()) minimum = Math.min(minimum, com.mistaboom.essence_ascendance.mapping.EnchantedStackYields.minimumInput(alternative, values));
             total = total.add(BigDecimal.valueOf(minimum).multiply(BigDecimal.valueOf(
-                    BoundedProductionPolicy.materialInputCount(process, index))));
+                    input.count())));
         }
-        // Ordinary processing time and energy grant no material credit. Only
-        // separately validated finite-stock production has an explicit source
-        // allowance, frozen from the uninflated proposal before exact overrides.
-        total = total.add(sourceUnits(process, quantum));
         if (!Double.isFinite(total.doubleValue())) throw new IllegalArgumentException("Production input total overflow");
         return total;
-    }
-
-    private static BigDecimal sourceUnits(ProductionGraph.Process process, long quantum) {
-        return BigDecimal.valueOf(BoundedProductionPolicy.sourceBudgetMicros(process))
-                .divide(BigDecimal.valueOf(quantum));
     }
 
     private static BigDecimal outputUnits(ProductionGraph.Process process, Map<String, Long> values, boolean expected) {

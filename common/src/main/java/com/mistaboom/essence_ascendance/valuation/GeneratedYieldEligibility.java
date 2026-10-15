@@ -22,27 +22,24 @@ public final class GeneratedYieldEligibility {
 
     private GeneratedYieldEligibility() { }
 
-    public enum Status { ELIGIBLE, INTERNAL_ONLY, EXCLUDED, UNRESOLVED, COMPONENT_ONLY }
+    public enum Status { ELIGIBLE, INTERNAL_ONLY, EXCLUDED, COMPONENT_ONLY }
     public record Decision(Status status, String reason) {
         public boolean eligible() { return status == Status.ELIGIBLE; }
     }
 
     public static Decision decide(ItemStack stack, ProceduralValuationResult result,
                                   boolean allowByConfig, boolean denyByConfig) {
-        return decide(stack, result.itemId(), result.totalValue(), result.modeledAcquisition(),
-                result.conservationStatus(), allowByConfig, denyByConfig);
+        return decide(stack, result.itemId(), result.totalValue(), allowByConfig, denyByConfig);
     }
 
-    /** Same policy for a persisted baseline candidate, without rebuilding the graph. */
+    /** Estimate eligibility is separate from survival-source evidence. */
     public static Decision decide(ItemStack stack, ResourceLocation itemId, long totalValue,
-                                  boolean modeledAcquisition, String conservationStatus,
                                   boolean allowByConfig, boolean denyByConfig) {
         if (stack.isEmpty()) return new Decision(Status.EXCLUDED, "empty_item");
         // No override can add a generated base payout on top of stored Essence.
         if (stack.getItem() instanceof EssentiumItem)
             return new Decision(Status.COMPONENT_ONLY, "exact_stored_essence_recovery_only");
-        if (totalValue <= 0 || conservationStatus.equals("invalid_family")
-                || conservationStatus.equals("below_integer_precision"))
+        if (totalValue <= 0 || totalValue > ProceduralValuationSettings.MAX_VALUE)
             return new Decision(Status.EXCLUDED, "unsafe_or_unrepresentable_payout");
         if (denyByConfig) return new Decision(Status.EXCLUDED, "deny_generated_setting");
         if (!allowByConfig) {
@@ -51,10 +48,9 @@ public final class GeneratedYieldEligibility {
                 return new Decision(Status.INTERNAL_ONLY, "internal_recipe_value_not_automatic_dissolution");
             if (itemId.getNamespace().equals("minecraft") && ADMIN_ITEMS.contains(itemId.getPath()))
                 return new Decision(Status.EXCLUDED, "administrative_item");
+            if (stack.getItem() instanceof SpawnEggItem)
+                return new Decision(Status.EXCLUDED, "spawn_egg_requires_explicit_allowance");
         }
-        if (!modeledAcquisition) return new Decision(Status.UNRESOLVED,
-                stack.getItem() instanceof SpawnEggItem ? "spawn_egg_requires_modeled_acquisition_or_explicit_mapping"
-                        : "no_modeled_acquisition_not_proof_of_creative_only");
-        return new Decision(Status.ELIGIBLE, allowByConfig ? "allowed_with_modeled_acquisition" : "modeled_acquisition");
+        return new Decision(Status.ELIGIBLE, allowByConfig ? "explicitly_allowed_estimate" : "property_recipe_estimate_not_source_proof");
     }
 }

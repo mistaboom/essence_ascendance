@@ -22,7 +22,7 @@ public final class MembershipProviderTest {
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap(); EssenceTypes.init(); AscendanceTiers.init();
         nativeOperations(); nativeFailures(); personalAccessRequests(); approvalNaming(); pendingRequestLifecycle(); machineOwnershipReceipts();
         for (MembershipAuthority authority : MembershipAuthority.values()) providerContract(authority);
-        for (MembershipAuthority authority : List.of(MembershipAuthority.FTB_TEAMS, MembershipAuthority.OPENPAC)) externalLifecycle(authority);
+        for (MembershipAuthority authority : List.of(MembershipAuthority.FTB_TEAMS)) externalLifecycle(authority);
         versionAndAbsence(); selectionMatrix(); activationBoundary(); activationReviewWindow(); nativeActivation(); captureSchedule();
         System.out.println("MembershipProviderTest: " + assertions + " assertions passed");
     }
@@ -276,8 +276,8 @@ public final class MembershipProviderTest {
         PoolId nativeTeam = saved.nativeMembership().create(A, "Original");
         var pending = saved.nativeMembership().request(B, nativeTeam, true);
         CompoundTag metadata = save(saved).getCompound("native_membership").copy();
-        var external = new MembershipProvider.Observation(READY, List.of(roster(MembershipAuthority.OPENPAC, List.of(A, B), Set.of(A))));
-        var toExternal = MembershipActivation.prepare(saved, MembershipAuthority.OPENPAC, external);
+        var external = new MembershipProvider.Observation(READY, List.of(roster(MembershipAuthority.FTB_TEAMS, List.of(A, B), Set.of(A))));
+        var toExternal = MembershipActivation.prepare(saved, MembershipAuthority.FTB_TEAMS, external);
         toExternal.activate(saved, toExternal.token(), external);
         var soloNative = new MembershipProvider.Observation(READY, List.of());
         var toNative = MembershipActivation.prepare(saved, MembershipAuthority.NATIVE, soloNative);
@@ -301,15 +301,13 @@ public final class MembershipProviderTest {
             check(MembershipProviders.support(entry, Map.of(), loader).status() == ProviderReadiness.Status.ABSENT, "Absent distinct from unsupported");
         }
         var ftb = MembershipProviders.entries().stream().filter(e -> e.authority() == MembershipAuthority.FTB_TEAMS).findFirst().orElseThrow();
-        var shared = Map.of("ftbteams", "2101.1.11", "ftblibrary", "2101.1.36", "ftbquests", "2101.1.36", "architectury", "13.0.11");
+        var shared = Map.of("ftbteams", "2101.1.11", "ftblibrary", "2101.1.36", "architectury", "13.0.11");
         for (String loader : List.of("fabric", "neoforge")) {
-            check(MembershipProviders.support(ftb, shared, loader).status() == ProviderReadiness.Status.NOT_READY
-                    && com.mistaboom.essence_ascendance.balance.quest.FtbQuestProvider.supported(shared.get("ftbquests"), shared.get("ftblibrary"), shared.get("ftbteams"), shared.get("architectury")),
-                    "One installed FTB tuple supports both membership and quest evidence gates");
+            check(MembershipProviders.support(ftb, shared, loader).status() == ProviderReadiness.Status.NOT_READY,
+                    "One installed FTB tuple supports functional membership");
             var newest = new HashMap<>(shared); newest.put("ftblibrary", "2101.1.37");
-            check(MembershipProviders.support(ftb, newest, loader).status() == ProviderReadiness.Status.NOT_READY
-                    && com.mistaboom.essence_ascendance.balance.quest.FtbQuestProvider.supported(newest.get("ftbquests"), newest.get("ftblibrary"), newest.get("ftbteams"), newest.get("architectury")),
-                    "The installed Library 2101.1.37 tuple supports both membership and quest evidence gates");
+            check(MembershipProviders.support(ftb, newest, loader).status() == ProviderReadiness.Status.NOT_READY,
+                    "The installed Library 2101.1.37 tuple supports functional membership");
             for (var rejected : List.of(Map.of("ftbteams", "2101.1.11", "ftblibrary", "2101.1.35"),
                     Map.of("ftbteams", "2101.1.10", "ftblibrary", "2101.1.36"), Map.of("ftbteams", "2101.1.11")))
                 check(MembershipProviders.support(ftb, rejected, loader).status() == ProviderReadiness.Status.UNSUPPORTED,
@@ -323,14 +321,12 @@ public final class MembershipProviderTest {
         ProviderReadiness absent = new ProviderReadiness(ProviderReadiness.Status.ABSENT, "none", "Absent");
         ProviderReadiness unsupported = new ProviderReadiness(ProviderReadiness.Status.UNSUPPORTED, "x", "Unaudited");
         ProviderReadiness waiting = new ProviderReadiness(ProviderReadiness.Status.NOT_READY, "x", "Starting");
-        for (var ftb : List.of(absent, unsupported, waiting, READY)) for (var opac : List.of(absent, unsupported, waiting, READY)) {
-            var statuses = Map.of(MembershipAuthority.NATIVE, READY, MembershipAuthority.FTB_TEAMS, ftb, MembershipAuthority.OPENPAC, opac);
+        for (var ftb : List.of(absent, unsupported, waiting, READY)) {
+            var statuses = Map.of(MembershipAuthority.NATIVE, READY, MembershipAuthority.FTB_TEAMS, ftb);
             var selected = MembershipAuthority.select(MembershipAuthority.Selection.AUTO, null, statuses);
-            MembershipAuthority expected = ftb == waiting || ftb == READY ? MembershipAuthority.FTB_TEAMS
-                    : opac == waiting || opac == READY ? MembershipAuthority.OPENPAC
-                    : ftb == unsupported ? MembershipAuthority.FTB_TEAMS : opac == unsupported ? MembershipAuthority.OPENPAC : MembershipAuthority.NATIVE;
+            MembershipAuthority expected = ftb == absent ? MembershipAuthority.NATIVE : MembershipAuthority.FTB_TEAMS;
             check(selected.authority() == expected, "Deterministic new-world AUTO matrix");
-            if (ftb == unsupported && opac == absent || ftb == absent && opac == unsupported) check(!selected.usable(), "Installed unsupported never silently enables native");
+            if (ftb == unsupported) check(!selected.usable(), "Installed unsupported never silently enables native");
             for (MembershipAuthority authority : MembershipAuthority.values()) {
                 check(MembershipAuthority.select(MembershipAuthority.Selection.AUTO, authority, statuses).authority() == authority, "Persisted authority survives install/removal/replacement");
                 check(MembershipAuthority.select(MembershipAuthority.selection(authority.id()), null, statuses).authority() == authority, "Stable explicit ID selection");
@@ -398,9 +394,7 @@ public final class MembershipProviderTest {
                 providersField.set(null, Map.of(
                         MembershipAuthority.NATIVE, new MembershipProviders.Installed(READY, null),
                         MembershipAuthority.FTB_TEAMS, new MembershipProviders.Installed(
-                                new ProviderReadiness(ProviderReadiness.Status.NOT_READY, "fixture", "Awaiting capture"), fake),
-                        MembershipAuthority.OPENPAC, new MembershipProviders.Installed(
-                                new ProviderReadiness(ProviderReadiness.Status.ABSENT, "fixture", "Absent"), null)));
+                                new ProviderReadiness(ProviderReadiness.Status.NOT_READY, "fixture", "Awaiting capture"), fake)));
                 for (boolean expire : List.of(false, true)) {
                     EssenceSavedData saved = new EssenceSavedData(); seed(saved, A, 900); seed(saved, B, 300);
                     saved.establishMembershipAuthority(MembershipAuthority.NATIVE);

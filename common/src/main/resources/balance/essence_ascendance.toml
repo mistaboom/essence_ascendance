@@ -16,16 +16,15 @@ schema_version = 1
 
 [latent_ore]
 # Ordinary noise generators expose their primary default solid terrain.
-# The balance generator scales supply from final usable early Essence sources.
-# Weakest-category coverage controls attempts: scarce 1.5x, broadly supplied 0.75x.
-# Defaults resolve to 12..24 size-9 attempts, with no cave-exposure discard.
+# Distribution uses these configured baselines; acquisition and supply are not inferred.
+# Defaults provide 16 size-9 attempts, with no cave-exposure discard.
 # Unknown generators
 # are skipped with a diagnostic; this never scans or generates chunks.
 automatic_dimensions = true
 # Optional distribution tables: [latent_ore.overworld], [latent_ore.nether],
 # [latent_ore.end]. Keys: enabled, vein_size, veins_per_chunk, min_y, max_y,
 # discard_chance_on_air_exposure. These are baseline inputs; generation scales
-# attempts and keeps enabled nonzero baselines at least 12 attempts of size 9.
+# enabled nonzero baselines remain at least 12 attempts of size 9.
 # Disabled/zero-count inputs remain off. Default Overworld Y is -48..64.
 # Exact dimension overrides take ownership; enabled=false always excludes it.
 # hosts replaces automatic selection with exact primary rock block ids.
@@ -44,8 +43,8 @@ automatic_dimensions = true
 # enabled = false
 
 [power]
-# Overall desired position relative to attainable external pack references.
-# Base equipment is normalized to Transcendent pack-reference parity; this
+# Overall desired position relative to measured external catalog references.
+# Base equipment is normalized to Transcendent catalog-reference parity; this
 # control still sets added-power headroom for Nexus/skills and combined builds.
 # Range 0.1..4.0; default 1.0. 1.2 asks for stronger Ascendance contributions.
 # This is not a percentage of the single strongest registered item.
@@ -149,47 +148,27 @@ nexus = 0.35
 skills = 0.25
 
 [economy]
-# Response to cheap, scalable or unattended production, 0..1; default 0.65.
-# Higher pressure lowers extractable Essence from automated supply relative to
-# an item's broader opportunity value. Resource facts remain independently visible.
-# Legitimate stock/restock-limited trading is a productive source, not an
-# instantaneous material conversion. Its bounded allowance never increases
-# the ordinary proposed item yield. Cheap bulk inputs can earn Essence through
-# a developed trading hall even when their direct dissolution yield is zero.
-automation_pressure = 0.65
-# Extra pressure on renewable/abundant bulk resources. Effectively infinite
-# sources have zero generated dissolution under balanced/conservative; this
-# penalty also applies to them when abundance_aware permits positive yields.
-# Range 0..1; default 0.60. Facts classify the resource; this chooses the response.
-bulk_resource_penalty = 0.60
 # Additional pressure on cross-Essence flexibility, 0..0.95; default 0.10.
 # This is a generation policy input, not one loss percentage applied to every
 # carrier, repair, dissolution and conversion transaction.
 conversion_loss_pressure = 0.10
 
 [policies]
-# Flight: preserve_progression (default), match_pack, restrict.
+# Flight: preserve_progression (default), restrict.
 # preserve_progression retains existing milestone prerequisites;
-# match_pack adjusts relative mobility emphasis using discovered pack capabilities;
 # restrict reduces flight-oriented budget without bypassing prerequisite checks.
 flight = "preserve_progression"
-# Mining: preserve_progression (default), match_pack, restrict.
+# Mining: preserve_progression (default), restrict.
 # Applies to vein/area mining capability budgets, not just tool mining speed.
-# Automatic discovery may be incomplete; declare hidden capabilities in overrides.
+# Shared registered tool properties establish reference magnitudes.
 # Tool harvest levels advance from Latent level 0 by at least one per tier until
 # the pack maximum. Larger level ranges are spread across all equipment tiers.
 # This discrete progression is independent of physical-stat curve shaping.
 mining = "preserve_progression"
-# Resources: conservative, balanced (default), abundance_aware.
-# Balanced and conservative give no generated dissolution to sources explicitly
-# identified as effectively infinite (for example a cobblestone generator).
-# Conservative adds caution around renewable supply; abundance_aware permits
-# discounted positive infinite-source yields. Conservation applies to all three.
-resources = "balanced"
 # Outliers: exclude_unsupported (default), winsorize, include_attainable.
 # exclude_unsupported removes extremes unsupported by the rest of a reference
 # population; winsorize caps their influence instead. include_attainable admits
-# extremes where acquisition is supported. Disabled/creative-only facts still exclude.
+# measured catalog extremes. Explicit exclusion facts still apply.
 outliers = "exclude_unsupported"
 
 [diagnostics]

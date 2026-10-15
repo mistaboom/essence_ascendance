@@ -9,13 +9,17 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
 /** Reads immutable generator inputs once; it never reads or rewrites generated runtime data. */
-public record BalanceInputs(BalanceSettings settings, BalanceOverrides overrides) {
+public record BalanceInputs(BalanceSettings settings, BalanceOverrides overrides, SkillLayoutConfig skillLayout, BonusProgressionConfig bonusProgression) {
+    public BalanceInputs(BalanceSettings settings, BalanceOverrides overrides) {
+        this(settings, overrides, SkillLayoutConfig.defaults(), BonusProgressionConfig.automatic());
+    }
     public static Path settingsPath(Path configDirectory) { return configDirectory.resolve("essence_ascendance.toml"); }
     public static Path overridesPath(Path configDirectory) { return configDirectory.resolve("essence_ascendance/balance_overrides.toml"); }
 
     public static void scaffold(Path configDirectory) throws IOException {
         ensureDefault(settingsPath(configDirectory), "/balance/essence_ascendance.toml");
         ensureDefault(overridesPath(configDirectory), "/balance/balance_overrides.toml");
+        SkillLayoutConfig.scaffold(configDirectory);
     }
 
     public static BalanceInputs read(Path configDirectory) throws IOException {
@@ -25,7 +29,8 @@ public record BalanceInputs(BalanceSettings settings, BalanceOverrides overrides
         String settingsText = boundedRead(settingsFile);
         String overridesText = boundedRead(overridesFile);
         return new BalanceInputs(BalanceSettings.parse(settingsText, settingsFile.toString()),
-                BalanceOverrides.parse(overridesText, overridesFile.toString()));
+                BalanceOverrides.parse(overridesText, overridesFile.toString()),
+                SkillLayoutConfig.read(configDirectory), BonusProgressionConfig.read(configDirectory));
     }
 
     private static String boundedRead(Path path) throws IOException {

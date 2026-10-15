@@ -1,113 +1,17 @@
 package com.mistaboom.essence_ascendance.balance.engine;
 
-import com.google.gson.*;
 import com.mojang.serialization.JsonOps;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.RegistryOps;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.*;
 import net.minecraft.world.item.enchantment.effects.*;
 import java.util.*;
 import static com.mistaboom.essence_ascendance.balance.engine.CapabilityEvidence.*;
 
-/** Reads native definitions, never invokes enchantment callbacks, random effects, players or gameplay actions. */
+/** Reads native enchantment effects for enchanted-stack dissolution without executing gameplay callbacks. */
 public final class NativeCapabilityReader {
     private NativeCapabilityReader() { }
-    public static void collect(PackEvidenceContext context, Map<String, ResourceEvidence> resources, CapabilitySink sink) {
-        NativeItemActions.collect(context, resources, sink);
-        NativeConsumables.collect(context, resources, sink);
-        for (var item : context.inputs().items()) {
-            sink.analyzed();
-            String id = BuiltInRegistries.ITEM.getKey(item).toString();
-            if (id.startsWith("essence_ascendance:")) continue;
-            record(id, "native_components", "read effective item " + item.getClass().getName(), staged -> {
-                ItemStack stack = new ItemStack(item);
-                var placement = CompetitiveCapabilities.placement(resources, id);
-                readStack(stack, id, "effective_default", placement, staged);
-                candidateName(id, staged);
-            }, sink);
-        }
-        record("configured_recipe_outputs", "configured_stacks", "read configured stack section", staged ->
-                ConfiguredStackCapabilities.collect(context.inputs().production(), context.server().registryAccess(), resources,
-                        context.inputs().configurationConstrainedItems(), staged), sink);
-        var registry = OptionalIntegration.attempt("native_enchantments", "read effective enchantment registry",
-                () -> context.server().registryAccess().registryOrThrow(Registries.ENCHANTMENT).holders().toList());
-        if (!registry.succeeded()) {
-            sink.candidate("enchantment_registry", "native_enchantments", "UNKNOWN: effective enchantment registry unavailable; " + registry.failure());
-            return;
-        }
-        for (var holder : registry.value().orElseThrow()) {
-            sink.analyzed();
-            String id = holder.key().location().toString();
-            record(id, "native_enchantments", "read effective enchantment and definition", staged -> {
-                Enchantment enchantment = holder.value();
-                // Definition maximum is potential, not proof that this level can be acquired or applied.
-                readEnchantmentDefinition(id, id, enchantment, enchantment.getMaxLevel(),
-                        new CompetitiveCapabilities.Placement(ProgressionBand.APEX, false, .9, List.of()), false, staged);
-                var ops = RegistryOps.create(JsonOps.INSTANCE, context.server().registryAccess());
-                var encoded = Enchantment.DIRECT_CODEC.encodeStart(ops, enchantment).getOrThrow();
-                if (!encoded.isJsonObject()) throw new IllegalStateException("Effective enchantment codec returned a non-object definition");
-                staged.definition("native_enchantments", id, encoded);
-                JsonObject effects = encoded.getAsJsonObject().getAsJsonObject("effects");
-                if (effects != null) for (var effect : effects.entrySet()) {
-                    if (!SUPPORTED.contains(effect.getKey()) && !NativeEnchantmentEffects.COMPONENTS.contains(effect.getKey())) staged.candidate(id, "native_enchantments",
-                            "Unsupported effect component " + effect.getKey() + "; definition=" + bounded(effect.getValue()));
-                }
-            }, sink);
-        }
-    }
-    public static void stack(ItemStack stack, String id, String configuration, CompetitiveCapabilities.Placement placement, CapabilitySink sink) {
-        record(id, "native_components", "read configured stack " + configuration,
-                staged -> readStack(stack, id, configuration, placement, staged), sink);
-    }
-    private static void readStack(ItemStack stack, String id, String configuration, CompetitiveCapabilities.Placement placement, CapabilitySink sink) {
-            if (!configuration.equals("effective_default")) NativeConsumables.readStack(stack, id, configuration, placement, sink);
-            stackAttributes(stack, id, configuration, placement, sink);
-            if (stack.has(DataComponents.UNBREAKABLE) && stack.getOrDefault(DataComponents.MAX_DAMAGE, 0) > 0) {
-                String slot = stack.getItem() instanceof net.minecraft.world.item.ArmorItem armor ? armor.getEquipmentSlot().getName()
-                        : stack.getItem() instanceof net.minecraft.world.item.ElytraItem ? "chest"
-                        : stack.getItem() instanceof net.minecraft.world.item.ShieldItem ? "offhand" : "mainhand";
-                var m = CompetitiveCapabilities.measurement(CapabilityAxis.INDESTRUCTIBILITY, 1.0, "presence",
-                        "equipment slot=" + slot + "; source-bound native wear pool",
-                        new Scope("source_equipment:" + id, "single", null, 1.0), Operation.manual(), "native_components", Origin.NATIVE,
-                        List.of("Preserves this configured item's native wear pool; does not repair or protect other equipped items"));
-                sink.add(new Functional(new CapabilityEvidence(id, placement.stage(), Map.of(), placement.reachable(), Math.min(.95, placement.confidence()),
-                        "Effective stack UNBREAKABLE component with positive MAX_DAMAGE"), configuration + "/unbreakable", List.of(m), placement.acquisition(), placement.reachable()));
-            }
-            if (!configuration.equals("effective_default") && stack.has(DataComponents.MAX_DAMAGE)) {
-                var m = CompetitiveCapabilities.measurement(CapabilityAxis.DURABILITY, stack.get(DataComponents.MAX_DAMAGE).doubleValue(), "uses",
-                        "configured equipped item", CompetitiveCapabilities.equipmentScope(CapabilityAxis.DURABILITY), Operation.manual(),
-                        "native_components", Origin.NATIVE, List.of("Other wear/repair mechanisms not composed"));
-                sink.add(new Functional(new CapabilityEvidence(id, placement.stage(), Map.of(), placement.reachable(), placement.confidence(),
-                        "Static configured MAX_DAMAGE component"), configuration + "/durability", List.of(m), placement.acquisition(), placement.reachable()));
-            }
-            var enchantments = stack.getOrDefault(DataComponents.ENCHANTMENTS, net.minecraft.world.item.enchantment.ItemEnchantments.EMPTY);
-            for (var enchantment : enchantments.entrySet()) {
-                var key = enchantment.getKey().unwrapKey();
-                readEnchantment(id, configuration + "/" + key.map(k -> k.location().toString()).orElse("unregistered"), enchantment.getKey().value(),
-                        enchantment.getIntValue(), placement, true, sink);
-            }
-    }
-    private static final Set<String> SUPPORTED = Set.of("minecraft:attributes", "minecraft:damage", "minecraft:damage_protection",
-            "minecraft:item_damage", "minecraft:repair_with_xp", "minecraft:fishing_time_reduction", "minecraft:fishing_luck_bonus");
-    private static String bounded(JsonElement data) { String value = data.toString(); return value.length() > 1000 ? value.substring(0, 1000) + "…" : value; }
-    public static void readEnchantment(String source, String enchantmentId, Enchantment enchantment, int level,
-                                       CompetitiveCapabilities.Placement placement, boolean effectiveStack, CapabilitySink sink) {
-        record(enchantmentId, "native_enchantments", "read enchantment for " + source + " level=" + level,
-                staged -> readEnchantmentDefinition(source, enchantmentId, enchantment, level, placement, effectiveStack, staged), sink);
-    }
-    private static void readEnchantmentDefinition(String source, String enchantmentId, Enchantment enchantment, int level,
-                                       CompetitiveCapabilities.Placement placement, boolean effectiveStack, CapabilitySink sink) {
-        List<Measurement> measurements = enchantmentMeasurements(enchantmentId, enchantment, level, effectiveStack, sink);
-        if (!measurements.isEmpty()) sink.add(new Functional(new CapabilityEvidence(source, placement.stage(), Map.of(),
-                placement.reachable(), placement.reachable() ? Math.min(.9, placement.confidence()) : .9, "Effective enchantment " + enchantmentId + " level=" + level),
-                "enchantment:" + enchantmentId + ":" + level, measurements, placement.acquisition(), effectiveStack && placement.reachable()));
-        if (!effectiveStack) sink.candidate(enchantmentId, "native_enchantments", "Maximum level " + level + " retained as potential; acquisition/application unproven");
-    }
-    /** Shared factual projection for capability calibration and stack valuation. No prices or gameplay callbacks. */
     public static List<Measurement> enchantmentMeasurements(String enchantmentId, Enchantment enchantment, int level,
                                                             boolean effectiveStack, CapabilitySink sink) {
         List<Measurement> measurements = new ArrayList<>();
@@ -120,7 +24,7 @@ public final class NativeCapabilityReader {
                 sink.candidate(enchantmentId, "native_enchantments", "Unsupported attribute/negative transformation " + attribute); continue;
             }
             String unit = effect.operation() == AttributeModifier.Operation.ADD_VALUE ? "attribute_addition" : "attribute_multiplier_addition";
-            measurements.add(CompetitiveCapabilities.measurement(axis, amount, unit,
+            measurements.add(measurement(axis, amount, unit,
                     "attribute=" + attribute + "; operation=" + effect.operation() + "; slots=" + enchantment.definition().slots(),
                     Scope.self(), Operation.manual(), "native_enchantments", Origin.NATIVE, commonUnknown));
         }
@@ -175,8 +79,8 @@ public final class NativeCapabilityReader {
                 unknown.add("Conditional peak; predicate match frequency/uptime unmeasured");
                 if (condition.isEmpty()) { sink.candidate(id, "native_enchantments", "Conditional effect predicate cannot encode; numeric frontier excluded"); amount = null; }
             }
-            output.add(CompetitiveCapabilities.measurement(measuredAxis, amount, measuredAxis == CapabilityAxis.INDESTRUCTIBILITY ? "presence" : unit + ":" + transform, applies,
-                    CompetitiveCapabilities.equipmentScope(measuredAxis), Operation.manual(), "native_enchantments", Origin.NATIVE, unknown));
+            output.add(measurement(measuredAxis, amount, measuredAxis == CapabilityAxis.INDESTRUCTIBILITY ? "presence" : unit + ":" + transform, applies,
+                    equipmentScope(measuredAxis), Operation.manual(), "native_enchantments", Origin.NATIVE, unknown));
         }
     }
     /** Native ItemPredicate requires membership whenever items is present. A direct
@@ -189,53 +93,6 @@ public final class NativeCapabilityReader {
                     && items.get().size() == 0;
         }
         return false;
-    }
-    public static void stackAttributes(ItemStack stack, String id, CompetitiveCapabilities.Placement placement, CapabilitySink sink) {
-        record(id, "native_attributes", "read effective stack attributes",
-                staged -> stackAttributes(stack, id, "native_attribute_contributions", placement, staged), sink);
-    }
-    /** Every native record is detached until its getters/codecs complete. A broken custom component
-     * excludes its own facts without discarding unrelated items or enchantments. */
-    private static void record(String id, String provider, String operation, java.util.function.Consumer<CapabilitySink> reader, CapabilitySink sink) {
-        var attempt = OptionalIntegration.attempt(provider + ":" + id, operation, () -> {
-            CapabilitySink staged = new CapabilitySink();
-            reader.accept(staged);
-            return staged;
-        });
-        if (attempt.succeeded()) sink.merge(attempt.value().orElseThrow());
-        else sink.candidate(id, provider, "UNKNOWN: " + operation + " failed; affected capability evidence excluded; " + attempt.failure());
-    }
-    private static void stackAttributes(ItemStack stack, String id, String configuration, CompetitiveCapabilities.Placement placement, CapabilitySink sink) {
-        var attrs = stack.getOrDefault(DataComponents.ATTRIBUTE_MODIFIERS, net.minecraft.world.item.component.ItemAttributeModifiers.EMPTY);
-        if (attrs.modifiers().isEmpty()) attrs = stack.getItem().getDefaultAttributeModifiers();
-        record Key(CapabilityAxis axis, String attribute, AttributeModifier.Operation operation, String slot) { }
-        Map<Key, Double> values = new LinkedHashMap<>();
-        for (var entry : attrs.modifiers()) {
-            String attribute = entry.attribute().unwrapKey().map(k -> k.location().toString()).orElse("unregistered");
-            CapabilityAxis axis = attributeAxis(attribute);
-            if (axis == null) { sink.candidate(id, "native_attributes", "Attribute semantics unsupported: " + attribute); continue; }
-            for (var slot : net.minecraft.world.entity.EquipmentSlot.values()) {
-                if (slot == net.minecraft.world.entity.EquipmentSlot.BODY || !entry.slot().test(slot)) continue;
-                var key = new Key(axis, attribute, entry.modifier().operation(), slot.getName());
-                double value = entry.modifier().amount();
-                if (!Double.isFinite(value)) { sink.candidate(id, "native_attributes", "Nonfinite effective attribute excluded"); continue; }
-                if (entry.modifier().operation() == AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL)
-                    values.merge(key, 1 + value, (a, b) -> a * b);
-                else values.merge(key, value, Double::sum);
-            }
-        }
-        List<Measurement> measurements = new ArrayList<>();
-        values.forEach((key, value) -> {
-            boolean total = key.operation() == AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL;
-            if (!Double.isFinite(value) || value <= (total ? 1 : 0)) return;
-            measurements.add(CompetitiveCapabilities.measurement(key.axis(), value,
-                    total ? "attribute_total_factor" : key.operation() == AttributeModifier.Operation.ADD_VALUE ? "attribute_addition" : "attribute_multiplier_addition",
-                    "attribute=" + key.attribute() + "; operation=" + key.operation() + "; slot=" + key.slot(), Scope.self(), Operation.manual(),
-                    "native_attributes", Origin.NATIVE, List.of("Native modifier contribution; base stat, other gear and custom event modifiers not composed")));
-        });
-        if (!measurements.isEmpty()) sink.add(new Functional(new CapabilityEvidence(id, placement.stage(), Map.of(), placement.reachable(),
-                Math.min(.9, placement.confidence()), "Effective slot-filtered native attribute operations"), configuration, measurements,
-                placement.acquisition(), placement.reachable()));
     }
     /** Never execute a custom level implementation. */
     static Double levelValue(LevelBasedValue value, int level) {
@@ -270,10 +127,38 @@ public final class NativeCapabilityReader {
             default -> null;
         };
     }
-    public static void candidateName(String id, CapabilitySink sink) {
-        String path = id.substring(id.indexOf(':') + 1);
-        Set<String> tokens = new HashSet<>(List.of(path.split("[_/.-]+")));
-        if (tokens.stream().anyMatch(Set.of("quarry", "fisher", "fishing", "accelerator", "growth", "twerk", "indestructible", "unbreakable", "affix", "socket", "module", "jetpack", "spell")::contains))
-            sink.candidate(id, "nomenclature", "Potential high-impact function/configuration; names establish no magnitude, rate or access");
+    public static Scope equipmentScope(CapabilityAxis axis) {
+        return switch (axis) {
+            case BURST_DAMAGE, SUSTAINED_DAMAGE, MELEE_DAMAGE, RANGED_DAMAGE, MAGIC_DAMAGE, DAMAGE_OVER_TIME, CRITICAL_DAMAGE ->
+                    new Scope("combat_target", "single", null, 1.0);
+            case MINING_SPEED, HARVEST_LEVEL, HARVEST_SPEED -> new Scope("harvest_target", "single", null, 1.0);
+            case DURABILITY, DURABILITY_REDUCTION, INDESTRUCTIBILITY, REPAIR, ITEM_LOSS_PREVENTION -> new Scope("equipped_item", "single", null, 1.0);
+            case AREA_DAMAGE, AREA_MINING, VEIN_MINING -> Scope.unknown();
+            default -> Scope.self();
+        };
+    }
+    public static Measurement measurement(CapabilityAxis axis, Double magnitude, String unit, String applies, Scope scope,
+                                          Operation operation, String provider, Origin origin, List<String> unknown) {
+        return new Measurement(family(axis), axis, magnitude, unit, applies, scope, operation, provider, origin, unknown);
+    }
+    public static CapabilityFamily family(CapabilityAxis axis) {
+        return switch (axis) {
+            case ARMOR, TOUGHNESS, EFFECTIVE_HEALTH, MAX_HEALTH, DAMAGE_REDUCTION, AVOIDANCE, BLOCKING, REFLECTION,
+                 RECOVERY, HEALING, REGENERATION, STATUS_RESISTANCE, SHIELD_CAPACITY, DAMAGE_IMMUNITY,
+                 KNOCKBACK_RESISTANCE, BURST_SURVIVAL, SUSTAINED_SURVIVAL -> CapabilityFamily.DEFENSE;
+            case DURABILITY, DURABILITY_REDUCTION, INDESTRUCTIBILITY, REPAIR, ITEM_LOSS_PREVENTION -> CapabilityFamily.ITEM_PRESERVATION;
+            case GROUND_SPEED, JUMP, VERTICAL_MOVEMENT, FALL_CONTROL, GLIDING, FLIGHT, ABILITIES_FLYING_SPEED, TELEPORTATION, STEP_HEIGHT -> CapabilityFamily.MOBILITY;
+            case MINING_SPEED, AREA_MINING, VEIN_MINING, HARVEST_LEVEL, CROP_YIELD, DROP_YIELD, HARVEST_SPEED,
+                 FISHING_PRODUCTIVITY, FISHING_TIME_REDUCTION, REACH, TOOL_VERSATILITY -> CapabilityFamily.MANUAL_GATHERING;
+            case AUTOMATED_EXTRACTION, AUTOMATED_FARMING, AUTOMATED_FISHING, MOB_FARMING, PASSIVE_GENERATION, AUTOMATION_INTERACTION -> CapabilityFamily.RESOURCE_AUTOMATION;
+            case CROP_ACCELERATION, TREE_ACCELERATION, ANIMAL_ACCELERATION -> CapabilityFamily.BIOLOGICAL_GROWTH;
+            case SPAWN_SUPPRESSION, MOB_REPULSION, HAZARD_SUPPRESSION -> CapabilityFamily.WORLD_CONTROL;
+            case MACHINE_ACCELERATION, BLOCK_ENTITY_ACCELERATION, ENTITY_ACCELERATION, LOCAL_TIME_ACCELERATION -> CapabilityFamily.TIME_ACCELERATION;
+            case INFORMATION -> CapabilityFamily.INFORMATION;
+            case INVENTORY -> CapabilityFamily.STORAGE;
+            case CONVERSION, THROUGHPUT, RESOURCE_CONSUMPTION -> CapabilityFamily.PROCESSING;
+            case CONVENIENCE, ENCHANTING_EFFICIENCY, ANVIL_EFFICIENCY, EXPERIENCE -> CapabilityFamily.MAGIC_UTILITY;
+            default -> CapabilityFamily.COMBAT_OFFENSE;
+        };
     }
 }

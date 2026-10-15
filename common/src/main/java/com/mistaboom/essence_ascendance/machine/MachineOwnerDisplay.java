@@ -31,11 +31,11 @@ public final class MachineOwnerDisplay {
                 () -> installed.provider().teamName(server, pool.id())).value()
                 .flatMap(value -> value).orElse("Unknown team");
     }
-    public static String ownerName(MinecraftServer server, MachineBinding binding, UUID legacyOwner, String legacyName) {
+    public static String ownerName(MinecraftServer server, MachineBinding binding, UUID placer, String placerName) {
         if (binding.pool() == null) return "Unbound";
         if (binding.pool().kind() == PoolId.Kind.TEAM) return teamName(server, binding.pool());
-        String fallback = binding.personalOwner() != null && binding.personalOwner().equals(legacyOwner)
-                && legacyName != null && !legacyName.isBlank() ? legacyName : "Unknown player";
+        String fallback = binding.personalOwner() != null && binding.personalOwner().equals(placer)
+                && placerName != null && !placerName.isBlank() ? placerName : "Unknown player";
         return playerName(server, binding.personalOwner(), fallback);
     }
 }

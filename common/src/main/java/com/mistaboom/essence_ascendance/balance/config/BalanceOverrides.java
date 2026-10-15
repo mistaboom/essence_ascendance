@@ -15,7 +15,7 @@ import java.util.TreeMap;
 /** Factual generator inputs and an explicitly separate resolved-value escape hatch. */
 public record BalanceOverrides(List<FactOverride> facts, Map<String, Object> exactValues) {
     public enum SubjectKind {
-        ITEM, BLOCK, ITEM_TAG, BLOCK_TAG, RECIPE, RECIPE_FAMILY, SOURCE, ENEMY, PROVIDER, CAPABILITY
+        ITEM, BLOCK, ITEM_TAG, BLOCK_TAG, RECIPE, RECIPE_FAMILY, ENEMY
     }
 
     public record FactOverride(String id, SubjectKind kind, String selector, int priority,
@@ -37,23 +37,15 @@ public record BalanceOverrides(List<FactOverride> facts, Map<String, Object> exa
             return Optional.ofNullable(values.get(key)).filter(Boolean.class::isInstance).map(Boolean.class::cast);
         }
 
-        public List<String> strings(String key) {
-            Object value = values.get(key);
-            if (!(value instanceof List<?> list)) return List.of();
-            return list.stream().map(String.class::cast).toList();
-        }
     }
 
-    private static final Set<String> FLAGS = Set.of("attainable", "disabled", "creative_only", "administrative", "joke",
-            "quest_gated", "include_reference", "renewable", "passive_generation", "flight", "flying_speed_compatible", "vein_mining", "area_mining");
-    private static final Set<String> NUMBERS = Set.of("confidence", "resource_value", "throughput", "health", "armor", "damage",
-            "attack_speed", "toughness", "mining_speed", "harvest_level", "durability", "enchantability", "startup_cost",
-            "marginal_cost", "parallelizability", "player_attention", "processing_time", "output_count", "probability");
+    private static final Set<String> FLAGS = Set.of("disabled", "creative_only", "administrative", "joke", "include_reference");
+    private static final Set<String> NUMBERS = Set.of("confidence", "resource_value", "health", "armor", "damage",
+            "attack_speed", "toughness", "mining_speed", "harvest_level", "durability", "processing_time", "output_count", "probability");
     /** Supported reference families; body is accepted as evidence but excluded from player frontiers. */
     public static final Set<String> EQUIPMENT_SLOTS = Set.of("head", "chest", "legs", "feet", "body", "offhand",
             "mainhand_melee", "mainhand_bow", "mainhand_crossbow", "mainhand_caster", "mainhand_tool");
-    private static final Set<String> TEXT = Set.of("stage", "availability", "automation", "classification", "reason", "dimension", "gate", "slot");
-    private static final Set<String> ARRAYS = Set.of("capabilities", "dependencies", "acquisition_sources");
+    private static final Set<String> TEXT = Set.of("stage", "reason", "slot");
     private static final Set<String> FACT_KEYS;
 
     static {
@@ -61,7 +53,6 @@ public record BalanceOverrides(List<FactOverride> facts, Map<String, Object> exa
         keys.addAll(FLAGS);
         keys.addAll(NUMBERS);
         keys.addAll(TEXT);
-        keys.addAll(ARRAYS);
         FACT_KEYS = Set.copyOf(keys);
     }
 
@@ -112,7 +103,7 @@ public record BalanceOverrides(List<FactOverride> facts, Map<String, Object> exa
         try { kind = SubjectKind.valueOf(kindName.toUpperCase(Locale.ROOT)); }
         catch (IllegalArgumentException exception) {
             throw BalanceToml.error(source, table.values().get("kind").line(), "Unknown subject kind '" + kindName
-                    + "'; expected item, block, item_tag, block_tag, recipe, recipe_family, source, enemy, provider or capability");
+                    + "'; expected item, block, item_tag, block_tag, recipe, recipe_family or enemy");
         }
         String selector = requiredString(table, "selector", source);
         if (selector.isBlank() || selector.chars().anyMatch(Character::isWhitespace)) {
@@ -131,6 +122,15 @@ public record BalanceOverrides(List<FactOverride> facts, Map<String, Object> exa
         Map<String, Object> values = new TreeMap<>();
         table.values().forEach((key, entry) -> {
             if (Set.of("id", "kind", "selector", "priority").contains(key)) return;
+            Set<String> allowed = switch (kind) {
+                case RECIPE, RECIPE_FAMILY -> Set.of("disabled", "confidence", "reason", "processing_time", "output_count", "probability");
+                case ENEMY -> Set.of("disabled", "creative_only", "administrative", "joke", "include_reference",
+                        "confidence", "reason", "stage", "health", "armor", "toughness", "damage");
+                default -> Set.of("disabled", "creative_only", "administrative", "joke", "include_reference",
+                        "confidence", "reason", "stage", "slot", "resource_value", "armor", "toughness", "damage",
+                        "attack_speed", "mining_speed", "harvest_level", "durability");
+            };
+            if (!allowed.contains(key)) throw BalanceToml.error(source, entry.line(), key + " is not supported for " + kindName + " facts");
             Object value = entry.value();
             if (FLAGS.contains(key) && !(value instanceof Boolean)) throw BalanceToml.error(source, entry.line(), key + " must be true or false");
             if (TEXT.contains(key) && (!(value instanceof String text) || text.isBlank())) throw BalanceToml.error(source, entry.line(), key + " must be a nonempty string");
@@ -138,7 +138,7 @@ public record BalanceOverrides(List<FactOverride> facts, Map<String, Object> exa
                 if (!(value instanceof Number number) || !Double.isFinite(number.doubleValue()) || number.doubleValue() < 0.0) {
                     throw BalanceToml.error(source, entry.line(), key + " must be a nonnegative finite number");
                 }
-                if (Set.of("confidence", "probability", "player_attention").contains(key) && ((Number) value).doubleValue() > 1.0) {
+                if (Set.of("confidence", "probability").contains(key) && ((Number) value).doubleValue() > 1.0) {
                     throw BalanceToml.error(source, entry.line(), key + " must be between 0 and 1");
                 }
                 if (key.equals("output_count")) {
@@ -148,29 +148,17 @@ public record BalanceOverrides(List<FactOverride> facts, Map<String, Object> exa
                     }
                 }
             }
-            if (ARRAYS.contains(key) && (!(value instanceof List<?> list)
-                    || list.stream().anyMatch(element -> !(element instanceof String text) || text.isBlank()))) {
-                throw BalanceToml.error(source, entry.line(), key + " must be an array of nonempty strings");
-            }
             if (key.equals("slot")) checkChoice(table, key, EQUIPMENT_SLOTS, source);
             if (key.equals("stage")) checkChoice(table, key, Set.of("entry", "early", "mid", "late", "apex"), source);
-            if (key.equals("availability")) checkChoice(table, key, Set.of("finite", "renewable_manual", "renewable_automated", "effectively_infinite", "unknown", "administrative"), source);
-            if (key.equals("automation")) checkChoice(table, key, Set.of("none", "player_gated", "bounded", "scalable", "passive", "infinite", "unknown"), source);
-            if (key.equals("classification") && kind == SubjectKind.ENEMY) {
-                checkChoice(table, key, Set.of("routine", "elite", "boss", "apex", "unknown"), source);
-            }
             values.put(key, value);
         });
-        if (values.isEmpty() && kind != SubjectKind.PROVIDER) {
+        if (values.isEmpty()) {
             throw BalanceToml.error(source, table.line(), "Fact '" + id + "' does not correct any factual field");
         }
-        contradictory(values, "disabled", true, "attainable", true, table, source);
         contradictory(values, "creative_only", true, "include_reference", true, table, source);
         contradictory(values, "administrative", true, "include_reference", true, table, source);
-        contradictory(values, "attainable", false, "include_reference", true, table, source);
         contradictory(values, "disabled", true, "include_reference", true, table, source);
-        contradictory(values, "availability", "effectively_infinite", "renewable", false, table, source);
-        contradictory(values, "passive_generation", true, "automation", "player_gated", table, source);
+        contradictory(values, "joke", true, "include_reference", true, table, source);
         return new FactOverride(id, kind, selector, priority, values, source, table.line());
     }
 

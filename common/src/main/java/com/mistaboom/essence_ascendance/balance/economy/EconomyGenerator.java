@@ -40,10 +40,10 @@ public final class EconomyGenerator {
         List<String> warnings = new ArrayList<>(generic.warnings());
         List<ProductionProvider> providers;
         synchronized (EconomyGenerator.class) { providers = List.copyOf(PROVIDERS.values()); }
-        providers.stream().sorted(Comparator.comparingInt((ProductionProvider provider) -> priority(provider, overrides))
+        providers.stream().sorted(Comparator.comparingInt((ProductionProvider provider) -> provider.priority())
                         .thenComparing(ProductionProvider::id))
                 .filter(provider -> runs.prepare("production", provider,
-                        com.mistaboom.essence_ascendance.balance.engine.GenerationProviders.disabled(provider.id(), overrides))).forEach(provider -> {
+                        false)).forEach(provider -> {
                     try (var phase = BalancePerformance.phase("production_provider/" + provider.id())) {
                         runs.run("production", provider, "collect", () -> provider.collect(inputs, generic)).ifPresent(supplied -> {
                         runs.emitted("production", provider, 0, supplied.processes().size(),
@@ -59,9 +59,6 @@ public final class EconomyGenerator {
                 });
         warnings.addAll(runs.warnings());
         applyProcessFacts(processes, overrides, warnings);
-        inputs.quests().processes().forEach(process -> {
-            if (processes.putIfAbsent(process.id(), process) != null) throw new IllegalStateException("Quest/source process ID collision " + process.id());
-        });
         inputs.production(new ProductionGraph(List.copyOf(processes.values()), warnings));
     }
 
@@ -100,26 +97,19 @@ public final class EconomyGenerator {
                                            BalanceSettings settings, BalanceOverrides overrides) {
         List<String> warnings = new ArrayList<>(resolvedGraph.warnings());
 
-        com.mistaboom.essence_ascendance.balance.engine.EvidenceSink sourceFacts = new com.mistaboom.essence_ascendance.balance.engine.EvidenceSink();
-        evidence.facts().forEach(sourceFacts::add);
-        Map<String, SourcePressurePolicy.Result> sourcePressure = new TreeMap<>();
-        evidence.resources().forEach((id, resource) -> sourcePressure.put(id, sourcePressure(resource, sourceFacts, settings)));
         Map<String, Map<String, Long>> proposedRoutes = new TreeMap<>();
         routeWeights.forEach((itemId, weights) -> {
             ResourceEvidence resource = evidence.resources().get(itemId);
             if (resource == null) return;
             Map<String, Long> routes = new TreeMap<>();
             double total = weights.values().stream().mapToDouble(Long::doubleValue).sum();
-            if (resource.reachable() && resource.external() && total > 0) {
-                double payout = resource.economicValue() * dissolutionSuitability(resource, settings) * sourcePressure.get(resource.itemId()).multiplier();
+            if (resource.external() && total > 0) {
+                double payout = resource.economicValue();
                 routes.putAll(scaleRoutes(weights, roundedWholeYield(payout)));
             }
             proposedRoutes.put(resource.itemId(), routes);
         });
         evidence.resources().keySet().forEach(id -> proposedRoutes.putIfAbsent(id, new TreeMap<>()));
-        Map<String, Long> ordinaryProposals = new TreeMap<>();
-        proposedRoutes.forEach((id, routes) -> ordinaryProposals.put(id, sum(routes)));
-        resolvedGraph = BoundedProductionPolicy.withSourceBudgets(resolvedGraph, ordinaryProposals, settings.automationPressure());
         applyExactYields(proposedRoutes, evidence, overrides);
         Map<String, DissolutionYield> proposed = new TreeMap<>();
         proposedRoutes.forEach((id, routes) -> proposed.put(id,
@@ -148,16 +138,8 @@ public final class EconomyGenerator {
             List<String> reasons = new ArrayList<>(resource.warnings());
             if (id.equals(com.mistaboom.essence_ascendance.mapping.EnchantedStackYields.ENCHANTED_BOOK))
                 reasons.add("effect_scored_conserved_books_v1: this item-only total is a conserved upper bound. Actual book yields retain one plain-book carrier and a concave shared budget from native enchantment effects and actual levels. Unknown effects grant no premium; tooltips and Archive rows show component-specific amounts. Book recipe inputs pay the plain-book component minimum.");
-            reasons.addAll(sourcePressure.get(id).explanations());
-            reasons.add("Source-quantity pressure multiplier " + sourcePressure.get(id).multiplier());
-            reasons.add("Dissolution suitability " + dissolutionSuitability(resource, settings)
-                    + " from " + resource.availability() + "/" + resource.automation() + " under " + settings.resourcePolicy());
-            reasons.add("whole_essence_v1: proposed total rounded to nearest whole (half up); recipe conservation"
-                    + " and proportional category allocation operate in whole Essence units; displayed yield equals actual credit");
-            if (excludesInfiniteSource(resource, settings))
-                reasons.add("infinite_source_no_generated_dissolution: effectively infinite sources are not Essence fuel"
-                        + " under " + settings.resourcePolicy() + "; abundance_aware permits pressure-discounted yields"
-                        + "; explicit yield overrides are still checked against production conservation");
+            reasons.add("property_recipe_estimate: generic item properties and bounded recipes; acquisition and automation are not inferred");
+            reasons.add("whole_essence_v1: whole-unit allocation with complete static recipe conservation");
             if (adjustedItems.contains(id)) reasons.add("Final dissolution reduced by production conservation after overrides");
             if (adjustedItems.contains(id) && yield.microUnits() == 0)
                 reasons.add("dissolution_disabled_by_conservation: no positive whole payout survives a gainful, zero-credit, or integer conversion constraint; limiting processes: "
@@ -170,59 +152,6 @@ public final class EconomyGenerator {
             validateWhole(profile);
         }
         return profile;
-    }
-
-    private static SourcePressurePolicy.Result sourcePressure(ResourceEvidence resource,
-            com.mistaboom.essence_ascendance.balance.engine.EvidenceSink facts, BalanceSettings settings) {
-        Double rate = sourceNumber(facts, resource.itemId(), "throughput");
-        if (rate == null) {
-            java.util.OptionalDouble observed = resource.sources().stream().filter(source -> source.rateKnown())
-                    .mapToDouble(source -> source.unitsPerSecond()).max();
-            if (observed.isPresent()) rate = observed.getAsDouble();
-        }
-        return SourcePressurePolicy.evaluate(new SourcePressurePolicy.Inputs(rate,
-                sourceNumber(facts, resource.itemId(), "startup_cost"), sourceNumber(facts, resource.itemId(), "marginal_cost"),
-                sourceNumber(facts, resource.itemId(), "parallelizability"), sourceNumber(facts, resource.itemId(), "player_attention")),
-                new EconomicValue(resource.economicValue()), settings.automationPressure());
-    }
-
-    private static Double sourceNumber(com.mistaboom.essence_ascendance.balance.engine.EvidenceSink facts,
-                                        String item, String property) {
-        var fact = facts.get(com.mistaboom.essence_ascendance.balance.engine.EvidenceFact.Subject.ITEM, item, property);
-        return fact != null && fact.value().type() == com.mistaboom.essence_ascendance.balance.engine.EvidenceFact.ValueType.NUMBER
-                ? fact.value().number() : null;
-    }
-
-    static double dissolutionSuitability(ResourceEvidence resource, BalanceSettings settings) {
-        if (!resource.reachable() || !resource.external()) return 0;
-        if (excludesInfiniteSource(resource, settings)) return 0;
-        double availability = switch (resource.availability()) {
-            case ADMINISTRATIVE -> 0;
-            case EFFECTIVELY_INFINITE -> Math.pow(.005, settings.bulkResourcePenalty());
-            case RENEWABLE_AUTOMATED -> 1 - .85 * settings.bulkResourcePenalty();
-            case RENEWABLE_MANUAL -> 1 - .2 * settings.bulkResourcePenalty();
-            case UNKNOWN -> .5;
-            default -> 1;
-        };
-        double automation = switch (resource.automation()) {
-            case INFINITE -> 1;
-            case PASSIVE -> .95;
-            case SCALABLE -> .85;
-            case BOUNDED -> .35;
-            case UNKNOWN -> .2;
-            default -> 0;
-        };
-        double policy = switch (settings.resourcePolicy()) {
-            case CONSERVATIVE -> resource.availability() == com.mistaboom.essence_ascendance.balance.engine.Availability.FINITE ? 1 : .75;
-            case ABUNDANCE_AWARE -> 1 - .25 * automation;
-            case BALANCED -> 1;
-        };
-        return policy * availability * (1 - automation * settings.automationPressure());
-    }
-
-    private static boolean excludesInfiniteSource(ResourceEvidence resource, BalanceSettings settings) {
-        return resource.availability() == com.mistaboom.essence_ascendance.balance.engine.Availability.EFFECTIVELY_INFINITE
-                && settings.resourcePolicy() != BalanceSettings.ResourcePolicy.ABUNDANCE_AWARE;
     }
 
     private static void applyExactYields(Map<String, Map<String, Long>> routes,
@@ -241,9 +170,9 @@ public final class EconomyGenerator {
             if (resource == null || essenceId == null || EssenceRegistry.get(essenceId).isEmpty())
                 throw new IllegalArgumentException("Unknown item or Essence in exact override " + pointer);
             long units = exactWholeYield(number.doubleValue(), pointer);
-            if (units > 0 && (!resource.reachable() || !resource.external()))
-                throw new IllegalArgumentException("Cannot assign dissolution to excluded/unreachable item " + item
-                        + "; correct acquisition facts first");
+            if (units > 0 && !resource.external())
+                throw new IllegalArgumentException("Cannot assign dissolution to excluded item " + item
+                        + "; change the explicit item exclusion first");
             routes.get(item).put(essence, units);
         });
     }
@@ -265,12 +194,6 @@ public final class EconomyGenerator {
         });
     }
 
-    private static int priority(ProductionProvider provider, BalanceOverrides overrides) {
-        return overrides.facts().stream().filter(fact -> fact.kind() == BalanceOverrides.SubjectKind.PROVIDER
-                        && fact.selector().equals(provider.id())).mapToInt(BalanceOverrides.FactOverride::priority)
-                .max().orElse(provider.priority());
-    }
-
     private static void applyProcessFacts(Map<String, ProductionGraph.Process> processes,
                                            BalanceOverrides overrides, List<String> warnings) {
         List<BalanceOverrides.FactOverride> facts = overrides.facts().stream()
@@ -289,7 +212,7 @@ public final class EconomyGenerator {
                 applied.add(fact.id());
             }
             if (applied.isEmpty()) continue;
-            if (Boolean.TRUE.equals(resolved.get("disabled")) || Boolean.FALSE.equals(resolved.get("attainable"))) {
+            if (Boolean.TRUE.equals(resolved.get("disabled"))) {
                 processes.remove(before.id());
                 continue;
             }
@@ -308,7 +231,7 @@ public final class EconomyGenerator {
                     number(resolved, "confidence", before.confidence()), metadata));
         }
         for (BalanceOverrides.FactOverride fact : facts)
-            if (!matched.contains(fact.id())) warnings.add("Production override " + fact.id() + " matches no loaded process (possibly excluded during acquisition analysis)");
+            if (!matched.contains(fact.id())) warnings.add("Production override " + fact.id() + " matches no loaded process (unsupported or absent recipe)");
     }
 
     private static double number(Map<String, Object> values, String key, double fallback) {
@@ -365,7 +288,7 @@ public final class EconomyGenerator {
         return whole;
     }
 
-    /** Strict for newly generated whole-unit profiles; legacy cached fractional profiles use validate. */
+    /** Validate whole-unit profiles and complete static recipe conservation. */
     public static void validateWhole(EconomyProfile profile) {
         validate(profile);
         Map<String, Map<String, Long>> wholeRoutes = new TreeMap<>();

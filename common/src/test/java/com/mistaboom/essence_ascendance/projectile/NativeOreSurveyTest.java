@@ -2,7 +2,6 @@ package com.mistaboom.essence_ascendance.projectile;
 
 import com.mistaboom.essence_ascendance.balance.economy.*;
 import com.mistaboom.essence_ascendance.balance.generated.GeneratedBalanceService;
-import com.mistaboom.essence_ascendance.balance.generated.GenerationRecipeReadiness;
 import com.mistaboom.essence_ascendance.gathering.NaturalOreDropService;
 import com.mistaboom.essence_ascendance.valuation.ProceduralValuationEngine;
 import net.minecraft.world.level.block.Blocks;
@@ -23,10 +22,7 @@ public final class NativeOreSurveyTest {
         Object previous = active.get(null);
         try {
             ProceduralValuationEngine.clear();
-            var clear = GenerationRecipeReadiness.class.getDeclaredMethod("clear");
-            clear.setAccessible(true);
-            clear.invoke(null);
-            assertGenerationUnprepared(f);
+            assertGenerationUnprepared();
 
             active.set(null, published(40));
             var ores = NaturalOreDropService.surveyOreValues(f.player);
@@ -41,7 +37,7 @@ public final class NativeOreSurveyTest {
             active.set(null, published(80));
             check(NaturalOreDropService.surveyOreValues(guest).get(Blocks.DIAMOND_ORE) == 80L,
                     "publishing a replacement profile updates ore weighting without a stale cache");
-            assertGenerationUnprepared(f);
+            assertGenerationUnprepared();
         } finally {
             active.set(null, previous);
             f.close();
@@ -60,13 +56,10 @@ public final class NativeOreSurveyTest {
         return new EconomyProfile.ResourceValue(new EconomicValue(amount), new DissolutionYield(0), Map.of(), List.of());
     }
 
-    private static void assertGenerationUnprepared(ProjectileNativeInterceptionTest.Fixture f) {
-        try {
-            GenerationRecipeReadiness.excludedRecipeNamespaces(f.server);
-            throw new AssertionError("Fixture must reproduce the unprepared recipe epoch from the host log");
-        } catch (IllegalStateException expected) {
-            check(expected.getMessage().contains("requires recipe preparation"), "exact reported readiness failure");
-        }
+    private static void assertGenerationUnprepared() throws ReflectiveOperationException {
+        var snapshot = ProceduralValuationEngine.class.getDeclaredField("generationData");
+        snapshot.setAccessible(true);
+        check(snapshot.get(null) == null, "Saved-profile ore survey never starts balance generation");
     }
 
     private static void check(boolean okay, String message) {

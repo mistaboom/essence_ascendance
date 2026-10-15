@@ -1,3 +1,5 @@
+> **Historical record — superseded for balance generation.** The dated reports below describe earlier implementations and validation receipts. For the current item/recipe estimates, configurable Skill tiers and generated Bonus settings, see [Simple balance generation](simple-balance.md). Earlier acquisition inference, automatic skill placement and compatibility claims do not describe the current development revision.
+
 ## Procedural skill progression checkpoint (2026-10-05)
 
 The user requested a stopping point to conserve subscription usage. All 90 registered skills now compute tiers/prices through shared utility, environment and prerequisite policy; the native audit covers 230 ranks. Full common checks and both loader builds passed; the final loot-reader correction also passed focused checks and rebuilt both loaders. Native rebuild/validation and direct saved restart were demonstrated on an earlier snapshot; the latest source still needs a fresh native cycle. The isolated server is stopped. No human configuration/profile or production deployment changed.

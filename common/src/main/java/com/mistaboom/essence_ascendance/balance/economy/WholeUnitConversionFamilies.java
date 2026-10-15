@@ -35,9 +35,7 @@ public final class WholeUnitConversionFamilies {
     WholeUnitConversionFamilies(ProductionGraph graph) {
         Map<String, List<Edge>> edges = new TreeMap<>();
         for (ProductionGraph.Process process : graph.processes()) {
-            // A stock replenishment cycle produces new material through an
-            // independent source; it is not an equality between material forms.
-            if (!process.conservationComplete() || BoundedProductionPolicy.isBoundedSource(process)) continue;
+            if (!process.conservationComplete()) continue;
             List<ProductionGraph.Input> consumed = process.inputs().stream().filter(ProductionGraph.Input::consumed).toList();
             if (consumed.isEmpty() || consumed.stream().anyMatch(input -> input.alternatives().size() != 1)
                     || process.outputs().stream().anyMatch(output -> output.probability() != 1)) continue;

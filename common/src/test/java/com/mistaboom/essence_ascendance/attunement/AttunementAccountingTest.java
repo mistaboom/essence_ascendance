@@ -119,12 +119,21 @@ public final class AttunementAccountingTest {
         long developedBonus = AttunementService.investment(data, OFF);
         check(developedBonus > 0, "Realized Bonus development accelerates Attunement");
         var paid=new SkillPurchase(EssenceTypes.OFFENSE.id(),List.of(17L,31L,79L));
-        data.recordSkillPurchase(ResourceLocation.parse("test:historical_skill"),paid);
-        check(AttunementService.investment(data,OFF)==developedBonus+127,"Investment uses actual historical receipts even without a current skill definition");
+        check(data.recordSkillPurchase(SkillIds.FRENZY,paid),"Current catalog skill accepts actual paid receipt");
+        check(AttunementService.investment(data,OFF)==developedBonus+127,"Investment uses actual historical payments for a current catalog skill");
         long earned=data.attunement().progress(OFF);
         check(data.applyNexusTransaction(Map.of(),Map.of(EssenceTypes.OFFENSE.id(),wallet),data.getOwnedSkills(),data.getLoadoutSelections(),data.getTierId()),"Bonus respec committed");
         check(data.attunement().progress(OFF)==earned&&AttunementService.investment(data,OFF)==127,"Respec preserves earned progress and changes future acceleration");
+        var unknownCatalog=data.save();
+        unknownCatalog.getCompound("skill_ranks").put("test:historical_skill",
+                unknownCatalog.getCompound("skill_ranks").getCompound(SkillIds.FRENZY.toString()).copy());
+        boolean rejectedCatalog=false;
+        try { PlayerEssenceData.load(unknownCatalog); }
+        catch (IllegalArgumentException expected) { rejectedCatalog=true; }
+        check(rejectedCatalog,"An unknown saved skill cannot be silently discarded during an accounting roundtrip");
         var playerReload=PlayerEssenceData.load(data.save());
+        check(playerReload.getOwnedSkills().equals(data.getOwnedSkills())&&AttunementService.investment(playerReload,OFF)==127,
+                "Current catalog receipt and exact investment acceleration survive save/load without repricing");
         check(playerReload.attunement().progress(OFF)==earned,"Saved player state survives death/respawn/reconnect shared UUID storage");
         check(data.applyNexusTransaction(data.getAllInvested(),data.getAllAvailable(),data.getOwnedSkills(),data.getLoadoutSelections(),AscendanceTiers.AWAKENED.id()),"Tier commit succeeds");
         check(data.attunement().progress(OFF)==0&&data.getAvailable(EssenceTypes.OFFENSE)==wallet,"Ascension clears chapter without consuming Essence");

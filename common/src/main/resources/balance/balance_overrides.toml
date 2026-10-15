@@ -1,308 +1,73 @@
-# Essence Ascendance: factual pack corrections
-# Inputs apply only during generation, then become part of generated_balance.json.gz.
-# Run /essence admin balance rebuild after editing. Never use generated JSON as an editor.
-# Ordinary startup reuses the saved profile; changes to this file require an explicit rebuild.
-# Inspect reports/ CSV tables to find IDs and generated values; those files are
-# read-only views. Full evidence remains in generated_balance.json.gz and diagnostics/.
-# Player unlock thresholds are visible in reports/ascension.csv. Their runtime
-# totalInvestmentMultiplier multiplies the current tier's generated budget.
-# Existing exact overrides can change that multiplier; thresholds must stay
-# positive and strictly increasing, with no skipped tier or known mining cycle.
-# Optional breadth requirements must fit the registered stats and categories.
+# Generation inputs. Existing files are never overwritten.
+# Changes apply to a fresh generation or an explicit rebuild; saved profiles remain authoritative.
+# Skill unlock tiers belong in skill_layout.toml. Bonus bounds belong in bonus_progression.toml.
 schema_version = 1
 
-# Add one [[fact]] table per correction. All examples below are commented out.
-# Every fact needs kind and selector. Give it a short unique id for diagnostics.
-# kind: item, block, item_tag, block_tag, recipe, recipe_family, source, enemy,
-#       provider, capability. Use actual registry/provider identifiers as selectors.
-# Exact item/block/enemy IDs and tags are preferred over per-mod conditionals.
-# priority: integer -100000..100000, default 1000; larger priority wins.
-# Conflicting equal-priority evidence is resolved deterministically and reported.
-# confidence: 0..1; describe how certain you are, not the power you want.
-# reason: plain-language explanation recorded in provenance.
-#
-# Supported factual fields:
-# stage = "entry" | "early" | "mid" | "late" | "apex"
-# availability = "finite" | "renewable_manual" | "renewable_automated" |
-#                "effectively_infinite" | "unknown" | "administrative"
-# automation = "none" | "player_gated" | "bounded" | "scalable" |
-#              "passive" | "infinite" | "unknown"
-# classification = descriptive source/resource class; enemy classes are exactly
-#                  "routine", "elite", "boss", "apex", "unknown".
-#                  Use administrative=true to exclude a test/admin enemy.
-# slot = "head" | "chest" | "legs" | "feet" | "offhand" | "mainhand_melee" |
-#        "mainhand_bow" | "mainhand_crossbow" | "mainhand_caster" | "mainhand_tool"
-#        "body" records non-player equipment and is excluded from player frontiers.
-# A custom item whose equipment behavior is not exposed by default components
-# needs an explicit slot plus measurable axes (damage, armor, mining_speed, etc.).
-# The item must still be registered and have a reachable acquisition route.
-# Enemy types without measured default hostile attributes need include_reference=true,
-# explicit stage and confidence>0, plus positive health. classification is optional;
-# "unknown" is retained when omitted and does not set routine/boss damage budgets.
-# Flags (true/false): attainable, disabled, creative_only, administrative, joke,
-# quest_gated, include_reference, renewable, passive_generation, flight,
-# flying_speed_compatible, vein_mining, area_mining.
-# Flight Speed requires both flight=true and flying_speed_compatible=true for
-# the same reachable source. The second flag asserts a verified response to
-# Abilities#flyingSpeed, not Elytra velocity. Names and GLIDING are not evidence.
-# Set the actual acquisition stage, confidence and a factual implementation reason.
-# Providers use separate axis.FLIGHT and axis.ABILITIES_FLYING_SPEED claims.
-# Bonuses resolve permanent catalog access from this environment evidence, never
-# from a player's current inventory. See reports/bonus_tracks.csv and
-# diagnostics/bonus_tracks.json for compatibility decisions and fallbacks.
-# Nonnegative numbers: resource_value, throughput, health, armor, damage,
-# attack_speed, toughness, mining_speed, harvest_level, durability, enchantability,
-# startup_cost, marginal_cost, parallelizability, processing_time, output_count.
-# output_count must be a positive whole number no greater than 2147483647;
-# use probability separately for fractional expected recipe outputs.
-# Numbers in 0..1: confidence, probability, player_attention.
-# String arrays: capabilities, dependencies, acquisition_sources.
-# Other strings: dimension, gate, reason.
-# throughput is evidence in units/second; processing_time is in server ticks
-# (20 ticks/second). resource_value is opportunity value, not a final dissolution
-# yield. Recipe probabilities describe expected output chances.
-# startup_cost and marginal_cost use the same normalized opportunity-value units
-# as resource_value. Startup cost is a one-time setup burden, never a consumed
-# input credited again for every output. parallelizability is relative to one
-# producer (1 = one producer); player_attention is 0 for passive output and 1
-# for continuous player action. Leave unknown rates/costs omitted.
-# Unsupported/unused facts are visible in diagnostics rather than silently treated
-# as exact knowledge of a third-party machine, quest system or boss mechanic.
-#
-# Unknown keys, duplicate IDs, bad types, and contradictions stop regeneration.
-# Examples: disabled=true with attainable=true; creative_only=true with
-# include_reference=true; effectively_infinite availability with renewable=false.
+# [[fact]] corrects registered item, equipment, enemy or recipe measurements.
+# Supported kinds: item, block, item_tag, block_tag, enemy, recipe, recipe_family.
+# Selectors use registry IDs; item/block/enemy/recipe selectors also accept * wildcards.
+# Tags use a namespaced tag ID, optionally prefixed by #.
+# Give every fact a unique id. Higher priority wins; default priority is 1000.
+# Equal priority is resolved by confidence (0..1), then stable fact ID.
+# reason is a nonempty explanatory string. All numeric measurements are nonnegative and finite.
+# These measurements do not establish survival access, quest gates, automation or renewable supply.
 
-# Effectively unlimited cobblestone from the beginning (enable only if true here).
+# Item/block/tag fields:
+#   disabled, creative_only, administrative, joke, include_reference: true/false
+#   resource_value: explicit intrinsic item-value estimate
+#   slot: head, chest, legs, feet, body, offhand, mainhand_melee, mainhand_bow,
+#         mainhand_crossbow, mainhand_caster or mainhand_tool
+#   armor, toughness, damage, attack_speed, mining_speed, harvest_level, durability
+#   stage: entry, early, mid, late or apex (relative catalog strength, not acquisition timing)
+# Equipment fields correct existing measurable equipment references; they do not create gameplay abilities.
+# Explicit exclusion cannot be combined with include_reference=true in the same fact.
+#
 # [[fact]]
-# id = "early_bulk_stone"
+# id = "exclude_admin_item"
 # kind = "item"
-# selector = "minecraft:cobblestone"
-# stage = "entry"
-# availability = "effectively_infinite"
-# automation = "scalable"
-# renewable = true
-# confidence = 1.0
-# reason = "The pack provides an inexpensive cobblestone generator at entry."
-
-# A registered test armor item must not influence external reference populations.
-# [[fact]]
-# id = "exclude_test_armor"
-# kind = "item"
-# selector = "examplemod:debug_chestplate"
-# attainable = false
+# selector = "example:admin_tool"
 # administrative = true
-# include_reference = false
-# reason = "Registered for debugging and deliberately unobtainable."
-
-# Classify a whole resource tag instead of maintaining hundreds of item rows.
+# reason = "Administrative item; exclude from ordinary reference statistics."
+#
 # [[fact]]
-# id = "renewable_gems"
+# id = "material_estimate"
 # kind = "item_tag"
-# selector = "examplepack:renewable_gems"
-# renewable = true
-# automation = "passive"
+# selector = "example:refined_materials"
+# resource_value = 24.0
+#
+# [[fact]]
+# id = "measured_weapon"
+# kind = "item"
+# selector = "example:sword"
+# slot = "mainhand_melee"
+# damage = 8.0
+# attack_speed = 1.6
 # stage = "mid"
-# reason = "Our midgame generator passively supplies this tag."
 
-# A flight item exists but the pack gates access until late progression.
+# Enemy fields: the exclusion flags above, include_reference, stage, health, armor,
+# toughness and damage. Only registered native hostile references are considered.
+#
 # [[fact]]
-# id = "late_flight"
-# kind = "item"
-# selector = "examplemod:flight_ring"
-# flight = true
-# capabilities = ["flight"]
-# stage = "late"
-# quest_gated = true
-# gate = "examplepack:flight_unlock"
-# reason = "Quest progression prevents earlier access."
-
-# Recipe family = registered recipe type. This also represents pack-disabled or
-# KubeJS/datapack-modified recipe facts without a hard dependency on those mods.
-# [[fact]]
-# id = "disabled_machine_family"
-# kind = "recipe_family"
-# selector = "examplemod:creative_processing"
-# disabled = true
-# reason = "All recipes in this registered family are disabled by pack design."
-
-# A hidden 3x3 tool capability needs explicit evidence if attributes cannot show it.
-# [[fact]]
-# id = "area_tool"
-# kind = "item"
-# selector = "examplemod:excavator"
-# area_mining = true
-# capabilities = ["area_mining"]
-# stage = "mid"
-# reason = "Breaks a 3x3 area per active player action."
-
-# An ordinary Item can implement a custom weapon without exposing vanilla attributes.
-# [[fact]]
-# id = "custom_caster"
-# kind = "item"
-# selector = "examplemod:spell_focus"
-# slot = "mainhand_caster"
-# damage = 30.0
-# attack_speed = 0.5
-# confidence = 0.9
-# reason = "Measured unmodified casts deal 30 damage once every two seconds."
-
-# Enemy classification can distinguish a true apex encounter from routine mobs.
-# [[fact]]
-# id = "apex_encounter"
+# id = "measured_enemy"
 # kind = "enemy"
-# selector = "examplemod:final_boss"
-# classification = "apex"
-# stage = "apex"
-# include_reference = true
-# health = 500.0
-# confidence = 1.0
-# reason = "Intended final encounter; its shield requires an integration provider."
+# selector = "example:sentinel"
+# health = 80.0
+# damage = 8.0
 
-# Provider priority is itself a reusable correction; use an actual provider ID.
+# Recipe/recipe_family fields: disabled, confidence, reason, processing_time (ticks),
+# output_count (positive whole count) and probability (0..1).
+#
 # [[fact]]
-# id = "trust_pack_adapter"
-# kind = "provider"
-# selector = "examplepack:machine_sources"
-# priority = 2000
-# reason = "This adapter knows the pack's modified machine recipes."
+# id = "measured_recipe"
+# kind = "recipe"
+# selector = "example:refining"
+# output_count = 2
+# probability = 0.5
+# processing_time = 200
 
-# ADVANCED ESCAPE HATCH: exact generated runtime fields, applied during generation.
-# This is a separate input, never a second live runtime authority.
-# Keys are quoted JSON Pointers into the candidate profile. Use / between object
-# fields; inside a key encode literal ~ as ~0 and / as ~1. Array indices are zero-based.
-# Values may be numbers, booleans, strings or arrays of primitive values.
-# Only supported existing runtime paths are accepted by the generator; unknown
-# paths, unsafe profile metadata changes and invalid results fail the rebuild.
-# Read the generated profile to locate a field, then place the override HERE.
-# General policy preferences belong in essence_ascendance.toml; factual errors
-# should normally be corrected using [[fact]]. Exact values deliberately stop
-# that field from adapting automatically to a changed pack.
-# Generated item dissolution routes accept only nonnegative whole Essence.
-# Fractional exact yield overrides fail with the offending pointer; they are
-# never silently rounded. Recipe conservation may still reduce a requested yield.
-# Runtime equipment/stat overrides must respect their documented unit precision.
+# Exact overrides are exceptional final runtime/economy values. Keys are JSON Pointers.
+# Each target must exist and accept the supplied type. Native limits and accounting checks still apply.
+# Escape ~ as ~0 and / inside an identifier as ~1. These are not dotted TOML paths.
 [exact]
-# "/runtime/statMaxBonuses/essence_ascendance:melee_damage" = 12.0
-# "/runtime/equipment/essence_ascendance:transcendent/fullSetArmor" = 24.0
-# "/runtime/infuser/repair/essencePerDurability" = 1
-# "/economy/resources/examplemod:crystal/routedYields/essence_ascendance:utility" = 12
-
-# SKILL EFFECTS / PROJECTILES. These are resolved runtime fields, shared by arrows,
-# spectral arrows, Ascendance Bow shots, real Caster bolts and explicit adapters.
-# Values below are illustrative seed values; read runtime_parameters.csv for the
-# actual generated values (damage follows the existing skill/composition budget).
-# Rebuild applies control policy to new defensive interactions; offensive path and
-# payload tuning already snapshotted on in-flight projectiles remains unchanged.
-# Path and payload are independent choices. Each unique eligible confirmed victim
-# may consume one payload trigger, including later Ricochet/Piercing victims.
-# "/runtime/effects/projectiles/payload/triggerBudget" = 3 # 0..32; per projectile
-# "/runtime/effects/projectiles/payload/explosiveRadius" = 4.0 # 0..32 blocks
-# "/runtime/effects/projectiles/payload/explosiveDamageScale" = 0.25 # 0..4 of confirmed primary damage
-# Explosion target cap reuses /runtime/effects/combustion/targetsPerBurst.
-# No terrain effects, ignition, self/allied damage or recursive payload activation.
-# Root affects the confirmed victim only; no separate redundant area-radius knob.
-# "/runtime/effects/projectiles/payload/rootDurationTicks" = 40 # 1..200 ticks
-# "/runtime/effects/projectiles/payload/rootMaxDurationTicks" = 80 # duration..400; total refresh window
-# "/runtime/effects/projectiles/payload/rootMovementTolerance" = 0.0625 # 0.001..1 block
-# "/runtime/effects/projectiles/payload/particleCount" = 8 # 0..64, shared restrained payload feedback
-# Strongest eligible field wins; factors never multiply across fields or ticks.
-# Radius must be strictly greater than innerRadius. Scan candidate budget shares
-# the existing maximumImpacts field; no per-player all-loaded-entity scans.
-# "/runtime/effects/projectiles/control/outerRadius" = 12.0 # 0.5..32 blocks
-# "/runtime/effects/projectiles/control/innerRadius" = 3.0 # 0..<outerRadius
-# "/runtime/effects/projectiles/control/minimumSpeedFactor" = 0.125 # 0.05..1; never stops flight
-# "/runtime/effects/projectiles/control/responseExponent" = 0.75 # 0.25..8; early, obvious viscous response
-# "/runtime/effects/projectiles/control/scanCadenceTicks" = 2 # 1..20
-# "/runtime/effects/projectiles/control/swingRange" = 3.0 # 0.5..8 blocks
-# "/runtime/effects/projectiles/control/swingRadius" = 0.5 # 0.01..2 blocks
-# "/runtime/effects/projectiles/control/swingHalfAngleDegrees" = 35.0 # 1..80; full arc is twice this
-# "/runtime/effects/projectiles/control/readinessThreshold" = 0.9 # 0..1 attack strength
-# "/runtime/effects/projectiles/control/swingBudget" = 16 # 1..64 successful interceptions per ordinary swing
-# "/runtime/effects/projectiles/control/theftSpeedMultiplier" = 1.25 # 0.1..2; applied after restoring at least full launch speed
-# "/runtime/effects/projectiles/control/theftTargetRange" = 20.0 # 1..128 blocks
-# "/runtime/effects/projectiles/control/theftAimConeDegrees" = 45.0 # 0..60; hostile aim assistance around the swung-at projectile
-# "/runtime/effects/projectiles/control/theftTurnDegreesPerTick" = 18.0 # 0..45; persisted redirected homing
-# "/runtime/effects/projectiles/control/redirectBudget" = 1 # 0..1; ownership can transfer at most once
-# Theft clears inherited offensive skill state; only confirmed redirected damage
-# can contribute through the existing skill outcome contract. Slow/root/intercept
-# alone never fabricate damage or Attunement progress. No per-action cap is added.
-
-# SKILL EFFECTS / DEFENSE / GUARD. All scales are normalized ratios, not percent.
-# These examples are generator seeds; runtime_parameters.csv contains the final
-# procedural values. Rebuild uses the existing validated atomic profile/reload
-# path; content changes invalidate effect caches. Guard rewards are transient,
-# so invalid skill/choice/equipment/lifecycle state ends them rather than saving
-# charge in world data. Perfect timing is measured from native guard readiness.
-# /runtime/effects/guard is the only guard tuning authority; no new config file.
-# "/runtime/effects/guard/mobility/slowdownRemoval" = 0.85 # 0..1; stronger of equipment/skill removal, once
-# "/runtime/effects/guard/mobility/stepHeight" = 1.0 # 0.6..1.1 blocks, actively guarding only
-# "/runtime/effects/guard/ram/minimumSpeed" = 0.2 # 0.1..1 blocks/tick approach speed
-# "/runtime/effects/guard/ram/maximumSweep" = 2.0 # 1..3 blocks; rejects teleport-scale movement
-# "/runtime/effects/guard/ram/staggerTicks" = 10 # 1..40; movement reduction, not root or AI disable
-# "/runtime/effects/guard/ram/staggerMovementMultiplier" = 0.3 # 0.1..1; nonzero movement retained
-# "/runtime/effects/guard/ram/knockback" = 0.6 # 0..2, native resistance still applies
-# "/runtime/effects/guard/ram/contactLimit" = 3 # 1..8 accepted contacts per charge
-# "/runtime/effects/guard/ram/repeatCooldownTicks" = 20 # staggerTicks..200, per target
-# Shield Ram has no direct damage setting and never creates block rewards.
-# "/runtime/effects/guard/ward/preventedReflectionScale" = 1.0 # 0..1 of eligible fully prevented force
-# "/runtime/effects/guard/ward/knockbackEchoScale" = 0.5 # 0..2 of measured attempted knockback
-# "/runtime/effects/guard/ward/knockbackEchoCap" = 1.0 # 0..2; shared retaliation/counter knockback bound
-# "/runtime/effects/guard/storedForce/conversion" = 0.25 # 0..1 of actual positive block prevention
-# "/runtime/effects/guard/storedForce/capacity" = 8.0 # 0..1024 stored health-force units; additive capped gain
-# "/runtime/effects/guard/storedForce/durationTicks" = 160 # 1..1200; every valid block refreshes idle expiry
-# "/runtime/effects/guard/storedForce/damageScale" = 1.0 # 0..4 bonus damage per stored unit
-# "/runtime/effects/guard/storedForce/knockbackScale" = 0.1 # 0..1 per stored unit, bounded by shared cap
-# "/runtime/effects/guard/amplifier/perBlockGrowth" = 0.25 # 0..maximumMultiplier-1, additive multiplier growth
-# "/runtime/effects/guard/amplifier/maximumMultiplier" = 2.0 # 1..4; perfect block immediately promotes to max
-# "/runtime/effects/guard/amplifier/durationTicks" = 120 # 1..1200; valid blocks refresh expiry
-# The granting block uses its new multiplier once; Reprisal is never amplified again.
-# "/runtime/effects/guard/perfectGuard/windowTicks" = 5 # 1..10 native-ready ticks, including first ready tick
-# "/runtime/effects/guard/reprisal/radius" = 4.0 # 0..16 blocks; existing terrain/hostility-safe creature area
-# "/runtime/effects/guard/reprisal/damageScale" = 0.25 # 0..1 of confirmed primary reflected damage
-# "/runtime/effects/guard/reprisal/maximumTargets" = 6 # 0..16, excluding defender and primary target
-# "/runtime/effects/guard/reprisal/particleCount" = 8 # 0..32, accepted area-result feedback
-# "/runtime/effects/guard/riposte/durationTicks" = 100 # 1..1200 while armed
-# "/runtime/effects/guard/riposte/bonusReach" = 0.75 # 0..2 blocks, eligible counterattack only
-# "/runtime/effects/guard/riposte/damageScale" = 0.35 # 0..4 added primary-melee damage fraction
-# "/runtime/effects/guard/riposte/protectionTicks" = 1 # 1..2; attack return closes protection immediately
-
-# Defensive posture and harmful-status skills share this generated profile.
-# Examples below are seed defaults, not promises of final calibrated power.
-# Rebuild preserves human TOML. Reload/choice/lifecycle changes clear transient posture/cooldown.
-# Damage resistance applies before native armor. Pure State is binary, has no
-# magnitude knob or invented rank benefit, and does not cleanse existing effects.
-# Movement measurements use server blocks/tick and degrees; hysteresis absorbs jitter.
-# "/runtime/effects/posture/movement/minimumDisplacement" = 0.01 # .001..0.1
-# "/runtime/effects/posture/movement/stillEnterDisplacement" = 0.003 # .0001..minimumDisplacement
-# "/runtime/effects/posture/movement/stillExitDisplacement" = 0.015 # stillEnterDisplacement..0.2
-# "/runtime/effects/posture/movement/maximumDisplacement" = 3.0 # 1..8; discontinuity reset
-# "/runtime/effects/posture/movement/turnEnterDegrees" = 1.0 # .1..5
-# "/runtime/effects/posture/movement/turnExitDegrees" = 3.0 # turnEnterDegrees..20
-# "/runtime/effects/posture/movement/stableTicks" = 3 # 1..20
-# "/runtime/effects/posture/movement/intentTimeoutTicks" = 10 # 5..40
-# "/runtime/effects/posture/movement/forcedMotionQuietTicks" = 10 # 1..40
-# "/runtime/effects/posture/evasive/buildTicks" = 80 # 20..1200 to full meter
-# "/runtime/effects/posture/evasive/drainTicks" = 20 # 1..200 from full to empty
-# "/runtime/effects/posture/evasive/maximumDodgeChance" = 0.2 # 0..0.75; generated rank scaling
-# "/runtime/effects/posture/evasive/successDrainFraction" = 0.5 # .1..1 of full meter per dodge
-# "/runtime/effects/posture/evasive/hitDrainFraction" = 0.125 # .1..1 of full meter per taken hit
-# "/runtime/effects/posture/bulwark/buildTicks" = 80 # 20..1200 while stationary and facing threat
-# "/runtime/effects/posture/bulwark/drainTicks" = 20 # 1..200
-# "/runtime/effects/posture/bulwark/threatRange" = 12.0 # 1..32 blocks
-# "/runtime/effects/posture/bulwark/facingDegrees" = 60.0 # 10..85 half angle
-# "/runtime/effects/posture/bulwark/maximumResistance" = 0.2 # 0..0.75; generated rank scaling
-# "/runtime/effects/posture/bulwark/knockbackThreshold" = 1.0 # .5..1 of full meter, correlated hostile hit only
-# "/runtime/effects/posture/bulwark/maximumThreats" = 32 # 1..64 bounded threat candidates
-# "/runtime/effects/posture/adaptive/windowTicks" = 120 # 20..1200 since last eligible type hit
-# "/runtime/effects/posture/adaptive/maximumStacks" = 5 # 2..16, includes first seeding hit
-# "/runtime/effects/posture/adaptive/minimumHits" = 2 # 2..maximumStacks; first mitigated hit
-# "/runtime/effects/posture/adaptive/resistancePerStack" = 0.05 # 0..0.75/(maximumStacks-minimumHits+1)
-# Status Mirror copies at most this duration/amplifier through normal target acceptance.
-# "/runtime/effects/status/mirrorCooldownTicks" = 600 # 20..72000; rank scaling reduces cooldown, never below20
-# "/runtime/effects/status/mirrorMaximumDurationTicks" = 1200 # 1..72000; infinite copied durations use this cap
-# "/runtime/effects/status/mirrorMaximumAmplifier" = 4 # 0..10, zero-based native amplifier
-# Stored Force and Riposte spend once on accepted positive primary melee damage;
-# misses/canceled/no-loss attacks retain them until expiry or invalid state.
-# Native damage, armor, absorption and attack cooldown still apply. Riposte adds
-# to the primary component before Stored Force adds flat damage in one hurt call.
+# "/runtime/statMaxBonuses/essence_ascendance:movement_speed" = 50.0
+# "/economy/resources/minecraft:iron_ingot/routedYields/essence_ascendance:construction" = 12

@@ -222,13 +222,17 @@ public final class RuntimeBalanceDefinition {
             throw new IllegalArgumentException("Invalid composition value " + key); });
         for (String required : List.of("equipment_share", "nexus_share", "skill_share", "rank_safe_skill_scale"))
             if (!composition.containsKey(required)) throw new IllegalArgumentException("Missing composition budget " + required);
+        if (!Double.valueOf(1.0).equals(composition.get("equipment_quantization")))
+            throw new IllegalArgumentException("Current equipment quantization contract is required");
+        Double parity = composition.get("equipment_apex_parity");
+        if (parity == null || parity != 0.0 && parity != 1.0)
+            throw new IllegalArgumentException("Explicit current equipment parity policy (0 or 1) is required");
         config.skillEffects().validate();
         if (composition.getOrDefault("meaningful_progression", 0.0) == 1) {
-            double outcomeContract = composition.getOrDefault("native_outcome_contract", 1.0);
-            if (outcomeContract != 1 && outcomeContract != com.mistaboom.essence_ascendance.skill.ProgressionRequirements.NATIVE_OUTCOME_CONTRACT)
+            double outcomeContract = composition.getOrDefault("native_outcome_contract", 0.0);
+            if (outcomeContract != com.mistaboom.essence_ascendance.skill.ProgressionRequirements.NATIVE_OUTCOME_CONTRACT)
                 throw new IllegalArgumentException("Unsupported native outcome contract: " + outcomeContract);
-            com.mistaboom.essence_ascendance.skill.balance.SkillBalanceGenerator.validatePublished(config.skillEffects(), skillCurves,
-                    (int) outcomeContract);
+            com.mistaboom.essence_ascendance.skill.balance.SkillBalanceGenerator.validatePublished(config.skillEffects(), skillCurves);
         }
         com.mistaboom.essence_ascendance.network.RuntimeBalancePayload.validateJsonSize(toJson().toString());
     }
@@ -274,7 +278,7 @@ public final class RuntimeBalanceDefinition {
             throw new IllegalArgumentException("Worldgen policy has missing, unknown, or invalid fields; regenerate generated_balance.json.gz");
         return settings;
     }
-    /** Strict round trip, allowing only the iron harvest floor upgrade for saved profiles. */
+    /** Strict current-format round trip. Saved profiles are never upgraded during load. */
     public static RuntimeBalanceDefinition fromJson(JsonObject json) {
         Wire wire = JSON.fromJson(json, Wire.class);
         Objects.requireNonNull(wire, "Missing runtime profile");
@@ -286,16 +290,7 @@ public final class RuntimeBalanceDefinition {
                 profile, wire.milestones, wire.advancements, wire.statMaxBonuses, new EquipmentBaselineConfig(wire.equipment));
         var result = new RuntimeBalanceDefinition(config, wire.crucible, wire.pylons, wire.skillCurves, wire.composition,
                 Objects.requireNonNull(wire.attunement, "Missing Category Attunement calibration; use /essence admin balance rebuild"));
-        JsonObject expected = json.deepCopy();
-        for (var entry : expected.getAsJsonObject("equipment").entrySet()) {
-            JsonObject baseline = entry.getValue().getAsJsonObject();
-            JsonElement level = baseline.get("harvestLevel");
-            // Only the two formerly valid levels below iron may change. Missing,
-            // fractional, negative and unknown fields still fail the round trip.
-            if (new JsonPrimitive(0).equals(level) || new JsonPrimitive(1).equals(level))
-                baseline.addProperty("harvestLevel", EquipmentBaselineConfig.MINIMUM_HARVEST_LEVEL);
-        }
-        if (!result.toJson().equals(expected)) throw new IllegalArgumentException("Runtime profile has missing, unknown, or out-of-range fields; rebuild it instead of editing generated JSON");
+        if (!result.toJson().equals(json)) throw new IllegalArgumentException("Runtime profile has missing, unknown, or out-of-range fields; rebuild it instead of editing generated JSON");
         return result;
     }
     private record Wire(int configVersion, double pylonRadius, int maxActivePylons, InfuserBalanceSettings infuser,

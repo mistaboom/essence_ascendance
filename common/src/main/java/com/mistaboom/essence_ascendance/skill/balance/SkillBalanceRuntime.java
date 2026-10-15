@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.skill.balance;
 
 import com.mistaboom.essence_ascendance.skill.SkillRegistry;
+import com.mistaboom.essence_ascendance.skill.SkillDefinition;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
 import net.minecraft.resources.ResourceLocation;
 import java.util.Collections;
@@ -43,7 +44,18 @@ public final class SkillBalanceRuntime {
         var tiers = scopedTiers.get();
         if (tiers != null) return tiers.getOrDefault(skillId, catalogTier);
         var curve = snapshot().get(skillId.toString());
-        return curve == null || curve.requiredTierId() == null ? catalogTier : curve.requiredTierId();
+        return curve == null ? catalogTier : curve.requiredTierId();
+    }
+    /** Apply explicit rank gates to a configured/saved base tier without planning a placement. */
+    public static ResourceLocation requiredTier(SkillDefinition skill, ResourceLocation base, int rank) {
+        ResourceLocation result = java.util.Objects.requireNonNull(base, "Missing resolved skill tier");
+        for (var entry : skill.rankPolicy().rankGates().entrySet()) {
+            ResourceLocation gate = entry.getValue().requiredTierId();
+            if (entry.getKey() <= rank && gate != null
+                    && AscendanceTierRegistry.get(gate).orElseThrow().order()
+                    > AscendanceTierRegistry.get(result).orElseThrow().order()) result = gate;
+        }
+        return result;
     }
     /** Generation sees only this candidate's placement; unspecified skills retain catalog placement. */
     public static <T> T withRequiredTiers(Map<ResourceLocation, ResourceLocation> tiers, Supplier<T> operation) {
@@ -70,7 +82,7 @@ public final class SkillBalanceRuntime {
     }
     private static void validateTier(ResourceLocation skillId, ResourceLocation tierId) {
         var definition = SkillRegistry.require(skillId);
-        if (tierId == null) return; // Old saved profiles retain their immutable catalog placement.
+        java.util.Objects.requireNonNull(tierId, "Missing resolved skill tier: " + skillId);
         var tier = AscendanceTierRegistry.get(tierId).orElseThrow(() ->
                 new IllegalArgumentException("Unknown generated skill tier: " + skillId + " / " + tierId));
         if (!tier.grantsPower())
@@ -101,8 +113,8 @@ public final class SkillBalanceRuntime {
         return skill.ranks().get(rank - 1);
     }
     public record ResolvedSkill(int maximumRank, List<ResolvedRank> ranks, ResourceLocation requiredTierId) {
-        public ResolvedSkill(int maximumRank, List<ResolvedRank> ranks) { this(maximumRank, ranks, null); }
         public ResolvedSkill {
+            java.util.Objects.requireNonNull(requiredTierId, "Missing resolved skill tier");
             ranks = List.copyOf(ranks);
             if (maximumRank < 1 || maximumRank > 64 || ranks.size() < maximumRank || ranks.size() > 64)
                 throw new IllegalArgumentException("Invalid generated maximum skill rank");

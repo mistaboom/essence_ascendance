@@ -32,6 +32,14 @@ public final class SkillRankLedgerTest {
         var data = new PlayerEssenceData();
         check(data.recordSkillPurchase(SkillIds.FRENZY, receipt), "Initial receipt rejected");
         check(!data.recordSkillPurchase(SkillIds.FRENZY, new SkillPurchase(EssenceTypes.OFFENSE.id(), 1)), "Receipt overwritten");
+        var incompatible = data.save();
+        var unknownReceipt = new net.minecraft.nbt.CompoundTag();
+        unknownReceipt.putString("paid_essence", EssenceTypes.OFFENSE.id().toString());
+        unknownReceipt.putLongArray("rank_paid_costs", new long[]{37, 53});
+        incompatible.getCompound("skill_ranks").put("essence_ascendance:removed_catalog_skill", unknownReceipt);
+        var savedBeforeRejectedLoad = incompatible.copy();
+        rejects(() -> PlayerEssenceData.load(incompatible));
+        check(incompatible.equals(savedBeforeRejectedLoad), "Rejected old-catalog save must remain byte-for-byte unchanged");
         var restored = PlayerEssenceData.load(data.save());
         check(restored.skillRank(SkillIds.FRENZY) == 3 && restored.getOwnedSkills().equals(data.getOwnedSkills()),
                 "NBT roundtrip changed rank receipts");
@@ -56,17 +64,17 @@ public final class SkillRankLedgerTest {
         var editedRanks = new java.util.ArrayList<>(frenzy.ranks());
         var third = editedRanks.get(2);
         editedRanks.set(2, new SkillBalanceRuntime.ResolvedRank(3, third.cost(), third.powerMultiplier() * 1.01));
-        edited.put(SkillIds.FRENZY.toString(), new SkillBalanceRuntime.ResolvedSkill(frenzy.maximumRank(), editedRanks));
+        edited.put(SkillIds.FRENZY.toString(), new SkillBalanceRuntime.ResolvedSkill(frenzy.maximumRank(), editedRanks, frenzy.requiredTierId()));
         SkillBalanceRuntime.install(edited);
         check(SkillRankEffectScaling.apply(settings, Map.of(SkillIds.FRENZY, 3)).frenzy().damageBonusPercentPerStack()
                 > ranked.frenzy().damageBonusPercentPerStack(), "Resolved future rank edit is disconnected from gameplay tuning");
         rejects(() -> new SkillBalanceRuntime.ResolvedSkill(1,
-                List.of(new SkillBalanceRuntime.ResolvedRank(1, 10, 2))));
+                List.of(new SkillBalanceRuntime.ResolvedRank(1, 10, 2)), frenzy.requiredTierId()));
         check(receipt.refundAbove(1) == 110, "Profile change altered historical refund");
         var shortened = new TreeMap<>(edited);
         shortened.put(SkillIds.FRENZY.toString(), new SkillBalanceRuntime.ResolvedSkill(1,
                 List.of(new SkillBalanceRuntime.ResolvedRank(1, 17, 1,
-                        Map.of("frenzy/damageBonusPercentPerStack", 9.0)))));
+                        Map.of("frenzy/damageBonusPercentPerStack", 9.0))), frenzy.requiredTierId()));
         SkillBalanceRuntime.install(shortened);
         check(SkillRankEffectScaling.apply(settings, restored.getSkillRanks()).frenzy().damageBonusPercentPerStack() == 9,
                 "Historical ranks resolve to a rebuilt profile's published endpoint");

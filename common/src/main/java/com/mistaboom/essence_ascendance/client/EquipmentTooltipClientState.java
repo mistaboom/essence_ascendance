@@ -78,19 +78,6 @@ public final class EquipmentTooltipClientState {
         );
     }
 
-    /*
-     * Kept for compatibility with the first tooltip patch, whose Ascendance item
-     * classes call this from appendHoverText(). The actual presentation now runs
-     * once from the ItemStack#getTooltipLines return pipeline after the complete
-     * vanilla tooltip exists.
-     */
-    public static void append(
-            ItemStack stack,
-            List<Component> tooltip
-    ) {
-        // Intentionally empty.
-    }
-
     public static void applyToGeneratedTooltip(
             ItemStack stack,
             List<Component> tooltip,

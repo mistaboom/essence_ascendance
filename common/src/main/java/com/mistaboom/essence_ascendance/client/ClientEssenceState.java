@@ -115,13 +115,6 @@ public final class ClientEssenceState {
                 );
     }
 
-    /** Compatibility name retained for existing client presentation callers. */
-    public static boolean hasCompletedInternalMilestone(
-            ResourceLocation milestoneId
-    ) {
-        return hasCompletedMilestone(milestoneId);
-    }
-
     public static boolean ownsSkill(
             ResourceLocation skillId
     ) {

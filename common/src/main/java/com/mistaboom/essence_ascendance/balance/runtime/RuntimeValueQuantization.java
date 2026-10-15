@@ -15,6 +15,21 @@ public final class RuntimeValueQuantization {
         return BigDecimal.valueOf(value).divide(BigDecimal.valueOf(step),0,RoundingMode.FLOOR)
                 .multiply(BigDecimal.valueOf(step)).doubleValue();
     }
+    /** Smallest representable decimal gameplay unit that satisfies the declared minimum. */
+    public static double up(double value, double step) {
+        if (!Double.isFinite(value) || value < 0 || !Double.isFinite(step) || step <= 0)
+            throw new IllegalArgumentException("Quantization requires finite nonnegative values and a positive unit");
+        return BigDecimal.valueOf(value).divide(BigDecimal.valueOf(step), 0, RoundingMode.CEILING)
+                .multiply(BigDecimal.valueOf(step)).doubleValue();
+    }
+    /** Restore only floating multiplication noise when reconstructing an already published grid value. */
+    public static double reconstructedGridValue(double value, double step) {
+        if (!Double.isFinite(value) || value < 0 || !Double.isFinite(step) || step <= 0)
+            throw new IllegalArgumentException("Grid reconstruction requires finite nonnegative values and a positive unit");
+        double steps = Math.rint(value / step);
+        double grid = BigDecimal.valueOf(step).multiply(BigDecimal.valueOf(steps)).doubleValue();
+        return Math.abs(value - grid) <= 4 * Math.ulp(value) ? grid : value;
+    }
     public static double statStep(StatUnit unit) {
         return switch(unit) {
             case PERCENT -> 1;
@@ -28,8 +43,10 @@ public final class RuntimeValueQuantization {
         JsonObject json=runtime.toJson(); apply(json); return RuntimeBalanceDefinition.fromJson(json);
     }
     static void apply(JsonObject json) {
-        boolean parity=json.getAsJsonObject("composition").has("equipment_apex_parity")
-                &&json.getAsJsonObject("composition").get("equipment_apex_parity").getAsDouble()==1;
+        var parityValue=json.getAsJsonObject("composition").get("equipment_apex_parity");
+        if(parityValue==null || (parityValue.getAsDouble()!=0 && parityValue.getAsDouble()!=1))
+            throw new IllegalArgumentException("Explicit current equipment parity policy (0 or 1) is required");
+        boolean parity=parityValue.getAsDouble()==1;
         for(var entry:json.getAsJsonObject("equipment").entrySet()) {
             JsonObject row=entry.getValue().getAsJsonObject();
             for(String field:List.of("fullSetArmor","fullSetToughness","meleeDamage","rangedDamage","magicDamage"))

@@ -31,15 +31,15 @@ public final class RuntimeBalanceGenerator {
         return generate(evidence, null, settings, overrides);
     }
     public static RuntimeBalanceDefinition generate(PackEvidence evidence, EconomyProfile economy, BalanceSettings settings, BalanceOverrides overrides) {
-        return generate(evidence, economy, settings, overrides, AdaptiveCompetitionCalibration.neutral(evidence));
+        return generate(evidence, economy, settings, overrides, SkillLayoutConfig.defaults(), BonusProgressionConfig.automatic());
     }
     public static RuntimeBalanceDefinition generate(PackEvidence evidence, EconomyProfile economy, BalanceSettings settings,
-            BalanceOverrides overrides, AdaptiveCompetitionCalibration competition) {
-        return com.mistaboom.essence_ascendance.skill.balance.SkillBalanceRuntime.withRequiredTiers(competition.skillTiers(),
-                () -> generateResolved(evidence, economy, settings, overrides, competition));
+            BalanceOverrides overrides, SkillLayoutConfig layout, BonusProgressionConfig bonusConfig) {
+        return com.mistaboom.essence_ascendance.skill.balance.SkillBalanceRuntime.withRequiredTiers(layout.requiredTiers(),
+                () -> generateResolved(evidence, economy, settings, overrides, layout, bonusConfig));
     }
     private static RuntimeBalanceDefinition generateResolved(PackEvidence evidence, EconomyProfile economy, BalanceSettings settings,
-            BalanceOverrides overrides, AdaptiveCompetitionCalibration competition) {
+            BalanceOverrides overrides, SkillLayoutConfig layout, BonusProgressionConfig bonusConfig) {
         com.mistaboom.essence_ascendance.balance.generated.BalancePerformance.increment("runtime_generation_runs");
         var allTiers = AscendanceTierRegistry.values().stream().sorted(Comparator.comparingInt(AscendanceTierDefinition::order)).toList();
         var tiers = allTiers.stream().filter(AscendanceTierDefinition::grantsPower).toList();
@@ -117,7 +117,8 @@ public final class RuntimeBalanceGenerator {
                     1+power*settings.equipmentShare()));
             double mining=Math.max(lastMining,Math.max(1,RuntimeReferencePolicy.required(evidence,band,CapabilityAxis.MINING_SPEED)*power*equipmentScale));
             double durability=Math.max(lastDurability,Math.max(1,RuntimeReferencePolicy.required(evidence,band,CapabilityAxis.DURABILITY)*Math.sqrt(power)));
-            int harvest=(int)Math.min(32,RuntimeReferencePolicy.observed(evidence,band,CapabilityAxis.HARVEST_LEVEL,0));
+            int harvest=(int)Math.max(EquipmentBaselineConfig.MINIMUM_HARVEST_LEVEL,
+                    Math.min(32,RuntimeReferencePolicy.observed(evidence,band,CapabilityAxis.HARVEST_LEVEL,0)));
             double rangedRate=Math.max(lastRangedRate,RuntimeReferencePolicy.rangedRate(evidence,band,rate,settings.outlierPolicy().name()));
             double rangedDamage=Math.max(lastRangedDamage,equipmentDps/rangedRate*power*equipmentScale*offensePressure);
             double magicRate=Math.max(lastMagicRate,rangedRate/RuntimeReferencePolicy.CASTER_HIT_RATIO);
@@ -145,7 +146,6 @@ public final class RuntimeBalanceGenerator {
         // Transcendent to attainable pack equipment before final unit rounding;
         // discrete harvest access advances separately with each equipment infusion.
         RuntimeEquipmentNormalization.apply(equipment,evidence,settings,encounterBudgets);
-        competition.equipment(equipment);
         RuntimeEquipmentNormalization.anchorMining(equipment, evidence, encounterBudgets);
         double apex=settings.overallPower()*settings.apexPower();
         Map<ResourceLocation,Double> bonuses = new LinkedHashMap<>();
@@ -159,17 +159,15 @@ public final class RuntimeBalanceGenerator {
             // same armor twice and makes the later defense guard crush resistance.
             if (stat.id().getPath().equals("max_health")) value*=Math.sqrt(Math.max(1,
                     enemyReference(evidence,ProgressionBand.APEX,CapabilityAxis.BURST_DAMAGE,false,entryEnemyDamage)/entryEnemyDamage));
-            if (stat.id().getPath().equals("mining_speed") && settings.miningPolicy()==BalanceSettings.MiningPolicy.MATCH_PACK)
-                value*=Math.sqrt(Math.max(1,evidence.reference(ProgressionBand.APEX,CapabilityAxis.AREA_MINING,1)));
             if (stat.id().getPath().equals("mining_speed") && settings.miningPolicy()==BalanceSettings.MiningPolicy.RESTRICT) value*=.5;
             if (stat.id().getPath().equals("flight_speed")) {
                 if(settings.flightPolicy()==BalanceSettings.FlightPolicy.RESTRICT) value=0;
                 // FLIGHT is a binary access axis, never a speed measurement or maximum-effect multiplier.
             }
-            bonuses.put(stat.id(),competition.bonusMaximum(stat,Math.min(1_000_000,value)));
+            bonuses.put(stat.id(),Math.min(1_000_000,value));
         }
         double exponent=.72+.20*settings.compositionSafeguard();
-        var tracks=BonusTrackGenerator.resolve(evidence,settings,caps,fractions,bonuses,categoryFactors,exponent,competition);
+        var tracks=BonusTrackGenerator.resolve(settings,caps,fractions,bonuses,categoryFactors,exponent);
         tracks.forEach((id,track)-> {
             bonuses.put(id,track.maximumEffect());
             Map<ResourceLocation,Long> costs=new LinkedHashMap<>();
@@ -195,13 +193,12 @@ public final class RuntimeBalanceGenerator {
         var shield=shield(equipment,settings);
         // Rank-one effects and additional rank growth have separate calibration.
         double resolvedSkillScale=skillScale*Math.sqrt(apex);
-        var effects=competition.skills(effects(resolvedSkillScale, evidence, settings));
+        var effects=effects(resolvedSkillScale, evidence, settings);
         var worldgen=LatentOreBalanceGenerator.generate(evidence,economy,settings.latentOre());
-        var rod=FishingRodBalanceGenerator.generate(fractions,equipment,settings,competition);
+        var rod=FishingRodBalanceGenerator.generate(fractions,equipment,settings);
         var config=new EssenceServerConfig(1,6,8,infuser,shield,rod,effects,worldgen,profile,milestones,advancements,bonuses,new EquipmentBaselineConfig(equipment));
         var crucible=new EssenceCrucibleStructureStats(1,positiveLong(entry*48.0*CRUCIBLE_STORAGE_MULTIPLIER),8,positiveLong(entry/2.0),20,1,6,1,0);
         Map<String,Double> composition=new TreeMap<>(encounterBudgets);
-        competition.combatReferences(composition);
         composition.put("equipment_quantization",1.0);
         composition.put("equipment_share",settings.equipmentShare()); composition.put("nexus_share",settings.nexusShare());composition.put("skill_share",settings.skillShare());
         composition.put("partial_viability",participation); composition.put("composition_safeguard",settings.compositionSafeguard());
@@ -215,7 +212,7 @@ public final class RuntimeBalanceGenerator {
         for(var skill:com.mistaboom.essence_ascendance.skill.SkillRegistry.values()) {
             var curve=curves.get(skill.id().toString());
             double categoryFactor=categoryFactors.get(skill.essenceId().toString());
-            double capabilityCost=com.mistaboom.essence_ascendance.skill.balance.SkillProgressionPolicy.configuredPriceFactor(skill,settings,evidence);
+            double capabilityCost=com.mistaboom.essence_ascendance.skill.balance.SkillProgressionPolicy.configuredPriceFactor(skill,settings);
             final double resolvedCostFactor=Math.max(.1,categoryFactor*capabilityCost);
             curves.put(skill.id().toString(),new com.mistaboom.essence_ascendance.skill.balance.SkillBalanceRuntime.ResolvedSkill(curve.maximumRank(),
                     curve.ranks().stream().map(r->new com.mistaboom.essence_ascendance.skill.balance.SkillBalanceRuntime.ResolvedRank(r.rank(),positiveLong(r.cost()*resolvedCostFactor),r.powerMultiplier())).toList(), curve.requiredTierId()));
@@ -261,7 +258,7 @@ public final class RuntimeBalanceGenerator {
             runtime=RuntimeBalanceDefinition.fromJson(ranked);
             RuntimeBuildScenarios.analyze(runtime,evidence,settings,compositionPlan).requireSafe();
         }
-        runtime=resolveFinalTracks(runtime,evidence,settings,categoryFactors,competition);
+        runtime=resolveFinalTracks(runtime,settings,categoryFactors);
         if (compositionPlan != null) {
             firstRankPlan = RuntimeBuildScenarios.plan(runtime, false);
             compositionPlan = RuntimeBuildScenarios.plan(runtime, true);
@@ -279,7 +276,7 @@ public final class RuntimeBalanceGenerator {
                     || (path.startsWith("/runtime/balanceProfile/bonusTracks/") && path.endsWith("/maximumEffect")))) {
                 // Exact native effects change intrinsic utility. Resolve prices from that final effect, then
                 // reapply any separately requested exact cost overrides so those remain authoritative.
-                runtime=resolveFinalTracks(runtime,evidence,settings,categoryFactors,competition);
+                runtime=resolveFinalTracks(runtime,settings,categoryFactors);
                 JsonObject resolved=runtime.toJson();
                 overrides.exactValues().forEach((path,value)->{if(path.startsWith("/runtime/")) applyExact(resolved,path.substring("/runtime/".length()),value);});
                 BonusTrackGenerator.synchronizeExactOverrides(resolved,overrides.exactValues());
@@ -296,8 +293,7 @@ public final class RuntimeBalanceGenerator {
         // Native floors cannot feed back into sibling/global power allocation. Prices consume final rank utility.
         var nominalAnalysis = runtime.generationAnalysis();
         runtime = SkillBalanceGenerator.publishMeaningful(runtime);
-        runtime = BonusTrackGenerator.publishMeaningful(runtime);
-        runtime = competition.priceSkills(runtime, categoryFactors, settings, economy);
+        runtime = BonusTrackGenerator.publishMeaningful(runtime, Map.of(), bonusConfig);
         // Explicit author prices remain authoritative after procedural pricing, without changing strength or access.
         if (overrides != null) {
             var priced = runtime.toJson();
@@ -432,11 +428,11 @@ public final class RuntimeBalanceGenerator {
         return RuntimeBalanceDefinition.fromJson(json);
     }
 
-    private static RuntimeBalanceDefinition resolveFinalTracks(RuntimeBalanceDefinition runtime,PackEvidence evidence,
-            BalanceSettings settings,Map<String,Double> categoryFactors, AdaptiveCompetitionCalibration competition) {
+    private static RuntimeBalanceDefinition resolveFinalTracks(RuntimeBalanceDefinition runtime,
+            BalanceSettings settings,Map<String,Double> categoryFactors) {
         var profile=runtime.config().balanceProfile();
-        var tracks=BonusTrackGenerator.resolve(evidence,settings,profile.defaultTierCaps(),profile.tierFractions(),
-                runtime.config().statMaxBonuses(),categoryFactors,profile.investmentExponent(),competition);
+        var tracks=BonusTrackGenerator.resolve(settings,profile.defaultTierCaps(),profile.tierFractions(),
+                runtime.config().statMaxBonuses(),categoryFactors,profile.investmentExponent());
         JsonObject json=runtime.toJson();
         json.getAsJsonObject("balanceProfile").add("bonusTracks",BonusTrackGenerator.toJson(tracks));
         for(var entry:tracks.entrySet()) {
@@ -672,17 +668,11 @@ public final class RuntimeBalanceGenerator {
         return switch(band) {case ENTRY,EARLY -> s.earlyPower();case MID->s.midPower();case LATE->s.latePower();case APEX->s.apexPower();};
     }
     private static double medianSupply(PackEvidence evidence,EconomyProfile economy,ProgressionBand band) {
-        if(economy==null)return medianEconomic(evidence,band);
-        double[] values=economy.resources().entrySet().stream().filter(e->{var r=evidence.resources().get(e.getKey());return r!=null&&r.reachable()&&r.external()&&r.stage().ordinal()<=band.ordinal()&&e.getValue().dissolutionYield().amount()>0;})
-                .mapToDouble(e->e.getValue().dissolutionYield().amount()).sorted().toArray();
-        return values.length==0?1:Math.max(.01,values[values.length/2]);
+        // One policy unit is independent of registry size, recipe count and guessed acquisition.
+        return com.mistaboom.essence_ascendance.valuation.ProceduralValuationSettings.DEFAULT_BASE;
     }
     private static double categoryFactor(PackEvidence evidence,EconomyProfile economy,String essenceId) {
-        if(economy==null)return 1;
-        double[] category=economy.resources().entrySet().stream().filter(e->{var r=evidence.resources().get(e.getKey());return r!=null&&r.reachable()&&r.external()&&e.getValue().routedYields().getOrDefault(essenceId,0.0)>0;})
-                .mapToDouble(e->e.getValue().routedYields().get(essenceId)).sorted().toArray();
-        if(category.length==0)return .5;
-        return Math.clamp(category[category.length/2]/medianSupply(evidence,economy,ProgressionBand.APEX),.1,4);
+        return 1;
     }
     private static void applyExact(JsonObject json,String pointer,Object value) {
         if(pointer.equals("composition")||pointer.startsWith("composition/")||pointer.equals("balanceProfile/id"))
@@ -702,12 +692,6 @@ public final class RuntimeBalanceGenerator {
             catch(NumberFormatException ignored) { }
         }
         throw new IllegalArgumentException("Unknown exact runtime value /runtime/"+pointer);
-    }
-    private static double medianEconomic(PackEvidence evidence,ProgressionBand band) {
-        double[] values=evidence.resources().values().stream().filter(r->r.reachable()&&r.external()&&r.stage().ordinal()<=band.ordinal()&&r.economicValue()>0)
-                .mapToDouble(ResourceEvidence::economicValue).sorted().toArray();
-        if(values.length==0)return 1; // Unitless bootstrap/minimum effort, never a fabricated tier economy.
-        return Math.max(1,values[values.length/2]);
     }
     private static long positiveLong(double value) {
         if(!Double.isFinite(value)||value>Long.MAX_VALUE/100_000_000.0)throw new IllegalArgumentException("Generated economy amount exceeds safe accounting range");

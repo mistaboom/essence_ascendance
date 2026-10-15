@@ -132,7 +132,7 @@ public final class RuntimeBuildScenarios {
         com.mistaboom.essence_ascendance.balance.generated.BalancePerformance.increment(detailed ? "combat_scenario_analyses" : "combat_scenario_probes");
         List<Case> result = new ArrayList<>();
         int checkedCases = 0;
-        boolean parity = runtime.composition().getOrDefault("equipment_apex_parity", 0.0) == 1.0;
+        boolean parity = runtime.composition().get("equipment_apex_parity") == 1.0;
         int bandIndex = 0;
         for (var tier : AscendanceTierRegistry.powerTiers().stream().sorted(Comparator.comparingInt(AscendanceTierDefinition::order)).toList()) {
             ProgressionBand band = ProgressionBand.at(bandIndex++);
@@ -344,8 +344,7 @@ public final class RuntimeBuildScenarios {
         });
     }
     static double equipmentValue(RuntimeBalanceDefinition runtime, double base, EquipmentProfileDefinition profile, EquipmentBaselineProperty property) {
-        return runtime.composition().getOrDefault("equipment_quantization", 0.0) == 1.0
-                ? EquipmentBaselineService.resolvedValue(base, profile, property) : base * profile.baselineMultiplier(property);
+        return EquipmentBaselineService.resolvedValue(base, profile, property);
     }
     private static Modifier nexus(RuntimeBalanceDefinition runtime, AscendanceTierDefinition tier, String family, boolean moderate) {
         var damage = family.equals("ranged") ? EssenceStats.RANGED_DAMAGE : family.equals("caster") ? EssenceStats.MAGIC_DAMAGE : EssenceStats.MELEE_DAMAGE;

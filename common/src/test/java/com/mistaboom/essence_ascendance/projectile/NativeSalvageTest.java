@@ -162,7 +162,7 @@ public final class NativeSalvageTest {
         return null;
     }
 
-    /** These synthetic routes test diagnostic honesty only; they are never emitted as a pack-acquisition receipt. */
+    /** These native recipe fixtures verify mechanical coverage without claiming item acquisition. */
     private static void coverageLabels(RecipeHolder<?> rich, RecipeHolder<?> cheap) {
         com.mistaboom.essence_ascendance.essence.EssenceTypes.init();
         com.mistaboom.essence_ascendance.stat.EssenceStats.init();
@@ -180,19 +180,28 @@ public final class NativeSalvageTest {
         var saturated = com.mistaboom.essence_ascendance.gathering.SalvageCoverageDiagnostics.collect(
                 List.of(rich, cheap), registries, runtime, java.util.Map.of());
         var first = saturated.getAsJsonArray("ranks").get(0).getAsJsonObject();
-        check(first.get("requiredAcquisitionBand").getAsString().equals("ENTRY"), "Dormant uses ENTRY, not the next powered acquisition band");
+        check(!first.has("requiredAcquisitionBand") && first.has("requiredTier"), "Skill tier remains a gate without inventing an item acquisition band");
+        check(first.get("status").getAsString().equals("PASS_NATIVE_MATERIAL_RECOVERY"), "First rank passes its actual native bill without source inference");
         check(saturated.getAsJsonObject("summary").get("materialBills").getAsInt() == 1, "Output index retains the actual common resolver bill");
         for (int i = 1; i < saturated.getAsJsonArray("ranks").size(); i++) {
             var row = saturated.getAsJsonArray("ranks").get(i).getAsJsonObject();
             check(row.get("status").getAsString().startsWith("FAIL_") && row.get("maskedRows").getAsInt() == 1,
                     "A confirmed masked native rank is not hidden by missing source evidence");
         }
-        var unresolved = com.mistaboom.essence_ascendance.gathering.SalvageCoverageDiagnostics.collect(
+        var mechanical = com.mistaboom.essence_ascendance.gathering.SalvageCoverageDiagnostics.collect(
                 List.of(rich), registries, runtime, java.util.Map.of());
-        check(unresolved.getAsJsonObject("summary").get("passedRanks").getAsInt() == 0,
-                "A convenient synthetic four-unit recipe cannot manufacture an accessible pack witness");
-        check(unresolved.getAsJsonObject("summary").get("unknownRanks").getAsInt() > 0,
-                "Mechanically useful output with no acquisition proof stays explicitly unknown");
+        check(mechanical.getAsJsonObject("summary").get("passedRanks").getAsInt() > 0,
+                "A loaded four-unit recipe establishes mechanical recovery independently of source evidence");
+        check(mechanical.getAsJsonObject("summary").get("unknownRanks").getAsInt() == 0,
+                "Missing catalog/source evidence cannot create a blanket unknown mechanical result");
+        check(mechanical.get("catalogPolicy").getAsString().contains("not inferred"),
+                "Diagnostic explicitly separates catalog estimates from survival acquisition");
+        var itemRow = java.util.stream.StreamSupport.stream(mechanical.getAsJsonArray("items").spliterator(), false)
+                .map(com.google.gson.JsonElement::getAsJsonObject)
+                .filter(row -> row.get("item").getAsString().equals("minecraft:diamond_sword")).findFirst().orElseThrow();
+        check(itemRow.get("catalogEstimateStatus").getAsString().equals("MISSING_CATALOG_ESTIMATE")
+                        && !itemRow.has("savedAccessEvidence") && !itemRow.getAsJsonArray("ranks").get(0).getAsJsonObject().has("accessStatus"),
+                "Missing estimate stays explicit without restoring retired source or stage assertions");
         double initial = GatheringSalvageService.expectedMaterialRecovery(3, .215686) / 3;
         double upgraded = GatheringSalvageService.expectedMaterialRecovery(3, .360511) / 3;
         check(upgraded > initial && upgraded - initial < .1, "The guaranteed minimum can mask most of a nominal ten-point increase");

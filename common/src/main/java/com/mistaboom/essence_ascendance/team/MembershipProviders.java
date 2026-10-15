@@ -15,10 +15,7 @@ public final class MembershipProviders {
                     "com.mistaboom.essence_ascendance.team.compat.FtbTeamsMembershipProvider",
                     List.of(Map.of("ftbteams", "2101.1.11", "ftblibrary", "2101.1.30"),
                             Map.of("ftbteams", "2101.1.11", "ftblibrary", "2101.1.36"),
-                            Map.of("ftbteams", "2101.1.11", "ftblibrary", "2101.1.37"))),
-            new Entry(MembershipAuthority.OPENPAC, "openpartiesandclaims",
-                    "com.mistaboom.essence_ascendance.team.compat.OpenPacMembershipProvider",
-                    List.of(Map.of("openpartiesandclaims", "0.32.7"))));
+                            Map.of("ftbteams", "2101.1.11", "ftblibrary", "2101.1.37"))));
     private MembershipProviders() { }
     public static List<Entry> entries() { return ENTRIES; }
     public static ProviderReadiness support(Entry entry, Map<String, String> mods, String loader) {

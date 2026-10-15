@@ -42,7 +42,6 @@ public final class NativeDamageBonusFloor {
             case "ranged_damage" -> EquipmentBaselineProperty.RANGED_DAMAGE;
             default -> EquipmentBaselineProperty.MAGIC_DAMAGE;
         };
-        boolean quantized = runtime.composition().getOrDefault("equipment_quantization", 0.0) == 1;
         var contexts = new ArrayList<Context>();
         for (var tier : AscendanceTierRegistry.powerTiers()) {
             double base = runtime.config().equipmentBaselineConfig().baselineFor(tier).value(property);
@@ -55,7 +54,7 @@ public final class NativeDamageBonusFloor {
                     default -> false;
                 };
                 double strength = profile.statStrength(EquipmentActivationType.HELD, stat);
-                double damage = EquipmentBaselineService.resolvedValue(base, profile, property, quantized);
+                double damage = EquipmentBaselineService.resolvedValue(base, profile, property);
                 if (eligible && damage > 0 && strength > 0)
                     contexts.add(new Context(tier.id(), profile.id(), damage, strength, property == EquipmentBaselineProperty.MELEE_DAMAGE));
             }

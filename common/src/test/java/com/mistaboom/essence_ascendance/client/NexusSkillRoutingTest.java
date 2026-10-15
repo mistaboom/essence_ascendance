@@ -21,10 +21,10 @@ public final class NexusSkillRoutingTest {
                     "A route approached the opposite side and crossed its destination box");
             check((boolean) call("skillRouteSegmentIsClear", point(266, 78), point(278, 78), List.of(obstacle), connection, 6),
                     "An outward-facing endpoint stub was blocked");
-            // Existing saved tiers remain supported, including same-column prerequisite edges.
+            // User configuration may put every skill in one column; authored defaults spread them out.
             Map<ResourceLocation, ResourceLocation> sameTier = new TreeMap<>();
             SkillRegistry.values().forEach(s -> sameTier.put(s.id(), AscendanceTiers.DORMANT.id()));
-            for (var tiers : List.of(sameTier, SkillProgressionGraph.close(SkillRegistry.values(), sameTier))) {
+            for (var tiers : List.of(sameTier, com.mistaboom.essence_ascendance.balance.config.SkillLayoutConfig.defaults().requiredTiers())) {
                 SkillBalanceRuntime.withRequiredTiers(tiers, () -> {
                     try { for (var essence : EssenceTypes.ORDERED) routes(NexusSkillTreeLayout.build(SkillRegistry.values(essence.id()))); }
                     catch (ReflectiveOperationException e) { throw new AssertionError(e); }

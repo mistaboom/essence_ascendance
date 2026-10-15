@@ -59,7 +59,7 @@ The Archive includes a guided route and detailed reference pages, so you can exp
 
 ## Bring your modpack along
 
-Essence Ascendance analyzes recipes and item relationships to determine Essence values for supported content, helping materials from other mods participate in the progression economy. It's built for both small Minecraft setups and larger modpacks.
+Essence Ascendance estimates item values from shared item properties and recipes. Pack authors can edit Skill placement and generated Bonus endpoints through configuration. See [simple balance generation](docs/simple-balance.md) for the current development model and fresh-world requirement.
 
 **JEI integration** provides recipe browsing when JEI is installed.
 

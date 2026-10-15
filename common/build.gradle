@@ -23,7 +23,6 @@ def armorSource = rootProject.file('art/source/models/armor/ascendance_armor.bbm
 def armorMaskDirectory = layout.buildDirectory.dir('asset-work/armor-masks').get().asFile
 
 dependencies {
-    modCompileOnly('xaero.pac:open-parties-and-claims-common-1.21.1:0.32.7') { transitive = false }
     // Verified 1.21.1 API only: never placed on a development runtime or bundled.
     modCompileOnly('dev.ftb.mods:ftb-teams:2101.1.11') { transitive = false }
     modCompileOnly('dev.ftb.mods:ftb-library:2101.1.30') { transitive = false }
@@ -57,27 +56,11 @@ def balanceInvariantMains = [
         multiplayerFoundationInvariants: 'com.mistaboom.essence_ascendance.team.MultiplayerFoundationTest',
         personalizedEquipmentInvariants: 'com.mistaboom.essence_ascendance.equipment.PersonalizedEquipmentTest',
         fishingRodInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.FishingRodBalanceTest',
-        nativeVillagerAccessInvariants: 'com.mistaboom.essence_ascendance.balance.engine.NativeVillagerAccessTest',
-        nativeAnvilInvariants: 'com.mistaboom.essence_ascendance.balance.engine.NativeAnvilTest',
-        nativeTradeProgressionInvariants: 'com.mistaboom.essence_ascendance.balance.engine.NativeTradeProgressionTest',
-        nativeEnchantingInvariants: 'com.mistaboom.essence_ascendance.balance.engine.NativeEnchantingTest',
-        nativeConsumableInvariants: 'com.mistaboom.essence_ascendance.balance.engine.NativeConsumablesTest',
-        adaptiveCompetitionInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.AdaptiveCompetitionCalibrationTest',
+        skillLayoutConfigInvariants: 'com.mistaboom.essence_ascendance.balance.config.SkillLayoutConfigTest',
         skillAccessInvariants: 'com.mistaboom.essence_ascendance.skill.balance.SkillAccessTest',
         skillProgressionPolicyInvariants: 'com.mistaboom.essence_ascendance.skill.balance.SkillProgressionPolicyTest',
         gatheringGrowthInvariants: 'com.mistaboom.essence_ascendance.gathering.GatheringGrowthTest',
-        configuredRecipeAccessInvariants: 'com.mistaboom.essence_ascendance.balance.engine.ConfiguredRecipeAccessTest',
-        starterTemplateEvidenceInvariants: 'com.mistaboom.essence_ascendance.balance.engine.StarterTemplateEvidenceTest',
         generatedSkillAvailabilityInvariants: 'com.mistaboom.essence_ascendance.balance.generated.GeneratedSkillAvailabilityTest',
-        competitiveCapabilitiesInvariants: 'com.mistaboom.essence_ascendance.balance.engine.CompetitiveCapabilitiesTest',
-        balanceLootAcquisitionInvariants: 'com.mistaboom.essence_ascendance.valuation.LootAcquisitionTest',
-        exDeorumManualAccessInvariants: 'com.mistaboom.essence_ascendance.valuation.ExDeorumManualAccessTest',
-        blockLootToolInputsInvariants: 'com.mistaboom.essence_ascendance.valuation.BlockLootToolInputsTest',
-        ultimineCapabilityInvariants: 'com.mistaboom.essence_ascendance.balance.engine.UltimineCapabilityTest',
-        balanceLootAuditMemoryInvariants: 'com.mistaboom.essence_ascendance.valuation.LootAuditMemoryTest',
-        balanceBlockSourceMemoryInvariants: 'com.mistaboom.essence_ascendance.valuation.BlockSourceMemoryTest',
-        balanceQuestAcquisitionInvariants: 'com.mistaboom.essence_ascendance.balance.engine.QuestAcquisitionTest',
-        authoritativeAcquisitionClosureInvariants: 'com.mistaboom.essence_ascendance.balance.engine.AuthoritativeAcquisitionClosureTest',
         latentOreBalanceInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.LatentOreBalanceTest',
         latentOreJeiInvariants: 'com.mistaboom.essence_ascendance.compat.jei.LatentOreJeiTest',
         jeiSearchRefreshInvariants: 'com.mistaboom.essence_ascendance.client.JeiSearchRefreshTest',
@@ -100,6 +83,7 @@ def balanceInvariantMains = [
         vitalitySustenanceInvariants: 'com.mistaboom.essence_ascendance.skill.effect.SustenanceTest',
         sustenanceNativeHookShapeInvariants: 'com.mistaboom.essence_ascendance.skill.effect.SustenanceNativeHookShapeTest',
         bonusTrackProgressionInvariants: 'com.mistaboom.essence_ascendance.progression.BonusTrackProgressionTest',
+        bonusProgressionConfigInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.BonusProgressionConfigTest',
         bonusTrackGeneratorInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.BonusTrackGeneratorTest',
         nativeBonusMechanicsInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.NativeBonusMechanicsTest',
         bonusTrackSnapshotInvariants: 'com.mistaboom.essence_ascendance.network.BonusTrackSnapshotCodecTest',
@@ -122,28 +106,18 @@ def balanceInvariantMains = [
         balanceEvidenceInvariants: 'com.mistaboom.essence_ascendance.balance.engine.BalanceEvidenceSelfTest',
         balanceProviderInvariants: 'com.mistaboom.essence_ascendance.balance.engine.ProviderReferenceTest',
         balanceGenerationProviderInvariants: 'com.mistaboom.essence_ascendance.balance.engine.GenerationProviderContractTest',
-        balanceGenerationEnvironmentInvariants: 'com.mistaboom.essence_ascendance.valuation.GenerationEnvironmentTest',
         balanceCompositionInvariants: 'com.mistaboom.essence_ascendance.balance.engine.BuildCompositionTest',
         balanceEconomyInvariants: 'com.mistaboom.essence_ascendance.balance.economy.EconomyInvariantTest',
         effectiveProductionInvariants: 'com.mistaboom.essence_ascendance.valuation.EffectiveProductionTest',
-        balanceTradeInvariants: 'com.mistaboom.essence_ascendance.valuation.TradeGraphTest',
         valuationPerformanceInvariants: 'com.mistaboom.essence_ascendance.valuation.ValuationPerformanceTest',
         materialValuationInvariants: 'com.mistaboom.essence_ascendance.valuation.MaterialValuationTest',
-        nomenclatureInvariants: 'com.mistaboom.essence_ascendance.valuation.NomenclatureTest',
-        routingEvidenceInvariants: 'com.mistaboom.essence_ascendance.valuation.RoutingEvidenceTest',
         runtimeBalancePayloadInvariants: 'com.mistaboom.essence_ascendance.network.RuntimeBalancePayloadTest',
         balanceFailureEvidenceInvariants: 'com.mistaboom.essence_ascendance.balance.generated.FailureEvidenceTest',
         balanceDocumentStreamingInvariants: 'com.mistaboom.essence_ascendance.balance.generated.BalanceDocumentStreamingTest',
         balancePerformanceInvariants: 'com.mistaboom.essence_ascendance.balance.generated.BalancePerformanceTest',
-        balanceRecipeReadinessInvariants: 'com.mistaboom.essence_ascendance.balance.generated.GenerationRecipeReadinessTest',
-        balanceRuntimeLootContractInvariants: 'com.mistaboom.essence_ascendance.valuation.RuntimeLootAuditContractTest',
-        balanceKubeRecipeIdInvariants: 'com.mistaboom.essence_ascendance.balance.generated.StableKubeRecipeIdsTest',
-        balanceRuntimePackInvariants: 'com.mistaboom.essence_ascendance.balance.generated.StableRuntimePackResourcesTest',
-        balanceStructureTemplateInvariants: 'com.mistaboom.essence_ascendance.valuation.StructureTemplateScanTest',
         balanceGeneratedSectionsInvariants: 'com.mistaboom.essence_ascendance.balance.generated.GeneratedBalanceSectionsTest',
         machinePlacementInvariants: 'com.mistaboom.essence_ascendance.machine.MachinePlacementTest',
         balanceBiologicalSourceInvariants: 'com.mistaboom.essence_ascendance.valuation.BiologicalSourceEvidenceTest',
-        balanceNaturalBlockInvariants: 'com.mistaboom.essence_ascendance.valuation.NaturalBlockEvidenceTest',
         balanceFractionalLedgerInvariants: 'com.mistaboom.essence_ascendance.balance.economy.FractionalLedgerTest',
         balanceTooltipInvariants: 'com.mistaboom.essence_ascendance.client.EssenceYieldFormatTest',
         balanceTooltipPresentationInvariants: 'com.mistaboom.essence_ascendance.client.TooltipPresentationTest',
@@ -185,30 +159,9 @@ balanceInvariantMains.each { taskName, className ->
         dependsOn tasks.named('testClasses')
         classpath = sourceSets.test.runtimeClasspath
         mainClass = className
-        if (taskName == 'adaptiveCompetitionInvariants' && rootProject.hasProperty('adaptiveValidationOutput'))
-            args rootProject.property('adaptiveValidationOutput')
-        if (taskName == 'balanceLootAcquisitionInvariants' && rootProject.hasProperty('lootModifierFixture'))
-            args rootProject.file(rootProject.property('lootModifierFixture')).absolutePath
-        if (taskName == 'balanceLootAuditMemoryInvariants') {
-            maxHeapSize = '128m'
-            if (rootProject.hasProperty('lootAuditBaselineJar'))
-                classpath = files(rootProject.file(rootProject.property('lootAuditBaselineJar'))) + classpath
-        }
-        if (taskName in ['balanceKubeRecipeIdInvariants', 'balanceRuntimePackInvariants']) dependsOn ':neoforge:compileJava'
         if (taskName == 'balanceDocumentStreamingInvariants') maxHeapSize = '128m'
-        if (taskName == 'balanceBlockSourceMemoryInvariants') {
-            maxHeapSize = '256m'
-            if (rootProject.hasProperty('blockSourceUnshared')) args '--unshared'
-        }
         if (taskName == 'balanceGeneratedSectionsInvariants') { maxHeapSize = '128m'; args '--stress' }
         if (taskName == 'nativeEquipmentHeadroomInvariants') maxHeapSize = '2g'
-        if (taskName in ['balanceKubeRecipeIdInvariants', 'balanceRuntimePackInvariants']) {
-            maxHeapSize = '512m'
-            if (rootProject.hasProperty('balanceNativeGenerationModsDir'))
-                systemProperty 'balance.nativeGeneration.auditedModsDir', rootProject.property('balanceNativeGenerationModsDir')
-        }
-        if (taskName == 'valuationPerformanceInvariants' && rootProject.hasProperty('captureValuationReference'))
-            args '--capture-reference'
         if (taskName == 'ascendanceArmorInvariants') args armorSource.absolutePath, armorMaskDirectory.absolutePath
         if (taskName == 'balanceAscensionPolicyInvariants' && rootProject.hasProperty('attunementReplayProfile')) {
             // Optional read-only integration replay of a real saved evidence profile; output stays in build/.
@@ -233,7 +186,7 @@ def nativeShapeTasks = [
         'postureNativeHookShapeInvariants', 'statusNativeHookShapeInvariants', 'guardNativeHookShapeInvariants'
 ]
 // Full generated-profile sweeps/replays are intentionally expensive and have a named opt-in owner.
-def generationTasks = ['adaptiveCompetitionInvariants', 'balanceIntegrationInvariants', 'balanceRuntimeInvariants', 'balanceAscensionPolicyInvariants',
+def generationTasks = ['balanceIntegrationInvariants', 'balanceRuntimeInvariants', 'balanceAscensionPolicyInvariants',
                        'nativeEquipmentHeadroomInvariants', 'balanceDocumentStreamingInvariants']
 tasks.register('lightweightInvariants', JavaExec) {
     group = 'verification'
@@ -323,28 +276,7 @@ tasks.register('productionNormalizationReplay', JavaExec) {
     args '--benchmark', rootProject.layout.buildDirectory.dir('chat05-production-scalability').get().asFile.absolutePath
 }
 
-// Explicit read-only installed quest definition audit; never part of normal build/deploy.
-tasks.register('questDefinitionReplay', JavaExec) {
-    group = 'development tools'
-    dependsOn tasks.named('testClasses')
-    classpath = sourceSets.test.runtimeClasspath
-    mainClass = 'com.mistaboom.essence_ascendance.balance.quest.QuestDefinitionReplay'
-    maxHeapSize = '1g'
-    doFirst {
-        if (!rootProject.hasProperty('balanceFtbModsDir') || !rootProject.hasProperty('balanceQuestDefinitions'))
-            throw new GradleException('Supply -PbalanceFtbModsDir and -PbalanceQuestDefinitions')
-        def libraryVersion = rootProject.findProperty('balanceFtbLibraryVersion') ?: '2101.1.36'
-        if (!(libraryVersion in ['2101.1.35', '2101.1.36', '2101.1.37']))
-            throw new GradleException('Quest replay requires an audited FTB Library version')
-        def libraryJar = rootProject.file(rootProject.property('balanceFtbModsDir')).toPath()
-                .resolve("ftb-library-neoforge-${libraryVersion}.jar").toFile()
-        if (!libraryJar.isFile()) throw new GradleException("Quest replay library is missing: ${libraryJar}")
-        classpath += files(libraryJar)
-        args rootProject.property('balanceQuestDefinitions'),
-                rootProject.findProperty('balanceReplayOutput') ?: rootProject.layout.buildDirectory.dir('chat06-quest-definition-replay').get().asFile.absolutePath,
-                rootProject.findProperty('balanceFtbQuestVersion') ?: '2101.1.36'
-    }
-}
+
 
 // Isolated real-input verification; never part of ordinary build/deploy.
 tasks.register('balanceGenerationMemoryReplay', JavaExec) {

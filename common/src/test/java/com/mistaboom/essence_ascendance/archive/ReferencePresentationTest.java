@@ -174,7 +174,7 @@ public final class ReferencePresentationTest {
                     "Equipment baseline multipliers were copied incorrectly " + profile.definition().id());
             for (var tier : equipment.tierBaselines()) for (var property : profile.baselineMultipliers().keySet()) {
                 double expected = EquipmentBaselineService.resolvedValue(tier.baseline().value(property),
-                        profile.definition(), property, equipment.quantizedBaselines());
+                        profile.definition(), property);
                 check(Double.isFinite(expected) && expected >= 0,
                         "Equipment effective baseline resolver produced an invalid presentation value");
             }
@@ -242,7 +242,7 @@ public final class ReferencePresentationTest {
                     check(model.resource().equals(id(List.of("essentium_nugget", "essentium_ingot", "essentium_block").get(form))),
                             "Essentium forms are out of order");
                     var expected = com.mistaboom.essence_ascendance.infuser.EssentiumCarrierData.carrierData(
-                            new com.mistaboom.essence_ascendance.infuser.EssentiumCarrierData.Value(essence, EssenceFocusTier.values()[grade], 1));
+                            new com.mistaboom.essence_ascendance.infuser.EssentiumCarrierData.Value(essence, EssenceFocusTier.values()[grade], 1, 9));
                     check(model.components().get(net.minecraft.core.component.DataComponents.CUSTOM_DATA).orElseThrow().equals(expected),
                             "Essentium image lacks the category and grade components used by the native model");
                     check(model.label().getString().isBlank() == false, "Essentium image is not searchable");
@@ -286,7 +286,7 @@ public final class ReferencePresentationTest {
             for (int slotIndex = 0; slotIndex < slots.size(); slotIndex++) {
                 var slot = slots.get(slotIndex);
                 double physical = EquipmentPresentationData.physicalValue(armor, tier,
-                        com.mistaboom.essence_ascendance.equipment.EquipmentBaselineProperty.ARMOR, data.quantizedBaselines(), slot);
+                        com.mistaboom.essence_ascendance.equipment.EquipmentBaselineProperty.ARMOR, slot);
                 sum += physical;
                 check(Math.abs(Double.parseDouble(cell(table, "armor", slotIndex)) - physical) <= 0.00005,
                         "Armor displayed value is not the slot's native physical share");
@@ -296,7 +296,7 @@ public final class ReferencePresentationTest {
                 assertTierModel(table, slotIndex, tier.tier());
             }
             double whole = EquipmentBaselineService.resolvedValue(tier.baseline().fullSetArmor(), armor.definition(),
-                    com.mistaboom.essence_ascendance.equipment.EquipmentBaselineProperty.ARMOR, data.quantizedBaselines());
+                    com.mistaboom.essence_ascendance.equipment.EquipmentBaselineProperty.ARMOR);
             check(Math.abs(sum - whole) < 1e-8, "Armor slot projection lost full-set physical points");
             check(EquipmentPresentationData.nativeDurability(armor, tier, ResourceLocation.parse("minecraft:iron_helmet"))
                             .orElseThrow() == net.minecraft.world.item.Items.IRON_HELMET.getDefaultInstance().getMaxDamage(),
@@ -383,7 +383,7 @@ public final class ReferencePresentationTest {
                 "out-of-range Start preserves", "adds no share or budget", "unrelated Infusers",
                 "120 Essence/second", "40", "not a default", "one unique link", "current member count",
                 "does not multiply", "without forced loading", "Locked", "Disconnected", "no adoption step",
-                "final owner/member", "FTB Teams", "OpenPAC", "does not silently change",
+                "final owner/member", "FTB Teams", "does not silently change",
                 "without a second Essence Ascendance enrollment", "both players solo", "Only the native owner",
                 "All and None", "reconnects, and restarts", "stopped or lost connection", "Item Yields",
                 "Every new equipment workpiece", "Soulbind & Start", "single-use", "does not disarm",
@@ -692,7 +692,7 @@ public final class ReferencePresentationTest {
                 originalRank.powerMultiplier(), originalRank.parameters());
         changedRanks.set(index, changedRank);
         Map<String, SkillBalanceRuntime.ResolvedSkill> curves = new LinkedHashMap<>(runtime.skillCurves());
-        curves.put(skill.id().toString(), new SkillBalanceRuntime.ResolvedSkill(originalCurve.maximumRank(), changedRanks));
+        curves.put(skill.id().toString(), new SkillBalanceRuntime.ResolvedSkill(originalCurve.maximumRank(), changedRanks, originalCurve.requiredTierId()));
         RuntimeBalanceDefinition changed = new RuntimeBalanceDefinition(runtime.config(), runtime.crucible(),
                 runtime.pylons(), curves, runtime.composition(), runtime.attunement());
 

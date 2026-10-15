@@ -221,7 +221,7 @@ def main():
             loads = [event for event in events if event.get("event") == "end" and event.get("operation") == "saved_profile_load"]
             assert len(loads) == 1, loads
             counts = loads[0]["result"]["counts"]
-            for name in ["full_generation_runs", "evidence_collection_runs", "conservation_solve_runs", "runtime_generation_runs", "report_export_runs", "competitive_capability_runs", "adaptive_calibration_runs"]:
+            for name in ["full_generation_runs", "evidence_collection_runs", "conservation_solve_runs", "runtime_generation_runs", "report_export_runs"]:
                 assert counts.get(name, 0) == 0, (name, counts)
             commands(["essence debug balance validate", "essence test skills effects", *args.command], "saved-validation.json")
             save(destination / "saved-restart.json", {"filesPreserved": len(before), "seconds": loads[0]["elapsedMillis"] / 1000, "counts": counts})
@@ -232,7 +232,6 @@ def main():
     comparisons = []
     for left, right in zip(documents, documents[1:]):
         comparison = {name: left[name] == right[name] for name in ["evidence", "economy", "runtime", "skills", "validation"]}
-        comparison["competitiveCapabilities"] = left["metadata"]["generation"]["competitiveCapabilities"] == right["metadata"]["generation"]["competitiveCapabilities"]
         comparisons.append(comparison)
     save(destination / "semantic-comparison.json", comparisons)
     assert all(all(c.values()) for c in comparisons), comparisons

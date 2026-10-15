@@ -39,15 +39,15 @@ public final class NativeCarrierCompatibilityTest {
                     var minted = List.of(EssentiumCarrierData.createFull(nugget, essence, grade),
                             EssentiumCarrierData.createFull(ingot, essence, grade), EssentiumCarrierData.createFull(block, essence, grade));
                     EssenceConfigManager.install(newProfile);
-                    for (boolean legacy : new boolean[]{false, true}) {
-                        var old = minted.stream().map(s -> legacy ? legacy(s) : s.copy()).toList();
+                    {
+                        var old = minted.stream().map(ItemStack::copy).toList();
                         long[] amounts = {600, 5400, 48600};
                         for (int i = 0; i < old.size(); i++) {
                             var saved = old.get(i).save(f.level.registryAccess());
                             var restored = ItemStack.parse(f.level.registryAccess(), saved).orElseThrow();
                             check(ItemStack.matches(old.get(i), restored), "Native item save/load preserves original bytes and count");
                             check(EssentiumCarrierData.readValidated(restored).orElseThrow().amount() == amounts[i],
-                                    "Old denomination remains usable after capacity change " + newCapacity + "/legacy=" + legacy);
+                                    "Old denomination remains usable after capacity change " + newCapacity);
                             check(EssenceCrucibleBlockEntity.isValidNewInput(restored), "Native Crucible accepts old saved face value");
                         }
                         var compressed = craft(nuggetCompact, old.get(0), 9, f);
@@ -79,8 +79,11 @@ public final class NativeCarrierCompatibilityTest {
             EssentiumCarrierData.write(partial, new EssentiumCarrierData.Value(EssenceTypes.OFFENSE, EssenceFocusTier.DORMANT, 2700, 5400));
             check(EssentiumCarrierData.readValidated(partial).orElseThrow().amount() == 2700, "Partial declared carrier retains exact dissolution value");
             check(nuggetSplit.assemble(CraftingInput.of(1, 1, List.of(partial)), f.level.registryAccess()).isEmpty(), "Partial declared carrier cannot turn into full outputs");
-            var legacyPartial = legacy(partial);
-            check(amount(craft(nuggetSplit, legacyPartial, 1, f)) * 9 == 2700, "Ambiguous legacy amount is authoritative and transforms only by exact conservation");
+            var missingSchema = withoutSchema(partial);
+            check(EssentiumCarrierData.readValidated(missingSchema).isEmpty()
+                    && !EssenceCrucibleBlockEntity.isValidNewInput(missingSchema)
+                    && nuggetSplit.assemble(CraftingInput.of(1, 1, List.of(missingSchema)), f.level.registryAccess()).isEmpty(),
+                    "Missing carrier schema cannot be interpreted or transformed");
             for (long invalid : new long[]{0, -1, Long.MAX_VALUE}) {
                 var bad = edit(full, t -> t.putLong("amount", invalid));
                 check(EssentiumCarrierData.readValidated(bad).isEmpty() && !EssenceCrucibleBlockEntity.isValidNewInput(bad), "Invalid/overflow amount is rejected");
@@ -91,10 +94,10 @@ public final class NativeCarrierCompatibilityTest {
             check(EssentiumCarrierData.readValidated(edit(full, t -> t.putDouble("amount", 5400.5))).isEmpty(), "Fractional/wrong-type saved amount is rejected without truncation");
             var wrongForm = fullNugget.copy(); wrongForm.set(DataComponents.CUSTOM_DATA, full.get(DataComponents.CUSTOM_DATA));
             check(EssentiumCarrierData.readValidated(wrongForm).isEmpty(), "A new ingot tag cannot overfill a nugget of the same denomination");
-            var tooLarge = legacy(full); tooLarge = edit(tooLarge, t -> t.putLong("amount", EssentiumCarrierData.MAX_STORED_AMOUNT));
-            check(nuggetSplit.assemble(CraftingInput.of(1, 1, List.of(tooLarge)), f.level.registryAccess()).isEmpty(), "Legacy out-of-family values cannot overflow crafting");
+            var tooLarge = edit(full, t -> t.putLong("amount", EssentiumCarrierData.MAX_STORED_AMOUNT));
+            check(nuggetSplit.assemble(CraftingInput.of(1, 1, List.of(tooLarge)), f.level.registryAccess()).isEmpty(), "Out-of-family values cannot overflow crafting");
             EssenceConfigManager.install(capacity(2700));
-            nativeDissolution(f, legacy(fullNugget));
+            nativeDissolution(f, fullNugget);
             System.out.println("Native carrier compatibility checks passed: " + checks);
         } finally { if (previous == null) EssenceConfigManager.reset(); else EssenceConfigManager.install(previous); }
     }
@@ -118,7 +121,7 @@ public final class NativeCarrierCompatibilityTest {
         check(!result.isEmpty(), "Actual carrier recipe returns data-bearing output");
         return result;
     }
-    private static ItemStack legacy(ItemStack stack) {
+    private static ItemStack withoutSchema(ItemStack stack) {
         return edit(stack, t -> { t.remove("schema"); t.remove("ingot_denomination"); });
     }
     private static ItemStack edit(ItemStack stack, java.util.function.Consumer<CompoundTag> edit) {
@@ -138,7 +141,7 @@ public final class NativeCarrierCompatibilityTest {
             f.level.tick++; EssenceCrucibleBlockEntity.serverTick(f.level, pos, source.getBlockState(), source);
         }
         check(source.getItem(0).isEmpty() && source.storedEssence(EssenceTypes.OFFENSE) - before == expected,
-                "Native Crucible consumes one legacy old-capacity nugget and deposits its exact current-policy extraction value");
+                "Native Crucible consumes one declared previous-capacity nugget and deposits its exact current-policy extraction value");
         f.level.memoryMachines.remove(pos); f.level.memoryBlocks.remove(pos);
     }
     private static void check(boolean pass, String message) { checks++; if (!pass) throw new AssertionError(message); }

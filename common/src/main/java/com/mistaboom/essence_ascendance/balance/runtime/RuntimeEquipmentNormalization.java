@@ -55,7 +55,7 @@ final class RuntimeEquipmentNormalization {
             throw new IllegalArgumentException("Pack durability reference exceeds supported equipment arithmetic: "+durability);
         var target=new EquipmentBaselineConfig.TierBaseline(armor.armor(),armor.toughness(),melee.damage(),melee.rate(),
                 ranged.damage(),ranged.rate(),playableCaster.damage(),playableCaster.rate(),
-                RuntimeReferencePolicy.required(evidence,ProgressionBand.APEX,CapabilityAxis.MINING_SPEED),(int)harvest,
+                RuntimeReferencePolicy.required(evidence,ProgressionBand.APEX,CapabilityAxis.MINING_SPEED),Math.max(EquipmentBaselineConfig.MINIMUM_HARVEST_LEVEL,(int)harvest),
                 (int)durability);
         for(var property:EquipmentBaselineProperty.values()) {
             diagnostics.put("equipment_normalization_"+property.name().toLowerCase(Locale.ROOT),factor(apex.value(property),target.value(property)));

@@ -34,7 +34,7 @@ public final class SalvageCoverageDiagnostics {
         var report = collect(server.getRecipeManager().getRecipes(), server.registryAccess(), active.runtime(), active.evidence().resources());
         report.addProperty("profileIntegrity", active.document().integrity());
         report.addProperty("createdUtc", Instant.now().toString());
-        report.addProperty("source", "Explicit live-server command: current loaded native recipes and installed saved profile evidence; no regeneration");
+        report.addProperty("source", "Explicit live-server command: current loaded native recipes, recovery mechanics and installed catalog estimates; no regeneration or source inference");
         String stamp = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS").withZone(ZoneOffset.UTC).format(Instant.now());
         Path path = BalanceReportLayout.diagnostics(GeneratedBalanceService.directory()).resolve("salvage-coverage-" + stamp + ".json");
         BalanceProfileStore.writeAtomically(path, JSON.toJson(report) + "\n");
@@ -59,9 +59,9 @@ public final class SalvageCoverageDiagnostics {
         for (var rank : ranks) {
             var row = new JsonObject();
             row.addProperty("rank", rank.number()); row.addProperty("requiredTier", rank.tier());
-            row.addProperty("requiredAcquisitionBand", rank.band().name()); row.addProperty("configuredFraction", rank.fraction());
+            row.addProperty("configuredFraction", rank.fraction());
             row.addProperty("requiredEffectiveFractionIncrease", rank.number() == 1 ? 0 : .1);
-            for (String list : List.of("supportedItemIds", "confirmedUnderFloorItemIds", "accessUnknownPassingItemIds", "mechanicallyPassingItemIds")) row.add(list, new JsonArray());
+            for (String list : List.of("mechanicallyPassingItemIds", "underFloorItemIds")) row.add(list, new JsonArray());
             for (String count : List.of("saturatedRows", "changedRows", "maskedRows", "underFloorRows")) row.addProperty(count, 0);
             rankSummaries.add(row);
         }
@@ -97,7 +97,8 @@ public final class SalvageCoverageDiagnostics {
             }
             row.add("materials", materialRows);
             var evidence = resources.get(id);
-            row.add("savedAccessEvidence", JSON.toJsonTree(evidence));
+            row.addProperty("catalogEstimateStatus", evidence == null ? "MISSING_CATALOG_ESTIMATE" : "PROPERTY_RECIPE_ESTIMATE");
+            if (evidence != null) row.addProperty("catalogEconomicValueEstimate", evidence.economicValue());
             var outcomes = new JsonArray(); double previous = 0;
             for (int i = 0; i < ranks.size(); i++) {
                 var rank = ranks.get(i); var aggregate = rankSummaries.get(i);
@@ -106,23 +107,19 @@ public final class SalvageCoverageDiagnostics {
                 boolean floor = i == 0 ? count + EPSILON >= 1 : increment + EPSILON >= .1;
                 boolean saturated = count + EPSILON >= GatheringSalvageService.materialRecoveryLimit(units);
                 boolean masked = i > 0 && increment <= EPSILON;
-                var access = access(evidence, rank.band());
                 var outcome = new JsonObject();
                 outcome.addProperty("rank", rank.number()); outcome.addProperty("expectedMaterials", count);
                 outcome.addProperty("effectiveFraction", fraction); outcome.addProperty("incrementFromPreviousRank", increment);
                 outcome.addProperty("guaranteedAtLeastOneMaterial", rank.fraction() > 0 && count >= 1);
                 outcome.addProperty("strictExpectedMaterialLoss", count < units);
                 outcome.addProperty("nativeFloorStatus", floor ? "PASS" : "FAIL");
-                outcome.addProperty("accessStatus", access); outcome.addProperty("saturated", saturated); outcome.addProperty("masked", masked);
+                outcome.addProperty("saturated", saturated); outcome.addProperty("masked", masked);
                 outcomes.add(outcome);
                 if (saturated) increment(aggregate, "saturatedRows");
                 if (i > 0 && increment > EPSILON) increment(aggregate, "changedRows");
                 if (masked) increment(aggregate, "maskedRows");
                 if (!floor) increment(aggregate, "underFloorRows");
-                if (floor) {
-                    aggregate.getAsJsonArray("mechanicallyPassingItemIds").add(id);
-                    aggregate.getAsJsonArray(access.equals("SUPPORTED_SOURCE_OPPORTUNITY") ? "supportedItemIds" : "accessUnknownPassingItemIds").add(id);
-                } else if (access.equals("SUPPORTED_SOURCE_OPPORTUNITY")) aggregate.getAsJsonArray("confirmedUnderFloorItemIds").add(id);
+                aggregate.getAsJsonArray(floor ? "mechanicallyPassingItemIds" : "underFloorItemIds").add(id);
                 previous = fraction;
             }
             row.add("ranks", outcomes); items.add(row);
@@ -131,16 +128,16 @@ public final class SalvageCoverageDiagnostics {
         var rankRows = new JsonArray();
         for (var row : rankSummaries) {
             String status;
-            if (!row.getAsJsonArray("supportedItemIds").isEmpty()) { status = "PASS_CONDITIONAL_SUPPORTED_INPUT"; passed++; }
-            else if (row.getAsJsonArray("mechanicallyPassingItemIds").isEmpty() && itemErrors == 0) {
+            if (!row.getAsJsonArray("mechanicallyPassingItemIds").isEmpty()) { status = "PASS_NATIVE_MATERIAL_RECOVERY"; passed++; }
+            else if (row.getAsJsonArray("mechanicallyPassingItemIds").isEmpty() && itemErrors == 0 && opaqueOutputs == 0) {
                 status = "FAIL_NO_LOADED_MATERIAL_BILL_MEETS_NATIVE_FLOOR"; failed++;
-            } else { status = "UNKNOWN_NO_STAGE_COMPATIBLE_SOURCE_WITNESS"; unknown++; }
+            } else { status = "UNKNOWN_UNINSPECTABLE_RECIPE_OR_ITEM"; unknown++; }
             row.addProperty("status", status); rankRows.add(row);
         }
         var report = new JsonObject();
         report.addProperty("coverage", "Every registered eligible default equipment stack and observed loaded output recipe; runtime expectation consumer, not sampled luck or live item acquisition");
-        report.addProperty("minimumPolicy", "First rank guarantees one useful material on each valid material bill; later rank needs >=10 percentage points effective expected recovery on a stage-compatible supported input. Saturated eligible inputs remain usable.");
-        report.addProperty("accessPolicy", "Supported witness requires saved reachable resource, compatible aggregate and source stage, confidence >=0.5, positive expected source output, explicit accessProven availability with no uncertainty and positive occurrence chance. This proves a conditional opportunity, not guaranteed finite inventory or renewable supply. Null/absent availability is UNKNOWN.");
+        report.addProperty("minimumPolicy", "First rank guarantees one useful material on each valid material bill; later rank needs >=10 percentage points effective expected recovery on at least one loaded common material bill. Every masked, saturated and under-floor bill is reported. Required tier is a skill gate, not an item acquisition claim.");
+        report.addProperty("catalogPolicy", "Catalog economic values are property/recipe estimates only. Source access, progression availability, renewable supply and farm rates are not inferred and do not gate mechanical coverage. A PASS verifies the loaded material bill and native recovery arithmetic, not the ability to acquire that equipment.");
         report.addProperty("conservationPolicy", "Expected per-material conservation, not a worst-case single-roll value cap. Count is rolled only after input consumption.");
         report.addProperty("unknownDynamicOutputs", opaqueOutputs);
         report.addProperty("uninspectableItemDefaults", itemErrors);
@@ -151,30 +148,16 @@ public final class SalvageCoverageDiagnostics {
         report.add("summary", summary); return report;
     }
 
-    private static String access(ResourceEvidence evidence, ProgressionBand band) {
-        if (evidence == null || !evidence.reachable() || evidence.confidence() < .5) return "UNKNOWN_SAVED_ACCESS";
-        if (evidence.stage().ordinal() > band.ordinal()) return "LATER_SAVED_STAGE";
-        for (var source : evidence.sources()) {
-            var availability = source.availability();
-            if (source.kind() != AcquisitionSource.Kind.ADMINISTRATIVE && source.confidence() >= .5 && source.expectedOutput() > 0
-                    && source.stage().ordinal() <= band.ordinal() && availability != null && availability.accessProven()
-                    && availability.uncertainty().isEmpty() && availability.occurrenceChance() > 0 && availability.expectedPerEvent() > 0)
-                return "SUPPORTED_SOURCE_OPPORTUNITY";
-        }
-        return "UNKNOWN_CONCRETE_SOURCE";
-    }
-
-    private record Rank(int number, String tier, ProgressionBand band, double fraction) { }
+    private record Rank(int number, String tier, double fraction) { }
     private static List<Rank> ranks(RuntimeBalanceDefinition runtime) {
         return SkillBalanceRuntime.withCurves(runtime.skillCurves(), () -> {
             var result = new ArrayList<Rank>(); var skill = SkillRegistry.require(SkillIds.SALVAGERS_CRAFT);
             var curve = runtime.skillCurves().get(skill.id().toString());
-            var tiers = AscendanceTierRegistry.powerTiers().stream().sorted(Comparator.comparingInt(t -> t.order())).toList();
             for (var rank : curve.ranks()) {
                 if (rank.rank() > curve.maximumRank()) continue;
                 var tier = AscendanceTierRegistry.get(skill.requiredTierId(rank.rank())).orElseThrow();
                 var effects = SkillRankEffectScaling.applyResolved(runtime.config().skillEffects(), Map.of(skill.id(), rank.rank()), runtime.skillCurves());
-                result.add(new Rank(rank.rank(), tier.id().toString(), ProgressionBand.at(tiers.indexOf(tier)), effects.gathering().salvagersCraft().materialRecoveryFraction()));
+                result.add(new Rank(rank.rank(), tier.id().toString(), effects.gathering().salvagersCraft().materialRecoveryFraction()));
             }
             return List.copyOf(result);
         });

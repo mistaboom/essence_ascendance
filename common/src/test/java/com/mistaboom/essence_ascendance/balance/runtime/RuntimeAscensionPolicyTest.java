@@ -173,70 +173,15 @@ public final class RuntimeAscensionPolicyTest {
         }
     }
     private static void sourceReachability(PackEvidence base, RuntimeBalanceDefinition runtime) {
-        check(runtime.attunement().assumptions().stream().anyMatch(text -> text.contains("no positive FARMING")), "Missing family evidence lost its explicit fallback diagnostic");
-        for (var kind : List.of(AcquisitionSource.Kind.FARMING, AcquisitionSource.Kind.FISHING)) {
-            var source = new AcquisitionSource("test:" + kind.name().toLowerCase(java.util.Locale.ROOT),
-                    kind == AcquisitionSource.Kind.FARMING ? AcquisitionSource.Kind.PLAYER_ACTION : kind, ProgressionBand.ENTRY, 1,
-                    true, false, 0, 1, List.of(), "Declared ordinary player-operated source fixture");
-            var resource = new ResourceEvidence("test:output", ProgressionBand.ENTRY, Availability.RENEWABLE_MANUAL,
-                    Automation.PLAYER_GATED, true, true, 1, 1, List.of(source), List.of());
-            var facts = new java.util.ArrayList<>(base.facts());
-            if (kind == AcquisitionSource.Kind.FARMING) facts.add(cropEligibility(source.id(), true, 0));
-            var evidence = new PackEvidence(Map.of(resource.itemId(), resource), base.equipment(), base.enemies(), base.frontiers(), facts, base.warnings(), base.graphSummary(), base.capabilities());
-            var suppressed = new EconomyProfile(Map.of(resource.itemId(), new EconomyProfile.ResourceValue(new EconomicValue(1),
-                    DissolutionYield.of(0), Map.of(), List.of())), List.of(), List.of(), List.of(), 1, EconomyProcessingPolicy.defaults());
-            var toolGated = new AcquisitionSource(source.id(), source.kind(), source.stage(), 1, true, false, 0, 1,
-                    List.of("test:unreachable_tool"), "Output has another acquisition path; this harvest requires a tool");
-            var gatedResource = new ResourceEvidence(resource.itemId(), resource.stage(), resource.availability(), resource.automation(),
-                    true, true, 1, 1, List.of(toolGated), List.of());
-            var gatedEvidence = new PackEvidence(Map.of(resource.itemId(), gatedResource), base.equipment(), base.enemies(),
-                    base.frontiers(), facts, base.warnings(), base.graphSummary(), base.capabilities());
-            var gated = AttunementGenerator.generate(gatedEvidence, suppressed, BalanceSettings.defaults(), runtime.config().balanceProfile());
-            check(gated.assumptions().stream().anyMatch(text -> text.contains("no positive " + kind)),
-                    "Unreachable harvest tool was treated as a reachable zero-yield route");
-            check(!AttunementGenerator.sourceAccessible(toolGated, gatedEvidence, ProgressionBand.APEX), "Missing dependency proves no access at any tier");
-            var laterSource = new AcquisitionSource(source.id(), source.kind(), ProgressionBand.LATE, 1, true, false, 0, 1,
-                    List.of(), "Later route despite early output acquisition");
-            check(!AttunementGenerator.sourceAccessible(laterSource, evidence, ProgressionBand.ENTRY)
-                    && AttunementGenerator.sourceAccessible(laterSource, evidence, ProgressionBand.LATE), "Source stage was replaced by output stage");
-            try {
-                AttunementGenerator.generate(evidence, suppressed, BalanceSettings.defaults(), runtime.config().balanceProfile());
-                throw new AssertionError("Known entirely suppressed " + kind + " route was silently declared reachable");
-            } catch (IllegalArgumentException expected) {
-                check(expected.getMessage().contains(kind.name()) && expected.getMessage().contains("zero generated yield"), "Unreachable source family lacks actionable diagnostic");
-            }
-            var productive = new EconomyProfile(Map.of(resource.itemId(), new EconomyProfile.ResourceValue(new EconomicValue(1),
-                    DissolutionYield.of(2), Map.of("essence_ascendance:gathering", 2.0), List.of())), List.of(), List.of(), List.of(), 1, EconomyProcessingPolicy.defaults());
-            var generated = AttunementGenerator.generate(evidence, productive, BalanceSettings.defaults(), runtime.config().balanceProfile());
-            var chapter = generated.chapter(AscendanceTiers.DORMANT.id().toString());
-            String activity = kind == AcquisitionSource.Kind.FARMING ? "harvest_crops" : "catch_fish";
-            check(chapter.activities().get(activity).referenceUnits() == 2, "Productive family did not use its installed source calibration");
-            if (kind == AcquisitionSource.Kind.FARMING) {
-                var missingWitness = new PackEvidence(evidence.resources(), base.equipment(), base.enemies(), base.frontiers(), base.facts(), base.warnings(), base.graphSummary(), base.capabilities());
-                var historical = AttunementGenerator.generate(missingWitness, suppressed, BalanceSettings.defaults(), runtime.config().balanceProfile());
-                check(historical.assumptions().stream().anyMatch(text -> text.contains("no positive FARMING") && text.contains("saved mature-crop eligibility")),
-                        "Missing saved eligibility did not report conservative calibration");
-                facts.add(cropEligibility(source.id(), false, 100));
-                var excluded = new PackEvidence(evidence.resources(), base.equipment(), base.enemies(), base.frontiers(), facts, base.warnings(), base.graphSummary(), base.capabilities());
-                check(AttunementGenerator.generate(excluded, suppressed, BalanceSettings.defaults(), runtime.config().balanceProfile()) != null,
-                        "Higher-priority crop exclusion was ignored");
-                var biological = new AcquisitionSource("test:animal", AcquisitionSource.Kind.FARMING, ProgressionBand.ENTRY, 1,
-                        true, false, 0, 1, List.of(), "Biological passive output, unrelated to player crop harvesting");
-                var animal = new ResourceEvidence(resource.itemId(), resource.stage(), resource.availability(), resource.automation(),
-                        true, true, 1, 1, List.of(biological), List.of());
-                var animalEvidence = new PackEvidence(Map.of(animal.itemId(), animal), base.equipment(), base.enemies(), base.frontiers(), base.facts(), base.warnings(), base.graphSummary(), base.capabilities());
-                check(AttunementGenerator.generate(animalEvidence, suppressed, BalanceSettings.defaults(), runtime.config().balanceProfile()) != null,
-                        "Suppressed biological FARMING was mistaken for a crop payout");
-                check(suppressed.resources().get(resource.itemId()).dissolutionYield().microUnits() == 0,
-                        "Missing crop evidence manufactured a payout");
-            }
-        }
-    }
-    private static EvidenceFact cropEligibility(String id, boolean eligible, int priority) {
-        return new EvidenceFact(EvidenceFact.Subject.BLOCK, id,
-                com.mistaboom.essence_ascendance.equipment.PlayerAttributedBlockHarvestService.CROP_ELIGIBILITY_PROPERTY,
-                EvidenceFact.Value.flag(eligible), "test:crop_eligibility", EvidenceFact.Origin.OBSERVED, 1, priority,
-                ProgressionBand.ENTRY, List.of(), "Saved gameplay eligibility witness");
+        var unknown = new ResourceEvidence("test:unknown", ProgressionBand.APEX, Availability.UNKNOWN,
+                Automation.UNKNOWN, false, true, 100000, .3, List.of(), List.of());
+        var evidence = new PackEvidence(Map.of(unknown.itemId(), unknown), base.equipment(), base.enemies(),
+                base.frontiers(), List.of(), List.of(), Map.of());
+        var generated = AttunementGenerator.generate(evidence, null, BalanceSettings.defaults(), runtime.config().balanceProfile());
+        check(generated.chapters().equals(runtime.attunement().chapters()), "Unknown acquisition changed policy pacing");
+        for (var chapter : generated.chapters().values()) for (String activity : List.of("harvest_crops", "catch_fish"))
+            check(chapter.activities().get(activity).referenceUnits() == com.mistaboom.essence_ascendance.valuation.ProceduralValuationSettings.DEFAULT_BASE,
+                    "Material activity must use the shared explicit estimate unit");
     }
     /** Optional local acceptance fixture: reads real saved evidence, never rewrites or installs the user's profile. */
     private static void replaySavedEvidence(java.nio.file.Path source, java.nio.file.Path report) throws Exception {
@@ -306,9 +251,9 @@ public final class RuntimeAscensionPolicyTest {
         var generated = RuntimeBalanceDefinition.generate(scarce, BalanceSettings.defaults(), BalanceOverrides.empty()).attunement();
         var chapter = generated.chapter(AscendanceTiers.LATENT.id().toString());
         check(chapter.activities().get("gain_experience").referenceUnits()==3, "Pack XP reward was replaced by a vanilla or health-derived constant");
-        check(!chapter.activities().get("brew_potions").stageAccessible(), "Missing workstation was declared stage accessible");
+        check(chapter.activities().get("brew_potions").stageAccessible(), "Registered base method was disabled by missing acquisition inference");
         check(chapter.activities().get("gain_experience").stageAccessible(), "Scarce workstations locked ordinary XP");
-        check(generated.references().get("accessibility_gain_utility_latent")>1, "Scarce route evidence did not compensate Utility progress");
+        check(generated.references().get("accessibility_gain_utility_latent")==1, "Unknown acquisition skewed Utility progress");
         check(generated.references().get("enemy_damage_latent")==7, "Entry Attunement fell back to player attack despite pack enemy evidence");
         check(defaults.attunement().chapter(AscendanceTiers.LATENT.id().toString()).activities().values().stream()
                 .allMatch(r -> Double.isFinite(r.contributionPerUnit()) && r.contributionPerUnit()>0), "Unknown pack evidence disabled fallback routes");

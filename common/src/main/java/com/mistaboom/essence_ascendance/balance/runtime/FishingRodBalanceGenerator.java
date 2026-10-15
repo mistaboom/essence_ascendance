@@ -8,12 +8,12 @@ import net.minecraft.resources.ResourceLocation;
 import java.util.*;
 
 /** Native bobber range/gravity and generated equipment fractions seed an explicit grapple design model.
- * Reachable mobility competitors enter the existing calibrated capability pipeline, never fishing evidence. */
+ * All tiers share the same native-unit progression policy. */
 public final class FishingRodBalanceGenerator {
     private FishingRodBalanceGenerator() { }
     public static FishingRodBalanceSettings generate(Map<ResourceLocation, Double> fractions,
             Map<ResourceLocation, EquipmentBaselineConfig.TierBaseline> equipment,
-            BalanceSettings settings, AdaptiveCompetitionCalibration competition) {
+            BalanceSettings settings) {
         var rows = new EnumMap<EquipmentTier, FishingRodBalanceSettings.Tier>(EquipmentTier.class);
         double power = Math.sqrt(settings.overallPower() * settings.apexPower());
         double priorRange = 0, priorCast = 0, priorAcceleration = 0, priorForce = 0, priorSpeed = 0;
@@ -21,10 +21,10 @@ public final class FishingRodBalanceGenerator {
         double priorGravity = .031;
         for (var tier : EquipmentTier.values()) {
             double fraction = fractions.get(tier.ascendanceTier().id());
-            double range = competition.rodValue("range", tier, 12 + 84 * fraction * power, 12, 256);
-            double speed = competition.rodValue("reelSpeed", tier, .3 + 1.2 * fraction * power, .3, 3);
-            double acceleration = competition.rodValue("acceleration", tier, .012 + .048 * fraction * power, .012, .5);
-            double force = competition.rodValue("maximumForce", tier, .12 + .28 * fraction * power, .12, 1);
+            double range = Math.clamp(12 + 84 * fraction * power, 12, 256);
+            double speed = Math.clamp(.3 + 1.2 * fraction * power, .3, 3);
+            double acceleration = Math.clamp(.012 + .048 * fraction * power, .012, .5);
+            double force = Math.clamp(.12 + .28 * fraction * power, .12, 1);
             double cast = 1.1 + 2.9 * fraction * Math.min(2, power);
             // Strictly improving quantized chassis; ceilings reserve space for later tiers.
             int remaining = EquipmentTier.values().length - tier.ordinal() - 1;

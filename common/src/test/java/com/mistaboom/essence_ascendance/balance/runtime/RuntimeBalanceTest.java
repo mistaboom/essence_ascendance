@@ -199,22 +199,10 @@ public final class RuntimeBalanceTest {
             }
             check(Math.abs(allocated-points)<=Math.ulp(points),"Huge armor allocation lost more than double representation precision");
         }
-        var legacy=generated.toJson();legacy.getAsJsonObject("composition").remove("equipment_quantization");
-        var legacyRuntime=RuntimeBalanceDefinition.fromJson(legacy);
-        com.mistaboom.essence_ascendance.config.EssenceConfigManager.installClient(legacyRuntime);
-        check(!com.mistaboom.essence_ascendance.equipment.EquipmentBaselineService.quantizationEnabled(),
-                "An existing cached profile was silently switched to new physical rounding");
-        var axe=com.mistaboom.essence_ascendance.equipment.EquipmentProfiles.AXE;
-        var actualLegacy=com.mistaboom.essence_ascendance.equipment.EquipmentBaselineService.evaluateAtTier(
-                new com.mistaboom.essence_ascendance.data.PlayerEssenceData(),axe.id(),AscendanceTiers.TRANSCENDENT);
-        var legacyBaseline=legacyRuntime.config().equipmentBaselineConfig().baselineFor(AscendanceTiers.TRANSCENDENT);
-        check(RuntimeBuildScenarios.equipmentValue(legacyRuntime,legacyBaseline.meleeDamage(),axe,
-                com.mistaboom.essence_ascendance.equipment.EquipmentBaselineProperty.MELEE_DAMAGE)==actualLegacy.meleeDamage(),
-                "Legacy combat projection does not match actual unquantized archetype damage");
-        check(RuntimeBuildScenarios.equipmentValue(legacyRuntime,legacyBaseline.meleeAttackSpeed(),axe,
-                com.mistaboom.essence_ascendance.equipment.EquipmentBaselineProperty.MELEE_ATTACK_SPEED)==actualLegacy.meleeAttackSpeed(),
-                "Legacy combat projection does not match actual unquantized archetype cadence");
-        com.mistaboom.essence_ascendance.config.EssenceConfigManager.clearClient();
+        var missingQuantization=generated.toJson();missingQuantization.getAsJsonObject("composition").remove("equipment_quantization");
+        rejected(()->RuntimeBalanceDefinition.fromJson(missingQuantization),"Missing current quantization contract accepted");
+        var disabledQuantization=generated.toJson();disabledQuantization.getAsJsonObject("composition").addProperty("equipment_quantization",0);
+        rejected(()->RuntimeBalanceDefinition.fromJson(disabledQuantization),"Obsolete unquantized equipment mode accepted");
         check(generated.generationAnalysis().cases().stream().allMatch(c->c.evaluation().scenarios().size()==7),"Participation scenario coverage missing");
         rejected(()->RuntimeBalanceDefinition.generate(evidence,economy,BalanceSettings.defaults(),new BalanceOverrides(List.of(),
                 Map.of("/runtime/statMaxBonuses/essence_ascendance:melee_damage",1_000_000.0))),"Unsafe exact combat override accepted");
@@ -223,10 +211,10 @@ public final class RuntimeBalanceTest {
         check(generated.toJson().equals(RuntimeBalanceDefinition.generate(evidence,economy,BalanceSettings.defaults(),BalanceOverrides.empty()).toJson()),"Full runtime pass nondeterministic");
         var meleeTrack = generated.config().balanceProfile().bonusTrack(EssenceStats.MELEE_DAMAGE.id());
         var reflectionTrack = generated.config().balanceProfile().bonusTrack(EssenceStats.DAMAGE_REFLECTION.id());
-        check(!meleeTrack.inputs().get("category_supply").equals(reflectionTrack.inputs().get("category_supply")), "Category supply input ignored");
+        check(generated.config().balanceProfile().bonusTracks().values().stream().allMatch(track -> Double.valueOf(1.0).equals(track.inputs().get("category_supply"))), "Every Bonus retains the neutral category supply policy without acquisition inference");
         check(meleeTrack.checkpoints().stream().filter(BonusTrackDefinition.Checkpoint::purchasable).findFirst().orElseThrow().segmentCost()
                 != reflectionTrack.checkpoints().stream().filter(BonusTrackDefinition.Checkpoint::purchasable).findFirst().orElseThrow().segmentCost(),
-                "Generated state pricing must retain category economy despite independently placed tier windows");
+                "Native mechanic and published-state pricing remain distinct under neutral category supply");
         var exact=new BalanceOverrides(List.of(),Map.of("/runtime/worldgen/overworld/veinsPerChunk",3L,
                 "/runtime/skillCurves/"+skill+"/ranks/0/cost",1L));
         var edited=RuntimeBalanceDefinition.generate(evidence,economy,BalanceSettings.defaults(),exact);
@@ -247,7 +235,7 @@ public final class RuntimeBalanceTest {
                 "Incoming-hit pressure must use observed attack damage, not sustained DPS or the missing-cadence fallback");
         adversarialProfiles(evidence, economy);
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println(
-                "RuntimeBalanceTest: deterministic generation, strict roundtrip, rejected malformed runtime/rank/carrier fields, exact pointers, category supply, enemy evidence, harvest progression/cache compatibility, monotonic/inverse curves PASS");
+                "RuntimeBalanceTest: deterministic generation, strict roundtrip, rejected malformed runtime/rank/carrier fields, exact pointers, neutral category supply, enemy evidence, strict harvest/quantization contracts, monotonic/inverse curves PASS");
     }
     /** Supported settings retain native floors; infeasible targets must reject rather than sell negligible power. */
     private static void adversarialProfiles(PackEvidence evidence, EconomyProfile economy) {
@@ -298,6 +286,15 @@ public final class RuntimeBalanceTest {
                                 values.get(i - 1), values.get(i), floors.tierImprovementFloor()), "Stress bonus later floor");
                 check(values.size() == track.activeStateCount() && values.getLast() == track.maximumEffect(),
                         "Stress bonus generated count and endpoint");
+            }
+            if (entry.getKey().equals("very-low-budget")) {
+                var controls = new TreeMap<String, BonusProgressionConfig.Entry>();
+                for (var track : runtime.config().balanceProfile().bonusTracks().values())
+                    if (track.applicability() != BonusTrackDefinition.Applicability.UNAVAILABLE)
+                        controls.put(track.statId().toString(), BonusProgressionConfig.generatedEntry(track));
+                var replayed = RuntimeBalanceGenerator.generate(evidence, economy, settings, BalanceOverrides.empty(),
+                        SkillLayoutConfig.defaults(), new BonusProgressionConfig(controls));
+                check(runtime.toJson().equals(replayed.toJson()), "Very-low-budget emitted Bonus controls changed the full regenerated runtime");
             }
             output.println("Adversarial profile PASS: " + entry.getKey());
             } catch (RuntimeException | AssertionError failure) {
@@ -374,35 +371,19 @@ public final class RuntimeBalanceTest {
         } finally {
             com.mistaboom.essence_ascendance.config.EssenceConfigManager.clearClient();
         }
-        var cached=generated.toJson();
-        cached.getAsJsonObject("equipment").getAsJsonObject(AscendanceTiers.LATENT.id().toString()).addProperty("harvestLevel",0);
-        cached.getAsJsonObject("equipment").getAsJsonObject(AscendanceTiers.DORMANT.id().toString()).addProperty("harvestLevel",0);
-        cached.getAsJsonObject("equipment").getAsJsonObject(AscendanceTiers.AWAKENED.id().toString()).addProperty("harvestLevel",1);
-        cached.getAsJsonObject("equipment").getAsJsonObject(AscendanceTiers.RESONANT.id().toString()).addProperty("harvestLevel",2);
-        var restored=RuntimeBalanceDefinition.fromJson(cached);
-        var expected=cached.deepCopy();
-        for(var row:expected.getAsJsonObject("equipment").entrySet()) {
-            var baseline=row.getValue().getAsJsonObject();
-            baseline.addProperty("harvestLevel",Math.max(2,baseline.get("harvestLevel").getAsInt()));
+        for (int level : new int[]{0,1}) {
+            var incompatible=generated.toJson();
+            incompatible.getAsJsonObject("equipment").getAsJsonObject(AscendanceTiers.LATENT.id().toString()).addProperty("harvestLevel",level);
+            rejected(()->RuntimeBalanceDefinition.fromJson(incompatible),"Saved below-minimum harvest access was silently upgraded");
         }
-        check(restored.toJson().equals(expected),"Loading a cached profile changed more than the iron harvest floor");
-        com.mistaboom.essence_ascendance.config.EssenceConfigManager.installClient(restored);
-        try {
-            check(EquipmentBaselineService.evaluateForEquipmentTier(new com.mistaboom.essence_ascendance.data.PlayerEssenceData(),
-                    EquipmentProfiles.PICKAXE.id(),EquipmentTier.LATENT).harvestLevel()==2,
-                    "Existing Latent pickaxes did not gain iron access without a rebuild");
-            check(EquipmentBaselineService.evaluateForEquipmentTier(new com.mistaboom.essence_ascendance.data.PlayerEssenceData(),
-                    EquipmentProfiles.PICKAXE.id(),EquipmentTier.AWAKENED).harvestLevel()==2,
-                    "A saved higher tier fell below the new Latent minimum");
-        } finally {
-            com.mistaboom.essence_ascendance.config.EssenceConfigManager.clearClient();
-        }
+        check(RuntimeBalanceDefinition.fromJson(generated.toJson()).toJson().equals(generated.toJson()),
+                "Current harvest progression must load without alteration");
     }
     private static void verifyEquipmentNormalization(PackEvidence evidence,RuntimeBalanceDefinition generated) {
         var apexTier=AscendanceTiers.TRANSCENDENT.id();
         var curve=new LinkedHashMap<net.minecraft.resources.ResourceLocation,com.mistaboom.essence_ascendance.equipment.EquipmentBaselineConfig.TierBaseline>();
         var apex=new com.mistaboom.essence_ascendance.equipment.EquipmentBaselineConfig.TierBaseline(42,16,28,4.6,28,4.6,16.8,7.666666666,24,3,3780);
-        var earlier=new com.mistaboom.essence_ascendance.equipment.EquipmentBaselineConfig.TierBaseline(14,0,7,2.3,14,2.3,8.4,3.833333333,6,1,945);
+        var earlier=new com.mistaboom.essence_ascendance.equipment.EquipmentBaselineConfig.TierBaseline(14,0,7,2.3,14,2.3,8.4,3.833333333,6,2,945);
         curve.put(AscendanceTiers.DORMANT.id(),earlier);curve.put(apexTier,apex);
         RuntimeEquipmentNormalization.apply(curve,evidence,BalanceSettings.defaults(),new TreeMap<>());
         for(var property:com.mistaboom.essence_ascendance.equipment.EquipmentBaselineProperty.values()) {
@@ -449,8 +430,10 @@ public final class RuntimeBalanceTest {
             check(hit*rate<=baseline.meleeDamage()*baseline.meleeAttackSpeed()+1e-9,
                     "A default tool archetype multiplied the matching weapon's complete DPS budget");
         }
-        var legacy=generated.toJson();legacy.getAsJsonObject("composition").remove("equipment_apex_parity");
-        check(RuntimeBalanceDefinition.fromJson(legacy).toJson().equals(legacy),"Old cached equipment was silently renormalized");
+        var missingParity=generated.toJson();missingParity.getAsJsonObject("composition").remove("equipment_apex_parity");
+        rejected(()->RuntimeBalanceDefinition.fromJson(missingParity),"Missing explicit equipment parity contract accepted");
+        var disabledParity=generated.toJson();disabledParity.getAsJsonObject("composition").addProperty("equipment_apex_parity",0);
+        check(RuntimeBalanceDefinition.fromJson(disabledParity).toJson().equals(disabledParity),"Explicit current disabled parity policy changed during load");
     }
     private static EquipmentReference reference(String id,String slot,Map<CapabilityAxis,Double> axes) {
         return new EquipmentReference(id,slot,ProgressionBand.ENTRY,axes,List.of(),true,true,1,"Explicit test measurement");

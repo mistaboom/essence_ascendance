@@ -61,28 +61,14 @@ public final class BalancePerformanceReplay {
             for (String section : List.of("metadata", "settings", "overrides", "evidence", "economy", "runtime", "skills", "validation"))
                 semantic.put(section, active.document().sectionHash(section));
             write(output.resolve("semantic-profile.json"), semantic);
-            if (mode.equals("capabilities")) {
-                var report = com.mistaboom.essence_ascendance.balance.engine.CompetitiveCapabilities.replay(active.evidence(),
-                        new com.mistaboom.essence_ascendance.balance.economy.ProductionGraph(active.economy().processes(), active.economy().warnings()));
-                CompetitiveCapabilityReports.write(output, report);
-            }
             if (mode.equals("runtime")) {
                 var inputs = BalanceInputs.read(config);
                 if (profile) recording.start();
                 RuntimeBalanceDefinition runtime;
                 try (var operation = BalancePerformance.begin("offline_runtime_generation", "saved_evidence_no_recollection")) {
-                    var generation = active.document().section("metadata").getAsJsonObject("generation");
-                    var calibration = new com.mistaboom.essence_ascendance.balance.runtime.AdaptiveCompetitionCalibration(active.evidence(),
-                            generation != null && generation.has("competitiveCapabilities") ? generation.getAsJsonObject("competitiveCapabilities") : null);
                     try (var phase = BalancePerformance.phase("runtime_generation")) {
                         runtime = com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceGenerator.generate(
-                                active.evidence(), active.economy(), inputs.settings(), inputs.overrides(), calibration);
-                    }
-                    var metadata = new com.google.gson.JsonObject(); var diagnostics = new com.google.gson.JsonObject();
-                    diagnostics.add("adaptiveBalance", calibration.complete(runtime)); metadata.add("generation", diagnostics);
-                    AdaptiveBalanceReports.writeDetails(output, metadata);
-                    try (var tables = new SpreadsheetReports()) {
-                        AdaptiveBalanceReports.saved(tables, metadata); tables.write(output.resolve("reports"), output.resolve("diagnostics"));
+                                active.evidence(), active.economy(), inputs.settings(), inputs.overrides(), inputs.skillLayout(), inputs.bonusProgression());
                     }
                     operation.complete("generated_offline");
                 }

@@ -1,6 +1,5 @@
 package com.mistaboom.essence_ascendance.balance.runtime;
 
-import com.mistaboom.essence_ascendance.balance.engine.PackEvidence;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -105,11 +104,15 @@ public final class NativeBonusMechanics {
                     "Native block-break-speed ADD_MULTIPLIED_BASE headroom; tool, hardness and block completion remain contextual"));
             case "jump_height" -> Optional.of(new Limit(multipliedBasePercentHeadroom(Attributes.JUMP_STRENGTH),
                     "Native jump-strength ADD_MULTIPLIED_BASE headroom; this is impulse percentage, not linear ballistic height"));
+            case "step_height" -> Optional.of(new Limit(additiveHeadroom(Attributes.STEP_HEIGHT),
+                    "Native step-height ADD_VALUE headroom; useful collision thresholds are measured separately"));
+            case "fishing_speed" -> Optional.of(new Limit(FISHING_MAXIMUM_SPEED_PERCENT,
+                    "Native fishing countdown phases clamp at one tick; the minimum initial wait is 100 ticks"));
             default -> Optional.empty();
         };
     }
 
-    public static StepResolution step(PackEvidence evidence, double requestedMaximum) {
+    public static StepResolution step(double requestedMaximum) {
         double base = baseline(Attributes.STEP_HEIGHT);
         double maximum = Math.max(0, Math.min(requestedMaximum,
                 Attributes.STEP_HEIGHT.value().sanitizeValue(base + requestedMaximum) - base));
@@ -120,15 +123,12 @@ public final class NativeBonusMechanics {
         if (!RuntimeReferencePolicy.usingBootstrapReferences()) {
             for (var block : BuiltInRegistries.BLOCK) {
                 String itemId = BuiltInRegistries.ITEM.getKey(block.asItem()).toString();
-                var resource = evidence.resources().get(itemId);
-                if (resource == null || !resource.reachable()) continue;
                 try {
                     double height = collisionTop(block.defaultBlockState());
                     inspected++;
                     if (height == 0) continue;
                     if (!Double.isFinite(height) || height <= base || height > base + maximum + 1e-7) continue;
                     surfaces.computeIfAbsent(height, unused -> new ArrayList<>()).add(itemId);
-                    confidence = Math.min(confidence, resource.confidence());
                 } catch (RuntimeException unavailableContext) {
                     // Opaque neighbor/world-dependent block behavior is not guessed from a name.
                     skipped++;
@@ -138,7 +138,7 @@ public final class NativeBonusMechanics {
             }
         }
         List<Double> thresholds = meaningfulThresholds(base, maximum, surfaces.keySet());
-        String source = "reachable_block_collision_shapes+native_attribute";
+        String source = "registered_block_collision_shapes+native_attribute";
         if (thresholds.isEmpty()) {
             List<Double> fallback = new ArrayList<>();
             for (double surface = Math.ceil((base + 1e-7) / SURFACE_GROUP) * SURFACE_GROUP;
@@ -146,11 +146,11 @@ public final class NativeBonusMechanics {
             thresholds = meaningfulThresholds(base, maximum, fallback);
             source = "explicit_native_block_grid_fallback";
             confidence = .55;
-            observations.add("No reachable measurable block surfaces in supplied evidence; half/full block grid is a generic fallback, not pack collision evidence");
+            observations.add("No measurable registered default surfaces; half/full block grid is an explicit generic fallback");
         }
         observations.add("Native step attribute base=" + base + "; requested addition=" + requestedMaximum
                 + "; attribute-bounded addition=" + maximum + "; inspected default shapes=" + inspected + "; unmeasured=" + skipped);
-        surfaces.forEach((height, ids) -> observations.add("Observed collision top=" + height + "; reachable block items="
+        surfaces.forEach((height, ids) -> observations.add("Observed collision top=" + height + "; registered block items="
                 + String.join(",", ids.stream().sorted().distinct().toList())));
         observations.add("Close surfaces are grouped in half-block intervals; each progression endpoint is the tallest observed boundary in its group. These are valuation/checkpoint references, not purchase snaps. Default-state empty-world samples do not claim exhaustive conditional/modded traversal support");
         observations.add("Traversal thresholds assume full equipment applicability and the native attribute baseline. Partial armor coverage or another step modifier may change the currently applied traversal height; equipment state never restructures this generated catalog");

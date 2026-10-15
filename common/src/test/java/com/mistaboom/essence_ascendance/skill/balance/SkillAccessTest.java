@@ -48,22 +48,15 @@ public final class SkillAccessTest {
         var wire = gson.toJson(earlier.get(flight.id().toString()));
         var loaded = gson.fromJson(wire, SkillBalanceRuntime.ResolvedSkill.class);
         check(loaded.requiredTierId().equals(AscendanceTiers.DORMANT.id()), "Saved placement survives a typed JSON round trip");
-        var legacyJson = gson.toJsonTree(original.get(flight.id().toString())).getAsJsonObject();
-        legacyJson.remove("requiredTierId");
-        var legacy = gson.fromJson(legacyJson, SkillBalanceRuntime.ResolvedSkill.class);
-        check(legacy.requiredTierId() == null, "Old profiles need no regeneration to decode");
-        var legacyCurves = new TreeMap<>(original);
-        legacyCurves.put(flight.id().toString(), legacy);
-        SkillBalanceRuntime.withCurves(legacyCurves, () -> {
-            check(flight.requiredTierId().equals(AscendanceTiers.RESONANT.id()), "Missing saved placement falls back to catalog, not installed data");
-            check(flight.cost(null) == legacy.ranks().getFirst().cost(), "Read-only candidate prices come from candidate curves");
-            return null;
-        });
-        check(flight.requiredTierId().equals(AscendanceTiers.DORMANT.id()), "Loaded validation scope restores installed data");
+        var incomplete = gson.toJsonTree(original.get(flight.id().toString())).getAsJsonObject();
+        incomplete.remove("requiredTierId");
+        try { gson.fromJson(incomplete, SkillBalanceRuntime.ResolvedSkill.class);
+            throw new AssertionError("Saved curves without explicit tiers must be rejected");
+        } catch (RuntimeException expected) { assertions++; }
         SkillBalanceRuntime.withRequiredTiers(Map.of(), () -> {
             var otherThread = java.util.concurrent.CompletableFuture.supplyAsync(flight::requiredTierId).join();
             check(otherThread.equals(AscendanceTiers.DORMANT.id()), "Candidate placement never leaks into another thread");
-            SkillBalanceRuntime.withCurves(legacyCurves, () -> {
+            SkillBalanceRuntime.withCurves(original, () -> {
                 check(flight.requiredTierId().equals(AscendanceTiers.RESONANT.id()), "Nested saved validation uses its own profile");
                 return null;
             });

@@ -92,28 +92,19 @@ public final class MachineBinding {
                 // Resolving the owner also probes optional providers before looking at committed receipts.
                 MembershipSnapshot current = saved.resolvePool(personalOwner).snapshot().orElse(null);
                 if (current == null) break;
-                var join = saved.reservoirs().machineJoin(personalOwner, Math.max(0, ownershipRosterRevision));
+                var join = saved.reservoirs().machineJoin(personalOwner, ownershipRosterRevision);
                 if (join != null) {
                     pool = join.pool(); personalOwner = null; ownershipRosterRevision = join.revision(); changed = true;
                     continue;
                 }
-                // A pre-feature placement has no event cursor; its current known team is authoritative.
-                if (ownershipRosterRevision < 0 && current.pool().kind() == PoolId.Kind.TEAM) {
-                    pool = current.pool(); personalOwner = null;
-                    ownershipRosterRevision = saved.reservoirs().rosterRevision(); changed = true;
-                    continue;
-                }
-                if (ownershipRosterRevision < 0) ownershipRosterRevision = saved.reservoirs().rosterRevision();
             } else if (saved.reservoirs().isDissolved(pool)) {
                 UUID successor = saved.reservoirs().dissolutionRecipient(pool);
                 if (successor == null) break;
                 long dissolvedAt = saved.reservoirs().dissolutionRevision(pool);
                 personalOwner = successor; pool = saved.personalPool(successor).pool();
                 // Provider publications may disband the old team and join the successor's next team together.
-                // Older saves have neither event cursors nor deletion revisions; preserve their -1 fallback.
-                // Never rewind an already consumed receipt, including malformed mixed-version histories.
-                ownershipRosterRevision = dissolvedAt == 0 ? ownershipRosterRevision
-                        : Math.max(ownershipRosterRevision, dissolvedAt - 1);
+                // Never replay receipts preceding the already consumed ownership event.
+                ownershipRosterRevision = Math.max(ownershipRosterRevision, dissolvedAt - 1);
                 changed = true;
                 continue;
             }
@@ -175,10 +166,12 @@ public final class MachineBinding {
         operator = tag.hasUUID("operator") ? tag.getUUID("operator") : null;
         recipient = tag.hasUUID("recipient") ? tag.getUUID("recipient") : null;
         automationRecipient = tag.hasUUID("automation_recipient") ? tag.getUUID("automation_recipient") : null;
-        ownershipRosterRevision = tag.contains("ownership_roster_revision", Tag.TAG_LONG) ? tag.getLong("ownership_roster_revision") : -1;
+        if (root.contains("machine_binding") && !tag.contains("ownership_roster_revision", Tag.TAG_LONG))
+            throw new IllegalStateException("Missing machine ownership revision");
+        ownershipRosterRevision = root.contains("machine_binding") ? tag.getLong("ownership_roster_revision") : -1;
         paused = tag.getBoolean("paused");
         revision = tag.getLong("revision");
-        if (ownershipRosterRevision < -1 || revision < 0 || pool != null && revision < 1) throw new IllegalStateException("Invalid machine binding revision");
+        if (ownershipRosterRevision < -1 || revision < 0 || pool != null && (revision < 1 || ownershipRosterRevision < 0)) throw new IllegalStateException("Invalid machine binding revision");
         if (pendingPlacementOwner != null && (pool != null || personalOwner != null || !pendingPlacementOwner.equals(placer)))
             throw new IllegalStateException("Invalid pending machine placement");
         if (pool != null && (placer == null || (pool.kind() == PoolId.Kind.SOLO) != (personalOwner != null)))

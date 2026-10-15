@@ -85,12 +85,13 @@ public final class MachineLink {
         root.put("machine_link", tag);
     }
     public void load(CompoundTag root) {
+        if (!root.contains("machine_link")) { mode = Mode.AUTOMATIC; target = null; return; }
         CompoundTag tag = root.getCompound("machine_link");
+        if (!tag.contains("version", Tag.TAG_INT) || tag.getInt("version") != 2)
+            throw new IllegalStateException("Unsupported machine link format");
         mode = tag.contains("mode", Tag.TAG_STRING) ? Mode.valueOf(tag.getString("mode")) : Mode.AUTOMATIC;
         target = tag.contains("pos", Tag.TAG_LONG) ? new Source(ResourceLocation.parse(tag.getString("dimension")), BlockPos.of(tag.getLong("pos"))) : null;
         if (mode == Mode.DISCONNECTED && target != null) throw new IllegalStateException("Disconnected machine has a target");
-        // The routing popup was removed. Existing devices must not remain silently disconnected
-        // or locked by its old settings; keep a valid source as the stable automatic preference.
-        if (tag.getInt("version") < 2) mode = Mode.AUTOMATIC;
+
     }
 }

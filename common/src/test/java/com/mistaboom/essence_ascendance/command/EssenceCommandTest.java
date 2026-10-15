@@ -165,7 +165,7 @@ public final class EssenceCommandTest {
                         "Missing category suggestion: " + prefix + essence.id());
             }
         }
-        for (String path : List.of("", "help", "status", "prepare native", "prepare ftb_teams", "prepare openpac", "cancel", "reconcile",
+        for (String path : List.of("", "help", "status", "prepare native", "prepare ftb_teams", "cancel", "reconcile",
                 "activate 00000000-0000-0000-0000-000000000001")) {
             String command = "essence admin membership" + (path.isBlank() ? "" : " " + path);
             valid(dispatcher, command, operator);

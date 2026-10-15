@@ -82,7 +82,7 @@ public final class TeamInterfaceNetworkService {
     }
     private static boolean nativeInterfaceAvailable(ServerPlayer player) {
         return EssenceSavedData.get(player.server).membershipAuthority() == MembershipAuthority.NATIVE
-                && !Platform.isModLoaded("ftbteams") && !Platform.isModLoaded("openpartiesandclaims");
+                && !Platform.isModLoaded("ftbteams");
     }
     public static Component providerGuidance(ServerPlayer player) {
         Text guidance = providerGuidanceText(player);
@@ -91,12 +91,10 @@ public final class TeamInterfaceNetworkService {
     private static Text providerGuidanceText(ServerPlayer player) {
         var saved = EssenceSavedData.get(player.server);
         MembershipAuthority authority = saved.membershipAuthority();
-        // An explicitly selected, installed provider remains authoritative when both providers are present.
-        boolean activeInstalled = authority == MembershipAuthority.FTB_TEAMS && Platform.isModLoaded("ftbteams")
-                || authority == MembershipAuthority.OPENPAC && Platform.isModLoaded("openpartiesandclaims");
+        // An explicitly selected, installed provider remains authoritative when installed.
+        boolean activeInstalled = authority == MembershipAuthority.FTB_TEAMS && Platform.isModLoaded("ftbteams");
         MembershipAuthority installed = activeInstalled ? authority
-                : Platform.isModLoaded("ftbteams") ? MembershipAuthority.FTB_TEAMS
-                : Platform.isModLoaded("openpartiesandclaims") ? MembershipAuthority.OPENPAC : authority;
+                : Platform.isModLoaded("ftbteams") ? MembershipAuthority.FTB_TEAMS : authority;
         if (installed != authority)
             return Text.of("provider_setup", installed.displayName(), authority.displayName(), installed.id());
         String readiness = MembershipRuntime.interfaceState(player.server, saved.resolvePool(player.getUUID()));

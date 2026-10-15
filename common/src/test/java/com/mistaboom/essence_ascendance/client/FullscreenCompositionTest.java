@@ -23,7 +23,6 @@ public final class FullscreenCompositionTest {
 
     public static void main(String[] args) throws Exception {
         checks += FullscreenRenderContractTest.run();
-        checks += FullscreenInventoryOverlayTest.run();
         check(!AscendanceArchiveScreen.usesEntryList(com.mistaboom.essence_ascendance.archive.ArchiveMode.GUIDE)
                         && AscendanceArchiveScreen.usesEntryList(
                         com.mistaboom.essence_ascendance.archive.ArchiveMode.REFERENCE),

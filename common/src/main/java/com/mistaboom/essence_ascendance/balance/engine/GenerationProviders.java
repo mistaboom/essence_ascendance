@@ -18,14 +18,6 @@ public final class GenerationProviders {
     GenerationProviders(GenerationDataSnapshot inputs, java.util.function.Function<String, String> installedVersions) {
         this.inputs = inputs; this.installedVersions = installedVersions;
     }
-    public static boolean disabled(String id, com.mistaboom.essence_ascendance.balance.config.BalanceOverrides overrides) {
-        return overrides.facts().stream().filter(fact -> fact.kind() == com.mistaboom.essence_ascendance.balance.config.BalanceOverrides.SubjectKind.PROVIDER
-                        && fact.selector().equals(id) && fact.flag("disabled").isPresent())
-                .sorted(java.util.Comparator.comparingInt(com.mistaboom.essence_ascendance.balance.config.BalanceOverrides.FactOverride::priority)
-                        .reversed().thenComparing(com.mistaboom.essence_ascendance.balance.config.BalanceOverrides.FactOverride::id))
-                .findFirst().map(fact -> fact.flag("disabled").orElse(false)).orElse(false);
-    }
-
     public boolean prepare(String family, GenerationProvider provider, boolean disabled) {
         String key = family + "/" + provider.id();
         if (entries.containsKey(key)) throw new IllegalStateException("Provider probed twice: " + key);

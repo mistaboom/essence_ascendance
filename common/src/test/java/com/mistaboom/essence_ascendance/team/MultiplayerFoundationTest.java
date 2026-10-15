@@ -94,26 +94,22 @@ public final class MultiplayerFoundationTest {
         ProviderReadiness ready = new ProviderReadiness(ProviderReadiness.Status.AVAILABLE, "fixture", "Complete roster");
         ProviderReadiness waiting = new ProviderReadiness(ProviderReadiness.Status.NOT_READY, "fixture", "Server API starting");
         Map<MembershipAuthority, ProviderReadiness> all = Map.of(MembershipAuthority.NATIVE, ready,
-                MembershipAuthority.FTB_TEAMS, ready, MembershipAuthority.OPENPAC, ready);
+                MembershipAuthority.FTB_TEAMS, ready);
         check(MembershipAuthority.select(MembershipAuthority.Selection.AUTO, null, all).authority()
                 == MembershipAuthority.FTB_TEAMS, "Initial AUTO prefers supported FTB Teams");
         check(MembershipAuthority.select(MembershipAuthority.Selection.AUTO, null,
-                Map.of(MembershipAuthority.NATIVE, ready, MembershipAuthority.OPENPAC, ready)).authority()
-                == MembershipAuthority.OPENPAC, "Initial AUTO uses supported OpenPAC next");
-        check(MembershipAuthority.select(MembershipAuthority.Selection.AUTO, null,
                 Map.of(MembershipAuthority.NATIVE, ready)).usable(), "Provider-free native selection is usable");
         var unready = MembershipAuthority.select(MembershipAuthority.Selection.AUTO, null,
-                Map.of(MembershipAuthority.NATIVE, ready, MembershipAuthority.FTB_TEAMS, waiting,
-                        MembershipAuthority.OPENPAC, ready));
+                Map.of(MembershipAuthority.NATIVE, ready, MembershipAuthority.FTB_TEAMS, waiting));
         check(unready.authority() == MembershipAuthority.FTB_TEAMS && !unready.usable(),
                 "Supported but starting FTB does not briefly establish another authority");
         var retained = MembershipAuthority.select(MembershipAuthority.Selection.AUTO, MembershipAuthority.FTB_TEAMS,
                 Map.of(MembershipAuthority.NATIVE, ready));
         check(retained.authority() == MembershipAuthority.FTB_TEAMS && !retained.usable(),
                 "Established authority remains unavailable instead of silently becoming native");
-        var changed = MembershipAuthority.select(MembershipAuthority.Selection.OPENPAC, MembershipAuthority.NATIVE, all);
+        var changed = MembershipAuthority.select(MembershipAuthority.Selection.FTB_TEAMS, MembershipAuthority.NATIVE, all);
         check(changed.authorityChangeRequired() && !changed.usable(), "Explicit authority change requires a safe boundary");
-        check(MembershipAuthority.select(MembershipAuthority.Selection.OPENPAC, null, all).usable(),
+        check(MembershipAuthority.select(MembershipAuthority.Selection.FTB_TEAMS, null, all).usable(),
                 "Explicit initial authority selection works without reconciliation");
         check(!MembershipAuthority.select(MembershipAuthority.Selection.FTB_TEAMS, null, Map.of()).usable(),
                 "Explicit unavailable provider does not fall back");

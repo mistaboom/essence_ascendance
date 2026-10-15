@@ -7,16 +7,16 @@ import java.util.Objects;
 
 /** One authority per world. A provider's unready result never means an empty roster. */
 public enum MembershipAuthority {
-    NATIVE, FTB_TEAMS, OPENPAC;
+    NATIVE, FTB_TEAMS;
 
-    public enum Selection { AUTO, NATIVE, FTB_TEAMS, OPENPAC }
+    public enum Selection { AUTO, NATIVE, FTB_TEAMS }
 
-    public String displayName() { return switch (this) { case NATIVE -> "Essence Ascendance"; case FTB_TEAMS -> "FTB Teams"; case OPENPAC -> "Open Parties and Claims"; }; }
+    public String displayName() { return switch (this) { case NATIVE -> "Essence Ascendance"; case FTB_TEAMS -> "FTB Teams"; }; }
     public String id() { return name().toLowerCase(java.util.Locale.ROOT); }
     public static Selection selection(String id) {
         try { return Selection.valueOf(id.toUpperCase(java.util.Locale.ROOT)); }
         catch (IllegalArgumentException failure) {
-            throw new IllegalArgumentException("Unknown membership authority '" + id + "'; use auto, native, ftb_teams or openpac");
+            throw new IllegalArgumentException("Unknown membership authority '" + id + "'; use auto, native, ftb_teams");
         }
     }
 
@@ -43,7 +43,7 @@ public enum MembershipAuthority {
         } else {
             // A supported provider that is still starting must not cause a native fallback.
             selected = NATIVE;
-            for (MembershipAuthority candidate : new MembershipAuthority[]{FTB_TEAMS, OPENPAC}) {
+            for (MembershipAuthority candidate : new MembershipAuthority[]{FTB_TEAMS}) {
                 ProviderReadiness status = status(providers, candidate);
                 if (status.status() == ProviderReadiness.Status.AVAILABLE || status.status() == ProviderReadiness.Status.NOT_READY
                         || status.status() == ProviderReadiness.Status.FAILED) {
@@ -52,7 +52,7 @@ public enum MembershipAuthority {
                 }
             }
             // With no supported external authority, an installed unusable one blocks native AUTO.
-            if (selected == NATIVE) for (MembershipAuthority candidate : new MembershipAuthority[]{FTB_TEAMS, OPENPAC}) {
+            if (selected == NATIVE) for (MembershipAuthority candidate : new MembershipAuthority[]{FTB_TEAMS}) {
                 if (status(providers, candidate).status() != ProviderReadiness.Status.ABSENT) {
                     selected = candidate; break;
                 }

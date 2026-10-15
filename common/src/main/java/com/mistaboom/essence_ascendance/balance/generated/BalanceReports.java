@@ -40,7 +40,10 @@ public final class BalanceReports {
                                Path folder, long generationMillis, boolean exhaustive) throws IOException {
         BalancePerformance.increment("report_export_runs");
         writeManifest(folder, current.document().integrity(), "incomplete", exhaustive);
-        if (!exhaustive) BalanceReportLayout.archiveAcquisitionDetails(folder);
+        if (!exhaustive) {
+            java.nio.file.Files.deleteIfExists(BalanceReportLayout.reports(folder).resolve("valuation_sources.csv"));
+            java.nio.file.Files.deleteIfExists(BalanceReportLayout.reports(folder).resolve("valuation_source_dependencies.csv"));
+        }
         JsonObject skills = current.document().section("skills");
         try (SpreadsheetReports tables = new SpreadsheetReports()) {
             valuation(tables, current, exhaustive);
@@ -51,9 +54,6 @@ public final class BalanceReports {
             combatBuilds(tables, skills);
             invariants(tables, current);
             evidence(tables, current);
-            questEvidence(tables, current.document().section("metadata"));
-            AdaptiveBalanceReports.saved(tables, current.document().section("metadata"));
-            CompetitiveCapabilityReports.saved(tables, current.document().section("metadata"));
             runtimeTables(tables, current);
             var rods = tables.table("fishing_rod.csv", "equipment_tier", "range_blocks", "cast_blocks_per_tick", "hook_gravity", "pull_acceleration", "maximum_force", "powered_speed", "durability", "upgrade_essence", "matrices");
             for (var tier : com.mistaboom.essence_ascendance.equipment.EquipmentTier.values()) {
@@ -81,10 +81,6 @@ public final class BalanceReports {
             }
         Path reports = BalanceReportLayout.reports(folder), diagnostics = BalanceReportLayout.diagnostics(folder);
         BalanceProfileStore.writeAtomically(reports.resolve("balance_report.md"), report(current, previous, generationMillis, skills, exhaustive));
-        var competitiveMetadata = current.document().section("metadata");
-        AdaptiveBalanceReports.writeDetails(folder, competitiveMetadata);
-        if (competitiveMetadata.has("generation") && competitiveMetadata.getAsJsonObject("generation").has("competitiveCapabilities"))
-            CompetitiveCapabilityReports.writeDetails(folder, competitiveMetadata.getAsJsonObject("generation").getAsJsonObject("competitiveCapabilities"));
         BalanceProfileStore.writeAtomically(diagnostics.resolve("pack_metadata.json"), BalanceDocument.GSON.toJson(current.document().section("metadata")) + "\n");
         BalanceProfileStore.writeAtomically(diagnostics.resolve("bonus_tracks.json"), BalanceDocument.GSON.toJson(
                 com.mistaboom.essence_ascendance.balance.runtime.BonusTrackGenerator.diagnostics(current.runtime())) + "\n");
@@ -96,45 +92,6 @@ public final class BalanceReports {
                     BalanceDocument.GSON.toJson(metadata.getAsJsonObject("generation").get("routing")) + "\n");
         BalanceReportLayout.finishExport(folder, current.document().integrity());
         writeManifest(folder, current.document().integrity(), "complete", exhaustive);
-    }
-    static void questEvidence(SpreadsheetReports tables, JsonObject metadata) {
-        if (!metadata.has("generation") || !metadata.getAsJsonObject("generation").has("quests")) return;
-        var quests = metadata.getAsJsonObject("generation").getAsJsonObject("quests");
-        var table = tables.table("quest_evidence.csv", "quest_id", "source_id", "evidence_category", "type", "prerequisites",
-                "required_prerequisites", "dependencies_enforced", "repeatable", "cooldown_seconds", "scope", "items",
-                "quantity", "probability", "exclusive_group", "progression_contribution", "confidence", "unsupported", "predicate");
-        for (var element : quests.getAsJsonArray("quests")) {
-            var q = element.getAsJsonObject();
-            String contribution = "unresolved";
-            if (quests.has("progression")) {
-                var placements = quests.getAsJsonObject("progression").getAsJsonObject("quests");
-                if (placements.has(q.get("id").getAsString())) contribution = placements.getAsJsonObject(q.get("id").getAsString()).get("stage").getAsString();
-            }
-            questRow(table, q.get("id"), q.get("id"), "suggested_progression", q.get("dependencyMode"), q.get("prerequisites"), q.get("required"),
-                    q.get("enforced"), q.get("repeatable"), q.get("cooldownSeconds"), "team_task_progress", "", "", "", "",
-                    contribution, "inferred availability only", q.get("unresolved"), "No external crafting/use gate inferred");
-            for (var task : q.getAsJsonArray("tasks")) {
-                var t = task.getAsJsonObject();
-                questRow(table, q.get("id"), t.get("id"), "task_requirement", t.get("type"), q.get("prerequisites"), q.get("required"), q.get("enforced"),
-                        q.get("repeatable"), q.get("cooldownSeconds"), "team_task_progress", t.get("items"), t.get("count"), "", "", contribution,
-                        t.get("supported").getAsBoolean() ? ".85" : "unresolved", t.get("unresolved"), t.get("predicate"));
-                if (t.get("consumed").getAsBoolean()) questRow(table, q.get("id"), t.get("id"), "consumed_task_cost", t.get("type"), q.get("prerequisites"),
-                        q.get("required"), q.get("enforced"), q.get("repeatable"), q.get("cooldownSeconds"), "team_task_progress", t.get("items"),
-                        t.get("count"), "", "", "Required per repeated submission; prerequisite setup not charged every repeat",
-                        t.get("supported").getAsBoolean() ? ".85" : "unresolved task cost", t.get("unresolved"), t.get("predicate"));
-            }
-            for (var reward : q.getAsJsonArray("rewards")) {
-                var r = reward.getAsJsonObject();
-                questRow(table, q.get("id"), r.get("id"), "reward_acquisition", r.get("type"), q.get("prerequisites"), q.get("required"), q.get("enforced"),
-                        q.get("repeatable"), q.get("cooldownSeconds"), r.get("scope"), r.get("item"), r.get("count"), r.get("probability"), r.get("group"),
-                        contribution, r.get("item") != null && !r.get("item").isJsonNull() && r.getAsJsonArray("unresolved").isEmpty()
-                                ? ".85 factual semantics; opportunity only" : "unresolved acquisition", r.get("unresolved"), r.get("predicate"));
-            }
-        }
-    }
-    private static void questRow(SpreadsheetReports.Table table, Object... cells) {
-        table.row(java.util.Arrays.stream(cells).map(value -> value == null || value instanceof JsonElement e && e.isJsonNull() ? ""
-                : value instanceof JsonElement e && e.isJsonPrimitive() ? e.getAsString() : value.toString()).toArray(String[]::new));
     }
     private static void writeManifest(Path folder, String integrity, String state, boolean exhaustive) throws IOException {
         var manifest = new JsonObject(); manifest.addProperty("profileIntegrity", integrity); manifest.addProperty("state", state);
@@ -167,13 +124,13 @@ public final class BalanceReports {
                 .append("This report explains the saved server profile. Edit the commented TOML inputs, then run `/essence admin balance rebuild`. The generated JSON is inspection-only.\n\n")
                 .append("Rebuild explicitly after changing the pack's recipes, loot, scripts, mods or balance inputs. Saved profiles are validated for integrity and usable data; loading does not detect pack changes.\n\n")
                 .append("## Evidence and confidence boundary\n\n")
-                .append("Direct observations, engine inferences, user overrides and policy decisions retain separate evidence origins. Generic data cannot reveal arbitrary scripted quest gates, dynamic item effects, machine outputs or boss phases. Unknown systems require a factual override or a typed optional provider.\n\n")
+                .append("Item properties and standard recipes provide bounded policy estimates. Registered equipment and default mob attributes provide measured references. These catalog measurements do not prove acquisition, progression, renewability or production rates.\n\n")
                 .append("## Applied policy settings\n\n| Setting | Value |\n|---|---|\n");
         doc.section("settings").entrySet().stream().sorted(Map.Entry.comparingByKey())
                 .forEach(entry -> row(out, entry.getKey(), entry.getValue().toString()));
         out.append("\n## Overrides\n\n```json\n").append(BalanceDocument.GSON.toJson(doc.section("overrides"))).append("\n```\n\n")
-                .append("## External progression references\n\n")
-                .append("Ascendance's own outputs are excluded from the external reference population. Frontiers use reachable equipment and compatible slots; independent weapon families are alternatives. Sparse axes use declared vanilla policy seeds and remain visible in the warnings.\n\n")
+                .append("## External catalog references\n\n")
+                .append("Ascendance's own outputs are excluded from the external reference population. Frontiers use included measurements with explicit catalog-estimate markers and compatible slots. Bands rank relative measured strength; they do not describe survival progression.\n\n")
                 .append("| Band | Axis | Reference |\n|---|---|---:|\n");
         for (ProgressionBand band : ProgressionBand.values())
             for (var entry : evidence.frontiers().getOrDefault(band, Map.of()).entrySet())
@@ -181,55 +138,30 @@ public final class BalanceReports {
         out.append("\n### Enemy reference population\n\n| Enemy | Encounter | Band | Included | Confidence | Reason |\n|---|---|---|---|---:|---|\n");
         evidence.enemies().forEach(enemy -> row(out, enemy.entityId(), enemy.encounter().name(), enemy.stage().name(),
                 Boolean.toString(enemy.included()), number(enemy.confidence()), enemy.reason() + " " + enemy.unknownMechanics()));
-        out.append("\n### Attainable external capability references\n\n")
-                .append("These are resolved capability axes on reachable, included equipment. A value of one for flight, gliding or another binary axis means the capability is present; it is not one point of damage. Unexposed behavior requires a provider or factual override.\n\n")
+        out.append("\n### Measured external capability references\n\n")
+                .append("These are resolved capability axes on included catalog equipment; acquisition remains unexamined. A value of one for flight, gliding or another binary axis means the capability is present; it is not one point of damage. Unexposed behavior remains unmeasured.\n\n")
                 .append("| Item | Slot | Band | Capability | Value | Confidence | Evidence boundary |\n|---|---|---|---|---:|---:|---|\n");
         Set<CapabilityAxis> capabilityAxes = Set.of(CapabilityAxis.FLIGHT, CapabilityAxis.GLIDING,
                 CapabilityAxis.TELEPORTATION, CapabilityAxis.AREA_MINING, CapabilityAxis.VEIN_MINING,
                 CapabilityAxis.BLOCKING, CapabilityAxis.ARMOR_PENETRATION, CapabilityAxis.SHIELD_INTERACTION,
                 CapabilityAxis.AUTOMATION_INTERACTION, CapabilityAxis.CONVERSION, CapabilityAxis.THROUGHPUT,
                 CapabilityAxis.CROP_YIELD, CapabilityAxis.DROP_YIELD, CapabilityAxis.TOOL_VERSATILITY);
-        evidence.equipment().stream().filter(item -> item.included() && item.reachable()).forEach(item ->
+        evidence.equipment().stream().filter(item -> item.usableReference()).forEach(item ->
                 item.axes().entrySet().stream().filter(axis -> capabilityAxes.contains(axis.getKey()) && axis.getValue() > 0)
                         .sorted(Map.Entry.comparingByKey()).forEach(axis -> row(out, item.itemId(), item.slot(), item.stage().name(),
                                 axis.getKey().name(), number(axis.getValue()), number(item.confidence()), item.capabilities().toString())));
-        out.append("\n### External system capability claims\n\n")
-                .append("Provider and source claims below preserve their origin and confidence. Claims are evidence; their presence alone does not prove a complete model of the external system.\n\n")
-                .append("| Subject | Kind | Property | Value | Origin | Confidence | Reason |\n|---|---|---|---|---|---:|---|\n");
-        evidence.facts().stream().filter(fact -> fact.subject() == EvidenceFact.Subject.CAPABILITY
-                        || fact.subject() == EvidenceFact.Subject.SOURCE)
-                .sorted(Comparator.comparing(EvidenceFact::key).thenComparing(EvidenceFact::provider))
-                .limit(detailLimit)
-                .forEach(fact -> row(out, fact.subjectId(), fact.subject().name(), fact.property(), evidenceValue(fact.value()),
-                        fact.origin().name(), number(fact.confidence()), fact.reason()));
-        JsonObject generationMetadata = doc.section("metadata");
-        if (generationMetadata.has("generation")) {
-            JsonObject generation = generationMetadata.getAsJsonObject("generation");
-            out.append("\n## Generation evidence providers\n\nThese are saved generation facts. They are never compared with the current installed environment. Source reachability and measured capability remain separate evidence.\n\n")
-                    .append("| Provider | Status | Version | Required evidence complete | Facts | Sources | Minimum confidence | Detail |\n|---|---|---|---|---:|---:|---:|---|\n");
-            generation.getAsJsonArray("providers").forEach(value -> {
-                JsonObject provider = value.getAsJsonObject();
-                row(out, provider.get("family").getAsString() + "/" + provider.get("id").getAsString(), provider.get("status").getAsString(),
-                        provider.get("version").getAsString(), provider.get("requiredEvidenceComplete").getAsString(), provider.get("facts").getAsString(),
-                        provider.get("sources").getAsString(), provider.has("minimumConfidence") ? provider.get("minimumConfidence").getAsString() : "unknown", provider.get("detail").getAsString());
-            });
-            out.append("\nNormalized workload counts: ").append(generation.get("workloads")).append(". Detailed dimension readiness, source provenance, unsupported recipe families and provider timings are in `diagnostics/generation_evidence.json`.\n\n");
-            if (generation.has("routing")) out.append("Routing evidence counts: ")
-                    .append(generation.getAsJsonObject("routing").get("counts"))
-                    .append(". Matched rules, fallback-only functions, ambiguous hints, conflicts and suppressed false-positive candidates are in `diagnostics/routing_classification.json`. Classification coverage does not establish reachability, economic correctness or measured capability correctness.\n\n");
-        }
         out.append("\n## Resource supply and automation\n\n| Classification | Items |\n|---|---:|\n");
         Map<String, Long> classes = new TreeMap<>();
         evidence.resources().values().forEach(resource -> classes.merge(resource.availability() + " / " + resource.automation(), 1L, Long::sum));
         classes.forEach((key, value) -> row(out, key, value.toString()));
-        out.append("\nEconomic value measures opportunity cost. Dissolution yield is the separately constrained spendable output. Automation and source pressure affect yield; conservation runs after all yield overrides. `valuation.csv` contains every resource and its base routing. The enchanted-book row is a conserved upper bound, labeled in yield_policy; actual enchantment-and-level yields appear in the Archive, item tooltips, and the loaded-registry /essence test enchantments receipt. Equipment enchantments redistribute their material budget without an additive premium.\n\n")
+        out.append("\nEconomic value is a bounded estimate from item properties and standard recipes. Dissolution yield is the separately constrained spendable output; recipe conservation runs after yield overrides. Acquisition and production rates are not inferred. `valuation.csv` contains every resource and its base routing. The enchanted-book row is a conserved upper bound, labeled in yield_policy; actual enchantment-and-level yields appear in the Archive, item tooltips, and the loaded-registry /essence test enchantments receipt. Equipment enchantments redistribute their material budget without an additive premium.\n\n")
                 .append("### Production graph\n\n").append(evidence.graphSummary()).append("\n\n")
                 .append("Saved normalized processes: ").append(current.economy().processes().size())
                 .append("; incomplete processes excluded from hard conservation: ")
                 .append(current.economy().processes().stream().filter(process -> !process.conservationComplete()).count())
                 .append(". Exact effective definitions, native resource quantities/units, component predicates, setup, operating requirements and adapter provenance remain in the profile's economy/processes. Unknown energy, fuel, access or variant behavior is not treated as free. Recipe duration alone does not establish throughput.\n\n")
                 .append("Final conservation passes: ").append(current.economy().solverPasses()).append(". Checked production paths: ")
-                .append(current.economy().invariants().size()).append(". All accepted paths pass their final production budget. Ordinary crafting shares only consumed material value across outputs and byproducts. Verified finite-stock trading additionally has a capped renewable-source allowance derived from uninflated proposed yields; the invariant explanation separates material and source credit. Workstations, stock and restocking are productive constraints, so profitable trading is permitted without increasing direct item proposals.\n\n")
+                .append(current.economy().invariants().size()).append(". Accepted standard recipes share their consumed material budget across outputs and byproducts. No trade, loot, quest or farm source credit is inferred.\n\n")
                 .append("## Generated policy parameters\n\n")
                 .append("Allocation shares and reference values below explain the selected policy. Entries labeled illustrative summarize policy pressure; they are not measured DPS/EHP or a substitute for the resolved numeric scenario checks that follow.\n\n")
                 .append("| Parameter | Value |\n|---|---:|\n");
@@ -237,7 +169,7 @@ public final class BalanceReports {
                 key + (Set.of("combined_damage_multiplier", "combined_defense_multiplier").contains(key) ? " (illustrative only)" : ""), number(value)));
         out.append("\n## Player tier unlocks\n\n");
         out.append("Player-tier Ascension completes Category Attunement seals through confirmed gameplay. It consumes no Essence and requires no wallet balance, investment, skill, equipment family, or world milestone. Earned tiers are permanent. Normalized resolved Bonus development and actual historical paid skill receipts only accelerate future eligible activity. Bonus development weights realized effect by intrinsic generated power independently of its price; skill spending retains historical paid receipts.\n\n")
-                .append("`attunement_breadth.csv` resolves increasing optional-category breadth; `attunement_targets.csv` joins it by chapter_id. `attunement_pacing.csv` compares raw and sustained single-source amounts per seal, with no investment or variety. Repetition measures reference work, never callback count; diversification restores efficiency. Reachability distinguishes registered base methods from stage-accessible acquisition estimates. Estimates do not impose gates, and opaque quests, world generators or scripted recipes require pack evidence. Exploration discoveries reset each chapter and remain optional.\n\n")
+                .append("`attunement_breadth.csv` resolves increasing optional-category breadth; `attunement_targets.csv` joins it by chapter_id. `attunement_pacing.csv` compares raw and sustained single-source amounts per seal, with no investment or variety. Repetition measures reference work, never callback count; diversification restores efficiency. Reachability distinguishes registered base methods from stage-accessible acquisition estimates. These estimates do not prove acquisition or impose external progression gates. Exploration discoveries reset each chapter and remain optional.\n\n")
                 .append("### Attunement calibration assumptions\n\n");
         current.runtime().attunement().assumptions().forEach(assumption -> out.append("- ").append(assumption).append('\n'));
         latentOreSummary(out, current);
@@ -289,16 +221,9 @@ public final class BalanceReports {
             out.append("Last successful generation measured in this process: ").append(millis).append(" ms.\n\n")
                     .append("| Generation phase | Milliseconds |\n|---|---:|\n");
             phases.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(phase -> row(out, phase.getKey(), phase.getValue().toString()));
-            out.append("\n| Evidence provider | Milliseconds |\n|---|---:|\n");
-            JsonObject metadata = current.document().section("metadata");
-            if (metadata.has("generation")) metadata.getAsJsonObject("generation").getAsJsonArray("providers").forEach(value -> {
-                JsonObject provider = value.getAsJsonObject();
-                row(out, provider.get("family").getAsString() + "/" + provider.get("id").getAsString()
-                        + " [" + provider.get("status").getAsString() + "]",
-                        Long.toString(provider.get("collectionNanos").getAsLong() / 1_000_000));
-            });
+
         }
-        out.append("\nTimings are rounded down to whole milliseconds; zero is a valid measured duration. They do not participate in deterministic balance values. Saved generation timing provenance is protected by the profile integrity. Graph traversal is bounded; normal loads skip providers and solvers. Gameplay, loader transformation and multiplayer acceptance require the supplied local tests.\n\n")
+        out.append("\nTimings are rounded down to whole milliseconds; zero is a valid measured duration. They do not participate in deterministic balance values. Saved generation timing provenance is protected by the profile integrity. Recipe solving is bounded; normal loads reuse the saved profile. Gameplay, loader transformation and multiplayer acceptance require the supplied local tests.\n\n")
                 .append("## Comparison with previous active profile\n\n");
         if (previous == null) out.append("No previous active profile was supplied for this export.\n");
         else {
@@ -311,7 +236,7 @@ public final class BalanceReports {
         }
         out.append("\n## Export layout and calibration handoff\n\nCSV tables in reports/ contain one observation per row, with numeric essence categories in separate columns. Join resource details by item_id, and skill details by projection_id plus scenario_id. Equipment.csv describes external references; generated_equipment.csv describes Ascendance's saved tier baselines. Runtime_parameters.csv contains the complete saved runtime as scalar rows with exact JSON pointers. Combat assumptions are stored once in combat_assumptions.csv and join to combat_builds.csv by case_id; a blank case_id is an assumption shared by the entire analysis.\n\n")
                 .append("A rare text field longer than a spreadsheet cell is replaced by a reference into diagnostics/report_text.json; no text is truncated. Potential formula text is escaped with a leading apostrophe. All original evidence and analysis remain in generated_balance.json.gz. CSV values are inspection exports, never runtime inputs.\n\n")
-                .append("Preserve generated_balance.json.gz, the complete reports/ and diagnostics/ folders, both TOML inputs, latest.log, loader/version and the actual pack version. Correct factual analysis with providers/overrides and balance preferences with policy; do not alter generated JSON.\n");
+                .append("Preserve generated_balance.json.gz, the complete reports/ and diagnostics/ folders, both TOML inputs, latest.log, loader/version and the actual pack version. Use explicit overrides for factual corrections and settings for balance preferences; do not alter generated JSON.\n");
         return out.toString();
     }
     private static void valuation(SpreadsheetReports tables, GeneratedBalanceService.Active current, boolean exhaustive) {
@@ -691,15 +616,10 @@ public final class BalanceReports {
         JsonObject validation = current.document().section("validation");
         if (!validation.has("latentOre")) return;
         JsonObject supply = validation.getAsJsonObject("latentOre");
-        var categories = tables.table("latent_ore_supply.csv", "essence_id", "source_families", "effective_sources",
-                "coverage", "target_effective_sources", "attempt_multiplier", "early_conversion_fuel_available");
-        supply.getAsJsonArray("categories").forEach(element -> {
-            JsonObject category = element.getAsJsonObject();
-            categories.row(category.get("essenceId").getAsString(), scalarNumber(category.get("sourceFamilies")),
-                    scalarNumber(category.get("effectiveSources")), scalarNumber(category.get("coverage")),
-                    scalarNumber(supply.get("targetEffectiveSources")), scalarNumber(supply.get("multiplier")),
-                    supply.get("earlyConversionFuelAvailable").getAsString());
-        });
+        var policy = tables.table("latent_ore_supply.csv", "policy", "acquisition_evaluated",
+                "minimum_attempts", "minimum_vein_size");
+        policy.row(supply.get("policy").getAsString(), supply.get("acquisitionEvaluated").getAsString(),
+                scalarNumber(supply.get("minimumAttempts")), scalarNumber(supply.get("minimumVeinSize")));
         var rules = tables.table("latent_ore_policy.csv", "assumption");
         supply.getAsJsonArray("assumptions").forEach(rule -> rules.row(rule.getAsString()));
         var distributions = tables.table("latent_ore_worldgen.csv", "dimension", "enabled", "vein_size",
@@ -743,9 +663,8 @@ public final class BalanceReports {
         JsonObject validation = current.document().section("validation");
         if (!validation.has("latentOre")) return;
         JsonObject supply = validation.getAsJsonObject("latentOre");
-        out.append("\n## Latent Ore supply\n\nGenerated attempt multiplier: ")
-                .append(scalarNumber(supply.get("multiplier"))).append(". The least-covered Essence category controls supply; abundant categories cannot conceal a missing source. ")
-                .append("`latent_ore_supply.csv` shows the evidence scores; `latent_ore_worldgen.csv` shows final distributions including overrides. These are placement opportunities, not measured mining rates.\n\n");
+        out.append("\n## Latent Ore distribution\n\nConfigured baseline placement is independent of unmeasured resource supply. ")
+                .append("`latent_ore_supply.csv` describes the policy; `latent_ore_worldgen.csv` shows final distributions including overrides. These are placement opportunities, not measured mining rates.\n\n");
         supply.getAsJsonArray("assumptions").forEach(rule -> out.append("- ").append(rule.getAsString()).append('\n'));
         out.append('\n');
     }
@@ -816,7 +735,7 @@ public final class BalanceReports {
                 reachable.row(chapter.id(), category.categoryId(), Long.toString(base), Long.toString(positive), Long.toString(accessible),
                         number(profile.references().getOrDefault("effective_methods_" + referenceSuffix, (double) accessible)),
                         number(profile.references().getOrDefault("accessibility_gain_" + referenceSuffix, 1.0)),
-                        Boolean.toString(accessible > 0), Boolean.toString(policy.repetitionFloor() > 0), "none", "none", "acquisition_stage_and_opportunity_estimate; live_adapter_acceptance_separate");
+                        Boolean.toString(accessible > 0), Boolean.toString(policy.repetitionFloor() > 0), "none", "none", "native_activity_opportunity_estimate; no_acquisition_inference; live_adapter_acceptance_separate");
             }
             for (var rate : chapter.activities().values()) {
                 calibration.row(chapter.id(), rate.categoryId(), rate.activityId(), rate.units(), number(rate.referenceUnits()), number(rate.contributionPerUnit()), Boolean.toString(rate.stageAccessible()), rate.evidence());

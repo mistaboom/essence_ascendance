@@ -43,7 +43,7 @@ public final class AscendancePaletteTest {
             }
         }
         for (EssenceFocusTier grade : EssenceFocusTier.values()) for (var essence : EssenceTypes.ORDERED) {
-            var value = new EssentiumCarrierData.Value(essence, grade, 1);
+            var value = new EssentiumCarrierData.Value(essence, grade, 1, 9);
             EquipmentTier tier = EquipmentTier.fromSerializedName(grade.serializedName());
             check(EssentiumCarrierVisuals.primaryRgb(value) == EquipmentTierVisuals.primaryRgb(tier),
                     "Ingot and armor body colors disagree for same tier");

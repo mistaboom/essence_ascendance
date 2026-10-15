@@ -26,6 +26,7 @@ public final class BonusTrackProgressionTest {
 
     public static void main(String[] args) {
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap(); EssenceTypes.init(); AscendanceTiers.init(); EssenceStats.init();
+        MilestoneProviders.init(); Milestones.init(); com.mistaboom.essence_ascendance.skill.Skills.init();
         tiers = AscendanceTierRegistry.values().stream().sorted(Comparator.comparingInt(AscendanceTierDefinition::order)).toList();
         var profile = profile(1);
         exactCheckpoints();
@@ -169,8 +170,12 @@ public final class BonusTrackProgressionTest {
         var locked = player(Map.of(EssenceStats.FLIGHT_SPEED.id(), 6400L)); locked.setTier(AscendanceTiers.DORMANT);
         check(BonusDevelopment.fraction(locked, category, profile) == 0, "Stored delayed investment accelerates before start");
         long bonus = AttunementService.investment(original, category, profile);
-        original.recordSkillPurchase(ResourceLocation.parse("test:historical_skill"),
-                new SkillPurchase(EssenceTypes.MOBILITY.id(), List.of(17L, 31L, 79L)));
+        var currentSkill = com.mistaboom.essence_ascendance.skill.SkillRegistry.values().stream()
+                .filter(skill -> skill.essenceId().equals(EssenceTypes.MOBILITY.id()))
+                .sorted(Comparator.comparing(skill -> skill.id().toString())).findFirst().orElseThrow();
+        check(original.recordSkillPurchase(currentSkill.id(),
+                new SkillPurchase(EssenceTypes.MOBILITY.id(), List.of(17L, 31L, 79L))),
+                "Current catalog skill receipt accepted");
         check(AttunementService.investment(original, category, profile) == bonus + 127,
                 "Historical skill receipts were normalized or repriced");
         original.setAvailable(EssenceTypes.MOBILITY, Long.MAX_VALUE);

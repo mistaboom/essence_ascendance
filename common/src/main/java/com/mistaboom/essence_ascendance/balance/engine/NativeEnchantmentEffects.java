@@ -196,7 +196,7 @@ final class NativeEnchantmentEffects {
     private static void add(CapabilityAxis axis, Double magnitude, String unit, String source, List<Measurement> out) {
         if (magnitude == null || !Double.isFinite(magnitude) || magnitude <= 0) return;
         var unknown = source.contains("conditional=") ? List.of("Conditional native effect; uptime and target match frequency unmeasured") : List.<String>of();
-        out.add(CompetitiveCapabilities.measurement(axis, magnitude, unit, "effect=" + source,
-                CompetitiveCapabilities.equipmentScope(axis), Operation.manual(), "native_enchantments", Origin.NATIVE, unknown));
+        out.add(NativeCapabilityReader.measurement(axis, magnitude, unit, "effect=" + source,
+                NativeCapabilityReader.equipmentScope(axis), Operation.manual(), "native_enchantments", Origin.NATIVE, unknown));
     }
 }

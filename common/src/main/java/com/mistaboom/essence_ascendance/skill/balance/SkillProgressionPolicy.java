@@ -2,10 +2,7 @@ package com.mistaboom.essence_ascendance.skill.balance;
 
 import com.google.gson.JsonObject;
 import com.mistaboom.essence_ascendance.balance.engine.CapabilityAxis;
-import com.mistaboom.essence_ascendance.balance.engine.ProgressionBand;
-import com.mistaboom.essence_ascendance.balance.engine.PackEvidence;
 import com.mistaboom.essence_ascendance.balance.config.BalanceSettings;
-import com.mistaboom.essence_ascendance.skill.ProgressionRequirements;
 import com.mistaboom.essence_ascendance.skill.SkillDefinition;
 import java.util.*;
 
@@ -16,7 +13,7 @@ public final class SkillProgressionPolicy {
     public static final String CONTRACT = "mechanical-utility-1";
     private SkillProgressionPolicy() { }
 
-    public record Decision(ProgressionBand band, double utility, double exposure, double nativeMagnitude,
+    public record Decision(double utility, double exposure, double nativeMagnitude,
                            Map<String, Double> nativeOutcomes, Map<CapabilityAxis, Double> axisUtility,
                            List<String> assumptions) { }
 
@@ -42,18 +39,12 @@ public final class SkillProgressionPolicy {
         }
         double utility = axes.values().stream().mapToDouble(Double::doubleValue).sum() * magnitude * exposure;
         if (!Double.isFinite(utility) || utility <= 0) throw new IllegalArgumentException("Invalid mechanical utility: " + skill.id());
-        return new Decision(band(utility), utility, exposure, magnitude, Collections.unmodifiableMap(measured),
+        return new Decision(utility, exposure, magnitude, Collections.unmodifiableMap(measured),
                 Collections.unmodifiableMap(axes), List.of(
-                "Axis weights and utility thresholds are explicit balancing policy, not observed acquisition facts.",
+                "Axis weights are explicit price and rank balancing policy; unlock tiers come from the skill layout configuration.",
                 "Trigger reliability, uptime, setup risk and resource burden are representative design scenarios from the semantic descriptor; no measured gameplay rate is asserted.",
                 "Native magnitudes use implemented parameter measurements divided by meaningful first-state floors; different physical units are never summed.",
-                "No supported substitute uses this utility policy. Missing, unsupported, failed and verified-absent evidence remain separate diagnostic states.",
-                "External access may lower functional availability independently of equivalent strength; prerequisites, milestones and live conditions still apply."));
-    }
-
-    public static ProgressionBand band(double utility) {
-        if (!Double.isFinite(utility) || utility < 0) throw new IllegalArgumentException("Invalid utility");
-        return ProgressionBand.at(utility < .65 ? 0 : utility < 1.1 ? 1 : utility < 1.8 ? 2 : utility < 2.8 ? 3 : 4);
+                "Prerequisites, milestones and live conditions remain independent purchase/activation requirements."));
     }
 
     /** Cost of persistent agency, relative to an ordinary conditional single-target improvement.
@@ -99,19 +90,14 @@ public final class SkillProgressionPolicy {
         return Math.max(Math.max(1, previousPrice), (long) raw);
     }
 
-    /** Explicit author controls apply to both provisional and final costs, never to access evidence. */
-    public static double configuredPriceFactor(SkillDefinition skill, BalanceSettings settings, PackEvidence evidence) {
+    /** Explicit author controls apply to both provisional and final costs. */
+    public static double configuredPriceFactor(SkillDefinition skill, BalanceSettings settings) {
         var axes = SkillBalanceSemantics.require(skill.id()).weights(); double factor = 1;
         if (axes.containsKey(CapabilityAxis.FLIGHT)) {
             if (settings.flightPolicy() == BalanceSettings.FlightPolicy.RESTRICT) factor *= 2;
-            else if (settings.flightPolicy() == BalanceSettings.FlightPolicy.MATCH_PACK)
-                factor /= Math.sqrt(1 + Math.max(0, evidence.reference(ProgressionBand.EARLY, CapabilityAxis.FLIGHT, 0)));
         }
         if (axes.containsKey(CapabilityAxis.AREA_MINING) || axes.containsKey(CapabilityAxis.VEIN_MINING)) {
             if (settings.miningPolicy() == BalanceSettings.MiningPolicy.RESTRICT) factor *= 2;
-            else if (settings.miningPolicy() == BalanceSettings.MiningPolicy.MATCH_PACK)
-                factor /= Math.sqrt(Math.max(1, Math.max(evidence.reference(ProgressionBand.MID, CapabilityAxis.AREA_MINING, 1),
-                        evidence.reference(ProgressionBand.MID, CapabilityAxis.VEIN_MINING, 1))));
         }
         return Math.max(.1, factor);
     }

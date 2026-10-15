@@ -371,12 +371,13 @@ public final class ReservoirService {
             PoolId id = PoolId.load(receipt.getCompound("pool"));
             if (id.kind() != PoolId.Kind.TEAM || dissolved.put(id, receipt.hasUUID("recipient") ? Optional.of(receipt.getUUID("recipient")) : Optional.empty()) != null)
                 throw new IllegalStateException("Invalid binding resolution receipt");
+            if (!receipt.contains("roster_revision", Tag.TAG_LONG)) throw new IllegalStateException("Missing dissolution revision");
             long deletionRevision = receipt.getLong("roster_revision");
-            if (deletionRevision < 0 || deletionRevision > rosterRevision) throw new IllegalStateException("Invalid dissolution revision");
+            if (deletionRevision < 1 || deletionRevision > rosterRevision) throw new IllegalStateException("Invalid dissolution revision");
             dissolutionRevisions.put(id, deletionRevision);
         }
-        if (tag.contains("machine_joins")) {
-            if (!tag.contains("machine_joins", Tag.TAG_LIST)) throw new IllegalStateException("Invalid machine joins");
+        if (!tag.contains("machine_joins", Tag.TAG_LIST)) throw new IllegalStateException("Missing or invalid machine joins");
+        {
             ListTag joins = (ListTag) tag.get("machine_joins");
             if (!joins.isEmpty() && joins.getElementType() != Tag.TAG_COMPOUND) throw new IllegalStateException("Invalid machine join records");
             for (Tag raw : joins) {

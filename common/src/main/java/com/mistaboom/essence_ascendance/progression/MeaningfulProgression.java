@@ -11,7 +11,7 @@ public final class MeaningfulProgression {
         if (!Double.isFinite(floor) || floor < 0 || !Double.isFinite(ceiling) || ceiling < floor)
             throw new IllegalArgumentException("Meaningful floor exceeds mechanical ceiling");
         double value = Math.max(RuntimeValueQuantization.down(Math.min(nominal, ceiling), quantum),
-                Math.ceil((floor - 1e-10) / quantum) * quantum);
+                RuntimeValueQuantization.up(floor, quantum));
         if (value > ceiling + 1e-9) throw new IllegalArgumentException("Quantized floor exceeds mechanical ceiling");
         return value;
     }

@@ -30,8 +30,7 @@ public final class TeamInterfaceClientState {
     public static void open(int menuId) { clear(); NetworkManager.sendToServer(new TeamInterfaceActionPayload(menuId, EMPTY, TeamInterfaceActionPayload.OPEN, 0, 0, "")); }
     public static void close(int menuId) { clear(); NetworkManager.sendToServer(new TeamInterfaceActionPayload(menuId, EMPTY, TeamInterfaceActionPayload.CLOSE, 0, 0, "")); }
     public static boolean nativeButtonVisible() {
-        return !dev.architectury.platform.Platform.isModLoaded("ftbteams")
-                && !dev.architectury.platform.Platform.isModLoaded("openpartiesandclaims");
+        return !dev.architectury.platform.Platform.isModLoaded("ftbteams");
     }
     public static void action(TeamInterfacePayload snapshot, int index, String input) {
         NetworkManager.sendToServer(new TeamInterfaceActionPayload(snapshot.menuId(), snapshot.receipt(), index, snapshot.view(), snapshot.page(), input));

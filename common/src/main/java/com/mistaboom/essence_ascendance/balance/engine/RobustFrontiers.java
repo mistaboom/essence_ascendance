@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-/** Upper references within each acquisition band and slot, retaining usable earlier equipment.
+/** Upper references within each declared strength band and slot, retaining weaker catalog groups.
  * Later gear is not averaged with obsolete tools; incompatible weapon families remain alternatives.
  */
 public final class RobustFrontiers {
@@ -77,7 +77,7 @@ public final class RobustFrontiers {
         for (ProgressionBand band : ProgressionBand.values()) {
             Map<String, Map<CapabilityAxis, List<Double>>> slots = new TreeMap<>();
             for (EquipmentReference ref : equipment) {
-                if (!ref.included() || !ref.reachable() || ref.stage() != band) continue;
+                if (!ref.usableReference() || ref.stage() != band) continue;
                 Map<CapabilityAxis, List<Double>> axes = slots.computeIfAbsent(ref.slot(), ignored -> new EnumMap<>(CapabilityAxis.class));
                 ref.axes().forEach((axis, value) -> axes.computeIfAbsent(axis, ignored -> new ArrayList<>()).add(value));
             }
@@ -90,7 +90,7 @@ public final class RobustFrontiers {
                 if (axis == CapabilityAxis.SUSTAINED_DAMAGE) damageCeilings.put(slot, value);
             }));
             for (EquipmentReference ref : equipment) {
-                if (!ref.included() || !ref.reachable() || ref.stage() != band) continue;
+                if (!ref.usableReference() || ref.stage() != band) continue;
                 double sustained = ref.axes().getOrDefault(CapabilityAxis.SUSTAINED_DAMAGE, 0.0);
                 double rate = ref.axes().getOrDefault(CapabilityAxis.ATTACK_RATE, 0.0);
                 double ceiling = damageCeilings.getOrDefault(ref.slot(), 0.0);

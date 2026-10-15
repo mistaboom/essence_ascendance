@@ -147,17 +147,13 @@ public final class SkillBalanceGenerator {
     }
     public static void validatePublished(com.mistaboom.essence_ascendance.config.SkillEffectBalanceSettings base,
             Map<String, SkillBalanceRuntime.ResolvedSkill> curves) {
-        validatePublished(base, curves, com.mistaboom.essence_ascendance.skill.ProgressionRequirements.NATIVE_OUTCOME_CONTRACT);
-    }
-    public static void validatePublished(com.mistaboom.essence_ascendance.config.SkillEffectBalanceSettings base,
-            Map<String, SkillBalanceRuntime.ResolvedSkill> curves, int nativeOutcomeContract) {
         var gson = new com.google.gson.Gson();
         for (var skill : SkillRegistry.values()) {
             var curve = curves.get(skill.id().toString());
             if (curve.maximumRank() != curve.ranks().size()) throw new IllegalArgumentException("Unpurchasable filler ranks: " + skill.id());
             if ((!SkillRankEffectScaling.supports(skill.id()) || skill.id().equals(com.mistaboom.essence_ascendance.skill.SkillIds.UNTETHERED_FLIGHT))
                     && curve.maximumRank() != 1) throw new IllegalArgumentException("Binary skill has extra ranks: " + skill.id());
-            var requirements = com.mistaboom.essence_ascendance.skill.ProgressionRequirements.skill(skill.id(), nativeOutcomeContract);
+            var requirements = skill.progressionRequirements();
             var baseline = gson.toJsonTree(base).getAsJsonObject();
             var allowed = new java.util.TreeSet<String>();
             for (var reference : java.util.List.of(base, com.mistaboom.essence_ascendance.config.SkillEffectBalanceSettings.defaults())) {

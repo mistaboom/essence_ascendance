@@ -175,24 +175,11 @@ public final class EquipmentBaselineService {
                 "Generated profile is missing the Latent equipment chassis");
     }
 
-    public static double resolvedValue(
-            double base,
-            EquipmentProfileDefinition profile,
-            EquipmentBaselineProperty property
-    ) {
-        return resolvedValue(base, profile, property, true);
-    }
-
-    /** Pure baseline projection used by gameplay and read-only presentation with an explicit runtime policy. */
-    public static double resolvedValue(
-            double base,
-            EquipmentProfileDefinition profile,
-            EquipmentBaselineProperty property,
-            boolean quantized
-    ) {
+    /** Native unit projection shared by gameplay, diagnostics and presentation. */
+    public static double resolvedValue(double base, EquipmentProfileDefinition profile, EquipmentBaselineProperty property) {
         double raw=base * profile.baselineMultiplier(property);
         if(!Double.isFinite(raw))throw new IllegalArgumentException("Equipment archetype value exceeds finite gameplay arithmetic");
-        if(raw<=0 || !quantized)return Math.max(0, raw);
+        if(raw<=0)return Math.max(0, raw);
         return switch(property) {
             case MELEE_ATTACK_SPEED,RANGED_ATTACK_SPEED,MAGIC_CAST_SPEED -> Math.max(.1,rounded(raw,1));
             case MELEE_DAMAGE,RANGED_DAMAGE,MAGIC_DAMAGE,MINING_SPEED,DURABILITY -> Math.max(1,rounded(raw,0));
@@ -205,10 +192,7 @@ public final class EquipmentBaselineService {
     }
 
     private static double multiply(double base,EquipmentProfileDefinition profile,EquipmentBaselineProperty property) {
-        return resolvedValue(base, profile, property, quantizationEnabled());
+        return resolvedValue(base, profile, property);
     }
 
-    public static boolean quantizationEnabled() {
-        return EssenceConfigManager.runtime().composition().getOrDefault("equipment_quantization",0.0)==1.0;
-    }
 }

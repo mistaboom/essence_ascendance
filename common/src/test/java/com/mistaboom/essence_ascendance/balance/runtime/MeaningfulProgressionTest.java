@@ -58,7 +58,7 @@ public final class MeaningfulProgressionTest {
         configuredShieldTiming(runtime);
         nativeCooldownEndpoints(runtime);
         nativeMeleeRateEndpoints(runtime);
-        legacyOutcomeAuthority(runtime);
+        currentSchemaRequired(runtime);
         var latent = SkillEvaluationContext.committed(AscendanceTiers.LATENT.id(), Map.of(), Map.of(), Set.of(), Set.of(), Map.of());
         for (var skill : SkillRegistry.values()) check(!SkillStateEvaluator.evaluatePurchaseEligibility(skill, latent).satisfied(),
                 "Latent skill purchase forbidden: " + skill.id());
@@ -158,10 +158,6 @@ public final class MeaningfulProgressionTest {
     }
     private static void lifeStealNativeMinimums(RuntimeBalanceDefinition runtime) {
         var outcome = SkillRegistry.require(SkillIds.LIFE_STEAL).progressionRequirements().outcomes().getFirst();
-        var legacyEffects = new Gson().toJsonTree(SkillEffectBalanceSettings.defaults()).getAsJsonObject();
-        var historical = ProgressionRequirements.skill(SkillIds.LIFE_STEAL, 1).outcomes().getFirst();
-        check(historical.measure(legacyEffects) >= outcome.first() && outcome.measure(legacyEffects) < outcome.first(),
-                "Regression fixture must reproduce the old convenient-chain floor false positive");
         // Same 20 native HP removed, with progressively stronger equipment and an independently broken chain.
         // Missing health is deliberately sufficient; it is a prerequisite for useful healing, not uptime.
         for (int hits : List.of(1, 2, 4, 5, 20)) for (boolean chained : List.of(false, true)) {
@@ -319,8 +315,8 @@ public final class MeaningfulProgressionTest {
         var nominal = cooldownNominal(runtime, stat, List.of(10.0, 15.0, 20.0, 40.0, 100.0));
         var high = cooldownRuntime(runtime, "meleeAttackSpeed", 20, 20);
         var bounded = BonusTrackGenerator.publishNative(high, stat, nominal, ProgressionRequirements.bonus(stat.id()));
-        check(bounded.activeValues().equals(List.of(10.0, 15.0, 20.0, 40.0, 66.0)),
-                "Melee partial-charge states remain useful, with exact profile-specific forty-per-second ceiling");
+        check(bounded.activeValues().equals(List.of(10.0, 15.0, 20.0, 25.0, 66.0)),
+                "Four-control planning retains meaningful melee states and the exact profile-specific forty-per-second ceiling");
         verifyMeleeRate(high, bounded);
         var earlyOnly = cooldownRuntime(runtime, "meleeAttackSpeed", 4, 50);
         var early = BonusTrackGenerator.publishNative(earlyOnly, stat, cooldownNominal(runtime, stat, List.of(10.0, 15.0)),
@@ -347,35 +343,15 @@ public final class MeaningfulProgressionTest {
         }
     }
 
-    private static void legacyOutcomeAuthority(RuntimeBalanceDefinition runtime) {
-        var legacy = runtime.toJson();
-        legacy.getAsJsonObject("composition").remove("native_outcome_contract");
-        var steal = legacy.getAsJsonObject("effects").getAsJsonObject("vitality").getAsJsonObject("lifeSteal");
-        steal.addProperty("baseHealingFraction", .03); steal.addProperty("perHitHealingFraction", .01);
-        var curve = legacy.getAsJsonObject("skillCurves").getAsJsonObject(SkillIds.LIFE_STEAL.toString());
-        var rank = curve.getAsJsonArray("ranks").get(0).getAsJsonObject().deepCopy();
-        rank.getAsJsonObject("parameters").addProperty("vitality/lifeSteal/baseHealingFraction", .03);
-        rank.getAsJsonObject("parameters").addProperty("vitality/lifeSteal/perHitHealingFraction", .01);
-        var ranks = new com.google.gson.JsonArray(); ranks.add(rank);
-        curve.add("ranks", ranks); curve.addProperty("maximumRank", 1);
-        var saved = RuntimeBalanceDefinition.fromJson(legacy);
-        check(saved.toJson().equals(legacy), "Legacy profile must retain exact effects, costs and absent contract marker on reuse");
-        rejects(() -> SkillBalanceGenerator.validatePublished(saved.config().skillEffects(), saved.skillCurves()));
-        var relabeled = legacy.deepCopy();
-        relabeled.getAsJsonObject("composition").addProperty("native_outcome_contract", ProgressionRequirements.NATIVE_OUTCOME_CONTRACT);
-        rejects(() -> RuntimeBalanceDefinition.fromJson(relabeled));
-        var invalidContract = runtime.toJson();
-        invalidContract.getAsJsonObject("composition").addProperty("native_outcome_contract", 1.5);
-        rejects(() -> RuntimeBalanceDefinition.fromJson(invalidContract));
-        // New native ceilings are generation policy, never a hidden mutation/rejection of old saved tracks.
-        var legacyBonus = runtime.toJson();
-        String guard = EssenceStats.GUARD_READINESS.id().toString();
-        legacyBonus.getAsJsonObject("statMaxBonuses").addProperty(guard, 160);
-        var track = legacyBonus.getAsJsonObject("balanceProfile").getAsJsonObject("bonusTracks").getAsJsonObject(guard);
-        track.addProperty("maximumEffect", 160);
-        track.getAsJsonObject("inputs").remove("native_maximum_effect");
-        check(RuntimeBalanceDefinition.fromJson(legacyBonus).toJson().equals(legacyBonus),
-                "Historical uncapped Bonus must stay exact until explicit rebuild");
+    private static void currentSchemaRequired(RuntimeBalanceDefinition runtime) {
+        var missing = runtime.toJson();
+        missing.getAsJsonObject("composition").remove("native_outcome_contract");
+        rejects(() -> RuntimeBalanceDefinition.fromJson(missing));
+        for (double contract : List.of(1.0, 1.5)) {
+            var unsupported = runtime.toJson();
+            unsupported.getAsJsonObject("composition").addProperty("native_outcome_contract", contract);
+            rejects(() -> RuntimeBalanceDefinition.fromJson(unsupported));
+        }
     }
     private static void differential(RuntimeBalanceDefinition runtime) {
         var gson = com.mistaboom.essence_ascendance.balance.generated.BalanceDocument.GSON;
@@ -404,7 +380,7 @@ public final class MeaningfulProgressionTest {
         var strong = nominal.toJson();
         strong.getAsJsonObject("skillCurves").add(SkillIds.COMBUSTION.toString(), gson.toJsonTree(
                 new SkillBalanceRuntime.ResolvedSkill(1, List.of(new SkillBalanceRuntime.ResolvedRank(1, 100, 1),
-                        new SkillBalanceRuntime.ResolvedRank(2, 200, 8)))));
+                        new SkillBalanceRuntime.ResolvedRank(2, 200, 8)), SkillRegistry.require(SkillIds.COMBUSTION).catalogRequiredTierId())));
         var strongResult = SkillBalanceGenerator.publishMeaningful(RuntimeBalanceDefinition.fromJson(strong));
         var strongCurve = strongResult.skillCurves().get(SkillIds.COMBUSTION.toString());
         check(strongCurve.maximumRank() == 2 && strongCurve.ranks().getLast().parameters().get("combustion/damage")

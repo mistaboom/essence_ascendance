@@ -22,6 +22,7 @@ final class ProceduralValuationTags {
     static final TagKey<Item> NUGGETS = item("c", "nuggets");
     static final TagKey<Item> STORAGE_BLOCKS = item("c", "storage_blocks");
     static final TagKey<Item> FOODS = item("c", "foods");
+    static final TagKey<Item> COALS = item("minecraft", "coals");
     static final TagKey<Item> ARMORS = item("c", "armors");
     static final TagKey<Item> MINING_TOOLS = item("c", "tools/mining_tool");
     static final TagKey<Item> MELEE_WEAPONS = item("c", "tools/melee_weapon");

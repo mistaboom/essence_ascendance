@@ -70,12 +70,9 @@ public final class EquipmentBaselineConfig {
             validatePositive(magicCastSpeed, "magic cast speed");
             validatePositive(miningSpeed, "mining speed");
 
-            if (harvestLevel < 0) {
-                throw new IllegalArgumentException("Harvest level cannot be negative");
+            if (harvestLevel < MINIMUM_HARVEST_LEVEL) {
+                throw new IllegalArgumentException("Harvest level must meet the current iron-access minimum");
             }
-            // Apply the same floor to newly generated and previously saved profiles.
-            // Higher-tier access and all other saved equipment values stay intact.
-            harvestLevel = Math.max(MINIMUM_HARVEST_LEVEL, harvestLevel);
             if (durability <= 0) {
                 throw new IllegalArgumentException("Durability must be greater than zero");
             }

@@ -85,7 +85,7 @@ final class EssenceAdminCommands {
         var root = group("membership", EssenceAdminCommands::showMembershipHelp);
         root.then(Commands.literal("status").executes(c -> showMembershipStatus(c.getSource())));
         root.then(Commands.literal("prepare").then(Commands.argument("provider", StringArgumentType.word())
-                .suggests((c, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(java.util.List.of("native", "ftb_teams", "openpac"), b))
+                .suggests((c, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(java.util.List.of("native", "ftb_teams"), b))
                 .executes(c -> membership(c.getSource(), () -> MembershipRuntime.prepare(
                         c.getSource().getServer(), StringArgumentType.getString(c, "provider"))))));
         root.then(Commands.literal("activate").then(Commands.argument("token", net.minecraft.commands.arguments.UuidArgument.uuid())

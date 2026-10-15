@@ -49,12 +49,11 @@ public final class GeneratedBalanceIntegrationTest {
                 "/runtime/worldgen/overworld/veinsPerChunk", 3L));
         PackEvidence evidence = evidence();
         EconomyProfile economy = economy(evidence, settings);
-        var calibration = new com.mistaboom.essence_ascendance.balance.runtime.AdaptiveCompetitionCalibration(evidence, competitiveFixture());
-        RuntimeBalanceDefinition runtime = com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceGenerator.generate(evidence, economy, settings, overrides, calibration);
+        RuntimeBalanceDefinition runtime = com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceGenerator.generate(evidence, economy, settings, overrides);
         check(runtime.config().latentOreWorldgen().overworld().veinSize() == 2
                         && runtime.config().latentOreWorldgen().overworld().veinsPerChunk() == 3,
                 "Exact runtime worldgen overrides must remain authoritative below the automatic size/attempt floors");
-        BalanceDocument document = document(evidence, economy, runtime, settings, overrides, calibration.complete(runtime));
+        BalanceDocument document = document(evidence, economy, runtime, settings, overrides, new JsonObject());
         checks += GenerationSelectionChecks.verify(document);
         check(!document.section("metadata").has("environment") && !document.section("metadata").has("settingsFingerprint")
                 && !document.section("metadata").has("overridesFingerprint"), "Generated profiles contain no pack fingerprint metadata");
@@ -87,12 +86,8 @@ public final class GeneratedBalanceIntegrationTest {
                         == decoded.runtime().config().infuserBalance().carrierExtractionEfficiencyBasisPoints(),
                 "Runtime extraction differs from canonical economy policy");
 
-        var repeatCalibration = new com.mistaboom.essence_ascendance.balance.runtime.AdaptiveCompetitionCalibration(evidence, competitiveFixture());
-        RuntimeBalanceDefinition regenerated = com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceGenerator.generate(evidence, economy, settings, overrides, repeatCalibration);
-        var repeatedDecisions = repeatCalibration.complete(regenerated);
-        // Wall-clock observations are diagnostic inputs, not deterministic gameplay values.
-        repeatedDecisions.addProperty("calibrationNanos", document.section("metadata").getAsJsonObject("generation")
-                .getAsJsonObject("adaptiveBalance").get("calibrationNanos").getAsLong());
+        RuntimeBalanceDefinition regenerated = com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceGenerator.generate(evidence, economy, settings, overrides);
+        var repeatedDecisions = new JsonObject();
         BalanceDocument second = document(evidence, economy, regenerated, settings, overrides, repeatedDecisions);
         check(document.text().equals(second.text()), "Identical inputs produced different complete generated profiles");
         check(document.integrity().equals(second.integrity()), "Identical inputs produced different integrity values");
@@ -113,8 +108,12 @@ public final class GeneratedBalanceIntegrationTest {
                 "Inconsistent Bonus segment cost escaped full-document validation");
         reject(document, root -> bonusTrack(root, EssenceStats.STEP_HEIGHT.id().toString())
                 .add("snapPoints", new com.google.gson.JsonArray()), "A complete-state track without snap endpoints was accepted");
-        reject(document, root -> bonusTrack(root, EssenceStats.STEP_HEIGHT.id().toString())
-                .addProperty("completionTier", AscendanceTiers.TRANSCENDENT.id().toString()),
+        reject(document, root -> {
+                    var track = bonusTrack(root, EssenceStats.STEP_HEIGHT.id().toString());
+                    String altered = track.get("completionTier").getAsString().equals(AscendanceTiers.DORMANT.id().toString())
+                            ? AscendanceTiers.TRANSCENDENT.id().toString() : AscendanceTiers.DORMANT.id().toString();
+                    track.addProperty("completionTier", altered);
+                },
                 "Declared completion tier disagreed with resolved checkpoints");
         reject(document, root -> root.getAsJsonObject("runtime").addProperty("unregisteredRuntimeField", 1), "Unknown runtime field was accepted");
         reject(document, root -> root.getAsJsonObject("runtime").getAsJsonObject("statMaxBonuses")
@@ -135,26 +134,9 @@ public final class GeneratedBalanceIntegrationTest {
         reject(document, root -> root.getAsJsonObject("evidence").remove("capabilities"), "Missing evidence collection was accepted");
         verifyNumericReportExport(decoded);
         verifySavedEvidenceRegeneration(document, settings, overrides);
-        verifyMachineProfile(evidence, economy, settings);
 
         output(FileDescriptor.out).println("GeneratedBalanceIntegrationTest: " + checks
                 + " complete-profile codec, digest, generation determinism, strict-runtime and economy-policy checks PASS");
-    }
-
-    private static void verifyMachineProfile(PackEvidence base, EconomyProfile original, BalanceSettings settings) throws Exception {
-        var machine = com.mistaboom.essence_ascendance.valuation.EffectiveProductionTest.machineCase();
-        Map<String, ResourceEvidence> resources = new TreeMap<>(base.resources()); resources.putAll(machine.evidence().resources());
-        PackEvidence evidence = new PackEvidence(resources, base.equipment(), base.enemies(), base.frontiers(), base.facts(), base.warnings(), base.graphSummary(), base.capabilities());
-        Map<String, EconomyProfile.ResourceValue> values = new TreeMap<>(original.resources()); values.putAll(machine.economy().resources());
-        var economy = new EconomyProfile(values, machine.economy().invariants(), machine.economy().processes(), machine.economy().warnings(), machine.economy().solverPasses(), original.processingPolicy());
-        var calibration = new com.mistaboom.essence_ascendance.balance.runtime.AdaptiveCompetitionCalibration(evidence, competitiveFixture());
-        var runtime = com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceGenerator.generate(evidence, economy, settings, BalanceOverrides.empty(), calibration);
-        var candidate = document(evidence, economy, runtime, settings, BalanceOverrides.empty(), calibration.complete(runtime));
-        var decoded = GeneratedBalanceService.decode(BalanceDocument.parse(candidate.text()));
-        check(decoded.evidence().resources().get("minecraft:barrier").reachable(), "Machine-only acquisition reaches complete generated profile");
-        check(decoded.economy().resources().get("minecraft:barrier").dissolutionYield().microUnits() > 0, "Machine-only payout retained in validated profile");
-        check(decoded.economy().processes().equals(machine.economy().processes()), "Shared machine inputs, setup and outputs survive profile validation");
-        check(decoded.economy().invariants().getFirst().passed(), "Machine-only conservation result retained");
     }
 
     private static void verifyWholeAccounting(BalanceDocument document) {
@@ -327,22 +309,16 @@ public final class GeneratedBalanceIntegrationTest {
             }
             JsonObject generationReport = JsonParser.parseString(Files.readString(BalanceReportLayout.diagnostics(folder).resolve("generation_evidence.json"))).getAsJsonObject();
             check(generationReport.equals(decoded.document().section("metadata").getAsJsonObject("generation")), "Export preserves saved generation provenance without recollection");
-            var competition = JsonParser.parseString(Files.readString(BalanceReportLayout.diagnostics(folder).resolve("competitive_capabilities.json"))).getAsJsonObject();
-            check(competition.equals(generationReport.getAsJsonObject("competitiveCapabilities")), "Export changed saved capability facts");
-            check(Files.exists(BalanceReportLayout.reports(folder).resolve("competitive_frontiers.csv")), "Full-profile capability frontier export missing");
-            var adaptive = JsonParser.parseString(Files.readString(BalanceReportLayout.diagnostics(folder).resolve("adaptive_balance.json"))).getAsJsonObject();
-            check(adaptive.equals(generationReport.getAsJsonObject("adaptiveBalance")), "Export changed saved adaptive decisions");
-            check(Files.exists(reports.resolve("adaptive_balance.csv")) && Files.readString(reports.resolve("adaptive_balance.md")).contains("may be underestimated"),
-                    "Adaptive rows and unsupported competitor warnings missing");
             String report = Files.readString(reports.resolve("balance_report.md"));
-            check(report.contains("fixture:provider") && report.contains("PARTIALLY_SUPPORTED"), "Report exposes saved provider readiness and support");
+            check(generationReport.toString().contains("fixture:provider") && generationReport.toString().contains("PARTIALLY_SUPPORTED"),
+                    "Generation diagnostics preserve saved provider readiness and support");
             check(report.contains(decoded.document().integrity()) && report.contains("/essence admin balance rebuild"),
                     "Human report retains integrity and explicit author rebuild guidance");
             check(!report.contains("Pack fingerprint:") && !report.contains("Compatibility signatures"),
                     "Human report must not require or report pack fingerprints");
             check(report.contains("Resolved numeric combat checks") && report.contains("combat_builds.csv"),
                     "Human report omitted the resolved numeric checks");
-            check(report.contains("Latent Ore supply") && report.contains("latent_ore_supply.csv")
+            check(report.contains("Latent Ore distribution") && report.contains("latent_ore_supply.csv")
                             && report.contains("latent_ore_worldgen.csv"),
                     "Human report omitted generated Latent Ore evidence and final distributions");
             check(!report.contains("This saved profile has no combined-build numeric analysis"),
@@ -377,10 +353,6 @@ public final class GeneratedBalanceIntegrationTest {
             check(Files.readString(reports.resolve("balance_report.md")).contains("Routine decision report"), "Routine detail boundary hidden");
             check(BalanceReports.state(folder, integrityBeforeSummary).equals("current"), "Routine export lacks valid provenance");
             check(decoded.document().integrity().equals(integrityBeforeSummary), "Report detail changed the profile");
-            try (var archived = Files.walk(folder.resolve("diagnostics/legacy_reports"))) {
-                Path sources = archived.filter(path -> path.getFileName().toString().equals("valuation_sources.csv")).findFirst().orElseThrow();
-                check(Files.readString(sources).equals(savedExports.get(reports.resolve("valuation_sources.csv"))), "Exhaustive source archive lost data");
-            }
             BalanceReports.export(decoded, null, folder, 0);
             check(Files.readString(reports.resolve("valuation_sources.csv")).equals(savedExports.get(reports.resolve("valuation_sources.csv"))), "Explicit export failed to restore exhaustive evidence");
         } finally {
@@ -396,40 +368,12 @@ public final class GeneratedBalanceIntegrationTest {
         var settings = decoded.runtime().config().latentOreWorldgen();
         check(diagnostics.getAsJsonObject("resolved").equals(RuntimeBalanceDefinition.worldgenJson(settings)),
                 "Latent Ore diagnostics must preserve final overridden runtime settings");
-        Map<String, JsonObject> expectedCategories = new TreeMap<>();
-        for (JsonElement element : diagnostics.getAsJsonArray("categories")) {
-            JsonObject category = element.getAsJsonObject();
-            check(expectedCategories.put(category.get("essenceId").getAsString(), category) == null,
-                    "Saved Latent Ore diagnostics duplicated an Essence category");
-        }
         List<List<String>> supply = csv(Files.readString(reports.resolve("latent_ore_supply.csv")));
-        List<String> supplyHeader = supply.getFirst();
-        check(supplyHeader.equals(List.of("essence_id", "source_families", "effective_sources", "coverage",
-                        "target_effective_sources", "attempt_multiplier", "early_conversion_fuel_available")),
-                "Latent Ore supply export changed its normalized category shape");
-        check(supply.size() == 7 && expectedCategories.size() == 6, "Latent Ore supply export must include all six categories");
-        java.util.Set<String> categoryIds = new java.util.HashSet<>();
-        for (List<String> row : supply.subList(1, supply.size())) {
-            String id = cell(row, supplyHeader, "essence_id");
-            check(categoryIds.add(id) && expectedCategories.containsKey(id), "Latent Ore supply has duplicate or unknown categories");
-            JsonObject category = expectedCategories.get(id);
-            close(csvNumber(row, supplyHeader, "source_families"), category.get("sourceFamilies").getAsDouble(),
-                    "Latent Ore source counts differ from saved diagnostics");
-            close(csvNumber(row, supplyHeader, "effective_sources"), category.get("effectiveSources").getAsDouble(),
-                    "Latent Ore effective supply differs from saved diagnostics");
-            close(csvNumber(row, supplyHeader, "coverage"), category.get("coverage").getAsDouble(),
-                    "Latent Ore coverage differs from saved diagnostics");
-            double multiplier = csvNumber(row, supplyHeader, "attempt_multiplier");
-            check(multiplier >= 0.75 && multiplier <= 1.5, "Latent Ore report multiplier exceeds the scarcity policy bounds");
-            close(multiplier, diagnostics.get("multiplier").getAsDouble(), "Latent Ore report changed the applied multiplier");
-            close(csvNumber(row, supplyHeader, "target_effective_sources"), 4, "Latent Ore report lost its category coverage target");
-            check(cell(row, supplyHeader, "early_conversion_fuel_available")
-                            .equals(diagnostics.get("earlyConversionFuelAvailable").getAsString()),
-                    "Latent Ore fuel availability differs from saved evidence diagnostics");
-        }
-        check(categoryIds.equals(EssenceRegistry.values().stream().map(value -> value.id().toString())
-                        .collect(java.util.stream.Collectors.toSet())),
-                "Latent Ore supply rows do not cover the registered Essence identities");
+        check(supply.size() == 2 && supply.getFirst().equals(List.of("policy", "acquisition_evaluated", "minimum_attempts", "minimum_vein_size")),
+                "Ore policy export must state configured behavior without inferred sources");
+        check(cell(supply.get(1), supply.getFirst(), "policy").equals("configured_baseline")
+                && cell(supply.get(1), supply.getFirst(), "acquisition_evaluated").equals("false"),
+                "Ore policy export invented acquisition evaluation");
 
         List<List<String>> worldgen = csv(Files.readString(reports.resolve("latent_ore_worldgen.csv")));
         List<String> worldgenHeader = worldgen.getFirst();
@@ -512,8 +456,7 @@ public final class GeneratedBalanceIntegrationTest {
                     true, true, 80 + i * 40, .85,
                     List.of(new AcquisitionSource("fixture:" + i, AcquisitionSource.Kind.LOOT, stage,
                             1, false, false, 0, .85, List.of(), "Synthetic source using a registered vanilla item",
-                            i == 0 ? com.mistaboom.essence_ascendance.valuation.LootrPolicy.ABSENT.describe("fixture:" + i,
-                                    "fixture:structure", List.of("minecraft:overworld"), false, true, 1, 1, 0) : null)), List.of()));
+                            null)), List.of()));
             facts.add(new EvidenceFact(EvidenceFact.Subject.ITEM, item, "attainable", EvidenceFact.Value.flag(true),
                     "integration_fixture", EvidenceFact.Origin.OBSERVED, .85, 0, stage, List.of(), "Synthetic acquisition evidence"));
         }
@@ -551,14 +494,6 @@ public final class GeneratedBalanceIntegrationTest {
         return new EconomyProfile(resources, List.of(), List.of(), List.of(), 1, EconomyProcessingPolicy.derive(settings));
     }
 
-    private static JsonObject competitiveFixture() {
-        var sink = new CapabilitySink();
-        var placement = new CompetitiveCapabilities.Placement(ProgressionBand.EARLY, true, .9, List.of());
-        sink.add(com.mistaboom.essence_ascendance.balance.capability.InstalledCapabilityProviders.torch(64, true, true,
-                List.of("minecraft:zombie"), placement));
-        sink.candidate("fixture:opaque", "fixture", "Unsupported custom configuration");
-        return CompetitiveCapabilities.report(sink, "WINSORIZE");
-    }
     private static BalanceDocument document(PackEvidence evidence, EconomyProfile economy, RuntimeBalanceDefinition runtime,
                                              BalanceSettings settings, BalanceOverrides overrides, JsonObject adaptive) throws Exception {
         JsonObject metadata = new JsonObject();
@@ -570,8 +505,6 @@ public final class GeneratedBalanceIntegrationTest {
                    "ready":true,"requiredEvidenceComplete":true,"facts":1,"sources":0,"minimumConfidence":0.7,
                    "detail":"Supported fixture facts complete; player state unsupported","probeNanos":0,"collectionNanos":0}]}
                 """).getAsJsonObject());
-        metadata.getAsJsonObject("generation").add("competitiveCapabilities", competitiveFixture());
-        metadata.getAsJsonObject("generation").add("adaptiveBalance", adaptive);
         metadata.addProperty("evidenceDigest", BalanceDocument.hash(BalanceDocument.GSON.toJsonTree(evidence)));
         JsonObject validation = new JsonObject();
         validation.addProperty("runtime", "passed"); validation.addProperty("economy", "passed");
@@ -657,8 +590,6 @@ public final class GeneratedBalanceIntegrationTest {
         for (String section : List.of("runtime", "skills", "settings", "overrides", "evidence", "economy", "validation"))
             check(regenerated.document().section(section).equals(repeated.document().section(section)), "Saved evidence semantic regeneration is nondeterministic: " + section);
         var firstMetadata = regenerated.document().section("metadata"); var nextMetadata = repeated.document().section("metadata");
-        firstMetadata.getAsJsonObject("generation").getAsJsonObject("adaptiveBalance").remove("calibrationNanos");
-        nextMetadata.getAsJsonObject("generation").getAsJsonObject("adaptiveBalance").remove("calibrationNanos");
         check(firstMetadata.equals(nextMetadata), "Saved evidence decisions changed apart from elapsed timing");
         check(original.text().equals(originalText), "Saved-evidence operation mutated original document");
         for (String section : List.of("settings", "overrides", "evidence", "economy"))

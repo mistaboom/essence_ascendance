@@ -1,3 +1,5 @@
+> **Historical audit — generation guidance superseded.** Preserve the dated findings below as implementation history. The current generation model and configuration contract are documented in [Simple balance generation](../simple-balance.md). References here to acquisition inference, adaptive competition calibration or old-schema compatibility do not apply to the current development revision.
+
 # Essence Ascendance wiki documentation audit
 
 **Historical record:** the October 8 research and source-equality statements below retain their original scope. The [October 13 multiplayer continuation](#2026-10-13-multiplayer-documentation-continuation) supplements them; it does not extend the old commit/release evidence to the dirty current implementation. Current handoff: [PASSDOWN.md](PASSDOWN.md).

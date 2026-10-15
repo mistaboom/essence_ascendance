@@ -50,11 +50,11 @@ public final class FishingRodBalanceTest {
         var evidence = new PackEvidence(Map.of(delayed.itemId(), delayed), List.of(), List.of(), seed.frontiers(), List.of(), List.of(), Map.of());
         var delayedRuntime = RuntimeReferencePolicy.withBootstrapReferences(() -> RuntimeBalanceDefinition.generate(evidence, BalanceSettings.defaults(), null));
         var delayedTrack = delayedRuntime.config().balanceProfile().bonusTrack(EssenceStats.FISHING_SPEED.id());
-        check(AscendanceTierRegistry.get(delayedTrack.startTier()).orElseThrow().order() >= AscendanceTiers.ASCENDANT.order(), "Acquisition is a hard lower bound after meaningful publication");
+        check(delayedTrack.startTier().equals(track.startTier()), "Acquisition labels do not reposition generated Fishing Speed");
         var blocked = new ResourceEvidence(delayed.itemId(), ProgressionBand.LATE, Availability.UNKNOWN, Automation.NONE, false, false, 4, .9, List.of(), List.of());
         var blockedEvidence = new PackEvidence(Map.of(blocked.itemId(), blocked), List.of(), List.of(), seed.frontiers(), List.of(), List.of(), Map.of());
         var blockedRuntime = RuntimeReferencePolicy.withBootstrapReferences(() -> RuntimeBalanceDefinition.generate(blockedEvidence, BalanceSettings.defaults(), null));
-        check(blockedRuntime.config().balanceProfile().bonusTrack(EssenceStats.FISHING_SPEED.id()).applicability() == BonusTrackDefinition.Applicability.UNAVAILABLE, "Unproven rods cannot sell Fishing Speed");
+        check(blockedRuntime.config().balanceProfile().bonusTrack(EssenceStats.FISHING_SPEED.id()).equals(delayedTrack), "Unknown source access does not change the native Fishing Speed progression");
         check(BonusSemantics.require(EssenceStats.FISHING_SPEED).axis() == CapabilityAxis.FISHING_TIME_REDUCTION, "Fishing has legitimate native classification");
         check(EquipmentProfiles.FISHING_ROD.statApplicability(EquipmentActivationType.HELD).keySet().equals(Set.of(
                 EssenceStats.LUCK.id(), EssenceStats.EXPERIENCE_GAIN.id(), EssenceStats.DURABILITY_EFFICIENCY.id(), EssenceStats.PROJECTILE_SPEED.id(), EssenceStats.ATTACK_KNOCKBACK.id(), EssenceStats.FISHING_SPEED.id())), "Exactly six rod channels");
@@ -110,7 +110,7 @@ public final class FishingRodBalanceTest {
             var projection = SkillPresentationData.project(SkillRegistry.require(id), PresentationContext.catalog(restart));
             var curve = restart.skillCurves().get(id.toString());
             check(projection.maximumRank() == curve.maximumRank(), "Skill maximum rank is generated");
-            for (var rank : projection.ranks()) check(rank.cost() == curve.ranks().get(rank.rank()-1).cost() && rank.requiredTier().equals(SkillProgressionGraph.gated(SkillRegistry.require(id), curve.requiredTierId(), rank.rank())), "Shared rank prices/gates agree");
+            for (var rank : projection.ranks()) check(rank.cost() == curve.ranks().get(rank.rank()-1).cost() && rank.requiredTier().equals(SkillBalanceRuntime.requiredTier(SkillRegistry.require(id), curve.requiredTierId(), rank.rank())), "Shared rank prices/gates agree");
             if(id.equals(SkillIds.FISHING_INSTINCT)) for(var rank:projection.ranks()) {
                 var actual=SkillRankEffectScaling.applyResolved(restart.config().skillEffects(),Map.of(id,rank.rank()),restart.skillCurves());
                 check(rank.effects().getFirst().metrics().stream().anyMatch(m->Math.abs(m.rawValue()-(actual.gathering().fishingInstinct().biteSpeedMultiplier()-1))<1e-9 || Math.abs(m.rawValue()-actual.gathering().fishingInstinct().biteSpeedMultiplier())<1e-9),"Changed skill rank preview consumes actual generated parameters");

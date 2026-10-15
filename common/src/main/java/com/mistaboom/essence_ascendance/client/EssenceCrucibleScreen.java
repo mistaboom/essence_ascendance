@@ -629,7 +629,7 @@ public final class EssenceCrucibleScreen
     }
 
     /*
-     * Mekanism-style informational side panel. It prefers an external side,
+     * Informational side panel. It prefers an external side,
      * but on narrow screens may overlap the Crucible as an opaque foreground
      * panel so it is never clipped off-screen.
      */

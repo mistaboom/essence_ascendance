@@ -73,7 +73,7 @@ public final class ArchiveSearchTest {
             check(!index.results(query).isEmpty(), "Missing real vocabulary/body/metric: " + query);
         String teams = "essence_ascendance:reference/mechanics/teams";
         for (String query : List.of("team", "shared essence", "multiplayer", "channeling", "All None", "recipient",
-                "automation", "Essentium", "FTB Teams", "OpenPAC", "Soulbind & Start", "offline", "120"))
+                "automation", "Essentium", "FTB Teams", "Soulbind & Start", "offline", "120"))
             check(index.results(query).stream().anyMatch(result -> result.target().equals(teams)),
                     "Shared essence is not discoverable through real semantic content: " + query);
         check(index.results("Teams and Shared Essence").getFirst().target().equals(teams),

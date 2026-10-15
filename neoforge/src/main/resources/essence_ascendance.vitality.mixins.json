@@ -3,8 +3,6 @@
   "package": "com.mistaboom.essence_ascendance.neoforge.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "KubeRecipeGeneratedIdMixin",
-    "RuntimePackResourcesMixin",
     "PlayerVitalityMixin",
     "MobEffectInstanceDurationMixin",
     "PlayerExperienceMixin",

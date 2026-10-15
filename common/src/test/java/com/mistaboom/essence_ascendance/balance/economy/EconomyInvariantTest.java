@@ -18,32 +18,9 @@ public final class EconomyInvariantTest {
     private static int assertions;
     public static void main(String[] args) {
         compression(); catalystsAndContainers(); multiOutputAndProbability(); boundedCycles();
-        alternatives(); fractionalTransactions(); conversionLosses(); sourcePressure(); sparseRoutingAndBulkResources();
+        alternatives(); fractionalTransactions(); conversionLosses(); sparseRoutingAndBulkResources(); estimatedCatalog();
         wholeYieldRounding(); wholeConversionFamilies(); wholeProductionSafety(); wholeProfileGeneration();
-        boundedFarmProduction(); nativeResourceProduction();
         System.out.println("EconomyInvariantTest: " + assertions + " assertions passed");
-    }
-
-    private static void nativeResourceProduction() {
-        var source = new ProductionGraph.Process("source", "extraction", List.of(input("machine", 1, false)),
-                List.of(new ProductionGraph.Output("resource", 2, .25, false)), 0, 0, "observed:fixture", .9,
-                Map.of(BoundedProductionPolicy.CONSTRAINT, BoundedProductionPolicy.NATIVE_RESOURCE_SOURCE,
-                        "renewability", "finite", "operation", "automated", "source_provenance", "observed fixture behavior"));
-        var finite = BoundedProductionPolicy.withSourceBudgets(graph(source), Map.of("resource", 10L, "machine", 10000L), 1);
-        var renewableMetadata = new java.util.TreeMap<>(source.metadata()); renewableMetadata.put("renewability", "renewable");
-        var renewable = BoundedProductionPolicy.withSourceBudgets(graph(withMetadata(source, renewableMetadata)), Map.of("resource", 10L), 1);
-        check(finite.processes().getFirst().metadata().get("renewability").equals("finite")
-                && renewable.processes().getFirst().metadata().get("renewability").equals("renewable"), "Finite and renewable sources keep distinct factual semantics");
-        check(BoundedProductionPolicy.sourceBudgetMicros(finite.processes().getFirst()) == 20 * FractionalAmountService.SCALE,
-                "Realized source outputs share frozen proposal ceiling; reusable construction grants no per-output credit");
-        check(finite.processes().getFirst().outputs().getFirst().probability() == .25 && source.duration() == null,
-                "Chance evidence and unknown duration survive bounded source policy without invented throughput");
-        renewableMetadata.put("operations_per_second", "1000");
-        var fast = BoundedProductionPolicy.withSourceBudgets(graph(withMetadata(source, renewableMetadata)), Map.of("resource", 10L), 1);
-        check(BoundedProductionPolicy.sourceBudgetMicros(fast.processes().getFirst()) < BoundedProductionPolicy.sourceBudgetMicros(renewable.processes().getFirst()),
-                "Observed throughput can only discount a frozen source ceiling");
-        renewableMetadata.put("operations_per_second", "0");
-        rejected(() -> BoundedProductionPolicy.isBoundedSource(withMetadata(source, renewableMetadata)));
     }
 
     private static void compression() {
@@ -106,6 +83,40 @@ public final class EconomyInvariantTest {
         check(result.yields().get("crafted").amount() <= .05, "Cheapest tag member bounds a transformation after overrides");
     }
 
+    private static void estimatedCatalog() {
+        String essence = "essence_ascendance:utility";
+        var unknown = new ResourceEvidence("unknown", ProgressionBand.ENTRY, Availability.UNKNOWN, Automation.UNKNOWN,
+                false, true, 24, .3, List.of(), List.of("property_recipe_estimate"));
+        var evidence = new PackEvidence(Map.of("unknown", unknown), List.of(), List.of(), Map.of(), List.of(), List.of(), Map.of());
+        var profile = EconomyGenerator.generate(evidence, graph(), Map.of("unknown", Map.of(essence, 1L)),
+                BalanceSettings.defaults(), BalanceOverrides.empty());
+        check(profile.resources().get("unknown").dissolutionYield().amount() == 24,
+                "Positive fallback is not erased by unproved source reachability");
+        var overridden = EconomyGenerator.generate(evidence, graph(), Map.of("unknown", Map.of(essence, 1L)),
+                BalanceSettings.defaults(), new BalanceOverrides(List.of(), Map.of("/economy/resources/unknown/routedYields/" + essence, 30)));
+        check(overridden.resources().get("unknown").dissolutionYield().amount() == 30,
+                "Explicit estimate overrides do not require fabricated acquisition proof");
+        var nominal = new ProductionGraph.Process("opaque", "test", List.of(input("unknown", 1, true)),
+                List.of(output("known", 1)), 0, 0, "test", .3, Map.of("conservation_complete", "false"));
+        var unchanged = EconomyConservationSolver.solveWholeUnits(graph(nominal),
+                Map.of("unknown", DissolutionYield.of(24), "known", DissolutionYield.of(150)));
+        check(unchanged.yields().get("known").amount() == 150 && unchanged.invariants().isEmpty()
+                        && unchanged.warnings().stream().anyMatch(w -> w.contains("incomplete")),
+                "An opaque getter estimate does not certify an unknown cheap transformation");
+        var missing = EconomyConservationSolver.solveWholeUnits(graph(process("missing", List.of(
+                        new ProductionGraph.Input(List.of("unknown", "not_in_catalog"), 1, true)), List.of(output("known",1)))),
+                Map.of("unknown", DissolutionYield.of(24), "known", DissolutionYield.of(150)));
+        check(missing.yields().get("known").amount()==150 && missing.invariants().isEmpty()
+                        && missing.warnings().stream().anyMatch(w -> w.contains("unrepresented")),
+                "Unrepresented alternatives remain unresolved rather than becoming free material");
+        var costly = new ProductionGraph.Process("costly", "test", List.of(input("unknown", 2, true)),
+                List.of(output("known", 1)), 200, 100000, "test", 1, Map.of());
+        var bounded = EconomyConservationSolver.solveWholeUnits(graph(costly),
+                Map.of("unknown", DissolutionYield.of(24), "known", DissolutionYield.of(150)));
+        check(bounded.yields().get("known").amount() == 48,
+                "Standard material count is exact and machine time or external cost grants no invented credit");
+    }
+
     private static void fractionalTransactions() {
         long carry = 0, total = 0;
         for (int i = 0; i < 100; i++) {
@@ -152,24 +163,6 @@ public final class EconomyInvariantTest {
                 "Extraction loss remains separate from fabrication cost");
     }
 
-    private static void sourcePressure() {
-        EconomicValue value = new EconomicValue(100);
-        SourcePressurePolicy.Inputs unknown = new SourcePressurePolicy.Inputs(null, null, null, null, null);
-        check(SourcePressurePolicy.evaluate(unknown, value, .65).multiplier() == 1, "Unknown source rates are not invented");
-        double fast = SourcePressurePolicy.evaluate(new SourcePressurePolicy.Inputs(100.0, null, null, null, null), value, .65).multiplier();
-        double slow = SourcePressurePolicy.evaluate(new SourcePressurePolicy.Inputs(1.0, null, null, null, null), value, .65).multiplier();
-        check(fast < slow, "Declared higher throughput lowers marginal dissolution");
-        double passive = SourcePressurePolicy.evaluate(new SourcePressurePolicy.Inputs(null, null, null, 8.0, 0.0), value, .65).multiplier();
-        double manual = SourcePressurePolicy.evaluate(new SourcePressurePolicy.Inputs(null, null, null, 1.0, 1.0), value, .65).multiplier();
-        check(passive < manual, "Parallel passive production receives more pressure");
-        double cheap = SourcePressurePolicy.evaluate(new SourcePressurePolicy.Inputs(null, 0.0, 0.0, null, null), value, .65).multiplier();
-        double costly = SourcePressurePolicy.evaluate(new SourcePressurePolicy.Inputs(null, 10000.0, 100.0, null, null), value, .65).multiplier();
-        check(cheap < costly && costly <= 1, "Setup and marginal costs affect pressure but cannot mint extra value");
-        check(SourcePressurePolicy.evaluate(new SourcePressurePolicy.Inputs(1000.0, 0.0, 0.0, 1000.0, 0.0), value, 0).multiplier() == 1,
-                "Zero configured pressure disables source quantity penalties");
-        rejected(() -> new SourcePressurePolicy.Inputs(null, null, null, null, 2.0));
-    }
-
     private static void sparseRoutingAndBulkResources() {
         Map<String, Double> diamond = Map.of("defense", 76.511273, "gathering", 22.315788,
                 "mobility", 5.844611, "offense", 11.157893, "utility", 89.794479, "vitality", 6.375939);
@@ -191,22 +184,6 @@ public final class EconomyInvariantTest {
         check(EssenceRoutingPolicy.dominant(Map.of("utility", 1.0, "defense", 1.0, "mobility", 1.0), id -> id)
                         .keySet().equals(java.util.Set.of("defense", "mobility")),
                 "Tied functional votes resolve deterministically by stable Essence identifier");
-
-        BalanceSettings defaults = BalanceSettings.defaults();
-        ResourceEvidence infinite = resource("bulk", Availability.EFFECTIVELY_INFINITE, Automation.SCALABLE, 42);
-        check(EconomyGenerator.dissolutionSuitability(infinite, defaults) == 0,
-                "The default policy cannot turn a cobblestone-style infinite source into Essence");
-        BalanceSettings abundant = settingsWithResourcePolicy(BalanceSettings.ResourcePolicy.ABUNDANCE_AWARE);
-        check(EconomyGenerator.dissolutionSuitability(infinite, abundant) > 0,
-                "Abundance-aware is an explicit opt-in to discounted infinite-source payouts");
-        check(EconomyGenerator.dissolutionSuitability(infinite,
-                        settingsWithResourcePolicy(BalanceSettings.ResourcePolicy.CONSERVATIVE)) == 0,
-                "Conservative policy also excludes infinite source payouts");
-        ResourceEvidence small = resource("finite_nugget", Availability.FINITE, Automation.NONE, .125);
-        check(EconomyGenerator.dissolutionSuitability(small, defaults) == 1,
-                "A finite small reward is not erased by an arbitrary five-Essence cutoff");
-        check(EconomyGenerator.dissolutionSuitability(resource("crop", Availability.RENEWABLE_MANUAL, Automation.NONE, 12), defaults) > 0,
-                "Cultivation remains a meaningful distinct source from infinite liquid generation");
 
         EconomyConservationSolver.Result result = EconomyConservationSolver.solve(graph(
                         process("bulk_compress", List.of(input("bulk", 9, true)), List.of(output("compressed", 1))),
@@ -379,9 +356,9 @@ public final class EconomyInvariantTest {
         check(profile.resources().get("finite").dissolutionYield().amount() == 11
                         && profile.resources().get("finite").routedYields().equals(Map.of(offense, 8.0, defense, 3.0)),
                 "The real generation path rounds the total and publishes exactly its whole category allocation");
-        check(profile.resources().get("bulk").dissolutionYield().amount() == 0
-                        && profile.resources().get("bulk").routedYields().isEmpty(),
-                "Generic infinite-source exclusion runs before nearest rounding and stays zero");
+        check(profile.resources().get("bulk").dissolutionYield().amount() == 42
+                        && profile.resources().get("bulk").routedYields().equals(Map.of(defense, 42.0)),
+                "Estimated item value does not infer a source discount from old availability labels");
         check(profile.equals(EconomyGenerator.generate(evidence, graph(), weights,
                         BalanceSettings.defaults(), BalanceOverrides.empty())),
                 "Whole economy generation is deterministic from captured evidence and routing weights");
@@ -436,147 +413,6 @@ public final class EconomyInvariantTest {
 
     private static ResourceEvidence resource(String id, Availability availability, Automation automation, double value) {
         return new ResourceEvidence(id, ProgressionBand.ENTRY, availability, automation, true, true, value, 1, List.of(), List.of());
-    }
-
-    private static void boundedFarmProduction() {
-        String essence = "essence_ascendance:utility";
-        Map<String, ResourceEvidence> resources = Map.of(
-                "bulk", resource("bulk", Availability.EFFECTIVELY_INFINITE, Automation.SCALABLE, 42),
-                "polished", resource("polished", Availability.FINITE, Automation.NONE, 100),
-                "crop", resource("crop", Availability.RENEWABLE_MANUAL, Automation.PLAYER_GATED, 20),
-                "currency", resource("currency", Availability.RENEWABLE_MANUAL, Automation.SCALABLE, 160),
-                "armor", resource("armor", Availability.RENEWABLE_MANUAL, Automation.SCALABLE, 260),
-                "nugget", resource("nugget", Availability.RENEWABLE_MANUAL, Automation.SCALABLE, 12),
-                "ingot", resource("ingot", Availability.RENEWABLE_MANUAL, Automation.SCALABLE, 108),
-                "block", resource("block", Availability.RENEWABLE_MANUAL, Automation.SCALABLE, 972));
-        PackEvidence evidence = new PackEvidence(resources, List.of(), List.of(), Map.of(), List.of(), List.of(), Map.of());
-        Map<String, Map<String, Long>> weights = new java.util.TreeMap<>();
-        resources.keySet().forEach(id -> weights.put(id, Map.of(essence, 1L)));
-        ProductionGraph graph = graph(
-                stockProcess("sell_bulk", List.of(input("bulk", 20, true)), List.of(output("currency", 1)), 16, false),
-                stockProcess("sell_crop", List.of(input("crop", 20, true)), List.of(output("currency", 1)), 16, false),
-                stockProcess("buy_armor", List.of(input("currency", 24, true)), List.of(output("armor", 1)), 12, false),
-                process("polish", List.of(input("bulk", 1, true)), List.of(output("polished", 1))),
-                process("recycle", List.of(input("armor", 1, true)), List.of(output("nugget", 1))),
-                process("compress_nuggets", List.of(input("nugget", 9, true)), List.of(output("ingot", 1))),
-                process("uncompress_ingot", List.of(input("ingot", 1, true)), List.of(output("nugget", 9))),
-                process("compress_ingots", List.of(input("ingot", 9, true)), List.of(output("block", 1))),
-                process("uncompress_block", List.of(input("block", 1, true)), List.of(output("ingot", 9))));
-        EconomyProfile profile = EconomyGenerator.generate(evidence, graph, weights, BalanceSettings.defaults(), BalanceOverrides.empty());
-        EconomyProfile noProcesses = EconomyGenerator.generate(evidence, graph(), weights, BalanceSettings.defaults(), BalanceOverrides.empty());
-        for (String id : List.of("crop", "currency", "armor", "nugget", "ingot", "block")) {
-            double amount = profile.resources().get(id).dissolutionYield().amount();
-            check(amount > 0, "Legitimate crop, stock-limited trade and recycled material production remain useful: " + id);
-            check(amount <= noProcesses.resources().get(id).dissolutionYield().amount(),
-                    "Finite-stock production never inflates an item's source-adjusted ordinary proposal: " + id);
-        }
-        check(profile.resources().get("bulk").dissolutionYield().amount() == 0
-                        && profile.resources().get("polished").dissolutionYield().amount() == 0,
-                "A productive merchant does not restore direct bulk fuel or free bulk processing");
-        check(profile.resources().get("ingot").dissolutionYield().microUnits() == 9 * profile.resources().get("nugget").dissolutionYield().microUnits()
-                        && profile.resources().get("block").dissolutionYield().microUnits() == 9 * profile.resources().get("ingot").dissolutionYield().microUnits(),
-                "Restored farm materials preserve exact whole 1:9:81 conversions");
-        EconomyGenerator.validateWhole(profile);
-        check(profile.equals(EconomyGenerator.generate(evidence, new ProductionGraph(graph.processes().reversed(), List.of()),
-                        weights, BalanceSettings.defaults(), BalanceOverrides.empty())),
-                "Bounded production remains deterministic independent of process iteration");
-        ProductionGraph.Process sell = profile.processes().stream().filter(p -> p.id().equals("sell_bulk")).findFirst().orElseThrow();
-        check(sell.inputs().getFirst().count() == 20 && BoundedProductionPolicy.materialInputCount(sell, 0) == 1,
-                "Observed prices remain honest while first-slot discount safety is accounted separately");
-        check(profile.invariants().stream().filter(i -> i.path().equals("sell_bulk")).findFirst().orElseThrow()
-                        .explanation().contains("Consumed material Essence 0; bounded production source Essence"),
-                "A zero-material trade explains the independent finite-stock production credit");
-        EconomyProfile overridden = EconomyGenerator.generate(evidence, graph, weights, BalanceSettings.defaults(),
-                new BalanceOverrides(List.of(), Map.of("/economy/resources/currency/routedYields/" + essence, 100_000L)));
-        ProductionGraph.Process overriddenSell = overridden.processes().stream().filter(p -> p.id().equals("sell_bulk")).findFirst().orElseThrow();
-        check(BoundedProductionPolicy.sourceBudgetMicros(sell) == BoundedProductionPolicy.sourceBudgetMicros(overriddenSell)
-                        && profile.resources().get("currency").dissolutionYield().equals(overridden.resources().get("currency").dissolutionYield()),
-                "Exact yield overrides cannot inflate a frozen productive source allowance");
-
-        ProductionGraph small = BoundedProductionPolicy.withSourceBudgets(graph(
-                stockProcess("source", List.of(input("bulk", 20, true)), List.of(output("currency", 1)), 8, false)), Map.of("currency", 100L), .65);
-        ProductionGraph fast = BoundedProductionPolicy.withSourceBudgets(graph(
-                stockProcess("source", List.of(input("bulk", 20, true)), List.of(output("currency", 1)), 800, false)), Map.of("currency", 100L), .65);
-        check(BoundedProductionPolicy.sourceBudgetMicros(fast.processes().getFirst())
-                        < BoundedProductionPolicy.sourceBudgetMicros(small.processes().getFirst()),
-                "Greater declared stock throughput lowers the per-use source allowance rather than adding a farm bonus");
-        ProductionGraph wandering = BoundedProductionPolicy.withSourceBudgets(graph(
-                stockProcess("limited", List.of(input("currency", 1, true)), List.of(output("crop", 1)), 5, true)), Map.of("crop", 18L), .65);
-        check(BoundedProductionPolicy.sourceBudgetMicros(wandering.processes().getFirst()) == 18 * FractionalAmountService.SCALE,
-                "Finite wandering stock is recognized without fabricating a renewable spawn/restock rate");
-        ProductionGraph repeatedOutput = BoundedProductionPolicy.withSourceBudgets(graph(
-                stockProcess("repeated", List.of(input("bulk", 1, true)), List.of(output("currency", 1), output("currency", 1)), 16, false)),
-                Map.of("currency", 100L), .65);
-        ProductionGraph combinedOutput = BoundedProductionPolicy.withSourceBudgets(graph(
-                stockProcess("combined", List.of(input("bulk", 1, true)), List.of(output("currency", 2)), 16, false)),
-                Map.of("currency", 100L), .65);
-        check(BoundedProductionPolicy.sourceBudgetMicros(repeatedOutput.processes().getFirst())
-                        == BoundedProductionPolicy.sourceBudgetMicros(combinedOutput.processes().getFirst()),
-                "Splitting the same product into duplicate output entries cannot evade source-throughput pressure");
-        ProductionGraph productiveCycle = BoundedProductionPolicy.withSourceBudgets(graph(
-                stockProcess("a", List.of(input("crop", 1, true)), List.of(output("currency", 2)), 16, false),
-                stockProcess("b", List.of(input("currency", 1, true)), List.of(output("crop", 1)), 16, false)),
-                Map.of("crop", 20L, "currency", 20L), .65);
-        EconomyConservationSolver.Result cycle = EconomyConservationSolver.solveWholeUnits(productiveCycle,
-                Map.of("crop", DissolutionYield.of(20), "currency", DissolutionYield.of(20)));
-        check(cycle.yields().get("crop").amount() == 20 && cycle.yields().get("currency").amount() == 20
-                        && cycle.invariants().stream().allMatch(EconomyConservationSolver.Invariant::passed),
-                "A stock-limited productive trade cycle is not mistaken for free material duplication or compression");
-        ProductionGraph.Process dualPrice = stockProcess("dual", List.of(input("currency", 20, true), input("crop", 5, true)),
-                List.of(output("armor", 1)), 12, false);
-        check(BoundedProductionPolicy.materialInputCount(dualPrice, 0) == 1
-                        && BoundedProductionPolicy.materialInputCount(dualPrice, 1) == 5,
-                "Only the price slot affected by merchant discounts uses the engine minimum; second payment stays exact");
-
-        Map<String, String> malformed = new java.util.TreeMap<>(sell.metadata());
-        malformed.remove("stock_uses");
-        rejected(() -> BoundedProductionPolicy.sourceBudgetMicros(withMetadata(sell, malformed)));
-        malformed.put("stock_uses", "0");
-        rejected(() -> BoundedProductionPolicy.sourceBudgetMicros(withMetadata(sell, malformed)));
-        malformed.put("stock_uses", "16"); malformed.put(BoundedProductionPolicy.BUDGET, "0.5");
-        rejected(() -> BoundedProductionPolicy.sourceBudgetMicros(withMetadata(sell, malformed)));
-        malformed.put(BoundedProductionPolicy.BUDGET, "-1");
-        rejected(() -> BoundedProductionPolicy.sourceBudgetMicros(withMetadata(sell, malformed)));
-        malformed.remove(BoundedProductionPolicy.CONSTRAINT);
-        rejected(() -> BoundedProductionPolicy.sourceBudgetMicros(withMetadata(sell, malformed)));
-        Map<String, String> inventedRate = new java.util.TreeMap<>(wandering.processes().getFirst().metadata());
-        inventedRate.put("restocks_per_day", "2");
-        rejected(() -> BoundedProductionPolicy.sourceBudgetMicros(withMetadata(wandering.processes().getFirst(), inventedRate)));
-
-        ProductionGraph unrestricted = graph(process("duplicate", List.of(input("crop", 1, true)), List.of(output("crop", 2))),
-                process("process_duplicate", List.of(input("crop", 1, true)), List.of(output("armor", 1))));
-        EconomyConservationSolver.Result duplicate = EconomyConservationSolver.solveWholeUnits(unrestricted,
-                Map.of("crop", DissolutionYield.of(20), "armor", DissolutionYield.of(100)));
-        check(duplicate.yields().get("crop").amount() == 0 && duplicate.yields().get("armor").amount() == 0,
-                "Unconstrained gain and its processed outputs still fail closed instead of masquerading as a farm");
-        rejected(() -> EconomyConservationSolver.solveWholeUnits(graph(withMetadata(unrestricted.processes().getFirst(),
-                        Map.of(BoundedProductionPolicy.BUDGET, "100000000"))), Map.of("crop", DissolutionYield.of(20))));
-    }
-
-    private static ProductionGraph.Process stockProcess(String id, List<ProductionGraph.Input> inputs,
-                                                        List<ProductionGraph.Output> outputs, int uses, boolean wandering) {
-        Map<String, String> metadata = new java.util.TreeMap<>();
-        metadata.put(BoundedProductionPolicy.CONSTRAINT, BoundedProductionPolicy.FINITE_TRADE_STOCK);
-        metadata.put("stock_uses", Integer.toString(uses));
-        metadata.put("stock_kind", wandering ? "finite_wandering_trader" : "restocking_villager");
-        if (!wandering) {
-            metadata.put("restocks_per_day", "2"); metadata.put("restock_period_ticks", "24000");
-            metadata.put("discount_cost_a_index", "0"); metadata.put("discount_cost_a_minimum", "1");
-        }
-        return new ProductionGraph.Process(id, "test:trading", inputs, outputs, 0, 0, "test", 1, metadata);
-    }
-
-    private static ProductionGraph.Process withMetadata(ProductionGraph.Process process, Map<String, String> metadata) {
-        return new ProductionGraph.Process(process.id(), process.family(), process.inputs(), process.outputs(),
-                process.processingTicks(), process.externalCost(), process.provider(), process.confidence(), metadata);
-    }
-
-    private static BalanceSettings settingsWithResourcePolicy(BalanceSettings.ResourcePolicy policy) {
-        BalanceSettings s = BalanceSettings.defaults();
-        return new BalanceSettings(s.overallPower(), s.earlyPower(), s.midPower(), s.latePower(), s.apexPower(),
-                s.progressionLength(), s.costPressure(), s.partialBuildViability(), s.equipmentShare(), s.nexusShare(), s.skillShare(),
-                s.automationPressure(), s.bulkResourcePenalty(), s.conversionLossPressure(), s.compositionSafeguard(),
-                s.flightPolicy(), s.miningPolicy(), policy, s.outlierPolicy(), s.warningConfidence(), s.expandedDiagnostics());
     }
 
     private static ProductionGraph graph(ProductionGraph.Process... processes) { return new ProductionGraph(List.of(processes), List.of()); }
