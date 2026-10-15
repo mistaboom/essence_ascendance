@@ -4,6 +4,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mistaboom.essence_ascendance.attunement.AttunementSnapshot;
 import com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceDefinition;
+import com.mistaboom.essence_ascendance.balance.runtime.BonusTrackDefinition;
+import com.mistaboom.essence_ascendance.client.presentation.BonusPresentationData;
 import com.mistaboom.essence_ascendance.client.nexus.*;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
@@ -50,7 +52,7 @@ public final class SharedPresentationTest {
             language = JsonParser.parseReader(new InputStreamReader(Objects.requireNonNull(stream), StandardCharsets.UTF_8)).getAsJsonObject();
         }
         EssenceConfigManager.installClient(runtime);
-        latent(runtime); tooltips(runtime); lockedRankPreview(runtime); tooltipRequirements(); bonuses(runtime); cards(); preferences();
+        latent(runtime); tooltips(runtime); lockedRankPreview(runtime); tooltipRequirements(); bonuses(runtime); completedBonusTooltip(); cards(); preferences();
         EssenceConfigManager.clearClient();
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println("SharedPresentationTest: " + checks + " checks PASS");
     }
@@ -246,6 +248,19 @@ public final class SharedPresentationTest {
             var current = text(BonusTooltipPresentation.tooltip(track, AscendanceTiers.TRANSCENDENT.id(), 0));
             check(current.stream().noneMatch(s -> s.contains("Latent")), "Only Dormant+ in bonus presentation");
             check(current.contains(flatten(BonusTooltipPresentation.description(stat, 0))), "Default bonus is current state");
+            boolean completed = false;
+            for (var checkpoint : definition.checkpoints()) {
+                var tier = AscendanceTierRegistry.get(checkpoint.tierId()).orElseThrow();
+                if (!tier.grantsPower()) continue;
+                String effect = !checkpoint.available() ? "Unavailable" : completed ? "Max reached"
+                        : BonusTooltipPresentation.number(definition.maximumEffect() * checkpoint.effectFraction())
+                                + (definition.unit() == StatUnit.PERCENT ? "%" : "");
+                String expected = tr("tier.essence_ascendance." + tier.id().getPath()) + "  " + effect;
+                check(current.contains(expected),
+                        "Every Bonus distinguishes unavailable, active and completed progression rows: " + stat.id() + "/" + tier.id()
+                                + "; expected=" + expected + "; actual=" + current);
+                completed |= checkpoint.tierId().equals(definition.completionTier());
+            }
             var next = definition.checkpoints().stream().filter(p -> p.purchasable()).findFirst();
             if (next.isPresent()) {
                 long target = next.get().cumulativeCap();
@@ -289,6 +304,31 @@ public final class SharedPresentationTest {
                 previousCap = capAtTier; previousEffect = checkpoint.effectFraction();
             }
         }
+    }
+
+    private static void completedBonusTooltip() {
+        var stat = EssenceStats.MELEE_DAMAGE;
+        var facts = new BonusTrackSnapshot(StatUnit.FLAT, AscendanceTiers.RESONANT.id(), AscendanceTiers.ASCENDANT.id(), List.of(
+                new BonusTrackDefinition.Checkpoint(AscendanceTiers.DORMANT.id(), 0, 0, 0, false, false),
+                new BonusTrackDefinition.Checkpoint(AscendanceTiers.AWAKENED.id(), 0, 0, 0, false, false),
+                new BonusTrackDefinition.Checkpoint(AscendanceTiers.RESONANT.id(), 100, 100, 1 / 2.9, true, true),
+                new BonusTrackDefinition.Checkpoint(AscendanceTiers.ASCENDANT.id(), 200, 100, 1, true, true),
+                new BonusTrackDefinition.Checkpoint(AscendanceTiers.TRANSCENDENT.id(), 200, 0, 1, true, false)),
+                List.of(.2, .4, .6, .8, 1.0), 1,
+                BonusTrackDefinition.PurchaseStyle.CONTINUOUS, List.of(),
+                BonusTrackDefinition.Applicability.AVAILABLE);
+        var state = new ClientEssenceState.StatSnapshot(stat.id(), 200, 200, 200, 1, 2.9, 2.9, 2.9, facts);
+        var track = new NexusProgressionTrack(stat, state, List.of());
+        var lines = text(BonusTooltipPresentation.tooltip(track, AscendanceTiers.TRANSCENDENT.id(), 200));
+        check(lines.containsAll(List.of("Dormant  Unavailable", "Awakened  Unavailable", "Resonant  1", "Ascendant  2.9", "Transcendent  Max reached")),
+                "An early-completing Bonus shows its final value once and marks later tiers complete; actual=" + lines);
+        check(!lines.contains("Transcendent  2.9") && lines.contains(flatten(BonusTooltipPresentation.description(stat, 2.9))),
+                "Completion wording replaces only the repeated tier target, not the actual earned benefit");
+        var projection = BonusPresentationData.project(
+                stat, state, AscendanceTiers.TRANSCENDENT.id(), 200);
+        check(projection.effectValue() == 2.9 && projection.checkpoints().getLast().effectValue() == 2.9
+                        && projection.checkpoints().getLast().cumulativeCap() == 200 && track.progression(200, AscendanceTiers.TRANSCENDENT.id()) == 1,
+                "The maximum benefit and paid cap remain carried forward after the presentation changes");
     }
 
     private static void cards() {
@@ -387,9 +427,12 @@ public final class SharedPresentationTest {
     private static List<String> text(SemanticTooltip tooltip) { return tooltip.lines().stream().map(line -> flatten(line.content())).toList(); }
     private static String tr(String key) { return language.has(key) ? language.get(key).getAsString() : key; }
     private static String flatten(Component component) {
-        if (!(component.getContents() instanceof TranslatableContents content)) return component.getString();
-        Object[] args = Arrays.stream(content.getArgs()).map(a -> a instanceof Component c ? flatten(c) : a).toArray();
-        String value = String.format(Locale.ROOT, tr(content.getKey()), args);
+        String value;
+        if (component.getContents() instanceof TranslatableContents content) {
+            Object[] args = Arrays.stream(content.getArgs()).map(a -> a instanceof Component c ? flatten(c) : a).toArray();
+            value = String.format(Locale.ROOT, tr(content.getKey()), args);
+        } else value = component.plainCopy().getString();
+        // Literal/empty parents can also carry translated siblings; the headless Language has no mod translations.
         for (var sibling : component.getSiblings()) value += flatten(sibling);
         return value;
     }

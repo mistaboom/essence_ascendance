@@ -139,6 +139,15 @@ public final class BonusPresentationData {
         return null;
     }
 
+    /** Labels progression only; the earned value and cap still carry forward after completion. */
+    public static Component checkpointBenefit(Projection projection, CheckpointProjection checkpoint, Component activeValue) {
+        if (!checkpoint.available()) return EssenceText.gui("nexus.track.unavailable");
+        // A validated track first reaches its full fraction at completionTier; later rows retain it.
+        if (checkpoint.effectFraction() == 1 && !checkpoint.tierId().equals(projection.completionTier()))
+            return EssenceText.gui("nexus.track.max_reached");
+        return activeValue;
+    }
+
     public static PresentationMetric<ValueSource> metric(StatDefinition stat) {
         return PresentationMetric.always("presentation/bonus/" + stat.id() + "/value", EssenceText.stat(stat),
                 ValueSource::value, semanticType(stat.unit()), PresentationMetric.DisplayConversion.NATIVE);

@@ -150,11 +150,12 @@ public final class BonusTrackGenerator {
         inputs.put("first_state_floor", first); inputs.put("later_state_floor", required.tierImprovementFloor());
         inputs.put("generated_state_count", (double) selected.values().size());
         inputs.put("placement_first_impact", mechanics.impact(selected.start(), selected.values().getFirst()));
+        inputs.put("placement_applicability_breadth", BonusSemantics.applicabilityBreadth(semantic));
         inputs.put("placement_impact_allowance", BonusProgressionPlanner.FIRST_TIER_IMPACT * Math.pow(2, selected.start()));
         inputs.put("increment_growth", BonusProgressionPlanner.INCREMENT_GROWTH);
         var reasons = new ArrayList<>(new LinkedHashSet<>(nominal.evidence()));
         reasons.removeIf(reason -> reason.startsWith("Complete native states;") || reason.startsWith("Shared native progression:"));
-        reasons.add("Shared native progression: first-impact allowances 5%, 10%, 20%, 40%, 80%; later increments target 1.5 growth with a small final remainder merged. Native minima/caps are checked on unchanged equipment at each active tier. The useful span stops when its endpoint is reached; there is no final-tier anchor. Explicit four-control bounds use the identical planner.");
+        reasons.add("Shared native progression: first-impact allowances 5%, 10%, 20%, 40%, 80%, weighted by the same authored applicability breadth as pricing (1 / (1 + condition count)); this is a coarse scope policy, not measured uptime. The first reward retains its native minimum; remaining value is distributed across the remaining increments with 1.5 geometric weights, subject to native floors/caps on unchanged equipment. The useful span stops when its endpoint is reached; there is no final-tier anchor. Explicit four-control bounds use the identical planner.");
         return new BonusTrackDefinition(nominal.statId(), nominal.category(), nominal.unit(), maximum,
                 tiers.get(selected.start()).id(), tiers.get(selected.end()).id(), checkpoints, nominal.investmentExponent(),
                 BonusTrackDefinition.PurchaseStyle.FUNDED_STATES, snaps, nominal.applicability(), nominal.compatibilityRequirements(),
@@ -213,7 +214,7 @@ public final class BonusTrackGenerator {
                     case STEP_BOUNDARY -> nominal.inputs().getOrDefault("native_base_step_height", nativeStepBase());
                     default -> 1;
                 };
-                return BonusSemantics.normalizedImpact(semantic, value, baseline);
+                return BonusSemantics.normalizedImpact(semantic, value, baseline) * BonusSemantics.applicabilityBreadth(semantic);
             }
         };
     }
@@ -244,7 +245,7 @@ public final class BonusTrackGenerator {
             }
             boolean available = maximum > 0;
             double marginal = response(semantic, maximum, settings.generation().survivalWindowSeconds());
-            double breadth = 1.0 / (1 + semantic.conditions().size());
+            double breadth = BonusSemantics.applicabilityBreadth(semantic);
             double headroom = 1.0 / (1 + settings.compositionSafeguard() * Math.max(0, marginal));
             double intrinsic = available ? Math.max(.01, marginal * breadth * headroom) : 0;
             double utility = intrinsic / Math.log(2);

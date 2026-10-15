@@ -89,11 +89,22 @@ public final class BonusProgressionConfigTest {
             var damage = BonusTrackGenerator.publishMeaningful(runtime, Map.of(), BonusProgressionConfig.parse(
                     row("melee_damage", "resonant", "transcendent", 5, 1), "test.toml"))
                     .config().balanceProfile().bonusTrack(EssenceStats.MELEE_DAMAGE.id());
-            check(damage.activeValues().equals(java.util.List.of(1.0, 2.5, 5.0)),
-                    "Explicit flat damage bounds use the same increasing native progression curve");
+            check(projectedValues(damage).equals(java.util.List.of(1.0, 2.6, 5.0)),
+                    "Explicit flat damage bounds use the same increasing native progression curve; actual=" + damage.activeValues());
             check(BonusProgressionConfig.generatedEntry(damage).equals(new BonusProgressionConfig.Entry(
                     AscendanceTiers.RESONANT.id().toString(), AscendanceTiers.TRANSCENDENT.id().toString(), 5, 1)),
                     "Generated controls preserve the exact flat damage span, maximum and first minimum");
+            var breath = BonusTrackGenerator.publishMeaningful(runtime, Map.of(), BonusProgressionConfig.parse(
+                    row("breath_hold", "resonant", "transcendent", 62.9, 5), "test.toml"))
+                    .config().balanceProfile().bonusTrack(EssenceStats.BREATH_HOLD.id());
+            check(projectedValues(breath).equals(java.util.List.of(5.0, 28.2, 62.9)),
+                    "An explicit wider span distributes its remaining maximum across later native intervals; actual=" + breath.activeValues());
+            var narrowBreath = BonusTrackGenerator.publishMeaningful(runtime, Map.of(), BonusProgressionConfig.parse(
+                    row("breath_hold", "ascendant", "transcendent", 62.9, 5), "test.toml"))
+                    .config().balanceProfile().bonusTrack(EssenceStats.BREATH_HOLD.id());
+            check(narrowBreath.startTier().equals(AscendanceTiers.ASCENDANT.id())
+                            && projectedValues(narrowBreath).equals(java.util.List.of(5.0, 62.9)),
+                    "A narrow explicit interval is authoritative; the planner cannot invent an earlier configured tier");
             rejects("unit grid", () -> BonusTrackGenerator.publishMeaningful(runtime, Map.of(),
                     BonusProgressionConfig.parse(row("movement_speed", "dormant", "awakened", 40.5, 20), "test.toml")));
             rejects("first floor", () -> BonusTrackGenerator.publishMeaningful(runtime, Map.of(),
@@ -105,7 +116,7 @@ public final class BonusProgressionConfigTest {
             var cappedPrevention = BonusTrackGenerator.publishMeaningful(runtime, Map.of(), BonusProgressionConfig.parse(
                     row("fire_resistance", "dormant", "dormant", 100, 100), "test.toml"))
                     .config().balanceProfile().bonusTrack(EssenceStats.FIRE_RESISTANCE.id());
-            check(cappedPrevention.activeValues().equals(java.util.List.of(100.0)),
+            check(projectedValues(cappedPrevention).equals(java.util.List.of(100.0)),
                     "An explicitly capped prevention track has one complete useful state");
             check(cappedPrevention.checkpoints().stream().filter(point -> !point.tierId().equals(AscendanceTiers.DORMANT.id()))
                     .noneMatch(BonusTrackDefinition.Checkpoint::purchasable),
@@ -137,6 +148,10 @@ public final class BonusProgressionConfigTest {
         }
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out))
                 .println("BonusProgressionConfigTest: " + checks + " checks PASS");
+    }
+    private static java.util.List<Double> projectedValues(BonusTrackDefinition track) {
+        double quantum = track.inputs().containsKey("native_base_step_height") ? .000001 : RuntimeValueQuantization.statStep(track.unit());
+        return track.activeValues().stream().map(value -> RuntimeValueQuantization.reconstructedGridValue(value, quantum)).toList();
     }
     private static String row(String id, String first, String last, double maximum, double minimum) {
         return "\n[[bonus]]\nid='essence_ascendance:" + id + "'\nmin_tier='essence_ascendance:" + first

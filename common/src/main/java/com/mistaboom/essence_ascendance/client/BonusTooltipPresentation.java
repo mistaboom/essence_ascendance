@@ -40,9 +40,8 @@ public final class BonusTooltipPresentation {
         tooltip.section(EssenceText.gui("nexus.track.availability"));
         for (var p : projection.checkpoints()) {
             if (!AscendanceTierRegistry.get(p.tierId()).map(t -> t.grantsPower()).orElse(false)) continue;
-            Component effect = p.available()
-                    ? Component.literal(number(p.effectValue()) + (resolved.unit() == com.mistaboom.essence_ascendance.stat.StatUnit.PERCENT ? "%" : ""))
-                    : EssenceText.gui("nexus.track.unavailable");
+            Component effect = BonusPresentationData.checkpointBenefit(projection, p,
+                    Component.literal(number(p.effectValue()) + (resolved.unit() == com.mistaboom.essence_ascendance.stat.StatUnit.PERCENT ? "%" : "")));
             tooltip.detail(Component.empty().append(tierName(p.tierId())).append("  ").append(effect));
         }
         if (resolved.available()) tooltip.field(EssenceText.gui("nexus.track.active_span", tierName(resolved.startTier()), tierName(resolved.completionTier())));

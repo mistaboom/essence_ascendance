@@ -537,6 +537,17 @@ public final class ReferencePresentationTest {
             BonusPresentationData.Projection catalog = BonusPresentationData.project(stat, context);
             check(catalog.runtimeReady() && catalog.checkpoints().size() == definition.checkpoints().size(),
                     "Bonus checkpoint coverage changed " + stat.id());
+            var table = (SemanticDocument.Table<?>) ArchiveDocuments.bonusReference(stat, context).blocks().stream()
+                    .filter(SemanticDocument.Table.class::isInstance).findFirst().orElseThrow();
+            boolean completed = false;
+            for (int index = 0; index < definition.checkpoints().size(); index++) {
+                var checkpoint = definition.checkpoints().get(index);
+                String benefit = cell(table, "benefit", index);
+                if (!checkpoint.available()) check(benefit.equals("Unavailable"), "Reference Bonus rows before start stay unavailable");
+                else if (completed) check(benefit.equals("Max reached"), "Reference Bonus rows after completion do not imply a new benefit");
+                else check(!benefit.equals("Max reached") && !benefit.equals("Unavailable"), "Reference Bonus active rows retain their numeric benefits");
+                completed |= checkpoint.tierId().equals(definition.completionTier());
+            }
             long fullCap = definition.checkpoints().getLast().cumulativeCap();
             BonusTrackSnapshot track = BonusTrackSnapshot.from(definition, runtime.config().balanceProfile());
             var state = new ClientEssenceState.StatSnapshot(stat.id(), 0, 0, fullCap, 0,

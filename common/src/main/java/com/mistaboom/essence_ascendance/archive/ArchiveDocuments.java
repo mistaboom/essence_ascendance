@@ -188,7 +188,8 @@ final class ArchiveDocuments {
                 new ReadOnlyDataTable.Row<>("tier/" + point.tierId(), new BonusCheckpointRow(
                         SkillPresentationData.tierName(point.tierId()),
                         g(point.available() ? "archive.value.available" : "archive.value.unavailable"),
-                        point.segmentCost(), point.cumulativeCap(), formatted(stat.unit(), point.effectValue())))).toList();
+                        point.segmentCost(), point.cumulativeCap(), BonusPresentationData.checkpointBenefit(
+                                projection, point, formatted(stat.unit(), point.effectValue()))))).toList();
         blocks.add(new SemanticDocument.Table<>(new ReadOnlyDataTable<>(List.of(
                 column("tier", g("archive.table.tier"), 86, 0, ReadOnlyDataTable.Alignment.LEFT,
                         BonusCheckpointRow::tier, value -> value),

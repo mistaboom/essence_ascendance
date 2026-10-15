@@ -62,6 +62,10 @@ public final class BonusSemantics {
     private static Mechanic mechanic(CapabilityAxis axis, Response response, String mechanism, String... conditions) {
         return new Mechanic(axis, response, List.of(conditions), mechanism);
     }
+    /** Authored scope heuristic shared by pricing and placement, not a measured activation probability. */
+    static double applicabilityBreadth(Mechanic mechanic) {
+        return 1.0 / (1 + mechanic.conditions().size());
+    }
     /** Dimensionless first-outcome impact. Recovery's baseline is health / named comparison seconds. */
     static double normalizedImpact(Mechanic mechanic, double value, double baseline) {
         return switch (mechanic.response()) {

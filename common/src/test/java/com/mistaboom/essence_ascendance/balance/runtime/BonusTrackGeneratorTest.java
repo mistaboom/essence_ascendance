@@ -20,6 +20,7 @@ public final class BonusTrackGeneratorTest {
         MilestoneProviders.init(); Milestones.init(); Skills.init(); AscendanceAdvancements.init();
         var vanilla = resolve();
         sharedPlanner();
+        breadthPlacement();
         nativeSaturation();
         var movement = vanilla.get(EssenceStats.MOVEMENT_SPEED.id());
         var step = vanilla.get(EssenceStats.STEP_HEIGHT.id());
@@ -29,11 +30,14 @@ public final class BonusTrackGeneratorTest {
         check(recovery.inputs().get("recovery_comparison_seconds") == recoveryWindow,
                 "The saved comparison duration comes from the configured survival window");
         check(Math.abs(recovery.inputs().get("placement_first_impact")
-                        - recovery.activeValues().getFirst() * 2 * recoveryWindow / RuntimeReferencePolicy.playerHealth()) < 1e-9,
-                "Recovery placement compares healing amount over the named window with native health");
+                        - recovery.activeValues().getFirst() * 2 * recoveryWindow / RuntimeReferencePolicy.playerHealth()
+                        * BonusSemantics.applicabilityBreadth(BonusSemantics.require(EssenceStats.HEALTH_REGENERATION))) < 1e-9,
+                "Recovery placement combines healing over the named window with the shared applicability policy");
         check(step.checkpoints().getLast().cumulativeCap() < movement.checkpoints().getLast().cumulativeCap() / 5,
                 "Step must be materially cheaper than broadly applicable movement");
-        check(step.activeStateCount() == 2 && step.startTier().equals(AscendanceTiers.ASCENDANT.id()), "Step's actual first traversal impact and two native states determine its span");
+        check(step.activeStateCount() == 2 && step.startTier().equals(AscendanceTiers.RESONANT.id())
+                        && step.completionTier().equals(AscendanceTiers.ASCENDANT.id()),
+                "Step's first traversal impact, shared applicability and two native states determine its span");
         check(step.snapPoints().size() == step.activeStateCount() + 1 && step.purchaseStyle() == BonusTrackDefinition.PurchaseStyle.FUNDED_STATES,
                 "Step Height publishes complete native traversal states");
         check(step.inputs().containsKey("first_state_floor") && step.inputs().containsKey("later_state_floor"),
@@ -60,6 +64,16 @@ public final class BonusTrackGeneratorTest {
         var resolvedProfile = new com.mistaboom.essence_ascendance.balance.BalanceProfileDefinition(
                 ResourceLocation.parse("test:smooth_resolved"), "Smooth resolved fixtures", caps(), Map.of(), fractions(), .8, vanilla);
         for (var track : vanilla.values()) {
+            var semantic = BonusSemantics.require(EssenceStatRegistry.get(track.statId()).orElseThrow());
+            check(track.inputs().get("breadth") == BonusSemantics.applicabilityBreadth(semantic),
+                    "Pricing and placement share the same applicability policy: " + track.statId());
+            double priorValue = 0;
+            for (double value : track.activeValues()) {
+                double floor = priorValue == 0 ? track.progressionRequirements().firstStateFloor()
+                        : track.progressionRequirements().tierImprovementFloor();
+                check(value - priorValue + 1e-9 >= floor, "Breadth cannot discount a native meaningful floor: " + track.statId());
+                priorValue = value;
+            }
             boolean started = false;
             for (var point : track.checkpoints()) {
                 started |= point.tierId().equals(track.startTier());
@@ -129,8 +143,8 @@ public final class BonusTrackGeneratorTest {
     private static void sharedPlanner() {
         var damage = plannerMechanics(EssenceStats.MELEE_DAMAGE, 6, 5);
         var three = BonusProgressionPlanner.automatic(5, 5, 1, 1, .1, damage);
-        check(three.start() == 2 && three.end() == 4 && three.values().equals(List.of(1.0, 2.5, 5.0)),
-                "Flat damage jointly plans Resonant/Ascendant/Transcendent with +1, +1.5 and +2.5 increments");
+        check(three.start() == 2 && three.end() == 4 && three.values().equals(List.of(1.0, 2.6, 5.0)),
+                "Raw-impact placement retains its span while distributing the remainder over meaningful later increments");
         check(BonusProgressionPlanner.configured(three.start(), three.end(), 5, 1, 1, .1, damage).equals(three),
                 "The four emitted controls reproduce the exact accelerating curve");
         var shortDamage = BonusProgressionPlanner.automatic(5, 2.5, 1, 1, .1, damage);
@@ -138,8 +152,8 @@ public final class BonusTrackGeneratorTest {
                 "A smaller useful maximum completes before the final tier without front-loading its maximum");
         var health = BonusProgressionPlanner.automatic(5, 7, 1, .5, .5,
                 plannerMechanics(EssenceStats.MAX_HEALTH, 20, 502));
-        check(health.start() == 1 && health.values().getFirst() == 1,
-                "One heart is ten percent of native player health and starts at the common ten-percent tier");
+        check(health.start() == 1 && health.values().equals(List.of(1.0, 2.5, 4.5, 7.0)),
+                "Unconditional health preserves its ten-percent first tier and meaningful increasing curve");
         var equalImpactDamage = BonusProgressionPlanner.automatic(5, 5, 1, 1, .1,
                 plannerMechanics(EssenceStats.MELEE_DAMAGE, 10, 100));
         check(equalImpactDamage.start() == health.start(), "Equal normalized health and damage gains receive the same placement");
@@ -147,6 +161,21 @@ public final class BonusTrackGeneratorTest {
                 plannerMechanics(EssenceStats.HEALTH_REGENERATION, 20.0 / 10, 100));
         check(recovery.start() == health.start(),
                 "A tenth of a heart per second over ten comparison seconds matches the impact of one extra heart");
+        check(recovery.values().equals(List.of(.1, .2, .35)),
+                "Internal decimal growth retains the feasible third state instead of rounding 0.15 to 0.16");
+        check(BonusProgressionPlanner.configured(0, 2, 5.6, 1, 1, .1,
+                        plannerMechanics(EssenceStats.MELEE_DAMAGE, 6, 10)).values().equals(List.of(1.0, 2.9, 5.6)),
+                "A tenths-grid distributed target of 2.9 cannot truncate to 2.8 through binary division");
+        check(BonusProgressionPlanner.configured(0, 2, .57, .1, .1, .01,
+                        plannerMechanics(EssenceStats.HEALTH_REGENERATION, 2, 1)).values().equals(List.of(.1, .29, .57)),
+                "A hundredths-grid distributed target of 0.29 cannot truncate to 0.28 through binary division");
+        var exactBoundary = new BonusProgressionPlanner.Mechanics() {
+            public double ceiling(int tier) { return .29; }
+            public boolean improves(int tier, double previous, double value) { return previous == 0 && value == .29; }
+            public double impact(int tier, double value) { return .01; }
+        };
+        check(BonusProgressionPlanner.automatic(5, .29, .1, .1, .01, exactBoundary).values().equals(List.of(.29)),
+                "A native boundary exactly on a fractional grid is retained by the ceiling search");
         var resistance = BonusProgressionPlanner.automatic(5, 10, 5, 5, 1,
                 plannerMechanics(EssenceStats.MELEE_RESISTANCE, 1, 80));
         check(resistance.start() == 1 && resistance.end() == 2,
@@ -174,6 +203,10 @@ public final class BonusTrackGeneratorTest {
                 plannerMechanics(EssenceStats.MOVEMENT_SPEED, 1, 100)); }
         catch (IllegalArgumentException expected) { invalid = expected.getMessage().contains("unit grid"); }
         check(invalid, "An explicit unrepresentable maximum fails instead of silently rounding");
+        boolean saturated = false;
+        try { BonusProgressionPlanner.automatic(5, 5, 1, 1, .1, plannerMechanics(EssenceStats.MELEE_DAMAGE, 6, 0)); }
+        catch (IllegalArgumentException expected) { saturated = true; }
+        check(saturated, "A favorable placement score cannot bypass absent native headroom");
         for (var plan : List.of(three, shortDamage, health, equalImpactDamage, resistance, nativeCap)) {
             double previous = 0, increment = 0;
             for (double value : plan.values()) {
@@ -181,6 +214,57 @@ public final class BonusTrackGeneratorTest {
                 increment = value - previous; previous = value;
             }
         }
+    }
+    private static void breadthPlacement() {
+        var maximum = new TreeMap<>(maxima());
+        maximum.put(EssenceStats.BREATH_HOLD.id(), 62.9);
+        maximum.put(EssenceStats.JUMP_HEIGHT.id(), 52.0);
+        maximum.put(EssenceStats.FISHING_SPEED.id(), 104.0);
+        maximum.put(EssenceStats.CROP_YIELD.id(), 104.0);
+        var nominal = BonusTrackGenerator.resolve(BalanceSettings.defaults(), caps(), fractions(), maximum, Map.of(), .8);
+        var resolved = new TreeMap<ResourceLocation, BonusTrackDefinition>();
+        nominal.forEach((id, track) -> resolved.put(id, BonusTrackGenerator.meaningful(track, track.progressionRequirements())));
+        var breath = resolved.get(EssenceStats.BREATH_HOLD.id());
+        check(breath.startTier().equals(AscendanceTiers.RESONANT.id())
+                        && projectedValues(breath).equals(List.of(5.0, 28.2, 62.9)),
+                "Shared applicability advances air capacity and spreads its large remaining maximum; actual=" + breath.activeValues()
+                        + ", start=" + breath.startTier());
+        var jump = resolved.get(EssenceStats.JUMP_HEIGHT.id());
+        check(jump.startTier().equals(AscendanceTiers.RESONANT.id())
+                        && projectedValues(jump).equals(List.of(10.0, 27.0, 52.0)),
+                "Squared jump response uses shared applicability and a distributed final remainder; actual=" + jump.activeValues()
+                        + ", start=" + jump.startTier());
+        var fishing = resolved.get(EssenceStats.FISHING_SPEED.id());
+        check(fishing.startTier().equals(AscendanceTiers.DORMANT.id())
+                        && projectedValues(fishing).equals(List.of(10.0, 22.0, 40.0, 66.0, 104.0)),
+                "An earlier useful start can support five native states without a large final dump; actual=" + fishing.activeValues()
+                        + ", start=" + fishing.startTier());
+        var crop = resolved.get(EssenceStats.CROP_YIELD.id());
+        check(crop.startTier().equals(AscendanceTiers.AWAKENED.id())
+                        && projectedValues(crop).equals(List.of(20.0, 54.0, 104.0)),
+                "A crop response uses the same shared scope policy and later interval weights; actual=" + crop.activeValues()
+                        + ", start=" + crop.startTier());
+        double oneCondition = BonusSemantics.applicabilityBreadth(BonusSemantics.require(EssenceStats.CROP_YIELD));
+        for (var stat : List.of(EssenceStats.MELEE_DAMAGE, EssenceStats.RANGED_DAMAGE, EssenceStats.MAGIC_DAMAGE,
+                EssenceStats.JUMP_HEIGHT, EssenceStats.HEALTH_REGENERATION))
+            check(BonusSemantics.applicabilityBreadth(BonusSemantics.require(stat)) == oneCondition,
+                    "Equal declared scope receives equal breadth without a category or Bonus exemption: " + stat.id());
+        check(BonusSemantics.applicabilityBreadth(BonusSemantics.require(EssenceStats.MAX_HEALTH)) == 1,
+                "An unconditional native benefit receives no breadth discount");
+        for (var track : List.of(breath, jump, fishing, crop)) {
+            var values = track.activeValues();
+            check(values.getFirst() == track.progressionRequirements().firstStateFloor(),
+                    "Tail distribution keeps the first native minimum fixed");
+            double previous = 0, increment = 0;
+            for (double value : values) {
+                check(value - previous + 1e-9 >= increment, "Distributed native increments remain nondecreasing");
+                increment = value - previous; previous = value;
+            }
+        }
+    }
+    private static List<Double> projectedValues(BonusTrackDefinition track) {
+        double quantum = track.inputs().containsKey("native_base_step_height") ? .000001 : RuntimeValueQuantization.statStep(track.unit());
+        return track.activeValues().stream().map(value -> RuntimeValueQuantization.reconstructedGridValue(value, quantum)).toList();
     }
     private static BonusProgressionPlanner.Mechanics plannerMechanics(StatDefinition stat, double baseline, double cap) {
         return new BonusProgressionPlanner.Mechanics() {

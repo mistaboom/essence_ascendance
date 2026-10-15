@@ -474,8 +474,9 @@ public final class MeaningfulProgressionTest {
         var placed = BonusTrackGenerator.meaningful(one,fixtureRequirement);
         check(placed.startTier().equals(AscendanceTiers.AWAKENED.id())
                 && placed.completionTier().equals(AscendanceTiers.ASCENDANT.id()), "Nominal checkpoint count cannot dictate an anchored final span");
-        check(placed.activeValues().equals(List.of(10.0, 25.0, 50.0)),
-                "Joint planning assigns the maximum through accelerating meaningful increments");
+        check(placed.activeValues().stream().map(value -> RuntimeValueQuantization.reconstructedGridValue(value, 1))
+                        .toList().equals(List.of(10.0, 26.0, 50.0)),
+                "Joint planning distributes the remaining 40 points across its two later meaningful intervals; actual=" + placed.activeValues());
         var twoPoints = new ArrayList<BonusTrackDefinition.Checkpoint>();
         for (var tier : AscendanceTierRegistry.values().stream().sorted(Comparator.comparingInt(AscendanceTierDefinition::order)).toList()) {
             int order = tier.order();
