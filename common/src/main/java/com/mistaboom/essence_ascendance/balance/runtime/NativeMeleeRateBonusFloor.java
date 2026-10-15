@@ -1,7 +1,6 @@
 package com.mistaboom.essence_ascendance.balance.runtime;
 
 import com.mistaboom.essence_ascendance.equipment.*;
-import com.mistaboom.essence_ascendance.skill.ProgressionRequirements;
 import com.mistaboom.essence_ascendance.stat.EssenceStats;
 import com.mistaboom.essence_ascendance.tier.*;
 import net.minecraft.resources.ResourceLocation;
@@ -68,24 +67,4 @@ public final class NativeMeleeRateBonusFloor {
                 + "and no external modifiers are the named reference; lower-tier gear caps Bonus activation at its own tier.");
     }
 
-    static NativeCooldownBonusFloor.Plan select(BonusTrackDefinition nominal, ProgressionRequirements.Bonus required,
-            List<Double> candidates, List<AscendanceTierDefinition> tiers, int earliest, int preferred) {
-        return NativeCooldownBonusFloor.select(nominal, required, candidates, tiers, earliest, preferred,
-                new NativeCooldownBonusFloor.NativeState() {
-                    private List<Context> contexts(AscendanceTierDefinition tier) {
-                        var result = new ArrayList<Context>();
-                        for (int index = 0; index < nominal.inputs().get(key(tier, "count")).intValue(); index++)
-                            result.add(new Context(nominal.statId(), nominal.inputs().get(key(tier, "rate") + "_" + index),
-                                    nominal.inputs().get(key(tier, "applicability") + "_" + index)));
-                        return result;
-                    }
-                    public boolean improves(AscendanceTierDefinition tier, double previous, double value) {
-                        return contexts(tier).stream().allMatch(context -> context.outcome(value) > context.outcome(previous));
-                    }
-                    public double ceiling(AscendanceTierDefinition tier) {
-                        return Math.min(nominal.inputs().getOrDefault("native_maximum_effect", 1_000_000.0),
-                                contexts(tier).stream().mapToDouble(Context::maximumPercent).min().orElseThrow());
-                    }
-                });
-    }
 }

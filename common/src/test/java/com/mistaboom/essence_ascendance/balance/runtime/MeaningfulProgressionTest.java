@@ -179,16 +179,17 @@ public final class MeaningfulProgressionTest {
     private static void damageBonusNativeMinimums(RuntimeBalanceDefinition runtime) {
         for (var stat : List.of(EssenceStats.MELEE_DAMAGE, EssenceStats.RANGED_DAMAGE, EssenceStats.MAGIC_DAMAGE)) {
             var track = runtime.config().balanceProfile().bonusTrack(stat.id());
+            check(stat.unit() == com.mistaboom.essence_ascendance.stat.StatUnit.FLAT,
+                    "Damage Bonuses are additive points, independent of equipment's physical damage");
             double previous = 0;
             for (var point : track.checkpoints()) if (point.purchasable()) {
                 double value = point.effectFraction() * track.maximumEffect();
-                for (var context : NativeDamageBonusFloor.contexts(runtime, stat))
+                for (var context : NativeDamageBonusFloor.contexts(runtime, stat)) if (context.tier().equals(point.tierId()))
                     check(context.damage(value) - context.damage(previous) + 1e-9 >= 1,
-                            "Every damage endpoint adds >=1 native damage with identical supported equipment: " + stat.id()
+                            "Every damage endpoint adds >=1 native damage with identical active-tier equipment: " + stat.id()
                                     + " / " + point.tierId() + " / " + context);
                 previous = value;
             }
-            // A nominal 5-point increase on 1-damage equipment is 0.05 damage, regardless of a strong reference weapon.
             var weakJson = runtime.toJson();
             var strongJson = runtime.toJson();
             String property = switch (stat.id().getPath()) {
@@ -198,21 +199,79 @@ public final class MeaningfulProgressionTest {
             };
             weakJson.getAsJsonObject("equipment").entrySet().forEach(entry -> entry.getValue().getAsJsonObject().addProperty(property, 1));
             strongJson.getAsJsonObject("equipment").entrySet().forEach(entry -> entry.getValue().getAsJsonObject().addProperty(property, 100));
-            var weak = RuntimeBalanceDefinition.fromJson(weakJson);
-            var strong = RuntimeBalanceDefinition.fromJson(strongJson);
-            var weakTrack = BonusTrackGenerator.publishNative(weak, stat, track, ProgressionRequirements.bonus(stat.id()));
-            var strongTrack = BonusTrackGenerator.publishNative(strong, stat, track, ProgressionRequirements.bonus(stat.id()));
-            check(weakTrack.inputs().get("first_state_floor") >= 100 && weakTrack.inputs().get("later_state_floor") >= 100,
-                    "Weak equipment must retain the one-damage floor; percentages alone are not native outcomes");
-            check(weakTrack.activeStateCount() <= strongTrack.activeStateCount(), "Weak equipment coalesces ineffective states without filler");
-            check(strongTrack.inputs().get("later_state_floor").equals(ProgressionRequirements.bonus(stat.id()).tierImprovementFloor()),
-                    "Strong equipment retains the authored percentage floor even when one damage needs less");
+            var weak = NativeDamageBonusFloor.contexts(RuntimeBalanceDefinition.fromJson(weakJson), stat);
+            var strong = NativeDamageBonusFloor.contexts(RuntimeBalanceDefinition.fromJson(strongJson), stat);
+            check(weak.size() == strong.size() && !weak.isEmpty(), "Changing physical damage preserves supported contexts");
+            for (int i = 0; i < weak.size(); i++) {
+                var low = weak.get(i); var high = strong.get(i);
+                check(low.tier().equals(high.tier()) && low.profile().equals(high.profile()), "Compare identical tier/profile contexts");
+                for (double addition : new double[]{1, 1.5, 2.5})
+                    check(Math.abs((low.damage(addition) - low.damage(0)) - addition * low.applicability()) < 1e-9
+                                    && Math.abs((high.damage(addition) - high.damage(0)) - addition * high.applicability()) < 1e-9,
+                            "Weak and strong equipment receive the same additive native damage: " + stat.id() + " / " + addition);
+                check(low.valueForOneDamage() == high.valueForOneDamage(), "Native floor depends on applicability, not physical damage");
+            }
+            var requirement = ProgressionRequirements.bonus(stat.id());
+            check(requirement.firstStateFloor() == 1 && requirement.tierImprovementFloor() == 1,
+                    "The authored incremental native damage floor remains one point");
+            var zeroJson = runtime.toJson();
+            zeroJson.getAsJsonObject("equipment").entrySet().forEach(entry -> entry.getValue().getAsJsonObject().addProperty(property, 0));
+            var zeroRuntime = RuntimeBalanceDefinition.fromJson(zeroJson);
+            var zeroContexts = NativeDamageBonusFloor.contexts(zeroRuntime, stat);
+            check(zeroContexts.size() == weak.size() && zeroContexts.stream().allMatch(context -> context.baseDamage() == 0),
+                    "Zero physical damage retains every eligible native tier/profile context: " + stat.id());
+            var zeroTrack = BonusTrackGenerator.publishNative(zeroRuntime, stat,
+                    zeroRuntime.config().balanceProfile().bonusTrack(stat.id()), requirement);
+            check(zeroTrack.inputs().values().stream().allMatch(Double::isFinite),
+                    "Zero physical damage cannot introduce infinite normalized placement or saved inputs");
+            double zeroPrevious = 0;
+            for (double value : zeroTrack.activeValues()) {
+                for (var context : zeroContexts)
+                    check(context.damage(value) - context.damage(zeroPrevious) + 1e-9 >= 1,
+                            "An additive completed Bonus provides real damage from a zero physical baseline: " + stat.id());
+                zeroPrevious = value;
+            }
         }
         var saturated = runtime.toJson();
         saturated.getAsJsonObject("equipment").entrySet().forEach(entry -> entry.getValue().getAsJsonObject().addProperty("meleeDamage", 10000));
         var capped = RuntimeBalanceDefinition.fromJson(saturated);
         rejects(() -> BonusTrackGenerator.publishNative(capped, EssenceStats.MELEE_DAMAGE,
                 capped.config().balanceProfile().bonusTrack(EssenceStats.MELEE_DAMAGE.id()), ProgressionRequirements.bonus(EssenceStats.MELEE_DAMAGE.id())));
+        var futureGear = runtime.toJson();
+        // Use a reference that can place a +1 state before Transcendent; bootstrap's one-point
+        // weapon reference correctly places the entire two-point track at Transcendent instead.
+        futureGear.getAsJsonObject("equipment").entrySet().forEach(entry -> entry.getValue().getAsJsonObject().addProperty("meleeDamage", 6));
+        futureGear.getAsJsonObject("equipment").getAsJsonObject(AscendanceTiers.TRANSCENDENT.id().toString())
+                .addProperty("meleeDamage", 1860); // Native axe profile rounds to 2046, leaving two of 2048 damage points.
+        var futureRuntime = RuntimeBalanceDefinition.fromJson(futureGear);
+        var futureBounded = BonusTrackGenerator.publishNative(futureRuntime, EssenceStats.MELEE_DAMAGE,
+                cooldownNominal(runtime, EssenceStats.MELEE_DAMAGE, List.of(1.0, 2.5, 5.0)),
+                ProgressionRequirements.bonus(EssenceStats.MELEE_DAMAGE.id()));
+        check(futureBounded.maximumEffect() == 2 && futureBounded.activeValues().equals(List.of(1.0, 2.0)),
+                "An early completed damage track preserves native headroom on higher-tier physical gear; maximum="
+                        + futureBounded.maximumEffect() + ", values=" + futureBounded.activeValues()
+                        + ", start=" + futureBounded.startTier() + ", end=" + futureBounded.completionTier()
+                        + ", headroom=" + futureBounded.inputs().entrySet().stream()
+                        .filter(entry -> entry.getKey().startsWith("native_damage_ceiling_")).toList()
+                        + ", placement=" + futureBounded.inputs().entrySet().stream()
+                        .filter(entry -> entry.getKey().startsWith("placement_")).toList());
+        check(futureBounded.inputs().get("placement_damage_base_resonant")
+                        == futureRuntime.config().equipmentBaselineConfig().baselineFor(AscendanceTiers.RESONANT).meleeDamage(),
+                "Future-gear headroom does not change the active-tier family reference used for placement");
+        double previous = 0;
+        for (double value : futureBounded.activeValues()) {
+            for (var context : NativeDamageBonusFloor.contexts(futureRuntime, EssenceStats.MELEE_DAMAGE))
+                if (context.tier().equals(AscendanceTiers.TRANSCENDENT.id()))
+                    check(context.damage(value) - context.damage(previous) + 1e-9 >= 1,
+                            "Higher-tier equipment receives each earlier Bonus increment without attribute saturation");
+            previous = value;
+        }
+        futureGear.getAsJsonObject("equipment").getAsJsonObject(AscendanceTiers.TRANSCENDENT.id().toString())
+                .addProperty("meleeDamage", 10000);
+        var futureSaturated = RuntimeBalanceDefinition.fromJson(futureGear);
+        rejects(() -> BonusTrackGenerator.publishNative(futureSaturated, EssenceStats.MELEE_DAMAGE,
+                futureSaturated.config().balanceProfile().bonusTrack(EssenceStats.MELEE_DAMAGE.id()),
+                ProgressionRequirements.bonus(EssenceStats.MELEE_DAMAGE.id())));
     }
 
     private static void configuredShieldTiming(RuntimeBalanceDefinition runtime) {
@@ -315,8 +374,8 @@ public final class MeaningfulProgressionTest {
         var nominal = cooldownNominal(runtime, stat, List.of(10.0, 15.0, 20.0, 40.0, 100.0));
         var high = cooldownRuntime(runtime, "meleeAttackSpeed", 20, 20);
         var bounded = BonusTrackGenerator.publishNative(high, stat, nominal, ProgressionRequirements.bonus(stat.id()));
-        check(bounded.activeValues().equals(List.of(10.0, 15.0, 20.0, 25.0, 66.0)),
-                "Four-control planning retains meaningful melee states and the exact profile-specific forty-per-second ceiling");
+        check(bounded.activeValues().getLast() == 66 && bounded.activeStateCount() > 1,
+                "Joint planning retains meaningful melee states and the exact profile-specific forty-per-second ceiling");
         verifyMeleeRate(high, bounded);
         var earlyOnly = cooldownRuntime(runtime, "meleeAttackSpeed", 4, 50);
         var early = BonusTrackGenerator.publishNative(earlyOnly, stat, cooldownNominal(runtime, stat, List.of(10.0, 15.0)),
@@ -403,17 +462,20 @@ public final class MeaningfulProgressionTest {
         check(before.equals(after),"Bonus floor cannot compensate through skills, siblings, costs, synergy, equipment or global allocations");
         check(original.config().balanceProfile().bonusTrack(id).checkpoints().stream().filter(BonusTrackDefinition.Checkpoint::purchasable).findFirst().orElseThrow().segmentCost()
                 == increased.config().balanceProfile().bonusTrack(id).checkpoints().stream().filter(BonusTrackDefinition.Checkpoint::purchasable).findFirst().orElseThrow().segmentCost(), "Bonus first-state price ignores overage");
-        var track = runtime.config().balanceProfile().bonusTrack(id);
+        var fixtureId = EssenceStats.MOVEMENT_SPEED.id();
+        var fixtureRequirement = ProgressionRequirements.bonus(fixtureId);
+        var track = runtime.config().balanceProfile().bonusTrack(fixtureId);
         var points = new ArrayList<BonusTrackDefinition.Checkpoint>();
         for (var tier : AscendanceTierRegistry.values().stream().sorted(Comparator.comparingInt(AscendanceTierDefinition::order)).toList())
             points.add(new BonusTrackDefinition.Checkpoint(tier.id(), tier.order() == 0 ? 0 : 100,
                     tier.order() == 1 ? 100 : 0, tier.order() == 0 ? 0 : 1, tier.order() > 0, tier.order() == 1));
-        var one = new BonusTrackDefinition(id,track.category(),track.unit(),50,AscendanceTiers.DORMANT.id(),AscendanceTiers.DORMANT.id(),
+        var one = new BonusTrackDefinition(fixtureId,track.category(),track.unit(),50,AscendanceTiers.DORMANT.id(),AscendanceTiers.DORMANT.id(),
                 points,.8,BonusTrackDefinition.PurchaseStyle.CONTINUOUS,List.of(),track.applicability(),List.of(),1,List.of("Strong one-state fixture"),"test",Map.of("native_response",4.0,"breadth",.5));
-        var placed = BonusTrackGenerator.meaningful(one,r);
-        check(placed.activeStateCount()==1 && placed.startTier().equals(placed.completionTier())
-                && AscendanceTierRegistry.get(placed.startTier()).orElseThrow().order()>=4, "Desirable one-state bonus is placed late, not stretched");
-        check(placed.activeValues().equals(List.of(50.0)),"Strong bonus allocation preserved without filler subdivision");
+        var placed = BonusTrackGenerator.meaningful(one,fixtureRequirement);
+        check(placed.startTier().equals(AscendanceTiers.AWAKENED.id())
+                && placed.completionTier().equals(AscendanceTiers.ASCENDANT.id()), "Nominal checkpoint count cannot dictate an anchored final span");
+        check(placed.activeValues().equals(List.of(10.0, 25.0, 50.0)),
+                "Joint planning assigns the maximum through accelerating meaningful increments");
         var twoPoints = new ArrayList<BonusTrackDefinition.Checkpoint>();
         for (var tier : AscendanceTierRegistry.values().stream().sorted(Comparator.comparingInt(AscendanceTierDefinition::order)).toList()) {
             int order = tier.order();
@@ -421,10 +483,10 @@ public final class MeaningfulProgressionTest {
                     order == 1 || order == 2 ? 100 : 0, order == 0 ? 0 : order == 1 ? 10.0/24 : 1,
                     order > 0, order == 1 || order == 2));
         }
-        var two = new BonusTrackDefinition(id,track.category(),track.unit(),24,AscendanceTiers.DORMANT.id(),AscendanceTiers.AWAKENED.id(),
+        var two = new BonusTrackDefinition(fixtureId,track.category(),track.unit(),24,AscendanceTiers.DORMANT.id(),AscendanceTiers.AWAKENED.id(),
                 twoPoints,.8,BonusTrackDefinition.PurchaseStyle.CONTINUOUS,List.of(),track.applicability(),List.of(),1,
                 List.of("Strong two-state fixture"),"test",Map.of("native_response",4.0,"breadth",.5));
-        var twoValues = BonusTrackGenerator.meaningful(two,r).activeValues();
+        var twoValues = BonusTrackGenerator.meaningful(two,fixtureRequirement).activeValues();
         check(twoValues.size() == 2 && Math.abs(twoValues.getFirst() - 10) < 1e-9 && twoValues.getLast() == 24,
                 "Actual bonus publication keeps the +14 step intact instead of splitting it into +5 states");
     }

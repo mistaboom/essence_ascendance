@@ -361,7 +361,7 @@ public final class EquipmentAttributeService {
         EquipmentBaselineResult baseline =
                 EquipmentBaselineService.evaluateForStack(playerData, profileId, mainHand);
 
-        double finalDamage = EquipmentValueService.applyPercentBonus(
+        double finalDamage = EquipmentValueService.applyFlatBonus(
                 playerData,
                 EssenceStats.MELEE_DAMAGE,
                 held.strength(EssenceStats.MELEE_DAMAGE),

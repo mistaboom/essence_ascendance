@@ -76,7 +76,7 @@ public final class NativeBonusMechanics {
     }
 
     public static Optional<Limit> limit(StatDefinition stat, ShieldBalanceSettings shield) {
-        return switch (stat.id().getPath()) {
+        Optional<Limit> limit = switch (stat.id().getPath()) {
             case "guarded_movement" -> Optional.of(new Limit(100,
                     "ShieldMath.movementMultiplier removes at most all native blocking slowdown; percentage clamps at 100"));
             case "guard_readiness" -> Optional.of(new Limit(guardReadinessMaximum(shield.minimumDisableTicks()),
@@ -110,6 +110,11 @@ public final class NativeBonusMechanics {
                     "Native fishing countdown phases clamp at one tick; the minimum initial wait is 100 ticks"));
             default -> Optional.empty();
         };
+        if (BonusSemantics.require(stat).response() == BonusSemantics.Response.PREVENTION
+                && (limit.isEmpty() || limit.orElseThrow().maximum() > 100))
+            return Optional.of(new Limit(100,
+                    "Prevention can remove at most the entire incoming damage, duration, resource consumption or cost; native consumers clamp at 100 percent"));
+        return limit;
     }
 
     public static StepResolution step(double requestedMaximum) {

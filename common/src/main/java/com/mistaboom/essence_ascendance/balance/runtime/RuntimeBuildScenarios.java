@@ -351,7 +351,7 @@ public final class RuntimeBuildScenarios {
         var speed = family.equals("ranged") ? EssenceStats.RANGED_ATTACK_SPEED : family.equals("caster") ? EssenceStats.MAGIC_CAST_SPEED : EssenceStats.MELEE_ATTACK_SPEED;
         double resistance = Math.max(bonus(runtime, tier, EssenceStats.MELEE_RESISTANCE, moderate),
                 Math.max(bonus(runtime, tier, EssenceStats.RANGED_RESISTANCE, moderate), bonus(runtime, tier, EssenceStats.MAGIC_RESISTANCE, moderate))) / 100;
-        return new Modifier(0, 1 + bonus(runtime, tier, damage, moderate) / 100, 1 + bonus(runtime, tier, speed, moderate) / 100,
+        return new Modifier(bonus(runtime, tier, damage, moderate), 1, 1 + bonus(runtime, tier, speed, moderate) / 100,
                 0, 0, bonus(runtime, tier, EssenceStats.MAX_HEALTH, moderate) * 2, 0, 0, resistance, 0,
                 bonus(runtime, tier, EssenceStats.HEALTH_REGENERATION, moderate) * 2, 0);
     }
@@ -379,7 +379,7 @@ public final class RuntimeBuildScenarios {
                 ? s.deathRush().castSpeedBonusPercentPerStack() : s.deathRush().attackSpeedBonusPercentPerStack()) / 100;
         if (active.contains(SkillIds.KINDLING)) damage *= 1 + s.kindling().burningDamageAmplificationPercent() / 100;
         if (active.contains(SkillIds.ADRENALINE)) speed *= 1 + s.vitality().damage().adrenaline().attackSpeedBonus();
-        double hit = item.hitDamage() * nexus.damageMultiplier() * damage;
+        double hit = (item.hitDamage() + nexus.flatDamage()) * nexus.damageMultiplier() * damage;
         double rate = item.attacksPerSecond() * nexus.attackRateMultiplier() * speed;
         if (active.contains(SkillIds.STATIC_CHARGE)) {
             flatBurst = s.staticCharge().lightningDamage();

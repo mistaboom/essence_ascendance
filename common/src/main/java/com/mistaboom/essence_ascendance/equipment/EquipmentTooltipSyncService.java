@@ -346,8 +346,8 @@ public final class EquipmentTooltipSyncService {
 
         lines.add(identity(itemTier, "Caster"));
         var weights = EquipmentProfiles.MAGIC_CASTER.statApplicability(EquipmentActivationType.HELD);
-        double damage = base.magicDamage() * (1 + bonus(data, itemTier, EssenceStats.MAGIC_DAMAGE,
-                weights.getOrDefault(EssenceStats.MAGIC_DAMAGE.id(), 0.0)) / 100);
+        double damage = base.magicDamage() + bonus(data, itemTier, EssenceStats.MAGIC_DAMAGE,
+                weights.getOrDefault(EssenceStats.MAGIC_DAMAGE.id(), 0.0));
         double speed = base.magicCastSpeed() * (1 + bonus(data, itemTier, EssenceStats.MAGIC_CAST_SPEED,
                 weights.getOrDefault(EssenceStats.MAGIC_CAST_SPEED.id(), 0.0)) / 100)
                 * com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime.casterSpeedMultiplier(player);

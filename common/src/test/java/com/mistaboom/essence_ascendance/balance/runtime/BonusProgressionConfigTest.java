@@ -86,10 +86,30 @@ public final class BonusProgressionConfigTest {
                     "Explicit first and completion tiers were silently moved");
             check(changed.maximumEffect() == 40 && changed.activeValues().getFirst() >= 20 && changed.activeStateCount() == 2,
                     "Explicit maximum/first floor did not govern meaningful native values");
+            var damage = BonusTrackGenerator.publishMeaningful(runtime, Map.of(), BonusProgressionConfig.parse(
+                    row("melee_damage", "resonant", "transcendent", 5, 1), "test.toml"))
+                    .config().balanceProfile().bonusTrack(EssenceStats.MELEE_DAMAGE.id());
+            check(damage.activeValues().equals(java.util.List.of(1.0, 2.5, 5.0)),
+                    "Explicit flat damage bounds use the same increasing native progression curve");
+            check(BonusProgressionConfig.generatedEntry(damage).equals(new BonusProgressionConfig.Entry(
+                    AscendanceTiers.RESONANT.id().toString(), AscendanceTiers.TRANSCENDENT.id().toString(), 5, 1)),
+                    "Generated controls preserve the exact flat damage span, maximum and first minimum");
+            rejects("unit grid", () -> BonusTrackGenerator.publishMeaningful(runtime, Map.of(),
+                    BonusProgressionConfig.parse(row("movement_speed", "dormant", "awakened", 40.5, 20), "test.toml")));
             rejects("first floor", () -> BonusTrackGenerator.publishMeaningful(runtime, Map.of(),
                     BonusProgressionConfig.parse(row("movement_speed", "dormant", "dormant", 1, 1), "test.toml")));
             rejects("native ceiling", () -> BonusTrackGenerator.publishMeaningful(runtime, Map.of(),
                     BonusProgressionConfig.parse(row("max_health", "dormant", "transcendent", 1000, 1), "test.toml")));
+            rejects("native ceiling", () -> BonusTrackGenerator.publishMeaningful(runtime, Map.of(),
+                    BonusProgressionConfig.parse(row("fire_resistance", "dormant", "awakened", 200, 100), "test.toml")));
+            var cappedPrevention = BonusTrackGenerator.publishMeaningful(runtime, Map.of(), BonusProgressionConfig.parse(
+                    row("fire_resistance", "dormant", "dormant", 100, 100), "test.toml"))
+                    .config().balanceProfile().bonusTrack(EssenceStats.FIRE_RESISTANCE.id());
+            check(cappedPrevention.activeValues().equals(java.util.List.of(100.0)),
+                    "An explicitly capped prevention track has one complete useful state");
+            check(cappedPrevention.checkpoints().stream().filter(point -> !point.tierId().equals(AscendanceTiers.DORMANT.id()))
+                    .noneMatch(BonusTrackDefinition.Checkpoint::purchasable),
+                    "No paid states remain after complete native prevention");
             rejects("meaningful native increment", () -> BonusTrackGenerator.publishMeaningful(runtime, Map.of(),
                     BonusProgressionConfig.parse(row("movement_speed", "dormant", "transcendent", 20, 10), "test.toml")));
             rejects("Unknown Bonus ID", () -> BonusTrackGenerator.publishMeaningful(runtime, Map.of(),

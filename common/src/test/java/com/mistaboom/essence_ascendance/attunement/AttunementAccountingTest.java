@@ -98,17 +98,23 @@ public final class AttunementAccountingTest {
         check(reload.save().getList("roots",10).size()<=1024,"Root identity ledger bounded");
         check(reload.save().getCompound("history").getList(MOB,10).size()<=AttunementLedger.MAX_HISTORY,"Recent source history bounded");
         volumeAndCategoryHistory(chapter);
-        var data=new PlayerEssenceData();data.setTier(AscendanceTiers.DORMANT);data.attunement().chapter(chapter.id());
-        apply(data.attunement(),"earned","deal_damage","enemy",10,0,chapter);
+        var data=new PlayerEssenceData();
         var balanceProfile=com.mistaboom.essence_ascendance.config.EssenceConfigManager.get().balanceProfile();
         // Generated native floors may move a specific Bonus to a later tier or
         // change its first funded price. Stored arbitrary Essence is not realized power.
         var developedStat=EssenceStatRegistry.values().stream()
                 .filter(stat -> stat.essenceType().id().equals(EssenceTypes.OFFENSE.id()))
                 .filter(stat -> balanceProfile.bonusTrack(stat.id())!=null
-                        && balanceProfile.bonusTrack(stat.id()).checkpoint(data.getTierId()).purchasable())
-                .sorted(Comparator.comparing(stat -> stat.id().toString())).findFirst()
-                .orElseThrow(() -> new AssertionError("Accounting fixture requires an actually purchasable Dormant Offense Bonus"));
+                        && balanceProfile.bonusTrack(stat.id()).activeStateCount()>0)
+                .sorted(Comparator.<StatDefinition>comparingInt(stat -> AscendanceTierRegistry.get(
+                        balanceProfile.bonusTrack(stat.id()).startTier()).orElseThrow().order())
+                        .thenComparing(stat -> stat.id().toString())).findFirst()
+                .orElseThrow(() -> new AssertionError("Accounting fixture requires an actually purchasable Offense Bonus"));
+        data.setTier(AscendanceTierRegistry.get(balanceProfile.bonusTrack(developedStat.id()).startTier()).orElseThrow());
+        data.attunement().chapter(chapter.id());
+        apply(data.attunement(),"earned-active-tier","deal_damage","enemy",10,0,chapter);
+        var nextTier=AscendanceTierRegistry.powerTiers().stream().filter(tier -> tier.order()>data.getTier().order())
+                .min(Comparator.comparingInt(AscendanceTierDefinition::order)).orElseThrow();
         long bonusPrice=balanceProfile.bonusTrack(developedStat.id()).checkpoint(data.getTierId()).cumulativeCap();
         long wallet=Math.addExact(bonusPrice,1000L);
         data.setAvailable(EssenceTypes.OFFENSE,wallet);
@@ -135,9 +141,9 @@ public final class AttunementAccountingTest {
         check(playerReload.getOwnedSkills().equals(data.getOwnedSkills())&&AttunementService.investment(playerReload,OFF)==127,
                 "Current catalog receipt and exact investment acceleration survive save/load without repricing");
         check(playerReload.attunement().progress(OFF)==earned,"Saved player state survives death/respawn/reconnect shared UUID storage");
-        check(data.applyNexusTransaction(data.getAllInvested(),data.getAllAvailable(),data.getOwnedSkills(),data.getLoadoutSelections(),AscendanceTiers.AWAKENED.id()),"Tier commit succeeds");
+        check(data.applyNexusTransaction(data.getAllInvested(),data.getAllAvailable(),data.getOwnedSkills(),data.getLoadoutSelections(),nextTier.id()),"Tier commit succeeds");
         check(data.attunement().progress(OFF)==0&&data.getAvailable(EssenceTypes.OFFENSE)==wallet,"Ascension clears chapter without consuming Essence");
-        data.attunement().chapter("next");check(data.getTierId().equals(AscendanceTiers.AWAKENED.id()),"Empty chapter never revokes earned tier");
+        data.attunement().chapter("next");check(data.getTierId().equals(nextTier.id()),"Empty chapter never revokes earned tier");
         reload.chapter("next");check(reload.progress(UTI)==0&&reload.discover("biome:forest"),"No activity overflow; discoveries reset each chapter");
         check(!data.save().contains("completed_attunements"),"Obsolete skill Attunement persistence removed");
         var methodDefinitions=new LinkedHashMap<String,AttunementProfile.Method>();

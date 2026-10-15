@@ -27,6 +27,12 @@ Skill ranks and effect magnitudes remain generated. Changing a skill's tier does
 
 The Bonus file is created after the first successful profile installation and is never overwritten. Every available Bonus has four controls: `min_tier`, `max_tier`, `bonus_at_max`, and `minimum_bonus_at_lowest`. A Bonus may complete before Transcendent. Omitting an entry lets the generator choose it again.
 
+Damage Bonuses use additional damage points, not percentages. The amount is added to the physical melee, ranged or caster damage before ordinary attack scaling, skill amplification and mitigation. A fully charged, unmitigated attack receives the same additional damage on a weak eligible tool as on a strong eligible weapon. Partial funding remains continuous; the meaningful minimum applies to each completed active tier. Lower-tier equipment still limits the active Bonus tier.
+
+Automatic Bonus placement uses a shared increasing impact allowance and a shared growth curve. Health, damage and prevention use their gameplay baselines to measure relative impact; essence category does not decide placement. Recovery rates are compared over the configured survival window, assuming missing health throughout that window; this measures potential recovery, not guaranteed uptime. Each completed tier must improve the actual mechanic on the same equipment and under the same conditions as its previous endpoint. Equipment upgrades cannot supply that improvement. Useful caps can end a track before Transcendent; there is no final-tier anchor and no item or mod-specific placement table.
+
+The damage-unit change requires fresh generated balance and Bonus defaults. Preserve any desired human edits separately, remove the previous `bonus_progression.toml` to request new automatic defaults, and explicitly rebuild balance. Existing files are never silently converted from percentage values to damage points. Use a fresh test world when comparing purchase progression from the earlier percentage-based revision.
+
 Minimum meaningful effects still apply even when they exceed soft power budgets. Native limits, such as actual cooldown ticks and shield caps, remain mechanical limits. An impossible configured interval produces an error rather than silently moving its endpoints or reducing its minimum.
 
 Reports under `config/essence_ascendance/reports` show the installed values. They are inspection files, not additional configuration. Editing the human configuration does not change existing reports until a successful explicit rebuild.

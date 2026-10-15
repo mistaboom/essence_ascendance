@@ -7,7 +7,7 @@ import static com.mistaboom.essence_ascendance.balance.engine.CapabilityAxis.*;
 
 /** Native mechanic declarations, not prices or tier assignments. Conditions express applicability breadth. */
 public final class BonusSemantics {
-    public enum Response { MULTIPLIER, PREVENTION, HEALTH, RECOVERY, AIR, REACH_DISTANCE, STEP_BOUNDARY, YIELD_LEVEL, LUCK }
+    public enum Response { MULTIPLIER, FLAT_DAMAGE, PREVENTION, HEALTH, RECOVERY, AIR, REACH_DISTANCE, STEP_BOUNDARY, YIELD_LEVEL, LUCK }
     public record Mechanic(CapabilityAxis axis, Response response, List<String> conditions, String nativeMechanism) {
         public double neutralContribution() { return 0; }
         public double neutralMultiplier() { return 1; }
@@ -22,9 +22,9 @@ public final class BonusSemantics {
             case "flight_speed" -> mechanic(FLIGHT, Response.MULTIPLIER, "Abilities#flyingSpeed", "compatible standard flight");
             case "jump_height" -> mechanic(JUMP, Response.MULTIPLIER, "jump strength attribute; squared ballistic height", "jumping");
             case "step_height" -> mechanic(VERTICAL_MOVEMENT, Response.STEP_BOUNDARY, "additive step-height attribute", "ground obstacle", "jump alternative");
-            case "melee_damage" -> mechanic(SUSTAINED_DAMAGE, Response.MULTIPLIER, "melee hit damage", "melee hit");
-            case "ranged_damage" -> mechanic(SUSTAINED_DAMAGE, Response.MULTIPLIER, "ranged hit damage", "projectile hit");
-            case "magic_damage" -> mechanic(SUSTAINED_DAMAGE, Response.MULTIPLIER, "caster hit damage", "caster hit");
+            case "melee_damage" -> mechanic(SUSTAINED_DAMAGE, Response.FLAT_DAMAGE, "added melee damage points", "melee hit");
+            case "ranged_damage" -> mechanic(SUSTAINED_DAMAGE, Response.FLAT_DAMAGE, "added ranged damage points", "projectile hit");
+            case "magic_damage" -> mechanic(SUSTAINED_DAMAGE, Response.FLAT_DAMAGE, "added caster damage points", "caster hit");
             case "melee_attack_speed" -> mechanic(ATTACK_RATE, Response.MULTIPLIER, "attack cooldown recovery", "melee hit", "repeated attack");
             case "ranged_attack_speed" -> mechanic(ATTACK_RATE, Response.MULTIPLIER, "bow draw time", "projectile hit", "repeated attack");
             case "magic_cast_speed" -> mechanic(ATTACK_RATE, Response.MULTIPLIER, "caster cooldown", "caster hit", "repeated attack");
@@ -61,5 +61,18 @@ public final class BonusSemantics {
     }
     private static Mechanic mechanic(CapabilityAxis axis, Response response, String mechanism, String... conditions) {
         return new Mechanic(axis, response, List.of(conditions), mechanism);
+    }
+    /** Dimensionless first-outcome impact. Recovery's baseline is health / named comparison seconds. */
+    static double normalizedImpact(Mechanic mechanic, double value, double baseline) {
+        return switch (mechanic.response()) {
+            case FLAT_DAMAGE -> value / baseline;
+            case HEALTH, RECOVERY -> value * 2 / baseline;
+            case PREVENTION -> value / Math.max(1, 100 - value);
+            case MULTIPLIER -> mechanic.axis() == JUMP ? Math.pow(1 + value / 100, 2) - 1 : value / 100;
+            case AIR, REACH_DISTANCE -> value / baseline;
+            case STEP_BOUNDARY -> value / (baseline + value);
+            case YIELD_LEVEL -> value / (1 + value);
+            case LUCK -> value / (1 + value) / 2;
+        };
     }
 }

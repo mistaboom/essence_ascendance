@@ -193,7 +193,7 @@ final class NativeProgressionCoverage {
             for (var context : NativeDamageBonusFloor.contexts(runtime, stat)) if (context.tier().equals(tier)) {
                 probe(probes, "Same active-tier " + context.profile() + "; rounded physical damage=" + context.baseDamage()
                                 + "; held applicability=" + context.applicability()
-                                + "; fully charged unmitigated base damage; lower-tier equipment caps activation at its own tier",
+                                + "; additive damage points after physical baseline; fully charged and unmitigated; lower-tier equipment caps activation at its own tier",
                         "native base damage", context.damage(previous), context.damage(value));
                 probes.get(probes.size() - 1).getAsJsonObject().addProperty("requiredIncrement", 1);
             }

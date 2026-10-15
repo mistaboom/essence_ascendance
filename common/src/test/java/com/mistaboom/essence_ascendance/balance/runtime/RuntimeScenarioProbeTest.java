@@ -23,6 +23,26 @@ public final class RuntimeScenarioProbeTest {
         var baseline = RuntimeBalanceDefinition.bootstrap();
         var evidence = RuntimeReferencePolicy.bootstrapEvidence();
         int checks = 0, safe = 0, unsafe = 0;
+        // Calibration must model the same flat damage as runtime, before skill amplification.
+        var damageBonus = new com.mistaboom.essence_ascendance.balance.engine.BuildComposition.Modifier(
+                5, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        for (String family : List.of("melee_shield", "ranged", "caster")) for (double baseDamage : List.of(2.0, 9.0)) {
+            var equipment = new com.mistaboom.essence_ascendance.balance.engine.BuildComposition.Equipment(
+                    baseDamage, 1, 0, 0, 20, 0);
+            var measured = RuntimeBuildScenarios.combat(baseline.config().skillEffects(), Set.of(), family,
+                    equipment, damageBonus, 4, 10, 1);
+            if (Math.abs(measured.burstDamage() - baseDamage - 5) > 1e-9
+                    || Math.abs(measured.sustainedDamage() - baseDamage - 5) > 1e-9)
+                throw new AssertionError("Flat Bonus calibration diverges from native damage for " + family);
+            var frenzy = baseline.config().skillEffects().frenzy();
+            var amplified = RuntimeBuildScenarios.combat(baseline.config().skillEffects(),
+                    Set.of(com.mistaboom.essence_ascendance.skill.SkillIds.FRENZY), family,
+                    equipment, damageBonus, 4, 10, 1);
+            double expected = (baseDamage + 5) * (1 + frenzy.maxStacks() * frenzy.damageBonusPercentPerStack() / 100);
+            if (Math.abs(amplified.burstDamage() - expected) > 1e-9)
+                throw new AssertionError("Skill amplification must include the flat Bonus once");
+            checks += 2;
+        }
         double maximumHealth = baseline.config().balanceProfile().bonusTrack(EssenceStats.MAX_HEALTH.id())
                 .inputs().get("native_maximum_effect");
         var impossible = baseline.toJson();

@@ -44,6 +44,16 @@ public final class EquipmentValueService {
         return scaling.scaledBonus() * applicabilityStrength;
     }
 
+    /** Adds damage/stat points after the physical equipment baseline, before native action scaling. */
+    public static double applyFlatBonus(PlayerEssenceData playerData, StatDefinition stat,
+                                        double applicabilityStrength, double baseValue) {
+        Objects.requireNonNull(stat, "Stat cannot be null");
+        if (stat.unit() != StatUnit.FLAT) throw new IllegalArgumentException("Stat " + stat.id() + " is not a flat stat");
+        if (!Double.isFinite(baseValue) || baseValue < 0)
+            throw new IllegalArgumentException("Base value must be finite and non-negative");
+        return baseValue + scaledBonus(playerData, stat, applicabilityStrength);
+    }
+
     public static double applyPercentBonus(
             PlayerEssenceData playerData,
             StatDefinition stat,

@@ -18,7 +18,7 @@ public final class EssenceStats {
                     "melee_damage",
                     "Melee Damage",
                     StatCategory.OFFENSE,
-                    StatUnit.PERCENT
+                    StatUnit.FLAT
             );
 
     public static final StatDefinition MELEE_ATTACK_SPEED =
@@ -34,7 +34,7 @@ public final class EssenceStats {
                     "ranged_damage",
                     "Ranged Damage",
                     StatCategory.OFFENSE,
-                    StatUnit.PERCENT
+                    StatUnit.FLAT
             );
 
     public static final StatDefinition RANGED_ATTACK_SPEED =
@@ -58,7 +58,7 @@ public final class EssenceStats {
                     "magic_damage",
                     "Magic Damage",
                     StatCategory.OFFENSE,
-                    StatUnit.PERCENT
+                    StatUnit.FLAT
             );
 
     public static final StatDefinition MAGIC_CAST_SPEED =

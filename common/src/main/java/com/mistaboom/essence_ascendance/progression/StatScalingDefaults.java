@@ -33,7 +33,7 @@ public final class StatScalingDefaults {
 
         register(
                 "melee_damage",
-                100.0
+                5.0
         );
 
         register(
@@ -43,7 +43,7 @@ public final class StatScalingDefaults {
 
         register(
                 "ranged_damage",
-                100.0
+                5.0
         );
 
         register(
@@ -58,7 +58,7 @@ public final class StatScalingDefaults {
 
         register(
                 "magic_damage",
-                100.0
+                5.0
         );
 
         register(

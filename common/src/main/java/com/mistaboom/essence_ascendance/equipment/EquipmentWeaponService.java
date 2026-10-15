@@ -87,7 +87,7 @@ public final class EquipmentWeaponService {
                 stack
         );
 
-        double finalDamage = EquipmentValueService.applyPercentBonus(
+        double finalDamage = EquipmentValueService.applyFlatBonus(
                 playerData,
                 EssenceStats.RANGED_DAMAGE,
                 held.strength(EssenceStats.RANGED_DAMAGE),
@@ -142,7 +142,7 @@ public final class EquipmentWeaponService {
                 stack
         );
 
-        double finalDamage = EquipmentValueService.applyPercentBonus(
+        double finalDamage = EquipmentValueService.applyFlatBonus(
                 playerData,
                 EssenceStats.MAGIC_DAMAGE,
                 held.strength(EssenceStats.MAGIC_DAMAGE),

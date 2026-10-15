@@ -49,232 +49,173 @@ public final class BonusTrackGenerator {
         return RuntimeBalanceDefinition.fromJson(json);
     }
 
-    /** Final candidate settings include human overrides; generation-time native floors never reinterpret saved tracks. */
+    /** Native floors and placement references are sampled once, before the shared planner runs. */
     static BonusTrackDefinition publishNative(RuntimeBalanceDefinition runtime, StatDefinition stat,
             BonusTrackDefinition track, ProgressionRequirements.Bonus authored) {
         return publishNative(runtime, stat, track, authored, null);
     }
     private static BonusTrackDefinition publishNative(RuntimeBalanceDefinition runtime, StatDefinition stat,
             BonusTrackDefinition track, ProgressionRequirements.Bonus authored, BonusProgressionConfig.Entry configured) {
-        if (configured != null && track.applicability() == BonusTrackDefinition.Applicability.UNAVAILABLE)
-            throw new IllegalArgumentException("Configured Bonus has no supported native state");
-        if (track.applicability() == BonusTrackDefinition.Applicability.UNAVAILABLE) return track;
+        if (track.applicability() == BonusTrackDefinition.Applicability.UNAVAILABLE) {
+            if (configured != null) throw new IllegalArgumentException("Configured Bonus has no supported native state");
+            return track;
+        }
         var inputs = new TreeMap<>(track.inputs());
         inputs.keySet().removeIf(key -> key.startsWith("configured_"));
         var reasons = new ArrayList<>(track.evidence());
-        double first = authored.firstStateFloor(), later = authored.tierImprovementFloor();
-        var limit = NativeBonusMechanics.limit(stat, runtime.config().shieldBalance());
-        limit.ifPresent(value -> {
-            inputs.put("native_maximum_effect", value.maximum());
-            reasons.add("Final candidate native ceiling=" + value.maximum() + "; " + value.evidence());
-        });
+        NativeBonusMechanics.limit(stat, runtime.config().shieldBalance()).ifPresent(limit -> inputs.put("native_maximum_effect", limit.maximum()));
         if (NativeDamageBonusFloor.supported(stat)) {
             var contexts = NativeDamageBonusFloor.contexts(runtime, stat);
-            var weakest = contexts.stream().max(Comparator.comparingDouble(NativeDamageBonusFloor.Context::percentForOneDamage)).orElseThrow();
-            first = Math.max(first, weakest.percentForOneDamage());
-            later = Math.max(later, weakest.percentForOneDamage());
+            var property = switch (stat.id().getPath()) {
+                case "melee_damage" -> com.mistaboom.essence_ascendance.equipment.EquipmentBaselineProperty.MELEE_DAMAGE;
+                case "ranged_damage" -> com.mistaboom.essence_ascendance.equipment.EquipmentBaselineProperty.RANGED_DAMAGE;
+                default -> com.mistaboom.essence_ascendance.equipment.EquipmentBaselineProperty.MAGIC_DAMAGE;
+            };
             inputs.put("native_damage_increment_floor", NativeDamageBonusFloor.MINIMUM_DAMAGE_INCREMENT);
-            inputs.put("native_damage_reference_base", weakest.baseDamage());
-            inputs.put("native_damage_reference_applicability", weakest.applicability());
-            inputs.put("native_damage_context_count", (double) contexts.size());
-            inputs.put("native_maximum_effect", Math.min(inputs.getOrDefault("native_maximum_effect", 1_000_000.0),
-                    contexts.stream().mapToDouble(NativeDamageBonusFloor.Context::maximumPercent).min().orElseThrow()));
-            reasons.add("Each completed state adds at least 1 native damage as well as the authored percentage floor, "
-                    + "holding the same supported equipment fixed. Conservative weakest powered context=" + weakest.profile()
-                    + " at " + weakest.tier() + ", rounded physical damage=" + weakest.baseDamage()
-                    + ", held applicability=" + weakest.applicability() + ". Unarmed/Latent/fractured gear has no damage Bonus. "
-                    + "Lower-tier gear caps activation at its own tier; higher player tiers do not bypass that cap. "
-                    + "Damage references are fully charged, unmitigated base attacks, not critical/enchantment/skill uptime claims.");
+            inputs.put("placement_zero_damage_reference", RuntimeReferencePolicy.playerHit());
+            for (var tier : AscendanceTierRegistry.powerTiers()) {
+                var active = contexts.stream().filter(context -> context.tier().equals(tier.id())).toList();
+                inputs.put("native_damage_floor_" + tier.id().getPath(), active.stream().mapToDouble(NativeDamageBonusFloor.Context::valueForOneDamage)
+                        .max().orElseThrow(() -> new IllegalArgumentException("No supported native damage profile for " + stat.id() + " at " + tier.id())));
+                // A lower-tier player may hold higher-tier physical gear. Its Bonus activation is capped
+                // by the player, but its larger physical damage still consumes attribute headroom.
+                inputs.put("native_damage_ceiling_" + tier.id().getPath(), contexts.stream()
+                        .filter(context -> AscendanceTierRegistry.get(context.tier()).orElseThrow().order() >= tier.order())
+                        .mapToDouble(NativeDamageBonusFloor.Context::maximumValue).min().orElseThrow());
+                inputs.put("placement_damage_base_" + tier.id().getPath(), runtime.config().equipmentBaselineConfig().baselineFor(tier).value(property));
+            }
+            reasons.add("Flat damage placement compares the first gain with the generated weapon-family baseline. Every completed increment separately adds at least one native damage on every eligible profile, holding the same equipment fixed; equipment upgrades never fund an increment. Headroom includes higher-tier physical gear that can activate this player-tier checkpoint, including gear above the track's completion tier.");
+            reasons.add("A zero-damage family uses the native unarmed hit only as a finite placement reference; native outcome checks retain its actual zero physical damage.");
         }
-        if (stat.id().getPath().equals("guard_readiness")) {
-            int minimum = runtime.config().shieldBalance().minimumDisableTicks();
-            inputs.put("native_guard_minimum_disable_ticks", (double) minimum);
-            double firstNativeTick = 1;
-            while (firstNativeTick <= 100 && !guardImproves(0, firstNativeTick, minimum)) firstNativeTick++;
-            first = Math.max(first, firstNativeTick);
-            reasons.add("Every active endpoint must additionally save at least one whole native raise or vanilla disable tick, "
-                    + "using this candidate's configured minimum disable ticks=" + minimum);
-        }
+        if (stat.id().getPath().equals("guard_readiness")) inputs.put("native_guard_minimum_disable_ticks", (double)runtime.config().shieldBalance().minimumDisableTicks());
         NativeCooldownBonusFloor.record(runtime, stat, inputs, reasons);
         if (stat.id().equals(EssenceStats.MELEE_ATTACK_SPEED.id())) NativeMeleeRateBonusFloor.record(runtime, inputs, reasons);
-        if (configured != null) {
-            first = Math.max(first, configured.minimumBonusAtLowest());
-            double ceiling = inputs.getOrDefault("native_maximum_effect", 1_000_000.0);
-            if (configured.bonusAtMax() > ceiling || configured.bonusAtMax() < first)
-                throw new IllegalArgumentException("bonus_at_max=" + configured.bonusAtMax() + " conflicts with first floor=" + first + " or native ceiling=" + ceiling);
-            inputs.put("configured_min_tier_order", (double)AscendanceTierRegistry.get(ResourceLocation.parse(configured.minTier())).orElseThrow().order());
-            inputs.put("configured_max_tier_order", (double)AscendanceTierRegistry.get(ResourceLocation.parse(configured.maxTier())).orElseThrow().order());
-            inputs.put("configured_maximum", configured.bonusAtMax());
-            track = configuredTrack(track, configured, first);
-        }
-        double maximum = Math.min(track.maximumEffect(), inputs.getOrDefault("native_maximum_effect", 1_000_000.0));
-        if (maximum <= 0) throw new IllegalArgumentException("No native headroom for available Bonus " + stat.id());
-        var prepared = new BonusTrackDefinition(track.statId(), track.category(), track.unit(), maximum,
-                track.startTier(), track.completionTier(), track.checkpoints(), track.investmentExponent(),
-                track.purchaseStyle(), track.snapPoints(), track.applicability(), track.compatibilityRequirements(),
-                track.confidence(), reasons, track.source(), inputs);
-        var required = new ProgressionRequirements.Bonus(authored.home(), first, later, authored.unit(), authored.quantization(),
-                authored.mechanicalCap(), authored.earliestConstraint(), authored.latestConstraint(), authored.powerDesirability(), authored.compatibility());
-        var published = meaningful(prepared, required);
-        if (configured != null) return published;
-        // The automatic result uses exactly the same four controls we emit for editing. An untouched
-        // generated file therefore recreates every endpoint, not just its maximum and tier boundaries.
-        var generated = BonusProgressionConfig.generatedEntry(published);
-        var canonical = configuredTrack(prepared, generated, generated.minimumBonusAtLowest());
-        var canonicalRequired = new ProgressionRequirements.Bonus(required.home(), generated.minimumBonusAtLowest(),
-                required.tierImprovementFloor(), required.unit(), required.quantization(), required.mechanicalCap(),
-                required.earliestConstraint(), required.latestConstraint(), required.powerDesirability(), required.compatibility());
-        return meaningful(canonical, canonicalRequired);
-    }
-
-    private static BonusTrackDefinition configuredTrack(BonusTrackDefinition nominal, BonusProgressionConfig.Entry configured, double first) {
-        var tiers = AscendanceTierRegistry.values().stream().sorted(Comparator.comparingInt(AscendanceTierDefinition::order)).toList();
-        int start = tiers.indexOf(AscendanceTierRegistry.get(ResourceLocation.parse(configured.minTier())).orElseThrow());
-        int end = tiers.indexOf(AscendanceTierRegistry.get(ResourceLocation.parse(configured.maxTier())).orElseThrow());
-        var points = new ArrayList<BonusTrackDefinition.Checkpoint>();
-        long cumulative = 0; double fraction = 0;
-        var prices = nominal.checkpoints().stream().filter(BonusTrackDefinition.Checkpoint::purchasable).toList();
-        for (int index = 0; index < tiers.size(); index++) {
-            long segment = 0;
-            if (index >= start && index <= end) {
-                double value = start == end ? configured.bonusAtMax()
-                        : first + (configured.bonusAtMax() - first) * (index - start) / (end - start);
-                if (index > start && value <= fraction * configured.bonusAtMax())
-                    throw new IllegalArgumentException("Configured span has no positive improvement at " + tiers.get(index).id());
-                fraction = index == end ? 1 : value / configured.bonusAtMax();
-                // Meaningful publication assigns prices by state ordinal. Moving identical controls
-                // through the emitted config must not switch to a different nominal tier's price.
-                segment = prices.get(Math.min(index - start, prices.size() - 1)).segmentCost();
-                cumulative = Math.addExact(cumulative, segment);
-            }
-            points.add(new BonusTrackDefinition.Checkpoint(tiers.get(index).id(), cumulative, segment, fraction, index >= start, segment > 0));
-        }
-        var inputs = new TreeMap<>(nominal.inputs());
-        inputs.keySet().removeIf(key -> key.startsWith("native_threshold_"));
-        inputs.put("configured_min_tier_order", (double)AscendanceTierRegistry.get(ResourceLocation.parse(configured.minTier())).orElseThrow().order());
-        inputs.put("configured_max_tier_order", (double)AscendanceTierRegistry.get(ResourceLocation.parse(configured.maxTier())).orElseThrow().order());
-        inputs.put("configured_maximum", configured.bonusAtMax());
-        return new BonusTrackDefinition(nominal.statId(), nominal.category(), nominal.unit(), configured.bonusAtMax(),
-                ResourceLocation.parse(configured.minTier()), ResourceLocation.parse(configured.maxTier()), points,
-                nominal.investmentExponent(), BonusTrackDefinition.PurchaseStyle.CONTINUOUS, List.of(), nominal.applicability(),
-                nominal.compatibilityRequirements(), nominal.confidence(), nominal.evidence(), nominal.source(), inputs);
+        var prepared = new BonusTrackDefinition(track.statId(), track.category(), track.unit(), track.maximumEffect(),
+                track.startTier(), track.completionTier(), track.checkpoints(), track.investmentExponent(), track.purchaseStyle(),
+                track.snapPoints(), track.applicability(), track.compatibilityRequirements(), track.confidence(), reasons, track.source(), inputs);
+        return plan(prepared, authored, configured);
     }
 
     private static boolean guardImproves(double previous, double value, int minimum) {
         return ShieldMath.disableTicks(100, value, minimum) < ShieldMath.disableTicks(100, previous, minimum)
                 || ShieldMath.raiseDelayTicks(5, value, 1) < ShieldMath.raiseDelayTicks(5, previous, 1);
     }
-    public static BonusTrackDefinition meaningful(BonusTrackDefinition nominal,
-            com.mistaboom.essence_ascendance.skill.ProgressionRequirements.Bonus requirements) {
+    public static BonusTrackDefinition meaningful(BonusTrackDefinition nominal, ProgressionRequirements.Bonus requirements) {
+        return plan(nominal, requirements, null);
+    }
+    private static BonusTrackDefinition plan(BonusTrackDefinition nominal, ProgressionRequirements.Bonus required,
+            BonusProgressionConfig.Entry configured) {
         if (nominal.applicability() == BonusTrackDefinition.Applicability.UNAVAILABLE) return nominal;
-        var tiers = AscendanceTierRegistry.values().stream().sorted(Comparator.comparingInt(AscendanceTierDefinition::order)).toList();
-        var points = nominal.checkpoints().stream().filter(BonusTrackDefinition.Checkpoint::purchasable).toList();
-        boolean nativeStep = nominal.inputs().containsKey("native_base_step_height");
-        double quantum = nativeStep ? .000001 : RuntimeValueQuantization.statStep(nominal.unit());
-        double ceiling = nominal.inputs().getOrDefault("native_maximum_effect", 1_000_000.0);
-        var candidates = points.stream().map(p -> {
-            double value = p.effectFraction() * nominal.maximumEffect();
-            if (nativeStep) return Math.rint(value * 1_000_000) / 1_000_000;
-            // Fractions serialize the endpoint indirectly. Restore a grid value only when the
-            // multiplication error is a few representable doubles, not a genuine partial unit.
-            return RuntimeValueQuantization.reconstructedGridValue(value, quantum);
-        }).toList();
-        final ArrayList<Double> values;
-        try {
-            values = new ArrayList<>(com.mistaboom.essence_ascendance.progression.MeaningfulProgression.select(
-                    candidates, requirements.firstStateFloor(), requirements.tierImprovementFloor(), quantum, ceiling));
-        } catch (IllegalArgumentException incompatible) {
-            throw new IllegalArgumentException("Cannot publish Bonus " + nominal.statId() + ": first floor="
-                    + requirements.firstStateFloor() + ", later floor=" + requirements.tierImprovementFloor()
-                    + ", quantum=" + quantum + ", native ceiling=" + ceiling, incompatible);
+        var tiers = AscendanceTierRegistry.powerTiers().stream().sorted(Comparator.comparingInt(AscendanceTierDefinition::order)).toList();
+        var stat = EssenceStatRegistry.get(nominal.statId()).orElseThrow();
+        var semantic = BonusSemantics.require(stat);
+        boolean step = nominal.inputs().containsKey("native_base_step_height");
+        double quantum = step ? .000001 : RuntimeValueQuantization.statStep(nominal.unit());
+        var mechanics = mechanics(nominal, semantic, tiers);
+        double first = configured == null ? required.firstStateFloor() : Math.max(required.firstStateFloor(), configured.minimumBonusAtLowest());
+        BonusProgressionPlanner.Plan selected;
+        if (configured == null) {
+            double maximum = step ? RuntimeValueQuantization.up(nominal.maximumEffect(), quantum) : nominal.maximumEffect();
+            selected = BonusProgressionPlanner.automatic(tiers.size(), maximum, first, required.tierImprovementFloor(), quantum, mechanics);
+            // Emit exactly the controls used by the configured path, including a first native floor overage.
+            first = RuntimeValueQuantization.reconstructedGridValue(selected.values().getFirst(), quantum);
+            selected = BonusProgressionPlanner.configured(selected.start(), selected.end(), selected.values().getLast(),
+                    first, required.tierImprovementFloor(), quantum, mechanics);
+        } else {
+            int start = tiers.indexOf(AscendanceTierRegistry.get(ResourceLocation.parse(configured.minTier())).orElseThrow());
+            int end = tiers.indexOf(AscendanceTierRegistry.get(ResourceLocation.parse(configured.maxTier())).orElseThrow());
+            if (configured.bonusAtMax() < first) throw new IllegalArgumentException("bonus_at_max is below the first floor");
+            selected = BonusProgressionPlanner.configured(start, end, configured.bonusAtMax(), first,
+                    required.tierImprovementFloor(), quantum, mechanics);
         }
-        if (nominal.inputs().containsKey("native_guard_minimum_disable_ticks")) {
-            int minimum = nominal.inputs().get("native_guard_minimum_disable_ticks").intValue();
-            double previous = 0;
-            for (var iterator = values.iterator(); iterator.hasNext();) {
-                double value = iterator.next();
-                if (guardImproves(previous, value, minimum)) previous = value;
-                else iterator.remove();
-            }
-            if (values.isEmpty()) throw new IllegalArgumentException("No meaningful native shield timing state for " + nominal.statId());
-        }
-        int earliest = tiers.indexOf(AscendanceTierRegistry.powerTiers().stream()
-                .min(Comparator.comparingInt(AscendanceTierDefinition::order)).orElseThrow());
-        // One placement rule for every Bonus: put its meaningful state count at the end of progression.
-        // A native same-tier mechanic may require an earlier feasible span; no acquisition graph participates.
-        int start = Math.max(earliest, tiers.size() - values.size());
-        boolean configured = nominal.inputs().containsKey("configured_min_tier_order");
-        int configuredEnd = tiers.size() - 1;
-        if (configured) {
-            int firstOrder = nominal.inputs().get("configured_min_tier_order").intValue();
-            int lastOrder = nominal.inputs().get("configured_max_tier_order").intValue();
-            start = tiers.indexOf(tiers.stream().filter(tier -> tier.order() == firstOrder).findFirst().orElseThrow());
-            configuredEnd = tiers.indexOf(tiers.stream().filter(tier -> tier.order() == lastOrder).findFirst().orElseThrow());
-            earliest = start;
-        }
-        int preferredStart = start;
-        if (nominal.inputs().containsKey(NativeCooldownBonusFloor.MARKER)) {
-            var plan = NativeCooldownBonusFloor.select(nominal, requirements, candidates, tiers, earliest, start);
-            start = plan.start();
-            values.clear(); values.addAll(plan.values());
-        }
-        if (nominal.inputs().containsKey(NativeMeleeRateBonusFloor.MARKER)) {
-            var plan = NativeMeleeRateBonusFloor.select(nominal, requirements, candidates, tiers, earliest, start);
-            start = plan.start();
-            values.clear(); values.addAll(plan.values());
-        }
-        // A late native route can offer fewer states. Retain the first and endpoint without filler subdivision.
-        int room = tiers.size() - start;
-        while (values.size() > room) values.remove(values.size() == 2 ? 0 : values.size() - 2);
-        int end = start + values.size() - 1;
-        double maximum = values.getLast();
-        if (configured && (start != preferredStart || end != configuredEnd
-                || Math.abs(maximum - nominal.inputs().get("configured_maximum")) > 1e-7))
-            throw new IllegalArgumentException("Configured min_tier/max_tier/bonus_at_max cannot provide a meaningful native increment at every active tier; requested "
-                    + nominal.startTier() + " through " + nominal.completionTier() + " at " + nominal.maximumEffect()
-                    + ", feasible result " + tiers.get(start).id() + " through " + tiers.get(end).id() + " at " + maximum);
+        var prices = nominal.checkpoints().stream().filter(BonusTrackDefinition.Checkpoint::purchasable).toList();
         var checkpoints = new ArrayList<BonusTrackDefinition.Checkpoint>();
         var snaps = new ArrayList<Double>(); snaps.add(0.0);
         long cumulative = 0; double fraction = 0;
-        for (int index = 0; index < tiers.size(); index++) {
+        double maximum = selected.values().getLast();
+        for (var tier : AscendanceTierRegistry.values().stream().sorted(Comparator.comparingInt(AscendanceTierDefinition::order)).toList()) {
+            int index = tiers.indexOf(tier), state = index - selected.start();
             long segment = 0;
-            if (index >= start && index <= end) {
-                int state = index - start;
-                fraction = state == values.size() - 1 ? 1.0 : values.get(state) / maximum;
-                // Nominal cost schedule is independent of any floor overage or final published effect.
-                long cost = points.get(Math.min(state, points.size() - 1)).segmentCost();
-                segment = Math.max(1, cost);
-                cumulative = Math.addExact(cumulative, segment);
-                snaps.add(fraction);
+            if (index >= selected.start() && index <= selected.end()) {
+                fraction = index == selected.end() ? 1 : selected.values().get(state) / maximum;
+                segment = prices.get(Math.min(state, prices.size() - 1)).segmentCost();
+                cumulative = Math.addExact(cumulative, segment); snaps.add(fraction);
             }
-            checkpoints.add(new BonusTrackDefinition.Checkpoint(tiers.get(index).id(), cumulative, segment,
-                    fraction, index >= start, segment > 0));
+            checkpoints.add(new BonusTrackDefinition.Checkpoint(tier.id(), cumulative, segment, fraction,
+                    index >= selected.start(), segment > 0));
         }
         var inputs = new TreeMap<>(nominal.inputs());
-        inputs.keySet().removeIf(key -> key.startsWith("native_threshold_"));
-        inputs.put("first_state_floor", requirements.firstStateFloor());
-        inputs.put("later_state_floor", requirements.tierImprovementFloor());
-        inputs.put("nominal_endpoint", nominal.maximumEffect());
-        inputs.put("generated_state_count", (double) values.size());
+        inputs.keySet().removeIf(key -> key.startsWith("native_threshold_") || key.startsWith("configured_")
+                || key.equals("nominal_endpoint") || key.equals("native_cooldown_preferred_start_order"));
+        inputs.put("first_state_floor", first); inputs.put("later_state_floor", required.tierImprovementFloor());
+        inputs.put("generated_state_count", (double) selected.values().size());
+        inputs.put("placement_first_impact", mechanics.impact(selected.start(), selected.values().getFirst()));
+        inputs.put("placement_impact_allowance", BonusProgressionPlanner.FIRST_TIER_IMPACT * Math.pow(2, selected.start()));
+        inputs.put("increment_growth", BonusProgressionPlanner.INCREMENT_GROWTH);
         var reasons = new ArrayList<>(new LinkedHashSet<>(nominal.evidence()));
-        reasons.removeIf(reason -> reason.contains("intervening investment and applied effect remain continuous")
-                || reason.startsWith("Complete native states;") || reason.startsWith("Native whole-tick placement:")
-                || reason.startsWith("Native melee partial-charge placement:"));
-        reasons.add("Complete native states; first floor is local ignored overage. Later quantized candidates must meet the improvement floor; larger changes remain intact. Contiguous placement uses the common final-tier preference and meaningful state count, or the explicit human tier bounds.");
-        if (nominal.inputs().containsKey(NativeCooldownBonusFloor.MARKER)) {
-            inputs.put("native_cooldown_preferred_start_order", (double)tiers.get(preferredStart).order());
-            reasons.add("Native whole-tick placement: preferred start=" + tiers.get(preferredStart).id()
-                    + "; actual useful span=" + tiers.get(start).id() + " through " + tiers.get(end).id()
-                    + ". A shorter span or earlier start reflects actual same-tier cooldown saturation; no supported track is silently removed.");
-        }
-        if (nominal.inputs().containsKey(NativeMeleeRateBonusFloor.MARKER))
-            reasons.add("Native melee partial-charge placement: preferred start=" + tiers.get(preferredStart).id()
-                    + "; actual useful span=" + tiers.get(start).id() + " through " + tiers.get(end).id()
-                    + ". Same-tier native saturation is independent of the procedural budget; saved percentage units are unchanged.");
+        reasons.removeIf(reason -> reason.startsWith("Complete native states;") || reason.startsWith("Shared native progression:"));
+        reasons.add("Shared native progression: first-impact allowances 5%, 10%, 20%, 40%, 80%; later increments target 1.5 growth with a small final remainder merged. Native minima/caps are checked on unchanged equipment at each active tier. The useful span stops when its endpoint is reached; there is no final-tier anchor. Explicit four-control bounds use the identical planner.");
         return new BonusTrackDefinition(nominal.statId(), nominal.category(), nominal.unit(), maximum,
-                tiers.get(start).id(), tiers.get(end).id(), checkpoints, nominal.investmentExponent(),
-                BonusTrackDefinition.PurchaseStyle.FUNDED_STATES, snaps, nominal.applicability(),
-                nominal.compatibilityRequirements(), nominal.confidence(), reasons, nominal.source(), inputs);
+                tiers.get(selected.start()).id(), tiers.get(selected.end()).id(), checkpoints, nominal.investmentExponent(),
+                BonusTrackDefinition.PurchaseStyle.FUNDED_STATES, snaps, nominal.applicability(), nominal.compatibilityRequirements(),
+                nominal.confidence(), reasons, nominal.source(), inputs);
+    }
+
+    private static BonusProgressionPlanner.Mechanics mechanics(BonusTrackDefinition nominal, BonusSemantics.Mechanic semantic,
+            List<AscendanceTierDefinition> tiers) {
+        return new BonusProgressionPlanner.Mechanics() {
+            private String suffix(int tier) { return tiers.get(tier).id().getPath(); }
+            private List<NativeMeleeRateBonusFloor.Context> melee(int tier) {
+                var result = new ArrayList<NativeMeleeRateBonusFloor.Context>();
+                int count = nominal.inputs().getOrDefault("native_melee_count_" + suffix(tier), 0.0).intValue();
+                for (int index = 0; index < count; index++) result.add(new NativeMeleeRateBonusFloor.Context(nominal.statId(),
+                        nominal.inputs().get("native_melee_rate_" + suffix(tier) + "_" + index),
+                        nominal.inputs().get("native_melee_applicability_" + suffix(tier) + "_" + index)));
+                return result;
+            }
+            public double ceiling(int tier) {
+                double ceiling = nominal.inputs().getOrDefault("native_maximum_effect", 1_000_000.0);
+                ceiling = Math.min(ceiling, nominal.inputs().getOrDefault("native_damage_ceiling_" + suffix(tier), 1_000_000.0));
+                if (nominal.inputs().containsKey(NativeMeleeRateBonusFloor.MARKER))
+                    ceiling = Math.min(ceiling, melee(tier).stream().mapToDouble(NativeMeleeRateBonusFloor.Context::maximumPercent).min().orElseThrow());
+                if (nominal.inputs().containsKey(NativeCooldownBonusFloor.MARKER)) {
+                    double rate = nominal.inputs().get(NativeCooldownBonusFloor.key(tiers.get(tier)));
+                    double oneTick = RuntimeValueQuantization.up(Math.max(0, (20 / 1.5 / rate - 1) * 100), 1);
+                    if (NativeCooldownBonusFloor.ticks(rate, oneTick) > 1) oneTick++;
+                    ceiling = Math.min(ceiling, oneTick);
+                }
+                return ceiling;
+            }
+            public boolean improves(int tier, double previous, double value) {
+                if (value <= previous || value > ceiling(tier)) return false;
+                double damageFloor = nominal.inputs().getOrDefault("native_damage_floor_" + suffix(tier), 0.0);
+                if (value - previous + 1e-9 < damageFloor) return false;
+                if (nominal.inputs().containsKey("native_guard_minimum_disable_ticks")
+                        && !guardImproves(previous, value, nominal.inputs().get("native_guard_minimum_disable_ticks").intValue())) return false;
+                if (nominal.inputs().containsKey(NativeCooldownBonusFloor.MARKER)) {
+                    double rate = nominal.inputs().get(NativeCooldownBonusFloor.key(tiers.get(tier)));
+                    if (NativeCooldownBonusFloor.ticks(rate, value) >= NativeCooldownBonusFloor.ticks(rate, previous)) return false;
+                }
+                return !nominal.inputs().containsKey(NativeMeleeRateBonusFloor.MARKER)
+                        || melee(tier).stream().allMatch(context -> context.outcome(value) > context.outcome(previous));
+            }
+            public double impact(int tier, double value) {
+                double baseline = switch (semantic.response()) {
+                    case FLAT_DAMAGE -> {
+                        double physical = nominal.inputs().getOrDefault("placement_damage_base_" + suffix(tier), RuntimeReferencePolicy.playerHit());
+                        yield physical > 0 ? physical : nominal.inputs().getOrDefault("placement_zero_damage_reference", RuntimeReferencePolicy.playerHit());
+                    }
+                    case HEALTH -> RuntimeReferencePolicy.playerHealth();
+                    case RECOVERY -> RuntimeReferencePolicy.playerHealth()
+                            / nominal.inputs().getOrDefault("recovery_comparison_seconds", BalanceSettings.defaults().generation().survivalWindowSeconds());
+                    case AIR -> 15;
+                    case REACH_DISTANCE -> NativeBonusMechanics.baseline(Attributes.BLOCK_INTERACTION_RANGE);
+                    case STEP_BOUNDARY -> nominal.inputs().getOrDefault("native_base_step_height", nativeStepBase());
+                    default -> 1;
+                };
+                return BonusSemantics.normalizedImpact(semantic, value, baseline);
+            }
+        };
     }
     public static Map<ResourceLocation, BonusTrackDefinition> resolve(BalanceSettings settings,
             Map<ResourceLocation, Long> tierCaps, Map<ResourceLocation, Double> tierFractions,
@@ -302,7 +243,7 @@ public final class BonusTrackGenerator {
                 reasons.addAll(nativeStep.evidence());
             }
             boolean available = maximum > 0;
-            double marginal = response(semantic, maximum, thresholds.size());
+            double marginal = response(semantic, maximum, settings.generation().survivalWindowSeconds());
             double breadth = 1.0 / (1 + semantic.conditions().size());
             double headroom = 1.0 / (1 + settings.compositionSafeguard() * Math.max(0, marginal));
             double intrinsic = available ? Math.max(.01, marginal * breadth * headroom) : 0;
@@ -312,6 +253,12 @@ public final class BonusTrackGenerator {
             inputs.put("native_response", marginal); inputs.put("breadth", breadth);
             inputs.put("composition_headroom", headroom); inputs.put("marginal_power", intrinsic);
             inputs.put("category_supply", economy); inputs.put("utility_price_multiplier", utility);
+            if (semantic.response() == BonusSemantics.Response.RECOVERY) {
+                inputs.put("recovery_comparison_seconds", settings.generation().survivalWindowSeconds());
+                reasons.add("Recovery rate is compared as potential healing over the configured survival window of "
+                        + settings.generation().survivalWindowSeconds()
+                        + " seconds, divided by native player health. This comparison requires sufficient missing health; it does not assume healing uptime.");
+            }
             inputs.put("purchase_budget_share", ProgressionPricing.purchaseShare());
             nativeLimit.ifPresent(limit -> inputs.put("native_maximum_effect", limit.maximum()));
             if (baseStep > 0) inputs.put("native_base_step_height", baseStep);
@@ -336,7 +283,7 @@ public final class BonusTrackGenerator {
                 priorFraction = fraction;
             }
             reasons.add("Price = adjacent category-economy segment × normalized native response × conditional breadth × composition headroom × shared purchase-budget share");
-            reasons.add("Unlock placement uses meaningful native state count, not pack acquisition graphs, substitutes, or an individual Bonus placement rule");
+            reasons.add("The shared native planner chooses the span and accelerating increments from normalized first-impact allowances and actual native headroom");
             result.put(stat.id(), new BonusTrackDefinition(stat.id(), stat.category(), stat.unit(), maximum,
                     tiers.getFirst().id(), tiers.get(stateCount - 1).id(), checkpoints, exponent,
                     BonusTrackDefinition.PurchaseStyle.CONTINUOUS, List.of(),
@@ -353,12 +300,13 @@ public final class BonusTrackGenerator {
         return RuntimeReferencePolicy.usingBootstrapReferences() ? Attributes.STEP_HEIGHT.value().getDefaultValue()
                 : Player.createAttributes().build().getValue(Attributes.STEP_HEIGHT);
     }
-    private static double response(BonusSemantics.Mechanic semantic, double maximum, int thresholds) {
+    private static double response(BonusSemantics.Mechanic semantic, double maximum, double recoveryWindowSeconds) {
         return switch (semantic.response()) {
+            case FLAT_DAMAGE -> Math.log1p(maximum / RuntimeReferencePolicy.playerHit());
             case MULTIPLIER -> Math.log1p(maximum / 100) * (semantic.axis() == CapabilityAxis.JUMP ? 2 : 1);
             case PREVENTION -> -Math.log(Math.max(.01, 1 - maximum / 100));
             case HEALTH -> Math.log1p(maximum * 2 / RuntimeReferencePolicy.playerHealth());
-            case RECOVERY -> Math.log1p(maximum * 2 / RuntimeReferencePolicy.playerHealth());
+            case RECOVERY -> Math.log1p(maximum * 2 * recoveryWindowSeconds / RuntimeReferencePolicy.playerHealth());
             case AIR -> Math.log1p(maximum / 15); // Native 300 air ticks / 20 ticks per second.
             case REACH_DISTANCE -> Math.log1p(maximum / Attributes.BLOCK_INTERACTION_RANGE.value().getDefaultValue());
             case STEP_BOUNDARY -> maximum <= 0 ? 0 : Math.log1p(maximum / (nativeStepBase() + maximum));
@@ -368,7 +316,7 @@ public final class BonusTrackGenerator {
     }
     public static JsonObject diagnostics(RuntimeBalanceDefinition runtime) {
         JsonObject result = new JsonObject();
-        result.addProperty("policy", "generic_native_progression_v2");
+        result.addProperty("policy", "shared_native_impact_progression_v3");
         result.addProperty("purchasePolicy", "continuous_integer_essence_targets");
         result.add("tracks", runtime.toJson().getAsJsonObject("balanceProfile").getAsJsonObject("bonusTracks").deepCopy());
         return result;

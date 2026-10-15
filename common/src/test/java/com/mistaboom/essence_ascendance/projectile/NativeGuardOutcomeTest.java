@@ -355,6 +355,7 @@ public final class NativeGuardOutcomeTest {
             var key = (ResourceKey<DamageType>) field.get(null);
             registry.register(key, new DamageType(key.location().getPath(), .1F), RegistrationInfo.BUILT_IN);
         }
+        registry.register(ProjectileContent.MAGIC_BOLT_DAMAGE, new DamageType("essence_magic", .1F), RegistrationInfo.BUILT_IN);
         registry.freeze();
         registry.bindTags(new HashMap<>(java.util.Map.of(DamageTypeTags.IS_PROJECTILE,
                 List.of(registry.getHolderOrThrow(DamageTypes.ARROW)))));

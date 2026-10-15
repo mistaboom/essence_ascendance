@@ -9,21 +9,20 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import java.util.*;
 
 /** Generation/audit reference for damage in the actual supported equipment contexts.
- * Percentage points remain the saved Bonus unit; equipment upgrades never fund an increment. */
+ * Additive damage points are the Bonus unit; equipment upgrades never fund an increment. */
 public final class NativeDamageBonusFloor {
     public static final double MINIMUM_DAMAGE_INCREMENT = 1;
     private NativeDamageBonusFloor() { }
 
     public record Context(ResourceLocation tier, ResourceLocation profile, double baseDamage,
                           double applicability, boolean melee) {
-        public double damage(double percentage) {
-            double result = baseDamage * (1 + percentage * applicability / 100);
+        public double damage(double value) {
+            double result = baseDamage + value * applicability;
             return melee ? Attributes.ATTACK_DAMAGE.value().sanitizeValue(result) : result;
         }
-        public double percentForOneDamage() { return 100 * MINIMUM_DAMAGE_INCREMENT / (baseDamage * applicability); }
-        public double maximumPercent() {
-            return melee ? Math.max(0, (Attributes.ATTACK_DAMAGE.value().sanitizeValue(Double.MAX_VALUE) / baseDamage - 1)
-                    * 100 / applicability) : 1_000_000;
+        public double valueForOneDamage() { return MINIMUM_DAMAGE_INCREMENT / applicability; }
+        public double maximumValue() {
+            return melee ? Math.max(0, (Attributes.ATTACK_DAMAGE.value().sanitizeValue(Double.MAX_VALUE) - baseDamage) / applicability) : 1_000_000;
         }
     }
 
@@ -48,18 +47,20 @@ public final class NativeDamageBonusFloor {
             for (var profile : EquipmentProfileRegistry.values()) {
                 // These are the same profile gates as EquipmentAttributeService / EquipmentWeaponService.
                 boolean eligible = switch (property) {
-                    case MELEE_DAMAGE -> profile.baselineMultiplier(EquipmentBaselineProperty.MELEE_ATTACK_SPEED) > 0;
+                    case MELEE_DAMAGE -> profile.baselineMultiplier(EquipmentBaselineProperty.MELEE_DAMAGE) > 0
+                            && profile.baselineMultiplier(EquipmentBaselineProperty.MELEE_ATTACK_SPEED) > 0;
                     case RANGED_DAMAGE -> profile.id().equals(EquipmentProfiles.RANGED_WEAPON.id());
                     case MAGIC_DAMAGE -> profile.id().equals(EquipmentProfiles.MAGIC_CASTER.id());
                     default -> false;
                 };
                 double strength = profile.statStrength(EquipmentActivationType.HELD, stat);
                 double damage = EquipmentBaselineService.resolvedValue(base, profile, property);
-                if (eligible && damage > 0 && strength > 0)
+                // Flat bonuses add native damage even when the generated physical baseline is zero.
+                if (eligible && strength > 0)
                     contexts.add(new Context(tier.id(), profile.id(), damage, strength, property == EquipmentBaselineProperty.MELEE_DAMAGE));
             }
         }
-        if (contexts.isEmpty()) throw new IllegalArgumentException("No supported positive native equipment damage context for " + stat.id());
+        if (contexts.isEmpty()) throw new IllegalArgumentException("No supported native equipment damage context for " + stat.id());
         return List.copyOf(contexts);
     }
 }

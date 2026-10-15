@@ -14,9 +14,13 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.entity.projectile.Arrow;
+import net.minecraft.world.phys.EntityHitResult;
+import java.util.List;
 import net.minecraft.world.phys.Vec3;
 
-/** Actual fully charged Player.attack through native attributes and health writes, on fixed same-tier hoes. */
+/** Real native melee attacks, ranged launch state and magic health writes; flat damage and independent tier caps. */
 public final class NativeMeleeBonusTest {
     private static int checks;
     private NativeMeleeBonusTest() { }
@@ -41,26 +45,31 @@ public final class NativeMeleeBonusTest {
                     && target.getArmorValue() == 0, "Bonus damage fixture has no effects, armor or absorption");
             var track = runtime.config().balanceProfile().bonusTrack(EssenceStats.MELEE_DAMAGE.id());
             long priorInvestment = 0;
+            double priorValue = 0;
             int endpoints = 0;
             for (var point : track.checkpoints()) if (point.purchasable()) {
                 var tier = AscendanceTierRegistry.get(point.tierId()).orElseThrow();
                 data.setTier(tier);
-                var hoe = new ItemStack(AscendanceItems.ASCENDANCE_HOE.get());
-                EquipmentTierData.setTier(hoe, EquipmentTier.fromAscendanceTier(tier));
-                attacker.setItemInHand(InteractionHand.MAIN_HAND, hoe);
-                var before = attack(f, attacker, target, priorInvestment);
-                var after = attack(f, attacker, target, point.cumulativeCap());
-                check(attacker.getMainHandItem() == hoe && !FracturedEquipmentData.isFractured(hoe),
-                        "The same active-tier hoe supplies both native attacks");
-                check(after.attribute() - before.attribute() >= 1 - 1e-6,
-                        "Completed Bonus endpoint adds at least 1 native attribute damage at " + point.tierId()
-                                + ": " + before + " -> " + after);
-                check(after.healthLoss() - before.healthLoss() >= 1 - 1e-4,
-                        "Completed Bonus endpoint adds at least 1 actual native health damage at " + point.tierId()
-                                + ": " + before + " -> " + after);
-                priorInvestment = point.cumulativeCap(); endpoints++;
+                double increment = point.effectFraction() * track.maximumEffect() - priorValue;
+                for (Item item : meleeItems()) {
+                    var stack = equipped(attacker, item, EquipmentTier.fromAscendanceTier(tier));
+                    var before = attack(f, attacker, target, priorInvestment);
+                    var after = attack(f, attacker, target, point.cumulativeCap());
+                    check(attacker.getMainHandItem() == stack && !FracturedEquipmentData.isFractured(stack),
+                            "The same active-tier item supplies both native attacks");
+                    check(increment >= 1 - 1e-6 && Math.abs(after.attribute() - before.attribute() - increment) < 1e-6,
+                            "Every supported melee profile receives the same flat increment at " + point.tierId()
+                                    + ": " + before + " -> " + after + ", expected " + increment);
+                    check(Math.abs(after.healthLoss() - before.healthLoss() - increment) < 1e-4,
+                            "Actual native health loss receives exactly one flat increment at " + point.tierId());
+                }
+                priorInvestment = point.cumulativeCap();
+                priorValue += increment;
+                endpoints++;
             }
             check(endpoints == track.activeStateCount() && endpoints > 0, "Every published melee Bonus endpoint was exercised");
+            damageTierCaps(f, attacker, runtime);
+            projectileEndpoints(f, attacker, target, runtime);
             attackReadinessSaturation(attacker);
             System.out.println("Native melee Bonus checks passed: " + checks + ", endpoints=" + endpoints);
         } finally {
@@ -71,6 +80,114 @@ public final class NativeMeleeBonusTest {
             }
             if (previous == null) EssenceConfigManager.reset(); else EssenceConfigManager.install(previous);
         }
+    }
+
+    private static List<Item> meleeItems() {
+        return List.of(AscendanceItems.ASCENDANCE_MELEE_WEAPON.get(), AscendanceItems.ASCENDANCE_HOE.get(),
+                AscendanceItems.ASCENDANCE_PICKAXE.get(), AscendanceItems.ASCENDANCE_AXE.get(), AscendanceItems.ASCENDANCE_SHOVEL.get());
+    }
+
+    private static ItemStack equipped(ServerPlayer player, Item item, EquipmentTier tier) {
+        var stack = new ItemStack(item);
+        EquipmentTierData.setTier(stack, tier);
+        player.setItemInHand(InteractionHand.MAIN_HAND, stack);
+        return stack;
+    }
+
+    private static void damageTierCaps(ProjectileNativeInterceptionTest.Fixture f, ServerPlayer player,
+                                       RuntimeBalanceDefinition runtime) {
+        var data = f.saved.getPlayerData(player.getUUID());
+        for (var stat : List.of(EssenceStats.MELEE_DAMAGE, EssenceStats.RANGED_DAMAGE, EssenceStats.MAGIC_DAMAGE)) {
+            var track = runtime.config().balanceProfile().bonusTrack(stat.id());
+            long maximumInvestment = track.checkpoints().getLast().cumulativeCap();
+            var items = stat == EssenceStats.MELEE_DAMAGE ? meleeItems() : List.<Item>of(stat == EssenceStats.RANGED_DAMAGE
+                    ? AscendanceItems.ASCENDANCE_RANGED_WEAPON.get() : AscendanceItems.ASCENDANCE_CASTER.get());
+            for (var playerTier : AscendanceTierRegistry.powerTiers()) for (var itemTier : EquipmentTier.values()) {
+                data.setTier(playerTier);
+                var effectiveTier = playerTier.order() <= itemTier.ascendanceTier().order() ? playerTier : itemTier.ascendanceTier();
+                double expected = itemTier == EquipmentTier.LATENT ? 0 : track.checkpoints().stream()
+                        .filter(point -> point.tierId().equals(effectiveTier.id())).findFirst().orElseThrow().effectFraction() * track.maximumEffect();
+                for (var item : items) {
+                    var stack = equipped(player, item, itemTier);
+                    data.setInvested(stat, 0);
+                    double before = damageValue(player, stack, stat);
+                    data.setInvested(stat, maximumInvestment);
+                    double after = damageValue(player, stack, stat);
+                    check(Math.abs(after - before - expected) < 1e-6,
+                            "Damage points respect both player and gear tier without changing physical baseline: "
+                                    + stat.id() + ", player=" + playerTier.id() + ", item=" + itemTier + ", added=" + (after - before) + ", expected=" + expected);
+                    check(Math.abs(damageValue(player, stack, stat) - after) < 1e-9,
+                            "Repeated runtime evaluation does not double-apply the flat Bonus");
+                }
+            }
+            data.setInvested(stat, 0);
+        }
+    }
+
+    private static double damageValue(ServerPlayer player, ItemStack stack,
+                                      com.mistaboom.essence_ascendance.stat.StatDefinition stat) {
+        if (stat == EssenceStats.RANGED_DAMAGE) return EquipmentWeaponService.evaluateRanged(player, stack).finalDamage();
+        if (stat == EssenceStats.MAGIC_DAMAGE) return EquipmentWeaponService.evaluateMagic(player, stack).finalDamage();
+        EquipmentAttributeService.sync(player);
+        return player.getAttributeValue(Attributes.ATTACK_DAMAGE);
+    }
+
+    private static void projectileEndpoints(ProjectileNativeInterceptionTest.Fixture f, ServerPlayer player,
+                                             ServerPlayer target, RuntimeBalanceDefinition runtime) throws ReflectiveOperationException {
+        var data = f.saved.getPlayerData(player.getUUID());
+        for (var stat : List.of(EssenceStats.RANGED_DAMAGE, EssenceStats.MAGIC_DAMAGE)) {
+            var track = runtime.config().balanceProfile().bonusTrack(stat.id());
+            long previousInvestment = 0;
+            double previousValue = 0;
+            for (var point : track.checkpoints()) if (point.purchasable()) {
+                var tier = AscendanceTierRegistry.get(point.tierId()).orElseThrow();
+                data.setTier(tier);
+                var stack = equipped(player, stat == EssenceStats.RANGED_DAMAGE ? AscendanceItems.ASCENDANCE_RANGED_WEAPON.get()
+                        : AscendanceItems.ASCENDANCE_CASTER.get(), EquipmentTier.fromAscendanceTier(tier));
+                data.setInvested(stat, previousInvestment);
+                double before = projectileDamage(f, player, target, stack, stat);
+                data.setInvested(stat, point.cumulativeCap());
+                double after = projectileDamage(f, player, target, stack, stat);
+                double increment = point.effectFraction() * track.maximumEffect() - previousValue;
+                check(increment >= 1 - 1e-6 && Math.abs(after - before - increment) < 1e-4,
+                        "Native projectile damage receives one flat increment on identical equipment: " + stat.id()
+                                + " / " + point.tierId() + ": " + before + " -> " + after + ", expected " + increment);
+                previousInvestment = point.cumulativeCap(); previousValue += increment;
+            }
+            data.setInvested(stat, 0);
+        }
+    }
+
+    private static double projectileDamage(ProjectileNativeInterceptionTest.Fixture f, ServerPlayer player,
+                                             ServerPlayer target, ItemStack stack,
+                                             com.mistaboom.essence_ascendance.stat.StatDefinition stat) throws ReflectiveOperationException {
+        if (stat == EssenceStats.RANGED_DAMAGE) {
+            var state = EquipmentWeaponService.evaluateRanged(player, stack);
+            // Exercise the real launch adapter with both ordinary and speed-scaled flight.
+            for (double speed : new double[]{1, 1.75}) {
+                var launch = new EquipmentWeaponService.RangedState(state.baselineDamage(), state.finalDamage(), state.baselineAttackSpeed(),
+                        state.finalAttackSpeed(), state.fullDrawTicks(), (speed - 1) * 100, speed);
+                var arrow = f.arrow(Arrow.class);
+                arrow.setBaseDamage(2); arrow.setDeltaMovement(0, 0, 3); arrow.setOwner(player);
+                EquipmentWeaponService.withRangedShotContext(player, launch, launch.fullDrawTicks(), 20,
+                        () -> EquipmentWeaponService.configureRangedProjectile(player, arrow, 3));
+                double launchDamage = arrow.getBaseDamage() * arrow.getDeltaMovement().length();
+                check(Math.abs(launchDamage - state.finalDamage()) < 1e-6,
+                        "Real arrow launch applies flat damage once and speed compensation does not multiply it");
+                f.level.entities.remove(arrow);
+            }
+            return state.finalDamage();
+        }
+        var state = EquipmentWeaponService.evaluateMagic(player, stack);
+        var bolt = new MagicBoltEntity(player, state.finalDamage(), 1);
+        var stored = new net.minecraft.nbt.CompoundTag();
+        bolt.addAdditionalSaveData(stored);
+        check(stored.getDouble("LaunchDamage") == state.finalDamage(), "Magic launch snapshots additive damage exactly once");
+        target.invulnerableTime = 0; target.setHealth(1000); target.setDeltaMovement(Vec3.ZERO);
+        bolt.onHitEntity(new EntityHitResult(target));
+        double loss = 1000 - target.getHealth();
+        check(Math.abs(loss - state.finalDamage()) < 1e-4, "Native magic impact health loss matches the launch value once");
+        return loss;
     }
 
     private static void attackReadinessSaturation(ServerPlayer attacker) throws ReflectiveOperationException {
@@ -105,6 +222,8 @@ public final class NativeMeleeBonusTest {
         f.saved.getPlayerData(attacker.getUUID()).setInvested(EssenceStats.MELEE_DAMAGE, investment);
         EquipmentAttributeService.sync(attacker);
         double attribute = attacker.getAttributeValue(Attributes.ATTACK_DAMAGE);
+        EquipmentAttributeService.sync(attacker);
+        check(attribute == attacker.getAttributeValue(Attributes.ATTACK_DAMAGE), "Repeated attribute synchronization does not double-apply Bonus damage");
         ProjectileNativeInterceptionTest.set(LivingEntity.class, attacker, "attackStrengthTicker", 10000);
         target.invulnerableTime = 0; target.setHealth(1000); target.setDeltaMovement(Vec3.ZERO);
         check(attacker.getAttackStrengthScale(.5F) == 1 && !attacker.isSprinting()

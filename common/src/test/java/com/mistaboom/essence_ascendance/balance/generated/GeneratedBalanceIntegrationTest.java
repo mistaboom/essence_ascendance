@@ -104,7 +104,10 @@ public final class GeneratedBalanceIntegrationTest {
         reject(document, root -> root.getAsJsonObject("metadata").addProperty("generatorRevision", "native-equipment-headroom-46"),
                 "Percentage-based maintenance profile must require an explicit rebuild before native-point repair is installed");
         reject(document, root -> bonusTrack(root, EssenceStats.MOVEMENT_SPEED.id().toString())
-                .getAsJsonArray("checkpoints").get(1).getAsJsonObject().addProperty("segmentCost", 0),
+                .getAsJsonArray("checkpoints").asList().stream().map(JsonElement::getAsJsonObject)
+                .filter(point -> point.get("purchasable").getAsBoolean() && point.get("segmentCost").getAsLong() > 0)
+                .findFirst().orElseThrow(() -> new AssertionError("Movement fixture has no positive-cost purchasable checkpoint"))
+                .addProperty("segmentCost", 0),
                 "Inconsistent Bonus segment cost escaped full-document validation");
         reject(document, root -> bonusTrack(root, EssenceStats.STEP_HEIGHT.id().toString())
                 .add("snapPoints", new com.google.gson.JsonArray()), "A complete-state track without snap endpoints was accepted");
