@@ -500,12 +500,10 @@ public final class EquipmentTooltipSyncService {
             return 0.0D;
         }
 
-        EquipmentTier playerTier = EquipmentTier.fromAscendanceTier(data.getTier());
-        EquipmentTier effective = itemTier.order() <= playerTier.order() ? itemTier : playerTier;
         return StatScalingService.scaledBonusForTier(
                 data,
                 stat,
-                effective.ascendanceTier()
+                data.getTier()
         ) * strength;
     }
 

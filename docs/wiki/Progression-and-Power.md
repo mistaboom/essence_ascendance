@@ -9,11 +9,11 @@ Use the [Archive](https://github.com/mistaboom/essence_ascendance/wiki/Players-a
 | System | Progress stored | What governs it |
 | --- | --- | --- |
 | Player Ascension | Player tier and chapter seals | Eligible Category Attunement activity |
-| Bonuses | Stored investment | Generated tier cap, function and equipment applicability |
+| Bonuses | Stored investment | Generated player-tier cap, function and equipment applicability |
 | Skills | Owned rank receipts and selections | Generated meaningful ranks, prerequisites/gates and runtime conditions |
 | Equipment infusion | Item tier and partial infusion | Generated Infuser/material/reservoir policy and item eligibility |
 
-Player tier and item tier are different. Setting one does not silently set the other.
+Player tier and item tier are different. Setting one does not silently set the other. A Transcendent player can channel a fully earned Transcendent Bonus through intact, eligible Dormant gear; the gear's innate stats remain Dormant. Latent and fractured equipment do not channel Bonuses.
 
 ## Equipment and competition
 

@@ -75,32 +75,31 @@ public final class EquipmentShieldService {
     /**
      * Combat and S2C tooltips share this calculation, even while inspected/lowered.
      * Native durability, reflection, and successful-block amplification belong to
-     * the completed item tier. Invested bonuses are limited by the lower of the
-     * holder's tier and the item's completed tier.
+     * the completed item tier. Invested bonuses are limited only by the holder's
+     * unlocked tier; every non-Latent, functional shield channels those bonuses.
      */
     public static Context resolve(PlayerEssenceData data, EquipmentTier itemTier, boolean fractured) {
         var settings = EssenceConfigManager.get().shieldBalance();
         EquipmentTier playerTier = EquipmentTier.fromAscendanceTier(data.getTier());
-        EquipmentTier effective = itemTier.order() <= playerTier.order() ? itemTier : playerTier;
         int durability = settings.durability().get(itemTier);
         if (fractured) {
-            return new Context(itemTier, effective, durability, false,
+            return new Context(itemTier, playerTier, durability, false,
                     0, 0, 0, 0, 0, 0, 0, 0);
         }
-        double reflection = invested(data, effective, EssenceStats.DAMAGE_REFLECTION, EquipmentActivationType.HELD);
-        return new Context(itemTier, effective, durability, true,
+        double reflection = invested(data, itemTier, EssenceStats.DAMAGE_REFLECTION, EquipmentActivationType.HELD);
+        return new Context(itemTier, playerTier, durability, true,
                 settings.baseReflectionPercent(), settings.innateReflectionBonus().get(itemTier), reflection,
                 settings.blockAmplification().get(itemTier),
-                ShieldMath.percent(invested(data, effective, EssenceStats.GUARD_READINESS, EquipmentActivationType.GUARDING)),
-                ShieldMath.percent(invested(data, effective, EssenceStats.GUARDED_MOVEMENT, EquipmentActivationType.GUARDING)),
-                ShieldMath.percent(invested(data, effective, EssenceStats.KNOCKBACK_RESISTANCE, EquipmentActivationType.GUARDING)),
-                ShieldMath.percent(invested(data, effective, EssenceStats.DURABILITY_EFFICIENCY, EquipmentActivationType.HELD)));
+                ShieldMath.percent(invested(data, itemTier, EssenceStats.GUARD_READINESS, EquipmentActivationType.GUARDING)),
+                ShieldMath.percent(invested(data, itemTier, EssenceStats.GUARDED_MOVEMENT, EquipmentActivationType.GUARDING)),
+                ShieldMath.percent(invested(data, itemTier, EssenceStats.KNOCKBACK_RESISTANCE, EquipmentActivationType.GUARDING)),
+                ShieldMath.percent(invested(data, itemTier, EssenceStats.DURABILITY_EFFICIENCY, EquipmentActivationType.HELD)));
     }
 
-    private static double invested(PlayerEssenceData data, EquipmentTier effective, StatDefinition stat,
+    private static double invested(PlayerEssenceData data, EquipmentTier itemTier, StatDefinition stat,
                                    EquipmentActivationType activation) {
-        if (effective == EquipmentTier.LATENT) return 0;
-        return StatScalingService.scaledBonusForTier(data, stat, effective.ascendanceTier())
+        if (itemTier == EquipmentTier.LATENT) return 0;
+        return StatScalingService.evaluate(data, stat).scaledBonus()
                 * EquipmentProfiles.SHIELD.statStrength(activation, stat);
     }
 

@@ -1,6 +1,7 @@
 package com.mistaboom.essence_ascendance.guard;
 
 import com.mistaboom.essence_ascendance.equipment.EquipmentShieldService;
+import com.mistaboom.essence_ascendance.equipment.EquipmentTier;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -20,12 +21,15 @@ public final class GuardLifecycle {
         final long started, identity;
         final int delay;
         final String effectiveTier;
+        final EquipmentTier itemTier;
         boolean timingValid = true;
         Entry(ServerPlayer player) {
             stack = player.getUseItem(); hand = player.getUsedItemHand(); level = player.level();
             started = player.level().getGameTime(); identity = ++sequence;
             delay = EquipmentShieldService.raiseDelayTicks(player, stack);
-            effectiveTier = EquipmentShieldService.context(player, stack).effectiveTier().name();
+            var context = EquipmentShieldService.context(player, stack);
+            effectiveTier = context.effectiveTier().name();
+            itemTier = context.itemTier();
         }
     }
     public record Snapshot(boolean functional, String item, long identity, String hand, String effectiveTier,
@@ -47,6 +51,7 @@ public final class GuardLifecycle {
         }
         var equipment = EquipmentShieldService.context(player, stack);
         if (entry != null && (entry.delay != EquipmentShieldService.raiseDelayTicks(player, stack)
+                || entry.itemTier != equipment.itemTier()
                 || !entry.effectiveTier.equals(equipment.effectiveTier().name()))) entry.timingValid = false;
         long start = entry == null || !entry.timingValid ? -1 : entry.started;
         return new Snapshot(true, BuiltInRegistries.ITEM.getKey(stack.getItem()).toString(),

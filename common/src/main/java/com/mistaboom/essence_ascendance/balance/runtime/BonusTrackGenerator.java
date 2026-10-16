@@ -77,14 +77,13 @@ public final class BonusTrackGenerator {
                 var active = contexts.stream().filter(context -> context.tier().equals(tier.id())).toList();
                 inputs.put("native_damage_floor_" + tier.id().getPath(), active.stream().mapToDouble(NativeDamageBonusFloor.Context::valueForOneDamage)
                         .max().orElseThrow(() -> new IllegalArgumentException("No supported native damage profile for " + stat.id() + " at " + tier.id())));
-                // A lower-tier player may hold higher-tier physical gear. Its Bonus activation is capped
-                // by the player, but its larger physical damage still consumes attribute headroom.
+                // Every infused physical tier can channel this player-tier Bonus. Check all
+                // innate damage values, including non-monotonic user-configured baselines.
                 inputs.put("native_damage_ceiling_" + tier.id().getPath(), contexts.stream()
-                        .filter(context -> AscendanceTierRegistry.get(context.tier()).orElseThrow().order() >= tier.order())
                         .mapToDouble(NativeDamageBonusFloor.Context::maximumValue).min().orElseThrow());
                 inputs.put("placement_damage_base_" + tier.id().getPath(), runtime.config().equipmentBaselineConfig().baselineFor(tier).value(property));
             }
-            reasons.add("Flat damage placement compares the first gain with the generated weapon-family baseline. Every completed increment separately adds at least one native damage on every eligible profile, holding the same equipment fixed; equipment upgrades never fund an increment. Headroom includes higher-tier physical gear that can activate this player-tier checkpoint, including gear above the track's completion tier.");
+            reasons.add("Flat damage placement compares the first gain with the generated weapon-family baseline. Every completed increment separately adds at least one native damage on every eligible profile, holding the same equipment fixed; equipment upgrades never fund an increment. Headroom includes every infused physical gear tier because Bonus activation follows the player's tier.");
             reasons.add("A zero-damage family uses the native unarmed hit only as a finite placement reference; native outcome checks retain its actual zero physical damage.");
         }
         if (stat.id().getPath().equals("guard_readiness")) inputs.put("native_guard_minimum_disable_ticks", (double)runtime.config().shieldBalance().minimumDisableTicks());

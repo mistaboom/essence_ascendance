@@ -64,7 +64,7 @@ public final class NativeMeleeRateBonusFloor {
         evidence.add("Melee attack speed retains authored percentage floors and native partial-charge damage improvement on every "
                 + "supported same-tier profile, without assuming an attack frequency. Player.attack samples ticker+.5; at 40 actions/s "
                 + "even ticker zero is fully charged. This gameplay ceiling is stricter than the attribute range. Neutral skill speed "
-                + "and no external modifiers are the named reference; lower-tier gear caps Bonus activation at its own tier.");
+                + "and no external modifiers are the named reference; actual Bonus activation follows the player's tier independently of gear tier.");
     }
 
 }

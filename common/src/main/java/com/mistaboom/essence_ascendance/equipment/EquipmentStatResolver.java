@@ -1,10 +1,5 @@
 package com.mistaboom.essence_ascendance.equipment;
 
-import com.mistaboom.essence_ascendance.data.EssenceSavedData;
-import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
-import com.mistaboom.essence_ascendance.progression.StatScalingService;
-import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
@@ -142,37 +137,9 @@ public final class EquipmentStatResolver {
             EquipmentActivationType activation
     ) {
         Objects.requireNonNull(entity, "Entity cannot be null");
-        EquipmentStatState raw = evaluateItem(stack, activation);
-        if (!(entity instanceof ServerPlayer player) || !EquipmentTierData.isAscendanceEquipment(stack)) {
-            return raw;
-        }
-        if (FracturedEquipmentData.isFractured(stack)) {
-            return EquipmentStatState.none();
-        }
-        EquipmentTier itemTier = EquipmentTierData.tier(stack);
-        if (itemTier == EquipmentTier.LATENT) {
-            return EquipmentStatState.none();
-        }
-        PlayerEssenceData playerData = EssenceSavedData.get(player.server).getPlayerData(player.getUUID());
-        EquipmentTier playerTier = EquipmentTier.fromAscendanceTier(playerData.getTier());
-        EquipmentTier effective = itemTier.order() <= playerTier.order() ? itemTier : playerTier;
-        if (effective == playerTier) {
-            return raw;
-        }
-
-        java.util.Map<net.minecraft.resources.ResourceLocation, Double> adjusted = new java.util.LinkedHashMap<>();
-        for (var entry : raw.values().entrySet()) {
-            var stat = EssenceStatRegistry.get(entry.getKey()).orElse(null);
-            if (stat == null) continue;
-            double uncapped = StatScalingService.evaluate(playerData, stat).scaledBonus();
-            if (uncapped <= 0.0D) {
-                adjusted.put(entry.getKey(), entry.getValue());
-                continue;
-            }
-            double capped = StatScalingService.scaledBonusForTier(playerData, stat, effective.ascendanceTier());
-            adjusted.put(entry.getKey(), entry.getValue() * Math.max(0.0D, Math.min(1.0D, capped / uncapped)));
-        }
-        return new EquipmentStatState(adjusted);
+        // Equipment selects applicability; StatScalingService separately limits the
+        // invested benefit to the player's unlocked tier. Item tier sets innate stats.
+        return evaluateItem(stack, activation);
     }
 
     public static EquipmentStatState evaluateItem(

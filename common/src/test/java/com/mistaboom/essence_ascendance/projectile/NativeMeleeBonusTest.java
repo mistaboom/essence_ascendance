@@ -7,10 +7,13 @@ import com.mistaboom.essence_ascendance.equipment.*;
 import com.mistaboom.essence_ascendance.item.AscendanceItems;
 import com.mistaboom.essence_ascendance.skill.effect.SkillEffectRuntime;
 import com.mistaboom.essence_ascendance.stat.EssenceStats;
+import com.mistaboom.essence_ascendance.stat.EssenceStatRegistry;
+import com.mistaboom.essence_ascendance.progression.StatScalingService;
 import com.mistaboom.essence_ascendance.tier.AscendanceTierRegistry;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
@@ -20,7 +23,7 @@ import net.minecraft.world.phys.EntityHitResult;
 import java.util.List;
 import net.minecraft.world.phys.Vec3;
 
-/** Real native melee attacks, ranged launch state and magic health writes; flat damage and independent tier caps. */
+/** Real native combat and equipment aggregation; flat damage and player-only Bonus limits. */
 public final class NativeMeleeBonusTest {
     private static int checks;
     private NativeMeleeBonusTest() { }
@@ -68,7 +71,8 @@ public final class NativeMeleeBonusTest {
                 endpoints++;
             }
             check(endpoints == track.activeStateCount() && endpoints > 0, "Every published melee Bonus endpoint was exercised");
-            damageTierCaps(f, attacker, runtime);
+            damagePlayerTierLimits(f, attacker, runtime);
+            heldAndWornPlayerTierLimits(f, attacker, runtime);
             projectileEndpoints(f, attacker, target, runtime);
             attackReadinessSaturation(attacker);
             System.out.println("Native melee Bonus checks passed: " + checks + ", endpoints=" + endpoints);
@@ -94,7 +98,7 @@ public final class NativeMeleeBonusTest {
         return stack;
     }
 
-    private static void damageTierCaps(ProjectileNativeInterceptionTest.Fixture f, ServerPlayer player,
+    private static void damagePlayerTierLimits(ProjectileNativeInterceptionTest.Fixture f, ServerPlayer player,
                                        RuntimeBalanceDefinition runtime) {
         var data = f.saved.getPlayerData(player.getUUID());
         for (var stat : List.of(EssenceStats.MELEE_DAMAGE, EssenceStats.RANGED_DAMAGE, EssenceStats.MAGIC_DAMAGE)) {
@@ -102,11 +106,10 @@ public final class NativeMeleeBonusTest {
             long maximumInvestment = track.checkpoints().getLast().cumulativeCap();
             var items = stat == EssenceStats.MELEE_DAMAGE ? meleeItems() : List.<Item>of(stat == EssenceStats.RANGED_DAMAGE
                     ? AscendanceItems.ASCENDANCE_RANGED_WEAPON.get() : AscendanceItems.ASCENDANCE_CASTER.get());
-            for (var playerTier : AscendanceTierRegistry.powerTiers()) for (var itemTier : EquipmentTier.values()) {
+            for (var playerTier : AscendanceTierRegistry.values()) for (var itemTier : EquipmentTier.values()) {
                 data.setTier(playerTier);
-                var effectiveTier = playerTier.order() <= itemTier.ascendanceTier().order() ? playerTier : itemTier.ascendanceTier();
-                double expected = itemTier == EquipmentTier.LATENT ? 0 : track.checkpoints().stream()
-                        .filter(point -> point.tierId().equals(effectiveTier.id())).findFirst().orElseThrow().effectFraction() * track.maximumEffect();
+                double expected = itemTier == EquipmentTier.LATENT || !playerTier.grantsPower() ? 0 : track.checkpoints().stream()
+                        .filter(point -> point.tierId().equals(playerTier.id())).findFirst().orElseThrow().effectFraction() * track.maximumEffect();
                 for (var item : items) {
                     var stack = equipped(player, item, itemTier);
                     data.setInvested(stat, 0);
@@ -114,7 +117,7 @@ public final class NativeMeleeBonusTest {
                     data.setInvested(stat, maximumInvestment);
                     double after = damageValue(player, stack, stat);
                     check(Math.abs(after - before - expected) < 1e-6,
-                            "Damage points respect both player and gear tier without changing physical baseline: "
+                            "Damage points follow player unlocks independently of the physical gear tier: "
                                     + stat.id() + ", player=" + playerTier.id() + ", item=" + itemTier + ", added=" + (after - before) + ", expected=" + expected);
                     check(Math.abs(damageValue(player, stack, stat) - after) < 1e-9,
                             "Repeated runtime evaluation does not double-apply the flat Bonus");
@@ -122,6 +125,51 @@ public final class NativeMeleeBonusTest {
             }
             data.setInvested(stat, 0);
         }
+    }
+
+    private static void heldAndWornPlayerTierLimits(ProjectileNativeInterceptionTest.Fixture f, ServerPlayer player,
+                                                   RuntimeBalanceDefinition runtime) {
+        var data = f.saved.getPlayerData(player.getUUID());
+        for (var stat : EssenceStatRegistry.values()) data.setInvested(stat,
+                runtime.config().balanceProfile().getInvestmentCap(
+                        com.mistaboom.essence_ascendance.tier.AscendanceTiers.TRANSCENDENT, stat));
+        var slots = List.of(EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET);
+        var armor = List.of(AscendanceItems.ASCENDANCE_HELMET.get(), AscendanceItems.ASCENDANCE_CHESTPLATE.get(),
+                AscendanceItems.ASCENDANCE_LEGGINGS.get(), AscendanceItems.ASCENDANCE_BOOTS.get());
+        for (var playerTier : AscendanceTierRegistry.values()) for (var itemTier : EquipmentTier.values()) {
+            data.setTier(playerTier);
+            var tool = equipped(player, AscendanceItems.ASCENDANCE_PICKAXE.get(), itemTier);
+            for (int i = 0; i < slots.size(); i++) {
+                var stack = new ItemStack(armor.get(i)); EquipmentTierData.setTier(stack, itemTier);
+                player.setItemSlot(slots.get(i), stack);
+            }
+            var held = EquipmentStatResolver.evaluateHeldOnly(player, InteractionHand.MAIN_HAND);
+            var worn = EquipmentStatResolver.evaluateWornArmor(player);
+            var active = EquipmentStatResolver.evaluateForHand(player, InteractionHand.MAIN_HAND);
+            for (var stat : EssenceStatRegistry.values()) {
+                double heldExpected = itemTier == EquipmentTier.LATENT ? 0
+                        : EquipmentProfiles.PICKAXE.statStrength(EquipmentActivationType.HELD, stat);
+                double wornExpected = itemTier == EquipmentTier.LATENT ? 0
+                        : EquipmentProfiles.ARMOR.statStrength(EquipmentActivationType.WORN, stat);
+                check(Math.abs(held.strength(stat) - heldExpected) < 1e-8
+                                && Math.abs(worn.strength(stat) - wornExpected) < 1e-8
+                                && Math.abs(active.strength(stat) - Math.max(heldExpected, wornExpected)) < 1e-8,
+                        "All held/worn Bonus channels retain coverage and MAX merge independently of tiers: "
+                                + stat.id() + ", player=" + playerTier.id() + ", item=" + itemTier);
+            }
+            var applied = EquipmentAttributeService.evaluate(player);
+            double eligible = itemTier == EquipmentTier.LATENT ? 0 : 1;
+            check(Math.abs(applied.maxHealthPoints() - eligible * 2 * StatScalingService.evaluate(data, EssenceStats.MAX_HEALTH).scaledBonus()) < 1e-8
+                            && Math.abs(applied.miningSpeedFraction() - eligible * StatScalingService.evaluate(data, EssenceStats.MINING_SPEED).scaledBonus() / 100) < 1e-8
+                            && Math.abs(applied.reachBlocks() - eligible * StatScalingService.evaluate(data, EssenceStats.REACH).scaledBonus()) < 1e-8,
+                    "Actual health, mining and shared reach consumers apply the player Bonus once");
+            FracturedEquipmentData.markFractured(tool);
+            check(EquipmentStatResolver.evaluateHeldOnly(player, InteractionHand.MAIN_HAND).values().isEmpty(),
+                    "Fractured equipment remains ineligible");
+        }
+        for (var slot : slots) player.setItemSlot(slot, ItemStack.EMPTY);
+        player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+        for (var stat : EssenceStatRegistry.values()) data.setInvested(stat, 0);
     }
 
     private static double damageValue(ServerPlayer player, ItemStack stack,

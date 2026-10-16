@@ -216,6 +216,16 @@ public final class NativeGuardOutcomeTest {
         check(!EquipmentDamageService.lastGuardOutcome(player).orElseThrow().perfect(), "First tick after perfect window is excluded");
         GuardLifecycle.invalidateTiming(player);
         check(GuardLifecycle.observe(player).readyTick() < 0, "Loadout lifecycle invalidates timing without fabricating a new raise");
+        player.stopUsingItem(); player.startUsingItem(InteractionHand.OFF_HAND);
+        check(GuardLifecycle.observe(player).readyTick() >= 0, "A new native use owns a fresh guard window");
+        var originalTier = com.mistaboom.essence_ascendance.equipment.EquipmentTierData.tier(shield);
+        var changedTier = originalTier == com.mistaboom.essence_ascendance.equipment.EquipmentTier.DORMANT
+                ? com.mistaboom.essence_ascendance.equipment.EquipmentTier.AWAKENED
+                : com.mistaboom.essence_ascendance.equipment.EquipmentTier.DORMANT;
+        com.mistaboom.essence_ascendance.equipment.EquipmentTierData.setTier(shield, changedTier);
+        check(GuardLifecycle.observe(player).readyTick() < 0,
+                "In-place equipment tier mutation still invalidates guard timing independently of player Bonus tier");
+        com.mistaboom.essence_ascendance.equipment.EquipmentTierData.setTier(shield, originalTier);
         attacker.setHealth(20); attacker.scale = 0;
         player.setDeltaMovement(Vec3.ZERO);
         EquipmentDamageService.withExplosionHit(player, source, () -> {

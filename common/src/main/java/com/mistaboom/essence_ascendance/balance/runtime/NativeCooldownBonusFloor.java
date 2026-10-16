@@ -34,7 +34,7 @@ public final class NativeCooldownBonusFloor {
         for (var tier : AscendanceTierRegistry.powerTiers()) inputs.put(key(tier), rate(runtime, stat, tier));
         evidence.add("Completed endpoints must save at least one native whole draw/cast tick as well as the authored percentage "
                 + "floor, using the same active-tier weapon and EquipmentWeaponService.rateToTicks. Skill speed is neutral. "
-                + "Equipment below the player's tier caps Bonus activation; equipment upgrades do not fund the increment. "
+                + "Actual Bonus activation follows the player's tier independently of gear tier; equipment upgrades do not fund the increment. "
                 + "A one-tick tier cannot supply another cooldown state; placement uses an earlier useful span when possible. "
                 + "A first-state timing floor may exceed the nominal budget without changing prices or sibling allocations.");
     }

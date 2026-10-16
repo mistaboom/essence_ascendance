@@ -55,6 +55,7 @@ def balanceInvariantMains = [
         membershipProviderInvariants: 'com.mistaboom.essence_ascendance.team.MembershipProviderTest',
         multiplayerFoundationInvariants: 'com.mistaboom.essence_ascendance.team.MultiplayerFoundationTest',
         personalizedEquipmentInvariants: 'com.mistaboom.essence_ascendance.equipment.PersonalizedEquipmentTest',
+        equipmentBonusTierInvariants: 'com.mistaboom.essence_ascendance.equipment.EquipmentBonusTierTest',
         fishingRodInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.FishingRodBalanceTest',
         skillLayoutConfigInvariants: 'com.mistaboom.essence_ascendance.balance.config.SkillLayoutConfigTest',
         skillAccessInvariants: 'com.mistaboom.essence_ascendance.skill.balance.SkillAccessTest',
@@ -164,6 +165,8 @@ balanceInvariantMains.each { taskName, className ->
         if (taskName == 'balanceDocumentStreamingInvariants') maxHeapSize = '128m'
         if (taskName == 'balanceGeneratedSectionsInvariants') { maxHeapSize = '128m'; args '--stress' }
         if (taskName == 'nativeEquipmentHeadroomInvariants') maxHeapSize = '2g'
+        if (taskName == 'equipmentBonusTierInvariants' && rootProject.hasProperty('equipmentBonusProfile'))
+            args rootProject.file(rootProject.property('equipmentBonusProfile')).absolutePath
         if (taskName == 'ascendanceArmorInvariants') args armorSource.absolutePath, armorMaskDirectory.absolutePath
         if (taskName == 'balanceAscensionPolicyInvariants' && rootProject.hasProperty('attunementReplayProfile')) {
             // Optional read-only integration replay of a real saved evidence profile; output stays in build/.

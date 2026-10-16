@@ -39,14 +39,13 @@ public final class EquipmentFishingRodService {
         var tuning = EssenceConfigManager.get().fishingRodBalance();
         var nativeTier = tuning.tier(tier);
         var playerTier = EquipmentTier.fromAscendanceTier(data.getTier());
-        var effective = tier.order() <= playerTier.order() ? tier : playerTier;
         Map<ResourceLocation, Double> bonuses = new LinkedHashMap<>();
         for (var entry : EquipmentProfiles.FISHING_ROD.statApplicability(EquipmentActivationType.HELD).entrySet()) {
             var stat = EssenceStatRegistry.get(entry.getKey()).orElseThrow();
-            bonuses.put(stat.id(), fractured || effective == EquipmentTier.LATENT ? 0 :
-                    StatScalingService.scaledBonusForTier(data, stat, effective.ascendanceTier()) * entry.getValue());
+            bonuses.put(stat.id(), fractured || tier == EquipmentTier.LATENT ? 0 :
+                    StatScalingService.evaluate(data, stat).scaledBonus() * entry.getValue());
         }
-        return new Context(tier, effective, nativeTier, !fractured, bonuses);
+        return new Context(tier, playerTier, nativeTier, !fractured, bonuses);
     }
     public static void refreshNativeDurability(ItemStack stack) {
         if (!isAscendanceRod(stack) || !EssenceConfigManager.authoritativeReady() && EssenceConfigManager.clientRuntime() == null) return;

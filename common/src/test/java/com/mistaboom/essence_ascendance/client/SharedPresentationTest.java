@@ -10,6 +10,8 @@ import com.mistaboom.essence_ascendance.client.nexus.*;
 import com.mistaboom.essence_ascendance.config.EssenceConfigManager;
 import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import com.mistaboom.essence_ascendance.data.SkillPurchase;
+import com.mistaboom.essence_ascendance.equipment.EquipmentTier;
+import com.mistaboom.essence_ascendance.equipment.EquipmentTooltipSyncService;
 import com.mistaboom.essence_ascendance.essence.EssenceTypes;
 import com.mistaboom.essence_ascendance.network.*;
 import com.mistaboom.essence_ascendance.progression.*;
@@ -52,7 +54,7 @@ public final class SharedPresentationTest {
             language = JsonParser.parseReader(new InputStreamReader(Objects.requireNonNull(stream), StandardCharsets.UTF_8)).getAsJsonObject();
         }
         EssenceConfigManager.installClient(runtime);
-        latent(runtime); tooltips(runtime); lockedRankPreview(runtime); tooltipRequirements(); bonuses(runtime); completedBonusTooltip(); cards(); preferences();
+        latent(runtime); equipmentBonusTiers(runtime); tooltips(runtime); lockedRankPreview(runtime); tooltipRequirements(); bonuses(runtime); completedBonusTooltip(); cards(); preferences();
         EssenceConfigManager.clearClient();
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println("SharedPresentationTest: " + checks + " checks PASS");
     }
@@ -70,6 +72,73 @@ public final class SharedPresentationTest {
             check(!TierInvestmentPolicy.validTarget(stat, AscendanceTiers.LATENT, profile, 10, 0), "No Latent allocation/refund controls");
             check(profile.bonusTrack(stat.id()).checkpoints().stream().noneMatch(p -> p.tierId().equals(AscendanceTiers.LATENT.id()) && p.purchasable()), "Latent is not an active bonus state");
         }
+    }
+
+    private static void equipmentBonusTiers(RuntimeBalanceDefinition runtime) throws Exception {
+        var profile = runtime.config().balanceProfile();
+        var data = new PlayerEssenceData();
+        data.setTier(AscendanceTiers.TRANSCENDENT);
+        for (var stat : EssenceStatRegistry.values()) {
+            long cap = profile.getInvestmentCap(data.getTier(), stat);
+            if (cap > 0) {
+                data.addAvailable(stat.essenceType(), cap);
+                check(data.invest(stat, cap), "Tooltip fixture funds every displayed Bonus through the real ledger");
+            }
+        }
+        var resolve = EquipmentTooltipSyncService.class.getDeclaredMethod("bonus", PlayerEssenceData.class,
+                EquipmentTier.class, StatDefinition.class, double.class);
+        resolve.setAccessible(true);
+        int formerlyClamped = 0;
+        for (var playerTier : List.of(AscendanceTiers.TRANSCENDENT, AscendanceTiers.DORMANT, AscendanceTiers.LATENT)) {
+            data.setTier(playerTier);
+            for (var stat : EssenceStatRegistry.values()) {
+                double funded = StatScalingService.scaledBonusForTier(data, stat, playerTier);
+                if (playerTier == AscendanceTiers.TRANSCENDENT
+                        && funded > StatScalingService.scaledBonusForTier(data, stat, AscendanceTiers.DORMANT)) formerlyClamped++;
+                for (var itemTier : EquipmentTier.values()) for (double share : new double[]{1, .25}) {
+                    double actual = (double) resolve.invoke(null, data, itemTier, stat, share);
+                    check(actual == (itemTier == EquipmentTier.LATENT ? 0 : funded * share),
+                            "Tooltip Bonus follows player authorization and profile share, not equipment tier: "
+                                    + playerTier.id() + "/" + itemTier + "/" + stat.id());
+                }
+            }
+        }
+        check(formerlyClamped > 0, "Mismatched-tier fixture must exercise a formerly lost higher-tier benefit");
+        data.setTier(AscendanceTiers.TRANSCENDENT);
+        var melee = EquipmentTooltipSyncService.class.getDeclaredMethod("melee", PlayerEssenceData.class, EquipmentTier.class);
+        melee.setAccessible(true);
+        var dormant = (EquipmentTooltipPayload.Entry) melee.invoke(null, data, EquipmentTier.DORMANT);
+        var transcendent = (EquipmentTooltipPayload.Entry) melee.invoke(null, data, EquipmentTier.TRANSCENDENT);
+        var dormantAbilities = dormant.lines().stream().filter(line -> line.tone() == EquipmentTooltipPayload.Tone.ABILITY).toList();
+        check(!dormantAbilities.isEmpty() && dormantAbilities.equals(transcendent.lines().stream()
+                        .filter(line -> line.tone() == EquipmentTooltipPayload.Tone.ABILITY).toList()),
+                "Actual Dormant and Transcendent weapon tooltip rows show the same funded Bonus abilities");
+        var latent = (EquipmentTooltipPayload.Entry) melee.invoke(null, data, EquipmentTier.LATENT);
+        check(latent.lines().stream().noneMatch(line -> line.tone() == EquipmentTooltipPayload.Tone.ABILITY),
+                "Uninfused Latent equipment remains unable to channel Bonuses");
+
+        var stat = EssenceStatRegistry.values().stream().filter(value -> profile.getInvestmentCap(AscendanceTiers.TRANSCENDENT, value)
+                > profile.getInvestmentCap(AscendanceTiers.DORMANT, value)).findFirst().orElseThrow();
+        long target = profile.getInvestmentCap(AscendanceTiers.TRANSCENDENT, stat);
+        var targets = new HashMap<ResourceLocation, Long>();
+        EssenceStatRegistry.values().forEach(value -> targets.put(value.id(), 0L));
+        targets.put(stat.id(), target);
+        var buyer = new PlayerEssenceData(); buyer.setTier(AscendanceTiers.TRANSCENDENT);
+        var purchase = BonusTransactionPlan.resolve(buyer, profile, targets);
+        check(purchase.accepted(), "Nexus authorizes the player's Bonus tier without an equipment prerequisite");
+        check(purchase.plan().settle(Map.of(stat.essenceType().id(), target), Map.of(), Map.of()).accepted(),
+                "Full player-tier Bonus purchase accepts its exact Essence payment");
+        check(purchase.plan().settle(Map.of(stat.essenceType().id(), target - 1), Map.of(), Map.of()).status()
+                        == AscendanceNexusTransactionResultPayload.Status.INSUFFICIENT_ESSENCE,
+                "Removing the gear ceiling does not waive Essence payment");
+        buyer.setTier(AscendanceTiers.DORMANT);
+        check(BonusTransactionPlan.resolve(buyer, profile, targets).status() == AscendanceNexusTransactionResultPayload.Status.CAP_EXCEEDED,
+                "Player Ascendance tier still prevents unauthorized higher-tier investment");
+        String guide = language.get("guide.essence_ascendance.archive.reference.equipment.bonus_note").getAsString();
+        check(guide.contains("your Ascendance tier") && guide.contains("regardless of the item's tier")
+                        && !guide.contains("lower of"), "Equipment guide must explain player-tier Bonus authority");
+        check(language.get("guide.essence_ascendance.archive.guide.fishing.bonuses").getAsString().contains("regardless of the rod's tier"),
+                "Fishing guide must not restore an equipment-tier Bonus gate");
     }
 
     private static void tooltips(RuntimeBalanceDefinition runtime) {

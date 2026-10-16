@@ -190,10 +190,10 @@ final class NativeProgressionCoverage {
                                     double value, BonusTrackDefinition track) {
         var probes = new JsonArray();
         if (NativeDamageBonusFloor.supported(stat)) {
-            for (var context : NativeDamageBonusFloor.contexts(runtime, stat)) if (context.tier().equals(tier)) {
-                probe(probes, "Same active-tier " + context.profile() + "; rounded physical damage=" + context.baseDamage()
+            for (var context : NativeDamageBonusFloor.contexts(runtime, stat)) {
+                probe(probes, "Fixed " + context.tier() + " equipment " + context.profile() + "; rounded physical damage=" + context.baseDamage()
                                 + "; held applicability=" + context.applicability()
-                                + "; additive damage points after physical baseline; fully charged and unmitigated; lower-tier equipment caps activation at its own tier",
+                                + "; additive damage points after physical baseline; fully charged and unmitigated; Bonus activation follows player tier",
                         "native base damage", context.damage(previous), context.damage(value));
                 probes.get(probes.size() - 1).getAsJsonObject().addProperty("requiredIncrement", 1);
             }
@@ -201,7 +201,7 @@ final class NativeProgressionCoverage {
         if (NativeCooldownBonusFloor.supported(stat) && AscendanceTierRegistry.get(tier).orElseThrow().grantsPower()) {
             double rate = NativeCooldownBonusFloor.rate(runtime, stat, AscendanceTierRegistry.get(tier).orElseThrow());
             probe(probes, "Same active-tier supported weapon; rounded physical rate=" + rate
-                            + "; no skill speed modifier; EquipmentWeaponService.rateToTicks; lower-tier gear caps activation at its own tier",
+                            + "; no skill speed modifier; EquipmentWeaponService.rateToTicks; player-tier Bonus with same-tier reference gear",
                     "whole cooldown ticks saved", NativeCooldownBonusFloor.ticks(rate, 0) - NativeCooldownBonusFloor.ticks(rate, previous),
                     NativeCooldownBonusFloor.ticks(rate, 0) - NativeCooldownBonusFloor.ticks(rate, value));
             probes.get(probes.size() - 1).getAsJsonObject().addProperty("requiredIncrement", 1);

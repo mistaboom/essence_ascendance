@@ -44,8 +44,4 @@ public final class EquipmentTierData {
         return CustomData.of(outer);
     }
 
-    public static EquipmentTier effectiveTier(ItemStack stack, EquipmentTier playerTier) {
-        EquipmentTier itemTier = tier(stack);
-        return itemTier.order() <= playerTier.order() ? itemTier : playerTier;
-    }
 }

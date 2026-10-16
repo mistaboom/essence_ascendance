@@ -156,10 +156,9 @@ public final class PackCombatScalingTest {
             double previous = 0;
             for (var point : track.checkpoints()) if (point.purchasable()) {
                 double value = track.maximumEffect() * point.effectFraction();
-                int tierOrder = AscendanceTierRegistry.get(point.tierId()).orElseThrow().order();
                 check(value - previous >= 1 - 1e-8, "Published damage state retains the authored increment floor");
-                for (var context : contexts) if (AscendanceTierRegistry.get(context.tier()).orElseThrow().order() >= tierOrder) {
-                    check(value <= context.maximumValue() + 1e-8, "Published damage respects higher-tier physical gear headroom");
+                for (var context : contexts) {
+                    check(value <= context.maximumValue() + 1e-8, "Published damage respects every infused physical gear tier's headroom");
                     check(context.damage(value) - context.damage(previous) >= 1 - 1e-8,
                             "Each paid increment adds native damage on unchanged activating equipment");
                 }
