@@ -5,6 +5,7 @@ import net.minecraft.SharedConstants;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.Rarity;
 import java.util.*;
 
 /** Bounded generic estimates and exact material constraints; no server, source inference or special mod fixtures. */
@@ -14,8 +15,8 @@ public final class MaterialValuationTest {
     public static void main(String[] args) {
         Thread.currentThread().setUncaughtExceptionHandler((thread, failure) -> failure.printStackTrace(
                 new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.err))));
-        fallbackAndAlternatives(); dependencyComposition(); exactDenominations(); recipesAndRemainders(); cosmeticAndOrder(); boundedWork();
-        SharedConstants.tryDetectVersion(); Bootstrap.bootStrap(); nativeProperties();
+        fallbackAndAlternatives(); dependencyComposition(); exactDenominations(); taggedDenominations(); recipesAndRemainders(); cosmeticAndOrder(); boundedWork();
+        SharedConstants.tryDetectVersion(); Bootstrap.bootStrap(); nativeProperties(); extendedRarityPolicy();
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println("MaterialValuationTest: " + checks + " generic estimate/conservation checks PASS");
     }
     private static SimpleValuationSolver.Seed seed(long value, int priority) {
@@ -91,6 +92,38 @@ public final class MaterialValuationTest {
             if(length==14)check(result.values().get("form0").status().startsWith("UNREPRESENTABLE"),"Unrepresentable family diagnosed explicitly");
         }
     }
+    private static void taggedDenominations() {
+        var seeds = Map.of("dust",seed(24,0),"tiny",seed(24,0),"other_dust",seed(24,0),"feed",seed(1,4));
+        var split = recipe("tagged_split",List.of(new ProductionGraph.Input(List.of("dust","other_dust"),1,true)),
+                List.of(new ProductionGraph.Output("tiny",9,1,false)),true);
+        var join = convert("recombine","tiny",9,"dust",1);
+        var advisory = recipe("nominal_dust",List.of(new ProductionGraph.Input(List.of("feed"),1,true)),
+                List.of(new ProductionGraph.Output("dust",1,1,false)),false);
+        var result = solve(seeds,split,join,advisory);
+        check(result.values().get("dust").amount()==9 && result.values().get("tiny").amount()==1,
+                "Tagged exact reciprocal denominations round once instead of erasing both positive estimates");
+        check(result.values().get("other_dust").amount()==24,
+                "One-way tag alternatives are not fused into the reciprocal denomination family");
+        for (String family : List.of(GATHERING,UTILITY))
+            check(result.values().get("dust").route().getOrDefault(family,0L)==9*result.values().get("tiny").route().getOrDefault(family,0L),
+                    "Tagged denominations preserve exact routed proportions");
+        check(result.equals(solve(seeds,advisory,join,split)),"Tagged conversion discovery is deterministic across recipe order");
+        var mixed = solve(Map.of("a",seed(10,4),"b",seed(30,4),"mix",seed(24,0)),
+                recipe("mixed_slots",List.of(new ProductionGraph.Input(List.of("a"),1,true),new ProductionGraph.Input(List.of("b"),1,true)),
+                        List.of(new ProductionGraph.Output("mix",1,1,false)),true),convert("return_a","mix",1,"a",2));
+        check(mixed.values().get("a").amount()==10 && mixed.values().get("b").amount()==30 && mixed.values().get("mix").amount()==40,
+                "Disjoint ingredient slots do not manufacture a homogeneous conversion or fuse unrelated materials");
+        var manySeeds = new TreeMap<String,SimpleValuationSolver.Seed>(); List<String> choices = new ArrayList<>();
+        for(int i=0;i<1024;i++) { String item="choice"+i; choices.add(item); manySeeds.put(item,seed(24,0)); }
+        manySeeds.put("packed",seed(24,0));
+        List<ProductionGraph.Input> slots = new ArrayList<>();
+        for(int i=0;i<9;i++) slots.add(new ProductionGraph.Input(choices,1,true));
+        var many = solve(manySeeds,recipe("many_choices",slots,List.of(new ProductionGraph.Output("packed",1,1,false)),true),
+                convert("one_return","packed",1,"choice0",9));
+        check(many.values().get("packed").amount()==216 && many.values().get("choice0").amount()==24
+                        && many.values().get("choice1").amount()==24,
+                "Nine slots with 1024 alternatives use a linear homogeneous intersection, not a Cartesian recipe expansion");
+    }
     private static void recipesAndRemainders() {
         var carried = solve(Map.of("ingot", seed(150,4), "empty",seed(24,0),
                         "filled",new SimpleValuationSolver.Seed(24,0,Map.of(UTILITY,1.0),Map.of("empty",1L)), "meal",seed(24,0)),
@@ -159,6 +192,38 @@ public final class MaterialValuationTest {
                 "An explicit shared material factor reaches the seed before recipe solving");
         check(GeneratedYieldEligibility.decide(Items.PAPER.getDefaultInstance(),BuiltInRegistries.ITEM.getKey(Items.PAPER),24,false,false).eligible(),"Positive estimate allowed without falsely claiming acquisition");
         check(!GeneratedYieldEligibility.decide(Items.BARRIER.getDefaultInstance(),BuiltInRegistries.ITEM.getKey(Items.BARRIER),24,false,false).eligible(),"Native administrative items remain excluded");
+    }
+    private static void extendedRarityPolicy() {
+        var multipliers = Map.of(Rarity.COMMON, 1.0, Rarity.UNCOMMON, ProceduralValuationSettings.UNCOMMON_MULTIPLIER,
+                Rarity.RARE, ProceduralValuationSettings.RARE_MULTIPLIER, Rarity.EPIC, ProceduralValuationSettings.EPIC_MULTIPLIER);
+        var minima = Map.of(Rarity.COMMON, 1L, Rarity.UNCOMMON, ProceduralValuationSettings.UNCOMMON_MINIMUM,
+                Rarity.RARE, ProceduralValuationSettings.RARE_MINIMUM, Rarity.EPIC, ProceduralValuationSettings.EPIC_MINIMUM);
+        for (var rarity : multipliers.keySet()) {
+            for (long base : List.of(1L, 24L, 100_000L, ProceduralValuationSettings.MAX_VALUE)) {
+                List<String> signals = new ArrayList<>();
+                long expected = Math.min(ProceduralValuationSettings.MAX_VALUE,
+                        Math.max(minima.get(rarity), Math.round(base * multipliers.get(rarity))));
+                check(ProceduralValuationEngine.applyRarityPolicy(base, rarity.name(), signals) == expected,
+                        "Every vanilla rarity retains its original multiplier, minimum and value ceiling");
+                check(signals.stream().noneMatch(s -> s.contains("unrecognized")),
+                        "Known rarity policy is not diagnosed as unsupported");
+            }
+        }
+        // Exercise the same name dispatch used by a runtime-extended Rarity, without mutating the vanilla enum.
+        for (String rarity : List.of("ADDITIONAL", "EPIC_PLUS", "UNCOMMON_EXTRA", "rare")) {
+            for (long base : List.of(24L, 100_000L, ProceduralValuationSettings.MAX_VALUE)) {
+                List<String> signals = new ArrayList<>();
+                long measured = ProceduralValuationEngine.applyRarityPolicy(base, rarity, signals);
+                check(measured == base, "Unknown rarity neither invents a premium nor discards existing property value");
+                check(signals.size() == 1 && signals.getFirst().contains("rarity " + rarity + ";")
+                                && signals.getFirst().contains("unrecognized") && signals.getFirst().contains("neutral multiplier=1.0"),
+                        "Unknown rarity identity and neutral policy remain explicit in item diagnostics");
+                var solved = solve(Map.of("input", seed(7, 3), "extended", seed(measured, 0)),
+                        convert("extended_rarity", "input", 2, "extended", 1));
+                check(solved.values().get("extended").amount() == 14,
+                        "Unknown rarity still participates in recipe conservation instead of being skipped");
+            }
+        }
     }
     private static void check(boolean test,String message){checks++;if(!test)throw new AssertionError(message);}
 }

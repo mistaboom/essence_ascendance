@@ -38,7 +38,7 @@ public final class BonusTooltipPresentation {
                         ? "nexus.track.next_checkpoint" : "nexus.track.next_state",
                 number(next.additionalCost()), tierName(next.tierId())));
         tooltip.section(EssenceText.gui("nexus.track.availability"));
-        for (var p : projection.checkpoints()) {
+        for (var p : projection.checkpoints().reversed()) {
             if (!AscendanceTierRegistry.get(p.tierId()).map(t -> t.grantsPower()).orElse(false)) continue;
             Component effect = BonusPresentationData.checkpointBenefit(projection, p,
                     Component.literal(number(p.effectValue()) + (resolved.unit() == com.mistaboom.essence_ascendance.stat.StatUnit.PERCENT ? "%" : "")));

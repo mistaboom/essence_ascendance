@@ -249,6 +249,7 @@ public final class SharedPresentationTest {
             check(current.stream().noneMatch(s -> s.contains("Latent")), "Only Dormant+ in bonus presentation");
             check(current.contains(flatten(BonusTooltipPresentation.description(stat, 0))), "Default bonus is current state");
             boolean completed = false;
+            int previousRow = current.size();
             for (var checkpoint : definition.checkpoints()) {
                 var tier = AscendanceTierRegistry.get(checkpoint.tierId()).orElseThrow();
                 if (!tier.grantsPower()) continue;
@@ -259,6 +260,9 @@ public final class SharedPresentationTest {
                 check(current.contains(expected),
                         "Every Bonus distinguishes unavailable, active and completed progression rows: " + stat.id() + "/" + tier.id()
                                 + "; expected=" + expected + "; actual=" + current);
+                int row = current.indexOf(expected);
+                check(row < previousRow, "Bonus tooltip tiers run from Transcendent down to Dormant: " + stat.id() + "; actual=" + current);
+                previousRow = row;
                 completed |= checkpoint.tierId().equals(definition.completionTier());
             }
             var next = definition.checkpoints().stream().filter(p -> p.purchasable()).findFirst();

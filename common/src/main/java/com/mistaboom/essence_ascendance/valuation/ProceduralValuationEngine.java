@@ -15,6 +15,13 @@ import java.util.*;
 
 /** Shared item-property/standard-recipe estimates. No source search, graph recursion or demand uplift. */
 public final class ProceduralValuationEngine {
+    private record RarityPolicy(double multiplier, long minimum) { }
+    private static final RarityPolicy UNKNOWN_RARITY_POLICY = new RarityPolicy(1, 1);
+    private static final Map<String, RarityPolicy> RARITY_POLICIES = Map.of(
+            Rarity.COMMON.name(), new RarityPolicy(1, 1),
+            Rarity.UNCOMMON.name(), new RarityPolicy(ProceduralValuationSettings.UNCOMMON_MULTIPLIER, ProceduralValuationSettings.UNCOMMON_MINIMUM),
+            Rarity.RARE.name(), new RarityPolicy(ProceduralValuationSettings.RARE_MULTIPLIER, ProceduralValuationSettings.RARE_MINIMUM),
+            Rarity.EPIC.name(), new RarityPolicy(ProceduralValuationSettings.EPIC_MULTIPLIER, ProceduralValuationSettings.EPIC_MINIMUM));
     private static final Object INDEX_LOCK = new Object();
     private static MinecraftServer indexedServer;
     private static ProceduralValuationIndex index;
@@ -131,11 +138,7 @@ public final class ProceduralValuationEngine {
                     : entry.attribute().equals(Attributes.MAX_HEALTH) ? "vitality" : null;
             if (category != null) { vote(route,category,2); base += Math.round(Math.min(128, 12 * Math.sqrt(amount))); priority = Math.max(priority,3); signals.add("native attribute component: " + category); }
         }
-        var declaredRarity = stack.getRarity();
-        double rarity = switch (declaredRarity) { case COMMON -> 1; case UNCOMMON -> ProceduralValuationSettings.UNCOMMON_MULTIPLIER; case RARE -> ProceduralValuationSettings.RARE_MULTIPLIER; case EPIC -> ProceduralValuationSettings.EPIC_MULTIPLIER; };
-        long rarityMinimum = switch (declaredRarity) { case COMMON -> 1; case UNCOMMON -> ProceduralValuationSettings.UNCOMMON_MINIMUM; case RARE -> ProceduralValuationSettings.RARE_MINIMUM; case EPIC -> ProceduralValuationSettings.EPIC_MINIMUM; };
-        base = Math.min(ProceduralValuationSettings.MAX_VALUE, Math.max(rarityMinimum, Math.round(base * rarity)));
-        if (declaredRarity != Rarity.COMMON) signals.add("native declared rarity " + declaredRarity + "; pre-recipe policy floor=" + rarityMinimum);
+        base = applyRarityPolicy(base, stack.getRarity().name(), signals);
         if (Boolean.TRUE.equals(stack.get(DataComponents.ENCHANTMENT_GLINT_OVERRIDE))) {
             base = Math.min(ProceduralValuationSettings.MAX_VALUE, Math.round(base * ProceduralValuationSettings.INTRINSIC_GLINT_MULTIPLIER));
             signals.add("explicit default glint component; bounded pre-recipe premium, not enchantment or function inference");
@@ -151,6 +154,18 @@ public final class ProceduralValuationEngine {
             signals.add("native stored-enchantment carrier plus shared premium ceiling; actual effects and levels determine realized yield");
         }
         return new Intrinsic(new SimpleValuationSolver.Seed(base, priority, route, retained), List.copyOf(signals));
+    }
+    /** Exact native identities only: loader-added enum constants have no inferred premium or ordering. */
+    static long applyRarityPolicy(long base, String declaredRarity, List<String> signals) {
+        var policy = RARITY_POLICIES.get(declaredRarity);
+        if (policy == null) {
+            policy = UNKNOWN_RARITY_POLICY;
+            signals.add("native declared rarity " + declaredRarity
+                    + "; unrecognized rarity premium semantics; neutral multiplier=1.0 and pre-recipe policy floor=1");
+        } else if (!declaredRarity.equals(Rarity.COMMON.name())) {
+            signals.add("native declared rarity " + declaredRarity + "; pre-recipe policy floor=" + policy.minimum());
+        }
+        return Math.min(ProceduralValuationSettings.MAX_VALUE, Math.max(policy.minimum(), Math.round(base * policy.multiplier())));
     }
     private static void vote(Map<String, Double> route, String category, double weight) { route.merge("essence_ascendance:" + category, weight, Double::sum); }
     record Intrinsic(SimpleValuationSolver.Seed seed, List<String> signals) { }

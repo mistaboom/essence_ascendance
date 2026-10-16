@@ -219,15 +219,23 @@ final class SimpleValuationSolver {
     private static Map<String, Group> groups(Map<String, Seed> seeds, ProductionGraph graph) {
         List<Conversion> conversions = new ArrayList<>(); Set<String> keys = new HashSet<>();
         for (var process : graph.processes()) {
-            if (!complete(process) || process.outputs().size() != 1 || process.inputs().stream().anyMatch(x -> !x.consumed() || x.alternatives().size() != 1)) continue;
-            String from = process.inputs().getFirst().alternatives().getFirst(), to = process.outputs().getFirst().itemId();
-            if (from.equals(to) || !seeds.containsKey(from) || !seeds.containsKey(to)
-                    || process.inputs().stream().anyMatch(x -> !x.alternatives().getFirst().equals(from))) continue;
+            if (!complete(process) || process.outputs().size() != 1 || process.inputs().stream().anyMatch(x -> !x.consumed())) continue;
+            String to = process.outputs().getFirst().itemId();
+            if (!seeds.containsKey(to)) continue;
+            // A homogeneous choice is a real recipe even when its slots use tags. Intersect
+            // choices instead of enumerating mixed-slot combinations; only exact reciprocal
+            // pairs below become one denomination family, not every member of a tag.
+            Set<String> origins = new TreeSet<>(process.inputs().getFirst().alternatives());
+            for (var in : process.inputs()) origins.retainAll(new HashSet<>(in.alternatives()));
+            origins.remove(to); origins.retainAll(seeds.keySet());
+            if (origins.isEmpty()) continue;
             long input = 0; for (var in : process.inputs()) input = Math.addExact(input, (long) in.count());
             long output = (long) process.outputs().getFirst().count();
             long gcd = BigInteger.valueOf(input).gcd(BigInteger.valueOf(output)).longValueExact();
-            var conversion = new Conversion(from, to, input / gcd, output / gcd);
-            conversions.add(conversion); keys.add(key(conversion));
+            for (String from : origins) {
+                var conversion = new Conversion(from, to, input / gcd, output / gcd);
+                conversions.add(conversion); keys.add(key(conversion));
+            }
         }
         Map<String, List<ProceduralConservationMath.Edge<String>>> edges = new TreeMap<>();
         for (var c : conversions) if (keys.contains(key(new Conversion(c.to, c.from, c.outputs, c.inputs)))) {
