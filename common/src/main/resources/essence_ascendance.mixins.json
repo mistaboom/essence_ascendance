@@ -33,6 +33,7 @@
     "MovementAbilityInputMixin",
     "MachineWorldVisualRendererMixin",
     "TransientGuiScreenMixin",
+    "FullscreenWidgetLayerMixin",
     "TransientGuiHudMixin",
     "GatheringSurveyRendererMixin",
     "GatheringSalvageGrindstoneScreenMixin",

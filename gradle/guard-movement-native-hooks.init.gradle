@@ -59,7 +59,7 @@ displayName="No-world guard movement fixture"
 [[dependencies.essence_guard_movement_hook_test]]
 modId="essence_ascendance"
 type="required"
-versionRange="[1,)"
+versionRange="[1.0.0-beta.1,)"
 ordering="AFTER"
 side="CLIENT"
 '''

@@ -152,7 +152,7 @@ public final class RuntimeBalanceGenerator {
         Map<ResourceLocation,Map<ResourceLocation,Long>> statCaps = new LinkedHashMap<>();
         for (var stat: EssenceStatRegistry.values()) {
             double seed=StatScalingDefaults.get(stat.id()).orElseThrow(() -> new IllegalStateException("Register balance semantics for new stat " + stat.id()));
-            double value=seed*bonusScale*Math.sqrt(apex);
+            double value=RuntimeCombatRequests.bonus(stat,seed,equipment.get(tiers.getLast().id()))*bonusScale*Math.sqrt(apex);
             // Probability/resistance units have semantic caps; high pack armor must not create immunity.
             if (stat.id().getPath().endsWith("resistance") || stat.id().getPath().endsWith("efficiency")) value=Math.min(90,value);
             // Armor-adjusted EHP is not raw health. Reusing it here rewards the
@@ -193,7 +193,7 @@ public final class RuntimeBalanceGenerator {
         var shield=shield(equipment,settings);
         // Rank-one effects and additional rank growth have separate calibration.
         double resolvedSkillScale=skillScale*Math.sqrt(apex);
-        var effects=effects(resolvedSkillScale, evidence, settings);
+        var effects=effects(resolvedSkillScale, evidence, settings, equipment.get(tiers.getLast().id()));
         var worldgen=LatentOreBalanceGenerator.generate(evidence,economy,settings.latentOre());
         var rod=FishingRodBalanceGenerator.generate(fractions,equipment,settings);
         var config=new EssenceServerConfig(1,6,8,infuser,shield,rod,effects,worldgen,profile,milestones,advancements,bonuses,new EquipmentBaselineConfig(equipment));
@@ -515,20 +515,30 @@ public final class RuntimeBalanceGenerator {
 
     private static RuntimeBalanceDefinition restoreNexusOffense(RuntimeBalanceDefinition current,RuntimeBalanceDefinition requested,
             PackEvidence evidence,BalanceSettings settings,RuntimeBuildScenarios.Plan plan) {
-        double low=0,high=1;
-        var full=interpolateNexusOffense(current,requested,1);
-        if(RuntimeBuildScenarios.isSafe(full,evidence,settings,plan,BuildComposition.Channel.OFFENSE))return full;
-        for(int pass=0;pass<20;pass++) {
-            double middle=(low+high)/2;
-            var candidate=interpolateNexusOffense(current,requested,middle);
-            if(RuntimeBuildScenarios.isSafe(candidate,evidence,settings,plan,BuildComposition.Channel.OFFENSE))low=middle;else high=middle;
+        // A weak projectile/caster reference must not cap melee's independently measured
+        // request. Damage and cadence still share their own family's composition envelope.
+        for (var family : List.of(List.of(EssenceStats.MELEE_DAMAGE, EssenceStats.MELEE_ATTACK_SPEED),
+                List.of(EssenceStats.RANGED_DAMAGE, EssenceStats.RANGED_ATTACK_SPEED),
+                List.of(EssenceStats.MAGIC_DAMAGE, EssenceStats.MAGIC_CAST_SPEED))) {
+            double low=0,high=1;
+            var full=interpolateNexusOffense(current,requested,family,1);
+            if(RuntimeBuildScenarios.isSafe(full,evidence,settings,plan,BuildComposition.Channel.OFFENSE)) {
+                current=full;
+                continue;
+            }
+            for(int pass=0;pass<20;pass++) {
+                double middle=(low+high)/2;
+                var candidate=interpolateNexusOffense(current,requested,family,middle);
+                if(RuntimeBuildScenarios.isSafe(candidate,evidence,settings,plan,BuildComposition.Channel.OFFENSE))low=middle;else high=middle;
+            }
+            current=interpolateNexusOffense(current,requested,family,low);
         }
-        return interpolateNexusOffense(current,requested,low);
+        return current;
     }
-    private static RuntimeBalanceDefinition interpolateNexusOffense(RuntimeBalanceDefinition current,RuntimeBalanceDefinition requested,double fraction) {
+    private static RuntimeBalanceDefinition interpolateNexusOffense(RuntimeBalanceDefinition current,RuntimeBalanceDefinition requested,
+            List<StatDefinition> family,double fraction) {
         var json=current.toJson();var bonuses=json.getAsJsonObject("statMaxBonuses");
-        for(var stat:List.of(EssenceStats.MELEE_DAMAGE,EssenceStats.MELEE_ATTACK_SPEED,EssenceStats.RANGED_DAMAGE,
-                EssenceStats.RANGED_ATTACK_SPEED,EssenceStats.MAGIC_DAMAGE,EssenceStats.MAGIC_CAST_SPEED)) {
+        for(var stat:family) {
             double initial=current.config().statMaxBonus(stat),target=requested.config().statMaxBonus(stat);
             bonuses.addProperty(stat.id().toString(),initial+(target-initial)*fraction);
         }
@@ -536,6 +546,9 @@ public final class RuntimeBalanceGenerator {
         double factor=bonuses.get(EssenceStats.MELEE_DAMAGE.id().toString()).getAsDouble()
                 /Math.max(1,requested.config().statMaxBonus(EssenceStats.MELEE_DAMAGE));
         json.getAsJsonObject("composition").addProperty("nexus_offense_factor",factor);
+        var damage=family.getFirst();
+        json.getAsJsonObject("composition").addProperty("nexus_"+damage.id().getPath()+"_recovery_factor",
+                bonuses.get(damage.id().toString()).getAsDouble()/Math.max(.1,requested.config().statMaxBonus(damage)));
         return RuntimeBalanceDefinition.fromJson(json);
     }
 
@@ -710,9 +723,11 @@ public final class RuntimeBalanceGenerator {
         }
         return new ShieldBalanceSettings(baseReflection,ShieldBalanceSettings.defaults().minimumDisableTicks(),durability,reflection,amplification);
     }
-    private static SkillEffectBalanceSettings effects(double scale, PackEvidence evidence, BalanceSettings settings) {
+    private static SkillEffectBalanceSettings effects(double scale, PackEvidence evidence, BalanceSettings settings,
+            EquipmentBaselineConfig.TierBaseline apex) {
         JsonObject tree=JSON.toJsonTree(SkillEffectBalanceSettings.defaults()).getAsJsonObject();
         scaleEffectFields(tree,scale);
+        RuntimeCombatRequests.scaleFlatSkillDamage(tree,apex);
         scalePostureFields(tree.getAsJsonObject("posture"),Math.min(1,scale));
         tree.add("vitality", JSON.toJsonTree(VitalityBalanceGenerator.generate(evidence, settings)));
         tree.add("mobility", JSON.toJsonTree(MobilityBalanceGenerator.generate(settings)));

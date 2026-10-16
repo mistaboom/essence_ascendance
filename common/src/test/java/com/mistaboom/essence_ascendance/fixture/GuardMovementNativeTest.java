@@ -38,7 +38,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
-/** Client-loader initialization fixture: real transformed sprint decision, native jump and native step collision; no world. */
+/** Client-loader initialization fixture: transformed fullscreen widget hooks, sprint decision, native jump and step collision; no world. */
 public final class GuardMovementNativeTest {
     private static int checks;
     private static Object allocator;
@@ -53,6 +53,14 @@ public final class GuardMovementNativeTest {
     public static void run() throws Exception {
         var field = Class.forName("sun.misc.Unsafe").getDeclaredField("theUnsafe"); field.setAccessible(true);
         allocator = field.get(null); allocate = allocator.getClass().getMethod("allocateInstance", Class.class);
+        var screenMethods = Arrays.stream(net.minecraft.client.gui.screens.Screen.class.getDeclaredMethods())
+                .map(Method::getName).toList();
+        for (String hook : List.of("composedWidgets", "composedRenderables", "finishComposedWidgets", "composedNarration"))
+            check(screenMethods.stream().anyMatch(name -> name.contains(hook)),
+                    "Actual native client Screen has the shared fullscreen widget hook: " + hook);
+        if ("neoforge".equals(System.getProperty("essence.guard.fixtureLoader")))
+            check(screenMethods.stream().anyMatch(name -> name.contains("composedEventWidgets")),
+                    "Actual NeoForge Screen has the native initialization-event widget hook");
         check(Arrays.stream(Entity.class.getDeclaredMethods()).anyMatch(m -> m.getName().contains("guardedContact")), "Common native movement wrapper transformed");
         check(Arrays.stream(LivingEntity.class.getDeclaredMethods()).anyMatch(m -> m.getName().contains("guardedStep")), "Common native step return transformed");
         check(Arrays.stream(net.minecraft.client.renderer.GameRenderer.class.getDeclaredMethods()).anyMatch(m -> m.getName().contains("counterattackReach")),

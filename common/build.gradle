@@ -135,6 +135,7 @@ def balanceInvariantMains = [
         balanceIntegrationInvariants: 'com.mistaboom.essence_ascendance.balance.generated.GeneratedBalanceIntegrationTest',
         balanceLoadoutInvariants: 'com.mistaboom.essence_ascendance.skill.balance.SkillLoadoutProjectionTest',
         balanceRuntimeInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceTest',
+        packCombatScalingInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.PackCombatScalingTest',
         balanceScenarioProbeInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.RuntimeScenarioProbeTest',
         nativeEquipmentHeadroomInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.NativeEquipmentHeadroomTest',
         balanceAscensionPolicyInvariants: 'com.mistaboom.essence_ascendance.balance.runtime.RuntimeAscensionPolicyTest',

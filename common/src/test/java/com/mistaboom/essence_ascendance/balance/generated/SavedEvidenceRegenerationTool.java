@@ -42,9 +42,7 @@ public final class SavedEvidenceRegenerationTool {
             if (!first.document().sectionHash(section).equals(repeated.document().sectionHash(section)))
                 throw new AssertionError("Saved evidence replay is not deterministic: " + section);
         var firstMetadata = first.document().section("metadata"); var repeatedMetadata = repeated.document().section("metadata");
-        // Measure both runs honestly; elapsed diagnostic cost is the only excluded value.
-        firstMetadata.getAsJsonObject("generation").getAsJsonObject("adaptiveBalance").remove("calibrationNanos");
-        repeatedMetadata.getAsJsonObject("generation").getAsJsonObject("adaptiveBalance").remove("calibrationNanos");
+        // The bounded generator has no adaptive calibration timing to strip.
         if (!firstMetadata.equals(repeatedMetadata)) throw new AssertionError("Saved evidence calibration decisions are not deterministic");
         if (!first.document().sectionHash("evidence").equals(original.sectionHash("evidence"))
                 || !first.document().sectionHash("economy").equals(original.sectionHash("economy")))

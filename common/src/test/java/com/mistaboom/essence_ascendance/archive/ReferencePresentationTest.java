@@ -543,9 +543,9 @@ public final class ReferencePresentationTest {
             for (int index = 0; index < definition.checkpoints().size(); index++) {
                 var checkpoint = definition.checkpoints().get(index);
                 String benefit = cell(table, "benefit", index);
-                if (!checkpoint.available()) check(benefit.equals("Unavailable"), "Reference Bonus rows before start stay unavailable");
-                else if (completed) check(benefit.equals("Max reached"), "Reference Bonus rows after completion do not imply a new benefit");
-                else check(!benefit.equals("Max reached") && !benefit.equals("Unavailable"), "Reference Bonus active rows retain their numeric benefits");
+                if (!checkpoint.available()) check(benefit.equals("N/A"), "Reference Bonus rows before start stay unavailable");
+                else if (completed) check(benefit.equals("N/A"), "Reference Bonus rows after completion do not imply a new benefit");
+                else check(!benefit.equals("N/A"), "Reference Bonus active rows retain their numeric benefits");
                 completed |= checkpoint.tierId().equals(definition.completionTier());
             }
             long fullCap = definition.checkpoints().getLast().cumulativeCap();

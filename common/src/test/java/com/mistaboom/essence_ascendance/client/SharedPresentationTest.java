@@ -253,12 +253,12 @@ public final class SharedPresentationTest {
             for (var checkpoint : definition.checkpoints()) {
                 var tier = AscendanceTierRegistry.get(checkpoint.tierId()).orElseThrow();
                 if (!tier.grantsPower()) continue;
-                String effect = !checkpoint.available() ? "Unavailable" : completed ? "Max reached"
+                String effect = !checkpoint.available() || completed ? "N/A"
                         : BonusTooltipPresentation.number(definition.maximumEffect() * checkpoint.effectFraction())
                                 + (definition.unit() == StatUnit.PERCENT ? "%" : "");
                 String expected = tr("tier.essence_ascendance." + tier.id().getPath()) + "  " + effect;
                 check(current.contains(expected),
-                        "Every Bonus distinguishes unavailable, active and completed progression rows: " + stat.id() + "/" + tier.id()
+                        "Every Bonus shows N/A outside its active span and numeric progression inside: " + stat.id() + "/" + tier.id()
                                 + "; expected=" + expected + "; actual=" + current);
                 int row = current.indexOf(expected);
                 check(row < previousRow, "Bonus tooltip tiers run from Transcendent down to Dormant: " + stat.id() + "; actual=" + current);
@@ -324,8 +324,8 @@ public final class SharedPresentationTest {
         var state = new ClientEssenceState.StatSnapshot(stat.id(), 200, 200, 200, 1, 2.9, 2.9, 2.9, facts);
         var track = new NexusProgressionTrack(stat, state, List.of());
         var lines = text(BonusTooltipPresentation.tooltip(track, AscendanceTiers.TRANSCENDENT.id(), 200));
-        check(lines.containsAll(List.of("Dormant  Unavailable", "Awakened  Unavailable", "Resonant  1", "Ascendant  2.9", "Transcendent  Max reached")),
-                "An early-completing Bonus shows its final value once and marks later tiers complete; actual=" + lines);
+        check(lines.containsAll(List.of("Dormant  N/A", "Awakened  N/A", "Resonant  1", "Ascendant  2.9", "Transcendent  N/A")),
+                "An early-completing Bonus shows its final value once and labels later tiers N/A; actual=" + lines);
         check(!lines.contains("Transcendent  2.9") && lines.contains(flatten(BonusTooltipPresentation.description(stat, 2.9))),
                 "Completion wording replaces only the repeated tier target, not the actual earned benefit");
         var projection = BonusPresentationData.project(

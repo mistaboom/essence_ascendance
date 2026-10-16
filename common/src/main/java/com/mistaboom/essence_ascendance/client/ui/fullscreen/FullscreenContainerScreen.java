@@ -19,7 +19,11 @@ public abstract class FullscreenContainerScreen<M extends AbstractContainerMenu>
     protected abstract FullscreenComposition.Scene composeFullscreen();
     protected void beforeFullscreenFrame() { }
     protected void renderFullscreenTooltips(GuiGraphics graphics, int mouseX, int mouseY) { }
-    protected final void refreshFullscreen() { fullscreen.update(composeFullscreen()); }
+    protected final void refreshFullscreen() {
+        // Direct list additions outside initialization must not become render, input or narration overlays.
+        clearFocus(); clearWidgets();
+        fullscreen.update(composeFullscreen());
+    }
 
     @Override protected void init() {
         FullscreenSidebarCompatibility.register(getClass());

@@ -5,6 +5,7 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.TypeInsnNode;
 
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -66,7 +67,59 @@ final class FullscreenRenderContractTest {
         for (ClassNode host : List.of(ordinary, container))
             check(count(calls(method(host, "init", "()V")), UI + "FullscreenSidebarCompatibility", "register") == 1,
                     "Both fullscreen hosts retain optional FTB Library sidebar registration");
+        widgetLayer(ordinary, container);
         return checks;
+    }
+
+    private static void widgetLayer(ClassNode ordinary, ClassNode container) throws Exception {
+        ClassNode policy = readResource("com/mistaboom/essence_ascendance/mixin/FullscreenWidgetLayerMixin");
+        var predicate = method(policy, "essenceAscendance$composedWidgetLayer", "()Z");
+        List<String> hosts = new ArrayList<>();
+        for (var instruction : predicate.instructions)
+            if (instruction instanceof TypeInsnNode type && type.getOpcode() == Opcodes.INSTANCEOF) hosts.add(type.desc);
+        check(hosts.equals(List.of(UI + "FullscreenScreen", UI + "FullscreenContainerScreen")),
+                "Widget policy belongs to both shared fullscreen hosts, not a concrete screen or widget identity");
+        for (String handler : List.of("essenceAscendance$composedWidgets", "essenceAscendance$composedRenderables",
+                "essenceAscendance$composedEventWidgets")) {
+            var hooked = policy.methods.stream().filter(method -> method.name.equals(handler)).findFirst().orElseThrow();
+            var calls = calls(hooked);
+            check(index(calls, policy.name, "essenceAscendance$composedWidgetLayer") == 0
+                            && calls.stream().anyMatch(call -> call.name.equals("cancel") || call.name.equals("setReturnValue")),
+                    "Native registration is canceled only for composition-owned fullscreen widgets: " + handler);
+        }
+        check(injection(policy, "essenceAscendance$composedWidgets").containsAll(List.of("addRenderableWidget", "addWidget"))
+                        && injection(policy, "essenceAscendance$composedRenderables").contains("addRenderableOnly")
+                        && injection(policy, "essenceAscendance$composedEventWidgets").contains("addEventWidget"),
+                "Render, input/narration and native loader-event registration paths are covered");
+        check(injection(policy, "essenceAscendance$finishComposedWidgets").containsAll(
+                        List.of("init(Lnet/minecraft/client/Minecraft;II)V", "rebuildWidgets"))
+                        && injection(policy, "essenceAscendance$composedNarration").contains("runNarration"),
+                "Initialization, resize/rebuild and narration also clear direct widget-list additions");
+        var cleanup = calls(method(policy, "essenceAscendance$clearNativeWidgets", "()V"));
+        check(count(cleanup, policy.name, "clearWidgets") == 1 && count(cleanup, policy.name, "clearFocus") == 1,
+                "Cleanup removes native rendering, input, narration and stale focus together");
+        for (ClassNode host : List.of(ordinary, container)) {
+            var refresh = calls(method(host, "refreshFullscreen", "()V"));
+            check(refresh.stream().anyMatch(call -> call.name.equals("clearWidgets"))
+                            && refresh.stream().anyMatch(call -> call.name.equals("clearFocus"))
+                            && count(refresh, UI + "FullscreenComposition", "update") == 1,
+                    "Late native additions are cleared before shared fullscreen render/input without replacing composed controls");
+        }
+        try (var stream = FullscreenRenderContractTest.class.getResourceAsStream("/essence_ascendance.mixins.json")) {
+            check(stream != null && new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)
+                            .contains("\"FullscreenWidgetLayerMixin\""), "Fullscreen widget policy is installed on both loaders");
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<String> injection(ClassNode policy, String handler) {
+        var method = policy.methods.stream().filter(candidate -> candidate.name.equals(handler)).findFirst().orElseThrow();
+        var annotations = new ArrayList<org.objectweb.asm.tree.AnnotationNode>();
+        if (method.visibleAnnotations != null) annotations.addAll(method.visibleAnnotations);
+        if (method.invisibleAnnotations != null) annotations.addAll(method.invisibleAnnotations);
+        var inject = annotations.stream().filter(annotation -> annotation.desc.equals(
+                "Lorg/spongepowered/asm/mixin/injection/Inject;")).findFirst().orElseThrow();
+        return (List<String>) inject.values.get(inject.values.indexOf("method") + 1);
     }
 
     private static void nativeLifecycle(ClassNode screen, ClassNode container) {
@@ -99,6 +152,12 @@ final class FullscreenRenderContractTest {
             check(initialize >= 0 && (post < 0 || post > initialize),
                     "The initialization return boundary follows both the host init and NeoForge's post listeners");
         }
+        check(count(calls(method(screen, "clearWidgets", "()V")), "java/util/List", "clear") == 3,
+                "Shared native widget cleanup clears rendering, input and narration collections on each loader");
+        var eventAdder = screen.methods.stream().filter(method -> method.name.equals("addEventWidget")).findFirst();
+        if (eventAdder.isPresent()) check(count(calls(eventAdder.get()), "java/util/List", "add") == 3
+                        && calls(eventAdder.get()).stream().noneMatch(call -> call.name.equals("addRenderableWidget") || call.name.equals("addWidget")),
+                "NeoForge's native event adapter bypasses normal widget registration and needs its own generic interception");
         check(count(calls(method(screen, "removeWidget",
                         "(Lnet/minecraft/client/gui/components/events/GuiEventListener;)V")), "java/util/List", "remove") == 3,
                 "Native widget removal covers the render, input and narration collections on each loader");
