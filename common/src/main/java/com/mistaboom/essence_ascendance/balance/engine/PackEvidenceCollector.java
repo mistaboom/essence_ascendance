@@ -14,6 +14,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.tags.ItemTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -43,6 +44,8 @@ import static com.mistaboom.essence_ascendance.balance.engine.EvidenceFact.Subje
  * Catalog strength bands are calibration groups, never acquisition or progression proofs. */
 public final class PackEvidenceCollector {
     private PackEvidenceCollector() { }
+    private static final TagKey<Item> MELEE_WEAPONS = TagKey.create(Registries.ITEM,
+            ResourceLocation.fromNamespaceAndPath("c", "tools/melee_weapon"));
 
     public static PackEvidence collect(MinecraftServer server, BalanceSettings settings, BalanceOverrides overrides,
                                        com.mistaboom.essence_ascendance.valuation.GenerationDataSnapshot inputs,
@@ -118,15 +121,24 @@ public final class PackEvidenceCollector {
             boolean included = resource.external() && resource.economicValue() > 0 && !axes.isEmpty()
                     && BalanceOverrides.EQUIPMENT_SLOTS.contains(slot) && !slot.equals("body")
                     && !excluded(sink, ITEM, ref.itemId()) && sink.flag(ITEM, ref.itemId(), "include_reference", true);
+            var nativeModifiers = new TreeMap<>(ref.attributeModifiers());
+            Map.of(CapabilityAxis.ARMOR, Attributes.ARMOR, CapabilityAxis.TOUGHNESS, Attributes.ARMOR_TOUGHNESS,
+                    CapabilityAxis.MAX_HEALTH, Attributes.MAX_HEALTH).forEach((axis, attribute) -> {
+                var fact = sink.get(ITEM, ref.itemId(), "axis." + axis.name());
+                if (fact != null && fact.origin() == EvidenceFact.Origin.OVERRIDE)
+                    nativeModifiers.remove(attribute.unwrapKey().orElseThrow().location().toString());
+            });
             rows.add(new EquipmentReference(ref.itemId(), slot, ProgressionBand.ENTRY, axes, ref.capabilities(),
-                    false, included, ref.confidence(), ref.reason()));
+                    false, included, ref.confidence(), ref.reason(), nativeModifiers));
         }
-        var banded = catalogBands(rows);
+        var banded = catalogBands(rows, settings.outlierPolicy().name());
         List<EquipmentReference> result = new ArrayList<>();
         for (var ref : banded) {
             var band = enumeration(ProgressionBand.class, sink.text(ITEM, ref.itemId(), "stage", ref.stage().name()));
-            var row = new EquipmentReference(ref.itemId(), ref.slot(), band, ref.axes(), ref.capabilities(),
-                    false, ref.included(), ref.confidence(), ref.reason());
+            var capabilities = new ArrayList<>(ref.capabilities());
+            if (sink.get(ITEM, ref.itemId(), "stage") != null) capabilities.add(EquipmentStrengthBands.EXPLICIT_STAGE);
+            var row = new EquipmentReference(ref.itemId(), ref.slot(), band, ref.axes(), capabilities,
+                    false, ref.included(), ref.confidence(), ref.reason(), ref.attributeModifiers());
             result.add(row);
             measuredAxisFacts(sink, ITEM, row.itemId(), row.axes(), "equipment_components", row.confidence(), band,
                     "Default equipment attributes; relative catalog strength band, not acquisition progression");
@@ -136,27 +148,11 @@ public final class PackEvidenceCollector {
 
     /** Rank distinct measured strengths within compatible slots. Duplicate catalog entries have no vote. */
     static List<EquipmentReference> catalogBands(List<EquipmentReference> rows) {
-        Map<String, List<Double>> populations = new TreeMap<>();
-        for (var row : rows) if (row.included()) populations.computeIfAbsent(group(row), ignored -> new ArrayList<>()).add(strength(row));
-        populations.replaceAll((key, values) -> values.stream().distinct().sorted().toList());
-        List<EquipmentReference> result = new ArrayList<>();
-        for (var row : rows) {
-            var values = populations.getOrDefault(group(row), List.of());
-            int index = java.util.Collections.binarySearch(values, strength(row));
-            int band = values.size() <= 1 || index < 0 ? 0 : (int) Math.round(index * 4.0 / (values.size() - 1));
-            result.add(new EquipmentReference(row.itemId(), row.slot(), ProgressionBand.at(band), row.axes(), row.capabilities(),
-                    false, row.included(), row.confidence(), row.reason()));
-        }
-        return List.copyOf(result);
+        return catalogBands(rows, BalanceSettings.defaults().outlierPolicy().name());
     }
-    private static String group(EquipmentReference row) {
-        return row.axes().containsKey(CapabilityAxis.MINING_SPEED) ? "mining_tools" : row.slot();
-    }
-    private static double strength(EquipmentReference row) {
-        var axes = row.axes();
-        if (axes.containsKey(CapabilityAxis.MINING_SPEED)) return axes.get(CapabilityAxis.MINING_SPEED);
-        if (axes.containsKey(CapabilityAxis.ARMOR)) return axes.get(CapabilityAxis.ARMOR) + axes.getOrDefault(CapabilityAxis.TOUGHNESS, 0.0);
-        return axes.getOrDefault(CapabilityAxis.SUSTAINED_DAMAGE, axes.getOrDefault(CapabilityAxis.DURABILITY, 0.0));
+
+    static List<EquipmentReference> catalogBands(List<EquipmentReference> rows, String outlierPolicy) {
+        return EquipmentStrengthBands.primary(rows, outlierPolicy);
     }
 
     static List<EnemyReference> collectEnemies(EvidenceSink sink) {
@@ -219,10 +215,17 @@ public final class PackEvidenceCollector {
             axes.put(CapabilityAxis.ARMOR, attribute(stack, Attributes.ARMOR, equipmentSlot, 0));
             axes.put(CapabilityAxis.TOUGHNESS, attribute(stack, Attributes.ARMOR_TOUGHNESS, equipmentSlot, 0));
         } else if (item instanceof ElytraItem) {
+            equipmentSlot = EquipmentSlot.CHEST;
             slot = "chest"; axes.put(CapabilityAxis.GLIDING, 1.0); capabilities.add("gliding");
         } else if (item instanceof ShieldItem) {
+            equipmentSlot = EquipmentSlot.OFFHAND;
             slot = "offhand"; axes.put(CapabilityAxis.BLOCKING, 1.0); capabilities.add("directional_blocking");
         } else {
+            // A mining tool's attack attributes do not make it a weapon-family reference.
+            // Functional declarations can explicitly identify dual-purpose weapons; enchant
+            // compatibility alone does not prove their role.
+            if (tool != null && !(item instanceof SwordItem || item instanceof TridentItem || item instanceof MaceItem
+                    || stack.is(ItemTags.SWORDS) || stack.is(MELEE_WEAPONS))) slot = "mainhand_tool";
             double damage = attribute(stack, Attributes.ATTACK_DAMAGE, equipmentSlot, 1);
             double rate = attribute(stack, Attributes.ATTACK_SPEED, equipmentSlot, 4);
             if (item instanceof BowItem || item instanceof CrossbowItem) {
@@ -238,12 +241,16 @@ public final class PackEvidenceCollector {
             double mining = Math.max(tool.defaultMiningSpeed(), stack.getDestroySpeed(Blocks.STONE.defaultBlockState()));
             mining = Math.max(mining, stack.getDestroySpeed(Blocks.OAK_LOG.defaultBlockState()));
             mining = Math.max(mining, stack.getDestroySpeed(Blocks.DIRT.defaultBlockState()));
+            // The sampled blocks do not exercise every native tool family (for example organic
+            // materials). Preserve declared rule speeds without claiming they apply to all blocks.
+            for (var rule : tool.rules()) if (rule.speed().isPresent()) mining = Math.max(mining, rule.speed().get());
             axes.put(CapabilityAxis.MINING_SPEED, mining);
             int harvest = stack.isCorrectToolForDrops(Blocks.OBSIDIAN.defaultBlockState()) ? 3
                     : stack.isCorrectToolForDrops(Blocks.DIAMOND_ORE.defaultBlockState()) ? 2
                     : stack.isCorrectToolForDrops(Blocks.IRON_ORE.defaultBlockState()) ? 1 : 0;
             axes.put(CapabilityAxis.HARVEST_LEVEL, (double) harvest);
             capabilities.add("tool_component");
+            capabilities.add("declared_tool_rule_peak; effective speed remains block-specific");
         }
         axes.put(CapabilityAxis.DURABILITY, (double) stack.getMaxDamage());
         if (item.getEnchantmentValue() > 0) capabilities.add("enchantable:" + item.getEnchantmentValue());
@@ -254,7 +261,19 @@ public final class PackEvidenceCollector {
         }
         for (var axis : axes.entrySet()) if (!Double.isFinite(axis.getValue()) || axis.getValue() < 0)
             throw new IllegalArgumentException("Invalid equipment axis " + axis.getKey() + " for " + id);
-        return new EquipmentReference(id, slot, stage, axes, capabilities, reachable, false, confidence, "Measured default stack catalog reference; acquisition and recurring supply are unexamined");
+        Map<String, Map<String, NativeAttributeContribution.Modifier>> modifiers = new TreeMap<>();
+        stack.forEachModifier(equipmentSlot, (holder, modifier) -> holder.unwrapKey().ifPresent(key ->
+                modifiers.computeIfAbsent(key.location().toString(), ignored -> new TreeMap<>()).put(modifier.id().toString(),
+                        new NativeAttributeContribution.Modifier(modifier.amount(), modifier.operation()))));
+        Map<String, NativeAttributeContribution> contributions = new TreeMap<>();
+        modifiers.forEach((attribute, values) -> contributions.put(attribute, new NativeAttributeContribution(values)));
+        String healthAttribute = Attributes.MAX_HEALTH.unwrapKey().orElseThrow().location().toString();
+        // Measured absence is a native no-op, not a scalar estimate of the player's base health.
+        contributions.putIfAbsent(healthAttribute, NativeAttributeContribution.EMPTY);
+        double health = contributions.get(healthAttribute).apply(Attributes.MAX_HEALTH.value().getDefaultValue());
+        axes.put(CapabilityAxis.MAX_HEALTH, Attributes.MAX_HEALTH.value().sanitizeValue(health));
+        return new EquipmentReference(id, slot, stage, axes, capabilities, reachable, false, confidence,
+                "Measured default stack catalog reference; acquisition and recurring supply are unexamined", contributions);
     }
 
     private static double attribute(ItemStack stack, Holder<Attribute> attribute, EquipmentSlot slot, double base) {

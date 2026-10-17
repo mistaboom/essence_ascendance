@@ -10,7 +10,7 @@ import com.mistaboom.essence_ascendance.item.AscendanceArchiveItem;
 import com.mistaboom.essence_ascendance.item.AscendanceAxeItem;
 import com.mistaboom.essence_ascendance.item.AscendanceCasterItem;
 import com.mistaboom.essence_ascendance.item.AscendanceHoeItem;
-import com.mistaboom.essence_ascendance.item.AscendanceMeleeWeaponItem;
+import com.mistaboom.essence_ascendance.item.AscendanceSwordItem;
 import com.mistaboom.essence_ascendance.item.AscendancePickaxeItem;
 import com.mistaboom.essence_ascendance.item.AscendanceRangedWeaponItem;
 import com.mistaboom.essence_ascendance.item.AscendanceShieldItem;
@@ -158,7 +158,7 @@ public final class InventoryItemEmissionTest {
     }
 
     private static void checkItemContract() {
-        for (Class<?> type : List.of(AscendanceMeleeWeaponItem.class, AscendanceRangedWeaponItem.class,
+        for (Class<?> type : List.of(AscendanceSwordItem.class, AscendanceRangedWeaponItem.class,
                 AscendanceCasterItem.class, AscendancePickaxeItem.class, AscendanceAxeItem.class,
                 AscendanceShovelItem.class, AscendanceHoeItem.class)) {
             check(EmissiveAccentItem.class.isAssignableFrom(type), type.getSimpleName() + " opts into accent emission");
@@ -239,7 +239,7 @@ public final class InventoryItemEmissionTest {
 
         @Override
         public ResourceLocation equipmentProfileId() {
-            return EquipmentProfiles.MELEE_WEAPON.id();
+            return EquipmentProfiles.SWORD.id();
         }
     }
 

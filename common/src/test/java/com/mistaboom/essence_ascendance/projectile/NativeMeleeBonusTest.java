@@ -87,7 +87,7 @@ public final class NativeMeleeBonusTest {
     }
 
     private static List<Item> meleeItems() {
-        return List.of(AscendanceItems.ASCENDANCE_MELEE_WEAPON.get(), AscendanceItems.ASCENDANCE_HOE.get(),
+        return List.of(AscendanceItems.ASCENDANCE_SWORD.get(), AscendanceItems.ASCENDANCE_HOE.get(),
                 AscendanceItems.ASCENDANCE_PICKAXE.get(), AscendanceItems.ASCENDANCE_AXE.get(), AscendanceItems.ASCENDANCE_SHOVEL.get());
     }
 

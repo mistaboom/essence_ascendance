@@ -18,6 +18,8 @@ import com.mistaboom.essence_ascendance.infuser.EssentiumItem;
 import com.mistaboom.essence_ascendance.infuser.EssentiumNuggetCompactingRecipe;
 import com.mistaboom.essence_ascendance.infuser.EssentiumNuggetUncompactingRecipe;
 import com.mistaboom.essence_ascendance.item.AscendanceItems;
+import com.mistaboom.essence_ascendance.pylon.EssenceFocusData;
+import com.mistaboom.essence_ascendance.pylon.EssencePylonContent;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.constants.VanillaTypes;
@@ -39,6 +41,7 @@ import mezz.jei.api.runtime.IJeiRuntime;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.renderer.Rect2i;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingRecipe;
@@ -123,11 +126,11 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
         }
     };
 
-    /** Tier components distinguish equipment variants in JEI's ingredient list. */
+    /** Tier components distinguish both browsing entries and acquisition/use recipes. */
     static final ISubtypeInterpreter<ItemStack> EQUIPMENT_TIER_SUBTYPE = new ISubtypeInterpreter<>() {
         @Override
         public Object getSubtypeData(ItemStack stack, UidContext context) {
-            return context == UidContext.Ingredient && EquipmentTierData.isAscendanceEquipment(stack)
+            return EquipmentTierData.isAscendanceEquipment(stack)
                     ? EquipmentTierData.tier(stack)
                     : null;
         }
@@ -135,7 +138,24 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
         @Override
         @SuppressWarnings("removal")
         public String getLegacyStringSubtypeInfo(ItemStack stack, UidContext context) {
-            return "";
+            return EquipmentTierData.isAscendanceEquipment(stack) ? EquipmentTierData.tier(stack).name() : "";
+        }
+    };
+
+    /** Registered only for the evolving Focus; partial infusion is not a separate acquisition tier. */
+    static final ISubtypeInterpreter<ItemStack> FOCUS_TIER_SUBTYPE = new ISubtypeInterpreter<>() {
+        @Override
+        public Object getSubtypeData(ItemStack stack, UidContext context) {
+            if (stack.isEmpty()) return null;
+            var tier = EssenceFocusData.tierFromData(stack.get(DataComponents.CUSTOM_DATA));
+            return tier == null ? "latent" : tier.serializedName();
+        }
+
+        @Override
+        @SuppressWarnings("removal")
+        public String getLegacyStringSubtypeInfo(ItemStack stack, UidContext context) {
+            var tier = getSubtypeData(stack, context);
+            return tier == null ? "" : tier.toString();
         }
     };
 
@@ -153,6 +173,7 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
         for (var item : AscendanceItems.tieredCatalogItems()) {
             registration.registerSubtypeInterpreter(item, EQUIPMENT_TIER_SUBTYPE);
         }
+        registration.registerSubtypeInterpreter(EssencePylonContent.ESSENCE_FOCUS.get(), FOCUS_TIER_SUBTYPE);
         registration.registerSubtypeInterpreter(
                 EssenceInfuserContent.ESSENTIUM_NUGGET.get(),
                 ESSENTIUM_SUBTYPE
@@ -211,6 +232,7 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
     public void onRuntimeAvailable(IJeiRuntime jeiRuntime) {
         hideTagInformationCategories(jeiRuntime);
         runtime = jeiRuntime;
+        JeiCatalogOrder.INSTANCE.runtimeAvailable();
         listedOreVariants = jeiRuntime.getIngredientManager().getAllItemStacks().stream()
                 .filter(stack -> stack.is(EssenceInfuserContent.LATENT_ORE_ITEM.get()))
                 .map(ItemStack::copy).toList();
@@ -221,6 +243,7 @@ public final class EssenceAscendanceJeiPlugin implements IModPlugin {
     @Override
     public void onRuntimeUnavailable() {
         LatentOreClientCatalog.setIngredientRefreshListener(null);
+        JeiCatalogOrder.INSTANCE.clear();
         runtime = null;
         listedOreVariants = List.of();
     }

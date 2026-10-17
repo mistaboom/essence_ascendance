@@ -3,33 +3,37 @@
   "namespace": "essence_ascendance",
   "assets": [
     {
+      "source": "source/models/item/ascendance_glaive.bbmodel",
+      "category": "authoring_only"
+    },
+    {
       "source": "source/models/item/ascendance_sword.bbmodel",
       "category": "layered_item",
       "textures": [
         {
           "name": "ascendance_sword_base",
-          "path": "item/ascendance_melee_weapon/base"
+          "path": "item/ascendance_sword/base"
         },
         {
           "name": "ascendance_sword_accent",
-          "path": "item/ascendance_melee_weapon/accent"
+          "path": "item/ascendance_sword/accent"
         },
         {
           "name": "ascendance_sword_nochange",
-          "path": "item/ascendance_melee_weapon/nochange"
+          "path": "item/ascendance_sword/nochange"
         }
       ],
       "item": {
-        "id": "ascendance_melee_weapon",
+        "id": "ascendance_sword",
         "tiered": true,
         "states": [
           {
             "suffix": "",
             "parent": "minecraft:item/handheld",
             "layers": [
-              "item/ascendance_melee_weapon/base",
-              "item/ascendance_melee_weapon/accent",
-              "item/ascendance_melee_weapon/nochange"
+              "item/ascendance_sword/base",
+              "item/ascendance_sword/accent",
+              "item/ascendance_sword/nochange"
             ]
           }
         ]

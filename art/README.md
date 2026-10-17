@@ -4,6 +4,8 @@ The procedural project logo lives in [branding/](branding/README.md). Run `./gra
 
 Edit the Blockbench projects in `source/models/`, save their embedded textures, and build. The same asset pipeline imports every registered model automatically. Changes to an existing named texture, including the sword's accent, are picked up without a separate extraction command.
 
+Unfinished projects can be listed in the manifest with category `authoring_only`. They remain editable source art and produce no runtime assets until an export category is assigned. The glaive is currently staged this way.
+
 ## Source and output locations
 
 | Location | Purpose |
@@ -75,7 +77,7 @@ Paths below are relative to this folder. Runtime identifiers are relative to `as
 | [Raw Latent](source/models/item/raw_latent.bbmodel) | `textures/item/raw_latent_ore.png`; untinted item model |
 | [Ascendance Archive](source/models/item/ascendance_archive.bbmodel) | `textures/item/ascendance_archive.png`; untinted generated item model |
 | [Ascendance Matrix](source/models/item/ascendance_matrix.bbmodel) | `textures/item/ascendance_matrix.png`; untinted generated item model |
-| [Ascendance sword](source/models/item/ascendance_sword.bbmodel) | `textures/item/ascendance_melee_weapon/`; six-tier item models |
+| [Ascendance sword](source/models/item/ascendance_sword.bbmodel) | `textures/item/ascendance_sword/`; six-tier item models |
 | [Ascendance bow](source/models/item/ascendance_bow.bbmodel) | `textures/item/ascendance_ranged_weapon/`; four bow states at all six tiers |
 | [Ascendance caster](source/models/item/ascendance_caster.bbmodel) | `textures/item/ascendance_caster/`; six-tier handheld item models |
 | [Ascendance pickaxe](source/models/item/ascendance_pickaxe.bbmodel) | `textures/item/ascendance_pickaxe/`; six-tier item models |

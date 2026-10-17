@@ -20,7 +20,9 @@ import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.SurfaceRules;
 import net.minecraft.world.level.levelgen.VerticalAnchor;
 import com.mojang.serialization.JsonOps;
+import com.google.gson.JsonElement;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -106,7 +108,7 @@ public final class PrimarySubstrateDiscovery {
             String source = "noise default_block " + terrain.unwrapKey().map(key -> key.location().toString()).orElse("inline settings");
             add(candidates, rejected, base, source);
             // Vanilla defines this as a base geological layer, not as an ore/deposit target.
-            // Only this known basal branch is recognized; other custom layers need explicit evidence.
+            // Recognize this exact basal branch even inside a generator's composed rule tree.
             if (base.is(Blocks.STONE) && hasVanillaBasalLayer(terrain.value().surfaceRule(), rejected))
                 add(candidates, rejected, Blocks.DEEPSLATE.defaultBlockState(), "vanilla Overworld basal deepslate layer");
         } else {
@@ -123,24 +125,45 @@ public final class PrimarySubstrateDiscovery {
         else candidates.putIfAbsent(state.getBlock(), evidence);
     }
 
-    /** Recognizes the real final basal branch; does not scan arbitrary surface/deposit block states. */
+    /** Recognizes an exact basal rule; arbitrary surface/deposit block states are not hosts. */
     private static boolean hasVanillaBasalLayer(SurfaceRules.RuleSource surface, List<String> diagnostics) {
         try {
             var encoded = SurfaceRules.RuleSource.CODEC.encodeStart(JsonOps.INSTANCE, surface)
                     .resultOrPartial(error -> diagnostics.add("basal-layer evidence unavailable: " + error)).orElse(null);
-            if (encoded == null || !encoded.isJsonObject()) return false;
-            var root = encoded.getAsJsonObject();
-            if (!root.has("sequence") || !root.get("sequence").isJsonArray()) return false;
-            var sequence = root.getAsJsonArray("sequence");
-            if (sequence.size() == 0) return false;
-            var knownLayer = SurfaceRules.ifTrue(SurfaceRules.verticalGradient("deepslate", VerticalAnchor.absolute(0),
-                    VerticalAnchor.absolute(8)), SurfaceRules.state(Blocks.DEEPSLATE.defaultBlockState()));
-            var expected = SurfaceRules.RuleSource.CODEC.encodeStart(JsonOps.INSTANCE, knownLayer).result().orElse(null);
-            return sequence.get(sequence.size() - 1).equals(expected);
+            return hasVanillaBasalLayer(encoded, diagnostics);
         } catch (RuntimeException unsupportedCodec) {
             diagnostics.add("basal-layer evidence unavailable: " + unsupportedCodec.getClass().getSimpleName());
             return false;
         }
+    }
+
+    // A wrapper may retain the native branch under any field. Inspect the encoded tree rather
+    // than assuming one root sequence or depending on another mod's class/serializer identity.
+    static boolean hasVanillaBasalLayer(JsonElement encoded, List<String> diagnostics) {
+        if (encoded == null) return false;
+        var knownLayer = SurfaceRules.ifTrue(SurfaceRules.verticalGradient("deepslate", VerticalAnchor.absolute(0),
+                VerticalAnchor.absolute(8)), SurfaceRules.state(Blocks.DEEPSLATE.defaultBlockState()));
+        var expected = SurfaceRules.RuleSource.CODEC.encodeStart(JsonOps.INSTANCE, knownLayer).getOrThrow();
+        var pending = new ArrayDeque<JsonElement>();
+        pending.add(encoded);
+        int remaining = 16_384;
+        while (!pending.isEmpty() && remaining-- > 0) {
+            var node = pending.removeFirst();
+            if (node.equals(expected)) return true;
+            if (node.isJsonObject()) {
+                for (var child : node.getAsJsonObject().entrySet()) {
+                    if (pending.size() >= remaining) break;
+                    pending.addLast(child.getValue());
+                }
+            } else if (node.isJsonArray()) {
+                for (var child : node.getAsJsonArray()) {
+                    if (pending.size() >= remaining) break;
+                    pending.addLast(child);
+                }
+            }
+        }
+        if (!pending.isEmpty() || remaining <= 0) diagnostics.add("basal-layer evidence unavailable: encoded rule inspection bound reached");
+        return false;
     }
 
     private static String rejection(BlockState state) {

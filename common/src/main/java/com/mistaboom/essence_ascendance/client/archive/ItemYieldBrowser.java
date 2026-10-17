@@ -187,7 +187,7 @@ public final class ItemYieldBrowser {
                 state.selectedEssences(), state.match()) : List.of();
         visibleRows = rows;
         ReadOnlyDataTable<BrowserRow> data = tableData(rows);
-        table = new ReadOnlyDataTableView<>(data);
+        table = new ReadOnlyDataTableView<>(data, ReadOnlyDataTableView.Layout.COMPACT);
         table.restore(state.selectedRow() == null ? null : state.selectedRow().toString(), state.scroll(),
                 state.sortColumn(), direction(state.sortDirection()));
         cacheKey = nextKey;
@@ -215,9 +215,10 @@ public final class ItemYieldBrowser {
             if (!BuiltInRegistries.ITEM.containsKey(source.itemId())) continue;
             ItemStack stack = BuiltInRegistries.ITEM.get(source.itemId()).getDefaultInstance();
             if (stack.isEmpty()) continue;
-            Component name = stack.getHoverName();
+            Component name = displayName(source.itemId(), stack.getHoverName());
             Map<ResourceLocation, Long> yields = new LinkedHashMap<>();
             ItemEssenceTooltipClientState.outputsForStack(stack, snapshot).forEach(output -> yields.put(output.essenceId(), output.microUnits()));
+            if (yields.values().stream().noneMatch(value -> value > 0)) continue;
             result.add(new BrowserRow(source.itemId(), name,
                     new ItemPresentation(source.itemId(), stack.getComponentsPatch(), name), Map.copyOf(yields)));
         }
@@ -233,6 +234,11 @@ public final class ItemYieldBrowser {
         return List.copyOf(result);
     }
 
+    /** A valid registered item with a blank localized name stays identifiable and searchable. */
+    public static Component displayName(ResourceLocation itemId, Component localizedName) {
+        return localizedName.getString().isBlank() ? Component.literal(itemId.toString()) : localizedName;
+    }
+
     public static List<BrowserRow> enchantmentRows(ItemEssenceTooltipClientState.YieldSnapshot snapshot,
                                                    net.minecraft.core.Registry<net.minecraft.world.item.enchantment.Enchantment> registry) {
         List<BrowserRow> result = new ArrayList<>();
@@ -242,7 +248,8 @@ public final class ItemYieldBrowser {
                 var enchantments = new net.minecraft.world.item.enchantment.ItemEnchantments.Mutable(net.minecraft.world.item.enchantment.ItemEnchantments.EMPTY);
                 enchantments.set(holder, level);
                 stack.set(net.minecraft.core.component.DataComponents.STORED_ENCHANTMENTS, enchantments.toImmutable());
-                var name = net.minecraft.world.item.enchantment.Enchantment.getFullname(holder, level);
+                var name = displayName(holder.key().location(),
+                        net.minecraft.world.item.enchantment.Enchantment.getFullname(holder, level));
                 Map<ResourceLocation, Long> yields = new LinkedHashMap<>();
                 ItemEssenceTooltipClientState.outputsForStack(stack, snapshot).forEach(output -> yields.put(output.essenceId(), output.microUnits()));
                 var item = ResourceLocation.parse("minecraft:enchanted_book");

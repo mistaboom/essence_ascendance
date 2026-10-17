@@ -48,8 +48,45 @@ public final class LatentOreJeiTest {
                 "Missing host is not silently identified as stone");
         check(interpreter.getSubtypeData(ItemStack.EMPTY, UidContext.Ingredient) == null,
                 "Empty stacks are safe");
+        catalogOrder();
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out))
-                .println("LatentOreJeiTest: " + checks + " subtype and shared-recipe checks PASS");
+                .println("LatentOreJeiTest: " + checks + " subtype, shared-recipe and late catalog order checks PASS");
+    }
+
+    private static void catalogOrder() {
+        var revision = new java.util.concurrent.atomic.AtomicLong();
+        var family = new java.util.concurrent.atomic.AtomicReference<>(java.util.Set.of(Items.STONE));
+        var order = new JeiCatalogOrder(family::get, revision::get);
+        var base = stack(Blocks.STONE.defaultBlockState());
+        var other = new ItemStack(Items.COAL);
+        var initialVariant = stack(Blocks.DEEPSLATE.defaultBlockState());
+        int baseIndex = order.createdIndex(base, 10);
+        int unrelatedIndex = order.createdIndex(other, 20);
+        int initialIndex = order.createdIndex(initialVariant, 30);
+        check(baseIndex == 10 && initialIndex == 10, "Initial own subtypes share the family's creative position");
+        check(unrelatedIndex == 20, "Unregistered items retain their exact native ordering key");
+        check(!order.takePendingSort(), "Initial index construction does not schedule a second sort");
+        order.runtimeAvailable();
+        int lateIndex = order.createdIndex(stack(Blocks.TUFF.defaultBlockState()), 90000);
+        check(lateIndex == baseIndex, "Server-selected late subtype retains the first variant's position");
+        check(order.takePendingSort() && !order.takePendingSort(), "A late family addition schedules exactly one native re-sort");
+        record Entry(String name, int index) { }
+        var entries = new java.util.ArrayList<>(List.of(new Entry("base", baseIndex),
+                new Entry("unrelated", unrelatedIndex), new Entry("initial", initialIndex), new Entry("late", lateIndex)));
+        entries.sort(java.util.Comparator.comparingInt(Entry::index));
+        check(entries.stream().map(Entry::name).toList().equals(List.of("base", "initial", "late", "unrelated")),
+                "Stable native creative-order comparison groups late and existing variants together");
+        check(order.createdIndex(other, 100000) == 100000 && !order.takePendingSort(),
+                "Other plugins' additions keep their own positions without requesting a sort");
+        check(order.createdIndex(ItemStack.EMPTY, 100001) == 100001, "Empty ingredients are untouched");
+        family.set(java.util.Set.of(Items.STONE, Items.DIRT)); revision.incrementAndGet();
+        check(order.createdIndex(new ItemStack(Items.DIRT), 100002) == 100002,
+                "A newly declared family starts at its native position after catalog invalidation");
+        check(order.createdIndex(new ItemStack(Items.DIRT), 100003) == 100002 && order.takePendingSort(),
+                "A new family uses the same generic late-variant policy");
+        order.clear();
+        check(order.createdIndex(base, 500) == 500 && !order.takePendingSort(),
+                "A new JEI runtime does not inherit positions or pending work from an old runtime");
     }
 
     private static ItemStack stack(BlockState host) {

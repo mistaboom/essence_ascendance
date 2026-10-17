@@ -308,7 +308,29 @@ public final class AscendanceNexusScreen
             renderSkillTooltip(graphics, hoveredSkillId, mouseX, mouseY);
         } else if (navigation.mode() == NexusMode.BONUSES && hoveredTrack != null) {
             renderTrackTooltip(graphics, hoveredTrack, mouseX, mouseY);
+        } else if (navigation.mode() == NexusMode.BONUSES && renderTierLabelTooltip(graphics, mouseX, mouseY)) {
+            // Full labels remain accessible when their bounded display needs an ellipsis.
         } else renderPrimaryActionTooltip(graphics, mouseX, mouseY);
+    }
+
+    private boolean renderTierLabelTooltip(GuiGraphics graphics, int mouseX, int mouseY) {
+        var categories = categories();
+        if (categories.isEmpty()) return false;
+        var tracks = categories.get(selectedCategoryIndex).tracks();
+        if (tracks.isEmpty()) return false;
+        var layout = contentLayout();
+        var track = tracks.getFirst().state().track();
+        var geometry = new NexusBonusTrackLayout(track, layout.trackTop(), layout.trackBottom());
+        for (int i = 0; i < track.checkpoints().size(); i++) {
+            if (track.tierPositions().get(i) <= 0) continue;
+            var label = new UiBounds(layout.tracksRight() + 3, geometry.bandCenterY(i) - font.lineHeight / 2,
+                    Math.max(0, layout.right() - layout.tracksRight() - 6), font.lineHeight + 1);
+            if (label.contains(mouseX, mouseY)) {
+                graphics.renderTooltip(font, Component.literal(tierDisplayName(track.checkpoints().get(i).tierId())), mouseX, mouseY);
+                return true;
+            }
+        }
+        return false;
     }
 
     private void declareActions(FullscreenComposition.Builder builder, List<NexusCategoryView> categories) {
@@ -746,30 +768,38 @@ public final class AscendanceNexusScreen
             GuiGraphics graphics,
             NexusPageLayout layout
     ) {
-        int center = (layout.tracksLeft() + layout.right()) / 2;
-        int maximumWidth = Math.max(20, layout.right() - layout.tracksLeft() - 8);
-        graphics.drawCenteredString(
-                font,
-                StyledTextLayout.fitPlain(font,
-                        EssenceText.gui("nexus.skills.legend.one").getString(),
-                        maximumWidth
-                ),
-                center,
-                layout.middleTop() + 2,
-                MUTED
-        );
-        graphics.drawCenteredString(
-                font,
-                StyledTextLayout.fitPlain(font,
-                        EssenceText.gui("nexus.skills.legend.two").getString(),
-                        maximumWidth
-                ),
-                center,
-                layout.middleTop() + 12,
-                MUTED
-        );
-        graphics.drawCenteredString(font, EssenceText.gui("nexus.skills.legend.hud"),
-                center, layout.middleTop() + 22, MUTED);
+        renderSkillLegendRow(graphics, layout, layout.middleTop() + 2,
+                List.of(SkillNodeVisualState.LOCKED, SkillNodeVisualState.ELIGIBLE, SkillNodeVisualState.UNAFFORDABLE),
+                List.of("locked", "eligible", "unaffordable"));
+        renderSkillLegendRow(graphics, layout, layout.middleTop() + 12,
+                List.of(SkillNodeVisualState.OWNED_ACTIVE, SkillNodeVisualState.OWNED_INACTIVE,
+                        SkillNodeVisualState.SUSPENDED, SkillNodeVisualState.REPLACED),
+                List.of("active", "inactive", "suspended", "replaced"));
+        graphics.drawCenteredString(font, StyledTextLayout.fit(font, EssenceText.gui("nexus.skills.legend.hud"),
+                        Math.max(0, layout.right() - layout.tracksLeft() - 8)),
+                (layout.tracksLeft() + layout.right()) / 2, layout.middleTop() + 22, MUTED);
+    }
+
+    private void renderSkillLegendRow(GuiGraphics graphics, NexusPageLayout layout, int y,
+                                      List<SkillNodeVisualState> states, List<String> labels) {
+        var bounds = new UiBounds(layout.tracksLeft() + 4, y,
+                Math.max(0, layout.right() - layout.tracksLeft() - 8), font.lineHeight + 1);
+        var text = labels.stream().map(label -> EssenceText.gui("nexus.skills.legend." + label)).toList();
+        var cells = FullscreenLayout.fixedWidthsRow(bounds, text.stream().map(label -> font.width(label) + 11).toList(), 12);
+        for (int i = 0; i < cells.size(); i++) {
+            var cell = cells.get(i);
+            if (cell.width() < 9) continue;
+            drawSkillGlyph(graphics, states.get(i), cell.x(), y, MUTED);
+            graphics.drawString(font, StyledTextLayout.fit(font, text.get(i), cell.width() - 10), cell.x() + 10, y, MUTED, false);
+        }
+    }
+
+    private void drawSkillGlyph(GuiGraphics graphics, SkillNodeVisualState state, int x, int y, int color) {
+        if (state == SkillNodeVisualState.OWNED_ACTIVE)
+            com.mistaboom.essence_ascendance.client.ui.PixelSymbol.CHECK.draw(graphics, x, y, color);
+        else if (state == SkillNodeVisualState.REPLACED)
+            com.mistaboom.essence_ascendance.client.ui.PixelSymbol.REPLACED.draw(graphics, x, y, color);
+        else graphics.drawString(font, state.glyph(), x, y, color, false);
     }
 
     private void renderSkillTree(
@@ -2473,14 +2503,7 @@ public final class AscendanceNexusScreen
                 name,
                 Math.max(1, bounds.width() - 18)
         );
-        graphics.drawString(
-                font,
-                state.glyph(),
-                bounds.left() + 4,
-                bounds.top() + 4,
-                state.textColor(),
-                false
-        );
+        drawSkillGlyph(graphics, state, bounds.left() + 4, bounds.top() + 4, state.textColor());
         graphics.drawCenteredString(
                 font,
                 lines[0],
@@ -2995,14 +3018,10 @@ public final class AscendanceNexusScreen
 
             int tierLabelWidth = Math.max(1, layout.right() - layout.tracksRight() - 6);
             String label = tierDisplayName(resolved.checkpoints().get(boundary).tierId());
-            float labelScale = Math.min(1, tierLabelWidth / (float) Math.max(1, font.width(label)));
-            graphics.pose().pushPose();
-            graphics.pose().translate((layout.tracksRight() + layout.right()) / 2.0F,
-                    geometry.bandCenterY(boundary) - font.lineHeight * labelScale / 2.0F, 0);
-            graphics.pose().scale(labelScale, labelScale, 1);
-            graphics.drawCenteredString(font, label, 0, 0,
+            int labelY = geometry.bandCenterY(boundary) - font.lineHeight / 2;
+            graphics.drawCenteredString(font, StyledTextLayout.fitPlain(font, label, tierLabelWidth),
+                    (layout.tracksRight() + layout.right()) / 2, labelY,
                     AscendancePalette.tierMetalArgb(resolved.checkpoints().get(boundary).tierId()));
-            graphics.pose().popPose();
         }
     }
 
@@ -3515,9 +3534,9 @@ public final class AscendanceNexusScreen
 
     private FullscreenLayout.Split departureFooter() {
         UiBounds screen = fullscreenFrame().screen();
-        UiBounds band = FullscreenLayout.bands(screen, 0, 16, 0).footer();
-        int actionWidth = Math.min(band.width(), font.width(EssenceText.gui("nexus.archive")) + 16);
-        return FullscreenLayout.listDetail(band, Math.max(0, band.width() - actionWidth - 6), 6);
+        UiBounds action = FullscreenLayout.cornerControl(screen, font.width(EssenceText.gui("nexus.archive")) + 16, true);
+        return new FullscreenLayout.Split(new UiBounds(screen.x(), action.y(),
+                Math.max(0, action.x() - screen.x() - 6), action.height()), action);
     }
 
     private boolean hudControlVisible(SkillDefinition skill) {

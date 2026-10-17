@@ -60,7 +60,7 @@ public final class NativeEquipmentHeadroomTest {
             throw new AssertionError("Calibration must preserve the physical equipment curve");
         double nativeHit = EquipmentBaselineService.resolvedValue(
                 runtime.config().equipmentBaselineConfig().baselineFor(AscendanceTiers.DORMANT).meleeDamage(),
-                EquipmentProfiles.MELEE_WEAPON, EquipmentBaselineProperty.MELEE_DAMAGE);
+                EquipmentProfiles.SWORD, EquipmentBaselineProperty.MELEE_DAMAGE);
         if (nativeHit <= 8 * 1.5) throw new AssertionError("Fixture no longer exercises a native floor above the external ceiling");
         if (runtime.composition().get("offense_calibration") < .02)
             throw new AssertionError("First purchase must retain the enforced minimum power");

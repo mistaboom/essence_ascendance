@@ -1,7 +1,5 @@
 package com.mistaboom.essence_ascendance.equipment;
 
-import com.mistaboom.essence_ascendance.data.EssenceSavedData;
-import com.mistaboom.essence_ascendance.data.PlayerEssenceData;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -23,13 +21,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /*
- * Applies the player's dynamic Ascendance harvesting capability to a concrete
+ * Applies an Ascendance item's physical harvesting capability to a concrete
  * tool ItemStack.
  *
  * Vanilla's Tier object is static per Item, but an Ascendance tool's harvest
- * capability belongs to the player tier. Minecraft 1.21 stores mining speed
- * and drop-correctness rules in the TOOL data component, so the server keeps
- * that component synchronized with the current player's tier/archetype
+ * capability belongs to its physical tier. Minecraft 1.21 stores mining speed
+ * and drop-correctness rules in the TOOL data component, so both sides keep
+ * that component synchronized with the item's tier/archetype
  * baseline. Invested mining_speed remains a separate player attribute.
  *
  * Numeric modded mining-level tags are discovered generically. Tags named
@@ -61,21 +59,25 @@ public final class AscendanceToolMiningService {
             TagKey<Block> mineableTag,
             ResourceLocation profileId
     ) {
-        if (level.isClientSide || !(entity instanceof ServerPlayer player)) {
+        if (level.isClientSide || !(entity instanceof ServerPlayer)) {
             return;
         }
 
-        PlayerEssenceData playerData =
-                EssenceSavedData
-                        .get(player.server)
-                        .getPlayerData(player.getUUID());
+        refresh(stack, mineableTag, profileId);
+    }
 
-        EquipmentBaselineResult baseline =
-                EquipmentBaselineService.evaluateForStack(
-                        playerData,
-                        profileId,
-                        stack
-                );
+    /** A just-created/upgraded carried tool must be correct before its first inventory tick, on both sides. */
+    public static void refreshNativeTool(ItemStack stack) {
+        if (!(stack.getItem() instanceof EquipmentProfileItem profile)) return;
+        TagKey<Block> mineable = stack.getItem() instanceof net.minecraft.world.item.PickaxeItem ? BlockTags.MINEABLE_WITH_PICKAXE
+                : stack.getItem() instanceof net.minecraft.world.item.AxeItem ? BlockTags.MINEABLE_WITH_AXE
+                : stack.getItem() instanceof net.minecraft.world.item.ShovelItem ? BlockTags.MINEABLE_WITH_SHOVEL
+                : stack.getItem() instanceof net.minecraft.world.item.HoeItem ? BlockTags.MINEABLE_WITH_HOE : null;
+        if (mineable != null) refresh(stack, mineable, profile.equipmentProfileId());
+    }
+
+    private static void refresh(ItemStack stack, TagKey<Block> mineableTag, ResourceLocation profileId) {
+        EquipmentBaselineResult baseline = EquipmentBaselineService.physicalBaseline(stack, profileId);
 
         /*
          * The TOOL component owns only the physical tier/archetype mining

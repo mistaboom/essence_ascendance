@@ -25,7 +25,7 @@ SCENARIOS = {
     "explorer": dict(skills=["running_momentum", "impact_control", "waylight"],
                      bonuses=["movement_speed", "step_height"], gear=["boots", "leggings"]),
     "fighter": dict(skills=["frenzy", "kindling", "life_steal"],
-                    bonuses=["melee_damage", "max_health"], gear=["melee_weapon", "chestplate"]),
+                    bonuses=["melee_damage", "max_health"], gear=["sword", "chestplate"]),
 }
 PORTFOLIO = ["bamboo", "wheat", "sugar_cane", "oak_log", "feather", "leather", "string", "bone",
              "rotten_flesh", "iron_ingot", "copper_ingot", "coal", "slime_ball", "ender_pearl", "vine"]
@@ -305,7 +305,7 @@ def main():
             for p in profile["economy"]["processes"] if any(o["itemId"] in {PREFIX + item for item in (
                 "essence_crucible", "essence_infuser", "ascendance_nexus", "essence_focus", "ascendance_matrix", "channelstone",
                 "latent_ingot", "latent_nugget", "ascendance_pickaxe", "ascendance_axe", "ascendance_boots",
-                "ascendance_leggings", "ascendance_melee_weapon", "ascendance_chestplate")} for o in p["outputs"])],
+                "ascendance_leggings", "ascendance_sword", "ascendance_chestplate")} for o in p["outputs"])],
         scenarios=scenarios, allSourceQuantities=str(candidates_path.resolve()),
         mobilityVariants=len(routes["variants"]), mobilityRouteGroups=len(routes["groups"]))
     (args.output / "loadouts.json").write_text(json.dumps(result, indent=2), encoding="utf-8")

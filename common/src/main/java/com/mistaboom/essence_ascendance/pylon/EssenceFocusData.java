@@ -31,7 +31,12 @@ public final class EssenceFocusData {
         if (!isFocusItem(stack)) {
             return null;
         }
-        CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
+        return tierFromData(stack.get(DataComponents.CUSTOM_DATA));
+    }
+
+    /** Completed tier only; portable progress and payment provenance do not change item identity. */
+    @Nullable
+    public static EssenceFocusTier tierFromData(@Nullable CustomData customData) {
         if (customData == null) {
             return null;
         }

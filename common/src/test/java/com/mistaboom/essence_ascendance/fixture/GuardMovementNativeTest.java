@@ -38,7 +38,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
-/** Client-loader initialization fixture: transformed fullscreen widget hooks, sprint decision, native jump and step collision; no world. */
+/** Client-loader initialization fixture: creative cache validity, fullscreen hooks, sprint, native jump and step collision; no world. */
 public final class GuardMovementNativeTest {
     private static int checks;
     private static Object allocator;
@@ -51,6 +51,8 @@ public final class GuardMovementNativeTest {
         System.exit(0);
     }
     public static void run() throws Exception {
+        creativeCatalogInvalidation();
+        optionalJeiCatalogOrder();
         var field = Class.forName("sun.misc.Unsafe").getDeclaredField("theUnsafe"); field.setAccessible(true);
         allocator = field.get(null); allocate = allocator.getClass().getMethod("allocateInstance", Class.class);
         var screenMethods = Arrays.stream(net.minecraft.client.gui.screens.Screen.class.getDeclaredMethods())
@@ -144,6 +146,69 @@ public final class GuardMovementNativeTest {
         check(!(boolean) sprint.invoke(player), "Unregistered vanilla shield cannot inherit Ascendance guard skill contract");
         System.out.println("Guard movement native hooks passed: " + checks + " (transformed LocalPlayer sprint/slowdown, native jump and terrain-step collision; no world)");
     }
+    /** If installed in this isolated fixture only, exercise JEI's actual transformed element constructor. */
+    private static void optionalJeiCatalogOrder() throws Exception {
+        Class<?> element;
+        try { element = Class.forName("mezz.jei.gui.ingredients.ListElement"); }
+        catch (ClassNotFoundException absent) {
+            System.out.println("Optional JEI catalog constructor probe: SKIP (JEI not installed)");
+            return;
+        }
+        Class<?> typed = Class.forName("mezz.jei.api.ingredients.ITypedIngredient");
+        var constructor = element.getConstructor(typed, int.class);
+        Method createdIndex = element.getMethod("getCreatedIndex");
+        Method sortedIndex = element.getMethod("getSortedIndex");
+        var order = com.mistaboom.essence_ascendance.compat.jei.JeiCatalogOrder.INSTANCE;
+        order.clear();
+        try {
+            java.util.function.Function<ItemStack, Object> ingredient = stack -> java.lang.reflect.Proxy.newProxyInstance(
+                    typed.getClassLoader(), new Class<?>[]{typed}, (proxy, method, arguments) -> switch (method.getName()) {
+                        case "getItemStack" -> java.util.Optional.of(stack);
+                        case "getIngredient" -> stack;
+                        case "toString" -> "Isolated JEI catalog ingredient";
+                        default -> throw new UnsupportedOperationException(method.toString());
+                    });
+            Object first = constructor.newInstance(ingredient.apply(com.mistaboom.essence_ascendance.ore.LatentOreHost.stack(
+                    net.minecraft.world.level.block.Blocks.STONE.defaultBlockState())), 10);
+            order.runtimeAvailable();
+            Object late = constructor.newInstance(ingredient.apply(com.mistaboom.essence_ascendance.ore.LatentOreHost.stack(
+                    net.minecraft.world.level.block.Blocks.TUFF.defaultBlockState())), 90000);
+            Object unrelated = constructor.newInstance(ingredient.apply(new ItemStack(Items.COAL)), 90001);
+            check((int) createdIndex.invoke(first) == 10 && (int) createdIndex.invoke(late) == 10,
+                    "Actual transformed JEI element anchors a late own subtype to the initial family");
+            check((int) createdIndex.invoke(unrelated) == 90001, "Actual JEI hook preserves unrelated ingredients");
+            check((int) sortedIndex.invoke(late) == 90000,
+                    "JEI retains authority over its sorted index and configured sorting stages");
+            check(order.takePendingSort() && !order.takePendingSort(), "Actual constructor requests one late-family re-sort");
+            var filter = Class.forName("mezz.jei.gui.ingredients.IngredientFilter");
+            check(Arrays.stream(filter.getDeclaredMethods()).anyMatch(method -> method.getName().contains("sortNewVariants")),
+                    "Actual JEI filter has the native sort invalidation hook");
+            System.out.println("Optional JEI catalog constructor probe: PASS (actual transformed JEI classes; no full index or world)");
+        } finally { order.clear(); }
+    }
+
+    private static void creativeCatalogInvalidation() {
+        var flags = net.minecraft.world.flag.FeatureFlags.VANILLA_SET;
+        var holders = net.minecraft.core.HolderLookup.Provider.create(java.util.stream.Stream.empty());
+        var globalCache = new net.minecraft.world.item.CreativeModeTab.ItemDisplayParameters(flags, false, holders);
+        var tabCache = new net.minecraft.world.item.CreativeModeTab.ItemDisplayParameters(flags, false, holders);
+        check(!globalCache.needsUpdate(flags, false, holders) && !tabCache.needsUpdate(flags, false, holders),
+                "Unchanged native creative parameters reuse both global and per-tab caches");
+        com.mistaboom.essence_ascendance.item.CreativeVariantRegistry.invalidate();
+        check(globalCache.needsUpdate(flags, false, holders) && tabCache.needsUpdate(flags, false, holders),
+                "Actual transformed native parameters invalidate every cached catalog without changing world inputs");
+        var current = new net.minecraft.world.item.CreativeModeTab.ItemDisplayParameters(flags, false, holders);
+        check(!current.needsUpdate(flags, false, holders), "Rebuilt parameters acknowledge the current catalog once");
+        check(current.needsUpdate(flags, true, holders), "Native creative permission invalidation remains intact");
+        check(current.needsUpdate(net.minecraft.world.flag.FeatureFlagSet.of(), false, holders),
+                "Native creative feature invalidation remains intact");
+        check(current.needsUpdate(flags, false,
+                net.minecraft.core.HolderLookup.Provider.create(java.util.stream.Stream.empty())),
+                "Native creative registry invalidation remains intact");
+        com.mistaboom.essence_ascendance.item.CreativeVariantRegistry.invalidate();
+        check(current.needsUpdate(flags, false, holders), "Disconnect/catalog replacement invalidates a later cache too");
+    }
+
     private static void sync(FixturePlayer player, boolean enabled, double removal, double step) {
         var data = new CompoundTag(); data.putUUID("holder", player.getUUID()); data.putBoolean("enabled", enabled);
         data.putDouble("removal", removal); data.putDouble("step", step);

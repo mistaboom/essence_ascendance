@@ -17,11 +17,11 @@ import net.minecraft.world.item.Tier;
  * Ascendance tier -> EquipmentBaselineService -> melee profile -> invested
  * melee_damage / melee_attack_speed bonuses.
  */
-public final class AscendanceMeleeWeaponItem
+public final class AscendanceSwordItem
         extends SwordItem
         implements EquipmentProfileItem, EmissiveAccentItem {
 
-    public AscendanceMeleeWeaponItem(
+    public AscendanceSwordItem(
             Tier tier,
             Item.Properties properties
     ) {
@@ -30,7 +30,7 @@ public final class AscendanceMeleeWeaponItem
 
     @Override
     public ResourceLocation equipmentProfileId() {
-        return EquipmentProfiles.MELEE_WEAPON.id();
+        return EquipmentProfiles.SWORD.id();
     }
 
 

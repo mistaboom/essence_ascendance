@@ -105,7 +105,7 @@ public final class EssenceAscendanceClient {
         com.mistaboom.essence_ascendance.client.transientfx.TransientGuiVisuals.init();
 
         Item[] tierVisualItems = {
-                AscendanceItems.ASCENDANCE_MELEE_WEAPON.get(),
+                AscendanceItems.ASCENDANCE_SWORD.get(),
                 AscendanceItems.ASCENDANCE_RANGED_WEAPON.get(),
                 AscendanceItems.ASCENDANCE_CASTER.get(),
                 AscendanceItems.ASCENDANCE_PICKAXE.get(),

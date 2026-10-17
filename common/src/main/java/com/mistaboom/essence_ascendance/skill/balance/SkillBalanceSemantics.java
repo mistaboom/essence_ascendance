@@ -298,7 +298,7 @@ public final class SkillBalanceSemantics {
     private static void gathering(List<Builder> all) {
         all.add(skill(SkillIds.TOOL_INSTINCT, capability(TOOL_VERSATILITY, .6), multi(MINING_SPEED, .3))
                 .equipment(Equipment.ASCENDANCE_TOOL).actions(Action.MINE).availability(.85, 1)
-                .condition("Appropriate carried Ascendance tool and harvest tier; no free harvest-level bypass"));
+                .condition("Appropriate carried native tool, with speed advantage over empty hands and correct native drops; no harvest-level bypass"));
         all.add(skill(SkillIds.MINING_MOMENTUM, multi(MINING_SPEED, .6))
                 .equipment(Equipment.ASCENDANCE_TOOL).actions(Action.MINE).availability(.7, .9)
                 .condition("Uninterrupted mining rhythm, especially repeated material"));

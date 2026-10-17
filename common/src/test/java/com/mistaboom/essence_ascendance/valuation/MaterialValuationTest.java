@@ -15,7 +15,7 @@ public final class MaterialValuationTest {
     public static void main(String[] args) {
         Thread.currentThread().setUncaughtExceptionHandler((thread, failure) -> failure.printStackTrace(
                 new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.err))));
-        fallbackAndAlternatives(); dependencyComposition(); exactDenominations(); taggedDenominations(); recipesAndRemainders(); cosmeticAndOrder(); boundedWork();
+        fallbackAndAlternatives(); dependencyComposition(); completeBillPrecedence(); refinementCycles(); exactDenominations(); taggedDenominations(); recipesAndRemainders(); cosmeticAndOrder(); boundedWork();
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap(); nativeProperties(); extendedRarityPolicy();
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println("MaterialValuationTest: " + checks + " generic estimate/conservation checks PASS");
     }
@@ -91,6 +91,112 @@ public final class MaterialValuationTest {
             check(result.values().get("form0").amount() == (length==14?0:length==13?3:18),"One primitive denomination chosen before scaling and bounded once");
             if(length==14)check(result.values().get("form0").status().startsWith("UNREPRESENTABLE"),"Unrepresentable family diagnosed explicitly");
         }
+    }
+
+    private static void completeBillPrecedence() {
+        var seeds = Map.of("block", seed(162,2), "ingot", seed(18,4), "crafted", seed(32,1));
+        var paid = recipe("paid", List.of(new ProductionGraph.Input(List.of("block"),3,true),
+                        new ProductionGraph.Input(List.of("ingot"),4,true)),
+                List.of(new ProductionGraph.Output("crafted",2,1,false)),true);
+        var opaque = recipe("opaque", List.of(new ProductionGraph.Input(List.of("block"),1,true),
+                        new ProductionGraph.Input(List.of("ingot"),1,true)),
+                List.of(new ProductionGraph.Output("crafted",2,1,false)),false);
+        check(solve(seeds, paid, opaque).values().get("crafted").amount() == 279,
+                "Opaque ingredient kinds cannot undercut an available complete quantity-aware bill");
+        check(solve(seeds, opaque).values().get("crafted").amount() == 90,
+                "An opaque recipe still provides a labeled fallback estimate without a complete bill");
+        check(solve(seeds, paid, opaque).equals(solve(seeds, opaque, paid)),
+                "Complete-bill precedence is independent of process order");
+    }
+
+    private static void refinementCycles() {
+        for (boolean reverseNames : List.of(false, true)) for (boolean lowerDenomination : List.of(false, true)) {
+            Map<String, SimpleValuationSolver.Seed> seeds = new TreeMap<>();
+            List<ProductionGraph.Process> recipes = new ArrayList<>();
+            List<String> forms = new ArrayList<>();
+            seeds.put("catalyst", seed(9000,3));
+            for (int tier = 0; tier <= 5; tier++) {
+                String form = "form" + (reverseNames ? 5 - tier : tier);
+                forms.add(form); seeds.put(form, seed(24,0)); seeds.put(form + "_block", seed(lowerDenomination ? 1458 : 1350,2));
+                recipes.add(convert("pack" + tier,form,9,form + "_block",1));
+                recipes.add(convert("unpack" + tier,form + "_block",1,form,9));
+                if (lowerDenomination && tier == 3) {
+                    seeds.put(form + "_nugget", seed(24,0));
+                    recipes.add(convert("combine_nuggets",form + "_nugget",9,form,1));
+                    recipes.add(convert("split_nuggets",form,1,form + "_nugget",9));
+                }
+                if (tier == 0) continue;
+                String base = forms.get(tier - 1);
+                recipes.add(recipe("upgrade" + tier,List.of(new ProductionGraph.Input(List.of(base),4,true),
+                                new ProductionGraph.Input(List.of("catalyst"),1,true)),
+                        List.of(new ProductionGraph.Output(form,1,1,false)),false));
+                recipes.add(convert("recover" + tier,form,1,base,4));
+            }
+            var result = SimpleValuationSolver.solve(seeds,new ProductionGraph(recipes,List.of()));
+            long expected = lowerDenomination ? 162 : 150;
+            for (String form : forms) {
+                check(result.values().get(form).amount() == expected,
+                        "Recoverable contents orient refinements independently of item names, without guessing catalyst consumption");
+                check(result.values().get(form + "_block").amount() == expected * 9,
+                        "Each refined form retains exact block denominations");
+                expected *= 4;
+            }
+            check(result.values().get("catalyst").amount() == 9000,
+                    "Recoverable-content estimate does not consume or reprice an opaque catalyst");
+            if (lowerDenomination) check(result.values().get(forms.get(3) + "_nugget").amount() * 9
+                            == result.values().get(forms.get(3)).amount(),
+                    "An asymmetric lower denomination preserves both the refinement direction and its exact family ratio");
+            Collections.reverse(recipes);
+            check(result.equals(SimpleValuationSolver.solve(seeds,new ProductionGraph(recipes,List.of()))),
+                    "Refinement orientation remains deterministic across recipe order");
+        }
+        var paid = solve(Map.of("z_base",seed(24,0),"a_refined",seed(24,0),"reagent",seed(10,0)),
+                recipe("known_paid_upgrade",List.of(new ProductionGraph.Input(List.of("z_base"),4,true),
+                                new ProductionGraph.Input(List.of("reagent"),1,true)),
+                        List.of(new ProductionGraph.Output("a_refined",1,1,false)),true),
+                convert("recover","a_refined",1,"z_base",4));
+        check(paid.values().get("z_base").amount() == 24 && paid.values().get("a_refined").amount() == 106,
+                "A real complete construction bill outranks the lower recovered-content estimate");
+        var amplification = solve(Map.of("a",seed(4,3),"b",seed(4,3)),
+                convert("double","a",1,"b",2),convert("return","b",1,"a",1));
+        check(amplification.values().get("a").amount() == 0 && amplification.values().get("b").amount() == 0,
+                "Refinement orientation cannot bypass a proved amplification loop");
+        refinementAfterMaterialReduction();
+    }
+
+    private static void refinementAfterMaterialReduction() {
+        Map<String, SimpleValuationSolver.Seed> seeds = new TreeMap<>();
+        List<ProductionGraph.Process> recipes = new ArrayList<>();
+        seeds.put("feed", seed(96,3)); seeds.put("coproduct", seed(360,3)); seeds.put("catalyst", seed(9000,3));
+        for (int tier = 0; tier <= 5; tier++) {
+            String form = "level" + tier;
+            seeds.put(form, seed(360,3)); seeds.put(form + "_block", seed(3240,3));
+            recipes.add(convert("pack" + tier,form,9,form + "_block",1));
+            recipes.add(convert("unpack" + tier,form + "_block",1,form,9));
+            if (tier == 0) continue;
+            recipes.add(recipe("upgrade" + tier,List.of(new ProductionGraph.Input(List.of("level" + (tier - 1)),4,true),
+                            new ProductionGraph.Input(List.of("catalyst"),1,true)),
+                    List.of(new ProductionGraph.Output(form,1,1,false)),false));
+            recipes.add(convert("recover" + tier,form,1,"level" + (tier - 1),4));
+        }
+        // Composition cannot allocate a single primary estimate to this complete joint-output bill.
+        // Its cheaper base-material value is established only by the final conservation pass.
+        recipes.add(recipe("cheap_joint_bill",List.of(new ProductionGraph.Input(List.of("feed"),1,true)),
+                List.of(new ProductionGraph.Output("level0",1,1,false),new ProductionGraph.Output("coproduct",1,1,false)),true));
+        var result = SimpleValuationSolver.solve(seeds,new ProductionGraph(recipes,List.of()));
+        long expected = 48;
+        for (int tier = 0; tier <= 5; tier++) {
+            check(result.values().get("level" + tier).amount() == expected,
+                    "Recovered-content estimates track a cheaper base introduced during final conservation");
+            check(result.values().get("level" + tier + "_block").amount() == expected * 9,
+                    "Late material reductions retain exact denominations throughout the refinement chain");
+            expected *= 4;
+        }
+        check(result.values().get("catalyst").amount() == 9000 && result.unresolvedProcesses() == 5,
+                "Advisory content bounds neither price unknown catalyst use nor count as proved crafting routes");
+        Collections.reverse(recipes);
+        check(result.equals(SimpleValuationSolver.solve(seeds,new ProductionGraph(recipes,List.of()))),
+                "Late refinement reductions are deterministic across recipe order");
     }
     private static void taggedDenominations() {
         var seeds = Map.of("dust",seed(24,0),"tiny",seed(24,0),"other_dust",seed(24,0),"feed",seed(1,4));

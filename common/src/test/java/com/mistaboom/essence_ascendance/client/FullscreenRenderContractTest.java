@@ -68,6 +68,17 @@ final class FullscreenRenderContractTest {
             check(count(calls(method(host, "init", "()V")), UI + "FullscreenSidebarCompatibility", "register") == 1,
                     "Both fullscreen hosts retain optional FTB Library sidebar registration");
         widgetLayer(ordinary, container);
+        var nexus = readResource("com/mistaboom/essence_ascendance/client/AscendanceNexusScreen");
+        check(calls(method(nexus, "drawSkillGlyph", "(Lnet/minecraft/client/gui/GuiGraphics;Lcom/mistaboom/essence_ascendance/client/AscendanceNexusScreen$SkillNodeVisualState;III)V"))
+                        .stream().anyMatch(call -> call.owner.equals("com/mistaboom/essence_ascendance/client/ui/PixelSymbol") && call.name.equals("draw")),
+                "Skills marks share native pixel geometry rather than fallback-font glyphs");
+        for (var method : nexus.methods) if (method.name.equals("renderTierGuides"))
+            check(calls(method).stream().noneMatch(call -> call.name.equals("scale")),
+                    "Bonus tier labels must retain whole-size, integer-positioned text");
+        var attunement = readResource("com/mistaboom/essence_ascendance/client/NexusAttunementView");
+        for (var method : attunement.methods) if (method.name.equals("centeredFit"))
+            check(calls(method).stream().noneMatch(call -> call.name.equals("scale") || call.name.equals("translate")),
+                    "Attunement label fitting must not fractionally rasterize text");
         return checks;
     }
 

@@ -138,7 +138,7 @@ public final class NexusAttunementView {
                     12, time / 240, GuiProceduralGeometry.opacity(centralMetal, ready ? 170 : 100));
             GuiProceduralGeometry.crystal(graphics, cx, cy, centerRadius,
                     maximum ? 1 : state.completedCategories() / (double) Math.max(1, state.requiredCategories()), centralColor);
-            // Tier names remain inside the medallion and scale to the allocated central width.
+            // Whole-pixel text stays legible in the bounded medallion; hover retains full tier names.
             centeredFit(graphics, font, currentTier, cx, cy - 11, centerRadius * 2 - 2,
                     centralMetal);
             centeredFit(graphics, font, maximum ? EssenceText.gui("nexus.maximum") : Component.literal("↓"),
@@ -189,6 +189,7 @@ public final class NexusAttunementView {
             }
             if (layout.medallionContains(mouseX, mouseY) || focus.isFocused(MEDALLION_FOCUS)) {
                 hovered = new SemanticTooltip().title(EssenceText.gui("nexus.attunement.title"), centralMetal)
+                        .field(currentTier.copy().append(" -> ").append(maximum ? currentTier : nextTier))
                         .description(maximum ? EssenceText.gui("nexus.maximum_achieved")
                                 : EssenceText.gui("nexus.attunement.seals", state.completedCategories(), state.requiredCategories()))
                         .hint(EssenceText.gui(ready && !maximum ? "nexus.ready_to_ascend" : "nexus.attunement.choice"));
@@ -326,11 +327,7 @@ public final class NexusAttunementView {
     }
     private static void centeredFit(GuiGraphics graphics, Font font, Component text,
                                     int x, int y, int maxWidth, int color) {
-        float scale = Math.min(1, Math.max(1, maxWidth) / (float) Math.max(1, font.width(text)));
-        graphics.pose().pushPose();
-        graphics.pose().translate(x, y, 0);
-        graphics.pose().scale(scale, scale, 1);
-        graphics.drawCenteredString(font, text, 0, 0, color);
-        graphics.pose().popPose();
+        graphics.drawCenteredString(font, com.mistaboom.essence_ascendance.client.ui.StyledTextLayout.fit(
+                font, text, Math.max(0, maxWidth)), x, y, color);
     }
 }

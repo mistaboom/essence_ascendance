@@ -449,7 +449,7 @@ public final class EquipmentDamageService {
         var stack = player.getMainHandItem();
         if (stack.isEmpty()) return false;
         if (stack.getItem() instanceof EquipmentProfileItem profile
-                && profile.equipmentProfileId().equals(EquipmentProfiles.MELEE_WEAPON.id())) return true;
+                && profile.equipmentProfileId().equals(EquipmentProfiles.SWORD.id())) return true;
         if (stack.is(net.minecraft.tags.ItemTags.WEAPON_ENCHANTABLE)) return true;
         boolean[] damage = {false};
         stack.forEachModifier(net.minecraft.world.entity.EquipmentSlot.MAINHAND, (attribute, modifier) -> {

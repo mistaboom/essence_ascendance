@@ -29,7 +29,7 @@ public final class FullscreenCompositionTest {
                 "Archive must reserve its entry pane for multi-entry Reference sections");
         archiveFixture();
         reflow();
-        wrappedSectionBar();
+        archiveFooterGeometry();
         focusAndRouting();
         overlayCapture();
         synchronousCaptureRefresh();
@@ -132,53 +132,24 @@ public final class FullscreenCompositionTest {
                 "A wider reflow clamps paging while preserving section identity");
     }
 
-    private static void wrappedSectionBar() {
-        List<String> names = List.of("Essences", "Machines", "Equipment", "Mechanics", "Skills", "Bonuses");
-        for (int width : new int[] {0, 1, 24, 140, 240, 320, 640, 853}) {
-            for (int height : new int[] {0, 12, 120, 480}) {
+    private static void archiveFooterGeometry() {
+        for (int width : new int[]{0, 1, 24, 140, 240, 320, 640, 853})
+            for (int height : new int[]{0, 12, 120, 480}) {
                 var frame = FullscreenLayout.frame(FullscreenLayout.Spec.standard(), width, height, true);
-                var bar = FullscreenLayout.sectionBar(frame, names.stream().map(name -> name.length() * 6).toList(), 60, 80, 3);
-                check(bar.items().size() == names.size(), "Wrapped navigation must expose every section");
-                check(inside(bar.back(), frame.screen()) && inside(bar.forward(), frame.screen())
-                                && inside(bar.content(), frame.screen())
-                                && bar.items().stream().allMatch(item -> inside(item, frame.screen())),
-                        "History and section-tab bounds must survive tiny and wide hosts");
-                if (height == 480 && width >= 240) {
-                    check(bar.items().stream().allMatch(item -> item.bottom() < bar.content().y()),
-                            "Wrapped tabs must not overlap article content");
-                    for (int index = 1; index < bar.items().size(); index++) {
-                        var previous = bar.items().get(index - 1);
-                        var current = bar.items().get(index);
-                        check(current.y() >= previous.bottom() || current.x() >= previous.right(),
-                                "Section tab hit regions overlap");
-                    }
-                    check(bar.items().getFirst().x() > bar.back().right()
-                                    && bar.items().getLast().right() < bar.forward().x(),
-                            "History controls must flank the section area");
-                    check(width >= 640 ? bar.items().getLast().y() == bar.items().getFirst().y()
-                                    : bar.items().getLast().y() > bar.items().getFirst().y(),
-                            "Tabs must use one row when they fit and wrap when they do not");
-                }
-                var chosen = new java.util.concurrent.atomic.AtomicReference<String>();
-                var scene = new FullscreenComposition.Builder("wrapped", frame).sections(names.stream()
-                        .map(name -> new FullscreenComposition.Section<>(name, Component.literal(name), 0)).toList(),
-                        "Equipment", bar.items(), chosen::set).build();
-                check(scene.controls().size() == names.size()
-                                && scene.controls().stream().noneMatch(control -> control.id().startsWith("sections/")),
-                        "Complete section navigation must not retain previous/next paging arrows");
-                check(scene.controls().get(2).selected(), "Wrapped tabs must preserve selection identity");
-                if (width >= 240 && height == 480) {
-                    var ui = new FullscreenComposition();
-                    ui.update(scene);
-                    click(ui, scene.controls().getLast().bounds());
-                    check("Bonuses".equals(chosen.get()), "The last wrapped section must remain clickable");
-                }
-                var searchBar = FullscreenLayout.sectionBar(frame, List.of(), 60, 80, 3);
-                check(searchBar.items().isEmpty() && inside(searchBar.back(), frame.screen())
-                                && inside(searchBar.forward(), frame.screen()),
-                        "Search keeps history controls without introducing section tabs");
+                var archive = FullscreenLayout.cornerControl(frame.screen(), 70, true);
+                var history = FullscreenLayout.cornerControl(frame.screen(), 70, false);
+                var arrows = FullscreenLayout.segments(history, 2, 0);
+                check(inside(archive, frame.screen()) && inside(history, frame.screen()), "Footer controls remain in the screen");
+                check(archive.width() == history.width() && archive.height() == history.height()
+                                && archive.y() == history.y() && history.x() == 0 && archive.right() == width,
+                        "History mirrors the Nexus Archive control footprint");
+                check(arrows.getFirst().right() == arrows.getLast().x()
+                                && arrows.getFirst().width() + arrows.getLast().width() == archive.width(),
+                        "Back and Forward are adjacent halves, including odd pixel widths");
+                var tabs = FullscreenLayout.tabs(frame.secondary(), List.of(60, 80, 90, 50, 60, 65), 70, 140, 18, 3);
+                check(tabs.items().stream().allMatch(item -> item.y() == frame.secondary().y()
+                                && item.bottom() <= frame.secondary().bottom()), "Section tabs never wrap into content");
             }
-        }
     }
 
     private static void focusAndRouting() {

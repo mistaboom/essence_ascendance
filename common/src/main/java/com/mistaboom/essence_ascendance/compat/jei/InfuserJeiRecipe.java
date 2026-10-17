@@ -182,13 +182,17 @@ public final class InfuserJeiRecipe {
         List<ItemStack> fractured = new ArrayList<>();
 
         for (Item item : equipmentItems()) {
-            ItemStack damagedStack = new ItemStack(item);
-            damagedStack.setDamageValue(1);
-            damaged.add(damagedStack);
+            for (EquipmentTier tier : EquipmentTier.values()) {
+                ItemStack damagedStack = new ItemStack(item);
+                EquipmentTierData.setTier(damagedStack, tier);
+                damagedStack.setDamageValue(1);
+                damaged.add(damagedStack);
 
-            ItemStack fracturedStack = new ItemStack(item);
-            FracturedEquipmentData.markFractured(fracturedStack);
-            fractured.add(fracturedStack);
+                ItemStack fracturedStack = new ItemStack(item);
+                EquipmentTierData.setTier(fracturedStack, tier);
+                FracturedEquipmentData.markFractured(fracturedStack);
+                fractured.add(fracturedStack);
+            }
         }
 
         result.add(new InfuserJeiRecipe(
@@ -258,7 +262,7 @@ public final class InfuserJeiRecipe {
                 AscendanceItems.ASCENDANCE_CHESTPLATE.get(),
                 AscendanceItems.ASCENDANCE_LEGGINGS.get(),
                 AscendanceItems.ASCENDANCE_BOOTS.get(),
-                AscendanceItems.ASCENDANCE_MELEE_WEAPON.get(),
+                AscendanceItems.ASCENDANCE_SWORD.get(),
                 AscendanceItems.ASCENDANCE_RANGED_WEAPON.get(),
                 AscendanceItems.ASCENDANCE_CASTER.get(),
                 AscendanceItems.ASCENDANCE_PICKAXE.get(),

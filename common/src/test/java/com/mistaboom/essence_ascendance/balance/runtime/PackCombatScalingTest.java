@@ -13,6 +13,7 @@ import com.mistaboom.essence_ascendance.skill.Skills;
 import com.mistaboom.essence_ascendance.stat.*;
 import com.mistaboom.essence_ascendance.tier.*;
 import net.minecraft.SharedConstants;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.Bootstrap;
 import java.util.*;
 
@@ -59,6 +60,9 @@ public final class PackCombatScalingTest {
     }
 
     private static void requestUnits() {
+        nativeWeaponFamilyPreference();
+        nativeHealthReferences();
+        nativeArmorReferences();
         var ordinary = baseline(8, 9, 6);
         var meleeOnly = baseline(48, 9, 6);
         var allStronger = baseline(48, 54, 36);
@@ -98,8 +102,142 @@ public final class PackCombatScalingTest {
         }
     }
 
+    private static void nativeArmorReferences() {
+        var add = net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_VALUE;
+        var multiply = net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_MULTIPLIED_BASE;
+        String armorKey = net.minecraft.world.entity.ai.attributes.Attributes.ARMOR.unwrapKey().orElseThrow().location().toString();
+        String toughnessKey = net.minecraft.world.entity.ai.attributes.Attributes.ARMOR_TOUGHNESS.unwrapKey().orElseThrow().location().toString();
+        String healthKey = net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH.unwrapKey().orElseThrow().location().toString();
+        var armorAdd = new NativeAttributeContribution(Map.of("test:armor", new NativeAttributeContribution.Modifier(10, add)));
+        var toughnessAdd = new NativeAttributeContribution(Map.of("test:toughness", new NativeAttributeContribution.Modifier(2, add)));
+        var chest = new EquipmentReference("test:base_chest", "chest", ProgressionBand.ENTRY,
+                Map.of(CapabilityAxis.ARMOR, 10.0, CapabilityAxis.TOUGHNESS, 2.0), List.of(), true, true, 1,
+                "native additive armor", Map.of(armorKey, armorAdd, toughnessKey, toughnessAdd));
+        var head = new EquipmentReference("test:multiplying_head", "head", ProgressionBand.ENTRY,
+                Map.of(CapabilityAxis.ARMOR, 0.0, CapabilityAxis.TOUGHNESS, 0.0), List.of(), true, true, 1,
+                "cross-piece multiplier", Map.of(armorKey, new NativeAttributeContribution(Map.of("test:armor_multiplier",
+                        new NativeAttributeContribution.Modifier(1, multiply))), toughnessKey, new NativeAttributeContribution(Map.of(
+                        "test:toughness_multiplier", new NativeAttributeContribution.Modifier(1, multiply)))));
+        var rows = List.of(chest, head);
+        var evidence = new PackEvidence(Map.of(), rows, List.of(), Map.of(), List.of(), List.of(), Map.of());
+        var combined = RuntimeReferencePolicy.armor(evidence, ProgressionBand.APEX, "INCLUDE_ATTAINABLE", 5);
+        check(combined.armor() == 20 && combined.toughness() == 4,
+                "Native cross-piece +100% modifiers apply after the other piece's +10 armor / +2 toughness");
+        var duplicate = new EquipmentReference("test:duplicate_head", "head", ProgressionBand.ENTRY,
+                Map.of(CapabilityAxis.ARMOR, 10.0, CapabilityAxis.TOUGHNESS, 2.0), List.of(), true, true, 1,
+                "shared modifier IDs", Map.of(armorKey, armorAdd, toughnessKey, toughnessAdd));
+        var duplicateEvidence = new PackEvidence(Map.of(), List.of(chest, duplicate), List.of(), Map.of(), List.of(), List.of(), Map.of());
+        var deduplicated = RuntimeReferencePolicy.armor(duplicateEvidence, ProgressionBand.APEX, "INCLUDE_ATTAINABLE", 5);
+        check(deduplicated.armor() == 10 && deduplicated.toughness() == 2,
+                "The same native armor/toughness IDs cannot stack across equipment slots");
+
+        var healthRows = new ArrayList<EquipmentReference>();
+        for (int i = 0; i < 5; i++) {
+            double addition = i == 4 ? 100_000 : i * 2;
+            double measured = net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH.value().sanitizeValue(20 + addition);
+            healthRows.add(new EquipmentReference("test:health_policy_" + i, "chest", ProgressionBand.ENTRY,
+                    Map.of(CapabilityAxis.ARMOR, 2.0, CapabilityAxis.TOUGHNESS, 0.0, CapabilityAxis.MAX_HEALTH, measured),
+                    List.of(), true, true, 1, "whole-slot health policy", Map.of(healthKey, new NativeAttributeContribution(Map.of(
+                            "test:health_policy_" + i, new NativeAttributeContribution.Modifier(addition, add))))));
+        }
+        var policyEvidence = new PackEvidence(Map.of(), healthRows, List.of(), Map.of(), List.of(), List.of(), Map.of());
+        var excluded = RuntimeReferencePolicy.survival(policyEvidence, ProgressionBand.APEX, "EXCLUDE_UNSUPPORTED", 5);
+        var winsorized = RuntimeReferencePolicy.survival(policyEvidence, ProgressionBand.APEX, "WINSORIZE", 5);
+        var included = RuntimeReferencePolicy.survival(policyEvidence, ProgressionBand.APEX, "INCLUDE_ATTAINABLE", 5);
+        double ceiling = RobustFrontiers.equipmentCeilings(healthRows, "WINSORIZE").get("chest").get(CapabilityAxis.MAX_HEALTH);
+        check(excluded.health() == 26 && winsorized.health() == ceiling && included.health() == 1024
+                        && excluded.health() < winsorized.health() && winsorized.health() < included.health(),
+                "Whole-slot health outliers obey EXCLUDE / WINSORIZE / INCLUDE and the native cap: "
+                        + excluded.health() + " / " + winsorized.health() + " / " + included.health());
+        check(winsorized.healthModifiers().modifiers().keySet().stream().allMatch(id -> id.startsWith("winsorized/"))
+                        && included.healthModifiers().modifiers().containsKey("test:health_policy_4"),
+                "Only a clipped estimate substitutes its modifier bundle; included native IDs remain exact");
+    }
+
+    private static void nativeHealthReferences() {
+        var add = net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_VALUE;
+        var base = net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_MULTIPLIED_BASE;
+        var total = net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL;
+        var healthKey = net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH.unwrapKey().orElseThrow().location().toString();
+        var rows = new ArrayList<EquipmentReference>();
+        var values = List.of(new NativeAttributeContribution.Modifier(.2, base), new NativeAttributeContribution.Modifier(.25, total),
+                new NativeAttributeContribution.Modifier(10, add), new NativeAttributeContribution.Modifier(4, add));
+        var slots = List.of("feet", "legs", "chest", "head");
+        var nativeAttribute = new net.minecraft.world.entity.ai.attributes.AttributeInstance(
+                net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH, ignored -> {});
+        nativeAttribute.setBaseValue(20);
+        for (int i = 0; i < slots.size(); i++) {
+            String id = "test:health_" + slots.get(i);
+            var modifier = values.get(i);
+            rows.add(new EquipmentReference(id, slots.get(i), ProgressionBand.ENTRY,
+                    Map.of(CapabilityAxis.ARMOR, 2.0, CapabilityAxis.TOUGHNESS, 0.0), List.of(), true, true, 1,
+                    "native health fixture", Map.of(healthKey, new NativeAttributeContribution(Map.of(id, modifier)))));
+            nativeAttribute.addTransientModifier(new net.minecraft.world.entity.ai.attributes.AttributeModifier(
+                    ResourceLocation.parse(id), modifier.amount(), modifier.operation()));
+        }
+        var evidence = new PackEvidence(Map.of(), rows, List.of(), RobustFrontiers.build(rows), List.of(), List.of(), Map.of());
+        var survival = RuntimeReferencePolicy.survival(evidence, ProgressionBand.APEX, "INCLUDE_ATTAINABLE", 5);
+        check(Math.abs(survival.health() - 51) < 1e-9 && Math.abs(survival.health() - nativeAttribute.getValue()) < 1e-9,
+                "Four wearable slots apply native addition/base/total operations to one player base, matching AttributeInstance: " + survival.health());
+        check(survival.armor() == 8, "The measured health belongs to the same physically wearable armor set");
+        var sameId = new NativeAttributeContribution(Map.of("test:shared", new NativeAttributeContribution.Modifier(10, add)));
+        check(sameId.combine(sameId).apply(20) == 30, "The same native modifier ID cannot stack once per armor piece");
+        var secondChest = new EquipmentReference("test:other_chest", "chest", ProgressionBand.ENTRY,
+                Map.of(CapabilityAxis.ARMOR, 2.0, CapabilityAxis.TOUGHNESS, 0.0), List.of(), true, true, 1,
+                "alternative chest", Map.of(healthKey, new NativeAttributeContribution(Map.of("test:other", new NativeAttributeContribution.Modifier(20, add)))));
+        rows.add(secondChest);
+        var alternatives = new PackEvidence(Map.of(), rows, List.of(), RobustFrontiers.build(rows), List.of(), List.of(), Map.of());
+        check(Math.abs(RuntimeReferencePolicy.survival(alternatives, ProgressionBand.APEX, "INCLUDE_ATTAINABLE", 5).health() - 66) < 1e-9,
+                "Alternative chest pieces compete; their modifiers cannot both enter one loadout");
+        var negative = new EquipmentReference("test:unhealthy_chest", "chest", ProgressionBand.ENTRY,
+                Map.of(CapabilityAxis.ARMOR, 0.0, CapabilityAxis.TOUGHNESS, 0.0), List.of(), true, true, 1,
+                "optional negative modifier", Map.of(healthKey, new NativeAttributeContribution(Map.of("test:negative",
+                        new NativeAttributeContribution.Modifier(-10, add)))));
+        var negativeEvidence = new PackEvidence(Map.of(), List.of(negative), List.of(), Map.of(), List.of(), List.of(), Map.of());
+        check(RuntimeReferencePolicy.survival(negativeEvidence, ProgressionBand.APEX, "INCLUDE_ATTAINABLE", 5).health() == 20,
+                "A compatible survival outfit may leave a detrimental slot empty");
+        var crowded = new ArrayList<EquipmentReference>();
+        for (String slot : slots) for (int i = 1; i <= 128; i++) {
+            String id = "test:unique_" + slot + "_" + i;
+            crowded.add(new EquipmentReference(id, slot, ProgressionBand.ENTRY,
+                    Map.of(CapabilityAxis.ARMOR, 2.0, CapabilityAxis.TOUGHNESS, 0.0), List.of(), true, true, 1,
+                    "distinct modifier stress", Map.of(healthKey, new NativeAttributeContribution(Map.of(id,
+                            new NativeAttributeContribution.Modifier(i, add))))));
+        }
+        var crowdedEvidence = new PackEvidence(Map.of(), crowded, List.of(), Map.of(), List.of(), List.of(), Map.of());
+        var search = RuntimeReferencePolicy.armorSearch(crowdedEvidence, ProgressionBand.APEX, "INCLUDE_ATTAINABLE", 5, true);
+        check(search.combinations() <= RuntimeReferencePolicy.ARMOR_SEARCH_WORK_LIMIT
+                        && search.candidates().size() <= RuntimeReferencePolicy.ARMOR_BEAM_WIDTH,
+                "512 distinct native modifier signatures cannot trigger a 128^4 outfit enumeration: " + search.combinations());
+        check(search.candidates().getFirst().health() == 532 && search.candidates().getFirst().armor() == 8,
+                "Bounded search preserves a real four-slot outfit and its native arithmetic");
+        Collections.reverse(crowded);
+        var reversedEvidence = new PackEvidence(Map.of(), crowded, List.of(), Map.of(), List.of(), List.of(), Map.of());
+        check(RuntimeReferencePolicy.armorSearch(reversedEvidence, ProgressionBand.APEX, "INCLUDE_ATTAINABLE", 5, true).equals(search),
+                "The bounded modifier shortlist is deterministic under reversed catalog order");
+    }
+
     private static EquipmentBaselineConfig.TierBaseline baseline(double melee, double ranged, double magic) {
         return new EquipmentBaselineConfig.TierBaseline(20, 8, melee, 1.2, ranged, .8, magic, 1.2, 12, 3, 2000);
+    }
+
+    private static void nativeWeaponFamilyPreference() {
+        var sword = weapon("sword", "mainhand_melee", ProgressionBand.ENTRY, 4, 1.6);
+        var tool = weapon("tool", "mainhand_tool", ProgressionBand.ENTRY, 100, 4);
+        var both = new PackEvidence(Map.of(), List.of(sword, tool), List.of(),
+                RobustFrontiers.build(List.of(sword, tool)), List.of(), List.of(), Map.of());
+        for (String policy : List.of("EXCLUDE_UNSUPPORTED", "WINSORIZE", "INCLUDE_ATTAINABLE")) {
+            for (var band : ProgressionBand.values()) {
+                var reference = RuntimeReferencePolicy.weapon(both, band, "melee_shield", policy);
+                check(reference.damage() == 4 && reference.rate() == 1.6 && reference.familyObserved(),
+                        "An observed sword keeps its own hit and cadence despite stronger incidental tool damage");
+            }
+            var onlyTools = new PackEvidence(Map.of(), List.of(tool), List.of(),
+                    RobustFrontiers.build(List.of(tool)), List.of(), List.of(), Map.of());
+            var fallback = RuntimeReferencePolicy.weapon(onlyTools, ProgressionBand.ENTRY, "melee_shield", policy);
+            check(fallback.damage() == 100 && fallback.rate() == 4,
+                    "A catalog without a declared melee weapon may use its actual tool attack measurement");
+        }
     }
 
     private static PackEvidence catalog(double meleeFactor) {
@@ -107,7 +245,9 @@ public final class PackCombatScalingTest {
         double[] melee = {6, 6, 7, 7, 8}, ranged = {7, 7, 7, 8, 9}, magic = {4, 4, 5, 5, 6};
         for (var band : ProgressionBand.values()) {
             int i = band.ordinal();
-            rows.add(weapon("melee", "mainhand_melee", band, melee[i] * meleeFactor, 1.2));
+            // Change the melee curve's shape, not only a global multiplier. Apex-only
+            // normalization used to hide the cross-family dependency in a uniform fixture.
+            rows.add(weapon("melee", "mainhand_melee", band, melee[i] * (1 + (meleeFactor - 1) * i / 4.0), 1.2));
             rows.add(weapon("ranged", "mainhand_bow", band, ranged[i], .8));
             rows.add(weapon("caster", "mainhand_caster", band, magic[i], 1.2));
             rows.add(new EquipmentReference("test:tool_" + i, "mainhand_pickaxe", band,

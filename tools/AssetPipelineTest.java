@@ -154,6 +154,19 @@ public final class AssetPipelineTest {
             expectFailure(f::run, "missing from asset-manifest");
             check(!Files.exists(f.output), "Unregistered BBModel must fail before publishing");
         }
+        try (Fixture f = new Fixture(directory)) {
+            f.generate();
+            var before = snapshot(f.output);
+            Path staged = f.source.resolveSibling("unfinished.bbmodel");
+            Files.writeString(staged, "Unfinished authoring project");
+            JsonObject entry = new JsonObject();
+            entry.addProperty("source", "source/models/item/unfinished.bbmodel");
+            entry.addProperty("category", "authoring_only");
+            f.assets().add(entry);
+            f.generate();
+            check(same(before, snapshot(f.output)), "Staged art must not generate runtime resources");
+            check(Files.readString(staged).equals("Unfinished authoring project"), "Staged art stays untouched");
+        }
     }
 
     private static void resourceReferences(Path directory) throws Exception {

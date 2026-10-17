@@ -62,10 +62,12 @@ final class RuntimeReferencePolicy {
     }
     /** Select a sustained-damage winner and its own cadence within one equipment family. */
     static Weapon weapon(PackEvidence evidence, ProgressionBand band, String family, String outlierPolicy) {
+        boolean meleeObserved = evidence.equipment().stream().anyMatch(r -> r.usableReference()
+                && r.slot().equals("mainhand_melee") && r.axes().getOrDefault(CapabilityAxis.SUSTAINED_DAMAGE, 0.0) > 0);
         var references=evidence.equipment().stream().filter(r->switch(family) {
             case "ranged" -> r.slot().equals("mainhand_bow")||r.slot().equals("mainhand_crossbow");
             case "caster" -> r.slot().equals("mainhand_caster");
-            default -> r.slot().equals("mainhand_melee")||r.slot().equals("mainhand_tool");
+            default -> r.slot().equals(meleeObserved ? "mainhand_melee" : "mainhand_tool");
         }).toList();
         var axes=RobustFrontiers.build(references,outlierPolicy).getOrDefault(band,Map.of());
         double dps=axes.getOrDefault(CapabilityAxis.SUSTAINED_DAMAGE,0.0);
@@ -92,44 +94,98 @@ final class RuntimeReferencePolicy {
         }
         throw new IllegalArgumentException("Missing measured catalog weapon reference for "+band);
     }
-    record Armor(double armor,double toughness) {
+    record Armor(NativeAttributeContribution armorModifiers, NativeAttributeContribution toughnessModifiers,
+                 NativeAttributeContribution healthModifiers) {
+        Armor(double armor, double toughness) { this(additiveReference("fallback/armor", armor),
+                additiveReference("fallback/toughness", toughness), NativeAttributeContribution.EMPTY); }
+        double armor() { return Attributes.ARMOR.value().sanitizeValue(armorModifiers.apply(0)); }
+        double toughness() { return Attributes.ARMOR_TOUGHNESS.value().sanitizeValue(toughnessModifiers.apply(0)); }
         double protection(double incoming) {
-            return Math.min(20,Math.max(armor/5,armor-incoming/(2+toughness/4)));
+            return Math.min(20,Math.max(armor()/5,armor()-incoming/(2+toughness()/4)));
         }
+        double health() { return Attributes.MAX_HEALTH.value().sanitizeValue(healthModifiers.apply(playerHealth())); }
+        double effectiveHealth(double incoming) { return health() / (1 - protection(incoming) / 25); }
     }
     /** Choose a physically wearable set, retaining each item's armor/toughness pair. */
     static Armor armor(PackEvidence evidence, ProgressionBand band, String outlierPolicy, double incoming) {
+        return armorSearch(evidence, band, outlierPolicy, incoming, false).candidates().stream().max(Comparator.comparingDouble((Armor set)->set.protection(incoming))
+                .thenComparingDouble(Armor::armor).thenComparingDouble(Armor::toughness)).orElseThrow();
+    }
+    /** Health modifiers share the same actual outfit as its armor; the native player base is applied once. */
+    static Armor survival(PackEvidence evidence, ProgressionBand band, String outlierPolicy, double incoming) {
+        return armorSearch(evidence, band, outlierPolicy, incoming, true).candidates().stream().max(Comparator.comparingDouble((Armor set)->set.effectiveHealth(incoming))
+                .thenComparingDouble(Armor::health).thenComparingDouble(Armor::armor).thenComparingDouble(Armor::toughness)).orElseThrow();
+    }
+    static final int ARMOR_BEAM_WIDTH = 64;
+    static final int ARMOR_SEARCH_WORK_LIMIT = 4 * ARMOR_BEAM_WIDTH * ARMOR_BEAM_WIDTH;
+    record ArmorSearch(List<Armor> candidates, int combinations) { }
+
+    /** Bounded catalog estimate: keep at most 64 goal-ranked choices/partial outfits at every slot.
+     * Native modifier arithmetic remains exact for retained compatible outfits; unusual cross-slot
+     * synergies may lie outside this deterministic shortlist. No exhaustive-optimum claim is made. */
+    static ArmorSearch armorSearch(PackEvidence evidence, ProgressionBand band, String outlierPolicy,
+                                   double incoming, boolean survival) {
         List<Armor> sets=List.of(new Armor(0,0));boolean observed=false;
-        for(String slot:List.of("head","chest","legs","feet")) {
+        int combinations = 0;
+        Comparator<Armor> goal = Comparator.comparingDouble((Armor set) -> survival ? set.effectiveHealth(incoming) : set.protection(incoming))
+                .thenComparingDouble(Armor::health).thenComparingDouble(Armor::armor).thenComparingDouble(Armor::toughness)
+                .thenComparing(Armor::toString);
+        var ceilings = RobustFrontiers.equipmentCeilings(evidence.equipment(), outlierPolicy);
+        // Native equipment-slot order is feet, legs, chest, head. Duplicate modifier IDs have one owner.
+        for(String slot:List.of("feet","legs","chest","head")) {
             List<Armor> choices=new ArrayList<>();
             for(var stage:ProgressionBand.values()) {
                 if(stage.ordinal()>band.ordinal())continue;
                 var rows=evidence.equipment().stream().filter(r->r.usableReference()&&r.stage()==stage&&r.slot().equals(slot)).toList();
-                double armorCeiling=RobustFrontiers.percentile(rows.stream().map(r->r.axes().getOrDefault(CapabilityAxis.ARMOR,0.0)).filter(v->v>0).toList(),1,outlierPolicy);
-                double toughnessCeiling=RobustFrontiers.percentile(rows.stream().map(r->r.axes().getOrDefault(CapabilityAxis.TOUGHNESS,0.0)).filter(v->v>0).toList(),1,outlierPolicy);
+                double armorCeiling=ceilings.getOrDefault(slot,Map.of()).getOrDefault(CapabilityAxis.ARMOR,0.0);
+                double toughnessCeiling=ceilings.getOrDefault(slot,Map.of()).getOrDefault(CapabilityAxis.TOUGHNESS,0.0);
+                double healthCeiling=ceilings.getOrDefault(slot,Map.of()).getOrDefault(CapabilityAxis.MAX_HEALTH,Double.POSITIVE_INFINITY);
                 for(var row:rows) {
                     double armor=row.axes().getOrDefault(CapabilityAxis.ARMOR,0.0),toughness=row.axes().getOrDefault(CapabilityAxis.TOUGHNESS,0.0);
-                    if(outlierPolicy.equals("EXCLUDE_UNSUPPORTED")&&(armor>armorCeiling||toughness>toughnessCeiling))continue;
-                    if(outlierPolicy.equals("WINSORIZE")){armor=Math.min(armor,armorCeiling);toughness=Math.min(toughness,toughnessCeiling);}
-                    choices.add(new Armor(normalizeMeasurement(armor),normalizeMeasurement(toughness)));observed=true;
+                    double health=row.axes().getOrDefault(CapabilityAxis.MAX_HEALTH,
+                            row.attributeModifiers().getOrDefault(attributeKey(Attributes.MAX_HEALTH),NativeAttributeContribution.EMPTY).apply(playerHealth()));
+                    if(outlierPolicy.equals("EXCLUDE_UNSUPPORTED")&&(armor>armorCeiling||toughness>toughnessCeiling||health>healthCeiling))continue;
+                    choices.add(new Armor(
+                            referenceContribution(row,CapabilityAxis.ARMOR,Attributes.ARMOR,0,armor,armorCeiling,outlierPolicy),
+                            referenceContribution(row,CapabilityAxis.TOUGHNESS,Attributes.ARMOR_TOUGHNESS,0,toughness,toughnessCeiling,outlierPolicy),
+                            referenceContribution(row,CapabilityAxis.MAX_HEALTH,Attributes.MAX_HEALTH,playerHealth(),health,healthCeiling,outlierPolicy)));
+                    observed=true;
                 }
             }
             if(choices.isEmpty())continue;
+            choices.add(new Armor(0, 0)); // Wearing a negative modifier is optional.
+            var shortlist = shortlist(choices, goal);
             List<Armor> combined=new ArrayList<>();
-            for(var set:sets)for(var choice:pareto(choices))combined.add(new Armor(set.armor()+choice.armor(),set.toughness()+choice.toughness()));
-            sets=pareto(combined);
+            for(var set:sets)for(var choice:shortlist) {
+                combinations++;
+                combined.add(new Armor(set.armorModifiers().combine(choice.armorModifiers()),set.toughnessModifiers().combine(choice.toughnessModifiers()),
+                        set.healthModifiers().combine(choice.healthModifiers())));
+            }
+            sets=shortlist(combined, goal);
         }
-        if(!observed)return new Armor(observed(evidence,band,CapabilityAxis.ARMOR,0),observed(evidence,band,CapabilityAxis.TOUGHNESS,0));
-        return sets.stream().max(Comparator.comparingDouble((Armor set)->set.protection(incoming))
-                .thenComparingDouble(Armor::armor).thenComparingDouble(Armor::toughness)).orElseThrow();
+        if(!observed)return new ArmorSearch(List.of(new Armor(observed(evidence,band,CapabilityAxis.ARMOR,0),
+                observed(evidence,band,CapabilityAxis.TOUGHNESS,0))), combinations);
+        return new ArmorSearch(sets, combinations);
     }
-    private static List<Armor> pareto(List<Armor> values) {
-        List<Armor> result=new ArrayList<>();double highestToughness=-1;
-        for(var value:values.stream().distinct().sorted(Comparator.comparingDouble(Armor::armor).reversed()
-                .thenComparing(Comparator.comparingDouble(Armor::toughness).reversed())).toList()) {
-            if(value.toughness()>highestToughness){result.add(value);highestToughness=value.toughness();}
-        }
-        return result;
+    private static List<Armor> shortlist(List<Armor> candidates, Comparator<Armor> goal) {
+        return candidates.stream().distinct().sorted(goal.reversed()).limit(ARMOR_BEAM_WIDTH).toList();
+    }
+    private static String attributeKey(net.minecraft.core.Holder<net.minecraft.world.entity.ai.attributes.Attribute> attribute) {
+        return attribute.unwrapKey().orElseThrow().location().toString();
+    }
+    private static NativeAttributeContribution referenceContribution(EquipmentReference row, CapabilityAxis axis,
+            net.minecraft.core.Holder<net.minecraft.world.entity.ai.attributes.Attribute> attribute, double base,
+            double measured, double ceiling, String policy) {
+        // Winsorization is explicitly a capped estimate, not an actual native item witness.
+        // Only clipped axes replace their native bundle; every other axis retains exact IDs/operations.
+        if(policy.equals("WINSORIZE")&&measured>ceiling)
+            return additiveReference("winsorized/"+row.itemId()+"/"+axis,normalizeMeasurement(ceiling)-base);
+        var nativeModifiers=row.attributeModifiers().get(attributeKey(attribute));
+        return nativeModifiers!=null?nativeModifiers:additiveReference("scalar/"+row.itemId()+"/"+axis,normalizeMeasurement(measured)-base);
+    }
+    private static NativeAttributeContribution additiveReference(String identity,double amount) {
+        return amount==0?NativeAttributeContribution.EMPTY:new NativeAttributeContribution(Map.of(identity,
+                new NativeAttributeContribution.Modifier(amount,net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_VALUE)));
     }
     /** Attribute-component float noise is not an intentional one-tenth cadence reduction. */
     private static double normalizeMeasurement(double value) {

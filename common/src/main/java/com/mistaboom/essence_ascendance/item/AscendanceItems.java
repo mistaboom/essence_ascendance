@@ -53,12 +53,12 @@ public final class AscendanceItems {
      * ============================================================
      */
 
-    public static final RegistrySupplier<AscendanceMeleeWeaponItem>
-            ASCENDANCE_MELEE_WEAPON =
+    public static final RegistrySupplier<AscendanceSwordItem>
+            ASCENDANCE_SWORD =
             ITEMS.register(
-                    "ascendance_melee_weapon",
+                    "ascendance_sword",
                     () ->
-                            new AscendanceMeleeWeaponItem(
+                            new AscendanceSwordItem(
                                     AscendanceToolTier.INSTANCE,
                                     new Item.Properties()
                                             .attributes(
@@ -323,7 +323,7 @@ public final class AscendanceItems {
 
     private static List<Item> tieredCombatInventoryArtItems() {
         return List.of(
-                ASCENDANCE_MELEE_WEAPON.get(),
+                ASCENDANCE_SWORD.get(),
                 ASCENDANCE_RANGED_WEAPON.get(),
                 ASCENDANCE_CASTER.get(),
                 ASCENDANCE_HELMET.get(),

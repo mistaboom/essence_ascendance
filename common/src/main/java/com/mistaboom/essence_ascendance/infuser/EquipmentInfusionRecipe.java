@@ -81,7 +81,7 @@ public record EquipmentInfusionRecipe(
         if (stack.is(AscendanceItems.ASCENDANCE_CHESTPLATE.get())) return "chestplate";
         if (stack.is(AscendanceItems.ASCENDANCE_LEGGINGS.get())) return "leggings";
         if (stack.is(AscendanceItems.ASCENDANCE_BOOTS.get())) return "boots";
-        if (stack.is(AscendanceItems.ASCENDANCE_MELEE_WEAPON.get())) return "melee_weapon";
+        if (stack.is(AscendanceItems.ASCENDANCE_SWORD.get())) return "sword";
         if (stack.is(AscendanceItems.ASCENDANCE_RANGED_WEAPON.get())) return "ranged_weapon";
         if (stack.is(AscendanceItems.ASCENDANCE_CASTER.get())) return "magic_caster";
         if (stack.is(AscendanceItems.ASCENDANCE_PICKAXE.get())) return "pickaxe";

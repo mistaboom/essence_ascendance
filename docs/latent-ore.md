@@ -146,6 +146,9 @@ copied. Pistons cannot move the host-carrying block. Existing valuation retains
 one economic ore identity; Gathering supplies the exact primary source state when
 manufacturing a Silk Touch drop. Creative Natural Blocks/Search access includes
 the baseline hosts and the synchronized selected-host catalog.
+The catalog revision participates in native `ItemDisplayParameters.needsUpdate`,
+so both Minecraft's global cache and independent per-tab parameter caches rebuild
+when the selected hosts change. It does not depend on any cache-owning mod.
 
 JEI uses that same creative variant list and distinguishes host state when browsing
 and bookmarking. Catalog updates refresh its ingredient list even if the server's
@@ -154,6 +157,10 @@ identity, so every host finds the common smelting/blasting recipes. The four
 baseline hosts remain browsable in flat/test worlds too; additional selected and
 retained hosts appear automatically. This menu change needs only a client restart,
 not another world/profile reset if already using the adaptive ore implementation.
+For JEI's creative-order sorting, explicitly registered Essence variant families
+retain their first subtype's position when later subtypes arrive. Other sorting
+stages and unrelated ingredients keep JEI's own behavior. Runtime additions mark
+the native sort dirty; they do not force an additional resource or search rebuild.
 
 ## Rendering lifecycle
 

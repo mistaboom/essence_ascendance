@@ -49,6 +49,7 @@ public final class PrimarySubstrateDiscoveryTest {
         registries = VanillaRegistries.createLookup();
         biomes = new FixedBiomeSource(registries.lookupOrThrow(Registries.BIOME).getOrThrow(Biomes.PLAINS));
         vanillaHosts();
+        wrappedBasalRules();
         customTerrainAndRanges();
         overridesAndExclusions();
         parserValidation();
@@ -92,6 +93,37 @@ public final class PrimarySubstrateDiscoveryTest {
             var result = discover("fixture:unsafe", custom(rejected, 0, 128), 0, 128, DEFAULTS);
             check(!result.enabled() && !result.reason().isBlank(), "Unsafe primary rejected with reason: " + rejected);
         }
+    }
+
+    private static void wrappedBasalRules() {
+        var layer = SurfaceRules.ifTrue(SurfaceRules.verticalGradient("deepslate",
+                net.minecraft.world.level.levelgen.VerticalAnchor.absolute(0),
+                net.minecraft.world.level.levelgen.VerticalAnchor.absolute(8)),
+                SurfaceRules.state(Blocks.DEEPSLATE.defaultBlockState()));
+        var encoded = SurfaceRules.RuleSource.CODEC.encodeStart(com.mojang.serialization.JsonOps.INSTANCE, layer).getOrThrow();
+        var wrapper = new com.google.gson.JsonObject();
+        wrapper.addProperty("type", "fixture:composed_rule");
+        var branches = new com.google.gson.JsonArray();
+        branches.add(encoded);
+        branches.add(SurfaceRules.RuleSource.CODEC.encodeStart(com.mojang.serialization.JsonOps.INSTANCE,
+                SurfaceRules.state(Blocks.STONE.defaultBlockState())).getOrThrow());
+        var nested = new com.google.gson.JsonObject(); nested.add("branches", branches); wrapper.add("original", nested);
+        var diagnostics = new java.util.ArrayList<String>();
+        check(PrimarySubstrateDiscovery.hasVanillaBasalLayer(wrapper, diagnostics) && diagnostics.isEmpty(),
+                "Native basal branch remains recognizable inside arbitrary composed wrappers and before other branches");
+        var incidental = SurfaceRules.RuleSource.CODEC.encodeStart(com.mojang.serialization.JsonOps.INSTANCE,
+                SurfaceRules.state(Blocks.DEEPSLATE.defaultBlockState())).getOrThrow();
+        check(!PrimarySubstrateDiscovery.hasVanillaBasalLayer(incidental, diagnostics),
+                "Mentioning deepslate as an incidental surface state does not authorize a basal host");
+        var otherHeight = encoded.deepCopy().getAsJsonObject();
+        otherHeight.getAsJsonObject("if_true").getAsJsonObject("true_at_and_below").addProperty("absolute", 64);
+        check(!PrimarySubstrateDiscovery.hasVanillaBasalLayer(otherHeight, diagnostics),
+                "An unrelated vertical placement is not mistaken for the native geological layer");
+        var oversized = new com.google.gson.JsonArray();
+        for (int i = 0; i < 20_000; i++) oversized.add(i);
+        check(!PrimarySubstrateDiscovery.hasVanillaBasalLayer(oversized, diagnostics)
+                        && diagnostics.stream().anyMatch(value -> value.contains("bound reached")),
+                "Large opaque rule trees stop with a clear bounded-inspection diagnostic");
     }
 
     private static void overridesAndExclusions() {

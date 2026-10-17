@@ -143,7 +143,7 @@ public final class ArchiveCatalog {
 
         EquipmentProfiles.init();
         addEquipment(entries, EquipmentProfiles.ARMOR, "ascendance_helmet");
-        addEquipment(entries, EquipmentProfiles.MELEE_WEAPON, "ascendance_melee_weapon");
+        addEquipment(entries, EquipmentProfiles.SWORD, "ascendance_sword");
         addEquipment(entries, EquipmentProfiles.RANGED_WEAPON, "ascendance_ranged_weapon");
         addEquipment(entries, EquipmentProfiles.MAGIC_CASTER, "ascendance_caster");
         addEquipment(entries, EquipmentProfiles.PICKAXE, "ascendance_pickaxe");

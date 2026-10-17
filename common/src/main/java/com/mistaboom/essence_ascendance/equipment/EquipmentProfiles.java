@@ -45,11 +45,11 @@ public final class EquipmentProfiles {
                             .build()
             );
 
-    public static final EquipmentProfileDefinition MELEE_WEAPON =
+    public static final EquipmentProfileDefinition SWORD =
             EquipmentProfileRegistry.register(
                     EquipmentProfileDefinition.builder(
-                                    id("melee_weapon"),
-                                    "Ascendance Melee Weapon"
+                                    id("sword"),
+                                    "Ascendance Sword"
                             )
                             .baseline(EquipmentBaselineProperty.MELEE_DAMAGE)
                             .baseline(EquipmentBaselineProperty.MELEE_ATTACK_SPEED)

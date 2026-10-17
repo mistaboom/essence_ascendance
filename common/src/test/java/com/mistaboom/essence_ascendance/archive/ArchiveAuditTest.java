@@ -47,6 +47,7 @@ public final class ArchiveAuditTest {
         EssenceConfigManager.installClient(runtime);
         try {
             localizedDocuments();
+            compactYieldRows();
             keyboardAndLinks();
             itemSearchAndHistory();
             loadingScroll();
@@ -89,11 +90,22 @@ public final class ArchiveAuditTest {
             var frame = FullscreenLayout.frame(FullscreenLayout.Spec.standard(), width, 600, true);
             for (var mode : List.of(ArchiveMode.GUIDE, ArchiveMode.REFERENCE)) {
                 var sections = ArchiveCatalog.DEFAULT.sections(mode);
-                var bar = FullscreenLayout.sectionBar(frame, sections.stream().map(s -> FONT.width(s.label())).toList(),
-                        FONT.width(Component.literal("Back")) + 14, FONT.width(Component.literal("Forward")) + 14, 3);
-                check(bar.items().size() == sections.size(), "Wrapped tab became inaccessible");
-                for (var bounds : bar.items()) check(bounds.x() >= bar.back().right() && bounds.right() <= bar.forward().x(),
-                        "Section label overlaps actual history controls");
+                var tabs = FullscreenLayout.tabs(frame.secondary(), sections.stream().map(s -> FONT.width(s.label())).toList(),
+                        70, 140, 18, 3);
+                var navigation = new FullscreenNavigation<ArchiveMode, ResourceLocation>(mode);
+                navigation.reconcileSections(sections.stream().map(ArchiveSection::id).toList(), tabs.visibleCount(), true);
+                Set<ResourceLocation> visible = new HashSet<>();
+                for (int start = 0; start <= sections.size() - tabs.visibleCount(); start++) {
+                    navigation.sectionWindow(start);
+                    var scene = new FullscreenComposition.Builder("archive-tabs", frame).sections(navigation,
+                            sections.stream().map(section -> new FullscreenComposition.Section<>(section.id(), section.label(), 0)).toList(),
+                            tabs, ignored -> { }).build();
+                    for (int i = start; i < start + tabs.visibleCount(); i++) visible.add(sections.get(i).id());
+                    check(scene.controls().stream().filter(control -> control.id().startsWith("section/"))
+                                    .allMatch(control -> control.bounds().y() == frame.secondary().y()),
+                            "Archive sections stay in one scrolling row");
+                }
+                check(visible.size() == sections.size(), "Every Archive section is reachable through tab scrolling");
             }
         }
     }
@@ -116,6 +128,40 @@ public final class ArchiveAuditTest {
                 }
             }
         }
+    }
+
+    private static void compactYieldRows() {
+        String longName = "Bamboo Cabinet with Polished Blackstone Countertop " + "LongUnbrokenItemName".repeat(20);
+        var id = ResourceLocation.withDefaultNamespace("bamboo");
+        var name = Component.literal(longName);
+        var row = new ItemYieldBrowser.BrowserRow(id, name,
+                new ItemPresentation(id, net.minecraft.core.component.DataComponentPatch.EMPTY, name),
+                Map.of(EssenceTypes.GATHERING.id(), 123456000000L));
+        var data = ItemYieldBrowser.tableData(List.of(row));
+        var view = new ReadOnlyDataTableView<>(data, ReadOnlyDataTableView.Layout.COMPACT);
+        for (int width : new int[]{240, 300, 480, 772, 800, 1600}) {
+            view.prepare(FONT, new UiBounds(10, 20, width, 300));
+            check(!view.stacked() && view.rowHeight() == 24 && view.headerHeight() == 18,
+                    "Long names cannot turn compact yield rows into stacked articles at width " + width);
+            var column = data.measure(width - 2, 1, FONT::width).get(1);
+            var hover = view.overflowTextAt(11 + column.x() + 4, 21 + view.headerHeight() + 5);
+            check(hover.isPresent() && hover.get().getString().equals(longName),
+                    "Ellipsized yield name retains its full exact hover text");
+        }
+        check(ItemYieldBrowser.displayName(id, Component.literal(" \t\n")).getString().equals("minecraft:bamboo"),
+                "Legitimate unnamed registry items remain identifiable without a bespoke exclusion");
+        check(ItemYieldBrowser.displayName(id, name).equals(name), "Normal localized names are retained");
+        var missing = ResourceLocation.parse("not_registered:unknown_item");
+        var air = ResourceLocation.withDefaultNamespace("air");
+        var outputs = List.of(new ItemEssenceTooltipClientState.Yield(EssenceTypes.GATHERING.id(), 1000000));
+        var snapshot = new ItemEssenceTooltipClientState.YieldSnapshot(0, true,
+                Map.of(id, outputs, missing, outputs, air, outputs), List.of(
+                new ItemEssenceTooltipClientState.YieldRow(id, outputs),
+                new ItemEssenceTooltipClientState.YieldRow(missing, outputs),
+                new ItemEssenceTooltipClientState.YieldRow(air, outputs)));
+        var actual = ItemYieldBrowser.project(snapshot);
+        check(actual.size() == 1 && actual.getFirst().itemId().equals(id),
+                "Invalid registry IDs and native empty/air stacks cannot create phantom yield rows");
     }
 
     private static void keyboardAndLinks() throws Exception {

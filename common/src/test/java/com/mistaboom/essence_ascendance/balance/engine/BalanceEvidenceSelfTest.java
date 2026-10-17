@@ -13,8 +13,11 @@ public final class BalanceEvidenceSelfTest {
         compatibleSlotsAndAlternatives();
         progressionAndDeterminism();
         outlierPolicies();
+        widelySpacedMaterialMeasurements();
         usefulEquipmentFrontiers();
         policyAdjustedWeaponCadence();
+        wholeFamilyOutlierPolicy();
+        acceptedStrengthBands();
         evidenceResolution();
         distinctCapabilities();
         System.out.println("Balance evidence checks passed: " + checks);
@@ -89,6 +92,30 @@ public final class BalanceEvidenceSelfTest {
                 "New armor slots combine with still-usable earlier pieces");
     }
 
+    private static void widelySpacedMaterialMeasurements() {
+        // The actual native material ladder includes both low service-life tools and durable
+        // late materials; its upper tail is not itself evidence of an unsupported item.
+        List<Double> durability = List.of(32.0, 59.0, 131.0, 238.0, 250.0, 500.0, 1561.0, 2031.0);
+        for (String policy : List.of("EXCLUDE_UNSUPPORTED", "WINSORIZE", "INCLUDE_ATTAINABLE"))
+            require(RobustFrontiers.percentile(durability, 1, policy) == 2031,
+                    "The shared outer fence must retain the complete ordinary durability ladder: " + policy);
+        var extreme = new ArrayList<>(durability); extreme.add(1e12);
+        require(RobustFrontiers.percentile(extreme, 1, "EXCLUDE_UNSUPPORTED") == 2031,
+                "An isolated absurd measurement remains excluded beyond a widely spaced ladder");
+        require(RobustFrontiers.percentile(extreme, 1, "WINSORIZE") == 5851,
+                "Winsorization retains the explicit shared outer-fence estimate");
+        require(RobustFrontiers.percentile(extreme, 1, "INCLUDE_ATTAINABLE") == 1e12,
+                "Explicit inclusion preserves the recorded extreme measurement");
+        for (int i = 0; i < 200; i++) extreme.add(1e12);
+        require(RobustFrontiers.percentile(extreme, 1, "EXCLUDE_UNSUPPORTED") == 2031
+                        && RobustFrontiers.percentile(extreme, 1, "WINSORIZE") == 5851,
+                "Duplicated extreme variants cannot move the statistical policy bound");
+        require(RobustFrontiers.percentile(List.of(4.0, 5.0, 6.0, 1e12), 1, "WINSORIZE") == 38,
+                "Four measurements retain the small-sample bound rather than a contaminated quartile");
+        require(RobustFrontiers.percentile(List.of(4.0, 5.0, 6.0, 7.0, 1e12), 1, "EXCLUDE_UNSUPPORTED") == 7,
+                "Five measurements isolate one extreme without weakening the ordinary frontier");
+    }
+
     private static void policyAdjustedWeaponCadence() {
         List<EquipmentReference> refs = new ArrayList<>();
         for (double[] measurement : List.of(new double[]{10, 1}, new double[]{11, 1}, new double[]{1000, 10}))
@@ -109,6 +136,68 @@ public final class BalanceEvidenceSelfTest {
                 "Include-attainable keeps the complete original weapon measurement");
         Collections.reverse(refs);
         require(capped.equals(RobustFrontiers.build(refs, "WINSORIZE")), "Policy-adjusted cadence is independent of registry order");
+    }
+
+    private static void wholeFamilyOutlierPolicy() {
+        List<EquipmentReference> refs = new ArrayList<>();
+        for (int i = 0; i < 3; i++) refs.add(new EquipmentReference("pack:measurement_" + i, "mainhand_melee",
+                ProgressionBand.at(i * 2), Map.of(CapabilityAxis.SUSTAINED_DAMAGE, new double[]{10, 11, 1000}[i],
+                CapabilityAxis.ATTACK_RATE, i == 2 ? 10.0 : 1.0), List.of(), true, true, .9, "measured weapon"));
+        for (String policy : List.of("EXCLUDE_UNSUPPORTED", "WINSORIZE", "INCLUDE_ATTAINABLE")) {
+            var before = RobustFrontiers.build(refs, policy);
+            double expected = policy.equals("EXCLUDE_UNSUPPORTED") ? 11 : policy.equals("WINSORIZE") ? 84 : 1000;
+            require(before.get(ProgressionBand.APEX).get(CapabilityAxis.SUSTAINED_DAMAGE) == expected,
+                    "The strongest band's lone outlier cannot establish its own policy ceiling");
+            var duplicated = new ArrayList<>(refs);
+            for (int i = 0; i < 100; i++) {
+                var original = refs.get(i % refs.size());
+                duplicated.add(new EquipmentReference("pack:variant_" + i, original.slot(), original.stage(),
+                        original.axes(), original.capabilities(), true, true, .9, "same measured capabilities"));
+            }
+            require(before.equals(RobustFrontiers.build(duplicated, policy)),
+                    "Duplicating weak or strong item variants cannot change the whole-family frontier");
+            var collapsed = refs.stream().map(row -> new EquipmentReference(row.itemId(), row.slot(), ProgressionBand.ENTRY,
+                    row.axes(), row.capabilities(), true, true, .9, row.reason())).toList();
+            require(before.get(ProgressionBand.APEX).equals(RobustFrontiers.build(collapsed, policy).get(ProgressionBand.APEX)),
+                    "The final reference does not depend on an arbitrary subdivision into strength bands");
+        }
+        List<EquipmentReference> vanilla = new ArrayList<>();
+        double[] swordDamage = {4, 5, 6, 7, 8};
+        for (int i = 0; i < swordDamage.length; i++) vanilla.add(new EquipmentReference("fixture:sword_" + i,
+                "mainhand_melee", ProgressionBand.at(i), Map.of(CapabilityAxis.BURST_DAMAGE, swordDamage[i],
+                CapabilityAxis.SUSTAINED_DAMAGE, swordDamage[i] * 1.6, CapabilityAxis.ATTACK_RATE, 1.6),
+                List.of(), true, true, .9, "ordinary native sword scale"));
+        for (String policy : List.of("EXCLUDE_UNSUPPORTED", "WINSORIZE", "INCLUDE_ATTAINABLE")) {
+            var result = RobustFrontiers.build(vanilla, policy);
+            for (int i = 0; i < swordDamage.length; i++) require(
+                    result.get(ProgressionBand.at(i)).get(CapabilityAxis.SUSTAINED_DAMAGE) == swordDamage[i] * 1.6,
+                    "The ordinary vanilla weapon scale remains unchanged in every band");
+        }
+    }
+
+    private static void acceptedStrengthBands() {
+        List<EquipmentReference> rows = new ArrayList<>();
+        for (int i = 0; i < 6; i++) rows.add(new EquipmentReference("pack:strength_" + i, "mainhand_melee", ProgressionBand.ENTRY,
+                Map.of(CapabilityAxis.SUSTAINED_DAMAGE, i == 5 ? 1e6 : 4.0 + 4 * i, CapabilityAxis.ATTACK_RATE, 1.0),
+                List.of(EquipmentReference.ESTIMATED_CATALOG_REFERENCE), false, true, .6, "catalog measurement"));
+        var accepted = EquipmentStrengthBands.primary(rows, "EXCLUDE_UNSUPPORTED");
+        for (int i = 0; i < 5; i++) require(accepted.get(i).stage() == ProgressionBand.at(i),
+                "Accepted distinct strengths span all five bands without rejected rows consuming the strongest band");
+        require(accepted.get(5).stage() == ProgressionBand.APEX,
+                "Rejected extreme measurement remains visible in the audit");
+        var frontiers = RobustFrontiers.build(accepted, "EXCLUDE_UNSUPPORTED");
+        require(frontiers.get(ProgressionBand.LATE).get(CapabilityAxis.SUSTAINED_DAMAGE) == 16
+                        && frontiers.get(ProgressionBand.APEX).get(CapabilityAxis.SUSTAINED_DAMAGE) == 20,
+                "Rejected outliers cannot create a plateau across the last two accepted bands");
+        var duplicate = new ArrayList<>(rows); duplicate.addAll(java.util.Collections.nCopies(200, rows.getLast()));
+        require(EquipmentStrengthBands.primary(duplicate, "EXCLUDE_UNSUPPORTED").subList(0, rows.size()).equals(accepted),
+                "Repeated rejected variants cannot distort accepted strength ranks");
+        var explicit = new EquipmentReference("pack:explicit", "mainhand_melee", ProgressionBand.EARLY,
+                rows.get(4).axes(), List.of(EquipmentReference.ESTIMATED_CATALOG_REFERENCE, EquipmentStrengthBands.EXPLICIT_STAGE),
+                false, true, 1, "author stage override");
+        rows.add(explicit);
+        require(EquipmentStrengthBands.primary(rows, "EXCLUDE_UNSUPPORTED").getLast().stage() == ProgressionBand.EARLY,
+                "Explicit author stage survives policy-aware ranking");
     }
 
     private static void evidenceResolution() {

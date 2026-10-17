@@ -39,12 +39,14 @@ final class SimpleValuationSolver {
         Map<String, Seed> seeds = new TreeMap<>(supplied);
         Map<String, Group> groups = groups(seeds, graph);
         List<ProductionGraph.Process> recipes = graph.processes().stream().filter(SimpleValuationSolver::complete).toList();
-        boolean compositionBounded = compose(seeds, groups, graph);
+        var composition = compose(seeds, groups, graph);
+        List<ProductionGraph.Process> constraints = new ArrayList<>(recipes);
+        constraints.addAll(composition.estimateBounds());
         boolean changed = false; int passes = 0;
         for (; passes < ProceduralValuationSettings.MAX_ESTIMATE_PASSES; passes++) {
             Map<Group, Long> bounds = new IdentityHashMap<>();
             Map<Group, String> reasons = new IdentityHashMap<>();
-            for (var process : recipes) {
+            for (var process : constraints) {
                 BigInteger cost = inputCost(process, groups), output = outputCost(process, groups);
                 if (cost == null || output == null || output.signum() == 0 || output.compareTo(cost) <= 0) continue;
                 for (var product : process.outputs()) {
@@ -71,18 +73,22 @@ final class SimpleValuationSolver {
             var primitive = routes.computeIfAbsent(group, g -> allocate(g.unit, g.anchor.route()));
             Map<String, Long> routed = new TreeMap<>();
             primitive.forEach((family, amount) -> routed.put(family, Math.multiplyExact(amount, group.weights.get(entry.getKey()))));
-            String status = !group.problem.isEmpty() ? group.problem : group.unit == 0 ? "ZERO_REQUIRED_BY_COMPLETE_RECIPE_CONSTRAINTS" : changed || compositionBounded ? "ESTIMATED_BOUNDED_RECIPE_PASS_LIMIT"
+            String status = !group.problem.isEmpty() ? group.problem : group.unit == 0 ? "ZERO_REQUIRED_BY_COMPLETE_RECIPE_CONSTRAINTS" : changed || composition.bounded() ? "ESTIMATED_BOUNDED_RECIPE_PASS_LIMIT"
                     : group.weights.size() > 1 ? "ESTIMATED_EXACT_CONVERSION_FAMILY" : "ESTIMATED_STANDARD_RECIPES";
             values.put(entry.getKey(), new Value(group.amount(entry.getKey()), Map.copyOf(routed), group.recipe, status));
         }
         return new Result(Map.copyOf(values), passes, unresolved);
     }
 
-    private record Composition(ProductionGraph.Process process, ProductionGraph.Output output, Group target, Set<Group> dependencies) { }
+    private record Composition(ProductionGraph.Process process, ProductionGraph.Output output, Group target,
+                               Set<Group> dependencies, boolean recoveredContents) {
+        int quality() { return complete(process) ? 2 : recoveredContents ? 1 : 0; }
+    }
+    private record CompositionResult(boolean bounded, List<ProductionGraph.Process> estimateBounds) { }
 
     /** Bounded dependency propagation. Exact conversions are already one group; remaining cycles
      * retain a deterministic property anchor and cannot recursively manufacture a premium. */
-    private static boolean compose(Map<String, Seed> seeds, Map<String, Group> groups, ProductionGraph graph) {
+    private static CompositionResult compose(Map<String, Seed> seeds, Map<String, Group> groups, ProductionGraph graph) {
         List<Group> ordered = groups.values().stream().distinct().sorted(Comparator
                 .<Group>comparingInt(g -> -g.anchor.priority()).thenComparing(g -> g.weights.keySet().stream().sorted().findFirst().orElseThrow())).toList();
         Map<Group, Integer> order = new IdentityHashMap<>(); Map<Group, Set<Group>> edges = new IdentityHashMap<>();
@@ -104,15 +110,23 @@ final class SimpleValuationSolver {
             }
             // An internal conversion is already valued exactly; no self-referential uplift.
             if (!known || dependencies.contains(target)) continue;
-            candidates.add(new Composition(process, output, target, dependencies));
+            candidates.add(new Composition(process, output, target, dependencies, false));
             for (Group dependency : dependencies) edges.get(dependency).add(target);
         }
         seeds.forEach((item, seed) -> seed.retainedMaterials().keySet().forEach(reference -> {
             Group from = groups.get(reference), to = groups.get(item); if (from != null && from != to) edges.get(from).add(to);
         }));
         Map<Group, Integer> components = components(ordered, edges, order);
+        var recovered = recoveredContents(graph, groups, components);
+        orderByDecomposition(ordered, recovered, order);
+        candidates.addAll(recovered);
         candidates.removeIf(candidate -> candidate.dependencies().stream().anyMatch(dependency ->
                 components.get(dependency).equals(components.get(candidate.target())) && order.get(dependency) >= order.get(candidate.target())));
+        // Opaque getters can omit stack quantities or catalysts. They must not undercut a
+        // represented static bill. Proven recoverable contents also outrank such guesses.
+        Map<Group, Integer> quality = new IdentityHashMap<>();
+        candidates.forEach(candidate -> quality.merge(candidate.target(), candidate.quality(), Math::max));
+        candidates.removeIf(candidate -> candidate.quality() < quality.get(candidate.target()));
         boolean changed = false;
         for (int pass = 0; pass < ProceduralValuationSettings.MAX_ESTIMATE_PASSES; pass++) {
             Map<Group, Long> composed = new IdentityHashMap<>(); Map<Group, String> reasons = new IdentityHashMap<>();
@@ -149,7 +163,59 @@ final class SimpleValuationSolver {
             }
             if (!changed) break;
         }
-        return changed;
+        // These selected content estimates must follow later reductions of their material bill.
+        // Complete construction bills have already displaced them through quality precedence.
+        // Keep them out of the factual production graph and its unresolved-process accounting.
+        return new CompositionResult(changed, candidates.stream().filter(Composition::recoveredContents)
+                .map(Composition::process).toList());
+    }
+
+    /** A complete single-material disassembly names a conservative content value for its input.
+     * Only use it inside an existing recipe cycle; no reverse craft or catalyst behavior is claimed. */
+    private static List<Composition> recoveredContents(ProductionGraph graph, Map<String, Group> groups,
+                                                       Map<Group, Integer> components) {
+        List<Composition> result = new ArrayList<>();
+        for (var process : graph.processes()) {
+            if (!complete(process) || process.inputs().size() != 1 || process.outputs().size() != 1) continue;
+            var input = process.inputs().getFirst(); var output = process.outputs().getFirst();
+            if (!input.consumed() || input.alternatives().size() != 1 || output.byproduct()) continue;
+            String item = input.alternatives().getFirst();
+            Group refined = groups.get(item), base = groups.get(output.itemId());
+            if (refined == null || base == null || refined == base || !refined.problem.isEmpty() || !base.problem.isEmpty()
+                    || !components.get(refined).equals(components.get(base))) continue;
+            // Primitive weights belong to different material families and are not comparable.
+            // Adding a smaller denomination must not reverse this declared disassembly direction.
+            if (output.count() <= input.count()) continue;
+            var content = new ProductionGraph.Output(item, input.count(), 1, false);
+            var estimate = new ProductionGraph.Process(process.id() + "#recoverable_contents", process.family(),
+                    List.of(new ProductionGraph.Input(List.of(output.itemId()), output.count(), true)), List.of(content),
+                    0, 0, "complete_disassembly_contents", process.confidence(),
+                    Map.of("conservation_complete", "false", "acquisition_complete", "false"));
+            result.add(new Composition(estimate, content, refined, Set.of(base), true));
+        }
+        return result;
+    }
+
+    /** Quantities orient refinements before the existing deterministic SCC cycle break.
+     * Conflicting relations retain deterministic fallback order; real amplification is still
+     * checked by the unchanged complete-recipe conservation pass. */
+    private static void orderByDecomposition(List<Group> ordered, List<Composition> recovered, Map<Group, Integer> order) {
+        if (recovered.isEmpty()) return;
+        Map<Group, Set<Group>> successors = new IdentityHashMap<>();
+        Map<Group, Integer> incoming = new IdentityHashMap<>();
+        for (Group group : ordered) { successors.put(group, new HashSet<>()); incoming.put(group, 0); }
+        for (var candidate : recovered) for (Group base : candidate.dependencies())
+            if (successors.get(base).add(candidate.target())) incoming.merge(candidate.target(), 1, Integer::sum);
+        var ready = new PriorityQueue<Group>(Comparator.comparingInt(order::get));
+        for (Group group : ordered) if (incoming.get(group) == 0) ready.add(group);
+        List<Group> sorted = new ArrayList<>(ordered.size());
+        while (!ready.isEmpty()) {
+            Group group = ready.remove(); sorted.add(group);
+            for (Group next : successors.get(group)) if (incoming.merge(next, -1, Integer::sum) == 0) ready.add(next);
+        }
+        Set<Group> included = new HashSet<>(sorted);
+        for (Group group : ordered) if (!included.contains(group)) sorted.add(group);
+        for (int index = 0; index < sorted.size(); index++) order.put(sorted.get(index), index);
     }
 
     /** Iterative Kosaraju traversal; no recursion or enumeration of recipe choices. */

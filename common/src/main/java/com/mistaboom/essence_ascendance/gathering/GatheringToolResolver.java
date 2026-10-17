@@ -43,7 +43,8 @@ public final class GatheringToolResolver {
         int limit = Math.min(Inventory.INVENTORY_SIZE, inventory.getContainerSize());
         for (int slot = 0; slot < limit; slot++) {
             ItemStack stack = inventory.getItem(slot);
-            if (!isAscendanceMiningTool(stack)) continue;
+            AscendanceToolMiningService.refreshNativeTool(stack);
+            if (!isMiningTool(stack)) continue;
             float speed = stack.getDestroySpeed(state);
             boolean correct = stack.isCorrectToolForDrops(state);
             if (!correct && speed <= 1.0F) continue;
@@ -54,11 +55,8 @@ public final class GatheringToolResolver {
         return best;
     }
 
-    public static boolean isAscendanceMiningTool(ItemStack stack) {
-        if (stack == null || stack.isEmpty() || !(stack.getItem() instanceof EquipmentProfileItem profile)) return false;
-        return EquipmentProfileRegistry.get(profile.equipmentProfileId())
-                .map(definition -> definition.baselineMultiplier(EquipmentBaselineProperty.MINING_SPEED) > 0)
-                .orElse(false);
+    public static boolean isMiningTool(ItemStack stack) {
+        return stack != null && !stack.isEmpty() && stack.has(net.minecraft.core.component.DataComponents.TOOL);
     }
 
     public static boolean canHarvest(Player player, BlockState state) {
@@ -91,19 +89,18 @@ public final class GatheringToolResolver {
      * Native Player#getDestroySpeed has already used the resolved stack while
      * the preview scope is open. Replace only Essence Ascendance's held Mining
      * Speed modifier, preserve every unrelated attribute modifier, then apply
-     * Tool Instinct's generated lower-tier material advantage.
+     * Tool Instinct's generated advantage from native correct-tool mining speed.
      */
     public static float adjustResolvedDestroySpeed(Player player, BlockState state, float nativeSpeed, Candidate candidate) {
         if (candidate == null || !Float.isFinite(nativeSpeed) || nativeSpeed <= 0) return nativeSpeed;
         double attributeRatio = miningSpeedAttributeRatio(player, candidate.stack());
-        double advantage = lowerTierAdvantage(candidate, state);
-        double bonus = toolInstinctMaximumBonus(player) * advantage;
+        double bonus = hasNativeToolAdvantage(candidate, state) ? toolInstinctMaximumBonus(player) : 0;
         double result = nativeSpeed * attributeRatio * (1.0 + Math.max(0, bonus));
         return (float) Math.min(Float.MAX_VALUE, Math.max(0, result));
     }
 
     /**
-     * Temporarily presents the selected Ascendance tool as the main-hand stack
+     * Temporarily presents the selected native tool as the main-hand stack
      * to vanilla destroyBlock. Native drops, enchantments, durability and mod
      * hooks therefore observe the real resolved tool. The existing gathering
      * sync is refreshed inside the scope so virtual Fortune/Looting state is
@@ -134,11 +131,10 @@ public final class GatheringToolResolver {
         return candidate.slot() < current.slot();
     }
 
-    private static double lowerTierAdvantage(Candidate candidate, BlockState state) {
-        int toolLevel = Math.max(0, candidate.harvestLevel());
-        int required = Math.max(0, AscendanceToolMiningService.requiredHarvestLevel(state));
-        if (toolLevel <= required) return 0;
-        return (toolLevel - required) / (double) Math.max(1, toolLevel);
+    private static boolean hasNativeToolAdvantage(Candidate candidate, BlockState state) {
+        // Native advantage establishes eligibility; attenuating the generated percentage here
+        // would erase its authored first-rank and later-rank minimums on slower correct tools.
+        return candidate.correctForDrops() && candidate.destroySpeed() > ItemStack.EMPTY.getDestroySpeed(state);
     }
 
     /** Exact attribute replacement for our ADD_MULTIPLIED_BASE mining modifier while retaining every foreign modifier. */

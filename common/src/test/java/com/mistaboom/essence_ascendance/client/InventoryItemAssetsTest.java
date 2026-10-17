@@ -22,10 +22,10 @@ public final class InventoryItemAssetsTest {
         checkGenerated("raw_latent_ore", "item/raw_latent_ore");
         checkBlock("raw_latent_ore_block", "block/raw_latent_ore_block");
 
-        checkLayered("ascendance_melee_weapon", "minecraft:item/handheld", linked(
-                "layer0", "essence_ascendance:item/ascendance_melee_weapon/base",
-                "layer1", "essence_ascendance:item/ascendance_melee_weapon/accent",
-                "layer2", "essence_ascendance:item/ascendance_melee_weapon/nochange"
+        checkLayered("ascendance_sword", "minecraft:item/handheld", linked(
+                "layer0", "essence_ascendance:item/ascendance_sword/base",
+                "layer1", "essence_ascendance:item/ascendance_sword/accent",
+                "layer2", "essence_ascendance:item/ascendance_sword/nochange"
         ));
         checkBowState("ascendance_ranged_weapon", "minecraft:item/bow", "");
         checkBowState("ascendance_ranged_weapon_pulling_0", "minecraft:item/bow_pulling_0", "pulling_0_");

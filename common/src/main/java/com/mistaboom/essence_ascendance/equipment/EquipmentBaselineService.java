@@ -169,6 +169,15 @@ public final class EquipmentBaselineService {
         return EssenceConfigManager.get().equipmentBaselineConfig().baselineFor(tier.ascendanceTier()).harvestLevel();
     }
 
+    /** Physical artifact data is shared by server execution and client prediction; no player investment is involved. */
+    public static EquipmentBaselineResult physicalBaseline(ItemStack stack, ResourceLocation profileId) {
+        if (!EquipmentTierData.isAscendanceEquipment(stack)) throw new IllegalArgumentException("Expected Ascendance equipment");
+        EquipmentTier itemTier = FracturedEquipmentData.isFractured(stack) ? EquipmentTier.LATENT : EquipmentTierData.tier(stack);
+        return itemTier == EquipmentTier.LATENT ? evaluateWithBaseline(profileId, AscendanceTiers.LATENT, latentBaseline())
+                : evaluateWithBaseline(profileId, itemTier.ascendanceTier(),
+                        EssenceConfigManager.get().equipmentBaselineConfig().baselineFor(itemTier.ascendanceTier()));
+    }
+
     private static EquipmentBaselineConfig.TierBaseline latentBaseline() {
         return java.util.Objects.requireNonNull(EssenceConfigManager.get().equipmentBaselineConfig().tierBaselines().get(
                 net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("essence_ascendance", "latent")),

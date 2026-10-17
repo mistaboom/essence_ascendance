@@ -86,8 +86,11 @@ public final class RuntimeBalanceGenerator {
             long cap=positiveLong(median * policy.entryResourceEffort() * Math.pow(policy.effortGrowth(),i) * settings.progressionLength()*settings.costPressure());
             cap=Math.max(lastCap+1,cap); lastCap=cap; caps.put(tier.id(),cap);
             cumulativeFraction+=weights[i]; fractions.put(tier.id(),i==tiers.size()-1 ? 1.0 : cumulativeFraction/fractionWeight);
-            double rate=Math.max(lastRate, RuntimeReferencePolicy.required(evidence,band,CapabilityAxis.ATTACK_RATE));
-            double equipmentDps=RuntimeReferencePolicy.required(evidence,band,CapabilityAxis.SUSTAINED_DAMAGE);
+            var meleeReference = RuntimeReferencePolicy.weapon(evidence, band, "melee_shield", settings.outlierPolicy().name());
+            var rangedReference = RuntimeReferencePolicy.weapon(evidence, band, "ranged", settings.outlierPolicy().name());
+            var casterReference = RuntimeReferencePolicy.weapon(evidence, band, "caster", settings.outlierPolicy().name());
+            double rate=Math.max(lastRate, meleeReference.rate());
+            double equipmentDps=meleeReference.dps();
             double routineHealth=enemyReference(evidence,band,CapabilityAxis.EFFECTIVE_HEALTH,false,RuntimeReferencePolicy.playerHealth());
             double bossHealth=enemyReference(evidence,band,CapabilityAxis.EFFECTIVE_HEALTH,true,routineHealth);
             // Armor reduction consumes damage per hit. Default entity attributes expose
@@ -103,6 +106,10 @@ public final class RuntimeBalanceGenerator {
             encounterBudgets.put("routine_health_"+band.name().toLowerCase(Locale.ROOT),routineHealth);
             encounterBudgets.put("boss_health_"+band.name().toLowerCase(Locale.ROOT),bossHealth);
             encounterBudgets.put("enemy_damage_"+band.name().toLowerCase(Locale.ROOT),enemyDamage);
+            var externalSurvival = RuntimeReferencePolicy.survival(evidence, band, settings.outlierPolicy().name(), enemyDamage);
+            encounterBudgets.put("external_health_"+band.name().toLowerCase(Locale.ROOT),externalSurvival.health());
+            encounterBudgets.put("external_armor_"+band.name().toLowerCase(Locale.ROOT),externalSurvival.armor());
+            encounterBudgets.put("external_toughness_"+band.name().toLowerCase(Locale.ROOT),externalSurvival.toughness());
             encounterBudgets.put("offense_encounter_factor_"+band.name().toLowerCase(Locale.ROOT),offensePressure);
             encounterBudgets.put("defense_encounter_factor_"+band.name().toLowerCase(Locale.ROOT),defensePressure);
             double damage=Math.max(lastDamage, equipmentDps/rate*power*equipmentScale*offensePressure);
@@ -119,10 +126,12 @@ public final class RuntimeBalanceGenerator {
             double durability=Math.max(lastDurability,Math.max(1,RuntimeReferencePolicy.required(evidence,band,CapabilityAxis.DURABILITY)*Math.sqrt(power)));
             int harvest=(int)Math.max(EquipmentBaselineConfig.MINIMUM_HARVEST_LEVEL,
                     Math.min(32,RuntimeReferencePolicy.observed(evidence,band,CapabilityAxis.HARVEST_LEVEL,0)));
-            double rangedRate=Math.max(lastRangedRate,RuntimeReferencePolicy.rangedRate(evidence,band,rate,settings.outlierPolicy().name()));
-            double rangedDamage=Math.max(lastRangedDamage,equipmentDps/rangedRate*power*equipmentScale*offensePressure);
-            double magicRate=Math.max(lastMagicRate,rangedRate/RuntimeReferencePolicy.CASTER_HIT_RATIO);
-            double magicDamage=Math.max(lastMagicDamage,equipmentDps/magicRate*power*equipmentScale*offensePressure);
+            double rangedRate=Math.max(lastRangedRate,rangedReference.rate());
+            double rangedPressure=Math.pow(Math.clamp(encounterDps/rangedReference.dps(),1,RuntimeReferencePolicy.MAX_OFFENSE_PRESSURE_RATIO),RuntimeReferencePolicy.ENCOUNTER_OFFENSE_ELASTICITY);
+            double rangedDamage=Math.max(lastRangedDamage,rangedReference.dps()/rangedRate*power*equipmentScale*rangedPressure);
+            double magicRate=Math.max(lastMagicRate,casterReference.rate());
+            double magicPressure=Math.pow(Math.clamp(encounterDps/casterReference.dps(),1,RuntimeReferencePolicy.MAX_OFFENSE_PRESSURE_RATIO),RuntimeReferencePolicy.ENCOUNTER_OFFENSE_ELASTICITY);
+            double magicDamage=Math.max(lastMagicDamage,casterReference.dps()/magicRate*power*equipmentScale*magicPressure);
             equipment.put(tier.id(),new EquipmentBaselineConfig.TierBaseline(armor,toughness,damage,rate,
                     rangedDamage,rangedRate,magicDamage,magicRate,mining,harvest,(int)Math.min(Integer.MAX_VALUE/64,durability)));
             lastArmor=armor;lastToughness=toughness;lastDamage=damage;lastRate=rate;lastMining=mining;lastDurability=durability;
@@ -153,6 +162,12 @@ public final class RuntimeBalanceGenerator {
         for (var stat: EssenceStatRegistry.values()) {
             double seed=StatScalingDefaults.get(stat.id()).orElseThrow(() -> new IllegalStateException("Register balance semantics for new stat " + stat.id()));
             double value=RuntimeCombatRequests.bonus(stat,seed,equipment.get(tiers.getLast().id()))*bonusScale*Math.sqrt(apex);
+            // Flat health/recovery units compare with a measured wearable native-health set.
+            // Percentage effects already scale with their inputs; they receive no health multiplier.
+            var response = BonusSemantics.require(stat).response();
+            if (response == BonusSemantics.Response.HEALTH || response == BonusSemantics.Response.RECOVERY)
+                value *= Math.max(1, encounterBudgets.getOrDefault("external_health_apex", RuntimeReferencePolicy.playerHealth())
+                        / RuntimeReferencePolicy.playerHealth());
             // Probability/resistance units have semantic caps; high pack armor must not create immunity.
             if (stat.id().getPath().endsWith("resistance") || stat.id().getPath().endsWith("efficiency")) value=Math.min(90,value);
             // Armor-adjusted EHP is not raw health. Reusing it here rewards the

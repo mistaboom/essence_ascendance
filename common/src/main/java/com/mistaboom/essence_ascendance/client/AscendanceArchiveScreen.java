@@ -69,14 +69,10 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
         navigation.captureSectionWindow();
         ArchiveMode mode = navigation.mode();
         boolean secondary = mode != ArchiveMode.SEARCH;
-        FullscreenLayout.Frame initialFrame = FullscreenLayout.frame(FullscreenLayout.Spec.standard(), width, height, true);
+        FullscreenLayout.Frame frame = FullscreenLayout.frame(FullscreenLayout.Spec.standard(), width, height, secondary);
         List<ArchiveSection> sections = secondary ? catalog.sections(mode) : List.of();
-        FullscreenLayout.SectionBar sectionBar = FullscreenLayout.sectionBar(initialFrame,
-                sections.stream().map(section -> font.width(section.label())).toList(),
-                font.width(EssenceText.guide("archive.control.back")) + 14,
-                font.width(EssenceText.guide("archive.control.forward")) + 14, 3);
-        FullscreenLayout.Frame frame = new FullscreenLayout.Frame(initialFrame.screen(), initialFrame.modes(),
-                initialFrame.secondary(), sectionBar.content());
+        FullscreenLayout.Tabs tabs = FullscreenLayout.tabs(frame.secondary(),
+                sections.stream().map(section -> font.width(section.label())).toList(), 70, 140, 18, 3);
         // Selecting another entry keeps the list's keyboard focus in this section.
         Object pageKey = mode == ArchiveMode.SEARCH ? mode : java.util.Arrays.asList(mode, navigation.section());
         FullscreenComposition.Builder builder = new FullscreenComposition.Builder(pageKey, frame)
@@ -91,21 +87,23 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
 
         if (secondary) {
             navigation.fullscreenNavigation().reconcileSections(sections.stream().map(ArchiveSection::id).toList(),
-                    sections.size(), true);
-            builder.sections(sections.stream()
+                    tabs.visibleCount(), true);
+            builder.sections(navigation.fullscreenNavigation(), sections.stream()
                             .map(section -> new FullscreenComposition.Section<>(section.id(), section.label(),
                                     mode == ArchiveMode.GUIDE ? AscendanceUiPalette.INFORMATION : AscendanceUiPalette.SPECIAL))
-                            .toList(), navigation.section(), sectionBar.items(), this::chooseSection);
+                            .toList(), tabs, this::chooseSection);
             composeArticle(builder, frame.content());
         } else {
             composeSearch(builder, frame.content());
         }
 
-        builder.control(new FullscreenComposition.Control("archive/back", sectionBar.back(),
-                EssenceText.guide("archive.control.back"), navigation.canGoBack(), false, FullscreenControls.Style.TAB,
+        var history = FullscreenLayout.segments(FullscreenLayout.cornerControl(frame.screen(),
+                font.width(EssenceText.gui("nexus.archive")) + 16, false), 2, 0);
+        builder.control(new FullscreenComposition.Control("archive/back", history.getFirst(),
+                net.minecraft.network.chat.Component.literal("<"), navigation.canGoBack(), false, FullscreenControls.Style.ARROW,
                 AscendanceUiPalette.INTERACTIVE, this::back));
-        builder.control(new FullscreenComposition.Control("archive/forward", sectionBar.forward(),
-                EssenceText.guide("archive.control.forward"), navigation.canGoForward(), false, FullscreenControls.Style.TAB,
+        builder.control(new FullscreenComposition.Control("archive/forward", history.getLast(),
+                net.minecraft.network.chat.Component.literal(">"), navigation.canGoForward(), false, FullscreenControls.Style.ARROW,
                 AscendanceUiPalette.INTERACTIVE, this::forward));
         return builder.build();
     }

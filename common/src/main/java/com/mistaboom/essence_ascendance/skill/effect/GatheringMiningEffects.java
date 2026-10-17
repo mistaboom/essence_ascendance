@@ -36,7 +36,7 @@ public final class GatheringMiningEffects {
     public static void successfulHarvest(ServerPlayer player, BlockPos pos, BlockState state, ItemStack resolvedTool) {
         if (player == null || state == null || state.isAir()) return;
         SkillEffectRuntime.Context context = SkillEffectRuntime.context(player);
-        if (context.isEffective(SkillIds.TOOL_INSTINCT) && GatheringToolResolver.isAscendanceMiningTool(resolvedTool))
+        if (context.isEffective(SkillIds.TOOL_INSTINCT) && GatheringToolResolver.isMiningTool(resolvedTool))
             SkillHudEvents.record(player, SkillIds.TOOL_INSTINCT, Text.translated("hud.essence_ascendance.event.tool"), List.of(Text.literal(resolvedTool.getHoverName().getString())));
         if (context.isEffective(SkillIds.MINING_MOMENTUM)) recordMomentum(context, state);
         if (context.isEffective(SkillIds.NATURES_BOON)) {
@@ -90,7 +90,7 @@ public final class GatheringMiningEffects {
     private static final class ToolInstinct implements SkillEffectHandler {
         @Override public ResourceLocation id() { return SkillIds.TOOL_INSTINCT; }
         @Override public List<String> debugLines(SkillEffectRuntime.Context context) {
-            return List.of("Carried Ascendance tool resolver active=true; lower-tier maximum speed bonus="
+            return List.of("Carried native tool resolver active=true; eligible correct-tool speed bonus="
                             + settings(context).toolInstinct().maximumLowerTierSpeedBonus(),
                     "Break-speed prediction and vanilla destroyBlock share one resolver; native drops, enchantments and durability use the resolved tool.");
         }

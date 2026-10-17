@@ -166,7 +166,7 @@ public final class NativeInfuserStartTest {
     private static EssenceInfuserMenu menu(EssenceInfuserBlockEntity machine, ServerPlayer player) {
         var menu = new EssenceInfuserMenu(87, player.getInventory(), machine); player.containerMenu = menu; return menu;
     }
-    private static ItemStack gear() { return new ItemStack(AscendanceItems.ASCENDANCE_MELEE_WEAPON.get()); }
+    private static ItemStack gear() { return new ItemStack(AscendanceItems.ASCENDANCE_SWORD.get()); }
     private static EssenceInfuserBlockEntity place(ProjectileNativeInterceptionTest.Fixture f, ServerPlayer player) {
         var machine = new EssenceInfuserBlockEntity(new BlockPos(1, 0, 0), EssenceInfuserContent.ESSENCE_INFUSER.get().defaultBlockState());
         machine.setLevel(f.level); f.level.memoryMachines.put(machine.getBlockPos(), machine); f.level.memoryBlocks.put(machine.getBlockPos(), machine.getBlockState());

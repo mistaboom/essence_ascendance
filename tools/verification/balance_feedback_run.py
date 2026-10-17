@@ -144,8 +144,12 @@ def main():
         try:
             if process.poll() is None:
                 try:
-                    commands(["stop"], log.stem + "-stop.json")
-                except (ConnectionError, OSError) as error:
+                    # This owned JVM has a console pipe. Stopping through RCON can leave
+                    # its request thread waiting for the same server thread that joins it.
+                    process.stdin.write(b"stop\n")
+                    process.stdin.flush()
+                    save(destination / (log.stem + "-stop.json"), {"command": "stop", "transport": "owned_stdin"})
+                except (BrokenPipeError, OSError) as error:
                     save(destination / (log.stem + "-disconnect.json"), {"error": str(error)})
                 try:
                     process.wait(timeout=45)

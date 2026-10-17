@@ -250,7 +250,8 @@ public final class InfuserJeiCategory implements IRecipeCategory<InfuserJeiRecip
             });
         }
 
-        builder.addOutputSlot(OUTPUT_X, SLOT_Y)
+        // Repair preserves an existing artifact; it is a use, not a way to acquire one.
+        builder.addSlot(RecipeIngredientRole.RENDER_ONLY, OUTPUT_X, SLOT_Y)
                 .setOutputSlotBackground()
                 .setSlotName("output")
                 .addItemStacks(outputs);

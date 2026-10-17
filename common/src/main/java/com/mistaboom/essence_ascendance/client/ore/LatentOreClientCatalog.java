@@ -28,7 +28,7 @@ public final class LatentOreClientCatalog {
                     catalogConnection = connection;
                     catalogHosts = Set.copyOf(payload.hosts());
                     LatentOreHost.setCreativeHosts(payload.hosts());
-                    com.mistaboom.essence_ascendance.mixin.LatentOreCreativeTabCacheAccess.essence$invalidate(null);
+                    com.mistaboom.essence_ascendance.item.CreativeVariantRegistry.invalidate();
                     refreshIngredients();
                     LatentOreSprites.setHosts(payload.hosts());
                     ensurePrepared();
@@ -72,7 +72,7 @@ public final class LatentOreClientCatalog {
         catalogConnection = null;
         catalogHosts = Set.of();
         LatentOreHost.setCreativeHosts(Set.of());
-        com.mistaboom.essence_ascendance.mixin.LatentOreCreativeTabCacheAccess.essence$invalidate(null);
+        com.mistaboom.essence_ascendance.item.CreativeVariantRegistry.invalidate();
         refreshIngredients();
         LatentOreSprites.setHosts(Set.of());
         LatentOreModels.invalidate();

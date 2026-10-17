@@ -23,9 +23,18 @@ public final class MachineUiFoundationTest {
 
     public static void main(String[] args) {
         layoutAndResize();
+        popupExclusions();
         overlayOwnership();
         focusAndScrollBoundaries();
         styledTextContract();
+        for (var symbol : com.mistaboom.essence_ascendance.client.ui.PixelSymbol.values()) {
+            check(!symbol.pixels().isEmpty() && symbol.pixels().stream().allMatch(pixel -> pixel.width() == 1 && pixel.height() == 1
+                            && pixel.x() >= 0 && pixel.y() >= 0 && pixel.right() <= 7 && pixel.bottom() <= 7),
+                    "Status symbol geometry stays visible inside one normal text line");
+        }
+        check(!com.mistaboom.essence_ascendance.client.ui.PixelSymbol.CHECK.pixels().equals(
+                        com.mistaboom.essence_ascendance.client.ui.PixelSymbol.REPLACED.pixels()),
+                "Active and replaced status marks remain distinct");
         System.out.println("MachineUiFoundationTest: " + checks + " checks PASS");
     }
 
@@ -70,6 +79,24 @@ public final class MachineUiFoundationTest {
         check(overlap.bounds().intersects(narrowMain)
                         && overlap.bounds().contains(overlap.bounds().x(), overlap.bounds().y()),
                 "The rendered fallback bounds are also the hit-test bounds");
+    }
+
+    private static void popupExclusions() {
+        for (int screenWidth : new int[]{320, 800, 1600}) for (int screenHeight : new int[]{240, 600, 900}) {
+            for (int popupBottom : new int[]{80, 200, screenHeight + 50}) {
+                int bottom = Math.min(popupBottom, screenHeight);
+                var left = MachineScreenLayout.recipeViewerExclusions(screenWidth, screenHeight,
+                        List.of(new UiBounds(5, 30, 100, popupBottom - 30)));
+                var right = MachineScreenLayout.recipeViewerExclusions(screenWidth, screenHeight,
+                        List.of(new UiBounds(screenWidth - 105, 30, 100, popupBottom - 30)));
+                check(left.equals(right) && left.equals(List.of(new UiBounds(0, 0, screenWidth, bottom))),
+                        "Info, Settings and team popup sides reserve the same complete band for viewer items and page controls");
+                check(!left.getFirst().intersects(new UiBounds(0, bottom, screenWidth, 20)),
+                        "A page header below the popup stays entirely available");
+            }
+        }
+        check(MachineScreenLayout.recipeViewerExclusions(800, 600, List.of()).isEmpty(),
+                "Closing every popup releases the complete viewer area");
     }
 
     private static void overlayOwnership() {

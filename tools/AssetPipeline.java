@@ -58,6 +58,8 @@ public final class AssetPipeline {
             requirePhysicalPath(source);
             if (!source.startsWith(art.resolve("source/models")) || !source.toString().endsWith(".bbmodel")
                     || !sources.add(source)) throw new IllegalArgumentException("Invalid or duplicate asset source: " + source);
+            // Explicitly staged authoring projects have no runtime assets yet.
+            if ("authoring_only".equals(asset.get("category").getAsString())) continue;
             JsonObject project = BlockbenchSource.read(source);
             try {
                 if (asset.has("textures")) exportTextures(project, asset.getAsJsonArray("textures"));

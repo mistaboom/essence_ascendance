@@ -542,10 +542,10 @@ public abstract class MachineContainerScreen<M extends AbstractContainerMenu>
         return super.charTyped(character, modifiers);
     }
 
-    /** Recipe viewers can consume the same dynamic bounds as the screen host. */
+    /** Popups reserve a complete band so recipe-viewer page controls cannot be partly covered. */
     public final List<net.minecraft.client.renderer.Rect2i> overlayInteractionAreas() {
-        return currentOverlays().stream()
-                .map(MachineOverlay::bounds)
+        return MachineScreenLayout.recipeViewerExclusions(width, height,
+                currentOverlays().stream().map(MachineOverlay::bounds).toList()).stream()
                 .map(UiBounds::toMinecraftRect)
                 .toList();
     }

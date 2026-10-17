@@ -565,7 +565,7 @@ final class ReferenceDocuments {
     private static Component equipmentFamilyTitle(String key) {
         String item = switch (key) {
             case "helmet", "chestplate", "leggings", "boots" -> "ascendance_" + key;
-            case "melee_weapon", "ranged_weapon", "pickaxe", "axe", "shovel", "hoe", "shield", "fishing_rod" -> "ascendance_" + key;
+            case "sword", "ranged_weapon", "pickaxe", "axe", "shovel", "hoe", "shield", "fishing_rod" -> "ascendance_" + key;
             case "magic_caster" -> "ascendance_caster";
             default -> null;
         };

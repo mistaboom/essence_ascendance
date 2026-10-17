@@ -9,6 +9,16 @@ import java.util.Objects;
  * The fullscreen Ascendance Nexus intentionally does not use this layout.
  */
 public final class MachineScreenLayout {
+    /** Reserve the complete upper band so viewer navigation and items move together for every popup side. */
+    public static java.util.List<UiBounds> recipeViewerExclusions(int screenWidth, int screenHeight,
+                                                                java.util.List<UiBounds> overlays) {
+        int bottom = overlays.stream().filter(bounds -> bounds.width() > 0 && bounds.height() > 0)
+                .mapToInt(UiBounds::bottom).max().orElse(0);
+        bottom = Math.clamp(bottom, 0, Math.max(0, screenHeight));
+        return screenWidth <= 0 || bottom == 0 ? java.util.List.of()
+                : java.util.List.of(new UiBounds(0, 0, screenWidth, bottom));
+    }
+
 
     /** Standard width for the main panel used by normal machine screens. */
     public static final int MAIN_PANEL_WIDTH = 230;

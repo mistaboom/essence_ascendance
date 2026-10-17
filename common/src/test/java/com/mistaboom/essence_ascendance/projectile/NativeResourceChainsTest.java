@@ -61,8 +61,10 @@ public final class NativeResourceChainsTest {
         } catch (ClassNotFoundException fabric) { /* Fabric has no global loot-modifier manager. */ }
         Runnable restoreFuel = nativeFuelData();
         try {
+            armorTrimTags();
             resources(f);
             NativeMeleeBonusTest.run(f);
+            NativeToolInstinctTest.run(f);
             NativeCarrierCompatibilityTest.run(f);
             NativeSalvageTest.run();
             salvageMenu(f);
@@ -80,6 +82,61 @@ public final class NativeResourceChainsTest {
         }
         System.out.println("Native resource chain checks passed: " + checks
                 + " (vanilla loot/recipe, transformed processor ticks, consumption, repair, trade, relay, sanctuary and containment)");
+    }
+    private static void armorTrimTags() {
+        var slotArmor = Map.of(net.minecraft.tags.ItemTags.FOOT_ARMOR, Items.IRON_BOOTS,
+                net.minecraft.tags.ItemTags.LEG_ARMOR, Items.IRON_LEGGINGS,
+                net.minecraft.tags.ItemTags.CHEST_ARMOR, Items.IRON_CHESTPLATE,
+                net.minecraft.tags.ItemTags.HEAD_ARMOR, Items.IRON_HELMET);
+        var ownArmor = BuiltInRegistries.ITEM.stream()
+                .filter(item -> item instanceof ArmorItem && item instanceof EquipmentProfileItem).toList();
+        check(ownArmor.size() == 4, "All four registered Ascendance armor pieces enter the trim regression");
+        Map<ResourceLocation, List<net.minecraft.tags.TagLoader.EntryWithSource>> entries = new HashMap<>();
+        for (var slot : slotArmor.entrySet()) {
+            List<net.minecraft.tags.TagLoader.EntryWithSource> members = new ArrayList<>();
+            members.add(new net.minecraft.tags.TagLoader.EntryWithSource(
+                    net.minecraft.tags.TagEntry.element(BuiltInRegistries.ITEM.getKey(slot.getValue())), "native_ordinary_armor"));
+            ownArmor.stream().filter(item -> ((ArmorItem) item).getEquipmentSlot() == ((ArmorItem) slot.getValue()).getEquipmentSlot())
+                    .forEach(item -> members.add(new net.minecraft.tags.TagLoader.EntryWithSource(
+                            net.minecraft.tags.TagEntry.element(BuiltInRegistries.ITEM.getKey(item)), "registered_profile_armor")));
+            entries.put(slot.getKey().location(), members);
+        }
+        var trim = net.minecraft.tags.TagFile.CODEC.parse(JsonOps.INSTANCE, vanillaJson("tags/item/trimmable_armor")).getOrThrow();
+        entries.put(net.minecraft.tags.ItemTags.TRIMMABLE_ARMOR.location(), trim.entries().stream()
+                .map(entry -> new net.minecraft.tags.TagLoader.EntryWithSource(entry, "native_vanilla_trim_definition")).toList());
+        entries.put(net.minecraft.tags.ItemTags.ARMOR_ENCHANTABLE.location(), slotArmor.keySet().stream()
+                .map(slot -> new net.minecraft.tags.TagLoader.EntryWithSource(
+                        net.minecraft.tags.TagEntry.tag(slot.location()), "native_slot_enchantment_reference")).toList());
+        var loader = new net.minecraft.tags.TagLoader<Holder<Item>>(BuiltInRegistries.ITEM::getHolder,
+                Registries.tagsDirPath(Registries.ITEM));
+        var resolved = loader.build(entries);
+        var trimmable = resolved.get(net.minecraft.tags.ItemTags.TRIMMABLE_ARMOR.location());
+        check(trimmable != null && trimmable.size() == 4
+                        && slotArmor.values().stream().allMatch(item -> trimmable.contains(item.builtInRegistryHolder())),
+                "Native trim tag keeps ordinary armor but removes profile armor inherited through all four slot tags");
+        check(loader.build(entries).equals(resolved), "Repeated native tag reloads preserve the same trim exclusion");
+        var unrelatedLoader = new net.minecraft.tags.TagLoader<Holder<Item>>(BuiltInRegistries.ITEM::getHolder,
+                Registries.tagsDirPath(Registries.BLOCK));
+        check(unrelatedLoader.build(entries).get(net.minecraft.tags.ItemTags.TRIMMABLE_ARMOR.location()).size() == 8,
+                "An identically named tag outside the item registry is untouched");
+        var oldTags = new HashMap<net.minecraft.tags.TagKey<Item>, List<Holder<Item>>>();
+        BuiltInRegistries.ITEM.getTags().forEach(tag -> oldTags.put(tag.getFirst(), tag.getSecond().stream().toList()));
+        var bound = new HashMap<>(oldTags);
+        resolved.forEach((id, values) -> bound.put(net.minecraft.tags.TagKey.create(Registries.ITEM, id), List.copyOf(values)));
+        BuiltInRegistries.ITEM.bindTags(bound);
+        try {
+            for (var item : ownArmor) {
+                var stack = new ItemStack(item);
+                check(!stack.is(net.minecraft.tags.ItemTags.TRIMMABLE_ARMOR), "Bound native trim tag excludes " + item);
+                check(stack.is(net.minecraft.tags.ItemTags.ARMOR_ENCHANTABLE), "Bound enchantment tag preserves " + item);
+                var slot = slotArmor.entrySet().stream().filter(entry -> ((ArmorItem) entry.getValue()).getEquipmentSlot()
+                        == ((ArmorItem) item).getEquipmentSlot()).findFirst().orElseThrow().getKey();
+                check(stack.is(slot), "Bound native armor-slot tag preserves " + item);
+            }
+            for (var item : slotArmor.values()) check(new ItemStack(item).is(net.minecraft.tags.ItemTags.TRIMMABLE_ARMOR),
+                    "Ordinary armor remains trimmable after binding: " + item);
+        } finally { BuiltInRegistries.ITEM.bindTags(oldTags); }
+        System.out.println("Native armor trim tags PASS: transformed TagLoader, vanilla nested trim definition, four own exclusions, ordinary armor and slot/enchantment preservation");
     }
     @SuppressWarnings("unchecked")
     private static Runnable nativeFuelData() throws ReflectiveOperationException {

@@ -57,12 +57,17 @@ public final class RobustFrontiers {
     public static double percentile(List<Double> raw, double fraction, String outlierPolicy) {
         List<Double> values = raw.stream().filter(v -> Double.isFinite(v) && v >= 0).sorted().toList();
         if (values.isEmpty()) return 0;
-        // Median-relative ceiling resists a single absurd reachable item, including small populations.
-        double median = quantile(values, 0.5);
-        double ceiling = Math.max(median * 4, quantile(values, 0.25) * 8);
+        // One vote per distinct measurement: variants cannot authorize an extreme value. The
+        // outer quartile fence preserves ordinary, widely spaced material ladders. Below five
+        // measurements Q3 can contain the isolated largest sample, so retain the small-set bound.
+        List<Double> distinct = values.stream().distinct().toList();
+        double lower = quantile(distinct, 0.25), upper = quantile(distinct, 0.75);
+        double ceiling = Math.max(quantile(distinct, 0.5) * 4, lower * 8);
+        if (distinct.size() >= 5) ceiling = Math.max(ceiling, upper + 3 * (upper - lower));
+        final double bound = ceiling;
         if (values.size() >= 3 && ceiling > 0 && !outlierPolicy.equals("INCLUDE_ATTAINABLE")) {
-            values = outlierPolicy.equals("WINSORIZE") ? values.stream().map(v -> Math.min(v, ceiling)).toList()
-                    : values.stream().filter(v -> v <= ceiling).toList();
+            values = outlierPolicy.equals("WINSORIZE") ? values.stream().map(v -> Math.min(v, bound)).toList()
+                    : values.stream().filter(v -> v <= bound).toList();
         }
         return quantile(values, fraction);
     }
@@ -74,18 +79,28 @@ public final class RobustFrontiers {
         Map<ProgressionBand, Map<CapabilityAxis, Double>> output = new TreeMap<>();
         Map<String, Map<CapabilityAxis, Double>> retainedSlots = new TreeMap<>();
         List<WeaponCadence> usableWeapons = new ArrayList<>();
+        var ceilings = equipmentCeilings(equipment, outlierPolicy);
+        var miningBands = EquipmentStrengthBands.mining(equipment, outlierPolicy);
         for (ProgressionBand band : ProgressionBand.values()) {
             Map<String, Map<CapabilityAxis, List<Double>>> slots = new TreeMap<>();
             for (EquipmentReference ref : equipment) {
-                if (!ref.usableReference() || ref.stage() != band) continue;
-                Map<CapabilityAxis, List<Double>> axes = slots.computeIfAbsent(ref.slot(), ignored -> new EnumMap<>(CapabilityAxis.class));
-                ref.axes().forEach((axis, value) -> axes.computeIfAbsent(axis, ignored -> new ArrayList<>()).add(value));
+                if (!ref.usableReference()) continue;
+                ref.axes().forEach((axis, value) -> {
+                    var stage = axis == CapabilityAxis.MINING_SPEED || axis == CapabilityAxis.HARVEST_LEVEL
+                            ? miningBands.getOrDefault(ref.itemId(), ref.stage()) : ref.stage();
+                    if (stage == band) slots.computeIfAbsent(ref.slot(), ignored -> new EnumMap<>(CapabilityAxis.class))
+                            .computeIfAbsent(axis, ignored -> new ArrayList<>()).add(value);
+                });
             }
             Map<String, Double> damageCeilings = new TreeMap<>();
             slots.forEach((slot, axes) -> axes.forEach((axis, values) -> {
                 // A non-pickaxe's zero harvest level is not a competing harvesting tool.
                 // This is a frontier: use the best accepted measurement, not the average catalog item.
-                double value = upper(values, outlierPolicy);
+                double ceiling = ceilings.getOrDefault(slot, Map.of()).getOrDefault(axis, 0.0);
+                double value = values.stream().filter(v -> Double.isFinite(v) && v > 0)
+                        .filter(v -> !outlierPolicy.equals("EXCLUDE_UNSUPPORTED") || v <= ceiling)
+                        .mapToDouble(v -> outlierPolicy.equals("WINSORIZE") ? Math.min(v, ceiling) : v)
+                        .max().orElse(0);
                 retainedSlots.computeIfAbsent(slot, ignored -> new EnumMap<>(CapabilityAxis.class)).merge(axis, value, Math::max);
                 if (axis == CapabilityAxis.SUSTAINED_DAMAGE) damageCeilings.put(slot, value);
             }));
@@ -121,6 +136,25 @@ public final class RobustFrontiers {
             output.put(band, Map.copyOf(resolved));
         }
         return output;
+    }
+
+    /** One fixed policy bound per compatible slot and axis, before relative strength bands are applied.
+     * Repeated item variants have no extra vote; assigning an extreme item to the strongest band cannot
+     * make it validate itself. These are catalog reference bounds, not acquisition claims. */
+    public static Map<String, Map<CapabilityAxis, Double>> equipmentCeilings(List<EquipmentReference> equipment,
+                                                                           String outlierPolicy) {
+        Map<String, Map<CapabilityAxis, List<Double>>> populations = new TreeMap<>();
+        for (var ref : equipment) if (ref.usableReference()) ref.axes().forEach((axis, value) ->
+                populations.computeIfAbsent(ref.slot(), ignored -> new EnumMap<>(CapabilityAxis.class))
+                        .computeIfAbsent(axis, ignored -> new ArrayList<>()).add(value));
+        Map<String, Map<CapabilityAxis, Double>> result = new TreeMap<>();
+        populations.forEach((slot, axes) -> {
+            Map<CapabilityAxis, Double> values = new EnumMap<>(CapabilityAxis.class);
+            axes.forEach((axis, population) -> values.put(axis,
+                    upper(population.stream().distinct().toList(), outlierPolicy)));
+            result.put(slot, Map.copyOf(values));
+        });
+        return Map.copyOf(result);
     }
 
     private record WeaponCadence(String itemId, double sustained, double rate) { }

@@ -268,7 +268,7 @@ public final class EquipmentTooltipSyncService {
         EquipmentBaselineResult base =
                 EquipmentBaselineService.evaluateForEquipmentTier(
                         data,
-                        EquipmentProfiles.MELEE_WEAPON.id(),
+                        EquipmentProfiles.SWORD.id(),
                         itemTier
                 );
 
@@ -283,13 +283,13 @@ public final class EquipmentTooltipSyncService {
                 lines,
                 data,
                 itemTier,
-                EquipmentProfiles.MELEE_WEAPON,
+                EquipmentProfiles.SWORD,
                 EquipmentActivationType.HELD,
                 1.0
         );
 
         return entry(
-                "ascendance_melee_weapon",
+                "ascendance_sword",
                 itemTier,
                 lines
         );

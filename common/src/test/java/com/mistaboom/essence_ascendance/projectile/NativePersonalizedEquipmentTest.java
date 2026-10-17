@@ -46,7 +46,7 @@ public final class NativePersonalizedEquipmentTest {
         var catalog = EquipmentCatalogStacks.allTiers(rod.getItem());
         check(catalog.size() == 6 && catalog.stream().noneMatch(stack -> PersonalizedEquipmentService.active(vance, stack).isPresent()),
                 "Catalog contains only the six ordinary tiers, even for Vance");
-        for (var item : List.of(AscendanceItems.ASCENDANCE_MELEE_WEAPON.get(), AscendanceItems.ASCENDANCE_SHIELD.get(), Items.FISHING_ROD)) {
+        for (var item : List.of(AscendanceItems.ASCENDANCE_SWORD.get(), AscendanceItems.ASCENDANCE_SHIELD.get(), Items.FISHING_ROD)) {
             var stack = new ItemStack(item);
             if (EquipmentTierData.isAscendanceEquipment(stack)) EquipmentTierData.setTier(stack, EquipmentTier.TRANSCENDENT);
             vance.setItemInHand(InteractionHand.MAIN_HAND, stack);

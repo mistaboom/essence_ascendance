@@ -28,7 +28,7 @@ public record InfuserBalanceSettings(
             "dormant", "awakened", "resonant", "ascendant", "transcendent"
     };
     private static final String[] EQUIPMENT_KEYS = {
-            "helmet", "chestplate", "leggings", "boots", "melee_weapon",
+            "helmet", "chestplate", "leggings", "boots", "sword",
             "ranged_weapon", "magic_caster", "pickaxe", "axe", "shovel", "hoe", "shield"
     };
 
@@ -179,7 +179,7 @@ public record InfuserBalanceSettings(
         equipmentWeights.put("chestplate", weights("defense", 6, "vitality", 4));
         equipmentWeights.put("leggings", weights("defense", 4, "mobility", 3, "vitality", 3));
         equipmentWeights.put("boots", weights("mobility", 6, "defense", 3, "utility", 1));
-        equipmentWeights.put("melee_weapon", weights("offense", 7, "mobility", 3));
+        equipmentWeights.put("sword", weights("offense", 7, "mobility", 3));
         equipmentWeights.put("ranged_weapon", weights("offense", 5, "mobility", 3, "utility", 2));
         equipmentWeights.put("magic_caster", weights("utility", 5, "offense", 4, "vitality", 1));
         equipmentWeights.put("pickaxe", weights("gathering", 7, "utility", 3));

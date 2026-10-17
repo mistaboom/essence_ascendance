@@ -141,10 +141,16 @@ public final class RuntimeBuildScenarios {
             double armor = RuntimeReferencePolicy.observed(evidence, band, CapabilityAxis.ARMOR, 0);
             double toughness = RuntimeReferencePolicy.observed(evidence, band, CapabilityAxis.TOUGHNESS, 0);
             double health = RuntimeReferencePolicy.playerHealth();
+            double externalHealth = runtime.composition().getOrDefault("external_health_" + band.name().toLowerCase(Locale.ROOT), health);
             double incoming = runtime.composition().getOrDefault("enemy_damage_" + band.name().toLowerCase(Locale.ROOT), RuntimeReferencePolicy.playerHit());
             if (parity) {
-                var pairedArmor = RuntimeReferencePolicy.armor(evidence, band, settings.outlierPolicy().name(), incoming);
-                armor = pairedArmor.armor(); toughness = pairedArmor.toughness();
+                if (runtime.composition().containsKey("external_armor_" + band.name().toLowerCase(Locale.ROOT))) {
+                    armor = runtime.composition().get("external_armor_" + band.name().toLowerCase(Locale.ROOT));
+                    toughness = runtime.composition().get("external_toughness_" + band.name().toLowerCase(Locale.ROOT));
+                } else {
+                    var pairedArmor = RuntimeReferencePolicy.survival(evidence, band, settings.outlierPolicy().name(), incoming);
+                    armor = pairedArmor.armor(); toughness = pairedArmor.toughness(); externalHealth = pairedArmor.health();
+                }
             }
             double window = settings.generation().survivalWindowSeconds();
             var baseline = runtime.config().equipmentBaselineConfig().baselineFor(tier);
@@ -172,7 +178,7 @@ public final class RuntimeBuildScenarios {
                 if (!duplicateSelections.add(family + new TreeMap<>(scenario.contributingRanks()))) continue;
                 var reference = references.get(family);
                 var external = new Equipment(reference.damage(), reference.rate(), armor, toughness,
-                        runtime.composition().getOrDefault("competitive_" + band + "_health", health), 0);
+                        runtime.composition().getOrDefault("competitive_" + band + "_health", externalHealth), 0);
                 var externalMetrics = BuildComposition.compose(external, Modifier.none(), Modifier.none(), incoming, window);
                 double survivalEnvelope = runtime.composition().getOrDefault("competitive_" + band + "_effective_health", externalMetrics.effectiveHealth());
                 if (survivalEnvelope > externalMetrics.effectiveHealth()) externalMetrics = new Metrics(externalMetrics.sustainedDamage(),

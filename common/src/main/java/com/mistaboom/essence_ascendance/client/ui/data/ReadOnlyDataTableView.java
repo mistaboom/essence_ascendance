@@ -22,9 +22,12 @@ import java.util.function.Consumer;
 public final class ReadOnlyDataTableView<R> {
     public static final int HEADER_HEIGHT = 18;
     public static final int ROW_HEIGHT = 17;
+    /** Browsers retain one bounded row; article tables may wrap their complete prose. */
+    public enum Layout { ARTICLE, COMPACT }
 
     private final ReadOnlyDataTable<R> table;
     private final Consumer<String> navigate;
+    private final Layout layout;
     private final FullscreenScroll scroll = new FullscreenScroll();
     private String selectedKey;
     private String sortColumn;
@@ -49,8 +52,17 @@ public final class ReadOnlyDataTableView<R> {
     }
 
     public ReadOnlyDataTableView(ReadOnlyDataTable<R> table, Consumer<String> navigate) {
+        this(table, navigate, Layout.ARTICLE);
+    }
+
+    public ReadOnlyDataTableView(ReadOnlyDataTable<R> table, Layout layout) {
+        this(table, ignored -> { }, layout);
+    }
+
+    private ReadOnlyDataTableView(ReadOnlyDataTable<R> table, Consumer<String> navigate, Layout layout) {
         this.table = Objects.requireNonNull(table, "Table definition");
         this.navigate = Objects.requireNonNull(navigate);
+        this.layout = Objects.requireNonNull(layout);
     }
 
     public String selectedKey() { return selectedKey; }
@@ -103,6 +115,15 @@ public final class ReadOnlyDataTableView<R> {
         if (font == measuredFont && width == measuredWidth) return;
         measuredFont = font;
         measuredWidth = width;
+        if (layout == Layout.COMPACT) {
+            widths = table.measure(width, 1, font::width);
+            stacked = false;
+            headerHeight = Math.max(HEADER_HEIGHT, font.lineHeight + 8);
+            rowHeight = Math.max(table.columns().stream().anyMatch(ReadOnlyDataTable.Column::isItem) ? 24 : ROW_HEIGHT,
+                    font.lineHeight + 6);
+            fieldHeights = List.of();
+            return;
+        }
         stacked = table.minimumContentWidth(font::width) > width;
         widths = table.measureContent(width, font::width);
         if (!stacked) {
@@ -167,7 +188,7 @@ public final class ReadOnlyDataTableView<R> {
             int color = column.sortable() && cell.contains(mouseX, mouseY)
                     ? AscendanceUiPalette.argb(AscendanceUiPalette.INTERACTIVE)
                     : AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT);
-            drawWrappedCell(graphics, font, cell, label, column.alignment(), color);
+            drawCell(graphics, font, cell, label, column.alignment(), color);
         }
 
         UiBounds body = new UiBounds(bounds.x() + 1, header.bottom(), Math.max(0, bounds.width() - 2),
@@ -219,7 +240,7 @@ public final class ReadOnlyDataTableView<R> {
                                 AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT));
                     } else {
                         Component value = column.display(row.value());
-                        drawWrappedCell(graphics, font, cell, value, stacked ? ReadOnlyDataTable.Alignment.LEFT : column.alignment(),
+                        drawCell(graphics, font, cell, value, stacked ? ReadOnlyDataTable.Alignment.LEFT : column.alignment(),
                                 AscendanceUiPalette.argb(AscendanceUiPalette.PRIMARY_TEXT));
                     }
                 }
@@ -336,7 +357,7 @@ public final class ReadOnlyDataTableView<R> {
             var column = table.columns().get(index);
             Component value = header ? column.header() : column.display(rows.get(rowIndex).value());
             if (!header && column.isItem()) return Optional.of(value);
-            if (!header && wrappingFont != null) return Optional.empty();
+            if (!header && wrappingFont != null && layout != Layout.COMPACT) return Optional.empty();
             return measureText.applyAsInt(value) > Math.max(0, measured.width() - 8)
                     ? Optional.of(value) : Optional.empty();
         }
@@ -356,7 +377,7 @@ public final class ReadOnlyDataTableView<R> {
 
     /** Inline references use exactly the same wrapped cell geometry as the renderer. */
     public List<StyledTextLayout.LinkRegion> textLinks() {
-        if (wrappingFont == null) return List.of();
+        if (wrappingFont == null || layout == Layout.COMPACT) return List.of();
         if (hasInlineLinks == null) hasInlineLinks = table.rows().stream().anyMatch(row -> table.columns().stream()
                 .filter(column -> !column.isItem()).anyMatch(column -> StyledTextLayout.runs(column.display(row.value()))
                         .stream().anyMatch(run -> run.style().getClickEvent() != null)));
@@ -388,6 +409,18 @@ public final class ReadOnlyDataTableView<R> {
             }
         }
         return List.copyOf(links);
+    }
+
+    private void drawCell(GuiGraphics graphics, Font font, UiBounds bounds, Component value,
+                          ReadOnlyDataTable.Alignment alignment, int color) {
+        if (layout != Layout.COMPACT) {
+            drawWrappedCell(graphics, font, bounds, value, alignment, color);
+            return;
+        }
+        var fitted = StyledTextLayout.fit(font, value, Math.max(0, bounds.width() - 8));
+        int x = alignment == ReadOnlyDataTable.Alignment.RIGHT ? bounds.right() - 4 - font.width(fitted) : bounds.x() + 4;
+        FullscreenViewport.withClip(graphics, bounds, () -> graphics.drawString(font, fitted,
+                x, bounds.y() + Math.max(0, (bounds.height() - font.lineHeight) / 2), color, false));
     }
 
     private static void drawWrappedCell(GuiGraphics graphics, Font font, UiBounds bounds, Component value,
