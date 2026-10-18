@@ -423,12 +423,14 @@ public final class ProjectileNativeInterceptionTest {
             return memoryWorldBorder;
         }
         @Override public Entity getEntity(int id) { return entities.stream().filter(entity -> entity.getId() == id).findFirst().orElse(null); }
+        @Override public Entity getEntityOrPart(int id) { return getEntity(id); }
         @Override public Entity getEntity(UUID id) { return entities.stream().filter(entity -> entity.getUUID().equals(id)).findFirst().orElse(null); }
         @Override public net.minecraft.world.level.material.FluidState getFluidState(BlockPos position) {
             return getBlockState(position).getFluidState();
         }
         @Override public boolean addFreshEntity(Entity entity) { entities.add(entity); return true; }
         @Override public boolean isInWorldBounds(BlockPos position) { return true; }
+        @Override public boolean mayInteract(Player player, BlockPos position) { return true; }
         @Override public List<Entity> getEntities(Entity except, AABB box, Predicate<? super Entity> predicate) {
             entityQueries++;
             return entities.stream().filter(entity -> entity != except && !entity.isRemoved()

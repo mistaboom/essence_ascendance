@@ -39,7 +39,9 @@ public record TwoHandedPolicyPayload(ResourceLocation dimension, int entityId, U
         if (!decision.equals(SENT.get(player)) && send(player, player, decision)) SENT.put(player, decision);
     }
     private static boolean send(ServerPlayer owner, ServerPlayer recipient, TwoHandedEquipmentService.Decision decision) {
-        if (recipient.connection == null || !NetworkManager.canPlayerReceive(recipient, TYPE)) return false;
+        // Automation players may have a listener with no channel; capability negotiation needs a live play connection.
+        if (recipient.connection == null || !recipient.connection.isAcceptingMessages()
+                || !NetworkManager.canPlayerReceive(recipient, TYPE)) return false;
         NetworkManager.sendToPlayer(recipient, new TwoHandedPolicyPayload(owner.level().dimension().location(),
                 owner.getId(), owner.getUUID(), decision));
         return true;

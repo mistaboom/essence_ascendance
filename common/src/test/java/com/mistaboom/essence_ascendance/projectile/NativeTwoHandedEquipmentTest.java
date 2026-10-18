@@ -37,6 +37,7 @@ public final class NativeTwoHandedEquipmentTest {
         BuiltInRegistries.ITEM.bindTags(tags);
         TwoHandedEquipmentPolicy.rulesChanged();
         try {
+            disconnectedPlayers(f);
             var glaive = new ItemStack(AscendanceItems.ASCENDANCE_GLAIVE.get());
             p.setItemInHand(InteractionHand.MAIN_HAND, glaive);
             var totem = new ItemStack(Items.TOTEM_OF_UNDYING);
@@ -193,7 +194,7 @@ public final class NativeTwoHandedEquipmentTest {
             ProjectileNativeInterceptionTest.set(net.minecraft.server.level.ServerPlayerGameMode.class, p.gameMode,
                     "gameModeForPlayer", GameType.SURVIVAL);
 
-            // Native world packets are consumed before entity lookup, block access or offhand fallback.
+            // Native combat/offhand packets are consumed; main-hand interactions retain native priority.
             p.setItemInHand(InteractionHand.OFF_HAND, shield);
             f.level.tick += 21; p.messages = 0;
             f.listener.handleAnimate(new ServerboundSwingPacket(InteractionHand.OFF_HAND));
@@ -210,6 +211,8 @@ public final class NativeTwoHandedEquipmentTest {
             f.listener.handlePlayerAction(new ServerboundPlayerActionPacket(ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK,
                     far, Direction.UP, 3));
             check(p.getOffhandItem() == shield && glaive.getDamageValue() == 49, "Consumed use/mining packets leave equipment unchanged");
+            interactions(f);
+            p.setItemInHand(InteractionHand.MAIN_HAND, glaive);
 
             // Held/lowered reflection, active guard, and ordinary restoration use the same policy.
             var ownShield = new ItemStack(AscendanceItems.ASCENDANCE_SHIELD.get());
@@ -275,22 +278,121 @@ public final class NativeTwoHandedEquipmentTest {
         }
     }
     private static boolean valid(ServerPlayer p) { return TwoHandedEquipmentService.decision(p).mayAttack(); }
+    @SuppressWarnings("unchecked")
+    private static void disconnectedPlayers(ProjectileNativeInterceptionTest.Fixture f) throws ReflectiveOperationException {
+        Class<? extends ServerPlayer> playerType = PolicyPlayer.class;
+        try { playerType = (Class<? extends ServerPlayer>) Class.forName("net.neoforged.neoforge.common.util.FakePlayer"); }
+        catch (ClassNotFoundException fabric) { }
+        var simulated = f.player(playerType, Vec3.ZERO, "supplementaries_startup_probe");
+        var handler = simulated.connection;
+        var transportField = net.minecraft.server.network.ServerCommonPacketListenerImpl.class.getDeclaredField("connection");
+        transportField.setAccessible(true);
+        var previousTransport = transportField.get(handler);
+        var socketless = new net.minecraft.network.Connection(net.minecraft.network.protocol.PacketFlow.SERVERBOUND);
+        try {
+            ProjectileNativeInterceptionTest.set(net.minecraft.server.network.ServerCommonPacketListenerImpl.class, handler, "connection", socketless);
+            check(!handler.isAcceptingMessages(), "A fake-player listener can exist without a network channel");
+            // Supplementaries discovers faucet/cauldron behavior by equipping its fake player during server startup.
+            simulated.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.BUCKET));
+            simulated.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(AscendanceItems.ASCENDANCE_GLAIVE.get()));
+            simulated.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(Items.SHIELD));
+            check(!valid(simulated), "Socketless equipment mutations still enforce two-handed combat rules");
+            simulated.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(Items.TOTEM_OF_UNDYING));
+            check(valid(simulated), "Socketless fake-player equipment changes reconcile without network negotiation");
+            com.mistaboom.essence_ascendance.network.TwoHandedPolicyPayload.track(f.player, simulated);
+            com.mistaboom.essence_ascendance.network.TwoHandedPolicyPayload.untrack(f.player, simulated);
+            var send = com.mistaboom.essence_ascendance.network.WeaponActionStatePayload.class.getDeclaredMethod("send",
+                    ServerPlayer.class, ServerPlayer.class, WeaponActionRuntime.Snapshot.class);
+            send.setAccessible(true);
+            send.invoke(null, f.player, simulated, null);
+            check(!socketless.isConnected(), "Policy and action observer updates leave fake connections untouched");
+            simulated.connection = null;
+            simulated.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+            check(valid(simulated), "A player without a listener also reconciles safely");
+        } finally {
+            simulated.connection = handler;
+            ProjectileNativeInterceptionTest.set(net.minecraft.server.network.ServerCommonPacketListenerImpl.class, handler, "connection", previousTransport);
+        }
+    }
+    private static void interactions(ProjectileNativeInterceptionTest.Fixture f) throws ReflectiveOperationException {
+        var p = (PolicyPlayer) f.player;
+        f.level.memoryBlocks = new HashMap<>();
+        var pos = new BlockPos(0, 0, 1);
+        f.level.memoryBlocks.put(pos, net.minecraft.world.level.block.Blocks.CRAFTING_TABLE.defaultBlockState());
+        for (var item : List.of(AscendanceItems.ASCENDANCE_GLAIVE.get(), AscendanceItems.ASCENDANCE_FISHING_ROD.get())) {
+            WeaponActionRuntime.clear();
+            var stack = new ItemStack(item);
+            p.setItemInHand(InteractionHand.MAIN_HAND, stack);
+            int opened = p.openedMenus;
+            f.listener.handleUseItemOn(new ServerboundUseItemOnPacket(InteractionHand.MAIN_HAND,
+                    new BlockHitResult(Vec3.atCenterOf(pos), Direction.UP, pos, false), 4));
+            check(p.openedMenus == opened + 1 && p.fishing == null && WeaponActionRuntime.snapshot(p) == null,
+                    "Native block menu opens before a weapon action: " + item);
+            f.listener.handleAnimate(new ServerboundSwingPacket(InteractionHand.MAIN_HAND));
+            check(WeaponActionRuntime.snapshot(p) == null, "Right-click interaction animation cannot start a glaive swipe");
+            var frame = new net.minecraft.world.entity.decoration.ItemFrame(f.level, new BlockPos(0, 1, 1), Direction.NORTH);
+            f.level.entities.add(frame);
+            f.listener.handleInteract(ServerboundInteractPacket.createInteractionPacket(frame, false, InteractionHand.MAIN_HAND));
+            check(!frame.isRemoved() && frame.getItem().is(item) && p.getMainHandItem().isEmpty(),
+                    "Native item frame accepts the weapon without an attack: " + item);
+            check(p.fishing == null && WeaponActionRuntime.snapshot(p) == null, "Frame insertion cannot cast or stab");
+        }
+    }
     private static final class ClientInput {
     private static void run() throws ReflectiveOperationException {
         var client = net.minecraft.client.Minecraft.getInstance();
         var previous = client.player;
+        var previousLevel = client.level;
+        var previousMode = client.gameMode;
+        var previousHit = client.hitResult;
+        var previousRenderer = client.gameRenderer;
         var local = ProjectileNativeInterceptionTest.instance(net.minecraft.client.player.LocalPlayer.class);
+        var mode = ProjectileNativeInterceptionTest.instance(InputGameMode.class);
         var inventory = new net.minecraft.world.entity.player.Inventory(local);
         ProjectileNativeInterceptionTest.set(net.minecraft.world.entity.player.Player.class, local, "inventory", inventory);
         inventory.items.set(0, new ItemStack(AscendanceItems.ASCENDANCE_GLAIVE.get()));
         inventory.offhand.set(0, new ItemStack(Items.SHIELD));
         try {
             client.player = local;
+            client.level = ProjectileNativeInterceptionTest.instance(InputLevel.class);
+            client.gameMode = mode;
+            var renderer = ProjectileNativeInterceptionTest.instance(net.minecraft.client.renderer.GameRenderer.class);
+            ProjectileNativeInterceptionTest.set(net.minecraft.client.renderer.GameRenderer.class, renderer, "itemInHandRenderer",
+                    ProjectileNativeInterceptionTest.instance(net.minecraft.client.renderer.ItemInHandRenderer.class));
+            ProjectileNativeInterceptionTest.set(net.minecraft.client.Minecraft.class, client, "gameRenderer", renderer);
             var use = net.minecraft.client.Minecraft.class.getDeclaredMethod("startUseItem"); use.setAccessible(true);
             var attack = net.minecraft.client.Minecraft.class.getDeclaredMethod("startAttack"); attack.setAccessible(true);
             var mine = net.minecraft.client.Minecraft.class.getDeclaredMethod("continueAttack", boolean.class); mine.setAccessible(true);
-            // No world, entity hit result, game mode, or connection exists. Any vanilla fallthrough fails this probe.
-            use.invoke(client); check(!(boolean)attack.invoke(client), "Actual client attack/use presses consumed before vanilla interaction");
+            for (var item : List.of(AscendanceItems.ASCENDANCE_GLAIVE.get(), AscendanceItems.ASCENDANCE_FISHING_ROD.get())) {
+                inventory.items.set(0, new ItemStack(item));
+                client.hitResult = new BlockHitResult(Vec3.ZERO, Direction.UP, BlockPos.ZERO, false);
+                mode.blockResult = net.minecraft.world.InteractionResult.CONSUME;
+                int blocks = mode.blockUses, casts = mode.itemUses;
+                use.invoke(client);
+                check(mode.blockUses == blocks + 1 && mode.itemUses == casts, "Client block interaction precedes weapon fallback: " + item);
+                var frame = ProjectileNativeInterceptionTest.instance(net.minecraft.world.entity.decoration.ItemFrame.class);
+                ProjectileNativeInterceptionTest.set(Entity.class, frame, "blockPosition", BlockPos.ZERO);
+                client.hitResult = new EntityHitResult(frame, Vec3.ZERO);
+                int entities = mode.entityUses;
+                use.invoke(client);
+                check(mode.entityUses == entities + 1 && mode.itemUses == casts, "Client item-frame interaction precedes weapon fallback: " + item);
+            }
+            inventory.items.set(0, new ItemStack(AscendanceItems.ASCENDANCE_GLAIVE.get()));
+            client.hitResult = BlockHitResult.miss(Vec3.ZERO, Direction.UP, BlockPos.ZERO);
+            use.invoke(client);
+            int blockUses = mode.blockUses;
+            client.hitResult = new BlockHitResult(Vec3.ZERO, Direction.UP, BlockPos.ZERO, false);
+            use.invoke(client);
+            check(mode.blockUses == blockUses && mode.itemUses == 0, "Glaive air stab latches the press without native use or offhand fallback");
+            inventory.items.set(0, new ItemStack(AscendanceItems.ASCENDANCE_FISHING_ROD.get()));
+            client.hitResult = BlockHitResult.miss(Vec3.ZERO, Direction.UP, BlockPos.ZERO);
+            use.invoke(client);
+            check(mode.itemUses == 1, "Rod air use reaches the native cast/reel fallback exactly once");
+            client.hitResult = new BlockHitResult(Vec3.ZERO, Direction.UP, BlockPos.ZERO, false);
+            use.invoke(client);
+            check(mode.itemUses == 1 && mode.blockUses == blockUses, "Rod cast/reel latches the press before repeated block or item use");
+            inventory.items.set(0, new ItemStack(AscendanceItems.ASCENDANCE_GLAIVE.get()));
+            check(!(boolean)attack.invoke(client), "Actual client attack press remains owned by the weapon");
             mine.invoke(client, true); check(inventory.offhand.getFirst().is(Items.SHIELD), "Actual client mining input consumed without moving offhand");
             var decision = new TwoHandedEquipmentService.Decision(TwoHandedEquipmentService.Status.INCOMPATIBLE,
                     true, true, false, false, 9, TwoHandedEquipmentPolicy.generation());
@@ -300,17 +402,44 @@ public final class NativeTwoHandedEquipmentTest {
                     "Client use/presentation consume the shared server decision");
             local.startUsingItem(InteractionHand.OFF_HAND);
             check(inventory.offhand.getFirst().is(Items.SHIELD), "Native client active-use setter is suppressed by shared decision");
-        } finally { client.player = previous; com.mistaboom.essence_ascendance.network.TwoHandedPolicyPayload.clearClient(); }
+        } finally {
+            client.player = previous; client.level = previousLevel; client.gameMode = previousMode; client.hitResult = previousHit;
+            ProjectileNativeInterceptionTest.set(net.minecraft.client.Minecraft.class, client, "gameRenderer", previousRenderer);
+            com.mistaboom.essence_ascendance.network.TwoHandedPolicyPayload.clearClient();
+        }
+    }
+    private static final class InputGameMode extends net.minecraft.client.multiplayer.MultiPlayerGameMode {
+        int blockUses, entityUses, itemUses;
+        net.minecraft.world.InteractionResult blockResult;
+        private InputGameMode() { super(null, null); throw new AssertionError("Fixture only"); }
+        @Override public boolean isDestroying() { return false; }
+        @Override public void stopDestroyBlock() { }
+        @Override public net.minecraft.world.InteractionResult useItemOn(net.minecraft.client.player.LocalPlayer player,
+                InteractionHand hand, BlockHitResult hit) { blockUses++; return blockResult; }
+        @Override public net.minecraft.world.InteractionResult interactAt(net.minecraft.world.entity.player.Player player,
+                Entity entity, EntityHitResult hit, InteractionHand hand) { return net.minecraft.world.InteractionResult.PASS; }
+        @Override public net.minecraft.world.InteractionResult interact(net.minecraft.world.entity.player.Player player,
+                Entity entity, InteractionHand hand) { entityUses++; return net.minecraft.world.InteractionResult.CONSUME; }
+        @Override public net.minecraft.world.InteractionResult useItem(net.minecraft.world.entity.player.Player player,
+                InteractionHand hand) { itemUses++; return net.minecraft.world.InteractionResult.CONSUME; }
+    }
+    private static final class InputLevel extends net.minecraft.client.multiplayer.ClientLevel {
+        private InputLevel() { super(null, null, null, null, 0, 0, null, null, false, 0); throw new AssertionError("Fixture only"); }
+        @Override public net.minecraft.world.flag.FeatureFlagSet enabledFeatures() { return net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS; }
+        @Override public net.minecraft.world.level.border.WorldBorder getWorldBorder() { return new net.minecraft.world.level.border.WorldBorder(); }
     }
     }
     private static void check(boolean value, String message) { if (!value) throw new AssertionError(message); checks++; }
     static final class PolicyPlayer extends ServerPlayer {
-        int messages; String messageKey;
+        int messages, openedMenus; String messageKey;
         private PolicyPlayer() { super(null, null, null, null); throw new AssertionError("Fixture only"); }
         @Override public void displayClientMessage(Component message, boolean actionBar) {
             messages++; messageKey = message.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents c ? c.getKey() : message.getString();
         }
         @Override public void awardStat(Stat<?> statistic, int amount) { }
+        @Override public java.util.OptionalInt openMenu(net.minecraft.world.MenuProvider provider) {
+            openedMenus++; return java.util.OptionalInt.of(openedMenus);
+        }
         @Override public void onEnterCombat() { }
         @Override public void onLeaveCombat() { }
         @Override public void indicateDamage(double x, double z) { }

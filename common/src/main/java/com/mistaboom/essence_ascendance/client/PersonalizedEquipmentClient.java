@@ -15,7 +15,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import java.util.Optional;
 
-/** Owner-held presentation visible to every observer. Dropped items and catalog copies stay ordinary. */
+/** Owner-carried presentation visible to every observer. Dropped items and catalog copies stay ordinary. */
 public final class PersonalizedEquipmentClient {
     private PersonalizedEquipmentClient() { }
     public static Optional<PersonalizedEquipmentDefinition> active(ItemStack stack) {
@@ -27,7 +27,6 @@ public final class PersonalizedEquipmentClient {
     public static Optional<PersonalizedEquipmentDefinition> active(Iterable<? extends Player> holders, ItemStack stack) {
         if (!EquipmentTierData.isAscendanceEquipment(stack)) return Optional.empty();
         for (var holder : holders) {
-            if (holder.getMainHandItem() != stack && holder.getOffhandItem() != stack) continue;
             var profile = PersonalizedEquipmentService.active(holder, stack);
             if (profile.isPresent()) return profile;
         }

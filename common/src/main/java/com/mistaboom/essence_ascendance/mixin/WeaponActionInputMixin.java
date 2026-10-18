@@ -2,14 +2,20 @@ package com.mistaboom.essence_ascendance.mixin;
 
 import com.mistaboom.essence_ascendance.equipment.WeaponActionRuntime;
 import com.mistaboom.essence_ascendance.network.WeaponActionInputPayload;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.*;
 import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.*;
 
-/** Consume world presses before vanilla entity/block interaction, mining or offhand fallback. */
+/** Own combat presses while giving native block/entity use priority over a right-click stab. */
 @Mixin(value = Minecraft.class, priority = 1100)
 abstract class WeaponActionInputMixin {
     @Shadow public LocalPlayer player;
@@ -45,8 +51,15 @@ abstract class WeaponActionInputMixin {
     }
     @Inject(method = "startUseItem", at = @At("HEAD"), cancellable = true)
     private void essenceAscendance$use(CallbackInfo ci) {
-        if (!essenceAscendance$ownsInput()) return;
+        if (essenceAscendance$ownsInput() && essenceAscendance$useLatched) ci.cancel();
+    }
+    @WrapOperation(method = "startUseItem", at = @At(value = "INVOKE", target =
+            "Lnet/minecraft/client/multiplayer/MultiPlayerGameMode;useItem(Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/InteractionHand;)Lnet/minecraft/world/InteractionResult;"))
+    private InteractionResult essenceAscendance$stabAfterInteraction(MultiPlayerGameMode mode, Player user,
+            InteractionHand hand, Operation<InteractionResult> original) {
+        if (hand != InteractionHand.MAIN_HAND || !essenceAscendance$ownsInput()) return original.call(mode, user, hand);
         if (!essenceAscendance$useLatched) { essenceAscendance$useLatched = true; essenceAscendance$press(true); }
-        ci.cancel();
+        // FAIL ends native block use; here CONSUME ends the hand loop without an attack-animation packet.
+        return InteractionResult.CONSUME;
     }
 }

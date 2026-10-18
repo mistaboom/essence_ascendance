@@ -108,7 +108,7 @@ public record WeaponActionStatePayload(ResourceLocation dimension,int entityId,U
         return false;
     }
     private static void send(ServerPlayer owner,ServerPlayer recipient,WeaponActionRuntime.Snapshot state) {
-        if (recipient.connection!=null && NetworkManager.canPlayerReceive(recipient,TYPE))
+        if (recipient.connection!=null && recipient.connection.isAcceptingMessages() && NetworkManager.canPlayerReceive(recipient,TYPE))
             NetworkManager.sendToPlayer(recipient,new WeaponActionStatePayload(owner.level().dimension().location(),owner.getId(),owner.getUUID(),state,
                     EquipmentAppearance.resolve(owner,owner.getMainHandItem())));
     }

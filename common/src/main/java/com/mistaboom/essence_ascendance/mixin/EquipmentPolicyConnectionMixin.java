@@ -23,7 +23,7 @@ abstract class EquipmentPolicyConnectionMixin {
     private void essenceAscendance$swing(ServerboundSwingPacket packet, Operation<Void> original) {
         if (!player.server.isSameThread()) { original.call(packet); return; }
         if (WeaponActionRuntime.consumesWorldInput(player)) {
-            if (packet.getHand() == InteractionHand.MAIN_HAND) WeaponActionRuntime.attempt(player, false);
+            // Interaction animations share this packet. Actual glaive attacks have explicit input packets.
             return;
         }
         if (packet.getHand() == InteractionHand.OFF_HAND && !TwoHandedEquipmentService.permitsOffhandUse(player)) return;
@@ -87,10 +87,7 @@ abstract class EquipmentPolicyConnectionMixin {
     @WrapMethod(method = "handleUseItemOn")
     private void essenceAscendance$useOn(ServerboundUseItemOnPacket packet, Operation<Void> original) {
         if (!player.server.isSameThread()) { original.call(packet); return; }
-        if (WeaponActionRuntime.consumesWorldInput(player)
-                || packet.getHand() == InteractionHand.OFF_HAND && !TwoHandedEquipmentService.permitsOffhandUse(player)) {
-            if (WeaponActionRuntime.consumesWorldInput(player) && packet.getHand() == InteractionHand.MAIN_HAND)
-                WeaponActionRuntime.attempt(player, true);
+        if (packet.getHand() == InteractionHand.OFF_HAND && !TwoHandedEquipmentService.permitsOffhandUse(player)) {
             player.connection.ackBlockChangesUpTo(packet.getSequence());
             var pos = packet.getHitResult().getBlockPos();
             if (player.canInteractWithBlock(pos, 1) && player.level().hasChunkAt(pos))
@@ -107,11 +104,7 @@ abstract class EquipmentPolicyConnectionMixin {
             public void onInteraction(InteractionHand hand) { use(hand); }
             public void onInteraction(InteractionHand hand, Vec3 position) { use(hand); }
             private void use(InteractionHand hand) {
-                if (WeaponActionRuntime.consumesWorldInput(player)) {
-                    consume[0] = true;
-                    if (hand == InteractionHand.MAIN_HAND) WeaponActionRuntime.attempt(player, true);
-                }
-                else consume[0] = hand == InteractionHand.OFF_HAND && !TwoHandedEquipmentService.permitsOffhandUse(player);
+                consume[0] = hand == InteractionHand.OFF_HAND && !TwoHandedEquipmentService.permitsOffhandUse(player);
             }
             public void onAttack() {
                 if (WeaponActionRuntime.consumesWorldInput(player)) { consume[0] = true; WeaponActionRuntime.attempt(player, false); }

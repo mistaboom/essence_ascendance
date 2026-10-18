@@ -24,6 +24,7 @@ import java.util.*;
 public final class NativePersonalizedEquipmentTest {
     private static int checks;
     public static void run(ProjectileNativeInterceptionTest.Fixture f) throws Exception {
+        inventoryOverlay(f);
         var vance = f.player(NativeGuardOutcomeTest.NativePlayer.class, Vec3.ZERO, "Vance");
         UUID previousId = vance.getUUID();
         vance.setUUID(UUID.fromString("422890f3-c52e-4cdd-ad9c-a18c17b469fa"));
@@ -198,6 +199,51 @@ public final class NativePersonalizedEquipmentTest {
             ProjectileNativeInterceptionTest.set(PlayerList.class, f.server.getPlayerList(), "simulationDistance", oldSimulation);
         }
         System.out.println("NativePersonalizedEquipmentTest: " + checks + " owner privacy, catalogs, native launch, tracking and despawn checks PASS");
+    }
+    private static void inventoryOverlay(ProjectileNativeInterceptionTest.Fixture f) throws Exception {
+        for (var profile : PersonalizedEquipmentService.definitions()) {
+            var owner = f.player(NativeGuardOutcomeTest.NativePlayer.class, Vec3.ZERO, "gift_inventory_owner");
+            owner.setUUID(profile.playerId());
+            var stack = new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM.get(
+                    net.minecraft.resources.ResourceLocation.parse(profile.itemId())));
+            EquipmentTierData.setTier(stack, EquipmentTier.TRANSCENDENT);
+            var unchanged = stack.copy();
+            owner.getInventory().setItem(0, stack);
+            for (int selected : new int[]{0, 1, 8}) {
+                owner.getInventory().selected = selected;
+                check(PersonalizedEquipmentService.active(owner, stack).orElseThrow().equals(profile),
+                        "Shared overlay survives hotbar selection: " + profile.id());
+                verifyInventoryTint(owner, stack, profile.baseRgb(), profile.accentRgb());
+            }
+            owner.getInventory().setItem(0, ItemStack.EMPTY);
+            owner.getInventory().setItem(20, stack);
+            check(PersonalizedEquipmentService.active(owner, stack).isPresent(), "Main inventory retains the gift");
+            verifyInventoryTint(owner, stack, profile.baseRgb(), profile.accentRgb());
+            owner.getInventory().setItem(20, ItemStack.EMPTY);
+            owner.containerMenu.setCarried(stack);
+            check(PersonalizedEquipmentService.active(owner, stack).isPresent(), "Menu cursor retains its owner's gift");
+            verifyInventoryTint(owner, stack, profile.baseRgb(), profile.accentRgb());
+            owner.containerMenu.setCarried(ItemStack.EMPTY);
+            var dropped = new net.minecraft.world.entity.item.ItemEntity(f.level, 0, 0, 0, stack);
+            check(PersonalizedEquipmentService.active(owner, dropped.getItem()).isEmpty(), "Dropped gift immediately reverts");
+            verifyInventoryTint(owner, dropped.getItem(), EquipmentTierVisuals.primaryRgb(EquipmentTier.TRANSCENDENT),
+                    EquipmentTierVisuals.armorAccentRgb(EquipmentTier.TRANSCENDENT));
+            f.player.getInventory().setItem(20, stack);
+            check(PersonalizedEquipmentService.active(owner, stack).isEmpty()
+                    && PersonalizedEquipmentService.active(f.player, stack).isEmpty(), "Transferred gift immediately reverts");
+            f.player.getInventory().setItem(20, ItemStack.EMPTY);
+            owner.getInventory().setItem(20, stack);
+            check(PersonalizedEquipmentService.active(owner, stack).isPresent()
+                    && PersonalizedEquipmentService.active(owner, stack.copy()).isEmpty(), "Pickup restores only the actual inventory stack");
+            check(ItemStack.isSameItemSameComponents(stack, unchanged), "Inventory overlay never stores custom colors on the item");
+            owner.getInventory().setItem(20, ItemStack.EMPTY);
+        }
+    }
+    private static void verifyInventoryTint(net.minecraft.world.entity.player.Player owner, ItemStack stack, int base, int accent) {
+        if (dev.architectury.platform.Platform.getEnvironment() != dev.architectury.utils.Env.CLIENT) return;
+        check(com.mistaboom.essence_ascendance.client.PersonalizedEquipmentClient.itemTint(List.of(owner), stack, 0) == (0xFF000000 | base)
+                && com.mistaboom.essence_ascendance.client.PersonalizedEquipmentClient.itemTint(List.of(owner), stack, 1) == (0xFF000000 | accent),
+                "Client inventory base and accent follow the shared possession rule");
     }
     private static void closeCapture(ProjectileNativeInterceptionTest.Fixture f, net.minecraft.server.level.ServerPlayer owner, ItemStack rod) {
         for (double distance : new double[]{1, 2}) {
