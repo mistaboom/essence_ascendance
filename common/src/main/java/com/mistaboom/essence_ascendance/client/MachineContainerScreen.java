@@ -542,9 +542,9 @@ public abstract class MachineContainerScreen<M extends AbstractContainerMenu>
         return super.charTyped(character, modifiers);
     }
 
-    /** Popups reserve a complete band so recipe-viewer page controls cannot be partly covered. */
+    /** Popups reserve their affected viewer side so its page controls move with the items. */
     public final List<net.minecraft.client.renderer.Rect2i> overlayInteractionAreas() {
-        return MachineScreenLayout.recipeViewerExclusions(width, height,
+        return MachineScreenLayout.recipeViewerExclusions(width, height, mainPanelBounds(),
                 currentOverlays().stream().map(MachineOverlay::bounds).toList()).stream()
                 .map(UiBounds::toMinecraftRect)
                 .toList();

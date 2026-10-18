@@ -9,14 +9,26 @@ import java.util.Objects;
  * The fullscreen Ascendance Nexus intentionally does not use this layout.
  */
 public final class MachineScreenLayout {
-    /** Reserve the complete upper band so viewer navigation and items move together for every popup side. */
+    /** Move nearby viewer navigation and items together without reserving the opposite side. */
     public static java.util.List<UiBounds> recipeViewerExclusions(int screenWidth, int screenHeight,
+                                                                UiBounds mainPanel,
                                                                 java.util.List<UiBounds> overlays) {
-        int bottom = overlays.stream().filter(bounds -> bounds.width() > 0 && bounds.height() > 0)
-                .mapToInt(UiBounds::bottom).max().orElse(0);
-        bottom = Math.clamp(bottom, 0, Math.max(0, screenHeight));
-        return screenWidth <= 0 || bottom == 0 ? java.util.List.of()
-                : java.util.List.of(new UiBounds(0, 0, screenWidth, bottom));
+        var screen = new UiBounds(0, 0, Math.max(0, screenWidth), Math.max(0, screenHeight));
+        int panelLeft = Math.clamp(mainPanel.x(), 0, screen.width());
+        int panelRight = Math.clamp(mainPanel.right(), 0, screen.width());
+        return overlays.stream()
+                .map(bounds -> bounds.intersection(screen))
+                .filter(bounds -> bounds.width() > 0 && bounds.height() > 0)
+                .map(bounds -> {
+                    // Cover the whole affected viewer column so JEI cannot squeeze its
+                    // navigation beside the popup and hide the page number.
+                    boolean leftSide = bounds.x() < panelLeft;
+                    boolean rightSide = bounds.right() > panelRight;
+                    int left = leftSide ? 0 : rightSide ? Math.min(bounds.x(), panelRight) : bounds.x();
+                    int right = rightSide ? screen.width() : leftSide ? Math.max(bounds.right(), panelLeft) : bounds.right();
+                    return new UiBounds(left, 0, right - left, bounds.bottom());
+                })
+                .toList();
     }
 
 

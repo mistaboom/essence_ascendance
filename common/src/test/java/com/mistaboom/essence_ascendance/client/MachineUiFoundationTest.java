@@ -83,20 +83,62 @@ public final class MachineUiFoundationTest {
 
     private static void popupExclusions() {
         for (int screenWidth : new int[]{320, 800, 1600}) for (int screenHeight : new int[]{240, 600, 900}) {
+            var viewerMain = new UiBounds(130, 30, screenWidth - 260, 100);
             for (int popupBottom : new int[]{80, 200, screenHeight + 50}) {
                 int bottom = Math.min(popupBottom, screenHeight);
-                var left = MachineScreenLayout.recipeViewerExclusions(screenWidth, screenHeight,
+                var left = MachineScreenLayout.recipeViewerExclusions(screenWidth, screenHeight, viewerMain,
                         List.of(new UiBounds(5, 30, 100, popupBottom - 30)));
-                var right = MachineScreenLayout.recipeViewerExclusions(screenWidth, screenHeight,
+                var right = MachineScreenLayout.recipeViewerExclusions(screenWidth, screenHeight, viewerMain,
                         List.of(new UiBounds(screenWidth - 105, 30, 100, popupBottom - 30)));
-                check(left.equals(right) && left.equals(List.of(new UiBounds(0, 0, screenWidth, bottom))),
-                        "Info, Settings and team popup sides reserve the same complete band for viewer items and page controls");
-                check(!left.getFirst().intersects(new UiBounds(0, bottom, screenWidth, 20)),
+                check(left.equals(List.of(new UiBounds(0, 0, 130, bottom)))
+                                && right.equals(List.of(new UiBounds(screenWidth - 130, 0, 130, bottom))),
+                        "Each popup reserves its entire viewer column, leaving no gap to squeeze page controls into");
+                var leftHeader = new UiBounds(0, 0, 130, 20);
+                var rightHeader = new UiBounds(screenWidth - 130, 0, 130, 20);
+                check(left.getFirst().intersects(leftHeader) && !left.getFirst().intersects(rightHeader)
+                                && right.getFirst().intersects(rightHeader) && !right.getFirst().intersects(leftHeader),
+                        "Only the page controls on the open popup's side move");
+                check(!left.getFirst().intersects(new UiBounds(screenWidth - 130, 0, 130, screenHeight))
+                                && !right.getFirst().intersects(new UiBounds(0, 0, 130, screenHeight)),
+                        "The opposite viewer column stays available at every height");
+                check(!left.getFirst().intersects(new UiBounds(0, bottom, screenWidth, 20))
+                                && !right.getFirst().intersects(new UiBounds(0, bottom, screenWidth, 20)),
                         "A page header below the popup stays entirely available");
             }
         }
-        check(MachineScreenLayout.recipeViewerExclusions(800, 600, List.of()).isEmpty(),
+        var mainPanel = new UiBounds(285, 100, 230, 319);
+        check(MachineScreenLayout.recipeViewerExclusions(800, 600, mainPanel, List.of()).isEmpty(),
                 "Closing every popup releases the complete viewer area");
+        var separate = MachineScreenLayout.recipeViewerExclusions(800, 600, mainPanel,
+                List.of(new UiBounds(5, 30, 100, 50), new UiBounds(695, 30, 100, 170)));
+        check(separate.stream().noneMatch(bounds -> bounds.intersects(new UiBounds(0, 100, 130, 20)))
+                        && separate.stream().anyMatch(bounds -> bounds.intersects(new UiBounds(670, 100, 130, 20))),
+                "Multiple overlays retain independent side heights instead of combining into one screen-wide band");
+        check(MachineScreenLayout.recipeViewerExclusions(800, 600, mainPanel,
+                        List.of(new UiBounds(-20, 30, 100, 50))).equals(List.of(new UiBounds(0, 0, 285, 80))),
+                "Partly visible overlays reserve their viewer side within the screen");
+        check(MachineScreenLayout.recipeViewerExclusions(800, 600, mainPanel, List.of(
+                        new UiBounds(5, 700, 100, 50), new UiBounds(900, 30, 100, 50),
+                        new UiBounds(5, -80, 100, 50), new UiBounds(5, 30, 0, 50))).isEmpty(),
+                "Offscreen and empty overlays do not displace the viewer");
+        for (int width : new int[]{420, 800}) {
+            var main = new UiBounds((width - 230) / 2, 100, 230, 319);
+            for (var preference : MachineScreenLayout.SidePreference.values()) {
+                var popup = MachineScreenLayout.sidePanel(main, width, 600, 180, 198, preference).bounds();
+                var exclusion = MachineScreenLayout.recipeViewerExclusions(width, 600, main, List.of(popup)).getFirst();
+                var opposite = preference == MachineScreenLayout.SidePreference.RIGHT_FIRST
+                        ? new UiBounds(0, 0, main.x(), 600) : new UiBounds(main.right(), 0, width - main.right(), 600);
+                check(exclusion.intersects(popup) && !exclusion.intersects(opposite),
+                        "Normal and narrow clamped popup layouts leave the opposite viewer side alone");
+            }
+        }
+        var fallback = MachineScreenLayout.sidePanel(new UiBounds(300, 100, 230, 319), 600, 500, 172, 180,
+                MachineScreenLayout.SidePreference.RIGHT_FIRST);
+        var fallbackExclusion = MachineScreenLayout.recipeViewerExclusions(600, 500,
+                new UiBounds(300, 100, 230, 319), List.of(fallback.bounds())).getFirst();
+        check(fallback.placement() == MachineScreenLayout.Placement.EXTERNAL_LEFT
+                        && !fallbackExclusion.intersects(new UiBounds(530, 0, 70, 500)),
+                "A popup reflowed to the left reserves its actual side rather than its preferred side");
     }
 
     private static void overlayOwnership() {
