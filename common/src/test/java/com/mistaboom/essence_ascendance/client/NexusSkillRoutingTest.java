@@ -24,7 +24,7 @@ public final class NexusSkillRoutingTest {
             // User configuration may put every skill in one column; authored defaults spread them out.
             Map<ResourceLocation, ResourceLocation> sameTier = new TreeMap<>();
             SkillRegistry.values().forEach(s -> sameTier.put(s.id(), AscendanceTiers.DORMANT.id()));
-            for (var tiers : List.of(sameTier, com.mistaboom.essence_ascendance.balance.config.SkillLayoutConfig.defaults().requiredTiers())) {
+            for (var tiers : List.of(sameTier, com.mistaboom.essence_ascendance.balance.config.SkillSettingsConfig.defaults().requiredTiers())) {
                 SkillBalanceRuntime.withRequiredTiers(tiers, () -> {
                     try { for (var essence : EssenceTypes.ORDERED) routes(NexusSkillTreeLayout.build(SkillRegistry.values(essence.id()))); }
                     catch (ReflectiveOperationException e) { throw new AssertionError(e); }

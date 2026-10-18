@@ -193,7 +193,14 @@ public final class SkillBalanceGenerator {
                 }
                 if (previous != null && (!any || (!requirements.alternativeImprovements() && !all)))
                     throw new IllegalArgumentException("Sub-floor rank improvement: " + skill.id());
-                gson.fromJson(effects, com.mistaboom.essence_ascendance.config.SkillEffectBalanceSettings.class).validate();
+                var nativeEffects = gson.fromJson(effects, com.mistaboom.essence_ascendance.config.SkillEffectBalanceSettings.class);
+                nativeEffects.validate();
+                var serialized = gson.toJsonTree(nativeEffects).getAsJsonObject();
+                for (var parameter : rank.parameters().entrySet()) {
+                    if (Math.abs(com.mistaboom.essence_ascendance.skill.ProgressionRequirements.read(serialized, parameter.getKey())
+                            - parameter.getValue()) > Math.max(1e-9, 4 * Math.ulp(parameter.getValue())))
+                        throw new IllegalArgumentException("Rank parameter loses precision in native representation: " + skill.id() + "/" + parameter.getKey());
+                }
                 previous = effects;
             }
         }

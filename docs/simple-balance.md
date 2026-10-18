@@ -29,13 +29,17 @@ The files below are in the server's `config` directory. Edit them and run `/esse
 | File | Purpose |
 | --- | --- |
 | `essence_ascendance.toml` | Overall power, progression effort, Attunement and ore settings |
-| `essence_ascendance/skill_layout.toml` | Skill unlock tiers, initially the authored layout |
-| `essence_ascendance/bonus_progression.toml` | Generated Bonus endpoints for pack authors to adjust |
+| `essence_ascendance/skill_settings.toml` | Skill unlock tiers, rank counts and native stat first/maximum values |
+| `essence_ascendance/bonus_settings.toml` | Bonus active tiers and effect bounds |
 | `essence_ascendance/balance_overrides.toml` | Advanced generic factual corrections and exact values |
 
-Skill ranks and effect magnitudes remain generated. Changing a skill's tier does not replace its prerequisites; invalid prerequisite ordering is rejected.
+The main file retains global power, progression effort, activity and ore policy. The two system files expose the generated progression for direct editing; reports and saved JSON remain outputs.
 
-The Bonus file is created after the first successful profile installation and is never overwritten. Every available Bonus has four controls: `min_tier`, `max_tier`, `bonus_at_max`, and `minimum_bonus_at_lowest`. A Bonus may complete before Transcendent. Omitting an entry lets the generator choose it again.
+The Skill file uses `[[skill]]` entries with `id`, `tier` and `ranks`, followed by each applicable `[[skill.stat]]` entry with `path`, `at_first_rank` and `at_max_rank`. Values use the parameter's native unit, which can differ from a displayed percentage. A decreasing cooldown improves as its number falls. Rank counts are 1–64; binary skills have one rank. Configured one-rank stat endpoints must be equal. Changing a tier does not remove prerequisites, choices or milestone requirements. Invalid ordering, nonmeaningful ranks or violations of native floors/caps reject the rebuild.
+
+Absent entries use authored unlock tiers and generated ranks/effects. After the first validated profile is durably published, missing Skill and Bonus files receive complete generated defaults. Existing files are never overwritten. Replaying unchanged generated Skill settings preserves the resolved intermediate ranks; custom rank counts or endpoints interpolate and are validated. Configured Skill endpoints apply after automatic allocation and may exceed its soft power budgets. Costs remain generated.
+
+Every available Bonus has four controls: `min_tier`, `max_tier`, `bonus_at_max`, and `minimum_bonus_at_lowest`. A Bonus may complete before Transcendent. Omitting an entry lets the generator choose it again.
 
 Damage Bonuses use additional damage points, not percentages. The amount is added to the physical melee, ranged or caster damage before ordinary attack scaling, skill amplification and mitigation. A fully charged, unmitigated attack receives the same additional damage on a weak eligible tool as on a strong eligible weapon. Partial funding remains continuous; the meaningful minimum applies to each completed active player tier. Any intact, infused eligible equipment can channel the player's earned Bonus regardless of its own tier: a Transcendent player can use a Transcendent Bonus on Dormant gear. Equipment tier sets innate stats, while Latent or fractured equipment does not channel Bonuses.
 
@@ -47,7 +51,7 @@ Automatic Bonus placement uses a shared increasing impact allowance and a shared
 
 Bonus tooltips list tiers from Transcendent down to Dormant. Tooltip and Archive tier rows show `N/A` before a Bonus starts and after it completes. The earned benefit remains active at higher tiers. Existing Bonus configuration entries retain their explicit start and stop tiers; remove an entry or regenerate the file to request new automatic boundaries and amounts.
 
-The damage-unit change requires fresh generated balance and Bonus defaults. Preserve any desired human edits separately, remove the previous `bonus_progression.toml` to request new automatic defaults, and explicitly rebuild balance. Existing files are never silently converted from percentage values to damage points. Use a fresh test world when comparing purchase progression from the earlier percentage-based revision.
+This configuration contract uses `skill_settings.toml` and `bonus_settings.toml`. Earlier filenames and schemas are not migrated. Begin with fresh defaults for this development revision; preserve historical inputs separately if needed for comparison. Removing a current entry requests automatic values for that entry on the next explicit rebuild.
 
 Minimum meaningful effects still apply even when they exceed soft power budgets. Native limits, such as actual cooldown ticks and shield caps, remain mechanical limits. An impossible configured interval produces an error rather than silently moving its endpoints or reducing its minimum.
 

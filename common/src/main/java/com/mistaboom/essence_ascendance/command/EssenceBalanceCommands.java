@@ -139,15 +139,13 @@ final class EssenceBalanceCommands {
         var resource=active.evidence().resources().get(id);
         if(resource==null)throw new IllegalArgumentException("No saved evidence for "+id);
         EssenceCommandUtil.send(source, EssenceCommandUtil.title("Balance: " + id));
-        section(source, "Acquisition");
-        line(source,"Stage",resource.stage().toString());
-        line(source,"Reachable",EssenceCommandUtil.status(resource.reachable(), "YES", "NO"));
-        line(source,"Confidence",EssenceCommandUtil.formatProgress(resource.confidence()));
-        line(source,"Supply",resource.availability()+" / "+resource.automation());
+        section(source, "Catalog estimate");
+        line(source,"Acquisition and supply","Not evaluated; catalog presence does not prove survival access or a recurring rate");
+        line(source,"Estimate confidence",EssenceCommandUtil.formatProgress(resource.confidence()));
         var economic=active.economy().resources().get(id);
         if(economic!=null) {
             section(source, "Essence yield");
-            line(source,"Economic value",number(economic.economicValue().amount()));
+            line(source,"Advisory economic value",number(economic.economicValue().amount()));
             boolean enchantedBook = id.equals(com.mistaboom.essence_ascendance.mapping.EnchantedStackYields.ENCHANTED_BOOK);
             line(source, enchantedBook ? "Dissolution upper bound" : "Base item dissolution",number(economic.dissolutionYield().amount())+" Essence");
             if (enchantedBook) line(source, "Book components", "Actual enchantment and level determine yield within this budget; blank books retain only the plain-book carrier. See the item tooltip or Archive level rows.");

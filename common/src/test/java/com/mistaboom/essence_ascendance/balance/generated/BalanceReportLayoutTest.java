@@ -11,7 +11,8 @@ public final class BalanceReportLayoutTest {
     public static void main(String[] args) throws Exception {
         Path root = Files.createTempDirectory("balance-report-layout-");
         try {
-            List<String> protectedNames = List.of(BalanceProfileStore.PROFILE_FILE, "balance_overrides.toml", "my_notes.csv");
+            List<String> protectedNames = List.of(BalanceProfileStore.PROFILE_FILE, "balance_overrides.toml",
+                    "skill_settings.toml", "bonus_settings.toml", "my_notes.csv");
             for (String name : protectedNames) Files.writeString(root.resolve(name), "preserve " + name);
             Files.createDirectories(BalanceReportLayout.reports(root));
             Files.createDirectories(BalanceReportLayout.diagnostics(root));
@@ -22,6 +23,10 @@ public final class BalanceReportLayoutTest {
             require(guide.contains("/essence admin balance export"), "Current export command missing");
             require(!guide.contains("/essence debug balance export"), "Retired alias advertised");
             require(guide.contains("do not prove survival access"), "Estimate/access distinction missing");
+            require(guide.contains("skill_settings.toml") && guide.contains("bonus_settings.toml")
+                    && guide.contains("native stat endpoints"), "Current editable progression settings missing");
+            require(!guide.contains("skill_layout.toml") && !guide.contains("bonus_progression.toml"),
+                    "Retired configuration filenames advertised");
             require(BalanceReports.state(root, CURRENT_INTEGRITY).equals("unverified_existing_or_missing"), "Unverified reports certified");
             Path manifest = BalanceReportLayout.diagnostics(root).resolve("report_manifest.json");
             Files.writeString(manifest, "{\"profileIntegrity\":\"installed-profile-integrity\",\"state\":\"complete\"}");

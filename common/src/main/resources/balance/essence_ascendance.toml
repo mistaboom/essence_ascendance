@@ -7,6 +7,11 @@
 # Sort/filter reports/*.csv in a spreadsheet; these exports do not change gameplay.
 # Full troubleshooting evidence stays in the generated JSON and diagnostics/.
 #
+# Per-Skill unlock tiers, ranks and stat endpoints: essence_ascendance/skill_settings.toml.
+# Per-Bonus tier spans and stat endpoints: essence_ascendance/bonus_settings.toml.
+# Both files are emitted after valid balance generation; existing files are never overwritten.
+# This main file owns shared generation, economy, attunement, worldgen and diagnostic policy.
+#
 # Omitted keys use the documented progression defaults. Unknown keys are errors.
 # Supported TOML: these named tables, decimal numbers, booleans, quoted strings.
 # Advanced facts additionally support [[fact]] and arrays of primitive values.
@@ -31,7 +36,7 @@ automatic_dimensions = true
 # Empty/omitted hosts means automatic discovery. No tags or separate ore blocks.
 # Ordinary custom dimensions inherit the generated Overworld abundance over
 # their usable heights. Exact dimension distributions and /runtime/worldgen
-# exact overrides bypass automatic supply tuning, including its floor.
+# exact overrides bypass the configured distribution floor.
 # [[latent_ore.dimension]]
 # dimension = "example:deep_caverns"
 # enabled = true
@@ -48,10 +53,12 @@ automatic_dimensions = true
 # control still sets added-power headroom for Nexus/skills and combined builds.
 # Range 0.1..4.0; default 1.0. 1.2 asks for stronger Ascendance contributions.
 # This is not a percentage of the single strongest registered item.
-# Default final-output ceilings at Transcendent: equipment 1x pack parity,
+# Default automatic allocation targets at Transcendent: equipment 1x pack parity,
 # external gear + developed Nexus 2x, external gear + ranked skills 2x,
 # combined builds 3x. Only a <=20%-health Desperation build can use 4x burst;
-# sustained damage still uses 3x. These are checked outputs, not stacking buffs.
+# sustained damage still uses 3x. These are allocation checks, not stacking buffs.
+# Native starting/meaningful floors and explicit Skill/Bonus settings apply afterward
+# and may exceed these soft targets. Native mechanical limits remain binding.
 # Combined tier ceilings: 1.5x / 1.7x / 2x / 2.5x / 3x. Existing band controls
 # scale the added headroom relative to the default values below.
 overall = 1.0
@@ -91,7 +98,7 @@ routine_seconds = 4.0
 boss_seconds = 40.0
 # Duration used for sustained-survival and recovery checks.
 survival_seconds = 10.0
-# Cost = observed median resource payout * entry effort * growth^band
+# Cost = stable valuation base * entry effort * growth^band
 #        * progression.length * progression.cost_pressure.
 # These are effort ratios; no fixed currency total or per-tier weapon table.
 entry_resource_effort = 80.0
@@ -161,7 +168,7 @@ flight = "preserve_progression"
 # Mining: preserve_progression (default), restrict.
 # Applies to vein/area mining capability budgets, not just tool mining speed.
 # Shared registered tool properties establish reference magnitudes.
-# Tool harvest levels advance from Latent level 0 by at least one per tier until
+# Tool harvest levels start at native iron level 2 and advance toward
 # the pack maximum. Larger level ranges are spread across all equipment tiers.
 # This discrete progression is independent of physical-stat curve shaping.
 mining = "preserve_progression"

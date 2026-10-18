@@ -239,6 +239,11 @@ public final class ProjectileNativeInterceptionTest {
             // Keep unavailable world advancement providers outside this in-memory boundary using real captured receipts.
             SkillRegistry.referencedPermanentMilestoneIds().forEach(saved.getPlayerData(entity.getUUID())::completeMilestone);
             initializeNetworkBoundary(entity);
+            // Real progression rewards can arrive for any combat/harvest participant.
+            // Restore the constructor-created inventory menus rather than bypassing delivery.
+            var inventoryMenu = new net.minecraft.world.inventory.InventoryMenu(entity.getInventory(), true, entity);
+            set(Player.class, entity, "inventoryMenu", inventoryMenu);
+            entity.containerMenu = inventoryMenu;
             return entity;
         }
 

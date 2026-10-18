@@ -42,9 +42,6 @@ public final class NativeToolInstinctTest {
             EssenceConfigManager.install(RuntimeBalanceDefinition.fromJson(json));
             ProjectileNativeInterceptionTest.set(Entity.class, player, "onGround", true);
             ProjectileNativeInterceptionTest.set(Entity.class, player, "fluidOnEyes", new HashSet<>());
-            var menu = new net.minecraft.world.inventory.InventoryMenu(player.getInventory(), true, player);
-            ProjectileNativeInterceptionTest.set(Player.class, player, "inventoryMenu", menu);
-            player.containerMenu = menu;
             var data = f.saved.getPlayerData(player.getUUID());
             data.setTier(AscendanceTiers.TRANSCENDENT);
             data.clearAllSkillsForAdmin();

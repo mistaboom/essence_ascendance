@@ -31,15 +31,15 @@ public final class RuntimeBalanceGenerator {
         return generate(evidence, null, settings, overrides);
     }
     public static RuntimeBalanceDefinition generate(PackEvidence evidence, EconomyProfile economy, BalanceSettings settings, BalanceOverrides overrides) {
-        return generate(evidence, economy, settings, overrides, SkillLayoutConfig.defaults(), BonusProgressionConfig.automatic());
+        return generate(evidence, economy, settings, overrides, SkillSettingsConfig.defaults(), BonusSettingsConfig.automatic());
     }
     public static RuntimeBalanceDefinition generate(PackEvidence evidence, EconomyProfile economy, BalanceSettings settings,
-            BalanceOverrides overrides, SkillLayoutConfig layout, BonusProgressionConfig bonusConfig) {
+            BalanceOverrides overrides, SkillSettingsConfig layout, BonusSettingsConfig bonusConfig) {
         return com.mistaboom.essence_ascendance.skill.balance.SkillBalanceRuntime.withRequiredTiers(layout.requiredTiers(),
                 () -> generateResolved(evidence, economy, settings, overrides, layout, bonusConfig));
     }
     private static RuntimeBalanceDefinition generateResolved(PackEvidence evidence, EconomyProfile economy, BalanceSettings settings,
-            BalanceOverrides overrides, SkillLayoutConfig layout, BonusProgressionConfig bonusConfig) {
+            BalanceOverrides overrides, SkillSettingsConfig layout, BonusSettingsConfig bonusConfig) {
         com.mistaboom.essence_ascendance.balance.generated.BalancePerformance.increment("runtime_generation_runs");
         var allTiers = AscendanceTierRegistry.values().stream().sorted(Comparator.comparingInt(AscendanceTierDefinition::order)).toList();
         var tiers = allTiers.stream().filter(AscendanceTierDefinition::grantsPower).toList();
@@ -151,11 +151,9 @@ public final class RuntimeBalanceGenerator {
                     dormant.fullSetArmor()*RuntimeReferencePolicy.LATENT_CAPABILITY_RATIO,0,dormant.meleeDamage()*RuntimeReferencePolicy.LATENT_CAPABILITY_RATIO,dormant.meleeAttackSpeed(),
                     dormant.rangedDamage()*RuntimeReferencePolicy.LATENT_CAPABILITY_RATIO,dormant.rangedAttackSpeed(),dormant.magicDamage()*RuntimeReferencePolicy.LATENT_CAPABILITY_RATIO,dormant.magicCastSpeed(),
                     Math.max(1,dormant.miningSpeed()*RuntimeReferencePolicy.LATENT_CAPABILITY_RATIO),dormant.harvestLevel(),Math.max(1,(int)(dormant.durability()*RuntimeReferencePolicy.LATENT_DURABILITY_RATIO))));
-        // Preserve physical stat curves. A single multiplier per axis anchors
-        // Transcendent to attainable pack equipment before final unit rounding;
-        // discrete harvest access advances separately with each equipment infusion.
+        // Preserve relative curve positions between the native Latent chassis and the
+        // measured pack endpoint. Discrete harvest access advances with each infusion.
         RuntimeEquipmentNormalization.apply(equipment,evidence,settings,encounterBudgets);
-        RuntimeEquipmentNormalization.anchorMining(equipment, evidence, encounterBudgets);
         double apex=settings.overallPower()*settings.apexPower();
         Map<ResourceLocation,Double> bonuses = new LinkedHashMap<>();
         Map<ResourceLocation,Map<ResourceLocation,Long>> statCaps = new LinkedHashMap<>();
@@ -308,6 +306,7 @@ public final class RuntimeBalanceGenerator {
         // Native floors cannot feed back into sibling/global power allocation. Prices consume final rank utility.
         var nominalAnalysis = runtime.generationAnalysis();
         runtime = SkillBalanceGenerator.publishMeaningful(runtime);
+        runtime = layout.apply(runtime);
         runtime = BonusTrackGenerator.publishMeaningful(runtime, Map.of(), bonusConfig);
         // Explicit author prices remain authoritative after procedural pricing, without changing strength or access.
         if (overrides != null) {
@@ -332,14 +331,14 @@ public final class RuntimeBalanceGenerator {
         var requested = runtime.skillCurves();
         // Future offensive growth increases accepted weapon healing. Fit the
         // requested recovery stress curve against that dependency while postures
-        // retain the mandatory minimum future growth, preserving honest recovery growth.
+        // retain a small provisional growth reserve, preserving honest recovery growth.
         runtime = adjusted(runtime, 0, BuildComposition.Channel.HEALING, true, settings);
         // Establish current-rank safety first, then reserve the developed
         // damage dependency below before allocating healing growth.
         runtime = calibrateVitality(runtime, evidence, settings, firstRankPlan, false);
         runtime = new RuntimeBalanceDefinition(runtime.config(), runtime.crucible(), runtime.pylons(), requested, runtime.composition(), runtime.attunement());
-        // Keep the already required 2% minimum growth in the envelope while
-        // allocating recovery; otherwise recovery spends that same room twice.
+        // Reserve a small posture-growth share while allocating recovery so the
+        // same room is not spent twice. This is a preference, not a native floor.
         var minimumPostureGrowth = adjusted(runtime, .02, BuildComposition.Channel.HEALING, true, settings);
         // Damage-derived healing must reserve its rank-one cost against the
         // already allocated future damage/cadence before freezing that healing
@@ -550,12 +549,23 @@ public final class RuntimeBalanceGenerator {
         }
         return current;
     }
-    private static RuntimeBalanceDefinition interpolateNexusOffense(RuntimeBalanceDefinition current,RuntimeBalanceDefinition requested,
+    static RuntimeBalanceDefinition interpolateNexusOffense(RuntimeBalanceDefinition current,RuntimeBalanceDefinition requested,
             List<StatDefinition> family,double fraction) {
         var json=current.toJson();var bonuses=json.getAsJsonObject("statMaxBonuses");
+        var requestedProfile=requested.toJson().getAsJsonObject("balanceProfile");
+        var candidateProfile=json.getAsJsonObject("balanceProfile");
         for(var stat:family) {
             double initial=current.config().statMaxBonus(stat),target=requested.config().statMaxBonus(stat);
             bonuses.addProperty(stat.id().toString(),initial+(target-initial)*fraction);
+            if(current.config().balanceProfile().bonusTrack(stat.id()).applicability()==BonusTrackDefinition.Applicability.UNAVAILABLE
+                    &&requested.config().balanceProfile().bonusTrack(stat.id()).applicability()==BonusTrackDefinition.Applicability.AVAILABLE) {
+                // Zero quantization clears the purchase topology. Restore it before
+                // probing recovered power, or the evaluator sees an inactive Bonus
+                // that the final pricing pass subsequently activates unchecked.
+                String id=stat.id().toString();
+                candidateProfile.getAsJsonObject("bonusTracks").add(id,requestedProfile.getAsJsonObject("bonusTracks").get(id).deepCopy());
+                candidateProfile.getAsJsonObject("statOverrides").add(id,requestedProfile.getAsJsonObject("statOverrides").get(id).deepCopy());
+            }
         }
         RuntimeValueQuantization.apply(json);
         double factor=bonuses.get(EssenceStats.MELEE_DAMAGE.id().toString()).getAsDouble()
@@ -575,12 +585,11 @@ public final class RuntimeBalanceGenerator {
             throw new IllegalArgumentException("Cannot calibrate "+channel+" without changing base equipment; "
                     +RuntimeBuildScenarios.analyze(zero,evidence,settings,plan).firstViolation(channel));
         }
-        var minimum = adjusted(source, .02, channel, rankGrowth, settings);
-        if (!RuntimeBuildScenarios.isSafe(minimum,evidence,settings,plan,channel))
-            throw new IllegalArgumentException("Requested "+channel+" targets leave less than 2% of "
-                    +(rankGrowth?"additional rank growth":"rank-one added power")+"; revise external evidence or friendly power controls; "
-                    +RuntimeBuildScenarios.analyze(minimum,evidence,settings,plan).firstViolation(channel));
-        double low=.02,high=1;
+        // A fraction of an apex-sized request is not a native gameplay minimum:
+        // even 2% can exceed an early weak weapon's entire added-power budget.
+        // Allocate only safe nominal power here. Publication independently grants
+        // and validates authored first/later outcomes as local floor overage.
+        double low=0,high=1;
         for(int pass=0;pass<20;pass++) {
             double middle=(low+high)/2;
             var candidate=adjusted(source,middle,channel,rankGrowth,settings);
@@ -731,8 +740,12 @@ public final class RuntimeBalanceGenerator {
         var reflection=new EnumMap<EquipmentTier,Double>(EquipmentTier.class);var amplification=new EnumMap<EquipmentTier,Double>(EquipmentTier.class);
         double baseReflection=100*RuntimeReferencePolicy.SHIELD_INNATE_REFLECTION_RATIO*Math.sqrt(settings.overallPower());
         for(var tier:EquipmentTier.values()) {
-            durability.put(tier,tier==EquipmentTier.LATENT?equipment.get(ResourceLocation.fromNamespaceAndPath(EssenceAscendance.MOD_ID,"latent")).durability():equipment.get(tier.ascendanceTier().id()).durability());
             double progress=tier.ordinal()/(double)(EquipmentTier.values().length-1);
+            var start=equipment.get(AscendanceTiers.LATENT.id());
+            var end=equipment.get(AscendanceTiers.TRANSCENDENT.id());
+            durability.put(tier,(int)Math.round(RuntimeEquipmentNormalization.interpolate(
+                    equipment.get(tier.ascendanceTier().id()).durability(),start.durability(),end.durability(),
+                    336,Math.max(336,end.durability()),progress)));
             reflection.put(tier,baseReflection*RuntimeReferencePolicy.SHIELD_TIER_REFLECTION_GROWTH_RATIO*progress);
             amplification.put(tier,1+RuntimeReferencePolicy.SHIELD_BLOCK_HEADROOM_RATIO*progress/(1+settings.compositionSafeguard()));
         }

@@ -17,11 +17,9 @@ Player tier and item tier are different. Setting one does not silently set the o
 
 ## Equipment and competition
 
-External references must be supported and attainable, with usable slots and measurable native axes. Creative/test content and unsupported configurations do not automatically become the strongest comparator. The outlier policy controls supported extremes.
+External references use compatible slots and measured native axes. Statistical outlier policy limits extreme catalog measurements; creative/test exclusions still apply. Relative strength bands do not establish acquisition timing.
 
-The generator builds progression-aware reference envelopes. Native attributes, consumables, enchantments, trades/anvils and audited providers can contribute compatible capability routes. Binary flight, area mining or indestructibility is not an exact speed or infinite effective-health measurement.
-
-Conditional uptime, operating cost, units and source configuration remain attached to evidence. Comparisons use alternatives rather than adding every mod's best item into an impossible loadout.
+Combat and mining are ranked separately, and compatible armor attributes retain their native operations. Comparisons preserve alternative configurations instead of combining every mod's strongest axes into one impossible loadout. Hidden upgrades, arbitrary callbacks, acquisition, operating cost and actual uptime are not inferred.
 
 ## Power budgets
 
@@ -35,7 +33,7 @@ In practice, the shares guide which system carries a capability's emphasis. A 25
 
 ## Bonus tracks
 
-Different Bonuses have different functions and supply categories. Track utility, native thresholds, compatible routes and power headroom can resolve different start/completion tiers, checkpoint shapes and costs.
+Different Bonuses have different functions and Essence categories. Shared impact, applicability breadth, native thresholds and power headroom resolve their automatic active spans and costs. `bonus_settings.toml` exposes start/completion tiers and first/maximum effect bounds. A Bonus can finish before Transcendent; higher tiers retain its completed benefit.
 
 Normal sliders purchase continuously; native thresholds inform useful checkpoints rather than forcing every purchase to snap. Stored investment survives a lower tier/cap, while effective investment follows the current cap. Equipment/action applicability can further limit the realized effect.
 
@@ -43,9 +41,9 @@ Bonus development for Attunement is normalized realized generated power, indepen
 
 ## Skills and meaningful ranks
 
-Catalog tier, candidate availability tier and final generated tier are distinct. Admitted functional evidence can move a candidate, then prerequisites and setup access clamp it. Rank-specific tier/requirement gates remain additional checks.
+Authored unlock tiers supply defaults. `skill_settings.toml` can set a Skill's unlock tier, rank count and each applicable native parameter's first/maximum values. Configured values apply after automatic allocation and retain native floors/caps. Rank-specific tier and prerequisite requirements still apply.
 
-A rank must deliver a supported native improvement. Non-improving or sub-floor projections are removed; a binary ability has one meaningful state. The actual purchasable maximum is the published generated curve, not an assumed catalog rank count.
+A rank must deliver a meaningful native improvement. Automatic generation retains meaningful ranks; invalid configured ranks or endpoints reject the rebuild. Binary skills have one rank. Unchanged generated settings preserve exact intermediate values; custom counts/endpoints interpolate and are validated. The published saved curve is the runtime authority.
 
 Owning a Skill does not guarantee effectiveness. Choices/exclusions, prerequisite ranks, replacements, permanent milestones and runtime conditions still matter. Zero-cost admin grants neither fund every prerequisite nor prove normal affordability.
 
@@ -73,8 +71,8 @@ Admin item-tier commands bypass this path for testing/recovery. They are not a g
 
 ## Read the decision chain
 
-For a surprising gate, inspect generated availability and prerequisite clamps, then personal ownership, milestone state and selected loadout. For a surprising effect, inspect the generated Bonus/rank and relevant gameplay/activation snapshot.
+For a surprising gate, inspect installed unlock settings and prerequisites, then personal ownership, milestone state and selected loadout. For a surprising effect, inspect the generated Bonus/rank and relevant gameplay/activation snapshot.
 
 [Reports and provenance](https://github.com/mistaboom/essence_ascendance/wiki/Reports-and-Provenance) · [Diagnostics](https://github.com/mistaboom/essence_ascendance/wiki/Diagnostics-and-Testing)
 
-Source: [build targets](https://github.com/mistaboom/essence_ascendance/blob/59e27446afbb6c9e73be38d0d407915fe15354fa/common/src/main/java/com/mistaboom/essence_ascendance/balance/runtime/BuildPowerTargets.java), [Bonus generation](https://github.com/mistaboom/essence_ascendance/blob/59e27446afbb6c9e73be38d0d407915fe15354fa/common/src/main/java/com/mistaboom/essence_ascendance/balance/runtime/BonusTrackGenerator.java), [Skill generation](https://github.com/mistaboom/essence_ascendance/blob/59e27446afbb6c9e73be38d0d407915fe15354fa/common/src/main/java/com/mistaboom/essence_ascendance/skill/balance/SkillBalanceGenerator.java), [Ascension](https://github.com/mistaboom/essence_ascendance/blob/59e27446afbb6c9e73be38d0d407915fe15354fa/common/src/main/java/com/mistaboom/essence_ascendance/progression/AscendanceEngine.java), [Attunement accounting](https://github.com/mistaboom/essence_ascendance/blob/59e27446afbb6c9e73be38d0d407915fe15354fa/common/src/main/java/com/mistaboom/essence_ascendance/attunement/AttunementService.java).
+Current source: `balance/runtime/BuildPowerTargets.java`, `BonusTrackGenerator.java`, `skill/balance/SkillBalanceGenerator.java`, `progression/AscendanceEngine.java` and `attunement/AttunementService.java`.

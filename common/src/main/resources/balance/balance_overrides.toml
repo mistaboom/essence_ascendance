@@ -1,6 +1,6 @@
 # Generation inputs. Existing files are never overwritten.
 # Changes apply to a fresh generation or an explicit rebuild; saved profiles remain authoritative.
-# Skill unlock tiers belong in skill_layout.toml. Bonus bounds belong in bonus_progression.toml.
+# Skill unlock tiers belong in skill_settings.toml. Bonus bounds belong in bonus_settings.toml.
 schema_version = 1
 
 # [[fact]] corrects registered item, equipment, enemy or recipe measurements.

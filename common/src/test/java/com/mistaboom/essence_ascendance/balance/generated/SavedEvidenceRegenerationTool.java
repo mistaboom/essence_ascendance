@@ -25,12 +25,15 @@ public final class SavedEvidenceRegenerationTool {
             throw new IllegalArgumentException("Saved-evidence audit output must be isolated from the installed profile directory");
         if (!Files.isRegularFile(source) || !Files.isRegularFile(BalanceInputs.settingsPath(config))
                 || !Files.isRegularFile(BalanceInputs.overridesPath(config)))
-            throw new IllegalArgumentException("Saved generated evidence and both existing human TOML inputs are required");
+            throw new IllegalArgumentException("Saved generated evidence, global settings and overrides are required");
         String originalBytes = fileHash(source);
         String installedBytes = Files.exists(installed) ? fileHash(installed) : null;
         var original = BalanceProfileStore.read(source);
-        String settingsBytes = Files.readString(BalanceInputs.settingsPath(config));
-        String overridesBytes = Files.readString(BalanceInputs.overridesPath(config));
+        var humanInputs = new java.util.LinkedHashMap<Path, String>();
+        for (Path path : java.util.List.of(BalanceInputs.settingsPath(config), BalanceInputs.overridesPath(config),
+                com.mistaboom.essence_ascendance.balance.config.SkillSettingsConfig.path(config),
+                com.mistaboom.essence_ascendance.balance.config.BonusSettingsConfig.path(config)))
+            humanInputs.put(path, fileState(path));
         var inputs = BalanceInputs.read(config);
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap();
         EssenceTypes.init(); AscendanceTiers.init(); EssenceStats.init();
@@ -55,9 +58,9 @@ public final class SavedEvidenceRegenerationTool {
         if (installedBytes == null ? Files.exists(installed)
                 : !Files.exists(installed) || !installedBytes.equals(fileHash(installed)))
             throw new AssertionError("Live profile changed during isolated replay");
-        if (!settingsBytes.equals(Files.readString(BalanceInputs.settingsPath(config)))
-                || !overridesBytes.equals(Files.readString(BalanceInputs.overridesPath(config))))
-            throw new AssertionError("Human inputs changed during replay");
+        for (var entry : humanInputs.entrySet())
+            if (!entry.getValue().equals(fileState(entry.getKey())))
+                throw new AssertionError("Human input changed during replay: " + entry.getKey());
         BalanceProfileStore.replace(BalanceProfileStore.profilePath(output), first.document());
         BalanceReports.export(first, null, output, 0);
         if (!original.section("metadata").has("diagnosticOnly"))
@@ -65,7 +68,7 @@ public final class SavedEvidenceRegenerationTool {
                     BalanceDocument.GSON.toJson(comparison(original, first.document())) + "\n");
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println(
                 "SavedEvidenceRegenerationTool PASS: deterministic candidate written only to " + output
-                + "; integrity=" + first.document().integrity() + "; saved evidence/economy and human inputs unchanged; Bonus tracks and Attunement regenerated; no world opened");
+                + "; integrity=" + first.document().integrity() + "; saved evidence/economy and all four human-input paths unchanged; Bonus tracks and Attunement regenerated; no world opened");
     }
 
     private static String fileHash(Path path) throws Exception {
@@ -74,6 +77,10 @@ public final class SavedEvidenceRegenerationTool {
             input.transferTo(java.io.OutputStream.nullOutputStream());
         }
         return java.util.HexFormat.of().formatHex(digest.digest());
+    }
+
+    private static String fileState(Path path) throws Exception {
+        return Files.exists(path) ? fileHash(path) : "absent";
     }
 
     /** Compare validated evidence documents from the current profile format. */

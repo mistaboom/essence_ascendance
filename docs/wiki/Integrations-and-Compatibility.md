@@ -1,3 +1,5 @@
+> **Historical provider audit.** The balance-evidence adapters, version tuples and acquisition coverage below describe the earlier generator. The current generator uses common item properties, tags and standard loaded recipes without those providers. Functional JEI and membership integrations are separate. See [the current model](https://github.com/mistaboom/essence_ascendance/blob/main/docs/simple-balance.md) and the chosen release's dependencies; these dated receipts are not a current compatibility guarantee.
+
 # Integrations and compatibility
 
 [Procedural balance](https://github.com/mistaboom/essence_ascendance/wiki/Procedural-Balance) · [Incomplete-evidence walkthrough](https://github.com/mistaboom/essence_ascendance/wiki/Worked-Scenarios#handling-incomplete-evidence-for-another-mod)

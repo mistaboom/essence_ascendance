@@ -32,7 +32,7 @@ import java.util.Map;
 
 /** Server-thread transaction: collect, construct, validate, persist, publish, then synchronize. */
 public final class GeneratedBalanceService {
-    static final String GENERATION_REVISION = "generic-native-attributes-3";
+    static final String GENERATION_REVISION = "generic-skill-settings-4";
     private static final String DISSOLUTION_ACCOUNTING = "whole_essence_v1";
     private static volatile Active active;
     private static volatile long lastLoadMillis;
@@ -148,10 +148,16 @@ public final class GeneratedBalanceService {
         }
         candidate = active();
         try {
-            com.mistaboom.essence_ascendance.balance.config.BonusProgressionConfig.writeGeneratedDefaults(
+            com.mistaboom.essence_ascendance.balance.config.BonusSettingsConfig.writeGeneratedDefaults(
                     Platform.getConfigFolder(), candidate.runtime().config().balanceProfile().bonusTracks());
         } catch (IOException failure) {
             EssenceAscendance.LOGGER.error("Balance installed, but Bonus defaults could not be saved; restart or rebuild retries the missing config", failure);
+        }
+        try {
+            com.mistaboom.essence_ascendance.balance.config.SkillSettingsConfig.writeGeneratedDefaults(
+                    Platform.getConfigFolder(), candidate.runtime().skillCurves());
+        } catch (IOException failure) {
+            EssenceAscendance.LOGGER.error("Balance installed, but Skill defaults could not be saved; restart or rebuild retries the missing config", failure);
         }
         timings.put("commit", elapsedMillis(commitStart));
         if (generate) {
@@ -207,7 +213,7 @@ public final class GeneratedBalanceService {
                         (value, type, context) -> new com.google.gson.JsonPrimitive(value.toString())).create();
         JsonObject result = new JsonObject();
         result.addProperty("curveSource", "/runtime/skillCurves");
-        result.addProperty("rankPolicy", "Purchasable maxima and exact native rank parameters are generated from meaningful calibrated states. Candidate curves are allocation inputs, never promised ranks. First-state floor excess is local ignored overage and never funds another allocation.");
+        result.addProperty("rankPolicy", "Purchasable maxima and exact native rank parameters are generated from meaningful calibrated states, then explicit skill_settings.toml controls are applied and validated. Candidate curves are allocation inputs, never promised ranks. First-state floor excess is local ignored overage and never funds another allocation.");
         result.add("projectilePolicy", projectilePolicy());
         result.add("guardPolicy", guardPolicy());
         result.add("postureStatusPolicy", postureStatusPolicy());
@@ -248,7 +254,7 @@ public final class GeneratedBalanceService {
 
     static JsonObject projectilePolicy() {
         JsonObject policy = new JsonObject();
-        policy.addProperty("tuning", "/runtime/effects/projectiles; exact TOML overrides; launch payload snapshots survive configuration reload");
+        policy.addProperty("tuning", "skill_settings.toml controls unlock tiers, rank counts and published native stat endpoints. Resolved effects and ranks are saved in /runtime; advanced balance_overrides.toml inputs remain validated. Explicit Skill endpoints take precedence over automatic allocation; no live config fallback.");
         policy.addProperty("choices", "One path plus one independently selected payload; every eligible distinct confirmed victim may consume one bounded payload trigger");
         policy.addProperty("explosion", "Creature-only eligible secondary damage; shared Combustion target bound; no terrain, fire, self/allied damage or recursive payload activation");
         policy.addProperty("root", "Confirmed victim only; translation suppression preserves attacks; bounded refresh window and expiry; no speculative Attunement activity");
@@ -264,7 +270,7 @@ public final class GeneratedBalanceService {
     static JsonObject vitalityPolicy(RuntimeBalanceDefinition runtime) {
         var policy = new JsonObject();
         var v = runtime.config().skillEffects().vitality();
-        policy.addProperty("tuning", "/runtime/effects/vitality; required typed schema, native-unit bounds and exact TOML pointers; no independent settings or purchasable ranks");
+        policy.addProperty("tuning", "skill_settings.toml controls unlock tiers, rank counts and published native stat endpoints. Resolved effects and ranks are saved in /runtime; advanced balance_overrides.toml inputs remain validated. Explicit Skill endpoints take precedence over automatic allocation; no live config fallback.");
         policy.addProperty("derivation", "Existing semantic weights allocate the Dormant first-purchase healing allowance. Saved pack sustained-damage pressure converts healing/second to Life Steal fraction; fastest native natural cadence bounds Rising Recovery. Native food/exhaustion units and the configured survival window resolve consumption and out-of-combat recovery.");
         policy.addProperty("preservation", "Equipment, Bonus mechanics, economy, Attunement and existing rank-one settings resolve first and remain unchanged. Newly implemented healing shares developed survival headroom with provisional posture growth; that diagnostic growth may be reduced globally to keep useful healing and all existing build ceilings.");
         policy.addProperty("naturalRecovery", "Smooth missing-health fraction raised to generated exponent; eligible native natural-regeneration timer keeps normal exhaustion/food checks, while the same multiplier applies to the existing Nexus passive health-regeneration bonus. Other healing is never accelerated.");
@@ -297,7 +303,7 @@ public final class GeneratedBalanceService {
         policy.addProperty("adrenalineHealthLossTriggerFraction", damage.adrenaline().triggerHealthLossFraction());
         policy.addProperty("adrenaline", "One refreshable timed stack after a native health write actually removes MORE than triggerHealthLossFraction times pre-hit current maximum HP. Strict comparison; includes equipped/previously reduced maximum HP, excludes absorption, prevented damage, this hit's capacity loss and deferred payments. No lethal-save condition. Existing immediate attribute/HUD sync and bow/caster speed consumers; generated duration/magnitudes and trigger, no new keybind or packet.");
         var wards = v.wards();
-        policy.addProperty("wardTuning", "/runtime/effects/vitality/wards; required generated schema, existing validated exact TOML overrides, content identity and rank consumers; no parallel configuration or live fallback");
+        policy.addProperty("wardTuning", "skill_settings.toml controls unlock tiers, rank counts and published native stat endpoints. Resolved effects and ranks are saved in /runtime; advanced balance_overrides.toml inputs remain validated. Explicit Skill endpoints take precedence over automatic allocation; no live config fallback.");
         policy.addProperty("soulWardVictimHealthFraction", wards.soulWard().victimHealthFraction());
         policy.addProperty("soulWardCapacityHealthFraction", wards.soulWard().capacityHealthFraction());
         policy.addProperty("soulWardDurationSeconds", wards.soulWard().durationTicks() / 20.0);
@@ -320,7 +326,7 @@ public final class GeneratedBalanceService {
     static JsonObject mobilityPolicy(RuntimeBalanceDefinition runtime) {
         var v = runtime.config().skillEffects().mobility();
         JsonObject policy = new JsonObject();
-        policy.addProperty("tuning", "/runtime/effects/mobility; generated from existing skill-tier headroom, semantic weights/availability and survival reference window. Existing exact TOML overrides and rank consumers; no live defaults or parallel config.");
+        policy.addProperty("tuning", "skill_settings.toml controls unlock tiers, rank counts and published native stat endpoints. Resolved effects and ranks are saved in /runtime; advanced balance_overrides.toml inputs remain validated. Explicit Skill endpoints take precedence over automatic allocation; no live config fallback.");
         policy.addProperty("maximumSprintSpeedBonus", v.runningMomentum().maximumSpeedBonus());
         policy.addProperty("buildSeconds", v.runningMomentum().buildTicks() / 20.0);
         policy.addProperty("fullDrainSeconds", v.runningMomentum().drainTicks() / 20.0);
@@ -351,7 +357,7 @@ public final class GeneratedBalanceService {
         policy.addProperty("flightMotion", "Fatigue is server-authoritative jetpack acceleration: generated vertical thrust is relative to live gravity, added to existing Y velocity without canceling descent, and bounded by live native jump power; yaw-relative WASD steering reuses resolved Abilities#flyingSpeed as horizontal acceleration, preserving the existing equipment Flight Speed route. Untethered alone leases native mayfly/flying permission. Essence Wings keeps native Elytra pitch/lift while generated horizontal drag compensation improves glide carry. Vector Boost fills missing look-axis velocity toward a generated native-firework-relative cruise target; later ranks shorten recharge rather than increasing burst strength.");
         policy.addProperty("flightLifecycle", "Releasing or stale Jump input immediately stops Fatigue thrust; landing recharges stamina. Untethered retains its sustained native-flight lifecycle, airborne recovery and zero-stamina permission. Wings ends on landing/invalid states; its lifecycle bridge only preserves an already-started effective skill glide through native chest-Elytra validation.");
         policy.addProperty("flightPresentation", "All four flight skills use existing shared HUD cards and rank-resolved tooltip localization. Wings reports ready/gliding, true flight reports normalized stamina, and Vector Boost reports normalized recharge; cards remain presentation-only.");
-        policy.addProperty("traversalTuning", "Movement magnitudes stay in the existing generated balance profile: flight thrust, glide retention and boost/recharge derive from semantic capability weights and rank scaling; binary terrain/aquatic traversal remains native restoration. No parallel TOML scalar, hidden tuning table or fake numeric rank.");
+        policy.addProperty("traversalTuning", "skill_settings.toml controls unlock tiers, rank counts and published native stat endpoints. Resolved effects and ranks are saved in /runtime; advanced balance_overrides.toml inputs remain validated. Explicit Skill endpoints take precedence over automatic allocation; no live config fallback.");
         policy.addProperty("terrainFreedom", "Tagged contact damage, drag callbacks and native below-identity block speed/jump factors; powder-snow/soul-sand/mud firm footing and freezing protection. Opt-in block/damage tags extend terrain support. No attacks, suffocation, falls, drowning, ordinary fire, lava or bypass-invulnerability immunity.");
         policy.addProperty("aquaticBody", "An exact-ID SUBMERGED_MINING_SPEED floor and scoped off-ground mining restoration remove underwater mining penalties. No WATER_MOVEMENT_EFFICIENCY floor or movement off-ground bypass: Swim Speed remains entirely with the existing bonus/equipment pipeline, including native scaling. Normal tools, haste/fatigue, air supply and rain behavior remain. Normal scene fog, not night vision or wall visibility.");
         policy.addProperty("surfaceTension", "Exposed tagged water/lava surfaces at native flowing FluidState height. Effective Surface Tension requires sprinting OR a compatible fishing rod in either hand. A held rod permits stationary support and gentle limited buoyancy only with eyes above the liquid. Shift, mounts and flight disable support/buoyancy. Real collisions/headroom; no underwater ascent, placement, teleport, fall reset, lava fishing or new immunity.");
@@ -368,7 +374,7 @@ public final class GeneratedBalanceService {
 
     static JsonObject postureStatusPolicy() {
         JsonObject policy = new JsonObject();
-        policy.addProperty("tuning", "/runtime/effects/posture and /runtime/effects/status; existing commented exact TOML, validated bounds, required schema fields and integrity checks; no separate configuration");
+        policy.addProperty("tuning", "skill_settings.toml controls unlock tiers, rank counts and published native stat endpoints. Resolved effects and ranks are saved in /runtime; advanced balance_overrides.toml inputs remain validated. Explicit Skill endpoints take precedence over automatic allocation; no live config fallback.");
         policy.addProperty("choices", "One Evasive/Bulwark/Adaptive posture and one independent Mirror/Pure State status choice. Switching, lost effectiveness or lifecycle discontinuity resets transient state");
         policy.addProperty("movement", "Ordinary input must correlate with measured server movement. Crouch, grounded motion, intentional swimming/climbing/flight and legitimate guarded movement qualify; mounts, idle falling, forced motion, teleports and correction do not. Finite stillness and turning hysteresis reject jitter");
         policy.addProperty("evasive", "Bounded chance at full posture; one server roll for hostile living-owned nonfire/nonexplosive projectiles or direct physical damage. Direct armor-bypassing or witch-resistant magic, unavoidable/admin/environmental damage and secondaries do not roll. Success and actual taken hits each pay their configured full-meter debit once. Intentional hit recovery holds charge for the forced-motion quiet interval without buildup; stopping still drains. No fabricated block, reflection or guard reward");
@@ -388,7 +394,7 @@ public final class GeneratedBalanceService {
 
     static JsonObject guardPolicy() {
         JsonObject policy = new JsonObject();
-        policy.addProperty("tuning", "/runtime/effects/guard; existing exact TOML overrides, finite validated bounds, content identity and procedural rank retention; no parallel configuration");
+        policy.addProperty("tuning", "skill_settings.toml controls unlock tiers, rank counts and published native stat endpoints. Resolved effects and ranks are saved in /runtime; advanced balance_overrides.toml inputs remain validated. Explicit Skill endpoints take precedence over automatic allocation; no live config fallback.");
         policy.addProperty("eligibility", "Guard mobility and block rewards require an effective skill and functional Ascendance Shield, the current explicit shield contract; both hands use native readiness; Fractured, disabled, broken or invalid equipment grants no guard benefit; generic third-party shields are not inferred");
         policy.addProperty("mobility", "Guarded Advance uses the stronger of equipment investment and skill slowdown removal once, permitting native sprint, jump and short steps only during valid guarding; hunger, crouching, fluids, riding and collision remain authoritative");
         policy.addProperty("ram", "Meaningful forward guarded sprint sweep; physical contact clipped by terrain, deterministic target budget and repeat cooldown; bounded stagger and push, no direct damage or block/counter rewards");
@@ -550,10 +556,10 @@ public final class GeneratedBalanceService {
             phase = System.nanoTime();
             RuntimeBalanceDefinition runtime;
             try (var phaseScope = BalancePerformance.phase("runtime_generation")) {
+                generationProvenance.add("skillSettings", BalanceDocument.GSON.toJsonTree(inputs.skillSettings()));
+                generationProvenance.add("bonusSettings", BalanceDocument.GSON.toJsonTree(inputs.bonusSettings()));
                 runtime = com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceGenerator.generate(
-                        evidence, economy, inputs.settings(), inputs.overrides(), inputs.skillLayout(), inputs.bonusProgression());
-                generationProvenance.add("skillLayout", BalanceDocument.GSON.toJsonTree(inputs.skillLayout()));
-                generationProvenance.add("bonusProgression", BalanceDocument.GSON.toJsonTree(inputs.bonusProgression()));
+                        evidence, economy, inputs.settings(), inputs.overrides(), inputs.skillSettings(), inputs.bonusSettings());
 
             } catch (RuntimeException failure) {
                 operation.fail(failure);

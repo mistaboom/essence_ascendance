@@ -336,6 +336,7 @@ public final class AscendanceNexusScreen
     private void declareActions(FullscreenComposition.Builder builder, List<NexusCategoryView> categories) {
         if (navigation.mode() == NexusMode.ASCENDANCE) {
             NexusAscendanceAction action = ascendanceAction();
+            if (!action.visible()) return;
             ResourceLocation tier = ClientEssenceState.snapshot().progress().nextTierId();
             int accent = action.kind() == NexusAscendanceAction.Kind.ASCEND && tier != null
                     ? AscendancePalette.tierMetalRgb(tier) : AscendanceUiPalette.INTERACTIVE;
@@ -562,7 +563,7 @@ public final class AscendanceNexusScreen
                             + tierDisplayName(progress.nextTierId());
         } else if (progress.status()
                 == PlayerEssenceSyncPayload.ProgressStatus.MAX_TIER) {
-            transition = current + "  •  " + EssenceText.gui("nexus.maximum").getString();
+            transition = EssenceText.gui("nexus.maximum_achieved").getString();
         } else {
             transition = current + "  •  " + EssenceText.gui("nexus.unavailable").getString();
         }
@@ -614,6 +615,7 @@ public final class AscendanceNexusScreen
     private void renderAscendanceStatus(GuiGraphics graphics, ClientEssenceState.ProgressSnapshot progress,
                                          NexusPageLayout layout) {
         NexusAscendanceAction action = ascendanceAction();
+        if (!action.visible() && transactionFeedback == null) return;
         if (layout.sectionHeight() >= 28) {
             Component status;
             int statusColor;

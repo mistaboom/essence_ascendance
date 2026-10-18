@@ -38,7 +38,7 @@ public final class NativeEquipmentHeadroomTest {
         var references = new EnumMap<ProgressionBand, Map<CapabilityAxis, Double>>(ProgressionBand.class);
         var equipment = new ArrayList<EquipmentReference>();
         for (var band : ProgressionBand.values()) {
-            double damage = new double[]{8, 16, 32, 64, 128}[band.ordinal()];
+            double damage = new double[]{1, 16, 32, 64, 128}[band.ordinal()];
             equipment.add(new EquipmentReference("test:melee_" + band, "mainhand_melee", band,
                     Map.of(CapabilityAxis.ATTACK_RATE, 1.6, CapabilityAxis.SUSTAINED_DAMAGE, damage * 1.6,
                             CapabilityAxis.BURST_DAMAGE, damage), List.of(), true, true, 1, "synthetic family observation"));
@@ -61,9 +61,16 @@ public final class NativeEquipmentHeadroomTest {
         double nativeHit = EquipmentBaselineService.resolvedValue(
                 runtime.config().equipmentBaselineConfig().baselineFor(AscendanceTiers.DORMANT).meleeDamage(),
                 EquipmentProfiles.SWORD, EquipmentBaselineProperty.MELEE_DAMAGE);
-        if (nativeHit <= 8 * 1.5) throw new AssertionError("Fixture no longer exercises a native floor above the external ceiling");
-        if (runtime.composition().get("offense_calibration") < .02)
-            throw new AssertionError("First purchase must retain the enforced minimum power");
-        output.println("NativeEquipmentHeadroomTest: wide-frontier default generation PASS; physical curve unchanged; native entry hit=" + nativeHit + ", old external ceiling=12");
+        if (nativeHit < 6 || nativeHit <= 1 * 1.5)
+            throw new AssertionError("Fixture no longer exercises the native iron floor above the weak external ceiling");
+        double nominalScale=runtime.composition().get("offense_calibration");
+        if (!(nominalScale>=0&&nominalScale<.02))
+            throw new AssertionError("Fixture must exercise a safe allocation below the arbitrary fraction-of-apex threshold: "+nominalScale);
+        var staticCharge=runtime.skillCurves().get(com.mistaboom.essence_ascendance.skill.SkillIds.STATIC_CHARGE.toString());
+        double firstDischarge=staticCharge.ranks().getFirst().parameters().get("staticCharge/lightningDamage");
+        if(firstDischarge<2)throw new AssertionError("Published Static Charge lost its authored two-health discharge floor");
+        com.mistaboom.essence_ascendance.skill.balance.SkillBalanceGenerator.validatePublished(
+                runtime.config().skillEffects(),runtime.skillCurves());
+        output.println("NativeEquipmentHeadroomTest: wide-frontier default generation PASS; physical curve unchanged; native entry hit=" + nativeHit + ", external ceiling=1.5");
     }
 }

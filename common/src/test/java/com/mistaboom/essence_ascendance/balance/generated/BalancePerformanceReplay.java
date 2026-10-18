@@ -36,6 +36,10 @@ public final class BalancePerformanceReplay {
                 BalanceInputs.settingsPath(config), BalanceInputs.overridesPath(config));
         Map<Path, String> protectedHashes = new LinkedHashMap<>();
         for (var path : paths) protectedHashes.put(path, hash(path));
+        for (Path path : List.of(
+                com.mistaboom.essence_ascendance.balance.config.SkillSettingsConfig.path(config),
+                com.mistaboom.essence_ascendance.balance.config.BonusSettingsConfig.path(config)))
+            protectedHashes.put(path, fileState(path));
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap();
         EssenceTypes.init(); AscendanceTiers.init(); EssenceStats.init();
         MilestoneProviders.init(); Milestones.init(); Skills.init(); AscendanceAdvancements.init();
@@ -68,7 +72,7 @@ public final class BalancePerformanceReplay {
                 try (var operation = BalancePerformance.begin("offline_runtime_generation", "saved_evidence_no_recollection")) {
                     try (var phase = BalancePerformance.phase("runtime_generation")) {
                         runtime = com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceGenerator.generate(
-                                active.evidence(), active.economy(), inputs.settings(), inputs.overrides(), inputs.skillLayout(), inputs.bonusProgression());
+                                active.evidence(), active.economy(), inputs.settings(), inputs.overrides(), inputs.skillSettings(), inputs.bonusSettings());
                     }
                     operation.complete("generated_offline");
                 }
@@ -88,7 +92,7 @@ public final class BalancePerformanceReplay {
                             e -> e.getKey().toString(), Map.Entry::getValue))));
         } finally {
             for (var entry : protectedHashes.entrySet())
-                if (!entry.getValue().equals(hash(entry.getKey()))) throw new AssertionError("Changed protected input " + entry.getKey());
+                if (!entry.getValue().equals(fileState(entry.getKey()))) throw new AssertionError("Changed protected input " + entry.getKey());
         }
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println("BalancePerformanceReplay PASS " + output);
     }
@@ -101,5 +105,8 @@ public final class BalancePerformanceReplay {
             input.transferTo(java.io.OutputStream.nullOutputStream());
         }
         return HexFormat.of().formatHex(digest.digest());
+    }
+    private static String fileState(Path path) throws Exception {
+        return Files.exists(path) ? hash(path) : "absent";
     }
 }

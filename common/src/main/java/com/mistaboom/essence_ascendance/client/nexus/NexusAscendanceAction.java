@@ -7,6 +7,8 @@ public record NexusAscendanceAction(
         Kind kind,
         boolean enabled
 ) {
+    public boolean visible() { return kind != Kind.MAXIMUM_TIER; }
+
     public static NexusAscendanceAction resolve(
             PlayerEssenceSyncPayload.ProgressStatus progressStatus,
             boolean attunementReady,

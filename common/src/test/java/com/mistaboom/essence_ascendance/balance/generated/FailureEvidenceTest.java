@@ -20,7 +20,11 @@ public final class FailureEvidenceTest {
                 new IllegalArgumentException("offense constraint"), provenance);
         var parsed = BalanceDocument.parse(snapshot.text());
         check(parsed.integrity().equals(snapshot.integrity()), "Failure envelope round trip");
-        check(parsed.section("metadata").getAsJsonObject("generation").equals(provenance), "Failed calibration retains already captured generation diagnostics without recollection");
+        var captured = parsed.section("metadata").getAsJsonObject("generation");
+        check(captured.get("lootAudit").equals(provenance.get("lootAudit")), "Failed calibration retains captured diagnostics without recollection");
+        check(captured.get("skillSettings").equals(BalanceDocument.GSON.toJsonTree(inputs.skillSettings())), "Failed skill controls retained");
+        check(captured.get("bonusSettings").equals(BalanceDocument.GSON.toJsonTree(inputs.bonusSettings())), "Failed Bonus controls retained");
+        check(provenance.size() == 1, "Failure capture does not mutate caller diagnostics");
         check(parsed.section("evidence").equals(BalanceDocument.GSON.toJsonTree(evidence)), "Exact evidence retained");
         check(parsed.section("economy").equals(BalanceDocument.GSON.toJsonTree(economy)), "Exact economy retained");
         check(parsed.decodeSection("evidence", PackEvidence.class).equals(evidence), "Direct typed evidence decoding");

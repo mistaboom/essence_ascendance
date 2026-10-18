@@ -62,11 +62,11 @@ final class RuntimeReferencePolicy {
     }
     /** Select a sustained-damage winner and its own cadence within one equipment family. */
     static Weapon weapon(PackEvidence evidence, ProgressionBand band, String family, String outlierPolicy) {
+        if(family.equals("caster"))return casterFromBow(weapon(evidence,band,"ranged",outlierPolicy));
         boolean meleeObserved = evidence.equipment().stream().anyMatch(r -> r.usableReference()
                 && r.slot().equals("mainhand_melee") && r.axes().getOrDefault(CapabilityAxis.SUSTAINED_DAMAGE, 0.0) > 0);
         var references=evidence.equipment().stream().filter(r->switch(family) {
             case "ranged" -> r.slot().equals("mainhand_bow")||r.slot().equals("mainhand_crossbow");
-            case "caster" -> r.slot().equals("mainhand_caster");
             default -> r.slot().equals(meleeObserved ? "mainhand_melee" : "mainhand_tool");
         }).toList();
         var axes=RobustFrontiers.build(references,outlierPolicy).getOrDefault(band,Map.of());
@@ -74,11 +74,6 @@ final class RuntimeReferencePolicy {
         double rate=axes.getOrDefault(CapabilityAxis.ATTACK_RATE,0.0);
         if(dps>0&&rate>0)return new Weapon(normalizeMeasurement(dps/rate),normalizeMeasurement(rate),
                 normalizeMeasurement(Math.max(dps/rate,axes.getOrDefault(CapabilityAxis.BURST_DAMAGE,0.0))),true);
-        if(family.equals("caster")) {
-            var ranged=weapon(evidence,band,"ranged",outlierPolicy);
-            return new Weapon(ranged.damage()*CASTER_HIT_RATIO,ranged.rate()/CASTER_HIT_RATIO,
-                    ranged.burst()*CASTER_HIT_RATIO,false);
-        }
         if(family.equals("ranged")) {
             var melee=weapon(evidence,band,"melee_shield",outlierPolicy);
             return new Weapon(melee.damage(),melee.rate(),melee.burst(),false);
@@ -93,6 +88,11 @@ final class RuntimeReferencePolicy {
                     normalizeMeasurement(Math.max(dps/rate,axes.getOrDefault(CapabilityAxis.BURST_DAMAGE,0.0))),false);
         }
         throw new IllegalArgumentException("Missing measured catalog weapon reference for "+band);
+    }
+    /** Short-range rapid-fire counterpart of the same bow reference; not a separate observed family. */
+    static Weapon casterFromBow(Weapon bow) {
+        return new Weapon(bow.damage()*CASTER_HIT_RATIO,bow.rate()/CASTER_HIT_RATIO,
+                bow.burst()*CASTER_HIT_RATIO,false);
     }
     record Armor(NativeAttributeContribution armorModifiers, NativeAttributeContribution toughnessModifiers,
                  NativeAttributeContribution healthModifiers) {

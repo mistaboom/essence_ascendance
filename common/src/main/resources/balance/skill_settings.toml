@@ -1,0 +1,362 @@
+# Authored Skill unlock defaults. Runtime files also contain generated ranks and stat endpoints.
+schema_version = 1
+
+[[skill]]
+id = "essence_ascendance:frenzy"
+tier = "essence_ascendance:dormant"
+
+[[skill]]
+id = "essence_ascendance:armor_crack"
+tier = "essence_ascendance:resonant"
+
+[[skill]]
+id = "essence_ascendance:desperation"
+tier = "essence_ascendance:dormant"
+
+[[skill]]
+id = "essence_ascendance:death_rush"
+tier = "essence_ascendance:ascendant"
+
+[[skill]]
+id = "essence_ascendance:kindling"
+tier = "essence_ascendance:dormant"
+
+[[skill]]
+id = "essence_ascendance:combustion"
+tier = "essence_ascendance:awakened"
+
+[[skill]]
+id = "essence_ascendance:frostbite"
+tier = "essence_ascendance:dormant"
+
+[[skill]]
+id = "essence_ascendance:shatter"
+tier = "essence_ascendance:awakened"
+
+[[skill]]
+id = "essence_ascendance:static_charge"
+tier = "essence_ascendance:dormant"
+
+[[skill]]
+id = "essence_ascendance:chain_strike"
+tier = "essence_ascendance:awakened"
+
+[[skill]]
+id = "essence_ascendance:homing_projectile"
+tier = "essence_ascendance:resonant"
+
+[[skill]]
+id = "essence_ascendance:ricochet"
+tier = "essence_ascendance:resonant"
+
+[[skill]]
+id = "essence_ascendance:piercing_projectile"
+tier = "essence_ascendance:resonant"
+
+[[skill]]
+id = "essence_ascendance:explosive_payload"
+tier = "essence_ascendance:ascendant"
+
+[[skill]]
+id = "essence_ascendance:rooting_payload"
+tier = "essence_ascendance:ascendant"
+
+[[skill]]
+id = "essence_ascendance:guarded_advance"
+tier = "essence_ascendance:dormant"
+
+[[skill]]
+id = "essence_ascendance:shield_ram"
+tier = "essence_ascendance:awakened"
+
+[[skill]]
+id = "essence_ascendance:stored_force"
+tier = "essence_ascendance:awakened"
+
+[[skill]]
+id = "essence_ascendance:guard_amplifier"
+tier = "essence_ascendance:awakened"
+
+[[skill]]
+id = "essence_ascendance:reflexive_ward"
+tier = "essence_ascendance:dormant"
+
+[[skill]]
+id = "essence_ascendance:crowd_reprisal"
+tier = "essence_ascendance:resonant"
+
+[[skill]]
+id = "essence_ascendance:interceptor"
+tier = "essence_ascendance:resonant"
+
+[[skill]]
+id = "essence_ascendance:trajectory_theft"
+tier = "essence_ascendance:ascendant"
+
+[[skill]]
+id = "essence_ascendance:projectile_drag_field"
+tier = "essence_ascendance:awakened"
+
+[[skill]]
+id = "essence_ascendance:evasive_current"
+tier = "essence_ascendance:ascendant"
+
+[[skill]]
+id = "essence_ascendance:bulwark_stance"
+tier = "essence_ascendance:ascendant"
+
+[[skill]]
+id = "essence_ascendance:adaptive_guard"
+tier = "essence_ascendance:ascendant"
+
+[[skill]]
+id = "essence_ascendance:status_mirror"
+tier = "essence_ascendance:transcendent"
+
+[[skill]]
+id = "essence_ascendance:pure_state"
+tier = "essence_ascendance:transcendent"
+
+[[skill]]
+id = "essence_ascendance:riposte"
+tier = "essence_ascendance:resonant"
+
+[[skill]]
+id = "essence_ascendance:rising_recovery"
+tier = "essence_ascendance:dormant"
+
+[[skill]]
+id = "essence_ascendance:life_steal"
+tier = "essence_ascendance:dormant"
+
+[[skill]]
+id = "essence_ascendance:feast_reflex"
+tier = "essence_ascendance:awakened"
+
+[[skill]]
+id = "essence_ascendance:inner_sustenance"
+tier = "essence_ascendance:awakened"
+
+[[skill]]
+id = "essence_ascendance:hunger_ward"
+tier = "essence_ascendance:resonant"
+
+[[skill]]
+id = "essence_ascendance:staggered_pain"
+tier = "essence_ascendance:resonant"
+
+[[skill]]
+id = "essence_ascendance:damage_ceiling"
+tier = "essence_ascendance:resonant"
+
+[[skill]]
+id = "essence_ascendance:metabolic_conversion"
+tier = "essence_ascendance:ascendant"
+
+[[skill]]
+id = "essence_ascendance:pain_purge"
+tier = "essence_ascendance:ascendant"
+
+[[skill]]
+id = "essence_ascendance:adrenaline"
+tier = "essence_ascendance:ascendant"
+
+[[skill]]
+id = "essence_ascendance:deep_ward"
+tier = "essence_ascendance:ascendant"
+
+[[skill]]
+id = "essence_ascendance:soul_ward"
+tier = "essence_ascendance:resonant"
+
+[[skill]]
+id = "essence_ascendance:shattering_ward"
+tier = "essence_ascendance:ascendant"
+
+[[skill]]
+id = "essence_ascendance:second_wind"
+tier = "essence_ascendance:transcendent"
+
+[[skill]]
+id = "essence_ascendance:spirit_walk"
+tier = "essence_ascendance:transcendent"
+
+[[skill]]
+id = "essence_ascendance:running_momentum"
+tier = "essence_ascendance:dormant"
+
+[[skill]]
+id = "essence_ascendance:momentum_vault"
+tier = "essence_ascendance:awakened"
+
+[[skill]]
+id = "essence_ascendance:rush"
+tier = "essence_ascendance:awakened"
+
+[[skill]]
+id = "essence_ascendance:terrain_freedom"
+tier = "essence_ascendance:dormant"
+
+[[skill]]
+id = "essence_ascendance:aquatic_body"
+tier = "essence_ascendance:awakened"
+
+[[skill]]
+id = "essence_ascendance:surface_tension"
+tier = "essence_ascendance:resonant"
+
+[[skill]]
+id = "essence_ascendance:lavaborn"
+tier = "essence_ascendance:ascendant"
+
+[[skill]]
+id = "essence_ascendance:impact_control"
+tier = "essence_ascendance:dormant"
+
+[[skill]]
+id = "essence_ascendance:charged_jump"
+tier = "essence_ascendance:awakened"
+
+[[skill]]
+id = "essence_ascendance:double_jump"
+tier = "essence_ascendance:awakened"
+
+[[skill]]
+id = "essence_ascendance:vector_jump"
+tier = "essence_ascendance:resonant"
+
+[[skill]]
+id = "essence_ascendance:essence_wings"
+tier = "essence_ascendance:ascendant"
+
+[[skill]]
+id = "essence_ascendance:fatigue_flight"
+tier = "essence_ascendance:resonant"
+
+[[skill]]
+id = "essence_ascendance:vector_boost"
+tier = "essence_ascendance:transcendent"
+
+[[skill]]
+id = "essence_ascendance:untethered_flight"
+tier = "essence_ascendance:transcendent"
+
+[[skill]]
+id = "essence_ascendance:tool_instinct"
+tier = "essence_ascendance:dormant"
+
+[[skill]]
+id = "essence_ascendance:mining_momentum"
+tier = "essence_ascendance:awakened"
+
+[[skill]]
+id = "essence_ascendance:natures_boon"
+tier = "essence_ascendance:transcendent"
+
+[[skill]]
+id = "essence_ascendance:ore_sight"
+tier = "essence_ascendance:ascendant"
+
+[[skill]]
+id = "essence_ascendance:treasure_sense"
+tier = "essence_ascendance:ascendant"
+
+[[skill]]
+id = "essence_ascendance:hunters_study"
+tier = "essence_ascendance:ascendant"
+
+[[skill]]
+id = "essence_ascendance:essence_bloom"
+tier = "essence_ascendance:ascendant"
+
+[[skill]]
+id = "essence_ascendance:torchbearer"
+tier = "essence_ascendance:awakened"
+
+[[skill]]
+id = "essence_ascendance:verdant_stride"
+tier = "essence_ascendance:awakened"
+
+[[skill]]
+id = "essence_ascendance:herdkeeper"
+tier = "essence_ascendance:awakened"
+
+[[skill]]
+id = "essence_ascendance:animal_gift"
+tier = "essence_ascendance:resonant"
+
+[[skill]]
+id = "essence_ascendance:fishing_instinct"
+tier = "essence_ascendance:dormant"
+
+[[skill]]
+id = "essence_ascendance:fishers_call"
+tier = "essence_ascendance:awakened"
+
+[[skill]]
+id = "essence_ascendance:salvagers_craft"
+tier = "essence_ascendance:awakened"
+
+[[skill]]
+id = "essence_ascendance:pocket_nets"
+tier = "essence_ascendance:awakened"
+
+[[skill]]
+id = "essence_ascendance:threat_sense"
+tier = "essence_ascendance:dormant"
+
+[[skill]]
+id = "essence_ascendance:hunters_ledger"
+tier = "essence_ascendance:awakened"
+
+[[skill]]
+id = "essence_ascendance:waylight"
+tier = "essence_ascendance:dormant"
+
+[[skill]]
+id = "essence_ascendance:restful_mending"
+tier = "essence_ascendance:resonant"
+
+[[skill]]
+id = "essence_ascendance:metabolic_mending"
+tier = "essence_ascendance:resonant"
+
+[[skill]]
+id = "essence_ascendance:masterwork_tempering"
+tier = "essence_ascendance:resonant"
+
+[[skill]]
+id = "essence_ascendance:village_patron"
+tier = "essence_ascendance:awakened"
+
+[[skill]]
+id = "essence_ascendance:bonded_companion"
+tier = "essence_ascendance:resonant"
+
+[[skill]]
+id = "essence_ascendance:alchemical_amplification"
+tier = "essence_ascendance:awakened"
+
+[[skill]]
+id = "essence_ascendance:potion_relay"
+tier = "essence_ascendance:resonant"
+
+[[skill]]
+id = "essence_ascendance:sanctuary"
+tier = "essence_ascendance:transcendent"
+
+[[skill]]
+id = "essence_ascendance:industrious_presence"
+tier = "essence_ascendance:ascendant"
+
+[[skill]]
+id = "essence_ascendance:containment_field"
+tier = "essence_ascendance:ascendant"
+
+[[skill]]
+id = "essence_ascendance:friendly_fire_ward"
+tier = "essence_ascendance:awakened"
+
+[[skill]]
+id = "essence_ascendance:enchanting_insight"
+tier = "essence_ascendance:resonant"

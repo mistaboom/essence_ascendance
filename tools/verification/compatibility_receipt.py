@@ -3,6 +3,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import re
 import shutil
 import subprocess
 
@@ -26,8 +27,10 @@ def protected(instances):
             continue
         files.extend(game / relative for relative in ("config/essence_ascendance.toml",
                      "config/essence_ascendance/balance_overrides.toml",
-                     "config/essence_ascendance/generated_balance.json.gz",
-                     "mods/essence_ascendance-neoforge.jar"))
+                     "config/essence_ascendance/skill_settings.toml",
+                     "config/essence_ascendance/bonus_settings.toml",
+                     "config/essence_ascendance/generated_balance.json.gz"))
+        files.extend(sorted((game / "mods").glob("essence_ascendance*.jar")))
         files.extend(sorted((game / "saves").glob("*/level.dat*")))
     return [fingerprint(path) for path in files]
 
@@ -57,9 +60,11 @@ def main():
     save(args.output / "protected-after.json", snapshot)
     baseline = json.loads((args.output / "protected-before.json").read_text(encoding="utf-8"))
     assert snapshot == baseline, "Protected installed files changed during receipt window; investigate before reporting unchanged"
-    artifacts = [args.project / "fabric/build/libs/essence_ascendance-fabric-1.0.0.jar",
-                 args.project / "neoforge/build/libs/essence_ascendance-neoforge-1.0.0.jar",
+    version = re.search(r"(?m)^mod_version\s*=\s*(\S+)", (args.project / "gradle.properties").read_text())[1]
+    artifacts = [args.project / f"fabric/build/libs/essence_ascendance-fabric-{version}.jar",
+                 args.project / f"neoforge/build/libs/essence_ascendance-neoforge-{version}.jar",
                  args.project / "pack-tester/build/install/pack-tester/lib/pack-tester.jar"]
+    assert all(path.is_file() for path in artifacts), "Required build artifact is missing"
     save(args.output / "build-hashes.json", [fingerprint(path) for path in artifacts])
     assert args.build_log, "Final receipt needs at least one successful --build-log"
     for log in args.build_log + args.diagnostic_log:

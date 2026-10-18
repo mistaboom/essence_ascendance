@@ -51,10 +51,10 @@ public final class GuardMovementNativeTest {
         System.exit(0);
     }
     public static void run() throws Exception {
-        creativeCatalogInvalidation();
-        optionalJeiCatalogOrder();
         var field = Class.forName("sun.misc.Unsafe").getDeclaredField("theUnsafe"); field.setAccessible(true);
         allocator = field.get(null); allocate = allocator.getClass().getMethod("allocateInstance", Class.class);
+        creativeCatalogInvalidation();
+        optionalJeiCatalogOrder();
         var screenMethods = Arrays.stream(net.minecraft.client.gui.screens.Screen.class.getDeclaredMethods())
                 .map(Method::getName).toList();
         for (String hook : List.of("composedWidgets", "composedRenderables", "finishComposedWidgets", "composedNarration"))
@@ -183,7 +183,32 @@ public final class GuardMovementNativeTest {
             var filter = Class.forName("mezz.jei.gui.ingredients.IngredientFilter");
             check(Arrays.stream(filter.getDeclaredMethods()).anyMatch(method -> method.getName().contains("sortNewVariants")),
                     "Actual JEI filter has the native sort invalidation hook");
-            System.out.println("Optional JEI catalog constructor probe: PASS (actual transformed JEI classes; no full index or world)");
+            var info = Class.forName("mezz.jei.gui.ingredients.ListElementInfo");
+            var infoElement = info.getDeclaredField("element"); infoElement.setAccessible(true);
+            var comparators = Class.forName("mezz.jei.gui.ingredients.IngredientSorterComparators");
+            var creative = comparators.getDeclaredMethod("getCreativeMenuComparator"); creative.setAccessible(true);
+            @SuppressWarnings("unchecked") var comparator = (java.util.Comparator<Object>) creative.invoke(null);
+            int index = 100000;
+            for (var item : AscendanceItems.tieredCatalogItems()) {
+                var stacks = new java.util.ArrayList<>(com.mistaboom.essence_ascendance.equipment.EquipmentCatalogStacks.allTiers(item));
+                java.util.Collections.reverse(stacks);
+                var infos = new java.util.ArrayList<Object>();
+                for (var stack : stacks) {
+                    Object entry = allocate.invoke(allocator, info);
+                    infoElement.set(entry, constructor.newInstance(ingredient.apply(stack), index++));
+                    check(entry instanceof com.mistaboom.essence_ascendance.compat.jei.JeiCatalogOrder.IngredientAccess,
+                            "Actual JEI list info exposes its existing ingredient through the optional bridge");
+                    infos.add(entry);
+                }
+                infos.sort(comparator);
+                for (int tier = 0; tier < infos.size(); tier++) {
+                    var stack = ((com.mistaboom.essence_ascendance.compat.jei.JeiCatalogOrder.IngredientAccess) infos.get(tier))
+                            .essenceAscendance$catalogStack();
+                    check(com.mistaboom.essence_ascendance.equipment.EquipmentTierData.tier(stack).ordinal() == tier,
+                            "Actual transformed JEI creative comparator orders every equipment/armor family by tier");
+                }
+            }
+            System.out.println("Optional JEI catalog order probe: PASS (actual transformed constructors, list info and native creative comparator; every equipment/armor family, no full index or world)");
         } finally { order.clear(); }
     }
 

@@ -11,6 +11,8 @@
     "LatentOreSpriteLoaderMixin",
     "CreativeCatalogParametersMixin",
     "JeiCatalogElementMixin",
+    "JeiCatalogInfoMixin",
+    "JeiCatalogComparatorMixin",
     "JeiCatalogFilterMixin",
     "LatentOreItemModelMixin",
     "LatentOreModelReloadMixin",

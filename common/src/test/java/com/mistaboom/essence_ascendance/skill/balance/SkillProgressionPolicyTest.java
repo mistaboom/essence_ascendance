@@ -57,7 +57,7 @@ public final class SkillProgressionPolicyTest {
 
 
         for (var axis : CapabilityAxis.values()) check(SkillProgressionPolicy.authority(axis) > 0, "Every axis has explicit policy");
-        var authored = com.mistaboom.essence_ascendance.balance.config.SkillLayoutConfig.defaults().requiredTiers();
+        var authored = com.mistaboom.essence_ascendance.balance.config.SkillSettingsConfig.defaults().requiredTiers();
         SkillBalanceRuntime.withRequiredTiers(authored, () -> {
             for (var essence : EssenceTypes.ORDERED) {
                 var definitions = SkillRegistry.values(essence.id());

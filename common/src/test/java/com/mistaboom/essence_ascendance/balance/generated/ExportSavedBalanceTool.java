@@ -31,9 +31,13 @@ public final class ExportSavedBalanceTool {
         Map<Path, String> protectedContents = new LinkedHashMap<>();
         for (Path path : List.of(profile, BalanceInputs.settingsPath(config), BalanceInputs.overridesPath(config))) {
             if (!Files.isRegularFile(path))
-                throw new IllegalArgumentException("Saved generated profile and both existing human TOML inputs are required: " + path);
+                throw new IllegalArgumentException("Saved generated profile, global settings and overrides are required: " + path);
             protectedContents.put(path, fileHash(path));
         }
+        for (Path path : List.of(
+                com.mistaboom.essence_ascendance.balance.config.SkillSettingsConfig.path(config),
+                com.mistaboom.essence_ascendance.balance.config.BonusSettingsConfig.path(config)))
+            protectedContents.put(path, fileState(path));
 
         GeneratedBalanceService.Active current;
         try {
@@ -70,14 +74,14 @@ public final class ExportSavedBalanceTool {
                     "BALANCE_PERFORMANCE_OFFLINE " + BalanceDocument.GSON.toJson(BalancePerformance.lastSnapshot()));
         } finally {
             for (var entry : protectedContents.entrySet()) {
-                if (!entry.getValue().equals(fileHash(entry.getKey())))
+                if (!entry.getValue().equals(fileState(entry.getKey())))
                     throw new AssertionError("Report export changed a protected profile or human input: " + entry.getKey());
             }
         }
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println(
                 "ExportSavedBalanceTool PASS: " + (measurePhases ? "phases measured without report writes in " : "reports exported from installed profile in ") + folder
                         + "; integrity=" + current.document().integrity()
-                        + "; profile and both human TOML inputs byte-identical; no generation or world opened");
+                        + "; profile and all four human-input paths preserved, including absent system settings; no generation or world opened");
     }
 
     /** Explicit isolated-tool diagnostic only; never invoked by Minecraft or ordinary export. */
@@ -118,5 +122,8 @@ public final class ExportSavedBalanceTool {
             input.transferTo(java.io.OutputStream.nullOutputStream());
         }
         return java.util.HexFormat.of().formatHex(digest.digest());
+    }
+    private static String fileState(Path path) throws Exception {
+        return Files.exists(path) ? fileHash(path) : "absent";
     }
 }

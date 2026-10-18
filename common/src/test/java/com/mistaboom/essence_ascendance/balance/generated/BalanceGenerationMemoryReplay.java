@@ -68,6 +68,10 @@ public final class BalanceGenerationMemoryReplay {
         Map<Path, String> protectedHashes = new LinkedHashMap<>();
         for (Path path : List.of(profile, BalanceInputs.settingsPath(config), BalanceInputs.overridesPath(config)))
             protectedHashes.put(path, hash(path));
+        for (Path path : List.of(
+                com.mistaboom.essence_ascendance.balance.config.SkillSettingsConfig.path(config),
+                com.mistaboom.essence_ascendance.balance.config.BonusSettingsConfig.path(config)))
+            protectedHashes.put(path, fileState(path));
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("startedAt", Instant.now().toString());
         result.put("java", System.getProperty("java.runtime.version"));
@@ -101,7 +105,7 @@ public final class BalanceGenerationMemoryReplay {
             List<String> mismatches = new ArrayList<>();
             for (var entry : protectedHashes.entrySet()) {
                 try {
-                    String current = hash(entry.getKey()); after.put(entry.getKey().toString(), current);
+                    String current = fileState(entry.getKey()); after.put(entry.getKey().toString(), current);
                     if (!entry.getValue().equals(current)) mismatches.add(entry.getKey().toString());
                 } catch (Throwable verificationFailure) {
                     mismatches.add(entry.getKey() + " (hash failed: " + verificationFailure + ")");
@@ -288,6 +292,9 @@ public final class BalanceGenerationMemoryReplay {
         return resolved;
     }
 
+    private static String fileState(Path path) throws Exception {
+        return Files.exists(path) ? hash(path) : "absent";
+    }
     private static String hash(Path path) throws Exception {
         var digest = MessageDigest.getInstance("SHA-256");
         try (var input = new DigestInputStream(Files.newInputStream(path), digest)) { input.transferTo(OutputStream.nullOutputStream()); }

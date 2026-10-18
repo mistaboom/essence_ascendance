@@ -171,8 +171,8 @@ public final class BalanceConfigTest {
         } finally {
             Files.deleteIfExists(BalanceInputs.settingsPath(directory));
             Files.deleteIfExists(BalanceInputs.overridesPath(directory));
-            Files.deleteIfExists(SkillLayoutConfig.path(directory));
-            Files.deleteIfExists(BonusProgressionConfig.path(directory));
+            Files.deleteIfExists(SkillSettingsConfig.path(directory));
+            Files.deleteIfExists(BonusSettingsConfig.path(directory));
             Files.deleteIfExists(directory.resolve("essence_ascendance"));
             Files.deleteIfExists(directory);
         }

@@ -22,20 +22,21 @@ Each fragment above follows `/essence `. Exact runnable examples appear in the e
 
 ## Saved balance
 
-These read the installed snapshot rather than recapturing recipes/providers. The item argument is an **exact quoted full saved item ID**. Bonus/Skill arguments accept registered mod-default short IDs. `<path>` is a quoted JSON Pointer beginning `/runtime/` and resolving to a scalar; escape `/` in keys as `~1`, `~` as `~0`, and use zero-based array indices.
+These read the installed snapshot rather than recapturing the item catalog or recipes. The item argument is an **exact quoted full saved item ID**. Bonus/Skill arguments accept registered mod-default short IDs. `<path>` is a quoted JSON Pointer beginning `/runtime/` and resolving to a scalar; escape `/` in keys as `~1`, `~` as `~0`, and use zero-based array indices.
 
 | Exact syntax | Source | Prerequisites and result | Valid example |
 | --- | --- | --- | --- |
 | `/essence debug balance summary` | Server | Active snapshot; integrity prefix/generator, resource/equipment/enemy/curve counts, conservation passes/paths and last load time | `/essence debug balance summary` |
 | `/essence debug balance validate` | Server | Disk profile must exist/read/validate. Full decode and active-integrity comparison; mismatch fails with reload/rebuild guidance. **Potentially expensive file read**, no install/write. | `/essence debug balance validate` |
+| `/essence debug balance salvage` | Server | Inspects loaded salvage material bills and actual per-rank recovery; writes a diagnostic report. Catalog access is unexamined. Does not salvage inventory or rebuild balance. | `/essence debug balance salvage` |
 | `/essence debug balance item` | Player | Active snapshot; main-hand registry ID. Empty hand selects air and normally lacks saved evidence. | `/essence debug balance item` |
-| `/essence debug balance item <id>` | Server | Exact saved ID; supported reachability, stage, supply, confidence, value/yield, fact/warning samples and equipment axes. Missing evidence fails. | `/essence debug balance item "minecraft:iron_ingot"` |
+| `/essence debug balance item <id>` | Server | Exact saved ID; advisory value versus spendable yield, estimate confidence, fact/warning samples and equipment axes. Acquisition and recurring supply are explicitly unexamined. Missing evidence fails. | `/essence debug balance item "minecraft:iron_ingot"` |
 | `/essence debug balance bonus <bonus>` | Server | Known Bonus/active curve; maximum effect, exponent, style/applicability, per-tier caps and effects | `/essence debug balance bonus melee_damage` |
 | `/essence debug balance skill <skill>` | Server | Known Skill/active saved curve; rank 1 price/power/base tier and maximum purchasable rank | `/essence debug balance skill frenzy` |
 | `/essence debug balance skill <skill> <rank>` | Server | Integer rank **1..1000** and within saved curve length; selected rank's cost/power. Does not buy a rank. | `/essence debug balance skill frenzy 1` |
 | `/essence debug balance cost <path>` | Server | Existing saved runtime scalar; prints it. Objects, arrays and nonexistent paths fail. | `/essence debug balance cost "/runtime/statMaxBonuses/essence_ascendance:melee_damage"` |
 
-Skill output's base required tier is not a complete list of rank-specific gates. Use the Archive or rank reports for those. Conservation counts and “validate passed” describe modeled/internal checks, not every possible third-party exploit.
+Skill output's base required tier is not a complete list of rank-specific gates. Edit unlocks, rank counts and native stat endpoints in `skill_settings.toml`; edit Bonus bounds in `bonus_settings.toml`, then explicitly rebuild. Diagnostics report the installed profile, not pending edits. Use the Archive or rank reports for those. Conservation counts and “validate passed” describe modeled/internal checks, not every possible third-party exploit.
 
 ## Player progression
 

@@ -31,7 +31,7 @@ public final class BalanceReports {
                               Path folder, long generationMillis) throws IOException {
         export(current, previous, folder, generationMillis, true);
     }
-    /** Routine rebuilds retain decision reports; exhaustive acquisition rows are available on explicit export. */
+    /** Routine rebuilds retain decision reports; exhaustive advisory recipe rows are available on explicit export. */
     public static void exportSummary(GeneratedBalanceService.Active current, GeneratedBalanceService.Active previous,
                                      Path folder, long generationMillis) throws IOException {
         export(current, previous, folder, generationMillis, false);
@@ -117,11 +117,12 @@ public final class BalanceReports {
         var doc = current.document();
         var evidence = current.evidence();
         StringBuilder out = new StringBuilder("# Essence Ascendance pack balance\n\n");
-        if (!exhaustive) out.append("Routine decision report. Large evidence/resource/warning lists below show at most 200 entries each; complete decision tables and warnings.csv remain available. All acquisition sources and dependencies remain in generated_balance.json.gz. Use `/essence admin balance export` for exhaustive acquisition CSVs and Markdown lists without recalculating balance.\n\n");
+        if (!exhaustive) out.append("Routine decision report. Large evidence/resource/warning lists below show at most 200 entries each; complete decision tables and warnings.csv remain available. Loaded recipe structure remains in generated_balance.json.gz. Use `/essence admin balance export` for exhaustive advisory recipe CSVs and Markdown lists without recalculating balance.\n\n");
         long detailLimit = exhaustive ? Long.MAX_VALUE : 200;
         out.append("Generator: `").append(BalanceDocument.GENERATOR).append("`  \nProfile integrity: `").append(doc.integrity())
                 .append("`\n\n")
                 .append("This report explains the saved server profile. Edit the commented TOML inputs, then run `/essence admin balance rebuild`. The generated JSON is inspection-only.\n\n")
+                .append("Global policy stays in `config/essence_ascendance.toml`. `skill_settings.toml` controls Skill unlock tiers, rank counts and native stat first/maximum values; `bonus_settings.toml` controls Bonus active tiers and effect bounds. Missing Skill and Bonus files are generated after validated durable publication and existing files are never overwritten. Native floors, caps and prerequisites remain enforced. Reports describe the installed profile, not unapplied configuration edits.\n\n")
                 .append("Rebuild explicitly after changing the pack's recipes, loot, scripts, mods or balance inputs. Saved profiles are validated for integrity and usable data; loading does not detect pack changes.\n\n")
                 .append("## Evidence and confidence boundary\n\n")
                 .append("Item properties and standard recipes provide bounded policy estimates. Registered equipment and default mob attributes provide measured references. These catalog measurements do not prove acquisition, progression, renewability or production rates.\n\n")
@@ -150,7 +151,7 @@ public final class BalanceReports {
                 item.axes().entrySet().stream().filter(axis -> capabilityAxes.contains(axis.getKey()) && axis.getValue() > 0)
                         .sorted(Map.Entry.comparingByKey()).forEach(axis -> row(out, item.itemId(), item.slot(), item.stage().name(),
                                 axis.getKey().name(), number(axis.getValue()), number(item.confidence()), item.capabilities().toString())));
-        out.append("\n## Resource supply and automation\n\n| Classification | Items |\n|---|---:|\n");
+        out.append("\n## Resource evidence scope\n\nAcquisition, renewable supply and automation are not evaluated. Unknown classifications are not proof that an item is unavailable.\n\n| Saved classification | Items |\n|---|---:|\n");
         Map<String, Long> classes = new TreeMap<>();
         evidence.resources().values().forEach(resource -> classes.merge(resource.availability() + " / " + resource.automation(), 1L, Long::sum));
         classes.forEach((key, value) -> row(out, key, value.toString()));
@@ -159,7 +160,7 @@ public final class BalanceReports {
                 .append("Saved normalized processes: ").append(current.economy().processes().size())
                 .append("; incomplete processes excluded from hard conservation: ")
                 .append(current.economy().processes().stream().filter(process -> !process.conservationComplete()).count())
-                .append(". Exact effective definitions, native resource quantities/units, component predicates, setup, operating requirements and adapter provenance remain in the profile's economy/processes. Unknown energy, fuel, access or variant behavior is not treated as free. Recipe duration alone does not establish throughput.\n\n")
+                .append(". Loaded ingredients, output quantities, returned containers and completeness markers remain in the profile's economy/processes. Complete static material bills constrain payouts; opaque displays are advisory. Fuel, energy, setup, acquisition and custom component behavior are not inferred or assigned a verified cost. Recipe duration alone does not establish throughput.\n\n")
                 .append("Final conservation passes: ").append(current.economy().solverPasses()).append(". Checked production paths: ")
                 .append(current.economy().invariants().size()).append(". Accepted standard recipes share their consumed material budget across outputs and byproducts. No trade, loot, quest or farm source credit is inferred.\n\n")
                 .append("## Generated policy parameters\n\n")
@@ -169,12 +170,12 @@ public final class BalanceReports {
                 key + (Set.of("combined_damage_multiplier", "combined_defense_multiplier").contains(key) ? " (illustrative only)" : ""), number(value)));
         out.append("\n## Player tier unlocks\n\n");
         out.append("Player-tier Ascension completes Category Attunement seals through confirmed gameplay. It consumes no Essence and requires no wallet balance, investment, skill, equipment family, or world milestone. Earned tiers are permanent. Normalized resolved Bonus development and actual historical paid skill receipts only accelerate future eligible activity. Bonus development weights realized effect by intrinsic generated power independently of its price; skill spending retains historical paid receipts.\n\n")
-                .append("`attunement_breadth.csv` resolves increasing optional-category breadth; `attunement_targets.csv` joins it by chapter_id. `attunement_pacing.csv` compares raw and sustained single-source amounts per seal, with no investment or variety. Repetition measures reference work, never callback count; diversification restores efficiency. Reachability distinguishes registered base methods from stage-accessible acquisition estimates. These estimates do not prove acquisition or impose external progression gates. Exploration discoveries reset each chapter and remain optional.\n\n")
+                .append("`attunement_breadth.csv` resolves increasing optional-category breadth; `attunement_targets.csv` joins it by chapter_id. `attunement_pacing.csv` compares raw and sustained single-source amounts per seal, with no investment or variety. Repetition measures reference work, never callback count; diversification restores efficiency. `attunement_reachability.csv` records registered activity opportunities and positive calibration, not acquisition proofs or observed farm rates. Exploration discoveries reset each chapter and remain optional.\n\n")
                 .append("### Attunement calibration assumptions\n\n");
         current.runtime().attunement().assumptions().forEach(assumption -> out.append("- ").append(assumption).append('\n'));
         latentOreSummary(out, current);
         combatSummary(out, skills);
-        out.append("\nThe runtime curve table is in `curves.csv`. Bonus funding uses the shared concave investment curve; applied power stays at the previous complete state until the next checkpoint is fully funded. `bonus_tracks.csv` contains generated tier windows, complete values and costs. Skill curve multipliers describe nominal allocation; `skill_rank_parameters.csv` exports the exact generated native values consumed by gameplay and previews. First-state floor excess is local ignored overage, excluded from nominal allocation envelopes and repricing. Bonus refunds are exact differences between final allocated targets; skill refunds retain historical paid receipts.\n\n");
+        out.append("\nThe runtime curve table is in `curves.csv`. Bonus funding remains continuous between completed player-tier endpoints; meaningful minimum improvements apply to those completed tiers. Eligible equipment channels the player's earned Bonus regardless of equipment tier. `bonus_tracks.csv` contains resolved active tier windows, effects and costs. Skill curve multipliers describe nominal allocation; `skill_rank_parameters.csv` exports the exact native values consumed by gameplay and previews, including accepted Skill settings. Mandatory native minimums can exceed soft allocation budgets. Bonus refunds are exact differences between final allocated targets; skill refunds retain historical paid receipts.\n\n");
         skillSummary(out, current, skills);
         if (skills.has("projectilePolicy")) {
             out.append("## Projectile payload and control policy\n\nResolved tuning is exported as scalar exact paths in `runtime_parameters.csv`; the contracts below are also in `projectile_policy.csv`.\n\n| Contract | Rule |\n|---|---|\n");
@@ -194,7 +195,7 @@ public final class BalanceReports {
                 .forEach(item -> row(out, item.itemId(), item.included() ? "capability" : "excluded", item.reason() + " " + item.capabilities()));
         evidence.resources().values().stream().filter(resource -> !resource.reachable())
                 .limit(detailLimit)
-                .forEach(resource -> row(out, resource.itemId(), "unreachable", resource.warnings().toString()));
+                .forEach(resource -> row(out, resource.itemId(), "access_unexamined", resource.warnings().toString()));
         out.append("\n### Low-confidence resources\n\n| Resource | Confidence | Stage |\n|---|---:|---|\n");
         double threshold = doc.section("settings").get("warningConfidence").getAsDouble();
         evidence.resources().values().stream().filter(resource -> resource.confidence() < threshold)
@@ -236,7 +237,7 @@ public final class BalanceReports {
         }
         out.append("\n## Export layout and calibration handoff\n\nCSV tables in reports/ contain one observation per row, with numeric essence categories in separate columns. Join resource details by item_id, and skill details by projection_id plus scenario_id. Equipment.csv describes external references; generated_equipment.csv describes Ascendance's saved tier baselines. Runtime_parameters.csv contains the complete saved runtime as scalar rows with exact JSON pointers. Combat assumptions are stored once in combat_assumptions.csv and join to combat_builds.csv by case_id; a blank case_id is an assumption shared by the entire analysis.\n\n")
                 .append("A rare text field longer than a spreadsheet cell is replaced by a reference into diagnostics/report_text.json; no text is truncated. Potential formula text is escaped with a leading apostrophe. All original evidence and analysis remain in generated_balance.json.gz. CSV values are inspection exports, never runtime inputs.\n\n")
-                .append("Preserve generated_balance.json.gz, the complete reports/ and diagnostics/ folders, both TOML inputs, latest.log, loader/version and the actual pack version. Use explicit overrides for factual corrections and settings for balance preferences; do not alter generated JSON.\n");
+                .append("Preserve generated_balance.json.gz, the complete reports/ and diagnostics/ folders, essence_ascendance.toml, skill_settings.toml, bonus_settings.toml, balance_overrides.toml, latest.log, loader/version and the actual pack version. Use explicit overrides for factual corrections and system settings for editable progression; do not alter generated JSON.\n");
         return out.toString();
     }
     private static void valuation(SpreadsheetReports tables, GeneratedBalanceService.Active current, boolean exhaustive) {

@@ -69,11 +69,46 @@ public final class EquipmentInventoryCatalogTest {
         }
         check(variants.getFirst().get(DataComponents.CUSTOM_DATA) == null,
                 "Latent sample remains the canonical untagged crafted form");
-        focusTiers(testItem);
+        orderedCatalog(testItem, variants);
+        var focusItem = Registry.register(BuiltInRegistries.ITEM,
+                ResourceLocation.fromNamespaceAndPath("essence_ascendance", "catalog_test_focus"),
+                new com.mistaboom.essence_ascendance.pylon.EssenceFocusItem(new Item.Properties()));
+        focusTiers(focusItem);
         focusRegistration();
 
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out))
                 .println("EquipmentInventoryCatalogTest: " + checks + " catalog, tint, JEI and ownership checks PASS");
+    }
+
+    private static void orderedCatalog(Item item, java.util.List<ItemStack> variants) {
+        record Entry(ItemStack stack, int anchor) { }
+        var nativeOrder = java.util.Comparator.comparingInt(Entry::anchor);
+        var creativeOrder = JeiCatalogOrder.creativeComparator(nativeOrder, Entry::stack);
+        for (int seed = 0; seed < 24; seed++) {
+            var shuffled = new java.util.ArrayList<>(variants);
+            java.util.Collections.shuffle(shuffled, new java.util.Random(seed));
+            var order = new JeiCatalogOrder(() -> java.util.Set.of(item), () -> 0L);
+            var entries = new java.util.ArrayList<Entry>();
+            int index = 10;
+            for (var stack : shuffled) entries.add(new Entry(stack, order.createdIndex(stack, index++)));
+            entries.add(new Entry(new ItemStack(net.minecraft.world.item.Items.COAL), 9));
+            entries.add(new Entry(new ItemStack(net.minecraft.world.item.Items.DIRT), 30));
+            entries.sort(creativeOrder);
+            check(entries.getFirst().stack().is(net.minecraft.world.item.Items.COAL)
+                            && entries.getLast().stack().is(net.minecraft.world.item.Items.DIRT),
+                    "Tier tie-breaking preserves unrelated native creative positions");
+            for (int i = 0; i < variants.size(); i++)
+                check(EquipmentTierData.tier(entries.get(i + 1).stack()) == EquipmentTier.values()[i],
+                        "Arbitrary JEI subtype creation order always resolves Latent through Transcendent");
+        }
+        var accepted = new java.util.ArrayList<ItemStack>();
+        com.mistaboom.essence_ascendance.item.CreativeVariantRegistry.register(
+                net.minecraft.world.item.CreativeModeTabs.COMBAT, () -> EquipmentCatalogStacks.allTiers(item));
+        com.mistaboom.essence_ascendance.item.CreativeVariantRegistry.append(
+                net.minecraft.world.item.CreativeModeTabs.COMBAT, (stack, visibility) -> accepted.add(stack));
+        for (int i = 0; i < variants.size(); i++)
+            check(EquipmentTierData.tier(accepted.get(i)) == EquipmentTier.values()[i],
+                    "Native creative append retains the same six-tier order");
     }
 
     @SuppressWarnings("removal")
@@ -88,6 +123,7 @@ public final class EquipmentInventoryCatalogTest {
             if (tier != null) stack.set(DataComponents.CUSTOM_DATA, EssenceFocusData.tierData(tier));
             String expected = tier == null ? "latent" : tier.serializedName();
             Object identity = interpreter.getSubtypeData(stack, UidContext.Ingredient);
+            check(JeiCatalogOrder.tierOrder(stack) == index + 1, "Focus catalog follows the same six-tier ordering");
             check(expected.equals(identity) && identities.add(identity),
                     "Latent and all five completed Focus tiers have distinct browsing identities: " + expected);
             for (var context : UidContext.values()) {

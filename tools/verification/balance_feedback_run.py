@@ -21,6 +21,13 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import native_server_console as console
 
+HUMAN_INPUTS = (
+    "essence_ascendance.toml",
+    "essence_ascendance/balance_overrides.toml",
+    "essence_ascendance/skill_settings.toml",
+    "essence_ascendance/bonus_settings.toml",
+)
+
 
 def save(path, value):
     path.write_text(json.dumps(value, indent=2), encoding="utf-8")
@@ -31,12 +38,29 @@ def digest(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
+def human_input_hashes(config_directory):
+    result = {}
+    for name in HUMAN_INPUTS:
+        path = config_directory / name
+        assert not path.exists() or path.is_file(), f"Human input is not a file: {path}"
+        result[name] = digest(path) if path.is_file() else None
+    return result
+
+
+def verify_human_inputs(before, after, allow_created=False):
+    assert before.keys() == after.keys() == set(HUMAN_INPUTS), "Incomplete human-input inventory"
+    assert all(after.values()), "Validated generation did not publish all four human settings files"
+    changed = [name for name in HUMAN_INPUTS
+               if before[name] != after[name] and not (allow_created and before[name] is None)]
+    assert not changed, f"Existing human settings changed: {changed}"
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("fixture", choices=["vanilla", "atm10", "atm10-sky", "stoneblock", "oceanblock"])
     parser.add_argument("label")
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--fresh", action="store_true")
+    parser.add_argument("--fresh", action="store_true", help="Regenerate the saved profile; preserve all human settings")
     parser.add_argument("--repeat", type=int, default=2)
     parser.add_argument("--restart", action="store_true")
     parser.add_argument("--command", action="append", default=[])
@@ -86,6 +110,8 @@ def main():
                               f"onboarding_effort_fraction = {args.onboarding_effort}", human.read_text(encoding="utf-8"))
         assert count == 1
         human.write_text(value, encoding="utf-8")
+    initial_inputs = human_input_hashes(server / "config")
+    save(destination / "human-inputs-before.json", initial_inputs)
 
     def commands(values, name):
         rows = list(console.commands(values))
@@ -171,9 +197,17 @@ def main():
     try:
         commands(["essence debug balance validate"], "initial-validation.json")
         capture("initial")
+        published_inputs = human_input_hashes(server / "config")
+        verify_human_inputs(initial_inputs, published_inputs, allow_created=True)
+        save(destination / "human-inputs-published.json", published_inputs)
+        for name in HUMAN_INPUTS:
+            copied = destination / "human-inputs" / name
+            copied.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(server / "config" / name, copied)
         for iteration in range(args.repeat):
             commands(["essence admin balance rebuild", "essence debug balance validate"], f"rebuild-{iteration}.json")
             capture(f"profile-{iteration}")
+            verify_human_inputs(published_inputs, human_input_hashes(server / "config"))
         commands(["essence test skills effects", *args.command], "effects.json")
         document = json.loads(gzip.decompress(profile.read_bytes()))
         expected = [(skill, rank, curve, point) for skill, curve in sorted(document["runtime"]["skillCurves"].items())
@@ -213,6 +247,7 @@ def main():
             if (config / folder).exists():
                 shutil.copytree(config / folder, destination / folder)
         before = hashes()
+        verify_human_inputs(published_inputs, human_input_hashes(server / "config"))
         save(destination / "saved-before.json", before)
     finally:
         stop(process, handle, log)
@@ -228,6 +263,7 @@ def main():
             for name in ["full_generation_runs", "evidence_collection_runs", "conservation_solve_runs", "runtime_generation_runs", "report_export_runs"]:
                 assert counts.get(name, 0) == 0, (name, counts)
             commands(["essence debug balance validate", "essence test skills effects", *args.command], "saved-validation.json")
+            verify_human_inputs(published_inputs, human_input_hashes(server / "config"))
             save(destination / "saved-restart.json", {"filesPreserved": len(before), "seconds": loads[0]["elapsedMillis"] / 1000, "counts": counts})
         finally:
             stop(process, handle, log)
@@ -240,7 +276,8 @@ def main():
     save(destination / "semantic-comparison.json", comparisons)
     assert all(all(c.values()) for c in comparisons), comparisons
     assert digest(installed_jar) == installed_sha, "Installed fixture JAR changed during verification"
-    save(destination / "accepted.json", {"fixture": args.fixture, "rebuilds": args.repeat, "restart": args.restart, "jarSha256": installed_sha})
+    save(destination / "accepted.json", {"fixture": args.fixture, "rebuilds": args.repeat, "restart": args.restart,
+         "jarSha256": installed_sha, "humanInputsPreserved": list(HUMAN_INPUTS)})
     print(args.fixture + " " + args.label + " PASS", flush=True)
 
 

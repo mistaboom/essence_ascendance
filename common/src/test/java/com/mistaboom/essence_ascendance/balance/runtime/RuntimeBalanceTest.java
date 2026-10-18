@@ -26,6 +26,7 @@ public final class RuntimeBalanceTest {
         com.mistaboom.essence_ascendance.equipment.EquipmentProfiles.init();
         var first=RuntimeBalanceDefinition.bootstrap();
         var second=RuntimeBalanceDefinition.bootstrap();
+        verifyZeroBonusRecovery(first);
         var entryBudget=first.config().balanceProfile().defaultTierCaps().get(AscendanceTiers.DORMANT.id());
         check(first.crucible().reservoirCapacity()==entryBudget*480, "Crucible base storage lost its tenfold economy scaling");
         for(var tier:AscendanceTierRegistry.powerTiers())
@@ -33,9 +34,9 @@ public final class RuntimeBalanceTest {
                     ==first.config().balanceProfile().defaultTierCaps().get(tier.id())*120,
                     "Pylon storage no longer follows the same expanded tier budget");
         var mining=first.config().equipmentBaselineConfig();
-        check(mining.baselineFor(AscendanceTiers.DORMANT).miningSpeed()>=net.minecraft.world.item.Tiers.IRON.getSpeed()
-                &&mining.baselineFor(AscendanceTiers.DORMANT).miningSpeed()<net.minecraft.world.item.Tiers.DIAMOND.getSpeed(),
-                "Dormant mining must reach iron while preserving the diamond upgrade gap");
+        check(mining.baselineFor(AscendanceTiers.LATENT).miningSpeed()==net.minecraft.world.item.Tiers.IRON.getSpeed(),
+                "Latent mining must already reach iron");
+        verifyNativeChassis(first);
         for (var grade : first.config().infuserBalance().grades().values())
             check(grade.infusionThroughputPerSecond() >= first.config().infuserBalance().noFocusInfusionThroughputPerSecond(),
                     "Generated Focus slows baseline Infuser throughput");
@@ -121,18 +122,14 @@ public final class RuntimeBalanceTest {
                 &&generatedApex.miningSpeed()==12&&generatedApex.durability()==1890&&generatedApex.harvestLevel()==3,
                 "Transcendent armor, tool or discrete harvest endpoint is not at pack parity");
         verifyEquipmentNormalization(evidence,generated);
-        for(double endpoint:new double[]{6,12,120,1200}) {
-            var curve=new LinkedHashMap<>(generated.config().equipmentBaselineConfig().tierBaselines());
-            var apexRow=curve.get(AscendanceTiers.TRANSCENDENT.id());
-            curve.put(AscendanceTiers.TRANSCENDENT.id(),new EquipmentBaselineConfig.TierBaseline(
-                    apexRow.fullSetArmor(),apexRow.fullSetToughness(),apexRow.meleeDamage(),apexRow.meleeAttackSpeed(),
-                    apexRow.rangedDamage(),apexRow.rangedAttackSpeed(),apexRow.magicDamage(),apexRow.magicCastSpeed(),
-                    endpoint,apexRow.harvestLevel(),apexRow.durability()));
-            RuntimeEquipmentNormalization.anchorMining(curve,evidence,new TreeMap<>());
-            check(curve.get(AscendanceTiers.DORMANT.id()).miningSpeed()==net.minecraft.world.item.Tiers.IRON.getSpeed(),
-                    "Pack endpoint changed the iron entry benchmark");
-            check(curve.get(AscendanceTiers.TRANSCENDENT.id()).miningSpeed()==endpoint,
-                    "Entry benchmark erased the pack mining endpoint");
+        verifyNativeChassis(generated);
+        for(double endpoint:new double[]{1,6,12,120,1200}) {
+            check(RuntimeEquipmentNormalization.interpolate(2,2,100,6,endpoint,0)==6,
+                    "Pack endpoint changed the Latent iron benchmark");
+            check(RuntimeEquipmentNormalization.interpolate(100,2,100,6,endpoint,1)==Math.max(6,endpoint),
+                    "Iron start erased a stronger pack endpoint or allowed decreasing equipment");
+            check(RuntimeEquipmentNormalization.interpolate(51,2,100,6,endpoint,.5)==6+(Math.max(6,endpoint)-6)/2,
+                    "Shared interpolation did not preserve the relative curve position");
         }
         verifyHarvestProgression(evidence,generated);
         rejected(()->RuntimeBalanceDefinition.generate(new PackEvidence(resources,List.of(),List.of(),Map.of(),List.of(),List.of(),Map.of()),economy,
@@ -256,13 +253,13 @@ public final class RuntimeBalanceTest {
             var runtime = RuntimeBalanceDefinition.generate(evidence, economy, settings, BalanceOverrides.empty());
             // Procedural placement changes which effects are present at an early
             // tier. A historical catalog-specific rejection is not the contract:
-            // accept only a safe allocation that retains the unchanged minimum.
+            // accept only a safe nominal allocation and independently validated native floors.
             for (var channel : BuildComposition.Channel.values()) {
                 String name = channel.name().toLowerCase(Locale.ROOT);
                 for (String key : List.of(name + "_calibration", "rank_growth_" + name + "_calibration")) {
                     double retained = runtime.composition().get(key);
-                    check(Double.isFinite(retained) && retained >= .02 && retained <= 1,
-                            "Stress profile bypasses the 2% minimum allocation: " + entry.getKey() + "/" + key);
+                    check(Double.isFinite(retained) && retained >= 0 && retained <= 1,
+                            "Stress profile has an invalid nominal allocation: " + entry.getKey() + "/" + key);
                     output.println(entry.getKey() + " " + key + "=" + retained);
                 }
             }
@@ -288,22 +285,16 @@ public final class RuntimeBalanceTest {
                         "Stress bonus generated count and endpoint");
             }
             if (entry.getKey().equals("very-low-budget")) {
-                var controls = new TreeMap<String, BonusProgressionConfig.Entry>();
+                var controls = new TreeMap<String, BonusSettingsConfig.Entry>();
                 for (var track : runtime.config().balanceProfile().bonusTracks().values())
                     if (track.applicability() != BonusTrackDefinition.Applicability.UNAVAILABLE)
-                        controls.put(track.statId().toString(), BonusProgressionConfig.generatedEntry(track));
+                        controls.put(track.statId().toString(), BonusSettingsConfig.generatedEntry(track));
                 var replayed = RuntimeBalanceGenerator.generate(evidence, economy, settings, BalanceOverrides.empty(),
-                        SkillLayoutConfig.defaults(), new BonusProgressionConfig(controls));
+                        SkillSettingsConfig.defaults(), new BonusSettingsConfig(controls));
                 check(runtime.toJson().equals(replayed.toJson()), "Very-low-budget emitted Bonus controls changed the full regenerated runtime");
             }
             output.println("Adversarial profile PASS: " + entry.getKey());
             } catch (RuntimeException | AssertionError failure) {
-                if (entry.getKey().equals("wide-range") && failure instanceof IllegalArgumentException
-                        && failure.getMessage() != null && failure.getMessage().startsWith(
-                        "Requested OFFENSE targets leave less than 2% of rank-one added power;")) {
-                    output.println("Adversarial profile PASS: " + entry.getKey() + " (expected minimum-power rejection)");
-                    continue;
-                }
                 output.println("Adversarial profile FAIL: " + entry.getKey());
                 failure.printStackTrace(output);
                 failures.add(new AssertionError("Adversarial profile: " + entry.getKey(), failure));
@@ -379,18 +370,70 @@ public final class RuntimeBalanceTest {
         check(RuntimeBalanceDefinition.fromJson(generated.toJson()).toJson().equals(generated.toJson()),
                 "Current harvest progression must load without alteration");
     }
+    private static void verifyZeroBonusRecovery(RuntimeBalanceDefinition requested) {
+        var family=List.of(EssenceStats.MAGIC_DAMAGE,EssenceStats.MAGIC_CAST_SPEED);
+        var disabled=requested.toJson();
+        family.forEach(stat->disabled.getAsJsonObject("statMaxBonuses").addProperty(stat.id().toString(),0));
+        RuntimeValueQuantization.apply(disabled);
+        var zero=RuntimeBalanceDefinition.fromJson(disabled);
+        var restored=RuntimeBalanceGenerator.interpolateNexusOffense(zero,requested,family,1);
+        for(var stat:family) {
+            var expected=requested.config().balanceProfile().bonusTrack(stat.id());
+            var actual=restored.config().balanceProfile().bonusTrack(stat.id());
+            check(zero.config().balanceProfile().bonusTrack(stat.id()).applicability()==BonusTrackDefinition.Applicability.UNAVAILABLE,
+                    "Recovery fixture must start with a genuinely cleared zero-power track");
+            check(actual.applicability()==expected.applicability()&&actual.checkpoints().equals(expected.checkpoints()),
+                    "Recovered Bonus power remains hidden from composition by stale unavailable checkpoints: "+stat.id());
+            var tier=AscendanceTierRegistry.get(expected.completionTier()).orElseThrow();
+            long cap=restored.config().balanceProfile().getInvestmentCap(tier,stat);
+            check(actual.applicability()==BonusTrackDefinition.Applicability.UNAVAILABLE
+                            ||StatScalingService.realizedProgressionForInvestment(stat,cap,tier,restored.config().balanceProfile())==1,
+                    "Recovered Bonus must actually apply at its complete funded state during safety checks");
+        }
+    }
+    private static void verifyNativeChassis(RuntimeBalanceDefinition runtime) {
+        var latent=runtime.config().equipmentBaselineConfig().baselineFor(AscendanceTiers.LATENT);
+        check(latent.fullSetArmor()==15&&latent.fullSetToughness()==0&&latent.meleeDamage()==6&&latent.meleeAttackSpeed()==1.6,
+                "Latent armor and sword must start at the native iron chassis independent of pack strength");
+        check(latent.durability()==new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.IRON_PICKAXE).getMaxDamage()
+                        &&latent.miningSpeed()==net.minecraft.world.item.Tiers.IRON.getSpeed()&&latent.harvestLevel()==2,
+                "Latent tools must start with native iron durability, speed and harvest access");
+        check(latent.rangedDamage()==6&&latent.rangedAttackSpeed()==1,
+                "Latent bow must start at the native full-draw damage and cadence");
+        check(runtime.config().shieldBalance().durability().get(EquipmentTier.LATENT)
+                        ==new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.SHIELD).getMaxDamage()
+                        &&runtime.config().fishingRodBalance().tier(EquipmentTier.LATENT).durability()
+                        ==new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.FISHING_ROD).getMaxDamage(),
+                "Families without iron variants retain the corresponding native shield/rod durability");
+        for(var tier:AscendanceTierRegistry.values()) {
+            var row=runtime.config().equipmentBaselineConfig().baselineFor(tier);
+            check(row.magicDamage()<row.rangedDamage()
+                            &&EquipmentWeaponService.rateToTicks(row.magicCastSpeed())<EquipmentWeaponService.rateToTicks(row.rangedAttackSpeed()),
+                    "Caster must hit less and fire faster than the corresponding bow in native ticks: "+tier.id());
+        }
+        var projectiles=runtime.config().skillEffects().projectiles();
+        check(projectiles.caster().range()==projectiles.arrow().range()/8,
+                "The caster must retain its short-range identity in the authoritative projectile profile");
+    }
     private static void verifyEquipmentNormalization(PackEvidence evidence,RuntimeBalanceDefinition generated) {
         var apexTier=AscendanceTiers.TRANSCENDENT.id();
         var curve=new LinkedHashMap<net.minecraft.resources.ResourceLocation,com.mistaboom.essence_ascendance.equipment.EquipmentBaselineConfig.TierBaseline>();
         var apex=new com.mistaboom.essence_ascendance.equipment.EquipmentBaselineConfig.TierBaseline(42,16,28,4.6,28,4.6,16.8,7.666666666,24,3,3780);
         var earlier=new com.mistaboom.essence_ascendance.equipment.EquipmentBaselineConfig.TierBaseline(14,0,7,2.3,14,2.3,8.4,3.833333333,6,2,945);
+        var oldStart=new EquipmentBaselineConfig.TierBaseline(0,0,1,1,1,1,.6,1/.6,1,2,1);
+        curve.put(AscendanceTiers.LATENT.id(),oldStart);
         curve.put(AscendanceTiers.DORMANT.id(),earlier);curve.put(apexTier,apex);
         RuntimeEquipmentNormalization.apply(curve,evidence,BalanceSettings.defaults(),new TreeMap<>());
         for(var property:com.mistaboom.essence_ascendance.equipment.EquipmentBaselineProperty.values()) {
-            double before=earlier.value(property)/apex.value(property);
-            double after=curve.get(AscendanceTiers.DORMANT.id()).value(property)/curve.get(apexTier).value(property);
+            var source=property==EquipmentBaselineProperty.MAGIC_DAMAGE?EquipmentBaselineProperty.RANGED_DAMAGE:
+                    property==EquipmentBaselineProperty.MAGIC_CAST_SPEED?EquipmentBaselineProperty.RANGED_ATTACK_SPEED:property;
+            double before=(earlier.value(source)-oldStart.value(source))/(apex.value(source)-oldStart.value(source));
+            double start=curve.get(AscendanceTiers.LATENT.id()).value(property);
+            double end=curve.get(apexTier).value(property);
+            if(end==start)continue;
+            double after=(curve.get(AscendanceTiers.DORMANT.id()).value(property)-start)/(end-start);
             double tolerance=property==com.mistaboom.essence_ascendance.equipment.EquipmentBaselineProperty.DURABILITY?1.0/curve.get(apexTier).durability():1e-12;
-            check(Math.abs(before-after)<=tolerance,"Endpoint normalization reshaped the tier curve for "+property);
+            check(Math.abs(before-after)<=tolerance,"Iron-to-pack interpolation reshaped the relative tier curve for "+property);
         }
         check(curve.get(AscendanceTiers.DORMANT.id()).harvestLevel()==2&&curve.get(apexTier).harvestLevel()==3,
                 "Discrete harvest progression did not advance with equipment infusion");
@@ -414,7 +457,8 @@ public final class RuntimeBalanceTest {
         var caster=RuntimeReferencePolicy.weapon(paired,ProgressionBand.APEX,"caster","EXCLUDE_UNSUPPORTED");
         check(melee.damage()==8&&melee.rate()==2,"Melee reference inherited another family's cadence");
         check(ranged.damage()==9&&ranged.rate()==.8,"Ranged reference lost its winning weapon pairing");
-        check(caster.damage()==4&&caster.rate()==3&&caster.familyObserved(),"Provider caster reference ignored");
+        check(caster.equals(RuntimeReferencePolicy.casterFromBow(ranged))&&!caster.familyObserved(),
+                "Caster must derive from the corresponding bow instead of unrelated provider caster artifacts");
         var armor=RuntimeReferencePolicy.armor(paired,ProgressionBand.APEX,"EXCLUDE_UNSUPPORTED",10);
         check(armor.armor()==10&&armor.toughness()==0,"Armor reference invented a set with incompatible slot maxima");
         var unguarded=RuntimeBalanceDefinition.generate(evidence,BalanceSettings.defaults(),BalanceOverrides.empty());

@@ -45,6 +45,7 @@ public final class NexusAttunementPresentationTest {
         handoff.begin("awakened");
         check(!handoff.ready(true, 9, "resonant"), "Previous acknowledgement cannot authorize next chapter");
         actionPriority();
+        completedPresentation();
         navigation();
         System.out.println("NexusAttunementPresentationTest: " + checks + " checks PASS");
     }
@@ -65,9 +66,11 @@ public final class NexusAttunementPresentationTest {
         var ascend = NexusAscendanceAction.resolve(available, true, false, false, false);
         check(ascend.kind() == NexusAscendanceAction.Kind.ASCEND && ascend.enabled(),
                 "Ascend becomes available only for a clean draft with completed requirements");
-        check(NexusAscendanceAction.resolve(maxTier, true, false, false, false).kind()
-                        == NexusAscendanceAction.Kind.MAXIMUM_TIER,
-                "Maximum tier replaces the Ascend action");
+        var complete = NexusAscendanceAction.resolve(maxTier, true, false, false, false);
+        check(complete.kind() == NexusAscendanceAction.Kind.MAXIMUM_TIER && !complete.visible() && !complete.enabled(),
+                "Maximum tier has no redundant disabled Ascend/maximum action");
+        check(NexusAscendanceAction.resolve(maxTier, true, true, false, false).visible(),
+                "Completed Ascendance still permits ordinary pending allocation changes");
         check(NexusAscendanceAction.resolve(configurationError, true, false, false, false).kind()
                         == NexusAscendanceAction.Kind.UNAVAILABLE,
                 "Configuration errors cannot expose Ascend");
@@ -77,6 +80,31 @@ public final class NexusAttunementPresentationTest {
         var applying = NexusAscendanceAction.resolve(available, true, true, false, true);
         check(applying.kind() == NexusAscendanceAction.Kind.APPLYING && !applying.enabled(),
                 "A pending server request disables the shared action");
+    }
+    private static void completedPresentation() {
+        var current = net.minecraft.network.chat.Component.literal("Transcendent");
+        var next = net.minecraft.network.chat.Component.literal("No further tier");
+        var labels = com.mistaboom.essence_ascendance.client.NexusAttunementView.centerLabels(true, current, next);
+        check(labels.size() == 1 && labels.getFirst().getString().equals("Transcendent"),
+                "The completed medallion has exactly one tier label and no arrow or duplicate destination");
+        check(com.mistaboom.essence_ascendance.client.NexusAttunementView.centerLabels(false, current, next).size() == 3,
+                "An unfinished transition retains its actual current, direction and next-tier labels");
+        var maximum = new com.mistaboom.essence_ascendance.attunement.AttunementSnapshot("", 0, 0, true, java.util.List.of());
+        var tooltip = com.mistaboom.essence_ascendance.client.NexusAttunementView.centerTooltip(maximum, current, next, 0xFFFFFF);
+        check(tooltip.lines().size() == 2 && tooltip.lines().getFirst().content().getString().equals("Transcendent"),
+                "Maximum hover states the achieved tier once, followed by completion");
+        check(tooltip.lines().stream().noneMatch(line -> line.content().getString().contains("->")
+                        || line.content().getString().contains("seals") || line.content().getString().contains("choice")
+                        || line.content().getString().contains("No further tier")),
+                "Completed hover never suggests another destination or more category seals");
+        var view = new com.mistaboom.essence_ascendance.client.NexusAttunementView();
+        view.prepare(maximum, new com.mistaboom.essence_ascendance.client.ui.UiBounds(0, 0, 480, 280));
+        var layout = NexusConstellationLayout.create(0, 0, 480, 280, 0);
+        check(view.click(layout.centerX(), layout.centerY()) == com.mistaboom.essence_ascendance.client.NexusAttunementView.Click.HANDLED,
+                "Clicking a completed medallion does not request Ascension");
+        view.key(258, false);
+        check(view.key(257, false) == com.mistaboom.essence_ascendance.client.NexusAttunementView.Click.HANDLED,
+                "Keyboard activation also respects the completed state");
     }
     private static void navigation() {
         NexusNavigationState.clearSession();

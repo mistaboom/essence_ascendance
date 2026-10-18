@@ -3,7 +3,7 @@ package com.mistaboom.essence_ascendance.balance.runtime;
 import com.google.gson.*;
 import com.mistaboom.essence_ascendance.balance.config.BalanceSettings;
 import com.mistaboom.essence_ascendance.balance.engine.*;
-import com.mistaboom.essence_ascendance.balance.config.BonusProgressionConfig;
+import com.mistaboom.essence_ascendance.balance.config.BonusSettingsConfig;
 import com.mistaboom.essence_ascendance.skill.ProgressionRequirements;
 import com.mistaboom.essence_ascendance.equipment.ShieldMath;
 import com.mistaboom.essence_ascendance.stat.*;
@@ -22,12 +22,12 @@ public final class BonusTrackGenerator {
     }
     public static RuntimeBalanceDefinition publishMeaningful(RuntimeBalanceDefinition nominal,
             Map<ResourceLocation, com.mistaboom.essence_ascendance.skill.ProgressionRequirements.Bonus> requirements) {
-        return publishMeaningful(nominal, requirements, BonusProgressionConfig.automatic());
+        return publishMeaningful(nominal, requirements, BonusSettingsConfig.automatic());
     }
     public static RuntimeBalanceDefinition publishMeaningful(RuntimeBalanceDefinition nominal,
-            Map<ResourceLocation, ProgressionRequirements.Bonus> requirements, BonusProgressionConfig configuration) {
+            Map<ResourceLocation, ProgressionRequirements.Bonus> requirements, BonusSettingsConfig configuration) {
         for (String id : configuration.entries().keySet()) if (EssenceStatRegistry.get(ResourceLocation.parse(id)).isEmpty())
-            throw new IllegalArgumentException("bonus_progression.toml: Unknown Bonus ID " + id);
+            throw new IllegalArgumentException("bonus_settings.toml: Unknown Bonus ID " + id);
         var json = nominal.toJson();
         var tracks = new TreeMap<ResourceLocation, BonusTrackDefinition>();
         for (var stat : EssenceStatRegistry.values()) {
@@ -37,7 +37,7 @@ public final class BonusTrackGenerator {
                 tracks.put(stat.id(), publishNative(nominal, stat, track, authored, configuration.entries().get(stat.id().toString())));
             } catch (IllegalArgumentException invalid) {
                 if (!configuration.entries().containsKey(stat.id().toString())) throw invalid;
-                throw new IllegalArgumentException("bonus_progression.toml: " + stat.id() + ": " + invalid.getMessage(), invalid);
+                throw new IllegalArgumentException("bonus_settings.toml: " + stat.id() + ": " + invalid.getMessage(), invalid);
             }
         }
         json.getAsJsonObject("balanceProfile").add("bonusTracks", toJson(tracks));
@@ -55,7 +55,7 @@ public final class BonusTrackGenerator {
         return publishNative(runtime, stat, track, authored, null);
     }
     private static BonusTrackDefinition publishNative(RuntimeBalanceDefinition runtime, StatDefinition stat,
-            BonusTrackDefinition track, ProgressionRequirements.Bonus authored, BonusProgressionConfig.Entry configured) {
+            BonusTrackDefinition track, ProgressionRequirements.Bonus authored, BonusSettingsConfig.Entry configured) {
         if (track.applicability() == BonusTrackDefinition.Applicability.UNAVAILABLE) {
             if (configured != null) throw new IllegalArgumentException("Configured Bonus has no supported native state");
             return track;
@@ -103,7 +103,7 @@ public final class BonusTrackGenerator {
         return plan(nominal, requirements, null);
     }
     private static BonusTrackDefinition plan(BonusTrackDefinition nominal, ProgressionRequirements.Bonus required,
-            BonusProgressionConfig.Entry configured) {
+            BonusSettingsConfig.Entry configured) {
         if (nominal.applicability() == BonusTrackDefinition.Applicability.UNAVAILABLE) return nominal;
         var tiers = AscendanceTierRegistry.powerTiers().stream().sorted(Comparator.comparingInt(AscendanceTierDefinition::order)).toList();
         var stat = EssenceStatRegistry.get(nominal.statId()).orElseThrow();

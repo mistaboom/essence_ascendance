@@ -139,12 +139,12 @@ public final class NexusAttunementView {
             GuiProceduralGeometry.crystal(graphics, cx, cy, centerRadius,
                     maximum ? 1 : state.completedCategories() / (double) Math.max(1, state.requiredCategories()), centralColor);
             // Whole-pixel text stays legible in the bounded medallion; hover retains full tier names.
-            centeredFit(graphics, font, currentTier, cx, cy - 11, centerRadius * 2 - 2,
-                    centralMetal);
-            centeredFit(graphics, font, maximum ? EssenceText.gui("nexus.maximum") : Component.literal("↓"),
-                    cx, cy - 1, centerRadius * 2 - 2, TEXT);
-            centeredFit(graphics, font, maximum ? currentTier : nextTier, cx, cy + 9,
-                    centerRadius * 2 - 2, destinationMetal);
+            var labels = centerLabels(maximum, currentTier, nextTier);
+            for (int i = 0; i < labels.size(); i++) {
+                int y = cy - font.lineHeight / 2 + (int) Math.round((i - (labels.size() - 1) / 2.0) * 10);
+                centeredFit(graphics, font, labels.get(i), cx, y, centerRadius * 2 - 2,
+                        i == 0 ? centralMetal : i == labels.size() - 1 ? destinationMetal : TEXT);
+            }
             int sockets = maximum ? state.categories().size() : state.requiredCategories();
             for (int i = 0; i < sockets; i++) {
                 double a = Math.PI * 2 * i / Math.max(1, sockets) - Math.PI / 2;
@@ -188,13 +188,23 @@ public final class NexusAttunementView {
                 if (focus) hovered = overview(category, maximum);
             }
             if (layout.medallionContains(mouseX, mouseY) || focus.isFocused(MEDALLION_FOCUS)) {
-                hovered = new SemanticTooltip().title(EssenceText.gui("nexus.attunement.title"), centralMetal)
-                        .field(currentTier.copy().append(" -> ").append(maximum ? currentTier : nextTier))
-                        .description(maximum ? EssenceText.gui("nexus.maximum_achieved")
-                                : EssenceText.gui("nexus.attunement.seals", state.completedCategories(), state.requiredCategories()))
-                        .hint(EssenceText.gui(ready && !maximum ? "nexus.ready_to_ascend" : "nexus.attunement.choice"));
+                hovered = centerTooltip(state, currentTier, nextTier, centralMetal);
             }
         });
+    }
+
+    /** Completed Ascendance has one tier label and no invented destination. */
+    public static List<Component> centerLabels(boolean maximum, Component currentTier, Component nextTier) {
+        return maximum ? List.of(currentTier) : List.of(currentTier, Component.literal("↓"), nextTier);
+    }
+
+    public static SemanticTooltip centerTooltip(AttunementSnapshot state, Component currentTier, Component nextTier, int color) {
+        if (state.maximumTier()) return new SemanticTooltip().title(currentTier, color)
+                .description(EssenceText.gui("nexus.maximum_achieved"));
+        return new SemanticTooltip().title(EssenceText.gui("nexus.attunement.title"), color)
+                .field(currentTier.copy().append(" -> ").append(nextTier))
+                .description(EssenceText.gui("nexus.attunement.seals", state.completedCategories(), state.requiredCategories()))
+                .hint(EssenceText.gui(state.ready() ? "nexus.ready_to_ascend" : "nexus.attunement.choice"));
     }
 
     private SemanticTooltip overview(AttunementSnapshot.Category category, boolean maximum) {
@@ -269,7 +279,8 @@ public final class NexusAttunementView {
             open(node.index());
             return Click.HANDLED;
         }
-        return layout.medallionContains(x, y) ? Click.ASCEND : Click.NONE;
+        if (!layout.medallionContains(x, y)) return Click.NONE;
+        return snapshot.maximumTier() ? Click.HANDLED : Click.ASCEND;
     }
 
     public boolean scroll(double x, double y, double amount) {
@@ -291,7 +302,7 @@ public final class NexusAttunementView {
             return Click.HANDLED;
         }
         if ((key == 257 || key == 335 || key == 32) && focus.focused().isPresent()) {
-            if (focus.isFocused(MEDALLION_FOCUS)) return Click.ASCEND;
+            if (focus.isFocused(MEDALLION_FOCUS)) return snapshot.maximumTier() ? Click.HANDLED : Click.ASCEND;
             open(focusOrder.indexOf(focus.focused().orElseThrow()));
             return Click.HANDLED;
         }

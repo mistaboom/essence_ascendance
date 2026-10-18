@@ -33,8 +33,12 @@ public final class FishingRodBalanceGenerator {
             speed = Math.min(3 - remaining * .01, Math.max(priorSpeed + .01, round(speed)));
             acceleration = Math.min(.5 - remaining * .001, Math.max(priorAcceleration + .001, round(acceleration)));
             force = Math.min(1 - remaining * .001, Math.max(priorForce + .001, round(force)));
+            var start=equipment.get(com.mistaboom.essence_ascendance.tier.AscendanceTiers.LATENT.id());
+            var end=equipment.get(com.mistaboom.essence_ascendance.tier.AscendanceTiers.TRANSCENDENT.id());
             int durability = Math.min(Integer.MAX_VALUE / 64 - remaining,
-                    Math.max(Math.max(64, priorDurability + 1), equipment.get(tier.ascendanceTier().id()).durability()));
+                    Math.max(priorDurability + 1,(int)Math.round(RuntimeEquipmentNormalization.interpolate(
+                            equipment.get(tier.ascendanceTier().id()).durability(),start.durability(),end.durability(),
+                            64,Math.max(64,end.durability()),tier.ordinal()/(double)(EquipmentTier.values().length-1)))));
             double gravity = Math.max(.001 + remaining * .001, Math.min(priorGravity - .001, round(.03 / (1 + 4 * fraction))));
             rows.put(tier, new FishingRodBalanceSettings.Tier(range, cast, gravity,
                     acceleration, Math.max(acceleration, force), speed, durability));

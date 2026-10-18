@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Deliberately bounded TOML reader for the two documented balance input schemas.
+ * Deliberately bounded TOML reader for the documented balance input schemas.
  * Supports named tables, array tables, quoted/bare keys, basic/literal strings,
  * decimal numbers, booleans and primitive arrays (including multiline arrays).
  * Unsupported TOML constructs fail with their source line instead of being ignored.

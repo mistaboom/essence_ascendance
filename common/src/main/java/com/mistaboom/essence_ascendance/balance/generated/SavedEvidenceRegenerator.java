@@ -24,7 +24,10 @@ public final class SavedEvidenceRegenerator {
         metadata.addProperty("dissolutionAccounting", "whole_essence_v1");
         metadata.addProperty("capturedAt", java.time.Instant.now().toString());
         metadata.addProperty("diagnosticOnly", true);
-        metadata.add("generation", generationProvenance);
+        var capturedInputs = generationProvenance.deepCopy();
+        capturedInputs.add("skillSettings", BalanceDocument.GSON.toJsonTree(inputs.skillSettings()));
+        capturedInputs.add("bonusSettings", BalanceDocument.GSON.toJsonTree(inputs.bonusSettings()));
+        metadata.add("generation", capturedInputs);
         JsonObject validation = new JsonObject();
         validation.addProperty("runtime", "failed");
         validation.addProperty("failure", failure.toString());
@@ -64,9 +67,9 @@ public final class SavedEvidenceRegenerator {
         EconomyGenerator.validateWhole(economy);
         var generation = metadata.has("generation") ? metadata.getAsJsonObject("generation") : new JsonObject();
         RuntimeBalanceDefinition runtime = com.mistaboom.essence_ascendance.balance.runtime.RuntimeBalanceGenerator.generate(
-                evidence, economy, inputs.settings(), inputs.overrides(), inputs.skillLayout(), inputs.bonusProgression());
-        generation.add("skillLayout", gson.toJsonTree(inputs.skillLayout()));
-        generation.add("bonusProgression", gson.toJsonTree(inputs.bonusProgression()));
+                evidence, economy, inputs.settings(), inputs.overrides(), inputs.skillSettings(), inputs.bonusSettings());
+        generation.add("skillSettings", gson.toJsonTree(inputs.skillSettings()));
+        generation.add("bonusSettings", gson.toJsonTree(inputs.bonusSettings()));
         metadata.add("generation", generation);
         metadata.remove("diagnosticOnly");
         metadata.addProperty("generatorRevision", GeneratedBalanceService.GENERATION_REVISION);

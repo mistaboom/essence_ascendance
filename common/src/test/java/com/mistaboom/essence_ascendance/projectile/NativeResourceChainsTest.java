@@ -41,9 +41,6 @@ public final class NativeResourceChainsTest {
         if (!Boolean.getBoolean("essence.projectile.nativeHookTest")) throw new IllegalStateException("Explicit native fixture required");
         var f = new ProjectileNativeInterceptionTest.Fixture(NativeGuardOutcomeTest.NativePlayer.class);
         NativeGuardOutcomeTest.registry(f);
-        var inventoryMenu = new net.minecraft.world.inventory.InventoryMenu(f.player.getInventory(), true, f.player);
-        ProjectileNativeInterceptionTest.set(net.minecraft.world.entity.player.Player.class, f.player, "inventoryMenu", inventoryMenu);
-        f.player.containerMenu = inventoryMenu;
         f.level.memoryBlocks = new HashMap<>();
         var oldTags = new HashMap<net.minecraft.tags.TagKey<Block>, List<Holder<Block>>>();
         BuiltInRegistries.BLOCK.getTags().forEach(entry -> oldTags.put(entry.getFirst(), entry.getSecond().stream().toList()));

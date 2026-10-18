@@ -73,7 +73,9 @@ public record ProjectileBalanceSettings(
     public static ProjectileBalanceSettings defaults() {
         double ricochetRadius = 8;
         double retention = 0.75;
-        Profile caster = new Profile(20, 3, 80, 20, 10, 12);
+        Profile arrow = new Profile(160, 3, 200, 64, 10, 2);
+        // The caster trades the bow's long reach for a rapid-fire short-range role.
+        Profile caster = new Profile(arrow.range() / 8, arrow.speed(), 80, arrow.range() / 8, 10, 12);
         // Ratios share established path range, lifetime and retention references. They are
         // generator seeds, never tier/rank arrays or constants hidden in gameplay handlers.
         Payload payload = new Payload(1 + 2, ricochetRadius / 2, 1 - retention,
@@ -81,7 +83,7 @@ public record ProjectileBalanceSettings(
         Control control = new Control(ricochetRadius * 1.5, caster.speed(), (1 - retention) / 2, retention,
                 2, caster.speed(), 0.5, 35, 0.9, 16, 2 - retention,
                 caster.acquisitionRange(), 35 + caster.acquisitionConeDegrees(), caster.turnDegreesPerTick() * 1.5, 1);
-        return new ProjectileBalanceSettings(new Profile(160, 3, 200, 64, 10, 2),
+        return new ProjectileBalanceSettings(arrow,
                 caster, 1, ricochetRadius, retention, 2, 0.80, 0.80, 64, 16, payload, control);
     }
     public int payloadTriggerBudget() { return payload.triggerBudget(); }

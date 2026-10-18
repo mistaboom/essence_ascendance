@@ -1,3 +1,5 @@
+> **Historical workflows from the earlier generator.** The acquisition/provider examples and retired report names below are not current configuration instructions. Use [Configuration](https://github.com/mistaboom/essence_ascendance/wiki/Configuration), [Reports](https://github.com/mistaboom/essence_ascendance/wiki/Reports-and-Provenance) and [the current model](https://github.com/mistaboom/essence_ascendance/blob/main/docs/simple-balance.md) for the supported inputs. These examples remain as dated documentation, not new test receipts.
+
 # Worked scenarios for pack makers
 
 [Home](https://github.com/mistaboom/essence_ascendance/wiki/Home) · [Configuration](https://github.com/mistaboom/essence_ascendance/wiki/Configuration) · [Reports](https://github.com/mistaboom/essence_ascendance/wiki/Reports-and-Provenance)

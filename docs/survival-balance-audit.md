@@ -1,3 +1,5 @@
+> **Historical engineering record.** The dated results below describe earlier implementations and remain preserved as evidence. Current configuration, item/recipe estimates and editable Skill/Bonus progression are documented in [Simple balance generation](simple-balance.md). Earlier acquisition/provider analysis and stopping instructions do not describe the current generator.
+
 # Durability and hunger balance audit — October 11, 2026
 
 Reference: the saved vanilla headless profile from `validation/performance/20261008-engineering-completion/vanilla/final-1/profile-1.json.gz` in the auxiliary workspace. The first table is the **before** state. Regenerated results and native test evidence appear below; arithmetic gameplay comparisons are projections from native rules, not measured player sessions.

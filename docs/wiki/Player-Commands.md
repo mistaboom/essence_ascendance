@@ -102,7 +102,7 @@ Use `attunement` first to review readiness. Administrators testing transitions s
 | `/essence team transfer <member>` | Native owner; successor must be a current member. Transfers management, preserves roster/funds, and reports completion. **Changes control:** verify successor. | `/essence team transfer 00000000-0000-0000-0000-000000000001` |
 | `/essence team disband` | Native owner must be the final member. Ends team and returns stored/device ownership through personal lifecycle; reports completion. **Dissolves team:** stage or back up first. | `/essence team disband` |
 
-Rejected native operations return the handler's reason and do not silently fall back to external or solo membership. A request is not a membership grant. The personal request/approval GUI is on the actual machine; external FTB Teams/OpenPAC installations hide M even if saved authority is still native.
+Rejected native operations return the handler's reason and do not silently fall back to external or solo membership. A request is not a membership grant. The personal request/approval GUI is on the actual machine; an FTB Teams installation hides M even if saved authority is still native.
 
 ## Machine controls: beta.5
 

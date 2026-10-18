@@ -1,3 +1,5 @@
+> **Historical engineering record.** The dated results below describe earlier implementations and remain preserved as evidence. Current configuration, item/recipe estimates and editable Skill/Bonus progression are documented in [Simple balance generation](simple-balance.md). Earlier acquisition/provider analysis and stopping instructions do not describe the current generator.
+
 # Procedural skill progression
 
 The shared `mechanical-utility-1` policy determines progression for every registered skill, including unique Essence mechanics without an admitted external substitute. Catalog placement remains a historical reference, not a computed output target. Native environment evidence determines published ranks, prices and Bonus ranges. Dated continuation sections below preserve earlier results and limitations; their stopping instructions and human-playtesting gates are historical. The current engineering phase uses five isolated native fixtures and automated acceptance; subjective pacing and feel belong to subsequent player tuning.

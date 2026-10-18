@@ -2,7 +2,7 @@
 
 [Balance lifecycle](https://github.com/mistaboom/essence_ascendance/wiki/Balance-Generation) · [Administration commands](https://github.com/mistaboom/essence_ascendance/wiki/Administration-Commands)
 
-A pack update can change prices, attainable references, ranks or activity calibration. Plan that change; the saved-profile system deliberately avoids automatic recalibration on every restart.
+A pack update can change prices, measured catalog references, ranks or activity calibration. Plan that change; the saved-profile system deliberately avoids automatic recalibration on every restart.
 
 ## Keep a recoverable set
 
@@ -10,7 +10,9 @@ Back up the following together with the installed mod/loader/MC version list:
 
 | Content | Why |
 | --- | --- |
-| `config/essence_ascendance.toml` and `balance_overrides.toml` | Human intent and factual corrections |
+| `config/essence_ascendance.toml` | Global policy |
+| `config/essence_ascendance/skill_settings.toml` and `bonus_settings.toml` | Editable Skill ranks/stats/unlocks and Bonus bounds |
+| `config/essence_ascendance/balance_overrides.toml` | Advanced measurement and exact-value corrections |
 | `config/essence_ascendance/generated_balance.json.gz` | Exact old server authority |
 | Reports/diagnostics you need | Before/after reasoning and integrity; derived, not substitutes for the profile |
 | Complete world backup | Player progression, inventories, entities, machines and world state |
@@ -20,7 +22,9 @@ Relevant Overworld files are `<world>/data/essence_ascendance_players.dat` and `
 
 Use a stopped server or your backup system's consistent snapshot procedure. Copying changing world files independently can produce an inconsistent backup.
 
-## Multiplayer persistence and upgrades
+The current simple-generator development revision requires fresh saves, worlds and configs when replacing the older generation/metadata formats. It does not migrate old Skill/Bonus filenames or schemas. Preserve old inputs with their matching build; see [the current model](https://github.com/mistaboom/essence_ascendance/blob/main/docs/simple-balance.md).
+
+## Historical beta.5 multiplayer persistence boundary
 
 **Beta.5 persistence:** shared Stored shares, reservoir fractional carry/remainder cursors, settled roster/departure/dissolution/ownership receipts, native names/requests, saved authority/solo identities and player receiving selections live in **`<world>/data/essence_ascendance_players.dat`**. This is one authoritative SavedData file, not a separate team-bank file. The fractional-accounts file above continues to hold other non-reservoir accounting. Machine bindings, links, inventory and paid-job state also live in chunk/block-entity data; portable jobs and inventory must remain coordinated with their world/player state. External providers persist their own party/configuration state, which belongs in the same complete backup.
 
@@ -58,7 +62,7 @@ After backing up and staging:
 /essence admin balance export
 ```
 
-All require permission 2 and support console. **Rebuild replaces saved/runtime balance and can block the server thread.** Export writes derived reports, including exhaustive source tables. It does not perform a second generation.
+All require permission 2 and support console. **Rebuild replaces saved/runtime balance and can block the server thread.** Export writes derived reports, including advisory loaded-recipe tables. It does not perform a second generation.
 
 Check install success, saved integrity, report manifest and client synchronization separately. Reconnect an affected client when synchronization has failed. A report failure after install does not mean the old balance is still active.
 

@@ -1,6 +1,6 @@
 package com.mistaboom.essence_ascendance.balance.runtime;
 
-import com.mistaboom.essence_ascendance.balance.config.BonusProgressionConfig;
+import com.mistaboom.essence_ascendance.balance.config.BonusSettingsConfig;
 import com.mistaboom.essence_ascendance.essence.EssenceTypes;
 import com.mistaboom.essence_ascendance.progression.*;
 import com.mistaboom.essence_ascendance.skill.Skills;
@@ -10,20 +10,20 @@ import java.nio.file.Files;
 import java.util.Map;
 
 /** Generated editable defaults, exact human bounds and native incompatibility rejection. */
-public final class BonusProgressionConfigTest {
+public final class BonusSettingsConfigTest {
     private static int checks;
     public static void main(String[] args) throws Exception {
         var directory = Files.createTempDirectory("essence-bonus-config-");
-        var file = BonusProgressionConfig.path(directory);
+        var file = BonusSettingsConfig.path(directory);
         try {
-            check(BonusProgressionConfig.read(directory).equals(BonusProgressionConfig.automatic()), "Absent file must request automatic generation");
+            check(BonusSettingsConfig.read(directory).equals(BonusSettingsConfig.automatic()), "Absent file must request automatic generation");
             check(!Files.exists(file), "Reading absent input created defaults before a valid generation");
-            rejects("ascending order", () -> BonusProgressionConfig.parse(row("movement_speed", "ascendant", "dormant", 40, 10), "test.toml"));
-            rejects("Missing Bonus setting", () -> BonusProgressionConfig.parse("[[bonus]]\nid='essence_ascendance:movement_speed'", "test.toml"));
-            rejects("minimum_bonus_at_lowest", () -> BonusProgressionConfig.parse(row("movement_speed", "dormant", "awakened", 10, 20), "test.toml"));
+            rejects("ascending order", () -> BonusSettingsConfig.parse(row("movement_speed", "ascendant", "dormant", 40, 10), "test.toml"));
+            rejects("Missing Bonus setting", () -> BonusSettingsConfig.parse("[[bonus]]\nid='essence_ascendance:movement_speed'", "test.toml"));
+            rejects("minimum_bonus_at_lowest", () -> BonusSettingsConfig.parse(row("movement_speed", "dormant", "awakened", 10, 20), "test.toml"));
             String valid = row("movement_speed", "dormant", "awakened", 40, 20);
-            rejects("Duplicate Bonus ID", () -> BonusProgressionConfig.parse(valid + valid, "test.toml"));
-            rejects("schema_version", () -> BonusProgressionConfig.parse("schema_version=2", "test.toml"));
+            rejects("Duplicate Bonus ID", () -> BonusSettingsConfig.parse(valid + valid, "test.toml"));
+            rejects("schema_version", () -> BonusSettingsConfig.parse("schema_version=2", "test.toml"));
 
             net.minecraft.SharedConstants.tryDetectVersion(); net.minecraft.server.Bootstrap.bootStrap();
             EssenceTypes.init(); EssenceStats.init(); AscendanceTiers.init();
@@ -35,8 +35,8 @@ public final class BonusProgressionConfigTest {
                     com.mistaboom.essence_ascendance.balance.config.BalanceSettings.defaults(),
                     com.mistaboom.essence_ascendance.balance.config.BalanceOverrides.empty());
             var original = runtime.config().balanceProfile().bonusTracks();
-            BonusProgressionConfig.writeGeneratedDefaults(directory, original);
-            var emitted = BonusProgressionConfig.read(directory);
+            BonusSettingsConfig.writeGeneratedDefaults(directory, original);
+            var emitted = BonusSettingsConfig.read(directory);
             try (var siblings = Files.list(file.getParent())) {
                 check(siblings.count() == 1, "Successful defaults publication left a temporary file");
             }
@@ -56,7 +56,7 @@ public final class BonusProgressionConfigTest {
             var rebuilt = RuntimeBalanceGenerator.generate(evidence, null,
                     com.mistaboom.essence_ascendance.balance.config.BalanceSettings.defaults(),
                     com.mistaboom.essence_ascendance.balance.config.BalanceOverrides.empty(),
-                    com.mistaboom.essence_ascendance.balance.config.SkillLayoutConfig.defaults(), emitted);
+                    com.mistaboom.essence_ascendance.balance.config.SkillSettingsConfig.defaults(), emitted);
             check(rebuilt.toJson().equals(runtime.toJson()), "Untouched emitted controls changed a fresh complete runtime generation");
             check(RuntimeValueQuantization.reconstructedGridValue(.7000000000000001, .1) == .7,
                     "Derived fractional endpoint retained multiplication noise");
@@ -77,43 +77,43 @@ public final class BonusProgressionConfigTest {
                     AscendanceTiers.TRANSCENDENT.id(), AscendanceTiers.TRANSCENDENT.id(), singlePoints,
                     step.investmentExponent(), BonusTrackDefinition.PurchaseStyle.CONTINUOUS, java.util.List.of(),
                     step.applicability(), step.compatibilityRequirements(), step.confidence(), step.evidence(), step.source(), step.inputs());
-            var nativeControls = BonusProgressionConfig.generatedEntry(nativeSingle);
+            var nativeControls = BonusSettingsConfig.generatedEntry(nativeSingle);
             check(nativeControls.bonusAtMax() == nativeBoundary && nativeControls.minimumBonusAtLowest() == nativeBoundary,
                     "Generated controls altered a real off-grid native Step Height endpoint");
-            var changed = BonusTrackGenerator.publishMeaningful(runtime, Map.of(), BonusProgressionConfig.parse(valid, "test.toml"))
+            var changed = BonusTrackGenerator.publishMeaningful(runtime, Map.of(), BonusSettingsConfig.parse(valid, "test.toml"))
                     .config().balanceProfile().bonusTracks().get(EssenceStats.MOVEMENT_SPEED.id());
             check(changed.startTier().equals(AscendanceTiers.DORMANT.id()) && changed.completionTier().equals(AscendanceTiers.AWAKENED.id()),
                     "Explicit first and completion tiers were silently moved");
             check(changed.maximumEffect() == 40 && changed.activeValues().getFirst() >= 20 && changed.activeStateCount() == 2,
                     "Explicit maximum/first floor did not govern meaningful native values");
-            var damage = BonusTrackGenerator.publishMeaningful(runtime, Map.of(), BonusProgressionConfig.parse(
+            var damage = BonusTrackGenerator.publishMeaningful(runtime, Map.of(), BonusSettingsConfig.parse(
                     row("melee_damage", "resonant", "transcendent", 5, 1), "test.toml"))
                     .config().balanceProfile().bonusTrack(EssenceStats.MELEE_DAMAGE.id());
             check(projectedValues(damage).equals(java.util.List.of(1.0, 2.6, 5.0)),
                     "Explicit flat damage bounds use the same increasing native progression curve; actual=" + damage.activeValues());
-            check(BonusProgressionConfig.generatedEntry(damage).equals(new BonusProgressionConfig.Entry(
+            check(BonusSettingsConfig.generatedEntry(damage).equals(new BonusSettingsConfig.Entry(
                     AscendanceTiers.RESONANT.id().toString(), AscendanceTiers.TRANSCENDENT.id().toString(), 5, 1)),
                     "Generated controls preserve the exact flat damage span, maximum and first minimum");
-            var breath = BonusTrackGenerator.publishMeaningful(runtime, Map.of(), BonusProgressionConfig.parse(
+            var breath = BonusTrackGenerator.publishMeaningful(runtime, Map.of(), BonusSettingsConfig.parse(
                     row("breath_hold", "resonant", "transcendent", 62.9, 5), "test.toml"))
                     .config().balanceProfile().bonusTrack(EssenceStats.BREATH_HOLD.id());
             check(projectedValues(breath).equals(java.util.List.of(5.0, 28.2, 62.9)),
                     "An explicit wider span distributes its remaining maximum across later native intervals; actual=" + breath.activeValues());
-            var narrowBreath = BonusTrackGenerator.publishMeaningful(runtime, Map.of(), BonusProgressionConfig.parse(
+            var narrowBreath = BonusTrackGenerator.publishMeaningful(runtime, Map.of(), BonusSettingsConfig.parse(
                     row("breath_hold", "ascendant", "transcendent", 62.9, 5), "test.toml"))
                     .config().balanceProfile().bonusTrack(EssenceStats.BREATH_HOLD.id());
             check(narrowBreath.startTier().equals(AscendanceTiers.ASCENDANT.id())
                             && projectedValues(narrowBreath).equals(java.util.List.of(5.0, 62.9)),
                     "A narrow explicit interval is authoritative; the planner cannot invent an earlier configured tier");
             rejects("unit grid", () -> BonusTrackGenerator.publishMeaningful(runtime, Map.of(),
-                    BonusProgressionConfig.parse(row("movement_speed", "dormant", "awakened", 40.5, 20), "test.toml")));
+                    BonusSettingsConfig.parse(row("movement_speed", "dormant", "awakened", 40.5, 20), "test.toml")));
             rejects("first floor", () -> BonusTrackGenerator.publishMeaningful(runtime, Map.of(),
-                    BonusProgressionConfig.parse(row("movement_speed", "dormant", "dormant", 1, 1), "test.toml")));
+                    BonusSettingsConfig.parse(row("movement_speed", "dormant", "dormant", 1, 1), "test.toml")));
             rejects("native ceiling", () -> BonusTrackGenerator.publishMeaningful(runtime, Map.of(),
-                    BonusProgressionConfig.parse(row("max_health", "dormant", "transcendent", 1000, 1), "test.toml")));
+                    BonusSettingsConfig.parse(row("max_health", "dormant", "transcendent", 1000, 1), "test.toml")));
             rejects("native ceiling", () -> BonusTrackGenerator.publishMeaningful(runtime, Map.of(),
-                    BonusProgressionConfig.parse(row("fire_resistance", "dormant", "awakened", 200, 100), "test.toml")));
-            var cappedPrevention = BonusTrackGenerator.publishMeaningful(runtime, Map.of(), BonusProgressionConfig.parse(
+                    BonusSettingsConfig.parse(row("fire_resistance", "dormant", "awakened", 200, 100), "test.toml")));
+            var cappedPrevention = BonusTrackGenerator.publishMeaningful(runtime, Map.of(), BonusSettingsConfig.parse(
                     row("fire_resistance", "dormant", "dormant", 100, 100), "test.toml"))
                     .config().balanceProfile().bonusTrack(EssenceStats.FIRE_RESISTANCE.id());
             check(projectedValues(cappedPrevention).equals(java.util.List.of(100.0)),
@@ -122,23 +122,23 @@ public final class BonusProgressionConfigTest {
                     .noneMatch(BonusTrackDefinition.Checkpoint::purchasable),
                     "No paid states remain after complete native prevention");
             rejects("meaningful native increment", () -> BonusTrackGenerator.publishMeaningful(runtime, Map.of(),
-                    BonusProgressionConfig.parse(row("movement_speed", "dormant", "transcendent", 20, 10), "test.toml")));
+                    BonusSettingsConfig.parse(row("movement_speed", "dormant", "transcendent", 20, 10), "test.toml")));
             rejects("Unknown Bonus ID", () -> BonusTrackGenerator.publishMeaningful(runtime, Map.of(),
-                    BonusProgressionConfig.parse(row("typo", "dormant", "awakened", 40, 20), "test.toml")));
+                    BonusSettingsConfig.parse(row("typo", "dormant", "awakened", 40, 20), "test.toml")));
             Files.writeString(file, valid + "\n# human edit\n");
-            BonusProgressionConfig.writeGeneratedDefaults(directory, original);
+            BonusSettingsConfig.writeGeneratedDefaults(directory, original);
             check(Files.readString(file).equals(valid + "\n# human edit\n"), "Generation overwrote a human file");
             Files.writeString(file, "[invalid");
-            BonusProgressionConfig.writeGeneratedDefaults(directory, original);
+            BonusSettingsConfig.writeGeneratedDefaults(directory, original);
             check(Files.readString(file).equals("[invalid"), "Generation overwrote an invalid human file");
             var obstructed = directory.resolve("blocked-config-root");
             Files.writeString(obstructed, "existing file");
             try {
                 try {
-                    BonusProgressionConfig.writeGeneratedDefaults(obstructed, original);
+                    BonusSettingsConfig.writeGeneratedDefaults(obstructed, original);
                     throw new AssertionError("Expected defaults publication to report an unwritable parent");
                 } catch (java.io.IOException expected) {
-                    check(!Files.exists(BonusProgressionConfig.path(obstructed)), "Failed defaults publication left a destination file");
+                    check(!Files.exists(BonusSettingsConfig.path(obstructed)), "Failed defaults publication left a destination file");
                     check(Files.readString(obstructed).equals("existing file"), "Failed defaults publication changed its obstructing file");
                     check(Files.readString(file).equals("[invalid"), "Failed defaults publication changed an existing config");
                 }
@@ -147,7 +147,7 @@ public final class BonusProgressionConfigTest {
             Files.deleteIfExists(file); Files.deleteIfExists(file.getParent()); Files.deleteIfExists(directory);
         }
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out))
-                .println("BonusProgressionConfigTest: " + checks + " checks PASS");
+                .println("BonusSettingsConfigTest: " + checks + " checks PASS");
     }
     private static java.util.List<Double> projectedValues(BonusTrackDefinition track) {
         double quantum = track.inputs().containsKey("native_base_step_height") ? .000001 : RuntimeValueQuantization.statStep(track.unit());

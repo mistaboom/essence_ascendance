@@ -281,11 +281,16 @@ public final class PackCombatScalingTest {
 
     private static void parity(RuntimeBalanceDefinition runtime, PackEvidence evidence) {
         var apex = runtime.config().equipmentBaselineConfig().baselineFor(AscendanceTiers.TRANSCENDENT);
+        var start=RuntimeEquipmentNormalization.nativeStart();
         for (String family : List.of("melee_shield", "ranged", "caster")) {
             var observed = RuntimeReferencePolicy.weapon(evidence, ProgressionBand.APEX, family, BalanceSettings.defaults().outlierPolicy().name());
             double hit = family.equals("melee_shield") ? apex.meleeDamage() : family.equals("ranged") ? apex.rangedDamage() : apex.magicDamage();
             double rate = family.equals("melee_shield") ? apex.meleeAttackSpeed() : family.equals("ranged") ? apex.rangedAttackSpeed() : apex.magicCastSpeed();
-            check(hit == observed.damage() && rate == observed.rate(), "Bonus calibration changed observed equipment parity for " + family);
+            double floorHit=family.equals("melee_shield")?start.meleeDamage():family.equals("ranged")?start.rangedDamage():start.magicDamage();
+            double floorRate=family.equals("melee_shield")?start.meleeAttackSpeed():family.equals("ranged")?start.rangedAttackSpeed():start.magicCastSpeed();
+            check(hit == Math.floor(Math.max(floorHit,observed.damage())+.5)
+                            &&rate == Math.floor(Math.max(floorRate,observed.rate())*10+.5)/10,
+                    "Bonus calibration changed the pack endpoint or explicit native start floor for " + family);
         }
     }
 
@@ -309,16 +314,16 @@ public final class PackCombatScalingTest {
     }
 
     private static void authorControls(RuntimeBalanceDefinition runtime) {
-        var entries = new TreeMap<String, BonusProgressionConfig.Entry>();
+        var entries = new TreeMap<String, BonusSettingsConfig.Entry>();
         runtime.config().balanceProfile().bonusTracks().values().stream()
                 .filter(track -> track.applicability() != BonusTrackDefinition.Applicability.UNAVAILABLE)
-                .forEach(track -> entries.put(track.statId().toString(), BonusProgressionConfig.generatedEntry(track)));
-        var replay = BonusTrackGenerator.publishMeaningful(runtime, Map.of(), new BonusProgressionConfig(entries));
+                .forEach(track -> entries.put(track.statId().toString(), BonusSettingsConfig.generatedEntry(track)));
+        var replay = BonusTrackGenerator.publishMeaningful(runtime, Map.of(), new BonusSettingsConfig(entries));
         check(replay.config().balanceProfile().bonusTracks().equals(runtime.config().balanceProfile().bonusTracks()),
                 "Stronger catalog's generated controls must replay every complete track exactly");
-        entries.put(EssenceStats.MELEE_DAMAGE.id().toString(), new BonusProgressionConfig.Entry(
+        entries.put(EssenceStats.MELEE_DAMAGE.id().toString(), new BonusSettingsConfig.Entry(
                 AscendanceTiers.DORMANT.id().toString(), AscendanceTiers.AWAKENED.id().toString(), 2.6, 1));
-        var bounded = BonusTrackGenerator.publishMeaningful(runtime, Map.of(), new BonusProgressionConfig(entries));
+        var bounded = BonusTrackGenerator.publishMeaningful(runtime, Map.of(), new BonusSettingsConfig(entries));
         var track = bounded.config().balanceProfile().bonusTracks().get(EssenceStats.MELEE_DAMAGE.id());
         check(track.startTier().equals(AscendanceTiers.DORMANT.id()) && track.completionTier().equals(AscendanceTiers.AWAKENED.id())
                         && track.maximumEffect() == 2.6 && track.activeValues().equals(List.of(1.0, 2.6)),
@@ -326,10 +331,10 @@ public final class PackCombatScalingTest {
         nativeDamageStates(bounded);
         double ceiling = NativeDamageBonusFloor.contexts(runtime, EssenceStats.MELEE_DAMAGE).stream()
                 .mapToDouble(NativeDamageBonusFloor.Context::maximumValue).min().orElseThrow();
-        entries.put(EssenceStats.MELEE_DAMAGE.id().toString(), new BonusProgressionConfig.Entry(
+        entries.put(EssenceStats.MELEE_DAMAGE.id().toString(), new BonusSettingsConfig.Entry(
                 AscendanceTiers.TRANSCENDENT.id().toString(), AscendanceTiers.TRANSCENDENT.id().toString(), Math.floor(ceiling) + 1, 1));
         try {
-            BonusTrackGenerator.publishMeaningful(runtime, Map.of(), new BonusProgressionConfig(entries));
+            BonusTrackGenerator.publishMeaningful(runtime, Map.of(), new BonusSettingsConfig(entries));
             throw new AssertionError("Author maximum bypassed the native damage ceiling");
         } catch (IllegalArgumentException expected) {
             check(expected.getMessage().contains("native ceiling"), "Impossible author bound must report the actual native limit");

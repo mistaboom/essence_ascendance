@@ -33,6 +33,10 @@ public final class NativeMeleeBonusTest {
         var attacker = f.player(NativeGuardOutcomeTest.NativePlayer.class, Vec3.ZERO, "melee_bonus_attacker");
         var target = f.player(NativeGuardOutcomeTest.NativePlayer.class, new Vec3(0, 0, 2), "melee_bonus_target");
         try {
+            for (var participant : List.of(attacker, target))
+                check(participant.inventoryMenu != null && participant.containerMenu == participant.inventoryMenu
+                                && participant.inventoryMenu.stillValid(participant),
+                        "Every native combat participant has the ordinary inventory menu for real progression rewards");
             var runtime = RuntimeBalanceDefinition.bootstrap();
             EssenceConfigManager.install(runtime);
             var data = f.saved.getPlayerData(attacker.getUUID());

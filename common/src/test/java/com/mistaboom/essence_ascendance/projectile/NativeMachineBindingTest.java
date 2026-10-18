@@ -141,7 +141,7 @@ public final class NativeMachineBindingTest {
         var handler = com.mistaboom.essence_ascendance.network.TeamInterfaceNetworkService.class.getDeclaredMethod("handle", net.minecraft.server.level.ServerPlayer.class, com.mistaboom.essence_ascendance.network.TeamInterfaceActionPayload.class); handler.setAccessible(true);
         handler.invoke(null, player, new com.mistaboom.essence_ascendance.network.TeamInterfaceActionPayload(player.containerMenu.containerId, new UUID(0,0), action, view, page, ""));
     }
-    private static boolean externalInstalled() { return dev.architectury.platform.Platform.isModLoaded("ftbteams") || dev.architectury.platform.Platform.isModLoaded("openpartiesandclaims"); }
+    private static boolean externalInstalled() { return dev.architectury.platform.Platform.isModLoaded("ftbteams"); }
     private static void openTeamPopup(net.minecraft.server.level.ServerPlayer player, EssenceCrucibleBlockEntity source, int id) throws Exception {
         initializeMenuLifecycle(player);
         player.containerMenu = new EssenceCrucibleMenu(id, player.getInventory(), source);

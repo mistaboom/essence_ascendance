@@ -16,12 +16,12 @@ import java.util.Set;
 import java.util.TreeMap;
 
 /** Optional human Bonus bounds. Defaults are emitted from the first valid generated profile, never before it. */
-public record BonusProgressionConfig(Map<String, Entry> entries) {
+public record BonusSettingsConfig(Map<String, Entry> entries) {
     private static final Set<String> KEYS = Set.of("id", "min_tier", "max_tier", "bonus_at_max", "minimum_bonus_at_lowest");
     private static final java.util.List<String> TIERS = java.util.List.of("essence_ascendance:dormant",
             "essence_ascendance:awakened", "essence_ascendance:resonant", "essence_ascendance:ascendant", "essence_ascendance:transcendent");
 
-    public BonusProgressionConfig { entries = Collections.unmodifiableMap(new TreeMap<>(entries)); }
+    public BonusSettingsConfig { entries = Collections.unmodifiableMap(new TreeMap<>(entries)); }
     public record Entry(String minTier, String maxTier, double bonusAtMax, double minimumBonusAtLowest) {
         public Entry {
             int start = TIERS.indexOf(minTier), end = TIERS.indexOf(maxTier);
@@ -32,8 +32,8 @@ public record BonusProgressionConfig(Map<String, Entry> entries) {
         }
     }
 
-    public static BonusProgressionConfig automatic() { return new BonusProgressionConfig(Map.of()); }
-    public static Path path(Path configDirectory) { return configDirectory.resolve("essence_ascendance/bonus_progression.toml"); }
+    public static BonusSettingsConfig automatic() { return new BonusSettingsConfig(Map.of()); }
+    public static Path path(Path configDirectory) { return configDirectory.resolve("essence_ascendance/bonus_settings.toml"); }
 
     /** One scalar authority for automatic planning and emitted controls, before fraction round-trip noise. */
     public static Entry generatedEntry(BonusTrackDefinition track) {
@@ -42,14 +42,14 @@ public record BonusProgressionConfig(Map<String, Entry> entries) {
         return new Entry(track.startTier().toString(), track.completionTier().toString(), track.maximumEffect(), first);
     }
 
-    public static BonusProgressionConfig read(Path configDirectory) throws IOException {
+    public static BonusSettingsConfig read(Path configDirectory) throws IOException {
         Path file = path(configDirectory);
         if (!Files.exists(file)) return automatic();
         if (Files.size(file) > 4_000_000) throw new IOException(file + ": TOML exceeds 4 MB");
         return parse(Files.readString(file, StandardCharsets.UTF_8), file.toString());
     }
 
-    public static BonusProgressionConfig parse(String text, String source) {
+    public static BonusSettingsConfig parse(String text, String source) {
         var entries = new TreeMap<String, Entry>();
         for (var table : BalanceToml.parse(text, source)) {
             if (table.name().isEmpty() && !table.array()) {
@@ -75,7 +75,7 @@ public record BonusProgressionConfig(Map<String, Entry> entries) {
                 throw BalanceToml.error(source, table.line(), id + ": " + invalid.getMessage());
             }
         }
-        return new BonusProgressionConfig(entries);
+        return new BonusSettingsConfig(entries);
     }
 
     /** Called only after validation and durable publication of the first generated profile. */
@@ -83,7 +83,7 @@ public record BonusProgressionConfig(Map<String, Entry> entries) {
         Path file = path(configDirectory);
         if (Files.exists(file)) return;
         var text = new StringBuilder("""
-                # Generated Bonus progression defaults. Existing files are never overwritten.
+                # Generated Bonus settings. Existing files are never overwritten.
                 # Edit these four controls, then explicitly rebuild balance to apply them.
                 # Omitted Bonuses are generated automatically. Values use each Bonus's displayed unit.
                 # min_tier/max_tier are exact active endpoints; intermediate tiers must each provide a meaningful improvement.
@@ -103,7 +103,7 @@ public record BonusProgressionConfig(Map<String, Entry> entries) {
                     .append("\nminimum_bonus_at_lowest = ").append(generated.minimumBonusAtLowest()).append('\n');
         }
         Files.createDirectories(file.getParent());
-        Path temporary = Files.createTempFile(file.getParent(), ".bonus-progression-", ".tmp");
+        Path temporary = Files.createTempFile(file.getParent(), ".bonus-settings-", ".tmp");
         try {
             Files.writeString(temporary, text, StandardCharsets.UTF_8, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
             // No REPLACE_EXISTING or ATOMIC_MOVE: a concurrently created human file must win.

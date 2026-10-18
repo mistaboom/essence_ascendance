@@ -1,3 +1,5 @@
+> **Local source refresh, 2026-10-17.** Current configuration, generation, economy and report pages now describe the simple generator and editable `skill_settings.toml` / `bonus_settings.toml`. This is a local documentation update, not a wiki publication or release-validation receipt. The beta.5 scope and evidence below remain historical; other gameplay pages still need a separate full wiki review. [Current model](https://github.com/mistaboom/essence_ascendance/blob/main/docs/simple-balance.md).
+
 # Version and wiki maintenance
 
 [Home](https://github.com/mistaboom/essence_ascendance/wiki/Home) · [Source](https://github.com/mistaboom/essence_ascendance) · [Issues](https://github.com/mistaboom/essence_ascendance/issues)

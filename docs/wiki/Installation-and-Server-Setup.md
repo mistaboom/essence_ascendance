@@ -4,9 +4,9 @@
 
 ## Choose the right build
 
-Download **1.0.0-beta.5** from the [GitHub release](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.5). Choose the Fabric or NeoForge jar for **Minecraft 1.21.1** and use **Java 21**. Install matching beta.5 builds on the server and all clients.
+Choose the intended build from [GitHub releases](https://github.com/mistaboom/essence_ascendance/releases). Use its Fabric or NeoForge jar for **Minecraft 1.21.1** with **Java 21**, and install matching versions on the server and all clients. These source documents can describe development changes beyond a published release; check that release's notes.
 
-**Beta.5 requires a new world when upgrading from beta.4 or earlier.** The multiplayer save format changes player balances, membership and machine ownership, with no automatic migration. Keep a complete backup and the matching older mod version to continue an existing world. Install your chosen team provider before creating the new world.
+**The current simple-generator development revision requires fresh saves, worlds and configs.** Old profile/item/machine metadata and old Skill/Bonus schemas are not migrated. Keep a complete backup and the matching older build to continue historical worlds.
 
 | Loader | Required components on client and server | Build reference |
 | --- | --- | --- |
@@ -21,16 +21,16 @@ Use one loader build. Fabric and NeoForge jars are alternatives, not two require
 
 JEI is optional and supplies recipe/display integration; the build uses the `19.43.0.395` API. It is not required to generate a balance profile. This source does not advertise REI or EMI integration.
 
-Other installed mods can contribute ordinary loaded recipes and native attributes. Named evidence providers have narrower version/loader checks; most capability adapters audited here target specific NeoForge versions. Read [integrations and compatibility](https://github.com/mistaboom/essence_ascendance/wiki/Integrations-and-Compatibility) before assuming that choosing Fabric gives the same optional evidence coverage. This is separate from the beta.5 membership adapters, which accept their documented Fabric and NeoForge tuples.
+Other mods contribute ordinary loaded recipes, common tags and native properties. The generator does not run mod-specific acquisition/capability adapters, quests or script inspection. Functional membership integration is separate from balance generation.
 
 ## Prepare a server or pack
 
-For optional beta.5 membership support, follow [Teams and shared infrastructure](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure#membership-providers). Native solo/team authority needs no external mod. Accepted FTB Teams/Library and OpenPAC loader/version combinations are listed there with dependency metadata and fixture limits. Install the chosen provider/dependencies on both sides; they are not bundled. FTB Quests balance evidence is a different version-gated contract.
+Native solo/team authority needs no external mod. Optional FTB Teams membership and JEI are functional integrations; they do not establish acquisition facts for the generator. Install matching dependencies for your chosen build. Older provider/version audit tables describe their dated releases, not a new compatibility guarantee.
 
 Fresh AUTO selection and an established world's retained authority differ. Adding a provider to a running pack is not an automatic authority migration. Review [selection](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure#selection-and-established-worlds) and the [beta.5 save compatibility boundary](https://github.com/mistaboom/essence_ascendance/wiki/Updating-and-Recovery#multiplayer-persistence-and-upgrades) before testing against copied world state.
 
 1. Assemble the intended mods, datapacks, world-generation settings and supported integration configs in a staging environment.
-2. Start the server normally. Missing input files are scaffolded; when no saved profile exists, generation occurs early in Overworld loading before initial spawn terrain generation.
+2. Start the server normally. Missing global inputs receive defaults. With no saved profile, generation runs early in Overworld loading; complete Skill and Bonus settings are emitted only after validated durable publication.
 3. Review installation status, profile summary and reports. A new large pack can require substantial synchronous generation time; no fixed startup duration is promised.
 4. Connect a matching client and check the Archive after synchronization.
 5. Try representative survival acquisition and progression routes before distributing the pack.
@@ -44,11 +44,13 @@ Editable inputs:
 ```text
 config/essence_ascendance.toml
 config/essence_ascendance/balance_overrides.toml
+config/essence_ascendance/skill_settings.toml
+config/essence_ascendance/bonus_settings.toml
 ```
 
 The saved server authority is `config/essence_ascendance/generated_balance.json.gz`. Reports and diagnostics beneath that directory are derived views.
 
-Distribute the two inputs with pack design. A pre-generated profile can be included for a deliberately fixed, matching server environment, but it prevents first-run regeneration merely because content has changed. Treat it as an environment-specific artifact, label the versions it was generated with, and verify it in staging. Do not copy a profile from an unrelated pack.
+Distribute the four human inputs with pack design after generating and reviewing the Skill/Bonus defaults. A pre-generated profile can be included for a deliberately fixed, matching server environment, but it prevents first-run regeneration merely because content has changed. Treat it as an environment-specific artifact, label the versions it was generated with, and verify it in staging. Do not copy a profile from an unrelated pack.
 
 For client packs, player/world files and personal diagnostic logs are not distributable balance inputs. The server synchronizes runtime and yield data; do not instruct each client to rebuild the server economy.
 
@@ -64,4 +66,4 @@ These permission-2 commands are diagnostics:
 
 They report install state, active saved data, and disk/active validation. Validation can be expensive. It does not repair a rejected file or regenerate anything. Use [updating and recovery](https://github.com/mistaboom/essence_ascendance/wiki/Updating-and-Recovery) for planned replacement.
 
-Source: [version properties](https://github.com/mistaboom/essence_ascendance/blob/59e27446afbb6c9e73be38d0d407915fe15354fa/gradle.properties), [Fabric dependencies](https://github.com/mistaboom/essence_ascendance/blob/59e27446afbb6c9e73be38d0d407915fe15354fa/fabric/src/main/resources/fabric.mod.json), [NeoForge dependencies](https://github.com/mistaboom/essence_ascendance/blob/59e27446afbb6c9e73be38d0d407915fe15354fa/neoforge/src/main/resources/META-INF/neoforge.mods.toml).
+Current packaging references: `gradle.properties`, `fabric/src/main/resources/fabric.mod.json` and `neoforge/src/main/resources/META-INF/neoforge.mods.toml`. Release-specific dependency requirements come from the chosen artifact.

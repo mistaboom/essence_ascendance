@@ -59,7 +59,7 @@ The Archive includes a guided route and detailed reference pages, so you can exp
 
 ## Bring your modpack along
 
-Essence Ascendance estimates item values from shared item properties and recipes. Pack authors can edit Skill placement and generated Bonus endpoints through configuration. See [simple balance generation](docs/simple-balance.md) for the current development model and fresh-world requirement.
+Essence Ascendance estimates item values from shared item properties and recipes. Pack authors can edit Skill unlock tiers, rank counts and native stat endpoints in `skill_settings.toml`, and Bonus active tiers and effect bounds in `bonus_settings.toml`. See [simple balance generation](docs/simple-balance.md) for the current development model and fresh-world requirement.
 
 **JEI integration** provides recipe browsing when JEI is installed.
 
