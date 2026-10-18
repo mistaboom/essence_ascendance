@@ -1,42 +1,34 @@
-# Essence Ascendance
+# Essence Ascendance for pack makers
 
-**Progression that fits the pack you actually play.** Essence Ascendance turns eligible resources into six Essences, develops character Bonuses and Skills through the Ascendance Nexus, and supports an equipment and machine network. Its balance generator uses the server's available recipes, resources, equipment and supported integrations to resolve values for that environment.
+Essence Ascendance adds character progression, evolving equipment and an Essence-powered machine network to **Minecraft 1.21.1**, on **Fabric and NeoForge**. It generates a starting balance from the items, recipes and equipment in your pack, then lets you adjust the results through configuration files.
 
-**Playing on a server? Open your Ascendance Archive. Its reference values reflect the connected server's actual resolved data.** This wiki explains setup, pack design and administration; the Archive supplies gameplay lessons and current values.
+**Playing the mod? Use the Ascendance Archive in game.** Its lessons and reference values reflect the server you are connected to. This wiki focuses on installing the mod, fitting it into a pack and maintaining the server.
 
-**Beta.5 multiplayer update, October 13, 2026.** This wiki covers the multiplayer and Archive update. [Release notes](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.5) · [Exact scope](https://github.com/mistaboom/essence_ascendance/wiki/Version-and-Maintenance).
+**This guide covers [1.0.0-beta.9](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.9).** Beta.9 adds the Ascendance Glaive and its Archive lessons. It introduces no additional saved-format break over beta.8. When moving from beta.7 or earlier, the beta.8 requirement for fresh worlds and Essence Ascendance configuration still applies.
 
-**Beta.5 requires a new world when upgrading from beta.4 or earlier.** The multiplayer save format changes player balances, membership and machine ownership, with no automatic migration. Keep a complete backup and the matching older mod version to continue an existing world. Install your chosen team provider before creating the new world.
+## Start here
 
-## Choose your route
-
-| You want to… | Start here |
+| You want to… | Read |
 | --- | --- |
-| Play, find recipes, understand Skills or replace the guidebook | [Players and the Ascendance Archive](https://github.com/mistaboom/essence_ascendance/wiki/Players-and-the-Archive) |
-| Install a client or server | [Installation and server setup](https://github.com/mistaboom/essence_ascendance/wiki/Installation-and-Server-Setup) |
-| Design a progression system around your pack | [Procedural balance](https://github.com/mistaboom/essence_ascendance/wiki/Procedural-Balance), then [worked scenarios](https://github.com/mistaboom/essence_ascendance/wiki/Worked-Scenarios) |
-| Run commands or maintain an existing world | [Commands](https://github.com/mistaboom/essence_ascendance/wiki/Commands) and [updating and recovery](https://github.com/mistaboom/essence_ascendance/wiki/Updating-and-Recovery) |
-| Configure cooperative storage, team providers or machine access | [Teams and shared infrastructure](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure) — beta.5 |
-| Explain a surprising price, yield or gate | [Reports and provenance](https://github.com/mistaboom/essence_ascendance/wiki/Reports-and-Provenance) and [troubleshooting](https://github.com/mistaboom/essence_ascendance/wiki/Troubleshooting) |
+| Add the mod to a pack | [Installation and server setup](https://github.com/mistaboom/essence_ascendance/wiki/Installation-and-Server-Setup) |
+| Understand what is automatic | [How pack balance works](https://github.com/mistaboom/essence_ascendance/wiki/Procedural-Balance) |
+| Choose the right file to edit | [Configuration](https://github.com/mistaboom/essence_ascendance/wiki/Configuration) |
+| Move a Skill, change its ranks or adjust its effects | [Skill settings](https://github.com/mistaboom/essence_ascendance/wiki/Configuration#skill-settings) |
+| Buff or nerf one Bonus, or move its active tiers | [Bonus settings](https://github.com/mistaboom/essence_ascendance/wiki/Configuration#bonus-settings) |
+| Follow a complete tuning example | [Worked scenarios](https://github.com/mistaboom/essence_ascendance/wiki/Worked-Scenarios) |
+| Investigate an item value | [Item valuation and economy](https://github.com/mistaboom/essence_ascendance/wiki/Item-Valuation-and-Economy) |
+| Apply changes or recover an earlier setup | [Rebuilding and recovery](https://github.com/mistaboom/essence_ascendance/wiki/Updating-and-Recovery) |
+| Configure shared Essence and teams | [Teams and shared infrastructure](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure) |
+| Find player instructions | [The Ascendance Archive](https://github.com/mistaboom/essence_ascendance/wiki/Players-and-the-Archive) |
 
-## What procedural balance does for a pack
+## The balance approach
 
-A resource available only through a costly expedition should not be treated exactly like the same resource supplied by an inexpensive automatic farm. Equipment should have a useful place alongside attainable gear from other mods. A generated Skill rank should deliver a meaningful improvement, and a compression recipe should not create Essence through rounding.
+The generator uses shared item properties, common tags, ordinary recipe data and exposed equipment/enemy stats. It estimates item values and creates equipment progression, Bonus tracks, Skill ranks, costs and activity targets. It does not work out quest gates, farming speed, automation cost or every other mod's special mechanics.
 
-The generator connects those decisions: it estimates supported acquisition effort, distinguishes resource usefulness from dissolution yield, compares reachable equipment and capabilities, and resolves costs, effects, ranks and progression targets. Pack authors can change broad policy or correct missing facts instead of maintaining a separate price for every item.
+The result is a starting point to test in your pack. Useful but unusual items can be misvalued, and matching equipment stats do not guarantee matching performance in combat. You can tune individual Skills and Bonuses without maintaining a price list for every item.
 
-The result is **saved**. Normal restarts reuse it, giving players stable values. Pack changes and input edits require a deliberate rebuild to become part of a new profile. Supported evidence has limits: an unknown machine callback or hidden spell system cannot become measured knowledge merely because its mod is installed.
+**Generated balance is saved.** Editing a setting or restarting the server does not replace it. Run `/essence admin balance rebuild` as an operator after making changes, then check the Archive and reports.
 
-## Find the right reference
+## Project links
 
-- [Configuration](https://github.com/mistaboom/essence_ascendance/wiki/Configuration) describes the editable policy inputs.
-- [Overrides and customization](https://github.com/mistaboom/essence_ascendance/wiki/Overrides-and-Customization) explains factual corrections and exact values.
-- [Item valuation and economy](https://github.com/mistaboom/essence_ascendance/wiki/Item-Valuation-and-Economy) explains yields, automation and conversion safety.
-- [Progression and power](https://github.com/mistaboom/essence_ascendance/wiki/Progression-and-Power) connects equipment, Bonuses, Skills and Attunement.
-- [Integrations and compatibility](https://github.com/mistaboom/essence_ascendance/wiki/Integrations-and-Compatibility) names supported contracts and their boundaries.
-
-## Download and project links
-
-**Documented release: 1.0.0-beta.5**, Minecraft **1.21.1**, Java **21**, on **Fabric or NeoForge**. This is a prerelease. The original balance audit remains a historical beta.1 baseline; multiplayer and Archive evidence has its separately documented scope.
-
-[Download the beta](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.5) · [All releases](https://github.com/mistaboom/essence_ascendance/releases) · [Report an issue](https://github.com/mistaboom/essence_ascendance/issues) · [Source repository](https://github.com/mistaboom/essence_ascendance) · [Version and maintenance](https://github.com/mistaboom/essence_ascendance/wiki/Version-and-Maintenance)
+[Download beta.9](https://github.com/mistaboom/essence_ascendance/releases/tag/v1.0.0-beta.9) · [All releases](https://github.com/mistaboom/essence_ascendance/releases) · [Report an issue](https://github.com/mistaboom/essence_ascendance/issues) · [Version information](https://github.com/mistaboom/essence_ascendance/wiki/Version-and-Maintenance)

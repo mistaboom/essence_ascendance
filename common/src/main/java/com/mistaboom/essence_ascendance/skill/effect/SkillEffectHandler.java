@@ -52,6 +52,11 @@ public interface SkillEffectHandler {
     default double flatPrimaryDamageBonus(SkillEffectRuntime.Context context, LivingEntity target,
                                           DamageSource source, AttackCategory primaryCategory) { return 0.0; }
 
+    /** Multi-tick melee must capture offensive inputs here; returning a closure over mutable attacker state is invalid. */
+    default MeleeOffenseSnapshot.Modifier snapshotMeleeOffense(SkillEffectRuntime.Context context) {
+        return MeleeOffenseSnapshot.NEUTRAL;
+    }
+
     /** Aggregators compose effective handlers; future speed buffs add no runtime special cases. */
     default double bowDrawSpeedMultiplier(SkillEffectRuntime.Context context) { return 1.0; }
     default double casterSpeedMultiplier(SkillEffectRuntime.Context context) { return 1.0; }

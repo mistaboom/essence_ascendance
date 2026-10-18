@@ -37,6 +37,7 @@ public final class NativeMeleeRateBonusFloor {
         EquipmentProfiles.init();
         var result = new ArrayList<Context>();
         for (var profile : EquipmentProfileRegistry.values()) {
+            if (profile.weaponCapabilities().melee() != EquipmentWeaponCapabilities.MeleeExecution.NATIVE) continue;
             double applicability = profile.statStrength(EquipmentActivationType.HELD, EssenceStats.MELEE_ATTACK_SPEED);
             if (profile.baselineMultiplier(EquipmentBaselineProperty.MELEE_DAMAGE) <= 0 || applicability <= 0) continue;
             double rate = EquipmentBaselineService.resolvedValue(runtime.config().equipmentBaselineConfig().baselineFor(tier).meleeAttackSpeed(),

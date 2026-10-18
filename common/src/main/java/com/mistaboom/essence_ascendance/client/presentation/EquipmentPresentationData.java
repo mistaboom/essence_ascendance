@@ -11,6 +11,7 @@ import com.mistaboom.essence_ascendance.equipment.EquipmentTier;
 import com.mistaboom.essence_ascendance.equipment.EquipmentBaselineService;
 import com.mistaboom.essence_ascendance.equipment.ArmorStatWeights;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTierData;
+import com.mistaboom.essence_ascendance.equipment.GlaiveTuning;
 import com.mistaboom.essence_ascendance.client.ui.content.ItemPresentation;
 import com.mistaboom.essence_ascendance.text.EssenceText;
 import com.mistaboom.essence_ascendance.visual.AscendancePalette;
@@ -38,6 +39,21 @@ public final class EquipmentPresentationData {
                                int shieldDurability, double shieldNativeReflectionPercent,
                                double shieldBlockAmplification, com.mistaboom.essence_ascendance.config.FishingRodBalanceSettings.Tier fishingRod) { }
     public record InfusionTarget(EquipmentTier tier, long totalEssenceRequired, int matrixCount) { }
+
+    public record MeleeAction(String id, double damageMultiplier, int extensionTicks, int strikeTicks, int returnTicks) { }
+    public record GlaiveActions(List<MeleeAction> actions, double swipeArcDegrees) {
+        public GlaiveActions { actions = List.copyOf(actions); }
+    }
+
+    /** Read-only authored action constants from the same policy used by the weapon. */
+    public static GlaiveActions glaiveActions() {
+        return new GlaiveActions(List.of(meleeAction("swipe", GlaiveTuning.SWIPE),
+                meleeAction("stab", GlaiveTuning.STAB)), GlaiveTuning.SWIPE_ARC_DEGREES);
+    }
+
+    private static MeleeAction meleeAction(String id, GlaiveTuning.ActionPhases phases) {
+        return new MeleeAction(id, phases.damageScalar(), phases.extensionTicks(), phases.outwardTicks(), phases.retractionTicks());
+    }
 
     public static double physicalValue(Profile profile, TierBaseline tier, EquipmentBaselineProperty property,
                                        EquipmentSlot slot) {

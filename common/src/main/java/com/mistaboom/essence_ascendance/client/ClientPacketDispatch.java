@@ -28,6 +28,8 @@ public final class ClientPacketDispatch {
         presentationEpoch++;
         com.mistaboom.essence_ascendance.client.nexus.NexusNavigationState.clearSession();
         com.mistaboom.essence_ascendance.client.archive.ArchiveNavigationState.clearSession();
+        com.mistaboom.essence_ascendance.network.TwoHandedPolicyPayload.clearClient();
+        com.mistaboom.essence_ascendance.network.WeaponActionStatePayload.clearClient();
         RuntimeBalanceClientState.clear();
         com.mistaboom.essence_ascendance.client.ore.LatentOreClientCatalog.clear();
         ClientEssenceState.clear();

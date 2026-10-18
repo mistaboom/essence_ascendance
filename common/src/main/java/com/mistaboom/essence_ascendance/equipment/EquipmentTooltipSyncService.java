@@ -125,6 +125,7 @@ public final class EquipmentTooltipSyncService {
             entries.add(armor(data, armorSet, EquipmentSlot.LEGS, "Leggings", itemTier));
             entries.add(armor(data, armorSet, EquipmentSlot.FEET, "Boots", itemTier));
             entries.add(melee(data, itemTier));
+            entries.add(melee(data, itemTier, EquipmentProfiles.GLAIVE, "ascendance_glaive", "Two-Handed Glaive"));
             entries.add(ranged(data, itemTier));
             entries.add(magic(player, data, itemTier));
             entries.add(tool(data, EquipmentProfiles.PICKAXE, "ascendance_pickaxe", "Pickaxe", itemTier));
@@ -146,6 +147,7 @@ public final class EquipmentTooltipSyncService {
         entries.add(fractured(armor(data, armorSet, EquipmentSlot.LEGS, "Leggings", EquipmentTier.LATENT)));
         entries.add(fractured(armor(data, armorSet, EquipmentSlot.FEET, "Boots", EquipmentTier.LATENT)));
         entries.add(fractured(melee(data, EquipmentTier.LATENT)));
+        entries.add(fractured(melee(data, EquipmentTier.LATENT, EquipmentProfiles.GLAIVE, "ascendance_glaive", "Two-Handed Glaive")));
         entries.add(fractured(ranged(data, EquipmentTier.LATENT)));
         entries.add(fractured(magic(player, data, EquipmentTier.LATENT)));
         entries.add(fractured(tool(data, EquipmentProfiles.PICKAXE, "ascendance_pickaxe", "Pickaxe", EquipmentTier.LATENT)));
@@ -265,31 +267,38 @@ public final class EquipmentTooltipSyncService {
             PlayerEssenceData data,
             EquipmentTier itemTier
     ) {
+        return melee(data, itemTier, EquipmentProfiles.SWORD, "ascendance_sword", "Melee Weapon");
+    }
+
+    private static EquipmentTooltipPayload.Entry melee(PlayerEssenceData data, EquipmentTier itemTier,
+            EquipmentProfileDefinition profile, String itemId, String role) {
         EquipmentBaselineResult base =
                 EquipmentBaselineService.evaluateForEquipmentTier(
                         data,
-                        EquipmentProfiles.SWORD.id(),
+                        profile.id(),
                         itemTier
                 );
 
         List<EquipmentTooltipPayload.Line> lines =
                 new ArrayList<>();
 
-        lines.add(identity(itemTier, "Melee Weapon"));
+        lines.add(identity(itemTier, role));
         lines.add(stat("stat.attack_damage", number(base.meleeDamage())));
         lines.add(stat("stat.attack_speed", number(base.meleeAttackSpeed())));
+        if (profile.maximumAttackRange(itemTier) > 0)
+            lines.add(stat("stat.weapon_attack_range", number(profile.maximumAttackRange(itemTier))));
 
         addProfileAbilities(
                 lines,
                 data,
                 itemTier,
-                EquipmentProfiles.SWORD,
+                profile,
                 EquipmentActivationType.HELD,
                 1.0
         );
 
         return entry(
-                "ascendance_sword",
+                itemId,
                 itemTier,
                 lines
         );

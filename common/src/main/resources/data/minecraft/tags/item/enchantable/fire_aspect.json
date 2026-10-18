@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "essence_ascendance:ascendance_sword"
+    "essence_ascendance:ascendance_sword",
+    "essence_ascendance:ascendance_glaive"
   ]
 }

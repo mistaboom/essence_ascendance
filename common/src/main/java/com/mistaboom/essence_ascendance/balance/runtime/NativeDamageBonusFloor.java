@@ -45,10 +45,11 @@ public final class NativeDamageBonusFloor {
         for (var tier : AscendanceTierRegistry.powerTiers()) {
             double base = runtime.config().equipmentBaselineConfig().baselineFor(tier).value(property);
             for (var profile : EquipmentProfileRegistry.values()) {
-                // These are the same profile gates as EquipmentAttributeService / EquipmentWeaponService.
+                // Only native attack consumers fit this model; action weapons resolve their own hit/cadence phases.
                 boolean eligible = switch (property) {
                     case MELEE_DAMAGE -> profile.baselineMultiplier(EquipmentBaselineProperty.MELEE_DAMAGE) > 0
-                            && profile.baselineMultiplier(EquipmentBaselineProperty.MELEE_ATTACK_SPEED) > 0;
+                            && profile.baselineMultiplier(EquipmentBaselineProperty.MELEE_ATTACK_SPEED) > 0
+                            && profile.weaponCapabilities().melee() == EquipmentWeaponCapabilities.MeleeExecution.NATIVE;
                     case RANGED_DAMAGE -> profile.id().equals(EquipmentProfiles.RANGED_WEAPON.id());
                     case MAGIC_DAMAGE -> profile.id().equals(EquipmentProfiles.MAGIC_CASTER.id());
                     default -> false;

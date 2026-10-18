@@ -192,6 +192,7 @@ final class ReferenceDocuments {
             boolean armor = profileId.equals(EquipmentProfiles.ARMOR.id());
             boolean shield = profileId.equals(EquipmentProfiles.SHIELD.id());
             boolean rod = profileId.equals(EquipmentProfiles.FISHING_ROD.id());
+            boolean glaive = profileId.equals(EquipmentProfiles.GLAIVE.id());
             if (armor) {
                 for (var tier : data.tierBaselines()) {
                     blocks.add(new SemanticDocument.Heading(SemanticDocument.HeadingLevel.SECTION, equipmentTier(tier.tier())));
@@ -220,6 +221,8 @@ final class ReferenceDocuments {
                     }
                 }
                 headers.add("durability");
+                boolean weaponRange = profile.definition().maximumAttackRange(EquipmentTier.LATENT) > 0;
+                if (weaponRange) headers.add("weapon_attack_range");
                 if (rod) headers.addAll(List.of("rod_range", "rod_cast_speed", "rod_gravity", "rod_acceleration", "rod_force", "rod_reel_speed"));
                 boolean tool = profile.baselineMultipliers().containsKey(EquipmentBaselineProperty.MINING_SPEED);
                 if (tool) headers.addAll(List.of("mining_speed", "harvest_level"));
@@ -231,6 +234,7 @@ final class ReferenceDocuments {
                         values.add(decimal(EquipmentPresentationData.physicalValue(profile, tier, property,
                                 null), "number"));
                     values.add(durability(profile, tier, id(item)));
+                    if (weaponRange) values.add(decimal(profile.definition().maximumAttackRange(tier.tier()), "blocks"));
                     if (rod) {
                         var nativeRod = tier.fishingRod();
                         for (double value : List.of(nativeRod.range(), nativeRod.castSpeed(), nativeRod.gravity(), nativeRod.acceleration(), nativeRod.maximumForce(), nativeRod.reelSpeed()))
@@ -252,6 +256,14 @@ final class ReferenceDocuments {
                                     .withCaption(equipmentTier(tier.tier())), List.copyOf(values))));
                 }
                 blocks.add(equipmentTable(rows, true, headers));
+                for (String hint : profile.definition().usageHints())
+                    blocks.add(new SemanticDocument.Paragraph(EssenceText.tooltip(hint)));
+                if (weaponRange) blocks.add(new SemanticDocument.Paragraph(g("archive.reference.equipment.weapon_range")));
+                if (glaive) {
+                    blocks.add(new SemanticDocument.Paragraph(g("archive.guide.glaive.offhand")));
+                    blocks.addAll(glaiveCombat(context));
+                    blocks.add(new SemanticDocument.Paragraph(g("archive.guide.glaive.skills")));
+                }
                 if (profileId.equals(EquipmentProfiles.RANGED_WEAPON.id()) || profileId.equals(EquipmentProfiles.MAGIC_CASTER.id()))
                     blocks.add(new SemanticDocument.Paragraph(g("archive.reference.equipment.action_timing")));
                 if (rod) {
@@ -296,6 +308,8 @@ final class ReferenceDocuments {
                             g("archive.entry.reference.equipment.lifecycle.title"), SemanticDocument.LinkRelation.RELATED)));
             if (rod) related.add(new SemanticDocument.Link(id("guide/equipment/fishing").toString(),
                     g("archive.entry.guide.equipment.fishing.title"), SemanticDocument.LinkRelation.RELATED));
+            if (glaive) related.add(new SemanticDocument.Link(id("guide/equipment/glaive").toString(),
+                    g("archive.entry.guide.equipment.glaive.title"), SemanticDocument.LinkRelation.RELATED));
             blocks.add(new SemanticDocument.Links(related));
         }
         return new SemanticDocument(profileTitle(profileId), blocks);
@@ -313,6 +327,35 @@ final class ReferenceDocuments {
                 durability(profile, tier, id(item)),
                 decimal(EquipmentPresentationData.wornShare(tier.tier(), slot) * 100, "percent")))));
     }
+
+    /** One semantic combat explanation shared by the glaive lesson and its equipment reference. */
+    static List<SemanticDocument.Block> glaiveCombat(PresentationContext context) {
+        List<SemanticDocument.Block> blocks = new ArrayList<>();
+        blocks.add(heading("archive.guide.glaive.actions"));
+        blocks.add(new SemanticDocument.OrderedSteps(List.of(g("archive.guide.glaive.step.swipe"),
+                g("archive.guide.glaive.step.stab"), g("archive.guide.glaive.step.recover"))));
+        blocks.add(new SemanticDocument.Paragraph(g("archive.guide.glaive.collision")));
+        blocks.add(new SemanticDocument.Paragraph(g("archive.guide.glaive.input")));
+        if (!context.runtime().ready()) blocks.add(runtimeState(context.runtime().availability()));
+        else {
+            var actions = EquipmentPresentationData.glaiveActions();
+            blocks.add(heading("archive.guide.glaive.timing"));
+            blocks.add(new SemanticDocument.StatRows(List.of(new SemanticDocument.StatRow(
+                    g("archive.guide.glaive.arc"), g("archive.value.reference_unit.degrees", format(actions.swipeArcDegrees()))))));
+            blocks.add(table(List.of(textColumn("action", g("archive.guide.glaive.table.action"), 60, 1, Cells::first),
+                    textColumn("damage", g("archive.guide.glaive.table.damage"), 62, 0, Cells::second),
+                    textColumn("setup", g("archive.guide.glaive.table.setup"), 80, 1, Cells::third),
+                    textColumn("strike", g("archive.guide.glaive.table.strike"), 80, 1, Cells::fourth),
+                    textColumn("return", g("archive.guide.glaive.table.return"), 80, 1, Cells::fifth)),
+                    actions.actions().stream().map(action -> row(action.id(), g("archive.guide.glaive.action." + action.id()),
+                            decimal(action.damageMultiplier() * 100, "percent"), ticks(action.extensionTicks()),
+                            ticks(action.strikeTicks()), ticks(action.returnTicks()))).toList()));
+            blocks.add(new SemanticDocument.Paragraph(g("archive.guide.glaive.recovery")));
+        }
+        return List.copyOf(blocks);
+    }
+
+    private static Component ticks(int value) { return g("archive.value.ticks_seconds", value, format(value / 20.0)); }
 
     private static Component durability(EquipmentPresentationData.Profile profile,
                                         EquipmentPresentationData.TierBaseline tier, ResourceLocation item) {
@@ -565,7 +608,7 @@ final class ReferenceDocuments {
     private static Component equipmentFamilyTitle(String key) {
         String item = switch (key) {
             case "helmet", "chestplate", "leggings", "boots" -> "ascendance_" + key;
-            case "sword", "ranged_weapon", "pickaxe", "axe", "shovel", "hoe", "shield", "fishing_rod" -> "ascendance_" + key;
+            case "sword", "glaive", "ranged_weapon", "pickaxe", "axe", "shovel", "hoe", "shield", "fishing_rod" -> "ascendance_" + key;
             case "magic_caster" -> "ascendance_caster";
             default -> null;
         };

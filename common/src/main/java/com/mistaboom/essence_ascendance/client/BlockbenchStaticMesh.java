@@ -118,6 +118,53 @@ public final class BlockbenchStaticMesh {
                 );
     }
 
+    /** Clip only a terminal partial instance; the cached static mesh and UV density stay unchanged. */
+    public void renderClipped(PoseStack stack, VertexConsumer consumer, int light, int overlay,
+                              int rgb, double planeX, double planeZ, double maximum) {
+        renderClipped(stack,consumer,light,overlay,rgb,255,planeX,planeZ,maximum,Double.NEGATIVE_INFINITY);
+    }
+
+    /** Intersection of a terminal repeat plane and an optional camera-side axial plane. */
+    public void renderClipped(PoseStack stack, VertexConsumer consumer, int light, int overlay,
+                              int rgb, int alpha, double planeX, double planeZ, double maximum,double minimumZ) {
+        float[] data=vertexData();
+        float[][] polygon=new float[6][FLOATS_PER_VERTEX], clipped=new float[6][FLOATS_PER_VERTEX];
+        for (int triangle=0;triangle<data.length;triangle+=FLOATS_PER_TRIANGLE) {
+            int count=0;
+            for (int i=0;i<3;i++) {
+                int a=triangle+i*8,b=triangle+((i+1)%3)*8;
+                double da=data[a]*planeX+data[a+2]*planeZ-maximum;
+                double db=data[b]*planeX+data[b+2]*planeZ-maximum;
+                if (da<=0) System.arraycopy(data,a,polygon[count++],0,8);
+                if ((da<0 && db>0) || (da>0 && db<0)) {
+                    double t=da/(da-db);
+                    for (int j=0;j<8;j++) polygon[count][j]=(float)(data[a+j]+(data[b+j]-data[a+j])*t);
+                    count++;
+                }
+            }
+            if (Double.isFinite(minimumZ)) {
+                int next=0;
+                for (int i=0;i<count;i++) {
+                    var a=polygon[i]; var b=polygon[(i+1)%count];
+                    double da=minimumZ-a[2], db=minimumZ-b[2];
+                    if (da<=0) System.arraycopy(a,0,clipped[next++],0,8);
+                    if ((da<0 && db>0) || (da>0 && db<0)) {
+                        double t=da/(da-db);
+                        for (int j=0;j<8;j++) clipped[next][j]=(float)(a[j]+(b[j]-a[j])*t);
+                        next++;
+                    }
+                }
+                var temporary=polygon; polygon=clipped; clipped=temporary; count=next;
+            }
+            for (int i=1;i<count-1;i++) {
+                emitVertex(consumer,stack.last(),polygon[0],0,light,overlay,rgb,alpha);
+                emitVertex(consumer,stack.last(),polygon[i],0,light,overlay,rgb,alpha);
+                emitVertex(consumer,stack.last(),polygon[i+1],0,light,overlay,rgb,alpha);
+                emitVertex(consumer,stack.last(),polygon[i+1],0,light,overlay,rgb,alpha);
+            }
+        }
+    }
+
     private float[] vertexData() {
         float[] loaded = vertexData;
         if (loaded != null) {

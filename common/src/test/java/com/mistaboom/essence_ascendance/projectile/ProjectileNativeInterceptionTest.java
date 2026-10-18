@@ -244,6 +244,8 @@ public final class ProjectileNativeInterceptionTest {
             var inventoryMenu = new net.minecraft.world.inventory.InventoryMenu(entity.getInventory(), true, entity);
             set(Player.class, entity, "inventoryMenu", inventoryMenu);
             entity.containerMenu = inventoryMenu;
+            // The no-world fixture skips PLAYER_JOIN; initialize its equipment policy at that same completed boundary.
+            com.mistaboom.essence_ascendance.equipment.TwoHandedEquipmentService.refresh(entity);
             return entity;
         }
 
@@ -304,6 +306,7 @@ public final class ProjectileNativeInterceptionTest {
         }
 
         void close() {
+            onlinePlayers.forEach(com.mistaboom.essence_ascendance.equipment.TwoHandedEquipmentService::forget);
             com.mistaboom.essence_ascendance.crucible.EssenceCrucibleChannelService.clear(server);
             networkChannels.forEach(io.netty.channel.embedded.EmbeddedChannel::finishAndReleaseAll);
             CommittedSkillService.forget(player);
@@ -315,6 +318,7 @@ public final class ProjectileNativeInterceptionTest {
 
     /** A storage boundary only: every intercepted entity, native input method and gameplay decision stays real. */
     static final class MemoryLevel extends ServerLevel {
+        long blockStateReads,entityQueries;
         List<Entity> entities;
         long tick;
         MinecraftServer memoryServer;
@@ -322,10 +326,14 @@ public final class ProjectileNativeInterceptionTest {
         ServerScoreboard scoreboard;
         boolean occluded;
         boolean nativeBlockClip;
+        boolean rejectMissingTerrainReads;
+        @Override public int getMinBuildHeight() { return -64; }
+        @Override public int getHeight() { return 384; }
         List<net.minecraft.world.phys.shapes.VoxelShape> movementSupport;
         net.minecraft.core.RegistryAccess memoryRegistries;
         net.minecraft.world.damagesource.DamageSources memoryDamageSources;
         net.minecraft.world.level.GameRules memoryGameRules;
+        net.minecraft.world.level.border.WorldBorder memoryWorldBorder;
         Map<BlockPos, net.minecraft.world.level.block.state.BlockState> memoryBlocks;
         net.minecraft.world.item.crafting.RecipeManager memoryRecipes;
         Holder<net.minecraft.world.level.biome.Biome> memoryBiome;
@@ -365,12 +373,16 @@ public final class ProjectileNativeInterceptionTest {
             return new net.minecraft.world.DifficultyInstance(getDifficulty(), 0, 0, 0);
         }
         @Override public net.minecraft.world.level.GameRules getGameRules() {
-            return memoryGameRules == null ? new net.minecraft.world.level.GameRules() : memoryGameRules;
+            if (memoryGameRules==null) memoryGameRules=new net.minecraft.world.level.GameRules();
+            return memoryGameRules;
         }
         @Override public net.minecraft.world.flag.FeatureFlagSet enabledFeatures() { return net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS; }
-        @Override public void broadcastEntityEvent(Entity entity, byte event) { }
+        int totemActivations;
+        @Override public void broadcastEntityEvent(Entity entity, byte event) { if (event == 35) totemActivations++; }
         @Override public void broadcastDamageEvent(Entity entity, net.minecraft.world.damagesource.DamageSource source) { }
         @Override public net.minecraft.world.level.block.state.BlockState getBlockState(BlockPos position) {
+            blockStateReads++;
+            if (rejectMissingTerrainReads && !hasChunkAt(position)) throw new AssertionError("Attack read unknown terrain");
             return memoryBlocks == null ? net.minecraft.world.level.block.Blocks.AIR.defaultBlockState()
                     : memoryBlocks.getOrDefault(position, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
         }
@@ -407,7 +419,8 @@ public final class ProjectileNativeInterceptionTest {
         @Override public void gameEvent(Holder<net.minecraft.world.level.gameevent.GameEvent> event, Vec3 position,
                                         net.minecraft.world.level.gameevent.GameEvent.Context context) { }
         @Override public net.minecraft.world.level.border.WorldBorder getWorldBorder() {
-            return new net.minecraft.world.level.border.WorldBorder();
+            if (memoryWorldBorder==null) memoryWorldBorder=new net.minecraft.world.level.border.WorldBorder();
+            return memoryWorldBorder;
         }
         @Override public Entity getEntity(int id) { return entities.stream().filter(entity -> entity.getId() == id).findFirst().orElse(null); }
         @Override public Entity getEntity(UUID id) { return entities.stream().filter(entity -> entity.getUUID().equals(id)).findFirst().orElse(null); }
@@ -417,10 +430,12 @@ public final class ProjectileNativeInterceptionTest {
         @Override public boolean addFreshEntity(Entity entity) { entities.add(entity); return true; }
         @Override public boolean isInWorldBounds(BlockPos position) { return true; }
         @Override public List<Entity> getEntities(Entity except, AABB box, Predicate<? super Entity> predicate) {
+            entityQueries++;
             return entities.stream().filter(entity -> entity != except && !entity.isRemoved()
                     && entity.getBoundingBox().intersects(box) && predicate.test(entity)).toList();
         }
         @Override public <T extends Entity> List<T> getEntities(EntityTypeTest<Entity, T> type, AABB box, Predicate<? super T> predicate) {
+            entityQueries++;
             List<T> result = new ArrayList<>();
             for (Entity entity : entities) {
                 T candidate = type.tryCast(entity);

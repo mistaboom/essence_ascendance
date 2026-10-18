@@ -53,6 +53,10 @@ public final class AscendanceItems {
      * ============================================================
      */
 
+    public static final RegistrySupplier<AscendanceGlaiveItem> ASCENDANCE_GLAIVE =
+            ITEMS.register("ascendance_glaive", () -> new AscendanceGlaiveItem(
+                    new Item.Properties().durability(WEAPON_DURABILITY).fireResistant()));
+
     public static final RegistrySupplier<AscendanceSwordItem>
             ASCENDANCE_SWORD =
             ITEMS.register(
@@ -324,6 +328,7 @@ public final class AscendanceItems {
     private static List<Item> tieredCombatInventoryArtItems() {
         return List.of(
                 ASCENDANCE_SWORD.get(),
+                ASCENDANCE_GLAIVE.get(),
                 ASCENDANCE_RANGED_WEAPON.get(),
                 ASCENDANCE_CASTER.get(),
                 ASCENDANCE_HELMET.get(),

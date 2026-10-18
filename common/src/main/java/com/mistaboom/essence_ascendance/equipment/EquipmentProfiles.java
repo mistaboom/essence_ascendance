@@ -62,6 +62,24 @@ public final class EquipmentProfiles {
                             .build()
             );
 
+    public static final EquipmentProfileDefinition GLAIVE = EquipmentProfileRegistry.register(
+            EquipmentProfileDefinition.builder(id("glaive"), "Ascendance Glaive")
+                    .attackRange(GlaiveTuning::maximumRange)
+                    .usageHints("weapon.two_handed", "weapon.glaive.actions")
+                    .infusionCategory("sword")
+                    .weaponCapabilities(new EquipmentWeaponCapabilities(
+                            EquipmentWeaponCapabilities.HandRequirement.MAIN_HAND_TWO_HANDED,
+                            EquipmentWeaponCapabilities.MeleeExecution.ACTION))
+                    .baseline(EquipmentBaselineProperty.MELEE_DAMAGE, GlaiveTuning.DAMAGE_MULTIPLIER)
+                    .baseline(EquipmentBaselineProperty.MELEE_ATTACK_SPEED, GlaiveTuning.ATTACK_SPEED_MULTIPLIER)
+                    .baseline(EquipmentBaselineProperty.DURABILITY, GlaiveTuning.DURABILITY_MULTIPLIER)
+                    .stat(EquipmentActivationType.HELD, EssenceStats.MELEE_DAMAGE)
+                    .stat(EquipmentActivationType.HELD, EssenceStats.MELEE_ATTACK_SPEED)
+                    .stat(EquipmentActivationType.HELD, EssenceStats.ATTACK_KNOCKBACK)
+                    .stat(EquipmentActivationType.HELD, EssenceStats.LOOTING)
+                    .stat(EquipmentActivationType.HELD, EssenceStats.DURABILITY_EFFICIENCY)
+                    .build());
+
     public static final EquipmentProfileDefinition RANGED_WEAPON =
             EquipmentProfileRegistry.register(
                     EquipmentProfileDefinition.builder(

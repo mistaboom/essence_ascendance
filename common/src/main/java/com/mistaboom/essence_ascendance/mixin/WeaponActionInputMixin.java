@@ -1,0 +1,52 @@
+package com.mistaboom.essence_ascendance.mixin;
+
+import com.mistaboom.essence_ascendance.equipment.WeaponActionRuntime;
+import com.mistaboom.essence_ascendance.network.WeaponActionInputPayload;
+import dev.architectury.networking.NetworkManager;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
+import org.spongepowered.asm.mixin.*;
+import org.spongepowered.asm.mixin.injection.*;
+import org.spongepowered.asm.mixin.injection.callback.*;
+
+/** Consume world presses before vanilla entity/block interaction, mining or offhand fallback. */
+@Mixin(value = Minecraft.class, priority = 1100)
+abstract class WeaponActionInputMixin {
+    @Shadow public LocalPlayer player;
+    @Unique private boolean essenceAscendance$attackLatched, essenceAscendance$useLatched;
+    @Inject(method = "tick", at = @At("HEAD"))
+    private void essenceAscendance$release(CallbackInfo ci) {
+        var client = (Minecraft)(Object)this;
+        if (!client.options.keyAttack.isDown()) essenceAscendance$attackLatched = false;
+        if (!client.options.keyUse.isDown()) essenceAscendance$useLatched = false;
+    }
+    @Unique private boolean essenceAscendance$ownsInput() {
+        return player != null && WeaponActionRuntime.requiresActionRuntime(player.getMainHandItem());
+    }
+    @Unique private void essenceAscendance$press(boolean stab) {
+        if (((Minecraft)(Object)this).getConnection() != null && NetworkManager.canServerReceive(WeaponActionInputPayload.TYPE))
+            NetworkManager.sendToServer(new WeaponActionInputPayload(stab,++essenceAscendance$sequence,
+                    player.level().getGameTime(),com.mistaboom.essence_ascendance.network.TwoHandedPolicyPayload.clientDecision(player).revision()));
+    }
+    @Unique private long essenceAscendance$sequence;
+    @Inject(method = "startAttack", at = @At("HEAD"), cancellable = true)
+    private void essenceAscendance$attack(CallbackInfoReturnable<Boolean> cir) {
+        if (!essenceAscendance$ownsInput()) return;
+        if (!essenceAscendance$attackLatched) { essenceAscendance$attackLatched = true; essenceAscendance$press(false); }
+        cir.setReturnValue(false);
+    }
+    @Inject(method = "continueAttack", at = @At("HEAD"), cancellable = true)
+    private void essenceAscendance$mining(boolean held, CallbackInfo ci) {
+        if (essenceAscendance$ownsInput()) {
+            var mode = ((Minecraft)(Object)this).gameMode;
+            if (mode != null) mode.stopDestroyBlock();
+            ci.cancel();
+        }
+    }
+    @Inject(method = "startUseItem", at = @At("HEAD"), cancellable = true)
+    private void essenceAscendance$use(CallbackInfo ci) {
+        if (!essenceAscendance$ownsInput()) return;
+        if (!essenceAscendance$useLatched) { essenceAscendance$useLatched = true; essenceAscendance$press(true); }
+        ci.cancel();
+    }
+}

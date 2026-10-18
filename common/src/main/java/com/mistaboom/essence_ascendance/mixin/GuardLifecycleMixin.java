@@ -16,6 +16,8 @@ public abstract class GuardLifecycleMixin {
     @WrapMethod(method = "startUsingItem")
     private void essenceAscendance$guardStarted(InteractionHand hand, Operation<Void> original) {
         LivingEntity holder = (LivingEntity)(Object)this;
+        if (hand == InteractionHand.OFF_HAND && holder instanceof net.minecraft.world.entity.player.Player player
+                && !com.mistaboom.essence_ascendance.equipment.TwoHandedEquipmentService.permitsOffhandUse(player)) return;
         boolean alreadyUsing = holder.isUsingItem();
         original.call(hand);
         if (!alreadyUsing && holder instanceof ServerPlayer player) GuardLifecycle.started(player);

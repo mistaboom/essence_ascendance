@@ -73,6 +73,24 @@ public final class EssenceAscendanceClient {
                 MagicBoltRenderer::new);
         ClientPacketDispatch.init();
         RodForceClient.init();
+        dev.architectury.networking.NetworkManager.registerReceiver(dev.architectury.networking.NetworkManager.Side.S2C,
+                com.mistaboom.essence_ascendance.network.WeaponActionStatePayload.TYPE,
+                com.mistaboom.essence_ascendance.network.WeaponActionStatePayload.CODEC,
+                (payload,context) -> ClientPacketDispatch.queue(context,() -> {
+                    var level=net.minecraft.client.Minecraft.getInstance().level;
+                    if (level!=null && level.dimension().location().equals(payload.dimension()))
+                        GlaiveRenderer.accept(payload,level.getGameTime());
+                }));
+        dev.architectury.networking.NetworkManager.registerReceiver(dev.architectury.networking.NetworkManager.Side.S2C,
+                com.mistaboom.essence_ascendance.network.TwoHandedPolicyPayload.TYPE,
+                com.mistaboom.essence_ascendance.network.TwoHandedPolicyPayload.CODEC,
+                (payload, context) -> ClientPacketDispatch.queue(context, () -> {
+                    var level = net.minecraft.client.Minecraft.getInstance().level;
+                    if (level != null && level.dimension().location().equals(payload.dimension())
+                            && level.getEntity(payload.entityId()) instanceof net.minecraft.world.entity.player.Player holder
+                            && holder.getUUID().equals(payload.owner()))
+                        com.mistaboom.essence_ascendance.network.TwoHandedPolicyPayload.accept(holder, payload.decision());
+                }));
         PreciseMobMotionClient.init();
         com.mistaboom.essence_ascendance.client.ore.LatentOreClientCatalog.init();
         com.mistaboom.essence_ascendance.archive.ArchiveClientBridge.install(AscendanceArchiveScreen::open);
@@ -82,6 +100,7 @@ public final class EssenceAscendanceClient {
                     EssenceMachineMeshes.invalidateAll();
                     FocusVisuals.invalidateResources();
                     AscendanceShieldRenderer.invalidateResources();
+                    GlaiveRenderer.invalidateResources();
                     ClientPacketDispatch.resourcesReloaded();
                 },
                 ResourceLocation.fromNamespaceAndPath(EssenceAscendance.MOD_ID, "machine_meshes")
@@ -106,6 +125,7 @@ public final class EssenceAscendanceClient {
 
         Item[] tierVisualItems = {
                 AscendanceItems.ASCENDANCE_SWORD.get(),
+                AscendanceItems.ASCENDANCE_GLAIVE.get(),
                 AscendanceItems.ASCENDANCE_RANGED_WEAPON.get(),
                 AscendanceItems.ASCENDANCE_CASTER.get(),
                 AscendanceItems.ASCENDANCE_PICKAXE.get(),

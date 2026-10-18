@@ -37,6 +37,7 @@ public final class EquipmentStatProviderRegistry {
         Objects.requireNonNull(provider, "Equipment stat provider cannot be null");
         if (!PROVIDERS.contains(provider)) {
             PROVIDERS.add(provider);
+            TwoHandedEquipmentPolicy.rulesChanged();
         }
     }
 

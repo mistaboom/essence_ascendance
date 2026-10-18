@@ -63,6 +63,7 @@ public final class EssenceConfigManager {
         runtime.validateServerReferences();
         SkillBalanceRuntime.install(runtime.skillCurves());
         serverRuntime=runtime;
+        com.mistaboom.essence_ascendance.equipment.TwoHandedEquipmentPolicy.rulesChanged();
         balanceUnavailable=false;
         com.mistaboom.essence_ascendance.balance.BalanceProfileRegistry.installRuntime(runtime.config().balanceProfile());
         AscendanceToolMiningService.invalidateCache();

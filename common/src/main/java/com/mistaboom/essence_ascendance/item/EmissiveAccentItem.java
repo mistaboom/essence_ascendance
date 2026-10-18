@@ -1,5 +1,11 @@
 package com.mistaboom.essence_ascendance.item;
 
-/** Marks a layered inventory model whose tint-index-one accent receives the shared equipment emission pass. */
+/** Layered equipment materials: 0 = base, 1 = accent, other = untinted. */
 public interface EmissiveAccentItem {
+    default int materialTintIndex(int modelTintIndex) { return modelTintIndex; }
+
+    static int materialTintIndex(net.minecraft.world.item.ItemStack stack, int modelTintIndex) {
+        return stack.getItem() instanceof EmissiveAccentItem item
+                ? item.materialTintIndex(modelTintIndex) : modelTintIndex;
+    }
 }

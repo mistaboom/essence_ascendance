@@ -1,54 +1,62 @@
 # Balance generation and saved profiles
 
-[Procedural balance](https://github.com/mistaboom/essence_ascendance/wiki/Procedural-Balance) · [Configuration](https://github.com/mistaboom/essence_ascendance/wiki/Configuration) · [Updating and recovery](https://github.com/mistaboom/essence_ascendance/wiki/Updating-and-Recovery)
+[Configuration](https://github.com/mistaboom/essence_ascendance/wiki/Configuration) · [Backups and recovery](https://github.com/mistaboom/essence_ascendance/wiki/Updating-and-Recovery)
 
-## The saved profile is the authority
+## First setup
 
-`config/essence_ascendance/generated_balance.json.gz` stores validated server balance. Human TOMLs are generation inputs; reports are derived views. Existing valid saved data is loaded rather than recalculated. Missing data or an explicit rebuild invokes generation. Invalid existing data is rejected rather than silently replaced.
+Use a fresh test world with the mods and recipes you plan to ship. The server generates balance during world startup if no saved balance exists. Single-player uses its integrated server in the same way.
 
-This development model requires fresh saves/worlds/configs when coming from the older generator and metadata formats. There is no compatibility migration. Keep historical worlds with their matching versions and inputs.
+After a successful first generation, you should have these editable files:
 
-## Generation inputs and order
-
-Global settings stay in `config/essence_ascendance.toml`. Skill and Bonus progression live in `config/essence_ascendance/skill_settings.toml` and `bonus_settings.toml`. Advanced facts and exact overrides live in `balance_overrides.toml` in the same folder.
-
-Generation reads shared item properties, common tags, loaded standard recipe interfaces, measured native equipment/enemy attributes and configured policy. It uses bounded recipe estimates and complete material constraints. It does not traverse quests, sample loot, infer farms, inspect arbitrary scripts or run mod-specific valuation providers.
-
-A missing Skill entry uses authored unlock placement and generated ranks/effects; a missing Bonus entry uses automatic bounds. Missing system files receive complete defaults only after a validated profile is durably published. Existing files are never overwritten. Generated settings can then be edited and explicitly rebuilt.
-
-Generation runs synchronously during early Overworld loading. Native registry/recipe availability matters, and larger catalogs can take longer. No universal duration or heap size is promised.
-
-## What triggers recalculation?
-
-| Change or action | Behavior |
+| File | Purpose |
 | --- | --- |
-| Restart with a valid saved profile | Loads saved authority; no recalibration |
-| Edit a human TOML | No live effect; explicit rebuild applies it |
-| Add/remove/update mods or datapacks | Does not automatically replace saved balance |
-| Datapack/resource reload | Does not install a newly generated profile |
-| `/essence admin mappings reload` | Reinstalls saved authority; a missing profile can generate |
-| `/essence admin balance rebuild` | Generates and validates a replacement using current inputs |
-| `/essence debug balance validate` | Validates disk data and compares active integrity; installs nothing |
-| `/essence admin balance export` | Recreates reports from active saved data; no recalculation |
+| `config/essence_ascendance.toml` | Overall power, costs, activity pace, ore and other shared settings |
+| `config/essence_ascendance/skill_settings.toml` | Skill unlock tiers, ranks and effects |
+| `config/essence_ascendance/bonus_settings.toml` | Bonus starting/completion tiers and effect bounds |
+| `config/essence_ascendance/balance_overrides.toml` | Advanced corrections for items, equipment and recipes |
 
-Commands require permission 2. Rebuild deliberately changes the server's balance and can block the server thread. Test meaningful pack changes in staging.
+Skill and Bonus files are created from a successfully generated result. If generation fails, fix the reported problem first; an absent settings file is not a reason to copy one from an unrelated pack.
 
-## Validation and publication
+## Why settings do not change on every restart
 
-The candidate must pass integrity/schema, typed runtime, reference, rank, composition, economy and transport checks. Native floors, caps and prerequisites still constrain edited Skill/Bonus settings.
+`config/essence_ascendance/generated_balance.json.gz` stores the balance the server actually uses. This keeps values stable between sessions. The editable files are instructions for the next generation; reports are summaries of the installed result.
 
-A generated candidate is validated, transport-preflighted and mapping-prepared before durable replacement and installation. Atomic storage uses a temporary sibling file and requires atomic replacement. Pre-publication validation/write failure preserves the previous active authority when present.
+| Action | What happens |
+| --- | --- |
+| Restart with a valid saved balance | Loads that balance |
+| Edit a configuration file | Saves your requested change; does not apply it yet |
+| Change mods, recipes or datapacks | Does not automatically replace saved balance |
+| `/essence admin balance rebuild` | Generates, checks and installs a replacement using the current pack and settings |
+| `/essence admin mappings reload` | Reloads saved balance; does not recalculate an existing profile |
+| `/essence admin balance export` | Recreates reports without recalculating balance |
+| `/essence debug balance validate` | Checks the saved balance and its agreement with the running server |
 
-Reports and synchronization follow publication. A report-write or client-sync failure does not undo installed balance. Check active/disk agreement, report manifest and client readiness separately. Failed/uncommitted diagnostic candidates are never evidence of successful installation.
+These commands require operator permission level 2. There is no `/essence admin config reload` command in beta.9; `/essence admin config` displays information only.
 
-On fresh startup with no usable profile, guarded balance-dependent systems remain unavailable. A working preview alone is not proof that validated server balance has installed.
+## Applying your edits
 
-## Saved identity and clients
+Back up the world and the whole Essence Ascendance configuration first. Apply substantial pack changes in a test copy before a live server.
 
-Use `/essence debug balance summary` and the installed profile's metadata for the actual generator revision and integrity. Documentation of an older revision does not certify a newer file. Editing the compressed JSON directly invalidates its integrity.
+```mcfunction
+/essence admin balance rebuild
+/essence debug balance summary
+/essence debug balance validate
+```
 
-Clients receive resolved runtime, player state, item yields and ore-host data through their synchronization channels. Use matching client/server builds. The Archive waits for required synchronized data rather than presenting bootstrap values as server authority.
+A rebuild can pause the server while it works. Wait for the result and check the Archive/Nexus on a matching client. The commands inspect and apply server balance; clients do not each need to rebuild it.
 
-Restore an already installed change only from a coordinated backup of the world, all human inputs, profile and matching versions. Restoring a profile alone does not undo purchases or gameplay after it was installed.
+If a rebuild fails before installing the replacement, an existing valid balance stays active. Read the file/line or setting named in the error. Do not assume an edit worked merely because the file saved successfully.
 
-Current source: `balance/generated/GeneratedBalanceService.java`, `BalanceProfileStore.java` and `ProfileGenerationSelection.java`.
+If installation succeeds but report writing or client synchronization fails, the new balance can already be active. Check the summary, fix the reported problem, then export reports again or reconnect the affected client as appropriate.
+
+## Automatic settings versus saved choices
+
+Existing Skill and Bonus settings files are never overwritten by a rebuild. Their generated defaults become explicit choices once written. Raising global power therefore does not necessarily raise a Skill or Bonus whose effect values are already set in those files.
+
+To let one Skill regenerate its rank count/effects, remove its `ranks` line and its complete `[[skill.stat]]` blocks, keeping its `id` and any desired `tier`. To let one Bonus regenerate completely, remove its whole `[[bonus]]` entry. Then rebuild. Removing a whole Skill entry restores the default unlock tier as well as automatic ranks/effects.
+
+For a completely new set of automatic Skill or Bonus defaults, keep the test server running, back up that settings file, move it out of the configuration folder, and explicitly rebuild before restarting. A missing file is recreated from the newly installed result.
+
+If you remove the file while stopped and then start with an existing saved profile, the mod can recreate it from that old saved balance. That restores the old choices rather than generating new values for your changed pack/settings. Move it aside again while the server is running and rebuild if you intended fresh automatic defaults.
+
+Do not edit `generated_balance.json.gz` or use a report as a configuration file. For restoring earlier balance, use [a matching backup](https://github.com/mistaboom/essence_ascendance/wiki/Updating-and-Recovery).

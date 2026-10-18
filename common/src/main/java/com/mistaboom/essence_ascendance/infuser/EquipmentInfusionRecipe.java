@@ -81,15 +81,9 @@ public record EquipmentInfusionRecipe(
         if (stack.is(AscendanceItems.ASCENDANCE_CHESTPLATE.get())) return "chestplate";
         if (stack.is(AscendanceItems.ASCENDANCE_LEGGINGS.get())) return "leggings";
         if (stack.is(AscendanceItems.ASCENDANCE_BOOTS.get())) return "boots";
-        if (stack.is(AscendanceItems.ASCENDANCE_SWORD.get())) return "sword";
-        if (stack.is(AscendanceItems.ASCENDANCE_RANGED_WEAPON.get())) return "ranged_weapon";
-        if (stack.is(AscendanceItems.ASCENDANCE_CASTER.get())) return "magic_caster";
-        if (stack.is(AscendanceItems.ASCENDANCE_PICKAXE.get())) return "pickaxe";
-        if (stack.is(AscendanceItems.ASCENDANCE_AXE.get())) return "axe";
-        if (stack.is(AscendanceItems.ASCENDANCE_SHOVEL.get())) return "shovel";
-        if (stack.is(AscendanceItems.ASCENDANCE_HOE.get())) return "hoe";
-        if (stack.is(AscendanceItems.ASCENDANCE_SHIELD.get())) return "shield";
-        if (stack.is(AscendanceItems.ASCENDANCE_FISHING_ROD.get())) return "fishing_rod";
+        if (stack.getItem() instanceof com.mistaboom.essence_ascendance.equipment.EquipmentProfileItem item)
+            return com.mistaboom.essence_ascendance.equipment.EquipmentProfileRegistry.get(item.equipmentProfileId())
+                    .orElseThrow().infusionCategory();
         throw new IllegalArgumentException("Unsupported Ascendance equipment workpiece");
     }
 

@@ -1,146 +1,110 @@
-> **Historical workflows from the earlier generator.** The acquisition/provider examples and retired report names below are not current configuration instructions. Use [Configuration](https://github.com/mistaboom/essence_ascendance/wiki/Configuration), [Reports](https://github.com/mistaboom/essence_ascendance/wiki/Reports-and-Provenance) and [the current model](https://github.com/mistaboom/essence_ascendance/blob/main/docs/simple-balance.md) for the supported inputs. These examples remain as dated documentation, not new test receipts.
-
 # Worked scenarios for pack makers
 
-[Home](https://github.com/mistaboom/essence_ascendance/wiki/Home) · [Configuration](https://github.com/mistaboom/essence_ascendance/wiki/Configuration) · [Reports](https://github.com/mistaboom/essence_ascendance/wiki/Reports-and-Provenance)
+[Configuration](https://github.com/mistaboom/essence_ascendance/wiki/Configuration) · [Reports](https://github.com/mistaboom/essence_ascendance/wiki/Reports-and-Provenance)
 
-These are prospective workflows with valid syntax and confirmed settings. **Outcomes are illustrative; the examples were not run against a pack or world.** Administrative commands require permission 2. Server commands work from console; player-target examples here use an in-game operator.
-
-## Adding cooperative infrastructure to a development pack
-
-**Beta.5 multiplayer; illustrative workflow, not a live test result.** Use matching server/client beta.5 builds and a fresh staging world. Keep player lessons in the Archive; use [Teams and shared infrastructure](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure) for administrative rules.
-
-1. Choose native/no-provider or an exact accepted external dependency tuple. To use both FTB Teams membership and FTB Quests evidence, use Teams **2101.1.11**, Library **2101.1.36 or 2101.1.37**, Quests **2101.1.36**, and Architectury **13.0.11**, with artifacts matching the loader. The integrations have separate scopes; this accepted tuple does not replace live-world acceptance checks.
-2. Inspect `/essence admin membership status` and the player's `/essence team status`. Fresh AUTO and established-world authority have different behavior. Normal external party members need no second enrollment.
-3. Explain the wealth trust boundary before native approval/external joining: all existing Stored is communal; Available/invested progression stays personal. Rehearse departure and offline membership on dedicated state.
-4. Place normally bound machinery and inspect `/essence machine ~ ~-1 ~ status` only if a matching machine is below the sender. Automatic linking excludes foreign teams and keeps a valid source stable. Do not add an ownership-adoption step.
-5. Check simultaneous eligible consumers, the aggregate fill limit, selected/required types and explicit equipment Start. Additional Infusers can share one source; one player still has one active source. Do not infer guaranteed rates from receiver maxima.
-6. Rehearse coordinated backups and the actual schema/provider-change boundary before considering a production rollout. Real FTB activation and new Crucible team ownership have a narrow user-confirmed success; offline-member events, unloaded machinery, two-client fairness, restarts, graphics and interrupted saves remain pending. [Verification scope](https://github.com/mistaboom/essence_ascendance/wiki/Version-and-Maintenance#evidence-and-test-claims).
-
-**Illustrative accounting outcome:** the 900 + 300, channel 200, then depart with 500 each example on the team page explains equal remaining shares. It is not a contribution refund or evidence that this scenario was run with two actual clients.
+These examples show how to use beta.9's settings. They are illustrative choices, not recommended values for every pack. Edit the matching entry in your generated file rather than appending a second entry with the same ID. Commands require operator permission level 2.
 
 ## Starting a new modpack
 
-**Goal:** generate a coherent starting economy for the content you intend to distribute.
+1. Install the intended mods, datapacks and recipe changes in a test installation. Use matching Essence Ascendance versions on client and server.
+2. Create a fresh world and allow generation to complete.
+3. Open the Archive for item yields, equipment values and gameplay instructions. Review the Nexus for generated Skills and Bonuses.
+4. Test common early materials, expensive recipe chains and the equipment players will actually use. The generator does not know your quests or farm rates.
+5. Tune the four [human configuration files](https://github.com/mistaboom/essence_ascendance/wiki/Configuration#files-scope-and-timing), rebuild and retest.
+6. Package the reviewed settings. Normally let the destination server generate its own saved balance; do not include your test world, player data or personal logs.
 
-1. Assemble the final intended mods, datapacks, world-generation settings and integration configs in staging.
-2. Install matching loader/dependencies on client and server. Let a new server without saved authority perform first generation.
-3. Check authority and disk agreement:
-
-```mcfunction
-/essence debug mappings status
-/essence debug balance summary
-/essence debug balance validate
-```
-
-4. Read the overview and manifest. Review low-confidence/unresolved evidence, extreme resources and early category coverage.
-5. Export detailed saved sources when needed:
-
-```mcfunction
-/essence admin balance export
-```
-
-Export writes reports; it does not regenerate. Check representative survival access and client Archive values before distribution. Ship inputs as pack intent; include saved authority only for a deliberately matching fixed environment.
-
-**Illustrative outcome:** early supply may differ among categories, leading to different investment costs and ore supply decisions. Do not demand identical category prices merely because there are six Essences.
+Use `/essence debug balance summary` and `/essence debug balance validate` to check that valid balance is installed. A pre-generated profile is an advanced option for an intentionally fixed pack; it will prevent automatic first-run recalculation when copied into another installation.
 
 ## Adjusting overall power and progression pace
 
-**Goal:** request modestly stronger added power, cheaper investment and faster seals without replacing resource facts.
-
-Edit the existing tables in `config/essence_ascendance.toml`:
+Edit these existing sections in `config/essence_ascendance.toml`:
 
 ```toml
-schema_version = 1
-
 [power]
-overall = 1.1 # More added headroom; not 10% guaranteed live DPS.
+overall = 1.1
 
 [progression]
-length = 1.0 # Retain the baseline journey scale.
-cost_pressure = 0.9 # Request cheaper generated investment.
+cost_pressure = 0.9
 
 [attunement]
-pace = 1.25 # Increase contribution speed without directly changing Essence costs.
+pace = 1.25
 ```
 
-Back up the old inputs/profile/world, rebuild in staging, then compare Bonus tracks, Skill parameters, composed output checks and Attunement targets/pacing.
+This requests more automatic added power, cheaper generated investments and faster seal progress. It does not promise exactly 10% more damage or change item yields.
 
-```mcfunction
-/essence admin balance rebuild
-/essence debug balance validate
+Existing Skill/Bonus endpoint settings remain explicit choices. If you want them to follow the new automatic power settings, remove the corresponding overrides before rebuilding; see [returning to automatic defaults](https://github.com/mistaboom/essence_ascendance/wiki/Balance-Generation#automatic-settings-versus-saved-choices).
+
+## Making a Bonus finish earlier
+
+Find Breath Hold in `config/essence_ascendance/bonus_settings.toml`. For example:
+
+```toml
+[[bonus]]
+id = "essence_ascendance:breath_hold"
+min_tier = "essence_ascendance:awakened"
+max_tier = "essence_ascendance:ascendant"
+bonus_at_max = 30.0
+minimum_bonus_at_lowest = 5.0
 ```
 
-**Illustrative outcome:** faster activity completion and cheaper costs can be requested together, but exact rank/effect changes depend on native grids, supply and headroom. If you only want a longer journey, adjust `progression.length` deliberately rather than also increasing pace and obscuring the result.
+This requests at least five extra seconds at the first active tier and exactly thirty at completion. The mod fills in the intervening progression. Transcendent retains the completed benefit; it does not add another step.
+
+Keep all four controls in the entry. A lower maximum or shorter interval must still leave room for useful improvements. Rebuild, then inspect the Bonus tooltip and `reports/bonus_tracks.csv`. An impossible request produces an error instead of quietly changing your chosen endpoints.
+
+## Moving a Skill or changing its ranks
+
+In `config/essence_ascendance/skill_settings.toml`, find the Skill's existing `[[skill]]` entry. Change `tier` to move its first unlock. To request three ranks, set `ranks = 3`; the generated stat blocks beneath that Skill supply its first and final effects.
+
+Each `[[skill.stat]]` belongs to the preceding Skill. Change only the effect you intend, and retain its exact `path`. A `Percent` field uses percentage points, a `Chance`/`Fraction` field uses fractions such as `0.1` for 10%, and a `Ticks` field uses twenty ticks per second.
+
+For an illustration of the file structure, this sets Kindling to one rank with equal first/final values:
+
+```toml
+[[skill]]
+id = "essence_ascendance:kindling"
+tier = "essence_ascendance:dormant"
+ranks = 1
+
+[[skill.stat]]
+path = "kindling/burningDamageAmplificationPercent"
+at_first_rank = 5.0
+at_max_rank = 5.0
+
+[[skill.stat]]
+path = "kindling/burningDamagePercentPerSecond"
+at_first_rank = 5.0
+at_max_rank = 5.0
+```
+
+These are example values, not a universal generated default. One-rank effects need equal endpoints. On/off Skills must remain one rank; additional ranks need meaningful improvements. Tier changes must also respect prerequisite ordering.
+
+After rebuilding, check the Skill in the Archive/Nexus and its rows in `reports/skill_rank_parameters.csv`. Effect edits do not automatically reprice an unchanged rank count. Changing rank count generates a new cost progression.
+
+## Investigating an unexpectedly gated Skill
+
+Start with its entry in `skill_settings.toml`, then check the Archive for prerequisite Skills, rank-specific tier requirements, milestones and mutually exclusive choices. A low base unlock does not remove the other requirements.
+
+If needed, inspect the installed Skill with `/essence debug balance skill fatigue_flight 1`, using the appropriate Skill ID and rank. Player-specific diagnostic commands are listed on the [diagnostics page](https://github.com/mistaboom/essence_ascendance/wiki/Diagnostics-and-Testing). Granting a rank for testing does not remove prerequisites or prove that players can afford it normally.
 
 ## Investigating an unexpectedly valuable or valueless item
 
-**Goal:** explain the decision before pinning a yield. Iron ingots are a real identifier used for syntax, not a claim that iron is wrong in your pack.
-
 ```mcfunction
-/essence debug balance summary
 /essence debug balance item "minecraft:iron_ingot"
 /essence admin balance export
 ```
 
-Filter `valuation.csv` to the item. Compare opportunity value, yield, stage, availability, routing and warnings. Join acquisition details on `item_id` + `source_index`. Ask:
+Use the item's real full ID in quotes. Find it in `reports/valuation.csv`. Compare the estimated material value with the actual Essence payout, and check output counts and reversible crafting forms. The cheapest recognized recipe can limit a payout even when another recipe is much more expensive.
 
-- Is the saved profile older than the recipe/source change?
-- Did supported setup/tool/input evidence establish access?
-- Is supply effectively infinite or cheaply automated?
-- Did a complete modeled conversion route lower the yield?
-- Is the item missing evidence rather than intentionally zero?
-
-If a pack genuinely provides entry-stage unlimited cobblestone, the [conditional fact example](https://github.com/mistaboom/essence_ascendance/wiki/Overrides-and-Customization#valid-factual-examples) describes that evidence. Do not invent free throughput to force a lower number. Correct facts, rebuild in staging, and compare.
-
-**Illustrative outcome:** an item can retain high crafting usefulness while yielding little or no Essence. That is a value-versus-extraction distinction, not necessarily a bug.
-
-## Investigating an unexpectedly gated Skill
-
-**Goal:** separate generated availability from a particular player's effectiveness. Fatigue Flight is a registered example.
-
-```mcfunction
-/essence debug balance skill fatigue_flight 1
-/essence debug player skills show fatigue_flight @s
-/essence debug player milestones show sky_limit @s
-/essence debug player skills loadout @s
-```
-
-Use the active Archive for rank-specific gates. In `skill_availability.csv` compare catalog, candidate and final tier, witnesses, coverage and prerequisite/setup clamps. The chat balance view's base tier is not every rank gate.
-
-Then check owned prerequisite ranks, milestone resolution, choice selection, replacements and current conditions. A granted receipt does not bypass those checks.
-
-**Illustrative outcome:** a pack may expose earlier flight capability, yet a supported operating setup or permanent prerequisite can keep final access later than the candidate. PARTIAL coverage does not prove all earlier alternatives were considered.
-
-If evidence is wrong, correct it. Changing `policies.flight` can change relative emphasis but does not waive prerequisites. Avoid fixing a pack-level decision by silently granting every live player a Skill.
+The generator does not price the difficulty of your quests or automation. Use `balance_overrides.toml` for a specific supported correction rather than making every investment cheaper to compensate for one item. [Advanced overrides](https://github.com/mistaboom/essence_ascendance/wiki/Overrides-and-Customization) explains the available controls and their limits.
 
 ## Handling incomplete evidence for another mod
 
-**Goal:** supply truthful evidence without claiming the generator understands hidden mechanics.
+Ordinary recipes, common tags and exposed stats can work without a dedicated adapter. Hidden spells, upgrade systems, quest gates and machine running costs may not be represented. Test the actual items that matter to your pack, then correct supported measurements or set Skill/Bonus values to suit your design.
 
-1. Read provider/version/readiness diagnostics and unsupported candidate reasons.
-2. Separate ordinary recipe access from operating energy, components, callbacks, rates and composition.
-3. Check the [audited integration versions](https://github.com/mistaboom/essence_ascendance/wiki/Integrations-and-Compatibility).
-4. Use supported factual fields only for measurements/access you can substantiate. Leave unknown rate/cost absent; zero means known zero.
-5. For complex missing production behavior, use/request a typed adapter. A flat damage or throughput fact does not implement a complete machine.
-6. Rebuild in staging; verify the fact actually matched and contributed.
-
-If a provider must be excluded, use the **actual provider ID from diagnostics**, not the mod's display name. That selector is environment-specific, so this walkthrough does not invent a runnable ID.
-
-**Illustrative outcome:** generic recipes may establish a crafting ingredient while the mod's full spell/module composition remains unresolved. This is useful partial support with an explicit boundary.
+You do not need a bespoke integration to move a Skill or buff a Bonus. Changing a measurement does not implement another mod's hidden mechanic.
 
 ## Changing a pack after players have begun progressing
 
-**Goal:** update intentionally while preserving a recoverable history.
+Keep a complete world/configuration/version backup. Try the update and rebuild in a copy, compare the Archive and reports, and test existing players before scheduling a live maintenance window.
 
-1. Back up complete world/config/profile and record old versions/integrity.
-2. Export old reports if needed for comparison; preserve their sidecars.
-3. Stage the content/input update. Existing authority is reused until explicit rebuild, so a restart alone is not a recalibration.
-4. Rebuild the staged copy, inspect changed prices/ranks/gates/yields/ore and try representative existing players/loadouts.
-5. Review same-chapter Attunement preservation, historical receipts and effective investment under new caps.
-6. Schedule production maintenance, rebuild deliberately and check install, disk, reports and clients separately.
-7. Verify restart reuse and retain the old coherent backup for rollback.
-
-**Illustrative outcome:** current earned seal fractions can survive new target rates while future activity uses new policy. Historical Skill receipts remain historical paid amounts; newly generated prices do not automatically rewrite refunds.
-
-A profile-only rollback does not undo purchases or activity after installation. Follow [updating and recovery](https://github.com/mistaboom/essence_ascendance/wiki/Updating-and-Recovery) for a consistent restore. No full reset is needed merely because balance is being regenerated.
+This applies to supported balance edits within the current format. It does not provide migration from earlier beta worlds or item identifiers. Restoring a saved balance file alone does not reverse purchases, inventory changes or world activity; see [updating and recovery](https://github.com/mistaboom/essence_ascendance/wiki/Updating-and-Recovery).

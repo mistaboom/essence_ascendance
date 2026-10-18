@@ -263,6 +263,7 @@ public final class InfuserJeiRecipe {
                 AscendanceItems.ASCENDANCE_LEGGINGS.get(),
                 AscendanceItems.ASCENDANCE_BOOTS.get(),
                 AscendanceItems.ASCENDANCE_SWORD.get(),
+                AscendanceItems.ASCENDANCE_GLAIVE.get(),
                 AscendanceItems.ASCENDANCE_RANGED_WEAPON.get(),
                 AscendanceItems.ASCENDANCE_CASTER.get(),
                 AscendanceItems.ASCENDANCE_PICKAXE.get(),

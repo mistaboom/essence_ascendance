@@ -85,6 +85,18 @@ public final class StyledTextLayout {
         return List.copyOf(font.split(text, maximumWidth));
     }
 
+    /** Logical component rows for native item tooltips, preserving translated run styles. */
+    public static List<Component> wrapComponents(net.minecraft.client.StringSplitter splitter, Component text, int maximumWidth) {
+        if (text == null || maximumWidth <= 0) return List.of();
+        List<Component> result = new ArrayList<>();
+        for (var part : splitter.splitLines(text, maximumWidth, Style.EMPTY)) {
+            var line = Component.empty();
+            for (var run : runs(part)) line.append(Component.literal(run.text()).withStyle(run.style()));
+            result.add(line);
+        }
+        return List.copyOf(result);
+    }
+
     /**
      * Fits one styled visual line. The prefix retains click/hover/color styles;
      * only the synthetic ellipsis uses the default draw color.

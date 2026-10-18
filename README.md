@@ -81,3 +81,7 @@ Essence Ascendance estimates item values from shared item properties and recipes
 Essence Ascendance is currently in **beta**. [Report a bug or suggest a feature](https://github.com/mistaboom/essence_ascendance/issues), and include your mod version, Minecraft version, loader, and relevant logs when reporting a problem.
 
 [Source code](https://github.com/mistaboom/essence_ascendance) · [MIT license](https://github.com/mistaboom/essence_ascendance/blob/main/LICENSE) · [Development guide](https://github.com/mistaboom/essence_ascendance/blob/main/docs/DEVELOPMENT.md)
+
+## Animation acknowledgments
+
+Earlier glaive animation prototypes referenced [Better Combat](https://github.com/ZsoltMolnarrr/BetterCombat), by Zsolt Molnár and contributors, as used by [Simply Swords](https://github.com/Sweenus/SimplySwords), by Sweeney / Timefall Development and contributors. The current presentation uses Minecraft's native trident rest placement and an original shoulder-driven aiming implementation; neither mod nor an additional animation library is required. [Detailed acknowledgment](common/src/main/resources/META-INF/animation-credits.txt).

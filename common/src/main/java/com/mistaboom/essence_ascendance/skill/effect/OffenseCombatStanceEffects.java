@@ -67,6 +67,14 @@ final class OffenseCombatStanceEffects {
     private static final class Frenzy implements SkillEffectHudHandler {
         @Override public ResourceLocation id() { return SkillIds.FRENZY; }
 
+        @Override public MeleeOffenseSnapshot.Modifier snapshotMeleeOffense(SkillEffectRuntime.Context context) {
+            TimedStackState state = context.existingState(id());
+            var tuning = context.settings().frenzy();
+            double multiplier = SkillEffectMath.stackMultiplier(state == null ? 0 : state.count(),
+                    tuning.maxStacks(), tuning.damageBonusPercentPerStack());
+            return (target,source,primary) -> new MeleeOffenseSnapshot.Values(multiplier,0);
+        }
+
         @Override public double bowDrawSpeedMultiplier(SkillEffectRuntime.Context context) {
             return frenzySpeed(context, context.settings().frenzy().attackSpeedBonusPercentPerStack());
         }
@@ -217,6 +225,12 @@ final class OffenseCombatStanceEffects {
 
     private static final class Desperation implements SkillEffectHudHandler {
         @Override public ResourceLocation id() { return SkillIds.DESPERATION; }
+
+        @Override public MeleeOffenseSnapshot.Modifier snapshotMeleeOffense(SkillEffectRuntime.Context context) {
+            double multiplier = SkillEffectMath.desperationMultiplier(context.player().getHealth(),
+                    context.player().getMaxHealth(),context.settings().desperation().maxDamageBonusPercent());
+            return (target,source,primary) -> new MeleeOffenseSnapshot.Values(multiplier,0);
+        }
 
         @Override public SkillEffectHudEntry hudEntry(SkillEffectRuntime.Context context) {
             double missing = 1.0 - healthFraction(context);

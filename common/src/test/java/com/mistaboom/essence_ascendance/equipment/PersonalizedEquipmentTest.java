@@ -31,6 +31,17 @@ public final class PersonalizedEquipmentTest {
         check(gift.baseRgb() == 0xFF1493 && gift.accentRgb() == 0x7FFFD4 && gift.perk("mob_opening_launch", 1) == 10,
                 "Gift appearance and behavior share a definition");
         check(gift.perk("mob_launch_steering", 1) == 4, "Vance has a separate, owner-gated steering perk");
+        check(gift.flavor().equals("Go away! I'm fishing... way, WAY away."), "Exact Vance flavor");
+        check(PersonalizedEquipmentService.definitions().stream().filter(p -> p.id().equals(gift.id())).count() == 1,
+                "Vance entry is preserved without duplication");
+        var sebastian = PersonalizedEquipmentService.definitions().stream()
+                .filter(p -> p.id().equals("sebastian_long_distance_relationship")).findFirst().orElseThrow();
+        check(sebastian.playerId().equals(UUID.fromString("b539da99-55df-40f9-885b-a44329aea404"))
+                && sebastian.itemId().equals("essence_ascendance:ascendance_glaive") && sebastian.tier().equals("transcendent")
+                && sebastian.name().equals("Sebastian’s Long-Distance Relationship"), "Exact Sebastian assignment");
+        check(sebastian.flavor().equals("For maintaining healthy distance... from whatever you're stabbing.")
+                && sebastian.baseRgb() == 0x0d0967 && sebastian.accentRgb() == 0xb6f800
+                && sebastian.perks().equals(Map.of(EquipmentAttackRange.PERSONALIZED_PERK,30.0)), "Exact Sebastian flavor, palette and generic range perk");
         var glaive = PersonalizedEquipmentDefinition.read(new StringReader("""
                 {"schema_version":1,"profiles":[{"id":"future_glaive","player_uuid":"00000000-0000-0000-0000-000000000001",
                 "item":"essence_ascendance:ascendance_glaive","tier":"transcendent","name":"Future Glaive",
@@ -38,6 +49,7 @@ public final class PersonalizedEquipmentTest {
                 """));
         check(glaive.getFirst().itemId().endsWith("ascendance_glaive") && glaive.getFirst().perk("mob_opening_launch", 1) == 1,
                 "Definitions support other equipment types and independent perks");
+        check(glaive.getFirst().flavor().isEmpty(), "Absent flavor stays valid and empty");
         try { PersonalizedEquipmentDefinition.read(new StringReader("{\"schema_version\":2,\"profiles\":[]}")); throw new AssertionError(); }
         catch (IllegalArgumentException expected) { checks++; }
         var policy = RuntimeBalanceDefinition.bootstrap().config().fishingRodBalance();

@@ -56,7 +56,8 @@ public final class GuidePresentationTest {
         PresentationContext context = PresentationContext.catalog(runtime);
         List<SemanticDocument> documents = List.of(
                 GuideDocuments.beginning(context), GuideDocuments.essence(), GuideDocuments.machines(context),
-                GuideDocuments.infusion(context), GuideDocuments.ascendance(context), GuideDocuments.skills(), GuideDocuments.fishing(context));
+                GuideDocuments.infusion(context), GuideDocuments.ascendance(context), GuideDocuments.skills(),
+                GuideDocuments.fishing(context), GuideDocuments.glaive(context));
         curriculum(documents);
         liveFacts(context, documents);
         navigationAndSearch(documents);
@@ -68,10 +69,13 @@ public final class GuidePresentationTest {
         ArchiveCatalog catalog = ArchiveCatalog.DEFAULT;
         check(catalog.sections(ArchiveMode.GUIDE).equals(ArchiveSection.GUIDE),
                 "Guide section order changed");
-        check(documents.size() == ArchiveSection.GUIDE.size(), "Guide does not have one lesson per curriculum section");
+        check(documents.size() == ArchiveSection.GUIDE.stream()
+                .mapToInt(section -> catalog.entries(ArchiveMode.GUIDE, section.id()).size()).sum(),
+                "Guide fixtures omit a real lesson");
         for (ArchiveSection section : ArchiveSection.GUIDE)
-            check(catalog.entries(ArchiveMode.GUIDE, section.id()).size() == 1,
-                    "Guide section does not expose exactly one real lesson " + section.id());
+            check(catalog.entries(ArchiveMode.GUIDE, section.id()).size()
+                            == (section.equals(ArchiveSection.GUIDE_EQUIPMENT) ? 2 : 1),
+                    "Guide lesson count changed unexpectedly in " + section.id());
         for (SemanticDocument document : documents) {
             check(document.searchableText().size() >= 15, "Guide lesson is still placeholder-sized: " + key(document.title()));
             check(document.blocks().stream().noneMatch(block -> block instanceof SemanticDocument.Heading heading
@@ -91,7 +95,7 @@ public final class GuidePresentationTest {
             }
         }
         List<SemanticDocument.ItemIllustration> heroes = List.of(documents.get(0), documents.get(3),
-                        documents.get(4), documents.get(5)).stream()
+                        documents.get(4), documents.get(5), documents.get(6), documents.get(7)).stream()
                 .map(document -> document.blocks().stream()
                         .filter(SemanticDocument.ItemIllustration.class::isInstance)
                         .map(SemanticDocument.ItemIllustration.class::cast).findFirst().orElseThrow()).toList();

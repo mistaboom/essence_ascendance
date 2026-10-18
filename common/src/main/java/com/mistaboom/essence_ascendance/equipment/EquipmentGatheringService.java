@@ -243,6 +243,8 @@ public final class EquipmentGatheringService {
         if (stack == null || stack.isEmpty()) {
             return vanillaLevel;
         }
+        Integer acceptedLooting=enchantment.is(Enchantments.LOOTING) ? WeaponActionDamage.looting(stack) : null;
+        if (acceptedLooting!=null) return addEnchantmentLevels(acceptedLooting,GatheringLootService.currentVirtualLootingBonus());
 
         VirtualLootState direct = VIRTUAL_LOOT_BY_STACK.get(stack);
         SyncedVirtualLootState synced = readSyncedVirtualLootState(stack);
@@ -292,6 +294,8 @@ public final class EquipmentGatheringService {
         if (!(entity instanceof ServerPlayer player)) {
             return vanillaLevel;
         }
+        Integer acceptedLooting=enchantment.is(Enchantments.LOOTING) ? WeaponActionDamage.looting(player) : null;
+        if (acceptedLooting!=null) return addEnchantmentLevels(acceptedLooting,GatheringLootService.currentVirtualLootingBonus(player));
 
         int equipmentLevel = Math.max(
                 calculateLevelFor(player, player.getMainHandItem(), enchantment),

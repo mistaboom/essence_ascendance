@@ -66,6 +66,7 @@ public final class AssetPipeline {
                 switch (asset.get("category").getAsString()) {
                     case "layered_item" -> {
                         itemModels(asset.getAsJsonObject("item"));
+                        if (asset.has("spriteMeshes")) spriteMeshes(asset.getAsJsonArray("spriteMeshes"));
                         if (asset.has("spriteBakes")) bakeSprites(art, project, asset.getAsJsonArray("spriteBakes"));
                     }
                     case "block" -> blockModels(asset.getAsJsonObject("block"));
@@ -117,6 +118,55 @@ public final class AssetPipeline {
             }
             add("textures/" + export.get("path").getAsString() + ".png", png);
         }
+    }
+
+    /** Extrude explicitly named sprite masks in their declared socket frame. No layer-order materials. */
+    private void spriteMeshes(JsonArray meshes) throws IOException {
+        for (var value : meshes) {
+            var spec = value.getAsJsonObject();
+            var image = ImageIO.read(new ByteArrayInputStream(resources.get(ROOT + "textures/"
+                    + spec.get("texture").getAsString() + ".png")));
+            var origin = spec.getAsJsonArray("origin");
+            double ox = origin.get(0).getAsDouble(), oy = origin.get(1).getAsDouble();
+            double unit = spec.get("unitsPerBlock").getAsDouble();
+            double thickness = spec.get("thickness").getAsDouble();
+            int first = spec.has("firstRow") ? spec.get("firstRow").getAsInt() : 0;
+            int last = spec.has("lastRow") ? spec.get("lastRow").getAsInt() : image.getHeight()-1;
+            var triangles = new java.util.ArrayList<double[]>();
+            for (int y=first; y<=last; y++) for (int x=0; x<image.getWidth(); x++) {
+                if (!opaque(image,x,y)) continue;
+                // X=authored lateral, Y=extrusion, Z=shaft axis. Source pixels stay square.
+                double[][] p = new double[8][];
+                for (int i=0;i<8;i++) {
+                    double sx=x+((i&1)==0 ? 0:1), sy=y+((i&2)==0 ? 0:1);
+                    p[i]=new double[]{(sx+sy-ox-oy)/unit, ((i&4)==0 ? -1:1)*thickness/2,
+                            (sx-sy-ox+oy)/unit, (x+.5)/image.getWidth(), (y+.5)/image.getHeight()};
+                }
+                // UVs sample this exact texel, including its original alpha and wood color.
+                spriteFace(triangles,p,0,1,3,2); spriteFace(triangles,p,4,6,7,5);
+                if (!opaque(image,x-1,y)) spriteFace(triangles,p,0,2,6,4);
+                if (!opaque(image,x+1,y)) spriteFace(triangles,p,1,5,7,3);
+                if (!opaque(image,x,y-1)) spriteFace(triangles,p,0,4,5,1);
+                if (!opaque(image,x,y+1)) spriteFace(triangles,p,2,3,7,6);
+            }
+            var bytes = new ByteArrayOutputStream();
+            try (var out = new java.io.DataOutputStream(bytes)) {
+                out.writeInt(0x45414D31); out.writeInt(triangles.size()/3);
+                for (var vertex:triangles) for (double component:vertex) out.writeFloat((float)component);
+            }
+            add(spec.get("output").getAsString(),bytes.toByteArray());
+        }
+    }
+
+    private static boolean opaque(BufferedImage image,int x,int y) {
+        return x>=0 && y>=0 && x<image.getWidth() && y<image.getHeight() && (image.getRGB(x,y)>>>24)!=0;
+    }
+    private static void spriteFace(java.util.List<double[]> output,double[][] p,int a,int b,int c,int d) {
+        double[] u={p[b][0]-p[a][0],p[b][1]-p[a][1],p[b][2]-p[a][2]};
+        double[] v={p[c][0]-p[a][0],p[c][1]-p[a][1],p[c][2]-p[a][2]};
+        double nx=u[1]*v[2]-u[2]*v[1], ny=u[2]*v[0]-u[0]*v[2], nz=u[0]*v[1]-u[1]*v[0];
+        double length=Math.sqrt(nx*nx+ny*ny+nz*nz);
+        for (int i:new int[]{a,c,b,a,d,c}) output.add(new double[]{p[i][0],p[i][1],p[i][2],p[i][3],p[i][4],-nx/length,-ny/length,-nz/length});
     }
 
     private void itemModels(JsonObject item) {

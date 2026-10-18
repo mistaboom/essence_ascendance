@@ -102,6 +102,46 @@ public final class EquipmentDamageService {
     /* All scopes are server-thread-only, bounded to the native call and closed
      * in finally. No context or combat input is persisted on items/entities. */
     private static final ThreadLocal<PrimarySkillAttack> PRIMARY_SKILL_ATTACK = new ThreadLocal<>();
+    private record ActionContact(com.mistaboom.essence_ascendance.skill.effect.MeleeOffenseSnapshot offense,
+                                 boolean primaryEligible, double damageScalar) { }
+    private static final ThreadLocal<ActionContact> ACTION_CONTACT = new ThreadLocal<>();
+
+    /** Null is an ordinary synchronous attack. Charged effects can retain accepted eligibility without double spending. */
+    public static Double actionFlatBonus(net.minecraft.resources.ResourceLocation skill,LivingEntity target,DamageSource source) {
+        ActionContact contact=ACTION_CONTACT.get();
+        if (contact==null) return null;
+        var modifier=contact.offense.modifiers().get(skill);
+        return modifier==null ? 0 : modifier.at(target,source,contact.primaryEligible).flat();
+    }
+
+    /** Persistent action data stays with its owner. Only this synchronous native hurt enters combat scopes. */
+    public static DamageResult runActionMeleeContact(ServerPlayer player, LivingEntity target,
+            DamageSource source, com.mistaboom.essence_ascendance.skill.effect.MeleeOffenseSnapshot offense,
+            boolean primaryEligible, BooleanSupplier action) {
+        return runActionMeleeContact(player,target,source,offense,primaryEligible,1,action);
+    }
+    public static DamageResult runActionMeleeContact(ServerPlayer player, LivingEntity target,
+            DamageSource source, com.mistaboom.essence_ascendance.skill.effect.MeleeOffenseSnapshot offense,
+            boolean primaryEligible,double damageScalar,BooleanSupplier action) {
+        if (PRIMARY_SKILL_ATTACK.get() != null || ACTION_CONTACT.get() != null) return new DamageResult(false,0);
+        boolean eligible = primaryEligible && offense.runtimeIdentity()==SkillEffectRuntime.attackRuntimeIdentity(player)
+                && offense.effective().equals(com.mistaboom.essence_ascendance.skill.CommittedSkillService.effectiveIds(player));
+        long token = eligible ? SkillEffectRuntime.beginPrimaryAttack(player,target) : 0;
+        var exertion = com.mistaboom.essence_ascendance.attunement.AttunementGameplay.beginExertion(player,"combat");
+        PRIMARY_SKILL_ATTACK.set(new PrimarySkillAttack(player,target,true,offense.runtimeIdentity(),offense.effective()));
+        ACTION_CONTACT.set(new ActionContact(offense,eligible,damageScalar));
+        TwoHandedEquipmentService.enterCombat();
+        try {
+            return measureDamage(target,source,() -> observePrimarySkillHit(target,source,action));
+        } finally {
+            try { SkillEffectRuntime.finishActionContact(player,token); }
+            finally {
+                PRIMARY_SKILL_ATTACK.remove(); ACTION_CONTACT.remove();
+                TwoHandedEquipmentService.exitCombat();
+                com.mistaboom.essence_ascendance.attunement.AttunementGameplay.endExertion(exertion);
+            }
+        }
+    }
     private static final ThreadLocal<SweepSkillDamage> SWEEP_SKILL_DAMAGE = new ThreadLocal<>();
     private static final ThreadLocal<PrimarySkillHitProbe> PRIMARY_SKILL_HIT_PROBE = new ThreadLocal<>();
     private static final ThreadLocal<Deque<SkillHealthSample>> SKILL_HEALTH_SAMPLES =
@@ -114,6 +154,9 @@ public final class EquipmentDamageService {
 
     /** Native Player.attack scope, including its cancellation/early-return paths. */
     public static void runPrimarySkillAttack(ServerPlayer player, Entity target, Runnable action) {
+        // The common action gate owns acceptance. A canceled native wrapper is not an action miss.
+        var handPolicy=TwoHandedEquipmentService.decision(player);
+        if (handPolicy.actionWeapon() || !handPolicy.mayAttack()) { action.run(); return; }
         if (PRIMARY_SKILL_ATTACK.get() != null || isReflectionInProgress() || SECONDARY_SKILL_DEPTH.get() > 0) {
             withSecondarySkillDamage(action);
             return;
@@ -150,7 +193,7 @@ public final class EquipmentDamageService {
         PRIMARY_SKILL_HIT_PROBE.set(probe);
         try {
             boolean accepted = action.getAsBoolean();
-            if (accepted && probe.damaged) {
+            if (accepted && probe.damaged && (ACTION_CONTACT.get() == null || ACTION_CONTACT.get().primaryEligible)) {
                 SkillEffectRuntime.onPrimaryMeleeSuccess(attack.player, living, source, probe.damageDealt);
             }
             return accepted;
@@ -283,7 +326,8 @@ public final class EquipmentDamageService {
                     com.mistaboom.essence_ascendance.skill.effect.RecentHostileCombat.acceptedOutgoingDamage(responsible, target);
                 if (target instanceof ServerPlayer player)
                     SkillEffectRuntime.onAcceptedDamage(player, source, frame.healthLost, frame.absorptionLost);
-                if (!frame.nested && !isReflectionInProgress() && SECONDARY_SKILL_DEPTH.get() == 0 && frame.acceptedOwner != null)
+                if (!frame.nested && !isReflectionInProgress() && SECONDARY_SKILL_DEPTH.get() == 0 && frame.acceptedOwner != null
+                        && (ACTION_CONTACT.get() == null || ACTION_CONTACT.get().primaryEligible))
                     SkillEffectRuntime.onAcceptedAttackSuccess(frame.acceptedOwner, target, frame.acceptedCategory,
                             source, loss, frame.effectiveAtDamage, frame.runtimeAtDamage, frame.directWeapon);
             }
@@ -315,13 +359,18 @@ public final class EquipmentDamageService {
      * percentages apply once before target equipment resistance and vanilla
      * armor, toughness, enchantments and absorption. No extra hurt call. */
     public static float modifyOutgoingSkillDamage(LivingEntity target, DamageSource source, float amount) {
-        amount = com.mistaboom.essence_ascendance.vitality.VitalityDeathDefianceService.modifyOutgoingDamage(source, amount);
+        ActionContact contact = ACTION_CONTACT.get();
+        if (contact == null) amount = com.mistaboom.essence_ascendance.vitality.VitalityDeathDefianceService.modifyOutgoingDamage(source, amount);
+        else if (com.mistaboom.essence_ascendance.vitality.VitalityDeathDefianceService.modifyOutgoingDamage(source,1)<=0)
+            amount=0; // Live action prohibitions still apply; newly earned offensive bonuses remain snapshotted.
         if (!Float.isFinite(amount)) return 0.0F;
         if (amount <= 0.0F) return 0.0F;
         Deque<SkillDamageFrame> frames = SKILL_DAMAGE_FRAMES.get();
         SkillDamageFrame frame = frames.peek();
         if (frame == null || frame.target != target || frame.source != source || frame.modified) return amount;
         frame.modified = true;
+        if (contact != null && isPrimarySkillMelee(frame.acceptedOwner,target,source))
+            return (float)Math.min(Float.MAX_VALUE,contact.offense.apply(target,source,amount,contact.primaryEligible)*contact.damageScalar);
         return SkillEffectRuntime.modifyOutgoingDamage(target, source, amount);
     }
 
@@ -449,7 +498,8 @@ public final class EquipmentDamageService {
         var stack = player.getMainHandItem();
         if (stack.isEmpty()) return false;
         if (stack.getItem() instanceof EquipmentProfileItem profile
-                && profile.equipmentProfileId().equals(EquipmentProfiles.SWORD.id())) return true;
+                && EquipmentProfileRegistry.get(profile.equipmentProfileId())
+                        .map(p -> p.baselineMultiplier(EquipmentBaselineProperty.MELEE_DAMAGE) > 0).orElse(false)) return true;
         if (stack.is(net.minecraft.tags.ItemTags.WEAPON_ENCHANTABLE)) return true;
         boolean[] damage = {false};
         stack.forEachModifier(net.minecraft.world.entity.EquipmentSlot.MAINHAND, (attribute, modifier) -> {

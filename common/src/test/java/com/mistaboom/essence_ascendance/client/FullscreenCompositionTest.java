@@ -23,10 +23,11 @@ public final class FullscreenCompositionTest {
 
     public static void main(String[] args) throws Exception {
         checks += FullscreenRenderContractTest.run();
-        check(!AscendanceArchiveScreen.usesEntryList(com.mistaboom.essence_ascendance.archive.ArchiveMode.GUIDE)
-                        && AscendanceArchiveScreen.usesEntryList(
-                        com.mistaboom.essence_ascendance.archive.ArchiveMode.REFERENCE),
-                "Archive must reserve its entry pane for multi-entry Reference sections");
+        check(!AscendanceArchiveScreen.usesEntryList(com.mistaboom.essence_ascendance.archive.ArchiveMode.GUIDE, 1)
+                        && AscendanceArchiveScreen.usesEntryList(com.mistaboom.essence_ascendance.archive.ArchiveMode.GUIDE, 2)
+                        && AscendanceArchiveScreen.usesEntryList(com.mistaboom.essence_ascendance.archive.ArchiveMode.REFERENCE, 2)
+                        && !AscendanceArchiveScreen.usesEntryList(com.mistaboom.essence_ascendance.archive.ArchiveMode.SEARCH, 2),
+                "Only multi-entry document sections need the shared entry pane");
         archiveFixture();
         reflow();
         archiveFooterGeometry();

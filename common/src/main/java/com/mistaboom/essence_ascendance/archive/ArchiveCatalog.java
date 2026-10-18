@@ -144,6 +144,7 @@ public final class ArchiveCatalog {
         EquipmentProfiles.init();
         addEquipment(entries, EquipmentProfiles.ARMOR, "ascendance_helmet");
         addEquipment(entries, EquipmentProfiles.SWORD, "ascendance_sword");
+        addEquipment(entries, EquipmentProfiles.GLAIVE, "ascendance_glaive");
         addEquipment(entries, EquipmentProfiles.RANGED_WEAPON, "ascendance_ranged_weapon");
         addEquipment(entries, EquipmentProfiles.MAGIC_CASTER, "ascendance_caster");
         addEquipment(entries, EquipmentProfiles.PICKAXE, "ascendance_pickaxe");
@@ -154,6 +155,8 @@ public final class ArchiveCatalog {
         addEquipment(entries, EquipmentProfiles.FISHING_ROD, "ascendance_fishing_rod");
         entries.add(entry("guide/equipment/fishing", ArchiveSection.GUIDE_EQUIPMENT, "equipment",
                 () -> GuideDocuments.fishing(PresentationContext.capture())));
+        entries.add(entry("guide/equipment/glaive", ArchiveSection.GUIDE_EQUIPMENT, "equipment",
+                () -> GuideDocuments.glaive(PresentationContext.capture())));
         entries.add(entry("reference/equipment/infusion", ArchiveSection.REFERENCE_EQUIPMENT, "infusion",
                 () -> ReferenceDocuments.equipmentInfusion(PresentationContext.capture())));
         entries.add(entry("reference/equipment/lifecycle", ArchiveSection.REFERENCE_EQUIPMENT, "equipment",

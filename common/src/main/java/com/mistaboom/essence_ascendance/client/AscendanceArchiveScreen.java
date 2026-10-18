@@ -132,7 +132,7 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
             return;
         }
         UiBounds articleBounds = content;
-        if (usesEntryList(navigation.mode())) {
+        if (usesEntryList(navigation.mode(), catalog.entries(navigation.mode(), navigation.section()).size())) {
             FullscreenLayout.Split split = FullscreenLayout.listDetail(content,
                     Math.min(190, Math.max(112, content.width() / 3)), 8);
             List<ArchiveEntry> available = catalog.entries(navigation.mode(), navigation.section());
@@ -249,7 +249,7 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
         navigation.captureSectionWindow();
         if (navigation.mode() == ArchiveMode.SEARCH) navigation.setListScroll(searchResults.scrollOffset());
         else if (isYieldBrowser()) navigation.setYieldBrowser(yieldBrowser.state());
-        else if (usesEntryList(navigation.mode())) {
+        else if (usesEntryList(navigation.mode(), catalog.entries(navigation.mode(), navigation.section()).size())) {
             navigation.setListScroll(entries.scrollOffset());
             navigation.setArticleScroll(article.scrollOffset());
         } else navigation.setArticleScroll(article.scrollOffset());
@@ -259,6 +259,6 @@ public final class AscendanceArchiveScreen extends FullscreenScreen {
         return navigation.mode() == ArchiveMode.REFERENCE && ArchiveNavigator.ITEM_YIELDS.equals(navigation.entryId());
     }
 
-    /** Guide sections contain one lesson each; only Reference needs the entry-navigation pane. */
-    static boolean usesEntryList(ArchiveMode mode) { return mode == ArchiveMode.REFERENCE; }
+    /** Single-lesson sections keep their full width; multi-entry sections share the existing navigator. */
+    static boolean usesEntryList(ArchiveMode mode, int entryCount) { return mode != ArchiveMode.SEARCH && entryCount > 1; }
 }

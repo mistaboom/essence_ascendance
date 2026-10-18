@@ -7,11 +7,25 @@
       "item": "essence_ascendance:ascendance_fishing_rod",
       "tier": "transcendent",
       "name": "Vance's Yeet Stick",
+      "flavor": "Go away! I'm fishing... way, WAY away.",
       "base_color": "#FF1493",
       "accent_color": "#7FFFD4",
       "perks": {
         "mob_opening_launch": 10.0,
         "mob_launch_steering": 4.0
+      }
+    },
+    {
+      "id": "sebastian_long_distance_relationship",
+      "player_uuid": "b539da99-55df-40f9-885b-a44329aea404",
+      "item": "essence_ascendance:ascendance_glaive",
+      "tier": "transcendent",
+      "name": "Sebastian’s Long-Distance Relationship",
+      "flavor": "For maintaining healthy distance... from whatever you're stabbing.",
+      "base_color": "#0d0967",
+      "accent_color": "#b6f800",
+      "perks": {
+        "maximum_attack_range": 30.0
       }
     }
   ]

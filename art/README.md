@@ -4,7 +4,7 @@ The procedural project logo lives in [branding/](branding/README.md). Run `./gra
 
 Edit the Blockbench projects in `source/models/`, save their embedded textures, and build. The same asset pipeline imports every registered model automatically. Changes to an existing named texture, including the sword's accent, are picked up without a separate extraction command.
 
-Unfinished projects can be listed in the manifest with category `authoring_only`. They remain editable source art and produce no runtime assets until an export category is assigned. The glaive is currently staged this way.
+Unfinished projects can be listed in the manifest with category `authoring_only`. They remain editable source art and produce no runtime assets until an export category is assigned.
 
 ## Source and output locations
 
@@ -78,6 +78,7 @@ Paths below are relative to this folder. Runtime identifiers are relative to `as
 | [Ascendance Archive](source/models/item/ascendance_archive.bbmodel) | `textures/item/ascendance_archive.png`; untinted generated item model |
 | [Ascendance Matrix](source/models/item/ascendance_matrix.bbmodel) | `textures/item/ascendance_matrix.png`; untinted generated item model |
 | [Ascendance sword](source/models/item/ascendance_sword.bbmodel) | `textures/item/ascendance_sword/`; six-tier item models |
+| [Ascendance glaive](source/models/item/ascendance_glaive.bbmodel) | `textures/item/ascendance_glaive/{blade_base,blade_accent,nochange,butt_accent}.png`; six-tier item models |
 | [Ascendance bow](source/models/item/ascendance_bow.bbmodel) | `textures/item/ascendance_ranged_weapon/`; four bow states at all six tiers |
 | [Ascendance caster](source/models/item/ascendance_caster.bbmodel) | `textures/item/ascendance_caster/`; six-tier handheld item models |
 | [Ascendance pickaxe](source/models/item/ascendance_pickaxe.bbmodel) | `textures/item/ascendance_pickaxe/`; six-tier item models |
@@ -87,7 +88,13 @@ Paths below are relative to this folder. Runtime identifiers are relative to `as
 | [Ascendance fishing rod and hook](source/models/item/ascendance_rod.bbmodel) | `textures/item/ascendance_fishing_rod/`; idle and cast models at all six tiers; `textures/entity/ascendance_fishing_hook/{tier}.png` |
 | [Helmet](source/models/item/ascendance_helmet.bbmodel), [chestplate](source/models/item/ascendance_chestplate.bbmodel), [leggings](source/models/item/ascendance_leggings.bbmodel), [boots](source/models/item/ascendance_boots.bbmodel) | `textures/item/ascendance_{helmet,chestplate,leggings,boots}/`; six-tier armor inventory models |
 
-The equipment catalog supplies all six item tiers to JEI and the creative menu. Texture import does not change the existing equipment binding rules. Inventory armor uses base/accent layers; the sword, caster, tools, and all four bow states also include `nochange`. Tint index `1` is the shared equipment accent contract: those seven generated item models receive the same accent-only `0..180` emission curve as armor and shield, in every item display context. The caster grip remains authored at pixel `(12,12)`.
+The equipment catalog supplies all six item tiers to JEI and the creative menu. Texture import does not change the existing equipment binding rules. Inventory armor uses base/accent layers; the sword, caster, tools, and all four bow states also include `nochange`. Tint index `1` is the shared equipment accent contract: marked generated equipment models receive the same accent-only `0..180` emission curve as armor and shield, in every item display context. The caster grip remains authored at pixel `(12,12)`.
+
+The glaive exports its corrected four 32 x 32 masks unchanged. Layers 0/1/2 are blade base metal, blade accent, and untinted wooden shaft; layer 3 is the separate butt accent and maps to the same tint/emission material as layer 1 through `EmissiveAccentItem.materialTintIndex`. There is no butt base-metal layer. Its `ignore` reference image is never exported.
+
+The same `layered_item` manifest entry now declares `spriteMeshes`: build-time pixel extrusion into the existing EAM1 format, consumed by `BlockbenchStaticMesh`. The declared origin is `(17,15)` for both rigid blade masks and `(2,30)` for butt/wood. The diagonal sprite frame is lateral `(x+y-originX-originY)/unitsPerBlock`, axial `(x-y-originX+originY)/unitsPerBlock`, with `unitsPerBlock=32*sqrt(2)` and thickness `1/32` block. Original texel colors/alpha are sampled without a second runtime image importer or atlas.
+
+The wood exports its complete mesh plus grip rows 21..31, front rows 0..20, and repeat row 20. That row contains precisely `(10,20)`, `(11,20)`, `(12,20)` with RGB `#443922/#6C5618/#271D0A`. Repeating it shifts source coordinates by `(+1,-1)`, or `sqrt(2)/32` blocks along the shaft, with no lateral shift. A final partial instance clips along the diagonal row boundary instead of scaling UVs. Grip and upper shaft retain their original end details; only the interior strip repeats. Seven small generated meshes stay under `common/build`, and both accents share `EquipmentAppearance` tint/emission resolution in compact and extended views. The world renderer follows server-solved attachment distances: ordinary tier ranges are 4/5/6/8/9/10 blocks and Sebastian's eligible maximum is 30. Diagnostic rendering tests retain 16/64-block stress inputs; repeat count never defines gameplay range. The tiny diagonal silhouette can alias at distant/oblique views even when the original square pixels and repeat spacing are correct.
 
 See [Ascendance armor art](../docs/ascendance-armor.md) for equipped-armor atlas layouts, emission settings, and visual verification. Optional `tools/ShadeAscendanceArmor.java` and `tools/PreviewAscendanceArmor.java` support separate authoring and preview work; they do not run during ordinary builds. The preview tool reads the generated asset namespace directory listed above.
 

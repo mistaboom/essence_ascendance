@@ -1,0 +1,20 @@
+Glaive animation acknowledgments
+
+Better Combat by Zsolt Molnar (daedelus) and contributors:
+https://github.com/ZsoltMolnarrr/BetterCombat
+
+Simply Swords by Sweeney / Timefall Development and contributors:
+https://github.com/Sweenus/SimplySwords
+
+Simply Swords' use of Better Combat informed an earlier two-handed animation
+prototype. That prototype has been replaced by native trident-style resting
+placement and an original fixed-grip, shoulder-driven aiming implementation.
+
+Essence Ascendance's glaive aiming, interpolation and rendering code are
+original implementations. No Better Combat or Simply Swords source code,
+keyframe data, models, textures or sounds are included. Neither mod nor an
+external player-animation library is required or bundled.
+
+Reviewed 2026-10-18:
+Better Combat 1.21.1, commit e4a6a4a2ae109045d7a1eae334728bd726c305ea
+Simply Swords Architectury-1.21, commit 708a57bc591e0af75ae0c5ec6beb0d8ff22f67af

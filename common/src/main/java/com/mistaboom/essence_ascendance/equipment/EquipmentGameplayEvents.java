@@ -48,6 +48,9 @@ public final class EquipmentGameplayEvents {
         com.mistaboom.essence_ascendance.network.AttunementMovementIntentService.init();
         com.mistaboom.essence_ascendance.network.MovementAbilityInputService.init();
         com.mistaboom.essence_ascendance.network.RodHeldInputPayload.init();
+        com.mistaboom.essence_ascendance.network.WeaponActionInputPayload.init();
+        com.mistaboom.essence_ascendance.network.WeaponActionStatePayload.init();
+        com.mistaboom.essence_ascendance.network.TwoHandedPolicyPayload.init();
         com.mistaboom.essence_ascendance.network.RodForcePayload.init();
         com.mistaboom.essence_ascendance.network.PreciseMobMotionPayload.init();
         EquipmentTooltipSyncService.init();
@@ -56,12 +59,14 @@ public final class EquipmentGameplayEvents {
 
         TickEvent.PLAYER_POST.register(player -> {
             if (player instanceof ServerPlayer serverPlayer) {
+                TwoHandedEquipmentService.reconcile(serverPlayer);
                 SkillEffectRuntime.tick(serverPlayer);
                 EquipmentDamageService.tickSkillInput(serverPlayer);
                 EquipmentShieldService.tick(serverPlayer);
                 com.mistaboom.essence_ascendance.gathering.AscendanceFishingService.tickOwner(serverPlayer);
                 com.mistaboom.essence_ascendance.movement.TraversalService.tickSurfaceBuoyancy(serverPlayer);
                 EquipmentAttributeService.sync(serverPlayer);
+                WeaponActionRuntime.tick(serverPlayer);
                 EquipmentMobilityService.sync(serverPlayer);
                 EquipmentVitalityService.tick(serverPlayer);
                 EquipmentWeaponService.syncWeaponVisualState(serverPlayer);

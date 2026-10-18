@@ -1,78 +1,55 @@
 # Progression, power and Attunement
 
-[Procedural balance](https://github.com/mistaboom/essence_ascendance/wiki/Procedural-Balance) · [Skill investigation](https://github.com/mistaboom/essence_ascendance/wiki/Worked-Scenarios#investigating-an-unexpectedly-gated-skill)
+[Configuration](https://github.com/mistaboom/essence_ascendance/wiki/Configuration) · [Tuning examples](https://github.com/mistaboom/essence_ascendance/wiki/Worked-Scenarios)
 
-Use the [Archive](https://github.com/mistaboom/essence_ascendance/wiki/Players-and-the-Archive) for current per-rank effects, costs, recipes and equipment statistics. This page explains the pack-design relationships.
+Use the Ascendance Archive for player lessons, prerequisites and the server's current effects. This page explains which pack settings control those systems.
 
-## Four related systems
+## Equipment, Bonuses and Skills
 
-| System | Progress stored | What governs it |
+| System | Starting behavior | Pack-maker control |
 | --- | --- | --- |
-| Player Ascension | Player tier and chapter seals | Eligible Category Attunement activity |
-| Bonuses | Stored investment | Generated player-tier cap, function and equipment applicability |
-| Skills | Owned rank receipts and selections | Generated meaningful ranks, prerequisites/gates and runtime conditions |
-| Equipment infusion | Item tier and partial infusion | Generated Infuser/material/reservoir policy and item eligibility |
+| Equipment | Latent begins around iron stats; later tiers scale toward measured pack equipment | Global/reference settings and advanced overrides |
+| Bonuses | Generated effects over an active range of player tiers | `bonus_settings.toml` |
+| Skills | Default unlock layout with generated ranks and effects | `skill_settings.toml` |
+| Player Ascension | Category Attunement seals earned through gameplay | Main config's progression and Attunement settings |
 
-Player tier and item tier are different. Setting one does not silently set the other. A Transcendent player can channel a fully earned Transcendent Bonus through intact, eligible Dormant gear; the gear's innate stats remain Dormant. Latent and fractured equipment do not channel Bonuses.
+The caster is intended as a faster, shorter-range alternative to the bow, with lower damage per shot. Exposed stats do not capture every special weapon or upgrade in a pack, so test the gear players will actually use.
 
-## Equipment and competition
+Player tier and equipment tier are separate. A Transcendent player can channel earned Bonuses through intact, eligible Dormant equipment while retaining that equipment's Dormant innate stats. Latent and fractured equipment do not channel Bonuses.
 
-External references use compatible slots and measured native axes. Statistical outlier policy limits extreme catalog measurements; creative/test exclusions still apply. Relative strength bands do not establish acquisition timing.
+## Automatic power targets
 
-Combat and mining are ranked separately, and compatible armor attributes retain their native operations. Comparisons preserve alternative configurations instead of combining every mod's strongest axes into one impossible loadout. Hidden upgrades, arbitrary callbacks, acquisition, operating cost and actual uptime are not inferred.
+Global `[power]`, `[builds]` and `[budget]` settings guide automatic generation. They are not literal percentages added to every weapon or armor stat.
 
-## Power budgets
+Under default planning targets, final-tier equipment aims around the measured pack reference. Reference gear with developed Bonuses or Skills is checked around twice that reference, and combined builds around three times it; a limited low-health burst can have more room. These are model targets, not promises of measured combat performance.
 
-Equipment keeps its generated pack-reference foundation. Bonus/Nexus and Skill policy allocates added headroom and checks composed outcomes.
+Meaningful starting effects and explicit Skill/Bonus settings can exceed the automatic soft budget. Mechanical limits still apply. For a particular effect, edit its settings directly rather than changing global budgets and expecting a precise increase.
 
-Default target envelopes at the final powered tier are equipment at reference parity, external gear plus developed Nexus at 2×, external gear plus ranked Skills at 2×, and combined builds at 3×. The modeled low-health Desperation burst can use 4× while sustained output remains 3×. Combined powered-tier ceilings progress 1.5/1.7/2/2.5/3× under default intent.
+Existing generated Skill/Bonus entries contain explicit values and are preserved. They do not all retune just because you raise `power.overall`. Remove the relevant controls to request new automatic defaults, then rebuild; [details](https://github.com/mistaboom/essence_ascendance/wiki/Balance-Generation#automatic-settings-versus-saved-choices).
 
-These are **modeled output envelopes**, not separate attack multipliers or guaranteed measured DPS. Power/band policy can change intent; model assumptions and native output validators still constrain generation. Budget shares are semantic allocation, not a tax deducted from live damage.
+## Bonus progression
 
-In practice, the shares guide which system carries a capability's emphasis. A 25% Skill share does not mean a Skill multiplies your attack by 0.25. Read the resolved effects and compatible build projections to see the actual outcome.
+Each Bonus has a first active player tier and a completion tier. It can finish before Transcendent. Higher player tiers retain the completed benefit; the tooltip shows `N/A` for tiers without another active step.
 
-## Bonus tracks
+Set `min_tier`, `max_tier`, `bonus_at_max` and `minimum_bonus_at_lowest` in `bonus_settings.toml`. The maximum is exact; the minimum is a lower bound for the first active completed-tier effect. Intermediate steps must remain useful. Purchases between completed checkpoints remain continuous.
 
-Different Bonuses have different functions and Essence categories. Shared impact, applicability breadth, native thresholds and power headroom resolve their automatic active spans and costs. `bonus_settings.toml` exposes start/completion tiers and first/maximum effect bounds. A Bonus can finish before Transcendent; higher tiers retain its completed benefit.
+Damage Bonuses use added damage points. Other Bonuses can use percent, seconds, blocks or other stated units. Read the unit comment on the generated entry before changing it.
 
-Normal sliders purchase continuously; native thresholds inform useful checkpoints rather than forcing every purchase to snap. Stored investment survives a lower tier/cap, while effective investment follows the current cap. Equipment/action applicability can further limit the realized effect.
+## Skill progression
 
-Bonus development for Attunement is normalized realized generated power, independent of merely making a track more expensive. A global price increase does not automatically represent more developed power.
+The default tree supplies unlock tiers. You can change a Skill's first tier, rank count and the first/final value of each listed effect. The mod fills in the ranks between those endpoints, keeping its supported effect steps and validation.
 
-## Skills and meaningful ranks
+Moving the first unlock does not remove prerequisite Skills, later rank requirements, milestones or exclusive choices. An on/off Skill cannot gain useful numeric ranks merely by increasing `ranks`. A one-rank stat needs equal first and maximum values.
 
-Authored unlock tiers supply defaults. `skill_settings.toml` can set a Skill's unlock tier, rank count and each applicable native parameter's first/maximum values. Configured values apply after automatic allocation and retain native floors/caps. Rank-specific tier and prerequisite requirements still apply.
+Changing only effects preserves prices for an unchanged rank count. Changing the rank count generates a new cost progression. Review costs as well as effects after rebuilding.
 
-A rank must deliver a meaningful native improvement. Automatic generation retains meaningful ranks; invalid configured ranks or endpoints reject the rebuild. Binary skills have one rank. Unchanged generated settings preserve exact intermediate values; custom counts/endpoints interpolate and are validated. The published saved curve is the runtime authority.
+## Changing Ascension pace
 
-Owning a Skill does not guarantee effectiveness. Choices/exclusions, prerequisite ranks, replacements, permanent milestones and runtime conditions still matter. Zero-cost admin grants neither fund every prerequisite nor prove normal affordability.
+Player Ascension uses Category Attunement seals. It does not spend wallet Essence or require purchasing a particular Skill, Bonus or item. Investment in category Bonuses and Skills can accelerate future progress, while ordinary eligible activity still earns base credit.
 
-Receipts preserve actual historical paid cost/category for supported refunds and Attunement acceleration after repricing. Committed evaluation determines effective state. Normal Nexus transactions validate server-side state/revision and affordability before commit.
+- Increase `[attunement] pace` to complete seals faster without directly changing Essence prices.
+- Adjust `[progression] length` for a broader change to the journey and investment scale.
+- Adjust `[progression] cost_pressure` for generated investment prices.
+- Use the remaining Attunement controls for repetition, variety and category breadth after reviewing their [descriptions](https://github.com/mistaboom/essence_ascendance/wiki/Configuration#attunement).
 
-## Category Attunement and player Ascension
-
-Player Ascension requires **only enough current-chapter seals**, with valid authoritative adjacent-chapter policy. It consumes no wallet Essence, Bonus investment, Skill or equipment. Latent onboarding auto-promotes to Dormant; later powered transitions use normal Ascension/Nexus action.
-
-Eligible confirmed outcomes include damage/defeats, incoming/prevented damage, health/hunger/status changes, movement/exploration, resource/crop/fishing work, and accepted XP/station/trading/repair operations. Event eligibility, attribution and supported adapters determine credit; merely triggering a callback is not enough.
-
-Current category Bonus development and historically paid owned-Skill receipts accelerate **future** contribution. Wallet and ordinary gear value do not count. Zero-investment base methods remain part of reachability.
-
-Repetition history uses reference work, not event count. A positive floor keeps legitimate repeated activity useful; bounded variety rewards changing sources. Attribution/deduplication avoids double-crediting a root outcome. Large legitimate outcomes are limited by remaining seal progress rather than an arbitrary per-action ceiling.
-
-Earned normalized fractions survive target/rate changes within the same chapter. A chapter transition clears its method/history/discovery accounting. Respec changes future acceleration, not past earned progress. Default final breadth leaves a category optional.
-
-## Equipment infusion remains separate
-
-Items and Foci have their own tiers and incomplete infusion state. Linked Infuser operations consume their generated costs/materials/reservoir subject to ownership and item/equipment eligibility. Carrier conversion and repair also use saved policy.
-
-In beta.5 multiplayer, the funding reservoir can be communal while the workpiece's soulbound recipient remains personal. Every new equipment workpiece requires explicit Start; team unbound gear uses confirmation, and paid work is not a departure refund. See [Teams and shared infrastructure](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure#equipment-work-and-automation); detailed player lessons are in the Archive's **Reference → Equipment → Equipment Infusion / Durability and Lifecycle**.
-
-Admin item-tier commands bypass this path for testing/recovery. They are not a gameplay recipe or a recommendation for balancing other mods' equipment.
-
-## Read the decision chain
-
-For a surprising gate, inspect installed unlock settings and prerequisites, then personal ownership, milestone state and selected loadout. For a surprising effect, inspect the generated Bonus/rank and relevant gameplay/activation snapshot.
-
-[Reports and provenance](https://github.com/mistaboom/essence_ascendance/wiki/Reports-and-Provenance) · [Diagnostics](https://github.com/mistaboom/essence_ascendance/wiki/Diagnostics-and-Testing)
-
-Current source: `balance/runtime/BuildPowerTargets.java`, `BonusTrackGenerator.java`, `skill/balance/SkillBalanceGenerator.java`, `progression/AscendanceEngine.java` and `attunement/AttunementService.java`.
+Equipment infusion is separate: it upgrades the item through its own costs and machine operation. Point players to the Archive for that workflow. Use a test world to check whether your intended player and equipment progression feel right together.

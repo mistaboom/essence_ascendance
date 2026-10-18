@@ -1,4 +1,4 @@
-> **Historical audit — generation guidance superseded.** Preserve the dated findings below as implementation history. The current generation model and configuration contract are documented in [Simple balance generation](../simple-balance.md). References here to acquisition inference, adaptive competition calibration or old-schema compatibility do not apply to the current development revision.
+> **Historical audit — generation guidance superseded.** Preserve the dated findings below as implementation history. The current generation model and configuration contract are documented in [Simple balance generation](../simple-balance.md). References here to acquisition inference, adaptive competition calibration or old-schema compatibility do not apply to the beta.8 balance system.
 
 # Essence Ascendance wiki documentation audit
 
@@ -712,3 +712,23 @@ Follow-up documentation checks passed: 173 internal wiki links/anchors, sidebar 
 The user authorized committing/pushing the completed multiplayer implementation, Archive and wiki and publishing the next beta through GitHub Actions. Canonical pages now target v1.0.0-beta.5, with release-tag source links replacing uncommitted-worktree labels. Prominent new-world notices explain the player-data schema 6 to 10 incompatibility and lack of older-save migration. Existing-machine migration between providers remains unsupported; choose the provider before creating a new world. The narrow user-confirmed FTB activation/new-Crucible success and remaining live-test limits are preserved.
 
 Release-scope documentation checks passed for all 22 canonical Markdown pages: 173 internal links/anchors, complete sidebar coverage, balanced fences and five TOML examples. The existing wiki publisher's disposable-repository tests and all four Actions workflow syntax checks passed. Historical audit receipts remain unchanged. Release notes are maintained at docs/releases/1.0.0-beta.5.md; actual publication evidence belongs in PUBLICATION.md after remote verification.
+
+
+## Pack-maker balance and configuration refresh — 2026-10-18
+
+The user requested an updated wiki for pack makers covering the simplified balance system and current configuration files, with player instruction directed to the Ascendance Archive. They subsequently chose the easier local handoff so another active chat can commit/push the documentation together with its glaive work. This pass performs no commit, push, wiki publication, release, gameplay command or build.
+
+Scope is published **v1.0.0-beta.8**, commit `16a05f0f5d8fcc0dfb9b476dc45aa0c7398d0118`. Unrelated dirty implementation/art/glaive files in the shared checkout were preserved. The guide does not document those unreleased mechanics. Checked the beta.8 settings defaults and Skill/Bonus parsers, generation/default-emission behavior, administrator command registrations/handlers, report names and Archive recipe; used the existing generated vanilla settings to confirm the example Skill identifiers, paths and units. Examples illustrate configuration, not a fresh gameplay acceptance test.
+
+Updated Home, navigation, configuration, balance generation, power/progression, item valuation, examples, integrations, reports, installation, recovery, troubleshooting and version scope. Removed obsolete acquisition/quest/content-adapter instructions and engineering receipt detail from the public guide. Dedicated Skill/Bonus file controls, units, prerequisite limits, meaningful minimums, preserved explicit values, reset-to-automatic procedures and explicit rebuild timing are explained in pack-maker terms. The Archive page now gives the shaped replacement recipe and concise destinations rather than repeating player lessons.
+
+Local checks cover all 22 canonical Markdown pages, internal destinations/heading anchors, sidebar coverage, balanced code fences, five TOML examples and scoped whitespace. The five examples use the documented bounded TOML forms; key names and values were compared to the release contract. No new Minecraft, timing, pack balance or visual-rendering claims are made. Current validation output is retained in the auxiliary `wiki-20261018` folder. Historical audits and publication records retain their dated scope.
+
+Publication remains pending. After reviewing and committing these sources with the other chat's work, preview `./tools/wiki/publish.ps1`, then publish with `./tools/wiki/publish.ps1 -Publish -Message 'Update pack-maker balance and configuration guide'`. A main-repository push alone does not publish the separate GitHub wiki.
+
+
+## Beta.9 release preparation — 2026-10-18
+
+The user authorized including all current implementation, authored art, Archive and wiki changes, committing/pushing them together, publishing the wiki, and releasing both loaders through the existing GitHub Actions pipeline to GitHub, CurseForge and Modrinth. The next version is beta.9 because beta.8 is already published. Canonical wiki references now target beta.9; the beta.8 fresh-world requirement remains explicitly scoped to upgrades from beta.7 or earlier. Beta.9 introduces no additional stored-format break over beta.8.
+
+The glaive/Archive additions and accepted 4/5/6/8/9/10 ordinary / 30 personalized ranges are included. Archive multi-lesson navigation and live action/reference presentation are retained. Older balance/configuration evidence and dated wiki checks remain historical; they are not replaced by new gameplay claims. The new CHECKS-1.0.0-beta.9.json records current Markdown/anchor/sidebar/TOML checks. The existing publisher's disposable-repository tests pass. Actual remote pipeline/publication verification is recorded separately in PUBLICATION.md.

@@ -80,6 +80,14 @@ final class OffenseElementalImbuementEffects {
 
         @Override public ResourceLocation id() { return SkillIds.KINDLING; }
 
+        @Override public MeleeOffenseSnapshot.Modifier snapshotMeleeOffense(SkillEffectRuntime.Context context) {
+            KindlingState state = context.existingState(id());
+            Set<UUID> burning = state == null ? Set.of() : Set.copyOf(state.burning.targetIds());
+            double bonus = context.settings().kindling().burningDamageAmplificationPercent()/100;
+            return (target,source,primary) -> new MeleeOffenseSnapshot.Values(state != null
+                    && burning.contains(target.getUUID()) && state.burning.active(target,context.now()) ? 1+bonus : 1,0);
+        }
+
         @Override public void successfulAttack(SkillEffectRuntime.Context context, AttackResultContext result) {
             if (!result.primary() || !result.target().isAlive() || result.target().isRemoved()) return;
             KindlingState state = context.state(id(), () -> new KindlingState(context.player().getUUID()));
@@ -350,6 +358,15 @@ final class OffenseElementalImbuementEffects {
     private static final class StaticCharge implements SkillEffectHudHandler {
         @Override public ResourceLocation id() { return SkillIds.STATIC_CHARGE; }
 
+        @Override public MeleeOffenseSnapshot.Modifier snapshotMeleeOffense(SkillEffectRuntime.Context context) {
+            StaticChargeState state = context.existingState(id());
+            double bonus = state != null && state.full(context.settings().staticCharge().maximumCharge())
+                    ? context.settings().staticCharge().lightningDamage() : 0;
+            long generation=state==null ? -1 : state.dischargeGeneration;
+            return (target,source,primary) -> new MeleeOffenseSnapshot.Values(1,primary && state!=null
+                    && context.existingState(id())==state && state.dischargeGeneration==generation ? bonus : 0);
+        }
+
         @Override public void tick(SkillEffectRuntime.Context context) {
             StaticChargeState state = context.state(id(), StaticChargeState::new);
             var settings = context.settings().staticCharge();
@@ -392,6 +409,8 @@ final class OffenseElementalImbuementEffects {
         @Override public void successfulAttack(SkillEffectRuntime.Context context, AttackResultContext result) {
             StaticChargeState state = context.existingState(id());
             var settings = context.settings().staticCharge();
+            Double accepted=com.mistaboom.essence_ascendance.equipment.EquipmentDamageService.actionFlatBonus(id(),result.target(),result.source());
+            if (accepted!=null && accepted<=0) return;
             if (state == null || !com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.canDischarge(result.source())
                     || !state.consumeIfFull(settings.maximumCharge(), context.now())) return;
             com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.discharged(result.source());
@@ -526,6 +545,7 @@ final class OffenseElementalImbuementEffects {
     }
 
     private static final class StaticChargeState implements SkillEffectState {
+        long dischargeGeneration;
         double charge;
         long lastGainTick;
         long dischargeVisibleThrough = Long.MIN_VALUE;
@@ -549,6 +569,7 @@ final class OffenseElementalImbuementEffects {
 
         boolean consumeIfFull(double maximum, long now) {
             if (!full(maximum)) return false;
+            dischargeGeneration++;
             charge = 0.0;
             dischargeVisibleThrough = now >= Long.MAX_VALUE - 1L ? Long.MAX_VALUE : now + 1L;
             return true;

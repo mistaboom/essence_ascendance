@@ -165,6 +165,21 @@ public final class SkillEffectRuntime {
     /** Completed native hurt outcome for effects that require its final acceptance, such as healing. */
     public static Object attackRuntimeIdentity(ServerPlayer player) { return current(player).runtime.attackIdentity; }
 
+    public static MeleeOffenseSnapshot snapshotMeleeOffense(ServerPlayer player) {
+        Context context = current(player);
+        var modifiers = new java.util.LinkedHashMap<ResourceLocation,MeleeOffenseSnapshot.Modifier>();
+        for (SkillEffectHandler handler : SkillEffectRegistry.handlers())
+            if (context.isEffective(handler.id())) modifiers.put(handler.id(),handler.snapshotMeleeOffense(context));
+        double vitality = com.mistaboom.essence_ascendance.vitality.VitalityDeathDefianceService
+                .modifyOutgoingDamage(player.damageSources().playerAttack(player),1);
+        return new MeleeOffenseSnapshot(context.runtime.attackIdentity,context.runtime.effective,vitality,modifiers);
+    }
+
+    /** Failed contacts are not whiffs. The persistent action finalizes its miss once when damage ends. */
+    public static void finishActionContact(ServerPlayer player, long token) {
+        finishPrimaryAttack(player,token,false);
+    }
+
     public static void onAcceptedAttackSuccess(ServerPlayer player, LivingEntity target, AttackCategory category,
                                                DamageSource source, double damageDealt,
                                                Set<ResourceLocation> effectiveAtDamage, Object runtimeAtDamage,
@@ -182,15 +197,19 @@ public final class SkillEffectRuntime {
 
     /** Newly earned stacks are committed after Player.attack, so they cannot affect the earning hit. */
     public static void finishPrimaryAttack(ServerPlayer player, long token) {
+        finishPrimaryAttack(player,token,true);
+    }
+
+    private static void finishPrimaryAttack(ServerPlayer player, long token, boolean reportMiss) {
         if (token == 0) return;
         try {
-            finishPrimaryAttackOutcome(player, token);
+            finishPrimaryAttackOutcome(player, token, reportMiss);
         } finally {
             GuardCounterattackService.close(player, token);
         }
     }
 
-    private static void finishPrimaryAttackOutcome(ServerPlayer player, long token) {
+    private static void finishPrimaryAttackOutcome(ServerPlayer player, long token, boolean reportMiss) {
         PlayerRuntime runtime = PLAYERS.get(player.getUUID());
         Attempt attempt = runtime == null ? null : runtime.attempt;
         if (attempt == null || attempt.token != token) return;
@@ -206,7 +225,7 @@ public final class SkillEffectRuntime {
             dispatchSuccessfulAttack(context,
                     AttackResultContext.primary(player, living, AttackCategory.MELEE,
                             attempt.source, attempt.damageDealt));
-        } else dispatchMiss(context);
+        } else if (reportMiss) dispatchMiss(context);
     }
 
     /** Called only after the server adapter distinguishes an air miss from mining and a paired hit. */

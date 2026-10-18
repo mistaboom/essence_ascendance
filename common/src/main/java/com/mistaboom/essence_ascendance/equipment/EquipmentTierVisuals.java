@@ -37,7 +37,7 @@ public final class EquipmentTierVisuals {
 
     /** Base, accent and optional unchanged layers use tint indices 0, 1 and 2. */
     public static int itemTint(ItemStack stack, int tintIndex) {
-        return switch (tintIndex) {
+        return switch (com.mistaboom.essence_ascendance.item.EmissiveAccentItem.materialTintIndex(stack, tintIndex)) {
             case 0 -> opaque(primaryRgb(stack));
             case 1 -> opaque(armorAccentRgb(stack));
             default -> CLEAR_TINT;

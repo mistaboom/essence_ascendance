@@ -25,6 +25,7 @@ public final class TooltipPresentationTest {
         SharedConstants.tryDetectVersion();
         Bootstrap.bootStrap();
         wrapping();
+        flavorWrapping();
         scrolling();
         styles();
         codec();
@@ -33,6 +34,24 @@ public final class TooltipPresentationTest {
         AscendancePaletteTest.main(args);
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out)).println("TooltipPresentationTest: " + assertions
                 + " token wrapping, bounded scroll, semantic styling and exact payload assertions passed");
+    }
+
+    private static void flavorWrapping() {
+        var splitter = new net.minecraft.client.StringSplitter((codePoint,style) -> 6);
+        for (var profile : com.mistaboom.essence_ascendance.equipment.personalized.PersonalizedEquipmentService.definitions()) {
+            var text = PersonalizedEquipmentClient.flavor(profile).copy().withStyle(style -> style.withItalic(true).withColor(0x888888));
+            for (int width : new int[]{72,144,220}) {
+                var rows = com.mistaboom.essence_ascendance.client.ui.StyledTextLayout.wrapComponents(splitter,text,width);
+                check(String.join(" ",rows.stream().map(Component::getString).toList()).equals(profile.flavor()),
+                        "Wrapping must preserve exact flavor once without lost or repeated words");
+                for (var row : rows) {
+                    check(splitter.stringWidth(row)<=width,"Flavor row exceeds its width");
+                    check(com.mistaboom.essence_ascendance.client.ui.StyledTextLayout.runs(row).stream()
+                            .allMatch(run -> run.style().isItalic() && run.style().getColor().getValue()==0x888888),
+                            "Wrapped flavor loses subdued italic styling");
+                }
+            }
+        }
     }
 
     private static void wrapping() {

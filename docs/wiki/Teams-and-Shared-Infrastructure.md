@@ -2,11 +2,11 @@
 
 [Home](https://github.com/mistaboom/essence_ascendance/wiki/Home) · [Commands](https://github.com/mistaboom/essence_ascendance/wiki/Commands) · [Updating and recovery](https://github.com/mistaboom/essence_ascendance/wiki/Updating-and-Recovery)
 
-**Current membership scope, checked October 17, 2026:** native authority and functional FTB Teams membership. Use matching builds on the server and clients. The current simple-generator revision requires fresh saves/worlds/configs; older formats are not migrated. Keep historical worlds with their matching build and inputs. Install the intended supported team provider before creating a new world. Dated beta.5 receipts retain their original scope in [version history](https://github.com/mistaboom/essence_ascendance/wiki/Version-and-Maintenance).
+**Beta.9 membership scope:** native authority and functional FTB Teams membership. Use matching builds on the server and clients. Upgrading from earlier betas requires fresh worlds and fresh Essence Ascendance configuration; older formats are not migrated. Keep historical worlds with their matching build and inputs. Install the intended supported team provider before creating a new world. Dated beta.5 receipts retain their original scope in [version history](https://github.com/mistaboom/essence_ascendance/wiki/Version-and-Maintenance).
 
 This is the pack-maker and administrator reference. Players should use the connected server's [Ascendance Archive](https://github.com/mistaboom/essence_ascendance/wiki/Players-and-the-Archive) for lessons, machine operation and resolved values.
 
-The completed Archive continuation's central player entry is **Reference → Mechanics → Teams and Shared Essence**. It is read-only guidance, not a team manager or live-roster dashboard. Existing Guide lessons link to it; see the [confirmed Archive routes](https://github.com/mistaboom/essence_ascendance/wiki/Players-and-the-Archive#cooperative-play-and-exact-amounts).
+The completed Archive continuation's central player entry is **Reference → Mechanics → Teams and Shared Essence**. It is read-only guidance, not a team manager or live-roster dashboard. Existing Guide lessons link to it; see the [confirmed Archive routes](https://github.com/mistaboom/essence_ascendance/wiki/Players-and-the-Archive#where-to-look).
 
 ## What cooperation changes
 
@@ -123,13 +123,13 @@ Exact Archive amounts, storage, extraction and accounting retain fractions. Item
 
 ## Diagnose and recover safely
 
-Check membership before economy generation: [targeted troubleshooting](https://github.com/mistaboom/essence_ascendance/wiki/Troubleshooting#teams-and-machines-beta5) distinguishes readiness, authority, authorization, source availability, selected/required types and bandwidth. A normal ownership transition does not require recovery, and rebuilding balance cannot repair an unavailable membership provider.
+Check membership before economy generation: [targeted troubleshooting](https://github.com/mistaboom/essence_ascendance/wiki/Troubleshooting#why-does-a-team-or-machine-behave-unexpectedly) distinguishes readiness, authority, authorization, source availability, selected/required types and bandwidth. A normal ownership transition does not require recovery, and rebuilding balance cannot repair an unavailable membership provider.
 
 Back up coordinated world data, inventories/chunks, effective provider data/configuration and matching mod/loader builds. [Persistence and schema limits](https://github.com/mistaboom/essence_ascendance/wiki/Updating-and-Recovery#multiplayer-persistence-and-upgrades) include the beta.5 save compatibility boundary. Runtime transaction rollback is covered by inherited fixtures; player/chunk cross-file crash atomicity is unjournaled and unproven. No live-world restart, two-client or graphical pass is claimed here.
 
 ## Source evidence
 
-Current multiplayer implementation is in the [tagged beta.5 source](https://github.com/mistaboom/essence_ascendance/tree/v1.0.0-beta.5/common/src/main/java/com/mistaboom/essence_ascendance). The paths below are relative to the repository root. The dated [maintenance audit](https://github.com/mistaboom/essence_ascendance/blob/main/docs/wiki-maintenance/AUDIT.md) records historical line references and receipt scope.
+Current multiplayer implementation is in the [tagged beta.9 source](https://github.com/mistaboom/essence_ascendance/tree/v1.0.0-beta.9/common/src/main/java/com/mistaboom/essence_ascendance). The paths below are relative to the repository root. The dated [maintenance audit](https://github.com/mistaboom/essence_ascendance/blob/main/docs/wiki-maintenance/AUDIT.md) records historical line references and receipt scope.
 
 - `common/src/main/java/com/mistaboom/essence_ascendance/team/`: `MembershipAuthority`, `MembershipRuntime`, `MembershipProviders`, `MembershipSettlement`, `MembershipActivation`, `NativeMembershipService` and `compat/` adapters.
 - `common/src/main/java/com/mistaboom/essence_ascendance/data/`: `ReservoirService`, `EssenceSavedData`, `PlayerEssenceData`.

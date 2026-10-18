@@ -2,13 +2,13 @@
 
 [Configuration](https://github.com/mistaboom/essence_ascendance/wiki/Configuration) · [Reports](https://github.com/mistaboom/essence_ascendance/wiki/Reports-and-Provenance)
 
-Use `skill_settings.toml` for Skill tiers, ranks and native stat endpoints, and `bonus_settings.toml` for Bonus active tiers and effect bounds. Global policy stays in `config/essence_ascendance.toml`.
+Most packs should tune Skills in `skill_settings.toml` and Bonuses in `bonus_settings.toml` first. Use this page when an important item, recipe or equipment reference needs a specific correction. Global choices stay in `config/essence_ascendance.toml`.
 
-The advanced file **`config/essence_ascendance/balance_overrides.toml`** corrects supported measurements or pins permitted final values. It applies during fresh generation or explicit rebuild, never as a live overlay on saved balance.
+Edit **`config/essence_ascendance/balance_overrides.toml`**, then run `/essence admin balance rebuild`. Keep a backup and test one correction at a time. This file changes what the balance generator uses; it does not change another mod's weapon damage, recipes or gameplay mechanics.
 
-## Grammar and scope
+## File format and scope
 
-Root `schema_version = 1` is followed by repeated `[[fact]]` tables and an optional `[exact]` table. The bounded TOML parser rejects unknown keys/tables, duplicate fact IDs, wrong types and contradictory facts. Each file is limited to 4,000,000 bytes; at most 10,000 facts are accepted.
+Keep `schema_version = 1` at the top. Each `[[fact]]` entry describes a correction. The optional `[exact]` table is for advanced final-value changes. Unknown settings, duplicate correction IDs, wrong value types and contradictory entries are rejected. Each file can contain up to 10,000 corrections and 4,000,000 bytes.
 
 The current engine does not infer quests, acquisition routes, renewable supply, automation rates or hidden operating costs. Old source/provider/capability facts and acquisition fields are not supported inputs.
 
@@ -21,7 +21,7 @@ The current engine does not infer quests, acquisition routes, renewable supply, 
 | `id` | String; derived from kind and selector if omitted | Unique diagnostic identifier |
 | `priority` | Integer `-100000..100000`; default `1000` | Higher wins, then confidence and stable fact ID |
 | `reason` | Optional nonblank string | Explanation retained with file/line provenance |
-| `confidence` | Optional finite `0..1` | Measurement certainty |
+| `confidence` | Optional finite `0..1` | Confidence in the supplied correction |
 
 At least one factual field is required. Omitted measurements remain omitted. Unmatched selectors warn. A fact corrects the generator's model; it does not change the referenced item's gameplay behavior.
 
@@ -37,7 +37,7 @@ At least one factual field is required. Omitted measurements remain omitted. Unm
 | `attack_speed` | Nonnegative finite attacks/second |
 | `mining_speed`, `harvest_level`, `durability` | Nonnegative finite native tool measurements |
 
-Equipment corrections apply to measurable registered references. The `body` slot is retained as evidence but excluded from player equipment frontiers. An assigned slot or number does not implement a custom item's hidden ability.
+Equipment corrections change the reference measurements used to balance Ascendance gear. The `body` slot is recorded but is not used as a player armor reference. Assigning a slot or damage value does not reproduce a custom item's hidden ability.
 
 ### Enemy facts
 
@@ -64,12 +64,10 @@ reason = "Pack author supplied an intrinsic material estimate."
 
 Complete recipe and conversion constraints can still lower the final payout.
 
-## Exact generated-value overrides
+## Advanced exact-value overrides
 
-`[exact]` uses quoted JSON Pointer keys under supported `/runtime/` and `/economy/` paths. The target must already exist and accept the supplied primitive value or array. Escape `~` as `~0` and `/` inside a key as `~1`. These are not dotted TOML paths.
+For most Skill/Bonus tuning, use their dedicated files instead. The advanced `[exact]` table uses quoted JSON Pointer keys under supported `/runtime/` and `/economy/` paths. The target must already exist and accept the supplied primitive value or array. Escape `~` as `~0` and `/` inside a key as `~1`. These are not dotted TOML paths.
 
-Use `runtime_parameters.csv` to inspect resolved scalar pointers. Native units, discrete steps, meaningful-rank checks, composition and accounting constraints remain enforced. Whole Essence payout requests must be nonnegative integers and can be reduced by conservation. Metadata and protected profile identity are not customization targets.
+`runtime_parameters.csv` lists the installed numeric settings and their exact paths. Supported effect steps, useful rank improvements and recipe accounting still apply. Whole Essence payout requests must be zero or positive integers and can be lowered by recipe limits. Do not try to override the saved profile's identity or metadata.
 
 Prefer the system settings files for Skill and Bonus progression. Exact overrides are advanced final-value corrections, and conflicting edits can reject a rebuild. Inspect the installed reports after success; editing a report never changes gameplay.
-
-Current source: `balance/config/BalanceOverrides.java` and the annotated `common/src/main/resources/balance/balance_overrides.toml`.

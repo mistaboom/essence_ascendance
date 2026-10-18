@@ -13,10 +13,11 @@ import java.util.Set;
 /*
  * First-party equipment archetype/profile.
  *
- * Two independent concepts live here:
+ * Independent declarations live here:
  *
  * 1. stat applicability, stored per activation context;
- * 2. archetype multipliers applied to tier-derived physical baselines.
+ * 2. archetype multipliers applied to tier-derived physical baselines;
+ * 3. hand requirements and native versus action-based melee execution.
  *
  * Keeping applicability context-specific means one future hybrid item can
  * legitimately expose different player stats while HELD versus WORN without
@@ -28,13 +29,24 @@ public final class EquipmentProfileDefinition {
     private final String displayName;
     private final Map<EquipmentActivationType, Map<ResourceLocation, Double>> statApplicability;
     private final Map<EquipmentBaselineProperty, Double> baselineMultipliers;
+    private final EquipmentWeaponCapabilities weaponCapabilities;
+    private final java.util.function.ToDoubleFunction<EquipmentTier> attackRange;
+    private final java.util.List<String> usageHints;
+    private final String infusionCategory;
 
     private EquipmentProfileDefinition(
             ResourceLocation id,
             String displayName,
             Map<EquipmentActivationType, Map<ResourceLocation, Double>> statApplicability,
-            Map<EquipmentBaselineProperty, Double> baselineMultipliers
+            Map<EquipmentBaselineProperty, Double> baselineMultipliers,
+            EquipmentWeaponCapabilities weaponCapabilities,
+            java.util.function.ToDoubleFunction<EquipmentTier> attackRange,
+            java.util.List<String> usageHints, String infusionCategory
     ) {
+        this.weaponCapabilities = Objects.requireNonNull(weaponCapabilities);
+        this.attackRange = Objects.requireNonNull(attackRange);
+        this.usageHints = java.util.List.copyOf(usageHints);
+        this.infusionCategory = infusionCategory == null ? id.getPath() : infusionCategory;
         this.id = Objects.requireNonNull(id, "Equipment profile ID cannot be null");
 
         if (displayName == null || displayName.isBlank()) {
@@ -109,6 +121,11 @@ public final class EquipmentProfileDefinition {
         return id;
     }
 
+    public EquipmentWeaponCapabilities weaponCapabilities() { return weaponCapabilities; }
+    public double maximumAttackRange(EquipmentTier tier) { return attackRange.applyAsDouble(tier); }
+    public java.util.List<String> usageHints() { return usageHints; }
+    public String infusionCategory() { return infusionCategory; }
+
     public String displayName() {
         return displayName;
     }
@@ -173,6 +190,10 @@ public final class EquipmentProfileDefinition {
 
         private final ResourceLocation id;
         private final String displayName;
+        private EquipmentWeaponCapabilities weaponCapabilities = EquipmentWeaponCapabilities.DEFAULT;
+        private java.util.function.ToDoubleFunction<EquipmentTier> attackRange = tier -> 0;
+        private java.util.List<String> usageHints = java.util.List.of();
+        private String infusionCategory;
         private final Map<EquipmentActivationType, Map<ResourceLocation, Double>> statApplicability =
                 new EnumMap<>(EquipmentActivationType.class);
         private final Map<EquipmentBaselineProperty, Double> baselineMultipliers =
@@ -212,6 +233,31 @@ public final class EquipmentProfileDefinition {
             return baseline(property, 1.0);
         }
 
+        public Builder weaponCapabilities(EquipmentWeaponCapabilities capabilities) {
+            this.weaponCapabilities = Objects.requireNonNull(capabilities);
+            return this;
+        }
+
+        public Builder attackRange(java.util.function.ToDoubleFunction<EquipmentTier> range) {
+            this.attackRange = Objects.requireNonNull(range);
+            for (var tier : EquipmentTier.values()) {
+                double value = range.applyAsDouble(tier);
+                if (!Double.isFinite(value) || value <= 0 || value > EquipmentAttackRange.MAXIMUM_SUPPORTED)
+                    throw new IllegalArgumentException("Invalid weapon range at " + tier);
+            }
+            return this;
+        }
+
+        public Builder usageHints(String... keys) {
+            this.usageHints = java.util.List.of(keys);
+            return this;
+        }
+
+        public Builder infusionCategory(String category) {
+            this.infusionCategory = Objects.requireNonNull(category);
+            return this;
+        }
+
         public Builder baseline(
                 EquipmentBaselineProperty property,
                 double multiplier
@@ -232,7 +278,8 @@ public final class EquipmentProfileDefinition {
                     id,
                     displayName,
                     statApplicability,
-                    baselineMultipliers
+                    baselineMultipliers,
+                    weaponCapabilities, attackRange, usageHints, infusionCategory
             );
         }
     }

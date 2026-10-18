@@ -1,100 +1,128 @@
-# Configuration reference
+# Configuration for pack makers
 
-[Home](https://github.com/mistaboom/essence_ascendance/wiki/Home) · [Overrides](https://github.com/mistaboom/essence_ascendance/wiki/Overrides-and-Customization) · [Worked examples](https://github.com/mistaboom/essence_ascendance/wiki/Worked-Scenarios)
+[First setup](https://github.com/mistaboom/essence_ascendance/wiki/Installation-and-Server-Setup) Â· [Tuning examples](https://github.com/mistaboom/essence_ascendance/wiki/Worked-Scenarios) Â· [Applying changes](https://github.com/mistaboom/essence_ascendance/wiki/Balance-Generation)
 
 ## Files, scope and timing
 
-| File | Edit? | Purpose |
-| --- | --- | --- |
-| `config/essence_ascendance.toml` | **Yes** | Policy settings on this page |
-| `config/essence_ascendance/skill_settings.toml` | **Yes** | Skill unlock tiers, rank counts and native stat endpoints |
-| `config/essence_ascendance/bonus_settings.toml` | **Yes** | Bonus active tiers and effect bounds |
-| `config/essence_ascendance/balance_overrides.toml` | **Yes** | [Facts and exact overrides](https://github.com/mistaboom/essence_ascendance/wiki/Overrides-and-Customization) |
-| `config/essence_ascendance/generated_balance.json.gz` | **No** | Validated saved server authority |
-| `config/essence_ascendance/reports/` and `diagnostics/` | **No, as inputs** | Inspect decisions; edits do not tune gameplay |
+Let the mod finish generating balance in a fresh test world before tuning it. The Skill and Bonus files will contain entries based on your pack, with comments describing units and limits. Paths below are relative to the server installation; in single-player, use that instance's `config` folder.
 
-**Global policy settings below belong in `config/essence_ascendance.toml`. Skill and Bonus settings have their own files, described next. All apply on generation or explicit `/essence admin balance rebuild`.** Restart, mappings reload of an existing profile and datapack reload do not apply edited policy to saved balance. The separately documented membership JVM property follows its own server/world lifecycle.
+| File | Edit it forâ€¦ |
+| --- | --- |
+| `config/essence_ascendance.toml` | Overall power, generated costs, Ascension pace, ore generation and diagnostics |
+| `config/essence_ascendance/skill_settings.toml` | Each Skill's first unlock tier, rank count and first/final effects |
+| `config/essence_ascendance/bonus_settings.toml` | Each Bonus's first/completion tier and minimum/maximum effect |
+| `config/essence_ascendance/balance_overrides.toml` | Advanced corrections for specific items, equipment, enemies or recipes |
+| `config/essence_ascendance/generated_balance.json.gz` | Saved result used by the server; **do not edit** |
+| `config/essence_ascendance/reports/` and `diagnostics/` | Inspection and troubleshooting; editing them does not change gameplay |
 
-Defaults below are **input defaults**, not fixed gameplay values. Omitted keys use defaults. Numeric ranges are inclusive and require finite numbers. “Number” accepts a decimal or integer; “integer” requires a whole integer token. Ratios, shares and exponents are dimensionless unless stated.
+**After editing any balance input, run `/essence admin balance rebuild` as an operator.** Restarting, reloading datapacks, `/essence admin mappings reload` and exporting reports do not recalculate an existing saved balance. `/essence admin config` displays information; beta.9 has no `config reload` subcommand.
 
-Each input is limited to 4,000,000 bytes. Unknown keys/tables, wrong types and invalid combinations reject generation with file/line information. Supported TOML uses named tables, decimal numbers, booleans, quoted strings and the documented arrays; inline tables, dates, hex numbers, multiline strings and dotted bare keys are unsupported.
+Back up the complete configuration and world first, and try substantial changes in a copy. Check for a successful rebuild, then inspect the Archive/Nexus and relevant reports. An invalid setting produces an error; an existing valid balance stays active if the replacement fails before installation.
+
+The main config and advanced overrides receive defaults during setup. Skill and Bonus defaults are written after valid balance is installed; a missing file can also be recreated from existing saved balance during startup. **Existing files are preserved.** To request new automatic values, remove the relevant controls or entries and explicitly rebuild; see [automatic settings versus saved choices](https://github.com/mistaboom/essence_ascendance/wiki/Balance-Generation#automatic-settings-versus-saved-choices).
+
+## Common adjustments
+
+| You want toâ€¦ | Change |
+| --- | --- |
+| Make one Skill stronger/weaker | Its `[[skill.stat]]` values in `skill_settings.toml` |
+| Move a Skill earlier/later | Its `tier`, while respecting prerequisites |
+| Change a Skill's number of ranks | Its `ranks`, with enough improvement between ranks |
+| Buff/nerf one Bonus | Its `bonus_at_max` and, if needed, `minimum_bonus_at_lowest` |
+| Make a Bonus start or finish earlier | Its `min_tier` / `max_tier` |
+| Request stronger automatic effects overall | `[power]`; existing explicit Skill/Bonus values remain set |
+| Make generated investments cheaper | `[progression] cost_pressure` |
+| Complete Ascension seals faster | `[attunement] pace` |
+| Change Latent Ore placement | `[latent_ore]` and its dimension settings |
+
+Edit the existing entry or table instead of adding a duplicate. Use the IDs and stat paths already written in your generated files. Keep quotes around IDs, and keep `schema_version = 1` at the top of each file.
 
 ## Skill settings
 
-Edit `config/essence_ascendance/skill_settings.toml`. The generated file lists every Skill and each applicable native parameter. Use its exact identifiers and parameter paths.
+Find the Skill's `[[skill]]` entry in `config/essence_ascendance/skill_settings.toml`. All following `[[skill.stat]]` blocks belong to it, until the next `[[skill]]` entry.
 
-| Table / key | Type | Meaning |
-| --- | --- | --- |
-| Root `schema_version` | Integer `1` | Input format |
-| `[[skill]] id` | Namespaced Skill ID | Registered Skill to configure |
-| `tier` | Optional powered tier ID | Required player tier; Dormant through Transcendent; omitted uses authored placement |
-| `ranks` | Optional integer `1..64` | Purchasable rank count; omitted remains automatic; binary Skills require one |
-| `[[skill.stat]] path` | Native parameter path | One of the parameter paths emitted for this Skill |
-| `at_first_rank` | Finite number | Native value at rank one |
-| `at_max_rank` | Finite number | Native value at the final rank |
+| Setting | Meaning |
+| --- | --- |
+| `id` | The Skill's identifier; keep the generated value |
+| `tier` | First unlock tier; use a full ID such as `"essence_ascendance:awakened"` |
+| `ranks` | Number of purchasable ranks, from 1 to 64, subject to the Skill's limits |
+| `path` inside `[[skill.stat]]` | The listed effect to adjust; keep the generated path |
+| `at_first_rank` | Effect value at rank one |
+| `at_max_rank` | Effect value at the last rank |
 
-Parameters retain their own units and limits. A chance can be a fraction while a displayed Bonus uses percent; ticks, seconds, distances and damage are also distinct. Read the generated comments. A cooldown can improve by decreasing. Every extra rank must still make a meaningful native improvement. A configured one-rank stat needs equal first and maximum endpoints. Setting only `ranks = 1`, with no stat overrides, puts the automatic final values into that single rank.
+Unlock choices are Dormant, Awakened, Resonant, Ascendant and Transcendent, written as full lowercase IDs. Moving the first unlock does not remove prerequisite Skills, later-rank tier requirements, milestones or exclusive choices.
 
-Configured endpoints apply after automatic allocation and may exceed its soft power budgets. Changing stats alone preserves generated prices; changing the rank count regenerates that Skill's cost progression. Unchanged generated settings preserve the exact resolved intermediate ranks; custom counts or endpoints interpolate and then face native validation. Tier edits do not remove prerequisites, milestone requirements, replacements or exclusive choices. Invalid tier ordering, impossible rank counts, unsupported parameters or native limit violations reject the candidate.
+The mod generates the ranks between the first and final values. Every extra rank must improve something meaningfully. An on/off Skill must stay at one rank; for any configured one-rank stat, first and maximum values must be equal. Setting only `ranks = 1`, without stat overrides, uses the automatic final effects in that single rank.
 
-Absent entries use authored unlock tiers and generated ranks/effects. Missing Skill and Bonus files are written only after a validated profile is durably published. Existing files are never overwritten. Remove an entry to request its automatic values on the next rebuild, or preserve then remove a whole system file to request complete new defaults.
+**Units matter.** The generated comments describe them. `Percent` uses percentage points; `Chance`/`Fraction` uses fractions (`0.1` means 10%); `Ticks` uses twenty per second; `Blocks` uses blocks. Multipliers use factors. A cooldown can improve by getting smaller.
+
+You can set effects above the automatic soft power budget, but supported effect limits and prerequisites still apply. Changing effects alone preserves prices when rank count stays the same. Changing the number of ranks generates a new cost progression. Review the installed rows in `reports/skill_rank_parameters.csv` as well as the in-game Skill.
+
+For a partial edit, omit controls you want generated automatically. Removing a whole Skill entry restores its default unlock tier and automatic ranks/effects. [Skill example](https://github.com/mistaboom/essence_ascendance/wiki/Worked-Scenarios#moving-a-skill-or-changing-its-ranks).
 
 ## Bonus settings
 
-Edit `config/essence_ascendance/bonus_settings.toml`. Root `schema_version = 1` is followed by repeated `[[bonus]]` entries.
+Find the Bonus's `[[bonus]]` entry in `config/essence_ascendance/bonus_settings.toml`.
 
-| Key | Type / bounds | Meaning |
-| --- | --- | --- |
-| `id` | Namespaced Bonus ID | Registered Bonus |
-| `min_tier` | Powered tier ID | First active player tier |
-| `max_tier` | Powered tier ID, not before min_tier | Completion tier; it can be before Transcendent |
-| `bonus_at_max` | Finite number, `0 < value <= 1000000` | Exact completion effect in the Bonus's displayed unit |
-| `minimum_bonus_at_lowest` | Finite number, positive and at most bonus_at_max | Lower bound for the first active effect |
+| Setting | Meaning |
+| --- | --- |
+| `id` | The Bonus's identifier; keep the generated value |
+| `min_tier` | First active player tier |
+| `max_tier` | Completion player tier, at or after the starting tier |
+| `bonus_at_max` | Exact effect at completion |
+| `minimum_bonus_at_lowest` | Minimum effect at the first active completed tier; the result can be higher |
 
-All four controls are required in a configured entry. Native minima, useful caps and meaningful completed-tier improvements can impose stricter limits. Impossible intervals reject the rebuild. Omitting a Bonus lets the generator select its active span and effects.
+Keep all four controls in a configured Bonus entry. Tiers use full IDs, from `"essence_ascendance:dormant"` through `"essence_ascendance:transcendent"`. A Bonus can finish before Transcendent; the earned completed benefit is retained at higher tiers.
 
-Melee, ranged and magic damage Bonuses use added damage points. Other Bonus units are identified in generated comments and `bonus_tracks.csv`; do not assume every value is a percentage. Funding is continuous between completed endpoints. Eligible intact equipment channels the player's earned Bonus independently of equipment tier.
+Read the entry's unit comment. Melee, ranged and magic damage Bonuses use added damage points. Other Bonuses may use percent, seconds, blocks or another stated unit. The first minimum must be positive and no larger than the maximum. The file accepts a maximum up to 1,000,000, but each effect can have a much stricter gameplay limit.
 
-These filenames and schemas replace earlier development inputs without migration. Start with fresh defaults for this revision, as described in [the current model](https://github.com/mistaboom/essence_ascendance/blob/main/docs/simple-balance.md).
+The mod fills in intermediate progression and requires useful completed-tier improvements. A long tier interval with a tiny maximum may be impossible. If your request fails validation, adjust the interval or effect values described in the error rather than expecting the mod to move your chosen tiers silently.
+
+To return one Bonus to automatic generation, remove its entire entry and rebuild. Compare the installed result in the tooltip and `reports/bonus_tracks.csv`. [Bonus example](https://github.com/mistaboom/essence_ascendance/wiki/Worked-Scenarios#making-a-bonus-finish-earlier).
+
+## Main configuration reference
+
+The remaining sections describe `config/essence_ascendance.toml`. Most packs can start with its defaults and tune a few controls. Values below are input defaults, not guaranteed in-game outputs. Omitted keys use defaults; misspelled/unknown keys are errors.
+
+Use ordinary numbers, quoted strings and the existing table layout. Whole-number settings must use integers. Avoid duplicate tables, inline tables and unfamiliar TOML syntax; the mod accepts only its documented subset. The separate membership JVM option below follows its own startup procedure.
 
 ## Membership authority: server JVM property
 
-**Added in beta.5.** This is a JVM system property, not a balance TOML section/key. No separate teams configuration file or policy switch is registered.
+Most packs can leave team-provider selection on its default, `auto`. To select it explicitly, add one JVM argument in your server launch settings. This is separate from the balance TOML files and requires a server restart.
 
 | Property / location | Type / default | Valid values / units | Effect and timing |
 | --- | --- | --- | --- |
-| `essence.membershipAuthority`, server JVM arguments | String / `auto` | `auto`, `native`, `ftb_teams`; case-insensitive enum; no units | Read when the Overworld membership session starts. AUTO initially prefers supported FTB Teams, then eligible native; afterward it retains saved world authority. A different explicit selection pauses access pending reviewed activation. Restart to apply an edited launch argument; datapack/profile reload does not change authority. |
+| `essence.membershipAuthority`, server JVM arguments | String / `auto` | `auto`, `native`, `ftb_teams` | On a fresh world, `auto` prefers supported FTB Teams, otherwise native teams. Existing worlds retain their saved provider; changing the launch option alone does not migrate them. |
 
-Place the option with the server's JVM arguments **before** its jar/main-class launch target. Valid launch-option examples:
+Use one of these choices, not both. Place it with the JVM options before the server's jar/main-class argument:
 
 ```text
 -Dessence.membershipAuthority=auto
 -Dessence.membershipAuthority=ftb_teams
 ```
 
-Use one selection. Invalid strings block selection with a diagnostic; they do not fall back silently. Missing/unsupported/unready external membership is not permission to treat everyone as solo. Accepted provider dependencies, preparation/activation/cancellation and ordinary roster settlement are canonical in [Teams and shared infrastructure](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure#selection-and-established-worlds). This setting changes membership selection, not balance generation or saved personal receiving preferences.
+If you intentionally change an existing world's provider, follow [Teams and shared infrastructure](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure#selection-and-established-worlds) first. Missing or unsupported providers can pause access rather than treating every player as solo. A balance rebuild does not switch the team provider.
 
-Current source: `team/MembershipRuntime.java` and `team/MembershipAuthority.java` under `common/src/main/java/com/mistaboom/essence_ascendance/`. Balance-generation checks do not establish multiplayer release coverage.
 
 ## Root
 
 | Key | Type / default | Allowed | Meaning |
 | --- | --- | --- | --- |
-| `schema_version` | Integer / `1` | Exactly `1` | Input grammar version; also defaults to 1 when omitted. This is different from generated document schema 2. |
+| `schema_version` | Integer / `1` | Exactly `1` | File format version; leave it at 1. |
 
 ## Power
 
-Section `[power]`. Controls position/headroom relative to measured catalog references, not a universal multiplier of the strongest registered item.
+Section `[power]`. Guides automatic added power relative to measured pack equipment. It is not a direct multiplier on every stat.
 
 | Key | Type / default | Range / units | Meaning and interactions |
 | --- | --- | --- | --- |
-| `overall` | Number / `1.0` | `0.1..4`, ratio | Overall added-power intent; combines with band emphasis and checked output envelopes |
+| `overall` | Number / `1.0` | `0.1..4`, ratio | Overall automatic added-power target |
 | `early` | Number / `0.8` | `0.1..4`, ratio | Early progression emphasis |
 | `mid` | Number / `0.9` | `0.1..4`, ratio | Mid progression emphasis |
 | `late` | Number / `1.0` | `0.1..4`, ratio | Late progression emphasis |
-| `apex` | Number / `1.1` | `0.1..4`, ratio | Apex emphasis; lower values rein in developed endgame contributions |
+| `apex` | Number / `1.1` | `0.1..4`, ratio | Endgame emphasis; lower values request less added power |
 
-Bands need not be monotonic. Equipment retains its pack-reference foundation; these policies do not tax gear for assumed ownership of every Skill or Bonus. [Power budgets](https://github.com/mistaboom/essence_ascendance/wiki/Progression-and-Power).
+Early emphasis can be higher than late emphasis. Equipment keeps its pack-relative foundation; these settings do not reduce its stats to make room for every possible Skill or Bonus. [Power budgets](https://github.com/mistaboom/essence_ascendance/wiki/Progression-and-Power).
 
 ## Progression
 
@@ -119,7 +147,7 @@ Section `[generation]`. These are explicit model assumptions, not measured encou
 | `entry_resource_effort` | Number / `80.0` | `1..100000`, effort ratio | Entry resource-relative cost baseline, using the stable common material value unit |
 | `effort_growth` | Number / `3.5` | `1..20`, growth factor | Progression-band cost growth; combines with length and cost pressure |
 
-Review combat assumptions and resolved cost reports when adjusting these.
+These are advanced assumptions. Start with the default values unless you have a specific reason to change them.
 
 ## Attunement
 
@@ -128,15 +156,15 @@ Section `[attunement]`.
 | Key | Type / default | Range / units | Meaning and interactions |
 | --- | --- | --- | --- |
 | `pace` | Number / `1.0` | `0.1..10`, speed ratio | Higher completes seals faster; no direct Essence-price change |
-| `maximum_acceleration` | Number / `1.0` | `0..4`, added multiplier | At generated category development reference, default adds up to 1 to base: up to 2× development multiplier. Zero investment retains base credit. |
+| `maximum_acceleration` | Number / `1.0` | `0..4`, added multiplier | Extra activity speed from category development; default allows up to 2× base credit. No investment still earns base credit. |
 | `repetition_floor` | Number / `0.15` | `0.01..1`, fraction | Minimum efficiency of legitimate repeated sources; interacts with recent source exposure |
 | `variety_strength` | Number / `0.25` | `0..1`, extra fraction | Bounded variety benefit; changing activity is rewarded, not mandatory |
-| `history_window` | Integer / `64` | `8..256` reference outcomes | Per-seal recent exposure measured in reference work, not callback count |
+| `history_window` | Integer / `64` | `8..256` reference outcomes | How much recent activity affects repetition and variety; measures work rather than individual clicks |
 | `early_effort_fraction` | Number / `0.75` | `0.1..1`, effort fraction | First powered chapter effort, easing toward 1 by final chapter |
 | `onboarding_effort_fraction` | Number / `1.0` | `0.1..1`, effort fraction | Automatic Latent onboarding; full entry effort by default |
 | `breadth_exponent` | Number / `1.0` | `0.25..4`, exponent | Shape of required category breadth; smaller asks broader early participation. Default final progression leaves one category optional. |
 
-Length, pace, chapter effort and breadth jointly shape the journey. Investment affects future credit, not already earned normalized fractions.
+These settings work together. Investment affects future credit rather than removing already earned seal progress.
 
 ## Build policy
 
@@ -144,18 +172,18 @@ Section `[builds]`.
 
 | Key | Type / default | Range / units | Meaning and interactions |
 | --- | --- | --- | --- |
-| `partial_viability` | Number / `0.65` | `0.1..1`, weight | Semantic capability allocation for partial participation; not a direct numeric discount on live damage |
-| `composition_safeguard` | Number / `0.75` | `0..1`, strength | Higher leaves less headroom for stacked multipliers. Zero relaxes this policy but does not disable validators. |
+| `partial_viability` | Number / `0.65` | `0.1..1`, weight | Helps automatic generation support builds using only part of the mod; not a direct damage multiplier |
+| `composition_safeguard` | Number / `0.75` | `0..1`, strength | Higher requests more caution when combining multipliers. Zero relaxes that planning rule but retains validity checks. |
 
 Section `[budget]`. All three shares **must sum to 1**, within `0.000001`. Changing one may require changing the others.
 
 | Key | Type / default | Range / units | Meaning and interactions |
 | --- | --- | --- | --- |
-| `equipment` | Number / `0.40` | `0.01..0.98`, share | Semantic equipment allocation; keeps its generated foundation |
-| `nexus` | Number / `0.35` | `0.01..0.98`, share | Semantic Bonus/Nexus allocation |
-| `skills` | Number / `0.25` | `0.01..0.98`, share | Semantic Skill allocation |
+| `equipment` | Number / `0.40` | `0.01..0.98`, share | Equipment share of automatic planning; equipment keeps its generated foundation |
+| `nexus` | Number / `0.35` | `0.01..0.98`, share | Bonus/Nexus share of automatic planning |
+| `skills` | Number / `0.25` | `0.01..0.98`, share | Skill share of automatic planning |
 
-Shares are not percentages multiplied onto final attack or defense.
+These shares are planning weights, not percentages multiplied onto attack or defense. For precise Skill/Bonus changes, use their own settings files.
 
 ## Economy
 
@@ -163,9 +191,9 @@ Section `[economy]`.
 
 | Key | Type / default | Range / units | Meaning and interactions |
 | --- | --- | --- | --- |
-| `conversion_loss_pressure` | Number / `0.10` | `0..0.95`, strength | Cross-Essence flexibility pressure; not one shared loss percent for every transaction |
+| `conversion_loss_pressure` | Number / `0.10` | `0..0.95`, strength | Guides conversion losses between Essences; not a fixed loss percentage for every transaction |
 
-Complete static material recipes constrain final payouts; acquisition, farm rates and automation are not inferred.
+Recognized complete recipes can limit payouts. The generator does not estimate acquisition difficulty, farm rates or automation costs.
 
 ## Policies
 
@@ -231,7 +259,7 @@ schema_version = 1
 overall = 1.1 # Supported range 0.1..4; final values remain validated.
 
 [progression]
-cost_pressure = 0.9 # Affordability; does not make false resource facts true.
+cost_pressure = 0.9 # Cheaper generated investments; does not change item yields.
 
 [attunement]
 pace = 1.25 # Faster activity credit; does not directly change prices.
@@ -247,5 +275,3 @@ enabled = false # Explicitly omit Latent Ore from this dimension.
 ```
 
 Review [worked scenarios](https://github.com/mistaboom/essence_ascendance/wiki/Worked-Scenarios) and back up before rebuilding.
-
-Current source: `balance/config/BalanceSettings.java`, `SkillSettingsConfig.java`, `BonusSettingsConfig.java`, `AttunementPolicy.java` and `LatentOreSettingsParser.java` under `common/src/main/java/com/mistaboom/essence_ascendance/`. Bundled global defaults are in `common/src/main/resources/balance/essence_ascendance.toml`.

@@ -53,14 +53,14 @@ Beta.5 source evidence: `command/EssenceAdminCommands.java`, `team/MembershipRun
 
 ## Profile operations
 
-These commands require a running server. Their file paths are relative to its configuration directory.
+These commands require a running server. Their file paths are relative to its configuration directory. Use `/essence admin balance rebuild` to apply global, Skill, Bonus or advanced override edits. `/essence admin config` displays information only; beta.9 has no `config reload` subcommand.
 
 | Exact syntax | Source | Prerequisites, effects and output | Valid example |
 | --- | --- | --- | --- |
 | `/essence admin config` | Server | Prints config path/version/profile, Pylon settings, definition counts and harvest safety warnings. No reload or full-key dump; can show provisional config without installed authority. | `/essence admin config` |
 | `/essence admin mappings reload` | Server | Validates/reinstalls the saved profile, refreshes players and syncs runtime/tooltips. Existing file means no new environment generation; a missing file can generate. Rejection keeps previous valid state. Prints status/counts/paths. **Reinstalls authority:** back up profile/inputs first when replacing disk data. | `/essence admin mappings reload` |
 | `/essence admin balance rebuild` | Server | Generates from current inputs and environment, validates/preflights, durably replaces the profile, installs/syncs and writes routine reports. **Replaces balance and may stall the server:** stage changes and back up the complete configuration plus world before a maintenance window. Rejection before commit retains old valid authority. | `/essence admin balance rebuild` |
-| `/essence admin balance export` | Server | Requires active saved snapshot. Writes exhaustive derived reports including acquisition sources/dependencies; no provider scan or price change. **Writes report files:** retain any reports needed for before/after comparison. | `/essence admin balance export` |
+| `/essence admin balance export` | Server | Requires active saved snapshot. Recreates reports, including detailed loaded-recipe tables; does not regenerate balance or change prices. **Writes report files:** retain any reports needed for before/after comparison. | `/essence admin balance export` |
 
 A report or client-sync failure after successful install does not roll back that install. Inspect manifest/client readiness separately. [Lifecycle details](https://github.com/mistaboom/essence_ascendance/wiki/Balance-Generation).
 

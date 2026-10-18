@@ -78,6 +78,11 @@ public final class ArchiveSearchTest {
                     "Shared essence is not discoverable through real semantic content: " + query);
         check(index.results("Teams and Shared Essence").getFirst().target().equals(teams),
                 "Exact shared-essence title must resolve to its canonical entry");
+        for (String query : List.of("glaive", "polearm", "swipe", "stab", "two-handed", "offhand", "recovery", "Sweeping Edge"))
+            check(index.results(query).stream().anyMatch(result -> result.target().equals("essence_ascendance:guide/equipment/glaive")),
+                    "Glaive Guide is not discoverable from real article vocabulary: " + query);
+        check(index.results("Ascendance Glaive").stream().anyMatch(result -> result.target().equals("essence_ascendance:reference/equipment/glaive")),
+                "Glaive Reference lacks canonical title discovery");
         check(index.results("repair").stream().anyMatch(r -> r.target().contains(":guide/"))
                 && index.results("repair").stream().anyMatch(r -> r.target().contains(":reference/")), "Cross-mode body search restricted");
         check(index.results("diamond offense").stream().anyMatch(r -> r.target().equals("yield:minecraft:diamond")), "Missing yield category metadata");

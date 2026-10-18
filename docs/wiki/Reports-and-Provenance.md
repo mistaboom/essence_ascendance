@@ -1,4 +1,4 @@
-# Reports, validation and decision provenance
+# Reports for pack makers
 
 [Diagnostics](https://github.com/mistaboom/essence_ascendance/wiki/Diagnostics-and-Testing) · [Configuration](https://github.com/mistaboom/essence_ascendance/wiki/Configuration)
 
@@ -6,13 +6,13 @@ Reports explain the installed saved balance: estimated material values, actual E
 
 Editing a CSV or Markdown report does not change gameplay. Edit the human configuration and explicitly rebuild instead.
 
-## Start with currentness
+## Check that reports match the running server
 
 All paths below are beneath **`config/essence_ascendance/`**.
 
-1. Run `/essence debug balance summary` for installed identity/counts.
-2. Run `/essence debug balance validate` to compare validated disk data with active authority.
-3. Check `diagnostics/report_manifest.json` for matching integrity and complete state.
+1. Run `/essence debug balance summary` for the running balance summary.
+2. Run `/essence debug balance validate` to check the saved result against the running server.
+3. Check `diagnostics/report_manifest.json` for matching balance identity and a complete export.
 4. Read `README_REPORTS.txt` and `reports/balance_report.md`.
 
 These commands require permission 2 and support console. Validation reads saved data; it does not install or generate balance. `/essence admin balance export` recreates the derived reports from the active snapshot without recalculation.
@@ -36,7 +36,7 @@ Every CSV below lives in `reports/`. Open as UTF-8, comma-separated data with he
 | `combat_builds.csv`, `combat_assumptions.csv`, `combat_defense_pressure.csv` | Conditional numeric composition checks and their assumptions |
 | `attunement_targets.csv`, `attunement_breadth.csv` | Category targets and required/optional seals per chapter |
 | `attunement_methods.csv`, `attunement_calibration.csv`, `attunement_pacing.csv` | Registered activity units, calibration and modeled quantities |
-| `attunement_investment.csv`, `attunement_repetition.csv`, `attunement_reachability.csv` | Development, repetition and native activity opportunities; no acquisition proof |
+| `attunement_investment.csv`, `attunement_repetition.csv`, `attunement_reachability.csv` | Development, repetition and native activity opportunities; does not measure item acquisition |
 | `latent_ore_supply.csv`, `latent_ore_policy.csv`, `latent_ore_worldgen.csv` | Configured placement policy/minimums and final distributions |
 | `runtime_parameters.csv`, `ascension.csv`, `invariants.csv` | Resolved scalar pointers, chapter summary and complete-recipe conservation |
 | `projectile_policy.csv`, `guard_policy.csv`, `posture_status_policy.csv`, `vitality_policy.csv` | Saved system behavior explanations |
@@ -49,7 +49,7 @@ Older quest, adaptive-balance and competitive-provider tables belong to the reti
 
 `economic_value` is an advisory estimate. `total_essence` and routed amounts describe base-item dissolution after conservation. Native enchantment components can change a stack's actual result: an enchanted-book catalog row is an upper bound, while the Archive/tooltips and loaded enchantment diagnostics show component-specific values.
 
-Resource access, supply and automation are unexamined. Saved `reachable=false` or unknown classifications mean no acquisition proof was made, not that the item is impossible to obtain. Equipment `stage` is relative catalog strength, not the player's expected acquisition tier.
+The generator does not measure resource access, supply or automation. A saved `reachable=false` or unknown classification means access was not established, not that the item is impossible to obtain. Equipment `stage` describes relative measured strength, not when a player can acquire it.
 
 Complete static recipe constraints concern spendable payouts. An advisory estimate can exceed a recipe bound without being a conservation failure. Opaque recipes are excluded from hard conservation and counted explicitly. An invariant PASS covers the modeled material bill, not every hidden machine operation or mod interaction.
 
@@ -57,7 +57,7 @@ Bonus values remain continuous between completed player-tier endpoints. A track 
 
 For Skills, compare the emitted `skill_settings.toml` with `skill_rank_parameters.csv` after a successful rebuild. Native paths and units matter; a smaller cooldown can be an improvement. Configuration cannot remove prerequisites or fabricate numeric ranks for binary mechanics.
 
-Do not combine unrelated axis maxima into one simultaneous build. An active-rank cost can exclude inactive/replaced prerequisite purchases, equipment and Bonus spending. It is not a complete acquisition price or a measured playtime.
+Build reports are estimates of compatible combinations, not measured combat tests. A listed active-Skill cost may omit prerequisites, equipment or Bonus spending, so it is not the total price of developing that character.
 
 ## Diagnostic files
 
@@ -70,14 +70,6 @@ Do not combine unrelated axis maxima into one simultaneous build. An active-rank
 | `diagnostics/failed-generation-*.json.gz` | Diagnostic candidate that did not install |
 | `diagnostics/uncommitted-profile-*.json.gz` | Candidate whose durable commit failed |
 
-Diagnostic artifacts do not prove installation. Saved profile limits are 256 MiB compressed and 4 GiB inflated; these are safety limits, not heap recommendations. Preserve logs for measured generation timings.
+A failed-candidate diagnostic is not installed balance. Use the summary and validation commands to check what the server is actually running. Keep the relevant log when investigating generation errors or timing.
 
 Share mod/loader versions, integrity, relevant warnings and a small reproduction. Remove private paths, coordinates, player identifiers and credentials. Keep sanitized reasons and units.
-
-## Developer verification receipts
-
-The isolated `tools/verification/balance_feedback_run.py` helper requires all four human inputs after successful generation, saves their bytes under its receipt's `human-inputs/` directory, and records before/published hashes. Existing inputs must remain unchanged through generation and each rebuild; a requested saved restart must preserve the saved balance files too. Its `--fresh` option replaces only generated profile authority, preserving human settings. New automatic defaults require deliberately setting up the isolated fixture's inputs first.
-
-The read-only `ExportSavedBalanceTool` and `BalancePerformanceReplay` protect the profile and all four human-input paths. Missing Skill or Bonus settings are recorded as absent and must remain absent; these tools do not generate defaults. Such offline receipts do not replace native generation/restart or gameplay tests.
-
-Current source: `balance/generated/BalanceReports.java`, `BalanceReportLayout.java` and `SpreadsheetReports.java` under `common/src/main/java/com/mistaboom/essence_ascendance/`.

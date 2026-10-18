@@ -92,6 +92,7 @@ public final class ReferencePresentationTest {
             remainingReferenceParity(runtime);
             playerReferenceContracts(runtime);
             sharedEssenceDocumentation(runtime);
+            glaiveReference(runtime);
         } finally {
             EssenceConfigManager.clearClient();
         }
@@ -433,6 +434,59 @@ public final class ReferencePresentationTest {
             check(flattenAll(entry.content().get()).equals(text),
                     "General team rules incorrectly depend on runtime or menu-scoped membership readiness");
         } finally { EssenceConfigManager.installClient(installed); }
+    }
+
+    private static void glaiveReference(RuntimeBalanceDefinition runtime) {
+        var context = PresentationContext.catalog(runtime);
+        var document = ReferenceDocuments.equipmentProfile(EquipmentProfiles.GLAIVE.id(), "ascendance_glaive", context);
+        requireLocalized(document);
+        var tables = document.blocks().stream().filter(SemanticDocument.Table.class::isInstance)
+                .map(block -> (SemanticDocument.Table<?>) block).toList();
+        var stats = tables.getFirst();
+        var profile = EquipmentPresentationData.project(context).profiles().stream()
+                .filter(value -> value.definition().id().equals(EquipmentProfiles.GLAIVE.id())).findFirst().orElseThrow();
+        for (var tier : EquipmentTier.values()) {
+            int row = tier.ordinal();
+            check(cell(stats, "weapon_attack_range", row).contains(
+                            formatNative(profile.definition().maximumAttackRange(tier))),
+                    "Glaive Reference range diverges from its live equipment profile at " + tier);
+        }
+        var actions = EquipmentPresentationData.glaiveActions();
+        var motion = tables.get(1);
+        check(motion.expanded() && motion.data().rows().size() == actions.actions().size(),
+                "Glaive action values need the shared article-flow table");
+        for (int index = 0; index < actions.actions().size(); index++) {
+            var projected = actions.actions().get(index);
+            var nativeAction = projected.id().equals("swipe")
+                    ? com.mistaboom.essence_ascendance.equipment.GlaiveTuning.SWIPE
+                    : com.mistaboom.essence_ascendance.equipment.GlaiveTuning.STAB;
+            check(projected.damageMultiplier() == nativeAction.damageScalar()
+                            && projected.extensionTicks() == nativeAction.extensionTicks()
+                            && projected.strikeTicks() == nativeAction.outwardTicks()
+                            && projected.returnTicks() == nativeAction.retractionTicks(),
+                    "Glaive presentation duplicated or changed its production action tuning");
+            check(cell(motion, "damage", index).contains(formatNative(nativeAction.damageScalar() * 100)),
+                    "Glaive action damage multiplier lost its exact source value");
+        }
+        check(actions.swipeArcDegrees() == com.mistaboom.essence_ascendance.equipment.GlaiveTuning.SWIPE_ARC_DEGREES,
+                "Glaive swipe arc diverges from production tuning");
+        var waiting = new PresentationContext(new PresentationContext.Runtime(PresentationContext.Availability.LOADING, null),
+                PresentationContext.Player.loading(), new PresentationContext.Revision(0, -1, false, 1, 0));
+        check(ReferenceDocuments.glaiveCombat(waiting).stream().noneMatch(SemanticDocument.Table.class::isInstance),
+                "Loading glaive article presents runtime numbers as ready");
+        for (var article : List.of(document, GuideDocuments.glaive(context))) {
+            String text = flattenAll(article).toLowerCase(Locale.ROOT);
+            check(!text.contains("personalized") && !text.contains("special skin") && !text.contains("matching player"),
+                    "General glaive documentation exposes personal cosmetic or eligibility content");
+        }
+        check(document.blocks().stream().filter(SemanticDocument.Links.class::isInstance)
+                        .map(SemanticDocument.Links.class::cast).flatMap(links -> links.links().stream())
+                        .anyMatch(link -> link.target().equals(id("guide/equipment/glaive").toString())),
+                "Glaive Reference lacks its canonical Guide counterpart");
+    }
+
+    private static String formatNative(double value) {
+        return java.math.BigDecimal.valueOf(value).stripTrailingZeros().toPlainString();
     }
 
     private static <R> String cell(SemanticDocument.Table<R> table, String column, int row) {

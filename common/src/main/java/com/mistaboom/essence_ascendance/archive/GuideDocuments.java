@@ -422,8 +422,34 @@ final class GuideDocuments {
                 new SemanticDocument.Link(id("reference/skills/fishing_instinct").toString(), SkillPresentationData.skillName(SkillIds.FISHING_INSTINCT), SemanticDocument.LinkRelation.RELATED),
                 new SemanticDocument.Link(id("reference/skills/fishers_call").toString(), SkillPresentationData.skillName(SkillIds.FISHERS_CALL), SemanticDocument.LinkRelation.RELATED),
                 link("reference/equipment/infusion", "archive.entry.reference.equipment.infusion.title", SemanticDocument.LinkRelation.RELATED),
-                link("reference/equipment/lifecycle", "archive.entry.reference.equipment.lifecycle.title", SemanticDocument.LinkRelation.RELATED));
+                link("reference/equipment/lifecycle", "archive.entry.reference.equipment.lifecycle.title", SemanticDocument.LinkRelation.RELATED),
+                link("guide/equipment/glaive", "archive.entry.guide.equipment.glaive.title", SemanticDocument.LinkRelation.RELATED));
         return document("archive.entry.guide.equipment.fishing.title", blocks);
+    }
+
+    static SemanticDocument glaive(PresentationContext context) {
+        List<SemanticDocument.Block> blocks = new ArrayList<>();
+        blocks.add(new SemanticDocument.ItemIllustration(
+                EquipmentPresentationData.itemModel(id("ascendance_glaive"), EquipmentTier.LATENT), HERO_WIDTH, HERO_HEIGHT));
+        blocks.add(heading("archive.guide.glaive.getting_started"));
+        blocks.add(new SemanticDocument.Paragraph(g("archive.guide.glaive.acquisition",
+                equipmentTier(EquipmentTier.LATENT), equipmentTier(EquipmentTier.TRANSCENDENT))));
+        blocks.add(heading("archive.guide.glaive.two_handed"));
+        blocks.add(paragraph("archive.guide.glaive.offhand"));
+        blocks.addAll(ReferenceDocuments.glaiveCombat(context));
+        blocks.add(heading("archive.guide.glaive.bonuses.title"));
+        blocks.add(paragraph("archive.guide.glaive.bonuses"));
+        blocks.add(paragraph("archive.guide.glaive.skills"));
+        blocks.add(new SemanticDocument.Callout(SemanticDocument.CalloutKind.TIP, g("archive.callout.tip"),
+                g("archive.guide.glaive.troubleshooting")));
+        seeAlso(blocks, link("reference/equipment/glaive", "archive.entry.reference.equipment.profile.glaive.title",
+                        SemanticDocument.LinkRelation.RELATED),
+                link("reference/equipment/infusion", "archive.entry.reference.equipment.infusion.title", SemanticDocument.LinkRelation.RELATED),
+                link("reference/equipment/lifecycle", "archive.entry.reference.equipment.lifecycle.title", SemanticDocument.LinkRelation.RELATED),
+                new SemanticDocument.Link(id("reference/skills/frenzy").toString(), ArchiveText.term("skill:frenzy"), SemanticDocument.LinkRelation.RELATED),
+                new SemanticDocument.Link(id("reference/skills/armor_crack").toString(), ArchiveText.term("skill:armor_crack"), SemanticDocument.LinkRelation.RELATED),
+                link("guide/equipment/fishing", "archive.entry.guide.equipment.fishing.title", SemanticDocument.LinkRelation.RELATED));
+        return document("archive.entry.guide.equipment.glaive.title", blocks);
     }
 
     private static SemanticDocument.Heading heading(String key) {

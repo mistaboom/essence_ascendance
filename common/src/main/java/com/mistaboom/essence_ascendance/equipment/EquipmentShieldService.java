@@ -39,6 +39,8 @@ public final class EquipmentShieldService {
 
     public static boolean canGuard(LivingEntity holder, ItemStack stack) {
         return holder != null && holder.isAlive() && !holder.isRemoved() && !holder.isSpectator()
+                && (!(holder instanceof Player player) || stack != player.getOffhandItem()
+                    || TwoHandedEquipmentService.permitsHeldShield(player))
                 && functional(stack) && (!(holder instanceof Player player)
                 || !player.getCooldowns().isOnCooldown(stack.getItem()));
     }
@@ -59,7 +61,8 @@ public final class EquipmentShieldService {
     /** Main hand wins a dual-shield tie. Always select the complete context of ONE stack. */
     public static Context heldContext(ServerPlayer holder) {
         if (functional(holder.getMainHandItem())) return context(holder, holder.getMainHandItem());
-        if (functional(holder.getOffhandItem())) return context(holder, holder.getOffhandItem());
+        if (TwoHandedEquipmentService.permitsHeldShield(holder) && functional(holder.getOffhandItem()))
+            return context(holder, holder.getOffhandItem());
         return null;
     }
 

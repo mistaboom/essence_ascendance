@@ -23,6 +23,7 @@ public final class EquipmentProfileRegistry {
             );
         }
         PROFILES.put(profile.id(), profile);
+        TwoHandedEquipmentPolicy.rulesChanged();
         return profile;
     }
 

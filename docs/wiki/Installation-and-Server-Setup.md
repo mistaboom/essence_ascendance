@@ -4,9 +4,9 @@
 
 ## Choose the right build
 
-Choose the intended build from [GitHub releases](https://github.com/mistaboom/essence_ascendance/releases). Use its Fabric or NeoForge jar for **Minecraft 1.21.1** with **Java 21**, and install matching versions on the server and all clients. These source documents can describe development changes beyond a published release; check that release's notes.
+Choose the intended build from [GitHub releases](https://github.com/mistaboom/essence_ascendance/releases). Use its Fabric or NeoForge jar for **Minecraft 1.21.1** with **Java 21**, and install matching versions on the server and all clients. This balance/configuration guide targets beta.9; check the release notes when using a different version.
 
-**The current simple-generator development revision requires fresh saves, worlds and configs.** Old profile/item/machine metadata and old Skill/Bonus schemas are not migrated. Keep a complete backup and the matching older build to continue historical worlds.
+**When updating from beta.7 or earlier, use fresh worlds and fresh Essence Ascendance configuration, as required by beta.8.** Beta.9 introduces no additional saved-format change over beta.8; back up existing beta.8 installations before updating. Old profile/item/machine metadata and old Skill/Bonus schemas are not migrated. Keep a complete backup and the matching older build to continue historical worlds.
 
 | Loader | Required components on client and server | Build reference |
 | --- | --- | --- |
@@ -19,23 +19,23 @@ Use one loader build. Fabric and NeoForge jars are alternatives, not two require
 
 ## Optional integrations
 
-JEI is optional and supplies recipe/display integration; the build uses the `19.43.0.395` API. It is not required to generate a balance profile. This source does not advertise REI or EMI integration.
+JEI is optional for recipe/display integration and is not needed for balance generation. See [compatibility](https://github.com/mistaboom/essence_ascendance/wiki/Integrations-and-Compatibility#jei) for the checked versions. Dedicated REI/EMI integration is not advertised.
 
 Other mods contribute ordinary loaded recipes, common tags and native properties. The generator does not run mod-specific acquisition/capability adapters, quests or script inspection. Functional membership integration is separate from balance generation.
 
 ## Prepare a server or pack
 
-Native solo/team authority needs no external mod. Optional FTB Teams membership and JEI are functional integrations; they do not establish acquisition facts for the generator. Install matching dependencies for your chosen build. Older provider/version audit tables describe their dated releases, not a new compatibility guarantee.
+Native solo/teams need no external mod. Optional FTB Teams membership and JEI handle teams and recipe browsing; they do not tell the generator how difficult items are to obtain. Install the matching dependencies for your chosen build.
 
-Fresh AUTO selection and an established world's retained authority differ. Adding a provider to a running pack is not an automatic authority migration. Review [selection](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure#selection-and-established-worlds) and the [beta.5 save compatibility boundary](https://github.com/mistaboom/essence_ascendance/wiki/Updating-and-Recovery#multiplayer-persistence-and-upgrades) before testing against copied world state.
+Choose your team provider before creating the world. An existing world keeps its saved provider when another mod is installed. Review [provider selection](https://github.com/mistaboom/essence_ascendance/wiki/Teams-and-Shared-Infrastructure#selection-and-established-worlds) and [multiplayer backups](https://github.com/mistaboom/essence_ascendance/wiki/Updating-and-Recovery#multiplayer-persistence-and-upgrades) before deliberately changing it.
 
 1. Assemble the intended mods, datapacks, world-generation settings and supported integration configs in a staging environment.
-2. Start the server normally. Missing global inputs receive defaults. With no saved profile, generation runs early in Overworld loading; complete Skill and Bonus settings are emitted only after validated durable publication.
-3. Review installation status, profile summary and reports. A new large pack can require substantial synchronous generation time; no fixed startup duration is promised.
+2. Start the server normally. Missing global settings receive defaults. With no saved balance, generation runs during world startup; complete Skill and Bonus files are written after it succeeds.
+3. Review the balance summary, Archive and reports. A large pack can take longer to generate; allow it to finish.
 4. Connect a matching client and check the Archive after synchronization.
 5. Try representative survival acquisition and progression routes before distributing the pack.
 
-See [balance generation](https://github.com/mistaboom/essence_ascendance/wiki/Balance-Generation) for failure behavior. A server can continue loading after an initial profile rejection, but that does not mean the balance systems have valid authority.
+If generation fails, check the reported error. A world can open while balance-dependent features remain unavailable. See [balance generation](https://github.com/mistaboom/essence_ascendance/wiki/Balance-Generation).
 
 ## Server files and distribution
 
@@ -48,7 +48,7 @@ config/essence_ascendance/skill_settings.toml
 config/essence_ascendance/bonus_settings.toml
 ```
 
-The saved server authority is `config/essence_ascendance/generated_balance.json.gz`. Reports and diagnostics beneath that directory are derived views.
+`config/essence_ascendance/generated_balance.json.gz` is the saved balance the server uses. Reports and diagnostics in the same folder describe that result; they are not inputs.
 
 Distribute the four human inputs with pack design after generating and reviewing the Skill/Bonus defaults. A pre-generated profile can be included for a deliberately fixed, matching server environment, but it prevents first-run regeneration merely because content has changed. Treat it as an environment-specific artifact, label the versions it was generated with, and verify it in staging. Do not copy a profile from an unrelated pack.
 
@@ -65,5 +65,3 @@ These permission-2 commands are diagnostics:
 ```
 
 They report install state, active saved data, and disk/active validation. Validation can be expensive. It does not repair a rejected file or regenerate anything. Use [updating and recovery](https://github.com/mistaboom/essence_ascendance/wiki/Updating-and-Recovery) for planned replacement.
-
-Current packaging references: `gradle.properties`, `fabric/src/main/resources/fabric.mod.json` and `neoforge/src/main/resources/META-INF/neoforge.mods.toml`. Release-specific dependency requirements come from the chosen artifact.

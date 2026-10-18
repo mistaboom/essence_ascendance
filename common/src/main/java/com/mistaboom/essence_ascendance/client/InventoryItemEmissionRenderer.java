@@ -1,10 +1,8 @@
 package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.client.armor.ArmorRenderTypes;
-import com.mistaboom.essence_ascendance.equipment.EquipmentTierData;
-import com.mistaboom.essence_ascendance.equipment.EquipmentTierVisuals;
+import com.mistaboom.essence_ascendance.equipment.EquipmentAppearance;
 import com.mistaboom.essence_ascendance.item.EmissiveAccentItem;
-import com.mistaboom.essence_ascendance.visual.ArmorEmission;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.LightTexture;
@@ -33,11 +31,12 @@ public final class InventoryItemEmissionRenderer {
     public static void render(ItemStack stack, BakedModel model, PoseStack pose, MultiBufferSource buffers) {
         if (!(stack.getItem() instanceof EmissiveAccentItem)) return;
 
-        var tier = EquipmentTierData.tier(stack);
-        int alpha = ArmorEmission.alpha(tier);
+        var appearance = EquipmentAppearance.resolve(
+                stack, PersonalizedEquipmentClient.active(stack));
+        int alpha = appearance.emissionAlpha();
         if (alpha == 0) return;
 
-        int rgb = ArmorEmission.luminousColor(EquipmentTierVisuals.armorAccentRgb(tier));
+        int rgb = appearance.luminousRgb();
         float red = (rgb >> 16 & 255) / 255.0F;
         float green = (rgb >> 8 & 255) / 255.0F;
         float blue = (rgb & 255) / 255.0F;
@@ -53,19 +52,19 @@ public final class InventoryItemEmissionRenderer {
 
         for (Direction direction : Direction.values()) {
             random.setSeed(MODEL_SEED);
-            renderAccent(model.getQuads(null, direction, random), pose, consumer,
+            renderAccent(stack, model.getQuads(null, direction, random), pose, consumer,
                     red, green, blue, opacity);
         }
         random.setSeed(MODEL_SEED);
-        renderAccent(model.getQuads(null, null, random), pose, consumer,
+        renderAccent(stack, model.getQuads(null, null, random), pose, consumer,
                 red, green, blue, opacity);
     }
 
-    private static void renderAccent(List<BakedQuad> quads, PoseStack pose, VertexConsumer consumer,
+    private static void renderAccent(ItemStack stack, List<BakedQuad> quads, PoseStack pose, VertexConsumer consumer,
                                      float red, float green, float blue, float alpha) {
         PoseStack.Pose currentPose = pose.last();
         for (BakedQuad quad : quads) {
-            if (!quad.isTinted() || quad.getTintIndex() != ACCENT_TINT_INDEX) continue;
+            if (!quad.isTinted() || EmissiveAccentItem.materialTintIndex(stack, quad.getTintIndex()) != ACCENT_TINT_INDEX) continue;
             consumer.putBulkData(currentPose, quad, red, green, blue, alpha,
                     LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY);
         }

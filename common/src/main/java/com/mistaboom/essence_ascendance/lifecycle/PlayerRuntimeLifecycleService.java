@@ -62,6 +62,7 @@ public final class PlayerRuntimeLifecycleService {
         LifecycleEvent.SERVER_STARTING.register(server -> com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.serverStarting());
         LifecycleEvent.SERVER_STOPPING.register(server -> com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.serverStopping());
         LifecycleEvent.SERVER_STOPPED.register(server -> {
+            com.mistaboom.essence_ascendance.equipment.WeaponActionRuntime.clear();
             com.mistaboom.essence_ascendance.attunement.AttunementGameplay.clearAll();
             SkillEffectRuntime.clearAll();
             EquipmentDamageService.clearSkillInput();
@@ -97,6 +98,7 @@ public final class PlayerRuntimeLifecycleService {
     public static void refreshAll(
             MinecraftServer server
     ) {
+        com.mistaboom.essence_ascendance.equipment.TwoHandedEquipmentPolicy.rulesChanged();
         CommittedSkillService.invalidateAll();
         for (ServerPlayer player :
                 server.getPlayerList()
@@ -135,6 +137,7 @@ public final class PlayerRuntimeLifecycleService {
 
     /** Called by the authoritative death-completion hook, after cancellation. */
     public static void onDeath(ServerPlayer player) {
+        com.mistaboom.essence_ascendance.equipment.WeaponActionRuntime.cancel(player);
         com.mistaboom.essence_ascendance.vitality.VitalityDamageService.onDeath(player);
         com.mistaboom.essence_ascendance.attunement.AttunementGameplay.forget(player);
         com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.forgetOwner(player);
@@ -148,6 +151,7 @@ public final class PlayerRuntimeLifecycleService {
     private static void refreshCurrentState(
             ServerPlayer player
     ) {
+        com.mistaboom.essence_ascendance.equipment.TwoHandedEquipmentService.refresh(player);
         DormantGuidebookService.deliverIfEligible(player);
         refreshSkillState(player);
         /*
@@ -197,6 +201,8 @@ public final class PlayerRuntimeLifecycleService {
     private static void resetRuntime(
             ServerPlayer player
     ) {
+        com.mistaboom.essence_ascendance.equipment.WeaponActionRuntime.cancel(player);
+        com.mistaboom.essence_ascendance.equipment.TwoHandedEquipmentService.forget(player);
         com.mistaboom.essence_ascendance.attunement.AttunementGameplay.forget(player);
         SkillEffectRuntime.reset(player);
         CommittedSkillService.forget(player);
@@ -257,6 +263,8 @@ public final class PlayerRuntimeLifecycleService {
     public static void forget(
             ServerPlayer player
     ) {
+        com.mistaboom.essence_ascendance.equipment.WeaponActionRuntime.disconnected(player);
+        com.mistaboom.essence_ascendance.equipment.TwoHandedEquipmentService.forget(player);
         com.mistaboom.essence_ascendance.attunement.AttunementGameplay.forget(player);
         com.mistaboom.essence_ascendance.projectile.ProjectileRuntime.forgetOwner(player);
         com.mistaboom.essence_ascendance.gathering.AscendanceFishingService.forget(player);

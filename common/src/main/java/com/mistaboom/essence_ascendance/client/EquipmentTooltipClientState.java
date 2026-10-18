@@ -84,6 +84,13 @@ public final class EquipmentTooltipClientState {
             Item.TooltipContext tooltipContext,
             TooltipFlag tooltipFlag
     ) {
+        applyToGeneratedTooltip(stack, tooltip, tooltipContext, tooltipFlag, PersonalizedEquipmentClient.active(stack));
+    }
+
+    // Share one eligibility snapshot across flavor and the holder-specific range row.
+    static void applyToGeneratedTooltip(ItemStack stack, List<Component> tooltip,
+            Item.TooltipContext tooltipContext, TooltipFlag tooltipFlag,
+            java.util.Optional<com.mistaboom.essence_ascendance.equipment.personalized.PersonalizedEquipmentDefinition> eligible) {
         List<EquipmentTooltipPayload.Line> lines =
                 LINES_BY_ITEM.get(lookupKey(stack));
 
@@ -96,6 +103,12 @@ public final class EquipmentTooltipClientState {
         List<EquipmentTooltipPayload.Line> activeLines = fractured
                 ? LINES_BY_ITEM.getOrDefault(fracturedLookupKey(stack), lines)
                 : lines;
+        double range = com.mistaboom.essence_ascendance.equipment.EquipmentAttackRange.maximum(stack, eligible);
+        if (range > 0) activeLines = activeLines.stream().map(line ->
+                line.translationKey().equals("tooltip.essence_ascendance.equipment.stat.weapon_attack_range")
+                        ? new EquipmentTooltipPayload.Line(line.group(), line.tone(), line.translationKey(),
+                                List.of(java.math.BigDecimal.valueOf(range).stripTrailingZeros().toPlainString()))
+                        : line).toList();
 
         List<Component> enchantmentLines =
                 extractVanillaEnchantments(
@@ -138,6 +151,12 @@ public final class EquipmentTooltipClientState {
                             .withStyle(style -> style.withColor(AscendanceUiPalette.FRACTURED).withBold(true))
             );
         }
+
+        eligible.filter(profile -> !profile.flavor().isBlank()).ifPresent(profile -> {
+            tooltip.add(Component.empty());
+            appendWrapped(tooltip, PersonalizedEquipmentClient.flavor(profile)
+                    .copy().withStyle(style -> style.withColor(AscendanceUiPalette.MUTED_TEXT).withItalic(true)));
+        });
 
         tooltip.add(Component.empty());
 
@@ -194,6 +213,28 @@ public final class EquipmentTooltipClientState {
                 EssenceText.tooltip("empty.essence_abilities"),
                 equipmentTier
         );
+        if (stack.getItem() instanceof com.mistaboom.essence_ascendance.equipment.EquipmentProfileItem item) {
+            com.mistaboom.essence_ascendance.equipment.EquipmentProfileRegistry.get(item.equipmentProfileId())
+                    .filter(profile -> !profile.usageHints().isEmpty()).ifPresent(profile -> {
+                        tooltip.add(Component.empty());
+                        for (String hint : profile.usageHints())
+                            appendWrapped(tooltip, EssenceText.tooltip(hint)
+                                    .withStyle(style -> style.withColor(AscendanceUiPalette.MUTED_TEXT)));
+                    });
+        }
+    }
+
+    private static void appendWrapped(List<Component> tooltip, Component text) {
+        var client = net.minecraft.client.Minecraft.getInstance();
+        if (client == null || client.font == null) {
+            tooltip.add(Component.literal("  ").append(text));
+            return;
+        }
+        int width = TooltipLayout.compactWidth(tooltip.stream().mapToInt(client.font::width).max().orElse(0),
+                client.getWindow().getGuiScaledWidth()) - client.font.width("  ");
+        for (var line : com.mistaboom.essence_ascendance.client.ui.StyledTextLayout.wrapComponents(
+                client.font.getSplitter(), text, Math.max(1, width)))
+            tooltip.add(Component.literal("  ").append(line));
     }
 
     private static List<Component> extractVanillaEnchantments(

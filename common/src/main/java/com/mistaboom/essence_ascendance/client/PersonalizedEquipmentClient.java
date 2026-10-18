@@ -2,6 +2,8 @@ package com.mistaboom.essence_ascendance.client;
 
 import com.mistaboom.essence_ascendance.equipment.EquipmentTierVisuals;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTierData;
+import com.mistaboom.essence_ascendance.equipment.EquipmentAppearance;
+import com.mistaboom.essence_ascendance.item.EmissiveAccentItem;
 import com.mistaboom.essence_ascendance.equipment.personalized.*;
 import com.mistaboom.essence_ascendance.gathering.RodHookAccess;
 import net.minecraft.client.Minecraft;
@@ -38,14 +40,15 @@ public final class PersonalizedEquipmentClient {
         return itemTint(active(holders, stack), stack, tintIndex);
     }
     private static int itemTint(Optional<PersonalizedEquipmentDefinition> active, ItemStack stack, int tintIndex) {
-        return active.map(profile -> switch (tintIndex) {
-            case 0 -> 0xFF000000 | profile.baseRgb();
-            case 1 -> 0xFF000000 | profile.accentRgb();
-            default -> EquipmentTierVisuals.CLEAR_TINT;
-        }).orElseGet(() -> EquipmentTierVisuals.itemTint(stack, tintIndex));
+        int material=EmissiveAccentItem.materialTintIndex(stack,tintIndex);
+        if (material!=0 && material!=1) return EquipmentTierVisuals.CLEAR_TINT;
+        return 0xFF000000 | EquipmentAppearance.resolve(stack,active).tint(material);
     }
     public static Component name(ItemStack stack) {
         return active(stack).map(profile -> Component.literal(profile.name())).orElse(null);
+    }
+    public static Component flavor(PersonalizedEquipmentDefinition profile) {
+        return Component.translatableWithFallback("personalized.essence_ascendance." + profile.id() + ".flavor", profile.flavor());
     }
     public static ResourceLocation hookTexture(FishingHook hook) {
         var owner = hook.getPlayerOwner();

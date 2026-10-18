@@ -36,6 +36,21 @@ public final class MasterworkTemperingRoles {
 
     private MasterworkTemperingRoles() { }
 
+    /** Shared combat/active-hand recognition; passive declarations must never override these roles. */
+    public static boolean activeHandEquipment(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return false;
+        var item = stack.getItem();
+        return melee(stack) || ranged(stack) || caster(stack) || mining(stack)
+                || nativePositiveAdditive(stack, Attributes.ATTACK_DAMAGE, EquipmentSlot.OFFHAND) > 0
+                || nativePositiveAdditive(stack, Attributes.ATTACK_SPEED, EquipmentSlot.MAINHAND) > 0
+                || nativePositiveAdditive(stack, Attributes.ATTACK_SPEED, EquipmentSlot.OFFHAND) > 0
+                || item instanceof net.minecraft.world.item.ShieldItem
+                || item instanceof net.minecraft.world.item.ProjectileWeaponItem
+                || item instanceof net.minecraft.world.item.TridentItem
+                || item instanceof net.minecraft.world.item.FishingRodItem
+                || !TwoHandedEquipmentPolicy.capabilities(stack).equals(EquipmentWeaponCapabilities.DEFAULT);
+    }
+
     public static boolean melee(ItemStack stack) {
         if (heldStrength(stack, EssenceStats.MELEE_DAMAGE) > 0) return true;
         return nativePositiveAdditive(stack, Attributes.ATTACK_DAMAGE, EquipmentSlot.MAINHAND) > 0;

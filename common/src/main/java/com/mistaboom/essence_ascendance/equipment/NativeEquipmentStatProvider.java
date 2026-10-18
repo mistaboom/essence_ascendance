@@ -20,6 +20,12 @@ public final class NativeEquipmentStatProvider
     }
 
     @Override
+    public EquipmentWeaponCapabilities weaponCapabilities(ItemStack stack) {
+        var profile = MasterworkTemperingRoles.firstPartyProfile(stack);
+        return profile == null ? EquipmentWeaponCapabilities.DEFAULT : profile.weaponCapabilities();
+    }
+
+    @Override
     public EquipmentStatProfile evaluate(ItemStack stack) {
         Objects.requireNonNull(stack, "Item stack cannot be null");
 

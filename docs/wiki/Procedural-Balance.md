@@ -1,52 +1,44 @@
-# Procedural balance
+# How pack balance works
 
-[Configuration](https://github.com/mistaboom/essence_ascendance/wiki/Configuration) · [Reports](https://github.com/mistaboom/essence_ascendance/wiki/Reports-and-Provenance)
+[Configuration](https://github.com/mistaboom/essence_ascendance/wiki/Configuration) · [Tuning examples](https://github.com/mistaboom/essence_ascendance/wiki/Worked-Scenarios)
 
-Essence Ascendance uses a small shared model to generate pack-relative equipment, progression and prices. It provides an editable starting point, not a simulation of every pack's survival economy.
+You do not need to assign a value to every item before adding Essence Ascendance. Let the mod generate a starting balance in a test world, review the result, and change the parts that do not fit your pack.
 
-## What the model uses
+## What is generated?
 
-Item properties, common semantic tags and loaded standard recipe interfaces provide intrinsic material estimates. Quantities, returned containers and exact reversible conversions constrain actual dissolution payouts. Native equipment and hostile attributes provide measured combat/tool references.
+| Area | Automatic starting point | Your main controls |
+| --- | --- | --- |
+| Item yields | Material estimates and Essence payouts from shared properties, tags and recipes | Advanced item/recipe corrections in `balance_overrides.toml` |
+| Equipment | Latent starts around iron equipment; higher tiers scale toward the pack's measured equipment | Global power/reference settings and advanced overrides |
+| Bonuses | Starting tier, completion tier, effect progression and prices | `bonus_settings.toml` |
+| Skills | Default unlock layout, generated rank counts, effects and prices | `skill_settings.toml` |
+| Ascension pace | Category activity targets and seal requirements | `[progression]` and `[attunement]` in the main config |
+| Machines | Generated operating values and costs | Global settings and advanced overrides |
+| Latent Ore | Default distributions and supported host blocks | `[latent_ore]` in the main config |
 
-Relative equipment bands describe measured strength. They do not prove when an item is obtainable. Outlier policy limits extreme catalog measurements; it cannot inspect hidden upgrades, arbitrary callbacks or all equipment synergies.
+Skill placement starts from the mod's default tree layout. It is not moved around by quest or capability discovery. You can change its unlock tiers explicitly. Skill ranks and effects still receive generated defaults.
 
-There is no acquisition graph, quest traversal, loot sampling, demand graph or mod-specific valuation adapter. Unknown acquisition does not automatically make an item worthless. Rates, operating costs and survival access remain unknown when they are not observed.
+## What the generator can see
 
-## Generated systems
+It uses ordinary recipe inputs, outputs and quantities; common material tags; item type, rarity and other exposed properties; and native equipment and hostile-mob stats. Mining requirements and hardness help distinguish materials. Exact reversible recipes help keep ingots, blocks and similar forms consistent.
 
-| System | Resolved output |
-| --- | --- |
-| Items | Intrinsic estimates, Essence routes and conserved whole-unit payouts |
-| Equipment | Native tier baselines from compatible catalog references |
-| Bonuses | Active player-tier span, effects, costs and native limits |
-| Skills | Unlock tiers, meaningful ranks, native parameters and prices |
-| Attunement | Activity targets, category breadth and development references |
-| Machines | Costs, capacities, rates and effect policy |
-| Latent Ore | Configured distributions and supported terrain hosts |
+It does **not** infer how hard an item is to obtain from quests, loot, farms, automation, energy use or bespoke scripts. It has no item-valuation rules written for individual content mods. A KubeJS-created recipe can participate if it appears as an ordinary supported loaded recipe; the script itself is not inspected.
 
-Skill unlocks/ranks/stat endpoints are editable in `skill_settings.toml`. Bonus active tiers and effect bounds are editable in `bonus_settings.toml`. The main config retains global power, effort, activity and ore policy. Advanced measurement corrections belong in `balance_overrides.toml`.
+Two items with similar exposed information can receive similar estimates even when your pack gives them very different uses or rarity. A plain item used in a powerful ritual may look ordinary to the generator. Test those important cases yourself.
 
-Default generation and configured overrides still face native floors/caps, prerequisite rules and conservation checks. A binary skill cannot gain invented numeric ranks. Bonus minimums apply at completed player tiers; partial funding remains continuous.
+## Meaningful minimums and limits
 
-## Read the result correctly
+Generated effects aim to make each offered tier or rank do something useful. A Bonus does not have to begin at Dormant or end at Transcendent. Some effects need fewer tiers or ranks because smaller steps would have no useful gameplay effect.
 
-The saved validated profile supplies gameplay. Restart loads it; configuration edits require explicit rebuild. Reports are inspection outputs, and the Archive displays synchronized installed values.
+The automatic power budget is a planning target. Meaningful minimums and explicit Skill/Bonus settings can exceed it. Mechanical limits still apply: configuration cannot invent extra ranks for an on/off ability or make an unsupported effect work.
 
-Economic estimates and spendable Essence are different. Only complete modeled material bills impose hard recipe conservation. A passing recipe check does not prove every opaque machine loop, acquisition route or gameplay interaction.
+## A practical tuning loop
 
-Equipment references preserve compatible slots and paired measurements. Axis maxima from different alternatives are not one simultaneous build. Skill projections assume their declared prerequisites, milestones and selected choices.
+1. Finalize the pack's mods, datapacks and recipes in a test installation.
+2. Create a fresh world and let balance generation finish.
+3. Check early materials, important crafting chains, equipment, Skills and Bonuses in the Archive and Nexus.
+4. Edit the appropriate human configuration file. Change a small group of related settings at a time.
+5. Run `/essence admin balance rebuild`, check for errors, and test the result.
+6. Distribute your reviewed settings with the pack. Keep a complete backup before applying changes to an existing server.
 
-Use current reports to inspect unexpected output, adjust broad policy or emitted system settings, then rebuild and test representative gameplay. The [current model notes](https://github.com/mistaboom/essence_ascendance/blob/main/docs/simple-balance.md) describe deliberate limitations. Older acquisition/provider reports are historical.
-
-## Terms in reports
-
-| Term | Meaning |
-| --- | --- |
-| Authority | The validated installed profile used by gameplay |
-| Native parameter | A mechanic's actual unit, such as damage points, ticks or a probability fraction |
-| Catalog strength band | Relative measured equipment strength, not an acquisition stage |
-| Frontier | Selected compatible reference measurements after outlier policy |
-| Native minimum | Smallest meaningful supported effect or rank improvement |
-| Headroom | Allowed added contribution in a modeled composition |
-| Complete recipe | A supported static material bill suitable for payout conservation |
-| Advisory estimate | A policy estimate that does not prove access or a spendable payout |
+[Saved profiles and rebuilds](https://github.com/mistaboom/essence_ascendance/wiki/Balance-Generation) explains why a restart alone does not apply edits. [Reports](https://github.com/mistaboom/essence_ascendance/wiki/Reports-and-Provenance) help investigate a particular result; players should use the Archive for gameplay guidance and current values.

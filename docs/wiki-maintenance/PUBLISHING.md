@@ -2,7 +2,9 @@
 
 **Edit only `docs/wiki/*.md` in this repository.** These are the maintained originals. GitHub serves the live wiki from a separate repository at https://github.com/mistaboom/essence_ascendance.wiki.git, but no permanent second local checkout is needed. Pushing the main repository alone does not publish wiki pages.
 
-**October 13 beta.5 refresh:** the user authorized committing and publishing the multiplayer implementation, Archive and wiki together. Canonical pages now target beta.5 and document its new-world requirement. Earlier local-only statements in [PASSDOWN.md](PASSDOWN.md) retain their historical scope; use [PUBLICATION.md](PUBLICATION.md) for publication receipts. Preserve unrelated work and preview the selected pages before publishing.
+**Historical October 13 beta.5 refresh:** the multiplayer implementation, Archive and wiki were published together. That refresh targeted beta.5 and documented its new-world requirement. Earlier local-only statements in [PASSDOWN.md](PASSDOWN.md) retain their historical scope; use [PUBLICATION.md](PUBLICATION.md) for publication receipts. Preserve unrelated work and preview the selected pages before publishing.
+
+**October 18 beta.9 publication:** the canonical balance/configuration pages retain the beta.8 system and now target beta.9, including the glaive/Archive additions. The user authorized committing all current implementation, Archive and wiki changes and publishing through the existing release pipeline and wiki publisher. Review the source diff and the wiki preview before publishing; a repository push alone does not update the live wiki. Earlier dated release/publication receipts remain historical.
 
 ## Review before publishing
 

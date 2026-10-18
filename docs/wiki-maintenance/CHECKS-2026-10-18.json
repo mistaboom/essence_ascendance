@@ -1,0 +1,12 @@
+{
+  "pages": 22,
+  "internal_links": 155,
+  "toml_examples": 5,
+  "errors": [],
+  "scope": "Local documentation links, fences, sidebar and TOML syntax; no gameplay or publication claims.",
+  "date": "2026-10-18",
+  "release_scope": "v1.0.0-beta.8",
+  "release_commit": "16a05f0f5d8fcc0dfb9b476dc45aa0c7398d0118",
+  "publication": "Pending: local documentation handoff requested by user.",
+  "examples": "TOML syntax checked; identifiers, fields and units compared to beta.8 source and generated settings. No fresh gameplay acceptance claim."
+}

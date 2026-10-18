@@ -114,7 +114,7 @@ public final class EssenceAscendanceNeoForge {
                     current
             );
 
-            if (resolved > current) {
+            if (resolved != current) {
                 event.getEnchantments().set(holder, resolved);
             }
         });

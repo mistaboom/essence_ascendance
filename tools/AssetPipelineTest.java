@@ -43,7 +43,50 @@ public final class AssetPipelineTest {
         invalidStitchedMaterials(directory);
         shieldSourceContract(Path.of(args[1]), Path.of(args[2]));
         fishingSourceContract(Path.of(args[1]), Path.of(args[2]));
+        glaiveSourceContract(Path.of(args[1]), Path.of(args[2]));
         System.out.println("AssetPipelineTest: " + assertions + " build-pipeline assertions PASS");
+    }
+
+    private static void glaiveSourceContract(Path art, Path output) throws Exception {
+        var project = BlockbenchSource.read(art.resolve("source/models/item/ascendance_glaive.bbmodel"));
+        for (String part : List.of("blade_base", "blade_accent", "butt_accent", "nochange")) {
+            byte[] authored = BlockbenchSource.png(BlockbenchSource.named(project.getAsJsonArray("textures"), "ascendance_glaive_" + part));
+            check(Arrays.equals(authored, Files.readAllBytes(output.resolve(ROOT + "textures/item/ascendance_glaive/" + part + ".png"))),
+                    "Glaive parts must retain exact authored PNG bytes: " + part);
+        }
+        check(!Files.exists(output.resolve(ROOT + "textures/item/ascendance_glaive/ignore.png")), "Reference image is never exported");
+        check(!Files.exists(output.resolve(ROOT+"meshes/item/ascendance_glaive/ignore.eamesh"))
+                && !Files.exists(output.resolve(ROOT+"meshes/item/ascendance_glaive/butt_base.eamesh")),
+                "No reference geometry or invented butt base");
+        var repeatPixels=new java.util.HashSet<String>();
+        for (String part:List.of("blade_base","blade_accent","butt_accent","nochange","wood_grip","wood_front","wood_repeat")) {
+            try (var in=new DataInputStream(Files.newInputStream(output.resolve(ROOT+"meshes/item/ascendance_glaive/"+part+".eamesh")))) {
+                check(in.readInt()==0x45414D31,"Shared EAM1 mesh format: "+part);
+                int count=in.readInt(); check(count>0 && count<10000,"Finite nonempty source mesh: "+part);
+                double q=1/(32*Math.sqrt(2));
+                for(int i=0;i<count*3;i++) {
+                    float x=in.readFloat(),y=in.readFloat(),z=in.readFloat(),u=in.readFloat(),v=in.readFloat();
+                    float nx=in.readFloat(),ny=in.readFloat(),nz=in.readFloat();
+                    check(Math.abs(Math.abs(y)-1.0/64)<1e-6,"One-texel extrusion");
+                    check(Math.abs(nx*nx+ny*ny+nz*nz-1)<1e-5,"Normalized mesh normals");
+                    if (part.startsWith("blade")) check(z>=-1e-6 && z<=29*q+1e-6,"Rigid blade attachment envelope");
+                    if (part.equals("wood_repeat")) {
+                        int px=(int)(u*32),py=(int)(v*32); repeatPixels.add(px+","+py);
+                        check(py==20 && px>=10 && px<=12,"Repeat samples exactly the three authored cross-section pixels");
+                        check(z-x>=18*q-1e-6 && z-x<=20*q+1e-6,"Repeat joint planes follow diagonal source rows");
+                    }
+                }
+            }
+        }
+        check(repeatPixels.equals(java.util.Set.of("10,20","11,20","12,20")),"All three wood shades survive export");
+        for (String tier : TIERS) {
+            var model = JsonParser.parseString(Files.readString(output.resolve(ROOT + "models/item/tier/" + tier + "/ascendance_glaive.json"))).getAsJsonObject();
+            var textures = model.getAsJsonObject("textures");
+            check(textures.size() == 4 && textures.get("layer0").getAsString().endsWith("/blade_base")
+                    && textures.get("layer1").getAsString().endsWith("/blade_accent")
+                    && textures.get("layer2").getAsString().endsWith("/nochange")
+                    && textures.get("layer3").getAsString().endsWith("/butt_accent"), "Glaive layer/material order at " + tier);
+        }
     }
 
     private static void sourceEditsAndDeterminism(Path directory) throws Exception {

@@ -1,0 +1,10 @@
+{
+  "date": "2026-10-18",
+  "release_scope": "v1.0.0-beta.9",
+  "pages": 22,
+  "internal_links": 155,
+  "toml_examples": 5,
+  "errors": [],
+  "scope": "Canonical Markdown links, anchors, fences, sidebar and TOML syntax; local publisher tests and focused Archive/build checks are separate receipts. No fresh gameplay or publication claim.",
+  "source_scope": "Release-ready canonical sources; the release tag and PUBLICATION.md identify the published revision."
+}
