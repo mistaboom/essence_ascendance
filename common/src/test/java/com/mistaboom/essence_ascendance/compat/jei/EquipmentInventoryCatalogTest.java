@@ -70,6 +70,7 @@ public final class EquipmentInventoryCatalogTest {
         check(variants.getFirst().get(DataComponents.CUSTOM_DATA) == null,
                 "Latent sample remains the canonical untagged crafted form");
         orderedCatalog(testItem, variants);
+        optionalSortRefresh(testItem);
         var focusItem = Registry.register(BuiltInRegistries.ITEM,
                 ResourceLocation.fromNamespaceAndPath("essence_ascendance", "catalog_test_focus"),
                 new com.mistaboom.essence_ascendance.pylon.EssenceFocusItem(new Item.Properties()));
@@ -78,6 +79,52 @@ public final class EquipmentInventoryCatalogTest {
 
         new java.io.PrintStream(new java.io.FileOutputStream(java.io.FileDescriptor.out))
                 .println("EquipmentInventoryCatalogTest: " + checks + " catalog, tint, JEI and ownership checks PASS");
+    }
+
+    private static void optionalSortRefresh(Item item) {
+        var order = new JeiCatalogOrder(() -> java.util.Set.of(item), () -> 0L);
+        var stack = new ItemStack(item);
+        var filter = new SortFilter();
+        order.createdIndex(stack, 10);
+        order.runtimeAvailable();
+        order.refreshSort(filter);
+        check(filter.calls == 0, "Unchanged catalogs do not invalidate JEI sorting");
+        order.createdIndex(stack, 20);
+        order.refreshSort(filter);
+        order.refreshSort(filter);
+        check(filter.calls == 1, "Late variants request one lightweight sort, without a public config callback");
+
+        filter.fail = true;
+        for (int index = 0; index < 3; index++) {
+            order.createdIndex(stack, 30 + index);
+            order.refreshSort(filter);
+        }
+        check(filter.calls == 2 && !order.takePendingSort(),
+                "A failed optional sort leaves JEI running and does not retry each variant");
+
+        order.clear();
+        order.createdIndex(stack, 10);
+        order.runtimeAvailable();
+        order.createdIndex(stack, 20);
+        order.refreshSort(new Object()); // Models a JEI version without this internal hook.
+        check(!order.takePendingSort(), "Missing JEI internals cannot propagate a startup/runtime failure");
+
+        order.clear();
+        order.createdIndex(stack, 10);
+        order.runtimeAvailable();
+        order.createdIndex(stack, 20);
+        filter.fail = false;
+        order.refreshSort(filter);
+        check(filter.calls == 3, "A new JEI runtime resets optional-hook failure state");
+    }
+
+    private static final class SortFilter {
+        private int calls;
+        private boolean fail;
+        private void markSortIndexesDirty() {
+            calls++;
+            if (fail) throw new IllegalStateException("Expected optional sort fixture failure");
+        }
     }
 
     private static void orderedCatalog(Item item, java.util.List<ItemStack> variants) {

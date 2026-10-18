@@ -1,4 +1,9 @@
 // Explicit isolated client initialization test. Test entrypoint exits before any menu/world is opened.
+def jeiFixturePath = gradle.startParameter.projectProperties['jeiFixtureJar']
+def jeiFixtureJar = gradle.startParameter.projectProperties.containsKey('jeiFixtureJar') ? new File(jeiFixturePath).canonicalFile : null
+if (jeiFixtureJar != null && (!new File(jeiFixturePath).isAbsolute() || !jeiFixtureJar.isFile()))
+    throw new GradleException('jeiFixtureJar must name an existing absolute JEI jar path')
+def jeiRunSuffix = jeiFixtureJar == null ? '' : '-' + jeiFixtureJar.name.replaceAll('[^a-zA-Z0-9._-]', '-')
 allprojects { p ->
     p.afterEvaluate {
         if (p.path == ':fabric') {
@@ -17,14 +22,18 @@ allprojects { p ->
                 }
             }
             p.tasks.named('runClient').configure { t ->
-                def testRun = p.rootProject.file('build/guard-movement-native-hooks-run').canonicalFile
+                def testRun = p.rootProject.file('build/guard-movement-native-hooks-run' + jeiRunSuffix).canonicalFile
                 t.internalRunDir.set(testRun)
-                t.jvmArgs('-Dfabric.addMods=' + p.rootProject.file('build/guard-movement-hook-fixture.jar').canonicalPath,
+                def addedMods = [p.rootProject.file('build/guard-movement-hook-fixture.jar').canonicalFile]
+                if (jeiFixtureJar != null) addedMods.add(jeiFixtureJar)
+                t.jvmArgs('-Dfabric.addMods=' + addedMods.collect { it.path }.join(File.pathSeparator),
                         '-Dessence.guard.movementNativeTest=true', '-Dessence.guard.fixtureLoader=fabric')
+                if (jeiFixtureJar != null) t.jvmArgs('-Dessence.guard.requireJei=true')
                 t.dependsOn(fixture)
                 t.doFirst {
                     if (t.internalRunDir.asFile.get().canonicalFile != testRun) throw new GradleException('Unexpected movement test directory')
                     testRun.mkdirs()
+                    if (jeiFixtureJar != null) p.logger.lifecycle('Required Fabric JEI fixture: ' + jeiFixtureJar)
                 }
             }
         }
@@ -66,14 +75,19 @@ side="CLIENT"
                 }
             }
             p.tasks.named('runClient').configure { t ->
-                def testRun = p.rootProject.file('build/guard-movement-native-hooks-neoforge-run').canonicalFile
+                def testRun = p.rootProject.file('build/guard-movement-native-hooks-neoforge-run' + jeiRunSuffix).canonicalFile
                 t.internalRunDir.set(testRun)
                 t.jvmArgs('-Dessence.guard.movementNativeTest=true', '-Dessence.guard.fixtureLoader=neoforge')
+                if (jeiFixtureJar != null) t.jvmArgs('-Dessence.guard.requireJei=true')
                 t.dependsOn(fixture)
                 t.doFirst {
                     if (t.internalRunDir.asFile.get().canonicalFile != testRun) throw new GradleException('Unexpected NeoForge movement test directory')
                     new File(testRun, 'mods').mkdirs()
                     p.copy { from(fixture.get().archiveFile); into(new File(testRun, 'mods')) }
+                    if (jeiFixtureJar != null) {
+                        p.logger.lifecycle('Required NeoForge JEI fixture: ' + jeiFixtureJar)
+                        p.copy { from(jeiFixtureJar); into(new File(testRun, 'mods')) }
+                    }
                 }
             }
         }

@@ -1,5 +1,6 @@
 package com.mistaboom.essence_ascendance.compat.jei;
 
+import com.mistaboom.essence_ascendance.EssenceAscendance;
 import com.mistaboom.essence_ascendance.item.CreativeVariantRegistry;
 import com.mistaboom.essence_ascendance.equipment.EquipmentTierData;
 import com.mistaboom.essence_ascendance.pylon.EssenceFocusData;
@@ -15,6 +16,7 @@ import java.util.Set;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import java.util.function.Function;
+import java.lang.reflect.Method;
 
 /** Preserve the creative position of our variant families when more subtypes arrive after startup. */
 public final class JeiCatalogOrder {
@@ -27,6 +29,8 @@ public final class JeiCatalogOrder {
     private long indexedRevision = Long.MIN_VALUE;
     private boolean runtimeReady;
     private boolean sortPending;
+    private Method markSortDirty;
+    private boolean sortUnavailable;
 
     JeiCatalogOrder(Supplier<Set<Item>> items, LongSupplier revision) {
         this.items = items;
@@ -69,11 +73,32 @@ public final class JeiCatalogOrder {
         sortPending = false;
         return pending;
     }
+
+    /** Optional internal hook: invalidate sorting without rebuilding JEI's tooltip/search index. */
+    public void refreshSort(Object filter) {
+        if (!takePendingSort() || sortUnavailable) return;
+        try {
+            // This dirty marker is shared by JEI versions whose public config callbacks differ.
+            // Resolve lazily instead of using a mandatory Mixin shadow that could prevent JEI startup.
+            if (markSortDirty == null) {
+                markSortDirty = filter.getClass().getDeclaredMethod("markSortIndexesDirty");
+                markSortDirty.setAccessible(true);
+            }
+            markSortDirty.invoke(filter);
+        } catch (ReflectiveOperationException | RuntimeException failure) {
+            sortUnavailable = true;
+            EssenceAscendance.LOGGER.warn(
+                    "JEI catalog sort refresh is unavailable; keeping JEI's native ordering for late variants.", failure);
+        }
+    }
+
     public void clear() {
         firstIndices.clear();
         variantItems = Set.of();
         indexedRevision = Long.MIN_VALUE;
         runtimeReady = false;
         sortPending = false;
+        markSortDirty = null;
+        sortUnavailable = false;
     }
 }

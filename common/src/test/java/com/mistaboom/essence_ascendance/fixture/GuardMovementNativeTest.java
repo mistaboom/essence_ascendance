@@ -151,6 +151,8 @@ public final class GuardMovementNativeTest {
         Class<?> element;
         try { element = Class.forName("mezz.jei.gui.ingredients.ListElement"); }
         catch (ClassNotFoundException absent) {
+            if (Boolean.getBoolean("essence.guard.requireJei"))
+                throw new AssertionError("Explicit JEI fixture jar was not loaded", absent);
             System.out.println("Optional JEI catalog constructor probe: SKIP (JEI not installed)");
             return;
         }
@@ -179,10 +181,28 @@ public final class GuardMovementNativeTest {
             check((int) createdIndex.invoke(unrelated) == 90001, "Actual JEI hook preserves unrelated ingredients");
             check((int) sortedIndex.invoke(late) == 90000,
                     "JEI retains authority over its sorted index and configured sorting stages");
-            check(order.takePendingSort() && !order.takePendingSort(), "Actual constructor requests one late-family re-sort");
             var filter = Class.forName("mezz.jei.gui.ingredients.IngredientFilter");
             check(Arrays.stream(filter.getDeclaredMethods()).anyMatch(method -> method.getName().contains("sortNewVariants")),
                     "Actual JEI filter has the native sort invalidation hook");
+            Object nativeFilter = allocate.invoke(allocator, filter);
+            set(filter, nativeFilter, "listeners", List.of());
+            var search = Class.forName("mezz.jei.gui.search.IElementSearch");
+            Object searchIndex = java.lang.reflect.Proxy.newProxyInstance(search.getClassLoader(), new Class<?>[]{search},
+                    (proxy, method, arguments) -> { throw new AssertionError("Catalog sort invalidation must not rebuild the search index: " + method); });
+            set(filter, nativeFilter, "elementSearch", searchIndex);
+            var additions = filter.getMethod("onIngredientsAdded",
+                    Class.forName("mezz.jei.api.ingredients.IIngredientHelper"), java.util.Collection.class);
+            additions.invoke(nativeFilter, null, List.of());
+            var sortDirty = filter.getDeclaredField("sortIndexesDirty"); sortDirty.setAccessible(true);
+            var searchDirty = filter.getDeclaredField("searchIndexDirty"); searchDirty.setAccessible(true);
+            var elementSearch = filter.getDeclaredField("elementSearch"); elementSearch.setAccessible(true);
+            check(sortDirty.getBoolean(nativeFilter), "Actual ingredient-addition hook schedules native sorting for the late family");
+            check(!searchDirty.getBoolean(nativeFilter) && elementSearch.get(nativeFilter) == searchIndex,
+                    "Catalog ordering neither dirties nor rebuilds the native search index");
+            check(!order.takePendingSort(), "Actual ingredient-addition hook consumes the constructor's pending re-sort");
+            sortDirty.setBoolean(nativeFilter, false);
+            additions.invoke(nativeFilter, null, List.of());
+            check(!sortDirty.getBoolean(nativeFilter), "Another empty ingredient event does not repeat the native re-sort");
             var info = Class.forName("mezz.jei.gui.ingredients.ListElementInfo");
             var infoElement = info.getDeclaredField("element"); infoElement.setAccessible(true);
             var comparators = Class.forName("mezz.jei.gui.ingredients.IngredientSorterComparators");
@@ -208,7 +228,7 @@ public final class GuardMovementNativeTest {
                             "Actual transformed JEI creative comparator orders every equipment/armor family by tier");
                 }
             }
-            System.out.println("Optional JEI catalog order probe: PASS (actual transformed constructors, list info and native creative comparator; every equipment/armor family, no full index or world)");
+            System.out.println("Optional JEI catalog order probe: PASS (actual transformed constructors, ingredient-addition sort invalidation, list info and native creative comparator; every equipment/armor family, no full index or world)");
         } finally { order.clear(); }
     }
 
