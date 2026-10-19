@@ -8,17 +8,17 @@ import java.util.List;
 public final class WeaponActionGeometry {
     private WeaponActionGeometry() { }
     public static final double PIXEL = 1.0 / 32;
-    // Live 32px artwork: butt/grip (2,30), blade attachment (17,15), shaft axis (+1,-1).
-    // Blade union projected from ALL opaque pixel corners relative to (17,15): axial [0,29], lateral [-5,6].
+    // Live 32px artwork: butt/grip (2,30), blade attachment (20,12), shaft axis (+1,-1).
+    // Blade union projected from ALL opaque pixel corners relative to (20,12): axial [0,24], lateral [-5,5].
     public static final double DIAGONAL_PIXEL = PIXEL / Math.sqrt(2);
-    public static final double BLADE_LENGTH = 29 * DIAGONAL_PIXEL;
-    public static final double BLADE_WIDTH = 11 * DIAGONAL_PIXEL;
-    public static final double BLADE_SIDE_OFFSET = .5 * DIAGONAL_PIXEL;
+    public static final double BLADE_LENGTH = 24 * DIAGONAL_PIXEL;
+    public static final double BLADE_WIDTH = 10 * DIAGONAL_PIXEL;
+    public static final double BLADE_SIDE_OFFSET = 0;
     public static final double THICKNESS = PIXEL;
     public static final double SHAFT_WIDTH = 3 * DIAGONAL_PIXEL;
     // The hand chokes up fourteen projected texels from the authored butt. Range is still hand-to-tip.
     public static final double GRIP_OFFSET = 14 * DIAGONAL_PIXEL;
-    public static final double REST_ATTACHMENT = 30 * DIAGONAL_PIXEL - GRIP_OFFSET;
+    public static final double REST_ATTACHMENT = 36 * DIAGONAL_PIXEL - GRIP_OFFSET;
     public static final double REST_TIP = REST_ATTACHMENT + BLADE_LENGTH;
     public static final double CONTACT_TOLERANCE = 1.0 / 4096;
     public static final double BROAD_PHASE_MOTION = .5;

@@ -16,6 +16,7 @@ public final class NativeGlaivePresentationTest {
     public static void run() throws Exception {
         gripGeometry();
         continuousPlayback();
+        animationKeyframes();
         var stack=new ItemStack(AscendanceItems.ASCENDANCE_GLAIVE.get());
         var profile=new PersonalizedEquipmentDefinition("presentation_fixture",UUID.randomUUID(),
                 "essence_ascendance:ascendance_glaive","transcendent","Fixture",0x0d0967,0xb6f800,Map.of());
@@ -96,7 +97,7 @@ public final class NativeGlaivePresentationTest {
                     }
                 }
             }
-        check(GRIP_OFFSET>0 && GRIP_OFFSET<21*DIAGONAL_PIXEL && Math.abs(REST_TIP+GRIP_OFFSET-59*DIAGONAL_PIXEL)<1e-10,
+        check(GRIP_OFFSET>0 && GRIP_OFFSET<21*DIAGONAL_PIXEL && Math.abs(REST_TIP+GRIP_OFFSET-60*DIAGONAL_PIXEL)<1e-10,
                 "Choked grip sits inside the authored handle without changing the total rest length");
     }
     private static void continuousPlayback() {
@@ -137,6 +138,62 @@ public final class NativeGlaivePresentationTest {
         var after=before.withSweep(time*10);
         return new WeaponActionRuntime.Snapshot(1,WeaponActionRuntime.Mode.SWIPE,phase,0,20,time,0,
                 EquipmentTier.TRANSCENDENT,64,before,after,List.of(new Knot(0,before),new Knot(1,after)),false,-1);
+    }
+    private static void animationKeyframes() {
+        for (var mode:WeaponActionRuntime.Mode.values()) {
+            var timing=mode==WeaponActionRuntime.Mode.STAB ? GlaiveTuning.STAB:GlaiveTuning.SWIPE;
+            int outward=timing.extensionTicks()+timing.outwardTicks(),end=outward+timing.retractionTicks();
+            var slow=new WeaponActionPresentation.Timeline(animationState(mode,0,500),100);
+            var fast=new WeaponActionPresentation.Timeline(animationState(mode,0,end+1),100);
+            check(slow.frame(100,0).blend()==0,"Preparation begins at native rest: "+mode);
+            check(Math.abs(slow.frame(101,0).blend()-.5)<1e-6,"Preparation pivots through the intermediate keyframe: "+mode);
+            check(slow.frame(102,0).blend()==1,"Full attack pose reached before damaging playback: "+mode);
+            for (int t=1;t<=end+1;t++) { slow.add(animationState(mode,t,500));fast.add(animationState(mode,t,end+1)); }
+            var active=slow.frame(102+outward-1,.5F);
+            check(active.blend()==1 && active.pose().tipDistance()==8,
+                    "Damage interval preserves the exact solved blade pose: "+mode);
+            check(active.equals(fast.frame(102+outward-1,.5F)),"Recharge duration never changes active playback: "+mode);
+            var returning=slow.frame(102+outward,1);
+            check(returning.blend()>0 && returning.blend()<1,"Retraction interpolates back toward native rest: "+mode);
+            var complete=slow.frame(102+end,.5F);
+            check(complete.blend()==0 && complete.phase()==WeaponActionRuntime.Phase.RECOVERY,
+                    "First recovery interval releases the final pose before readiness: "+mode);
+            check(animationState(mode,end+1,500).readiness(end+1)<.1,"Fixture still has a long recharge remaining");
+            for (int t=end+2;t<end+35;t++) {
+                slow.add(animationState(mode,t,500));
+                var idle=slow.frame(102+t-1,.5F);
+                check(idle.phase()==WeaponActionRuntime.Phase.RECOVERY && idle.blend()==0,
+                        "Later recovery packets cannot resurrect the attack, including after history eviction: "+mode+" tick "+t);
+            }
+            WeaponActionStatePayload.clearClient();
+            var owner=UUID.randomUUID();var dimension=ResourceLocation.withDefaultNamespace("overworld");
+            for(int t=0;t<=end+1;t++) WeaponActionStatePayload.accept(
+                    new WeaponActionStatePayload(dimension,12345,owner,animationState(mode,t,end+1)),100+t);
+            var start=animationState(mode,0,500);
+            var next=new WeaponActionRuntime.Snapshot(2,mode,start.phase(),end+1,500,end+1,0,start.tier(),start.range(),
+                    start.previous(),start.current(),start.knots(),false,-1);
+            WeaponActionStatePayload.accept(new WeaponActionStatePayload(dimension,12345,owner,next),101+end);
+            var nextAction=WeaponActionStatePayload.presentation(owner);
+            var tail=nextAction.frame(101+end,0);
+            check(tail.phase()==WeaponActionRuntime.Phase.RETRACT && tail.blend()>0 && tail.blend()<1,
+                    "Fast next action finishes the buffered non-damaging return before preparing: "+mode);
+            check(nextAction.frame(102+end,0).blend()==0,"Fast actions meet at the same native rest keyframe: "+mode);
+            check(nextAction.frame(102+end,.5F).blend()>0 && nextAction.frame(103+end,0).blend()==1,
+                    "Fast preparation uses the available gap without delaying damage playback: "+mode);
+            WeaponActionStatePayload.clearClient();
+        }
+    }
+    private static WeaponActionRuntime.Snapshot animationState(WeaponActionRuntime.Mode mode,int time,long ready) {
+        var timing=mode==WeaponActionRuntime.Mode.STAB ? GlaiveTuning.STAB:GlaiveTuning.SWIPE;
+        int outward=timing.extensionTicks()+timing.outwardTicks(),end=outward+timing.retractionTicks();
+        var phase=time>=end ? WeaponActionRuntime.Phase.RECOVERY:time>=outward ? WeaponActionRuntime.Phase.RETRACT
+                :mode==WeaponActionRuntime.Mode.STAB ? WeaponActionRuntime.Phase.OUTWARD
+                :time<timing.extensionTicks() ? WeaponActionRuntime.Phase.EXTEND:WeaponActionRuntime.Phase.SWEEP;
+        var pose=new Pose(Vec3.ZERO,0,0,time>outward ? REST_TIP+(8-REST_TIP)*Math.max(0,(double)(end-time)/timing.retractionTicks()):8);
+        var previous=new Pose(Vec3.ZERO,0,0,time>outward ? REST_TIP+(8-REST_TIP)*Math.max(0,(double)(end-time+1)/timing.retractionTicks()):8);
+        var knots=time>end ? List.of(new Knot(0,pose)):List.of(new Knot(0,previous),new Knot(1,pose));
+        return new WeaponActionRuntime.Snapshot(1,mode,phase,0,ready,time,0,EquipmentTier.TRANSCENDENT,8,
+                previous,pose,knots,false,-1);
     }
     private static WeaponActionRuntime.Snapshot snapshot(long id,List<Knot> knots) {
         return new WeaponActionRuntime.Snapshot(id,WeaponActionRuntime.Mode.SWIPE,WeaponActionRuntime.Phase.SWEEP,

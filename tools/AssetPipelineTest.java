@@ -69,16 +69,19 @@ public final class AssetPipelineTest {
                     float nx=in.readFloat(),ny=in.readFloat(),nz=in.readFloat();
                     check(Math.abs(Math.abs(y)-1.0/64)<1e-6,"One-texel extrusion");
                     check(Math.abs(nx*nx+ny*ny+nz*nz-1)<1e-5,"Normalized mesh normals");
-                    if (part.startsWith("blade")) check(z>=-1e-6 && z<=29*q+1e-6,"Rigid blade attachment envelope");
+                    if (part.startsWith("blade")) {
+                        check(z>=-1e-6 && z<=24*q+1e-6,"Rigid blade attachment envelope");
+                        check(x>=-5*q-1e-6 && x<=5*q+1e-6,"Rigid blade lateral envelope");
+                    }
                     if (part.equals("wood_repeat")) {
                         int px=(int)(u*32),py=(int)(v*32); repeatPixels.add(px+","+py);
-                        check(py==20 && px>=10 && px<=12,"Repeat samples exactly the three authored cross-section pixels");
-                        check(z-x>=18*q-1e-6 && z-x<=20*q+1e-6,"Repeat joint planes follow diagonal source rows");
+                        check(py==22 && px>=8 && px<=10,"Repeat samples exactly the three authored cross-section pixels");
+                        check(z-x>=14*q-1e-6 && z-x<=16*q+1e-6,"Repeat joint planes meet inside the grip");
                     }
                 }
             }
         }
-        check(repeatPixels.equals(java.util.Set.of("10,20","11,20","12,20")),"All three wood shades survive export");
+        check(repeatPixels.equals(java.util.Set.of("8,22","9,22","10,22")),"All three wood shades survive export");
         for (String tier : TIERS) {
             var model = JsonParser.parseString(Files.readString(output.resolve(ROOT + "models/item/tier/" + tier + "/ascendance_glaive.json"))).getAsJsonObject();
             var textures = model.getAsJsonObject("textures");

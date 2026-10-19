@@ -24,6 +24,8 @@ public final class GlaiveRenderer {
     private static final RenderType[] BODY=new RenderType[4];
     private static final RenderType[] GLOW=new RenderType[4];
     private static final java.util.Map<java.util.UUID,Pose> HELD=new java.util.HashMap<>();
+    private record FirstPersonFrame(Matrix4f transform,Matrix4f projection,Pose weapon,float blend) { }
+    private static FirstPersonFrame firstPerson;
     public static final double REPEAT_LENGTH=2*DIAGONAL_PIXEL;
     static {
         for (int i=0;i<PARTS.length;i++) {
@@ -53,23 +55,28 @@ public final class GlaiveRenderer {
                         6,state.actionId()^state.sampledAt(),0,0));
     }
     public static boolean held(Player player) { return player.getMainHandItem().getItem() instanceof AscendanceGlaiveItem; }
-    public static void beginFrame() { HELD.clear(); }
+    public static void beginFrame() { HELD.clear();firstPerson=null; }
     public static void captureHand(Player player,PoseStack modelHand) {
         if (!com.mistaboom.essence_ascendance.client.procedural.ProceduralWorldQueue.inWorldFrame()) return;
         var mc=Minecraft.getInstance();
-        var attack=GlaivePlayerAnimation.attack(player,mc.getTimer().getGameTimeDeltaPartialTick(true));
-        HELD.put(player.getUUID(),heldFromModel(modelHand,player.getMainArm(),mc.gameRenderer.getMainCamera().getPosition(),attack));
+        var frame=GlaivePlayerAnimation.frame(player,mc.getTimer().getGameTimeDeltaPartialTick(true));
+        float blend=frame==null ? 0:GlaiveFirstPersonBody.rendering() ? 1:frame.blend();
+        HELD.put(player.getUUID(),heldFromModel(modelHand,player.getMainArm(),mc.gameRenderer.getMainCamera().getPosition(),
+                frame==null ? null:frame.pose(),blend));
     }
     /** The complete weapon frame comes from the arm bone, never a separately re-aimed wrist. */
     public static Pose heldFromModel(PoseStack modelHand,HumanoidArm main,net.minecraft.world.phys.Vec3 camera,Pose attack) {
+        return heldFromModel(modelHand,main,camera,attack,attack==null ? 0:1);
+    }
+    public static Pose heldFromModel(PoseStack modelHand,HumanoidArm main,net.minecraft.world.phys.Vec3 camera,Pose attack,float blend) {
         var hand=handFromModel(modelHand,main,camera);
         var matrix=modelHand.last().pose();
-        var f=matrix.transformDirection(GlaivePlayerAnimation.shaft(attack==null ? 0:GlaivePlayerAnimation.ATTACK_TILT)).normalize();
+        var f=matrix.transformDirection(GlaivePlayerAnimation.shaft(GlaivePlayerAnimation.ATTACK_TILT*blend)).normalize();
         var r=matrix.transformDirection(new org.joml.Vector3f(1,0,0)).normalize();
         var forward=new net.minecraft.world.phys.Vec3(f.x,f.y,f.z);
         var right=new net.minecraft.world.phys.Vec3(r.x,r.y,r.z);
         double yaw=Math.toDegrees(Math.atan2(-f.x,f.z)),pitch=Math.toDegrees(Math.asin(Math.clamp(-f.y,-1,1)));
-        double distance=attack==null ? REST_TIP:Math.max(0,attack.tip().subtract(hand).dot(forward));
+        double distance=attack==null ? REST_TIP:REST_TIP+(Math.max(0,attack.tip().subtract(hand).dot(forward))-REST_TIP)*blend;
         var basis=new Pose(hand,yaw,pitch,distance);
         double roll=Math.toDegrees(Math.atan2(right.dot(basis.up()),right.dot(basis.right())));
         return new Pose(hand,yaw,pitch,distance,0,roll);
@@ -84,20 +91,28 @@ public final class GlaiveRenderer {
     public static Pose view(Player player,float partial) {
         return GlaiveGrip.frame(player.getEyePosition(partial),player.getViewYRot(partial),player.getViewXRot(partial));
     }
-    public static void renderWorld(Camera camera,Matrix4f view,float partial) {
+    public static void renderWorld(Camera camera,Matrix4f view,Matrix4f projection,float partial) {
         var minecraft=Minecraft.getInstance(); var level=minecraft.level;
         if (level==null) return;
         var buffers=minecraft.renderBuffers().bufferSource();
         GlaiveFirstPersonBody.render(camera,view,partial,buffers);
         var rendered=new HashSet<java.util.UUID>();
         for (var entry:WeaponActionStatePayload.presentations(level.dimension().location(),level.getGameTime())) {
-            if (!WeaponActionPresentation.extended(entry.phase(level.getGameTime(),partial))) continue;
+            var frame=entry.frame(level.getGameTime(),partial);
+            if (!WeaponActionPresentation.extended(frame.phase()) || frame.blend()<=0) continue;
             var payload=entry.payload();
             var entity=level.getEntity(payload.entityId());
             if (entity!=null && (!(entity instanceof Player player) || !player.getUUID().equals(payload.owner())
                     || !player.isAlive() || !held(player) || player.getInventory().selected!=entry.state().selectedSlot())) continue;
-            var weapon=entry.pose(level.getGameTime(),partial);
+            var weapon=frame.pose();
             if (entity instanceof Player player) weapon=HELD.getOrDefault(player.getUUID(),weapon);
+            if (entity==camera.getEntity() && minecraft.options.getCameraType().isFirstPerson()) {
+                firstPerson=new FirstPersonFrame(new Matrix4f(com.mojang.blaze3d.systems.RenderSystem.getModelViewMatrix())
+                        .mul(bodyTransform(weapon,camera.getPosition(),view)),new Matrix4f(projection),weapon,frame.blend());
+                // The short, non-damaging pivots join the native first-person rest placement.
+                // Fully active attacks keep their existing world depth and exact solved blade path.
+                if (frame.blend()<1) { rendered.add(payload.owner());continue; }
+            }
             draw(weapon,payload.appearance(),camera,view,buffers,0);
             rendered.add(payload.owner());
         }
@@ -112,10 +127,28 @@ public final class GlaiveRenderer {
     }
     /** Use the actual vanilla trident display transform inside the ordinary first-person hand pass. */
     public static void renderFirstPersonRest(Player player,PoseStack pose,MultiBufferSource buffers,int light) {
+        renderFirstPerson(player,pose,buffers,light);
+    }
+    public static void renderFirstPerson(Player player,PoseStack pose,MultiBufferSource buffers,int light) {
+        if (firstPerson!=null && firstPerson.blend()>=1) return;
+        firstPersonRestTransform(player.getMainArm(),pose);
+        double distance=REST_TIP;
+        if (firstPerson!=null) {
+            float blend=firstPerson.blend();
+            var projection=com.mojang.blaze3d.systems.RenderSystem.getProjectionMatrix();
+            var transform=firstPersonTransform(pose.last().pose(),firstPerson.transform(),blend,
+                    projection,firstPerson.projection(),com.mojang.blaze3d.systems.RenderSystem.getModelViewMatrix());
+            pose=new PoseStack();pose.mulPose(transform);
+            distance+=(firstPerson.weapon().tipDistance()-REST_TIP)*blend;
+        }
+        renderBody(new Pose(net.minecraft.world.phys.Vec3.ZERO,0,0,distance),
+                EquipmentAppearance.resolve(player,player.getMainHandItem()),pose,buffers,light);
+    }
+    public static void firstPersonRestTransform(HumanoidArm main,PoseStack pose) {
         var mc=Minecraft.getInstance();
         var trident=new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.TRIDENT);
-        var model=mc.getItemRenderer().getModel(trident,player.level(),player,0);
-        boolean left=player.getMainArm()==HumanoidArm.LEFT;
+        var model=mc.getItemRenderer().getModel(trident,mc.level,mc.player,0);
+        boolean left=main==HumanoidArm.LEFT;
         var context=left ? net.minecraft.world.item.ItemDisplayContext.FIRST_PERSON_LEFT_HAND
                 :net.minecraft.world.item.ItemDisplayContext.FIRST_PERSON_RIGHT_HAND;
         model.getTransforms().getTransform(context).apply(left,pose);
@@ -124,8 +157,32 @@ public final class GlaiveRenderer {
         // Native trident shaft grip, expressed in its model coordinates; reuse its display placement.
         pose.translate(0,11.0/16,0);
         pose.mulPose(com.mojang.math.Axis.XP.rotationDegrees(90));
-        renderBody(new Pose(net.minecraft.world.phys.Vec3.ZERO,0,0,REST_TIP),
-                EquipmentAppearance.resolve(player,player.getMainHandItem()),pose,buffers,light);
+    }
+    /** Rigid keyframes, with gradual FOV compensation so the hand/world render boundary is continuous. */
+    public static Matrix4f firstPersonTransform(Matrix4f rest,Matrix4f attack,float blend,float projectionX,float projectionY) {
+        return firstPersonTransform(rest,attack,blend,new Matrix4f().scaling(projectionX,projectionY,1));
+    }
+    /** Hand rendering has its own model-view stack; interpolate in view space, then return to that stack. */
+    public static Matrix4f firstPersonTransform(Matrix4f rest,Matrix4f attack,float blend,Matrix4f handProjection,
+                                               Matrix4f worldProjection,Matrix4f handView) {
+        var correction=new Matrix4f(handProjection).invert().mul(worldProjection);
+        var transform=firstPersonTransform(new Matrix4f(handView).mul(rest),attack,blend,correction);
+        return new Matrix4f(handView).invert().mul(transform);
+    }
+    private static Matrix4f firstPersonTransform(Matrix4f rest,Matrix4f attack,float blend,Matrix4f correction) {
+        var position=rest.getTranslation(new org.joml.Vector3f()).lerp(attack.getTranslation(new org.joml.Vector3f()),blend);
+        var rotation=rest.getUnnormalizedRotation(new org.joml.Quaternionf()).normalize()
+                .slerp(attack.getUnnormalizedRotation(new org.joml.Quaternionf()).normalize(),blend);
+        var scale=rest.getScale(new org.joml.Vector3f()).lerp(attack.getScale(new org.joml.Vector3f()),blend);
+        return new Matrix4f().lerp(correction,blend)
+                .translate(position).rotate(rotation).scale(scale);
+    }
+    public static Matrix4f bodyTransform(Pose weapon,net.minecraft.world.phys.Vec3 camera,Matrix4f view) {
+        var origin=weapon.pivot().subtract(camera);
+        var r=weapon.right();var u=weapon.up();var f=weapon.forward();
+        return new Matrix4f(view).translate((float)origin.x,(float)origin.y,(float)origin.z)
+                .mul(new Matrix4f().m00((float)r.x).m01((float)r.y).m02((float)r.z)
+                        .m10((float)u.x).m11((float)u.y).m12((float)u.z).m20((float)f.x).m21((float)f.y).m22((float)f.z));
     }
     private static void draw(Pose weapon,EquipmentAppearance appearance,Camera camera,Matrix4f view,
                              MultiBufferSource.BufferSource buffers,double cameraCutoff) {
@@ -154,43 +211,46 @@ public final class GlaiveRenderer {
     private static void renderFromButt(Pose weapon,EquipmentAppearance appearance,PoseStack pose,
                                       MultiBufferSource buffers,int light,double cameraCutoff) {
         double attachment=weapon.tipDistance()-BLADE_LENGTH+GRIP_OFFSET;
-        double extension=attachment-REST_ATTACHMENT-GRIP_OFFSET;
+        double extension=weapon.tipDistance()-REST_TIP;
         if (cameraCutoff==0) part(2,appearance,pose,buffers,light,0);
         var wood=buffers.getBuffer(BODY[3]);
         if (extension<0) {
-            // The source wood overlaps the blade socket by two projected texels. Preserve that joint when clipped.
-            if (attachment+2*DIAGONAL_PIXEL>cameraCutoff) MESH[3].renderClipped(pose,wood,light,OverlayTexture.NO_OVERLAY,0xFFFFFF,
-                    255,0,1,attachment+2*DIAGONAL_PIXEL,cameraCutoff);
+            // Preserve the authored one-texel socket overlap when terrain shortens the weapon below rest length.
+            if (attachment+DIAGONAL_PIXEL>cameraCutoff) MESH[3].renderClipped(pose,wood,light,OverlayTexture.NO_OVERLAY,0xFFFFFF,
+                    255,0,1,attachment+DIAGONAL_PIXEL,cameraCutoff);
         } else {
             if (cameraCutoff==0) MESH[4].render(pose,wood,light,OverlayTexture.NO_OVERLAY,0xFFFFFF,255);
             else MESH[4].renderClipped(pose,wood,light,OverlayTexture.NO_OVERLAY,0xFFFFFF,255,
                     0,1,Double.POSITIVE_INFINITY,cameraCutoff);
-            int repeats=(int)Math.floor(Math.min(64,extension)/REPEAT_LENGTH);
-            pose.pushPose();
-            try {
-                var instanceOrigin=new Matrix4f(pose.last().pose());
-                for (int i=0;i<repeats;i++) {
-                    pose.last().pose().set(instanceOrigin).translate(0,0,(float)(i*REPEAT_LENGTH));
-                    double cut=cameraCutoff-i*REPEAT_LENGTH;
-                    if (cameraCutoff==0 || cut<=17*DIAGONAL_PIXEL) MESH[6].render(pose,wood,light,OverlayTexture.NO_OVERLAY,0xFFFFFF,255);
-                    else MESH[6].renderClipped(pose,wood,light,OverlayTexture.NO_OVERLAY,0xFFFFFF,255,0,1,Double.POSITIVE_INFINITY,cut);
-                }
-                pose.last().pose().set(instanceOrigin).translate(0,0,(float)(repeats*REPEAT_LENGTH));
-                double remainder=extension-repeats*REPEAT_LENGTH;
-                if (remainder>1e-8) MESH[6].renderClipped(pose,wood,light,OverlayTexture.NO_OVERLAY,0xFFFFFF,
-                        255,-1,1,18*DIAGONAL_PIXEL+remainder,cameraCutoff==0 ? Double.NEGATIVE_INFINITY:cameraCutoff-repeats*REPEAT_LENGTH);
-            } finally { pose.popPose(); }
-            pose.pushPose();
-            try {
-                pose.translate(0,0,extension);
-                if (cameraCutoff==0) MESH[5].render(pose,wood,light,OverlayTexture.NO_OVERLAY,0xFFFFFF,255);
-                else MESH[5].renderClipped(pose,wood,light,OverlayTexture.NO_OVERLAY,0xFFFFFF,255,0,1,Double.POSITIVE_INFINITY,cameraCutoff-extension);
-            }
-            finally { pose.popPose(); }
         }
         pose.pushPose();
         try {
-            pose.translate(0,0,attachment);
+            // One continuously interpolated transform owns the head AND every upper shaft pixel.
+            var shaftOrigin=new Matrix4f(pose.last().pose());
+            pose.translate(0,0,extension);
+            if (extension>=0) {
+                if (cameraCutoff==0) MESH[5].render(pose,wood,light,OverlayTexture.NO_OVERLAY,0xFFFFFF,255);
+                else MESH[5].renderClipped(pose,wood,light,OverlayTexture.NO_OVERLAY,0xFFFFFF,255,0,1,
+                        Double.POSITIVE_INFINITY,cameraCutoff-extension);
+                int repeats=(int)Math.ceil(Math.min(64,extension)/REPEAT_LENGTH);
+                pose.pushPose();
+                try {
+                    for (int i=1;i<=repeats;i++) {
+                        double offset=extension-i*REPEAT_LENGTH;
+                        // Compose the shared extension and row offset in double precision before the
+                        // matrix conversion, avoiding cancellation near the camera at long ranges.
+                        pose.last().pose().set(shaftOrigin).translate(0,0,(float)offset);
+                        double cut=cameraCutoff-offset;
+                        // Complete rows feed backwards into the fixed grip. The last row overlaps by less
+                        // than one repeat inside the palm, so changing the row count never opens a gap.
+                        if (cameraCutoff==0 || cut<=13*DIAGONAL_PIXEL)
+                            MESH[6].render(pose,wood,light,OverlayTexture.NO_OVERLAY,0xFFFFFF,255);
+                        else MESH[6].renderClipped(pose,wood,light,OverlayTexture.NO_OVERLAY,0xFFFFFF,255,
+                                0,1,Double.POSITIVE_INFINITY,cut);
+                    }
+                } finally { pose.popPose(); }
+            }
+            pose.translate(0,0,REST_ATTACHMENT+GRIP_OFFSET);
             double bladeCutoff=cameraCutoff==0 ? 0:Math.max(0,cameraCutoff-attachment);
             part(0,appearance,pose,buffers,light,bladeCutoff); part(1,appearance,pose,buffers,light,bladeCutoff);
         } finally { pose.popPose(); }

@@ -13,10 +13,19 @@ public final class WeaponActionPresentation {
         public static final double DELAY=2;
         private final java.util.ArrayDeque<WeaponActionRuntime.Snapshot> history=new java.util.ArrayDeque<>();
         private final double offset;
+        private final double prepareAt;
         private double lastTime=Double.NEGATIVE_INFINITY;
         private double retractAt=Double.POSITIVE_INFINITY;
-        public Timeline(WeaponActionRuntime.Snapshot first,long receivedAt) { offset=first.sampledAt()-receivedAt; add(first); }
+        private double recoveredAt=Double.POSITIVE_INFINITY;
+        public Timeline(WeaponActionRuntime.Snapshot first,long receivedAt) { this(first,receivedAt,Double.NEGATIVE_INFINITY); }
+        public Timeline(WeaponActionRuntime.Snapshot first,long receivedAt,double previousReturnAt) {
+            offset=first.sampledAt()-receivedAt;
+            prepareAt=Math.max(first.acceptedAt()-DELAY,Math.min(first.acceptedAt(),previousReturnAt));
+            add(first);
+        }
         public void add(WeaponActionRuntime.Snapshot state) {
+            if (state.phase()==WeaponActionRuntime.Phase.RECOVERY || state.phase()==WeaponActionRuntime.Phase.IDLE)
+                recoveredAt=Math.min(recoveredAt,state.sampledAt());
             if(state.phase()==WeaponActionRuntime.Phase.RETRACT && !Double.isFinite(retractAt))
                 retractAt=state.sampledAt()-1+(state.knots().isEmpty() ? 1:state.knots().getLast().fraction());
             if((state.phase()==WeaponActionRuntime.Phase.RECOVERY || state.phase()==WeaponActionRuntime.Phase.IDLE)
@@ -29,21 +38,36 @@ public final class WeaponActionPresentation {
             while (history.size()>16) history.removeFirst();
         }
         public Frame frame(long now,float partial) {
+            return frameAt(now+Math.clamp(partial,0,1)+offset-DELAY);
+        }
+        public Frame frameAt(double playedAt) {
             var latest=history.getLast();
-            double time=Math.min(latest.sampledAt(),Math.max(lastTime,now+Math.clamp(partial,0,1)+offset-DELAY));
+            double time=Math.min(latest.sampledAt(),Math.max(lastTime,playedAt));
             lastTime=time;
             var selected=latest;
             for (var state:history) if (state.sampledAt()>=time) { selected=state; break; }
             var phase=selected.phase();
             if (latest.phase()==WeaponActionRuntime.Phase.CANCELLED) phase=latest.phase();
             else if ((phase==WeaponActionRuntime.Phase.RECOVERY || phase==WeaponActionRuntime.Phase.IDLE)
+                    && selected.sampledAt()==recoveredAt && selected.knots().size()>1
                     && time<selected.sampledAt()) phase=WeaponActionRuntime.Phase.RETRACT;
-            return new Frame(sample(selected,time-selected.sampledAt()+1),phase,time);
+            var timing=selected.mode()==WeaponActionRuntime.Mode.STAB ? GlaiveTuning.STAB:GlaiveTuning.SWIPE;
+            // Use the existing playback buffer for the short preparation. Damage playback starts at full weight.
+            double enter=smooth((time-prepareAt)/Math.max(1e-6,selected.acceptedAt()-prepareAt));
+            double leave=smooth((time-retractAt)/timing.retractionTicks());
+            float blend=extended(phase) ? (float)(enter*(1-leave)):0;
+            return new Frame(sample(selected,time-selected.sampledAt()+1),phase,time,blend);
         }
         public int size() { return history.size(); }
         public double retractAt() { return retractAt; }
+        public double prepareAt() { return prepareAt; }
+        public double returnAt() {
+            var timing=history.getLast().mode()==WeaponActionRuntime.Mode.STAB ? GlaiveTuning.STAB:GlaiveTuning.SWIPE;
+            return retractAt+timing.retractionTicks();
+        }
     }
-    public record Frame(Pose pose,WeaponActionRuntime.Phase phase,double time) { }
+    private static double smooth(double value) { double t=Math.clamp(value,0,1);return t*t*(3-2*t); }
+    public record Frame(Pose pose,WeaponActionRuntime.Phase phase,double time,float blend) { }
     public static boolean extended(WeaponActionRuntime.Phase phase) {
         return switch (phase) { case EXTEND, OUTWARD, SWEEP, RETRACT -> true; default -> false; };
     }

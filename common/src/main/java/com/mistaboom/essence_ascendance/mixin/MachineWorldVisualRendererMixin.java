@@ -31,7 +31,7 @@ public abstract class MachineWorldVisualRendererMixin {
             Matrix4f positionMatrix, Matrix4f projectionMatrix, CallbackInfo ci) {
         MachineWorldVisualRenderer.render(camera, positionMatrix);
         com.mistaboom.essence_ascendance.client.GlaiveRenderer.renderWorld(
-                camera, positionMatrix, deltaTracker.getGameTimeDeltaPartialTick(true));
+                camera, positionMatrix, projectionMatrix, deltaTracker.getGameTimeDeltaPartialTick(true));
         com.mistaboom.essence_ascendance.client.procedural.ProceduralWorldQueue.render();
         com.mistaboom.essence_ascendance.client.transientfx.TransientWorldVisuals.render(
                 camera, positionMatrix, deltaTracker.getGameTimeDeltaPartialTick(true));

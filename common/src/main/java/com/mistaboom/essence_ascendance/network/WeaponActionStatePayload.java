@@ -58,20 +58,37 @@ public record WeaponActionStatePayload(ResourceLocation dimension,int entityId,U
         private final WeaponActionStatePayload payload;
         private final long receivedAt;
         private final WeaponActionPresentation.Timeline timeline;
+        private WeaponActionPresentation.Timeline preceding;
         private ClientState(WeaponActionStatePayload payload,long receivedAt,ClientState previous) {
             this.payload=payload; this.receivedAt=receivedAt;
             if (previous!=null && previous.payload.dimension().equals(payload.dimension()) && previous.state().actionId()==payload.state().actionId()) {
-                timeline=previous.timeline; timeline.add(payload.state());
-            } else timeline=new WeaponActionPresentation.Timeline(payload.state(),receivedAt);
+                timeline=previous.timeline; timeline.add(payload.state());preceding=previous.preceding;
+            } else {
+                boolean continueReturn=previous!=null && previous.payload.dimension().equals(payload.dimension())
+                        && previous.state().selectedSlot()==payload.state().selectedSlot()
+                        && previous.state().phase()!=WeaponActionRuntime.Phase.CANCELLED
+                        && Double.isFinite(previous.timeline.returnAt());
+                preceding=continueReturn ? previous.timeline:null;
+                timeline=new WeaponActionPresentation.Timeline(payload.state(),receivedAt,
+                        continueReturn ? previous.timeline.returnAt():Double.NEGATIVE_INFINITY);
+            }
         }
         public WeaponActionStatePayload payload() { return payload; }
         public long receivedAt() { return receivedAt; }
         public WeaponActionRuntime.Snapshot state() { return payload.state(); }
-        public WeaponActionGeometry.Pose pose(long now,float partial) {
-            return timeline.frame(now,partial).pose();
+        public WeaponActionPresentation.Frame frame(long now,float partial) {
+            var frame=timeline.frame(now,partial);
+            if(preceding!=null) {
+                if(frame.time()<timeline.prepareAt()) return preceding.frameAt(frame.time());
+                preceding=null;
+            }
+            return frame;
         }
-        public WeaponActionRuntime.Phase phase(long now,float partial) { return timeline.frame(now,partial).phase(); }
-        public double time(long now,float partial) { return timeline.frame(now,partial).time(); }
+        public WeaponActionGeometry.Pose pose(long now,float partial) {
+            return frame(now,partial).pose();
+        }
+        public WeaponActionRuntime.Phase phase(long now,float partial) { return frame(now,partial).phase(); }
+        public double time(long now,float partial) { return frame(now,partial).time(); }
         public double retractAt() { return timeline.retractAt(); }
     }
     private static final Map<UUID,ClientState> CLIENT=new HashMap<>();

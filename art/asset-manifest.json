@@ -45,14 +45,14 @@
           "unitsPerBlock": 45.254833995939045,
           "output": "meshes/item/ascendance_glaive/blade_base.eamesh",
           "thickness": 0.03125,
-          "origin": [17, 15]
+          "origin": [20, 12]
         },
         {
           "texture": "item/ascendance_glaive/blade_accent",
           "unitsPerBlock": 45.254833995939045,
           "output": "meshes/item/ascendance_glaive/blade_accent.eamesh",
           "thickness": 0.03125,
-          "origin": [17, 15]
+          "origin": [20, 12]
         },
         {
           "texture": "item/ascendance_glaive/butt_accent",
@@ -69,7 +69,7 @@
           "origin": [2, 30]
         },
         {
-          "firstRow": 21,
+          "firstRow": 23,
           "unitsPerBlock": 45.254833995939045,
           "thickness": 0.03125,
           "origin": [2, 30],
@@ -84,16 +84,16 @@
           "origin": [2, 30],
           "output": "meshes/item/ascendance_glaive/wood_front.eamesh",
           "texture": "item/ascendance_glaive/nochange",
-          "lastRow": 20
+          "lastRow": 22
         },
         {
-          "firstRow": 20,
+          "firstRow": 22,
           "unitsPerBlock": 45.254833995939045,
           "thickness": 0.03125,
           "origin": [2, 30],
           "output": "meshes/item/ascendance_glaive/wood_repeat.eamesh",
           "texture": "item/ascendance_glaive/nochange",
-          "lastRow": 20
+          "lastRow": 22
         }
       ]
     },

@@ -14,7 +14,7 @@ import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
-/** One rigid arm and a fixed wrist angle. All attack aiming happens at the native shoulder. */
+/** Rigid arm with short wrist pivots at the action boundaries; active aiming follows the solved blade tip. */
 public final class GlaivePlayerAnimation {
     public static final float ATTACK_TILT=(float)GlaiveGrip.ATTACK_TILT;
     private GlaivePlayerAnimation() { }
@@ -23,10 +23,14 @@ public final class GlaivePlayerAnimation {
     }
     /** Null means ordinary native held-item rest pose, including walking and crouching. */
     public static Pose attack(Player player,float partial) {
+        var frame=frame(player,partial);
+        return frame==null || frame.blend()<=0 ? null:frame.pose();
+    }
+    public static WeaponActionPresentation.Frame frame(Player player,float partial) {
         var entry=WeaponActionStatePayload.presentation(player);
-        if(entry==null || entry.state().selectedSlot()!=player.getInventory().selected
-                || !WeaponActionPresentation.extended(entry.phase(player.level().getGameTime(),partial))) return null;
-        return entry.pose(player.level().getGameTime(),partial);
+        if(entry==null || entry.state().selectedSlot()!=player.getInventory().selected) return null;
+        var frame=entry.frame(player.level().getGameTime(),partial);
+        return WeaponActionPresentation.extended(frame.phase()) ? frame:null;
     }
     public static Vector3f palm(HumanoidArm arm) { return new Vector3f(-GlaiveGrip.sign(arm)/16F,.5F,0); }
     /** At rest the shaft is perpendicular to the arm, as with the native held trident. */
@@ -69,19 +73,23 @@ public final class GlaivePlayerAnimation {
     }
     /** Called after native setupAnim, with the final body/posture/scale matrix, before any model layer draws. */
     public static void model(Player player,PlayerModel<?> model,PoseStack body,float partial) {
-        var attack=attack(player,partial);if(attack==null) return;
+        var frame=frame(player,partial);if(frame==null || frame.blend()<=0) return;
         var camera=Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
-        poseArm(model,player.getMainArm(),body,camera,attack);
+        poseArm(model,player.getMainArm(),body,camera,frame.pose(),GlaiveFirstPersonBody.rendering() ? 1:frame.blend());
     }
     public static void poseArm(PlayerModel<?> model,HumanoidArm main,PoseStack body,Vec3 camera,Pose attack) {
-        if(attack==null) return;
+        poseArm(model,main,body,camera,attack,1);
+    }
+    public static void poseArm(PlayerModel<?> model,HumanoidArm main,PoseStack body,Vec3 camera,Pose attack,float blend) {
+        if(attack==null || blend<=0) return;
         var arm=main==HumanoidArm.RIGHT ? model.rightArm:model.leftArm;
         var inverse=new Matrix4f(body.last().pose()).invert();
         var target=inverse.transformPosition(vector(attack.tip().subtract(camera)));
         target.sub(arm.x/16,arm.y/16,arm.z/16);
         var lateral=inverse.transformDirection(vector(attack.right())).normalize();
-        var solution=solve(target,lateral,main,ATTACK_TILT);
-        var angles=armAngles(solution.rotation());
+        var solution=solve(target,lateral,main,ATTACK_TILT*blend);
+        var rotation=new Quaternionf().rotationZYX(arm.zRot,arm.yRot,arm.xRot).slerp(solution.rotation(),blend);
+        var angles=armAngles(rotation);
         arm.setRotation(angles.x,angles.y,angles.z);
         (main==HumanoidArm.RIGHT ? model.rightSleeve:model.leftSleeve).copyFrom(arm);
     }

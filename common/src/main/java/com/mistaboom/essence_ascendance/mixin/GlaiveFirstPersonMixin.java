@@ -35,11 +35,12 @@ public abstract class GlaiveFirstPersonMixin {
             ci.cancel();
         }
         if (hand==InteractionHand.MAIN_HAND && GlaivePlayerAnimation.active(player)) {
-            if (!player.isScoping() && GlaivePlayerAnimation.attack(player,partial)==null) {
+            if (!player.isScoping()) {
                 pose.pushPose();
                 try {
-                    essenceAscendance$itemTransform(pose,player.getMainArm(),equip);
-                    GlaiveRenderer.renderFirstPersonRest(player,pose,buffers,light);
+                    // Native equip lowering is driven by attack recharge; the glaive has its own phase clock.
+                    essenceAscendance$itemTransform(pose,player.getMainArm(),0);
+                    GlaiveRenderer.renderFirstPerson(player,pose,buffers,light);
                 } finally { pose.popPose(); }
             }
             ci.cancel();

@@ -182,9 +182,50 @@ public final class InventoryItemEmissionTest {
                     "Idle shaft is perpendicular to the arm like a native held trident");
             GlaivePlayerAnimation.poseArm(model,main,new PoseStack(),camera,null);
             check(arm.xRot==-.314F && arm.yRot==.08F && arm.zRot==.025F,"Idle leaves the native item arm pose unchanged");
+            var attack=new com.mistaboom.essence_ascendance.equipment.WeaponActionGeometry.Pose(camera,0,0,4);
+            for(float blend:new float[]{0,.25F,.5F,.75F,1}) {
+                arm.setRotation(-.314F,.08F,.025F);
+                GlaivePlayerAnimation.poseArm(model,main,new PoseStack(),camera,attack,blend);
+                if(blend==0) check(arm.xRot==-.314F && arm.yRot==.08F && arm.zRot==.025F,"Rest keyframe retains native arm rotation");
+                var hand=new PoseStack();arm.translateAndRotate(hand);
+                var held=GlaiveRenderer.heldFromModel(hand,main,camera,attack,blend);
+                check(held.pivot().distanceTo(GlaiveRenderer.handFromModel(hand,main,camera))<1e-7,
+                        "Every interpolated keyframe stays attached to the palm");
+                var shaft=new org.joml.Matrix4f(hand.last().pose()).invert()
+                        .transformDirection(GlaivePlayerAnimation.vector(held.forward())).normalize();
+                check(shaft.distance(GlaivePlayerAnimation.shaft(45*blend))<.0001,
+                        "Wrist pivots through intermediate angles instead of snapping to forty-five degrees");
+            }
             model.setAllVisible(true);GlaiveFirstPersonBody.visibility(model);
             check(!model.rightArm.visible && !model.leftArm.visible && !model.rightSleeve.visible && !model.leftSleeve.visible
                     && !model.head.visible && !model.body.visible,"First-person attachment evaluation draws no detached arms or body");
+        }
+        var rest=new org.joml.Matrix4f().translate(.4F,-.5F,-.8F).rotateXYZ(.3F,.8F,-.4F).scale(.8F);
+        var active=new org.joml.Matrix4f().translate(-.2F,-.3F,-1.2F).rotateXYZ(-.6F,-.2F,.5F);
+        for(float ratio:new float[]{.5F,1,1.5F}) {
+            check(GlaiveRenderer.firstPersonTransform(rest,active,0,ratio,ratio).equals(rest,1e-6F),
+                    "First-person preparation starts at the exact native rest transform");
+            var end=GlaiveRenderer.firstPersonTransform(rest,active,1,ratio,ratio);
+            check(end.equals(new org.joml.Matrix4f().scaling(ratio,ratio,1).mul(active),1e-6F),
+                    "Transition endpoint matches world attack projection at different FOVs");
+            var before=GlaiveRenderer.firstPersonTransform(rest,active,.4999F,ratio,ratio)
+                    .transformPosition(new org.joml.Vector3f(0,0,4));
+            var after=GlaiveRenderer.firstPersonTransform(rest,active,.5001F,ratio,ratio)
+                    .transformPosition(new org.joml.Vector3f(0,0,4));
+            check(before.distance(after)<.01,"First-person rotation and placement remain continuous between keyframes");
+        }
+        var handProjection=new org.joml.Matrix4f().perspective((float)Math.toRadians(70),16F/9,.05F,256);
+        var worldProjection=new org.joml.Matrix4f().perspective((float)Math.toRadians(95),16F/9,.05F,256)
+                .rotateZ(.04F).translate(.01F,-.02F,0);
+        for(float angle:new float[]{-1.4F,0,2.1F}) {
+            var handView=new org.joml.Matrix4f().rotateYXZ(angle,.6F,-.2F);
+            var nativeRest=new org.joml.Matrix4f(handView).invert().mul(rest);
+            var first=GlaiveRenderer.firstPersonTransform(nativeRest,active,0,handProjection,worldProjection,handView);
+            check(first.equals(nativeRest,1e-6F),"Rest retains native camera cancellation and hand placement");
+            var last=GlaiveRenderer.firstPersonTransform(nativeRest,active,1,handProjection,worldProjection,handView);
+            var actual=new org.joml.Matrix4f(handProjection).mul(handView).mul(last);
+            check(actual.equals(new org.joml.Matrix4f(worldProjection).mul(active),1e-5F),
+                    "Attack endpoint preserves the complete world projection under camera rotation and bobbing");
         }
     }
     private static void checkMeshClipping() throws Exception {
@@ -239,7 +280,8 @@ public final class InventoryItemEmissionTest {
                     double maximum=vertices.stream().mapToDouble(v->v[2]).max().orElseThrow();
                     check(Math.abs(maximum-range)<1e-5,"Physical blade front remains at solved range: "+range);
                     if (cutoff>0) check(vertices.stream().allMatch(v->v[2]>=cutoff-1e-6),
-                            "No near-eye cap/shaft/blade vertices enter first-person view");
+                            "No near-eye cap/shaft/blade vertices enter first-person view: range="+range
+                                    +", minimum="+vertices.stream().mapToDouble(v->v[2]).min().orElseThrow());
                     if (cutoff==0 && range==.1) check(vertices.stream().anyMatch(v->v[2]<-.4),
                             "World observers retain the entire rigid blade at signed negative attachment");
                     if(cutoff==0 && range==com.mistaboom.essence_ascendance.equipment.WeaponActionGeometry.REST_TIP) {

@@ -589,13 +589,16 @@ public final class NativeGlaiveActionTest {
         f.level.entities.remove(contacted);f.level.entities.remove(protectedTarget);
 
         equip(f,EquipmentTier.TRANSCENDENT);
-        f.level.memoryBlocks.put(new BlockPos(0,1,4),Blocks.OAK_LOG.defaultBlockState());
+        // A complete trunk tests chronological shortening independently of a particular blade's grazing height.
+        for (int y=0;y<4;y++) f.level.memoryBlocks.put(new BlockPos(0,y,4),Blocks.OAK_LOG.defaultBlockState());
         check(WeaponActionRuntime.attempt(f.player,false),"Intermediate tree-pose swipe accepts");tick(f);tick(f);
         f.player.setYRot(-60);WeaponActionRuntime.observeAim(f.player);
         f.player.setYRot(0);WeaponActionRuntime.observeAim(f.player);tick(f);
         var poses=WeaponActionRuntime.snapshot(f.player);
         check(poses.previous().tipDistance()==10 && poses.current().tipDistance()==10
-                && poses.knots().stream().anyMatch(k->k.pose().tipDistance()<5),"Observed turn preserves short tree pose between two long endpoints");
+                && poses.knots().stream().anyMatch(k->k.pose().tipDistance()<5),"Observed turn preserves short tree pose between two long endpoints: "
+                +poses.previous().tipDistance()+" / "+poses.current().tipDistance()+" / minimum "
+                +poses.knots().stream().mapToDouble(k->k.pose().tipDistance()).min().orElse(-1));
         var payload=new com.mistaboom.essence_ascendance.network.WeaponActionStatePayload(f.level.dimension().location(),f.player.getId(),f.player.getUUID(),poses);
         var buffer=new net.minecraft.network.RegistryFriendlyByteBuf(io.netty.buffer.Unpooled.buffer(),f.level.registryAccess());
         try {
