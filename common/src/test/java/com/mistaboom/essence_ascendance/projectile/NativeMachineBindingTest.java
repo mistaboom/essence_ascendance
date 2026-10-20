@@ -151,10 +151,13 @@ public final class NativeMachineBindingTest {
     }
     /** Complete the constructor-skipped player boundary before exercising real openMenu/closeContainer. */
     private static void initializeMenuLifecycle(net.minecraft.server.level.ServerPlayer player) throws Exception {
-        if (player.inventoryMenu != null) return;
-        ProjectileNativeInterceptionTest.set(net.minecraft.world.entity.player.Player.class, player, "inventoryMenu",
-                new net.minecraft.world.inventory.InventoryMenu(player.getInventory(), true, player));
+        if (player.inventoryMenu == null)
+            ProjectileNativeInterceptionTest.set(net.minecraft.world.entity.player.Player.class, player, "inventoryMenu",
+                    new net.minecraft.world.inventory.InventoryMenu(player.getInventory(), true, player));
         for (var entry : Map.of("containerSynchronizer", "1", "containerListener", "2").entrySet()) {
+            var field = net.minecraft.server.level.ServerPlayer.class.getDeclaredField(entry.getKey());
+            field.setAccessible(true);
+            if (field.get(player) != null) continue;
             var constructor = Class.forName("net.minecraft.server.level.ServerPlayer$" + entry.getValue())
                     .getDeclaredConstructor(net.minecraft.server.level.ServerPlayer.class);
             constructor.setAccessible(true);

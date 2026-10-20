@@ -12,6 +12,7 @@ import static com.mistaboom.essence_ascendance.equipment.WeaponActionGeometry.*;
 
 /** Shared boundary for weapons whose attacks must be handled by an authoritative action runtime. */
 public final class WeaponActionRuntime {
+    private static final int MAX_OBSERVED_INPUTS_PER_TICK = 16;
     private WeaponActionRuntime() { }
     public enum Mode { STAB, SWIPE }
     public enum Phase { OUTWARD, EXTEND, SWEEP, RETRACT, RECOVERY, CANCELLED, IDLE }
@@ -48,6 +49,7 @@ public final class WeaponActionRuntime {
         long lastTick;
         double outwardEnd, retractDistance, retractSweep;
         boolean primarySpent, wearSpent, finalized, contact;
+        int observedInputs;
         int contactedEntity=-1;
         Phase phase=Phase.OUTWARD;
         Pose previous,current,desired;
@@ -84,6 +86,9 @@ public final class WeaponActionRuntime {
 
     /** Intent freshness is checked against server time and cached equipment revision, never client permission. */
     public static boolean input(ServerPlayer player,boolean stab,long sequence,long sentAt,long policyRevision) {
+        // Old entity work can still be queued across death/dimension transitions. It must not
+        // advance the UUID-owned sequence before accept() rejects the removed/dead actor.
+        if (!player.isAlive() || player.isSpectator()) return false;
         Gate gate=GATES.computeIfAbsent(player.getUUID(),id -> new Gate());
         if (sequence<=gate.lastInputSequence) return false;
         gate.lastInputSequence=sequence;
@@ -192,6 +197,7 @@ public final class WeaponActionRuntime {
             if (progress>=1) a.phase=Phase.RECOVERY;
         }
         if (now>=gate.readyAt && a.phase!=Phase.OUTWARD && a.phase!=Phase.EXTEND && a.phase!=Phase.SWEEP && a.phase!=Phase.RETRACT) a.phase=Phase.IDLE;
+        a.observedInputs=0;
         a.lastTick=now;
         com.mistaboom.essence_ascendance.network.WeaponActionStatePayload.sync(player);
     }
@@ -294,6 +300,9 @@ public final class WeaponActionRuntime {
                 && gate.action.phase!=Phase.EXTEND && gate.action.phase!=Phase.SWEEP) return;
         Action a=gate.action;
         if (!validAim(player)) { cancel(player); return; }
+        // A delayed/native packet burst must not become unbounded collision work on the next tick.
+        // Cancel rather than collapsing an arbitrary path into an invented damaging sweep.
+        if (++a.observedInputs>MAX_OBSERVED_INPUTS_PER_TICK) { cancel(player); return; }
         Pose previous=a.observed.isEmpty() ? (a.mode==Mode.STAB ? a.current:a.desired) : a.observed.getLast();
         Pose current=pose(player,previous,a.current.tipDistance(),a.range);
         if (!current.equals(previous)) {

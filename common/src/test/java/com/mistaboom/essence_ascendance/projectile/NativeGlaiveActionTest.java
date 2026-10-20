@@ -33,6 +33,7 @@ public final class NativeGlaiveActionTest {
         installEnchantments(f);
         try {
             timingAndInput(f);
+            movementBacklog(f);
             personalizedContent();
             aimedGrip(f);
             groundSwipe(f);
@@ -478,6 +479,56 @@ public final class NativeGlaiveActionTest {
         var p=f.player(ActionPlayer.class,new Vec3(0,0,z),"glaive_contact");
         p.getAttribute(Attributes.MAX_HEALTH).setBaseValue(1000); p.setHealth(1000);
         return p;
+    }
+    private static void movementBacklog(ProjectileNativeInterceptionTest.Fixture f) throws ReflectiveOperationException {
+        for (var tier : EquipmentTier.values()) for (boolean stab : new boolean[]{true, false}) {
+            var stack = equip(f, tier);
+            var victim = target(f, 3);
+            check(WeaponActionRuntime.attempt(f.player, stab), "Backlog probe starts a ready action");
+            long readyAt = WeaponActionRuntime.snapshot(f.player).readyAt();
+            // Simulate a backlog of accepted native rotations without advancing the authority tick.
+            // Do not solve this unbounded path in the failing baseline.
+            for (int i = 0; i < 64; i++) {
+                f.player.setYRot(i % 2 == 0 ? 60 : -60);
+                WeaponActionRuntime.observeAim(f.player);
+            }
+            check(WeaponActionRuntime.snapshot(f.player).phase() == WeaponActionRuntime.Phase.CANCELLED,
+                    "Excess movement backlog cancels before unbounded ordinary-range collision work");
+            check(!WeaponActionRuntime.attempt(f.player, !stab)
+                            && WeaponActionRuntime.snapshot(f.player).readyAt() == readyAt,
+                    "Backlog cancellation cannot refund recovery or queue the other attack mode");
+            tick(f);
+            check(victim.calls == 0 && stack.getDamageValue() == 0,
+                    "Discarded backlog cannot deal delayed damage or charge wear");
+            f.level.entities.remove(victim);
+            finish(f);
+            check(WeaponActionRuntime.attempt(f.player, stab),
+                    "An ordinary fresh press works after backlog cancellation and recovery");
+        }
+        equip(f, EquipmentTier.LATENT);
+        check(WeaponActionRuntime.attempt(f.player, true), "Per-tick budget probe starts a ready action");
+        for (int tick = 0; tick < 3; tick++) {
+            for (int i = 0; i < 8; i++) {
+                f.player.setYRot(i % 2 == 0 ? 10 : -10);
+                WeaponActionRuntime.observeAim(f.player);
+            }
+            tick(f);
+            check(WeaponActionRuntime.snapshot(f.player).phase() == WeaponActionRuntime.Phase.OUTWARD,
+                    "Ordinary movement gets a fresh observation budget on every authority tick");
+        }
+        equip(f, EquipmentTier.LATENT);
+        long revision = TwoHandedEquipmentService.decision(f.player).revision();
+        ProjectileNativeInterceptionTest.set(Entity.class, f.player, "removalReason", Entity.RemovalReason.CHANGED_DIMENSION);
+        try {
+            check(!WeaponActionRuntime.attempt(f.player, true) && WeaponActionRuntime.snapshot(f.player) == null,
+                    "A removed player entity cannot accept a new action or spend the shared player gate");
+            check(!WeaponActionRuntime.input(f.player, true, Long.MAX_VALUE, f.level.tick, revision),
+                    "Queued input from a removed player entity is rejected");
+        } finally {
+            ProjectileNativeInterceptionTest.set(Entity.class, f.player, "removalReason", null);
+        }
+        check(WeaponActionRuntime.input(f.player, true, 1, f.level.tick, revision),
+                "Removed-entity input cannot poison the live player's sequence or cooldown");
     }
     private static void nativeContact(ProjectileNativeInterceptionTest.Fixture f) throws ReflectiveOperationException {
         var stack=equip(f,EquipmentTier.LATENT); var target=target(f,3);

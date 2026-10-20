@@ -4,7 +4,9 @@ import com.mistaboom.essence_ascendance.skill.effect.GuardMobilityController;
 
 import com.mistaboom.essence_ascendance.equipment.EquipmentShieldService;
 import com.mistaboom.essence_ascendance.equipment.FracturedEquipmentData;
+import com.mistaboom.essence_ascendance.equipment.TwoHandedEquipmentService;
 import com.mistaboom.essence_ascendance.item.AscendanceItems;
+import com.mistaboom.essence_ascendance.network.TwoHandedPolicyPayload;
 import net.minecraft.client.player.Input;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.Holder;
@@ -75,6 +77,7 @@ public final class GuardMovementNativeTest {
         level.border = new WorldBorder();
         set(Level.class, level, "isClientSide", true); set(Level.class, level, "dimension", Level.OVERWORLD);
         FixturePlayer player = instance(FixturePlayer.class);
+        set(Player.class, player, "inventory", new net.minecraft.world.entity.player.Inventory(player));
         player.food = new FoodData(); player.abilities = new Abilities(); player.cooldowns = new ItemCooldowns();
         player.input = new Input(); player.alive = true; player.using = true; player.grounded = true; player.readyTicks = 8;
         player.hand = InteractionHand.OFF_HAND;
@@ -83,10 +86,15 @@ public final class GuardMovementNativeTest {
         set(Entity.class, player, "deltaMovement", Vec3.ZERO); set(Entity.class, player, "bb", new AABB(-.3, 0, -.3, .3, 1.8, .3));
         set(LivingEntity.class, player, "attributes", new AttributeMap(Player.createAttributes().build()));
         player.shield = AscendanceItems.ASCENDANCE_SHIELD.get().getDefaultInstance(); player.held = player.shield;
+        syncHandPolicy(player, true);
         sync(player, true, .85, 1);
         player.input.forwardImpulse = .88F;
         check(EquipmentShieldService.isGuarding(player), "Functional offhand shield is natively ready");
         check((boolean) sprint.invoke(player), "Actual transformed LocalPlayer can begin sprint during ready guard");
+        syncHandPolicy(player, false);
+        check(!EquipmentShieldService.isGuarding(player) && !(boolean) sprint.invoke(player),
+                "Server offhand prohibition revokes shield guard and native guarded sprint");
+        syncHandPolicy(player, true);
         if ("neoforge".equals(System.getProperty("essence.guard.fixtureLoader"))) {
             Method sprintKey = Arrays.stream(LocalPlayer.class.getDeclaredMethods()).filter(m -> m.getName().contains("guardedSprintKey")).findFirst().orElseThrow();
             sprintKey.setAccessible(true);
@@ -254,6 +262,13 @@ public final class GuardMovementNativeTest {
         check(current.needsUpdate(flags, false, holders), "Disconnect/catalog replacement invalidates a later cache too");
     }
 
+    private static void syncHandPolicy(FixturePlayer player, boolean offhandUse) {
+        TwoHandedPolicyPayload.accept(player,
+                new TwoHandedEquipmentService.Decision(
+                        offhandUse ? TwoHandedEquipmentService.Status.COMPATIBLE
+                                : TwoHandedEquipmentService.Status.INCOMPATIBLE,
+                        !offhandUse, !offhandUse, offhandUse, offhandUse, 1, 1));
+    }
     private static void sync(FixturePlayer player, boolean enabled, double removal, double step) {
         var data = new CompoundTag(); data.putUUID("holder", player.getUUID()); data.putBoolean("enabled", enabled);
         data.putDouble("removal", removal); data.putDouble("step", step);
@@ -273,6 +288,13 @@ public final class GuardMovementNativeTest {
         @Override public ItemStack getUseItem() { return using ? shield : ItemStack.EMPTY; }
         @Override public InteractionHand getUsedItemHand() { return hand; }
         @Override public ItemStack getItemInHand(InteractionHand hand) { return hand == this.hand ? held : ItemStack.EMPTY; }
+        @Override public ItemStack getItemBySlot(net.minecraft.world.entity.EquipmentSlot slot) {
+            return switch (slot) {
+                case MAINHAND -> getItemInHand(InteractionHand.MAIN_HAND);
+                case OFFHAND -> getItemInHand(InteractionHand.OFF_HAND);
+                default -> super.getItemBySlot(slot);
+            };
+        }
         @Override public int getTicksUsingItem() { return readyTicks; }
         @Override public ItemCooldowns getCooldowns() { return cooldowns; }
         @Override public FoodData getFoodData() { return food; }
