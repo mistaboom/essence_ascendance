@@ -30,7 +30,9 @@ public abstract class ExplosionGuardKnockbackMixin {
 
     //? if >=26.1.2 {
     /*
-    @WrapOperation(method = "hurtEntities", at = @At(value = "INVOKE",
+    // NeoForge delegates the no-argument method to a List overload; Fabric keeps the vanilla body.
+    // Select both known signatures, but still require exactly one native damage/impulse/packet call.
+    @WrapOperation(method = {"hurtEntities()V", "hurtEntities(Ljava/util/List;)V"}, at = @At(value = "INVOKE",
             target = "Lnet/minecraft/world/entity/Entity;hurtServer(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/damagesource/DamageSource;F)Z"), require = 1, expect = 1, allow = 1)
     private boolean essenceAscendance$explosionGuardHit(Entity entity, net.minecraft.server.level.ServerLevel level, DamageSource source, float amount,
                                                        Operation<Boolean> original) {
@@ -66,7 +68,7 @@ public abstract class ExplosionGuardKnockbackMixin {
     //?}
     //? if >=26.1.2 {
     /*
-    @WrapOperation(method = "hurtEntities", at = @At(value = "INVOKE",
+    @WrapOperation(method = {"hurtEntities()V", "hurtEntities(Ljava/util/List;)V"}, at = @At(value = "INVOKE",
             target = "Lnet/minecraft/world/entity/Entity;push(Lnet/minecraft/world/phys/Vec3;)V"), require = 1, expect = 1, allow = 1)
     private void essenceAscendance$explosionGuardImpulse(Entity entity, Vec3 impulse, Operation<Void> original,
             @Local(name = "direction") Vec3 direction, @Local(name = "dist") double distance,
@@ -94,7 +96,7 @@ public abstract class ExplosionGuardKnockbackMixin {
 
     //? if >=26.1.2 {
     /*
-    @WrapOperation(method = "hurtEntities", at = @At(value = "INVOKE",
+    @WrapOperation(method = {"hurtEntities()V", "hurtEntities(Ljava/util/List;)V"}, at = @At(value = "INVOKE",
             target = "Ljava/util/Map;put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;", remap = false), require = 1, expect = 1, allow = 1)
     private Object essenceAscendance$explosionGuardPacket(Map<Object, Object> players, Object player, Object impulse,
                                                         Operation<Object> original,

@@ -6,6 +6,7 @@ def targetInputTasks = [
         'statusNativeHookShapeInvariants', 'guardNativeHookShapeInvariants',
         'vitalityDamageNativeHookShapeInvariants', 'traversalNativeHookShapeInvariants'
 ]
+if (project.targetResourceFormat == '26.1') targetInputTasks += 'explosionNativeHookSelectorInvariants'
 def siblings = rootProject.targetCatalog.targets.findAll { it.minecraft == project.targetMinecraft }.collectEntries { target ->
     [(target.loader): rootProject.project(":${target.loader}:${target.minecraft}")]
 }

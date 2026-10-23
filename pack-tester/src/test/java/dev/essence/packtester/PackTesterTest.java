@@ -164,6 +164,7 @@ public final class PackTesterTest {
         }
         check(c.instance(placeholder).status().equals("UNRESOLVED"), "Empty placeholder does not bypass ambiguous own-mod bundle refusal");
         legacyTemplates(c);
+        legacyDescriptorPointers(c);
         check(Compatibility.satisfies("13.0.11", "[13.0.11,)"), "Maven inclusive minimum");
         check(Compatibility.satisfies("1.21.1", "[1.21.1]"), "Maven exact version");
         check(!Compatibility.satisfies("1.21.2", "[1.21.1]"), "Maven exact version excludes another Minecraft release");
@@ -208,6 +209,61 @@ public final class PackTesterTest {
             if (neoforge != null) entry(zip, "META-INF/neoforge.mods.toml", neoforge);
             if (forge != null) entry(zip, "META-INF/mods.toml", forge);
         }
+    }
+    private static void legacyDescriptorPointers(Compatibility compatibility) throws Exception {
+        String active = "modLoader=\"javafml\"\nloaderVersion=\"[4,)\"\n[[mods]]\nmodId=\"ordinary_mod\"\nversion=\"1\"\n";
+        // TrimsEffects 2.1.1 ships this literal text in its inactive Forge descriptor.
+        String pointer = "neoforge.mods.toml";
+        var target = fixture("inactive Forge descriptor pointer");
+        Path archive = target.mods().resolve("descriptor-pointer.jar");
+        descriptors(archive, active, pointer);
+        check(compatibility.instance(target).status().equals("SUPPORTED"), "Resolved NeoForge identity accepts exact inactive Forge descriptor pointer");
+        var metadata = ModMetadata.read(archive, "neoforge");
+        check(metadata.mods().equals(List.of(new ModMetadata.Mod("ordinary_mod", "1", "neoforge")))
+                && metadata.required().isEmpty() && !metadata.nestedOwn(), "Inactive pointer invents no identity or dependency");
+        String hash = FilesEx.hash(archive);
+        var artifact = artifact("neoforge");
+        var deployment = new Deployment();
+        try (var lease = deployment.acquire(target)) { deployment.install(lease, target, artifact, new Cancellation(), QUIET); }
+        check(FilesEx.hash(archive).equals(hash), "Deployment preserves unrelated JAR containing inactive descriptor pointer");
+        fails(() -> ModMetadata.read(archive, "forge"), "Pointer allowance does not apply when Forge is selected");
+        fails(() -> ModMetadata.read(archive, "fabric"), "Pointer allowance does not apply when Fabric is selected");
+
+        descriptors(archive, null, pointer);
+        check(compatibility.instance(target).status().equals("UNRESOLVED"), "Pointer alone cannot establish an active mod identity");
+        descriptors(archive, pointer, null);
+        check(compatibility.instance(target).status().equals("UNRESOLVED"), "An active NeoForge descriptor cannot be a pointer");
+        for (String malformed : List.of("other.mods.toml", "META-INF/neoforge.mods.toml", pointer + "\nbroken=$invalid\n")) {
+            descriptors(archive, active, malformed);
+            check(compatibility.instance(target).status().equals("UNRESOLVED"), "Inactive pointer rejects unexpected path or trailing malformed content: " + malformed);
+        }
+        for (String unresolved : List.of(
+                active.replace("ordinary_mod", "${mod_id}"), active.replace("ordinary_mod", ""),
+                active.replace("version=\"1\"", "version=\"${mod_version}\""),
+                active.replace("version=\"1\"", "version=\"${file.jarVersion}\""),
+                active.replace("version=\"1\"", "version=\"\""), active.replace("version=\"1\"\n", ""))) {
+            descriptors(archive, unresolved, pointer);
+            check(compatibility.instance(target).status().equals("UNRESOLVED"), "Pointer requires a resolved active identity and version: " + unresolved.replace('\n', ' '));
+        }
+        descriptors(archive, active.replace("ordinary_mod", ModMetadata.OWN)
+                + "[[mods]]\nmodId=\"ordinary_mod\"\nversion=\"1\"\n", pointer);
+        check(compatibility.instance(target).status().equals("UNRESOLVED"), "Inactive pointer preserves ambiguous own-mod bundle refusal");
+        try (var lease = deployment.acquire(target)) {
+            fails(() -> deployment.install(lease, target, artifact, new Cancellation(), QUIET), "Deployment refuses own-mod bundle beside inactive pointer");
+        }
+        try (var zip = new ZipOutputStream(Files.newOutputStream(archive))) {
+            entry(zip, "META-INF/neoforge.mods.toml", active);
+            entry(zip, "META-INF/mods.toml", pointer);
+            zip.putNextEntry(new ZipEntry("META-INF/jarjar/own.jar"));
+            zip.write(Files.readAllBytes(artifact.path())); zip.closeEntry();
+        }
+        check(ModMetadata.read(archive, "neoforge").nestedOwn(), "Inactive pointer does not skip nested own-mod inspection");
+        check(compatibility.instance(target).status().equals("UNRESOLVED"), "Nested own mod beside inactive pointer blocks duplicate installation");
+        String nestedHash = FilesEx.hash(archive);
+        try (var lease = deployment.acquire(target)) {
+            fails(() -> deployment.install(lease, target, artifact, new Cancellation(), QUIET), "Deployment refuses nested own mod beside inactive pointer");
+        }
+        check(FilesEx.hash(archive).equals(nestedHash), "Refused nested bundle remains untouched");
     }
     private static void deployment() throws Exception {
         var target = fixture("safe deploy"); var artifact = artifact("neoforge");

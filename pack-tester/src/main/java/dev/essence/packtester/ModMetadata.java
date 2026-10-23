@@ -43,12 +43,14 @@ final class ModMetadata {
                 if (zip.getEntry(file) == null) continue;
                 String loader = file.contains("neoforge") ? "neoforge" : "forge";
                 String text = entry(zip, file);
-                // NeoForge archives sometimes retain an empty Forge descriptor or
-                // an unexpanded MDK template. Neither declares a real Forge identity.
+                // NeoForge archives sometimes retain an empty Forge descriptor,
+                // an unexpanded MDK template, or a filename-only pointer to the
+                // active NeoForge descriptor. None declares a real Forge identity.
                 // Keep parsing actual identities from every loader for bundle safety.
                 if (file.equals("META-INF/mods.toml")
-                        && mods.stream().anyMatch(m -> m.loader().equals("neoforge") && !m.id().contains("${"))
-                        && (text.isBlank() || selectedLoader.equals("neoforge") && legacyTemplate(text))) continue;
+                        && mods.stream().anyMatch(m -> m.loader().equals("neoforge") && resolvedIdentity(m))
+                        && (text.isBlank() || selectedLoader.equals("neoforge")
+                        && (text.strip().equals("neoforge.mods.toml") || legacyTemplate(text)))) continue;
                 var toml = parseToml(text);
                 var list = toml.getArray("mods");
                 if (list == null) throw new IOException("Missing mods table: " + jar);
@@ -74,7 +76,12 @@ final class ModMetadata {
                 try (var in = zip.getInputStream(zip.getEntry(name))) { nestedOwn |= nestedOwn(in, 0); }
             }
             return new Metadata(List.copyOf(mods), List.copyOf(required), nestedOwn);
-        } catch (RuntimeException e) { throw new IOException("Unresolved mod metadata in " + jar + ": " + e.getMessage(), e); }
+        } catch (IOException | RuntimeException e) { throw new IOException("Unresolved mod metadata in " + jar + ": " + e.getMessage(), e); }
+    }
+    private static boolean resolvedIdentity(Mod mod) {
+        return mod.id() != null && !mod.id().isBlank() && !mod.id().contains("${")
+                && mod.version() != null && !mod.version().isBlank() && !mod.version().equals("?")
+                && !mod.version().contains("${");
     }
     private static boolean nestedOwn(InputStream in, int depth) throws IOException {
         if (depth > 5) throw new IOException("Nested JAR depth exceeds safe inspection limit");

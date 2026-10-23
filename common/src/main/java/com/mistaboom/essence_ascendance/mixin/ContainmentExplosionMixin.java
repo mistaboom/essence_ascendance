@@ -78,8 +78,10 @@ public abstract class ContainmentExplosionMixin {
     //? if >=26.1.2
     /*}*/
 
+    // NeoForge can move the native calls into a hurtEntities(List) overload.
+    // Match that body as well as vanilla's no-argument body, without making the hook optional.
     //? if >=26.1.2
-    /*@WrapOperation(method = "hurtEntities", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;hurtServer(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/damagesource/DamageSource;F)Z"), require = 1)*/
+    /*@WrapOperation(method = {"hurtEntities()V", "hurtEntities(Ljava/util/List;)V"}, at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;hurtServer(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/damagesource/DamageSource;F)Z"), require = 1, expect = 1, allow = 1)*/
     //? if <26.1.2
     @WrapOperation(method = "explode", at = @At(value = "INVOKE",
             //? if <26.1.2
@@ -101,7 +103,7 @@ public abstract class ContainmentExplosionMixin {
     }
 
     //? if >=26.1.2
-    /*@WrapOperation(method = "hurtEntities", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;push(Lnet/minecraft/world/phys/Vec3;)V"), require = 1)*/
+    /*@WrapOperation(method = {"hurtEntities()V", "hurtEntities(Ljava/util/List;)V"}, at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;push(Lnet/minecraft/world/phys/Vec3;)V"), require = 1, expect = 1, allow = 1)*/
     //? if <26.1.2
     @WrapOperation(method = "explode", at = @At(value = "INVOKE",
             //? if <26.1.2

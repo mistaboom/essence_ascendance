@@ -39,6 +39,15 @@ if (project.targetResourceFormat == '26.1') {
         mainClass = 'com.mistaboom.essence_ascendance.client.GlaiveRenderContract2612Test'
         javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(project.targetJava) }
     }
+    tasks.register('explosionNativeHookSelectorInvariants', JavaExec) {
+        group = 'verification'
+        description = 'Checks compiled explosion selectors and required invocation counts against both exact native loaders.'
+        dependsOn tasks.named('testClasses')
+        classpath = sourceSets.test.runtimeClasspath
+        mainClass = 'com.mistaboom.essence_ascendance.verification.ExplosionNativeHookSelectorTest'
+        javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(project.targetJava) }
+    }
+    tasks.named('check') { dependsOn 'explosionNativeHookSelectorInvariants' }
 }
 
 // Both loaders bundle common resources; keep the launcher icon's source in branding.
@@ -531,6 +540,7 @@ if (project.targetResourceFormat == '26.1') {
         doFirst {
             def invariantMain = mainClass.orNull
             if (invariantMain != null && invariantMain.startsWith('com.mistaboom.essence_ascendance.')
+                    && invariantMain != 'com.mistaboom.essence_ascendance.verification.ExplosionNativeHookSelectorTest'
                     && invariantMain != 'com.mistaboom.essence_ascendance.verification.NativeTestLauncher2612') {
                 def invariantArgs = args.collect { it.toString() }
                 mainClass = 'com.mistaboom.essence_ascendance.verification.NativeTestLauncher2612'
